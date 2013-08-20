@@ -56,15 +56,9 @@ uses
   FRE_DBBASE,
   FRE_DBBUSINESS,
   FRE_DBTEST,
-  //FOS_DBCOREBOX_COMMON,
-//  FRE_DBMONITORING,FRE_DBCLOUDCONTROL, //EXTENSIONS
   FRE_DB_COMMON,
   FRE_DB_SYSRIGHT_CONSTANTS,
   fre_db_serverdefaults
-
- // ,fos_dbcorebox_vm_machines_mod, fre_binary_buffer,//HACK
-//  fre_db_persistance_common, //HACK
-//  fos_dbcorebox_applianceapp, fos_dbcorebox_machine, fos_artemes_common
   ;
 
 {$I fos_version_helper.inc}

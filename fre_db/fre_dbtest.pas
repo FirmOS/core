@@ -112,6 +112,7 @@ type
     function        IMI_Calendar         (const input:IFRE_DB_Object):IFRE_DB_Object;
     function        IMI_Profile          (const input:IFRE_DB_Object):IFRE_DB_Object;
     function        IMI_Dialog           (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function        IMI_RAW_DATA_FEED    (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_WELCOME_MOD }
@@ -1784,6 +1785,12 @@ end;
 function TFRE_DB_TEST_APP.IMI_Dialog(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Message','GUGUG',fdbmt_info);
+end;
+
+function TFRE_DB_TEST_APP.IMI_RAW_DATA_FEED(const input: IFRE_DB_Object): IFRE_DB_Object;
+begin
+  writeln('GOT RAW INPUT: ',input.DumpToString());
+  result := GFRE_DB_NIL_DESC;
 end;
 
 { TFRE_DB_TEST_A }
