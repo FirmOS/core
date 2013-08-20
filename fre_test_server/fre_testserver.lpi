@@ -83,7 +83,7 @@
       </SyntaxOptions>
     </Parsing>
     <CodeGeneration>
-      <TargetCPU Value="x86_64"/>
+      <TargetCPU Value="i386"/>
     </CodeGeneration>
     <Other>
       <CompilerMessages>

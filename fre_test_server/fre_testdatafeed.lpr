@@ -38,6 +38,7 @@ program fre_testdatafeed;
 }
 
 {$mode objfpc}{$H+}
+{$LIBRARYPATH /opt/local/fre/lib/}
 {$LIBRARYPATH ../fre_external/fre_ext_libs}
 
 

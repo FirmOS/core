@@ -48,88 +48,93 @@ uses Sysutils,ctypes,FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_FCOM_INTERFACES,FOS_FCOM
   {.$LINKLIB libglfw_win27_fre32.a}
 {$ENDIF}
 {$IFDEF UNIX}
-  {$IFDEF DARWIN}
-    {$IFDEF CPU64}
-      {$IFDEF FOS_DEBUG}
-        {$linklib libcrypto_fos64_darwin_deb.a}
-        {$linklib libssl_fos64_darwin_deb.a}
+  {$IFDEF FOS_LINK_STATIC}
+    {$IFDEF DARWIN}
+      {$IFDEF CPU64}
+        {$IFDEF FOS_DEBUG}
+          {$linklib libcrypto_fos64_darwin_deb.a}
+          {$linklib libssl_fos64_darwin_deb.a}
+        {$ELSE}
+          {$linklib libcrypto_fos64_darwin_rel.a}
+          {$linklib libssl_fos64_darwin_rel.a}
+        {$ENDIF}
       {$ELSE}
-        {$linklib libcrypto_fos64_darwin_rel.a}
-        {$linklib libssl_fos64_darwin_rel.a}
+        {$IFDEF FOS_DEBUG}
+          {$linklib libcrypto_fos32_darwin_deb.a}
+          {$linklib libssl_fos32_darwin_deb.a}
+        {$ELSE}
+          {$linklib libcrypto_fos32_darwin_rel.a}
+          {$linklib libssl_fos32_darwin_rel.a}
+        {$ENDIF}
       {$ENDIF}
     {$ELSE}
-      {$IFDEF FOS_DEBUG}
-        {$linklib libcrypto_fos32_darwin_deb.a}
-        {$linklib libssl_fos32_darwin_deb.a}
+      {$IFDEF FREEBSD}
+        {$IFDEF CPU64}
+          {$IFDEF FOS_DEBUG}
+            {$linklib libcrypto_fos64_freebsd_deb.a}
+            {$linklib libssl_fos64_freebsd_deb.a}
+          {$ELSE}
+            {$linklib libcrypto_fos64_freebsd_rel.a}
+            {$linklib libssl_fos64_freebsd_rel.a}
+          {$ENDIF}
+        {$ELSE}
+          {$IFDEF FOS_DEBUG}
+            {$linklib libcrypto_fos32_freebsd_deb.a}
+            {$linklib libssl_fos32_freebsd_deb.a}
+          {$ELSE}
+            {$linklib libcrypto_fos32_freebsd_rel.a}
+            {$linklib libssl_fos32_freebsd_rel.a}
+          {$ENDIF}
+        {$ENDIF}
       {$ELSE}
-        {$linklib libcrypto_fos32_darwin_rel.a}
-        {$linklib libssl_fos32_darwin_rel.a}
+        {$IFDEF SOLARIS}
+          {$IFDEF CPU64}
+            {$IFDEF FOS_DEBUG}
+              {$linklib libcrypto_fos64_solaris_deb.a}
+              {$linklib libssl_fos64_solaris_deb.a}
+            {$ELSE}
+              {$linklib libcrypto_fos64_solaris_rel.a}
+              {$linklib libssl_fos64_solaris_rel.a}
+            {$ENDIF}
+          {$ELSE}
+            {$IFDEF FOS_DEBUG}
+              {$linklib libcrypto_fos32_solaris_deb.a}
+              {$linklib libssl_fos32_solaris_deb.a}
+            {$ELSE}
+              {$linklib libcrypto_fos32_solaris_rel.a}
+              {$linklib libssl_fos32_solaris_rel.a}
+            {$ENDIF}
+          {$ENDIF}
+        {$ELSE}
+          {$IFDEF LINUX}
+            {$IFDEF CPU64}
+              {$IFDEF FOS_DEBUG}
+                {$linklib libcrypto_fos64_linux_deb.a}
+                {$linklib libssl_fos64_linux_deb.a}
+              {$ELSE}
+                {$linklib libcrypto_fos64_linux_rel.a}
+                {$linklib libssl_fos64_linux_rel.a}
+              {$ENDIF}
+            {$ELSE}
+              {$IFDEF FOS_DEBUG}
+                {$linklib libcrypto_fos32_linux_deb.a}
+                {$linklib libssl_fos32_linux_deb.a}
+              {$ELSE}
+                {$linklib libgcc_fos32_44_linux.a} // __umoddi3
+                {$linklib libcrypto_fos32_linux_rel.a}
+                {$linklib libssl_fos32_linux_rel.a}
+              {$ENDIF}
+            {$ENDIF}
+          {$ELSE}
+            {$ABORT UNDEFINED PLATFORM}
+          {$ENDIF}
+        {$ENDIF}
       {$ENDIF}
     {$ENDIF}
   {$ELSE}
-    {$IFDEF FREEBSD}
-      {$IFDEF CPU64}
-        {$IFDEF FOS_DEBUG}
-          {$linklib libcrypto_fos64_freebsd_deb.a}
-          {$linklib libssl_fos64_freebsd_deb.a}
-        {$ELSE}
-          {$linklib libcrypto_fos64_freebsd_rel.a}
-          {$linklib libssl_fos64_freebsd_rel.a}
-        {$ENDIF}
-      {$ELSE}
-        {$IFDEF FOS_DEBUG}
-          {$linklib libcrypto_fos32_freebsd_deb.a}
-          {$linklib libssl_fos32_freebsd_deb.a}
-        {$ELSE}
-          {$linklib libcrypto_fos32_freebsd_rel.a}
-          {$linklib libssl_fos32_freebsd_rel.a}
-        {$ENDIF}
-      {$ENDIF}
-    {$ELSE}
-      {$IFDEF SOLARIS}
-        {$IFDEF CPU64}
-          {$IFDEF FOS_DEBUG}
-            {$linklib libcrypto_fos64_solaris_deb.a}
-            {$linklib libssl_fos64_solaris_deb.a}
-          {$ELSE}
-            {$linklib libcrypto_fos64_solaris_rel.a}
-            {$linklib libssl_fos64_solaris_rel.a}
-          {$ENDIF}
-        {$ELSE}
-          {$IFDEF FOS_DEBUG}
-            {$linklib libcrypto_fos32_solaris_deb.a}
-            {$linklib libssl_fos32_solaris_deb.a}
-          {$ELSE}
-            {$linklib libcrypto_fos32_solaris_rel.a}
-            {$linklib libssl_fos32_solaris_rel.a}
-          {$ENDIF}
-        {$ENDIF}
-      {$ELSE}
-        {$IFDEF LINUX}
-          {$IFDEF CPU64}
-            {$IFDEF FOS_DEBUG}
-              {$linklib libcrypto_fos64_linux_deb.a}
-              {$linklib libssl_fos64_linux_deb.a}
-            {$ELSE}
-              {$linklib libcrypto_fos64_linux_rel.a}
-              {$linklib libssl_fos64_linux_rel.a}
-            {$ENDIF}
-          {$ELSE}
-            {$IFDEF FOS_DEBUG}
-              {$linklib libcrypto_fos32_linux_deb.a}
-              {$linklib libssl_fos32_linux_deb.a}
-            {$ELSE}
-              {$linklib libgcc_fos32_44_linux.a} // __umoddi3
-              {$linklib libcrypto_fos32_linux_rel.a}
-              {$linklib libssl_fos32_linux_rel.a}
-            {$ENDIF}
-          {$ENDIF}
-        {$ELSE}
-          {$ABORT UNDEFINED PLATFORM}
-        {$ENDIF}
-      {$ENDIF}
-    {$ENDIF}
-  {$ENDIF}
+    {$linklib libssl.1.0.0}
+    {$linklib libcrypto.1.0.0}
+  {$ENDIF FOS_LINK_STATIC}
 {$ENDIF}
 
 
