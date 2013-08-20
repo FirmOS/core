@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM
+"/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+ 
+<service_bundle type='manifest' name='firmos:fretestdatafeed'>
+<service
+ 	name='firmos/fretestdatafeed'
+	type='service'
+	version='1'>
+  
+<create_default_instance enabled='true'/>
+<single_instance/>
+<dependency name='net-loopback' grouping='require_any'
+        restart_on='none' type='service'>
+        <service_fmri value='svc:/network/loopback'/>
+</dependency>
+<dependency name='net-service'
+        grouping='require_all' restart_on='none'
+        type='service'>
+        <service_fmri value='svc:/network/service'/>
+</dependency>
+<dependency name='net-physical'
+        grouping='require_all'
+        restart_on='none' type='service'>
+        <service_fmri value='svc:/network/physical'/>
+</dependency>
+<dependency
+        name='filesystem-local'
+        grouping='require_all'
+        restart_on='none'
+        type='service'>
+        <service_fmri value='svc:/system/filesystem/local'/>
+</dependency>
+              
+<exec_method
+    type='method'
+    name='start'
+    exec='/zones/firmos/fre_testdatafeed -u feeder@system -p a1234'
+    timeout_seconds='0'>
+    <method_context working_directory='/zones/firmos'>
+    </method_context>
+</exec_method>
+      
+<exec_method
+    type='method'
+    name='stop'
+    exec=":kill -TERM" 
+    timeout_seconds='30'>
+</exec_method>
+       
+<property_group name='startd' type='framework'>
+ <propval name='duration' type='astring' value='child' />
+</property_group>
+
+        
+<stability value='Unstable' />
+         
+</service>
+</service_bundle>

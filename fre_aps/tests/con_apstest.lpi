@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+    </General>
+    <VersionInfo>
+      <Language Value=""/>
+      <CharSet Value=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IgnoreBinaries Value="False"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|ppw|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <CommandLineParams Value="CLIENT"/>
+        <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <Units Count="5">
+      <Unit0>
+        <Filename Value="con_apstest.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="con_apstest"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="FRE_APS_INTERFACE.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FRE_APS_INTERFACE"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="fre_aps_test.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_aps_test"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="../../fre.jsonrest/FRE_REST_SERVER.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FRE_REST_SERVER"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="../fre_libevent_core.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FRE_LIBEVENT_CORE"/>
+      </Unit4>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <Libraries Value="../../fre_external/fre_ext_libs"/>
+      <OtherUnitFiles Value="..;../../fre_fcom;../../fre_core;../../fre_db;../../fos_interfaces"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <IncludeAssertionCode Value="True"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <TargetCPU Value="i386"/>
+      <Optimizations>
+        <OptimizationLevel Value="0"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsStabs"/>
+        <UseHeaptrc Value="True"/>
+      </Debugging>
+    </Linking>
+    <Other>
+      <ConfigFile>
+        <StopAfterErrCount Value="2"/>
+      </ConfigFile>
+      <CompilerMessages>
+        <UseMsgFile Value="True"/>
+      </CompilerMessages>
+      <CustomOptions Value="-WM10.6"/>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+</CONFIG>

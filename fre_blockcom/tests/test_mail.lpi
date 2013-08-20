@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <SessionStorage Value="InIDEConfig"/>
+      <MainUnit Value="0"/>
+      <Title Value="test_mail"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+    </General>
+    <i18n>
+      <EnableI18N LFM="False"/>
+    </i18n>
+    <VersionInfo>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <CommandLineParams Value="-a"/>
+        <WorkingDirectory Value="/Users/schramml/pascal/fos.git/fre.git/fre_core/tests"/>
+      </local>
+    </RunParams>
+    <Units Count="8">
+      <Unit0>
+        <Filename Value="test_mail.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_mail"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="../../fre_core/fre_process.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FRE_PROCESS"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="../../fre_core/tests/fre_process_testsuite.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_process_testsuite"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="../../fre_monsys/fre_testmethod.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_testmethod"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="../../fre_monsys/fre_tester_testsuite.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_tester_testsuite"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="../../fre_hal/FRE_ZFS.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FRE_ZFS"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="fre_mail_testsuite.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_mail_testsuite"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="../fre_mail.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_mail"/>
+      </Unit7>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="../../fre_core;../../fre_db;../../fre_fcom;../../fre_aps;../../fre_monsys;../../fre_jsonrest;../../fre_external;../../fre_server;../../fre_hal;../../fos_interfaces;..;../../fre_external/synapse"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Other>
+      <CompilerMessages>
+        <MsgFileName Value=""/>
+      </CompilerMessages>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+        <Enabled Value="False"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+        <Enabled Value="False"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+        <Enabled Value="False"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

@@ -1,0 +1,375 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <PathDelim Value="\"/>
+    <General>
+      <MainUnit Value="0"/>
+      <Title Value="test_nps"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <ActiveWindowIndexAtStart Value="0"/>
+    </General>
+    <VersionInfo>
+      <Language Value=""/>
+      <CharSet Value=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IgnoreBinaries Value="False"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|ppw|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <LaunchingApplication PathPlusParams="\usr\X11R6\bin\xterm -T 'Lazarus Run Output' -e $(LazarusDir)\tools\runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <Units Count="18">
+      <Unit0>
+        <Filename Value="test_nps.dpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_nps"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="0"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="9"/>
+        <UsageCount Value="333"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="test_fos_nps.pas"/>
+        <UnitName Value="test_fos_nps"/>
+        <EditorIndex Value="6"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="17"/>
+        <CursorPos X="11" Y="44"/>
+        <UsageCount Value="165"/>
+        <Bookmarks Count="2">
+          <Item0 X="24" Y="284" ID="5"/>
+          <Item1 X="5" Y="129" ID="9"/>
+        </Bookmarks>
+        <Loaded Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="..\FOS_BASIS_TOOLS.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FOS_BASIS_TOOLS"/>
+        <EditorIndex Value="1"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="23"/>
+        <CursorPos X="45" Y="42"/>
+        <UsageCount Value="333"/>
+        <Loaded Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="..\FOS_TOOL_INTERFACES.pas"/>
+        <UnitName Value="FOS_TOOL_INTERFACES"/>
+        <EditorIndex Value="3"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="45"/>
+        <CursorPos X="91" Y="59"/>
+        <UsageCount Value="166"/>
+        <Loaded Value="True"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <UnitName Value="FOS_NPS"/>
+        <EditorIndex Value="7"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="150"/>
+        <CursorPos X="1" Y="159"/>
+        <UsageCount Value="166"/>
+        <Bookmarks Count="5">
+          <Item0 X="69" Y="1536" ID="2"/>
+          <Item1 X="45" Y="1244" ID="3"/>
+          <Item2 X="32" Y="749" ID="4"/>
+          <Item3 X="90" Y="376" ID="6"/>
+          <Item4 X="61" Y="2160" ID="1"/>
+        </Bookmarks>
+        <Loaded Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="..\fos_switches.inc"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="26"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="..\FOS_FILE_LOGGER.pas"/>
+        <UnitName Value="FOS_FILE_LOGGER"/>
+        <TopLine Value="1"/>
+        <CursorPos X="13" Y="5"/>
+        <UsageCount Value="142"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="..\..\..\fpc-2.4.0\rtl\objpas\classes\classesh.inc"/>
+        <TopLine Value="700"/>
+        <CursorPos X="14" Y="726"/>
+        <UsageCount Value="21"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="..\..\..\fpc-2.4.0\rtl\objpas\classes\intf.inc"/>
+        <TopLine Value="156"/>
+        <CursorPos X="9" Y="158"/>
+        <UsageCount Value="20"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <UnitName Value="FOS_INTERLOCKED"/>
+        <EditorIndex Value="4"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="28" Y="23"/>
+        <UsageCount Value="117"/>
+        <Loaded Value="True"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="..\..\..\fpc-2.4.0\packages\paszlib\src\paszlib.pas"/>
+        <UnitName Value="paszlib"/>
+        <TopLine Value="113"/>
+        <CursorPos X="5" Y="119"/>
+        <UsageCount Value="14"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="..\..\..\fpc-2.4.0\rtl\objpas\objpas.pp"/>
+        <UnitName Value="objpas"/>
+        <TopLine Value="26"/>
+        <CursorPos X="8" Y="32"/>
+        <UsageCount Value="14"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="..\FOS_TOOL_FACTORY.pas"/>
+        <UnitName Value="FOS_TOOL_FACTORY"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="53"/>
+        <CursorPos X="52" Y="59"/>
+        <UsageCount Value="87"/>
+        <Loaded Value="True"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="..\FOS_REDBLACKTREE_GEN.pas"/>
+        <UnitName Value="FOS_REDBLACKTREE_GEN"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="10"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="..\FOS_CPU_TOOLS.pas"/>
+        <UnitName Value="FOS_CPU_TOOLS"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="176"/>
+        <CursorPos X="14" Y="217"/>
+        <UsageCount Value="84"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="..\..\..\fpc-2.4.0\packages\paszlib\src\zstream.pp"/>
+        <UnitName Value="zstream"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="144"/>
+        <CursorPos X="3" Y="151"/>
+        <UsageCount Value="83"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="..\FOS_DEFAULT_IMPLEMENTATION.pas"/>
+        <UnitName Value="FOS_DEFAULT_IMPLEMENTATION"/>
+        <EditorIndex Value="5"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="80"/>
+        <Loaded Value="True"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="..\..\..\fpc\packages\paszlib\src\zipper.pp"/>
+        <UnitName Value="zipper"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="661"/>
+        <CursorPos X="55" Y="680"/>
+        <UsageCount Value="79"/>
+      </Unit17>
+    </Units>
+    <JumpHistory Count="26" HistoryIndex="25">
+      <Position1>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="80" Column="1" TopLine="54"/>
+      </Position1>
+      <Position2>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="296" Column="1" TopLine="264"/>
+      </Position2>
+      <Position3>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="12" Column="37" TopLine="1"/>
+      </Position3>
+      <Position4>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="304" Column="28" TopLine="265"/>
+      </Position4>
+      <Position5>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="12" Column="35" TopLine="1"/>
+      </Position5>
+      <Position6>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="304" Column="30" TopLine="265"/>
+      </Position6>
+      <Position7>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="14" Column="3" TopLine="1"/>
+      </Position7>
+      <Position8>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="17" Column="27" TopLine="1"/>
+      </Position8>
+      <Position9>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <Caret Line="326" Column="1" TopLine="269"/>
+      </Position9>
+      <Position10>
+        <Filename Value="test_nps.dpr"/>
+        <Caret Line="16" Column="5" TopLine="1"/>
+      </Position10>
+      <Position11>
+        <Filename Value="test_fos_nps.pas"/>
+        <Caret Line="44" Column="11" TopLine="17"/>
+      </Position11>
+      <Position12>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position12>
+      <Position13>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="67" Column="48" TopLine="20"/>
+      </Position13>
+      <Position14>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="115" Column="114" TopLine="68"/>
+      </Position14>
+      <Position15>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="126" Column="34" TopLine="79"/>
+      </Position15>
+      <Position16>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="133" Column="36" TopLine="86"/>
+      </Position16>
+      <Position17>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="316" Column="42" TopLine="269"/>
+      </Position17>
+      <Position18>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="334" Column="50" TopLine="287"/>
+      </Position18>
+      <Position19>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="352" Column="42" TopLine="305"/>
+      </Position19>
+      <Position20>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="354" Column="42" TopLine="307"/>
+      </Position20>
+      <Position21>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="379" Column="42" TopLine="332"/>
+      </Position21>
+      <Position22>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="1316" Column="21" TopLine="1269"/>
+      </Position22>
+      <Position23>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <Caret Line="1323" Column="21" TopLine="1300"/>
+      </Position23>
+      <Position24>
+        <Filename Value="..\FOS_BASIS_TOOLS.pas"/>
+        <Caret Line="2865" Column="12" TopLine="2864"/>
+      </Position24>
+      <Position25>
+        <Filename Value="..\FOS_BASIS_TOOLS.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position25>
+      <Position26>
+        <Filename Value="..\FOS_BASIS_TOOLS.pas"/>
+        <Caret Line="41" Column="1" TopLine="10"/>
+      </Position26>
+    </JumpHistory>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <SearchPaths>
+      <IncludeFiles Value="..;..\..;$(ProjOutDir)"/>
+      <OtherUnitFiles Value="..;..\..\fre_aps;..\..\fre_core;..\..\fre_fcom;..\..\fre_db"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <CStyleOperator Value="False"/>
+        <UseAnsiStrings Value="False"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <Checks>
+        <IOChecks Value="True"/>
+        <RangeChecks Value="True"/>
+        <OverflowChecks Value="True"/>
+        <StackChecks Value="True"/>
+      </Checks>
+      <TargetCPU Value="x86_64"/>
+      <Optimizations>
+        <OptimizationLevel Value="0"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf2Set"/>
+        <UseHeaptrc Value="True"/>
+      </Debugging>
+    </Linking>
+    <Other>
+      <CompilerMessages>
+        <UseMsgFile Value="True"/>
+      </CompilerMessages>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Watches Count="5">
+      <Item1>
+        <Expression Value="val"/>
+      </Item1>
+      <Item2>
+        <Expression Value="pt"/>
+      </Item2>
+      <Item3>
+        <Expression Value="str"/>
+      </Item3>
+      <Item4>
+        <Expression Value="len"/>
+      </Item4>
+      <Item5>
+        <Expression Value="name"/>
+      </Item5>
+    </Watches>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

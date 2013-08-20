@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+      </Flags>
+      <SessionStorage Value="InIDEConfig"/>
+      <MainUnit Value="0"/>
+      <Title Value="FirmOS Testserver"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+    </General>
+    <i18n>
+      <EnableI18N LFM="False"/>
+    </i18n>
+    <VersionInfo>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <CommandLineParams Value="-e COREBOX -U root -H 10.220.251.10 -u admin1@system -p a1234 -D"/>
+      </local>
+    </RunParams>
+    <Units Count="6">
+      <Unit0>
+        <Filename Value="fre_testserver.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_testserver"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="../fre_apps/fre_db_bbb_mod.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_db_bbb_mod"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="../fre_apps/fre_db_bbbapp.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_db_bbbapp"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="../fre_core/fre_binary_buffer.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_binary_buffer"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="../fre_db/fre_db_persistance_common.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_db_persistance_common"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="../fos_corebox/fos_dbcorebox_machine.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fos_dbcorebox_machine"/>
+      </Unit5>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="fre_testserver"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="../fos_include;$(ProjOutDir)"/>
+      <OtherUnitFiles Value="..;../fre_hal;../fre_db/create_cc_db;../fre_aps;../fre_core;../fre_fcom;../fre_blockcom;../fre_db;../fre_bullet;../fre_external;../fre_server;../fre_monsys;../fos_interfaces;../fre_apps;../fre_external/synapse;../fos_corebox;../fos_corebox/common;../fos_artemes"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Conditionals Value="if TargetOS = 'darwin' then
+   CustomOptions := '-WM10.6';"/>
+    <Parsing>
+      <SyntaxOptions>
+        <IncludeAssertionCode Value="True"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <TargetCPU Value="x86_64"/>
+    </CodeGeneration>
+    <Other>
+      <CompilerMessages>
+        <MsgFileName Value=""/>
+      </CompilerMessages>
+      <CustomOptions Value="-CfSSE3"/>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+        <Enabled Value="False"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

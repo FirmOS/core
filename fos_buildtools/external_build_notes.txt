@@ -1,0 +1,30 @@
+Libevent on OSX:
+To check for 32/64 Bits: nm .libs/libevent.a -> Long/Short Numbers
+Note: Libevent on OSX does not obey the target config settings
+32 Bit Build:
+export CFLAGS=-m32
+export CPPFLAGS=-m32
+./configure 
+make
+cp .libs/libevent.a ../fre_master.git/fre_external/mac/libevent_fos32_2021_osx.a
+
+64 Bits:
+export CFLAGS=
+export CPPFLAGS=
+./configure 
+make
+cp .libs/libevent.a ../fre_master.git/fre_external/mac/libevent_fos64_2021_osx.a
+
+OpenSSL on OSX
+
+32 Bits:
+./Configure darwin-i386-cc
+make
+cp libssl.a ../fre_master.git/fre_external/mac/libssl_fos32_101c_osx.a
+cp libcrypto.a ../fre_master.git/fre_external/mac/libcrypto_fos32_101c_osx.a
+
+64 Bits:
+./Configure darwin-x86_64-cc
+make
+cp libssl.a ../fre_master.git/fre_external/mac/libssl_fos64_101c_osx.a
+cp libcrypto.a ../fre_master.git/fre_external/mac/libcrypto_fos64_101c_osx.a

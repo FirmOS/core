@@ -1,0 +1,123 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <SessionStorage Value="InIDEConfig"/>
+      <MainUnit Value="0"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+    </General>
+    <i18n>
+      <EnableI18N LFM="False"/>
+    </i18n>
+    <VersionInfo>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <CommandLineParams Value="connectsys"/>
+        <LaunchingApplication PathPlusParams="/usr/local/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <Units Count="8">
+      <Unit0>
+        <Filename Value="con_db_test.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="con_db_test"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="db_unittest.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="db_unittest"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="../../fre_core/FOS_TOOL_INTERFACES.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FOS_TOOL_INTERFACES"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="../../fre_bullet/LinearMath/FOS_AlignedArray.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FOS_AlignedArray"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="../../deprecated_fre_script/deprecated_fre_ps_import_db.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="deprecated_fre_ps_import_db"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="../fre_db_persistance_fs_simple.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FRE_DB_PERSISTANCE_FS_SIMPLE"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="../FRE_DB_PERSISTANCE_FS_BLOCKS.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FRE_DB_PERSISTANCE_FS_BLOCKS"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="../FRE_DB_INTERFACE.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FRE_DB_INTERFACE"/>
+      </Unit7>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <Libraries Value="../../fre_external/mac;../../fre_external/win;../../fre_external/linux;../../fre_external/freebsd"/>
+      <OtherUnitFiles Value="..;../../fre_core;../../fre_bullet;../../fre_fcom;../../fre_aps;../../fre_external;../../fos_interfaces;../../fre_jsonrest"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <IncludeAssertionCode Value="True"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <Optimizations>
+        <OptimizationLevel Value="0"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsStabs"/>
+      </Debugging>
+    </Linking>
+    <Other>
+      <CompilerMessages>
+        <UseMsgFile Value="True"/>
+      </CompilerMessages>
+      <CustomOptions Value="-WM10.6"/>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

@@ -1,0 +1,319 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <MainUnit Value="0"/>
+      <Title Value="test_file_logger"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <ActiveWindowIndexAtStart Value="0"/>
+    </General>
+    <VersionInfo>
+      <Language Value=""/>
+      <CharSet Value=""/>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IgnoreBinaries Value="False"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|ppw|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <Units Count="23">
+      <Unit0>
+        <Filename Value="test_file_logger.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_file_logger"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="0"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="20"/>
+        <CursorPos X="1" Y="43"/>
+        <UsageCount Value="209"/>
+        <Bookmarks Count="1">
+          <Item0 X="106" Y="52" ID="1"/>
+        </Bookmarks>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="../FOS_FILE_LOGGER.pas"/>
+        <UnitName Value="FOS_FILE_LOGGER"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="263"/>
+        <CursorPos X="1" Y="295"/>
+        <UsageCount Value="153"/>
+        <Bookmarks Count="4">
+          <Item0 X="1" Y="567" ID="0"/>
+          <Item1 X="2" Y="314" ID="5"/>
+          <Item2 X="1" Y="159" ID="6"/>
+          <Item3 X="7" Y="472" ID="3"/>
+        </Bookmarks>
+      </Unit1>
+      <Unit2>
+        <Filename Value="../FOS_LFQ.pas"/>
+        <UnitName Value="FOS_LFQ"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="28"/>
+        <CursorPos X="6" Y="52"/>
+        <UsageCount Value="36"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="../FOS_TOOL_INTERFACES.pas"/>
+        <UnitName Value="FOS_TOOL_INTERFACES"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="88"/>
+        <CursorPos X="43" Y="65"/>
+        <UsageCount Value="156"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="../../../fpc-2.4.0/rtl/inc/objpash.inc"/>
+        <TopLine Value="230"/>
+        <CursorPos X="8" Y="258"/>
+        <UsageCount Value="4"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="../fos_default_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FOS_DEFAULT_IMPLEMENTATION"/>
+        <EditorIndex Value="3"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="5"/>
+        <CursorPos X="1" Y="39"/>
+        <UsageCount Value="300"/>
+        <Loaded Value="True"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="../FOS_TOOL_FACTORY.pas"/>
+        <UnitName Value="FOS_TOOL_FACTORY"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="120" Y="11"/>
+        <UsageCount Value="40"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="../FOS_NPS.pas"/>
+        <UnitName Value="FOS_NPS"/>
+        <TopLine Value="96"/>
+        <CursorPos X="17" Y="172"/>
+        <UsageCount Value="144"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="../FOS_REDBLACKTREE_GEN.pas"/>
+        <UnitName Value="FOS_REDBLACKTREE_GEN"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="109"/>
+        <CursorPos X="19" Y="138"/>
+        <UsageCount Value="36"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="../../../fpc-2.4.0/rtl/objpas/fgl.pp"/>
+        <UnitName Value="fgl"/>
+        <TopLine Value="211"/>
+        <CursorPos X="11" Y="227"/>
+        <UsageCount Value="1"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="../FOS_INTERLOCKED.pas"/>
+        <UnitName Value="FOS_INTERLOCKED"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="241"/>
+        <CursorPos X="2" Y="259"/>
+        <UsageCount Value="35"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="../FOS_NULL_LOGGER.pas"/>
+        <UnitName Value="FOS_NULL_LOGGER"/>
+        <TopLine Value="29"/>
+        <CursorPos X="3" Y="31"/>
+        <UsageCount Value="4"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="../FOS_BASIS_TOOLS.pas"/>
+        <UnitName Value="FOS_BASIS_TOOLS"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="47"/>
+        <CursorPos X="3" Y="48"/>
+        <UsageCount Value="124"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="../../../fpc-2.4.0/rtl/objpas/sysutils/sysutilh.inc"/>
+        <TopLine Value="179"/>
+        <CursorPos X="19" Y="203"/>
+        <UsageCount Value="28"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="../../../fpc-2.4.0/rtl/inc/objpas.inc"/>
+        <TopLine Value="757"/>
+        <CursorPos X="10" Y="760"/>
+        <UsageCount Value="4"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="../FOS_TIMING.pas"/>
+        <UnitName Value="FOS_TIMING"/>
+        <TopLine Value="45"/>
+        <CursorPos X="18" Y="250"/>
+        <UsageCount Value="4"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="../../../fpc/packages/winunits-jedi/src/jwawinbase.pas"/>
+        <UnitName Value="JwaWinBase"/>
+        <TopLine Value="1"/>
+        <CursorPos X="44" Y="6188"/>
+        <UsageCount Value="4"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="../../../../../fpcsrc/fpc/packages/syslog/src/systemlog.pp"/>
+        <UnitName Value="systemlog"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="25"/>
+        <CursorPos X="35" Y="44"/>
+        <UsageCount Value="40"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="../../../../bzr_fpc/trunk/packages/fcl-base/src/eventlog.pp"/>
+        <UnitName Value="eventlog"/>
+        <EditorIndex Value="1"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="271"/>
+        <CursorPos X="21" Y="295"/>
+        <UsageCount Value="41"/>
+        <Loaded Value="True"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="../../../../bzr_fpc/trunk/packages/fcl-base/src/unix/eventlog.inc"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="54"/>
+        <CursorPos X="42" Y="89"/>
+        <UsageCount Value="41"/>
+        <Loaded Value="True"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="../../../../../fpcsrc/fpc/rtl/objpas/classes/classesh.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1472"/>
+        <CursorPos X="3" Y="1502"/>
+        <UsageCount Value="36"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="../../fre_db/FRE_DB_INTERFACE.pas"/>
+        <UnitName Value="FRE_DB_INTERFACE"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="33"/>
+        <CursorPos X="1" Y="67"/>
+        <UsageCount Value="15"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="../../../../../fpcsrc/fpc/rtl/objpas/sysutils/sysutilh.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="236"/>
+        <CursorPos X="3" Y="261"/>
+        <UsageCount Value="14"/>
+      </Unit22>
+    </Units>
+    <JumpHistory Count="10" HistoryIndex="9">
+      <Position1>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="63" Column="1" TopLine="57"/>
+      </Position1>
+      <Position2>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="63" Column="1" TopLine="43"/>
+      </Position2>
+      <Position3>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="97" Column="1" TopLine="77"/>
+      </Position3>
+      <Position4>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="98" Column="1" TopLine="77"/>
+      </Position4>
+      <Position5>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="99" Column="6" TopLine="83"/>
+      </Position5>
+      <Position6>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="63" Column="1" TopLine="43"/>
+      </Position6>
+      <Position7>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="99" Column="1" TopLine="79"/>
+      </Position7>
+      <Position8>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="121" Column="1" TopLine="83"/>
+      </Position8>
+      <Position9>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="98" Column="1" TopLine="82"/>
+      </Position9>
+      <Position10>
+        <Filename Value="test_file_logger.lpr"/>
+        <Caret Line="120" Column="1" TopLine="82"/>
+      </Position10>
+    </JumpHistory>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <Libraries Value="../../fre_external/mac;../../fre_external/win;../../fre_external/linux;../../fre_external/freebsd;../../fre_external/illumos"/>
+      <OtherUnitFiles Value="..;../../fre_hal;../../fre_db/create_cc_db;../../fre_aps;../../fre_core;../../fre_fcom;../../fre_script;../../fre_script/source;../../fre_db;../../fre_bullet;../../fre_external;../../fre_server"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsStabs"/>
+      </Debugging>
+    </Linking>
+    <Other>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <BreakPoints Count="2">
+      <Item1>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="test_file_logger.lpr"/>
+        <Line Value="97"/>
+      </Item1>
+      <Item2>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="../FOS_FILE_LOGGER.pas"/>
+        <Line Value="279"/>
+      </Item2>
+    </BreakPoints>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

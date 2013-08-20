@@ -1,0 +1,15 @@
+*~
+.DS_Store
+*.bak
+*.o
+*.ppu
+*.lps
+*.rst
+units/
+fos_bin/
+fos_pkg/
+bin/
+fpmake_packages
+fpmake_products
+fpmake_test
+full_build_log.txt

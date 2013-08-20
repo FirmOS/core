@@ -1,0 +1,415 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <Flags>
+        <MainUnitHasUsesSectionForAllUnits Value="False"/>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <MainUnit Value="0"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+      <ActiveWindowIndexAtStart Value="0"/>
+    </General>
+    <VersionInfo>
+      <Language Value=""/>
+      <CharSet Value=""/>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IgnoreBinaries Value="False"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|ppw|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <Units Count="31">
+      <Unit0>
+        <Filename Value="test_basis_tools.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_basis_tools"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="0"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="13" Y="22"/>
+        <UsageCount Value="106"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="../FOS_TOOL_FACTORY.pas"/>
+        <UnitName Value="FOS_TOOL_FACTORY"/>
+        <TopLine Value="253"/>
+        <CursorPos X="7" Y="293"/>
+        <UsageCount Value="24"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="../FOS_TOOL_INTERFACES.pas"/>
+        <UnitName Value="FOS_TOOL_INTERFACES"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="403"/>
+        <CursorPos X="1" Y="524"/>
+        <UsageCount Value="53"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="../FOS_FCOM_DEFAULT.pas"/>
+        <UnitName Value="FOS_FCOM_DEFAULT"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="6"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <UnitName Value="fos_basis_tools"/>
+        <EditorIndex Value="1"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="19"/>
+        <CursorPos X="99" Y="102"/>
+        <UsageCount Value="53"/>
+        <Bookmarks Count="2">
+          <Item0 X="1" Y="2613" ID="2"/>
+          <Item1 X="156" Y="90" ID="3"/>
+        </Bookmarks>
+        <Loaded Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="../../../svn_fos/trunk/flexcom/fos_code.pas"/>
+        <UnitName Value="fos_code"/>
+        <TopLine Value="995"/>
+        <CursorPos X="1" Y="1021"/>
+        <UsageCount Value="24"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="../../../svn_fos/trunk/flexcom/fospropstore.pas"/>
+        <UnitName Value="fospropstore"/>
+        <TopLine Value="1360"/>
+        <CursorPos X="1" Y="1367"/>
+        <UsageCount Value="32"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="../../../svn_fos/trunk/flexcom/fosconvutils.pas"/>
+        <UnitName Value="fosconvutils"/>
+        <TopLine Value="523"/>
+        <CursorPos X="4" Y="534"/>
+        <UsageCount Value="24"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="../FOS_TIMING.pas"/>
+        <UnitName Value="FOS_TIMING"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="341"/>
+        <CursorPos X="6" Y="360"/>
+        <UsageCount Value="43"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="UnitIF_TestB.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitIF_TestB"/>
+        <TopLine Value="1"/>
+        <CursorPos X="22" Y="15"/>
+        <UsageCount Value="106"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="UnitIF_TestC.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitIF_TestC"/>
+        <TopLine Value="1"/>
+        <CursorPos X="128" Y="6"/>
+        <UsageCount Value="106"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="iftest.pas"/>
+        <UnitName Value="iftest"/>
+        <TopLine Value="1"/>
+        <CursorPos X="6" Y="3"/>
+        <UsageCount Value="2"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="../../../lazarus/fpc/2.2.5/source/rtl/objpas/sysutils/sysstrh.inc"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="24"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="../../../lazarus/fpc/2.2.5/source/rtl/objpas/sysutils/sysstr.inc"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="24"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="../FOS_FCOM_TYPES.pas"/>
+        <UnitName Value="FOS_FCOM_TYPES"/>
+        <TopLine Value="115"/>
+        <CursorPos X="84" Y="121"/>
+        <UsageCount Value="41"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="../../../lazarus/fpc/2.2.5/source/packages/paszlib/src/zstream.pp"/>
+        <UnitName Value="zstream"/>
+        <TopLine Value="91"/>
+        <CursorPos X="58" Y="14"/>
+        <UsageCount Value="2"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="../../../svn_fos/trunk/flexcom/elaes.pas"/>
+        <UnitName Value="elaes"/>
+        <TopLine Value="1"/>
+        <CursorPos X="11" Y="21"/>
+        <UsageCount Value="2"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="../FOS_NPS.pas"/>
+        <UnitName Value="FOS_NPS"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1904"/>
+        <CursorPos X="56" Y="2096"/>
+        <UsageCount Value="26"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="../FOS_TOOL_TYPES.pas"/>
+        <UnitName Value="FOS_TOOL_TYPES"/>
+        <TopLine Value="57"/>
+        <CursorPos X="1" Y="72"/>
+        <UsageCount Value="24"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="../FOS_LOCKING.pas"/>
+        <UnitName Value="FOS_LOCKING"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="94"/>
+        <CursorPos X="13" Y="109"/>
+        <UsageCount Value="27"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="../../../usr/local/share/fpcsrc/rtl/unix/baseunix.pp"/>
+        <UnitName Value="BaseUnix"/>
+        <TopLine Value="46"/>
+        <CursorPos X="45" Y="54"/>
+        <UsageCount Value="7"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="odb_test_console.lpr"/>
+        <UnitName Value="odb_test_console"/>
+        <TopLine Value="1"/>
+        <CursorPos X="29" Y="11"/>
+        <UsageCount Value="24"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="../FOS_FCOM_SOCKET.pas"/>
+        <UnitName Value="FOS_FCOM_SOCKET"/>
+        <TopLine Value="22"/>
+        <CursorPos X="80" Y="37"/>
+        <UsageCount Value="10"/>
+        <Bookmarks Count="1">
+          <Item0 X="15" Y="213" ID="1"/>
+        </Bookmarks>
+      </Unit22>
+      <Unit23>
+        <Filename Value="../../fpc_trunk/rtl/unix/bunxovlh.inc"/>
+        <TopLine Value="58"/>
+        <CursorPos X="10" Y="73"/>
+        <UsageCount Value="10"/>
+      </Unit23>
+      <Unit24>
+        <Filename Value="../../fpc_trunk/rtl/unix/genfdset.inc"/>
+        <TopLine Value="1"/>
+        <CursorPos X="23" Y="22"/>
+        <UsageCount Value="10"/>
+      </Unit24>
+      <Unit25>
+        <Filename Value="../../fpc_trunk/rtl/bsd/ostypes.inc"/>
+        <TopLine Value="330"/>
+        <CursorPos X="4" Y="47"/>
+        <UsageCount Value="10"/>
+      </Unit25>
+      <Unit26>
+        <Filename Value="../FOS_FILE_LOGGER.pas"/>
+        <UnitName Value="FOS_FILE_LOGGER"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="131"/>
+        <CursorPos X="10" Y="158"/>
+        <UsageCount Value="12"/>
+      </Unit26>
+      <Unit27>
+        <Filename Value="../../../../Downloads/code.pp"/>
+        <UnitName Value="TestCase"/>
+        <TopLine Value="31"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="10"/>
+      </Unit27>
+      <Unit28>
+        <Filename Value="../FOS_INTERLOCKED.pas"/>
+        <UnitName Value="FOS_INTERLOCKED"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="69"/>
+        <CursorPos X="45" Y="85"/>
+        <UsageCount Value="11"/>
+      </Unit28>
+      <Unit29>
+        <Filename Value="../../fre_aps/FRE_APS_INTERFACE.pas"/>
+        <UnitName Value="FRE_APS_INTERFACE"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="21" Y="11"/>
+        <UsageCount Value="11"/>
+      </Unit29>
+      <Unit30>
+        <Filename Value="../upascaltz.pas"/>
+        <UnitName Value="upascaltz"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="40"/>
+        <CursorPos X="35" Y="59"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit30>
+    </Units>
+    <JumpHistory Count="20" HistoryIndex="19">
+      <Position1>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="9" Column="36" TopLine="1"/>
+      </Position1>
+      <Position2>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="117" Column="16" TopLine="91"/>
+      </Position2>
+      <Position3>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="7" Column="17" TopLine="1"/>
+      </Position3>
+      <Position4>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="122" Column="12" TopLine="90"/>
+      </Position4>
+      <Position5>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="122" Column="12" TopLine="90"/>
+      </Position5>
+      <Position6>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="25" Column="14" TopLine="13"/>
+      </Position6>
+      <Position7>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="9" Column="66" TopLine="1"/>
+      </Position7>
+      <Position8>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="18" Column="1" TopLine="1"/>
+      </Position8>
+      <Position9>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="15" Column="1" TopLine="1"/>
+      </Position9>
+      <Position10>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="110" Column="9" TopLine="83"/>
+      </Position10>
+      <Position11>
+        <Filename Value="../upascaltz.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position11>
+      <Position12>
+        <Filename Value="../upascaltz.pas"/>
+        <Caret Line="59" Column="20" TopLine="1"/>
+      </Position12>
+      <Position13>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <Caret Line="42" Column="25" TopLine="40"/>
+      </Position13>
+      <Position14>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <Caret Line="46" Column="8" TopLine="303"/>
+      </Position14>
+      <Position15>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <Caret Line="42" Column="25" TopLine="34"/>
+      </Position15>
+      <Position16>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <Caret Line="1164" Column="78" TopLine="1153"/>
+      </Position16>
+      <Position17>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="12" Column="74" TopLine="105"/>
+      </Position17>
+      <Position18>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <Caret Line="31" Column="85" TopLine="27"/>
+      </Position18>
+      <Position19>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="12" Column="26" TopLine="113"/>
+      </Position19>
+      <Position20>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="9" Column="75" TopLine="1"/>
+      </Position20>
+    </JumpHistory>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="..;../../fre_aps;../../fre_fcom;../../fre_db;../../fos_interfaces"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <IncludeAssertionCode Value="True"/>
+        <UseAnsiStrings Value="False"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <TargetCPU Value="x86_64"/>
+      <Optimizations>
+        <VariablesInRegisters Value="True"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsStabs"/>
+      </Debugging>
+    </Linking>
+    <Other>
+      <CompilerMessages>
+        <UseMsgFile Value="True"/>
+      </CompilerMessages>
+      <CustomOptions Value="-dFOS_WITH_TEST"/>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <BreakPoints Count="1">
+      <Item1>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="test_basis_tools.lpr"/>
+        <Line Value="114"/>
+      </Item1>
+    </BreakPoints>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

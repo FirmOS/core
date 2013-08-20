@@ -1,0 +1,411 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <PathDelim Value="\"/>
+    <General>
+      <MainUnit Value="0"/>
+      <UseXPManifest Value="True"/>
+      <ActiveWindowIndexAtStart Value="0"/>
+    </General>
+    <VersionInfo>
+      <Language Value=""/>
+      <CharSet Value=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IgnoreBinaries Value="False"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|ppw|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <CommandLineParams Value="10 1"/>
+        <LaunchingApplication PathPlusParams="\usr\X11R6\bin\xterm -T 'Lazarus Run Output' -e $(LazarusDir)\tools\runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <Units Count="31">
+      <Unit0>
+        <Filename Value="test_genrbtrees.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_genrbtrees"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="0"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="3" Y="21"/>
+        <UsageCount Value="39"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="..\FOS_REDBLACKTREE_GEN.pas"/>
+        <UnitName Value="FOS_REDBLACKTREE_GEN"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1146"/>
+        <CursorPos X="34" Y="1155"/>
+        <UsageCount Value="16"/>
+        <Bookmarks Count="1">
+          <Item0 X="70" Y="91" ID="2"/>
+        </Bookmarks>
+        <Loaded Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="test_genrb_tree.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_genrb_tree"/>
+        <EditorIndex Value="1"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="137"/>
+        <CursorPos X="43" Y="142"/>
+        <UsageCount Value="39"/>
+        <Loaded Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="..\FOS_TOOL_TYPES.pas"/>
+        <UnitName Value="FOS_TOOL_TYPES"/>
+        <TopLine Value="86"/>
+        <CursorPos X="3" Y="95"/>
+        <UsageCount Value="10"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="..\FOS_BASIS_TOOLS.pas"/>
+        <UnitName Value="FOS_BASIS_TOOLS"/>
+        <TopLine Value="1"/>
+        <CursorPos X="11" Y="3058"/>
+        <UsageCount Value="14"/>
+        <Bookmarks Count="1">
+          <Item0 X="23" Y="3045" ID="1"/>
+        </Bookmarks>
+      </Unit4>
+      <Unit5>
+        <Filename Value="..\FOS_TOOL_INTERFACES.pas"/>
+        <UnitName Value="FOS_TOOL_INTERFACES"/>
+        <TopLine Value="1"/>
+        <CursorPos X="34" Y="5"/>
+        <UsageCount Value="14"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="..\..\..\svn_fos\trunk\Tests\GENERATION4_LF_Tests\UnitTestCases.pas"/>
+        <UnitName Value="UnitTestCases"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="10"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="..\..\..\svn_fos\trunk\Tests\GENERATION4_LF_Tests\UnitTest.pas"/>
+        <UnitName Value="UnitTest"/>
+        <TopLine Value="104"/>
+        <CursorPos X="27" Y="121"/>
+        <UsageCount Value="10"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="..\FOS_REDBLACKTREE_S.pas"/>
+        <UnitName Value="FOS_REDBLACKTREE_S"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="11"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="..\..\..\lazarus\fpc\2.2.5\source\packages\fcl-base\src\avl_tree.pp"/>
+        <UnitName Value="AVL_Tree"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="10"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="..\..\..\lazarus\fpc\2.2.5\source\packages\univint\src\MacOSAll.pas"/>
+        <UnitName Value="MacOSAll"/>
+        <TopLine Value="16"/>
+        <CursorPos X="103" Y="12274"/>
+        <UsageCount Value="10"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="..\FOS_TIMING.pas"/>
+        <UnitName Value="FOS_TIMING"/>
+        <TopLine Value="245"/>
+        <CursorPos X="5" Y="270"/>
+        <UsageCount Value="13"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="..\FOS_REDBLACKTREE_I.pas"/>
+        <UnitName Value="FOS_REDBLACKTREE_I"/>
+        <TopLine Value="13"/>
+        <CursorPos X="1" Y="44"/>
+        <UsageCount Value="10"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="..\fos_switches.inc"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="10"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="..\FOS_BSD_CORE.pas"/>
+        <UnitName Value="FOS_BSD_CORE"/>
+        <TopLine Value="295"/>
+        <CursorPos X="54" Y="306"/>
+        <UsageCount Value="12"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="..\FOS_NULL_LOGGER.pas"/>
+        <UnitName Value="FOS_NULL_LOGGER"/>
+        <TopLine Value="1"/>
+        <CursorPos X="12" Y="11"/>
+        <UsageCount Value="11"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="..\FOS_TOOL_FACTORY.pas"/>
+        <UnitName Value="FOS_TOOL_FACTORY"/>
+        <TopLine Value="298"/>
+        <CursorPos X="3" Y="90"/>
+        <UsageCount Value="11"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="..\FOS_JOBSCHEDULER.pas"/>
+        <UnitName Value="FOS_JOBSCHEDULER"/>
+        <TopLine Value="72"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="10"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="..\FOS_NG_APPSYNCER_CONSOLE.pas"/>
+        <UnitName Value="FOS_NG_APPSYNCER_CONSOLE"/>
+        <TopLine Value="1"/>
+        <CursorPos X="7" Y="69"/>
+        <UsageCount Value="10"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="..\FOS_NG_APPSYNCER.pas"/>
+        <UnitName Value="FOS_NG_APPSYNCER"/>
+        <TopLine Value="1"/>
+        <CursorPos X="146" Y="17"/>
+        <UsageCount Value="11"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="..\FOS_NG_WORKER.pas"/>
+        <UnitName Value="FOS_NG_WORKER"/>
+        <TopLine Value="1"/>
+        <CursorPos X="80" Y="251"/>
+        <UsageCount Value="11"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="..\FOS_INTERLOCKED.pas"/>
+        <UnitName Value="FOS_INTERLOCKED"/>
+        <TopLine Value="29"/>
+        <CursorPos X="19" Y="54"/>
+        <UsageCount Value="11"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="..\FOS_NPS.pas"/>
+        <UnitName Value="FOS_NPS"/>
+        <TopLine Value="1146"/>
+        <CursorPos X="32" Y="1171"/>
+        <UsageCount Value="11"/>
+      </Unit22>
+      <Unit23>
+        <Filename Value="..\FOS_COMPACTQ.pas"/>
+        <UnitName Value="FOS_COMPACTQ"/>
+        <TopLine Value="1"/>
+        <CursorPos X="48" Y="9"/>
+        <UsageCount Value="11"/>
+      </Unit23>
+      <Unit24>
+        <Filename Value="..\FOS_FILE_LOGGER.pas"/>
+        <UnitName Value="FOS_FILE_LOGGER"/>
+        <TopLine Value="11"/>
+        <CursorPos X="1" Y="33"/>
+        <UsageCount Value="10"/>
+      </Unit24>
+      <Unit25>
+        <Filename Value="..\..\..\fpc-2.4.0\rtl\inc\threadh.inc"/>
+        <TopLine Value="1"/>
+        <CursorPos X="11" Y="139"/>
+        <UsageCount Value="10"/>
+      </Unit25>
+      <Unit26>
+        <Filename Value="..\FOS_DEFAULT_STRINGS.pas"/>
+        <UnitName Value="FOS_DEFAULT_STRINGS"/>
+        <TopLine Value="77"/>
+        <CursorPos X="11" Y="104"/>
+        <UsageCount Value="10"/>
+      </Unit26>
+      <Unit27>
+        <Filename Value="..\..\..\fpc-2.4.0\packages\fcl-base\src\avl_tree.pp"/>
+        <UnitName Value="AVL_Tree"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="10"/>
+      </Unit27>
+      <Unit28>
+        <Filename Value="..\FOS_LFQ.pas"/>
+        <UnitName Value="FOS_LFQ"/>
+        <TopLine Value="1"/>
+        <CursorPos X="38" Y="14"/>
+        <UsageCount Value="10"/>
+      </Unit28>
+      <Unit29>
+        <Filename Value="..\..\..\..\..\..\usr\home\schramml\pascal\fre_flux\fre_core\FOS_REDBLACKTREE_GEN.pas"/>
+        <UnitName Value="FOS_REDBLACKTREE_GEN"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1141"/>
+        <CursorPos X="89" Y="1165"/>
+        <UsageCount Value="10"/>
+      </Unit29>
+      <Unit30>
+        <Filename Value="..\..\..\..\fre\fre.chriko\fre_core\FOS_INTERLOCKED.pas"/>
+        <UnitName Value="FOS_INTERLOCKED"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="19" Y="351"/>
+        <UsageCount Value="10"/>
+      </Unit30>
+    </Units>
+    <JumpHistory Count="23" HistoryIndex="22">
+      <Position1>
+        <Filename Value="..\FOS_REDBLACKTREE_GEN.pas"/>
+        <Caret Line="549" Column="26" TopLine="537"/>
+      </Position1>
+      <Position2>
+        <Filename Value="..\FOS_REDBLACKTREE_GEN.pas"/>
+        <Caret Line="166" Column="85" TopLine="145"/>
+      </Position2>
+      <Position3>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="265" Column="9" TopLine="235"/>
+      </Position3>
+      <Position4>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="266" Column="40" TopLine="234"/>
+      </Position4>
+      <Position5>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="22" Column="1" TopLine="22"/>
+      </Position5>
+      <Position6>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="269" Column="30" TopLine="244"/>
+      </Position6>
+      <Position7>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="156" Column="17" TopLine="140"/>
+      </Position7>
+      <Position8>
+        <Filename Value="test_genrbtrees.lpr"/>
+        <Caret Line="21" Column="11" TopLine="1"/>
+      </Position8>
+      <Position9>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="351" Column="1" TopLine="313"/>
+      </Position9>
+      <Position10>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="336" Column="1" TopLine="313"/>
+      </Position10>
+      <Position11>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="167" Column="1" TopLine="146"/>
+      </Position11>
+      <Position12>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="169" Column="1" TopLine="146"/>
+      </Position12>
+      <Position13>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="170" Column="1" TopLine="158"/>
+      </Position13>
+      <Position14>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="171" Column="1" TopLine="158"/>
+      </Position14>
+      <Position15>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="172" Column="1" TopLine="158"/>
+      </Position15>
+      <Position16>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="173" Column="1" TopLine="158"/>
+      </Position16>
+      <Position17>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="176" Column="1" TopLine="158"/>
+      </Position17>
+      <Position18>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="178" Column="1" TopLine="158"/>
+      </Position18>
+      <Position19>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="179" Column="1" TopLine="158"/>
+      </Position19>
+      <Position20>
+        <Filename Value="..\FOS_REDBLACKTREE_GEN.pas"/>
+        <Caret Line="596" Column="17" TopLine="579"/>
+      </Position20>
+      <Position21>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="179" Column="1" TopLine="158"/>
+      </Position21>
+      <Position22>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="11" Column="25" TopLine="1"/>
+      </Position22>
+      <Position23>
+        <Filename Value="test_genrb_tree.pas"/>
+        <Caret Line="263" Column="40" TopLine="248"/>
+      </Position23>
+    </JumpHistory>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value=".."/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <UseAnsiStrings Value="False"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <TargetCPU Value="i386"/>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf2Set"/>
+      </Debugging>
+    </Linking>
+    <Other>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <BreakPoints Count="1">
+      <Item1>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsGlobal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="test_genrb_tree.pas"/>
+        <Line Value="336"/>
+      </Item1>
+    </BreakPoints>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

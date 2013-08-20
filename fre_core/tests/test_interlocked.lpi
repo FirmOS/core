@@ -1,0 +1,228 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <MainUnit Value="0"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <Icon Value="0"/>
+      <ActiveWindowIndexAtStart Value="0"/>
+    </General>
+    <VersionInfo>
+      <Language Value=""/>
+      <CharSet Value=""/>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IgnoreBinaries Value="False"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|ppw|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <Units Count="7">
+      <Unit0>
+        <Filename Value="test_interlocked.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_interlocked"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="0"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="../FOS_INTERLOCKED.pas"/>
+        <UnitName Value="FOS_INTERLOCKED"/>
+        <EditorIndex Value="4"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="82"/>
+        <CursorPos X="53" Y="101"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="../../../fpc-2.4.0/rtl/unix/sysutils.pp"/>
+        <UnitName Value="sysutils"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="419"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="10"/>
+        <LoadedDesigner Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="../../../../fre/fre.chriko/fre_core/FOS_INTERLOCKED.pas"/>
+        <UnitName Value="FOS_INTERLOCKED"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="332"/>
+        <CursorPos X="19" Y="351"/>
+        <UsageCount Value="10"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="../FOS_BASIS_TOOLS.pas"/>
+        <UnitName Value="FOS_BASIS_TOOLS"/>
+        <EditorIndex Value="1"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="23"/>
+        <CursorPos X="45" Y="42"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="../../fre_aps/FRE_APS_INTERFACE.pas"/>
+        <UnitName Value="FRE_APS_INTERFACE"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="21" Y="11"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="../upascaltz.pas"/>
+        <UnitName Value="upascaltz"/>
+        <EditorIndex Value="3"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="40"/>
+        <CursorPos X="20" Y="59"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit6>
+    </Units>
+    <JumpHistory Count="22" HistoryIndex="21">
+      <Position1>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="9" Column="27" TopLine="1"/>
+      </Position1>
+      <Position2>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="26" Column="8" TopLine="1"/>
+      </Position2>
+      <Position3>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="9" Column="15" TopLine="1"/>
+      </Position3>
+      <Position4>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="26" Column="14" TopLine="1"/>
+      </Position4>
+      <Position5>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="19" Column="33" TopLine="1"/>
+      </Position5>
+      <Position6>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="35" Column="7" TopLine="6"/>
+      </Position6>
+      <Position7>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="9" Column="19" TopLine="1"/>
+      </Position7>
+      <Position8>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="36" Column="3" TopLine="8"/>
+      </Position8>
+      <Position9>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="43" Column="13" TopLine="11"/>
+      </Position9>
+      <Position10>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="9" Column="15" TopLine="1"/>
+      </Position10>
+      <Position11>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="28" Column="24" TopLine="13"/>
+      </Position11>
+      <Position12>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="9" Column="11" TopLine="1"/>
+      </Position12>
+      <Position13>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="47" Column="13" TopLine="14"/>
+      </Position13>
+      <Position14>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="24" Column="1" TopLine="11"/>
+      </Position14>
+      <Position15>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="20" Column="1" TopLine="6"/>
+      </Position15>
+      <Position16>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="11" Column="1" TopLine="1"/>
+      </Position16>
+      <Position17>
+        <Filename Value="test_interlocked.lpr"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position17>
+      <Position18>
+        <Filename Value="../FOS_BASIS_TOOLS.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position18>
+      <Position19>
+        <Filename Value="../../fre_aps/FRE_APS_INTERFACE.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position19>
+      <Position20>
+        <Filename Value="../upascaltz.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position20>
+      <Position21>
+        <Filename Value="../FOS_INTERLOCKED.pas"/>
+        <Caret Line="240" Column="30" TopLine="221"/>
+      </Position21>
+      <Position22>
+        <Filename Value="../FOS_INTERLOCKED.pas"/>
+        <Caret Line="88" Column="63" TopLine="69"/>
+      </Position22>
+    </JumpHistory>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="..;../../fre_aps;../../fre_core;../../fre_fcom;../../fre_db"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <CodeGeneration>
+      <Optimizations>
+        <OptimizationLevel Value="0"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Other>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>
