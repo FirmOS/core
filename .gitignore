@@ -1,3 +1,4 @@
+# Common Exceptions
 *~
 .DS_Store
 *.bak
@@ -9,7 +10,12 @@ units/
 fos_bin/
 fos_pkg/
 bin/
+lib/
 fpmake_packages
 fpmake_products
 fpmake_test
 full_build_log.txt
+
+# Manual Build Binaries
+fre_testdatafeed
+fre_testserver

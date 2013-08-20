@@ -38,6 +38,7 @@ program fre_testdatafeed;
 }
 
 {$mode objfpc}{$H+}
+{$LIBRARYPATH /opt/local/fre/lib/}
 {$LIBRARYPATH ../fre_external/fre_ext_libs}
 
 
@@ -45,7 +46,6 @@ program fre_testdatafeed;
 // lazarus+debugger: => ./fre_testdatafeed -U root -H 10.220.251.10 -D
 
 uses
-  //cmem,
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
@@ -78,7 +78,7 @@ type
 procedure TFRE_TESTDATA_FEED.DoRun;
 var
   ErrorMsg   : String;
-  FeedClient : TFRE_FEED_CLIENT;
+  FeedClient : TFRE_SAMPLE_FEED_CLIENT;
 begin
   ErrorMsg:=CheckOptions('hDU:H:u:p:',['help','debugger','remoteuser:','remotehost:','user:','pass:']);
   if ErrorMsg<>'' then begin
@@ -97,7 +97,7 @@ begin
     G_NO_INTERRUPT_FLAG:=true;
 
   if HasOption('U','remoteuser') then begin
-    cVM_HostUser := GetOptionValue('U','remoteuser');
+    cFRE_REMOTE_USER := GetOptionValue('U','remoteuser');
   end;
 
   if HasOption('u','user') then begin
@@ -109,16 +109,16 @@ begin
   end;
 
   if HasOption('H','remotehost') then begin
-    cVMHostMachine:= GetOptionValue('H','remotehost');
+    cFRE_REMOTE_HOST:= GetOptionValue('H','remotehost');
   end else begin
-    cVMHostMachine:= '127.0.0.1';
+    cFRE_REMOTE_HOST:= '127.0.0.1';
   end;
 
   Initialize_Read_FRE_CFG_Parameter;
   InitEmbedded;
   Init4Server;
   SetupAPS;
-  FeedClient := TFRE_FEED_CLIENT.Create;
+  FeedClient := TFRE_SAMPLE_FEED_CLIENT.Create;
   GFRE_S.Start(FeedClient);
   GFRE_S.Run;
   TearDownAPS;
