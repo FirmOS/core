@@ -38,7 +38,7 @@ unit fre_libevent_core;
 } 
 
 {$mode objfpc}{$H+}
-{$DEFINE FOS_LINK_STATIC}
+{-$DEFINE FOS_LINK_STATIC}
 {-$DEFINE FOS_DEBUG}
 
 
@@ -52,119 +52,124 @@ uses
 {$IFDEF WINDOWS}
 {$ENDIF}
 {$IFDEF UNIX}
-  {$IFDEF DARWIN}
-    {$IFDEF CPU64}
-      {$IFDEF FOS_DEBUG}
-        {$linklib libevent_core_fos64_darwin_deb.a}
-        {$linklib libevent_pthreads_fos64_darwin_deb.a}
-        {$linklib libevent_openssl_fos64_darwin_deb.a}
-        {$linklib libevent_extra_fos64_darwin_deb.a}
+  {$IFDEF FOS_LINK_STATIC}
+    {$IFDEF DARWIN}
+      {$IFDEF CPU64}
+        {$IFDEF FOS_DEBUG}
+          {$linklib libevent_core_fos64_darwin_deb.a}
+          {$linklib libevent_pthreads_fos64_darwin_deb.a}
+          {$linklib libevent_openssl_fos64_darwin_deb.a}
+          {$linklib libevent_extra_fos64_darwin_deb.a}
+        {$ELSE}
+            {$linklib libevent_core_fos64_darwin_rel.a}
+            {$linklib libevent_pthreads_fos64_darwin_rel.a}
+            {$linklib libevent_openssl_fos64_darwin_rel.a}
+            {$linklib libevent_extra_fos64_darwin_rel.a}
+        {$ENDIF}
       {$ELSE}
-        {$linklib libevent_core_fos64_darwin_rel.a}
-        {$linklib libevent_pthreads_fos64_darwin_rel.a}
-        {$linklib libevent_openssl_fos64_darwin_rel.a}
-        {$linklib libevent_extra_fos64_darwin_rel.a}
+        {$IFDEF FOS_DEBUG}
+          {$linklib libevent_core_fos32_darwin_deb.a}
+          {$linklib libevent_pthreads_fos32_darwin_deb.a}
+          {$linklib libevent_openssl_fos32_darwin_deb.a}
+          {$linklib libevent_extra_fos32_darwin_deb.a}
+        {$ELSE}
+          {$linklib libevent_core_fos32_darwin_rel.a}
+          {$linklib libevent_pthreads_fos32_darwin_rel.a}
+          {$linklib libevent_openssl_fos32_darwin_rel.a}
+          {$linklib libevent_extra_fos32_darwin_rel.a}
+        {$ENDIF}
       {$ENDIF}
     {$ELSE}
-      {$IFDEF FOS_DEBUG}
-        {$linklib libevent_core_fos32_darwin_deb.a}
-        {$linklib libevent_pthreads_fos32_darwin_deb.a}
-        {$linklib libevent_openssl_fos32_darwin_deb.a}
-        {$linklib libevent_extra_fos32_darwin_deb.a}
+      {$IFDEF FREEBSD}
+        {$IFDEF CPU64}
+          {$IFDEF FOS_DEBUG}
+            {$linklib libevent_core_fos64_freebsd_deb.a}
+            {$linklib libevent_pthreads_fos64_freebsd_deb.a}
+            {$linklib libevent_openssl_fos64_freebsd_deb.a}
+            {$linklib libevent_extra_fos64_freebsd_deb.a}
+          {$ELSE}
+            {$linklib libevent_core_fos64_freebsd_rel.a}
+            {$linklib libevent_pthreads_fos64_freebsd_rel.a}
+            {$linklib libevent_openssl_fos64_freebsd_rel.a}
+            {$linklib libevent_extra_fos64_freebsd_rel.a}
+          {$ENDIF}
+        {$ELSE}
+          {$IFDEF FOS_DEBUG}
+            {$linklib libevent_core_fos32_freebsd_deb.a}
+            {$linklib libevent_pthreads_fos32_freebsd_deb.a}
+            {$linklib libevent_openssl_fos32_freebsd_deb.a}
+            {$linklib libevent_extra_fos32_freebsd_deb.a}
+          {$ELSE}
+            {$linklib libevent_core_fos32_freebsd_rel.a}
+            {$linklib libevent_pthreads_fos32_freebsd_rel.a}
+            {$linklib libevent_openssl_fos32_freebsd_rel.a}
+            {$linklib libevent_extra_fos32_freebsd_rel.a}
+          {$ENDIF}
+        {$ENDIF}
       {$ELSE}
-        {$linklib libevent_core_fos32_darwin_rel.a}
-        {$linklib libevent_pthreads_fos32_darwin_rel.a}
-        {$linklib libevent_openssl_fos32_darwin_rel.a}
-        {$linklib libevent_extra_fos32_darwin_rel.a}
+        {$IFDEF SOLARIS}
+          {$IFDEF CPU64}
+            {$IFDEF FOS_DEBUG}
+              {$linklib libevent_core_fos64_solaris_deb.a}
+              {$linklib libevent_pthreads_fos64_solaris_deb.a}
+              {$linklib libevent_openssl_fos64_solaris_deb.a}
+              {$linklib libevent_extra_fos64_solaris_deb.a}
+            {$ELSE}
+              {$linklib libevent_core_fos64_solaris_rel.a}
+              {$linklib libevent_pthreads_fos64_solaris_rel.a}
+              {$linklib libevent_openssl_fos64_solaris_rel.a}
+              {$linklib libevent_extra_fos64_solaris_rel.a}
+            {$ENDIF}
+          {$ELSE}
+            {$IFDEF FOS_DEBUG}
+              {$linklib libevent_core_fos32_solaris_deb.a}
+              {$linklib libevent_pthreads_fos32_solaris_deb.a}
+              {$linklib libevent_openssl_fos32_solaris_deb.a}
+              {$linklib libevent_extra_fos32_solaris_deb.a}
+            {$ELSE}
+              {$linklib libevent_core_fos32_solaris_rel.a}
+              {$linklib libevent_pthreads_fos32_solaris_rel.a}
+              {$linklib libevent_openssl_fos32_solaris_rel.a}
+              {$linklib libevent_extra_fos32_solaris_rel.a}
+            {$ENDIF}
+          {$ENDIF}
+        {$ELSE}
+          {$IFDEF LINUX}
+            {$IFDEF CPU64}
+              {$IFDEF FOS_DEBUG}
+                {$linklib libevent_core_fos64_linux_deb.a}
+                {$linklib libevent_pthreads_fos64_linux_deb.a}
+                {$linklib libevent_openssl_fos64_linux_deb.a}
+                {$linklib libevent_extra_fos64_linux_deb.a}
+              {$ELSE}
+                {$linklib libevent_core_fos64_linux_rel.a}
+                {$linklib libevent_pthreads_fos64_linux_rel.a}
+                {$linklib libevent_openssl_fos64_linux_rel.a}
+                {$linklib libevent_extra_fos64_linux_rel.a}
+              {$ENDIF}
+            {$ELSE}
+              {$IFDEF FOS_DEBUG}
+                {$linklib libevent_core_fos32_linux_deb.a}
+                {$linklib libevent_pthreads_fos32_linux_deb.a}
+                {$linklib libevent_openssl_fos32_linux_deb.a}
+                {$linklib libevent_extra_fos32_linux_deb.a}
+              {$ELSE}
+                {$linklib libevent_core_fos32_linux_rel.a}
+                {$linklib libevent_pthreads_fos32_linux_rel.a}
+                {$linklib libevent_openssl_fos32_linux_rel.a}
+                {$linklib libevent_extra_fos32_linux_rel.a}
+              {$ENDIF}
+            {$ENDIF}
+            {$linklib librt.a}
+          {$ELSE}
+          {$ENDIF}
+        {$ENDIF}
       {$ENDIF}
     {$ENDIF}
   {$ELSE}
-    {$IFDEF FREEBSD}
-      {$IFDEF CPU64}
-        {$IFDEF FOS_DEBUG}
-          {$linklib libevent_core_fos64_freebsd_deb.a}
-          {$linklib libevent_pthreads_fos64_freebsd_deb.a}
-          {$linklib libevent_openssl_fos64_freebsd_deb.a}
-          {$linklib libevent_extra_fos64_freebsd_deb.a}
-        {$ELSE}
-          {$linklib libevent_core_fos64_freebsd_rel.a}
-          {$linklib libevent_pthreads_fos64_freebsd_rel.a}
-          {$linklib libevent_openssl_fos64_freebsd_rel.a}
-          {$linklib libevent_extra_fos64_freebsd_rel.a}
-        {$ENDIF}
-      {$ELSE}
-        {$IFDEF FOS_DEBUG}
-          {$linklib libevent_core_fos32_freebsd_deb.a}
-          {$linklib libevent_pthreads_fos32_freebsd_deb.a}
-          {$linklib libevent_openssl_fos32_freebsd_deb.a}
-          {$linklib libevent_extra_fos32_freebsd_deb.a}
-        {$ELSE}
-          {$linklib libevent_core_fos32_freebsd_rel.a}
-          {$linklib libevent_pthreads_fos32_freebsd_rel.a}
-          {$linklib libevent_openssl_fos32_freebsd_rel.a}
-          {$linklib libevent_extra_fos32_freebsd_rel.a}
-        {$ENDIF}
-      {$ENDIF}
-    {$ELSE}
-      {$IFDEF SOLARIS}
-        {$IFDEF CPU64}
-          {$IFDEF FOS_DEBUG}
-            {$linklib libevent_core_fos64_solaris_deb.a}
-            {$linklib libevent_pthreads_fos64_solaris_deb.a}
-            {$linklib libevent_openssl_fos64_solaris_deb.a}
-            {$linklib libevent_extra_fos64_solaris_deb.a}
-          {$ELSE}
-            {$linklib libevent_core_fos64_solaris_rel.a}
-            {$linklib libevent_pthreads_fos64_solaris_rel.a}
-            {$linklib libevent_openssl_fos64_solaris_rel.a}
-            {$linklib libevent_extra_fos64_solaris_rel.a}
-          {$ENDIF}
-        {$ELSE}
-          {$IFDEF FOS_DEBUG}
-            {$linklib libevent_core_fos32_solaris_deb.a}
-            {$linklib libevent_pthreads_fos32_solaris_deb.a}
-            {$linklib libevent_openssl_fos32_solaris_deb.a}
-            {$linklib libevent_extra_fos32_solaris_deb.a}
-          {$ELSE}
-            {$linklib libevent_core_fos32_solaris_rel.a}
-            {$linklib libevent_pthreads_fos32_solaris_rel.a}
-            {$linklib libevent_openssl_fos32_solaris_rel.a}
-            {$linklib libevent_extra_fos32_solaris_rel.a}
-          {$ENDIF}
-        {$ENDIF}
-      {$ELSE}
-        {$IFDEF LINUX}
-          {$IFDEF CPU64}
-            {$IFDEF FOS_DEBUG}
-              {$linklib libevent_core_fos64_linux_deb.a}
-              {$linklib libevent_pthreads_fos64_linux_deb.a}
-              {$linklib libevent_openssl_fos64_linux_deb.a}
-              {$linklib libevent_extra_fos64_linux_deb.a}
-            {$ELSE}
-              {$linklib libevent_core_fos64_linux_rel.a}
-              {$linklib libevent_pthreads_fos64_linux_rel.a}
-              {$linklib libevent_openssl_fos64_linux_rel.a}
-              {$linklib libevent_extra_fos64_linux_rel.a}
-            {$ENDIF}
-          {$ELSE}
-            {$IFDEF FOS_DEBUG}
-              {$linklib libevent_core_fos32_linux_deb.a}
-              {$linklib libevent_pthreads_fos32_linux_deb.a}
-              {$linklib libevent_openssl_fos32_linux_deb.a}
-              {$linklib libevent_extra_fos32_linux_deb.a}
-            {$ELSE}
-              {$linklib libevent_core_fos32_linux_rel.a}
-              {$linklib libevent_pthreads_fos32_linux_rel.a}
-              {$linklib libevent_openssl_fos32_linux_rel.a}
-              {$linklib libevent_extra_fos32_linux_rel.a}
-            {$ENDIF}
-          {$ENDIF}
-          {$linklib librt.a}
-        {$ELSE}
-        {$ENDIF}
-      {$ENDIF}
-    {$ENDIF}
-  {$ENDIF}
+    {$linklib libevent-2.0.5}
+    {$linklib libevent_pthreads-2.0.5}
+  {$ENDIF FOS_LINK_STATIC}
 {$ENDIF}
 
 
