@@ -12,7 +12,8 @@ program fpmake_test;
 
  begin
    With Installer(TFOSInstaller) do begin
-     Defaults.BinInstallDir  := GetCurrentDir+DirectorySeparator+'fos_bin/tests'+FOSBuild.Bits(Defaults.CPU)+'_'+cFOS_BUILD_SUFFIX;
+//     Defaults.BinInstallDir  := GetCurrentDir+DirectorySeparator+'fos_bin/tests'+FOSBuild.Bits(Defaults.CPU)+'_'+cFOS_BUILD_SUFFIX;
+     Defaults.BinInstallDir  := GetCurrentDir+'/../../bin';
      P := AddPackage('CORETESTS');
      with p do begin
        OSes := cFOS_BUILD_OSes;
@@ -23,7 +24,8 @@ program fpmake_test;
          Add('fcl-fpcunit');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_core/tests/';
-       InstallProgramPrefix:='core';
+       //InstallProgramPrefix:='core';
+       InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          AddProgram('test_version_info.lpr').ExtraEnvironment.Values['FOS_PRODUCT_NAME'] := '*Test =Version= Info *';
          AddProgram('test_basis_tools.lpr');
@@ -47,7 +49,8 @@ program fpmake_test;
          Add('FRE_SYNAPSE');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_external/tests/';
-       InstallProgramPrefix:='fsyna';
+       //InstallProgramPrefix:='fsyna';
+       InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          AddProgram('con_synatest.lpr');
        end;
@@ -66,7 +69,8 @@ program fpmake_test;
          Add('FRE_SYNAPSE');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_blockcom/tests/';
-       InstallProgramPrefix:='fre_blockcom';
+       //InstallProgramPrefix:='fre_blockcom';
+       InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          AddProgram('test_mail.lpr');
          AddProgram('test_http.lpr');
@@ -81,7 +85,8 @@ program fpmake_test;
          Add('FRE_FCOM');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_fcom/tests/';
-       InstallProgramPrefix:='fcom';
+       //InstallProgramPrefix:='fcom';
+       InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          AddProgram('con_ssl_test.lpr');
        end;
@@ -96,7 +101,8 @@ program fpmake_test;
          Add('FRE_APS');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_aps/tests/';
-       InstallProgramPrefix:='aps';
+       //InstallProgramPrefix:='aps';
+       InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          T:=AddProgram('con_apstest.lpr');
        end;
@@ -119,7 +125,8 @@ program fpmake_test;
        with Targets do begin
          AddUnit('../fre_db/fre_dbtest.pas');
        end;
-       InstallProgramPrefix:='fre_testserver';
+       //InstallProgramPrefix:='fre_testserver';
+       InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          AddProgram('fre_testserver.lpr').ExtraEnvironment.Values['FOS_PRODUCT_NAME'] := 'FRE TestServer';
          AddProgram('fre_testdatafeed.lpr').ExtraEnvironment.Values['FOS_PRODUCT_NAME'] := 'FRE TestFeeder';
@@ -138,7 +145,8 @@ program fpmake_test;
          Add('FRE_APPS');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_core/tests/';
-       InstallProgramPrefix:='testprocess';
+       //InstallProgramPrefix:='testprocess';
+       InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          AddProgram('testprog_process.lpr');
          AddProgram('test_process.lpr');
@@ -156,7 +164,8 @@ program fpmake_test;
          Add('FRE_DB');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_db/db_tests/';
-       InstallProgramPrefix:='con_db_concurrentloadtest';
+       //InstallProgramPrefix:='con_db_concurrentloadtest';
+       InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          AddProgram('con_db_concurrentloadtest.lpr');
        end;

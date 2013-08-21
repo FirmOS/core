@@ -51,7 +51,7 @@ if [ ! "$cflags" ]; then
   cflags=-v
 fi
 if [ ! "$buildsuf" ]; then  
-  buildsuf=--buildsuffix=man
+  buildsuf=--buildsuffix=deb
 fi
 
 #echo fpmake install $cflags $buildsuf

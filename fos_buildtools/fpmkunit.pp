@@ -643,7 +643,8 @@ Type
     FBeforeManifestProc: TNotifyProcEvent;
     FBuildMode: TBuildMode;
     FFPDocFormat: TFPDocFormats;
-    FInstallProgramPrefix: string;
+    FInstallProgramPrefix: string; //FOS: Is a dir
+    FInstallProgramSuffix: string; //is a real suffix
     FIsFPMakeAddIn: boolean;
     FSupportBuildModes: TBuildModes;
     FUnitPath,
@@ -725,6 +726,7 @@ Type
     Property SupportBuildModes: TBuildModes read FSupportBuildModes write FSupportBuildModes;
     Property BuildMode: TBuildMode read FBuildMode;
     Property InstallProgramPrefix: string read FInstallProgramPrefix write FInstallProgramPrefix;
+    Property InstallProgramSuffix: string read FInstallProgramSuffix write FInstallProgramSuffix;
     // Compiler options.
     Property OSes : TOSes Read FOSes Write FOSes;
     Property CPUs : TCPUs Read FCPUs Write FCPUs;
@@ -943,7 +945,7 @@ Type
     // Internal copy/delete/move/archive/mkdir files
     Function  SysDirectoryExists(const ADir:string):Boolean;
     Function  SysFileExists(const AFileName:string):Boolean;
-    Procedure SysCopyFile(Const Src,Dest : String); virtual;
+    Procedure SysCopyFile(Const Src,Dest : String;const ProgramSuffix:String=''); virtual;
     Procedure SysMoveFile(Const Src,Dest : String); virtual;
     Procedure SysDeleteFile(Const AFileName : String); virtual;
     Procedure SysDeleteDirectory(Const ADirectoryName : String); virtual;
@@ -975,7 +977,7 @@ Type
 
     // Public Copy/delete/Move/Archive/Mkdir Commands.
     Procedure ExecuteCommand(const Cmd,Args : String; const Env: TStrings = nil; IgnoreError : Boolean = False); virtual;
-    Procedure CmdCopyFiles(List : TStrings; Const DestDir : String);
+    Procedure CmdCopyFiles(List : TStrings; Const DestDir : String ; const ProgramSuffix : String='');
     Procedure CmdCreateDir(const DestDir : String);
     Procedure CmdMoveFiles(List : TStrings; Const DestDir : String);
     Procedure CmdDeleteFiles(List : TStrings);
@@ -1916,7 +1918,7 @@ begin
 end;
 
 
-function FileListToString(List : TStrings; const APrefix : String) : String;
+function FileListToString(List : TStrings; const APrefix : String ; const ASuffix : String ='' ) : String;
 Var
   I : integer;
   S : String;
@@ -1926,7 +1928,7 @@ begin
     begin
       If (I>0) then
         Result:=Result+' ';
-      S:=APrefix+List[i];
+      S:=APrefix+List[i]+ASuffix;
       If (Pos(' ',S)<>0) then
         S:='"'+S+'"';
       Result:=Result+S;
@@ -4089,7 +4091,7 @@ begin
 end;
 
 
-procedure TBuildEngine.SysCopyFile(Const Src,Dest : String);
+procedure TBuildEngine.SysCopyFile(const Src, Dest: String; const ProgramSuffix: String);
 Var
   D,S : String;
   Fin,FOut : TFileStream;
@@ -4107,7 +4109,8 @@ begin
       S:=D+ExtractFileName(Src)
     else
       S:=Dest;
-    FOut:=TFileStream.Create(S,fmCreate);
+    s := S+ProgramSuffix;
+    FOut:=TFileStream.Create(s,fmCreate);
     Try
       Count:=Fout.CopyFrom(FIn,0);
       If (Count<>Fin.Size) then
@@ -4268,7 +4271,7 @@ begin
 end;
 
 
-procedure TBuildEngine.CmdCopyFiles(List: TStrings; Const DestDir: String);
+procedure TBuildEngine.CmdCopyFiles(List: TStrings; const DestDir: String; const ProgramSuffix: String);
 
 Var
   Args : String;
@@ -4279,7 +4282,7 @@ begin
   CmdCreateDir(DestDir);
   If (Defaults.Copy<>'') then
     begin
-      Args:=FileListToString(List,'');
+      Args:=FileListToString(List,'',ProgramSuffix);
       Args:=Args+' '+DestDir;
       ExecuteCommand(Defaults.Copy,Args);
     end
@@ -4288,14 +4291,14 @@ begin
       if List.Names[i]<>'' then
         begin
           if IsRelativePath(list.ValueFromIndex[i]) then
-            DestFileName:=DestDir+list.ValueFromIndex[i]
+            DestFileName:=DestDir+list.ValueFromIndex[i]+ProgramSuffix
           else
-            DestFileName:=list.ValueFromIndex[i];
+            DestFileName:=list.ValueFromIndex[i]+ProgramSuffix;
           CmdCreateDir(ExtractFilePath(DestFileName));
-          SysCopyFile(List.names[i],DestFileName)
+          SysCopyFile(List.names[i],DestFileName,ProgramSuffix)
         end
       else
-        SysCopyFile(List[i],DestDir);
+        SysCopyFile(List[i],DestDir,ProgramSuffix);
 end;
 
 
@@ -5670,7 +5673,7 @@ begin
     if (List.Count>0) then
       begin
         Result:=True;
-        CmdCopyFiles(List,Dest);
+        CmdCopyFiles(List,Dest,APAckage.InstallProgramSuffix);
       end;
   Finally
     List.Free;

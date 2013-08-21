@@ -33,9 +33,9 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="install"/>
+        <CommandLineParams Value="install --fosstatic=true"/>
         <LaunchingApplication PathPlusParams="/usr/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
-        <WorkingDirectory Value="/Users/helly/pascal/fos_git/fre_master.git/fos_buildtools"/>
+        <WorkingDirectory Value="/Users/helly/repos/core/fos_buildtools"/>
       </local>
     </RunParams>
     <Units Count="4">
