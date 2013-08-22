@@ -1809,26 +1809,12 @@ implementation
     jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/webfont/fos_fonts.css" media="screen">');
     jsContentAdd('<link rel="stylesheet" type="text/css" href="aloha/src/css/aloha.css" media="screen">');
 
-    if co.Field('debug').AsBoolean then begin
-      jsContentAdd('<script type="text/javascript" src="fre_js/config.js"></script>');
-      jsContentAdd('<script src="dojo/dojo/dojo.js.uncompressed.js" djConfig="parseOnLoad: false, isDebug: true" ></script>');
-      jsContentAdd('<script>define.amd.jQuery = true;</script>');
-      jsContentAdd('<script src="aloha/src/lib/vendor/jquery-1.7.2.js"></script>');
-      jsContentAdd('<script src="aloha/src/lib/aloha.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
-
-      jsContentAdd('<script src="dojo/dijit/dijit-all.js.uncompressed.js" ></script>');
-      jsContentAdd('<script src="d3/d3.js" ></script>');
-
-    end else begin
-      jsContentAdd('<script type="text/javascript" src="fre_js/config.js"></script>');
-      jsContentAdd('<script src="dojo/dojo/dojo.js" djConfig="parseOnLoad: false"></script>');
-      jsContentAdd('<script>define.amd.jQuery = true;</script>');
-      jsContentAdd('<script src="aloha/src/lib/vendor/jquery-1.7.2.js"></script>');
-      jsContentAdd('<script src="aloha/src/lib/aloha.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
-
-      jsContentAdd('<script src="dojo/dijit/dijit-all.js" ></script>');
-      jsContentAdd('<script src="d3/d3.min.js" ></script>');
-    end;
+    jsContentAdd('<script type="text/javascript" src="fre_js/config.js"></script>');
+    jsContentAdd('<script src="dojo/dojo/dojo.js"></script>');
+    jsContentAdd('<script>define.amd.jQuery = true;</script>');
+    jsContentAdd('<script src="aloha/src/lib/vendor/jquery-1.7.2.js"></script>');
+    jsContentAdd('<script src="aloha/src/lib/aloha.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
+    jsContentAdd('<script src="d3/d3.js" ></script>');
     jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js"></script>');
 
     jsContentAdd('<script type="text/javascript">');

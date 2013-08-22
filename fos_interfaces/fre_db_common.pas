@@ -45,8 +45,6 @@ interface
 uses
   Classes, SysUtils,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES;
 
-const
-  cDEBUG_FLAG = true;
 var
   cSTYLE:String = 'firmos';
 
@@ -877,7 +875,7 @@ type
   public
     //@ Describes the main page.
     //@ Used internally. May be removed.
-    function  Describe                (const style: String; const jiraIntegrationJSURL: String=''; const debug: Boolean=false): TFRE_DB_MAIN_DESC;
+    function  Describe                (const style: String; const jiraIntegrationJSURL: String=''): TFRE_DB_MAIN_DESC;
   end;
 
   function String2DBChooserDH(const fts: string): TFRE_DB_CHOOSER_DH;
@@ -1559,10 +1557,9 @@ implementation
 
   { TFRE_DB_MAIN_DESC }
 
-  function TFRE_DB_MAIN_DESC.Describe(const style: String; const jiraIntegrationJSURL: String; const debug: Boolean): TFRE_DB_MAIN_DESC;
+  function TFRE_DB_MAIN_DESC.Describe(const style: String; const jiraIntegrationJSURL: String): TFRE_DB_MAIN_DESC;
   begin
     Field('loadFunc').AsObject:=TFRE_DB_SERVER_FUNC_DESC.create.Describe('FIRMOS','init');
-    Field('debug').AsBoolean:=debug;
     Field('style').AsString:=style;
     Field('jira').AsString:=jiraIntegrationJSURL;
     Result:=Self;
