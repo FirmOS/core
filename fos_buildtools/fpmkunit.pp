@@ -4900,8 +4900,7 @@ begin
   // Convert to string
   Result:='';
   for i:=0 to Args.Count-1 do
-    //Result:=Result+' '+maybequoted(Args[i]);
-    Result:=Result+' '+Args[i]; //FOS - forget about maybequoted i want: -k-rpath='$ORIGIN/tralala'
+    Result:=Result+' '+maybequoted(Args[i]);
 
   Delete(result,1,1);
 

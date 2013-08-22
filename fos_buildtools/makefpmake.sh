@@ -20,9 +20,9 @@ fpc_comp="$fpcbin -n $fpcunits/* $fpcunits/rtl -Fl~/fosbuild/fpcbin/$platform/li
 rm -f fpmake_packages 
 rm -f fpmake_test 
 rm -f fpmake_products 
-$fpc_comp fpmake_packages.pas 1>/dev/null
-$fpc_comp fpmake_test.pas 1>/dev/null
-$fpc_comp fpmake_products.pas 1>/dev/null
+$fpc_comp -B fpmake_packages.pas 1>/dev/null
+$fpc_comp -B fpmake_test.pas 1>/dev/null
+$fpc_comp -B fpmake_products.pas 1>/dev/null
 rm -f *.ppu 2>/dev/null
 rm -f *.o 2>/dev/null
 rm -f *.s 2>/dev/null
