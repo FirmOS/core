@@ -38,9 +38,7 @@ program fre_testserver;
 }
 
 {$mode objfpc}{$H+}
-{$LIBRARYPATH /opt/local/fre/lib/}
-{$LIBRARYPATH ../fre_external/fre_ext_libs}
-
+{$LIBRARYPATH ../../lib}
 
 uses
 //  cmem,
