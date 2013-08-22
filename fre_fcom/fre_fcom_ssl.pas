@@ -132,8 +132,8 @@ uses Sysutils,ctypes,FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_FCOM_INTERFACES,FOS_FCOM
       {$ENDIF}
     {$ENDIF}
   {$ELSE}
-    {$linklib libssl.1.0.0}
-    {$linklib libcrypto.1.0.0}
+    {$linklib libssl}
+    {$linklib libcrypto}
   {$ENDIF FOS_LINK_STATIC}
 {$ENDIF}
 

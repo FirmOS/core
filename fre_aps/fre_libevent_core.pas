@@ -167,8 +167,8 @@ uses
       {$ENDIF}
     {$ENDIF}
   {$ELSE}
-    {$linklib libevent-2.0.5}
-    {$linklib libevent_pthreads-2.0.5}
+    {$linklib libevent}
+    {$linklib libevent_pthreads}
   {$ENDIF FOS_LINK_STATIC}
 {$ENDIF}
 
