@@ -41,6 +41,8 @@ unit fre_libevent_core;
 {-$DEFINE FOS_LINK_STATIC}
 {-$DEFINE FOS_DEBUG}
 
+{-$UNDEF FOS_LINK_STATIC}
+
 
 interface
 
@@ -167,8 +169,8 @@ uses
       {$ENDIF}
     {$ENDIF}
   {$ELSE}
-    {$linklib libevent}
-    {$linklib libevent_pthreads}
+    {$linklib libevent-fosdev}
+    {$linklib libevent_pthreads-fosdev}
   {$ENDIF FOS_LINK_STATIC}
 {$ENDIF}
 
