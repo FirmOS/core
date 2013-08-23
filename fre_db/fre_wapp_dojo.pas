@@ -967,6 +967,8 @@ implementation
     _storeText(conn,'rec_start','Start');
     _storeText(conn,'rec_noend','Forever');
     _storeText(conn,'rec_end','Until');
+    _storeText(conn,'rec_interval','Interval');
+    _storeText(conn,'rec_count','Count');
   end;
 
   procedure TFRE_DB_WAPP_DOJO.BuildContextMenu(const co: TFRE_DB_MENU_DESC; var contentString, contentType: String);
@@ -1838,7 +1840,8 @@ implementation
     jsContentAdd('  G_TEXTS.recurrence =');
     jsContentAdd('         {once: "'+_getText(conn,'rec_once')+'", minute: "'+_getText(conn,'rec_minute')+'", hour: "'+_getText(conn,'rec_hour')+'", day: "'+_getText(conn,'rec_day')+'", week: "'+_getText(conn,'rec_week')+'", month: "'+_getText(conn,'rec_month')+'", quarter: "'+_getText(conn,'rec_quarter')+'", year: "'+_getText(conn,'rec_year')+'",');
     jsContentAdd('          mo: "'+_getText(conn,'rec_mo')+'", tu: "'+_getText(conn,'rec_tu')+'", we:"'+_getText(conn,'rec_we')+'", th: "'+_getText(conn,'rec_th')+'", fr: "'+_getText(conn,'rec_fr')+'", sa: "'+_getText(conn,'rec_sa')+'", su: "'+_getText(conn,'rec_su')+'",');
-    jsContentAdd('          startDate: "'+_getText(conn,'rec_start')+'", endDate: "'+_getText(conn,'rec_end')+'", noEndDate: "'+_getText(conn,'rec_noend')+'"');
+    jsContentAdd('          startDate: "'+_getText(conn,'rec_start')+'", endDate: "'+_getText(conn,'rec_end')+'", noEndDate: "'+_getText(conn,'rec_noend')+'",');
+    jsContentAdd('          count: "'+_getText(conn,'rec_count')+'", interval: "'+_getText(conn,'rec_interval')+'"');
     jsContentAdd('         };');
     jsContentAdd('</script>');
 
