@@ -187,16 +187,16 @@ begin
                    options.add('-WM10.6');
                  end;
     freebsd:     begin
-                   //
+                   options.Add('-k-rpath=$ORIGIN/../lib/lib'+FOSBuild.Bits(Defaults.CPU)+cFOS_BUILD_SUFFIX+'/'+FOSBuild.OS);
                  end;
     solaris:     begin
-                   //
+                   options.Add('-k-rpath=$ORIGIN/../lib/lib'+FOSBuild.Bits(Defaults.CPU)+cFOS_BUILD_SUFFIX+'/'+FOSBuild.OS);
                  end;
     win32,win64: begin
                    //
                  end;
     linux      : begin
-                   //
+                   options.Add('-k-rpath=$ORIGIN/../lib/lib'+FOSBuild.Bits(Defaults.CPU)+cFOS_BUILD_SUFFIX+'/'+FOSBuild.OS);
                  end;
   end;
 end;

@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-e COREBOX -U root -H 10.220.251.10 -u admin1@system -p a1234 -D"/>
+        <CommandLineParams Value="-e TEST -U root -H 10.220.251.10 -u admin1@system -p a1234 -D"/>
       </local>
     </RunParams>
     <Units Count="6">
@@ -83,7 +83,7 @@
       </SyntaxOptions>
     </Parsing>
     <CodeGeneration>
-      <TargetCPU Value="i386"/>
+      <TargetCPU Value="x86_64"/>
     </CodeGeneration>
     <Other>
       <CompilerMessages>
