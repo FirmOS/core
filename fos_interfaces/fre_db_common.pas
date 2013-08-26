@@ -266,7 +266,7 @@ type
   TFRE_DB_INPUT_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a text input field within a form.
-    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const multiValues: Boolean=false; const isPass:Boolean=false) : TFRE_DB_INPUT_DESC;
+    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const multiValues: Boolean=false; const isPass:Boolean=false; const confirms: String='') : TFRE_DB_INPUT_DESC;
   end;
 
   { TFRE_DB_INPUT_DESCRIPTION_DESC }
@@ -1631,11 +1631,12 @@ implementation
 
   { TFRE_DB_INPUT_DESC }
 
-  function TFRE_DB_INPUT_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator; const multiValues:Boolean; const isPass:Boolean): TFRE_DB_INPUT_DESC;
+  function TFRE_DB_INPUT_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator; const multiValues:Boolean; const isPass:Boolean; const confirms: String): TFRE_DB_INPUT_DESC;
   begin
     inherited Describe(caption, field_reference, required, groupRequired, disabled, hidden, defaultValue, validator);
     Field('multiValues').AsBoolean := multiValues;
     Field('isPass').AsBoolean:=isPass;
+    Field('confirms').AsString:=confirms;
     Result:=Self;
   end;
 
@@ -2312,7 +2313,7 @@ implementation
                                                      obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean,'',validator,obj.Field('multiValues').AsBoolean,obj.Field('isPass').AsBoolean);
                              if obj.Field('addConfirm').AsBoolean then begin
                                group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString + '_confirm',required,obj.Field('required').AsBoolean,
-                                                       obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean,'',validator,obj.Field('multiValues').AsBoolean,obj.Field('isPass').AsBoolean);
+                                                       obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean,'',validator,obj.Field('multiValues').AsBoolean,obj.Field('isPass').AsBoolean,prefix+obj.Field('field').AsString);
                              end;
                            end;
             fdbft_Boolean: begin
