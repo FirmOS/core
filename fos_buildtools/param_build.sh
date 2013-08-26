@@ -2,7 +2,7 @@
 usage()
 {
   echo "usage: $0 options"
-  echo "makes a full clean/build/cycle of firmos software"
+  echo "makes a build/cycle of firmos software"
   echo "OPTIONS:" 
   echo " -h Show this help"
   echo " -3 Enable 32 Bit build" 
@@ -55,13 +55,6 @@ if [ ! "$buildsuf" ]; then
 fi
 
 #echo fpmake install $cflags $buildsuf
-echo "--> Cleaning"
-find .. -name '*.res' -exec rm {} ';'
-find .. -name '*.o' -exec rm {} ';'
-find .. -name '*.ppu' -exec rm {} ';'
-rm -rf full_build_log.txt 1>/dev/null
-rm -rf fos_bin 1>/dev/null
-rm -rf fos_pkg 1>/dev/null
 echo "--> Makeing fpmake files"
 ./makefpmake.sh
 echo "--> Building"

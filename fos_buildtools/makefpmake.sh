@@ -19,10 +19,10 @@ fpc_comp="$fpcbin -n $fpcunits/* $fpcunits/rtl -Fl~/fosbuild/fpcbin/$platform/li
 #exit
 rm -f fpmake_packages 
 rm -f fpmake_test 
-rm -f fpmake_products 
+#rm -f fpmake_products 
 $fpc_comp -B fpmake_packages.pas 1>/dev/null
 $fpc_comp -B fpmake_test.pas 1>/dev/null
-$fpc_comp -B fpmake_products.pas 1>/dev/null
+#$fpc_comp -B fpmake_products.pas 1>/dev/null
 rm -f *.ppu 2>/dev/null
 rm -f *.o 2>/dev/null
 rm -f *.s 2>/dev/null
@@ -40,11 +40,11 @@ else
   echo "ERROR: building fpmake_test failed for $fpcos $fpccpu with fpc $fpcversion" 1>&2
   exit 99
 fi
-if [ -f fpmake_products ]
-then
-  echo "OK: a new fpmake_products was built for $fpcos $fpccpu with fpc $fpcversion"
-else 
-  echo "ERROR: building fpmake_products failed for $fpcos $fpccpu with fpc $fpcversion" 1>&2
-  exit 99
-fi
+#if [ -f fpmake_products ]
+#then
+#  echo "OK: a new fpmake_products was built for $fpcos $fpccpu with fpc $fpcversion"
+#else 
+#  echo "ERROR: building fpmake_products failed for $fpcos $fpccpu with fpc $fpcversion" 1>&2
+#  exit 99
+#fi
 exit 0
