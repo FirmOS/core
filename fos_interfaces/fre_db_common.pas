@@ -2152,7 +2152,11 @@ implementation
       if (Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_BLOCK_DESC) or (Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_GROUP_DESC) then begin
         (Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_FORM_DESC)._FillWithObjectValues(obj);
       end else begin
-        objField:=obj.FieldPath(Field('elements').AsObjectItem[i].Field('field').AsString,true);
+        if Field('elements').AsObjectItem[i].Field('confirms').AsString<>'' then begin
+          objField:=obj.FieldPath(Field('elements').AsObjectItem[i].Field('confirms').AsString,true);
+        end else begin
+          objField:=obj.FieldPath(Field('elements').AsObjectItem[i].Field('field').AsString,true);
+        end;
         if Assigned(objField) then begin
           if (Field('elements').AsObjectItem[i].Implementor_HC  is TFRE_DB_INPUT_CHOOSER_DESC) and Field('elements').AsObjectItem[i].Field('cce').AsBoolean and (objField.FieldType=fdbft_Object) then begin
             val  := Field('elements').AsObjectItem[i].Field('store').AsObject.field('id').AsString;
