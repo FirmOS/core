@@ -805,22 +805,32 @@ end;
 { TFRE_DB_TEST_B }
 
 class procedure TFRE_DB_TEST_B.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+var
+  input_group: IFRE_DB_InputGroupSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_OBJECTEX');
   scheme.AddSchemeField         ('firstname',fdbft_String);
   scheme.AddSchemeField         ('lastname',fdbft_String);
+  scheme.AddSchemeField         ('pass',fdbft_String).SetupFieldDef(true,false,'','',true,true);
   scheme.AddSchemeField         ('icon',fdbft_String);
+
+  input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_TEST_B');
+  input_group.AddInput('firstname','Firstname');
+  input_group.AddInput('lastname','Lastname');
+  input_group.AddInput('pass','Password');
+  input_group.AddInput('icon','Icon');
 end;
 
 function TFRE_DB_TEST_B.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
 var
-  res: TFRE_DB_FORM_DESC;
+  res   : TFRE_DB_FORM_DESC;
+  scheme: IFRE_DB_SchemeObject;
 begin
+  GetDBConnection.GetScheme(SchemeClass,scheme);
+
   res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
-  res.AddInput.Describe('Firstname','firstname');
-  res.AddInput.Describe('Lastname','lastname');
-  res.AddInput.Describe('Icon','icon');
+  res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.FillWithObjectValues(Self,GetSession(input));
   res.AddButton.Describe('Save',CSF(@IMI_saveOperation),fdbbt_submit);
   Result:=res;
@@ -1875,6 +1885,7 @@ begin
     lobj := CONN.NewObject('TFRE_DB_TEST_B');
     lobj.Field('firstname').AsString:='FN_' + IntToStr(i);
     lobj.Field('lastname').AsString:='LN_' + IntToStr(i);
+    lobj.Field('pass').AsString:='PASS_' + IntToStr(i);
     lobj.Field('icon').AsString:=getThemedResource('images_apps/test/add.png');
     COLL.Store(lobj);
   end;
