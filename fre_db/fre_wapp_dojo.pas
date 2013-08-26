@@ -348,6 +348,9 @@ implementation
     if co.Field('defaultValue').AsString<>'' then begin
       jsContentAdd('" value= '''+StringReplace(co.Field('defaultValue').AsString,#10,'\n',[rfReplaceAll]) + '''"+');
     end;
+    if co.Field('confirms').AsString<>'' then begin
+      jsContentAdd('" confirms='''+co.Field('confirms').AsString+'''"+');
+    end;
     if co.Field('required').AsBoolean then begin
       jsContentAdd('" required=true"+');
     end else begin

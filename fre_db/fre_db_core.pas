@@ -8056,9 +8056,9 @@ end;
 function TFRE_DB_FieldSchemeDefinition.SetupFieldDefI(const is_required: boolean; const is_multivalue: boolean; const enum_key: TFRE_DB_String; const validator_key: TFRE_DB_String; const is_pass: Boolean; const add_confirm: Boolean; const validator_params: IFRE_DB_Object): IFRE_DB_FieldSchemeDefinition;
 begin
   if assigned(validator_params) then
-    result := SetupFieldDef(is_required,is_multivalue,enum_key,validator_key,isPass,add_confirm,validator_params.Implementor_HC as TFRE_DB_Object)
+    result := SetupFieldDef(is_required,is_multivalue,enum_key,validator_key,is_pass,add_confirm,validator_params.Implementor_HC as TFRE_DB_Object)
   else
-    result := SetupFieldDef(is_required,is_multivalue,enum_key,validator_key,isPass,add_confirm,nil);
+    result := SetupFieldDef(is_required,is_multivalue,enum_key,validator_key,is_pass,add_confirm,nil);
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.SetCalcMethod(const calc_methodname: TFRE_DB_String);
