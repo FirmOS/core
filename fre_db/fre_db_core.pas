@@ -515,7 +515,7 @@ type
     function        IFRE_DB_Object.GetScheme           = GetSchemeI;
     function        IFRE_DB_Object.FieldOnlyExistingObj= FieldOnlyExistingObjI;
     procedure       IFRE_DB_Object.CopyField           = CopyFieldI;
-    function        Invoke                             (const method:TFRE_DB_String;const input:IFRE_DB_Object):IFRE_DB_Object; virtual;
+    function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
     procedure       Finalize                           ;
     procedure       RemoveAllRefLinks                  ;
   public
@@ -8940,6 +8940,8 @@ var i         : Integer;
     obexcl    : TFRE_DB_OBJECTCLASSEX;
     fake_in_p : TFRE_DB_Object;
 
+    app_if     : IFRE_DB_APPLICATION;
+
 
    function _getObj(const field: TFRE_DB_FIELD):Boolean;
    begin
@@ -8954,9 +8956,11 @@ var i         : Integer;
 
 begin
   result := nil;
+  app_if := nil;
   if Length(instance)>0 then begin
     if assigned(session) and session.SearchSessionAppUID(instance[0],iobj) then begin
       obj := iobj.Implementor as TFRE_DB_Object;
+      app_if := iobj.Implementor_HC as IFRE_DB_APPLICATION;
     end else
     if assigned(session) and session.SearchSessionDCUID(instance[0],idc) then begin
       obj := idc.Implementor as TFRE_DB_DERIVED_COLLECTION;
@@ -8987,7 +8991,7 @@ begin
     if assigned(in_params) then begin
       in_params.SetReference(session);
       try
-        result := obj.Invoke(meth_name,in_params); // NEVER EVER FREE SOMETHING IN THE IN PARAMS
+        result := obj.Invoke(meth_name,in_params,session,app_if,connection); // NEVER EVER FREE SOMETHING IN THE IN PARAMS
       finally
         in_params.Finalize;
       end;
@@ -8995,7 +8999,7 @@ begin
       try
         fake_in_p := GFRE_DB.NewObject;
         fake_in_p.SetReference(session);
-        result := obj.Invoke(meth_name,fake_in_p);
+        result := obj.Invoke(meth_name,fake_in_p,session,app_if,connection);
       finally
         fake_in_p.Finalize;
       end;
@@ -9013,13 +9017,6 @@ begin
        end;
     end;
   end;
-
- //  res_obj := obj.Invoke(lMethod,in_params);
- //  TransformAndSend(res_obj,'INSTANCE METHOD INVOKED [%s %s %s]',[GFRE_BT.CombineString(lClassPath,'.'),lMethod,GFRE_BT.GUID_2_HexString(class_guid_path[0])],fdbtt_post2json);
- //end;
-
-
- // _DBConnection.Update(dbo);
 end;
 
 function TFRE_DB_SchemeObject.InvokeMethod_UIDI(const obj_uid: TGUID; const obj_methodname: TFRE_DB_String; const input: IFRE_DB_Object; const connection: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -12457,12 +12454,12 @@ end;
 //  end;
 //end;
 
-function TFRE_DB_Object.Invoke(const method: TFRE_DB_String; const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_Object.Invoke(const method: TFRE_DB_String; const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   if assigned(FMediatorExtention) then begin
-    result := FMediatorExtention.Invoke(method,input);
+    result := FMediatorExtention.Invoke(method,input,ses,app,conn);
   end else begin
-    result := Invoke_DBIMI_Method(method,input);
+    result := Invoke_DBIMI_Method(method,input,ses,app,conn);
   end;
 end;
 

@@ -184,6 +184,10 @@ type
   TFRE_DB_SERVER_FUNC_DESC = class;
 
   IFRE_DB_Object               = interface;
+  IFRE_DB_Usersession          = interface;
+  IFRE_DB_APPLICATION          = interface;
+  IFRE_DB_CONNECTION           = interface;
+
   IFRE_DB_ClientFieldValidator = interface;
 
   IFRE_DB_ObjectArray                 = Array of IFRE_DB_Object;
@@ -479,7 +483,9 @@ type
   IFRE_DB_InvokeMethodCallbackObjectEx  = function  (const obj: TFRE_DB_ObjectEx ;  const Input:IFRE_DB_Object):IFRE_DB_Object;
 
   IFRE_DB_InvokeInstanceMethod = function  (const Input:IFRE_DB_Object):IFRE_DB_Object of object;
+  IFRE_DB_WebInstanceMethod    = function  (const Input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object of object;
   IFRE_DB_InvokeClassMethod    = function  (const Input:IFRE_DB_Object):IFRE_DB_Object of object;
+
   IFRE_DB_Invoke_WF_Method     = procedure (const WF_Step : IFRE_DB_WORKFLOWSTEP) of object;
   IFRE_DB_CS_CALLBACK          = procedure (const Input:IFRE_DB_Object) of Object;
   IFRE_DB_InvokeProcedure      = procedure (const Input:IFRE_DB_Object) of Object;
@@ -516,8 +522,6 @@ type
     procedure RegisterNewExtension    (const extension_name : String ; const MetaRegistrationFunction : IFRE_DB_EXTENSION_RegisterCB ; const MetaRegisterInitDBFunction : IFRE_DB_EXTENSION_INITDB_CB; const MetaRegisterRemoveFunction : IFRE_DB_EXTENSION_REMOVE_CB);
     procedure Finalize                ;
   end;
-
-  IFRE_DB_CONNECTION = interface;
 
   IFRE_DB_Object = interface(IFRE_DB_INVOKEABLE)
    ['IFREDBO']
@@ -569,7 +573,7 @@ type
     function        GetUIDPath                         :TFRE_DB_StringArray;
     function        GetUIDPathUA                       :TFRE_DB_GUIDArray;
     function        GetDBConnection                    :IFRE_DB_Connection;
-    function        Invoke                             (const method:TFRE_DB_String;const input:IFRE_DB_Object):IFRE_DB_Object;
+    function        Invoke                             (const method:TFRE_DB_String;const input:IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        Mediator                           : TFRE_DB_ObjectEx;
     procedure       Set_ReadOnly                       ;
     procedure       CopyField                          (const obj:IFRE_DB_Object;const field_name:String);
@@ -657,7 +661,6 @@ type
   TFRE_COLLECTION_GRID_DISPLAY_FLAGS  = set of TFRE_COLLECTION_GRID_DISPLAY_FLAG;
   TFRE_COLLECTION_TREE_DISPLAY_FLAGS  = set of TFRE_COLLECTION_TREE_DISPLAY_FLAG;
   TFRE_COLLECTION_CHART_DISPLAY_FLAGS = set of TFRE_COLLECTION_CHART_DISPLAY_FLAG;
-
 
   TFRE_DB_UserSession             = class;
 
@@ -989,7 +992,6 @@ type
     property  Explanation:TFRE_DB_String read GetExplanation write SetExplanation;
   end;
 
-  IFRE_DB_APPLICATION       = Interface;
   TFRE_DB_APPLICATION       = Class;
   TFRE_DB_APPLICATIONCLASS  = Class of TFRE_DB_APPLICATION;
 
@@ -1238,8 +1240,8 @@ type
     class function   Get_DBI_InstanceMethods                                            : TFRE_DB_StringArray;
     class function   Get_DBI_ClassMethods                                               : TFRE_DB_StringArray;
     class function   ClassMethodExists   (const name:Shortstring)                       : Boolean; // new
-    class function   Invoke_DBIMC_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object) : IFRE_DB_Object;virtual;
-    function         Invoke_DBIMI_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object) : IFRE_DB_Object;virtual;
+    class function   Invoke_DBIMC_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object) : IFRE_DB_Object;
+    function         Invoke_DBIMI_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object;const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION) : IFRE_DB_Object;
     function         Fetch_DBIMI_Method  (const name:TFRE_DB_String)                            : IFRE_DB_InvokeInstanceMethod;
     function         IMI_MethodExists    (const name:TFRE_DB_String)                            : boolean;
     function         MethodExists        (const name:Shortstring)                       : Boolean; // new
@@ -1251,6 +1253,7 @@ type
     //Utility Shortcuts
     function         CSFT                               (const server_function_name : string ; const obj:IFRE_DB_Object=nil):TFRE_DB_SERVER_FUNC_DESC;
     function         CSF                                (const invoke_method        : IFRE_DB_InvokeInstanceMethod):TFRE_DB_SERVER_FUNC_DESC;
+    function         CWSF                               (const invoke_method        : IFRE_DB_WebInstanceMethod):TFRE_DB_SERVER_FUNC_DESC;
     function         CSCF                               (const serv_classname,server_function_name : string ; const param1 : string=''; const value1 : string=''):TFRE_DB_SERVER_FUNC_DESC;
   end;
   {$M-}
@@ -1272,7 +1275,7 @@ type
     procedure      InternalFinalize    ; virtual;
   public
     class procedure RegisterSystemScheme               (const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    function       Invoke                              (const method: TFRE_DB_String; const input: IFRE_DB_Object): IFRE_DB_Object;virtual;
+    function       Invoke                              (const method:TFRE_DB_String;const input:IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
     constructor    create                              ;
     constructor    CreateConnected                     (const conn:IFRE_DB_CONNECTION);
     constructor    CreateBound                         (const dbo:IFRE_DB_Object);
@@ -1694,7 +1697,16 @@ type
     params : IFRE_DB_Object;
   end;
 
-  TFRE_DB_UserSession = class
+  IFRE_DB_UserSession=interface
+    function    GetSessionID             : TFRE_DB_String;
+    function    GetSessionAppData        (const app_key:TFRE_DB_String):IFRE_DB_Object;
+    function    GetSessionModuleData     (const mod_key:TFRE_DB_String):IFRE_DB_Object;
+    function    GetSessionGlobalData     :IFRE_DB_Object;
+    function    NewDerivedCollection     (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
+    function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
+  end;
+
+  TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession)
   private
     FOnCheckUserNamePW    : TFRE_DB_OnCheckUserNamePassword;
     FOnExistsUserSession  : TFRE_DB_OnExistsUserSessionForUser;
@@ -2695,14 +2707,16 @@ begin
     inp := GFRE_DBI.NewObject;
     inp.SetReference(self);
     try
-      result := obj.Invoke(method_name,inp);
+      abort;
+      result := obj.Invoke(method_name,inp,self,nil,nil);
     finally
       inp.Finalize;
     end;
   end else begin
     input.SetReference(self);
     try
-      result := obj.Invoke(method_name,input);
+      abort;
+      result := obj.Invoke(method_name,input,self,nil,nil);
     finally
       input.SetReference(nil);
     end;
@@ -3184,23 +3198,37 @@ end;
 //   end;
 //end;
 
-function TFRE_DB_Base.Invoke_DBIMI_Method(const name: TFRE_DB_String; const input: IFRE_DB_Object): IFRE_DB_Object;
-var M :IFRE_DB_InvokeInstanceMethod;
-    MM:TMethod;
+function TFRE_DB_Base.Invoke_DBIMI_Method(const name: TFRE_DB_String; const input: IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var M  : IFRE_DB_InvokeInstanceMethod;
+    MM : TMethod;
+    WM : IFRE_DB_WebInstanceMethod;
 begin
    result := nil;
-   MM.Code := MethodAddress('IMI_'+name);
+   MM.Code := MethodAddress('WEB_'+name);
    MM.Data := self;
-   M := IFRE_DB_InvokeInstanceMethod(MM);
-   if assigned(mm.Code) then begin
-     try
-       result := m(input);
-     except on e:exception do begin
-       raise EFRE_DB_Exception.Create(edb_ERROR,'INSTANCE METHOD INVOCATION %s.%s (%s) failed (%s)',[Classname,name,Debug_ID,e.Message]);
-     end;end;
-   end else begin
-      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'INSTANCE METHOD INVOCATION %s.%s (%s) failed (method not found)',[Classname,name,Debug_ID]);
-   end;
+   if assigned(MM.code) then
+     begin
+       WM := IFRE_DB_WebInstanceMethod(MM);
+       try
+         result := wm(input,ses,app,conn);
+       except on e:exception do begin
+         raise EFRE_DB_Exception.Create(edb_ERROR,'WEB INSTANCE METHOD INVOCATION %s.%s (%s) failed (%s)',[Classname,name,Debug_ID,e.Message]);
+       end;end;
+     end
+   else
+     begin
+       MM.Code := MethodAddress('IMI_'+name);
+       M := IFRE_DB_InvokeInstanceMethod(MM);
+       if assigned(mm.Code) then begin
+         try
+           result := m(input);
+         except on e:exception do begin
+           raise EFRE_DB_Exception.Create(edb_ERROR,'INSTANCE METHOD INVOCATION %s.%s (%s) failed (%s)',[Classname,name,Debug_ID,e.Message]);
+         end;end;
+       end else begin
+          raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'INSTANCE METHOD INVOCATION %s.%s (%s) failed (method not found)',[Classname,name,Debug_ID]);
+       end;
+     end;
 end;
 
 function TFRE_DB_Base.Fetch_DBIMI_Method(const name: TFRE_DB_String): IFRE_DB_InvokeInstanceMethod;
@@ -3299,6 +3327,23 @@ begin
   end;
 end;
 
+function TFRE_DB_Base.CWSF(const invoke_method: IFRE_DB_WebInstanceMethod): TFRE_DB_SERVER_FUNC_DESC;
+var m           : TMethod;
+    obj         : TFRE_DB_Base;
+    sfo         : IFRE_DB_Object;
+    method_name : string;
+begin
+  m := TMethod(invoke_method);
+  obj := (TObject(m.Data) as TFRE_DB_Base);
+  obj.IntfCast(IFRE_DB_Object,sfo);
+  method_name := obj.MethodName(m.Code);
+  if pos('WEB_',method_name)=1 then begin
+    result := TFRE_DB_SERVER_FUNC_DESC.create.Describe(sfo,Copy(method_name,5,maxint));
+  end else begin
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the method named %s does not follow the WEB_* naming convention',[method_name]);
+  end;
+end;
+
 function TFRE_DB_Base.CSCF(const serv_classname, server_function_name: string; const param1: string; const value1: string): TFRE_DB_SERVER_FUNC_DESC;
 begin
   result := TFRE_DB_SERVER_FUNC_DESC.create.Describe(serv_classname,server_function_name);
@@ -3333,15 +3378,16 @@ begin
   scheme.Strict(false);
 end;
 
+function TFRE_DB_ObjectEx.Invoke(const method: TFRE_DB_String; const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  result := Invoke_DBIMI_Method(method,input,ses,app,conn);
+end;
+
 //procedure TFRE_DB_ObjectEx.MyInitialize(const session : TFRE_DB_UserSession);
 //begin
 //
 //end;
 
-function TFRE_DB_ObjectEx.Invoke(const method: TFRE_DB_String; const input: IFRE_DB_Object): IFRE_DB_Object;
-begin
-  result := Invoke_DBIMI_Method(method,input);
-end;
 
 class procedure TFRE_DB_Base.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
@@ -4266,7 +4312,8 @@ end;
 function TFRE_DB_APPLICATION.DelegateInvoke(const modulename: TFRE_DB_String; const methname: string; const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
   if FieldExists(modulename) then begin
-    result := Field(modulename).AsObject.Invoke(methname,input);
+    abort;
+    result := Field(modulename).AsObject.Invoke(methname,input,nil,self,nil);
   end else begin
     raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'DelegateInvoke: Module [%s] not found!',[modulename]);
   end;

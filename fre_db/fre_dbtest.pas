@@ -162,7 +162,9 @@ type
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     function  GetToolbarMenu            : TFRE_DB_CONTENT_DESC;override;
     function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  IMI_HelloWorld            (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_HelloWorld            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  IMI_GRID_ITEM_DETAILS     (const input:IFRE_DB_Object):IFRE_DB_Object;
     function  IMI_AddRecordBefore       (const input:IFRE_DB_Object):IFRE_DB_Object;
     function  IMI_AddRecordAfter        (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -1223,10 +1225,43 @@ begin
   result := layout;
 end;
 
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var lvd_Grid     : TFRE_DB_VIEW_LIST_DESC;
+    DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
+    layout       : TFRE_DB_LAYOUT_DESC;
+    html         : TFRE_DB_HTML_DESC;
+begin
+  layout:=TFRE_DB_LAYOUT_DESC.create.Describe();
+
+  DC_Grid_Long := ses.FetchDerivedCollection('COLL_TEST_A_DERIVED2');
+
+  lvd_Grid := DC_Grid_Long.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button with TT','Tooltip');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button wo TT');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button sSel','Enabled on single Select',fdgbd_single);
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button mSel','Enabled on any Selection',fdgbd_multi);
+  lvd_Grid.AddButton.Describe(CSF(@IMI_AddRecordBefore),'images_apps/test/add.png','Add Obj Before','Add one Object');
+  lvd_Grid.AddButton.Describe(CSF(@IMI_AddRecordAfter),'images_apps/test/add.png','Add Obj After','Add one Object');
+  lvd_Grid.AddButton.Describe(CSF(@IMI_DelRecord),'images_apps/test/add.png','Del sel','Delete sel. Objs',fdgbd_multi);
+  lvd_Grid.AddButton.Describe(CSF(@IMI_UpdRecord),'images_apps/test/add.png','Upd sel','Update sel. Objs',fdgbd_multi);
+
+  html:=TFRE_DB_HTML_DESC.create.Describe('SEAS INITIAL');
+  html.contentId:='GRID2_HTML';
+
+  layout.SetLayout(lvd_Grid,html,nil,nil,nil,true,1);
+  //layout.contentId:='GRID2_LAYOUT';
+  result := layout;
+end;
+
 function TFRE_DB_TEST_APP_GRID2_MOD.IMI_HelloWorld(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
   writeln(INPUT.DumpToString());
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Hello','World '+input.Field('SELECTED').AsStringDump,fdbmt_info);
+end;
+
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_HelloWorld(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Hello','World '+ses.GetSessionID+'/'+app.ObjectName+' :: '+input.Field('SELECTED').AsStringDump,fdbmt_info);
 end;
 
 function TFRE_DB_TEST_APP_GRID2_MOD.IMI_GRID_ITEM_DETAILS(const input: IFRE_DB_Object): IFRE_DB_Object;
