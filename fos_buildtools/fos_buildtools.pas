@@ -177,10 +177,7 @@ end;
 
 procedure  FOS_OS_SPEC_OPTIONS(const options:TStrings);
 begin
-  if cFOS_STATIC_BUILD then
-    options.Add('-Fl../../lib/')
-  else
-    options.Add('-Fl../../lib/lib'+FOSBuild.Bits(Defaults.CPU)+cFOS_BUILD_SUFFIX+'/'+FOSBuild.OS);
+  options.Add('-Fl../../lib/');
 
   case Defaults.OS of
     darwin :     begin

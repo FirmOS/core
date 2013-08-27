@@ -219,6 +219,7 @@ program fpmake_packages;
          AddUnit('../fre_server/fre_http_tools.pas');
          AddUnit('../fre_server/fre_feed_client.pas');
          AddUnit('../fre_server/fre_basecli_app.pas');
+         AddUnit('fre_accesscontrol_common.pas');
        end;
     end;
     Run;
