@@ -50,6 +50,7 @@ const cFRE_SERVER_VERSION   = 'v0.1 Embedded';
       cFRE_GLOBAL_DIRECTORY = '/fre';
 
 var
+      cFRE_WEB_STYLE                  :string = 'firmos';
       cFRE_SERVER_DEFAULT_DIR         :string = '~/.firmos/fre';
       cFRE_HAL_CFG_DIR                :string = '';
       cFRE_JOB_RESULT_DIR             :string = '';

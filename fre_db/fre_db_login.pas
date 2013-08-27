@@ -99,9 +99,9 @@ var dlg         : TFRE_DB_LAYOUT_DESC;
     function _getUIHeader(const caption:String): String;
     begin
       Result:='<table style=''width: 100%; height: 29px;'' border=''0'' cellpadding=''0'' cellspacing=''0''><tbody><tr>';
-      Result:=Result+'<td style=''vertical-align: middle; text-align: left; width:145px''><img style=''width: 25px; height: 25px;'' src=''fre_css/'+cSTYLE+'/images/LOGIN.png''></td>';
+      Result:=Result+'<td style=''vertical-align: middle; text-align: left; width:145px''><img style=''width: 25px; height: 25px;'' src=''fre_css/'+cFRE_WEB_STYLE+'/images/LOGIN.png''></td>';
       Result:=Result+'<td style=''vertical-align: middle; text-align: center;''>'+caption+'<br></td>';
-      Result:=Result+'<td style=''vertical-align: middle; text-align: right; width:145px''><img style=''width: 142px; height:25px;'' src=''fre_css/'+cSTYLE+'/images/Firmos_WAPS.png''></td>';
+      Result:=Result+'<td style=''vertical-align: middle; text-align: right; width:145px''><img style=''width: 142px; height:25px;'' src=''fre_css/'+cFRE_WEB_STYLE+'/images/Firmos_WAPS.png''></td>';
       Result:=Result+'</tr></tbody></table>';
     end;
 

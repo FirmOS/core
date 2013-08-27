@@ -32,7 +32,7 @@
         <CommandLineParams Value="-e TEST -U root -H 10.220.251.10 -u admin1@system -p a1234 -D"/>
       </local>
     </RunParams>
-    <Units Count="6">
+    <Units Count="7">
       <Unit0>
         <Filename Value="fre_testserver.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -63,12 +63,17 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="fos_dbcorebox_machine"/>
       </Unit5>
+      <Unit6>
+        <Filename Value="../fre_server/fre_basecli_app.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_basecli_app"/>
+      </Unit6>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="fre_testserver"/>
+      <Filename Value="../../bin/fre_testserver"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../fos_include;$(ProjOutDir)"/>

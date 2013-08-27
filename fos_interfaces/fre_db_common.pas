@@ -43,10 +43,7 @@ unit fre_db_common;
 interface
 
 uses
-  Classes, SysUtils,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES;
-
-var
-  cSTYLE:String = 'firmos';
+  Classes, SysUtils,FRE_DB_INTERFACE,FRE_SYSTEM,FOS_TOOL_INTERFACES;
 
 type
 
@@ -994,7 +991,7 @@ implementation
 
   function getThemedResource(const id: String): String;
   begin
-    Result:='/fre_css/'+cSTYLE+'/'+id;
+    Result:='/fre_css/'+cFRE_WEB_STYLE+'/'+id;
   end;
 
   function String2DBChooserDH(const fts: string): TFRE_DB_CHOOSER_DH;

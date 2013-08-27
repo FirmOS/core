@@ -15425,7 +15425,7 @@ function TFRE_DB_FIELD._ConvertToString(const idx:integer=0): TFRE_DB_String;
   //    i:integer;
   begin
     result := '/FREDB_SFA/'+GFRE_BT.GUID_2_HexString(Fobj.UID)+'/'+gfre_bt.Str2HexStr(FFieldName^);
-    result := '/fre_css/'+ cSTYLE + '/images/user.png'; // FIXXME
+    result := '/fre_css/'+ cFRE_WEB_STYLE + '/images/user.png'; // FIXXME
     //i:=FFieldData.strm^[idx].Size;
     //SetLength(s,i);
     //Move(FFieldData.strm^[idx].Memory^,s[1],i);
