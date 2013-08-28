@@ -101,11 +101,11 @@ begin
   end;
 
   if HasOption('u','user') then begin
-    cFEEDUser := GetOptionValue('u','user');
+    cFRE_Feed_User := GetOptionValue('u','user');
   end;
 
   if HasOption('p','pass') then begin
-    cFEEDPass := GetOptionValue('p','pass');
+    cFRE_Feed_Pass := GetOptionValue('p','pass');
   end;
 
   if HasOption('H','remotehost') then begin

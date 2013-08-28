@@ -72,6 +72,8 @@ var
       cFRE_ALERTING_STATUS_FILE       :string = '';
       cFRE_REMOTE_USER                :string = '';
       cFRE_REMOTE_HOST                :string = '';
+      cFRE_Feed_User                  :string = '';
+      cFRE_Feed_Pass                  :string = '';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;

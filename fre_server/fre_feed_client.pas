@@ -42,11 +42,7 @@ unit fre_feed_client;
 interface
 
 uses
-  Classes, SysUtils,fre_base_client,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE;
-
-var
-  cFEEDUser      : string = '';
-  cFEEDPass      : string = '';
+  Classes, SysUtils,fre_base_client,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_system;
 
 type
 
@@ -85,8 +81,8 @@ end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.QueryUserPass(out user, pass: string);
 begin
-  user := cFEEDUser;
-  pass := cFEEDPass;
+  user := cFRE_Feed_User;
+  pass := cFRE_Feed_Pass;
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyInitialize;
