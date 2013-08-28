@@ -674,7 +674,7 @@ type
     procedure  RemoveAllFilterFields         ;
     procedure  RemoveAllFiltersPrefix        (const prefix:string);
     function   Count                         : QWord;
-    function   FetchFromParent               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
+    //function   FetchFromParent               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
 
     procedure  BeginUpdateGathering          ;
     procedure  FinishUpdateGathering         (const sendupdates : Boolean);
@@ -1199,7 +1199,9 @@ type
     function   GetDescription               (conn : IFRE_DB_CONNECTION): IFRE_DB_TEXT;
     function   UID                          : TGUID;
     function   AsObject                     : IFRE_DB_Object;
-    function   ShowInApplicationChooser     (const session:TFRE_DB_UserSession): Boolean;
+    function   ShowInApplicationChooser     (const session:IFRE_DB_UserSession): Boolean;
+    function   FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
+    function   Get_Rightname                (const sub_right_name:string):string;
   end;
 
   IFRE_DB_APPLICATION_MODULE=interface
@@ -1234,8 +1236,8 @@ type
     class procedure  RegisterSystemScheme     (const scheme:IFRE_DB_SCHEMEOBJECT); virtual;
     class procedure  InstallDBObjects         (const conn:IFRE_DB_SYS_CONNECTION); virtual;
     function         CFG_Dont_Finalize_Object : Boolean; virtual;
-    procedure        GetSession          (const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean);
-    function         GetSession          (const input: IFRE_DB_Object):TFRE_DB_UserSession;
+    procedure        GetSession          (const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean); deprecated; //DEPRECATED DONT USE
+    function         GetSession          (const input: IFRE_DB_Object):TFRE_DB_UserSession; deprecated; //DEPRECATED DONT USE
     procedure        __SetMediator       (const med : TFRE_DB_ObjectEx);
     class function   Get_DBI_InstanceMethods                                            : TFRE_DB_StringArray;
     class function   Get_DBI_ClassMethods                                               : TFRE_DB_StringArray;
@@ -1427,11 +1429,15 @@ type
     function   ObjectNameI                  : TFRE_DB_String;
 
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
-    function    ShowInApplicationChooser    (const session:TFRE_DB_UserSession): Boolean;virtual;
+    function    ShowInApplicationChooser    (const session:IFRE_DB_UserSession): Boolean;virtual;
 
     function   CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):TFRE_DB_Errortype;
+
     function   FetchAppText                 (const conn: IFRE_DB_CONNECTION;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
     function   FetchAppText                 (const input_context: IFRE_DB_Object;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
+    function   FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
+
+    function   Get_Rightname                (const sub_right_name:string):string;
 
   published
      function   IMI_Content                 (const input:IFRE_DB_Object):IFRE_DB_Object; virtual;
@@ -1461,6 +1467,8 @@ type
     function   GetEmbeddingApp              : TFRE_DB_APPLICATION;
     function   CheckAppRightModule          (const input_context: IFRE_DB_Object;const module_name:TFRE_DB_String) : Boolean;
     function   FetchAppText                 (const input_context: IFRE_DB_Object;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;
+
+    function   Get_Rightname                (const sub_right_name:string):string;
 
     function   GetToolbarMenu               : TFRE_DB_CONTENT_DESC;virtual;
     function   GetDBConnection              (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
@@ -1704,6 +1712,14 @@ type
     function    GetSessionGlobalData     :IFRE_DB_Object;
     function    NewDerivedCollection     (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
     function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
+    function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
+    function    GetDBConnection          :IFRE_DB_CONNECTION;
+
+    procedure   registerUpdatableContent   (const contentId: String);
+    procedure   unregisterUpdatableContent (const contentId: String);
+    procedure   registerUpdatableDBO       (const id: String);
+    procedure   unregisterUpdatableDBO     (const id: String);
+    function    isUpdatableContentVisible  (const contentId: String): Boolean;
   end;
 
   TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession)
@@ -1794,7 +1810,10 @@ type
     procedure   RemoveTaskMethod         ;
     function    IsInteractiveSession     : Boolean;
 
-    property    GetDBConnection          :IFRE_DB_CONNECTION read FDBConnection;
+    function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
+
+    function    GetDBConnection          :IFRE_DB_CONNECTION;
+
     property    OnGetImpersonatedDBC     :TFRE_DB_OnGetImpersonatedConnection read FOnGetImpersonatedDBC write SetOnGetImpersonatedDBC;
     property    OnWorkCommandsEvent      :TNotifyEvent read FOnWorkCommands write SetOnWorkCommands;
     property    OnRestoreDefaultDBC      :TFRE_DB_OnRestoreDefaultConnection read FOnRestoreDefaultDBC write SetOnRestoreDefaultDBC;
@@ -3032,6 +3051,16 @@ begin
   result := FIsInteractive;
 end;
 
+function TFRE_DB_UserSession.FetchTranslateableText(const translation_key: TFRE_DB_String; var textObj: IFRE_DB_TEXT): Boolean;
+begin
+  result := GetDBConnection.FetchTranslateableText(translation_key,textObj);
+end;
+
+function TFRE_DB_UserSession.GetDBConnection: IFRE_DB_CONNECTION;
+begin
+  result := FDBConnection;
+end;
+
 
 function TFOS_BASE.Implementor: TObject;
 begin
@@ -4218,7 +4247,7 @@ var
 begin
   name   := Get_Rightname_App_Role_Subrole(ObjectName,rolename);
   result := GFRE_DBI.NewRole(name,long_desc,short_desc);
-  right:=GFRE_DBI.NewRight(Get_Rightname_App(ObjectName,'START'),'Startup of App','Start App');
+  right:=GFRE_DBI.NewRight(Get_Rightname('START'),'Startup of App','Start App');
   result.AddRight(right);
 end;
 
@@ -4226,7 +4255,7 @@ procedure TFRE_DB_APPLICATION._AddAppRight(const right_group: IFRE_DB_ROLE; cons
 var name  : TFRE_DB_String;
     right : IFRE_DB_RIGHT;
 begin
-  name  := Get_Rightname_App(ObjectName,sub_right_name);
+  name  := Get_Rightname(sub_right_name);
   right := GFRE_DBI.NewRight(name,long_desc,short_desc);
   right_group.AddRight(right);
 end;
@@ -4237,7 +4266,7 @@ var name  : TFRE_DB_String;
     i     : Integer;
 begin
   for i:=0 to high(module_names) do begin
-    name  := Get_Rightname_App(ObjectName,'$ACMOD_'+module_names[i]);
+    name  := Get_Rightname('$ACMOD_'+module_names[i]);
     right := GFRE_DBI.NewRight(name,'Automatic Right to access App Module: '+module_names[i],'ACCESS '+module_names[i]);
     right_group.AddRight(right);
   end;
@@ -4285,9 +4314,19 @@ begin
   result := FetchAppText(GetSession(input_context).GetDBConnection,translation_key);
 end;
 
+function TFRE_DB_APPLICATION.FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
+begin
+  result := FetchAppText(session.GetDBConnection,translation_key);
+end;
+
+function TFRE_DB_APPLICATION.Get_Rightname(const sub_right_name: string): string;
+begin
+  result := Get_Rightname_App_Helper(ObjectName,sub_right_name);
+end;
+
 function TFRE_DB_APPLICATION.CheckAppRightModule(const conn: IFRE_DB_CONNECTION;const module_name: TFRE_DB_String): Boolean;
 begin
-  result := (not CFG_ApplicationUsesRights) or conn.CheckRight(Get_Rightname_App(ObjectName,'$ACMOD_'+module_name));
+  result := (not CFG_ApplicationUsesRights) or conn.CheckRight(Get_Rightname('$ACMOD_'+module_name));
 end;
 
 function TFRE_DB_APPLICATION.CheckAppRightModule(const input_context: IFRE_DB_Object; const module_name: TFRE_DB_String): Boolean;
@@ -4423,7 +4462,7 @@ begin
 end;
 
 
-function TFRE_DB_APPLICATION.ShowInApplicationChooser(const session: TFRE_DB_UserSession): Boolean;
+function TFRE_DB_APPLICATION.ShowInApplicationChooser(const session: IFRE_DB_UserSession): Boolean;
 begin
   result := true;
 end;
@@ -4529,6 +4568,11 @@ end;
 function TFRE_DB_APPLICATION_MODULE.FetchAppText(const input_context: IFRE_DB_Object; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
   result := GetEmbeddingApp.FetchAppText(input_context,translation_key);
+end;
+
+function TFRE_DB_APPLICATION_MODULE.Get_Rightname(const sub_right_name: string): string;
+begin
+  result := GetEmbeddingApp.Get_Rightname(sub_right_name);
 end;
 
 function TFRE_DB_APPLICATION_MODULE.GetToolbarMenu: TFRE_DB_CONTENT_DESC;

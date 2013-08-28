@@ -1753,8 +1753,8 @@ type
     function   Last                    : TFRE_DB_Object   ; override;
     function   GetItem                 (const num:uint64):IFRE_DB_Object; override;
     function   Fetch                   (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;override;
-    function   FetchFromParent         (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;
-    function   FetchFromParentI        (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
+    //function   FetchFromParent         (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;
+    //function   FetchFromParentI        (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
 
     procedure  RemoveAllEntries        ;
 
@@ -3863,7 +3863,7 @@ var domain_id : TGUID;
       rg.AddRight(_NewRight(cSYSR_DEL_USER,'Allow the deletion of users','User delete'));
       rg.AddRight(_NewRight(cSYSR_MOD_RIGHT,'Allow the modification of users right','User rights'));
       rg.AddRight(_NewRight(cSYSR_MOD_UG,'Allow the modification of user groups on the user','Mod User User Groups'));
-      rg.AddRight(_NewRight(Get_Rightname_App('syseditor','START'),'Allow start of system editor','Start Sysed'));
+      rg.AddRight(_NewRight(Get_Rightname_App_Helper('syseditor','START'),'Allow start of system editor','Start Sysed'));
       rg.DomainID:=domain_id;
       FSysRoles.Store(TFRE_DB_Object(rg));
     end;
@@ -7226,35 +7226,36 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
 begin
-  if FDCMode<>dc_VirtualCollection then raise EFRE_DB_Exception.Create(edb_ERROR,'ONLY FETCHES IN VIRTUAL DCs ARE ALLOWED');
+  if not assigned(FParentCollection) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'DC FETCH, BUT NO PARENT DC ASSIGNED');
   Result := FParentCollection.Fetch(ouid, dbo);
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.FetchFromParent(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
-begin
-  //case FDCMode of
-  //  //dc_None: ;
-  //  dc_Map2RealCollection:
-  //
-  //  dc_VirtualCollection: ;
-  //  dc_Map2DerivedCollection: ;
-  //  dc_ReferentialLinkCollection: ;
-  //end;
-  //if FDCMode<>dc_Map2RealCollection then raise EFRE_DB_Exception.Create(edb_ERROR,'FETCH FROM PARENT IS ONLY IN MAP2REALMODE ALLOWED');
-  //Result := FParentCollection.Fetch(ouid, dbo);
-  result := _DBConnection.Fetch(ouid,dbo);
-end;
+//function TFRE_DB_DERIVED_COLLECTION.FetchFromParent(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
+//begin
+//  //case FDCMode of
+//  //  //dc_None: ;
+//  //  dc_Map2RealCollection:
+//  //
+//  //  dc_VirtualCollection: ;
+//  //  dc_Map2DerivedCollection: ;
+//  //  dc_ReferentialLinkCollection: ;
+//  //end;
+//  //if FDCMode<>dc_Map2RealCollection then raise EFRE_DB_Exception.Create(edb_ERROR,'FETCH FROM PARENT IS ONLY IN MAP2REALMODE ALLOWED');
+//  //Result := FParentCollection.Fetch(ouid, dbo);
+//  result := _DBConnection.Fetch(ouid,dbo);
+//end;
 
-function TFRE_DB_DERIVED_COLLECTION.FetchFromParentI(const ouid: TGUID; out dbo: IFRE_DB_Object): boolean;
-var idbo : TFRE_DB_Object;
-begin
-  result := FetchFromParent(ouid,idbo);
-  if result then begin
-    dbo :=idbo;
-  end else begin
-    dbo := nil;
-  end;
-end;
+//function TFRE_DB_DERIVED_COLLECTION.FetchFromParentI(const ouid: TGUID; out dbo: IFRE_DB_Object): boolean;
+//var idbo : TFRE_DB_Object;
+//begin
+//  result := FetchFromParent(ouid,idbo);
+//  if result then begin
+//    dbo :=idbo;
+//  end else begin
+//    dbo := nil;
+//  end;
+//end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllEntries;
 
@@ -10403,7 +10404,7 @@ begin
   cnt := 0;
   for i := 0 to high(l_apps) do begin
     if lowercase(l_apps[i].ObjectName)='login' then continue;
-    if FSysConnection._CheckRight(Get_Rightname_App(l_apps[i].ObjectName,'START')) then begin
+    if FSysConnection._CheckRight(Get_Rightname_App_Helper(l_apps[i].ObjectName,'START')) then begin
       apps[cnt] := l_apps[i];
       inc(cnt);
     end;
@@ -10414,7 +10415,7 @@ end;
 function TFRE_DB_CONNECTION.InvokeMethod(const class_name, method_name: TFRE_DB_String; const uid_path: TFRE_DB_GUIDArray; const input: IFRE_DB_Object; const session: TFRE_DB_UserSession): IFRE_DB_Object;
 var scheme:TFRE_DB_SchemeObject;
 begin
-  if not GetScheme(class_name,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'SCHEME [%s] UNKNOWN',[class_name]);
+  if not GetScheme(class_name,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'SCHEME [%s] IS UNKNOWN',[class_name]);
   try
     if assigned(input) then begin
       result := scheme.InvokeMethod_UID_Session(uid_path,class_name,method_name,input.Implementor as TFRE_DB_Object,self,session);

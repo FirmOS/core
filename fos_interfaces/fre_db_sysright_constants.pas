@@ -79,7 +79,7 @@ const //SYS_GROUPS
 
   function  Get_Rightname_App_Role_Subrole   (const app_name,sub_role_name:string):string;inline;
   function  Get_Groupname_App_Group_Subgroup (const app_name,sub_group_name:string):string;inline;
-  function  Get_Rightname_App                (const app_name,sub_right_name:string):string;inline;
+  function  Get_Rightname_App_Helper         (const app_name,sub_right_name:string):string;inline;
 
 implementation
 
@@ -93,7 +93,7 @@ begin
    result := '$AP_UG_'+uppercase(app_name+'_'+sub_group_name);
 end;
 
-function Get_Rightname_App(const app_name, sub_right_name: string): string;
+function Get_Rightname_App_Helper(const app_name, sub_right_name: string): string;
 begin
    result := '$AP_R_'+uppercase(app_name+'_'+sub_right_name);
 end;
