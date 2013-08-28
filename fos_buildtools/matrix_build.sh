@@ -4,6 +4,17 @@ FPC_64_REL_DEF="-O3 -CfSSE3 -Xs"
 FPC_32_DEB_DEF="-g -gw -gl" 
 FPC_64_DEB_DEF="-g -gw -gl"
 case "$1" in
+  *static*)
+        FPC_LINK="-l"
+        ;;
+  *dynamic*)
+        FPC_LINK=""
+  	;;
+  *)
+        FPC_LINK=""
+esac              
+
+case "$1" in
   *i386*)   
         FPC_ARC="-3" 
 		case "$1" in
@@ -42,4 +53,4 @@ case "$1" in
   	  	 echo "target must contain i386 or x86_64" 
   	  	 exit 1;;
 esac
-./param_build.sh $FPC_ARC -b $FPC_SFX -f "$FPC_FLAGS"
+./param_build.sh $FPC_ARC -b $FPC_SFX -f "$FPC_FLAGS" $FPC_LINK

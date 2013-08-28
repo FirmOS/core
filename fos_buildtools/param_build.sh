@@ -9,10 +9,13 @@ usage()
   echo " -6 Enable 64 Bit build" 
   echo " -f param : Passes params as extra compiler options to fpmake"
   echo " -b param : Passes buildsuffix option to fpmake"
+  echo " -l : link static"
   exit
 }
 
-while getopts "36hf:b:" opt; do
+lstatic=""
+
+while getopts "36hlf:b:" opt; do
   case $opt in
     3)
       build32=1
@@ -26,6 +29,9 @@ while getopts "36hf:b:" opt; do
     b)
       bsfx=$OPTARG
       ;;
+    l)
+      lstatic="--fosstatic=true"
+      ;; 
     h)
       usage
       ;;
@@ -57,23 +63,23 @@ fi
 #echo fpmake install $cflags $buildsuf
 echo "--> Makeing fpmake files"
 ./makefpmake.sh
-echo "--> Building"
+echo "--> Building "$cflags" "$buildsuf" "$lstatic""
 #env
 if [ "$build32" = 1 ]; then 
   ./fpmake_packages -C i386 -dc 1>>full_build_log.txt
   RETVAL=$?
   [ $RETVAL -eq 0 ] && echo "OK:   Clean fpmake_packages (32)"
   [ $RETVAL -ne 0 ] && echo "FAIL: Clean fpmake_packages (32)" 1>&2  && exit 1
-  ./fpmake_packages -C i386 install -v "$cflags" "$buildsuf" 1>>full_build_log.txt
+  ./fpmake_packages -C i386 install -v "$cflags" "$buildsuf" $lstatic 1>>full_build_log.txt
   RETVAL=$?
-  [ $RETVAL -eq 0 ] && echo "OK:   Packages built.    32Bit : $cflags $buildsuf"
-  [ $RETVAL -ne 0 ] && echo "FAIL: No Packages built. 32Bit : $cflags $buildsuf"  1>&2 && exit 1
+  [ $RETVAL -eq 0 ] && echo "OK:   Packages built.    32Bit : $cflags $buildsuf $lstatic" 
+  [ $RETVAL -ne 0 ] && echo "FAIL: No Packages built. 32Bit : $cflags $buildsuf $lstatic"  1>&2 && exit 1
   
   ./fpmake_test -C i386 -dc 1>>full_build_log.txt
   RETVAL=$?
   [ $RETVAL -eq 0 ] && echo "OK:   Clean fpmake_test (32)"
   [ $RETVAL -ne 0 ] && echo "FAIL: Clean fpmake_packages (32)" 1>&2 && exit 1
-  ./fpmake_test -C i386 install -v "$cflags" "$buildsuf" 1>>full_build_log.txt
+  ./fpmake_test -C i386 install -v "$cflags" "$buildsuf" $lstatic 1>>full_build_log.txt
   RETVAL=$?
   [ $RETVAL -eq 0 ] && echo "OK:   Tests built. (32)"
   [ $RETVAL -ne 0 ] && echo "FAIL: Tests built. (32)"  1>&2  && exit 1
@@ -84,7 +90,7 @@ if [ "$build64" = "1" ]; then
   RETVAL=$?
   [ $RETVAL -eq 0 ] && echo "OK:   Clean fpmake_packages (64)"
   [ $RETVAL -ne 0 ] && echo "FAIL: Clean fpmake_packages (64)" 1>&2  && exit 1
-  ./fpmake_packages -C x86_64 install -v "$cflags" "$buildsuf" 1>>full_build_log.txt
+  ./fpmake_packages -C x86_64 install -v "$cflags" "$buildsuf" $lstatic 1>>full_build_log.txt
   RETVAL=$?
   [ $RETVAL -eq 0 ] && echo "OK:   Packages built. (64)"
   [ $RETVAL -ne 0 ] && echo "FAIL: Packages built. (64)"  1>&2  && exit 1
@@ -93,7 +99,7 @@ if [ "$build64" = "1" ]; then
   RETVAL=$?
   [ $RETVAL -eq 0 ] && echo "OK:   Clean fpmake_test (64)"
   [ $RETVAL -ne 0 ] && echo "FAIL: Clean fpmake_test (64)" 1>&2  && exit 1
-  ./fpmake_test -C x86_64 install -v "$cflags" "$buildsuf" 1>>full_build_log.txt
+  ./fpmake_test -C x86_64 install -v "$cflags" "$buildsuf" $lstatic 1>>full_build_log.txt
   RETVAL=$?
   [ $RETVAL -eq 0 ] && echo "OK:   Tests built. (64)"
   [ $RETVAL -ne 0 ] && echo "FAIL: Tests built. (64)"  1>&2  && exit 1

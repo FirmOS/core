@@ -455,7 +455,7 @@ type
   private
     function  GetFormElement       (const elementId:String): TFRE_DB_CONTENT_DESC;
     procedure AddStore             (const store: TFRE_DB_STORE_DESC);virtual;
-    procedure AddDBO               (const id: String; const session: TFRE_DB_UserSession);virtual;
+    procedure AddDBO               (const id: String; const session: IFRE_DB_UserSession);virtual;
     function  GetStore             (const id:String): TFRE_DB_STORE_DESC;virtual;
     function  Describe             (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean=true): TFRE_DB_FORM_DESC;
     procedure _FillWithObjectValues(const obj: IFRE_DB_Object);
@@ -463,10 +463,10 @@ type
     //@ Sets the value of the input element with the given id.
     procedure SetElementValue      (const elementId, value:String);
     //@ Fills the form with the values of the given object.
-    procedure FillWithObjectValues (const obj: IFRE_DB_Object; const session: TFRE_DB_UserSession);
+    procedure FillWithObjectValues (const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
     //@ See TFRE_DB_INPUT_GROUP_DESC.
-    function  AddSchemeFormGroup   (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : TFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false): TFRE_DB_INPUT_GROUP_DESC;
+    function  AddSchemeFormGroup   (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false): TFRE_DB_INPUT_GROUP_DESC;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
     function  AddInput             : TFRE_DB_INPUT_DESC;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
@@ -511,7 +511,7 @@ type
   protected
     function  _Describe        (const caption:String;const collapsible,collapsed: Boolean):TFRE_DB_INPUT_GROUP_DESC;
     procedure AddStore         (const store: TFRE_DB_STORE_DESC);override;
-    procedure AddDBO           (const id: String; const session: TFRE_DB_UserSession);override;
+    procedure AddDBO           (const id: String; const session: IFRE_DB_UserSession);override;
     function  GetStore         (const id: String):TFRE_DB_STORE_DESC;override;
   public
     //@ Describes an input group within a form.
@@ -527,7 +527,7 @@ type
   TFRE_DB_INPUT_BLOCK_DESC  = class(TFRE_DB_FORM_DESC)
   private
     procedure AddStore    (const store: TFRE_DB_STORE_DESC);override;
-    procedure AddDBO      (const id: String; const session: TFRE_DB_UserSession);override;
+    procedure AddDBO      (const id: String; const session: IFRE_DB_UserSession);override;
     function  GetStore    (const id: String):TFRE_DB_STORE_DESC;override;
   public
     //@ Describes an horizontal input block within a form (e.g. Favourite 3 colours: input input input).
@@ -1763,7 +1763,7 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_INPUT_BLOCK_DESC.AddDBO(const id: String; const session: TFRE_DB_UserSession);
+  procedure TFRE_DB_INPUT_BLOCK_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession);
   var
     obj: IFRE_DB_Object;
   begin
@@ -2199,7 +2199,7 @@ implementation
     Field('stores').AddObject(store);
   end;
 
-  procedure TFRE_DB_FORM_DESC.AddDBO(const id: String; const session: TFRE_DB_UserSession);
+  procedure TFRE_DB_FORM_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession);
   var
     i : Integer;
   begin
@@ -2223,7 +2223,7 @@ implementation
     end;
   end;
 
-    function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: TFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean): TFRE_DB_INPUT_GROUP_DESC;
+        function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean): TFRE_DB_INPUT_GROUP_DESC;
   var
     group         : TFRE_DB_INPUT_GROUP_DESC;
     obj           : IFRE_DB_Object;
@@ -2236,7 +2236,7 @@ implementation
       txt: IFRE_DB_TEXT;
     begin
        if (key<>'')
-         and session.GetDBConnection.FetchTranslateableText(key,txt) then
+         and session.FetchTranslateableText(key,txt) then
          begin
            Result:=txt.Getshort;
          end
@@ -2399,7 +2399,7 @@ implementation
     elem.Field('defaultValue').AsString:=value;
   end;
 
-  procedure TFRE_DB_FORM_DESC.FillWithObjectValues(const obj: IFRE_DB_Object; const session: TFRE_DB_UserSession);
+  procedure TFRE_DB_FORM_DESC.FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
   begin
     AddDBO(obj.UID_String, session);
     _FillWithObjectValues(obj);
@@ -2531,7 +2531,7 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_INPUT_GROUP_DESC.AddDBO(const id: String; const session: TFRE_DB_UserSession);
+  procedure TFRE_DB_INPUT_GROUP_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession);
   var
     obj: IFRE_DB_Object;
   begin
