@@ -1202,6 +1202,7 @@ type
     function   ShowInApplicationChooser     (const session:IFRE_DB_UserSession): Boolean;
     function   FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
     function   Get_Rightname                (const sub_right_name:string):string;
+    function   CheckAppRightModule          (const conn: IFRE_DB_CONNECTION;const module_name:TFRE_DB_String) : Boolean;
   end;
 
   IFRE_DB_APPLICATION_MODULE=interface
