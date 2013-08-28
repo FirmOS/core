@@ -202,7 +202,7 @@ uses Sysutils,ctypes,FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_FCOM_INTERFACES,FOS_FCOM
                 {$linklib libcrypto_fos32_linux_rel.a}
                 {$linklib libssl_fos32_linux_rel.a}
               {$ELSE DYNAMIC}
-                {$linklib libgcc_fos32_44_linux-fosdev} // __umoddi3
+//                {$linklib libgcc_fos32_44_linux-fosdev} // __umoddi3
                 {$linklib libcrypto_fos32_linux_rel-fosdev}
                 {$linklib libssl_fos32_linux_rel-fosdev}
               {$ENDIF STATIC/DYNAMIC}
