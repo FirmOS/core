@@ -51,7 +51,6 @@ uses
   FRE_DBBUSINESS,
 //  FOS_VM_CONTROL_INTERFACE,
   FRE_DB_SYSRIGHT_CONSTANTS;
-//  fos_dbcorebox_vm_machines_mod;
 
 procedure MetaRegister_Test;
 procedure MetaInitializeDatabase_Test(const dbname :string; const user,pass:string);
@@ -1943,7 +1942,6 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_EDITORS_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_WELCOME_MOD);
-  //GFRE_DBI.RegisterObjectClassEx(TFRE_DBCOREBOX_VM_MACHINES_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP);
   GFRE_DBI.Initialize_Extension_Objects;
 end;

@@ -15,9 +15,9 @@ uses
 
 type
 
-  { TFRE_COMMON_USER_APP }
+  { TFRE_COMMON_ACCESSCONTROL_APP }
 
-  TFRE_COMMON_USER_APP=class(TFRE_DB_APPLICATION)
+  TFRE_COMMON_ACCESSCONTROL_APP=class(TFRE_DB_APPLICATION)
   private
     procedure       SetupApplicationStructure     ; override;
     function        InstallAppDefaults            (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype; override;
@@ -234,11 +234,11 @@ begin
 
     if conn.CheckRight(Get_Rightname('edit_domains')) then begin
       txt:=app.FetchAppText(conn,'$add_domain');
-      domaingrid.AddButton.Describe(CSF(@IMI_AddDomain),'images_apps/corebox_user/add_domain.png',txt.Getshort,txt.GetHint);
+      domaingrid.AddButton.Describe(CSF(@IMI_AddDomain),'images_apps/accesscontrol/add_domain.png',txt.Getshort,txt.GetHint);
       txt:=app.FetchAppText(conn,'$modify_domain');
-      domaingrid.AddButton.Describe(CSF(@IMI_ModifyDomain),'images_apps/corebox_user/modify_domain.png',txt.Getshort,txt.GetHint,fdgbd_single);
+      domaingrid.AddButton.Describe(CSF(@IMI_ModifyDomain),'images_apps/accesscontrol/modify_domain.png',txt.Getshort,txt.GetHint,fdgbd_single);
       txt:=app.FetchAppText(conn,'$delete_domain');
-      domaingrid.AddButton.Describe(CSF(@IMI_DeleteDomain),'images_apps/corebox_user/delete_domain.png',txt.Getshort,txt.GetHint,fdgbd_multi);
+      domaingrid.AddButton.Describe(CSF(@IMI_DeleteDomain),'images_apps/accesscontrol/delete_domain.png',txt.Getshort,txt.GetHint,fdgbd_multi);
     end;
 
     sec.AddSection.Describe(CSF(@IMI_ContentUsers),app.FetchAppText(conn,'$users_tab').Getshort,2);
@@ -901,11 +901,11 @@ begin
   groupgrid := dc_group.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   if conn.CheckRight(Get_Rightname('edit_groups')) then begin
     txt:=app.FetchAppText(conn,'$add_group');
-    groupgrid.AddButton.Describe(CSF(@IMI_AddGroup),'images_apps/corebox_user/add_group.png',txt.Getshort,txt.GetHint);
+    groupgrid.AddButton.Describe(CSF(@IMI_AddGroup),'images_apps/accesscontrol/add_group.png',txt.Getshort,txt.GetHint);
     txt:=app.FetchAppText(conn,'$modify_group');
-    groupgrid.AddButton.Describe(CSF(@IMI_ModifyGroup),'images_apps/corebox_user/modify_group.png',txt.Getshort,txt.GetHint,fdgbd_single);
+    groupgrid.AddButton.Describe(CSF(@IMI_ModifyGroup),'images_apps/accesscontrol/modify_group.png',txt.Getshort,txt.GetHint,fdgbd_single);
     txt:=app.FetchAppText(conn,'$delete_group');
-    groupgrid.AddButton.Describe(CSF(@IMI_DeleteGroup),'images_apps/corebox_user/delete_group.png',txt.Getshort,txt.GetHint,fdgbd_multi);
+    groupgrid.AddButton.Describe(CSF(@IMI_DeleteGroup),'images_apps/accesscontrol/delete_group.png',txt.Getshort,txt.GetHint,fdgbd_multi);
   end;
   if conn.CheckRight(Get_Rightname('edit_usergroups')) then begin
     dc_userin   := GetSession(input).FetchDerivedCollection('GROUPMOD_USERIN_GRID');
@@ -1111,10 +1111,10 @@ begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CSF(@IMI_ModifyGroup);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-    res.AddEntry.Describe(mtxt.Getshort,'images_apps/corebox_user/modify_group.png',func,input.Field('selected').ValueCount>1);
+    res.AddEntry.Describe(mtxt.Getshort,'images_apps/accesscontrol/modify_group.png',func,input.Field('selected').ValueCount>1);
     func:=CSF(@IMI_DeleteGroup);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-    res.AddEntry.Describe(dtxt.Getshort,'images_apps/corebox_user/delete_group.png',func);
+    res.AddEntry.Describe(dtxt.Getshort,'images_apps/accesscontrol/delete_group.png',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1166,7 +1166,7 @@ begin
     end else begin
       txt:=app.FetchAppText(conn,'$remove_group_from_users').Getshort;
     end;
-    res.AddEntry.Describe(txt,'images_apps/corebox_user/remove_group_user.png',func);
+    res.AddEntry.Describe(txt,'images_apps/accesscontrol/remove_group_user.png',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1195,7 +1195,7 @@ begin
     end else begin
       txt:=app.FetchAppText(conn,'$add_group_to_users').Getshort;
     end;
-    res.AddEntry.Describe(txt,'images_apps/corebox_user/add_group_user.png',func);
+    res.AddEntry.Describe(txt,'images_apps/accesscontrol/add_group_user.png',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1285,7 +1285,7 @@ begin
     end else begin
       txt:=app.FetchAppText(conn,'$remove_group_from_roles').Getshort;
     end;
-    res.AddEntry.Describe(txt,'images_apps/corebox_user/remove_group_role.png',func);
+    res.AddEntry.Describe(txt,'images_apps/accesscontrol/remove_group_role.png',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1314,7 +1314,7 @@ begin
     end else begin
       txt:=app.FetchAppText(conn,'$add_group_to_roles').Getshort;
     end;
-    res.AddEntry.Describe(txt,'images_apps/corebox_user/add_group_role.png',func);
+    res.AddEntry.Describe(txt,'images_apps/accesscontrol/add_group_role.png',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1512,9 +1512,9 @@ begin
   usergrid := dc_user.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   if conn.CheckRight(Get_Rightname('edit_users')) then begin
     txt:=app.FetchAppText(conn,'$add_user');
-    usergrid.AddButton.Describe(CSF(@IMI_AddUser),'images_apps/corebox_user/add_user.png',txt.Getshort,txt.GetHint);
+    usergrid.AddButton.Describe(CSF(@IMI_AddUser),'images_apps/accesscontrol/add_user.png',txt.Getshort,txt.GetHint);
     txt:=app.FetchAppText(conn,'$delete_user');
-    usergrid.AddButton.Describe(CSF(@IMI_DeleteUser),'images_apps/corebox_user/delete_user.png',txt.Getshort,txt.GetHint,fdgbd_multi);
+    usergrid.AddButton.Describe(CSF(@IMI_DeleteUser),'images_apps/accesscontrol/delete_user.png',txt.Getshort,txt.GetHint,fdgbd_multi);
   end;
   if conn.CheckRight(Get_Rightname('edit_usergroups')) then begin
     dc_groupin := GetSession(input).FetchDerivedCollection('USERMOD_GROUPIN_GRID');
@@ -1729,7 +1729,7 @@ begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CSF(@IMI_DeleteUser);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-    res.AddEntry.Describe(dtxt.Getshort,'images_apps/corebox_user/delete_user.png',func);
+    res.AddEntry.Describe(dtxt.Getshort,'images_apps/accesscontrol/delete_user.png',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1758,7 +1758,7 @@ begin
     end else begin
       txt:=app.FetchAppText(conn,'$remove_user_from_groups').Getshort;
     end;
-    res.AddEntry.Describe(txt,'images_apps/corebox_user/remove_user_group.png',func);
+    res.AddEntry.Describe(txt,'images_apps/accesscontrol/remove_user_group.png',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1787,7 +1787,7 @@ begin
     end else begin
       txt:=app.FetchAppText(conn,'$add_user_to_groups').Getshort;
     end;
-    res.AddEntry.Describe(txt,'images_apps/corebox_user/add_user_group.png',func);
+    res.AddEntry.Describe(txt,'images_apps/accesscontrol/add_user_group.png',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1894,19 +1894,19 @@ begin
   end;
 end;
 
-{ TFRE_COMMON_USER_APP }
+{ TFRE_COMMON_ACCESSCONTROL_APP }
 
-procedure TFRE_COMMON_USER_APP.SetupApplicationStructure;
+procedure TFRE_COMMON_ACCESSCONTROL_APP.SetupApplicationStructure;
 begin
   inherited SetupApplicationStructure;
-  InitAppDesc('corebox_user','$description');
+  InitAppDesc('accesscontrol','$description');
   AddApplicationModule(TFRE_COMMON_DOMAIN_MOD.create);
   AddApplicationModule(TFRE_COMMON_USER_MOD.create);
   AddApplicationModule(TFRE_COMMON_GROUP_MOD.create);
   AddApplicationModule(TFRE_COMMON_ROLE_MOD.create);
 end;
 
-function TFRE_COMMON_USER_APP.InstallAppDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
+function TFRE_COMMON_ACCESSCONTROL_APP.InstallAppDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
 var
   old_version  : TFRE_DB_String;
 
@@ -1916,7 +1916,7 @@ var
   end;
 
 begin
-  writeln('corebox_user install appdefault groups');
+  writeln('accesscontrol install appdefault groups');
 
   case _CheckVersion(conn,old_version) of
     NotInstalled : begin
@@ -2063,7 +2063,7 @@ begin
   end;
 end;
 
-function TFRE_COMMON_USER_APP.InstallSystemGroupsandRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
+function TFRE_COMMON_ACCESSCONTROL_APP.InstallSystemGroupsandRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
 var role         : IFRE_DB_ROLE;
 begin
   role := _CreateAppRole('view_users','View Users','Allowed to see user list.');
@@ -2110,23 +2110,23 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_USER_APP._UpdateSitemap( const session: TFRE_DB_UserSession);
+procedure TFRE_COMMON_ACCESSCONTROL_APP._UpdateSitemap( const session: TFRE_DB_UserSession);
 var
   SiteMapData  : IFRE_DB_Object;
   conn         : IFRE_DB_CONNECTION;
 begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppText(conn,'$sitemap_main').Getshort,'images_apps/corebox_user/monitor_white.svg','',0,CheckAppRightModule(conn,'user') or CheckAppRightModule(conn,'group') or CheckAppRightModule(conn,'role'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppText(conn,'$sitemap_domains').Getshort,'images_apps/corebox_user/domain_white.svg','DOMAIN',0,CheckAppRightModule(conn,'domain'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppText(conn,'$sitemap_users').Getshort,'images_apps/corebox_user/user_white.svg','USER',0,CheckAppRightModule(conn,'user'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppText(conn,'$sitemap_groups').Getshort,'images_apps/corebox_user/group_white.svg','GROUP',0,CheckAppRightModule(conn,'group'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Roles',FetchAppText(conn,'$sitemap_roles').Getshort,'images_apps/corebox_user/notebook_white.svg','ROLE',0,CheckAppRightModule(conn,'role'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppText(conn,'$sitemap_main').Getshort,'images_apps/accesscontrol/monitor_white.svg','',0,CheckAppRightModule(conn,'user') or CheckAppRightModule(conn,'group') or CheckAppRightModule(conn,'role'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppText(conn,'$sitemap_domains').Getshort,'images_apps/accesscontrol/domain_white.svg','DOMAIN',0,CheckAppRightModule(conn,'domain'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppText(conn,'$sitemap_users').Getshort,'images_apps/accesscontrol/user_white.svg','USER',0,CheckAppRightModule(conn,'user'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppText(conn,'$sitemap_groups').Getshort,'images_apps/accesscontrol/group_white.svg','GROUP',0,CheckAppRightModule(conn,'group'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Roles',FetchAppText(conn,'$sitemap_roles').Getshort,'images_apps/accesscontrol/notebook_white.svg','ROLE',0,CheckAppRightModule(conn,'role'));
   FREDB_SiteMap_RadialAutoposition(SiteMapData,45);
   session.GetSessionAppData(ObjectName).Field('SITEMAP').AsObject := SiteMapData;
 end;
 
-procedure TFRE_COMMON_USER_APP.MySessionInitialize(  const session: TFRE_DB_UserSession);
+procedure TFRE_COMMON_ACCESSCONTROL_APP.MySessionInitialize(  const session: TFRE_DB_UserSession);
 begin
   inherited MySessionInitialize(session);
   if session.IsInteractiveSession then begin
@@ -2134,23 +2134,23 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_USER_APP.MySessionPromotion(  const session: TFRE_DB_UserSession);
+procedure TFRE_COMMON_ACCESSCONTROL_APP.MySessionPromotion(  const session: TFRE_DB_UserSession);
 begin
   inherited MySessionPromotion(session);
   _UpdateSitemap(session);
 end;
 
-function TFRE_COMMON_USER_APP.CFG_ApplicationUsesRights: boolean;
+function TFRE_COMMON_ACCESSCONTROL_APP.CFG_ApplicationUsesRights: boolean;
 begin
   result := true;
 end;
 
-function TFRE_COMMON_USER_APP._ActualVersion: TFRE_DB_String;
+function TFRE_COMMON_ACCESSCONTROL_APP._ActualVersion: TFRE_DB_String;
 begin
   Result := '1.0';
 end;
 
-class procedure TFRE_COMMON_USER_APP.RegisterSystemScheme( const scheme: IFRE_DB_SCHEMEOBJECT);
+class procedure TFRE_COMMON_ACCESSCONTROL_APP.RegisterSystemScheme( const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION');
@@ -2162,7 +2162,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_USER_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_GROUP_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_ROLE_MOD);
-  GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_USER_APP);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_ACCESSCONTROL_APP);
   GFRE_DBI.Initialize_Extension_Objects;
 end;
 
