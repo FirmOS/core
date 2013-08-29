@@ -2357,13 +2357,13 @@ implementation
       for i := 0 to Length(path) - 1 do begin
         if not scheme.GetSchemeField(path[i],fieldDef) then raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find scheme field: '+path[i]);
         required:=required and fieldDef.required;
-        if not session.GetDBConnection.GetScheme(fieldDef.SubschemeName,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'(A) cannot get scheme '+fieldDef.SubschemeName);
+        if not GFRE_DBI.GetSystemSchemeByName(fieldDef.SubschemeName,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'(A) cannot get scheme '+fieldDef.SubschemeName);
       end;
     end;
 
     for i := 0 to Length(fields) - 1 do begin
       if fields[i].FieldExists('scheme') then begin
-        if not session.GetDBConnection.GetScheme(fields[i].Field('scheme').AsString,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'(B) cannot get scheme '+fieldDef.SubschemeName);
+        if not GFRE_DBI.GetSystemSchemeByName(fields[i].Field('scheme').AsString,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'(B) cannot get scheme '+fieldDef.SubschemeName);
         newPrefix:=fields[i].Field('prefix').AsString;
         if newPrefix<>'' then begin
           newPrefix:=newPrefix+'.';

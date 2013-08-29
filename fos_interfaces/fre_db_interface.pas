@@ -528,6 +528,8 @@ type
     procedure       SetReference                       (const obj : TObject);
     function        GetReference                       : TObject;
     function        GetScheme                          : IFRE_DB_SchemeObject;
+    function        GetSystemSchemeByName              (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
+    function        GetSystemScheme                    (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
     function        GetAsJSON                          (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
     function        GetAsJSONString                    (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_String;
     function        CloneToNewObject                   (const create_new_uids:boolean=false): IFRE_DB_Object;
@@ -1024,8 +1026,8 @@ type
     function    CheckLogin                (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CollectionExists          (const name:TFRE_DB_NameType):boolean;
     function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
-    function    GetScheme                 (const scheme_name: TFRE_DB_NameType; var scheme: IFRE_DB_SchemeObject): boolean ;
 
+    //function    GetScheme                 (const scheme_name: TFRE_DB_NameType; var scheme: IFRE_DB_SchemeObject): boolean ; deprecated
     //function    NewScheme                 (const Scheme_Name: TFRE_DB_String;const parent_scheme_name:TFRE_DB_String='') : IFRE_DB_SchemeObject;
     //function    StoreScheme               (var   obj: IFRE_DB_SchemeObject)  : TFRE_DB_Errortype;
     //function    UpdateScheme              (const scheme : IFRE_DB_SCHEMEOBJECT)               : TFRE_DB_Errortype;
@@ -1237,9 +1239,11 @@ type
     class procedure  RegisterSystemScheme     (const scheme:IFRE_DB_SCHEMEOBJECT); virtual;
     class procedure  InstallDBObjects         (const conn:IFRE_DB_SYS_CONNECTION); virtual;
     function         CFG_Dont_Finalize_Object : Boolean; virtual;
-    procedure        GetSession          (const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean); deprecated; //DEPRECATED DONT USE
-    function         GetSession          (const input: IFRE_DB_Object):TFRE_DB_UserSession; deprecated; //DEPRECATED DONT USE
-    procedure        __SetMediator       (const med : TFRE_DB_ObjectEx);
+    function         GetSystemSchemeByName    (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
+    function         GetSystemScheme          (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
+    procedure        GetSession               (const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean); deprecated; //DEPRECATED DONT USE
+    function         GetSession               (const input: IFRE_DB_Object):TFRE_DB_UserSession; deprecated; //DEPRECATED DONT USE
+    procedure        __SetMediator            (const med : TFRE_DB_ObjectEx);
     class function   Get_DBI_InstanceMethods                                            : TFRE_DB_StringArray;
     class function   Get_DBI_ClassMethods                                               : TFRE_DB_StringArray;
     class function   ClassMethodExists   (const name:Shortstring)                       : Boolean; // new
@@ -1401,7 +1405,7 @@ type
     procedure  MySessionInitialize           (const session: TFRE_DB_UserSession); virtual;
     procedure  MySessionPromotion            (const session: TFRE_DB_UserSession); virtual;
     procedure  MySessionFinalize             (const session: TFRE_DB_UserSession); virtual;
-    procedure  MyServerInitialize            (const admin_dbc : IFRE_DB_CONNECTION);
+    procedure  MyServerInitialize            (const admin_dbc : IFRE_DB_CONNECTION);virtual;
     procedure  MyServerFinalize              ;
   public
     procedure  ForAllAppModules              (const module_iterator:TFRE_DB_APPLICATION_MODULE_ITERATOR);
@@ -1612,8 +1616,13 @@ type
     function    RegisterSysClientFieldValidator (const val : IFRE_DB_ClientFieldValidator):TFRE_DB_Errortype;
     function    RegisterSysEnum                 (const enu : IFRE_DB_Enum):TFRE_DB_Errortype;
 
+    function    GetSystemSchemeByName           (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
+    function    GetSystemScheme                 (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
+
+
     function    NewObjectIntf          (const InterfaceSpec:ShortString;out Intf;const mediator : TFRE_DB_ObjectEx=nil;const fail_on_non_existent:boolean=true) : Boolean;
     function    NewObject              : IFRE_DB_Object;
+    function    NewObjectScheme        (const Scheme : TClass): IFRE_DB_Object;
     function    CreateFromFile         (const filename:TFRE_DB_String ; const conn:IFRE_DB_CONNECTION=nil; const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
     function    CreateFromMemory       (memory : Pointer      ; const conn:IFRE_DB_CONNECTION=nil; const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
     function    CreateFromString       (const AValue:TFRE_DB_String   ; const conn:IFRE_DB_CONNECTION=nil; const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
@@ -1624,7 +1633,6 @@ type
 
     procedure   DBInitializeAllExClasses     (const conn:IFRE_DB_SYS_CONNECTION);
     procedure   DBInitializeAllSystemClasses (const conn:IFRE_DB_SYS_CONNECTION); // not impemented by now (no initializable sys classes, keep count low)
-
 
     function    StringArray2String     (const A:TFRE_DB_StringArray):TFRE_DB_String;
     function    GuidArray2SString      (const A:TFRE_DB_GUIDArray):TFRE_DB_String;
@@ -1671,6 +1679,7 @@ type
     function    Get_A_Guid             : TGUID;
     function    Get_A_Guid_HEX         : Ansistring;
 
+
     property    LocalZone              : TFRE_DB_String read GetLocalZone write SetLocalZone;
     property    StringFormatSettings   : TFormatSettings read GetFormatSettings write SetFormatSettings;
   end;
@@ -1687,7 +1696,6 @@ type
     procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='');
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='');
     procedure AddInputSubGroup   (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const collapsible:Boolean=false;const collapsed:Boolean=false);
-  //  function  GetSchemeFromDB    (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
     property  CaptionKey         : TFRE_DB_String read GetCaptionKey    write SetCaptionKey;
     property  InputGroupID       : TFRE_DB_String  read GetInputGroupID write SetInputGroupID;
     property  Fields             : IFRE_DB_ObjectArray read GetIGFields write SetIGFields;
@@ -3115,6 +3123,16 @@ begin
   result := false;
 end;
 
+function TFRE_DB_Base.GetSystemSchemeByName(const schemename: TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
+begin
+  result := GFRE_DBI.GetSystemSchemeByName(schemename,scheme);
+end;
+
+function TFRE_DB_Base.GetSystemScheme(const schemename: TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
+begin
+  result := GFRE_DBI.GetSystemScheme(schemename,scheme);
+end;
+
 procedure TFRE_DB_Base.GetSession(const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean);
 var reference : TObject;
 begin
@@ -3762,7 +3780,7 @@ begin
   if not dbc.CollectionExists(lCollectionName) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'the collection [%s] is unknown and the implicit creation of collection is not allowed on new!',[lCollectionName]);
   end;
-  if not dbc.GetScheme(lSchemeclass,lSchemeObject) then raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme [%s] is unknown!',[lSchemeclass]);
+  if not GFRE_DBI.GetSystemSchemeByName(lSchemeclass,lSchemeObject) then raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme [%s] is unknown!',[lSchemeclass]);
   dbo              := dbc.NewObject(lSchemeclass);
   lSchemeObject.SetObjectFieldsWithScheme(data,dbo,true,dbc);
   dbo_uid       := dbo.UID;

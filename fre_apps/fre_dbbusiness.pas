@@ -340,7 +340,7 @@ var
   res    : TFRE_DB_DIALOG_DESC;
   scheme : IFRE_DB_SchemeObject;
 begin
-  GetDBConnection.GetScheme(SchemeClass,scheme);
+  scheme := GetScheme;
 
   res:=TFRE_DB_DIALOG_DESC.Create.Describe('Edit Customer');
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
@@ -359,7 +359,7 @@ var
   scheme    : IFRE_DB_SchemeObject;
   serverFunc: TFRE_DB_SERVER_FUNC_DESC;
 begin
-  GetDBConnection.GetScheme('TFRE_DB_SITE',scheme);
+  GFRE_DBI.GetSystemScheme(TFRE_DB_SITE,scheme);
 
   res:=TFRE_DB_DIALOG_DESC.Create.Describe('Add Site');
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
@@ -394,7 +394,7 @@ var
   scheme    : IFRE_DB_SchemeObject;
   serverFunc: TFRE_DB_SERVER_FUNC_DESC;
 begin
-  GetDBConnection.GetScheme('TFRE_DB_CUSTOMER',scheme);
+  GFRE_DBI.GetSystemScheme(TFRE_DB_CUSTOMER,scheme);
   res:=TFRE_DB_DIALOG_DESC.Create.Describe('Add Customer');
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.AddSchemeFormGroup(scheme.GetInputGroup('address'),GetSession(input));
@@ -452,7 +452,7 @@ var
   res    : TFRE_DB_FORM_PANEL_DESC;
   scheme : IFRE_DB_SchemeObject;
 begin
-  GetDBConnection.GetScheme(SchemeClass,scheme);
+  scheme := GetScheme;
   res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('Site');
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.AddSchemeFormGroup(scheme.GetInputGroup('address'),GetSession(input));
@@ -532,7 +532,7 @@ begin
   endpointclass := input.Field('endpointclass').AsString;
   dhcp          := input.Field('dhcp').AsString;
 
-  GetDBConnection.GetScheme(endpointclass,scheme);
+  GFRE_DBI.GetSystemSchemeByName(endpointclass,scheme);
   res:=TFRE_DB_DIALOG_DESC.Create.Describe('Add Accesspoint');
   res.SendChangedFieldsOnly(false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
@@ -553,7 +553,7 @@ var
   scheme    : IFRE_DB_SchemeObject;
   serverFunc: TFRE_DB_SERVER_FUNC_DESC;
 begin
-  GetDBConnection.GetScheme('TFRE_DB_MOBILEDEVICE',scheme);
+  GFRE_DBI.GetSystemSchemeByName('TFRE_DB_MOBILEDEVICE',scheme); //FIXXME:schramml -> derive, this is a HAL Class
   res:=TFRE_DB_DIALOG_DESC.Create.Describe('Add Mobile Device');
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.SetElementValue('site',GFRE_BT.GUID_2_HexString(UID));

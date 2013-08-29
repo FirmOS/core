@@ -301,7 +301,7 @@ begin
   conn:=GetDBConnection(input);
   if not conn.CheckRight(Get_Rightname('edit_domains')) then raise EFRE_DB_Exception.Create(app.FetchAppText(conn,'$error_no_access').Getshort);
 
-  conn.GetScheme('TFRE_DB_DOMAIN',scheme);
+  GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
   res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppText(conn,'$add_domain_diag_cap').Getshort,600,0,true,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.AddButton.Describe(app.FetchAppText(conn,'$button_save').Getshort,CSCF('TFRE_DB_DOMAIN','NewDomainOperation'),fdbbt_submit);
@@ -321,7 +321,7 @@ begin
   conn:=GetDBConnection(input);
   if not conn.CheckRight(Get_Rightname('edit_domains')) then raise EFRE_DB_Exception.Create(app.FetchAppText(conn,'$error_no_access').Getshort);
 
-  conn.GetScheme('TFRE_DB_DOMAIN',scheme);
+  GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
   res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppText(conn,'$modify_domain_diag_cap').GetShort,600,0,true,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
 
@@ -1000,7 +1000,7 @@ begin
   conn:=GetDBConnection(input);
   if not conn.CheckRight(Get_Rightname('edit_groups')) then raise EFRE_DB_Exception.Create(app.FetchAppText(conn,'$error_no_access').Getshort);
 
-  conn.GetScheme('TFRE_DB_GROUP',scheme);
+  GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
   res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppText(conn,'$add_group_diag_cap').Getshort,600,0,true,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.AddSchemeFormGroup(scheme.GetInputGroup('domain'),GetSession(input));
@@ -1020,7 +1020,7 @@ begin
   conn:=GetDBConnection(input);
   if not conn.CheckRight(Get_Rightname('edit_groups')) then raise EFRE_DB_Exception.Create(app.FetchAppText(conn,'$error_no_access').Getshort);
 
-  conn.GetScheme('TFRE_DB_GROUP',scheme);
+  GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
   conn.FetchGroupById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsString),group);
 
   if Pos('$',group.ObjectName)=1 then begin
@@ -1643,7 +1643,7 @@ begin
   conn:=GetDBConnection(input);
   if not conn.CheckRight(Get_Rightname('edit_users')) then raise EFRE_DB_Exception.Create(app.FetchAppText(conn,'$error_no_access').Getshort);
 
-  conn.GetScheme('TFRE_DB_USER',scheme);
+  GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
   res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppText(conn,'$add_user_diag_cap').Getshort,600);
   block:=res.AddBlock.Describe();
   block.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input),false,false,2);
@@ -1877,7 +1877,7 @@ begin
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
     sel_guid := input.Field('SELECTED').AsGUID;
     conn.FetchUserById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsString),user);
-    conn.GetScheme('TFRE_DB_USER',scheme);
+    GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
     panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(app.FetchAppText(conn,'$user_content_header').ShortText);
     block:=panel.AddBlock.Describe();
     block.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input),false,false,2);

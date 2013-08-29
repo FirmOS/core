@@ -85,9 +85,14 @@ type
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
   published
-    function IMI_GetIcon(const input: IFRE_DB_Object): IFRE_DB_Object;
+    function  IMI_GetIcon   (const input: IFRE_DB_Object): IFRE_DB_Object;
+    function  WEB_Content   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
+var
+  G_UNSAFE_MODUL_GLOBAL_DATA : IFRE_DB_Object;
+
+type
 
   { TFRE_DB_TEST_APP }
 
@@ -99,7 +104,8 @@ type
 
     procedure       _UpdateSitemap            (const session: TFRE_DB_UserSession);
   protected
-    procedure       MySessionInitialize       (const session: TFRE_DB_UserSession);override;
+    procedure       MyServerInitialize        (const admin_dbc: IFRE_DB_CONNECTION); override;
+    procedure       MySessionInitialize       (const session: TFRE_DB_UserSession); override;
     procedure       MySessionPromotion        (const session: TFRE_DB_UserSession); override;
     function        CFG_ApplicationUsesRights : boolean; override;
     function        _ActualVersion            : TFRE_DB_String; override;
@@ -124,6 +130,18 @@ type
   published
     function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
+
+  { TFRE_DB_TEST_APP_FORMTEST_MOD }
+
+  TFRE_DB_TEST_APP_FORMTEST_MOD = class (TFRE_DB_APPLICATION_MODULE)
+  protected
+    procedure       SetupAppModuleStructure ; override;
+  public
+    class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
+  published
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+  end;
+
 
   { TFRE_DB_TEST_APP_GRID_MOD }
 
@@ -207,38 +225,6 @@ type
     function  IMI_StartStopLC           (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
-  { TFRE_DB_TEST_APP_VNC_MOD }
-
-  TFRE_DB_TEST_APP_VNC_MOD = class (TFRE_DB_APPLICATION_MODULE)
-  protected
-    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure       SetupAppModuleStructure ; override;
-  published
-    function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
-  end;
-
-  //{ TFRE_DB_TEST_APP_VM_CONTROLLER_MOD }
-  //
-  //TFRE_DB_TEST_APP_VM_CONTROLLER_MOD = class (TFRE_DB_APPLICATION_MODULE)
-  //protected
-  //  class procedure RegisterSystemScheme      (const scheme    : IFRE_DB_SCHEMEOBJECT); override;
-  //  procedure       SetupAppModuleStructure   ; override;
-  //  procedure       MyServerInitializeModule  (const admin_dbc : IFRE_DB_CONNECTION); override;
-  //  procedure       MySessionInitializeModule (const session   : TFRE_DB_UserSession);override;
-  //  procedure       UpdateVMCollection        (const dbc:IFRE_DB_CONNECTION  ; const vmc      : IFRE_DB_INDEXED_COLLECTION ; const vmo : IFRE_DB_Object);
-  //  procedure       _GetSelectedVMData        (session : TFRE_DB_UserSession ; const selected : TGUID; var vmkey,vnc_port,vnc_host,vm_state: String);
-  //published
-  //  function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
-  //  function  IMI_VM_ShowInfo           (const input:IFRE_DB_Object):IFRE_DB_Object;
-  //  function  IMI_VM_ShowVNC            (const input:IFRE_DB_Object):IFRE_DB_Object;
-  //  function  IMI_VM_ShowPerf           (const input:IFRE_DB_Object):IFRE_DB_Object;
-  //  function  IMI_VM_Details            (const input:IFRE_DB_Object):IFRE_DB_Object;
-  //  function  IMI_StartVM               (const input:IFRE_DB_Object):IFRE_DB_Object;
-  //  function  IMI_StopVM                (const input:IFRE_DB_Object):IFRE_DB_Object;
-  //  function  IMI_UpdateStatus          (const input:IFRE_DB_Object):IFRE_DB_Object;
-  //end;
-
-
   { TFRE_DB_TEST_APP_GRIDTREEFORM_MOD }
 
   TFRE_DB_TEST_APP_GRIDTREEFORM_MOD = class (TFRE_DB_APPLICATION_MODULE)
@@ -312,6 +298,25 @@ begin
   finally
     conn.Finalize;
   end;
+end;
+
+{ TFRE_DB_TEST_APP_FORMTEST_MOD }
+
+procedure TFRE_DB_TEST_APP_FORMTEST_MOD.SetupAppModuleStructure;
+begin
+  inherited SetupAppModuleStructure;
+  InitModuleDesc('formtest','$formtest_description');
+end;
+
+class procedure TFRE_DB_TEST_APP_FORMTEST_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
+end;
+
+function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  result := G_UNSAFE_MODUL_GLOBAL_DATA.Invoke('Content',input,ses,app,conn);
 end;
 
 { TFRE_DB_TEST_APP_LIVE_CHART_MOD }
@@ -514,276 +519,6 @@ begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-{ TFRE_DB_TEST_APP_VM_CONTROLLER_MOD }
-
-//class procedure TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
-//begin
-//  inherited RegisterSystemScheme(scheme);
-//  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
-//end;
-
-//procedure TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.SetupAppModuleStructure;
-//begin
-//  inherited SetupAppModuleStructure;
-//  InitModuleDesc('VMCONTROLLER','VMC','VM Controller','')
-//end;
-
-//procedure TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
-//var vmcc    : IFRE_DB_INDEXED_COLLECTION;
-//    vmc     : IFOS_VM_HOST_CONTROL;
-//    vmo     : IFRE_DB_Object;
-//    vm      : IFRE_DB_Object;
-//    uvm     : IFRE_DB_Object;
-//    i       : Integer;
-//begin
-//  inherited MyServerInitializeModule(admin_dbc);
-//  //vmc := Get_VM_Host_Control(cVM_HostUser,cVMHostMachine);
-//  //vmc.VM_ListMachines(vmo);
-//  //vmc.Finalize;
-//  admin_dbc.CollectionAsIntf('VMC',IFRE_DB_INDEXED_COLLECTION,VMCC,true,true);
-//  VMCC.SetIndexField('Mkey',fdbft_String,true,true);
-//  //UpdateVMCollection(admin_dbc,vmcc,vmo);
-//end;
-//
-//procedure TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
-//var vmc        : IFRE_DB_DERIVED_COLLECTION;
-//    vmcp       : IFRE_DB_COLLECTION;
-//    tr_Grid    : IFRE_DB_SIMPLE_TRANSFORM;
-//       vmo     : IFRE_DB_Object;
-//       vm      : IFRE_DB_Object;
-//       uvm     : IFRE_DB_Object;
-//       i       : Integer;
-//begin
-//  inherited MySessionInitializeModule(session);
-//  GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
-//  with tr_Grid do begin
-//    AddOneToOnescheme('MName','','Name');
-//    AddOneToOnescheme('MType','','Typ');
-//    AddOneToOnescheme('MState','','State');
-//    //AddOneToOnescheme('Mkey','','Key');
-//    //AddOneToOnescheme('MBrand','','Brand');
-//    //AddCollectorscheme('');
-//    AddOneToOnescheme('PERFPCPU','','CPU',dt_number);
-//    AddOneToOnescheme('PERFPMEM','','Used Mem',dt_number);
-//    AddOneToOnescheme('PERFRSS','','Paged Mem',dt_number);
-//    AddOneToOnescheme('PERFVSZ','','Virtual Mem',dt_number);
-//    AddOneToOnescheme('MVIOPRIO','','IO Prio',dt_number);
-//      //PERFPSET (STRING) : [ '' ]
-//      //VNC_PORT (STRING) : [ '6001' ]
-//      //MCPUQUOTA (STRING) : [ '10' ]
-//      //MCPUSHARES (STRING) : [ '100' ]
-//  end;
-//  vmcp := session.GetDBConnection.Collection('VMC',false);
-//  vmc  := session.NewDerivedCollection('VMC');
-//  with VMC do begin
-//    SetDeriveTransformation(tr_Grid);
-//    SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'VM',nil,'',nil,nil,CSF(@IMI_VM_Details));
-//    SetDeriveParent(vmcp);
-//  end;
-//end;
-//
-//procedure TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.UpdateVMCollection(const dbc: IFRE_DB_CONNECTION; const vmc: IFRE_DB_INDEXED_COLLECTION; const vmo : IFRE_DB_Object);
-//var i       : integer;
-//    vm      : IFRE_DB_Object;
-//    uvm     : IFRE_DB_Object;
-//
-//  procedure Obj2Obj(const vm,uvm:IFRE_DB_Object);
-//  begin
-//    uvm.Field('MName').AsString    := vm.Field('MName').AsString;
-//    uvm.Field('MType').AsString    := vm.Field('MType').AsString;
-//    uvm.Field('MState').AsString   := vm.Field('MState').AsString;
-//    uvm.Field('MBrand').AsString   := vm.Field('MBrand').AsString;
-//    if vm.FieldExists('PERFPCPU') then begin
-//      uvm.Field('PERFPCPU').AsString := vm.Field('PERFPCPU').AsString+'%';
-//      uvm.Field('PERFPMEM').AsString := vm.Field('PERFPMEM').AsString+'%';
-//    end;
-//    if vm.FieldExists('PERFRSS') then begin
-//      uvm.Field('PERFRSS').AsString := Format('%2.2f MB',[vm.Field('PERFRSS').AsUInt32 / 1024]);
-//    end else begin
-//      uvm.Field('PERFRSS').AsString :='-';
-//    end;
-//    if vm.FieldExists('PERFVSZ') then begin
-//      uvm.Field('PERFVSZ').AsString := Format('%2.2f MB',[vm.Field('PERFVSZ').AsUInt32 / 1024]);
-//    end else begin
-//      uvm.Field('PERFVSZ').AsString :='-';
-//    end;
-//    uvm.Field('MVIOPRIO').AsString := vm.Field('MVIOPRIO').AsString;
-//    uvm.Field('VM_PROPS').AsObject := vm.Field('VM_PROPS').AsObject;
-//    uvm.Field('VM_INFO').AsObject  := vm.Field('VM_INFO').AsObject;
-//    uvm.Field('VNC_PORT').AsString := vm.Field('VM_INFO').AsObject.Field('VNC').AsObject.Field('PORT').AsString;
-//  end;
-//
-//begin
-//  for i := 0 to high(vmo.Field('Machines').AsObjectArr) do begin
-//    vm      := vmo.Field('Machines').AsObjectArr[i];
-//    if vmc.GetIndexedObj(vm.Field('MKey').AsString,UVM) then begin
-//      Obj2Obj(vm,uvm);
-//      vmc.Update(uvm);
-//    end else begin
-//      uvm := GFRE_DBI.NewObject;
-//      Obj2Obj(vm,uvm);
-//      //uvm.field('UID').AsGUID:=vm.UID;
-//      uvm.Field('MKey').AsString    := vm.Field('MKey').AsString;
-//      vmc.Store(uvm);
-//    end;
-//  end;
-//end;
-//
-//procedure TFRE_DB_TEST_APP_VM_CONTROLLER_MOD._GetSelectedVMData(session: TFRE_DB_UserSession; const selected: TGUID; var vmkey, vnc_port,vnc_host,vm_state: String);
-//var DC_VMC     : IFRE_DB_DERIVED_COLLECTION;
-//      vmo        : IFRE_DB_Object;
-//begin
-//  DC_VMC := session.FetchDerivedCollection('VMC');
-//  if DC_VMC.FetchFromParent(selected,vmo) then begin
-//    vmkey    := vmo.Field('MKEY').AsString;
-//    vnc_port := vmo.Field('VNC_PORT').AsString;
-//    vnc_host := cVMHostMachine;
-//    vm_state := vmo.Field('MSTATE').AsString;
-//    writeln('VMO: ',vmkey,' ',vnc_port,' ', vm_state);
-//  end;
-//end;
-//
-//function TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
-//var
-//  coll   : IFRE_DB_DERIVED_COLLECTION;
-//  list   : TFRE_DB_VIEW_LIST_DESC;
-//begin
-//  coll := GetSession(input).FetchDerivedCollection('VMC');
-//  list := coll.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-//  list.AddButton.Describe(CSF(@IMI_StartVM)     , '','Start','start the selected VM',fdgbd_single);
-//  list.AddButton.Describe(CSF(@IMI_StopVM)      , '','Stop','',fdgbd_single);
-//  list.AddButton.Describe(CSF(@IMI_UpdateStatus), '','Update','',fdgbd_always);
-//  Result := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(list,nil,nil);
-//end;
-//
-//function TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.IMI_VM_ShowInfo(const input: IFRE_DB_Object): IFRE_DB_Object;
-//var vmcc  : IFRE_DB_INDEXED_COLLECTION;
-//    vmkey : string;
-//      obj : IFRE_DB_Object;
-//begin
-//  vmkey := input.Field('vmkey').AsString;
-//  GetDBConnection(input).CollectionAsIntf('VMC',IFRE_DB_INDEXED_COLLECTION,VMCC,true,true);
-//  if vmcc.GetIndexedObj(vmkey,obj) then begin
-//    result := TFRE_DB_HTML_DESC.create.Describe(FREDB_String2EscapedJSString('<pre style="font-size: 10px">'+obj.DumpToString+'</pre>'));
-//  end else begin
-//    result := TFRE_DB_HTML_DESC.create.Describe('- could not get info -');
-//  end;
-//end;
-//
-//function TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.IMI_VM_ShowVNC(const input: IFRE_DB_Object): IFRE_DB_Object;
-//var vmkey : string;
-//    vmcc  : IFRE_DB_INDEXED_COLLECTION;
-//      obj : IFRE_DB_Object;
-//begin
-//  writeln('VNC INPUT ',input.DumpToString);
-//  vmkey  := input.Field('vmkey').AsString;
-//  GetDBConnection(input).CollectionAsIntf('VMC',IFRE_DB_INDEXED_COLLECTION,VMCC,true,true);
-//  if vmcc.GetIndexedObj(vmkey,obj) then begin
-//    if (obj.Field('MSTATE').AsString='running') and (obj.Field('MTYPE').AsString='KVM') then begin
-//      result := TFRE_DB_VNC_DESC.create.Describe(input.Field('VNC_HOST').AsString,input.Field('VNC_PORT').AsUInt32);
-//    end else begin
-//      result := TFRE_DB_HTML_DESC.create.Describe(FREDB_String2EscapedJSString('<pre style="font-size: 10px">'+obj.DumpToString+'</pre>'));
-//    end;
-//  end else begin
-//    result := TFRE_DB_HTML_DESC.create.Describe('- could not get infos -');
-//  end;
-//end;
-//
-//function TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.IMI_VM_ShowPerf(const input: IFRE_DB_Object): IFRE_DB_Object;
-//begin
-//  result := TFRE_DB_HTML_DESC.create.Describe('SEAS3');
-//end;
-//
-//function TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.IMI_VM_Details(const input: IFRE_DB_Object): IFRE_DB_Object;
-//var   vm_sub       : TFRE_DB_SUBSECTIONS_DESC;
-//      vmo          : IFRE_DB_Object;
-//      sf           : TFRE_DB_SERVER_FUNC_DESC;
-//      sel_guid     : TGUID;
-//      vmkey,vncp,
-//      vnch,vmstate : string;
-//begin
-//  if input.FieldExists('SELECTED') then begin
-//    sel_guid := input.Field('SELECTED').AsGUID;
-//    _GetSelectedVMData(GetSession(input),sel_guid,vmkey,vncp,vnch,vmstate);
-//    vm_sub := TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_tab);
-//    sf := CSF(@IMI_VM_ShowInfo); sf.AddParam.Describe('VMKEY',vmkey);
-//    vm_sub.AddSection.Describe(sf,'Info',2);
-//    sf := CSF(@IMI_VM_ShowVNC); sf.AddParam.Describe('VNC_PORT',vncp) ; sf.AddParam.Describe('VNC_HOST',vnch); sf.AddParam.Describe('VMKEY',vmkey);
-//    vm_sub.AddSection.Describe(sf,'Console',1);
-//    vm_sub.AddSection.Describe(CSF(@IMI_VM_ShowPerf),'Performance',3);
-//    result := vm_sub;
-//  end;
-//end;
-//
-//function TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.IMI_StartVM(const input: IFRE_DB_Object): IFRE_DB_Object;
-//var   vmc   : IFOS_VM_HOST_CONTROL;
-//      vmkey : string;
-//      vncp  : string;
-//      vnch  : string;
-//    vmstate : string;
-//begin
-//  if input.FieldExists('SELECTED') then begin
-//    _GetSelectedVMData(GetSession(input),input.Field('SELECTED').AsGUID,vmkey,vncp,vnch,vmstate);
-//    vmc := Get_VM_Host_Control(cVM_HostUser,cVMHostMachine);
-//    vmc.VM_Start(vmkey);
-//    vmc.Finalize;
-//  end;
-//  result := GFRE_DB_NIL_DESC;
-//end;
-//
-//function TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.IMI_StopVM(const input: IFRE_DB_Object): IFRE_DB_Object;
-//var   vmc     : IFOS_VM_HOST_CONTROL;
-//      vmkey   : string;
-//      vncp    : string;
-//      vnch    : string;
-//      vmstate : string;
-//begin
-//  if input.FieldExists('SELECTED') then begin
-//    _GetSelectedVMData(GetSession(input),input.Field('SELECTED').AsGUID,vmkey,vncp,vnch,vmstate);
-//    vmc := Get_VM_Host_Control(cVM_HostUser,cVMHostMachine);
-//    vmc.VM_Halt(vmkey);
-//    vmc.Finalize;
-//  end;
-//  result := GFRE_DB_NIL_DESC;
-//end;
-//
-//function TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.IMI_UpdateStatus(const input: IFRE_DB_Object): IFRE_DB_Object;
-//var session  : TFRE_DB_UserSession;
-//    //DC_VMC   : IFRE_DB_DERIVED_COLLECTION;
-//    //selected : TGUID;
-//    vmo      : IFRE_DB_Object;
-//    vmc      : IFOS_VM_HOST_CONTROL;
-//    vmkey    : string;
-//    i        : integer;
-//    vmcc     : IFRE_DB_INDEXED_COLLECTION;
-//begin
-//  result := GFRE_DB_NIL_DESC;
-//  vmc := Get_VM_Host_Control(cVM_HostUser,cVMHostMachine);
-//  vmc.VM_ListMachines(vmo);
-//  vmc.Finalize;
-//  GetDBConnection(input).CollectionAsIntf('VMC',IFRE_DB_INDEXED_COLLECTION,VMCC,true,true);
-//  UpdateVMCollection(GetDBConnection(input),vmcc,vmo);
-//end;
-
-{ TFRE_DB_TEST_APP_VNC_MOD }
-
-class procedure TFRE_DB_TEST_APP_VNC_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
-begin
-  inherited RegisterSystemScheme(scheme);
-  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
-end;
-
-procedure TFRE_DB_TEST_APP_VNC_MOD.SetupAppModuleStructure;
-begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('VNC','$vnc_description')
-end;
-
-function TFRE_DB_TEST_APP_VNC_MOD.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
-begin
-  Result:=TFRE_DB_VNC_DESC.create.Describe('10.1.0.130',36644);
-end;
-
 { TFRE_DB_TEST_APP_WELCOME_MOD }
 
 procedure TFRE_DB_TEST_APP_WELCOME_MOD.SetupAppModuleStructure;
@@ -828,8 +563,7 @@ var
   res   : TFRE_DB_FORM_DESC;
   scheme: IFRE_DB_SchemeObject;
 begin
-  GetDBConnection.GetScheme(SchemeClass,scheme);
-
+  scheme := GetScheme;
   res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.FillWithObjectValues(Self,GetSession(input));
@@ -919,35 +653,68 @@ end;
 { TFRE_DB_TEST_ALL_TYPES }
 
 class procedure TFRE_DB_TEST_ALL_TYPES.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+var
+  input_group: IFRE_DB_InputGroupSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
-  //scheme.SetParentSchemeByName('TFRE_DB_OBJECTEX');
-  //scheme.AddSchemeField         ('fdbft_GUID',fdbft_GUID);
-  //scheme.AddSchemeField         ('fdbft_Byte',fdbft_Byte);
-  //scheme.AddSchemeField         ('fdbft_Int16',fdbft_Int16);
-  //scheme.AddSchemeField         ('fdbft_UInt16',fdbft_UInt16);
-  //scheme.AddSchemeField         ('fdbft_Int32',fdbft_Int32);
-  //scheme.AddSchemeField         ('fdbft_UInt32',fdbft_UInt32);
-  //scheme.AddSchemeField         ('fdbft_Int64',fdbft_Int64);
-  //scheme.AddSchemeField         ('fdbft_UInt64',fdbft_UInt64);
-  //scheme.AddSchemeField         ('fdbft_Real32',fdbft_Real32);
-  //scheme.AddSchemeField         ('fdbft_Real64',fdbft_Real64);
-  //scheme.AddSchemeField         ('fdbft_Currency',fdbft_Currency);
-  //scheme.AddSchemeField         ('fdbft_String',fdbft_String);
-  //
-  //,,,,,,,,,,,,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink,fdbft_CalcField
+  scheme.SetParentSchemeByName('TFRE_DB_OBJECTEX');
+  scheme.AddSchemeField         ('firstname',fdbft_String);
+  scheme.AddSchemeField         ('lastname',fdbft_String);
+  scheme.AddSchemeField         ('pass',fdbft_String).SetupFieldDef(true,false,'','',true,true);
+  scheme.AddSchemeField         ('icon',fdbft_String);
 
-  //,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink,fdbft_CalcField
-  scheme.AddSchemeField         ('string',fdbft_Byte);
-  scheme.AddSchemeField         ('boolean',fdbft_Boolean);
-  scheme.AddSchemeField         ('status',fdbft_String);
-  scheme.AddCalculatedField     ('icon','GetIcon',cft_OnStoreUpdate);
+  input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_TEST_B');
+  input_group.AddInput('firstname','Firstname');
+  input_group.AddInput('lastname','Lastname');
+  input_group.AddInput('pass','Password');
+  input_group.AddInput('icon','Icon');
 end;
+
+//begin
+//  inherited RegisterSystemScheme(scheme);
+//
+//
+//  //scheme.SetParentSchemeByName('TFRE_DB_OBJECTEX');
+//  //scheme.AddSchemeField         ('fdbft_GUID',fdbft_GUID);
+//  //scheme.AddSchemeField         ('fdbft_Byte',fdbft_Byte);
+//  //scheme.AddSchemeField         ('fdbft_Int16',fdbft_Int16);
+//  //scheme.AddSchemeField         ('fdbft_UInt16',fdbft_UInt16);
+//  //scheme.AddSchemeField         ('fdbft_Int32',fdbft_Int32);
+//  //scheme.AddSchemeField         ('fdbft_UInt32',fdbft_UInt32);
+//  //scheme.AddSchemeField         ('fdbft_Int64',fdbft_Int64);
+//  //scheme.AddSchemeField         ('fdbft_UInt64',fdbft_UInt64);
+//  //scheme.AddSchemeField         ('fdbft_Real32',fdbft_Real32);
+//  //scheme.AddSchemeField         ('fdbft_Real64',fdbft_Real64);
+//  //scheme.AddSchemeField         ('fdbft_Currency',fdbft_Currency);
+//  //scheme.AddSchemeField         ('fdbft_String',fdbft_String);
+//  //
+//  //,,,,,,,,,,,,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink,fdbft_CalcField
+//
+//  //,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink,fdbft_CalcField
+//  scheme.AddSchemeField         ('string',fdbft_Byte);
+//  scheme.AddSchemeField         ('boolean',fdbft_Boolean);
+//  scheme.AddSchemeField         ('status',fdbft_String);
+//  scheme.AddCalculatedField     ('icon','GetIcon',cft_OnStoreUpdate);
+//end;
 
 function TFRE_DB_TEST_ALL_TYPES.IMI_GetIcon(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
 
 end;
+
+function TFRE_DB_TEST_ALL_TYPES.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res   : TFRE_DB_FORM_DESC;
+  scheme: IFRE_DB_SchemeObject;
+begin
+  scheme := GetScheme;
+  res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
+  res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
+  res.FillWithObjectValues(Self,GetSession(input));
+  res.AddButton.Describe('Save',CSF(@IMI_saveOperation),fdbbt_submit);
+  Result:=res;
+end;
+
 
 { TFRE_DB_TEST_APP_CHART_MOD }
 
@@ -1651,10 +1418,9 @@ begin
   AddApplicationModule(TFRE_DB_TEST_APP_GRID2_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_CHART_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_LIVE_CHART_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_VNC_MOD.create);
-  //AddApplicationModule(TFRE_DB_TEST_APP_VM_CONTROLLER_MOD.Create);
   AddApplicationModule(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_EDITORS_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_FORMTEST_MOD.create);
 end;
 
 function TFRE_DB_TEST_APP.InstallAppDefaults (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
@@ -1670,9 +1436,7 @@ begin
   case _CheckVersion(conn,old_version) of
     NotInstalled : begin
                       _SetAppdataVersion(conn,_ActualVersion);
-
                       conn.ForAllDomains(@_InstallAllDomains);
-
                       CreateAppText(conn,'$description','Test App','Test App','Test App');
                       CreateAppText(conn,'$vnc_description','VNC Test','VNC Test','VNC Test');
                       CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
@@ -1682,6 +1446,7 @@ begin
                       CreateAppText(conn,'$live_chart_description','Live Chart Test','Live Chart Test','Live Chart Test');
                       CreateAppText(conn,'$grid_description','Grid Test','Grid Test','Grid Test');
                       CreateAppText(conn,'$grid2_description','Grid 2 Test','Grid 2 Test','Grid 2 Test');
+                      CreateAppText(conn,'$formtest_description','Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
                    end;
     SameVersion  : begin
                       writeln('Version '+old_version+' already installed');
@@ -1714,10 +1479,10 @@ begin
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['grid2']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['chart']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['live_chart']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['vnc']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['vmcontroller']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['tgf']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['edit']));
+    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['formtest']));
 
     _AddAppRight(guest_app_rg ,'START','TESTAPP Start','Startup of Test APP'); // Guests are allowed to START the app
     _AddAppRightModules(guest_app_rg,GFRE_DBI.ConstructStringArray(['welcome']));
@@ -1743,11 +1508,16 @@ begin
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg','CHART',4,CheckAppRightModule(conn,'chart'));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg','LIVE_CHART',4,CheckAppRightModule(conn,'live_chart'));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg','GRID2',5,CheckAppRightModule(conn,'grid2'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/VNC','VNC','images_apps/test/sitemap_icon.svg','VNC',2,CheckAppRightModule(conn,'vnc'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg','formtest',2,CheckAppRightModule(conn,'formtest'));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg','TGF',0,CheckAppRightModule(conn,'tgf'));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg','EDIT',0,CheckAppRightModule(conn,'edit'));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
   session.GetSessionAppData(ObjectName).Field('SITEMAP').AsObject := SiteMapData;
+end;
+
+procedure TFRE_DB_TEST_APP.MyServerInitialize(const admin_dbc: IFRE_DB_CONNECTION);
+begin
+  G_UNSAFE_MODUL_GLOBAL_DATA := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_ALL_TYPES);
 end;
 
 procedure TFRE_DB_TEST_APP.MySessionInitialize(const session: TFRE_DB_UserSession);
@@ -1785,7 +1555,6 @@ begin
   scheme.AddSchemeFieldSubscheme('grid2mod'       , 'TFRE_DB_TEST_APP_GRID2_MOD');
   scheme.AddSchemeFieldSubscheme('chartmod'       , 'TFRE_DB_TEST_APP_CHART_MOD');
   scheme.AddSchemeFieldSubscheme('livechartmod'   , 'TFRE_DB_TEST_APP_LIVE_CHART_MOD');
-  scheme.AddSchemeFieldSubscheme('vncmod'         , 'TFRE_DB_TEST_APP_VNC_MOD');
   scheme.AddSchemeFieldSubscheme('gridtreeformmod', 'TFRE_DB_TEST_APP_GRIDTREEFORM_MOD');
   scheme.AddSchemeFieldSubscheme('editors'        , 'TFRE_DB_TEST_APP_EDITORS_MOD');
 end;
@@ -1934,11 +1703,12 @@ procedure Register_DB_Extensions;
 begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_A);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_B);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_ALL_TYPES);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID_MOD);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_FORMTEST_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID2_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_CHART_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_LIVE_CHART_MOD);
-  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_VNC_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_EDITORS_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_WELCOME_MOD);
