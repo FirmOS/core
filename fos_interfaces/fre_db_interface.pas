@@ -1405,7 +1405,7 @@ type
     procedure  MySessionInitialize           (const session: TFRE_DB_UserSession); virtual;
     procedure  MySessionPromotion            (const session: TFRE_DB_UserSession); virtual;
     procedure  MySessionFinalize             (const session: TFRE_DB_UserSession); virtual;
-    procedure  MyServerInitialize            (const admin_dbc : IFRE_DB_CONNECTION);virtual;
+    procedure  MyServerInitialize            (const admin_dbc : IFRE_DB_CONNECTION); virtual;
     procedure  MyServerFinalize              ;
   public
     procedure  ForAllAppModules              (const module_iterator:TFRE_DB_APPLICATION_MODULE_ITERATOR);
