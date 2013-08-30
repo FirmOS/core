@@ -125,7 +125,7 @@ begin
     end;
     cdcs_TIMEOUT: ;
     cdcs_ERROR: begin
-      writeln('Session Setup Error : ',error_txt);
+      writeln('Session Setup Error - Server Returned Error: ',error_txt);
       writeln(' ' ,FTimeout,' ',FClientState);
       FTimeout     := 5;
       FClientState := csTimeoutWait;
