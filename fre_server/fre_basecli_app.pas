@@ -148,7 +148,10 @@ procedure TFRE_CLISRV_APP.DoRun;
 var ErrorMsg : String;
 begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
-  ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',['help','version','init','remove','list','graph','forcedb','forcesysdb','testuser','dumpdb','debugger','file:','extensions:','user:','pass:','database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log']);
+  ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',
+                          ['help','version','init','remove','list','graph','forcedb','forcesysdb','testuser','dumpdb','debugger','file:','extensions:','user:','pass:',
+                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start']);
+
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
     WriteHelp;
@@ -158,6 +161,25 @@ begin
 
   if HasOption('D','debugger') then
     G_NO_INTERRUPT_FLAG:=true;
+
+  if HasOption('*','drop-wal') then
+    begin
+      writeln('REQUESTED TO FORCE DROP WAL');
+      GDROP_WAL := true;
+    end;
+
+  if HasOption('*','disable-wal') then
+  begin
+    writeln('GLOBALLY DISABLING WAL WRITES');
+    GDISABLE_WAL := true;
+  end;
+
+  if HasOption('*','disable-sync') then
+  begin
+    writeln('GLOBALLY DISABLING SYNC WRITES');
+    GDISABLE_SYNC := true;
+  end;
+
 
   if HasOption('f','file') then begin
     filename := GetOptionValue('f','filename');
@@ -260,12 +282,6 @@ begin
     Exit;
   end;
 
-  if HasOption('*','drop-wal') then
-    begin
-      writeln('REQUESTED TO FORCE DROP WAL');
-      GDROP_WAL := true;
-    end;
-
   if HasOption('*','show-users') then
     begin
       ShowTestUserRoles;
@@ -281,14 +297,14 @@ begin
 
 
 
-  if HasOption('q','dumpdb') then begin
+  if HasOption('q','dumpdb') then
     DumpDB;
-  end;
 
-  //if FOnlyInitDB then begin
-  //  Terminate;
-  //  exit;
-  //end;
+  if HasOption('*','dont-start') then
+    begin
+      Terminate;
+      exit;
+    end;
 
   if HasOption('g','graph') then begin
     SchemeDump;

@@ -78,7 +78,7 @@ type
   TFRE_DB_RawByteString  = RawByteString;
 
   TFRE_DB_LOGCATEGORY    = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM);
-  TFRE_DB_Errortype      = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED);
+  TFRE_DB_Errortype      = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE);
   TFRE_DB_STR_FILTERTYPE = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
   TFRE_DB_NUM_FILTERTYPE = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
   TFRE_DB_CalcFieldTime  = (cft_Everytime,cft_OnStoreUpdate);
@@ -100,7 +100,7 @@ type
 const
   CFRE_DB_FIELDTYPE       : Array[TFRE_DB_FIELDTYPE]      of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK','CALCFIELD');
   CFRE_DB_FIELDTYPE_SHORT : Array[TFRE_DB_FIELDTYPE]      of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK',       'CF');
-  CFRE_DB_Errortype       : Array[TFRE_DB_Errortype]      of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED');
+  CFRE_DB_Errortype       : Array[TFRE_DB_Errortype]      of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE');
   CFRE_DB_STR_FILTERTYPE  : Array[TFRE_DB_STR_FILTERTYPE] of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE  : Array[TFRE_DB_NUM_FILTERTYPE] of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
   CFRE_DB_LOGCATEGORY     : Array[TFRE_DB_LOGCATEGORY]    of String = ('-','PERSISTANCE','DB','MEMORY','REFLINKS','EXCEPT','SERVER','HTTPSERVER','WEBSOCK','APP','SESSION','FLEXCOM');
@@ -1857,7 +1857,7 @@ type
     PGUID_Access = ^TGUID_Access;
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
-  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false);
+  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
   procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const params:array of const);
   function  RB_Guid_Compare                      (const d1, d2: TGuid): NativeInt; inline;
 
@@ -1875,12 +1875,17 @@ type
   function  FREDB_String2GuidArray               (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Guid                    (const str:string):TGUID;
   function  FREDB_String2Bool                    (const str:string):boolean;
+
+  function  FREDB_String2NativeInt               (const str:String):NativeInt;
+  function  FREDB_String2NativeUInt              (const str:String):NativeUint;
+
   function  FREDB_NumFilterType2String           (const nft:TFRE_DB_NUM_FILTERTYPE):String;
   function  FREDB_String2NumfilterType           (const str:string):TFRE_DB_NUM_FILTERTYPE;
   function  FREDB_String2StrFilterType           (const str:string):TFRE_DB_STR_FILTERTYPE;
   function  FREDB_StrFilterType2String           (const sft:TFRE_DB_STR_FILTERTYPE):String;
   function  FREDB_Guids_Same                     (const d1, d2 : TGuid):boolean;
   function  FREDB_Guids_Compare                  (const d1, d2 : TGuid):NativeInt; // 0=Same 1 = d2>d1 -1 = d1>d2
+  function  FREDB_Guid_ArraysSame                (const arr1,arr2: TFRE_DB_GUIDArray):boolean;
   function  FREDB_CheckGuidsUnique               (const arr: TFRE_DB_GUIDArray):boolean;
   function  FREDB_GuidList2Counted               (const arr: TFRE_DB_GUIDArray; const stop_on_first_double: boolean=false): TFRE_DB_CountedGuidArray;
   function  FREDB_ObjReferences2GuidArray        (const ref: TFRE_DB_ObjectReferences) : TFRE_DB_GUIDArray; // TODO -> UNIQUE CHECK, some guids maybe doubled in here
@@ -2051,6 +2056,21 @@ begin
   end else raise EFRE_DB_Exception.Create(edb_ERROR,'invalid string to bool conversion : value=['+str+']');
 end;
 
+function FREDB_String2NativeInt(const str: String): NativeInt;
+var Error: word;
+begin
+  Val(str, result, Error);
+  if Error <> 0 then raise Exception.Create('conversion failed str->nativeint');
+end;
+
+function FREDB_String2NativeUInt(const str: String) : NativeUint;
+var Error: word;
+begin
+  Val(str, result, Error);
+  if Error <> 0 then raise Exception.Create('conversion failed str->nativeuint');
+end;
+
+
 function FREDB_NumFilterType2String(const nft: TFRE_DB_NUM_FILTERTYPE): String;
 begin
   result := CFRE_DB_NUM_FILTERTYPE[nft];
@@ -2090,6 +2110,17 @@ end;
 function FREDB_Guids_Compare(const d1, d2: TGuid): NativeInt;
 begin
   result := RB_Guid_Compare(d1,d2);
+end;
+
+function FREDB_Guid_ArraysSame(const arr1, arr2: TFRE_DB_GUIDArray): boolean;
+var i : NativeInt;
+begin
+  if Length(arr1)<>Length(arr2) then
+    exit(false);
+  for i:=0 to high(arr1) do
+    if not FREDB_Guids_Same(arr1[i],arr2[i]) then
+      exit(false);
+  exit(true);
 end;
 
 function FREDB_CheckGuidsUnique(const arr: TFRE_DB_GUIDArray): boolean;
@@ -2187,9 +2218,12 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'invalid short fieldtype specifier : ['+fts+']');
 end;
 
-procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false);
+procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
 begin
   if res<>edb_OK then begin
+    if tolerate_no_change
+       and (res=edb_NO_CHANGE) then
+         exit;
     if append_errorcode then begin
       raise EFRE_DB_Exception.Create(res,error_string+' : '+CFRE_DB_Errortype[res]);
     end else begin
