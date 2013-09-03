@@ -645,7 +645,7 @@ var
 begin
   coll := GetSession(input).FetchDerivedCollection('COLL_TEST_B_DERIVED');
   list := coll.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  list.addFilterEvent('COLL_TEST_B_DERIVED_TREE','uid');
+  list.addFilterEvent(GetSession(input).FetchDerivedCollection('COLL_TEST_B_DERIVED').getDescriptionStoreId,'uid');
 
   Result := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(list,TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(GetSession(input).FetchDerivedCollection('COLL_TEST_B_DERIVED_TREE').GetDisplayDescription,nil));
 end;
