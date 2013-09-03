@@ -71,6 +71,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FWalStream           : THandleStream;
      FConnected           : Boolean;
      FGlobalLayer         : Boolean;
+     FBlockWALWrites      : Boolean;
      FConnectedLayers     : Array of TFRE_DB_PS_FILE;
      FConnectedDB         : TFRE_DB_String;
      FTransaction         : TFRE_DB_TransactionalUpdateList;
@@ -102,8 +103,6 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      destructor  Destroy                    ; override;
      procedure   Finalize                   ;
 
-     function    NewCollection      (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const global_system_namespace: boolean): TFRE_DB_Errortype; // todo transaction context
-     function    DeleteCollection   (const coll_name : TFRE_DB_NameType ; const global_system_namespace:boolean) : TFRE_DB_Errortype; // todo transaction context
 
 
      function    DatabaseList       : IFOS_STRINGS;
@@ -117,11 +116,18 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    Connect             (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
      function    ObjectExists        (const obj_uid : TGUID) : boolean;
      function    Fetch               (const ouid:TGUID;out dbo:TFRE_DB_Object;const internal_object:boolean): boolean;
-     function    StoreOrUpdateObject (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const raise_ex : boolean ; var notify_collections : TFRE_DB_StringArray) : TFRE_DB_Errortype;
-     function    DeleteObject        (const obj_uid : TGUID  ;  const raise_ex : boolean ; const collection_name: TFRE_DB_NameType = '' ; var notify_collections: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
+
+     // Transactional Operations
+     function    NewCollection       (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_Errortype; // todo transaction context
+     function    DeleteCollection    (const coll_name : TFRE_DB_NameType ; const global_system_namespace:boolean) : TFRE_DB_Errortype; // todo transaction context
+
+     function    StoreOrUpdateObject (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; var notify_collections : TFRE_DB_StringArray) : TFRE_DB_Errortype;
+     function    DeleteObject        (const obj_uid : TGUID    ;  const collection_name: TFRE_DB_NameType = '' ; var notify_collections: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
      function    StartTransaction    (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType ; const raise_ex : boolean=true) : TFRE_DB_Errortype;
-     function    Commit              (const raise_ex : boolean=true): TFRE_DB_Errortype;
-     function    RollBack            (const raise_ex : boolean=true): TFRE_DB_Errortype;
+     procedure   Commit              ;
+     procedure   RollBack            ;
+     // Transactional Operations Done
+
      procedure   SyncWriteWAL        (const WALMem : TMemoryStream);
      procedure   SyncSnapshot        (const final : boolean=false);
    end;
@@ -227,6 +233,17 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
        exit (-1);
     end;
 
+    procedure _RepairWithWAL;
+    var fs : TFileStream;
+    begin
+      fs := TFileStream.Create(FWalFilename,fmOpenRead);
+      try
+        FMaster.ApplyWAL(fs);
+      finally
+         fs.Free;
+      end;
+    end;
+
 begin
   FBasedirectory := basedir;
   if not DirectoryExists(FBaseDirectory) then begin
@@ -261,14 +278,17 @@ begin
   if FileExists(FWalFilename)
      and (File_Size(FWalFilename)=0) then
        _ClearWAL;
+  FMaster := TFRE_DB_Master_Data.Create(FConnectedDB,self);
+  FBlockWALWrites:=true;
+  _BuildMasterCollection;
+  _BuildCollections;
+  FBlockWALWrites:=false;
   if FileExists(FWalFilename) then
     begin
       //Autorepair
+      _RepairWithWAL;
       raise EFRE_DB_Exception.Create(edb_ERROR,'SERVER SHUTDOWN WAS UNCLEAN, MUST REAPPLY WAL FOR [%s]',[FConnectedDB]);
     end;
-  FMaster := TFRE_DB_Master_Data.Create;
-  _BuildMasterCollection;
-  _BuildCollections;
   result := edb_OK;
   _OpenWAL;
   FConnected   := true;
@@ -279,7 +299,7 @@ function TFRE_DB_PS_FILE.GetCollection(const coll_name: TFRE_DB_NameType; out Co
 begin
   result := FMaster.MasterColls.GetCollection(coll_name,Collection);
   if (not result)
-     and (FGlobalLayer=false) then
+     and (FGlobalLayer=false) then // Fetch from Global
       result := GFRE_DB_DEFAULT_PS_LAYER.GetCollection(coll_name,Collection);
 end;
 
@@ -293,6 +313,7 @@ procedure TFRE_DB_PS_FILE._OpenWAL;
 var handle : THandle;
     res    : longint;
 begin
+  FWalStream := nil;
   if FileExists(FWalFilename) then
     begin
       repeat
@@ -301,17 +322,20 @@ begin
       until (handle<>-1) or (res<>ESysEINTR);
       if (handle<0)  then
         raise EFRE_DB_Exception.Create(edb_ERROR,'could not open the WAL [%d]',[res]);
+      FWalStream := THandleStream.Create(handle);
     end
   else
     begin
+      if GDISABLE_WAL then
+        exit; // do not create a new WAL File
       repeat
         handle := FpOpen(pointer(FWalFilename),O_CREAT or O_WRONLY or O_APPEND); // O_SYNC
         res    := fpgeterrno;
       until (handle<>-1) or (res<>ESysEINTR);
       if (handle<0)  then
         raise EFRE_DB_Exception.Create(edb_ERROR,'could not open the WAL [%d]',[res]);
+      FWalStream := THandleStream.Create(handle);
     end;
-  FWalStream := THandleStream.Create(handle);
 end;
 
 procedure TFRE_DB_PS_FILE._CloseWAL;
@@ -323,6 +347,8 @@ end;
 
 procedure TFRE_DB_PS_FILE._ClearWAL;
 begin
+  if GDISABLE_WAL then
+    exit; // do not delete a  WAL File
   if FileExists(FWalFilename) then
     if not DeleteFile(FWalFilename) then
       raise EFRE_DB_Exception.Create(edb_ERROR,'WAL DELETE FAILED ['+FConnectedDB+']');
@@ -333,6 +359,7 @@ var f : TFileStream;
 begin
   if not coll.IsVolatile then
     begin
+      writeln('  ->> SYNCING COLL ',coll.CollectionName(false));
       GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
       f :=  TFileStream.Create(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName)+'.col',fmCreate+fmOpenReadWrite);
       try
@@ -412,7 +439,6 @@ procedure TFRE_DB_PS_FILE._SyncDBInternal(const final:boolean=false);
 
    function WriteColls(const coll:IFRE_DB_PERSISTANCE_COLLECTION):boolean;
    begin
-      writeln('  ->> SYNCING COLL ',coll.CollectionName(false));
       _StoreCollectionPersistent(coll);
       result := false;
    end;
@@ -423,6 +449,12 @@ procedure TFRE_DB_PS_FILE._SyncDBInternal(const final:boolean=false);
    end;
 
 begin
+  if GDISABLE_SYNC then
+    begin
+      writeln('ABORT/IGNORE - SYNC FOR DB : ',FConnectedDB);
+      exit;
+    end;
+
   writeln('>WRITEING MEMORY TO DISK FOR DB : ',FConnectedDB);
   FMaster.MasterColls.ForAllCollections(@WriteColls);
   writeln('-Syncing Objects');
@@ -463,15 +495,49 @@ begin
   FConnectedLayers[idx] := nil;
 end;
 
-function TFRE_DB_PS_FILE.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const global_system_namespace: boolean): TFRE_DB_Errortype;
-var coll : TFRE_DB_Persistance_Collection;
+function TFRE_DB_PS_FILE.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_Errortype;
+var coll                : TFRE_DB_Persistance_Collection;
+    ImplicitTransaction : Boolean;
+    CleanApply          : Boolean;
+    ex_message          : string;
+    step                : TFRE_DB_NewCollectionStep;
+
 begin
-  if global_system_namespace then
-    result := FMaster.MasterColls.NewCollection(coll_name,Collection,true,self)
-  else
+  CleanApply := false;
+  if not assigned(FTransaction) then
     begin
-      result := FMaster.MasterColls.NewCollection(coll_name,Collection,volatile_in_memory,self);
+      FTransaction        := TFRE_DB_TransactionalUpdateList.Create('C',Fmaster);
+      ImplicitTransaction := True;
     end;
+  try
+    try
+      step := TFRE_DB_NewCollectionStep.Create(coll_name,volatile_in_memory);
+      FTransaction.AddChangeStep(step);
+      if ImplicitTransaction then
+        FTransaction.Commit(self);
+      CleanApply := true;
+      Collection := step.GetNewCollection;
+      result := edb_OK;
+    except on e:Exception do
+      begin
+        ex_message := e.Message;
+        raise;
+      end;
+    end;
+  finally
+    if not CleanApply then
+      begin
+        writeln('*******************************');
+        writeln('>>>>>> NEW COLLECTION  TRANSACTION ERROR !');
+        writeln(ex_message);
+        writeln('*******************************');
+      end;
+    if ImplicitTransaction then
+      begin
+        FTransaction.Free;
+        FTransaction := nil;
+      end;
+  end;
 end;
 
 function TFRE_DB_PS_FILE.DeleteCollection(const coll_name: TFRE_DB_NameType; const global_system_namespace: boolean): TFRE_DB_Errortype;
@@ -498,7 +564,7 @@ begin
   //  _SetUnclean(false);
   //end;
   //_SetUnclean(true);
-  FMaster       := TFRE_DB_Master_Data.Create;
+  FMaster       := TFRE_DB_Master_Data.Create('GLOBAL',self);
   FGlobalLayer  := True;
 end;
 
@@ -628,7 +694,7 @@ begin
   result := FMaster.FetchObject(ouid,dbo,internal_object);
 end;
 
-function TFRE_DB_PS_FILE.DeleteObject(const obj_uid: TGUID; const raise_ex: boolean; const collection_name: TFRE_DB_NameType; var notify_collections: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.DeleteObject(const obj_uid: TGUID; const collection_name: TFRE_DB_NameType; var notify_collections: TFRE_DB_StringArray): TFRE_DB_Errortype;
 var
     ImplicitTransaction : Boolean;
     CleanApply          : Boolean;
@@ -640,17 +706,14 @@ begin
   CleanApply := false;
   if not assigned(FTransaction) then
     begin
-      FTransaction        := TFRE_DB_TransactionalUpdateList.Create('IMPLICIT',Fmaster,self);
+      FTransaction        := TFRE_DB_TransactionalUpdateList.Create('ID',Fmaster);
       ImplicitTransaction := True;
     end;
   try
     try
       //if collection_name='' then
       if not Fetch(obj_uid,delete_object,true) then
-        if raise_ex then
-          raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[GFRE_BT.GUID_2_HexString(obj_uid)])
-        else
-          exit(edb_NOT_FOUND);
+        raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[GFRE_BT.GUID_2_HexString(obj_uid)]);
 
     SetLength(notify_collections,Length(delete_object.__InternalGetCollectionList));
     for i := 0 to high(notify_collections) do
@@ -660,7 +723,7 @@ begin
       try
         FTransaction.AddChangeStep(TFRE_DB_DeleteStep.Create(delete_object,false));
         if ImplicitTransaction then
-            result := Commit(raise_ex);
+          Commit;
       finally
         if Assigned(delete_object) then
           delete_object.Set_Store_Locked(true);
@@ -680,14 +743,17 @@ begin
         writeln('>>>>>> DELETE TRANSACTION ERROR !');
         writeln(ex_message);
         writeln('*******************************');
-      end
-    else
-    FTransaction := nil;
+      end;
+    if ImplicitTransaction then
+      begin
+        FTransaction.Free;
+        FTransaction := nil;
+      end;
   end;
 end;
 
 // This is always the first entry into the store and update chain
-function TFRE_DB_PS_FILE.StoreOrUpdateObject(var obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean; const raise_ex: boolean; var notify_collections: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.StoreOrUpdateObject(var obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean; var notify_collections: TFRE_DB_StringArray): TFRE_DB_Errortype;
 var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     error               : TFRE_DB_Errortype;
     to_update_obj       : TFRE_DB_Object;
@@ -697,184 +763,24 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     ex_message          : string;
     i                   : NativeInt;
 
-    //procedure CheckThatObjectAndAllSubsSatisfiyCollectionIndexes;
-    //var colllist : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
-    //           i : NativeInt;
-    //begin
-    //  colllist := to_update_obj.__InternalGetCollectionList;
-    //  for i := 0 to high(colllist) do
-    //    begin
-    //      result := colllist[i].GetPersLayerIntf.UpdateInThisColl(obj,to_update_obj,raise_ex,true);
-    //      if result <> edb_OK then
-    //        exit;
-    //    end;
-    //end;
-
-    function  GenerateAnObjChangeList(const raise_ex:boolean):TFRE_DB_Errortype;
-    var deleted_obj  : OFRE_SL_TFRE_DB_Object;
-        inserted_obj : OFRE_SL_TFRE_DB_Object;
-        updated_obj  : OFRE_SL_TFRE_DB_Object;
-
-        //procedure WriteGuid(const o : TFRE_DB_Object ; const idx : NativeInt; var halt:boolean);
-        //begin
-        //  write(idx,' ',o.UID_String,',');
-        //end;
-
-        function ObjectGuidCompare(const o1,o2:TFRE_DB_Object):boolean;
-        begin
-
-          result := FREDB_Guids_Same(o1.UID,o2.UID);
-        end;
-
-        procedure SearchInOldAndRemoveExistingInNew(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-        begin
-          if deleted_obj.Exists(o,@ObjectGuidCompare)<>-1 then
-            begin
-              updated_obj.Add(o);
-              inserted_obj.ClearIndex(idx);
-            end
-        end;
-
-        procedure SearchInUpdatesAndRemoveExistingFromOld(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-        var ex : NativeInt;
-        begin
-          if updated_obj.Exists(o,@ObjectGuidCompare)<>-1 then
-            deleted_obj.ClearIndex(idx);
-        end;
-
-        procedure GenerateUpdates(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-        var child      : TFRE_DB_Object;
-            updatestep : TFRE_DB_UpdateStep;
-
-            procedure CompareEvent (const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD);
-            begin
-              case compare_event of
-                cev_FieldDeleted:
-                    updatestep.addsubstep(cev_FieldDeleted,new_fld,nil);
-                cev_FieldAdded:
-                    updatestep.addsubstep(cev_FieldAdded,new_fld,nil);
-                cev_FieldChanged :
-                    updatestep.addsubstep(cev_FieldChanged,new_fld,old_field);
-              end;
-            end;
-
-        begin
-          if not FMaster.ExistsObject(new_object.UID) then
-            begin
-              writeln('DEBUG EXISTS CHECK UPDATE FAILED ',new_object.UID_String,' ',store);
-              system.halt();
-            end;
-          if new_object.IsObjectRoot then
-            begin
-              updatestep := TFRE_DB_UpdateStep.Create(new_object,to_update_obj,store);
-              new_object.__InternalCompareToObj(to_update_obj,@CompareEvent);
-            end
-          else
-            begin
-              child      := to_update_obj.FetchChildObj(new_object.UID);
-              assert(assigned(child));
-              updatestep := TFRE_DB_UpdateStep.Create(new_object,child,store);
-              new_object.__InternalCompareToObj(child,@CompareEvent);
-            end;
-          if updatestep.HasNoChanges then
-            updatestep.Free
-          else
-            begin
-              FTransaction.AddChangeStep(updatestep);
-              //writeln(updatestep.DescribeText);
-            end;
-             //FTransaction.PostProcessUpdateStep(updatestep);
-        end;
-
-        procedure GenerateInserts(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-        begin
-          FTransaction.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store));
-          if store then
-            halt := true; // In insert case only generate an insert for the root object
-        end;
-
-        procedure GenerateDeletes(var del_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-        begin
-          if not FMaster.ExistsObject(del_object.UID) then
-            begin
-              writeln('EXISTS CHECK DELETE FAILED ');
-              system.halt;
-            end;
-          FTransaction.AddChangeStep(TFRE_DB_DeleteStep.Create(del_object,store));
-        end;
-    begin
-      if G_DEBUG_TRIGGER_1=true then
-        G_DEBUG_TRIGGER_1:=true;
-      deleted_obj.Init(25);
-      inserted_obj.Init(25);
-      updated_obj.Init(25);
-      //if assigneD(to_update_obj) then
-        //to_update_obj.Field('pemper').AsString:='faker';
-      //to_update_obj.Field('TEST').AsString:='fuuker';
-      //to_update_obj.FieldPath('desc.txt').AsString:='ChangedChanged';
-      //to_update_obj.DeleteField('desc');
-      //obj.DeleteField('desc');
-
-      //writeln('--- OLD OBJECT ----');
-      //if assigned(to_update_obj) then
-      //  writeln(to_update_obj.DumpToString());
-      //writeln('--- NEW OBJECT -----');
-      //writeln(obj.DumpToString());
-      //writeln('------------');
-
-      if assigned(to_update_obj) then // update case
-        to_update_obj.__InternalGetFullObjectList(deleted_obj);
-      obj.__InternalGetFullObjectList(inserted_obj);
-//
-//      writeln('------------------------');
-//      writeln(' STEP A');
-//      write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
-//      write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
-//      writeln('STEP B');
-//      writeln('------------------------');
-
-      // Yields the updated_obj in the updatelist and the inserts in the newlist, all objects come from the "new non persitent object copy"
-      inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);
-      // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
-      deleted_obj.ForAllBreak(@SearchInUpdatesAndRemoveExistingFromOld);
-
-      //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
-      //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
-      //write('UPDATED  LIST [');updated_obj.ForAllBreak(@WriteGuid);writeln('] ',updated_obj.Count);
-
-      if deleted_obj.Count>0 then
-        deleted_obj.ForAllBreak(@GenerateDeletes);
-      if inserted_obj.Count>0 then
-        inserted_obj.ForAllBreak(@GenerateInserts);
-      if updated_obj.Count>0 then
-        updated_obj.ForAllBreak(@GenerateUpdates);
-      result := edb_OK;
-    end;
-
 
 begin
   CleanApply := false;
-  if not assigned(FTransaction) then
-    begin
-      FTransaction        := TFRE_DB_TransactionalUpdateList.Create('IMPLICIT',Fmaster,self);
-      ImplicitTransaction := True;
-    end;
   try
     try
       if store then
         begin
-          if collection_name='' then
-            if raise_ex then
-              raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request')
-            else
-              exit(edb_INVALID_PARAMS);
-          if not GetCollection(collection_name,coll) then
-            if raise_ex then
-              raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name])
-            else
-              exit(edb_NOT_FOUND);
+          //if collection_name='' then
+          //  raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+          //if not GetCollection(collection_name,coll) then
+          //  raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
+          if not assigned(FTransaction) then
+            begin
+              FTransaction        := TFRE_DB_TransactionalUpdateList.Create('S',Fmaster);
+              ImplicitTransaction := True;
+            end;
           to_update_obj := nil;
-          result := GenerateAnObjChangeList(raise_ex);
+          result := FTransaction.GenerateAnObjChangeList(store,obj,collection_name,notify_collections);
           if result <>edb_OK then
             exit(result);
           //writeln('>TRANSACTION INSERT LOG');
@@ -884,32 +790,26 @@ begin
           //if result <>edb_OK then
           //  exit(result);
           if ImplicitTransaction then
-              result := Commit(raise_ex);
+            FTransaction.Commit(self);
           obj.Set_Store_Locked(true);
           CleanApply := true;
           result := edb_OK;
         end
       else
         begin
-          if not Fetch(obj.UID,to_update_obj,true) then
-            if raise_ex then
-              raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String])
-            else
-              exit(edb_NOT_FOUND);
-          coll := nil;
-          if collection_name<>'' then
-            if not GetCollection(collection_name,coll) then
-              if raise_ex then
-                raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request')
-              else
-                exit(edb_INVALID_PARAMS);
+          //if not Fetch(obj.UID,to_update_obj,true) then
+          //  raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
+          //coll := nil;
+          //if collection_name<>'' then
+          //  if not GetCollection(collection_name,coll) then
+          //    raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+          if not assigned(FTransaction) then
+            begin
+              FTransaction        := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster);
+              ImplicitTransaction := True;
+            end;
 
-          SetLength(notify_collections,Length(to_update_obj.__InternalGetCollectionList));
-          for i := 0 to high(notify_collections) do
-            notify_collections[i] := to_update_obj.__InternalGetCollectionList[i].CollectionName();
-          to_update_obj.Set_Store_Locked(false);
-          try
-            GenerateAnObjChangeList(raise_ex);
+            result := FTransaction.GenerateAnObjChangeList(store,obj,collection_name,notify_collections);
             //writeln('>TRANSACTION UPDATE LOG');
             //FTransaction.PrintTextLog;
             //writeln('<TRANSACTION UPDATE LOG');
@@ -917,10 +817,7 @@ begin
             //if result <>edb_OK then
             //  exit(result);
             if ImplicitTransaction then
-                result := Commit(raise_ex);
-          finally
-            to_update_obj.Set_Store_Locked(true);
-          end;
+              Commit;
           CleanApply := true;
           result := edb_OK;
           //CheckThatObjectAndAllSubsSatisfiyCollectionIndexes;
@@ -946,9 +843,12 @@ begin
         writeln('>>>>>> STORE OR UPDATE TRANSACTION ERROR !');
         writeln(ex_message);
         writeln('*******************************');
-      end
-    else
-      FTransaction := nil;
+      end;
+    if ImplicitTransaction then
+      begin
+        FTransaction.Free;
+        FTransaction := nil;
+      end;
   end;
 end;
 
@@ -956,23 +856,23 @@ function TFRE_DB_PS_FILE.StartTransaction(const typ: TFRE_DB_TRANSACTION_TYPE; c
 begin
   if Assigned(FTransaction) then
     raise EFRE_DB_Exception.Create(edb_EXISTS,'a transaction context was already created');
-  FTransaction := TFRE_DB_TransactionalUpdateList.Create(id,FMaster,self);
+  FTransaction := TFRE_DB_TransactionalUpdateList.Create(id,FMaster);
 end;
 
-function TFRE_DB_PS_FILE.Commit(const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_PS_FILE.Commit;
 begin
   try
-    result       := FTransaction.Commit(raise_ex);
+    FTransaction.Commit(self);
   finally
     FTransaction.Free;
     FTransaction := nil;
   end;
 end;
 
-function TFRE_DB_PS_FILE.RollBack(const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_PS_FILE.RollBack;
 begin
   try
-    result := FTransaction.Rollback(raise_ex);
+    FTransaction.Rollback;
   finally
     FTransaction.Free;
     FTransaction := nil;
@@ -982,6 +882,10 @@ end;
 procedure TFRE_DB_PS_FILE.SyncWriteWAL(const WALMem: TMemoryStream); // TODO Check Performance impace of reopening WAL
 var res:cint;
 begin
+  if GDISABLE_WAL then
+    exit;
+  if FBlockWALWrites then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'DOING WAL WRITES WHILE BLOCKED !!');
   //writeln('####  ',FLayerStats.Name);
   if not assigned(FWalStream) then
     _OpenWAL;

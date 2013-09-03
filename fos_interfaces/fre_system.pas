@@ -81,6 +81,10 @@ var
       G_DEBUG_TRIGGER_4               :boolean=false;
       G_DEBUG_TRIGGER_5               :boolean=false;
 
+const
+      cG_Tuneable_LocalStackBuffer = 4096;
+
+
 type
   EFRE_Exception=class(Exception)
   end;

@@ -125,6 +125,7 @@ type
   protected
     FFieldData         : TFRE_DB_FieldData;
     FFieldName         : PFRE_DB_NameType;
+    FManualFieldName   : TFRE_DB_String; // used for fields without object, (WAL Repair) (TODO: check  FFieldName^ cornercases!)
     Fobj               : TFRE_DB_Object;
     FIsCalculated      : Boolean;
     FIsUidField        : Boolean;
@@ -135,9 +136,6 @@ type
     procedure Finalize;
     procedure _InAccessibleCheck  ; inline;
 
-    function  CopyFieldToMem      (var mempointer:Pointer;const without_schemes:boolean):TFRE_DB_SIZE_TYPE;
-    procedure CopyFieldFromMem    (var mempointer:Pointer;const conn:TFRE_DB_BASE_CONNECTION;const recreate_weak_schemes: boolean;const generate_new_uids:boolean); // ;fieldtype:TFRE_DB_FIELDTYPE,,valuecount);
-    class procedure __ReadHeader  (var memory:pointer;out fieldname:TFRE_DB_NameType);
 
     function  _StreamingSize      : TFRE_DB_SIZE_TYPE;
     procedure _IllegalTypeError   (const ill_type:TFRE_DB_FIELDTYPE);
@@ -292,7 +290,7 @@ type
 
     procedure IFRE_DB_Field.CloneFromField = CloneFromFieldI;
   public
-    constructor Create           (const obj:TFRE_DB_Object; const FieldType:TFRE_DB_FIELDTYPE);
+    constructor Create           (const obj:TFRE_DB_Object; const FieldType:TFRE_DB_FIELDTYPE ; const ManualFieldName : string='');
     destructor  Destroy          ;override;
     function    FieldType         : TFRE_DB_FIELDTYPE;
     function    FieldTypeAsString : TFRE_DB_String;
@@ -303,6 +301,11 @@ type
     procedure   CloneFromFieldFull(const Field:TFRE_DB_FIELD); // Array Clone
     procedure   CloneFromField    (const Field:TFRE_DB_FIELD); // Value 0 = Fieldclone
     procedure   CloneFromFieldI   (const Field:IFRE_DB_FIELD);
+
+    function    GetStreamingSize  : TFRE_DB_SIZE_TYPE;
+    function    CopyFieldToMem    (var mempointer:Pointer;const without_schemes:boolean):TFRE_DB_SIZE_TYPE;
+    class procedure __ReadHeader  (var memory:pointer;out fieldname:TFRE_DB_NameType);
+    procedure CopyFieldFromMem    (var mempointer:Pointer;const conn:TFRE_DB_BASE_CONNECTION;const recreate_weak_schemes: boolean;const generate_new_uids:boolean);
 
     property  AsGUID                        : TGuid read GetAsGUID write SetAsGUID;
     property  AsByte                        : Byte  read GetAsByte write SetAsByte;
@@ -1049,9 +1052,9 @@ type
 
 
   IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER=interface
-    function      StoreInThisColl     (const new_obj         : TFRE_DB_Object ; const raise_ex : boolean ; const checkphase : boolean):TFRE_DB_Errortype;
-    function      UpdateInThisColl    (const new_obj,old_obj : TFRE_DB_Object ; const raise_ex : boolean ; const checkphase : boolean):TFRE_DB_Errortype;
-    function      DeleteFromThisColl  (const del_obj : TFRE_DB_Object ; const raise_ex : boolean ; const checkphase : boolean):TFRE_DB_Errortype;
+    procedure     StoreInThisColl     (const new_obj         : TFRE_DB_Object ; const checkphase : boolean);
+    procedure     UpdateInThisColl    (const new_obj,old_obj : TFRE_DB_Object ; const checkphase : boolean);
+    procedure     DeleteFromThisColl  (const del_obj         : TFRE_DB_Object ; const checkphase : boolean);
     procedure     StreamToThis        (const stream          : TStream);
     procedure     LoadFromThis        (const stream          : TStream);
     function      FetchIntFromColl    (const uid:TGuid ; var obj : TFRE_DB_Object):boolean;
@@ -1084,8 +1087,8 @@ type
     function  ForAllitemsBreak   (const func: TFRE_DB_Obj_IteratorBreak):boolean;
 
 
-    function        Store        (var   new_obj : TFRE_DB_Object ; const raise_ex : boolean=true ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
-    function        Delete       (const ouid    : TGUID          ; const raise_ex : boolean=true ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
+    function        Store        (var   new_obj : TFRE_DB_Object ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
+    function        Delete       (const ouid    : TGUID          ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
 
     function        Fetch  (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
 
@@ -1094,7 +1097,7 @@ type
     function        Last                         : TFRE_DB_Object;
     function        GetItem                      (const num:uint64):TFRE_DB_Object;
     function        DefineIndexOnField           (const FieldName: TFRE_DB_NameType  ; const FieldType : TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType): TFRE_DB_Errortype;
-    function        CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean ; const raise_ex: boolean) :TFRE_DB_Errortype;
+    procedure       CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean);
     // Fetches Snapshot copies of the objects, you need to finalize them
     function        GetIndexedObj      (const query_value : TFRE_DB_String ; out   obj:TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObj      (const query_value : TFRE_DB_String ; out   obj       : TFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean;
@@ -1108,7 +1111,7 @@ type
     procedure DEBUG_DisconnectLayer (const db:TFRE_DB_String);
     function  ExistCollection    (const coll_name : TFRE_DB_NameType) : Boolean;
     function  GetCollection      (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
-    function  NewCollection      (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const global_system_namespace: boolean): TFRE_DB_Errortype;
+    function  NewCollection      (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_Errortype;
     function  DeleteCollection   (const coll_name : TFRE_DB_NameType ; const global_system_namespace : boolean) : TFRE_DB_Errortype;
 
     function  Connect              (const db_name:TFRE_DB_String ; out database_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
@@ -1123,9 +1126,9 @@ type
 
     function  StartTransaction     (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType ; const raise_ex : boolean=true) : TFRE_DB_Errortype;
     function  ObjectExists         (const obj_uid : TGUID) : boolean;
-    function  DeleteObject         (const obj_uid : TGUID  ;  const raise_ex : boolean ; const collection_name: TFRE_DB_NameType = '' ; var ncolls: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
-    function  Fetch                (const ouid:TGUID;out dbo:TFRE_DB_Object;const internal_object : boolean=false): boolean;
-    function  StoreOrUpdateObject  (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const raise_ex : boolean ; var notify_collections : TFRE_DB_StringArray) : TFRE_DB_Errortype;
+    function  DeleteObject         (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = '' ; var ncolls: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
+    function  Fetch                (const ouid   :  TGUID  ; out   dbo:TFRE_DB_Object;const internal_object : boolean=false): boolean;
+    function  StoreOrUpdateObject  (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; var notify_collections : TFRE_DB_StringArray) : TFRE_DB_Errortype;
     procedure SyncWriteWAL         (const WALMem : TMemoryStream);
     procedure SyncSnapshot         (const final : boolean=false);
   end;
@@ -1399,6 +1402,7 @@ type
     procedure       FinishBlockUpdating;
 
     function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def'):TFRE_DB_Errortype;
+
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
 
     function        GetIndexedObjI      (const query_value : TFRE_DB_String;out obj:IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
@@ -2326,6 +2330,8 @@ var
   GFRE_DB                  : TFRE_DB;
   GFRE_DB_DEFAULT_PS_LAYER : IFRE_DB_PERSISTANCE_LAYER;
   GDROP_WAL                : boolean;
+  GDISABLE_WAL             : boolean;
+  GDISABLE_SYNC            : boolean;
 
   procedure GFRE_DB_Init_Check;
 
@@ -4010,6 +4016,11 @@ begin
     end;
     l_NewGroupsID[i] := new_group_id;
   end;
+  if FREDB_Guid_ArraysSame(l_User.UserGroupIDs,l_NewGroupsID) then
+    begin
+      l_User.Finalize;
+      exit(edb_NO_CHANGE);
+    end;
   l_User.UserGroupIDs   := l_NewGroupsID;
   result:=Update(l_User);
   CheckDbResultFmt(Result,'could not update user %s',[loginatdomain]);
@@ -8982,7 +8993,7 @@ function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): boolean;
 var ncolls : TFRE_DB_StringArray;
     res    : TFRE_DB_Errortype;
 begin
-  res := FObjectLinkStore.Delete(ouid,true,ncolls);
+  res := FObjectLinkStore.Delete(ouid,ncolls);
   result := (res=edb_OK);
   if Result then begin
     _DBConnectionBC._NotifyCollectionObservers(fdbntf_DELETE,nil,ouid,ncolls);
@@ -8998,7 +9009,7 @@ begin
   if assigned(new_obj.FManageInfo) then
     new_obj.FManageInfo := nil;
   suid   := new_obj.UID;
-  result := FObjectLinkStore.Store(new_obj,true,ncolls);
+  result := FObjectLinkStore.Store(new_obj,ncolls);
   if Result=edb_OK then
     begin
       Fetch(suid,new_obj);
@@ -9127,7 +9138,7 @@ end;
 
 function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType): TFRE_DB_Errortype;
 begin
-  result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name);
+   result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name);
 end;
 
 function TFRE_DB_COLLECTION.ExistsIndexed(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType): Boolean;
@@ -10086,15 +10097,15 @@ begin
   if FCollectionStore.Find(FUPcoll_name,lcollection) then begin
     result := lcollection;
   end else begin
-    if FPersistance_Layer.GetCollection(FUPcoll_name,persColl) then
+    if FPersistance_Layer.GetCollection(collection_name,persColl) then
       begin
         lcollection := NewCollectionClass.Create(self,collection_name,persColl);
         if not FCollectionStore.Add(FUPcoll_name,lcollection) then raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
         exit(lcollection);
       end;
     if create_non_existing then begin
-      if not FPersistance_Layer.GetCollection(FUPcoll_name,persColl) then
-        CheckDbResult(FPersistance_Layer.NewCollection(FUPcoll_name,persColl,in_memory_only,false),'cannot create new persistance collection : ',true);
+      if not FPersistance_Layer.GetCollection(collection_name,persColl) then
+        CheckDbResult(FPersistance_Layer.NewCollection(collection_name,persColl,in_memory_only),'cannot create new persistance collection : ',true);
       lcollection := NewCollectionClass.Create(self,collection_name,persColl);
       if not FCollectionStore.Add(FUPcoll_name,lcollection) then raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
       exit(lcollection);
@@ -10168,7 +10179,7 @@ var dbo     : TFRE_DB_Object;
 
 begin
   _ConnectCheck;
- result := FPersistance_Layer.DeleteObject(ouid,true,'',ncolls);
+ result := FPersistance_Layer.DeleteObject(ouid,'',ncolls);
  if result=edb_OK then
    _NotifyCollectionObservers(fdbntf_DELETE,nil,ouid,ncolls);
 end;
@@ -10262,7 +10273,7 @@ var dboo   : TFRE_DB_Object;
 begin
   dboo   := dbo;
   objuid := dbo.UID;
-  result := FPersistance_Layer.StoreOrUpdateObject(dboo,'',false,true,ncolls);
+  result := FPersistance_Layer.StoreOrUpdateObject(dboo,'',false,ncolls);
   if result=edb_OK then
     begin
       _NotifyCollectionObservers(fdbntf_UPDATE,nil,objuid,ncolls);
@@ -11037,8 +11048,11 @@ begin
   result := edb_OK;
 end;
 
+//var Ghack : TGUID_Access = (Part1 : 0 ; Part2 : 0);
+
 function TFRE_DB.Get_A_Guid: TGUID;
 begin
+  //inc(TGUID_Access(Ghack).Part2);
   CreateGUID(result);
 end;
 
@@ -11291,7 +11305,7 @@ constructor TFRE_DB.create;
 var pers_coll : IFRE_DB_PERSISTANCE_COLLECTION;
 begin
   FFormatSettings := DefaultFormatSettings;
-  GFRE_DB_DEFAULT_PS_LAYER.NewCollection('SysSchemes',pers_coll,true,true);
+  GFRE_DB_DEFAULT_PS_LAYER.NewCollection('SysSchemes',pers_coll,true);
   FSystemSchemes  := TFRE_DB_SCHEME_COLLECTION.Create(nil,'SysSchemes',pers_coll);
   FSystemSchemes.DefineIndexOnField('C',fdbft_String,true,true);
 end;
@@ -15896,10 +15910,11 @@ begin
 end;
 
 
-constructor TFRE_DB_FIELD.Create(const obj: TFRE_DB_Object; const FieldType: TFRE_DB_FIELDTYPE);
+constructor TFRE_DB_FIELD.Create(const obj: TFRE_DB_Object; const FieldType: TFRE_DB_FIELDTYPE; const ManualFieldName: string);
 begin
   FFieldData.FieldType := FieldType;
   Fobj                 := obj;
+  FManualFieldName     := ManualFieldName;
   //FFieldStreamSize     := -1;
 end;
 
@@ -16107,6 +16122,11 @@ procedure TFRE_DB_FIELD.CloneFromFieldI(const Field: IFRE_DB_FIELD);
 begin
   _InAccessibleCheck;
   CloneFromField(Field.Implementor as TFRE_DB_FIELD);
+end;
+
+function TFRE_DB_FIELD.GetStreamingSize: TFRE_DB_SIZE_TYPE;
+begin
+  result := _StreamingSize;
 end;
 
 function TFRE_DB_FIELD.AsStringDump: TFRE_DB_String;
@@ -17013,7 +17033,10 @@ end;
 function TFRE_DB_FIELD.FieldName: TFRE_DB_NameType;
 begin
   _InAccessibleCheck;
-  result := FFieldName^;
+  if assigned(FFieldName) then
+    result := FFieldName^
+  else
+    result := FManualFieldName;
 end;
 
 procedure TFRE_DB_FIELD.Clear(const dont_free_streams_and_objects: boolean);

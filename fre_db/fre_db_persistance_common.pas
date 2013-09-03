@@ -41,15 +41,21 @@ unit fre_db_persistance_common;
 {$modeswitch nestedprocvars}
 
 //BIG TODO : Remove Fillbytes and verify ART TREE FUNCTION
+// VOLATILE Objects are not in WAL (or Cluster) (node local)
 
 interface
 
 uses
-  Classes, SysUtils,FRE_DB_COMMON,FRE_DB_INTERFACE,FRE_DB_CORE,FOS_ARRAYGEN,FOS_GENERIC_SORT,FOS_TOOL_INTERFACES,FOS_AlignedArray,FOS_REDBLACKTREE_GEN,
+  Classes, SysUtils,FRE_SYSTEM,FRE_DB_COMMON,FRE_DB_INTERFACE,FRE_DB_CORE,FOS_ARRAYGEN,FOS_GENERIC_SORT,FOS_TOOL_INTERFACES,FOS_AlignedArray,FOS_REDBLACKTREE_GEN,
   fos_art_tree,fos_sparelistgen;
 
 type
+  TFRE_DB_WAL_Step_Type = (fdb_WAL_INSERT,fdb_WAL_UPDATE,fdb_WAL_DELETE,fdb_WAL_NEW_COLLECTION,fdb_WAL_DELETE_COLLECTION,fdb_WAL_CREATE_IDX,fdb_WAL_DROP_IDX);
 
+const
+  CFRE_DB_WAL_Step_Type : array [TFRE_DB_WAL_Step_Type] of Char = ('I','U','D','C','Z','+','-');
+
+type
   { TFRE_DB_IndexValueStore }
 
   TFRE_DB_IndexValueStore=class
@@ -96,10 +102,10 @@ type
     constructor Create                               (const idx_name,fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION);
     function    Indexname                            : TFRE_DB_NameType;
     function    Uniquename                           : PFRE_DB_NameType;
-    function    FieldTypeIndexCompatCheck            (fld:TFRE_DB_FIELD ; const raise_ex : boolean) : TFRE_DB_Errortype; virtual; abstract;
-    function    IndexAddCheck                        (const obj             : TFRE_DB_Object; const check_only : boolean ; const raise_ex: boolean ; const use_already_transformed_key:boolean): TFRE_DB_Errortype; virtual;
-    function    IndexUpdCheck                        (const new_obj,old_obj : TFRE_DB_Object; const check_only : boolean ; const raise_ex: boolean ; const use_already_transformed_key:boolean): TFRE_DB_Errortype; virtual;
-    function    IndexDelCheck                        (const obj             : TFRE_DB_Object; const check_only : boolean ; const raise_ex: boolean ; const use_already_transformed_key:boolean): TFRE_DB_Errortype; virtual;
+    procedure   FieldTypeIndexCompatCheck            (fld:TFRE_DB_FIELD); virtual; abstract;
+    procedure   IndexAddCheck                        (const obj             : TFRE_DB_Object; const check_only : boolean ; const use_already_transformed_key:boolean); virtual;
+    procedure   IndexUpdCheck                        (const new_obj,old_obj : TFRE_DB_Object; const check_only : boolean ; const use_already_transformed_key:boolean); virtual;
+    procedure   IndexDelCheck                        (const obj             : TFRE_DB_Object; const check_only : boolean ; const use_already_transformed_key:boolean); virtual;
     function    SupportsDataType                     (const typ : TFRE_DB_FIELDTYPE):boolean; virtual ; abstract;
     function    IsUnique                             : Boolean;
   end;
@@ -128,7 +134,7 @@ type
   public
     constructor Create                      (const idx_name,fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique, case_insensitive : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION);
     constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION);
-    function    FieldTypeIndexCompatCheck   (fld:TFRE_DB_FIELD ; const raise_ex : boolean) : TFRE_DB_Errortype; override;
+    procedure   FieldTypeIndexCompatCheck   (fld:TFRE_DB_FIELD ); override;
     procedure   TransformToBinaryComparable (fld:TFRE_DB_FIELD ; const update_key : boolean); override;
     function    SupportsDataType            (const typ: TFRE_DB_FIELDTYPE): boolean; override;
   end;
@@ -151,13 +157,13 @@ type
     function      IndexExists      (const idx_name : TFRE_DB_NameType):NativeInt;
     procedure     AddIndex         (const idx : TFRE_DB_MM_Index);
 
-    function      IndexAddCheck    (const obj              : TFRE_DB_Object;const check_only : boolean ; const raise_ex : boolean ; const use_already_transformed_key:boolean) : TFRE_DB_Errortype;
-    function      IndexUpdCheck    (const new_obj, old_obj : TFRE_DB_Object;const check_only : boolean ; const raise_ex : boolean ; const use_already_transformed_key:boolean) : TFRE_DB_Errortype;
-    function      IndexDelCheck    (const del_obj          : TFRE_DB_Object;const check_only : boolean ; const raise_ex : boolean ; const use_already_transformed_key:boolean) : TFRE_DB_Errortype;
+    procedure     IndexAddCheck    (const obj              : TFRE_DB_Object;const check_only : boolean ; const use_already_transformed_key:boolean);
+    procedure     IndexUpdCheck    (const new_obj, old_obj : TFRE_DB_Object;const check_only : boolean ; const use_already_transformed_key:boolean);
+    procedure     IndexDelCheck    (const del_obj          : TFRE_DB_Object;const check_only : boolean ; const use_already_transformed_key:boolean);
 
-    function      StoreInThisColl     (const new_obj         : TFRE_DB_Object ; const raise_ex : boolean ; const checkphase : boolean):TFRE_DB_Errortype;
-    function      UpdateInThisColl    (const new_obj,old_obj : TFRE_DB_Object ; const raise_ex : boolean ; const checkphase : boolean):TFRE_DB_Errortype;
-    function      DeleteFromThisColl  (const del_obj : TFRE_DB_Object ; const raise_ex : boolean ; const checkphase : boolean):TFRE_DB_Errortype;
+    procedure     StoreInThisColl     (const new_obj         : TFRE_DB_Object ; const checkphase : boolean);
+    procedure     UpdateInThisColl    (const new_obj,old_obj : TFRE_DB_Object ; const checkphase : boolean);
+    procedure     DeleteFromThisColl  (const del_obj         : TFRE_DB_Object ; const checkphase : boolean);
 
     function      CloneOutObject   (const inobj:TFRE_DB_Object):TFRE_DB_Object;
     function      CloneOutArray    (const objarr : TFRE_DB_ObjectArray):TFRE_DB_ObjectArray;
@@ -182,8 +188,8 @@ type
     procedure   ForAllItems        (const iter    : TFRE_DB_Obj_Iterator); // must allow modification of collection // clones out
     function    ForAllitemsBreak   (const func    : TFRE_DB_Obj_IteratorBreak):boolean;
 
-    function    Store              (var   new_obj : TFRE_DB_Object ; const raise_ex : boolean=true ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
-    function    Delete             (const ouid    : TGUID          ; const raise_ex : boolean=true ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
+    function    Store              (var   new_obj : TFRE_DB_Object ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
+    function    Delete             (const ouid    : TGUID          ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
 
     function    Fetch              (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
     function    LinearScan         (const fieldname: TFRE_DB_NameType;  const field_expr: TFRE_DB_FIELD_EXPRESSION): TFRE_DB_Object;
@@ -196,7 +202,7 @@ type
     function    GetIndexedUID      (const query_value: TFRE_DB_String    ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
     function    GetIndexedUID      (const query_value: TFRE_DB_String    ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
 
-    function    CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean ; const raise_ex: boolean) :TFRE_DB_Errortype;
+    procedure   CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean);
   end;
 
   { TFRE_DB_CollectionTree }
@@ -250,10 +256,13 @@ type
 
   TFRE_DB_Master_Data=class(TObject)
   private
+    F_DB_TX_Number             : Qword;
+    FMastername                : String;
     FMasterPersistantObjStore  : TFRE_ART_TREE;
     FMasterVolatileObjStore    : TFRE_ART_TREE;
     FMasterRefLinks            : TFRE_ART_TREE;
     FMasterCollectionStore     : TFRE_DB_CollectionManageTree;
+    FLayer                     : IFRE_DB_PERSISTANCE_LAYER;
 
     function     GetOutBoundRefLinks        (const from_obj : TGUID): TFRE_DB_ObjectReferences;
     function     GetInboundLinks            (const to_obj   : TGUID): TFRE_DB_ObjectReferences;
@@ -261,46 +270,82 @@ type
     function     GetInboundLinksCount       (const to_obj   : TGUID): NativeInt;
 
 
-    function     __CheckReferenceToList     (const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; list: TFRE_DB_GUIDArray; const raise_ex: boolean): TFRE_DB_Errortype;
-    function     _SetupInitialRefLink       (const from_key : TFRE_DB_Object ; const fieldname: TFRE_DB_NameType ; const references_to_list : TFRE_DB_GUIDArray ; const raise_ex : boolean):TFRE_DB_Errortype;
-    function     _ChangeRefLink             (const from_obj : TFRE_DB_Object ; const fieldname: TFRE_DB_NameType ; const references_to_list : TFRE_DB_GUIDArray ; const raise_ex : boolean):TFRE_DB_Errortype;
-    function     _SetupInitialRefLinks      (const from_key : TFRE_DB_Object ; const references_to_list : TFRE_DB_ObjectReferences ; const raise_ex : boolean):TFRE_DB_Errortype;
-    function     _UpdateRefLinks            (const key : TGUID ; const references_to_list : TFRE_DB_ObjectReferences ; const raise_ex : boolean):TFRE_DB_Errortype;
+    procedure    __CheckReferenceToList     (const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; list: TFRE_DB_GUIDArray);
+    procedure    _SetupInitialRefLink       (const from_key : TFRE_DB_Object ; const fieldname: TFRE_DB_NameType ; const references_to_list : TFRE_DB_GUIDArray);
+    procedure    _ChangeRefLink             (const from_obj : TFRE_DB_Object ; const fieldname: TFRE_DB_NameType ; const references_to_list : TFRE_DB_GUIDArray);
+    procedure    _SetupInitialRefLinks      (const from_key : TFRE_DB_Object ; const references_to_list : TFRE_DB_ObjectReferences);
+    procedure    _UpdateRefLinks            (const key : TGUID ; const references_to_list : TFRE_DB_ObjectReferences);
+
     // Check full referential integrity, check if to objects exist
-    function     _CheckRefIntegrityToLink   (const obj:TFRE_DB_Object ; var ref_array : TFRE_DB_ObjectReferences ; const raise_ex : boolean):TFRE_DB_Errortype;
+    procedure    _CheckRefIntegrityToLink   (const obj:TFRE_DB_Object ; var ref_array : TFRE_DB_ObjectReferences);
 
     // Remove a reflinkfield, delete refence to and from indexes
-    function     _RemoveRefLinkFieldDelRefs (const obj:TFRE_DB_Object ; field : TFRE_DB_FIELD ; const raise_ex : boolean ; const check_only : boolean):TFRE_DB_Errortype;
+    function     _RemoveRefLinkFieldDelRefs (const obj:TFRE_DB_Object ; field : TFRE_DB_FIELD ; const check_only : boolean):TFRE_DB_Errortype;
 
   public
+    function     FetchNewTransactionID (const transid:string):String;
+
     function     InternalStoreObjectFromStable (const obj : TFRE_DB_Object) : TFRE_DB_Errortype;
     function     InternalRebuildRefindex                                    : TFRE_DB_Errortype;
     procedure    InternalStoreLock                                          ;
 
-    constructor Create;
+    constructor Create                (const master_name : string ; const Layer : IFRE_DB_PERSISTANCE_LAYER);
     function    GetReferenceCount     (const obj_uid: TGuid; const from: boolean): NativeInt;
     function    GetReferences         (const obj_uid: TGuid ; const from: boolean): TFRE_DB_ObjectReferences;
     function    ExistsObject          (const obj_uid : TGuid ) : Boolean;
     function    FetchObject           (const obj_uid : TGuid ; var obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
-    function    StoreObject           (const obj     : TFRE_DB_Object ; const raise_ex : boolean ; const check_only : boolean) : TFRE_DB_Errortype;
-    function    DeleteObject          (const obj_uid : TGuid ; const raise_ex : boolean ; const check_only : boolean )         : TFRE_DB_Errortype;
+    procedure   StoreObject           (const obj     : TFRE_DB_Object  ; const check_only : boolean);
+    procedure   DeleteObject          (const obj_uid : TGuid ; const check_only : boolean );
     procedure   ForAllObjectsInternal (const pers,volatile:boolean ; const iter:TFRE_DB_Obj_Iterator); // No Clone
     function    MasterColls           : TFRE_DB_CollectionManageTree;
+    procedure   ApplyWAL              (const WALStream : TStream);
   end;
+
+  TFRE_DB_TransactionalUpdateList = class;
+
+  //FChangeList.ForAllBreak(@CheckForExistence);
+  //FChangeList.ForAllBreak(@StoreInCollectionCheck);
+  //FChangeList.ForAllBreak(@MasterStoreCheck);
+  //FChangeList.ForAllBreak(@NeedsWalCheck);
 
   { TFRE_DB_ChangeStep }
 
   TFRE_DB_ChangeStep=class
   protected
-    FIsInsert : Boolean;
+    FIsStore       : Boolean; // TRUE = Store / False = UPDATE
+    FIsWalReadBack : Boolean;
+    FTransList     : TFRE_DB_TransactionalUpdateList;
+    procedure  InternalWriteObject    (const m : TMemoryStream;const obj : TFRE_DB_Object);
+    procedure  InternalReadObject     (const m : TStream ; var obj : TFRE_DB_Object);
   public
+    function   Needs_WAL              : Boolean; virtual; abstract;
     function   IsInsert               : Boolean;
     function   DescribeText           : String ; virtual; abstract;
-    function   CheckExistence          (const master : TFRE_DB_Master_Data ; const raise_ex:boolean): TFRE_DB_Errortype; virtual;
+    procedure  CheckExistence         (const master : TFRE_DB_Master_Data); virtual;    // CHECK:  Is Existence required or bad ?
     procedure  WriteToWAL             (const m:TMemoryStream); virtual ; abstract;
+    procedure  WalReconstructionphase (const master : TFRE_DB_Master_Data); virtual;   // Regenerate Step Data not written to WAL
     procedure  UnprepareCollection    ; virtual;
-    function   StoreInCollectionCheck (const master : TFRE_DB_Master_Data ; const raise_ex: boolean ; const check : boolean): TFRE_DB_Errortype; virtual ; abstract;
-    function   MasterStore            (const master : TFRE_DB_Master_Data ; const raise_ex: boolean ; const check : boolean): TFRE_DB_Errortype; virtual ; abstract;
+    procedure  StoreInCollectionCheck (const master : TFRE_DB_Master_Data ; const check : boolean); virtual ; abstract;
+    procedure  MasterStore            (const master : TFRE_DB_Master_Data ; const check : boolean); virtual ; abstract;
+    class function CreateFromWal      (const wal : TStream) : TFRE_DB_Changestep;
+  end;
+
+  { TFRE_DB_NewCollectionStep }
+
+  TFRE_DB_NewCollectionStep=class(TFRE_DB_ChangeStep)
+  private
+    FCollname       : TFRE_DB_NameType;
+    FVolatile       : Boolean;
+    FNewCollection  : IFRE_DB_PERSISTANCE_COLLECTION;
+  public
+    constructor Create                  (const coll_name: TFRE_DB_NameType;const volatile_in_memory: boolean);
+    constructor CreateAsWALReadBack     (const coll_name: TFRE_DB_NameType);
+    procedure   CheckExistence          (const master : TFRE_DB_Master_Data); override;
+    procedure   StoreInCollectionCheck  (const master: TFRE_DB_Master_Data; const check: boolean); override;
+    procedure   MasterStore             (const master: TFRE_DB_Master_Data; const check: boolean); override;
+    function    Needs_WAL               : Boolean; override;
+    procedure   WriteToWAL              (const m: TMemoryStream); override;
+    function    GetNewCollection        : IFRE_DB_PERSISTANCE_COLLECTION;
   end;
 
   { TFRE_DB_InsertStep }
@@ -309,14 +354,17 @@ type
   private
     FNewObj   : TFRE_DB_Object;
     FColl     : IFRE_DB_PERSISTANCE_COLLECTION;
+    FCollName : TFRE_DB_NameType;
   public
-    constructor Create                  (new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_insert : boolean);
+    constructor Create                  (new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);
+    constructor CreateAsWalReadBack     (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
     destructor  Destroy                 ; override;
     function    DescribeText            : String; override;
     function    IsARootInsert           : Boolean;
+    function    Needs_WAL: Boolean      ; override;
     function    CheckExistence          (const master : TFRE_DB_Master_Data ; const raise_ex:boolean): TFRE_DB_Errortype;
-    function    StoreInCollectionCheck  (const master : TFRE_DB_Master_Data ; const raise_ex: boolean ; const check : boolean): TFRE_DB_Errortype; override;
-    function    MasterStore             (const master : TFRE_DB_Master_Data ; const raise_ex:boolean ; const check : boolean): TFRE_DB_Errortype; override;
+    procedure   StoreInCollectionCheck  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   MasterStore             (const master : TFRE_DB_Master_Data ; const check : boolean); override;
     procedure   WriteToWAL              (const m:TMemoryStream);override;
     procedure   UnprepareCollection     ; override;
   end;
@@ -329,11 +377,12 @@ type
     CollName : TFRE_DB_NameType;
     FObjPtr  : ^TFRE_DB_Object;
   public
-    constructor Create                   (var del_obj : TFRE_DB_Object ; const is_insert : boolean);
+    constructor Create                   (var del_obj : TFRE_DB_Object ; const is_store : boolean);
     function    DescribeText             : String; override;
+    function    Needs_WAL: Boolean       ; override;
     procedure   WriteToWAL               (const m:TMemoryStream) ; override;
-    function    StoreInCollectionCheck   (const master : TFRE_DB_Master_Data ; const raise_ex: boolean ; const check : boolean): TFRE_DB_Errortype; override;
-    function    MasterStore              (const master : TFRE_DB_Master_Data ; const raise_ex: boolean ; const check : boolean): TFRE_DB_Errortype; override;
+    procedure   StoreInCollectionCheck   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   MasterStore              (const master : TFRE_DB_Master_Data ; const check : boolean); override;
   end;
 
   TFRE_DB_UpdateStep=class;
@@ -341,26 +390,26 @@ type
 
   RFRE_DB_UpdateSubStep=record
     updtyp   : TFRE_DB_ObjCompareEventType;
-    colllist : Array of TFRE_DB_NameType;
     newfield : TFRE_DB_FIELD;
     oldfield : TFRE_DB_FIELD;
-    Step     : TFRE_DB_UpdateStep;
   end;
 
   TFRE_DB_UpdateStep=class(TFRE_DB_ChangeStep)
-  public
+  private
     FSublist    : Array of RFRE_DB_UpdateSubStep;
     FCnt        : NativeInt;
     upobj       : TFRE_DB_Object;
     to_upd_obj  : TFRE_DB_Object;
+    procedure   AddSubStep               (const uptyp : TFRE_DB_ObjCompareEventType ; const new,old : TFRE_DB_FIELD);
   public
     constructor Create                   (obj,to_update_obj : TFRE_DB_Object ; const is_insert : boolean);
-    procedure   AddSubStep               (const uptyp : TFRE_DB_ObjCompareEventType ; const new,old : TFRE_DB_FIELD);
+    constructor CreateAsWalReadBack      (new_obj : TGuid ; const is_store : boolean ; const ws:TStream);
     function    DescribeText             : String; override;
     function    HasNoChanges             : Boolean;
+    function    Needs_WAL: Boolean       ; override;
     procedure   WriteToWAL               (const m:TMemoryStream);override;
-    function    StoreInCollectionCheck   (const master : TFRE_DB_Master_Data ; const raise_ex: boolean ; const check : boolean): TFRE_DB_Errortype; override;
-    function    MasterStore              (const master : TFRE_DB_Master_Data ; const raise_ex: boolean ; const check : boolean): TFRE_DB_Errortype; override;
+    procedure   StoreInCollectionCheck   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   MasterStore              (const master : TFRE_DB_Master_Data ; const check : boolean); override;
   end;
 
   OFRE_SL_TFRE_DB_ChangeStep  = specialize OFOS_SpareList<TFRE_DB_ChangeStep>;
@@ -370,21 +419,23 @@ type
   TFRE_DB_TransactionalUpdateList = class(TObject)
   private
     FChangeList  : OFRE_SL_TFRE_DB_ChangeStep;
-    FChangeCount : NativeInt;
     FTransId     : TFRE_DB_NameType;
     FMaster      : TFRE_DB_Master_Data;
-    FLayer       : IFRE_DB_PERSISTANCE_LAYER;
     FWalMem      : TMemoryStream;
-    function     ProcessCheck          (const raise_ex:boolean):TFRE_DB_Errortype;
+    FNeedsWAL    : Boolean;
+    procedure    ProcessCheck          (const WAL_RepairMode: boolean);
+    procedure    Write_WAL_Or_DCC      (const Layer : IFRE_DB_PERSISTANCE_LAYER);
   public
-    constructor  Create                (const TransID : TFRE_DB_NameType ; const master_data : TFRE_DB_Master_Data ; const layer : IFRE_DB_PERSISTANCE_LAYER);
+    constructor  Create                (const TransID : TFRE_DB_NameType ; const master_data : TFRE_DB_Master_Data);
+    procedure    ReadFromBackWalStream (const walstream : TStream);
     procedure    AddChangeStep         (const step:TFRE_DB_ChangeStep);
+
+    function     GenerateAnObjChangeList(const store : boolean ; const obj : TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; var notify_collections: TFRE_DB_StringArray):TFRE_DB_Errortype;
+
     procedure    PrintTextLog          ;
-    //function     ProcessForInsert      (const raise_ex:boolean):TFRE_DB_Errortype;
-    //function     ProcessForUpdate      (const raise_ex:boolean):TFRE_DB_Errortype;
-    procedure    Write_WAL             ;
-    function     Commit                (const raise_ex:boolean):TFRE_DB_Errortype;
-    function     Rollback              (const raise_ex:boolean):TFRE_DB_Errortype;
+    procedure    Commit                (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const WAL_RepairMode : boolean=false);
+    procedure    Rollback              ;
+    destructor   Destroy               ;override;
   end;
 
 
@@ -394,6 +445,58 @@ type
   //    GSYS_COLLS  : TFRE_DB_CollectionManageTree;
 
 implementation
+
+{ TFRE_DB_NewCollectionStep }
+
+constructor TFRE_DB_NewCollectionStep.Create(const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean);
+begin
+  FCollname      := coll_name;
+  FVolatile      := volatile_in_memory;
+end;
+
+constructor TFRE_DB_NewCollectionStep.CreateAsWALReadBack(const coll_name: TFRE_DB_NameType);
+begin
+  FCollname      := coll_name;
+  FVolatile      := false;
+end;
+
+procedure TFRE_DB_NewCollectionStep.CheckExistence(const master: TFRE_DB_Master_Data);
+var coll : IFRE_DB_PERSISTANCE_COLLECTION;
+begin
+  if Master.MasterColls.GetCollection(FCollname,coll) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'collection [%s] already exists!',[FCollname]);
+end;
+
+procedure TFRE_DB_NewCollectionStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const check: boolean);
+begin
+
+end;
+
+procedure TFRE_DB_NewCollectionStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+var res:TFRE_DB_Errortype;
+begin
+  if not check then
+    begin
+      res := Master.MasterColls.NewCollection(FCollname,FNewCollection,FVolatile,Master.FLayer);
+      if res<>edb_OK  then
+        raise EFRE_DB_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
+    end;
+end;
+
+function TFRE_DB_NewCollectionStep.Needs_WAL: Boolean;
+begin
+  result := not (FVolatile);
+end;
+
+procedure TFRE_DB_NewCollectionStep.WriteToWAL(const m: TMemoryStream);
+begin
+  m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_NEW_COLLECTION]+FCollname);
+end;
+
+function TFRE_DB_NewCollectionStep.GetNewCollection: IFRE_DB_PERSISTANCE_COLLECTION;
+begin
+  result := FNewCollection;
+end;
 
 { TFRE_DB_SignedIndex }
 
@@ -411,19 +514,109 @@ end;
 
 { TFRE_DB_ChangeStep }
 
-function TFRE_DB_ChangeStep.IsInsert: Boolean;
+procedure TFRE_DB_ChangeStep.InternalWriteObject(const m: TMemoryStream; const obj: TFRE_DB_Object);
+var nsize: NativeInt;
 begin
-  result := FIsInsert;
+   nsize := obj.NeededSize;
+   m.WriteAnsiString(IntToStr(nsize));
+   if (m.Size-m.Position)<(nsize) then
+       m.SetSize(m.Size + nsize + 4096);
+   obj.CopyToMemory(m.Memory+m.Position);
+   m.Position:=m.Position+nsize;
 end;
 
-function TFRE_DB_ChangeStep.CheckExistence(const master: TFRE_DB_Master_Data; const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_ChangeStep.InternalReadObject(const m: TStream; var obj: TFRE_DB_Object);
+var nsize    : NativeInt;
+      mem    : Pointer;
+      s      : string;
+      stackm : Array [1..4096] of Byte;
+
 begin
-  result := edb_OK;
+   s := m.ReadAnsiString;
+   nsize  := FREDB_String2NativeInt(s);
+   if nsize>4096 then
+     Getmem(mem,nsize)
+   else
+     mem := @stackm[1];
+   try
+     m.ReadBuffer(mem^,nsize);
+     obj := TFRE_DB_Object.CreateFromMemory(mem);
+   finally
+     if nsize>4096 then
+       Freemem(mem);
+   end;
 end;
+
+function TFRE_DB_ChangeStep.IsInsert: Boolean;
+begin
+  result := FIsStore;
+end;
+
+procedure TFRE_DB_ChangeStep.CheckExistence(const master: TFRE_DB_Master_Data);
+begin
+
+end;
+
+procedure TFRE_DB_ChangeStep.WalReconstructionphase(const master: TFRE_DB_Master_Data);
+begin
+
+end;
+
 
 procedure TFRE_DB_ChangeStep.UnprepareCollection;
 begin
 
+end;
+
+class function TFRE_DB_ChangeStep.CreateFromWal(const wal: TStream): TFRE_DB_Changestep;
+var stepheader : String;
+    checkuid   : TGuid;
+    coll       : TFRE_DB_NameType;
+    new_obj    : TFRE_DB_Object;
+    typ        : char;
+    ttyp       : TFRE_DB_WAL_Step_Type;
+    isstore    : boolean;
+
+    function WAL_STEP_TYPE_FROM_CHAR(const hdr:char):TFRE_DB_WAL_Step_Type;
+    begin
+      for result in TFRE_DB_WAL_Step_Type do
+        if CFRE_DB_WAL_Step_Type[result]=hdr then
+          exit;
+      raise EFRE_DB_Exception.Create(edb_ERROR,'could not convert walsteptype [%s]',[hdr]);
+    end;
+begin
+  stepheader := wal.ReadAnsiString;
+  if (Length(stepheader)<1) then
+       raise EFRE_DB_Exception.Create(edb_ERROR,'step header bad');
+  ttyp    := WAL_STEP_TYPE_FROM_CHAR(stepheader[1]);
+  case ttyp of
+      fdb_WAL_INSERT:
+        begin
+          isstore := StrToBool(stepheader[2]);
+          checkuid := GFRE_BT.HexString_2_GUID(Copy(stepheader,3,32));
+          coll     := Copy(stepheader,3+32,maxint);
+          result := TFRE_DB_InsertStep.CreateAsWalReadBack(checkuid,coll,isstore,wal);
+          //writeln('INSERT : ',stepheader,' ',(result as TFRE_DB_InsertStep).FNewObj.DumpToString());
+          writeln('INSERT : ',stepheader,' ',(result as TFRE_DB_InsertStep).FNewObj.SchemeClass);
+        end;
+      fdb_WAL_UPDATE:
+        begin
+          isstore  := StrToBool(stepheader[2]);
+          checkuid := GFRE_BT.HexString_2_GUID(Copy(stepheader,3,32));
+          result   := TFRE_DB_UpdateStep.CreateAsWalReadBack(checkuid,isstore,wal);
+         //writeln('INSERT : ',stepheader,' ',(result as TFRE_DB_InsertStep).FNewObj.DumpToString());
+          writeln('UPDATE : ',stepheader,' ',(result as TFRE_DB_UpdateStep).upobj.SchemeClass)
+        end;
+      fdb_WAL_NEW_COLLECTION:
+        begin
+          result := TFRE_DB_NewCollectionStep.CreateAsWALReadBack(copy(stepheader,2,maxint));
+          writeln('NEW COLLECTION  : ',stepheader)
+        end;
+      else
+        begin
+           raise EFRE_DB_Exception.Create(edb_ERROR,'unimplemented transaction step header '+stepheader[2]);
+        end;
+    end;
 end;
 
 { TREF_LinkEncapsulation }
@@ -447,7 +640,65 @@ begin
   FCnt          := 0;
   upobj         := obj;
   to_upd_obj    := to_update_obj;
-  FIsInsert     := is_insert;
+  FIsStore     := is_insert;
+end;
+
+constructor TFRE_DB_UpdateStep.CreateAsWalReadBack(new_obj: TGuid; const is_store: boolean; const ws: TStream);
+var i         : NativeInt;
+    lbuffer   : Array [0..cG_Tuneable_LocalStackBuffer] of Byte;
+    lMem      : Pointer;
+    fieldname : TFRE_DB_NameType;
+    size      : qword;
+
+    procedure ReadBackField(var field:TFRE_DB_FIELD);
+    begin
+      if size>0 then
+        try
+          if size>=cG_Tuneable_LocalStackBuffer then
+            begin
+              Getmem(lMem,size);
+            end
+          else
+            begin
+              lmem := @lbuffer[0];
+            end;
+          ws.ReadBuffer(lMem^,size);
+          TFRE_DB_FIELD.__ReadHeader(lMem,fieldname);
+          field := TFRE_DB_FIELD.Create(nil,fdbft_NotFound,fieldname);
+          field.CopyFieldFromMem(lMem,nil,false,false);
+        finally
+          if size>=cG_Tuneable_LocalStackBuffer then
+            Freemem(lMem);
+        end;
+    end;
+
+begin
+  FIsStore       := is_store;
+  FIsWalReadBack := true;
+  InternalReadObject(ws,upobj);
+  if not FREDB_Guids_Same(upobj.UID,new_obj) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'read back wal updatestep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(upobj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
+
+  fcnt := ws.ReadDWord;
+  SetLength(FSublist,Fcnt);
+  for i := 0 to FCnt-1 do
+    with FSublist[i] do
+      begin
+        case ws.ReadByte of
+          1 : FSublist[i].updtyp:=cev_FieldDeleted;
+          2 : FSublist[i].updtyp:=cev_FieldAdded;
+          3 : FSublist[i].updtyp:=cev_FieldChanged;
+          else
+            raise EFRE_DB_Exception.Create(edb_ERROR,'invalid substep encoding');
+        end;
+        size := ws.ReadQWord;
+        if size>0 then
+          ReadBackField(newfield);
+        size := ws.ReadQWord;
+        if size>0 then
+          ReadBackField(oldfield);
+    end;
+
 end;
 
 procedure TFRE_DB_UpdateStep.AddSubStep(const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD);
@@ -459,7 +710,7 @@ begin
       updtyp   := uptyp;
       newfield := new;
       oldfield := old;
-      Step     := self;
+      //Step     := self;
     end;
   inc(fcnt);
 end;
@@ -495,44 +746,101 @@ begin
   result := FCnt=0;
 end;
 
-procedure TFRE_DB_UpdateStep.WriteToWAL(const m: TMemoryStream);
-var nsize,usize,wsize : NativeInt;
+function TFRE_DB_UpdateStep.Needs_WAL: Boolean;
 begin
   if upobj.IsVolatile then
-    exit;
-  m.WriteAnsiString('SU'+upobj.UID_String+to_upd_obj.UID_String);
-  nsize := upobj.NeededSize;
-  usize := to_upd_obj.NeededSize;
-  wsize := nsize + usize;
-  if (m.Size-m.Position)<(wsize) then
-      m.SetSize(m.Size + wsize + 4096);
-  upobj.CopyToMemory(m.Memory+m.Position);
-  m.Position:=m.Position+nsize;
-  to_upd_obj.CopyToMemory(m.Memory+m.Position);
-  m.Position:=m.Position+usize;
-  m.WriteAnsiString('SU'+upobj.UID_String+to_upd_obj.UID_String);
+    exit(false);
+  result := true;
 end;
 
+procedure TFRE_DB_UpdateStep.WriteToWAL(const m: TMemoryStream);
+var  i       : Integer;
+     lbuffer : Array [0..cG_Tuneable_LocalStackBuffer] of Byte;
+     lMem    : Pointer;
+     size    : NativeInt;
+     csize   : NativeInt;
+begin
+  m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_UPDATE]+BoolToStr(FIsStore,'1','0')+upobj.UID_String);
+  InternalWriteObject(m,upobj);
+  m.WriteDWord(FCnt);
+  for i := 0 to FCnt-1 do
+    begin
+      with FSublist[i] do
+        begin
+          case updtyp of
+            cev_FieldDeleted: m.WriteByte(1);
+            cev_FieldAdded:   m.WriteByte(2);
+            cev_FieldChanged: m.WriteByte(3);
+          end;
+          if Assigned(newfield) then
+            begin
+              size := newfield.GetStreamingSize;
+              m.WriteQWord(size);
+              if size < cG_Tuneable_LocalStackBuffer then
+                begin
+                  lmem := @lbuffer[0];
+                  csize := newfield.CopyFieldToMem(lmem,false);
+                  if csize<>size then
+                    raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal field stream sice error [%d<>%d]',[size,csize]);
+                  m.WriteBuffer(lMem^,size);
+                end
+              else
+                begin
+                  Getmem(lMem,size);
+                  try
+                   csize := newfield.CopyFieldToMem(lMem,false);
+                   if csize<>size then
+                     raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal field stream sice error [%d<>%d]',[size,csize]);
+
+                    m.WriteBuffer(lMem^,size);
+                  finally
+                    Freemem(lMem);
+                  end;
+                end;
+            end
+          else
+            m.WriteQWord(0);
+          if Assigned(oldfield) then
+            begin
+              size := oldfield.GetStreamingSize;
+              m.WriteQWord(size);
+              if size < cG_Tuneable_LocalStackBuffer then
+                begin
+                  lmem := @lbuffer[0];
+                  oldfield.CopyFieldToMem(lmem,false);
+                end
+              else
+                begin
+                  Getmem(lMem,size);
+                  try
+                    oldfield.CopyFieldToMem(lMem,false);
+                  finally
+                    Freemem(lMem);
+                  end;
+                end;
+            end
+          else
+            m.WriteQWord(0);
+        end;
+    end;
+end;
+
+
 //Check what has to be done at master level, (reflinks)
-function TFRE_DB_UpdateStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const raise_ex: boolean; const check: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_UpdateStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const check: boolean);
 var i,j       : NativeInt;
     collarray : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
 begin
-  result := edb_OK;
   for i:=0 to FCnt-1 do
     with FSublist[i] do
       begin
         collarray := to_upd_obj.__InternalGetCollectionList;
         for j := 0 to high(collarray) do
-          begin
-            result := collarray[j].CheckFieldChangeAgainstIndex(oldfield,newfield,updtyp,check,raise_ex);
-            if result<>edb_OK then
-              exit;
-         end;
+          collarray[j].CheckFieldChangeAgainstIndex(oldfield,newfield,updtyp,check);
       end
 end;
 
-function TFRE_DB_UpdateStep.MasterStore(const master: TFRE_DB_Master_Data; const raise_ex: boolean; const check: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_UpdateStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 var i,j       : NativeInt;
     collarray : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
 
@@ -542,16 +850,16 @@ var i,j       : NativeInt;
         case newfield.FieldType of
           fdbft_Object:
             begin
-              result := master.DeleteObject(newfield.AsObject.UID,raise_ex,check);
-              if result<>edb_OK then
-                exit;
+              writeln('MASTERSTORE ABORT 1');
+              abort;
+              master.DeleteObject(newfield.AsObject.UID,check);
             end;
           fdbft_ObjLink:
             begin
-               result := master._RemoveRefLinkFieldDelRefs(step.to_upd_obj,newfield,raise_ex,check);
-               if result <> edb_OK then
-                 exit;
-            end
+              writeln('MASTERSTORE ABORT 2');
+              abort;
+              master._RemoveRefLinkFieldDelRefs(to_upd_obj,newfield,check);
+            end;
           else begin
             if not check then
               to_upd_obj.DeleteField(newfield.FieldName);
@@ -569,27 +877,35 @@ var i,j       : NativeInt;
              // Just add the Field
               if check then
                 exit;
-              to_upd_obj.Field(newfield.FieldName).CloneFromFieldFull(newfield);
+              to_upd_obj.Set_Store_Locked(false);
+              try
+                to_upd_obj.Field(newfield.FieldName).CloneFromFieldFull(newfield);
+              finally
+                to_upd_obj.Set_Store_Locked(true);
+              end;
             end;
           fdbft_Object:
             begin
+              if check then
+                exit;
               to_upd_obj.Field(newfield.FieldName).AsObject := newfield.AsObject;
             end;
           fdbft_ObjLink:
             begin
-               if check then
-                 begin
-                   result := master.__CheckReferenceToList(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray,raise_ex);
-                   if result<>edb_OK then
-                     exit;
-                 end
-               else
-                 begin
-                   result := master._SetupInitialRefLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray,raise_ex);
-                   if result<> edb_OK then
-                     exit;
-                   to_upd_obj.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
-                 end;
+              to_upd_obj.Set_Store_Locked(false);
+              try
+                if check then
+                  begin
+                    master.__CheckReferenceToList(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray);
+                  end
+                else
+                  begin
+                    master._SetupInitialRefLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray);
+                    to_upd_obj.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                  end;
+              finally
+                to_upd_obj.Set_Store_Locked(true);
+              end;
             end;
           fdbft_CalcField:
             begin
@@ -606,40 +922,42 @@ var i,j       : NativeInt;
           fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
             begin
               if check then
-                begin
-                  result := edb_OK;
-                  exit;
-                end;
-              to_upd_obj.Field(newfield.FieldName).CloneFromFieldFull(newfield);
+                exit;
+              to_upd_obj.Set_Store_Locked(false);
+              try
+                to_upd_obj.Field(newfield.FieldName).CloneFromFieldFull(newfield);
+              finally
+                to_upd_obj.Set_Store_Locked(true);
+              end;
             end;
           fdbft_Object:
             begin
               if check then
-                begin
-                  result := edb_OK;
-                  exit;
-                end
-              else
-                begin
-                  writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
-                  to_upd_obj.Field(newfield.FieldName).AsObjectArr := newfield.AsObjectArr;
-                end;
+                exit;
+              writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
+              to_upd_obj.Set_Store_Locked(false);
+              try
+                to_upd_obj.Field(newfield.FieldName).AsObjectArr := newfield.AsObjectArr;
+              finally
+                to_upd_obj.Set_Store_Locked(true);
+              end;
             end;
           fdbft_ObjLink:
             begin
-               if check then
-                 begin
-                   result := master.__CheckReferenceToList(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray,raise_ex);
-                   if result<>edb_OK then
-                     exit;
-                 end
-               else
-                 begin
-                   result := master._ChangeRefLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray,raise_ex);
-                   if result<> edb_OK then
-                     exit;
-                   to_upd_obj.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
-                 end;
+              to_upd_obj.Set_Store_Locked(false);
+              try
+                if check then
+                  begin
+                    master.__CheckReferenceToList(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray);
+                  end
+                else
+                  begin
+                    master._ChangeRefLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray);
+                    to_upd_obj.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                  end;
+              finally
+                to_upd_obj.Set_Store_Locked(true);
+              end;
             end;
           fdbft_CalcField:
             begin
@@ -650,7 +968,6 @@ var i,j       : NativeInt;
     end;
 
 begin
-  result := edb_OK;
   if to_upd_obj.IsObjectRoot then
     if length(to_upd_obj.__InternalGetCollectionList)=0 then
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'must have internal collections to store into');
@@ -670,10 +987,10 @@ end;
 
 { TFRE_DB_DeleteStep }
 
-constructor TFRE_DB_DeleteStep.Create(var del_obj: TFRE_DB_Object; const is_insert: boolean);
+constructor TFRE_DB_DeleteStep.Create(var del_obj: TFRE_DB_Object; const is_store: boolean);
 begin
   FDelObj   := del_obj;
-  FIsInsert := is_insert;
+  FIsStore  := is_store;
   FObjPtr   := @del_obj;
 end;
 
@@ -685,67 +1002,245 @@ begin
       WriteStr(result,' DELETE ROOT OBJECT ',FDelObj.UID_String);
 end;
 
-procedure TFRE_DB_DeleteStep.WriteToWAL(const m: TMemoryStream);
+function TFRE_DB_DeleteStep.Needs_WAL: Boolean;
 begin
-  if FDelObj.IsObjectRoot then
-    begin
-      if FDelObj.IsVolatile then
-        exit;
-      m.WriteAnsiString('SD'+FDelObj.UID_String);
-      m.WriteAnsiString(CollName);
-      m.WriteAnsiString('ED'+FDelObj.UID_String);
-    end;
+  if FDelObj.IsVolatile then
+    exit(false);
+  if not FDelObj.IsObjectRoot then
+    exit(false);
+  result := true;
 end;
 
-function TFRE_DB_DeleteStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const raise_ex: boolean; const check: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_DeleteStep.WriteToWAL(const m: TMemoryStream);
+begin
+   m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_DELETE]+BoolToStr(FIsStore,'1','0')+FDelObj.UID_String+CollName);
+end;
+
+procedure TFRE_DB_DeleteStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const check: boolean);
 var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
       i : NativeInt;
 begin
   assert(IsInsert=false);
   if check then
-    result := edb_OK
-  else
+    exit;
+  if FDelObj.IsObjectRoot then // TDOD -> CHECK, make it working
     begin
-      if FDelObj.IsObjectRoot then // TDOD -> CHECK, make it working
-        begin
-          arr := FDelObj.__InternalGetCollectionList;
-          for i := 0 to high(arr) do
-            begin
-              result := arr[i].GetPersLayerIntf.DeleteFromThisColl(FDelObj,raise_ex,check);
-              if result<>edb_OK then
-                exit;
-            end;
-        end
-      else
-        begin
-          result := edb_OK;
-        end;
+      arr := FDelObj.__InternalGetCollectionList;
+      for i := 0 to high(arr) do
+        arr[i].GetPersLayerIntf.DeleteFromThisColl(FDelObj,check);
     end;
 end;
 
-function TFRE_DB_DeleteStep.MasterStore(const master: TFRE_DB_Master_Data; const raise_ex: boolean; const check: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_DeleteStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
   writeln('*****DELETE STEP .... ReMOVINg : ',FDelObj.UID_String);
   assert(IsInsert=false);
-  result := master.DeleteObject(FDelObj.UID,raise_ex,check);
-  if result=edb_OK then
+  master.DeleteObject(FDelObj.UID,check);
+  if not check  then
     FObjPtr^:=nil;
 end;
 
 { TFRE_DB_TransactionalUpdateList }
 
-constructor TFRE_DB_TransactionalUpdateList.Create(const TransID: TFRE_DB_NameType; const master_data: TFRE_DB_Master_Data; const layer: IFRE_DB_PERSISTANCE_LAYER);
+constructor TFRE_DB_TransactionalUpdateList.Create(const TransID: TFRE_DB_NameType; const master_data: TFRE_DB_Master_Data);
 begin
   FTransId := TransID;
   FChangeList.Init(10);
   FMaster  := master_data;
-  FLayer   := layer;
   FWalMem  := TMemoryStream.Create;
 end;
 
+procedure TFRE_DB_TransactionalUpdateList.ReadFromBackWalStream(const walstream: TStream);
+var Cnt,i   : NativeInt;
+    idcheck : string;
+
+begin
+  FTransId := walstream.ReadAnsiString;
+  Cnt     := FREDB_String2NativeInt(walstream.ReadAnsiString);
+  for i := 1 to Cnt do
+    begin
+      AddChangeStep(TFRE_DB_ChangeStep.CreateFromWal(walstream));
+    end;
+  idcheck := walstream.ReadAnsiString;
+  if FTransId+'#!'<>idcheck then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'wals stream bad transactions dont match [''%s'' <> ''%s'']',[idcheck,FTransId]);
+end;
+
+
 procedure TFRE_DB_TransactionalUpdateList.AddChangeStep(const step: TFRE_DB_ChangeStep);
 begin
+  step.FTransList := self;
   FChangeList.Add(step);
+end;
+
+function TFRE_DB_TransactionalUpdateList.GenerateAnObjChangeList(const store: boolean; const obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType; var notify_collections: TFRE_DB_StringArray): TFRE_DB_Errortype;
+var deleted_obj   : OFRE_SL_TFRE_DB_Object;
+    inserted_obj  : OFRE_SL_TFRE_DB_Object;
+    updated_obj   : OFRE_SL_TFRE_DB_Object;
+    coll          : IFRE_DB_PERSISTANCE_COLLECTION;
+    to_update_obj : TFRE_DB_Object;
+    i             : NativeInt;
+
+    //procedure WriteGuid(const o : TFRE_DB_Object ; const idx : NativeInt; var halt:boolean);
+    //begin
+    //  write(idx,' ',o.UID_String,',');
+    //end;
+
+    function ObjectGuidCompare(const o1,o2:TFRE_DB_Object):boolean;
+    begin
+
+      result := FREDB_Guids_Same(o1.UID,o2.UID);
+    end;
+
+    procedure SearchInOldAndRemoveExistingInNew(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    begin
+      if deleted_obj.Exists(o,@ObjectGuidCompare)<>-1 then
+        begin
+          updated_obj.Add(o);
+          inserted_obj.ClearIndex(idx);
+        end
+    end;
+
+    procedure SearchInUpdatesAndRemoveExistingFromOld(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    var ex : NativeInt;
+    begin
+      if updated_obj.Exists(o,@ObjectGuidCompare)<>-1 then
+        deleted_obj.ClearIndex(idx);
+    end;
+
+    procedure GenerateUpdates(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    var child      : TFRE_DB_Object;
+        updatestep : TFRE_DB_UpdateStep;
+
+        procedure CompareEvent (const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD);
+        begin
+          case compare_event of
+            cev_FieldDeleted:
+                updatestep.addsubstep(cev_FieldDeleted,new_fld,nil);
+            cev_FieldAdded:
+                updatestep.addsubstep(cev_FieldAdded,new_fld,nil);
+            cev_FieldChanged :
+                updatestep.addsubstep(cev_FieldChanged,new_fld,old_field);
+          end;
+        end;
+
+    begin
+      if not FMaster.ExistsObject(new_object.UID) then
+        begin
+          writeln('DEBUG EXISTS CHECK UPDATE FAILED ',new_object.UID_String,' ',store);
+          system.halt();
+        end;
+      if new_object.IsObjectRoot then
+        begin
+          updatestep := TFRE_DB_UpdateStep.Create(new_object,to_update_obj,store);
+          new_object.__InternalCompareToObj(to_update_obj,@CompareEvent);
+        end
+      else
+        begin
+          child      := to_update_obj.FetchChildObj(new_object.UID);
+          assert(assigned(child));
+          updatestep := TFRE_DB_UpdateStep.Create(new_object,child,store);
+          new_object.__InternalCompareToObj(child,@CompareEvent);
+        end;
+      if updatestep.HasNoChanges then
+        updatestep.Free
+      else
+        begin
+          self.AddChangeStep(updatestep);
+          //writeln(updatestep.DescribeText);
+        end;
+         //FTransaction.PostProcessUpdateStep(updatestep);
+    end;
+
+    procedure GenerateInserts(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    begin
+      self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store));
+      if store then
+        halt := true; // In insert case only generate an insert for the root object
+    end;
+
+    procedure GenerateDeletes(var del_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    begin
+      if not FMaster.ExistsObject(del_object.UID) then
+        begin
+          writeln('EXISTS CHECK DELETE FAILED ');
+          system.halt;
+        end;
+      self.AddChangeStep(TFRE_DB_DeleteStep.Create(del_object,store));
+    end;
+begin
+  //if G_DEBUG_TRIGGER_1=true then
+  //  G_DEBUG_TRIGGER_1:=true;
+  if store then
+    begin
+      to_update_obj := nil;
+      if collection_name='' then
+        raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+      if not FMaster.MasterColls.GetCollection(collection_name,coll) then
+        raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
+    end
+  else
+    begin
+       if not FMaster.FetchObject(obj.UID,to_update_obj,true) then
+         raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
+       coll := nil;
+       if collection_name<>'' then
+         if not FMaster.MasterColls.GetCollection(collection_name,coll) then
+           raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+       SetLength(notify_collections,Length(to_update_obj.__InternalGetCollectionList));
+       for i := 0 to high(notify_collections) do
+         notify_collections[i] := to_update_obj.__InternalGetCollectionList[i].CollectionName();
+       to_update_obj.Set_Store_Locked(false);
+    end;
+  try
+    deleted_obj.Init(25);
+    inserted_obj.Init(25);
+    updated_obj.Init(25);
+    //if assigneD(to_update_obj) then
+      //to_update_obj.Field('pemper').AsString:='faker';
+    //to_update_obj.Field('TEST').AsString:='fuuker';
+    //to_update_obj.FieldPath('desc.txt').AsString:='ChangedChanged';
+    //to_update_obj.DeleteField('desc');
+    //obj.DeleteField('desc');
+
+    //writeln('--- OLD OBJECT ----');
+    //if assigned(to_update_obj) then
+    //  writeln(to_update_obj.DumpToString());
+    //writeln('--- NEW OBJECT -----');
+    //writeln(obj.DumpToString());
+    //writeln('------------');
+
+    if assigned(to_update_obj) then // update case
+      to_update_obj.__InternalGetFullObjectList(deleted_obj);
+    obj.__InternalGetFullObjectList(inserted_obj);
+  //
+  //      writeln('------------------------');
+  //      writeln(' STEP A');
+  //      write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
+  //      write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
+  //      writeln('STEP B');
+  //      writeln('------------------------');
+
+    // Yields the updated_obj in the updatelist and the inserts in the newlist, all objects come from the "new non persitent object copy"
+    inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);
+    // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
+    deleted_obj.ForAllBreak(@SearchInUpdatesAndRemoveExistingFromOld);
+
+    //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
+    //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
+    //write('UPDATED  LIST [');updated_obj.ForAllBreak(@WriteGuid);writeln('] ',updated_obj.Count);
+
+    if deleted_obj.Count>0 then
+      deleted_obj.ForAllBreak(@GenerateDeletes);
+    if inserted_obj.Count>0 then
+      inserted_obj.ForAllBreak(@GenerateInserts);
+    if updated_obj.Count>0 then
+      updated_obj.ForAllBreak(@GenerateUpdates);
+    result := edb_OK;
+  finally
+    if assigned(to_update_obj) then
+      to_update_obj.Set_Store_Locked(true);
+  end;
 end;
 
 procedure TFRE_DB_TransactionalUpdateList.PrintTextLog;
@@ -761,31 +1256,32 @@ begin
   FChangeList.ForAllBreak(@Dump);
 end;
 
-function TFRE_DB_TransactionalUpdateList.ProcessCheck(const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_TransactionalUpdateList.ProcessCheck(const WAL_RepairMode: boolean);
 var failure : boolean;
+
+
+  procedure WalReconstruction(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
+  begin
+    with step do
+      WalReconstructionphase(FMaster);
+  end;
 
   procedure CheckForExistence(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
     with step do
-      result:=CheckExistence(FMaster,raise_ex);
-    if result<>edb_OK then
-      halt_flag := true;
+      CheckExistence(FMaster);
   end;
 
   procedure StoreInCollectionCheck(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
     with step do
-      result:=StoreInCollectionCheck(FMaster,raise_ex,true);
-    if result<>edb_OK then
-      halt_flag := true;
+      StoreInCollectionCheck(FMaster,true);
   end;
 
   procedure MasterStoreCheck(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
     with step do
-      result:=MasterStore(FMaster,raise_ex,true);
-    if result<>edb_OK then
-      halt_flag := true;
+      MasterStore(FMaster,true);
   end;
 
   procedure UnprepareCollections(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
@@ -793,34 +1289,40 @@ var failure : boolean;
     step.UnprepareCollection;
   end;
 
+  procedure NeedsWalCheck(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
+  begin
+    if step.Needs_WAL then
+      begin
+        FNeedsWal := true;
+        halt_flag := true;
+      end;
+  end;
+
 
 begin
   try
     try
-      failure := false;
-      result := edb_OK;
+      failure   := false;
+      FNeedsWAL := false;
+      if WAL_RepairMode then
+        FChangeList.ForAllBreak(@WalReconstruction);
       FChangeList.ForAllBreak(@CheckForExistence);
-      if Result<>edb_OK then
-        exit;
       FChangeList.ForAllBreak(@StoreInCollectionCheck);
-      if Result<>edb_OK then
-        exit;
       FChangeList.ForAllBreak(@MasterStoreCheck);
-      if Result<>edb_OK then
-        exit;
+      FChangeList.ForAllBreak(@NeedsWalCheck);
     except
       failure := true;
       raise;
     end;
   finally
     if failure then
-      begin
-        FChangeList.ForAllBreak(@UnprepareCollections);
-      end;
+      FChangeList.ForAllBreak(@UnprepareCollections);
   end;
 end;
 
-procedure TFRE_DB_TransactionalUpdateList.Write_WAL;
+
+procedure TFRE_DB_TransactionalUpdateList.Write_WAL_Or_DCC(const Layer : IFRE_DB_PERSISTANCE_LAYER);
+var TransID:String;
 
   procedure WriteWAL(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
@@ -828,21 +1330,25 @@ procedure TFRE_DB_TransactionalUpdateList.Write_WAL;
   end;
 
 begin
-  FWalMem.Position:=0;
-  FChangeList.ForAllBreak(@WriteWal);
-  if FWalMem.Position<>0 then
+  if FChangeList.Count=0 then
+    raise EFRE_DB_Exception.Create(edb_NO_CHANGE,'TRANSACTIONAL COMMIT FAILED, CHANGELIST EMPTY');
+  if FNeedsWAL then
     begin
-      FLayer.SyncWriteWAL(FWalMem);
+      FWalMem.Position := 0;
+      TransID := FMaster.FetchNewTransactionID(FTransId);
+      FWalMem.WriteAnsiString(TransID);
+      FWalMem.WriteAnsiString(IntToStr(FChangeList.Count));
+      FChangeList.ForAllBreak(@WriteWal);
+      FWalMem.WriteAnsiString(TransID+'#!');
+      Layer.SyncWriteWAL(FWalMem);
     end;
 end;
 
-function TFRE_DB_TransactionalUpdateList.Commit(const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_TransactionalUpdateList.Commit(const Layer: IFRE_DB_PERSISTANCE_LAYER; const WAL_RepairMode: boolean);
 
   procedure StoreInCollection(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
-    result := step.StoreInCollectionCheck(FMaster,raise_ex,false);
-    if result<>edb_OK then
-      halt_flag:=true;
+    step.StoreInCollectionCheck(FMaster,false);
     if step is TFRE_DB_InsertStep then
       halt_flag:=true;
   end;
@@ -850,47 +1356,49 @@ function TFRE_DB_TransactionalUpdateList.Commit(const raise_ex: boolean): TFRE_D
   //Store objects and sub objects
   procedure MasterStore(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
-    result := step.MasterStore(FMaster,raise_ex,false);
-    if result<>edb_OK then
-      halt_flag:=true;
-  end;
-
-  procedure CleanUp(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
-  begin
-    step.Free;
+    step.MasterStore(FMaster,false);
   end;
 
 begin
-  try
-    result := ProcessCheck(raise_ex);
-    if result <>edb_OK then
-      exit(result);
-    Write_WAL;
-    result := edb_OK;
-    FChangeList.ForAllBreak(@StoreInCollection);
-    if result<>edb_OK then
-      abort;
-    FChangeList.ForAllBreak(@MasterStore);
-    if result<>edb_OK then
-      abort;
-  finally
-    FChangeList.ForAllBreak(@Cleanup);
-  end;
+  ProcessCheck(WAL_RepairMode);
+  if not WAL_RepairMode then
+    Write_WAL_Or_DCC(Layer);
+  FChangeList.ForAllBreak(@StoreInCollection);
+  FChangeList.ForAllBreak(@MasterStore);
 end;
 
-function TFRE_DB_TransactionalUpdateList.Rollback(const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_TransactionalUpdateList.Rollback;
 begin
   abort;
 end;
 
+destructor TFRE_DB_TransactionalUpdateList.Destroy;
+  procedure CleanUp(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
+  begin
+    step.Free;
+  end;
+begin
+  FChangeList.ForAllBreak(@Cleanup);
+end;
+
 { TFRE_DB_InsertStep }
 
-constructor TFRE_DB_InsertStep.Create(new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_insert: boolean);
+constructor TFRE_DB_InsertStep.Create(new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_store: boolean);
 var cn:string;
 begin
   FNewObj   := new_obj;
   FColl     := coll;
-  FIsInsert := is_insert;
+  FIsStore  := is_store;
+end;
+
+constructor TFRE_DB_InsertStep.CreateAsWalReadBack(new_obj: TGuid; const coll: TFRE_DB_NameType; const is_store: boolean; const ws: TStream);
+begin
+  FIsStore       := is_store;
+  FCollName      := coll;
+  FIsWalReadBack := true;
+  InternalReadObject(ws,FNewObj);
+  if not FREDB_Guids_Same(FNewObj.UID,new_obj) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'read back wal insertstep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(FNewObj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
 end;
 
 destructor TFRE_DB_InsertStep.Destroy;
@@ -915,6 +1423,16 @@ begin
   result := not assigned(FNewObj.Parent);
 end;
 
+function TFRE_DB_InsertStep.Needs_WAL: Boolean;
+begin
+  if FNewObj.IsVolatile then
+    exit(false);
+  if not IsARootInsert then // Only root objects need to be in WAL
+    exit(false);
+  result := true;
+end;
+
+
 function TFRE_DB_InsertStep.CheckExistence(const master: TFRE_DB_Master_Data; const raise_ex: boolean): TFRE_DB_Errortype;
 begin
   if master.ExistsObject(FNewObj.UID) then
@@ -925,37 +1443,37 @@ begin
   result := edb_OK;
 end;
 
-function TFRE_DB_InsertStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const raise_ex: boolean; const check: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_InsertStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
   //writeln('********** INSERT CHECK ',FNewObj.UID_String,' ',FNewObj.ClassName,'  ',IsARootInsert);
   //writeln(FNewObj.DumpToString());
   //writeln('********** INSERT CHECK ',FNewObj.UID_String,' ',FNewObj.ClassName,'  ',IsARootInsert);
+  if FIsWalReadBack then
+    if not FTransList.FMaster.MasterColls.GetCollection(FCollName,FColl) then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'insert step, wal repair collection [%s] does not exist!',[FCollName]);
+
   if IsARootInsert then
-    result := FColl.GetPersLayerIntf.StoreInThisColl(FNewObj,raise_ex,check)
+    FColl.GetPersLayerIntf.StoreInThisColl(FNewObj,check)
   else
     begin
        //TODO think about child objects storing in other collections
       if IsInsert then
         begin
-          result := edb_INTERNAL;
-          if raise_ex then
-            raise EFRE_DB_Exception.Create(result,'ONLY ROOT OBJECTS CAN BE INSERTED CURRENTLY');
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'ONLY ROOT OBJECTS CAN BE INSERTED CURRENTLY');
         end
       else
         begin
-          result := edb_OK; // already checked for existence
+
         end;
     end;
 end;
 
-function TFRE_DB_InsertStep.MasterStore(const master: TFRE_DB_Master_Data; const raise_ex: boolean; const check: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_InsertStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 
   procedure MasterStoreAndSubObjects(const obj:TFRE_DB_Object; var halt:boolean);
   begin
     //writeln('ROOT OBJECT - MASTER STORE :: ',obj.InternalUniqueDebugKey,' IS INSERT ',IsInsert);
-    result := master.StoreObject(obj,raise_ex,check);
-    if result<>edb_OK then
-      halt:=true;
+    master.StoreObject(obj,check);
   end;
 
 begin
@@ -967,25 +1485,16 @@ begin
   else
     begin
       //writeln('CHILD OBJECT (alone) - MASTER STORE :: ',FNewObj.InternalUniqueDebugKey,' IS INSERT ',IsInsert);
-      result := master.StoreObject(FNewObj,raise_ex,check);
+      master.StoreObject(FNewObj,check);
     end;
 end;
 
 
 procedure TFRE_DB_InsertStep.WriteToWAL(const m: TMemoryStream);
-var nsize : NativeInt;
 begin
-  if FNewObj.IsVolatile then
-    exit;
-  if not IsARootInsert then // Only root objects need to be in WAL
-    exit;
-  m.WriteAnsiString('SI'+FNewObj.UID_String+FColl.CollectionName);
-  nsize := FNewObj.NeededSize;
-  if (m.Size-m.Position)<nsize then
-    m.SetSize(m.Size + nsize + 4096);
-  FNewObj.CopyToMemory(m.Memory+m.Position);
-  m.Position:=m.Position+nsize;
-  m.WriteAnsiString('EI'+FNewObj.UID_String);
+  assert(FIsStore=true);
+  m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_INSERT]+BoolToStr(FIsStore,'1','0')+FNewObj.UID_String+FColl.CollectionName);
+  InternalWriteObject(m,FNewObj);
 end;
 
 procedure TFRE_DB_InsertStep.UnprepareCollection;
@@ -1154,40 +1663,26 @@ begin
   FMasterRefLinks.PrefixScan(@key,17,@Iterate);
 end;
 
-function TFRE_DB_Master_Data.__CheckReferenceToList(const obj:TFRE_DB_Object ; fieldname: TFRE_DB_NameType; list: TFRE_DB_GUIDArray ; const raise_ex : boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Master_Data.__CheckReferenceToList(const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; list: TFRE_DB_GUIDArray);
 var j       : NativeInt;
     ref_obj : TFRE_DB_Object;
 begin
   //writeln('TODO _ PARALLEL CHECK OF REFLINK INDEX TREE');
   if not FREDB_CheckGuidsUnique(list) then
-    if raise_ex then
-       raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: links not unique from obj(%s:%s)',[obj.UID_String,fieldname])
-    else
-      exit(edb_ERROR);
+    raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: links not unique from obj(%s:%s)',[obj.UID_String,fieldname]);
   for j:=0 to high(list) do
     begin
       if not FetchObject(list[j],ref_obj,true) then
-        begin
-          if raise_ex then
-            raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(list[j])])
-          else
-            exit(edb_NOT_FOUND);
-        end;
+        raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(list[j])]);
       if obj.IsVolatile or obj.IsSystem then
-        begin
-          if raise_ex then
-            raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s) to obj(%s) : the linked object is volatile or system!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(list[j])])
-          else
-            exit(edb_NOT_FOUND);
-        end;
+        raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s) to obj(%s) : the linked object is volatile or system!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(list[j])]);
     end;
-  result:=edb_OK;
 end;
 
 // Setup the "to_list" for KEY-UID,Field,(Subkeys)
 // For every in the "to_list" referenced object set an inbound link, from KEY-UID
 
-function TFRE_DB_Master_Data._SetupInitialRefLink(const from_key: TFRE_DB_Object; const fieldname: TFRE_DB_NameType; const references_to_list: TFRE_DB_GUIDArray; const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Master_Data._SetupInitialRefLink(const from_key: TFRE_DB_Object; const fieldname: TFRE_DB_NameType; const references_to_list: TFRE_DB_GUIDArray);
 var refkey   : RFRE_DB_GUID_RefLink_Out_Key;
     refinkey : RFRE_DB_GUID_RefLink_In_Key;
     reenc    : TREF_LinkEncapsulation;
@@ -1232,10 +1727,9 @@ begin
   //      end;
   //  end;
   //writeln('------------------------');
-  result := edb_OK;
 end;
 
-function TFRE_DB_Master_Data._ChangeRefLink(const from_obj: TFRE_DB_Object; const fieldname: TFRE_DB_NameType; const references_to_list: TFRE_DB_GUIDArray; const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Master_Data._ChangeRefLink(const from_obj: TFRE_DB_Object; const fieldname: TFRE_DB_NameType; const references_to_list: TFRE_DB_GUIDArray);
 var refkey    : RFRE_DB_GUID_RefLink_Out_Key;
     refinkey  : RFRE_DB_GUID_RefLink_In_Key;
     reenc     : TREF_LinkEncapsulation;
@@ -1302,50 +1796,43 @@ begin
   //      writeln('  Pointed to obj ',GFRE_BT.GUID_2_HexString(dummyold[j]),' <- by ',duminlist[k].fieldname,' ',FREDB_GuidArray2String(duminlist[k].linklist));
   //  end;
   //writeln('------------------------');
-
-  result := edb_OK;
 end;
 
-function TFRE_DB_Master_Data._SetupInitialRefLinks(const from_key: TFRE_DB_Object; const references_to_list: TFRE_DB_ObjectReferences; const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Master_Data._SetupInitialRefLinks(const from_key: TFRE_DB_Object; const references_to_list: TFRE_DB_ObjectReferences);
 var
   i: NativeInt;
 begin
-  result := edb_OK;
   for i:=0 to high(references_to_list) do
-    begin
-      result := _SetupInitialRefLink(from_key,references_to_list[i].fieldname,references_to_list[i].linklist,raise_ex);
-      if result<>edb_OK then
-        exit;
-    end;
+    _SetupInitialRefLink(from_key,references_to_list[i].fieldname,references_to_list[i].linklist);
 end;
 
-function TFRE_DB_Master_Data._UpdateRefLinks(const key: TGUID; const references_to_list: TFRE_DB_ObjectReferences; const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Master_Data._UpdateRefLinks(const key: TGUID; const references_to_list: TFRE_DB_ObjectReferences);
 begin
   writeln('UPDATE_REF_LINKS FULL STOP');
   halt;
-  result := edb_OK;
 end;
 
-function TFRE_DB_Master_Data._CheckRefIntegrityToLink(const obj: TFRE_DB_Object; var ref_array: TFRE_DB_ObjectReferences ; const raise_ex : boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Master_Data._CheckRefIntegrityToLink(const obj: TFRE_DB_Object; var ref_array: TFRE_DB_ObjectReferences);
 var new_references_to_list : TFRE_DB_ObjectReferences;
     i                      : NativeInt;
 begin
   new_references_to_list := obj.ReferencesFromData;
   for i:=0 to high(new_references_to_list) do
-    begin
-      result := __CheckReferenceToList(obj,new_references_to_list[i].fieldname,new_references_to_list[i].linklist,raise_ex);
-      if result<>edb_OK then
-        exit;
-    end;
+    __CheckReferenceToList(obj,new_references_to_list[i].fieldname,new_references_to_list[i].linklist);
   ref_array := new_references_to_list;
-  result    := edb_OK;
 end;
 
-function TFRE_DB_Master_Data._RemoveRefLinkFieldDelRefs(const obj: TFRE_DB_Object; field: TFRE_DB_FIELD; const raise_ex: boolean; const check_only: boolean): TFRE_DB_Errortype;
+function TFRE_DB_Master_Data._RemoveRefLinkFieldDelRefs(const obj: TFRE_DB_Object; field: TFRE_DB_FIELD; const check_only: boolean): TFRE_DB_Errortype;
 begin
   writeln('_RemoveRefLinFieldefs FULL STOP');
   halt;
   result := edb_OK;
+end;
+
+function TFRE_DB_Master_Data.FetchNewTransactionID(const transid: string): String;
+begin
+  inc(F_DB_TX_Number);
+  result := IntToStr(F_DB_TX_Number)+'#'+transid;
 end;
 
 function TFRE_DB_Master_Data.InternalStoreObjectFromStable(const obj: TFRE_DB_Object): TFRE_DB_Errortype;
@@ -1374,11 +1861,11 @@ function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
   procedure BuildRef(const obj:TFRE_DB_Object);
   var references_to_list : TFRE_DB_ObjectReferences;
   begin
-    result := _CheckRefIntegrityToLink(obj,references_to_list,true); // Todo Check inbound From Links (unique?)
+    _CheckRefIntegrityToLink(obj,references_to_list); // Todo Check inbound From Links (unique?)
     if Length(references_to_list)>0 then
       begin
         //writeln('SETUP REFLINKS ',obj.UID_String,' ',Length(references_to_list));
-        _SetupInitialRefLinks(obj,references_to_list,true);
+        _SetupInitialRefLinks(obj,references_to_list);
       end;
   end;
 
@@ -1470,12 +1957,14 @@ end;
 //end;
 //
 
-constructor TFRE_DB_Master_Data.Create;
+constructor TFRE_DB_Master_Data.Create(const master_name: string ; const Layer : IFRE_DB_PERSISTANCE_LAYER);
 begin
   FMasterPersistantObjStore := TFRE_ART_TREE.Create;
   FMasterVolatileObjStore   := TFRE_ART_TREE.Create;
   FMasterRefLinks           := TFRE_ART_TREE.Create;
   FMasterCollectionStore    := TFRE_DB_CollectionManageTree.Create;
+  F_DB_TX_Number            := 0;
+  FLayer                    := Layer;
 end;
 
 function TFRE_DB_Master_Data.GetReferenceCount(const obj_uid: TGuid; const from: boolean): NativeInt;
@@ -1552,101 +2041,60 @@ begin
        end;
 end;
 
-function TFRE_DB_Master_Data.StoreObject(const obj: TFRE_DB_Object; const raise_ex: boolean; const check_only: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Master_Data.StoreObject(const obj: TFRE_DB_Object; const check_only: boolean);
 var references_to_list : TFRE_DB_ObjectReferences;
     key                : TGuid;
     dummy              : PtrUInt;
 begin
   key := obj.UID;
-  result := _CheckRefIntegrityToLink(obj,references_to_list,raise_ex); // Todo Check inbound From Links (unique?)
-  if result<>edb_OK then
-    exit;
+  _CheckRefIntegrityToLink(obj,references_to_list); // Todo Check inbound From Links (unique?)
   if (obj.IsVolatile
      or obj.IsSystem)
      and (Length(references_to_list)>0) then
-       begin
-         if raise_ex then
-           raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a volatile or system object is not allowed to reference other objects')
-         else
-           exit(edb_INVALID_PARAMS);
-       end;
+       raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a volatile or system object is not allowed to reference other objects');
   if obj.IsVolatile then
     begin
       if check_only then
         begin
           if FMasterVolatileObjStore.ExistsBinaryKey(@key,SizeOf(TGuid),dummy) then // TODO:Remove DEBUG CHECK
-            begin
-              if raise_ex then
-                raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store volatile object')
-              else
-                result := edb_EXISTS
-            end;
-          result := edb_OK;
+            raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store volatile object')
         end
       else
         begin
-          if FMasterVolatileObjStore.InsertBinaryKey(@key,SizeOf(TGuid),FREDB_ObjectToPtrUInt(obj)) then
-            result := edb_OK
-          else
-            if raise_ex then
-              raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store volatile object')
-            else
-              result := edb_EXISTS;
-          result := edb_OK;
+          if not FMasterVolatileObjStore.InsertBinaryKey(@key,SizeOf(TGuid),FREDB_ObjectToPtrUInt(obj)) then
+            raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store volatile object')
         end;
     end
   else
     begin // Not Volatile
-      Result := edb_OK;
       dummy := FREDB_ObjectToPtrUInt(obj);
       if check_only then
         begin
           if FMasterPersistantObjStore.ExistsBinaryKey(@key,SizeOf(TGuid),dummy) then
-            exit(edb_EXISTS)
+            raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store persistent object');
         end
       else
         begin
-          if FMasterPersistantObjStore.InsertBinaryKeyOrFetch(@key,sizeof(tguid),dummy) then
-            begin
-              //writeln('>> REAL MASTER STORE OF ',obj.InternalUniqueDebugKey);
-              if not FMasterPersistantObjStore.ExistsBinaryKey(@key,sizeof(tguid),dummy) then
-                abort;
-              result := edb_OK
-            end
-          else
-            if raise_ex then
-              raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store persistent object [%s]',[obj.InternalUniqueDebugKey])
-            else
-              exit(edb_EXISTS);
+          if not FMasterPersistantObjStore.InsertBinaryKeyOrFetch(@key,sizeof(tguid),dummy) then
+            raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store persistent object [%s]',[obj.InternalUniqueDebugKey]);
           if Length(references_to_list)>0 then
-            begin
-              result := _SetupInitialRefLinks(obj,references_to_list,raise_ex);
-              if result<> edb_OK then
-                exit;
-            end;
+            _SetupInitialRefLinks(obj,references_to_list);
         end;
     end;
 end;
 
-function TFRE_DB_Master_Data.DeleteObject(const obj_uid: TGuid; const raise_ex: boolean; const check_only: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Master_Data.DeleteObject(const obj_uid: TGuid; const check_only: boolean);
 var dummy : PtrUInt;
 begin
   if check_only then
     begin
       if GetReferenceCount(obj_uid,false) > 0 then
-        if raise_ex then
-          raise EFRE_DB_Exception.Create(edb_OBJECT_REFERENCED,'DELETE OF OBJECT [%s] FAILED, OBJECT IS REFERENCED',[GFRE_BT.GUID_2_HexString(obj_uid)])
-        else
-          exit(edb_OBJECT_REFERENCED);
-      exit(edb_OK);
+        raise EFRE_DB_Exception.Create(edb_OBJECT_REFERENCED,'DELETE OF OBJECT [%s] FAILED, OBJECT IS REFERENCED',[GFRE_BT.GUID_2_HexString(obj_uid)]);
+      exit;
     end;
   if not FMasterVolatileObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TGuid),dummy) then
     if not FMasterPersistantObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TGuid),dummy) then
-      if raise_ex then
-        raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'DELETE OF OBJECT [%s] FAILED, OBJECT NOT FOUND',[GFRE_BT.GUID_2_HexString(obj_uid)])
-      else
-        exit(edb_NOT_FOUND);
-  result := edb_OK;
+      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'DELETE OF OBJECT [%s] FAILED, OBJECT NOT FOUND',[GFRE_BT.GUID_2_HexString(obj_uid)])
 end;
 
 procedure TFRE_DB_Master_Data.ForAllObjectsInternal(const pers, volatile: boolean; const iter: TFRE_DB_Obj_Iterator);
@@ -1666,6 +2114,25 @@ end;
 function TFRE_DB_Master_Data.MasterColls: TFRE_DB_CollectionManageTree;
 begin
   result := FMasterCollectionStore;
+end;
+
+procedure TFRE_DB_Master_Data.ApplyWAL(const WALStream: TStream);
+var WAL_Transaction : TFRE_DB_TransactionalUpdateList;
+begin
+  writeln('WAL REAPPLY/REPAIR ',FMastername);
+  while WALStream.Position<>WALStream.Size do
+    begin
+      WAL_Transaction := TFRE_DB_TransactionalUpdateList.Create('',self);
+      try
+        WAL_Transaction.ReadFromBackWalStream(WALStream);
+        WAL_Transaction.Commit(FLayer,true);
+      finally
+        WAL_Transaction.Free;
+        WAL_Transaction:=nil;
+      end;
+      writeln('--- READ BACK ...  ',WALStream.Position,'   ',WALStream.Size);
+    end;
+  writeln('FIN: --- READ BACK ...  ',WALStream.Position,'   ',WALStream.Size);
 end;
 
 { TFRE_DB_TextIndex }
@@ -1703,14 +2170,10 @@ begin
 end;
 
 
-function TFRE_DB_TextIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD; const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_TextIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD);
 begin
   if fld.FieldType<>fdbft_String then
-    if raise_ex then
-      raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the text index can only be used to index a string field, not a [%s] field. Maybe use a calculated field with results a string field',[fld.FieldTypeAsString])
-    else
-      exit(edb_ILLEGALCONVERSION);
-  result := edb_OK;
+    raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the text index can only be used to index a string field, not a [%s] field. Maybe use a calculated field with results a string field',[fld.FieldTypeAsString])
 end;
 
 procedure TFRE_DB_TextIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const update_key: boolean);
@@ -1752,7 +2215,7 @@ begin
   result := @FUniqueName;
 end;
 
-function TFRE_DB_MM_Index.IndexAddCheck(const obj: TFRE_DB_Object; const check_only: boolean; const raise_ex: boolean;const use_already_transformed_key:boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_MM_Index.IndexAddCheck(const obj: TFRE_DB_Object; const check_only: boolean; const use_already_transformed_key: boolean);
 var fld          : TFRE_DB_FIELD;
     dummy        : NativeUint;
     values       : TFRE_DB_IndexValueStore;
@@ -1760,39 +2223,25 @@ begin
   if not use_already_transformed_key then
     begin
       if not obj.FieldOnlyExisting(FFieldname,fld) then
-        if raise_ex then
-          raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(obj.UID)])
-        else
-          exit(edb_NOT_FOUND);
-      result := FieldTypeIndexCompatCheck(fld,raise_ex);
-      if result <> edb_OK then
-        exit;
+        raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(obj.UID)]);
+      FieldTypeIndexCompatCheck(fld);
       TransformtoBinaryComparable(fld,false);
     end;
   if check_only then
       if FIndex.ExistsBinaryKey(@transkey,transkeylen,dummy) then
         begin
           if FUnique then
-            if raise_ex then
-              begin
-               FIndex.ExistsBinaryKey(@transkey,transkeylen,dummy);
-               raise EFRE_DB_Exception.Create(edb_EXISTS,'for the unique index [%s/%s/%s] the key already exists [%s]',[FCollection.CollectionName(false),FIndexName,FFieldname,GetStringRepresentationOfTransientKey])
-              end
-            else
-              exit(edb_EXISTS)
+            raise EFRE_DB_Exception.Create(edb_EXISTS,'for the unique index [%s/%s/%s] the key already exists [%s]',[FCollection.CollectionName(false),FIndexName,FFieldname,GetStringRepresentationOfTransientKey])
           else
             begin
               values := FREDB_PtrUIntToObject(dummy) as TFRE_DB_IndexValueStore;
               if values.Exists(obj.UID) then
-                if raise_ex then
-                  raise EFRE_DB_Exception.Create(edb_EXISTS,'for the non unique index [%s/%s] the value(=obj) already exists',[FIndexName,FFieldname])
-                else
-                  exit(edb_EXISTS);
+                raise EFRE_DB_Exception.Create(edb_EXISTS,'for the non unique index [%s/%s] the value(=obj) already exists',[FIndexName,FFieldname])
             end;
-          exit(edb_OK);
+          exit;
         end
       else
-        exit(edb_OK)
+        exit
   else
     begin
       values := TFRE_DB_IndexValueStore.Create;
@@ -1806,7 +2255,6 @@ begin
             end;
           if not values.Add(obj) then
             raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal index unique/empty/add failure');
-          result := edb_OK;
         end
       else
         begin
@@ -1817,12 +2265,11 @@ begin
           else
             if not values.Add(obj) then
               raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal index non unique add failure');
-          result := edb_OK;
         end;
     end;
 end;
 
-function TFRE_DB_MM_Index.IndexUpdCheck(const new_obj, old_obj: TFRE_DB_Object; const check_only: boolean; const raise_ex: boolean; const use_already_transformed_key: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_MM_Index.IndexUpdCheck(const new_obj, old_obj: TFRE_DB_Object; const check_only: boolean; const use_already_transformed_key: boolean);
 var oldfld,newfld : TFRE_DB_FIELD;
     dummy         : NativeUint;
     values        : TFRE_DB_IndexValueStore;
@@ -1831,13 +2278,8 @@ begin
     begin
       old_obj.FieldOnlyExisting(FFieldname,oldfld);
       if not new_obj.FieldOnlyExisting(FFieldname,newfld) then
-        if raise_ex then
-          raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(new_obj.UID)])
-        else
-          exit(edb_NOT_FOUND);
-      result := FieldTypeIndexCompatCheck(newfld,raise_ex);
-      if result <> edb_OK then
-        exit;
+        raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(new_obj.UID)]);
+      FieldTypeIndexCompatCheck(newfld);
       TransformtoBinaryComparable(oldfld,false);
       TransformtoBinaryComparable(newfld,true);
       FUpdateKeySame := CompareTransformedKeyAndUpdateKey;
@@ -1845,27 +2287,21 @@ begin
   if check_only then
     begin
       if FUpdateKeySame then
-        exit(edb_OK); // Keyfield has not changed
+        exit; // Keyfield has not changed
       if FIndex.ExistsBinaryKey(@updtranskey,updtranskeylen,dummy) then
         begin
           if FUnique then
-            if raise_ex then
-               raise EFRE_DB_Exception.Create(edb_EXISTS,'cant update / for the unique index [%s/%s] the key already exists',[FIndexName,FFieldname])
-            else
-              exit(edb_EXISTS)
+            raise EFRE_DB_Exception.Create(edb_EXISTS,'cant update / for the unique index [%s/%s] the key already exists',[FIndexName,FFieldname])
           else
             begin
               values := FREDB_PtrUIntToObject(dummy) as TFRE_DB_IndexValueStore;
               if values.Exists(new_obj.UID) then
-                if raise_ex then
-                  raise EFRE_DB_Exception.Create(edb_EXISTS,'cant update / for the non unique index [%s/%s] the value(=obj) already exists',[FIndexName,FFieldname])
-                else
-                  exit(edb_EXISTS);
+                raise EFRE_DB_Exception.Create(edb_EXISTS,'cant update / for the non unique index [%s/%s] the value(=obj) already exists',[FIndexName,FFieldname])
             end;
-          exit(edb_OK);
+          exit;
         end
       else
-        exit(edb_OK)
+        exit;
     end
   else
     begin
@@ -1878,7 +2314,6 @@ begin
             abort;
           if not values.Add(new_obj) then
             raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal index unique/empty/add failure');
-          result := edb_OK;
         end
       else
         begin
@@ -1889,12 +2324,11 @@ begin
           else
             if not values.Add(new_obj) then
               raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal index non unique add failure');
-          result := edb_OK;
         end;
     end;
 end;
 
-function TFRE_DB_MM_Index.IndexDelCheck(const obj: TFRE_DB_Object; const check_only: boolean; const raise_ex: boolean; const use_already_transformed_key: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_MM_Index.IndexDelCheck(const obj: TFRE_DB_Object; const check_only: boolean; const use_already_transformed_key: boolean);
 begin
 
 end;
@@ -2119,37 +2553,25 @@ begin
   FIndexStore[high] := idx;
 end;
 
-function TFRE_DB_Persistance_Collection.IndexAddCheck(const obj: TFRE_DB_Object; const check_only: boolean; const raise_ex: boolean; const use_already_transformed_key: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Persistance_Collection.IndexAddCheck(const obj: TFRE_DB_Object; const check_only: boolean; const use_already_transformed_key: boolean);
 var i : NativeInt;
 begin
   for i:= 0 to high(FIndexStore) do
-    begin
-      result := FIndexStore[i].IndexAddCheck(obj,check_only,raise_ex,use_already_transformed_key);
-      if result <> edb_OK then
-        exit;
-    end;
+    FIndexStore[i].IndexAddCheck(obj,check_only,use_already_transformed_key);
 end;
 
-function TFRE_DB_Persistance_Collection.IndexUpdCheck(const new_obj, old_obj: TFRE_DB_Object; const check_only: boolean; const raise_ex: boolean; const use_already_transformed_key: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Persistance_Collection.IndexUpdCheck(const new_obj, old_obj: TFRE_DB_Object; const check_only: boolean; const use_already_transformed_key: boolean);
 var i : NativeInt;
 begin
   for i:= 0 to high(FIndexStore) do
-    begin
-      result := FIndexStore[i].IndexUpdCheck(new_obj, old_obj,check_only,raise_ex,use_already_transformed_key);
-      if result <> edb_OK then
-        exit;
-    end;
+    FIndexStore[i].IndexUpdCheck(new_obj, old_obj,check_only,use_already_transformed_key);
 end;
 
-function TFRE_DB_Persistance_Collection.IndexDelCheck(const del_obj: TFRE_DB_Object; const check_only: boolean; const raise_ex: boolean; const use_already_transformed_key: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Persistance_Collection.IndexDelCheck(const del_obj: TFRE_DB_Object; const check_only: boolean; const use_already_transformed_key: boolean);
 var i : NativeInt;
 begin
   for i:= 0 to high(FIndexStore) do
-    begin
-      result := FIndexStore[i].IndexDelCheck(del_obj,check_only,raise_ex,use_already_transformed_key);
-      if result <> edb_OK then
-        exit;
-    end;
+    FIndexStore[i].IndexDelCheck(del_obj,check_only,use_already_transformed_key);
 end;
 
 constructor TFRE_DB_Persistance_Collection.Create(const coll_name: TFRE_DB_NameType; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
@@ -2171,9 +2593,9 @@ begin
   result := FGuidObjStore.ExistsBinaryKey(@ouid,SizeOf(ouid),dummy);
 end;
 
-function TFRE_DB_Persistance_Collection.Delete(const ouid: TGUID; const raise_ex: boolean; var ncolls: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_Persistance_Collection.Delete(const ouid: TGUID; var ncolls: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin
-  result := FLayer.DeleteObject(ouid,raise_ex,CollectionName(true),ncolls);
+  result := FLayer.DeleteObject(ouid,CollectionName(true),ncolls);
   //result := FGuidObjStore.RemoveBinaryKey(@ouid,SizeOf(ouid),dummy);
 end;
 
@@ -2209,11 +2631,11 @@ begin
   result := FGuidObjStore.LinearScanBreak(@ForAll);
 end;
 
-function TFRE_DB_Persistance_Collection.Store(var new_obj: TFRE_DB_Object; const raise_ex: boolean; var ncolls: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_Persistance_Collection.Store(var new_obj: TFRE_DB_Object; var ncolls: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin
    if FVolatile then
     new_obj.Set_Volatile;
-  result := FLayer.StoreOrUpdateObject(new_obj,FName,true,raise_ex,ncolls);
+  result := FLayer.StoreOrUpdateObject(new_obj,FName,true,ncolls);
 end;
 
 // An object is allowed only once in a collection, but can be stored in multiple collections
@@ -2221,7 +2643,7 @@ end;
 // All subobjects are stored and fetchable in the "Master" store too
 // Subobjects can only be parented once (can only be part of one object), thus need to be unique
 
-function TFRE_DB_Persistance_Collection.StoreInThisColl(const  new_obj: TFRE_DB_Object; const raise_ex: boolean ; const checkphase : boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Persistance_Collection.StoreInThisColl(const new_obj: TFRE_DB_Object; const checkphase: boolean);
 begin
   // Check existance in this collection
   if checkphase then
@@ -2229,13 +2651,8 @@ begin
       if FPrepared then
         raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic failure, should not be prepared [%s]',[FName]);
       if FGuidObjStore.ExistsBinaryKey(new_obj.UIDP,SizeOf(TGuid),dummy) then
-        if raise_ex then
-          raise EFRE_DB_Exception.Create(edb_EXISTS,'object [%s] already exists on store in collection [%s]',[new_obj.UID_String,FName])
-        else
-          exit(edb_EXISTS);
-      result  := IndexAddCheck(new_obj,true,raise_ex,false);
-      if result<>edb_OK then
-        exit;
+        raise EFRE_DB_Exception.Create(edb_EXISTS,'object [%s] already exists on store in collection [%s]',[new_obj.UID_String,FName]);
+      IndexAddCheck(new_obj,true,false);
       FPrepared := True;
     end
   else
@@ -2243,14 +2660,9 @@ begin
       if not FPrepared then
         raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic failure, should be prepared');
       try
-        result := IndexAddCheck(new_obj,false,raise_ex,true);
-        if result<>edb_OK then
-          exit;
+        IndexAddCheck(new_obj,false,true);
         if not FGuidObjStore.InsertBinaryKey(new_obj.UIDP,SizeOf(TGUID),FREDB_ObjectToPtrUInt(new_obj)) then
-          if raise_ex then
-            raise EFRE_DB_Exception.Create(edb_INTERNAL,'store of object [%s] in collection [%s] failed -> already exists on store after exist check ?',[new_obj.UID_String,FName])
-          else
-            exit(edb_EXISTS);
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'store of object [%s] in collection [%s] failed -> already exists on store after exist check ?',[new_obj.UID_String,FName]);
         new_obj.__InternalCollectionAdd(self); // Add The Colection Reference to a directly stored master or child object
         //if Assigned(FBaseConn) then
         //  FBaseConn.AssociateObject(new_obj);
@@ -2261,16 +2673,12 @@ begin
     end;
 end;
 
-function TFRE_DB_Persistance_Collection.UpdateInThisColl(const new_obj, old_obj: TFRE_DB_Object; const raise_ex: boolean; const checkphase: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Persistance_Collection.UpdateInThisColl(const new_obj, old_obj: TFRE_DB_Object; const checkphase: boolean);
 begin
   abort;
   // Check existance in this collection
   if checkphase then
-    begin
-      result  := IndexUpdCheck(new_obj,old_obj,true,raise_ex,false);
-      if result<>edb_OK then
-        exit;
-    end
+    IndexUpdCheck(new_obj,old_obj,true,false)
   else
     begin
      abort;
@@ -2286,17 +2694,17 @@ begin
     end;
 end;
 
-function TFRE_DB_Persistance_Collection.DeleteFromThisColl(const del_obj: TFRE_DB_Object; const raise_ex: boolean; const checkphase: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Persistance_Collection.DeleteFromThisColl(const del_obj: TFRE_DB_Object; const checkphase: boolean);
 begin
   if checkphase then
     begin
       writeln('MISSING: CHECK INDICES');
-      exit(edb_OK)
+      exit;
     end
   else
     begin
      writeln('MISSING : UPDATE INDICES!!');
-     exit(edb_OK);
+     exit;
     end;
 end;
 
@@ -2492,7 +2900,7 @@ end;
 
 // Check if a field can be removed safely from an object stored in this collection, or if an index exists on that field
 //TODO -> handle indexed field change
-function TFRE_DB_Persistance_Collection.CheckFieldChangeAgainstIndex(const oldfield, newfield: TFRE_DB_FIELD; const change_type: TFRE_DB_ObjCompareEventType; const check: boolean; const raise_ex: boolean): TFRE_DB_Errortype;
+procedure TFRE_DB_Persistance_Collection.CheckFieldChangeAgainstIndex(const oldfield, newfield: TFRE_DB_FIELD; const change_type: TFRE_DB_ObjCompareEventType; const check: boolean);
 var i : NativeInt;
 begin
   //raise EFRE_DB_Exception.Create(edb_EXISTS,'an update to the object [%s] would delete field [%s], which is against an index of collection [%s]',[newfield.ParentObject.UID_String,newfield.FieldName,collarray[j].CollectionName(false)])
@@ -2508,7 +2916,7 @@ begin
   //for i := 0 to high(FIndexStore) do
   //  if FIndexStore[i].FUniqueFieldname=uppercase(newfield.FieldName) then
   //      exit(edb_EXISTS);
-  result := edb_OK;
+
 end;
 
 function TFRE_DB_Persistance_Collection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: TFRE_DB_Object; const index_name: TFRE_DB_NameType): boolean;
@@ -2586,6 +2994,7 @@ function TFRE_DB_Persistance_Collection.UniqueName: PFRE_DB_NameType;
 begin
   UniqueName := @FUpperName;
 end;
+
 
 initialization
 
