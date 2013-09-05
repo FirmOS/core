@@ -1436,7 +1436,7 @@ type
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
     function    ShowInApplicationChooser    (const session:IFRE_DB_UserSession): Boolean;virtual;
 
-    function   CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):TFRE_DB_Errortype;
+    procedure  CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
 
     function   FetchAppText                 (const conn: IFRE_DB_CONNECTION;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
     function   FetchAppText                 (const input_context: IFRE_DB_Object;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
@@ -4343,11 +4343,11 @@ begin
   sys_connection.RemoveAppGroup(Objectname,'GUEST');
 end;
 
-function TFRE_DB_APPLICATION.CreateAppText(const conn: IFRE_DB_SYS_CONNECTION;const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String): TFRE_DB_Errortype;
+procedure TFRE_DB_APPLICATION.CreateAppText(const conn: IFRE_DB_SYS_CONNECTION;const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 var txt :IFRE_DB_TEXT;
 begin
   txt := GFRE_DBI.NewText(ObjectName+'_'+translation_key,long_text,short_text,hint_text);
-  Result:=conn.StoreTranslateableText(txt);
+  CheckDbResult(conn.StoreTranslateableText(txt),'CreateAppText ' + translation_key);
 end;
 
 function TFRE_DB_APPLICATION.FetchAppText(const conn: IFRE_DB_CONNECTION;const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
