@@ -466,7 +466,7 @@ type
     procedure FillWithObjectValues (const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
     //@ See TFRE_DB_INPUT_GROUP_DESC.
-    function  AddSchemeFormGroup   (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false): TFRE_DB_INPUT_GROUP_DESC;
+    function  AddSchemeFormGroup   (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const relSize: Integer=1): TFRE_DB_INPUT_GROUP_DESC;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
     function  AddInput             : TFRE_DB_INPUT_DESC;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
@@ -534,7 +534,7 @@ type
     function  Describe    (const caption:String=''):TFRE_DB_INPUT_BLOCK_DESC;
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
     //@ See TFRE_DB_INPUT_GROUP_DESC.
-    function  AddSchemeFormGroup   (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : TFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const relSize:Integer=1): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
+    function  AddSchemeFormGroup   (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const relSize:Integer=1): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
     function  AddInput             (const relSize:Integer=1): TFRE_DB_INPUT_DESC; reintroduce;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
@@ -1663,7 +1663,7 @@ implementation
     Result:=Self;
   end;
 
-  function TFRE_DB_INPUT_BLOCK_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: TFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const relSize: Integer): TFRE_DB_INPUT_GROUP_DESC;
+  function TFRE_DB_INPUT_BLOCK_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const relSize: Integer): TFRE_DB_INPUT_GROUP_DESC;
   begin
     Result:=inherited AddSchemeFormGroup(schemeGroup,session,collapsible,collapsed);
     Result.Field('relSize').AsInt16:=relSize;
@@ -2223,7 +2223,7 @@ implementation
     end;
   end;
 
-        function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean): TFRE_DB_INPUT_GROUP_DESC;
+  function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const relSize: Integer): TFRE_DB_INPUT_GROUP_DESC;
   var
     group         : TFRE_DB_INPUT_GROUP_DESC;
     obj           : IFRE_DB_Object;
