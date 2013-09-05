@@ -45,6 +45,7 @@ type
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
     function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_UserSelected          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentInfo           (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentGroups         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentRoles          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -216,36 +217,34 @@ var
   txt           : IFRE_DB_TEXT;
 
 begin
-  if not app.CheckAppRightModule(conn,'domain') then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_domains')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_domain     := GetSession(input).FetchDerivedCollection('DOMAINMOD_DOMAIN_GRID');
   domaingrid    := dc_domain.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   result        := domaingrid;
   sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-  if conn.CheckRight(Get_Rightname('view_domains')) then begin
-    dc_userin   := GetSession(input).FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
 
-    domaingrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
+  dc_userin   := GetSession(input).FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
 
-    if conn.CheckRight(Get_Rightname('edit_domains')) then begin
-      txt:=app.FetchAppText(ses,'$add_domain');
-      domaingrid.AddButton.Describe(CWSF(@WEB_AddDomain),'images_apps/accesscontrol/add_domain.png',txt.Getshort,txt.GetHint);
-      txt:=app.FetchAppText(ses,'$modify_domain');
-      domaingrid.AddButton.Describe(CWSF(@WEB_ModifyDomain),'images_apps/accesscontrol/modify_domain.png',txt.Getshort,txt.GetHint,fdgbd_single);
-      txt:=app.FetchAppText(ses,'$delete_domain');
-      domaingrid.AddButton.Describe(CWSF(@WEB_DeleteDomain),'images_apps/accesscontrol/delete_domain.png',txt.Getshort,txt.GetHint,fdgbd_multi);
-    end;
+  domaingrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
 
-    sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppText(ses,'$users_tab').Getshort,2);
-
-    dc_groupin  := GetSession(input).FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
-
-    domaingrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
-
-    sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppText(ses,'$groups_tab').Getshort,1);
-
+  if conn.CheckRight(Get_Rightname('edit_domains')) then begin
+    txt:=app.FetchAppText(ses,'$add_domain');
+    domaingrid.AddButton.Describe(CWSF(@WEB_AddDomain),'images_apps/accesscontrol/add_domain.png',txt.Getshort,txt.GetHint);
+    txt:=app.FetchAppText(ses,'$modify_domain');
+    domaingrid.AddButton.Describe(CWSF(@WEB_ModifyDomain),'images_apps/accesscontrol/modify_domain.png',txt.Getshort,txt.GetHint,fdgbd_single);
+    txt:=app.FetchAppText(ses,'$delete_domain');
+    domaingrid.AddButton.Describe(CWSF(@WEB_DeleteDomain),'images_apps/accesscontrol/delete_domain.png',txt.Getshort,txt.GetHint,fdgbd_multi);
   end;
+
+  sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppText(ses,'$users_tab').Getshort,2);
+
+  dc_groupin  := GetSession(input).FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
+
+  domaingrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
+
+  sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppText(ses,'$groups_tab').Getshort,1);
 
   main    := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(domaingrid,sec,nil,nil,nil,true);
   result  := TFRE_DB_LAYOUT_DESC.create.Describe.SetAutoSizedLayout(nil,main,nil,TFRE_DB_HTML_DESC.create.Describe('<b>'+app.FetchAppText(ses,'$domain_info').Getshort+'</b>'));
@@ -256,7 +255,7 @@ var
   dc_userin     : IFRE_DB_DERIVED_COLLECTION;
   useringrid    : TFRE_DB_VIEW_LIST_DESC;
 begin
-  if not (app.CheckAppRightModule(conn,'domain') and conn.CheckRight(Get_Rightname('view_domains'))) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_domains')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_userin   := GetSession(input).FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
   useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -270,7 +269,7 @@ var
   groupingrid   : TFRE_DB_VIEW_LIST_DESC;
 
 begin
-  if not (app.CheckAppRightModule(conn,'domain') and conn.CheckRight(Get_Rightname('view_domains'))) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_domains')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_groupin  := GetSession(input).FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
   groupingrid := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -402,7 +401,6 @@ var
   dependend: TFRE_DB_StringArray;
   res      : TFRE_DB_Errortype;
 begin
-  if not conn.CheckRight(Get_Rightname('edit_grouproles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
   dependend  := GetDependencyFiltervalues(input,'uids_ref');
   if length(dependend)=0 then begin
     if addrole then begin
@@ -540,13 +538,13 @@ var
   dc_groupin  : IFRE_DB_DERIVED_COLLECTION;
   dc_groupout : IFRE_DB_DERIVED_COLLECTION;
 begin
-  if not app.CheckAppRightModule(conn,'role') then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_roles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_role     := GetSession(input).FetchDerivedCollection('ROLEMOD_ROLE_GRID');
   rolegrid    := dc_role.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-  if conn.CheckRight(Get_Rightname('edit_usergroups')) then begin
+  if conn.CheckRight(Get_Rightname('view_userroles')) then begin
     dc_userin   := GetSession(input).FetchDerivedCollection('ROLEMOD_USERIN_GRID');
     dc_userout  := GetSession(input).FetchDerivedCollection('ROLEMOD_USEROUT_GRID');
 
@@ -576,7 +574,7 @@ var
   useroutgrid : TFRE_DB_VIEW_LIST_DESC;
   user        : TFRE_DB_LAYOUT_DESC;
 begin
-  if not (app.CheckAppRightModule(conn,'role') and conn.CheckRight(Get_Rightname('edit_usergroups'))) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_userroles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_userin   := GetSession(input).FetchDerivedCollection('ROLEMOD_USERIN_GRID');
   useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -595,7 +593,7 @@ var
   groupoutgrid : TFRE_DB_VIEW_LIST_DESC;
   group        : TFRE_DB_LAYOUT_DESC;
 begin
-  if not app.CheckAppRightModule(conn,'role') then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_grouproles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_groupin  := GetSession(input).FetchDerivedCollection('ROLEMOD_GROUPIN_GRID');
   groupingrid := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -618,6 +616,7 @@ var
   role        : IFRE_DB_Object;
 
 begin
+  if not conn.CheckRight(Get_Rightname('view_roles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
     sel_guid := input.Field('SELECTED').AsGUID;
     if not conn.Fetch(sel_guid,role) then
@@ -636,11 +635,13 @@ end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_AddToRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
+  if not conn.CheckRight(Get_Rightname('edit_grouproles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
   Result:=_addremoverole(input,ses,app,conn,true);
 end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_RemoveFromRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
+  if not conn.CheckRight(Get_Rightname('edit_grouproles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
   Result:=_addremoverole(input,ses,app,conn,false);
 end;
 
@@ -677,7 +678,6 @@ var
   dependend: TFRE_DB_StringArray;
   res      : TFRE_DB_Errortype;
 begin
-  if not conn.CheckRight(Get_Rightname('edit_usergroups')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
   dependend  := GetDependencyFiltervalues(input,'uids_ref');
   if length(dependend)=0 then begin
     if addrole then begin
@@ -832,7 +832,7 @@ var
   dc_roleout  : IFRE_DB_DERIVED_COLLECTION;
   txt         : IFRE_DB_TEXT;
 begin
-  if not app.CheckAppRightModule(conn,'group') then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_groups')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_group := GetSession(input).FetchDerivedCollection('GROUPMOD_GROUP_GRID');
   groupgrid := dc_group.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -879,7 +879,7 @@ var
   useroutgrid : TFRE_DB_VIEW_LIST_DESC;
   user        : TFRE_DB_LAYOUT_DESC;
 begin
-  if not (app.CheckAppRightModule(conn,'group') and conn.CheckRight(Get_Rightname('edit_usergroups'))) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_usergroups')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_userin   := GetSession(input).FetchDerivedCollection('GROUPMOD_USERIN_GRID');
   useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -902,7 +902,7 @@ var
   roleoutgrid : TFRE_DB_VIEW_LIST_DESC;
   role        : TFRE_DB_LAYOUT_DESC;
 begin
-  if not (app.CheckAppRightModule(conn,'group')  and (conn.CheckRight(Get_Rightname('edit_grouproles')) or conn.CheckRight(Get_Rightname('edit_usergroups')))) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_grouproles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_rolein   := GetSession(input).FetchDerivedCollection('GROUPMOD_ROLEIN_GRID');
   roleingrid  := dc_rolein.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -1038,6 +1038,7 @@ var
   group       : IFRE_DB_Object;
 
 begin
+  if not conn.CheckRight(Get_Rightname('view_groups')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
     sel_guid := input.Field('SELECTED').AsGUID;
     if not GetDBConnection(input).Fetch(sel_guid,group) then
@@ -1206,11 +1207,13 @@ end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_RemoveFromRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
+  if not conn.CheckRight(Get_Rightname('edit_grouproles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
   result := _addremoverole(input,ses,app,conn,false);
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_AddToRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
+  if not conn.CheckRight(Get_Rightname('edit_grouproles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
   result := _addremoverole(input,ses,app,conn,true);
 end;
 
@@ -1311,7 +1314,7 @@ begin
       SetDeriveParent           (session.GetDBConnection.AdmGetUserCollection);
       SetDeriveTransformation   (tr_Grid);
       AddRightFilterForEntryAndUser('RF','VIEWDOM','DOMAINID');
-      SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_ContentInfo));
+      SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
     end;
 
     domain_cb := session.NewDerivedCollection('USERMOD_DOMAINS');
@@ -1385,31 +1388,34 @@ var
   dc_roleout  : IFRE_DB_DERIVED_COLLECTION;
   txt         : IFRE_DB_TEXT;
 begin
-  if not app.CheckAppRightModule(conn,'user') then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_users')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_user := GetSession(input).FetchDerivedCollection('USERMOD_USER_GRID');
   usergrid := dc_user.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  if conn.CheckRight(Get_Rightname('edit_users')) then begin
-    txt:=app.FetchAppText(ses,'$add_user');
-    usergrid.AddButton.Describe(CWSF(@WEB_AddUser),'images_apps/accesscontrol/add_user.png',txt.Getshort,txt.GetHint);
-    txt:=app.FetchAppText(ses,'$delete_user');
-    usergrid.AddButton.Describe(CWSF(@WEB_DeleteUser),'images_apps/accesscontrol/delete_user.png',txt.Getshort,txt.GetHint,fdgbd_multi);
-  end;
-  if conn.CheckRight(Get_Rightname('edit_usergroups')) then begin
-    dc_groupin := GetSession(input).FetchDerivedCollection('USERMOD_GROUPIN_GRID');
-    dc_groupout:= GetSession(input).FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
-    dc_rolein := GetSession(input).FetchDerivedCollection('USERMOD_ROLEIN_GRID');
-    dc_roleout:= GetSession(input).FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
-
-    usergrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
-    usergrid.AddFilterEvent(dc_groupout.getDescriptionStoreId(),'uids');
-    usergrid.AddFilterEvent(dc_rolein.getDescriptionStoreId(),'uids');
-    usergrid.AddFilterEvent(dc_roleout.getDescriptionStoreId(),'uids');
-
+  if conn.CheckRight(Get_Rightname('edit_users')) or conn.CheckRight(Get_Rightname('edit_usergroups')) then begin
     sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-    sec.AddSection.Describe(CWSF(@WEB_ContentInfo),app.FetchAppText(ses,'$userinfo_tab').Getshort,1);
-    sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppText(ses,'$groups_tab').Getshort,2);
-    sec.AddSection.Describe(CWSF(@WEB_ContentRoles),app.FetchAppText(ses,'$roles_tab').Getshort,3);
+    if conn.CheckRight(Get_Rightname('edit_users')) then begin
+      txt:=app.FetchAppText(ses,'$add_user');
+      usergrid.AddButton.Describe(CWSF(@WEB_AddUser),'images_apps/accesscontrol/add_user.png',txt.Getshort,txt.GetHint);
+      txt:=app.FetchAppText(ses,'$delete_user');
+      usergrid.AddButton.Describe(CWSF(@WEB_DeleteUser),'images_apps/accesscontrol/delete_user.png',txt.Getshort,txt.GetHint,fdgbd_multi);
+
+      sec.AddSection.Describe(CWSF(@WEB_ContentInfo),app.FetchAppText(ses,'$userinfo_tab').Getshort,1);
+    end;
+    if conn.CheckRight(Get_Rightname('edit_usergroups')) then begin
+      dc_groupin := GetSession(input).FetchDerivedCollection('USERMOD_GROUPIN_GRID');
+      dc_groupout:= GetSession(input).FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
+      dc_rolein := GetSession(input).FetchDerivedCollection('USERMOD_ROLEIN_GRID');
+      dc_roleout:= GetSession(input).FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
+
+      usergrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
+      usergrid.AddFilterEvent(dc_groupout.getDescriptionStoreId(),'uids');
+      usergrid.AddFilterEvent(dc_rolein.getDescriptionStoreId(),'uids');
+      usergrid.AddFilterEvent(dc_roleout.getDescriptionStoreId(),'uids');
+
+      sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppText(ses,'$groups_tab').Getshort,2);
+      sec.AddSection.Describe(CWSF(@WEB_ContentRoles),app.FetchAppText(ses,'$roles_tab').Getshort,3);
+    end;
     main    := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(usergrid,sec,nil,nil,nil,true);
   end else begin
     main    := usergrid;
@@ -1418,22 +1424,16 @@ begin
   result  := TFRE_DB_LAYOUT_DESC.create.Describe.SetAutoSizedLayout(nil,main,nil,TFRE_DB_HTML_DESC.create.Describe('<b>'+app.FetchAppText(ses,'$users_info').Getshort+'</b>'));
 end;
 
-function TFRE_COMMON_USER_MOD.WEB_ContentInfo(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+function TFRE_COMMON_USER_MOD.WEB_UserSelected(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  user_editor : TFRE_DB_EDITOR_DESC;
-  user_info   : TFRE_DB_LAYOUT_DESC;
   dc_groupout : IFRE_DB_DERIVED_COLLECTION;
   dc_roleout  : IFRE_DB_DERIVED_COLLECTION;
   user_guid   : TGUID;
   sel_guid    : TGUID;
   user        : IFRE_DB_Object;
-  load_func   : TFRE_DB_SERVER_FUNC_DESC;
-  save_func   : TFRE_DB_SERVER_FUNC_DESC;
 begin
-  if not conn.CheckRight(Get_Rightname('edit_usergroups')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
-
-  load_func   := CSF(@IMI_NoteLoad);
-  save_func   := CSF(@IMI_NoteSave);
+  if not conn.CheckRight(Get_Rightname('view_users')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString:=input.Field('SELECTED').AsString;
 
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
     user_guid := input.Field('SELECTED').AsGUID; // is user
@@ -1445,10 +1445,28 @@ begin
     dc_groupout.AddUIDFieldFilter('*domain*','domainid',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
     dc_roleout  := GetSession(input).FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
     dc_roleout.AddUIDFieldFilter('*domain*','domainid',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
+  end;
+  if IsContentUpdateVisible(ses,'USER_INFO') then begin
+    Result:=WEB_ContentInfo(input,ses,app,conn);
+  end else begin
+    Result:=GFRE_DB_NIL_DESC;
+  end;
+end;
 
-    load_func.AddParam.Describe('linkid',input.Field('SELECTED').asstring);
-    save_func.AddParam.Describe('linkid',input.Field('SELECTED').asstring);
+function TFRE_COMMON_USER_MOD.WEB_ContentInfo(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+var
+  user_editor : TFRE_DB_EDITOR_DESC;
+  user_info   : TFRE_DB_LAYOUT_DESC;
+  load_func   : TFRE_DB_SERVER_FUNC_DESC;
+  save_func   : TFRE_DB_SERVER_FUNC_DESC;
+begin
+  if not conn.CheckRight(Get_Rightname('edit_users')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  load_func   := CSF(@IMI_NoteLoad);
+  save_func   := CSF(@IMI_NoteSave);
 
+  if ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString<>''  then begin
+    load_func.AddParam.Describe('linkid',ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString);
+    save_func.AddParam.Describe('linkid',ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString);
   end;
 
   user_editor := TFRE_DB_EDITOR_DESC.create.Describe(load_func,save_func,CSF(@IMI_NoteStartEdit),CSF(@IMI_NoteStopEdit));
@@ -1465,7 +1483,7 @@ var
   groupoutgrid : TFRE_DB_VIEW_LIST_DESC;
   group        : TFRE_DB_LAYOUT_DESC;
 begin
-  if not (app.CheckAppRightModule(conn,'user') and conn.CheckRight(Get_Rightname('edit_usergroups'))) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_usergroups')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_groupin := GetSession(input).FetchDerivedCollection('USERMOD_GROUPIN_GRID');
   groupingrid:= dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -1487,7 +1505,7 @@ var
   roleoutgrid : TFRE_DB_VIEW_LIST_DESC;
   role        : TFRE_DB_LAYOUT_DESC;
 begin
-  if not (app.CheckAppRightModule(conn,'user') and conn.CheckRight(Get_Rightname('edit_usergroups'))) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.CheckRight(Get_Rightname('view_userroles')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dc_rolein := GetSession(input).FetchDerivedCollection('USERMOD_ROLEIN_GRID');
   roleingrid:= dc_rolein.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -1702,12 +1720,10 @@ var
   sel_guid      : TGUID;
 
 begin
-  if not IsContentUpdateVisible('USER_CONTENT') then
-    exit(GFRE_DB_NIL_DESC);
-
-  if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
-    sel_guid := input.Field('SELECTED').AsGUID;
-    CheckDbResult(conn.FetchUserById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsString),user),'UserContent');
+  if not conn.CheckRight(Get_Rightname('edit_users')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString<>''  then begin
+    sel_guid := ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsGUID;
+    CheckDbResult(conn.FetchUserById(sel_guid,user),'UserContent');
     GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
     panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(app.FetchAppText(ses,'$user_content_header').ShortText);
     block:=panel.AddBlock.Describe();
@@ -1924,28 +1940,36 @@ begin
 
   role := _CreateAppRole('edit_usergroups','Edit User-Group relation','Allowed to edit group membership of users.');
   _AddAppRight(role,'view_users','View Users','Allowed to see user list');
+  _AddAppRight(role,'view_groups','View Groups','Allowed to see groups list');
+  _AddAppRight(role,'view_usergroups','View Groups of User','Allowed to see the groups the user is member of');
+  _AddAppRight(role,'view_userroles','View Roles of User','Allowed to see the roles the user is member of');
+  _AddAppRight(role,'view_roles','View Roles','Allowed to see roles list');
   _AddAppRight(role,'edit_usergroups','Edit User-Group relation','Allowed to edit group membership of users.');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
   CheckDbResult(conn.StoreRole(ObjectName,domain,role),'InstallSystemGroupsAndRoles');
 
   role := _CreateAppRole('edit_groups','Edit Groups','Allowed to create/edit group objects.');
+  _AddAppRight(role,'view_groups','View Groups','Allowed to see groups list');
   _AddAppRight(role,'edit_groups','Edit Groups','Allowed to create/edit group objects.');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['group','role']));
   CheckDbResult(conn.StoreRole(ObjectName,domain,role),'InstallSystemGroupsAndRoles');
 
   role := _CreateAppRole('edit_grouproles','Edit Group-Role relation','Allowed to edit roles of groups.');
+  _AddAppRight(role,'view_groups','View Groups','Allowed to see groups list');
+  _AddAppRight(role,'view_roles','View Roles','Allowed to see roles list');
+  _AddAppRight(role,'view_grouproles','View Roles','Allowed to see roles list');
   _AddAppRight(role,'edit_grouproles','Edit Group-Role relation','Allowed to edit roles of groups.');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['group','role']));
   CheckDbResult(conn.StoreRole(ObjectName,domain,role),'InstallSystemGroupsAndRoles');
 
   role := _CreateAppRole('view_domains','View Domains','Allowed to see domain list.');
-  _AddAppRight(role,'view_domains','View Domains','Allowed to see domain list');
+  _AddAppRight(role,'view_domains','View Domains','Allowed to see domain list and their users and groups');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['domain']));
   CheckDbResult(conn.StoreRole(ObjectName,domain,role),'InstallSystemGroupsAndRoles');
 
   role := _CreateAppRole('edit_domains','Edit Domains','Allowed to create/edit domains.');
-  _AddAppRight(role,'view_domains','View Domains','Allowed to see domain list');
-  _AddAppRight(role,'edit_domains','Edit Domains','Allowed to create/edit domains');
+  _AddAppRight(role,'view_domains','View Domains','Allowed to see domain list and their users and groups');
+  _AddAppRight(role,'edit_domains','Edit Domains','Allowed to create/edit domains and their users and groups');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['domain']));
   CheckDbResult(conn.StoreRole(ObjectName,domain,role),'InstallSystemGroupsAndRoles');
 
