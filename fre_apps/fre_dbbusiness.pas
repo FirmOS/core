@@ -313,9 +313,9 @@ begin
   scheme.AddSchemeField('tenantid',fdbft_ObjLink).required:=true;
   scheme.AddSchemeField('customernumber',fdbft_String).required:=true;
 
-  group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_CUSTOMER_main_group');
+  group:=scheme.ReplaceInputGroup('main').Setup('$scheme_TFRE_DB_CUSTOMER_main_group');
   group.AddInput('customernumber','$scheme_TFRE_DB_CUSTOMER_number');
-  group.AddInput('tenantid','',false,true);
+  group.AddInput('tenantid','',False,true);
   group.UseInputGroup('TFRE_DB_CONTACT','main');
 end;
 

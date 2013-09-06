@@ -416,6 +416,8 @@ type
 
   { TFRE_DB_TransactionalUpdateList }
 
+  PFRE_DB_ChangeStep = ^TFRE_DB_ChangeStep;
+
   TFRE_DB_TransactionalUpdateList = class(TObject)
   private
     FChangeList  : OFRE_SL_TFRE_DB_ChangeStep;
@@ -437,9 +439,6 @@ type
     procedure    Rollback              ;
     destructor   Destroy               ;override;
   end;
-
-
-
 
   //var
   //    GSYS_COLLS  : TFRE_DB_CollectionManageTree;
@@ -907,10 +906,6 @@ var i,j       : NativeInt;
                 to_upd_obj.Set_Store_Locked(true);
               end;
             end;
-          fdbft_CalcField:
-            begin
-              abort;
-            end;
         end;
     end;
 
@@ -958,11 +953,6 @@ var i,j       : NativeInt;
               finally
                 to_upd_obj.Set_Store_Locked(true);
               end;
-            end;
-          fdbft_CalcField:
-            begin
-              writeln('CHANGE (CALCFIELD) ABORT');
-              abort;
             end;
         end;
     end;
@@ -1042,10 +1032,20 @@ end;
 
 { TFRE_DB_TransactionalUpdateList }
 
+function     ChangeStepNull        (const cs : PFRE_DB_ChangeStep):boolean;
+begin
+  result := not assigned(cs^);
+end;
+
+function     ChangeStepSame        (const cs1,cs2 : PFRE_DB_ChangeStep):boolean;
+begin
+  result := cs1^=cs2^;
+end;
+
 constructor TFRE_DB_TransactionalUpdateList.Create(const TransID: TFRE_DB_NameType; const master_data: TFRE_DB_Master_Data);
 begin
   FTransId := TransID;
-  FChangeList.Init(10);
+  FChangeList.InitSparseList(nil,@ChangeStepNull,@ChangeStepSame,10);
   FMaster  := master_data;
   FWalMem  := TMemoryStream.Create;
 end;
@@ -1073,6 +1073,17 @@ begin
   FChangeList.Add(step);
 end;
 
+
+function     ObjectGuidCompare     (const o1,o2 : PFRE_DB_Object):boolean;
+begin
+  result := FREDB_Guids_Same(o1^.UID,o2^.UID);
+end;
+
+function     DBObjIsNull           (const obj   : PFRE_DB_Object) : Boolean;
+begin
+  result := not assigned(obj^);
+end;
+
 function TFRE_DB_TransactionalUpdateList.GenerateAnObjChangeList(const store: boolean; const obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType; var notify_collections: TFRE_DB_StringArray): TFRE_DB_Errortype;
 var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     inserted_obj  : OFRE_SL_TFRE_DB_Object;
@@ -1086,15 +1097,14 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     //  write(idx,' ',o.UID_String,',');
     //end;
 
-    function ObjectGuidCompare(const o1,o2:TFRE_DB_Object):boolean;
-    begin
-
-      result := FREDB_Guids_Same(o1.UID,o2.UID);
-    end;
+    //function ObjectGuidCompare(const o1,o2:TFRE_DB_Object):boolean;
+    //begin
+    //  result := FREDB_Guids_Same(o1.UID,o2.UID);
+    //end;
 
     procedure SearchInOldAndRemoveExistingInNew(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
-      if deleted_obj.Exists(o,@ObjectGuidCompare)<>-1 then
+      if deleted_obj.Exists(o)<>-1 then
         begin
           updated_obj.Add(o);
           inserted_obj.ClearIndex(idx);
@@ -1104,7 +1114,7 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     procedure SearchInUpdatesAndRemoveExistingFromOld(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     var ex : NativeInt;
     begin
-      if updated_obj.Exists(o,@ObjectGuidCompare)<>-1 then
+      if updated_obj.Exists(o)<>-1 then
         deleted_obj.ClearIndex(idx);
     end;
 
@@ -1184,18 +1194,24 @@ begin
        if not FMaster.FetchObject(obj.UID,to_update_obj,true) then
          raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
        coll := nil;
-       if collection_name<>'' then
-         if not FMaster.MasterColls.GetCollection(collection_name,coll) then
-           raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
        SetLength(notify_collections,Length(to_update_obj.__InternalGetCollectionList));
        for i := 0 to high(notify_collections) do
          notify_collections[i] := to_update_obj.__InternalGetCollectionList[i].CollectionName();
+       if Length(notify_collections)=0 then
+         raise EFRE_DB_Exception.Create(edb_INTERNAL,'lenght of internalcollections for object [%s] is empty, on update case !',[to_update_obj.UID_String]);
+       if collection_name<>'' then
+         begin
+           if not FMaster.MasterColls.GetCollection(collection_name,coll) then
+             raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the collectionname [%s] specified for an update request, does not exist',[collection_name]);
+           //TODO Check if update object has Collection
+           //TODO Check if collection has updateobject
+         end;
        to_update_obj.Set_Store_Locked(false);
     end;
   try
-    deleted_obj.Init(25);
-    inserted_obj.Init(25);
-    updated_obj.Init(25);
+    deleted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
+    inserted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
+    updated_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
     //if assigneD(to_update_obj) then
       //to_update_obj.Field('pemper').AsString:='faker';
     //to_update_obj.Field('TEST').AsString:='fuuker';
