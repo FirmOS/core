@@ -826,12 +826,6 @@ type
   { TFRE_DB_FieldSchemeDefinition }
 
   type
-    R_Depfieldfield = record
-      depFieldName  : TFRE_DB_NameType;
-      disablesField : Boolean;
-    end;
-    P_Depfieldfield = ^R_Depfieldfield;
-
     OFRE_SL_R_Depfield = specialize OFOS_SpareList<R_Depfieldfield>;
 
   PFRE_DB_FieldSchemeDefinition = ^TFRE_DB_FieldSchemeDefinition;
@@ -862,7 +856,6 @@ type
     FMyFakeCalcFld_Data : Pointer;
     function   getAddConfirm       : Boolean;
     function   getEnum             : TFRE_DB_Enum;
-    function   getEnumI            : IFRE_DB_Enum;
     function   GetFieldName        : TFRE_DB_NameType;
     function   GetFieldType        : TFRE_DB_FIELDTYPE;
     function   getIsPass           : Boolean;
@@ -871,15 +864,15 @@ type
     function   getRequired         : Boolean;
     function   getValidator        : TFRE_DB_ClientFieldValidator;
     function   getValidatorParams  : IFRE_DB_Object;
-    function   getValidatorI       : IFRE_DB_ClientFieldValidator;
+    function   getValidatorI       (var validator: IFRE_DB_ClientFieldValidator):boolean;
+    function   getEnumI            (var enum : IFRE_DB_Enum) : boolean;
+
     procedure  setAddConfirm       (AValue: Boolean);
     procedure  setisPass           (AValue: Boolean);
     procedure  setMultiValues      (AValue: Boolean);
     procedure  setRequired         (AValue: Boolean);
     procedure  setEnum             (AValue: TFRE_DB_Enum);
     procedure  setValidator        (AValue: TFRE_DB_ClientFieldValidator);
-    procedure  setEnumI            (AValue: IFRE_DB_Enum);
-    procedure  setValidatorI       (AValue: IFRE_DB_ClientFieldValidator);
     function   getParentScheme     : TFRE_DB_SchemeObject;
   protected
     function   IFRE_DB_FieldSchemeDefinition.getEnum = getEnumI;
@@ -898,6 +891,7 @@ type
     procedure  SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
     function   CalcField         : TFRE_DB_FIELD;
     procedure  addDepField       (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
+    procedure  ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
     property   FieldName         :TFRE_DB_NameType  read GetFieldName;
     property   FieldType         :TFRE_DB_FIELDTYPE read GetFieldType;
     property   SubschemeName     :TFRE_DB_NameType  read GetSubSchemeName;
@@ -913,36 +907,18 @@ type
 
   { TFRE_DB_InputGroupSchemeDefinition }
 
-  TFRE_InputGroupDefType=(igd_Bad,igd_Field,igd_UsedGroup,igd_UsedSubGroup);
-
-  OFRE_InputFieldDef4Group = object
-    typ            : TFRE_InputGroupDefType;
-    fielddef       : TFRE_DB_FieldSchemeDefinition;
-    schemefield    : string[255]; //path
-    collapsible,
-    collabsed,
-    required,
-    disabled,
-    hidden         : Boolean;
-    group          : TFRE_DB_NameType;
-    prefix         : TFRE_DB_NameType;
-    datacollection : TFRE_DB_NameType;
-  end;
-  PFRE_InputFieldDef4Group = ^OFRE_InputFieldDef4Group;
-
   OFRE_SL_TFRE_InputFieldDef4Group  = specialize OFOS_SpareList<OFRE_InputFieldDef4Group>;
 
   PFRE_DB_InputGroupSchemeDefinition = ^TFRE_DB_InputGroupSchemeDefinition;
 
   TFRE_DB_InputGroupSchemeDefinition=class(TObject,IFRE_DB_InputGroupSchemeDefinition)
   private
-    FScheme     : TFRE_DB_SchemeObject;
-    Fields      : OFRE_SL_TFRE_InputFieldDef4Group;
-    caption_key : TFRE_DB_NameType;
-    groupid     : TFRE_DB_NameType;
+    FScheme      : TFRE_DB_SchemeObject;
+    Fields       : OFRE_SL_TFRE_InputFieldDef4Group;
+    groupid      : TFRE_DB_NameType;
+    FCaption_Key : TFRE_DB_NameType;
   protected
-    function  GetCaptionKey      : TFRE_DB_String;
-    function  GetIGFields        : IFRE_DB_ObjectArray;
+    //function  GetIGFields        : IFRE_DB_FieldSchemeDefinition;
     function  GetInputGroupID    : TFRE_DB_String;
     procedure SetCaptionKey      (AValue: TFRE_DB_String);
     //procedure SetIGFields        (AValue: IFRE_DB_ObjectArray);
@@ -955,13 +931,13 @@ type
     function  GetParentSchemeI    : IFRE_DB_SchemeObject;
     function  FieldDefIsNull      (const obj   : PFRE_InputFieldDef4Group):boolean;
     function  FieldDefCompare     (const o1,o2 : PFRE_InputFieldDef4Group):boolean;
+    function  GetCaptionKey      : TFRE_DB_NameType;
   public
-    constructor Create           (const gid : TFRE_DB_NameType ; scheme : TFRE_DB_SchemeObject);
-    function  Setup              (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
-    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean=false;const hidden:Boolean=false; const dataCollection: TFRE_DB_String='');
-    procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
-    //procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='');
-    //procedure AddInputSubGroup   (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const collapsible:Boolean=false;const collapsed:Boolean=false); //TODO: RENAME CHECK ?
+    constructor Create             (const gid : TFRE_DB_NameType ; scheme : TFRE_DB_SchemeObject);
+    function    Setup              (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
+    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean=false;const hidden:Boolean=false; const dataCollection: TFRE_DB_String='');
+    procedure   UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
+    function    GroupFields        : PFRE_InputFieldDef4GroupArr;
   end;
 
 
@@ -2803,15 +2779,9 @@ begin
   Result:=Self;
 end;
 
-function TFRE_DB_InputGroupSchemeDefinition.GetCaptionKey: TFRE_DB_String;
+function TFRE_DB_InputGroupSchemeDefinition.GetCaptionKey: TFRE_DB_NameType;
 begin
-  result := caption_key;// Field('cap_key').AsString;
-end;
-
-function TFRE_DB_InputGroupSchemeDefinition.GetIGFields: IFRE_DB_ObjectArray;
-begin
-  abort;
- //result := FieldI('fields').AsObjectArr;
+  result := FCaption_Key;// Field('cap_key').AsString;
 end;
 
 function TFRE_DB_InputGroupSchemeDefinition.GetInputGroupID: TFRE_DB_String;
@@ -2821,8 +2791,7 @@ end;
 
 procedure TFRE_DB_InputGroupSchemeDefinition.SetCaptionKey(AValue: TFRE_DB_String);
 begin
-  caption_key := AValue;
-  //Field('cap_key').AsString := AValue;
+  FCaption_Key := AValue;
 end;
 
 //procedure TFRE_DB_InputGroupSchemeDefinition.SetIGFields(AValue: IFRE_DB_ObjectArray);
@@ -2839,6 +2808,7 @@ function TFRE_DB_InputGroupSchemeDefinition.SetupI(const caption: TFRE_DB_String
 begin
   result := Setup(caption);
 end;
+
 
 
 procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const dataCollection: TFRE_DB_String);
@@ -2867,22 +2837,26 @@ begin
     end;
   end;
 
-  caption_key    := cap_trans_key;
   if not scheme.GetSchemeField(path[High(path)],fieldDef) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find scheme field: %s:(%s)',[scheme.DefinedSchemeName,schemefield]);
 
   obj                := default(OFRE_InputFieldDef4Group);
   obj.typ            := igd_Field;
-  obj.schemefield    := schemefield; // field
-  obj.fielddef       := fieldDef;
+  obj.field          := schemefield; // field
+  //obj.fielddef       := fieldDef;
   obj.required       := required and fieldDef.required;
   obj.disabled       := disabled;
   obj.hidden         := hidden;
+  if cap_trans_key<>'' then
+    obj.caption_key    := cap_trans_key
+  else
+    obj.caption_key    := '$scheme_'+fieldDef.FScheme.DefinedSchemeName+'_'+schemefield;
   //obj.group          := '';
   //obj.prefix         := '';
   //obj.collabsed      := false;
   //obj.collapsible    := false;
   obj.datacollection := dataCollection;
+  obj.fieldschemdef  := fieldDef;
   Fields.Add(obj);
 
   //if fieldDef.FieldType=fdbft_Boolean then begin
@@ -2930,11 +2904,12 @@ begin
    igd.typ            := igd_UsedSubGroup
  else
    igd.typ            := igd_UsedGroup;
- igd.schemefield    := scheme; // field
+ igd.scheme         := scheme;
+ igd.field          := scheme; // hack for field compare in sparselist
  igd.group          := uppercase(group);
  igd.prefix         := addPrefix;
  igd.collapsible    := collapsible;
- igd.collabsed      := collapsed;
+ igd.collapsed      := collapsed;
  Fields.Add(igd);
   //obj:=GFRE_DB.NewObject;
   //obj.Field('scheme').AsString:=scheme;
@@ -2942,6 +2917,21 @@ begin
   //obj.Field('prefix').AsString:=addPrefix;
   //obj.Field('asSubGroup').AsBoolean:=false;
   //Field('fields').AddObject(obj);
+end;
+
+function TFRE_DB_InputGroupSchemeDefinition.GroupFields: PFRE_InputFieldDef4GroupArr;
+var cnt : NativeInt;
+
+  procedure Iterate(var gf : OFRE_InputFieldDef4Group ;const  idx :Nativeint ; var halt :boolean);
+  begin
+    result[cnt] := @gf;
+    inc(cnt);
+  end;
+
+begin
+  cnt := 0;
+  setlength(result,Fields.Count);
+  Fields.ForAllBreak(@Iterate);
 end;
 
 //procedure TFRE_DB_InputGroupSchemeDefinition.AddInputSubGroup(const scheme, group: TFRE_DB_String; const addPrefix: TFRE_DB_String; const collapsible: Boolean; const collapsed: Boolean);
@@ -2964,22 +2954,22 @@ end;
 
 function TFRE_DB_InputGroupSchemeDefinition.FieldDefIsNull(const obj: PFRE_InputFieldDef4Group): boolean;
 begin
-  result := obj^.schemefield='';
+  result := obj^.field='';
 end;
 
 function TFRE_DB_InputGroupSchemeDefinition.FieldDefCompare(const o1, o2: PFRE_InputFieldDef4Group): boolean;
 begin
-  result := o1^.schemefield=o2^.schemefield;
+  result := o1^.field=o2^.field;
 end;
 
 function local_FieldDefIsNull(const obj: PFRE_InputFieldDef4Group): boolean;
 begin
-  result := obj^.schemefield='';
+  result := obj^.field='';
 end;
 
 function local_FieldDefCompare(const o1, o2: PFRE_InputFieldDef4Group): boolean;
 begin
-  result := o1^.schemefield=o2^.schemefield;
+  result := o1^.field=o2^.field;
 end;
 
 constructor TFRE_DB_InputGroupSchemeDefinition.Create(const gid: TFRE_DB_NameType; scheme: TFRE_DB_SchemeObject);
@@ -7726,11 +7716,6 @@ begin
   Result := FaddConfirm;
 end;
 
-function TFRE_DB_FieldSchemeDefinition.getEnumI: IFRE_DB_Enum;
-begin
-  result := getEnum;
-end;
-
 function TFRE_DB_FieldSchemeDefinition.GetFieldType: TFRE_DB_FIELDTYPE;
 begin
   result := FFieldtype;
@@ -7767,9 +7752,22 @@ begin
   result := FvalidatorParams;
 end;
 
-function TFRE_DB_FieldSchemeDefinition.getValidatorI: IFRE_DB_ClientFieldValidator;
+function TFRE_DB_FieldSchemeDefinition.getValidatorI(var validator: IFRE_DB_ClientFieldValidator): boolean;
 begin
-  result := getValidator;
+  result := Assigned(Fvalidator);
+  if result then
+    validator := Fvalidator
+  else
+    validator := nil;
+end;
+
+function TFRE_DB_FieldSchemeDefinition.getEnumI(var enum: IFRE_DB_Enum): boolean;
+begin
+ result := Assigned(Fenum);
+ if result then
+   enum := FEnum
+ else
+   enum := nil;
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.setAddConfirm(AValue: Boolean);
@@ -7807,20 +7805,11 @@ begin
   Fvalidator := AValue;
 end;
 
-procedure TFRE_DB_FieldSchemeDefinition.setEnumI(AValue: IFRE_DB_Enum);
-begin
-  setEnum(AValue.Implementor as TFRE_DB_Enum);
-end;
-
-procedure TFRE_DB_FieldSchemeDefinition.setValidatorI(AValue: IFRE_DB_ClientFieldValidator);
-begin
-  setValidator(AValue.Implementor as TFRE_DB_ClientFieldValidator);
-end;
 
 procedure TFRE_DB_FieldSchemeDefinition.addDepField(const fieldName: TFRE_DB_String;const disablesField:Boolean);
 var
   tmpField: TFRE_DB_FieldSchemeDefinition;
-  depObj  : TFRE_DB_Object;
+  depObj  : R_Depfieldfield;
 begin
   if not getParentScheme.GetSchemeField(fieldName,tmpField) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Dependent field ' + fieldName + ' not found');
@@ -7828,10 +7817,21 @@ begin
   if not (FieldType=fdbft_Boolean) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Dependent fields can only be defined on boolean fields');
   end;
-  depObj:=GFRE_DB.NewObject;
-  depObj.Field('fieldName').AsString:=fieldName;
-  depObj.Field('disablesField').AsBoolean:=disablesField;
-  //FdepField.AddObject(depObj);
+
+  depObj.depFieldName  := fieldName;
+  depObj.disablesField := disablesField;
+  FDepFields.Add(depObj);
+end;
+
+procedure TFRE_DB_FieldSchemeDefinition.ForAllDepfields(const depfielditerator: TFRE_DB_Depfielditerator);
+
+  procedure iterate(var df : R_Depfieldfield ; const idx : NativeInt ; var halt : boolean);
+  begin
+    depfielditerator(df);
+  end;
+
+begin
+  FDepFields.ForAllBreak(@iterate);
 end;
 
 function TFRE_DB_FieldSchemeDefinition.getParentScheme: TFRE_DB_SchemeObject;
@@ -8553,7 +8553,14 @@ var searchid : TFRE_DB_NameType;
 begin
   searchid := uppercase(id);
   if not FInputGroups.ForAllBreak(@SearchIdx) then
-    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'Getinputgroup inputgroup ['+id+'] not found');
+    begin
+      if assigned(FParentScheme) then
+        begin
+          result := FParentScheme.GetInputGroup(id);
+          exit;
+        end;
+      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'Getinputgroup inputgroup ['+id+'] not found');
+    end;
 end;
 
 //var

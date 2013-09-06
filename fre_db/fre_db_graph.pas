@@ -133,29 +133,30 @@ procedure TFRE_DB_GRAPH.WriteFields(const obj: IFRE_DB_SCHEMEOBJECT);
       sfieldname       :         string;
       sfieldtype       :         string;
   begin
-    if fielddef.FieldType=fdbft_Object then begin
-      WriteSubscheme   (lowercase(fielddef.FieldName),fielddef.GetSubScheme,fielddef.required);
-    end else begin
-      if assigned      (fielddef.getValidator) then begin
-        svalidator      := string(fielddef.getValidator.GetName)+'['+string(fielddef.getValidator.getInfoText)+']';
-      end else begin
-        svalidator      :='';
-      end;
-      if assigned      (fielddef.getEnum) then begin
-        senum     := string(fielddef.getEnum.GetName)+'[ENUM]';
-      end else begin
-        senum      :='';
-      end;
-      sfieldtype := lowercase(CFRE_DB_FIELDTYPE[fielddef.FieldType]);
-      if fielddef.multiValues then begin
-       sfieldtype :=sfieldtype + ' [ ]';
-      end;
-      sfieldname:=lowercase(fielddef.FieldName);
-      if (fielddef.required) then begin
-        sfieldname:='<FONT COLOR="red">'+sfieldname+'</FONT>'
-      end;
-      plotlist.Add      ('<tr  ><td align="left">'+sfieldname+'</td><td align="left">'+sfieldtype+'</td><td align="left" PORT="'+lowercase(fielddef.FieldName)+'">'+svalidator+' '+senum+'</td></tr>');
-    end;
+    //REWORK
+    //if fielddef.FieldType=fdbft_Object then begin
+    //  WriteSubscheme   (lowercase(fielddef.FieldName),fielddef.GetSubScheme,fielddef.required);
+    //end else begin
+    //  if fielddef.getValidator(svalidator)) then begin
+    //    svalidator      := string(fielddef.getValidator.GetName)+'['+string(fielddef.getValidator.getInfoText)+']';
+    //  end else begin
+    //    svalidator      :='';
+    //  end;
+    //  if assigned      (fielddef.getEnum) then begin
+    //    senum     := string(fielddef.getEnum.GetName)+'[ENUM]';
+    //  end else begin
+    //    senum      :='';
+    //  end;
+    //  sfieldtype := lowercase(CFRE_DB_FIELDTYPE[fielddef.FieldType]);
+    //  if fielddef.multiValues then begin
+    //   sfieldtype :=sfieldtype + ' [ ]';
+    //  end;
+    //  sfieldname:=lowercase(fielddef.FieldName);
+    //  if (fielddef.required) then begin
+    //    sfieldname:='<FONT COLOR="red">'+sfieldname+'</FONT>'
+    //  end;
+    //  plotlist.Add      ('<tr  ><td align="left">'+sfieldname+'</td><td align="left">'+sfieldtype+'</td><td align="left" PORT="'+lowercase(fielddef.FieldName)+'">'+svalidator+' '+senum+'</td></tr>');
+    //end;
   end;
 
 begin

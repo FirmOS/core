@@ -673,29 +673,27 @@ begin
   scheme.AddSchemeField         ('fdbft_Boolean',fdbft_Boolean);
   scheme.AddSchemeField         ('fdbft_DateTimeUTC',fdbft_DateTimeUTC);
   scheme.AddSchemeField         ('fdbft_Stream',fdbft_Stream);
-  //scheme.AddSchemeField         ('fdbft_Object',fdbft_Object);
   scheme.AddSchemeField         ('fdbft_ObjLink',fdbft_ObjLink);
   scheme.AddSchemeField         ('calculated',fdbft_String);
 
-  scheme.AddSchemeField         ('firstname',fdbft_String);
-  scheme.AddSchemeField         ('lastname',fdbft_String);
-  scheme.AddSchemeField         ('pass',fdbft_String).SetupFieldDef(true,false,'','',true,true);
-  scheme.AddSchemeField         ('icon',fdbft_String);
-
-  input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_TEST_B');
-  input_group.AddInput('firstname','Firstname');
-  input_group.AddInput('lastname','Lastname');
-  input_group.AddInput('pass','Password');
-  input_group.AddInput('icon','Icon');
+  input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_TEST_ALL_TYPES');
+  input_group.AddInput('fdbft_GUID');
+  input_group.AddInput('fdbft_Byte');
+  input_group.AddInput('fdbft_Int16');
+  input_group.AddInput('fdbft_UInt16');
+  input_group.AddInput('fdbft_Int32');
+  input_group.AddInput('fdbft_UInt32');
+  input_group.AddInput('fdbft_Int64');
+  input_group.AddInput('fdbft_UInt64');
+  input_group.AddInput('fdbft_Real32');
+  input_group.AddInput('fdbft_Real64');
+  input_group.AddInput('fdbft_Currency');
+  input_group.AddInput('fdbft_String');
+  input_group.AddInput('fdbft_Boolean');
+  input_group.AddInput('fdbft_DateTimeUTC');
+  input_group.AddInput('fdbft_Stream');
+  input_group.AddInput('fdbft_ObjLink');
 end;
-
-
-//  //,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink,fdbft_CalcField
-//  scheme.AddSchemeField         ('string',fdbft_Byte);
-//  scheme.AddSchemeField         ('boolean',fdbft_Boolean);
-//  scheme.AddSchemeField         ('status',fdbft_String);
-//  scheme.AddCalculatedField     ('icon','GetIcon',cft_OnStoreUpdate);
-//end;
 
 function TFRE_DB_TEST_ALL_TYPES.IMI_GetIcon(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin

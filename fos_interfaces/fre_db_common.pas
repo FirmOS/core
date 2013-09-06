@@ -2246,7 +2246,7 @@ implementation
          end;
     end;
 
-    procedure _addInput(const obj:IFRE_DB_Object; const prefix:String; const requiredParent:Boolean);
+    procedure _addInput(const obj:PFRE_InputFieldDef4Group; const prefix:String; const requiredParent:Boolean);
     var
       coll               : IFRE_DB_COLLECTION;
       store              : TFRE_DB_STORE_DESC;
@@ -2265,9 +2265,14 @@ implementation
       store.AddEntry.Describe(obj.GetFormattedDisplay,obj.UID_String);
     end;
 
+    procedure DeppITerator(const df : R_Depfieldfield);
     begin
-      required:=requiredParent and obj.Field('required').AsBoolean;
-      dataCollectionName := obj.Field('dataCollection').AsString;
+      boolField.AddDependence(TFRE_DB_DEPENDENCE_DESC.Create.Describe(df.depFieldName,df.disablesField));
+    end;
+
+    begin
+      required           := requiredParent and obj^.required;
+      dataCollectionName := obj^.datacollection;
       if dataCollectionName<>'' then begin
         if pos('$SDC:',dataCollectionName)=1 then
           coll := session.FetchDerivedCollection(Copy(dataCollectionName,6,MaxInt))
@@ -2277,68 +2282,58 @@ implementation
           begin
             store:=TFRE_DB_STORE_DESC.create.Describe();
             coll.ForAll(@addObjects);
-            group.AddChooser.Describe(_getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString,store,true,dh_chooser_combo,required,obj.Field('required').AsBoolean).captionCompareEnabled(true);
+            group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,dh_chooser_combo,required,obj^.required).captionCompareEnabled(true);
           end
         else
           begin
             raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
           end;
       end else begin
-        if obj.Field('enum').AsString<>'' then begin
-          if GFRE_DBI.GetSystemEnum(obj.Field('enum').AsString,enum) then begin
-            store:=TFRE_DB_STORE_DESC.create.Describe();
-            enumVals:=enum.getEntries;
-            for i := 0 to Length(enumVals) - 1 do begin
-              store.AddEntry.Describe(enumVals[i].Field('c').AsDBText.ShortText,enumVals[i].Field('v').AsString);
-            end;
-            group.AddChooser.Describe(_getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString,store,true,dh_chooser_radio,required,obj.Field('required').AsBoolean);
-          end else begin
-            raise EFRE_DB_Exception.Create(edb_ERROR,'Enum '+obj.Field('enum').AsString+' not found in DB');
+        if obj^.fieldschemdef.getEnum(enum) then begin
+          store:=TFRE_DB_STORE_DESC.create.Describe();
+          enumVals:=enum.getEntries;
+          for i := 0 to Length(enumVals) - 1 do begin
+            store.AddEntry.Describe(enumVals[i].Field('c').AsDBText.ShortText,enumVals[i].Field('v').AsString);
           end;
+          group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,dh_chooser_radio,required,obj^.required);
         end else begin
-          if obj.FieldExists('vtype') then begin
-            GFRE_DBI.GetSystemClientFieldValidator(obj.Field('vtype').AsString,validator);
-          end else begin
-            validator:=nil;
-          end;
-          case FieldtypeShortString2Fieldtype(obj.Field('type').AsString) of
+          obj^.fieldschemdef.getValidator(validator);
+          case obj^.fieldschemdef.FieldType of
             fdbft_UInt16,
             fdbft_UInt32,
-            fdbft_Int16 : group.AddNumber.Describe(_getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString,required,obj.Field('required').AsBoolean,
-                                                           obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean,'',0);
-            fdbft_Real64 : group.AddNumber.Describe(_getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString,required,obj.Field('required').AsBoolean,
-                                                            obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean);
+            fdbft_Int16  : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                           obj^.disabled,obj^.hidden,'',0);
+            fdbft_Real64 : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                            obj^.disabled,obj^.hidden);
             fdbft_ObjLink,
             fdbft_String : begin
-                             group.AddInput.Describe(_getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString,required,obj.Field('required').AsBoolean,
-                                                     obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean,'',validator,obj.Field('multiValues').AsBoolean,obj.Field('isPass').AsBoolean);
-                             if obj.Field('addConfirm').AsBoolean then begin
-                               group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString + '_confirm',required,obj.Field('required').AsBoolean,
-                                                       obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean,'',validator,obj.Field('multiValues').AsBoolean,obj.Field('isPass').AsBoolean,prefix+obj.Field('field').AsString);
+                             group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                     obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
+                             if obj^.fieldschemdef.addConfirm then begin
+                               group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
+                                                       obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass,prefix+obj^.field);
                              end;
                            end;
             fdbft_Boolean: begin
-                             boolField:=group.AddBool.Describe(_getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString,required,obj.Field('required').AsBoolean,
-                                                                       obj.Field('disabled').AsBoolean,false);
-                             for i := 0 to obj.Field('depFields').ValueCount - 1 do begin
-                               boolField.AddDependence(TFRE_DB_DEPENDENCE_DESC.Create.Describe(obj.Field('depFields').AsObjectItem[i].Field('fieldName').AsString,obj.Field('depFields').AsObjectItem[i].Field('disablesField').AsBoolean));
-                             end;
+                             boolField:=group.AddBool.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,false);
+                             obj^.fieldschemdef.ForAllDepfields(@DeppIterator);
                            end;
-            fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString,required,obj.Field('required').AsBoolean,
-                                                              obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean,'',validator);
+            fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                              obj^.required,obj^.hidden,'',validator);
             fdbft_Stream: begin
-                            group.AddFile.Describe(_getText(obj.Field('caption_key').AsString),prefix+obj.Field('field').AsString,required,obj.Field('required').AsBoolean,
-                                                   obj.Field('disabled').AsBoolean,obj.Field('hidden').AsBoolean,'',validator);
+                            group.AddFile.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                   obj^.disabled,obj^.hidden,'',validator);
                           end
-            else begin
-              raise Exception.Create('Field Type not implemented : ['+obj.Field('type').AsString+']');
+            else begin // String fallback
+              group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                      obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
             end;
           end;
         end;
       end;
     end;
 
-  procedure _addFields(const fields: IFRE_DB_ObjectArray; const prefix:String);
+  procedure _addFields(const fields: PFRE_InputFieldDef4GroupArr; const prefix:String);
   var
     i         : integer;
     scheme    : IFRE_DB_SchemeObject;
@@ -2361,33 +2356,38 @@ implementation
       end;
     end;
 
-    for i := 0 to Length(fields) - 1 do begin
-      if fields[i].FieldExists('scheme') then begin
-        if not GFRE_DBI.GetSystemSchemeByName(fields[i].Field('scheme').AsString,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'(B) cannot get scheme '+fieldDef.SubschemeName);
-        newPrefix:=fields[i].Field('prefix').AsString;
-        if newPrefix<>'' then begin
-          newPrefix:=newPrefix+'.';
+    for i := 0 to Length(fields) - 1 do
+      if fields[i]^.scheme<>'' then
+        begin
+          if not GFRE_DBI.GetSystemSchemeByName(fields[i]^.scheme,scheme) then
+            raise EFRE_DB_Exception.Create(edb_ERROR,'(B) cannot get scheme '+fieldDef.SubschemeName);
+          newPrefix:=fields[i]^.prefix;
+          if newPrefix<>'' then
+            newPrefix:=newPrefix+'.';
+          newPrefix:=prefix+newPrefix;
+          if fields[i]^.typ=igd_UsedSubGroup then
+            begin
+              tmpGroup   := group;
+              inputGroup := scheme.GetInputGroup(fields[i]^.group);
+              group:=tmpGroup.AddGroup.Describe(_getText(inputGroup.CaptionKey),fields[i]^.collapsible,fields[i]^.collapsed);
+              _addFields(inputGroup.GroupFields,newPrefix);
+              group:=tmpGroup;
+            end
+          else
+            begin
+              inputGroup:=scheme.GetInputGroup(fields[i]^.group);
+              _addFields(inputGroup.GroupFields,newPrefix);
+            end;
+        end
+      else
+        begin
+          _addInput(fields[i],prefix,required);
         end;
-        newPrefix:=prefix+newPrefix;
-        if fields[i].Field('asSubGroup').AsBoolean then begin
-          tmpGroup:=group;
-          inputGroup:=scheme.GetInputGroup(fields[i].Field('group').AsString);
-          group:=tmpGroup.AddGroup.Describe(_getText(inputGroup.CaptionKey),fields[i].Field('collapsible').AsBoolean,fields[i].Field('collapsed').AsBoolean);
-          _addFields(inputGroup.Fields,newPrefix);
-          group:=tmpGroup;
-        end else begin
-          inputGroup:=scheme.GetInputGroup(fields[i].Field('group').AsString);
-          _addFields(inputGroup.Fields,newPrefix);
-        end;
-      end else begin
-        _addInput(fields[i],prefix,required);
-      end;
-    end;
   end;
 
   begin
     group:=AddGroup.Describe(_getText(schemeGroup.CaptionKey),collapsible,collapsed);
-    _addFields(schemeGroup.Fields,'');
+   _addFields(schemeGroup.GroupFields,'');
     Result:=group;
   end;
 

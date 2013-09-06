@@ -515,6 +515,37 @@ type
   TFRE_DB_Object_Properties    = (fop_SYSTEM,fop_READ_ONLY,fop_VOLATILE,fop_STORED_IMMUTABLE);
   TFRE_DB_Object_PropertySet   = set of TFRE_DB_Object_Properties;
 
+  TFRE_InputGroupDefType=(igd_Bad,igd_Field,igd_UsedGroup,igd_UsedSubGroup);
+
+  OFRE_InputFieldDef4Group = record
+    typ            : TFRE_InputGroupDefType;
+    field          : TFRE_DB_NameType;
+    scheme         : string[255]; //path
+    collapsible,
+    collapsed,
+    required,
+    disabled,
+    hidden         : Boolean;
+    group          : TFRE_DB_NameType;
+    prefix         : TFRE_DB_NameType;
+    datacollection : TFRE_DB_NameType;
+    caption_key    : TFRE_DB_NameType;
+    fieldschemdef  : IFRE_DB_FieldSchemeDefinition; // points to
+  end;
+
+  PFRE_InputFieldDef4Group    = ^OFRE_InputFieldDef4Group;
+  PFRE_InputFieldDef4GroupArr = Array of PFRE_InputFieldDef4Group;
+
+  R_Depfieldfield = record
+    depFieldName  : TFRE_DB_NameType;
+    disablesField : Boolean;
+  end;
+  P_Depfieldfield = ^R_Depfieldfield;
+
+  TFRE_DB_Depfielditerator = procedure (const depfield : R_Depfieldfield) is nested;
+
+
+
    //IFRE_DB_EXTENSION_GRP loosely groups the necessary
    //DB Apps Registery Functions and extension functions, plus dependencies
    //to prepare and query db extensions on startup
@@ -786,10 +817,15 @@ type
     function   GetSubSchemeName    : TFRE_DB_NameType;
     function   getMultiValues      : Boolean;
     function   getRequired         : Boolean;
-    function   getValidator        : IFRE_DB_ClientFieldValidator;
+    function   getValidator        (var validator: IFRE_DB_ClientFieldValidator):boolean;
+    function   getEnum             (var enum : IFRE_DB_Enum) : boolean;
     procedure  setMultiValues      (AValue: Boolean);
     procedure  setRequired         (AValue: Boolean);
-    function   getEnum             : IFRE_DB_Enum;
+    function   getIsPass           : Boolean;
+    function   getAddConfirm       : Boolean;
+
+    property   isPass              :Boolean read getIsPass;
+    property   addConfirm          :Boolean read getAddConfirm;
 
     function   SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
     procedure  SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
@@ -801,9 +837,8 @@ type
     function   GetSubScheme      :IFRE_DB_SchemeObject;
     property   required          :Boolean read getRequired write setRequired;
     property   multiValues       :Boolean read getMultiValues write setMultiValues;
-    property   validator         :IFRE_DB_ClientFieldValidator read getValidator;  //ATTENTION: Validator is a Singleton
-    property   enum              :IFRE_DB_Enum read getEnum;  //ATTENTION Enum is a singleton
     function   ValidateField     (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
+    procedure  ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
   end;
 
   IFRE_DB_NAMED_OBJECT = interface(IFRE_DB_Object)
@@ -1706,19 +1741,17 @@ type
   end;
 
   IFRE_DB_InputGroupSchemeDefinition=interface
-    function  GetCaptionKey      : TFRE_DB_String;
-    function  GetIGFields        : IFRE_DB_ObjectArray;
+    function  GetCaptionKey      : TFRE_DB_NameType;
     //function  GetInputGroupID    : TFRE_DB_String;
     //procedure SetCaptionKey      (AValue: TFRE_DB_String);
     //procedure SetIGFields        (AValue: IFRE_DB_ObjectArray);
     //procedure SetInputGroupID    (AValue: TFRE_DB_String);
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
-    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='');
+    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='');
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
-    property  CaptionKey         : TFRE_DB_String read GetCaptionKey;
-    //property  InputGroupID       : TFRE_DB_String  read GetInputGroupID write SetInputGroupID;
-    property  Fields             : IFRE_DB_ObjectArray read GetIGFields;
+    property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
+    function  GroupFields        : PFRE_InputFieldDef4GroupArr;
   end;
 
   TFRE_DB_OnCheckUserNamePassword     = function  (username,pass:TFRE_DB_String) : TFRE_DB_Errortype of object;
