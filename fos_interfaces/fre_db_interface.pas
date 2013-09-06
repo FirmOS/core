@@ -1012,11 +1012,10 @@ type
 
   { IFRE_DB_SCHEMEOBJECT }
 
-  IFRE_DB_SCHEMEOBJECT=interface(IFRE_DB_COMMON)
+  IFRE_DB_SCHEMEOBJECT=interface
    ['IFDBSO']
     function  GetExplanation              :TFRE_DB_String;
     procedure SetExplanation              (AValue: TFRE_DB_String);
-    function  Implementor                 : TObject;
     function  GetAll_IMI_Methods          :TFRE_DB_StringArray;
     function  MethodExists                (const name:TFRE_DB_String):boolean;
     function  AddSchemeField              (const newfieldname :TFRE_DB_NameType ; const newfieldtype:TFRE_DB_FIELDTYPE ):IFRE_DB_FieldSchemeDefinition;
