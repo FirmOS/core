@@ -229,7 +229,6 @@ begin
   //val:=l_Connection.NewClientFieldValidator('test_Validator').Describe('((a))',TFRE_DB_TEXT.CreateText('$TVAL','Test Validator','long text','hint text'),nil,'');
   //l_Connection.StoreClientFieldValidator(val);
   //enum:=l_Connection.NewEnum('test_enum').Describe(TFRE_DB_TEXT.CreateText('$TENUM','Test Enum','long text','hint text'));
-  //l_Connection.StoreEnum(enum);
   if l_result=edb_OK then begin
     l_Connection.DumpSystem;
   end else begin

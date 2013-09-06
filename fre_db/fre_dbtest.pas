@@ -66,7 +66,7 @@ type
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
   published
-    function IMI_GetIcon(const input: IFRE_DB_Object): IFRE_DB_Object;
+    procedure   CALC_CalcIconStatus(const calc : IFRE_DB_CALCFIELD_SETTER);
   end;
 
   { TFRE_DB_TEST_B }
@@ -658,6 +658,25 @@ var
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_OBJECTEX');
+  scheme.AddSchemeField         ('fdbft_GUID',fdbft_GUID);
+  scheme.AddSchemeField         ('fdbft_Byte',fdbft_Byte);
+  scheme.AddSchemeField         ('fdbft_Int16',fdbft_Int16);
+  scheme.AddSchemeField         ('fdbft_UInt16',fdbft_UInt16);
+  scheme.AddSchemeField         ('fdbft_Int32',fdbft_Int32);
+  scheme.AddSchemeField         ('fdbft_UInt32',fdbft_UInt32);
+  scheme.AddSchemeField         ('fdbft_Int64',fdbft_Int64);
+  scheme.AddSchemeField         ('fdbft_UInt64',fdbft_UInt64);
+  scheme.AddSchemeField         ('fdbft_Real32',fdbft_Real32);
+  scheme.AddSchemeField         ('fdbft_Real64',fdbft_Real64);
+  scheme.AddSchemeField         ('fdbft_Currency',fdbft_Currency);
+  scheme.AddSchemeField         ('fdbft_String',fdbft_String);
+  scheme.AddSchemeField         ('fdbft_Boolean',fdbft_Boolean);
+  scheme.AddSchemeField         ('fdbft_DateTimeUTC',fdbft_DateTimeUTC);
+  scheme.AddSchemeField         ('fdbft_Stream',fdbft_Stream);
+  //scheme.AddSchemeField         ('fdbft_Object',fdbft_Object);
+  scheme.AddSchemeField         ('fdbft_ObjLink',fdbft_ObjLink);
+  scheme.AddSchemeField         ('calculated',fdbft_String);
+
   scheme.AddSchemeField         ('firstname',fdbft_String);
   scheme.AddSchemeField         ('lastname',fdbft_String);
   scheme.AddSchemeField         ('pass',fdbft_String).SetupFieldDef(true,false,'','',true,true);
@@ -670,26 +689,7 @@ begin
   input_group.AddInput('icon','Icon');
 end;
 
-//begin
-//  inherited RegisterSystemScheme(scheme);
-//
-//
-//  //scheme.SetParentSchemeByName('TFRE_DB_OBJECTEX');
-//  //scheme.AddSchemeField         ('fdbft_GUID',fdbft_GUID);
-//  //scheme.AddSchemeField         ('fdbft_Byte',fdbft_Byte);
-//  //scheme.AddSchemeField         ('fdbft_Int16',fdbft_Int16);
-//  //scheme.AddSchemeField         ('fdbft_UInt16',fdbft_UInt16);
-//  //scheme.AddSchemeField         ('fdbft_Int32',fdbft_Int32);
-//  //scheme.AddSchemeField         ('fdbft_UInt32',fdbft_UInt32);
-//  //scheme.AddSchemeField         ('fdbft_Int64',fdbft_Int64);
-//  //scheme.AddSchemeField         ('fdbft_UInt64',fdbft_UInt64);
-//  //scheme.AddSchemeField         ('fdbft_Real32',fdbft_Real32);
-//  //scheme.AddSchemeField         ('fdbft_Real64',fdbft_Real64);
-//  //scheme.AddSchemeField         ('fdbft_Currency',fdbft_Currency);
-//  //scheme.AddSchemeField         ('fdbft_String',fdbft_String);
-//  //
-//  //,,,,,,,,,,,,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink,fdbft_CalcField
-//
+
 //  //,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink,fdbft_CalcField
 //  scheme.AddSchemeField         ('string',fdbft_Byte);
 //  scheme.AddSchemeField         ('boolean',fdbft_Boolean);
@@ -1612,15 +1612,15 @@ class procedure TFRE_DB_TEST_A.RegisterSystemScheme(const scheme: IFRE_DB_SCHEME
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_OBJECTEX');
-  scheme.AddSchemeField         ('number',fdbft_UInt32);
-  scheme.AddSchemeField         ('number_pb',fdbft_UInt32);
-  scheme.AddSchemeField         ('string',fdbft_String);
-  scheme.AddSchemeField         ('boolean',fdbft_Boolean);
-  scheme.AddSchemeField         ('status',fdbft_String);
-  scheme.AddCalculatedField     ('icon','GetIcon',cft_OnStoreUpdate);
+  scheme.AddSchemeField       ('number',fdbft_UInt32);
+  scheme.AddSchemeField       ('number_pb',fdbft_UInt32);
+  scheme.AddSchemeField       ('string',fdbft_String);
+  scheme.AddSchemeField       ('boolean',fdbft_Boolean);
+  scheme.AddSchemeField       ('status',fdbft_String);
+  scheme.AddCalcSchemeField   ('icon',fdbft_String,@CALC_CalcIconStatus);
 end;
 
-function TFRE_DB_TEST_A.IMI_GetIcon(const input: IFRE_DB_Object): IFRE_DB_Object;
+procedure TFRE_DB_TEST_A.CALC_CalcIconStatus(const calc: IFRE_DB_CALCFIELD_SETTER);
 var    lstatus_icon : TFRE_DB_String;
        lstatus      : TFRE_DB_String;
 begin
@@ -1633,9 +1633,25 @@ begin
     'NEW'     : lstatus_icon := getThemedResource('images_apps/test/signal_unknown.png');
     else raise EFRE_DB_Exception.Create(edb_ERROR,'UNKNOWN ENUM FIELD VALUE SiGNaL Status');
   end;
-  result := GFRE_DBI.NewObject;
-  result.Field(CalcFieldResultKey(fdbft_String)).AsString:=lstatus_icon;
+  calc.SetAsString(lstatus_icon);
 end;
+
+//function TFRE_DB_TEST_A.IMI_GetIcon(const input: IFRE_DB_Object): IFRE_DB_Object;
+//var    lstatus_icon : TFRE_DB_String;
+//       lstatus      : TFRE_DB_String;
+//begin
+  //lstatus    := Field('status').AsString;
+  //case lstatus of
+  //  'OK'      : lstatus_icon := getThemedResource('images_apps/test/signal_ok.png');
+  //  'WARNING' : lstatus_icon := getThemedResource('images_apps/test/signal_warning.png');
+  //  'FAILURE' : lstatus_icon := getThemedResource('images_apps/test/signal_failure.png');
+  //  'UNKNOWN' : lstatus_icon := getThemedResource('images_apps/test/signal_unknown.png');
+  //  'NEW'     : lstatus_icon := getThemedResource('images_apps/test/signal_unknown.png');
+  //  else raise EFRE_DB_Exception.Create(edb_ERROR,'UNKNOWN ENUM FIELD VALUE SiGNaL Status');
+  //end;
+  //result := GFRE_DBI.NewObject;
+  //result.Field(CalcFieldResultKey(fdbft_String)).AsString:=lstatus_icon;
+//end;
 
 
 procedure CreateTestdata(const dbname: string; const user, pass: string);

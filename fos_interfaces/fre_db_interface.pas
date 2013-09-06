@@ -81,7 +81,6 @@ type
   TFRE_DB_Errortype      = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE);
   TFRE_DB_STR_FILTERTYPE = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
   TFRE_DB_NUM_FILTERTYPE = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
-  TFRE_DB_CalcFieldTime  = (cft_Everytime,cft_OnStoreUpdate);
   TFRE_DB_SchemeType     = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
   TFRE_DB_COMMANDTYPE    = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
 
@@ -92,14 +91,14 @@ type
     constructor Create(const et:TFRE_DB_Errortype;msg:TFRE_DB_String;params:array of const);
   end;
 
-  TFRE_DB_FIELDTYPE     = (fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink,fdbft_CalcField);
+  TFRE_DB_FIELDTYPE     = (fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink);
   TFRE_DB_DISPLAY_TYPE  = (dt_string,dt_date,dt_number,dt_number_pb,dt_icon,dt_boolean);
   TFRE_DB_MESSAGE_TYPE  = (fdbmt_error,fdbmt_warning,fdbmt_info,fdbmt_confirm);
 
 
 const
-  CFRE_DB_FIELDTYPE       : Array[TFRE_DB_FIELDTYPE]      of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK','CALCFIELD');
-  CFRE_DB_FIELDTYPE_SHORT : Array[TFRE_DB_FIELDTYPE]      of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK',       'CF');
+  CFRE_DB_FIELDTYPE       : Array[TFRE_DB_FIELDTYPE]      of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK');
+  CFRE_DB_FIELDTYPE_SHORT : Array[TFRE_DB_FIELDTYPE]      of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
   CFRE_DB_Errortype       : Array[TFRE_DB_Errortype]      of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE');
   CFRE_DB_STR_FILTERTYPE  : Array[TFRE_DB_STR_FILTERTYPE] of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE  : Array[TFRE_DB_NUM_FILTERTYPE] of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
@@ -217,6 +216,27 @@ type
   TFRE_DB_TRANSFORM_FUNCTION   = procedure(const res_obj:IFRE_DB_Object;const result_hint:TFRE_DB_String; const result_params: array of const) of object;
 
   IFRE_DB_TEXT   = interface;
+
+  IFRE_DB_CALCFIELD_SETTER = interface(IFRE_DB_BASE)
+    procedure SetAsByte          (const AValue: Byte);
+    procedure SetAsInt16         (const AValue: Smallint);
+    procedure SetAsInt32         (const AValue: longint);
+    procedure SetAsInt64         (const AValue: int64);
+    procedure SetAsUInt16        (const AValue: Word);
+    procedure SetAsUInt32        (const AValue: longword);
+    procedure SetAsUInt64        (const AValue: uint64);
+    procedure SetAsSingle        (const AValue: Single);
+    procedure SetAsDouble        (const AValue: Double);
+    procedure SetAsCurrency      (const AValue: Currency);
+    procedure SetAsDateTime      (const AValue: TFRE_DB_Datetime64);
+    procedure SetAsDateTimeUTC   (const AValue: TFRE_DB_Datetime64);
+    procedure SetAsGUID          (const AValue: TGuid);
+    procedure SetAsObject        (const AValue: IFRE_DB_Object); //
+    procedure SetAsStream        (const AValue: TFRE_DB_Stream);
+    procedure SetAsString        (const AValue: TFRE_DB_String); //
+    procedure SetAsBoolean       (const AValue: Boolean);//
+    procedure SetAsObjectLink    (const AValue: TGUID);
+  end;
 
   IFRE_DB_Field  = interface(IFRE_DB_BASE)
   //private // ? - only for info, as interfaces dont support private methods
@@ -451,6 +471,7 @@ type
     function  AsDBText                      :IFRE_DB_TEXT;
   end;
 
+
   IFRE_DB_SCHEMEOBJECT          = interface;
   IFRE_DB_Enum                  = interface;
   IFRE_DB_COLLECTION            = interface;
@@ -485,6 +506,7 @@ type
   IFRE_DB_InvokeInstanceMethod = function  (const Input:IFRE_DB_Object):IFRE_DB_Object of object;
   IFRE_DB_WebInstanceMethod    = function  (const Input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object of object;
   IFRE_DB_InvokeClassMethod    = function  (const Input:IFRE_DB_Object):IFRE_DB_Object of object;
+  IFRE_DB_CalcMethod           = procedure (const calcfieldsetter : IFRE_DB_CALCFIELD_SETTER) of object;
 
   IFRE_DB_Invoke_WF_Method     = procedure (const WF_Step : IFRE_DB_WORKFLOWSTEP) of object;
   IFRE_DB_CS_CALLBACK          = procedure (const Input:IFRE_DB_Object) of Object;
@@ -536,7 +558,7 @@ type
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
     function        UID                                : TGUID;
-    function        UID_String                         : TFRE_DB_String;
+    function        UID_String                         : TGUID_String;
     function        NeededSize                         : TFRE_DB_SIZE_TYPE;
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
@@ -757,11 +779,11 @@ type
   end;
 
 
-  IFRE_DB_FieldSchemeDefinition=interface(IFRE_DB_BASE)
+  IFRE_DB_FieldSchemeDefinition=interface //(IFRE_DB_BASE)
     ['IFDBFSD']
-    function   GetFieldName        : TFRE_DB_String;
+    function   GetFieldName        : TFRE_DB_NameType;
     function   GetFieldType        : TFRE_DB_FIELDTYPE;
-    function   GetSubSchemeName    : TFRE_DB_String;
+    function   GetSubSchemeName    : TFRE_DB_NameType;
     function   getMultiValues      : Boolean;
     function   getRequired         : Boolean;
     function   getValidator        : IFRE_DB_ClientFieldValidator;
@@ -769,14 +791,13 @@ type
     procedure  setRequired         (AValue: Boolean);
     function   getEnum             : IFRE_DB_Enum;
 
-    function   SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_String='';const validator_key:TFRE_DB_String='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
-    procedure  SetCalcMethod     (const calc_methodname:TFRE_DB_String);
-//    function   CalcField         (const calc_method:IFRE_DB_InvokeInstanceMethod):IFRE_DB_FIELD;
-    function   getDepFields      : IFRE_DB_ObjectArray;
+    function   SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
+    procedure  SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
+    function   IsACalcField      : Boolean;
     procedure  addDepField       (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
-    property   FieldName         :TFRE_DB_String read GetFieldName;
+    property   FieldName         :TFRE_DB_NameType   read GetFieldName;
     property   FieldType         :TFRE_DB_FIELDTYPE  read GetFieldType;
-    property   SubschemeName     :TFRE_DB_String read GetSubSchemeName;
+    property   SubschemeName     :TFRE_DB_NameType   read GetSubSchemeName;
     function   GetSubScheme      :IFRE_DB_SchemeObject;
     property   required          :Boolean read getRequired write setRequired;
     property   multiValues       :Boolean read getMultiValues write setMultiValues;
@@ -963,32 +984,30 @@ type
     function  Implementor                 : TObject;
     function  GetAll_IMI_Methods          :TFRE_DB_StringArray;
     function  MethodExists                (const name:TFRE_DB_String):boolean;
-    function  AddSchemeField              (const newfieldname:TFRE_DB_String ; const newfieldtype:TFRE_DB_FIELDTYPE):IFRE_DB_FieldSchemeDefinition;
-    procedure RemoveSchemeField           (const fieldname:TFRE_DB_String);
-    procedure AddCalculatedField          (const newfieldname,calc_method_name:TFRE_DB_String;const calculation_type:TFRE_DB_CalcFieldTime);
-    function  AddSchemeFieldSubscheme     (const newfieldname:TFRE_DB_String ; const sub_scheme:TFRE_DB_String):IFRE_DB_FieldSchemeDefinition;
-    function  GetSchemeField              (const fieldname   :TFRE_DB_String ; var fieldschemedef:IFRE_DB_FieldSchemeDefinition): boolean;
-    function  GetSchemeField              (const fieldname   :TFRE_DB_String): IFRE_DB_FieldSchemeDefinition;
-    function  IsA                         (const schemename :TFRE_DB_String):Boolean;
-    function  AddUniqueKey                (const KeyName     :TFRE_DB_String ; const FieldNames:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    procedure SetSimpleSysDisplayField    (const field_name  :TFRE_DB_String);
-    procedure SetSysDisplayField          (const field_names :TFRE_DB_StringArray;const format:TFRE_DB_String);
+    function  AddSchemeField              (const newfieldname :TFRE_DB_NameType ; const newfieldtype:TFRE_DB_FIELDTYPE ):IFRE_DB_FieldSchemeDefinition;
+    function  AddCalcSchemeField          (const newfieldname :TFRE_DB_NameType ; const newfieldtype:TFRE_DB_FIELDTYPE ; const calc_method  : IFRE_DB_CalcMethod):IFRE_DB_FieldSchemeDefinition;
+    function  AddSchemeFieldSubscheme     (const newfieldname :TFRE_DB_NameType ; const sub_scheme:TFRE_DB_NameType):IFRE_DB_FieldSchemeDefinition;
+    function  GetSchemeField              (const fieldname    :TFRE_DB_NameType ; var fieldschemedef:IFRE_DB_FieldSchemeDefinition): boolean;
+    function  GetSchemeField              (const fieldname    :TFRE_DB_NameType): IFRE_DB_FieldSchemeDefinition;
+    function  IsA                         (const schemename   :TFRE_DB_NameType):Boolean;
+    procedure SetSimpleSysDisplayField    (const field_name   :TFRE_DB_String);
+    procedure SetSysDisplayField          (const field_names  :TFRE_DB_StringArray;const format:TFRE_DB_String);
     function  GetFormattedDisplay         (const obj : IFRE_DB_Object):TFRE_DB_String;
     function  FormattedDisplayAvailable   (const obj : IFRE_DB_Object):boolean;
     function  DefinedSchemeName           : TFRE_DB_String;
     procedure Strict                      (const only_defined_fields:boolean);
     procedure SetParentSchemeByName       (const parentschemename:TFRE_DB_String);
-    procedure RemoveParentScheme          ;
     function  GetParentScheme             :IFRE_DB_SchemeObject;
     function  GetParentSchemeName         :TFRE_DB_String;
     procedure SetObjectFieldsWithScheme   (const Raw_Object: IFRE_DB_OBject; const Update_Object: IFRE_DB_Object;const new_object:boolean;const DBConnection:IFRE_DB_CONNECTION;const schemeType: TFRE_DB_String='');
     //@ Defines new InputGroup, to use with IMI_CONTENT
-    function  AddInputGroup               (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
-    function  GetInputGroup                (const name: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
+    function  AddInputGroup                (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
+    function  ReplaceInputGroup            (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
+    function  GetInputGroup                (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
+
     function  GetSchemeType                : TFRE_DB_SchemeType;
     function  ValidateObject               (const dbo : IFRE_DB_Object;const raise_errors:boolean=true):boolean;
-    function  getSchemeFields              :IFRE_DB_Object;
-    //function  UpdateSchemeField            (const oldField:IFRE_DB_FieldSchemeDefinition; const newfieldname:TFRE_DB_String ; const newfieldtype:TFRE_DB_FIELDTYPE):IFRE_DB_FieldSchemeDefinition; RETHINK
+
     function  InvokeMethod_UID             (const suid : TGUID;const methodname:TFRE_DB_String;const input:IFRE_DB_Object;const connection:IFRE_DB_CONNECTION):IFRE_DB_Object;
     procedure ForAllFieldSchemeDefinitions (const iterator:IFRE_DB_SchemeFieldDef_Iterator);
     property  Explanation:TFRE_DB_String read GetExplanation write SetExplanation;
@@ -1035,8 +1054,8 @@ type
     //function    SchemeExists              (const scheme_name: TFRE_DB_String): boolean;
     //function    GetSchemeCollection       :IFRE_DB_SCHEME_COLLECTION;
 
-    function    GetClientFieldValidator   (const val_name   :TFRE_DB_String;out validator:IFRE_DB_ClientFieldValidator) : boolean;
-    function    GetEnum                   (const enum_name  :TFRE_DB_String;out enum:IFRE_DB_Enum)                      : boolean;
+    //function    GetClientFieldValidator   (const val_name   :TFRE_DB_String;out validator:IFRE_DB_ClientFieldValidator) : boolean;
+    //function    GetEnum                   (const enum_name  :TFRE_DB_String;out enum:IFRE_DB_Enum)                      : boolean;
 
     function    NewObject                 (const Scheme:TFRE_DB_String=''): IFRE_DB_Object;
     function    Delete                    (const ouid: TGUID): TFRE_DB_Errortype;
@@ -1292,7 +1311,7 @@ type
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
     function        UID                                : TGUID;
-    function        UID_String                         : TFRE_DB_String;
+    function        UID_String                         : TGUID_String;
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
     function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
@@ -1616,8 +1635,10 @@ type
     function    RegisterSysClientFieldValidator (const val : IFRE_DB_ClientFieldValidator):TFRE_DB_Errortype;
     function    RegisterSysEnum                 (const enu : IFRE_DB_Enum):TFRE_DB_Errortype;
 
-    function    GetSystemSchemeByName           (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
+    function    GetSystemSchemeByName           (const schemename:TFRE_DB_NameType; var scheme: IFRE_DB_SchemeObject): Boolean;
     function    GetSystemScheme                 (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
+    function    GetSystemEnum                   (const name:TFRE_DB_NameType ; out enum : IFRE_DB_Enum):boolean;
+    function    GetSystemClientFieldValidator   (const name:TFRE_DB_NameType ; out clf  : IFRE_DB_ClientFieldValidator):boolean;
 
 
     function    NewObjectIntf          (const InterfaceSpec:ShortString;out Intf;const mediator : TFRE_DB_ObjectEx=nil;const fail_on_non_existent:boolean=true) : Boolean;
@@ -1687,18 +1708,17 @@ type
   IFRE_DB_InputGroupSchemeDefinition=interface
     function  GetCaptionKey      : TFRE_DB_String;
     function  GetIGFields        : IFRE_DB_ObjectArray;
-    function  GetInputGroupID    : TFRE_DB_String;
-    procedure SetCaptionKey      (AValue: TFRE_DB_String);
-    procedure SetIGFields        (AValue: IFRE_DB_ObjectArray);
-    procedure SetInputGroupID    (AValue: TFRE_DB_String);
+    //function  GetInputGroupID    : TFRE_DB_String;
+    //procedure SetCaptionKey      (AValue: TFRE_DB_String);
+    //procedure SetIGFields        (AValue: IFRE_DB_ObjectArray);
+    //procedure SetInputGroupID    (AValue: TFRE_DB_String);
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
     procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='');
-    procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='');
-    procedure AddInputSubGroup   (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const collapsible:Boolean=false;const collapsed:Boolean=false);
-    property  CaptionKey         : TFRE_DB_String read GetCaptionKey    write SetCaptionKey;
-    property  InputGroupID       : TFRE_DB_String  read GetInputGroupID write SetInputGroupID;
-    property  Fields             : IFRE_DB_ObjectArray read GetIGFields write SetIGFields;
+    procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
+    property  CaptionKey         : TFRE_DB_String read GetCaptionKey;
+    //property  InputGroupID       : TFRE_DB_String  read GetInputGroupID write SetInputGroupID;
+    property  Fields             : IFRE_DB_ObjectArray read GetIGFields;
   end;
 
   TFRE_DB_OnCheckUserNamePassword     = function  (username,pass:TFRE_DB_String) : TFRE_DB_Errortype of object;
@@ -3525,7 +3545,7 @@ begin
   result := FImplementor.UID;
 end;
 
-function TFRE_DB_ObjectEx.UID_String: TFRE_DB_String;
+function TFRE_DB_ObjectEx.UID_String: TGUID_String;
 begin
   result := FImplementor.UID_String;
 end;

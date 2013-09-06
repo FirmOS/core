@@ -78,7 +78,7 @@ const
   function  GuidInArray                       (const check:TGuid;const arr:TFRE_DB_GUIDArray):boolean;
   function  FindNthGuidIdx                    (n:integer;const guid:TGuid;const arr:TFRE_DB_GUIDArray):integer;inline;
   function  CheckAllStringFieldsEmptyInObject (const obj:IFRE_DB_Object):boolean;
-  function  CalcFieldResultKey                (const field_type:TFRE_DB_FIELDTYPE):String;
+  //function  CalcFieldResultKey                (const field_type:TFRE_DB_FIELDTYPE):String;
   function  getThemedResource                 (const id: String):String;
 
 type
@@ -984,10 +984,10 @@ implementation
     result := check;
   end;
 
-  function CalcFieldResultKey(const field_type: TFRE_DB_FIELDTYPE): String;
-  begin
-    result:='$CR_'+CFRE_DB_FIELDTYPE_SHORT[field_type];
-  end;
+  //function CalcFieldResultKey(const field_type: TFRE_DB_FIELDTYPE): String;
+  //begin
+  //  result:='$CR_'+CFRE_DB_FIELDTYPE_SHORT[field_type];
+  //end;
 
   function getThemedResource(const id: String): String;
   begin
@@ -2223,7 +2223,7 @@ implementation
     end;
   end;
 
-        function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean): TFRE_DB_INPUT_GROUP_DESC;
+  function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean): TFRE_DB_INPUT_GROUP_DESC;
   var
     group         : TFRE_DB_INPUT_GROUP_DESC;
     obj           : IFRE_DB_Object;
@@ -2285,7 +2285,7 @@ implementation
           end;
       end else begin
         if obj.Field('enum').AsString<>'' then begin
-          if session.GetDBConnection.GetEnum(obj.Field('enum').AsString,enum) then begin
+          if GFRE_DBI.GetSystemEnum(obj.Field('enum').AsString,enum) then begin
             store:=TFRE_DB_STORE_DESC.create.Describe();
             enumVals:=enum.getEntries;
             for i := 0 to Length(enumVals) - 1 do begin
@@ -2297,7 +2297,7 @@ implementation
           end;
         end else begin
           if obj.FieldExists('vtype') then begin
-            session.GetDBConnection.GetClientFieldValidator(obj.Field('vtype').AsString,validator);
+            GFRE_DBI.GetSystemClientFieldValidator(obj.Field('vtype').AsString,validator);
           end else begin
             validator:=nil;
           end;
