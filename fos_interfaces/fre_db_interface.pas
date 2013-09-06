@@ -1401,7 +1401,7 @@ type
     procedure  SessionPromotion              (const session : TFRE_DB_UserSession);virtual;
   protected
     type       TFRE_DB_APP_INSTALLSTATE  =   (NotInstalled, OtherVersion, SameVersion);
-    function   IsContentUpdateVisible       (const update_content_id:string):Boolean;
+    function   IsContentUpdateVisible        (const session : IFRE_DB_UserSession; const update_content_id:string):Boolean;
   protected
     function   CFG_ApplicationUsesRights     : boolean; virtual;
     procedure  InternalSetup                 ; override;
@@ -1455,7 +1455,7 @@ type
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
     function    ShowInApplicationChooser    (const session:IFRE_DB_UserSession): Boolean;virtual;
 
-    function   CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):TFRE_DB_Errortype;
+    procedure  CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
 
     function   FetchAppText                 (const conn: IFRE_DB_CONNECTION;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
     function   FetchAppText                 (const input_context: IFRE_DB_Object;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
@@ -1507,7 +1507,7 @@ type
     function   GetDescrTranslationKey       :TFRE_DB_String;
     function   GetDescription                (conn : IFRE_DB_CONNECTION): IFRE_DB_TEXT;
     function   AsObject                     : IFRE_DB_Object;
-    function   IsContentUpdateVisible       (const update_content_id:string):Boolean;
+    function   IsContentUpdateVisible       (const session: IFRE_DB_UserSession; const update_content_id:string):Boolean;
   published
     function   IMI_OnUIChange                (const input:IFRE_DB_Object):IFRE_DB_Object; virtual;
   end;
@@ -1746,6 +1746,7 @@ type
 
     procedure   registerUpdatableContent   (const contentId: String);
     procedure   unregisterUpdatableContent (const contentId: String);
+    function    IsContentUpdateVisible     (const contentId: String):Boolean;
     procedure   registerUpdatableDBO       (const id: String);
     procedure   unregisterUpdatableDBO     (const id: String);
     function    isUpdatableContentVisible  (const contentId: String): Boolean;
@@ -1829,6 +1830,7 @@ type
     procedure   ClearServerClientInterface ;
     procedure   registerUpdatableContent   (const contentId: String);
     procedure   unregisterUpdatableContent (const contentId: String);
+    function    IsContentUpdateVisible     (const contentId: String):Boolean;
     procedure   registerUpdatableDBO       (const id: String);
     procedure   unregisterUpdatableDBO     (const id: String);
     function    isUpdatableContentVisible  (const contentId: String): Boolean;
@@ -3040,6 +3042,11 @@ begin
   FSessionData.Field('contentIds').AsObject.Field(contentId).Clear();
 end;
 
+function TFRE_DB_UserSession.IsContentUpdateVisible(const contentId: String): Boolean;
+begin
+  Result:=FSessionData.Field('contentIds').AsObject.FieldExists(contentId);
+end;
+
 procedure TFRE_DB_UserSession.registerUpdatableDBO(const id: String);
 begin
   if FSessionData.Field('dboIds').AsObject.FieldExists(id) then begin
@@ -4229,9 +4236,9 @@ begin
   ForAllFields(@_initSubModules);
 end;
 
-function TFRE_DB_APPLICATION.IsContentUpdateVisible(const update_content_id: string): Boolean;
+function TFRE_DB_APPLICATION.IsContentUpdateVisible(const session: IFRE_DB_UserSession; const update_content_id: string): Boolean;
 begin
-  result := true;
+  Result:=session.IsContentUpdateVisible(update_content_id);
 end;
 
 function TFRE_DB_APPLICATION.CFG_ApplicationUsesRights: boolean;
@@ -4363,11 +4370,11 @@ begin
   sys_connection.RemoveAppGroup(Objectname,'GUEST');
 end;
 
-function TFRE_DB_APPLICATION.CreateAppText(const conn: IFRE_DB_SYS_CONNECTION;const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String): TFRE_DB_Errortype;
+procedure TFRE_DB_APPLICATION.CreateAppText(const conn: IFRE_DB_SYS_CONNECTION;const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 var txt :IFRE_DB_TEXT;
 begin
   txt := GFRE_DBI.NewText(ObjectName+'_'+translation_key,long_text,short_text,hint_text);
-  Result:=conn.StoreTranslateableText(txt);
+  CheckDbResult(conn.StoreTranslateableText(txt),'CreateAppText ' + translation_key);
 end;
 
 function TFRE_DB_APPLICATION.FetchAppText(const conn: IFRE_DB_CONNECTION;const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
@@ -4715,9 +4722,9 @@ begin
   result := FImplementor;
 end;
 
-function TFRE_DB_APPLICATION_MODULE.IsContentUpdateVisible(const update_content_id: string): Boolean;
+function TFRE_DB_APPLICATION_MODULE.IsContentUpdateVisible(const session: IFRE_DB_UserSession; const update_content_id: string): Boolean;
 begin
-  result := GetEmbeddingApp.IsContentUpdateVisible(update_content_id);
+  result := GetEmbeddingApp.IsContentUpdateVisible(session,update_content_id);
 end;
 
 function TFRE_DB_APPLICATION_MODULE.IMI_OnUIChange(const input: IFRE_DB_Object): IFRE_DB_Object;

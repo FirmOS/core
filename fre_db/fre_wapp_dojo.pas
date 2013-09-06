@@ -1224,6 +1224,9 @@ implementation
         if FREDB_String2DBDisplayType(elem.Field('displayType').AsString)=dt_number_pb then begin
           jsContentAdd('     '+elem.Field('id').AsString+': FIRMOS.gridPBColumn({');
           jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
+          if not co.Field('sortable').AsBoolean then begin
+            jsContentAdd('       ,sortable: false');
+          end;
           jsContentAdd('      ,dataType: "' + elem.Field('displayType').AsString + '"');
           jsContentAdd('      ,maxValue: ' + elem.Field('maxValue').AsString);
           if elem.Field('labelId').AsString<>'' then begin
@@ -1238,6 +1241,9 @@ implementation
             jsContentAdd('     '+elem.Field('id').AsString+': {');
           end;
           jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
+          if not co.Field('sortable').AsBoolean then begin
+            jsContentAdd('       ,sortable: false');
+          end;
           jsContentAdd('      ,dataType: "' + elem.Field('displayType').AsString + '"');
           case FREDB_String2DBDisplayType(elem.Field('displayType').AsString) of
             dt_string : begin
