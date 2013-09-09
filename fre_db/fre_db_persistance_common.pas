@@ -2857,8 +2857,10 @@ function TFRE_DB_Persistance_Collection.First: TFRE_DB_Object;
     result := TFRE_DB_Object(value);
   end;
 begin
-  abort;
-  FGuidObjStore.FirstKeyVal(@SetIt);
+ result := nil;
+ FGuidObjStore.FirstKeyVal(@SetIt);
+ if assigned(result) then
+   result := CloneOutObject(result);
 end;
 
 function TFRE_DB_Persistance_Collection.Last: TFRE_DB_Object;
@@ -2867,8 +2869,10 @@ function TFRE_DB_Persistance_Collection.Last: TFRE_DB_Object;
     result := TFRE_DB_Object(value);
   end;
 begin
-  abort;
+  result := nil;
   FGuidObjStore.LastKeyVal(@SetIt);
+ if assigned(result) then
+   result := CloneOutObject(result);
 end;
 
 function TFRE_DB_Persistance_Collection.GetItem(const num: uint64): TFRE_DB_Object;

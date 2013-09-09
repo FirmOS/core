@@ -2213,7 +2213,9 @@ type
     function    NewObject              (const ClName:TFRE_DB_String) : TFRE_DB_Object;
     function    NewObject              : TFRE_DB_Object;
     function    NewNamedObject         : TFRE_DB_NAMED_OBJECT;
+
     function    NewObjectScheme        (const Scheme : TClass): IFRE_DB_Object;
+    function    NewObjectSchemeByName  (const Scheme : TFRE_DB_NameType): IFRE_DB_Object;
 
     function    NewClientFieldValidator(const name: TFRE_DB_String)       : TFRE_DB_ClientFieldValidator;
     function    NewClientFieldValidatorI(const name: TFRE_DB_String)      : IFRE_DB_ClientFieldValidator;
@@ -6083,6 +6085,8 @@ var i                 : Integer;
     var fld : TFRE_DB_FIELD;
 
 begin
+  writeln('ADD TO TRANSFORMED INPUT',item.DumpToString());
+  writeln('');
   iob := item;
   add := true;
   if (cdgf_Children in FGridDisplayFlags)
@@ -6097,26 +6101,19 @@ begin
 
   isFirst:=true;
   use_filter_fields:=false;
-  //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * ENTER OBJECT FILTER RUN [%s]',[iob.UID_String]);
   FFilters.ForAllBrk(@Filter);
-  //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * LEFT OBJECT FILTER RUN [%s] ADD [%s]',[iob.UID_String,FREDB_Bool2String(add)]);
   if add then begin
     tr_obj := FTransform.TransformInOut(FDependencyObject,item,false);
     iob    := tr_obj;
     use_filter_fields:=false;
-    //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * ENTER TRANSFORM FILTER RUN [%s]',[iob.UID_String]);
     FFiltersTrans.ForAllBrk(@Filter);
-    //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * LEFT TRANSFORM FILTER RUN [%s] ADD [%s]',[iob.UID_String,FREDB_Bool2String(add)]);
     if FTransform.HasFilterFields then begin
       use_filter_fields:=true;
       iob    := FTransform.TransformInOut(FDependencyObject,item,true);
-      //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * ENTER FILTER FIELD FILTER RUN [%s]',[iob.UID_String]);
       FFilters.ForAllBrk(@Filter);
-      //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * LEFT FILTER FIELD  RUN [%s] ADD [%s]',[iob.UID_String,FREDB_Bool2String(add)]);
       iob.free;
     end;
     if add then begin
-      //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL ADD [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
       if cdgf_Children in FGridDisplayFlags then
         begin
           if FChildParentMode then
@@ -11267,10 +11264,15 @@ begin
 end;
 
 function TFRE_DB.NewObjectScheme(const Scheme: TClass): IFRE_DB_Object;
+begin
+  result := NewObjectSchemeByName(scheme.ClassName);
+end;
+
+function TFRE_DB.NewObjectSchemeByName(const Scheme: TFRE_DB_NameType): IFRE_DB_Object;
 var schemeo : TFRE_DB_SchemeObject;
 begin
-  if not GetSystemScheme(Scheme.ClassName,schemeo) then
-    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'could not construct new object, scheme [%s] not found',[scheme.ClassName]);
+  if not GetSystemScheme(Scheme,schemeo) then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'could not construct new object, scheme [%s] not found',[scheme]);
   result := schemeo.ConstructNewInstance();
 end;
 
