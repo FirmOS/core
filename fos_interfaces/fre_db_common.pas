@@ -298,8 +298,14 @@ type
 
   TFRE_DB_INPUT_NUMBER_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
     //@ Describes a number input within a form.
-    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false;  const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const digits: Integer=-1) : TFRE_DB_INPUT_NUMBER_DESC;
+    //@ minMax Array has to be of length 2 (min and max definition)
+    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false;  const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String='';
+                        const digits: Integer=0; const minMax: TFRE_DB_Real64Array=nil) : TFRE_DB_INPUT_NUMBER_DESC;
+    //@ Describes a number slider within a form.
+    function  DescribeSlider (const caption,field_reference : String; const min,max: Real; const defaultValue:String=''; const digits: Integer=0; const steps: Integer=-1) : TFRE_DB_INPUT_NUMBER_DESC;
   end;
+
+  TFRE_DB_INPUT_BLOCK_DESC       = class;
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
@@ -308,14 +314,16 @@ type
     //@ Describes a chooser within a form.
     //@ FIXXME: display type dh_chooser_check not implemented yet.
     //@ FIXXME: single_select=false not implemented yet.
-    function  Describe             (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean=true; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
-                                    const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
+    function  Describe              (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean=true; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
+                                     const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
     //@ FIXXME: not implemented yet.
-    procedure addFilterEvent       (const filteredStoreId,refId:String);
+    procedure addFilterEvent        (const filteredStoreId,refId:String);
+    //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
+    procedure addDependentInputBlock(const inputBlock: TFRE_DB_INPUT_BLOCK_DESC; const chooserValue: String);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
-    procedure captionCompareEnabled(const enabled:Boolean);
+    procedure captionCompareEnabled (const enabled:Boolean);
   end;
 
   { TFRE_DB_INPUT_DATE_DESC }
@@ -426,7 +434,6 @@ type
 
   TFRE_DB_INPUT_GROUP_DESC       = class;
   TFRE_DB_INPUT_GROUP_PROXY_DESC = class;
-  TFRE_DB_INPUT_BLOCK_DESC       = class;
 
   { TFRE_DB_VALIDATOR_DESC }
 
@@ -1525,10 +1532,24 @@ implementation
 
   { TFRE_DB_INPUT_NUMBER_DESC }
 
-  function TFRE_DB_INPUT_NUMBER_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean;  const disabled: boolean; const hidden: Boolean; const defaultValue: String; const digits: Integer): TFRE_DB_INPUT_NUMBER_DESC;
+  function TFRE_DB_INPUT_NUMBER_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean;  const disabled: boolean; const hidden: Boolean; const defaultValue: String; const digits: Integer; const minMax: TFRE_DB_Real64Array): TFRE_DB_INPUT_NUMBER_DESC;
   begin
     inherited Describe(caption,field_reference,required,groupRequired,disabled,hidden,defaultValue);
     Field('digits').AsInt16:=digits;
+    if Assigned(minMax) then begin
+      if Field('minMax').ValueCount<>2 then raise EFRE_DB_Exception.Create(edb_ERROR,'minMax definition Array has to be of length 2');
+      Field('minMax').AsReal64Arr:=minMax;
+    end;
+    Field('steps').AsInt16:=-1;
+  end;
+
+  function TFRE_DB_INPUT_NUMBER_DESC.DescribeSlider(const caption, field_reference: String; const min, max: Real; const defaultValue: String; const digits: Integer; const steps: Integer): TFRE_DB_INPUT_NUMBER_DESC;
+  begin
+    inherited Describe(caption,field_reference,false,false,false,false,defaultValue);
+    Field('displaySlider').AsBoolean:=true;
+    Field('digits').AsInt16:=digits;
+    Field('minMax').AsReal64Arr:=TFRE_DB_Real64Array.create(min,max);
+    Field('steps').AsInt16:=steps;
   end;
 
   { TFRE_DB_SUBMENU_DESC }
@@ -1651,13 +1672,13 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_REFRESH_DESC }
-
-
   { TFRE_DB_INPUT_BLOCK_DESC }
 
   function TFRE_DB_INPUT_BLOCK_DESC.Describe(const caption: String): TFRE_DB_INPUT_BLOCK_DESC;
   begin
+    if not FieldExists('id') then begin
+      Field('id').AsString:='id'+UID_String;
+    end;
     Field('caption').AsString:=caption;
     Field('sizeSum').AsInt16:=0;
     Result:=Self;
@@ -1983,6 +2004,16 @@ implementation
     obj.Field('storeId').AsString:=filteredStoreId;
     obj.Field('refId').AsString:=refId;
     Field('filteredStore').AddObject(obj);
+  end;
+
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInputBlock(const inputBlock: TFRE_DB_INPUT_BLOCK_DESC; const chooserValue: String);
+  var
+    obj: IFRE_DB_Object;
+  begin
+   obj:=GFRE_DBI.NewObject;
+   obj.Field('inputId').AsString:=inputBlock.contentId;
+   obj.Field('value').AsString:=chooserValue;
+   Field('dependentInputFields').AddObject(obj);
   end;
 
   procedure TFRE_DB_INPUT_CHOOSER_DESC.captionCompareEnabled(const enabled: Boolean);

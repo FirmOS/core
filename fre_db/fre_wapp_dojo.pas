@@ -370,10 +370,32 @@ implementation
 
   procedure TFRE_DB_WAPP_DOJO._BuildInputNumber(const co: TFRE_DB_INPUT_NUMBER_DESC);
   var
-    constrains: String;
+    preFix: String;
   begin
-    jsContentAdd('"<input id='''+co.Field('id').AsString+''' name='''+co.Field('field').AsString+''' dojoType=''FIRMOS.NumberTextBox'''+constrains+' style=''width:100%''"+');
+    jsContentAdd('"<input id='''+co.Field('id').AsString+''' name='''+co.Field('field').AsString+'''"+');
+    if co.FieldExists('displaySlider') then begin
+      jsContentAdd('" dojoType=''FIRMOS.NumberSlider''"+');
+    end else begin
+      jsContentAdd('" dojoType=''FIRMOS.NumberTextBox''"+');
+    end;
+    jsContentAdd('" style=''width:100%''"+');
     jsContentAdd('" intermediateChanges=true"+');
+    jsContentAdd('" constraints=''{"+');
+    if co.Field('digits').AsInt16>-1 then begin
+      jsContentAdd('" places: '+co.Field('digits').AsString+'"+');
+      preFix:=',';
+    end else begin
+      preFix:='';
+    end;
+    if co.Field('steps').AsInt16>-1 then begin
+      jsContentAdd('" '+preFix+'steps: '+co.Field('steps').AsString+'"+');
+      preFix:=',';
+    end;
+    if co.FieldExists('minMax') then begin
+      jsContentAdd('" '+preFix+'min: '+co.Field('minMax').AsStringArr[0]+'"+');
+      jsContentAdd('" ,max: '+co.Field('minMax').AsStringArr[1]+'"+');
+    end;
+    jsContentAdd('" }''"+');
     if co.Field('disabled').AsBoolean then begin
       jsContentAdd('" disabled"+');
     end;
@@ -495,9 +517,10 @@ implementation
 
   procedure TFRE_DB_WAPP_DOJO._BuildInputChooser(const session:TFRE_DB_UserSession; const co: TFRE_DB_INPUT_CHOOSER_DESC; const stores: IFRE_DB_ObjectArray);
   var
-    store: TFRE_DB_STORE_DESC;
-    i    : Integer;
-    conn : IFRE_DB_CONNECTION;
+    store  : TFRE_DB_STORE_DESC;
+    i      : Integer;
+    conn   : IFRE_DB_CONNECTION;
+    preFix : String;
   begin
      store:=_getStoreById(co.FieldPath('store.id').AsString,stores);
      case String2DBChooserDH(co.Field('displayHint').AsString) of
@@ -529,6 +552,15 @@ implementation
                            end;
                            jsContentAdd('"  data-dojo-props=''"+');
                            jsContentAdd('" value: \"'+co.Field('defaultValue').AsString+'\", placeHolder:\"'+_getText(conn,'in_combo_placeholder')+'\""+');
+                           if co.Field('dependentInputFields').ValueCount>0 then begin
+                             jsContentAdd('", depGroup: \"["+');
+                             preFix:='';
+                             for i := 0 to co.Field('dependentInputFields').ValueCount - 1 do begin
+                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\", value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\"}"+');
+                               preFix:=',';
+                             end;
+                             jsContentAdd('"]\""+');
+                           end;
                            jsContentAdd('"''>"+');
                            if not co.Field('required').AsBoolean then begin
                              jsContentAdd('"  <option value=''''></option>"+');
@@ -549,7 +581,7 @@ implementation
     addGroupId    : String;
   begin
     if elem is TFRE_DB_INPUT_BLOCK_DESC then begin
-      jsContentAdd('"<tr><td colspan=2>"+');
+      jsContentAdd('"<tr id='''+elem.Field('id').AsString+'''><td colspan=2>"+');
       for i := 0 to elem.Field('elements').ValueCount - 1 do begin
         jsContentAdd('"<div style=''width:'+FloatToStrF(Trunc(elem.Field('elements').AsObjectItem[i].Field('relSize').AsInt16 / elem.Field('sizeSum').AsInt16 * 10000) / 100,ffFixed,3,2)+'%; float:left;''><table class=''firmosFormTable'' style=''width:100%''>"+');
         _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields);
