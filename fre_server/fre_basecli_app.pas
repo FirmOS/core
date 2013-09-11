@@ -470,7 +470,7 @@ begin
       if conn.fetchuser(login,user)=edb_OK then begin
         writeln(login+' : ');
         writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
-        writeln(GFRE_DBI.StringArray2String(user.GetRightsArray));
+        writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForGroups(user.GetUserGroupIDS)));
         writeln('');
       end;
     end;
@@ -480,14 +480,14 @@ begin
       if conn.fetchuser(login,user)=edb_OK then begin
         writeln(login+' : ');
         writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
-        writeln(GFRE_DBI.StringArray2String(user.GetRightsArray));
+        writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForGroups(user.GetUserGroupIDS)));
       end;
      end;
 
     if conn.fetchuser('guest'+'@'+cSYS_DOMAIN,user)=edb_OK then begin
       writeln('GUEST : ');
       writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
-      writeln(GFRE_DBI.StringArray2String(user.GetRightsArray));
+      writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForGroups(user.GetUserGroupIDS)));
     end;
   finally
     conn.Finalize;

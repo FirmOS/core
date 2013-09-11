@@ -416,11 +416,11 @@ begin
     if conn.FetchGroupById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppText(ses,'$error_fetch_group_msg').Getshort,'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if addrole then begin
-      if conn.AddGroupRoles(group.ObjectName+'@'+group.Domain,GFRE_DBI.ConstructStringArray([role.ObjectName+'@'+role.Domain]))<>edb_OK then
-        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_add_role_msg').Getshort,'%group%',group.ObjectName+'@'+group.Domain,[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.domain,[rfReplaceAll]));
+      if conn.AddGroupRoles(group.ObjectName+'@'+group.GetDomain(conn),GFRE_DBI.ConstructStringArray([role.ObjectName+'@'+role.GetDomain(conn)]))<>edb_OK then
+        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_add_role_msg').Getshort,'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
     end else begin
-      if conn.RemoveGroupRoles(group.ObjectName+'@'+group.Domain,GFRE_DBI.ConstructStringArray([role.ObjectName+'@'+role.Domain]),true)<>edb_OK then
-        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_remove_role_msg').Getshort,'%group%',group.ObjectName+'@'+group.Domain,[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.domain,[rfReplaceAll]));
+      if conn.RemoveGroupRoles(group.ObjectName+'@'+group.GetDomain(conn),GFRE_DBI.ConstructStringArray([role.ObjectName+'@'+role.GetDomain(conn)]),true)<>edb_OK then
+        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_remove_role_msg').Getshort,'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
     end;
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -693,11 +693,11 @@ begin
     if conn.FetchRoleById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),role)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppText(ses,'$error_fetch_role_msg').Getshort,'%role%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if addrole then begin
-      if conn.AddGroupRoles(group.ObjectName+'@'+group.Domain,GFRE_DBI.ConstructStringArray([role.ObjectName+'@'+role.Domain]))<>edb_OK then
-        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_add_role_msg').Getshort,'%group%',group.ObjectName+'@'+group.Domain,[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.domain,[rfReplaceAll]));
+      if conn.AddGroupRoles(group.ObjectName+'@'+group.GetDomain(conn),GFRE_DBI.ConstructStringArray([role.ObjectName+'@'+role.GetDomain(conn)]))<>edb_OK then
+        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_add_role_msg').Getshort,'%group%',group.ObjectName+'@'+group.getDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
     end else begin
-      if conn.RemoveGroupRoles(group.ObjectName+'@'+group.Domain,GFRE_DBI.ConstructStringArray([role.ObjectName+'@'+role.Domain]),true)<>edb_OK then
-        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_remove_role_msg').Getshort,'%group%',group.ObjectName+'@'+group.Domain,[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.domain,[rfReplaceAll]));
+      if conn.RemoveGroupRoles(group.ObjectName+'@'+group.getDomain(conn),GFRE_DBI.ConstructStringArray([role.ObjectName+'@'+role.GetDomain(conn)]),true)<>edb_OK then
+        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_remove_role_msg').Getshort,'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
     end;
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -1123,8 +1123,8 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.FetchUserById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppText(ses,'$error_fetch_user_msg').Getshort,'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.RemoveUserGroups(user.login+'@'+user.Domain,GFRE_DBI.ConstructStringArray([group.ObjectName+'@'+group.Domain]))<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_remove_group_msg').Getshort,'%group%',group.ObjectName+'@'+group.Domain,[rfReplaceAll]),'%user%',user.login+'@'+user.domain,[rfReplaceAll]));
+    if conn.RemoveUserGroups(user.login+'@'+user.getDomain(conn),GFRE_DBI.ConstructStringArray([group.ObjectName+'@'+group.getDomain(conn)]))<>edb_OK then
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_remove_group_msg').Getshort,'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 
@@ -1149,8 +1149,8 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.FetchUserById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppText(ses,'$error_fetch_user_msg').Getshort,'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.ModifyUserGroups(user.login+'@'+user.Domain,GFRE_DBI.ConstructStringArray([group.ObjectName+'@'+group.Domain]),true)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_add_group_msg').Getshort,'%group%',group.ObjectName+'@'+group.Domain,[rfReplaceAll]),'%user%',user.login+'@'+user.domain,[rfReplaceAll]));
+    if conn.ModifyUserGroups(user.login+'@'+user.GetDomain(conn),GFRE_DBI.ConstructStringArray([group.ObjectName+'@'+group.GetDomain(conn)]),true)<>edb_OK then
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_add_group_msg').Getshort,'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -1461,15 +1461,15 @@ var
   save_func   : TFRE_DB_SERVER_FUNC_DESC;
 begin
   if not conn.CheckRight(Get_Rightname('edit_users')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
-  load_func   := CSF(@IMI_NoteLoad);
-  save_func   := CSF(@IMI_NoteSave);
+  load_func   := CWSF(@WEB_NoteLoad);
+  save_func   := CWSF(@WEB_NoteSave);
 
   if ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString<>''  then begin
     load_func.AddParam.Describe('linkid',ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString);
     save_func.AddParam.Describe('linkid',ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString);
   end;
 
-  user_editor := TFRE_DB_EDITOR_DESC.create.Describe(load_func,save_func,CSF(@IMI_NoteStartEdit),CSF(@IMI_NoteStopEdit));
+  user_editor := TFRE_DB_EDITOR_DESC.create.Describe(load_func,save_func,CWSF(@WEB_NoteStartEdit),CWSF(@WEB_NoteStopEdit));
   user_info   := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(nil,user_editor,nil,WEB_UserContent(input,ses,app,conn).Implementor_HC as TFRE_DB_CONTENT_DESC,nil,true,-1,1,-1,1);
   user_info.contentId := 'USER_INFO';
   Result      := user_info;
@@ -1676,8 +1676,8 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.FetchGroupById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppText(ses,'$error_fetch_group_msg').Getshort,'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.RemoveUserGroups(user.login+'@'+user.Domain,GFRE_DBI.ConstructStringArray([group.ObjectName+'@'+group.Domain]))<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_remove_group_msg').Getshort,'%group%',group.ObjectName+'@'+group.Domain,[rfReplaceAll]),'%user%',user.login+'@'+user.domain,[rfReplaceAll]));
+    if conn.RemoveUserGroups(user.login+'@'+user.getDomain(conn),GFRE_DBI.ConstructStringArray([group.ObjectName+'@'+group.GetDomain(conn)]))<>edb_OK then
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_remove_group_msg').Getshort,'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -1703,8 +1703,8 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.FetchGroupById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppText(ses,'$error_fetch_group_msg').Getshort,'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.ModifyUserGroups(user.login+'@'+user.Domain,GFRE_DBI.ConstructStringArray([group.ObjectName+'@'+group.Domain]),true)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_add_group_msg').Getshort,'%group%',group.ObjectName+'@'+group.Domain,[rfReplaceAll]),'%user%',user.login+'@'+user.domain,[rfReplaceAll]));
+    if conn.ModifyUserGroups(user.login+'@'+user.getDomain(conn),GFRE_DBI.ConstructStringArray([group.ObjectName+'@'+group.GetDomain(conn)]),true)<>edb_OK then
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppText(ses,'$error_add_group_msg').Getshort,'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;

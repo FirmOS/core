@@ -77,12 +77,14 @@ type
   PFRE_DB_String         = ^TFRE_DB_String;
   TFRE_DB_RawByteString  = RawByteString;
 
-  TFRE_DB_LOGCATEGORY    = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM);
-  TFRE_DB_Errortype      = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE);
-  TFRE_DB_STR_FILTERTYPE = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
-  TFRE_DB_NUM_FILTERTYPE = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
-  TFRE_DB_SchemeType     = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
-  TFRE_DB_COMMANDTYPE    = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
+  TFRE_DB_LOGCATEGORY        = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM);
+  TFRE_DB_Errortype          = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE);
+  TFRE_DB_STR_FILTERTYPE     = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
+  TFRE_DB_NUM_FILTERTYPE     = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
+  TFRE_DB_SchemeType         = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
+  TFRE_DB_COMMANDTYPE        = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
+  TFRE_DB_NotifyObserverType = (fdbntf_INSERT,fdbntf_UPDATE,fdbntf_DELETE,fdbntf_START_UPDATING,fdbntf_ENDUPDATE_APPLY,fdbntf_COLLECTION_RELOAD);
+
 
   EFRE_DB_Exception=class(EFRE_Exception)
     ErrorType : TFRE_DB_Errortype;
@@ -295,7 +297,6 @@ type
     function  GetAsBooleanArray       : TFRE_DB_BoolArray; //
     function  GetAsObjectArray        : IFRE_DB_ObjectArray; //
     function  GetAsObjectLinkArray    : TFRE_DB_ObjLinkArray;//
-    function  GetAsObjectLinkArrayObj : IFRE_DB_ObjectArray;
 
     function  GetAsGUIDList          (idx: Integer): TGUID;
     function  GetAsByteList          (idx: Integer): Byte;
@@ -334,7 +335,6 @@ type
     procedure SetAsStringArray       (const AValue: TFRE_DB_StringArray);
     procedure SetAsBooleanArray      (const AValue: TFRE_DB_BoolArray);
     procedure SetAsObjectLinkArray   (const Avalue: TFRE_DB_ObjLinkArray);
-    procedure SetAsObjectLinkArrayObj(const AValue: IFRE_DB_ObjectArray);
 
     procedure SetAsByteList          (idx: Integer; const AValue: Byte);
     procedure SetAsDateTimeUTCList   (idx: Integer; const AValue: TFRE_DB_DateTime64);
@@ -398,7 +398,7 @@ type
     property  AsStreamArr                   : TFRE_DB_StreamArray   read GetAsStreamArray write SetAsStreamArray; // Stores only reference to stream;
     property  AsObjectArr                   : IFRE_DB_ObjectArray   read GetAsObjectArray write SetAsObjectArray;
     property  AsObjectLinkArray             : TFRE_DB_ObjLinkArray  read GetAsObjectLinkArray write SetAsObjectLinkArray;
-    property  AsObjectLinkArrayObjects      : IFRE_DB_ObjectArray   read GetAsObjectLinkArrayObj write SetAsObjectLinkArrayObj;
+    //property  AsObjectLinkArrayObjects      : IFRE_DB_ObjectArray   read GetAsObjectLinkArrayObj write SetAsObjectLinkArrayObj;
 
     property  AsGUIDItem        [idx:Integer] : TGuid read GetAsGUIDList write SetAsGUIDList;
     property  AsByteItem        [idx:Integer] : Byte  read GetAsByteList write SetAsByteList;
@@ -506,6 +506,8 @@ type
   IFRE_DB_InvokeInstanceMethod = function  (const Input:IFRE_DB_Object):IFRE_DB_Object of object;
   IFRE_DB_WebInstanceMethod    = function  (const Input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object of object;
   IFRE_DB_InvokeClassMethod    = function  (const Input:IFRE_DB_Object):IFRE_DB_Object of object;
+  IFRE_DB_WebClassMethod       = function  (const Input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object of object;
+
   IFRE_DB_CalcMethod           = procedure (const calcfieldsetter : IFRE_DB_CALCFIELD_SETTER) of object;
 
   IFRE_DB_Invoke_WF_Method     = procedure (const WF_Step : IFRE_DB_WORKFLOWSTEP) of object;
@@ -578,6 +580,7 @@ type
 
   IFRE_DB_Object = interface(IFRE_DB_INVOKEABLE)
    ['IFREDBO']
+    procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
     procedure       SetReference                       (const obj : TObject);
     function        GetReference                       : TObject;
     function        GetScheme                          : IFRE_DB_SchemeObject;
@@ -596,6 +599,7 @@ type
     function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
     function        Field                              (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldOnlyExistingObj               (const name:TFRE_DB_String):IFRE_DB_Object;
+    function        FieldOnlyExisting                  (const name:TFRE_DB_String;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_StringArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
@@ -614,20 +618,20 @@ type
     function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String;const without_schemes:boolean=false);
-    function        ReferencesObjects                  : Boolean;
+    //function        ReferencesObjects                  : Boolean;
     function        ReferencesObjectsFromData          : Boolean;
-    function        ReferenceList                      : TFRE_DB_GUIDArray;
-    function        ReferenceListFromData              : TFRE_DB_CountedGuidArray;
-    function        ReferenceListFromDataNocount       : TFRE_DB_GuidArray;
-    function        ReferencesDetailed                 : TFRE_DB_String;
-    function        IsReferenced                       : Boolean;
-    function        ReferencedByList                   : TFRE_DB_GUIDArray;
-    function        ReferencedByList                   (const from_scheme: TFRE_DB_String): TFRE_DB_GUIDArray;
-    function        ReferencedByList                   (const from_schemes: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
+    //function        ReferenceList                      : TFRE_DB_GUIDArray;
+    //function        ReferenceListFromData              : TFRE_DB_CountedGuidArray;
+    //function        ReferenceListFromDataNocount       : TFRE_DB_GuidArray;
+    //function        ReferencesDetailed                 : TFRE_DB_String;
+    //function        IsReferenced                       : Boolean;
+    //function        ReferencedByList                   : TFRE_DB_GUIDArray;
+    //function        ReferencedByList                   (const from_scheme: TFRE_DB_String): TFRE_DB_GUIDArray;
+    //function        ReferencedByList                   (const from_schemes: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
     function        GetFieldListFilter                 (const field_type:TFRE_DB_FIELDTYPE):TFRE_DB_StringArray;
     function        GetUIDPath                         :TFRE_DB_StringArray;
     function        GetUIDPathUA                       :TFRE_DB_GUIDArray;
-    function        GetDBConnection                    :IFRE_DB_Connection;
+    //function        GetDBConnection                    :IFRE_DB_Connection;
     function        Invoke                             (const method:TFRE_DB_String;const input:IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        Mediator                           : TFRE_DB_ObjectEx;
     procedure       Set_ReadOnly                       ;
@@ -652,6 +656,13 @@ type
     procedure SetupText        (const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
   end;
 
+  { IFRE_DB_COLLECTION_OBSERVER }
+
+  IFRE_DB_COLLECTION_OBSERVER = interface
+    procedure ICO_CollectionNotify (const notify_type : TFRE_DB_NotifyObserverType ; const obj : IFRE_DB_Object ; const obj_uid: TGUID);
+    function  ICO_ObserverID       : String;
+  end;
+
 
   IFRE_DB_COLLECTION=interface(IFRE_DB_COMMON)
     [cFOS_IID_COLLECTION]
@@ -673,6 +684,8 @@ type
     procedure       ClearCollection     ;
     procedure       StartBlockUpdating  ;
     procedure       FinishBlockUpdating ;
+    function        AddObserver         (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
+    function        RemoveObserver      (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     //Define a basic index according to fieldtype
     function        DefineIndexOnField  (const FieldName:TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean=true; const ignore_content_case:boolean=true;const index_name:TFRE_DB_NameType='def'):TFRE_DB_Errortype;
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
@@ -738,13 +751,12 @@ type
     //procedure  ApplyToPage                   (const page_info : TFRE_DB_DC_PAGING_INFO;const iterator:IFRE_DB_Obj_Iterator);
     procedure  SetDeriveParent               (const coll:IFRE_DB_COLLECTION;  const idField: String='uid');
     procedure  SetDeriveTransformation       (const tob:IFRE_DB_TRANSFORMOBJECT);
-    procedure  SetVirtualMode                (const StringIndexKey : String='');
 
     //Deliver all Objects which are pointed to by the input "Dependency" object (dependency_object_refers=true),
     //     or all Objects which point to the the input "Dependency" object (dependency_object_refers=false)
     procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : TFRE_DB_String ; const dependency_object_refers : boolean ; const dependency_reference : string = 'uids');
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : TFRE_DB_String ; const dependency_object_refers : boolean ; const negate : boolean ; const dependency_reference : string = 'uids');
-    procedure  AddVirtualChildEntry            (const caption:TFRE_DB_String; const FuncClass: String; const uidPath: TFRE_DB_StringArray; const ChildrenFunc:String='ChildrenData'; const ContentFunc:String='Content';const MenuFunc:String='Menu');
+    //procedure  AddVirtualChildEntry            (const caption:TFRE_DB_String; const FuncClass: String; const uidPath: TFRE_DB_StringArray; const ChildrenFunc:String='ChildrenData'; const ContentFunc:String='Content';const MenuFunc:String='Menu');
     function   Derive                          : TFRE_DB_Errortype;
 
     procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const TreeNodeCaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
@@ -949,10 +961,9 @@ type
 
   IFRE_DB_ROLE = interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBRIGR']
-    function  GetDomain                    : TFRE_DB_NameType;
+    function  GetDomain                    (const conn:IFRE_DB_CONNECTION): TFRE_DB_NameType;
     procedure AddRight                     (const right:IFRE_DB_RIGHT);
     function  GetRightNames                : TFRE_DB_StringArray;
-    property  Domain                       : TFRE_DB_NameType read GetDomain;
   end;
 
   { IFRE_DB_USER }
@@ -962,21 +973,18 @@ type
     function  GetFirstName: TFRE_DB_String;
     function  GetLastName: TFRE_DB_String;
     function  GetLogin: TFRE_DB_String;
-    function  GetDomain: TFRE_DB_NameType;
-    function  GetUGA: TFRE_DB_StringArray;
+    function  GetDomain      (const conn:IFRE_DB_CONNECTION): TFRE_DB_NameType;
+    function  GetUserGroupIDS: TFRE_DB_ObjLinkArray;
+
     procedure SetFirstName(const AValue: TFRE_DB_String);
     procedure SetLastName(const AValue: TFRE_DB_String);
     procedure Setlogin(const AValue: TFRE_DB_String);
 
-    procedure InitData           (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String);
     property  Login              :TFRE_DB_String read GetLogin write Setlogin;
     property  Firstname          :TFRE_DB_String read GetFirstName write SetFirstName;
     property  Lastname           :TFRE_DB_String read GetLastName write SetLastName;
-    property  UserGroupNames     :TFRE_DB_StringArray read GetUGA;
     procedure SetPassword        (const pw:TFRE_DB_String);
     function  Checkpassword      (const pw:TFRE_DB_String):boolean;
-    function  GetRightsArray     : TFRE_DB_StringArray;
-    property  Domain             : TFRE_DB_NameType read GetDomain;
   end;
 
 
@@ -987,12 +995,7 @@ type
 
   IFRE_DB_GROUP=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBUSERGRP']
-    function  GetRoleNames                 : TFRE_DB_StringArray;
-    function  GetDomain                    : TFRE_DB_NameType;
-    function  AddUserToGroup               (const user :IFRE_DB_USER):TFRE_DB_Errortype;
-    function  RemoveUserFromGroup          (const user :IFRE_DB_USER):TFRE_DB_Errortype;
-    property  RoleNames                    : TFRE_DB_StringArray read GetRoleNames;
-    property  Domain                       : TFRE_DB_NameType read GetDomain;
+    function  GetDomain                    (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
   end;
 
 
@@ -1004,19 +1007,17 @@ type
     function  getHelpText     :IFRE_DB_TEXT;
     function  getAllowedChars :TFRE_DB_String;
     function  Setup           (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const helpText: IFRE_DB_TEXT=nil; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
-    //procedure setConfigParams (const params:IFRE_DB_Object);
-    //function  getConfigParams :IFRE_DB_Object;
   end;
 
   IFRE_DB_InputGroupSchemeDefinition = interface;
 
   { IFRE_DB_SCHEMEOBJECT }
 
-  IFRE_DB_SCHEMEOBJECT=interface(IFRE_DB_COMMON)
+  IFRE_DB_SCHEMEOBJECT=interface
    ['IFDBSO']
+    function  Implementor                 :TObject;
     function  GetExplanation              :TFRE_DB_String;
     procedure SetExplanation              (AValue: TFRE_DB_String);
-    function  Implementor                 : TObject;
     function  GetAll_IMI_Methods          :TFRE_DB_StringArray;
     function  MethodExists                (const name:TFRE_DB_String):boolean;
     function  AddSchemeField              (const newfieldname :TFRE_DB_NameType ; const newfieldtype:TFRE_DB_FIELDTYPE ):IFRE_DB_FieldSchemeDefinition;
@@ -1075,24 +1076,11 @@ type
   IFRE_DB_CONNECTION=interface(IFRE_DB_BASE)
   ['IFDB_CONN']
     function    GetDatabaseName           : TFRE_DB_String;
-    procedure   AssociateObject           (const Obj:IFRE_DB_Object);
     function    Connect                   (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CollectionExists          (const name:TFRE_DB_NameType):boolean;
     function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
-    //function    GetScheme                 (const scheme_name: TFRE_DB_NameType; var scheme: IFRE_DB_SchemeObject): boolean ; deprecated
-    //function    NewScheme                 (const Scheme_Name: TFRE_DB_String;const parent_scheme_name:TFRE_DB_String='') : IFRE_DB_SchemeObject;
-    //function    StoreScheme               (var   obj: IFRE_DB_SchemeObject)  : TFRE_DB_Errortype;
-    //function    UpdateScheme              (const scheme : IFRE_DB_SCHEMEOBJECT)               : TFRE_DB_Errortype;
-    //function    RemoveSchemeByName           (const scheme_name:TFRE_DB_String)                                               : boolean;
-    //function    SchemeExists              (const scheme_name: TFRE_DB_String): boolean;
-    //function    GetSchemeCollection       :IFRE_DB_SCHEME_COLLECTION;
-
-    //function    GetClientFieldValidator   (const val_name   :TFRE_DB_String;out validator:IFRE_DB_ClientFieldValidator) : boolean;
-    //function    GetEnum                   (const enum_name  :TFRE_DB_String;out enum:IFRE_DB_Enum)                      : boolean;
-
-    function    NewObject                 (const Scheme:TFRE_DB_String=''): IFRE_DB_Object;
     function    Delete                    (const ouid: TGUID): TFRE_DB_Errortype;
 
     function    Fetch                     (const ouid:TGUID;out dbo:IFRE_DB_Object)         : boolean;
@@ -1103,8 +1091,6 @@ type
     function    Collection                (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
     function    CollectionAsIntf          (const collection_name: TFRE_DB_NameType;const CollectionInterfaceSpec:ShortString;out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean; // creates/fetches a Specific Collection / true if new
     function    DerivedCollection         (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
-
-    procedure   NewObjectAsIntf           (const ObjectInterfaceSpec : ShortString ; out Intf); // creates a new DBO as Interface
 
     //procedure   ForAllObjects                (const iterator:IFRE_DB_Obj_Iterator)                                    ;
     procedure   ForAllColls                  (const iterator:IFRE_DB_Coll_Iterator)                                   ;
@@ -1119,6 +1105,11 @@ type
     function    FetchWorkFlowScheme          (const WF_SchemeName:TFRE_DB_NameType;var WFS:IFRE_DB_WORKFLOW):Boolean;
     function    WorkFlowSchemeExists         (const WF_SchemeName:TFRE_DB_NameType):boolean;
     procedure   ForAllWorkFlowSchemes        (const iterator:IFRE_DB_Workflow_Iterator);
+
+    function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String ; const stop_on_first : boolean=false) : NativeInt;
+    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ObjectsRefers : Boolean ; ref_constraints : TFRE_DB_StringArray ;  var expanded_refs : TFRE_DB_GUIDArray);
+    function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String) : TFRE_DB_GUIDArray;
+
 
     function    StartNewWorkFlow             (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String):UInt64;
     function    StartNewWorkFlowRecurring    (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String;const sec_interval:integer):UInt64;
@@ -1165,17 +1156,9 @@ type
     function    AdmGetGroupCollection       :IFRE_DB_COLLECTION;
     function    AdmGetDomainCollection      :IFRE_DB_COLLECTION;
 
-
-    //function    DatabaseList                : IFOS_STRINGS;
-    //function    DatabaseExists              (const dbname:TFRE_DB_String):Boolean;
-    //function    CreateDatabase              (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-    //function    DeleteDatabase              (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-    //function    BackupDatabaseReadable      (const to_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;
-    //function    RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;
     function    FetchUserSessionData        (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData        (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
     function    OverviewDump                :TFRE_DB_String;
-    //procedure   DrawScheme                  (const datastream:TStream);
   end;
 
 
@@ -1234,6 +1217,12 @@ type
     function    RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;
     function    OverviewDump                :TFRE_DB_String;
     procedure   DumpSystem                  ;
+
+    function    GetRoleIDArray               (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_GUIDArray;
+    function    GetRightsArrayForRoles       (const roleids      : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
+    function    GetRightsArrayForGroups      (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
+    function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
+
     //procedure   DrawScheme                  (const datastream:TStream);
   end;
 
@@ -1301,7 +1290,7 @@ type
     class function   Get_DBI_InstanceMethods                                            : TFRE_DB_StringArray;
     class function   Get_DBI_ClassMethods                                               : TFRE_DB_StringArray;
     class function   ClassMethodExists   (const name:Shortstring)                       : Boolean; // new
-    class function   Invoke_DBIMC_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object) : IFRE_DB_Object;
+    class function   Invoke_DBIMC_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object;const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION) : IFRE_DB_Object;
     function         Invoke_DBIMI_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object;const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION) : IFRE_DB_Object;
     function         Fetch_DBIMI_Method  (const name:TFRE_DB_String)                            : IFRE_DB_InvokeInstanceMethod;
     function         IMI_MethodExists    (const name:TFRE_DB_String)                            : boolean;
@@ -1334,11 +1323,11 @@ type
     function       Debug_ID            : TFRE_DB_String ;override;
     procedure      InternalSetup       ; virtual;
     procedure      InternalFinalize    ; virtual;
+    procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
   public
     class procedure RegisterSystemScheme               (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     function       Invoke                              (const method:TFRE_DB_String;const input:IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
     constructor    create                              ;
-    constructor    CreateConnected                     (const conn:IFRE_DB_CONNECTION);
     constructor    CreateBound                         (const dbo:IFRE_DB_Object);
     destructor     Destroy                             ;override;
 
@@ -1352,6 +1341,7 @@ type
     function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
     function        Field                              (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldOnlyExistingObj               (const name:TFRE_DB_String):IFRE_DB_Object;
+    function        FieldOnlyExisting                  (const name:TFRE_DB_String;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_StringArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
@@ -1370,16 +1360,7 @@ type
     function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String;const without_schemes:boolean=false);
-    function        ReferencesObjects                  : Boolean;
     function        ReferencesObjectsFromData          : Boolean;
-    function        ReferenceList                      : TFRE_DB_GUIDArray;
-    function        ReferenceListFromData              : TFRE_DB_CountedGuidArray;
-    function        ReferenceListFromDataNocount       : TFRE_DB_GuidArray;
-    function        ReferencesDetailed                 : TFRE_DB_String;
-    function        IsReferenced                       : Boolean;
-    function        ReferencedByList                   : TFRE_DB_GUIDArray;
-    function        ReferencedByList                   (const from_scheme: TFRE_DB_String): TFRE_DB_GUIDArray;
-    function        ReferencedByList                   (const scheme: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
     function        GetFieldListFilter                 (const field_type:TFRE_DB_FIELDTYPE):TFRE_DB_StringArray;
     function        GetUIDPath                         :TFRE_DB_StringArray;
     function        GetUIDPathUA                       :TFRE_DB_GUIDArray;
@@ -1389,7 +1370,6 @@ type
     function        Supports                           (const InterfaceSpec:ShortString)            : boolean;
     procedure       IntfCast                           (const InterfaceSpec:ShortString ; out Intf) ; // IntfCast throws an Exception if not succesful
     function        IntfCast                           (const InterfaceSpec:ShortString) : Pointer  ; // IntfCast throws an Exception if not succesful
-    function        GetDBConnection                    : IFRE_DB_CONNECTION;
     function        GetScheme                          : IFRE_DB_SchemeObject;
     procedure       Finalize                           ;
     function        GetAsJSON                          (const without_uid: boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
@@ -1399,16 +1379,17 @@ type
     function        NeededSize                         : TFRE_DB_SIZE_TYPE;
     procedure       Set_ReadOnly                       ;
     procedure       CopyField                          (const obj:IFRE_DB_Object;const field_name:String);
-    class function  NewOperation                       (const input:IFRE_DB_Object):TGUID;
+    class function  NewOperation                       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): TGUID;
+    constructor     CreateForDB                        ;
 
   published
-    function        IMI_SaveOperation                  (const input:IFRE_DB_Object):IFRE_DB_Object;virtual;
-    function        IMI_DeleteOperation                (const input:IFRE_DB_Object):IFRE_DB_Object;virtual;
-    class function  IMC_NewOperation                   (const input:IFRE_DB_Object):IFRE_DB_Object;virtual;
-    function        IMI_NoteLoad                       (const input:IFRE_DB_Object):IFRE_DB_Object;virtual;
-    function        IMI_NoteSave                       (const input:IFRE_DB_Object):IFRE_DB_Object;virtual;
-    function        IMI_NoteStartEdit                  (const input:IFRE_DB_Object):IFRE_DB_Object;virtual;
-    function        IMI_NoteStopEdit                   (const input:IFRE_DB_Object):IFRE_DB_Object;virtual;
+    function        WEB_SaveOperation                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
+    function        WEB_DeleteOperation                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
+    class function  WBC_NewOperation                   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
+    function        WEB_NoteLoad                       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
+    function        WEB_NoteSave                       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
+    function        WEB_NoteStartEdit                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
+    function        WEB_NoteStopEdit                   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
     //Interface - Compatibility Block End
   end;
 
@@ -1678,10 +1659,14 @@ type
 
     function    NewObjectIntf          (const InterfaceSpec:ShortString;out Intf;const mediator : TFRE_DB_ObjectEx=nil;const fail_on_non_existent:boolean=true) : Boolean;
     function    NewObject              : IFRE_DB_Object;
+    function    NewNamedObject         : IFRE_DB_NAMED_OBJECT;
     function    NewObjectScheme        (const Scheme : TClass): IFRE_DB_Object;
-    function    CreateFromFile         (const filename:TFRE_DB_String ; const conn:IFRE_DB_CONNECTION=nil; const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
-    function    CreateFromMemory       (memory : Pointer      ; const conn:IFRE_DB_CONNECTION=nil; const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
-    function    CreateFromString       (const AValue:TFRE_DB_String   ; const conn:IFRE_DB_CONNECTION=nil; const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
+    function    NewObjectSchemeByName  (const Scheme : TFRE_DB_NameType): IFRE_DB_Object;
+
+
+    function    CreateFromFile         (const filename:TFRE_DB_String ;  const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
+    function    CreateFromMemory       (memory : Pointer      ;  const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
+    function    CreateFromString       (const AValue:TFRE_DB_String   ;  const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
 
     function    NewConnection          (const direct : boolean = true): IFRE_DB_CONNECTION;
     function    NewSysOnlyConnection   : IFRE_DB_SYS_CONNECTION; // always direct=embedded
@@ -3301,44 +3286,40 @@ begin
   result := MethodAddress('IMC_'+name)<> nil;
 end;
 
-class function TFRE_DB_Base.Invoke_DBIMC_Method(const name: TFRE_DB_String; const input: IFRE_DB_Object): IFRE_DB_Object;
-var M :IFRE_DB_InvokeClassMethod;
-    MM:TMethod;
+class function TFRE_DB_Base.Invoke_DBIMC_Method(const name: TFRE_DB_String; const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var M  :IFRE_DB_InvokeClassMethod;
+    MM :TMethod;
+    WM :IFRE_DB_WebClassMethod;
 begin
-   MM.Code := MethodAddress('IMC_'+name);
+   result := nil;
+   MM.Code := MethodAddress('WBC_'+name);
    MM.Data := self;
-   M := IFRE_DB_InvokeClassMethod(MM);
-   if assigned(mm.Code) then begin
-     try
-       result := m(input);
-     except on e:exception do begin
-       raise EFRE_DB_Exception.Create(edb_ERROR,'CLASS METHOD INVOCATION %s.%s failed (%s)',[Classname,name,e.Message]);
-     end;end;
-   end else begin
-      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'CLASS INVOCATION %s.%s failed (method not found)',[Classname,name]);
-   end;
+   if assigned(MM.Code) then
+     begin
+       WM := IFRE_DB_WebClassMethod(mm);
+       try
+         result := wm(input,ses,app,conn);
+       except on e:exception do begin
+         raise EFRE_DB_Exception.Create(edb_ERROR,'CLASS METHOD INVOCATION %s.%s failed (%s)',[Classname,name,e.Message]);
+       end;end;
+     end
+   else
+     begin
+       MM.Code := MethodAddress('IMC_'+name);
+       MM.Data := self;
+       M := IFRE_DB_InvokeClassMethod(MM);
+       if assigned(mm.Code) then begin
+         try
+           result := m(input);
+         except on e:exception do begin
+           raise EFRE_DB_Exception.Create(edb_ERROR,'CLASS METHOD INVOCATION %s.%s failed (%s)',[Classname,name,e.Message]);
+         end;end;
+       end else begin
+          raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'CLASS INVOCATION %s.%s failed (method not found)',[Classname,name]);
+       end;
+     end;
 end;
 
-//class function TFRE_DB_Base.Invoke_DBIMC_Method(const name: TFRE_DB_String; const input: TFRE_DB_Object): TFRE_DB_Object;
-//var M:TFRE_DB_InvokeInstanceMethod;
-//    MM:TMethod;
-//    cn:TFRE_DB_String;
-//begin
-//   cn := self.ClassName;
-//   Get_DBI_ClassMethods;
-//   MM.Code := MethodAddress('IMC_'+name);
-//   MM.Data := self;
-//   M := TFRE_DB_InvokeInstanceMethod(MM);
-//   if assigned(mm.Code) then begin
-//     try
-//       result := m(input);
-//     except on e:exception do begin
-//       raise EFRE_DB_Exception.Create(edb_ERROR,'CLASS METHOD INVOCATION %s.%s () failed (%s)',[Classname,name,GFRE_BT.GUID_2_HexString(TFRE_DB_Object(self).UID),e.Message]);
-//     end;end;
-//   end else begin
-//      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'CLASS METHOD INVOCATION %s.%s () failed (not found)',[Classname,name]);
-//   end;
-//end;
 
 function TFRE_DB_Base.Invoke_DBIMI_Method(const name: TFRE_DB_String; const input: IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var M  : IFRE_DB_InvokeInstanceMethod;
@@ -3510,6 +3491,11 @@ begin
 
 end;
 
+procedure TFRE_DB_ObjectEx._InternalSetMediatorScheme(const mediator: TFRE_DB_ObjectEx; const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  raise EFRE_DB_Exception.Create(edb_ERROR,'dont call this');
+end;
+
 class procedure TFRE_DB_ObjectEx.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
@@ -3544,13 +3530,6 @@ begin
   FBound       := false;
   if not GFRE_DBI.NewObjectIntf(IFRE_DB_NAMED_OBJECT,FNamedObject,self) then abort;
   FNamedObject.Supports(IFRE_DB_OBJECT,FImplementor);
-  InternalSetup;
-end;
-
-constructor TFRE_DB_ObjectEx.CreateConnected(const conn: IFRE_DB_CONNECTION);
-begin
-  create;
-  Conn.AssociateObject(self);
   InternalSetup;
 end;
 
@@ -3614,6 +3593,11 @@ end;
 function TFRE_DB_ObjectEx.FieldOnlyExistingObj(const name: TFRE_DB_String): IFRE_DB_Object;
 begin
   result := FImplementor.FieldOnlyExistingObj(name);
+end;
+
+function TFRE_DB_ObjectEx.FieldOnlyExisting(const name: TFRE_DB_String; var fld: IFRE_DB_FIELD): boolean;
+begin
+  result := FImplementor.FieldOnlyExisting(name,fld);
 end;
 
 function TFRE_DB_ObjectEx.FieldPath(const name: TFRE_DB_String; const dont_raise_ex: boolean): IFRE_DB_FIELD;
@@ -3707,55 +3691,55 @@ begin
   FImplementor.SaveToFile(filename,without_schemes);
 end;
 
-function TFRE_DB_ObjectEx.ReferencesObjects: Boolean;
-begin
-  result := FImplementor.ReferencesObjects;
-end;
+//function TFRE_DB_ObjectEx.ReferencesObjects: Boolean;
+//begin
+//  result := FImplementor.ReferencesObjects;
+//end;
 
 function TFRE_DB_ObjectEx.ReferencesObjectsFromData: Boolean;
 begin
   result := FImplementor.ReferencesObjectsFromData;
 end;
 
-function TFRE_DB_ObjectEx.ReferenceList: TFRE_DB_GUIDArray;
-begin
-  result := FImplementor.ReferenceList;
-end;
+//function TFRE_DB_ObjectEx.ReferenceList: TFRE_DB_GUIDArray;
+//begin
+//  result := FImplementor.ReferenceList;
+//end;
+//
+//function TFRE_DB_ObjectEx.ReferenceListFromData: TFRE_DB_CountedGuidArray;
+//begin
+//  result := FImplementor.ReferenceListFromData;
+//end;
+//
+//function TFRE_DB_ObjectEx.ReferenceListFromDataNocount: TFRE_DB_GuidArray;
+//begin
+//  result := FImplementor.ReferenceListFromDataNocount;
+//end;
 
-function TFRE_DB_ObjectEx.ReferenceListFromData: TFRE_DB_CountedGuidArray;
-begin
-  result := FImplementor.ReferenceListFromData;
-end;
+//function TFRE_DB_ObjectEx.ReferencesDetailed: TFRE_DB_String;
+//begin
+//  result := FImplementor.ReferencesDetailed;
+//end;
 
-function TFRE_DB_ObjectEx.ReferenceListFromDataNocount: TFRE_DB_GuidArray;
-begin
-  result := FImplementor.ReferenceListFromDataNocount;
-end;
+//function TFRE_DB_ObjectEx.IsReferenced: Boolean;
+//begin
+//  result := FImplementor.IsReferenced;
+//end;
 
-function TFRE_DB_ObjectEx.ReferencesDetailed: TFRE_DB_String;
-begin
-  result := FImplementor.ReferencesDetailed;
-end;
-
-function TFRE_DB_ObjectEx.IsReferenced: Boolean;
-begin
-  result := FImplementor.IsReferenced;
-end;
-
-function TFRE_DB_ObjectEx.ReferencedByList: TFRE_DB_GUIDArray;
-begin
-  result := FImplementor.ReferencedByList;
-end;
-
-function TFRE_DB_ObjectEx.ReferencedByList(const from_scheme: TFRE_DB_String): TFRE_DB_GUIDArray;
-begin
-  result := FImplementor.ReferencedByList(from_scheme);
-end;
-
-function TFRE_DB_ObjectEx.ReferencedByList(const scheme: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
-begin
-  result := FImplementor.ReferencedByList(scheme);
-end;
+//function TFRE_DB_ObjectEx.ReferencedByList: TFRE_DB_GUIDArray;
+//begin
+//  result := FImplementor.ReferencedByList;
+//end;
+//
+//function TFRE_DB_ObjectEx.ReferencedByList(const from_scheme: TFRE_DB_String): TFRE_DB_GUIDArray;
+//begin
+//  result := FImplementor.ReferencedByList(from_scheme);
+//end;
+//
+//function TFRE_DB_ObjectEx.ReferencedByList(const scheme: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
+//begin
+//  result := FImplementor.ReferencedByList(scheme);
+//end;
 
 function TFRE_DB_ObjectEx.GetFieldListFilter(const field_type: TFRE_DB_FIELDTYPE): TFRE_DB_StringArray;
 begin
@@ -3802,10 +3786,10 @@ begin
   IntfCast(InterfaceSpec,result);
 end;
 
-function TFRE_DB_ObjectEx.GetDBConnection: IFRE_DB_CONNECTION;
-begin
-  result := FImplementor.GetDBConnection;
-end;
+//function TFRE_DB_ObjectEx.GetDBConnection: IFRE_DB_CONNECTION;
+//begin
+//  result := FImplementor.GetDBConnection;
+//end;
 
 function TFRE_DB_ObjectEx.GetScheme: IFRE_DB_SchemeObject;
 begin
@@ -3854,7 +3838,7 @@ begin
 end;
 
 
-class function TFRE_DB_ObjectEx.NewOperation(const input: IFRE_DB_Object): TGUID;
+class function TFRE_DB_ObjectEx.NewOperation(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): TGUID;
 var dbo              : IFRE_DB_Object;
     data             : IFRE_DB_Object;
     lSchemeclass     : TFRE_DB_String;
@@ -3875,7 +3859,7 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'the collection [%s] is unknown and the implicit creation of collection is not allowed on new!',[lCollectionName]);
   end;
   if not GFRE_DBI.GetSystemSchemeByName(lSchemeclass,lSchemeObject) then raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme [%s] is unknown!',[lSchemeclass]);
-  dbo              := dbc.NewObject(lSchemeclass);
+  dbo              := GFRE_DBI.NewObjectSchemeByName(lSchemeclass);
   lSchemeObject.SetObjectFieldsWithScheme(data,dbo,true,dbc);
   dbo_uid       := dbo.UID;
   if lCollectionName='' then begin
@@ -3886,37 +3870,74 @@ begin
   result := dbo_uid;
 end;
 
+constructor TFRE_DB_ObjectEx.CreateForDB;
+var scheme   : IFRE_DB_SCHEMEOBJECT;
+    bounddbo : IFRE_DB_Object;
+begin
+  //First find Scheme
+  if not GFRE_DBI.GetSystemScheme(ClassType,scheme) then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the hardcodeclass [%s] was not found in schemes, maybe not registered ?',[ClassName]);
+  if Scheme.IsA('TFRE_DB_NAMED_OBJECT') then
+    begin
+      bounddbo := GFRE_DBI.NewNamedObject;
+    end
+  else
+    begin
+      bounddbo := GFRE_DBI.NewObject;
+    end;
+  bounddbo._InternalSetMediatorScheme(self,scheme);
+  FBound := true;
+  FBound       := true;
+  FImplementor := bounddbo;
+  FImplementor.Supports(IFRE_DB_NAMED_OBJECT,FNamedObject);
+  InternalSetup;
+  //var ex_class : TFRE_DB_ObjectEx;
+  //    dbo      : TFRE_DB_Object;
+  //    name     : TFRE_DB_String;
+  //begin
+  // if FHasHardcodeClass then begin
+  //   assert(assigned(FHardCodeClassTyp));
+  //   name := FHardCodeClassTyp.ClassName;
+  //   if FHardCodeClassTyp.InheritsFrom(TFRE_DB_OBJECTEX) then begin
+  //     if IsA('TFRE_DB_NAMED_OBJECT') then begin
+  //       dbo                    := GFRE_DB.NewNamedObject;
+  //     end else begin
+  //       dbo                    := GFRE_DB.NewObject;
+  //     end;
+  //     ex_class               := TFRE_DB_OBJECTCLASSEX(FHardCodeClassTyp).CreateBound(dbo);
+  //     dbo.FMediatorExtention := ex_class;
+  //     result                 := dbo;
+  //   end else begin
+  //     if FHardCodeClassTyp.InheritsFrom(TFRE_DB_Object) then begin
+  //       result := TFRE_DB_OBJECTCLASS(FHardCodeClassTyp).Create as TFRE_DB_Object;
+  //     end else abort; // Check this out
+  //   end;
+  // end else begin
+  //   result := GFRE_DB.NewObject;
+  // end;
+  // result.SetScheme(self);
+end;
 
-function TFRE_DB_ObjectEx.IMI_SaveOperation(const input: IFRE_DB_Object): IFRE_DB_Object;
+
+function TFRE_DB_ObjectEx.WEB_SaveOperation(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var scheme            : IFRE_DB_SCHEMEOBJECT;
     update_object_uid : TGUid;
     raw_object        : IFRE_DB_Object;
-    dbc               : IFRE_DB_CONNECTION;
 begin
   if Not IsObjectRoot then begin
     result := TFRE_DB_MESSAGE_DESC(result).Describe('SAVE','Error on saving! Saving of Subobject not supported!',fdbmt_error);
     exit;
   end;
-  dbc := GetDBConnection;
-  //writeln('::::::::::::: UPDATEING');
-  //writeln(DumpToString);
-  //writeln(':::::::::::::');
   result            := nil;
   scheme            := GetScheme;
   update_object_uid := UID;
   raw_object        := input.Field('data').AsObject;
-
-  scheme.SetObjectFieldsWithScheme(raw_object,self,false,GetDBConnection);
-  //writeln(':::::::::::::');
-  //writeln('UPDATED');
-  //writeln(':::::::::::::');
-  //writeln(obj.DumpToString);
-  //writeln(':::::::::::::');
-  CheckDbResult(dbc.Update(self),'failure on update');  // This instance is freed by now, so rely on the stackframe only (self) pointer is garbage(!!)
+  scheme.SetObjectFieldsWithScheme(raw_object,self,false,conn);
+  CheckDbResult(conn.Update(self),'failure on update');  // This instance is freed by now, so rely on the stackframe only (self) pointer is garbage(!!)
   result := GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_ObjectEx.IMI_DeleteOperation(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_ObjectEx.WEB_DeleteOperation(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var db_res       : TFRE_DB_Errortype;
 begin
     case input.Field('confirmed').AsString of
@@ -3924,7 +3945,7 @@ begin
                 if not IsObjectRoot then begin
                   result := TFRE_DB_MESSAGE_DESC.Create.Describe('DELETE','Error on deleting! Deleting of Subobject not supported!',fdbmt_error);
                 end;
-                db_res := GetDBConnection.Delete(UID);
+                db_res := conn.Delete(UID);
                 if db_res=edb_OK then begin
                   result := GFRE_DB_NIL_DESC;
                 end else begin
@@ -3935,16 +3956,15 @@ begin
                  result:=GFRE_DB_NIL_DESC;
                end;
       '': begin
-            result := TFRE_DB_MESSAGE_DESC.create.Describe('Delete','Are you sure?',fdbmt_confirm,CSF(@self.IMI_DeleteOperation));
+            result := TFRE_DB_MESSAGE_DESC.create.Describe('Delete','Are you sure?',fdbmt_confirm,CWSF(@self.WEB_DeleteOperation));
           end;
     end;
 end;
 
-class function TFRE_DB_ObjectEx.IMC_NewOperation(const input: IFRE_DB_Object): IFRE_DB_Object;
+class function TFRE_DB_ObjectEx.WBC_NewOperation(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  //writeln(input.DumpToString());
   try
-    NewOperation(input);
+    NewOperation(input,ses,app,conn);
     result  := TFRE_DB_CLOSE_DIALOG_DESC.Create.Describe();
   except
    on E:Exception do begin
@@ -3953,12 +3973,9 @@ begin
   end;
 end;
 
-function TFRE_DB_ObjectEx.IMI_NoteLoad(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  conn   : IFRE_DB_CONNECTION;
-  noteobj: IFRE_DB_Object;
+function TFRE_DB_ObjectEx.WEB_NoteLoad(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var noteobj: IFRE_DB_Object;
 begin
-  conn := GetSession(input).GetDBConnection;
   if input.FieldExists('linkid') then begin
     if conn.Collection('note').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(noteobj.Field('note').asstring));
@@ -3970,13 +3987,11 @@ begin
   end;
 end;
 
-function TFRE_DB_ObjectEx.IMI_NoteSave(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_ObjectEx.WEB_NoteSave(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  conn   : IFRE_DB_CONNECTION;
   noteobj: IFRE_DB_Object;
   res    : TFRE_DB_Errortype;
 begin
-  conn := GetSession(input).GetDBConnection;
   if input.FieldExists('linkid') then begin
     if conn.Collection('note').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       noteobj.Field('note').asstring := input.Field('content').asstring;
@@ -3984,7 +3999,7 @@ begin
       if res<>edb_OK then
         raise EFRE_DB_Exception.Create(res,'error updating note');
     end else begin
-      noteobj := conn.NewObject(TFRE_DB_NOTE.ClassName);
+      noteobj := GFRE_DBI.NewObjectScheme(TFRE_DB_NOTE);
       noteobj.Field('link').asstring:=input.Field('linkid').asstring;
       noteobj.Field('note').asstring  := input.Field('content').asstring;
       res := conn.Collection('note').Store(noteobj);
@@ -3995,12 +4010,12 @@ begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_ObjectEx.IMI_NoteStartEdit(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_ObjectEx.WEB_NoteStartEdit(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_ObjectEx.IMI_NoteStopEdit(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_ObjectEx.WEB_NoteStopEdit(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;

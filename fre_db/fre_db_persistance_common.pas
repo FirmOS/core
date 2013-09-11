@@ -664,7 +664,7 @@ var i         : NativeInt;
           ws.ReadBuffer(lMem^,size);
           TFRE_DB_FIELD.__ReadHeader(lMem,fieldname);
           field := TFRE_DB_FIELD.Create(nil,fdbft_NotFound,fieldname);
-          field.CopyFieldFromMem(lMem,nil,false,false);
+          field.CopyFieldFromMem(lMem,false,false);
         finally
           if size>=cG_Tuneable_LocalStackBuffer then
             Freemem(lMem);
@@ -2027,7 +2027,6 @@ begin
      if result then
        begin
          obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;
-         obj.__InternalClearManageInfo;
          //if Length(obj.__InternalGetCollectionList)<1 then
          //  begin
          //    writeln('OBJ FCUKED UP');
@@ -2053,7 +2052,6 @@ begin
            obj.Set_Store_Locked(true);
          end;
          obj := clobj;
-         obj.__InternalClearManageInfo;
        end;
 end;
 
@@ -2857,8 +2855,10 @@ function TFRE_DB_Persistance_Collection.First: TFRE_DB_Object;
     result := TFRE_DB_Object(value);
   end;
 begin
-  abort;
-  FGuidObjStore.FirstKeyVal(@SetIt);
+ result := nil;
+ FGuidObjStore.FirstKeyVal(@SetIt);
+ if assigned(result) then
+   result := CloneOutObject(result);
 end;
 
 function TFRE_DB_Persistance_Collection.Last: TFRE_DB_Object;
@@ -2867,8 +2867,10 @@ function TFRE_DB_Persistance_Collection.Last: TFRE_DB_Object;
     result := TFRE_DB_Object(value);
   end;
 begin
-  abort;
+  result := nil;
   FGuidObjStore.LastKeyVal(@SetIt);
+ if assigned(result) then
+   result := CloneOutObject(result);
 end;
 
 function TFRE_DB_Persistance_Collection.GetItem(const num: uint64): TFRE_DB_Object;
