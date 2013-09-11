@@ -556,7 +556,7 @@ implementation
                              jsContentAdd('", depGroup: \"["+');
                              preFix:='';
                              for i := 0 to co.Field('dependentInputFields').ValueCount - 1 do begin
-                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\", value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\"}"+');
+                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\", value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\", ignoreHidden: '+ BoolToStr(co.Field('dependentInputFields').AsObjectArr[i].Field('ignoreHidden').AsBoolean,'true','false') +'}"+');
                                preFix:=',';
                              end;
                              jsContentAdd('"]\""+');
@@ -581,7 +581,7 @@ implementation
     addGroupId    : String;
   begin
     if elem is TFRE_DB_INPUT_BLOCK_DESC then begin
-      jsContentAdd('"<tr id='''+elem.Field('id').AsString+'''><td colspan=2>"+');
+      jsContentAdd('"<tr id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
       for i := 0 to elem.Field('elements').ValueCount - 1 do begin
         jsContentAdd('"<div style=''width:'+FloatToStrF(Trunc(elem.Field('elements').AsObjectItem[i].Field('relSize').AsInt16 / elem.Field('sizeSum').AsInt16 * 10000) / 100,ffFixed,3,2)+'%; float:left;''><table class=''firmosFormTable'' style=''width:100%''>"+');
         _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields);
@@ -592,7 +592,7 @@ implementation
       if elem is TFRE_DB_INPUT_GROUP_DESC then begin
         //elem.FieldExists('loadFunc')
         if elem.Field('collapsible').AsBoolean then begin
-          jsContentAdd('"<tr class=''firmosFormGroupHeaderCollapsible''><td colspan=2 onclick=''G_UI_COM.toggleFormGroupStatus(\"'+formName+'\",\"'+elem.UID_String+'\");''>"+');
+          jsContentAdd('"<tr class=''firmosFormGroupHeaderCollapsible'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2 onclick=''G_UI_COM.toggleFormGroupStatus(\"'+formName+'\",\"'+elem.UID_String+'\");''>"+');
           if groupId<>'' then addGroupId:=' ';
           addGroupId:=addGroupId + elem.UID_String;
           if elem.Field('collapsed').AsBoolean then begin
@@ -606,7 +606,7 @@ implementation
           jsContentAdd('"</td></tr>"+');
         end else begin
           if elem.Field('caption').AsString<>'' then begin
-            jsContentAdd('"<tr class=''firmosFormGroupHeader''><td colspan=2>"+');
+            jsContentAdd('"<tr class=''firmosFormGroupHeader'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
             jsContentAdd('"<div class=''firmosFormGroupHeaderElement''>'+elem.Field('caption').AsString+'</div>"+');
             jsContentAdd('"</td></tr>"+');
           end;
@@ -625,9 +625,9 @@ implementation
             labelclass:='firmosFormLabel';
           end;
           if groupId<>'' then begin
-            jsContentAdd('"<tr firmosGroup='''+groupId+''' '+BoolToStr(hidden,' style=''display:none;''','')+'>"+');
+            jsContentAdd('"<tr firmosGroup='''+groupId+''' '+BoolToStr(hidden,' style=''display:none;''','')+' id='''+elem.Field('id').AsString+'_tr''>"+');
           end else begin
-            jsContentAdd('"<tr>"+');
+            jsContentAdd('"<tr id='''+elem.Field('id').AsString+'_tr''>"+');
           end;
           if elem.Field('caption').AsString<>'' then begin
             if elem.ClassName='TFRE_DB_INPUT_FILE_DESC' then begin

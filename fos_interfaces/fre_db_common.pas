@@ -306,10 +306,14 @@ type
   end;
 
   TFRE_DB_INPUT_BLOCK_DESC       = class;
+  TFRE_DB_INPUT_GROUP_DESC       = class;
+  TFRE_DB_INPUT_GROUP_PROXY_DESC = class;
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
   TFRE_DB_INPUT_CHOOSER_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
+  private
+    procedure _addDependentInput    (const elem: TFRE_DB_CONTENT_DESC; const chooserValue: String; const ignoreHidden: Boolean);
   public
     //@ Describes a chooser within a form.
     //@ FIXXME: display type dh_chooser_check not implemented yet.
@@ -319,7 +323,9 @@ type
     //@ FIXXME: not implemented yet.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
     //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
-    procedure addDependentInputBlock(const inputBlock: TFRE_DB_INPUT_BLOCK_DESC; const chooserValue: String);
+    procedure addDependentInput     (const inputBlock: TFRE_DB_INPUT_BLOCK_DESC; const chooserValue: String; const ignoreHidden: Boolean=true);
+    procedure addDependentInput     (const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const chooserValue: String; const ignoreHidden: Boolean=true);
+    procedure addDependentInput     (const formInput: TFRE_DB_FORM_INPUT_DESC; const chooserValue: String; const ignoreHidden: Boolean=true);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -431,9 +437,6 @@ type
     //@   * Second: itemContextMenuFunc will be called.
     function Describe (const store: TFRE_DB_STORE_DESC; const title:String=''; const itemContextMenuFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const contextMenuFunc:TFRE_DB_SERVER_FUNC_DESC=nil): TFRE_DB_VIEW_TREE_DESC;
   end;
-
-  TFRE_DB_INPUT_GROUP_DESC       = class;
-  TFRE_DB_INPUT_GROUP_PROXY_DESC = class;
 
   { TFRE_DB_VALIDATOR_DESC }
 
@@ -1541,6 +1544,7 @@ implementation
       Field('minMax').AsReal64Arr:=minMax;
     end;
     Field('steps').AsInt16:=-1;
+    Result:=Self;
   end;
 
   function TFRE_DB_INPUT_NUMBER_DESC.DescribeSlider(const caption, field_reference: String; const min, max: Real; const defaultValue: String; const digits: Integer; const steps: Integer): TFRE_DB_INPUT_NUMBER_DESC;
@@ -1550,6 +1554,7 @@ implementation
     Field('digits').AsInt16:=digits;
     Field('minMax').AsReal64Arr:=TFRE_DB_Real64Array.create(min,max);
     Field('steps').AsInt16:=steps;
+    Result:=Self;
   end;
 
   { TFRE_DB_SUBMENU_DESC }
@@ -1980,6 +1985,17 @@ implementation
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
+  procedure TFRE_DB_INPUT_CHOOSER_DESC._addDependentInput(const elem: TFRE_DB_CONTENT_DESC; const chooserValue: String; const ignoreHidden: Boolean);
+  var
+    obj: IFRE_DB_Object;
+  begin
+   obj:=GFRE_DBI.NewObject;
+   obj.Field('inputId').AsString:=elem.contentId;
+   obj.Field('value').AsString:=chooserValue;
+   obj.Field('ignoreHidden').AsBoolean:=ignoreHidden;
+   Field('dependentInputFields').AddObject(obj);
+  end;
+
   function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean; const display_hint:TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const disabled: boolean; const defaultValue:String): TFRE_DB_INPUT_CHOOSER_DESC;
   var
     obj: IFRE_DB_Object;
@@ -2006,14 +2022,19 @@ implementation
     Field('filteredStore').AddObject(obj);
   end;
 
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInputBlock(const inputBlock: TFRE_DB_INPUT_BLOCK_DESC; const chooserValue: String);
-  var
-    obj: IFRE_DB_Object;
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputBlock: TFRE_DB_INPUT_BLOCK_DESC; const chooserValue: String; const ignoreHidden: Boolean);
   begin
-   obj:=GFRE_DBI.NewObject;
-   obj.Field('inputId').AsString:=inputBlock.contentId;
-   obj.Field('value').AsString:=chooserValue;
-   Field('dependentInputFields').AddObject(obj);
+    _addDependentInput(inputBlock,chooserValue,ignoreHidden);
+  end;
+
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const chooserValue: String; const ignoreHidden: Boolean);
+  begin
+    _addDependentInput(inputGroup,chooserValue,ignoreHidden);
+  end;
+
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const formInput: TFRE_DB_FORM_INPUT_DESC; const chooserValue: String; const ignoreHidden: Boolean);
+  begin
+    _addDependentInput(formInput,chooserValue,ignoreHidden);
   end;
 
   procedure TFRE_DB_INPUT_CHOOSER_DESC.captionCompareEnabled(const enabled: Boolean);
