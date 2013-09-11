@@ -209,7 +209,7 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
         m:=TMemoryStream.Create;
         try
           m.LoadFromFile(FMetaDir+filename);
-          obj:= TFRE_DB_Object.CreateFromMemory(m.Memory,nil);
+          obj:= TFRE_DB_Object.CreateFromMemory(m.Memory);
         finally
           m.free;
         end;

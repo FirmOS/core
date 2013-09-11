@@ -78,7 +78,7 @@ type
     function IMI_Menu               (const input:IFRE_DB_Object):IFRE_DB_Object;
     function IMI_AddEndpoint        (const input:IFRE_DB_Object):IFRE_DB_Object;
     function IMI_AddMobileDevice    (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function IMI_ChildrenData       (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function WEB_ChildrenData       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   end;
 
 
@@ -493,10 +493,12 @@ var
 begin
   res:=TFRE_DB_MENU_DESC.create.Describe();
 
+  abort;
 
-  linksys   := ReferencedByList('TFRE_DB_AP_LINKSYS');
-  lancom    := ReferencedByList('TFRE_DB_AP_LANCOM');
-  writeln ('Linksys:',length(linksys),' Lancom:',length(lancom));
+  //TODO FIX
+  //linksys   := ReferencedByList('TFRE_DB_AP_LINKSYS');
+  //lancom    := ReferencedByList('TFRE_DB_AP_LANCOM');
+  //writeln ('Linksys:',length(linksys),' Lancom:',length(lancom));
 
   add_linksys := (length(linksys)=0)  and (length(lancom)=0);
   add_lancom  := (length(linksys)=0);
@@ -564,7 +566,7 @@ begin
 end;
 
 
-function TFRE_DB_Site.IMI_ChildrenData(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_Site.WEB_ChildrenData(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   res   : TFRE_DB_STORE_DATA_DESC;
   childs: TFRE_DB_GUIDArray;
@@ -575,9 +577,11 @@ var
 
 begin
   res := TFRE_DB_STORE_DATA_DESC.create;
-  childs:=ReferencedByList('TFRE_DB_DEVICE');
+  abort;
+  //TODO FIX
+  //childs:=ReferencedByList('TFRE_DB_DEVICE');
   for i := 0 to Length(childs) - 1 do begin
-    GetDBConnection.Fetch(childs[i],dbo);
+    conn.Fetch(childs[i],dbo);
     if dbo.IsA('TFRE_DB_DEVICE') then begin
       if dbo.IsA('TFRE_DB_ENDPOINT') then begin
         txt:=dbo.field('Displayname').AsString;

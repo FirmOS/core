@@ -390,7 +390,7 @@ var sfrom        : string;
   end;
 
 begin
-  if obj.ReferencesObjects then begin
+  if obj.ReferencesObjectsFromData then begin
     obj.ForallFields(@FieldIterate);
   end;
 end;

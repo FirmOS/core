@@ -644,7 +644,7 @@ begin
   res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.FillWithObjectValues(Self,GetSession(input));
-  res.AddButton.Describe('Save',CSF(@IMI_saveOperation),fdbbt_submit);
+  res.AddButton.Describe('Save',CWSF(@WEB_saveOperation),fdbbt_submit);
   Result:=res;
 end;
 
@@ -828,7 +828,7 @@ begin
   res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.FillWithObjectValues(Self,GetSession(input));
-  res.AddButton.Describe('Save',CSF(@IMI_saveOperation),fdbbt_submit);
+  res.AddButton.Describe('Save',CWSF(@WEB_saveOperation),fdbbt_submit);
   Result:=res;
 end;
 
@@ -1167,7 +1167,7 @@ begin
     num := new.Field('number').AsUint32-1;
     new.Finalize;
     writeln('-NEW OBJECT BEFOR NUM : ',num);
-    NEW    := GetDBConnection(input).NewObject(TFRE_DB_TEST_A.ClassName);
+    NEW    := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     new.Field('number').AsUInt32    := num;
     new.Field('number_pb').AsUInt32 := num * 10;
     new.Field('string').AsString    := 'String_' + IntToStr(new.Field('number').AsUInt32);
@@ -1193,7 +1193,7 @@ begin
     num := new.Field('number').AsUint32+1;
     new.Finalize;
     writeln('-NEW OBJECT BEFOR NUM : ',num);
-    NEW    := GetDBConnection(input).NewObject(TFRE_DB_TEST_A.ClassName);
+    NEW    := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     new.Field('number').AsUInt32    := num;
     new.Field('number_pb').AsUInt32 := num  * 10;
     new.Field('string').AsString    := 'String_' + IntToStr(new.Field('number').AsUInt32);
@@ -1783,7 +1783,7 @@ begin
 
   COLL := CONN.Collection('COLL_TEST_A');
   for i := 0 to 100 - 1 do begin
-    lobj := CONN.NewObject('TFRE_DB_TEST_A');
+    lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i;
     lobj.Field('number_pb').AsUInt32:=i * 10;
     lobj.Field('string').AsString:='String_' + IntToStr(i);
@@ -1800,7 +1800,7 @@ begin
   COLL := CONN.Collection('COLL_TEST_A2');
   for i := 0 to 250 - 1 do begin
     if i mod 100=0 then writeln('ENDLESS ',i);
-    lobj := CONN.NewObject('TFRE_DB_TEST_A');
+    lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i*10;
     lobj.Field('number_pb').AsUInt32:=i*10;
     lobj.Field('string').AsString:='String_' + IntToStr(i);
@@ -1817,7 +1817,7 @@ begin
 
   COLL := CONN.Collection('COLL_TEST_B');
   for i := 0 to 100 - 1 do begin
-    lobj := CONN.NewObject('TFRE_DB_TEST_B');
+    lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_B);
     lobj.Field('firstname').AsString:='FN_' + IntToStr(i);
     lobj.Field('lastname').AsString:='LN_' + IntToStr(i);
     lobj.Field('pass').AsString:='PASS_' + IntToStr(i);
