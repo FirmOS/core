@@ -38,8 +38,7 @@ program fre_testdatafeed;
 }
 
 {$mode objfpc}{$H+}
-{$LIBRARYPATH /opt/local/fre/lib/}
-{$LIBRARYPATH ../fre_external/fre_ext_libs}
+{$LIBRARYPATH ../../lib}
 
 
 // ./fre_testdatafeed -U root -H 10.220.251.10 -u feeder@system -p a1234
@@ -117,6 +116,7 @@ begin
   Initialize_Read_FRE_CFG_Parameter;
   InitEmbedded;
   Init4Server;
+  GFRE_DBI.SetLocalZone('Europe/Vienna');
   SetupAPS;
   FeedClient := TFRE_SAMPLE_FEED_CLIENT.Create;
   GFRE_S.Start(FeedClient);

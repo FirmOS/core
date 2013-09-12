@@ -58,7 +58,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="fre_testdatafeed"/>
+      <Filename Value="../../bin/fre_testdatafeed"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../fos_include;$(ProjOutDir)"/>

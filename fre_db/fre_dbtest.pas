@@ -45,7 +45,7 @@ unit fre_dbtest;
 interface
 
 uses
-  Classes, SysUtils,FOS_TOOL_INTERFACES,
+  Classes, SysUtils,FOS_TOOL_INTERFACES,unixutil,
   FRE_DB_COMMON,
   FRE_DB_INTERFACE,
   FRE_DBBUSINESS,
@@ -88,6 +88,24 @@ type
     function  IMI_GetIcon   (const input: IFRE_DB_Object): IFRE_DB_Object;
     function  WEB_Content   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
+
+  { TFRE_DB_TEST_FILEDIR }
+
+  TFRE_DB_TEST_FILEDIR=class(TFRE_DB_ObjectEx)
+  protected
+    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    procedure InternalSetup; override;
+    procedure SetIsFile     (const isfile:boolean);
+    function  GetIsFile     : Boolean;
+  public
+    procedure SetProperties (const name : TFRE_DB_String ; const is_file : boolean; const size : NativeInt ; const mode : Cardinal; const time : Longint);
+    function  FileDirName   : String;
+    procedure RCB_GotAnswer(const ses : IFRE_DB_UserSession ; const new_input : IFRE_DB_Object ; const status : TFRE_DB_COMMAND_STATUS ; const ocid: Qword ; const opaquedata : IFRE_DB_Object);
+  published
+    function  WEB_Content       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_CHILDRENDATA  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+  end;
+
 
 var
   G_UNSAFE_MODUL_GLOBAL_DATA : IFRE_DB_Object;
@@ -153,6 +171,22 @@ type
   published
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
+
+  { TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD }
+
+  TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD= class(TFRE_DB_APPLICATION_MODULE)
+  protected
+    procedure       SetupAppModuleStructure ; override;
+  public
+    class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
+    procedure       MySessionInitializeModule  (const session: TFRE_DB_UserSession); override;
+    procedure       MyServerInitializeModule   (const admin_dbc: IFRE_DB_CONNECTION); override;
+  published
+    function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_Refresh_Browser        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_Browser_Tree           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+  end;
+
 
 
   { TFRE_DB_TEST_APP_GRID_MOD }
@@ -307,9 +341,250 @@ begin
 
       CheckDbResult(conn.ModifyUserGroups('guest'+'@'+cSYS_DOMAIN,GFRE_DBI.ConstructStringArray([cSYSUG_DB_GUESTS+'@'+cSYS_DOMAIN,Get_Groupname_App_Group_Subgroup('testapp','GUEST'+'@'+cSYS_DOMAIN)])),'cannot set usergroups guest');
 
+    login  := 'feeder@'+cSYS_DOMAIN;
+    if conn.UserExists(login) then begin
+      writeln('Modify Groups for User '+login);
+      CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray([Get_Groupname_App_Group_Subgroup('testapp','ADMIN'+'@'+cSYS_DOMAIN),Get_Groupname_App_Group_Subgroup('testapp','USER'+'@'+cSYS_DOMAIN)]),true),'cannot set user groups '+login);
+    end;
+
+
   finally
     conn.Finalize;
   end;
+end;
+
+{ TFRE_DB_TEST_FILEDIR }
+
+class procedure TFRE_DB_TEST_FILEDIR.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+end;
+
+procedure TFRE_DB_TEST_FILEDIR.InternalSetup;
+begin
+  inherited InternalSetup;
+  Field('isfile').AsBoolean:=true;
+  Field('mypath').AsString :='/';
+end;
+
+procedure TFRE_DB_TEST_FILEDIR.SetIsFile(const isfile: boolean);
+begin
+  Field('isfile').AsBoolean := isfile;
+  if isfile then
+    Field('children').AsString:=''
+  else
+    Field('children').AsString:='UNCHECKED';
+end;
+
+function TFRE_DB_TEST_FILEDIR.GetIsFile: Boolean;
+begin
+  result := Field('isfile').AsBoolean;
+end;
+
+procedure TFRE_DB_TEST_FILEDIR.SetProperties(const name: TFRE_DB_String; const is_file: boolean; const size: NativeInt; const mode: Cardinal; const time: Longint);
+var
+    y, mon, d, h, min, s: word;
+    fosdt : TFRE_DB_DateTime64;
+begin
+  EpochToLocal(time,y,mon,d,h,min,s);
+  Field('date').AsDateTime := GFRE_DT.EncodeTime(y,mon,d,h,min,s,0);
+  Field('name').AsString   := name;
+  Field('size').AsUInt64   := size;
+  Field('mode').AsUInt32   := mode;
+  SetIsFile(is_file);
+end;
+
+function TFRE_DB_TEST_FILEDIR.FileDirName: String;
+begin
+  result := Field('name').AsString;
+end;
+
+procedure TFRE_DB_TEST_FILEDIR.RCB_GotAnswer(const ses: IFRE_DB_UserSession; const new_input: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const ocid: Qword; const opaquedata: IFRE_DB_Object);
+var res      : TFRE_DB_STORE_DATA_DESC;
+     i       : NativeInt;
+     cnt     : NativeInt;
+
+     procedure addEntry(const fld : IFRE_DB_Field);
+     var mypath : string;
+         newe   : IFRE_DB_Object;
+         entry  : IFRE_DB_Object;
+     begin
+       if fld.FieldType=fdbft_Object then
+         begin
+           inc(cnt);
+           entry := fld.AsObject;
+           entry.Field('uidpath').AsStringArr := opaquedata.Field('UIP').AsStringArr;
+           mypath                             := opaquedata.Field('LVL').AsString+ entry.Field('name').AsString +'/';
+           //writeln('mypath id : ',mypath);
+           entry.Field('mypath').AsString     := mypath;
+           //writeln('ENTRY ',entry.DumpToString());
+           //writeln('-----------');
+           newe :=  entry.CloneToNewObject();
+           //newe.Field('mypath').AsString:=mypath;
+           //newe.Field('isfile').AsBoolean:=entry.Field('isfile').AsBoolean;
+           //writeln('-----------');
+           //writeln('N ENTRY ',newe.DumpToString());
+           //writeln('-----------');
+           res.addTreeEntry(newe,newe.Field('isfile').AsBoolean=false);
+         end;
+     end;
+
+begin
+  //writeln('GOT REMOTE INPUT ',input.DumpToString());
+  //WriteLn('OPD ',opaquedata.DumpToString );
+  res:=TFRE_DB_STORE_DATA_DESC.create.Describe(0);
+  cnt := 0;
+  new_input.ForAllFields(@addEntry);
+  res.Describe(cnt);
+  writeln('**************** ',res.DumpToString());
+  ses.SendServerClientAnswer(res,ocid);
+end;
+
+function TFRE_DB_TEST_FILEDIR.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+    res : TFRE_DB_STORE_DATA_DESC;
+    obj : IFRE_DB_Object;
+    i   : Integer;
+begin
+  result := GFRE_DB_NIL_DESC;
+end;
+
+function TFRE_DB_TEST_FILEDIR.WEB_CHILDRENDATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var obj      : IFRE_DB_Object;
+    inp      : IFRE_DB_Object;
+    response : IFRE_DB_Object;
+    opd      : IFRE_DB_Object;
+    lvl      : String;
+
+    procedure GotAnswer(const ses: IFRE_DB_UserSession; const new_input: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const ocid: Qword; const opaquedata: IFRE_DB_Object);
+    var res      : TFRE_DB_STORE_DATA_DESC;
+         i       : NativeInt;
+         cnt     : NativeInt;
+
+         procedure addEntry(const obj : IFRE_DB_Object);
+         var mypath : string;
+             newe   : IFRE_DB_Object;
+             entry  : IFRE_DB_Object;
+         begin
+           inc(cnt);
+           entry := obj;
+           entry.Field('uidpath').AsStringArr := opaquedata.Field('UIP').AsStringArr;
+           mypath                             := opaquedata.Field('LVL').AsString+ entry.Field('name').AsString +'/';
+           entry.Field('mypath').AsString     := mypath;
+           newe :=  entry.CloneToNewObject();
+           newe.Field('isfile').AsBoolean:=entry.Field('isfile').AsBoolean;
+           newe.Field('mypath').AsString:=entry.Field('mypath').AsString;
+           res.addTreeEntry(newe,newe.Field('isfile').AsBoolean=false);
+         end;
+
+    begin
+      res:=TFRE_DB_STORE_DATA_DESC.create.Describe(0);
+      cnt := 0;
+      new_input.ForAllObjects(@addEntry);
+      res.Describe(cnt);
+      //writeln('**************** ',res.DumpToString());
+      ses.SendServerClientAnswer(res,ocid);
+    end;
+
+begin
+  writeln('BROWSE CALL INPUT ',input.DumpToString());
+  inp := GFRE_DBI.NewObject;
+  lvl := input.Field('parentid').AsString;
+  inp.Field('level').AsString:= lvl;
+
+  opd := GFRE_DBI.NewObject;
+  opd.Field('UIP').AsGUIDArr := self.GetUIDPathUA;
+  opd.Field('LVL').AsString  := lvl;
+
+  if ses.InvokeRemoteRequest('SAMPLEFEEDER','BROWSEPATH',inp,response,@GotAnswer,opd)=edb_OK then
+    begin
+      result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+      exit;
+    end
+  else
+    begin
+      result := TFRE_DB_STORE_DATA_DESC.create.Describe(0);
+    end;
+end;
+
+{ TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD }
+
+procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.SetupAppModuleStructure;
+begin
+  inherited SetupAppModuleStructure;
+  InitModuleDesc('feedbrowser','$feedbrowsetree_description');
+end;
+
+class procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+end;
+
+procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
+var DC_Tree      : IFRE_DB_DERIVED_COLLECTION;
+begin
+  inherited;
+  if session.IsInteractiveSession then begin
+    DC_Tree := session.NewDerivedCollection('FILEBROWSER');
+    with DC_Tree do begin
+      SetDeriveParent(session.GetDBConnection.Collection('COLL_FILEBROWSER'),'mypath');
+      SetDisplayType(cdt_Treeview,[cdgf_ShowSearchbox],'Tree',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
+    end;
+  end;
+end;
+
+procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
+var filedir : TFRE_DB_TEST_FILEDIR;
+    coll    : IFRE_DB_COLLECTION;
+begin
+  inherited MyServerInitializeModule(admin_dbc);
+  coll := admin_dbc.Collection('COLL_FILEBROWSER',true,true);
+  filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
+  filedir.SetIsFile(false);
+  filedir.SetProperties('Virtual Rooot',true,0,0,0);
+  CheckDbResult(coll.Store(filedir),'Error creating root entry');
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var  res    : TFRE_DB_SUBSECTIONS_DESC;
+     sec    : TFRE_DB_SECTION_DESC;
+     menu   : TFRE_DB_MENU_DESC;
+begin
+  res  := TFRE_DB_SUBSECTIONS_DESC.Create.Describe();
+  menu := TFRE_DB_MENU_DESC.create.Describe;
+  menu.AddEntry.Describe('REFRESH','',CWSF(@WEB_Refresh_Browser));
+  sec := res.AddSection.Describe(CWSF(@WEB_Browser_Tree),'Filebrowser',1);
+  sec.SetMenu(menu);
+  result := res;
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Refresh_Browser(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var inp      : IFRE_DB_Object;
+    response : IFRE_DB_Object;
+    res      : TFRE_DB_Errortype;
+
+    procedure GotAnswer(const ses : IFRE_DB_UserSession ; const input : IFRE_DB_Object ; const status : TFRE_DB_COMMAND_STATUS ; const origcid : QWORD ; const opaquedata : IFRE_DB_Object);
+    begin
+      ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('JUHU',input.DumpToString(),fdbmt_info));
+    end;
+
+begin
+  inp := GFRE_DBI.NewObject;
+  inp.Field('level').AsString:='/';
+  //res := ses.InvokeRemoteRequest('SAMPLEFEEDER','BROWSEPATH',inp,response,@GotAnswer,nil);
+  if res=edb_OK then
+    begin
+      result := GFRE_DB_NIL_DESC;
+    end
+  else
+    result := TFRE_DB_MESSAGE_DESC.create.Describe('REQ FAILED',CFRE_DB_Errortype[res],fdbmt_info);
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Browser_Tree(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var DC_Tree : IFRE_DB_DERIVED_COLLECTION;
+begin
+  DC_Tree := ses.FetchDerivedCollection('FILEBROWSER');
+  result  := DC_Tree.GetDisplayDescription;
 end;
 
 { TFRE_DB_TEST_APP_ALLGRID_MOD }
@@ -1539,6 +1814,7 @@ begin
   AddApplicationModule(TFRE_DB_TEST_APP_EDITORS_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_FORMTEST_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_ALLGRID_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.create);
 end;
 
 function TFRE_DB_TEST_APP.InstallAppDefaults (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
@@ -1566,6 +1842,7 @@ begin
                       CreateAppText(conn,'$grid2_description','Grid 2 Test','Grid 2 Test','Grid 2 Test');
                       CreateAppText(conn,'$formtest_description','Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
                       CreateAppText(conn,'$allgrid_description','Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
+                      CreateAppText(conn,'$feedbrowsetree_description','Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
                    end;
     SameVersion  : begin
                       writeln('Version '+old_version+' already installed');
@@ -1603,6 +1880,7 @@ begin
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['edit']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['formtest']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['allgrid']));
+    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['feedbrowser']));
 
     _AddAppRight(guest_app_rg ,'START','TESTAPP Start','Startup of Test APP'); // Guests are allowed to START the app
     _AddAppRightModules(guest_app_rg,GFRE_DBI.ConstructStringArray(['welcome']));
@@ -1630,6 +1908,7 @@ begin
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg','GRID2',5,CheckAppRightModule(conn,'grid2'));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg','formtest',2,CheckAppRightModule(conn,'formtest'));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/allgrid','Grid Test','images_apps/test/sitemap_icon.svg','allgrid',2,CheckAppRightModule(conn,'allgrid'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg','feedbrowser',2,CheckAppRightModule(conn,'feedbrowser'));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg','TGF',0,CheckAppRightModule(conn,'tgf'));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg','EDIT',0,CheckAppRightModule(conn,'edit'));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
@@ -1718,7 +1997,7 @@ end;
 
 function TFRE_DB_TEST_APP.IMI_RAW_DATA_FEED(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  writeln('GOT RAW INPUT: ',input.DumpToString());
+  //writeln('GOT RAW INPUT: ',input.DumpToString());
   result := GFRE_DB_NIL_DESC;
 end;
 
@@ -1847,6 +2126,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_ALL_TYPES);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_ALLGRID_MOD);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_FORMTEST_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID2_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_CHART_MOD);
@@ -1855,6 +2135,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_EDITORS_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_WELCOME_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
   GFRE_DBI.Initialize_Extension_Objects;
 end;
 

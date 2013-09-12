@@ -106,7 +106,8 @@ type
     function       GetImpersonatedDatabaseConnectionSession  (const dbname,username,pass,default_app : string;const default_uid_path : TFRE_DB_GUIDArray ; out dbs:TFRE_DB_UserSession):TFRE_DB_Errortype;
     function       ExistsUserSessionForUser                  (const username:string;out other_session:TFRE_DB_UserSession):boolean;
     function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
-
+    function       FetchPublisherRAC                         (const rcall,rmeth:TFRE_DB_NameType;out rac:IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out right:TFRE_DB_String):boolean;
+    function       FetchSessionById                          (const sesid : TFRE_DB_String ; var ses :IFRE_DB_UserSession):boolean;
   public
     DefaultDatabase              : String;
     TransFormFunc                : TFRE_DB_TRANSFORM_FUNCTION;
@@ -349,7 +350,7 @@ begin
   end;
   GFRE_DB.LogInfo(dblc_SERVER,'NODE INTERLINK (SERVER/SSL) LISTENING ON (%s) ',[FIL_ListenSockSSL.GetSocket.Get_AI.SocketAsString]);
 
-  FInterLinkEvent := GFRE_S.AddPeriodicSignalTimer(1,@InterLinkDispatchTimer,nil,dm_OneWorker);
+  FInterLinkEvent := GFRE_S.AddPeriodicSignalTimer(1000,@InterLinkDispatchTimer,nil,dm_OneWorker);
   FWFE_Scheduler  := GFRE_S.AddPeriodicTimer(1000,@WFE_DispatchTimerEvent,nil,dm_OneWorker);
 
   _SetupHttpBaseServer;
@@ -577,8 +578,9 @@ begin
     for i := 0 to high(FSession_dispatch_array) do begin
       if FSession_dispatch_array[i].Session_Has_CMDS then begin
         CMD_Answer := FSession_dispatch_array[i].WorkSessionCommand;
-        if assigned(CMD_Answer) then begin
-          CMD_Answer.GetAnswerInterface.Send_ServerClient(CMD_Answer); //Debug Breakpoint
+        if assigned(CMD_Answer)  then begin
+          if CMD_Answer.Data.Implementor_HC <> GFRE_DB_SUPPRESS_SYNC_ANSWER then
+            CMD_Answer.GetAnswerInterface.Send_ServerClient(CMD_Answer); //Debug Breakpoint
         end;
       end;
     end;
@@ -622,6 +624,8 @@ begin
     dbs.OnRestoreDefaultDBC  := @RestoreDefaultConnection;
     dbs.OnExistsUserSession  := @ExistsUserSessionForUser;
     dbs.OnCheckUserNamePW    := @CheckUserNamePW;
+    dbs.OnFetchSessionById   := @FetchSessionById;
+    dbs.OnFetchPublisherRAC  := @FetchPublisherRAC;
   end;
 end;
 
@@ -655,6 +659,68 @@ end;
 function TFRE_BASE_SERVER.CheckUserNamePW(username, pass: TFRE_DB_String): TFRE_DB_Errortype;
 begin
   result := FDefaultSession.GetDBConnection.CheckLogin(username,pass);
+end;
+
+function TFRE_BASE_SERVER.FetchPublisherRAC(const rcall, rmeth: TFRE_DB_NameType; out rac: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out right:TFRE_DB_String): boolean;
+
+  function SearchRAC(const session:TFRE_DB_UserSession):boolean;
+  var arr : TFRE_DB_RemoteReqSpecArray;
+      i   : NAtiveint;
+  begin
+    arr := session.GetPublishedRemoteMeths;
+    for i:=0 to high(arr) do
+      begin
+        if (arr[i].classname=rcall)
+           and (arr[i].methodname=rmeth) then
+             begin
+               right := arr[i].invokationright;
+               rac := session.GetClientServerInterface;
+               result := true;
+               exit;
+             end;
+      end;
+    result := false;
+  end;
+
+begin
+  result   := false;
+  rac      := nil;
+  FSessionTreeLock.Acquire;
+  try
+    FUserSessionsTree.ForAllItemsBrk(@SearchRac);
+    if assigned(rac) then begin
+      result            := true;
+    end;
+  finally
+    FSessionTreeLock.Release;
+  end;
+end;
+
+function TFRE_BASE_SERVER.FetchSessionById(const sesid: TFRE_DB_String; var ses: IFRE_DB_UserSession): boolean;
+
+  function SearchSession(const session:TFRE_DB_UserSession):boolean;
+  var arr : TFRE_DB_RemoteReqSpecArray;
+      i   : NAtiveint;
+  begin
+    if session.GetSessionID = sesid then
+      begin
+        result := true;
+        ses := session;
+      end;
+  end;
+
+begin
+  result   := false;
+  ses      := nil;
+  FSessionTreeLock.Acquire;
+  try
+    FUserSessionsTree.ForAllItemsBrk(@SearchSession);
+    if assigned(ses) then begin
+      result            := true;
+    end;
+  finally
+    FSessionTreeLock.Release;
+  end;
 end;
 
 constructor TFRE_BASE_SERVER.create(const defaultdbname: string);

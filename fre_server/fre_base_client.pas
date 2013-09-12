@@ -40,6 +40,8 @@ unit fre_base_client;
 {$mode objfpc}{$H+}
 {$modeswitch nestedprocvars}
 
+//TODO: Expire pending commands
+
 interface
 
 uses
@@ -73,8 +75,9 @@ type
       FBaseconnection          : TFRE_CLIENT_BASE_CONNECTION;
       FClientSock              : IFCOM_SOCK;
       fsendcmd_id              : QWord;
+      FClientQ                 : IFOS_LFQ;
 
-    procedure CCB_SessionSetup(const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
+    procedure CCB_SessionSetup        (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
 
     function  _GetClientHandler       : IR_FRE_APS_FCOM_CLIENT_HANDLER;
     procedure ConnectionInit          (const SOCK:IFCOM_SOCK);
@@ -84,7 +87,9 @@ type
     procedure MyConnectionStateChange (sender:Tobject);
     procedure MyStateCheckTimer       (const ES:IFRE_APS_EVENTSOURCE;const TID:integer;const Data:Pointer;const cp:integer=0); // Timout & CMD Arrived & Answer Arrived
     procedure MyCommandAnswerArrived  (const sender:TObject;const cmd:IFRE_DB_COMMAND); // from socket
+    procedure MyRequestArrived        (const sender:TObject;const cmd:IFRE_DB_COMMAND); // from socket
     procedure DispatchAnswers         ;
+    procedure DispatchRequests        ;
   protected
     function  GetName: String;
     procedure Terminate;
@@ -93,13 +98,16 @@ type
     procedure Interrupt; virtual;
     procedure Setup;
   public
-    function  Get_AppClassAndUid   (const appkey : string ; out app_classname : TFRE_DB_String ; out uid : TGuid) : boolean;
-    function  SendServerCommand    (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const ContinuationCB : TFRE_DB_CONT_HANDLER=nil;const timeout:integer=5000) : boolean;
-    procedure MySessionEstablished ; virtual;
-    procedure MySessionDisconnected; virtual;
-    procedure MyInitialize         ; virtual;
-    procedure MyFinalize           ; virtual;
-    procedure QueryUserPass        (out user,pass:string);virtual;
+    function  Get_AppClassAndUid      (const appkey : string ; out app_classname : TFRE_DB_String ; out uid : TGuid) : boolean;
+    function  SendServerCommand       (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const ContinuationCB : TFRE_DB_CONT_HANDLER=nil;const timeout:integer=5000) : boolean;
+    function  AnswerSyncCommand       (const command_id : QWord ; const data : IFRE_DB_Object) : boolean;
+    procedure MySessionEstablished    ; virtual;
+    procedure MySessionDisconnected   ; virtual;
+    procedure MyInitialize            ; virtual;
+    procedure MyFinalize              ; virtual;
+    procedure QueryUserPass           (out user,pass:string);virtual;
+    procedure RegisterRemoteMethods   (var remote_method_array : TFRE_DB_RemoteReqSpecArray); virtual;
+    procedure WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); virtual;
   end;
 
 
@@ -108,6 +116,9 @@ implementation
 { TFRE_BASE_CLIENT }
 
 procedure TFRE_BASE_CLIENT.CCB_SessionSetup(const DATA: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const error_txt: string);
+var arr     : TFRE_DB_RemoteReqSpecArray;
+    i       : NativeInt;
+    regdata : IFRE_DB_Object;
 begin
   case status of
     cdcs_OK: begin
@@ -116,6 +127,19 @@ begin
         FClientState := csConnected;
         FApps        := data.Field('APPS').AsObject.CloneToNewObject();
         writeln('GOT APPS : ',FApps.DumpToString());
+        RegisterRemoteMethods(arr);
+        if Length(arr)>0 then
+          begin
+            regdata := GFRE_DBI.NewObject;
+            regdata.Field('mc').AsUInt16 := Length(arr);
+            for i := 0 to length(arr)-1 do
+              begin
+                regdata.Field('cl'+IntToStr(i)).AsString := arr[i].classname;
+                regdata.Field('mn'+IntToStr(i)).AsString := arr[i].methodname;
+                regdata.Field('ir'+IntToStr(i)).AsString := arr[i].invokationright;
+              end;
+            SendServerCommand('FIRMOS','REG_REM_METH',nil,regdata);
+          end;
         MySessionEstablished;
       end else begin
         //Connection failed due to an intermediate failure
@@ -148,6 +172,7 @@ begin
     sock.Data                               := FBaseconnection;
     FBaseconnection.OnConnectionStateChange := @MyConnectionStateChange;
     FBaseconnection.OnNewCommandAnswerHere  := @MyCommandAnswerArrived;
+    FBaseconnection.OnNewServerRequest      := @MyRequestArrived;
     FClientSock                             := Sock;
   FConnectionLock.Release;
 end;
@@ -269,7 +294,7 @@ begin
           DispatchAnswers;
         end;
      2: begin // Service Requests
-          writeln('GOT REQUEST');
+          DispatchRequests;
         end;
     end;
 end;
@@ -294,9 +319,14 @@ begin
     FCMD_Signal.FireEventManual(false);
   end else begin
     GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN COMMAND CID=%d',[CMD.CommandID],catError);
-    writeln('-->>>>>>>>>>   CHECK ---- ANSWER NOT MATCHED ',CMD.AsJSONString);
     CMD.Finalize;
   end;
+end;
+
+procedure TFRE_BASE_CLIENT.MyRequestArrived(const sender: TObject; const cmd: IFRE_DB_COMMAND);
+begin
+  FClientQ.Push(cmd.Implementor_HC);
+  FCMD_Signal.FireEventManual(true); // Write Signal // Maybe do it async in a seperate thread ?
 end;
 
 procedure TFRE_BASE_CLIENT.DispatchAnswers;
@@ -343,6 +373,18 @@ begin
     end;
     answer.Finalize;
   end;
+end;
+
+procedure TFRE_BASE_CLIENT.DispatchRequests;
+var cmd : IFRE_DB_COMMAND;
+    x   : TObject;
+begin
+  repeat
+    x := TObject(FClientQ.Pop);
+    if not(assigned(x)) then exit;
+    if not x.GetInterface(IFRE_DB_COMMAND,cmd) then GFRE_BT.CriticalAbort('logic');
+    WorkRemoteMethods(cmd.InvokeClass,cmd.InvokeMethod,cmd.CommandID,cmd.CheckoutData,cmd.CommandType);
+  until false;
 end;
 
 function TFRE_BASE_CLIENT.GetName: String;
@@ -392,6 +434,7 @@ begin
   fMySessionID := 'NEW';
   GFRE_TF.Get_Lock(FContinuationLock);
   GFRE_TF.Get_Lock(FConnectionLock);
+  GFRE_TF.Get_LFQ(FClientQ);
   MyInitialize;
   FCMD_Signal  := GFRE_S.AddPeriodicSignalTimer(1000,@MyStatecheckTimer);
 end;
@@ -423,6 +466,16 @@ begin
   pass := '';
 end;
 
+procedure TFRE_BASE_CLIENT.RegisterRemoteMethods(var remote_method_array: TFRE_DB_RemoteReqSpecArray);
+begin
+  SetLength(remote_method_array,0);
+end;
+
+procedure TFRE_BASE_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
+begin
+
+end;
+
 function TFRE_BASE_CLIENT.SendServerCommand(const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER; const timeout: integer): boolean;
 begin
   FConnectionLock.Acquire; //TODO: ENQUEUE and send sync
@@ -433,6 +486,24 @@ begin
     end else begin
       result := false;
     end;
+  finally
+    FConnectionLock.Release;
+  end;
+end;
+
+function TFRE_BASE_CLIENT.AnswerSyncCommand(const command_id: QWord; const data: IFRE_DB_Object):boolean;
+begin
+  FConnectionLock.Acquire; //TODO: ENQUEUE and send sync
+  try
+    if assigned(FBaseconnection) then
+      begin
+        FBaseconnection.SendSyncAnswer(command_id,data);
+        result := true;
+      end
+    else
+      begin
+        result := false;
+      end;
   finally
     FConnectionLock.Release;
   end;

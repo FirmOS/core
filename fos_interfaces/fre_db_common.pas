@@ -749,7 +749,8 @@ type
     //@ Describes the result of store data request. (e.g. grid, tree, chart...)
     function  Describe (const totalCount: Int32): TFRE_DB_STORE_DATA_DESC;
     //@ Adds an entry to the result.
-    procedure addEntry (const entry: IFRE_DB_Object);
+    procedure addEntry     (const entry: IFRE_DB_Object);
+    procedure addTreeEntry (const entry: IFRE_DB_Object ; const HasChildren : boolean ; const ChildrenFuncName:string='ChildrenData' ; const MenuFuncName : string ='Menu' ; const ContenFuncname : String='' ; const funcclassname :string ='');
   end;
 
   { TFRE_DB_UPDATE_STORE_DESC }
@@ -1830,6 +1831,24 @@ implementation
   procedure TFRE_DB_STORE_DATA_DESC.addEntry(const entry: IFRE_DB_Object);
   begin
     Field('data').AddObject(entry);
+  end;
+
+    procedure TFRE_DB_STORE_DATA_DESC.addTreeEntry(const entry: IFRE_DB_Object; const HasChildren: boolean; const ChildrenFuncName: string; const MenuFuncName: string; const ContenFuncname: String; const funcclassname: string);
+  begin
+    if funcclassname='' then
+      entry.Field('_funcclassname_').AsString := entry.SchemeClass
+    else
+      entry.Field('_funcclassname_').AsString := funcclassname;
+    entry.Field('_childrenfunc_').AsString:='ChildrenData';
+    entry.Field('_menufunc_').AsString:='Menu';
+    entry.Field('_contentfunc_').AsString:='Content';
+    if HasChildren then
+      entry.Field('children').AsString:='UNCHECKED'
+    else
+      begin
+        entry.DeleteField('children');
+      end;
+    addEntry(entry);
   end;
 
 
