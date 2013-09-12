@@ -105,6 +105,7 @@ type TFRE_FCOM_PROTO            = (cfp_TLS); //UDP,TLS,SSH,CLUSTER ...
   public
     READ_CMD    : IFRE_DB_Object;
     procedure   InvokeServerCommand (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const CID : Qword;const async:boolean);
+    procedure   SendSyncAnswer      (const CID : Qword ; const data : IFRE_DB_Object);
     constructor Create              (const socket:IFCOM_SOCK);
     destructor  Destroy             ;override;
     function    ConnectionState     :TCONNECTION_STATE;
@@ -223,6 +224,31 @@ begin
   end;
 end;
 
+procedure TFRE_CLIENT_BASE_CONNECTION.SendSyncAnswer(const CID: Qword; const data: IFRE_DB_Object);
+var ose : EFOS_OS_ERROR;
+    mem : TMemoryStream;
+    ECN : IFRE_DB_COMMAND;
+    i   : NativeInt;
+begin
+  try
+    mem:=TMemoryStream.Create;
+    mem.Position:=4;
+    ECN := GFRE_DBI.NewDBCommand;
+    ECN.CommandType  := fct_SyncReply;
+    ECN.Answer       := true;
+    ECN.CommandID    := CID;
+    ECN.Data         := Data;
+    mem.Size:=ECN.NeededSize+sizeof(QWord);
+    ECN.CopyToMemory(mem.Memory+sizeof(QWord));
+    PQWord(mem.Memory)^:=mem.Size-sizeof(qword);
+    mem.Position:=0;
+    SOCK.Offload_WriteBuf(mem.Memory,mem.Size,false);
+  finally
+    mem.Free;
+    ECN.Finalize;
+  end;
+end;
+
 constructor TFRE_CLIENT_BASE_CONNECTION.Create(const socket: IFCOM_SOCK);
 begin
   inherited Create;
@@ -258,10 +284,7 @@ var s:String;
           FOnNewCommandAnswerHere(self,cmd);
           writeln('<GOT ANSWER');
         end else begin // Request
-          writeln('******** CMD : GOT REQUEST HANDLE IT');
-          writeln(cmd.AsDBODump);
-          GFRE_BT.CriticalAbort('IMPLEMENT');
-          //FOnNewServerRequest(self,cmd);
+          FOnNewServerRequest(self,cmd);
         end;
       except on e:exception do begin
         writeln('DISPATCHING ERROR ',e.Message);

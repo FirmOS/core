@@ -527,6 +527,8 @@ type
     procedure       ForAllFieldsBreak                  (const iter:TFRE_DB_FieldIteratorBrk);
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
+    procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
+
     function        ForAllObjectsBreak                 (const iter:TFRE_DB_ObjectIteratorBrk ; const with_subobjects:boolean=true):boolean; // includes root object (self)
     function        GetScheme                          : TFRE_DB_SchemeObject;
     function        GetSchemeI                         : IFRE_DB_SchemeObject;
@@ -1328,7 +1330,7 @@ type
     procedure       ForAllI         (const func:IFRE_DB_Obj_Iterator);
     procedure       ForAllBreakI    (const func:IFRE_DB_Obj_IteratorBreak);
     function        LinearScanI     (const fieldname:TFRE_DB_NameType;const field_expr:TFRE_DB_FIELD_EXPRESSION):IFRE_DB_Object; // Linear Search / Fetch/Semantics/Finalize needed
-    function        StoreI          (var   new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
+    function        StoreI          (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
     function        UpdateI         (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
     function        FetchI          (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
     function        FirstI          : IFRE_DB_Object;
@@ -6027,8 +6029,6 @@ var i                 : Integer;
     var fld : IFRE_DB_FIELD;
 
 begin
-  writeln('ADD TO TRANSFORMED INPUT',item.DumpToString());
-  writeln('');
   iob := item;
   add := true;
   if (cdgf_Children in FGridDisplayFlags)
@@ -6877,9 +6877,10 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformation(const tob: TFRE_DB_TRANSFORMOBJECT);
 begin
+  if FDisplaytype=cdt_Treeview then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'a treeview must not have a transformation set');
   FTransform.Free;
   FTransform := tob;
-  //FTransform.FManageInfo := _DBConnection;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformationI(const tob: IFRE_DB_TRANSFORMOBJECT);
@@ -7364,28 +7365,34 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
         entry       : IFRE_DB_Object;
         i           : Integer;
       begin
-        entry:=GFRE_DB.NewObjectI;
-        entry.Field('_icon_').AsString := obj.Field(FTreeNodeIconField).AsString;
-        case FDCMode of
-          dc_None: raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DC MODE IN IMI_GET_CHILDREN_DATA');
-          dc_Map2RealCollection: begin
-                                 for i := 0 to Length(FlabelFields) - 1 do begin
-                                   if obj.FieldExists(FlabelFields[i]) then begin
-                                     entry.Field(FlabelFields[i]).AsString:=obj.Field(FlabelFields[i]).AsString;
-                                   end;
-                                 end;
-                                 entry.Field('uid').AsGUID:=obj.UID;
-                                 entry.Field('uidpath').AsStringArr:=obj.GetUIDPath;
-                                 entry.Field('_funcclassname_').AsString:=obj.SchemeClass;
-                                 entry.Field('_childrenfunc_').AsString:='ChildrenData';
-                                 entry.Field('_menufunc_').AsString:='Menu';
-                                 entry.Field('_contentfunc_').AsString:='Content';
-                                 if obj.MethodExists('CHILDRENDATA') then begin
-                                   entry.Field('children').AsString:='UNCHECKED';
-                                 end;
-                               end;
-        end;
-        TFRE_DB_STORE_DATA_DESC(result).addEntry(entry);
+        //entry:=GFRE_DB.NewObjectI;
+        //entry.Field('_icon_').AsString := obj.Field(FTreeNodeIconField).AsString;
+        //case FDCMode of
+        //  dc_None: raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DC MODE IN IMI_GET_CHILDREN_DATA');
+        //  dc_Map2RealCollection: begin
+                                 //for i := 0 to Length(FlabelFields) - 1 do begin
+                                 //  if obj.FieldExists(FlabelFields[i]) then begin
+                                 //    entry.Field(FlabelFields[i]).AsString:=obj.Field(FlabelFields[i]).AsString;
+                                 //  end;
+                                 //end;
+                                 //entry.Field('uid').AsGUID:=obj.UID;
+                                 //entry.Field('uidpath').AsStringArr:=obj.GetUIDPath;
+                                 //entry.Field('_funcclassname_').AsString:=obj.SchemeClass;
+                                 //entry.Field('_childrenfunc_').AsString:='ChildrenData';
+                                 //entry.Field('_menufunc_').AsString:='Menu';
+                                 //entry.Field('_contentfunc_').AsString:='Content';
+                                 //if obj.MethodExists('CHILDRENDATA') then begin
+                                 //  entry.Field('children').AsString:='UNCHECKED';
+                                 //end;
+        //                       end;
+        //end;
+        entry := obj.CloneToNewObject();
+        //entry.Field('_funcclassname_').AsString := obj.SchemeClass;
+        //entry.Field('_childrenfunc_').AsString:='ChildrenData';
+        //entry.Field('_menufunc_').AsString:='Menu';
+        //entry.Field('_contentfunc_').AsString:='Content';
+        //writeln('CHILDRENDATA  ',entry.DumpToString());
+        TFRE_DB_STORE_DATA_DESC(result).addTreeEntry(entry,true);
       end;
 
   begin
@@ -8677,7 +8684,7 @@ begin
   FObjectLinkStore.ForAllitemsBreak(@_ForAllBreak);
 end;
 
-function TFRE_DB_COLLECTION.StoreI(var new_obj: IFRE_DB_Object): TFRE_DB_Errortype;
+function TFRE_DB_COLLECTION.StoreI(const new_obj: IFRE_DB_Object): TFRE_DB_Errortype;
 var lObject : TFRE_DB_Object;
 begin
    lObject := new_obj.Implementor as TFRE_DB_Object;
@@ -11786,6 +11793,17 @@ procedure TFRE_DB_Object.ForAllFieldsBreak(const iter: IFRE_DB_FieldIteratorBrk)
 begin
   _InAccessibleCheck;
   ForAllBrk(@lForAll);
+end;
+
+procedure TFRE_DB_Object.ForAllObjects(const iter: IFRE_DB_Obj_Iterator);
+  procedure Iterate(const fld:IFRE_DB_Field);
+  begin
+     if fld.FieldType=fdbft_Object then
+       iter(fld.AsObject);
+  end;
+
+begin
+  ForAllFields(@Iterate);
 end;
 
 function TFRE_DB_Object.ForAllObjectsBreak(const iter: TFRE_DB_ObjectIteratorBrk; const with_subobjects: boolean): boolean;
@@ -16730,7 +16748,8 @@ begin
                                                      '\d\.\/');
  GFRE_DBI.RegisterSysClientFieldValidator(validator);
 
- GFRE_DB_NIL_DESC := TFRE_DB_NIL_DESC.create;
+ GFRE_DB_NIL_DESC             := TFRE_DB_NIL_DESC.create;
+ GFRE_DB_SUPPRESS_SYNC_ANSWER := TFRE_DB_SUPPRESS_ANSWER_DESC.Create;
  GFRE_DB.Initialize_System_Objects;
 end;
 

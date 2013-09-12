@@ -42,7 +42,7 @@ unit fre_feed_client;
 interface
 
 uses
-  Classes, SysUtils,fre_base_client,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_system;
+  Classes, SysUtils,fre_base_client,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_dbtest,fre_system;
 
 type
 
@@ -59,9 +59,12 @@ type
     procedure  MySessionEstablished    ; override;
     procedure  MySessionDisconnected   ; override;
     procedure  QueryUserPass           (out user, pass: string); override;
+    procedure  RegisterRemoteMethods   (var remote_method_array : TFRE_DB_RemoteReqSpecArray); override;
     procedure  MyInitialize            ; override;
     procedure  MyFinalize              ; override;
     procedure  GenerateFeedDataTimer   (const ES:IFRE_APS_EVENTSOURCE;const TID:integer;const Data:Pointer;const cp:integer=0);
+    procedure  WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); override;
+    function   ListDirLevel            (const basepath : string):IFRE_DB_Object;
   end;
 
 
@@ -85,9 +88,28 @@ begin
   pass := cFRE_Feed_Pass;
 end;
 
+procedure TFRE_SAMPLE_FEED_CLIENT.RegisterRemoteMethods(var remote_method_array: TFRE_DB_RemoteReqSpecArray);
+begin
+  SetLength(remote_method_array,2);
+  with remote_method_array[0] do
+    begin
+      classname       := 'SAMPLEFEEDER';
+      methodname      := 'BROWSEPATH';
+      invokationright := ''; //unsafe
+    end;
+  with remote_method_array[1] do
+    begin
+      classname       := 'SAMPLEFEEDER';
+      methodname      := 'BROWSEPATH';
+      invokationright := ''; //unsafe
+    end;
+end;
+
 procedure TFRE_SAMPLE_FEED_CLIENT.MyInitialize;
 begin
-  FEED_Timer      := GFRE_S.AddPeriodicTimer (1000,@GenerateFeedDataTimer);
+  FEED_Timer      := GFRE_S.AddPeriodicTimer (5000,@GenerateFeedDataTimer);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
+  GFRE_DBI.Initialize_Extension_Objects;
 end;
 procedure TFRE_SAMPLE_FEED_CLIENT.MyFinalize;
 begin
@@ -112,5 +134,40 @@ begin
     end;
 end;
 
+procedure TFRE_SAMPLE_FEED_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
+var reply_data : IFRE_DB_Object;
+begin
+  if (rclassname='SAMPLEFEEDER') and (rmethodname='BROWSEPATH') then
+    begin
+      reply_data := ListDirLevel(input.Field('level').AsString);
+      input.Finalize;
+      writeln('REPLY ON REQUEST SAMPLEFEEDER.BROWSEPATH ',reply_data.DumpToString());
+      AnswerSyncCommand(command_id,reply_data);
+    end;
+end;
+
+function TFRE_SAMPLE_FEED_CLIENT.ListDirLevel(const basepath: string): IFRE_DB_Object;
+var Info  : TSearchRec;
+    entry : TFRE_DB_TEST_FILEDIR;
+    count : NativeInt;
+begin
+  result := GFRE_DBI.NewObject;
+  count  := 0;
+  If FindFirst (basepath+'*',faAnyFile and faDirectory,Info)=0 then
+    Repeat
+      With Info do
+        begin
+          if (name='.') or (name='..') then
+            Continue;
+          entry := TFRE_DB_TEST_FILEDIR.CreateForDB;
+          entry.SetProperties(name,(Attr and faDirectory) <> faDirectory,Size,mode,Time);
+          result.Field(inttostr(count)).AsObject := entry;
+          inc(count);
+        end;
+    Until FindNext(info)<>0;
+  FindClose(Info);
+end;
+
+initialization
 
 end.
