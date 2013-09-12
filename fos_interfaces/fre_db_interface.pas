@@ -759,7 +759,7 @@ type
     //procedure  AddVirtualChildEntry            (const caption:TFRE_DB_String; const FuncClass: String; const uidPath: TFRE_DB_StringArray; const ChildrenFunc:String='ChildrenData'; const ContentFunc:String='Content';const MenuFunc:String='Menu');
     function   Derive                          : TFRE_DB_Errortype;
 
-    procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const TreeNodeCaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
+    procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
     procedure  SetDisplayTypeChart           (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean; const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
     procedure  SetChildToParentLinkField     (const fieldname : TFRE_DB_NameType);
     procedure  SetParentToChildLinkField     (const fieldname : TFRE_DB_NameType);
@@ -1584,7 +1584,7 @@ type
     //@ Describes a server class function of the given schemeclass (e.g. new operations) or
     //@ a server function of an unknown object of the given schemeclass (e.g. menu function of a grid entry).
     function Describe       (const oschemeclass: String; const func: String):TFRE_DB_SERVER_FUNC_DESC;
-    function InternalInvoke (const session: TFRE_DB_UserSession; const input: IFRE_DB_Object): IFRE_DB_Object;
+    function InternalInvoke (const session: TFRE_DB_UserSession): IFRE_DB_Object;
     //@ Internally invokes a server function, on a given session
     function  AddParam  : TFRE_DB_PARAM_DESC;
     //@ Creates a new parameter and adds it to the parameterizable content.
@@ -4125,7 +4125,7 @@ begin
   Result:=Self;
 end;
 
-function TFRE_DB_SERVER_FUNC_DESC.InternalInvoke(const session: TFRE_DB_UserSession;const input:IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_SERVER_FUNC_DESC.InternalInvoke(const session: TFRE_DB_UserSession): IFRE_DB_Object;
 var
   i        : Integer;
   key,value: String;
@@ -4133,9 +4133,9 @@ var
 begin
   newInput:=GFRE_DBI.NewObject;
   for i := 0 to Field('params').ValueCount - 1 do begin
-    key:=FieldPath('params.key').AsString;
-    value:=FieldPath('params.value').AsString;
-    newInput.Field('data').AsObject.Field(key).AsString:=value;
+    key:=Field('params').AsObjectArr[i].Field('key').AsString;
+    value:=Field('params').AsObjectArr[i].Field('value').AsString;
+    newInput.Field(key).AsString:=value;
   end;
   result:=session.InternalSessInvokeMethod(Field('class').AsString,Field('func').AsString,GFRE_DBI.StringArray2GuidArray(Field('uidPath').AsStringArr),newInput);
 end;

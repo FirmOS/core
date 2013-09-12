@@ -517,10 +517,13 @@ implementation
 
   procedure TFRE_DB_WAPP_DOJO._BuildInputChooser(const session:TFRE_DB_UserSession; const co: TFRE_DB_INPUT_CHOOSER_DESC; const stores: IFRE_DB_ObjectArray);
   var
-    store  : TFRE_DB_STORE_DESC;
-    i      : Integer;
-    conn   : IFRE_DB_CONNECTION;
-    preFix : String;
+    store          : TFRE_DB_STORE_DESC;
+    i,j            : Integer;
+    conn           : IFRE_DB_CONNECTION;
+    preFix         : String;
+    store_res_descr: TFRE_DB_STORE_DATA_DESC;
+    serverFunc     : TFRE_DB_SERVER_FUNC_DESC;
+    caption        : String;
   begin
      store:=_getStoreById(co.FieldPath('store.id').AsString,stores);
      case String2DBChooserDH(co.Field('displayHint').AsString) of
@@ -567,6 +570,25 @@ implementation
                            end;
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
                              jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+store.Field('entries').AsObjectItem[i].Field('caption').AsString+'</option>"+');
+                           end;
+                           if store.FieldExists('serverFunc') then begin
+                             serverFunc:=store.Field('serverFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC;
+                             serverFunc.AddParam.Describe('start','0');
+                             serverFunc.AddParam.Describe('count','1000'); //FIXXME - define "ALL" parameter
+                             store_res_descr:=serverFunc.InternalInvoke(session).Implementor_HC as TFRE_DB_STORE_DATA_DESC;
+                             if (store.Field('labelFields').ValueCount=0) then begin
+                               store.Field('labelFields').AsStringArr:=TFRE_DB_StringArray.create('text','objname');
+                             end;
+                             for i:=0 to store_res_descr.Field('data').ValueCount - 1 do begin
+                               for j:=0 to store.Field('labelFields').ValueCount -1 do begin
+                                 if (store_res_descr.Field('data').AsObjectItem[i].FieldExists(store.Field('labelFields').AsStringArr[j])) then begin
+                                   caption:=store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('labelFields').AsStringArr[j]).AsString;
+                                   Break;
+                                 end;
+                                 caption:=store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('idField').AsString).AsString;
+                               end;
+                               jsContentAdd('"  <option value='''+store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('idField').AsString).AsString+'''>'+caption+'</option>"+');
+                             end;
                            end;
                            jsContentAdd('"</select>"+');
        end;
@@ -869,7 +891,7 @@ implementation
       if child.FieldExists('content') then begin
         sectionDesc := child.Field('content').AsObject;
       end else begin
-        sectionDesc := (child.Field('contentFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC).InternalInvoke(session,nil);
+        sectionDesc := (child.Field('contentFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC).InternalInvoke(session);
       end;
       TransformInvocation(session,command_type,sectionDesc,tmpContent,tmpContentType,true);
       if co.Field('sections').AsObjectItem[i].FieldExists('ord') then begin

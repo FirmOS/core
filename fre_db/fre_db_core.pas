@@ -1510,7 +1510,7 @@ type
     FGridDisplayFlags  : TFRE_COLLECTION_GRID_DISPLAY_FLAGS;
     FChartDisplayFlags : TFRE_COLLECTION_CHART_DISPLAY_FLAGS;
     FTitle             : TFRE_DB_String;
-    FTreeNodeCaption   : TFRE_DB_StringArray;
+    FlabelFields       : TFRE_DB_StringArray;
     FTreeNodeIconField : TFRE_DB_String;
     FGatherUpdateList  : TFRE_DB_UPDATE_STORE_DESC; // Collects Updates between Start and End
 
@@ -1630,7 +1630,7 @@ type
 
     function   GetStoreDescription        : TFRE_DB_CONTENT_DESC;
     function   getDescriptionStoreId      : String;
-    procedure  SetDisplayType             (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const TreeNodeCaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';
+    procedure  SetDisplayType             (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';
                                            const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil); //TODO: Make Callable Once
     procedure  SetDisplayTypeChart        (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean;const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
     procedure  SetChildToParentLinkField  (const fieldname : TFRE_DB_NameType);
@@ -5683,7 +5683,7 @@ begin
   FdragFunc.Free         ;
   FdragFunc              := nil;
   FTransform.Free        ;
-  FTreeNodeCaption       := nil;
+  FlabelFields           := nil;
   FTreeNodeIconField     := '';
 end;
 
@@ -6821,7 +6821,7 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParent(const coll: TFRE_DB_COLLECT
     FDisplaytype       := pc.FDisplaytype;
     FGridDisplayFlags  := pc.FGridDisplayFlags;
     FTitle             := pc.FTitle;
-    FTreeNodeCaption   := pc.FTreeNodeCaption;
+    FlabelFields       := pc.FlabelFields;
     FTreeNodeIconField := pc.FTreeNodeIconField;
   end;
 
@@ -6991,16 +6991,16 @@ function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
   case FDisplaytype of
     cdt_Listview:   begin
-//                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),Nil,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),Nil,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+//                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
                     end;
     cdt_Treeview:   begin;
-//                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FTreeNodeCaption,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FTreeNodeCaption,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+//                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
                     end;
      cdt_Chartview: begin
-//                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),Nil,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),Nil,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+//                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
                     end;
     else begin
       raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
@@ -7014,7 +7014,7 @@ begin
 end;
 
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE; const Flags: TFRE_COLLECTION_GRID_DISPLAY_FLAGS; const title: TFRE_DB_String; const TreeNodeCaptionFields: TFRE_DB_StringArray; const TreeNodeIconField: TFRE_DB_String; const item_menu_func: TFRE_DB_SERVER_FUNC_DESC; const item_details_func: TFRE_DB_SERVER_FUNC_DESC; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC; const drop_func: TFRE_DB_SERVER_FUNC_DESC; const drag_func: TFRE_DB_SERVER_FUNC_DESC);
+procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE; const Flags: TFRE_COLLECTION_GRID_DISPLAY_FLAGS; const title: TFRE_DB_String; const CaptionFields: TFRE_DB_StringArray; const TreeNodeIconField: TFRE_DB_String; const item_menu_func: TFRE_DB_SERVER_FUNC_DESC; const item_details_func: TFRE_DB_SERVER_FUNC_DESC; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC; const drop_func: TFRE_DB_SERVER_FUNC_DESC; const drag_func: TFRE_DB_SERVER_FUNC_DESC);
 begin
   _CheckSetDisplayType (CollectionDisplayType);
   FGridDisplayFlags := Flags;
@@ -7031,14 +7031,14 @@ begin
   FdropFunc := drop_func;
   FdragFunc.Free;
   FdragFunc := drag_func;
+  if Assigned(CaptionFields) then begin
+    FlabelFields     := CaptionFields;
+  end else begin
+    SetLength(FlabelFields,1); FlabelFields[0]:='objname';
+  end;
   if CollectionDisplayType=cdt_Treeview then begin
     FTransform.Free;
     FTransform         := TFRE_DB_TREE_TRANSFORM.Create;
-    if Assigned(TreeNodeCaptionFields) then begin
-      FTreeNodeCaption   := TreeNodeCaptionFields;
-    end else begin
-      SetLength(FTreeNodeCaption,1); FTreeNodeCaption[0]:='objname';
-    end;
     FTreeNodeIconField := TreeNodeIconField;
   end;
 end;
@@ -7369,9 +7369,9 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
         case FDCMode of
           dc_None: raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DC MODE IN IMI_GET_CHILDREN_DATA');
           dc_Map2RealCollection: begin
-                                 for i := 0 to Length(FTreeNodeCaption) - 1 do begin
-                                   if obj.FieldExists(FTreeNodeCaption[i]) then begin
-                                     entry.Field(FTreeNodeCaption[i]).AsString:=obj.Field(FTreeNodeCaption[i]).AsString;
+                                 for i := 0 to Length(FlabelFields) - 1 do begin
+                                   if obj.FieldExists(FlabelFields[i]) then begin
+                                     entry.Field(FlabelFields[i]).AsString:=obj.Field(FlabelFields[i]).AsString;
                                    end;
                                  end;
                                  entry.Field('uid').AsGUID:=obj.UID;
@@ -7400,8 +7400,8 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
     if input.FieldExists('DEPENDENCY') and (input.Field('DEPENDENCY').FieldType=fdbft_Object) then begin
       DC_SetFilters_From_Input(input.Field('DEPENDENCY').AsObject.Implementor as TFRE_DB_Object);
     end;
-    for i:=0 to Length(FTreeNodeCaption) - 1 do begin
-      AddOrderField('A',FTreeNodeCaption[i],true);
+    for i:=0 to Length(FlabelFields) - 1 do begin
+      AddOrderField('A',FlabelFields[i],true);
     end;
     result := TFRE_DB_STORE_DATA_DESC.create;
     Derive;
