@@ -10,6 +10,7 @@ uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
+  cmem,
   FRE_SYSTEM,FRE_CONFIGURATION,math,
   FRE_DB_PERSISTANCE_FS_SIMPLE,
   //fre_db_persistance_fs_postgres,

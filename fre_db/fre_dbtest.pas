@@ -460,6 +460,7 @@ var obj      : IFRE_DB_Object;
     var res      : TFRE_DB_STORE_DATA_DESC;
          i       : NativeInt;
          cnt     : NativeInt;
+         newnew  : IFRE_DB_Object;
 
          procedure addEntry(const obj : IFRE_DB_Object);
          var mypath : string;
@@ -472,8 +473,6 @@ var obj      : IFRE_DB_Object;
            mypath                             := opaquedata.Field('LVL').AsString+ entry.Field('name').AsString +'/';
            entry.Field('mypath').AsString     := mypath;
            newe :=  entry.CloneToNewObject();
-           newe.Field('isfile').AsBoolean:=entry.Field('isfile').AsBoolean;
-           newe.Field('mypath').AsString:=entry.Field('mypath').AsString;
            res.addTreeEntry(newe,newe.Field('isfile').AsBoolean=false);
          end;
 
@@ -482,7 +481,6 @@ var obj      : IFRE_DB_Object;
       cnt := 0;
       new_input.ForAllObjects(@addEntry);
       res.Describe(cnt);
-      //writeln('**************** ',res.DumpToString());
       ses.SendServerClientAnswer(res,ocid);
     end;
 
@@ -571,7 +569,7 @@ var inp      : IFRE_DB_Object;
 begin
   inp := GFRE_DBI.NewObject;
   inp.Field('level').AsString:='/';
-  //res := ses.InvokeRemoteRequest('SAMPLEFEEDER','BROWSEPATH',inp,response,@GotAnswer,nil);
+  res := ses.InvokeRemoteRequest('SAMPLEFEEDER','BROWSEPATH',inp,response,@GotAnswer,nil);
   if res=edb_OK then
     begin
       result := GFRE_DB_NIL_DESC;

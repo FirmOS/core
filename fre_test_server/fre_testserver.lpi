@@ -94,7 +94,7 @@
       <CompilerMessages>
         <MsgFileName Value=""/>
       </CompilerMessages>
-      <CustomOptions Value="-CfSSE3"/>
+      <CustomOptions Value="-gt"/>
       <CompilerPath Value="$(CompPath)"/>
     </Other>
   </CompilerOptions>

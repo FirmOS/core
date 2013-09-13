@@ -126,7 +126,8 @@ begin
         vmo.Field('LIVE STATUS FEED').AsString := 'LSF_0.0.1';
         vmo.Field('TIMESTAMP').AsDateTimeUTC   := GFRE_DT.Now_UTC;
         vmo.Field('SAMPLE_VALUE').AsInt32      := Random(1000)-500;
-        SendServerCommand(FFeedAppClass,'RAW_DATA_FEED',TFRE_DB_GUIDArray.Create(FFeedAppUid),vmo);
+        writeln('SEND SUPPRESSED (COMMENTED)');
+        //SendServerCommand(FFeedAppClass,'RAW_DATA_FEED',TFRE_DB_GUIDArray.Create(FFeedAppUid),vmo);
         writeln('LIVE UPDATE SENT! ' , GFRE_DT.Now_UTC);
       except on e:exception do begin
         writeln('FEED EXCEPTION : ',e.Message);

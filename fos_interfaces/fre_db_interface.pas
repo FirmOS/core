@@ -469,6 +469,7 @@ type
     procedure RemoveIndex                   (const idx:integer);
     procedure IntfCast                      (const InterfaceSpec:ShortString ; out Intf) ; // Interpret as Object and then -> IntfCast throws an Exception if not succesful
     function  AsDBText                      :IFRE_DB_TEXT;
+    function  IsEmptyArray                  : boolean;
   end;
 
 
@@ -578,6 +579,8 @@ type
     procedure Finalize                ;
   end;
 
+  { IFRE_DB_Object }
+
   IFRE_DB_Object = interface(IFRE_DB_INVOKEABLE)
    ['IFREDBO']
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
@@ -598,6 +601,8 @@ type
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
     function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
+    //procedure       SetAsEmptyStringArray              ;
+    //function        IsEmptyArray                       : boolean;
     function        Field                              (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldOnlyExistingObj               (const name:TFRE_DB_String):IFRE_DB_Object;
     function        FieldOnlyExisting                  (const name:TFRE_DB_String;var fld:IFRE_DB_FIELD):boolean;
@@ -637,6 +642,7 @@ type
     function        Mediator                           : TFRE_DB_ObjectEx;
     procedure       Set_ReadOnly                       ;
     procedure       CopyField                          (const obj:IFRE_DB_Object;const field_name:String);
+    procedure       CopyToMemory                       (memory : Pointer;const without_schemes:boolean=false);
   end;
 
   IFRE_DB_TEXT=interface(IFRE_DB_COMMON)
@@ -1328,7 +1334,7 @@ type
     class procedure RegisterSystemScheme               (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     function       Invoke                              (const method:TFRE_DB_String;const input:IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
     constructor    create                              ;
-    constructor    CreateBound                         (const dbo:IFRE_DB_Object);
+    constructor    CreateBound                         (const dbo:IFRE_DB_Object ; const internal_setup : boolean);
     destructor     Destroy                             ;override;
 
     //Interface - Compatibility Block
@@ -1382,6 +1388,7 @@ type
     procedure       CopyField                          (const obj:IFRE_DB_Object;const field_name:String);
     class function  NewOperation                       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): TGUID;
     constructor     CreateForDB                        ;
+    procedure       CopyToMemory                       (memory : Pointer;const without_schemes:boolean=false);
 
   published
     function        WEB_SaveOperation                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -2763,7 +2770,7 @@ var x           : TObject;
         end;
         FCurrentReqID := request_id;
         output        := FDBConnection.InvokeMethod(class_name,method_name,uidp,input,self);
-        FcurrentReqID := -1;
+        FcurrentReqID := 0;
         if output=nil then begin
           raise EFRE_DB_Exception.Create('function delivered nil result');
         end;
@@ -3838,12 +3845,13 @@ begin
 end;
 
 
-constructor TFRE_DB_ObjectEx.CreateBound(const dbo: IFRE_DB_Object);
+constructor TFRE_DB_ObjectEx.CreateBound(const dbo: IFRE_DB_Object ; const internal_setup : boolean);
 begin
   FBound       := true;
   FImplementor := dbo;
   FImplementor.Supports(IFRE_DB_NAMED_OBJECT,FNamedObject);
-  InternalSetup;
+  if internal_setup then
+    InternalSetup;
 end;
 
 destructor TFRE_DB_ObjectEx.Destroy;
@@ -4010,46 +4018,6 @@ begin
   result := FImplementor.ReferencesObjectsFromData;
 end;
 
-//function TFRE_DB_ObjectEx.ReferenceList: TFRE_DB_GUIDArray;
-//begin
-//  result := FImplementor.ReferenceList;
-//end;
-//
-//function TFRE_DB_ObjectEx.ReferenceListFromData: TFRE_DB_CountedGuidArray;
-//begin
-//  result := FImplementor.ReferenceListFromData;
-//end;
-//
-//function TFRE_DB_ObjectEx.ReferenceListFromDataNocount: TFRE_DB_GuidArray;
-//begin
-//  result := FImplementor.ReferenceListFromDataNocount;
-//end;
-
-//function TFRE_DB_ObjectEx.ReferencesDetailed: TFRE_DB_String;
-//begin
-//  result := FImplementor.ReferencesDetailed;
-//end;
-
-//function TFRE_DB_ObjectEx.IsReferenced: Boolean;
-//begin
-//  result := FImplementor.IsReferenced;
-//end;
-
-//function TFRE_DB_ObjectEx.ReferencedByList: TFRE_DB_GUIDArray;
-//begin
-//  result := FImplementor.ReferencedByList;
-//end;
-//
-//function TFRE_DB_ObjectEx.ReferencedByList(const from_scheme: TFRE_DB_String): TFRE_DB_GUIDArray;
-//begin
-//  result := FImplementor.ReferencedByList(from_scheme);
-//end;
-//
-//function TFRE_DB_ObjectEx.ReferencedByList(const scheme: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
-//begin
-//  result := FImplementor.ReferencedByList(scheme);
-//end;
-
 function TFRE_DB_ObjectEx.GetFieldListFilter(const field_type: TFRE_DB_FIELDTYPE): TFRE_DB_StringArray;
 begin
   result := FImplementor.GetFieldListFilter(field_type);
@@ -4094,11 +4062,6 @@ function TFRE_DB_ObjectEx.IntfCast(const InterfaceSpec: ShortString): Pointer;
 begin
   IntfCast(InterfaceSpec,result);
 end;
-
-//function TFRE_DB_ObjectEx.GetDBConnection: IFRE_DB_CONNECTION;
-//begin
-//  result := FImplementor.GetDBConnection;
-//end;
 
 function TFRE_DB_ObjectEx.GetScheme: IFRE_DB_SchemeObject;
 begin
@@ -4227,6 +4190,11 @@ begin
   // result.SetScheme(self);
 end;
 
+procedure TFRE_DB_ObjectEx.CopyToMemory(memory: Pointer; const without_schemes: boolean);
+begin
+  FImplementor.CopyToMemory(memory,without_schemes);
+end;
+
 
 function TFRE_DB_ObjectEx.WEB_SaveOperation(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var scheme            : IFRE_DB_SCHEMEOBJECT;
@@ -4234,7 +4202,7 @@ var scheme            : IFRE_DB_SCHEMEOBJECT;
     raw_object        : IFRE_DB_Object;
 begin
   if Not IsObjectRoot then begin
-    result := TFRE_DB_MESSAGE_DESC(result).Describe('SAVE','Error on saving! Saving of Subobject not supported!',fdbmt_error);
+    result := TFRE_DB_MESSAGE_DESC.Create.Describe('SAVE','Error on saving! Saving of Subobject not supported!',fdbmt_error);
     exit;
   end;
   result            := nil;

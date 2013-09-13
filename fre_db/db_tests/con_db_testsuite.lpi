@@ -59,7 +59,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="con_db_testsuite"/>
+      <Filename Value="../../../bin/con_db_testsuite"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>

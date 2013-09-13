@@ -468,6 +468,7 @@ type
     fuidPathUA         : TFRE_DB_GUIDArray;
     FObjectProps       : TFRE_DB_Object_PropertySet; // Runtime Properties
     FInCollectionarr   : array of IFRE_DB_PERSISTANCE_COLLECTION;
+    procedure      _RestoreUID                         ;
     procedure      ForAll                              (const iter:TFRE_DB_FieldIterator);
     procedure      ForAllBrk                           (const iter:TFRE_DB_FieldIteratorBrk);
     function       _Field                              (name:TFRE_DB_String):TFRE_DB_FIELD;
@@ -2728,15 +2729,15 @@ end;
 
 procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const dataCollection: TFRE_DB_String);
 var
-  obj    : OFRE_InputFieldDef4Group;
-  path   : TFRE_DB_StringArray;
-  scheme : TFRE_DB_SchemeObject;
-
-  i: Integer;
-  fieldDef: TFRE_DB_FieldSchemeDefinition;
-  required: Boolean;
+  obj      : OFRE_InputFieldDef4Group;
+  path     : TFRE_DB_StringArray;
+  scheme   : TFRE_DB_SchemeObject;
+  i        : Integer;
+  fieldDef : TFRE_DB_FieldSchemeDefinition;
+  required : Boolean;
   validator: TFRE_DB_ClientFieldValidator;
   enum     : TFRE_DB_Enum;
+
 begin
   if Length(schemefield)>=255 then
     raise EFRE_DB_Exception.Create(edb_ERROR,'(nested) schemefield longer or equal 255 chars / limit');
@@ -2755,7 +2756,8 @@ begin
   if not scheme.GetSchemeField(path[High(path)],fieldDef) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find scheme field: %s:(%s)',[scheme.DefinedSchemeName,schemefield]);
 
-  obj                := default(OFRE_InputFieldDef4Group);
+  //obj                := default(OFRE_InputFieldDef4Group);
+  FillByte(obj,sizeof(OFRE_InputFieldDef4Group),0);
   obj.typ            := igd_Field;
   obj.field          := schemefield; // field
   obj.required       := required and fieldDef.required;
@@ -2773,7 +2775,9 @@ end;
 procedure TFRE_DB_InputGroupSchemeDefinition.UseInputGroup(const scheme, group: TFRE_DB_String; const addPrefix: TFRE_DB_String; const as_gui_subgroup: boolean; const collapsible: Boolean; const collapsed: Boolean);
 var igd : OFRE_InputFieldDef4Group;
 begin
- igd := default(OFRE_InputFieldDef4Group);
+ //igd := default(OFRE_InputFieldDef4Group);
+ FillByte(igd,sizeof(OFRE_InputFieldDef4Group),0);
+
  if as_gui_subgroup then
    igd.typ            := igd_UsedSubGroup
  else
@@ -2832,7 +2836,9 @@ var obj : OFRE_InputFieldDef4Group;
 begin
   groupid := uppercase(gid);
   FScheme := scheme;
-  Fields.InitSparseList(default(OFRE_InputFieldDef4Group),@local_FieldDefIsNull,@local_FieldDefCompare);
+  //obj := default(OFRE_InputFieldDef4Group);
+  FillByte(obj,sizeof(OFRE_InputFieldDef4Group),0);
+  Fields.InitSparseList(obj,@local_FieldDefIsNull,@local_FieldDefCompare);
 end;
 
 function TFRE_DB_COMMAND.GetCommandID: UInt64;
@@ -7618,8 +7624,10 @@ begin
 end;
 
 constructor TFRE_DB_FieldSchemeDefinition.Create;
+var rdf : R_Depfieldfield;
 begin
-  FDepFields.InitSparseList(default(R_Depfieldfield),@local_DepfieldNullCompare,@local_DepfieldCompare,1);
+  FillByte(rdf,sizeof(R_Depfieldfield),0);
+  FDepFields.InitSparseList(rdf,@local_DepfieldNullCompare,@local_DepfieldCompare,1);
 end;
 
 
@@ -8525,7 +8533,7 @@ begin
      end else begin
        dbo                    := GFRE_DB.NewObject;
      end;
-     ex_class               := TFRE_DB_OBJECTCLASSEX(FHardCodeClassTyp).CreateBound(dbo);
+     ex_class               := TFRE_DB_OBJECTCLASSEX(FHardCodeClassTyp).CreateBound(dbo,true);
      dbo.FMediatorExtention := ex_class;
      result                 := dbo;
    end else begin
@@ -8546,7 +8554,7 @@ begin
    assert(assigned(FHardCodeClassTyp));
    name := FHardCodeClassTyp.ClassName;
    if FHardCodeClassTyp.InheritsFrom(TFRE_DB_OBJECTEX) then begin
-     ex_class               := TFRE_DB_OBJECTCLASSEX(FHardCodeClassTyp).CreateBound(dbo);
+     ex_class               := TFRE_DB_OBJECTCLASSEX(FHardCodeClassTyp).CreateBound(dbo,false);
      dbo.FMediatorExtention := ex_class;
    end else begin
      abort;
@@ -10316,6 +10324,7 @@ begin
   obj_cl := GetObjectClass(ClName);
   if assigned(obj_cl) then begin
     result := obj_cl.CreateStreaming;
+    //result.InternalSetup;
   end else begin
     ex_obj_cl := GetObjectClassEx(ClName);
     if assigned(ex_obj_cl) then begin
@@ -11931,7 +11940,7 @@ begin
   FObjectProps         := [];
   FFieldStore          := _TFRE_DB_FieldTree.Create(@FREDB_DBNameType_Compare);
   FUID                 := GFRE_DB.Get_A_GUID;
-  _Field('UID').AsGUID := FUID;
+  _RestoreUID          ;
   InternalSetup;
   assert(FDBO_State=fdbos_Creating);
   FDBO_State:=fdbos_Dirty;
@@ -11942,8 +11951,9 @@ begin
   inherited Create;
   FDBO_State             := fdbos_StreamingCreating;
   FFieldStore            := _TFRE_DB_FieldTree.Create(@FREDB_DBNameType_Compare);
+  _RestoreUID            ;
   if assigned(ExtensionObjectMediatorClass) then begin
-    FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self);
+    FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self,false);
   end;
 end;
 
@@ -11955,6 +11965,7 @@ destructor TFRE_DB_Object.Destroy;
   end;
 
 begin
+exit;
   FDBO_State := fdbos_Destroying;
   FFieldStore.ForallItems(@DoAllFinalizeFields); // plus unknown fields
   FFieldStore.Free;
@@ -12045,6 +12056,10 @@ begin
   result := Field(name);
 end;
 
+procedure TFRE_DB_Object._RestoreUID;
+begin
+  _Field('UID').AsGUID := FUID;
+end;
 
 procedure TFRE_DB_Object.ForAll(const iter: TFRE_DB_FieldIterator);
 var scheme_object:TFRE_DB_SchemeObject;
@@ -12187,6 +12202,7 @@ end;
 procedure TFRE_DB_Object.CheckMediatorSetup;
 var lScheme:TFRE_DB_SchemeObject;
 begin
+  abort ; // Check codepath against internal setup overwrite bug
   lScheme := GetScheme;
   if not assigned(lScheme) then exit;
   if lScheme.HasHardCodeClass and (SchemeClass<>ClassName) then begin
@@ -12515,8 +12531,9 @@ begin
   result := GFRE_DB.NewObjectStreaming(lClassname);
   result.FParentDBO := parent;
   result.FSchemeName:=lschemename;
-  result.CopyFromMem(mempointer,lFieldcount,recreate_weak_schemes,generate_new_uids);
   result.InternalSetup;
+  result.CopyFromMem(mempointer,lFieldcount,recreate_weak_schemes,generate_new_uids);
+  //result.InternalSetup;
   result.AfterLoad;
   //result.FStreamingSize:=lStreamingSize;
   assert(result.FDBO_State=fdbos_StreamingCreating);
@@ -12719,12 +12736,15 @@ procedure TFRE_DB_Object.ClearAllFields;
 
   procedure ClearField(const fld:TFRE_DB_FIELD);
   begin
+    if fld.FIsUidField then
+      exit;
     fld.Free;
   end;
 
 begin
   _InAccessibleCheck;
   FFieldStore.ClearItems(@ClearField);
+  _RestoreUID;
 end;
 
 function TFRE_DB_Object.FieldExists(const name: TFRE_DB_String): boolean;
@@ -12944,7 +12964,7 @@ begin
   _InAccessibleCheck;
   result := TFRE_DB_Object.CreateFromString(self.AsString,false,generate_new_uids);
   if assigned(FMediatorExtention) then begin
-    result.FMediatorExtention := TFRE_DB_OBJECTCLASSEX(FMediatorExtention.ClassType).CreateBound(result);
+    result.FMediatorExtention := TFRE_DB_OBJECTCLASSEX(FMediatorExtention.ClassType).CreateBound(result,false);
     result.SetScheme(GetScheme);
   end;
 end;
@@ -14533,6 +14553,7 @@ var value_count : SizeInt;
    end;
 
 begin
+  Clear();
   startp := mempointer;
   Move                 (startp^,sz_field,CFRE_DB_SIZE_ENCODING_SIZE);inc(startp,CFRE_DB_SIZE_ENCODING_SIZE);
   FFieldData.FieldType := TFRE_DB_FIELDTYPE(sz_field);
