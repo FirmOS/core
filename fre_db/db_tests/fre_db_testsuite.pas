@@ -12,7 +12,21 @@ uses
 
   var TEST_GUID_1,TEST_GUID_2,TEST_GUID_3 : TGUID;
 
+  procedure Check_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object);
+
 type
+
+  { TFRE_DB_TEST_CODE_CLASS }
+
+  TFRE_DB_TEST_CODE_CLASS=class(TFRE_DB_ObjectEx)
+  public
+    procedure InternalSetup; override;
+  published
+    function IMI_SimpleTest(const input:IFRE_DB_Object):IFRE_DB_Object;
+  end;
+
+
+
 // fdbft_Object,fdbft_ObjLink,fdbft_CalcField
   { TFRE_DB_ObjectTests }
 
@@ -34,12 +48,12 @@ type
     procedure UID_Set;
     procedure Mediator_Empty;
     procedure ObjectProperties;
-    procedure DBConnection;
     procedure FieldTypes;
     procedure DumpTest;
     procedure DumpJSONTestFull;
     procedure SetNullArray;
     procedure StreamTest;
+    procedure StreamTest2;
   end;
 
   { TFRE_DB_PersistanceTests }
@@ -68,9 +82,10 @@ type
 implementation
 
 
-procedure Fill_Test_Object(const field_prefix:string;const obj:TFRE_DB_Object);
+procedure Fill_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object);
 var dbs : TFRE_DB_Stream;
 begin
+  obj.ClearAllFields;
   obj.Field(field_prefix+'STRING').AsStringArr               := GFRE_DB.ConstructStringArray(['äüö ÄÜÖ ß','מדוע לא דברו עברית?','ག་རེ་བྱས་ཁོ་རང་ཚོས་བོད་སྐད་ཆ་དེ་ག་རང་བཤད་ཀྱི་མ་རེད།','लोकांना मराठी का बोलता येत नाही?']);
   obj.Field(field_prefix+'STRING_NA').SetAsEmptyStringArray  ;
 
@@ -108,7 +123,7 @@ begin
   obj.Field(field_prefix+'STREAM2').AddStream(dbs);
 end;
 
-procedure Check_Test_Object(const field_prefix:string;const obj:TFRE_DB_Object);
+procedure Check_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object);
 var dbs :  TFRE_DB_Stream;
     sa   : TFRE_DB_StringArray;
     cs   : TFRE_DB_String;
@@ -242,6 +257,20 @@ begin
    end;
 end;
 
+{ TFRE_DB_TEST_CODE_CLASS }
+
+procedure TFRE_DB_TEST_CODE_CLASS.InternalSetup;
+begin
+  inherited InternalSetup;
+  Field('TST_STRING').AsString := 'HULAHULA';
+  Field('TST_BOOLEAN').AsInt16 := -33;
+end;
+
+function TFRE_DB_TEST_CODE_CLASS.IMI_SimpleTest(const input: IFRE_DB_Object): IFRE_DB_Object;
+begin
+  Check_Test_Object('TST_',self);
+end;
+
 { TFRE_DB_PersistanceTests }
 
 procedure TFRE_DB_PersistanceTests.SystemConnect;
@@ -366,6 +395,8 @@ end;
 
 procedure TFRE_DB_ObjectTests.SetUp;
 begin
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_CODE_CLASS);
+  GFRE_DBI.Initialize_Extension_Objects;
   TestObject := GFRE_DB.NewObject;
 end;
 
@@ -444,16 +475,6 @@ begin
   AssertTrue(TestObject.Properties = []);
 end;
 
-procedure TFRE_DB_ObjectTests.DBConnection;
-begin
-  try
-   TestObject.GetDBConnection;
-  except
-    exit;
-  end;
-  Fail('GetDBConnection must raise an exception on unmanaged objects')
-end;
-
 procedure TFRE_DB_ObjectTests.FieldTypes;
 begin
   Fill_Test_Object('TST_',TestObject);
@@ -493,6 +514,8 @@ end;
 
 procedure TFRE_DB_ObjectTests.StreamTest;
 var Object2 : TFRE_DB_Object;
+    Object3 : TFRE_DB_Object;
+    Object4 : TFRE_DB_Object;
     len     : integer;
     data    : RawByteString;
     mp      : Pointer;
@@ -508,15 +531,68 @@ begin
 
   mp:=@data[1];
   Object2:=TFRE_DB_Object.CreateFromMemory(mp);
+  Check_Test_Object('TST_',TestObject);
+  Check_Test_Object('TST_',Object2);
   writeln(Object2.dumpToString);
   writeln(GFRE_BT.GUID_2_HexString(Object2.UID));
+
+  Object3 := Object2.CloneToNewObject();
+  Object4 := Object3.CloneToNewObject();
+
+  Check_Test_Object('TST_',Object3);
+  Check_Test_Object('TST_',Object4);
+
   Object2.free;
+
+end;
+
+procedure TFRE_DB_ObjectTests.StreamTest2;
+var Object1 : TFRE_DB_TEST_CODE_CLASS;
+    Object2 : IFRE_DB_Object;
+    Object3 : TFRE_DB_TEST_CODE_CLASS;
+    Object4 : IFRE_DB_Object;
+    len     : integer;
+    data    : RawByteString;
+    mp      : Pointer;
+    i: Integer;
+begin
+  Object1 := TFRE_DB_TEST_CODE_CLASS.CreateForDB;
+  Fill_Test_Object('TST_',Object1);
+  writeln(Object1.DumpToString);
+  len:=Object1.NeededSize;
+  writeln('Streamingsize =========== ',len);
+  SetLength(data,len);
+  mp:=@data[1];
+  Object1.CopyToMemory(mp);
+  writeln('********************* STREAMED ***********************');
+
+  mp:=@data[1];
+  Object2:=TFRE_DB_Object.CreateFromMemory(mp);
+  Check_Test_Object('TST_',Object2);
+  writeln(Object2.dumpToString);
+  writeln(GFRE_BT.GUID_2_HexString(Object2.UID));
+  //Object2.Finalize;
+  for i := 0 to 10 do
+    begin
+      Object3 := Object2.CloneToNewObject().Implementor_HC as TFRE_DB_TEST_CODE_CLASS;
+      Object4 := Object3.CloneToNewObject();
+      Check_Test_Object('TST_',Object3);
+      Check_Test_Object('TST_',Object4);
+      Object4.IsA('TFRE_DB_TEST_CODE_CLASS');
+      assert(Object4.Implementor_HC.ClassName = 'TFRE_DB_TEST_CODE_CLASS');
+      Check_Test_Object('TST_',Object3);
+      Check_Test_Object('TST_',Object4);
+      Object3.Finalize;
+      Object4.Finalize;
+    end;
+  Object2.Finalize;
+  Object1.Finalize;
 end;
 
 
 initialization
-  //RegisterTest(TFRE_DB_ObjectTests);
-  RegisterTest(TFRE_DB_PersistanceTests);
+  RegisterTest(TFRE_DB_ObjectTests);
+  //RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 

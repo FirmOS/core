@@ -361,7 +361,7 @@ begin
     begin
       writeln('  ->> SYNCING COLL ',coll.CollectionName(false));
       GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
-      f :=  TFileStream.Create(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName)+'.col',fmCreate+fmOpenReadWrite);
+      f :=  TFileStream.Create(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col',fmCreate+fmOpenReadWrite);
       try
         coll.GetPersLayerIntf.StreamToThis(f);
       finally

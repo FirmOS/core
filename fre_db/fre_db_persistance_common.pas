@@ -2785,7 +2785,7 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID : signature bad');
   in_txt := stream.ReadAnsiString;
   if in_txt<>FName then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID NAME DIFFERS: [%s <> %s]',[]);
+    raise EFRE_DB_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID NAME DIFFERS: [%s <> %s]',[in_txt,FName]);
   cnt := stream.ReadQWord;
   //writeln('RELOADING COLLECTION ',in_txt,' / ',cnt);
   for i := 1 to cnt do
@@ -2940,6 +2940,7 @@ end;
 function TFRE_DB_Persistance_Collection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: TFRE_DB_Object; const index_name: TFRE_DB_NameType): boolean;
 var arr   : TFRE_DB_ObjectArray;
 begin
+  obj := nil;
   result := GetIndexedObj(query_value,arr,index_name,true);
   if result then
     begin

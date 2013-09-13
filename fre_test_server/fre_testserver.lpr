@@ -41,7 +41,7 @@ program fre_testserver;
 {$LIBRARYPATH ../../lib}
 
 uses
-//  cmem,
+  cmem,
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}

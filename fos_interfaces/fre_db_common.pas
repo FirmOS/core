@@ -1755,7 +1755,7 @@ implementation
     obj:=_getRootObj(Self);
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
-        TFRE_DB_FORM_DESC(obj).AddStore(store);
+        TFRE_DB_FORM_DESC(obj.Implementor_HC).AddStore(store);
       end else begin
         inherited AddStore(store);
       end;
@@ -1787,7 +1787,7 @@ implementation
     obj:=_getRootObj(Self);
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
-        TFRE_DB_FORM_DESC(obj).GetStore(id);
+        TFRE_DB_FORM_DESC(obj.Implementor_HC).GetStore(id);
       end else begin
         inherited GetStore(id);
       end;
