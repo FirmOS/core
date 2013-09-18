@@ -1859,7 +1859,7 @@ implementation
     Field('data').AddObject(entry);
   end;
 
-    procedure TFRE_DB_STORE_DATA_DESC.addTreeEntry(const entry: IFRE_DB_Object; const HasChildren: boolean; const ChildrenFuncName: string; const MenuFuncName: string; const ContenFuncname: String; const funcclassname: string);
+  procedure TFRE_DB_STORE_DATA_DESC.addTreeEntry(const entry: IFRE_DB_Object; const HasChildren: boolean; const ChildrenFuncName: string; const MenuFuncName: string; const ContenFuncname: String; const funcclassname: string);
   begin
     if funcclassname='' then
       entry.Field('_funcclassname_').AsString := entry.SchemeClass

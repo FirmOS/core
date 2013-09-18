@@ -1317,7 +1317,7 @@ implementation
                         end;
             dt_icon   : begin
                           jsContentAdd('      ,editable: false');
-                          jsContentAdd('      ,formatter: function(value) {if (value=='''') return ''''; var vals=value.split('',''); var ret=''''; for (var i=0;i<vals.length;i++) {ret+=''<img src="'' + vals[i] + ''">'';} return ret;}');
+                          jsContentAdd('      ,formatter: function(value) {if (!value || (value=='''')) return ''''; var vals=value.split('',''); var ret=''''; for (var i=0;i<vals.length;i++) {ret+=''<img src="'' + vals[i] + ''">'';} return ret;}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridIcon"');
                         end;
             dt_boolean: begin

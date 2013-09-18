@@ -370,10 +370,13 @@ end;
 procedure TFRE_DB_TEST_FILEDIR.SetIsFile(const isfile: boolean);
 begin
   Field('isfile').AsBoolean := isfile;
-  if isfile then
-    Field('children').AsString:=''
-  else
+  if isfile then begin
+    Field('children').AsString:='';
+    Field('icon').AsString:=getThemedResource('images_apps/firmbox_storage/access_false.png');
+  end else begin
     Field('children').AsString:='UNCHECKED';
+    Field('icon').AsString:=getThemedResource('images_apps/firmbox_storage/access_true.png');
+  end;
 end;
 
 function TFRE_DB_TEST_FILEDIR.GetIsFile: Boolean;
@@ -390,6 +393,11 @@ begin
   Field('date').AsDateTime := GFRE_DT.EncodeTime(y,mon,d,h,min,s,0);
   Field('name').AsString   := name;
   Field('size').AsUInt64   := size;
+  if is_file then begin
+    Field('sizeHR').AsString := GFRE_BT.ByteToString(size);
+  end else begin
+    Field('sizeHR').AsString := '';
+  end;
   Field('mode').AsUInt32   := mode;
   SetIsFile(is_file);
 end;
@@ -519,14 +527,29 @@ begin
 end;
 
 procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
-var DC_Tree      : IFRE_DB_DERIVED_COLLECTION;
+var
+  DC_Grid      : IFRE_DB_DERIVED_COLLECTION;
+  tr_Grid      : IFRE_DB_SIMPLE_TRANSFORM;
 begin
   inherited;
   if session.IsInteractiveSession then begin
-    DC_Tree := session.NewDerivedCollection('FILEBROWSER');
-    with DC_Tree do begin
+    DC_Grid := session.NewDerivedCollection('FILEBROWSER');
+    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
+    with tr_Grid do begin
+      AddOneToOnescheme('name','','Name',dt_string,true,3,'icon');
+      AddOneToOnescheme('sizeHR','','Size',dt_string,true,1);
+      AddOneToOnescheme('date','','Date',dt_date,true,1);
+      AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('mypath','','',dt_string,false);
+      AddOneToOnescheme('children','','',dt_string,false);
+      AddOneToOnescheme('UIP','uidpath','',dt_string,false);
+      AddConstString('_childrenfunc_','ChildrenData',false);
+      AddConstString('_funcclassname_','TFRE_DB_TEST_FILEDIR',false);
+    end;
+    with DC_Grid do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_FILEBROWSER'),'mypath');
-      SetDisplayType(cdt_Treeview,[cdgf_ShowSearchbox],'Tree',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
+      SetDeriveTransformation(tr_Grid);
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children],'TreeGrid',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
     end;
   end;
 end;
@@ -538,8 +561,7 @@ begin
   inherited MyServerInitializeModule(admin_dbc);
   coll := admin_dbc.Collection('COLL_FILEBROWSER',true,true);
   filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
-  filedir.SetIsFile(false);
-  filedir.SetProperties('Virtual Rooot',true,0,0,0);
+  filedir.SetProperties('Virtual Rooot',false,0,0,0);
   CheckDbResult(coll.Store(filedir),'Error creating root entry');
 end;
 
