@@ -372,10 +372,8 @@ begin
   Field('isfile').AsBoolean := isfile;
   if isfile then begin
     Field('children').AsString:='';
-    Field('icon').AsString:=getThemedResource('images_apps/firmbox_storage/access_false.png');
   end else begin
     Field('children').AsString:='UNCHECKED';
-    Field('icon').AsString:=getThemedResource('images_apps/firmbox_storage/access_true.png');
   end;
 end;
 
@@ -388,6 +386,38 @@ procedure TFRE_DB_TEST_FILEDIR.SetProperties(const name: TFRE_DB_String; const i
 var
     y, mon, d, h, min, s: word;
     fosdt : TFRE_DB_DateTime64;
+
+   function mimeTypeToIcon(const mt: String):String;
+   var
+     mtp: TFRE_DB_StringArray;
+   begin
+     GFRE_BT.SeperateString(LowerCase(mt),'/',mtp);
+     Result:='images_apps/test/file.png';
+     case mtp[0] of
+       'audio': Result:='images_apps/test/audio-basic.png';
+       'video': Result:='images_apps/test/video-x-generic-mplayer.png';
+       'image': begin
+                  case mtp[1] of
+                    'bmp': Result:='images_apps/test/image-bmp.png';
+                    'jpeg': Result:='images_apps/test/image-jpeg.png';
+                    'tiff': Result:='images_apps/test/image-tiff.png';
+                    'gif': Result:='images_apps/test/image-gif.png';
+                    'png': Result:='images_apps/test/image-png.png';
+                  end;
+                end;
+       'application': begin
+                        case mtp[1] of
+                          'zip': Result:='images_apps/test/application-zip.png';
+                          'pdf': Result:='images_apps/test/application-pdf.png';
+                          'msword': Result:='images_apps/test/page-word.png';
+                          'postscript': Result:='images_apps/test/application-postscript-2.png';
+                          'rtf': Result:='images_apps/test/application-rtf.png';
+                          'wordperfect5.1': Result:='images_apps/test/application-vnd.wordperfect-abiword.png';
+                        end;
+                      end;
+     end;
+   end;
+
 begin
   EpochToLocal(time,y,mon,d,h,min,s);
   Field('date').AsDateTime := GFRE_DT.EncodeTime(y,mon,d,h,min,s,0);
@@ -395,8 +425,11 @@ begin
   Field('size').AsUInt64   := size;
   if is_file then begin
     Field('sizeHR').AsString := GFRE_BT.ByteToString(size);
+    Field('icon').AsString:=getThemedResource(mimeTypeToIcon(GFRE_BT.FilenameToMimetype(name)));
   end else begin
     Field('sizeHR').AsString := '';
+    Field('icon').AsString:=getThemedResource('images_apps/test/folder.png');
+    Field('icon_open').AsString:=getThemedResource('images_apps/test/folder-open.png');
   end;
   Field('mode').AsUInt32   := mode;
   SetIsFile(is_file);
@@ -536,10 +569,11 @@ begin
     DC_Grid := session.NewDerivedCollection('FILEBROWSER');
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
-      AddOneToOnescheme('name','','Name',dt_string,true,3,'icon');
+      AddOneToOnescheme('name','','Name',dt_string,true,3,'icon','icon_open');
       AddOneToOnescheme('sizeHR','','Size',dt_string,true,1);
       AddOneToOnescheme('date','','Date',dt_date,true,1);
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('icon_open','','',dt_string,false);
       AddOneToOnescheme('mypath','','',dt_string,false);
       AddOneToOnescheme('children','','',dt_string,false);
       AddOneToOnescheme('UIP','uidpath','',dt_string,false);

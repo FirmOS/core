@@ -39,7 +39,7 @@ unit fos_basis_tools;
 
 interface
 
-uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64;
+uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64,mimepart;
 
 type
   { TFOS_DEFAULT_BASISTOOLS }
@@ -58,12 +58,12 @@ type
     function  Max                       (const A, B:  integer): integer;
     function  RatioPercent              (const A, B:  Double):Double;
     function  ByteToString              (const byte: QWord): String;
+    function  FilenameToMimetype        (const fname:  String): String;
 
     function  SepLeft                   (const Value, Delimiter: Ansistring): Ansistring;
     function  SepRight                  (const Value, Delimiter: Ansistring): Ansistring;
     function  ValToken2Str              (const Value: integer;   const TokArr:Array of TFOS_VALUETOKEN;const unknown:string=''):String;
     function  BitToken2Str              (const Value: integer;   const TokArr:Array of TFOS_VALUETOKEN):String;
-
 
     procedure SeperateString            (const value,sep:string ; var Strings:TFOSStringArray);
     function  CombineString             (const strings:TFOSStringArray; const sep:string):string;
@@ -624,6 +624,15 @@ begin
   end else begin
     Result:=IntToStr(byte) + ' Byte';
   end;
+end;
+
+function TFOS_DEFAULT_BASISTOOLS.FilenameToMimetype(const fname: String): String;
+var
+  mess : TMimePart;
+begin
+ mess:=TMimePart.Create;
+ mess.MimeTypeFromExt(fname);
+ Result:=mess.Primary+'/'+mess.Secondary;
 end;
 
 function TFOS_DEFAULT_BASISTOOLS.SepLeft(const Value, Delimiter: Ansistring): Ansistring;
