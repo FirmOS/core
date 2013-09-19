@@ -816,7 +816,7 @@ type
     procedure SetCustomTransformFunction     (const func : IFRE_DB_CUSTOMTRANSFORM);
     procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_StringArray;const out_field:TFRE_DB_String;const filter_field:boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure AddFulltextFilterOnTransformed (const in_fieldlist:TFRE_DB_StringArray);
-    procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1;const iconID:String='');
+    procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
     procedure AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const fieldSize: Integer=1);
     procedure AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure AddDBTextShortToOne            (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);

@@ -1302,13 +1302,13 @@ implementation
           case FREDB_String2DBDisplayType(elem.Field('displayType').AsString) of
             dt_string : begin
                           if elem.FieldExists('iconId') then begin
-                            jsContentAdd('      ,renderCell: function(object, value, node, options) {var div = document.createElement("div"); div.innerHTML = "<img src=''"+object.'+elem.Field('iconId').AsString+'+"''>&nbsp;" + value; return div;}');
+                            jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderIconCell(object, value, node, options,"'+ elem.Field('iconId').AsString +'","'+ elem.Field('openIconId').AsString+'");}');
                           end;
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridString"');
                         end;
             dt_date   : begin
                           //jsContentAdd('      ,type: dojox.grid.cells.DateTextBox');
-                          jsContentAdd('      ,formatter: function(value) {return dojo.date.locale.format(new Date(value), {formatLength: "long"});}');
+                          jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderDate(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridDate"');
                         end;
             dt_number : begin
@@ -1317,7 +1317,7 @@ implementation
                         end;
             dt_icon   : begin
                           jsContentAdd('      ,editable: false');
-                          jsContentAdd('      ,formatter: function(value) {if (value=='''') return ''''; var vals=value.split('',''); var ret=''''; for (var i=0;i<vals.length;i++) {ret+=''<img src="'' + vals[i] + ''">'';} return ret;}');
+                          jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderIcons(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridIcon"');
                         end;
             dt_boolean: begin

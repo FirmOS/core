@@ -1422,7 +1422,7 @@ type
     procedure SetCustomTransformFunction     (const func : IFRE_DB_CUSTOMTRANSFORM);
     procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_StringArray;const out_field:TFRE_DB_String;const filter_field:boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure AddFulltextFilterOnTransformed (const in_fieldlist:TFRE_DB_StringArray);
-    procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1;const iconID:String='');
+    procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
     procedure AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const fieldSize: Integer=1);
     procedure AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure AddDBTextShortToOne            (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
@@ -5418,7 +5418,7 @@ begin
  // abort; FIXXME
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddOneToOnescheme(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer; const iconID: String);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddOneToOnescheme(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer; const iconID: String; const openIconID:String);
 var obj:TFRE_DB_Object;
 begin
   obj                         := GFRE_DB.NewObject;
@@ -5426,10 +5426,12 @@ begin
   obj.Field('F').AsString     := fieldname;
   obj.Field('OF').AsString    := lowercase(out_field);
   obj.Field('OPT').AsString   := output_title;
+  obj.Field('DISP').AsBoolean := display;
   obj.Field('FF').AsBoolean   := false;
   obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
   obj.Field('FS').AsInt16     := fieldSize;
   obj.Field('IC').AsString    := iconID;
+  obj.Field('OIC').AsString   := openIconID;
   Field('TRANS').AddObject(obj);
 end;
 
@@ -5458,7 +5460,7 @@ begin
  obj.Field('OF').AsString    := lowercase(out_field);
  obj.Field('OPT').AsString   := output_title;
  obj.Field('VAL').AsString   := value;
- obj.Field('DISP').AsBoolean :=display;
+ obj.Field('DISP').AsBoolean := display;
  obj.Field('FF').AsBoolean   := false;
  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
  obj.Field('FS').AsInt16     := fieldSize;
@@ -5553,21 +5555,25 @@ var cnt,i            : Integer;
         gdt       : string;
         fs        : Integer;
         icon      : string;
+        openIcon  : String;
+        display   : Boolean;
 
     begin
       out_title := transform_object.Field('OPT').AsString;
       out_field := transform_object.Field('OF').AsString;
       in_field  := transform_object.Field('F').AsString;
+      display   := transform_object.Field('DISP').AsBoolean;
       gdt       := transform_object.Field('GDT').AsString;
       fs        := transform_object.Field('FS').AsInt16;
       icon      := transform_object.Field('IC').AsString;
+      openIcon  := transform_object.Field('OIC').AsString;
       if gdt<>'' then begin
         gui_dt    := FREDB_String2DBDisplayType(gdt);
       end else begin
         gui_dt := dt_string;
       end;
       if out_field='' then out_field:=in_field;
-      vcd.AddDataElement.Describe(lowercase(out_field),out_title,gui_dt,fs,true,false,icon);
+      vcd.AddDataElement.Describe(lowercase(out_field),out_title,gui_dt,fs,display,false,icon,openIcon);
     end;
 
     procedure _AddPrgEntry;

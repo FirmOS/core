@@ -370,10 +370,11 @@ end;
 procedure TFRE_DB_TEST_FILEDIR.SetIsFile(const isfile: boolean);
 begin
   Field('isfile').AsBoolean := isfile;
-  if isfile then
-    Field('children').AsString:=''
-  else
+  if isfile then begin
+    Field('children').AsString:='';
+  end else begin
     Field('children').AsString:='UNCHECKED';
+  end;
 end;
 
 function TFRE_DB_TEST_FILEDIR.GetIsFile: Boolean;
@@ -385,11 +386,51 @@ procedure TFRE_DB_TEST_FILEDIR.SetProperties(const name: TFRE_DB_String; const i
 var
     y, mon, d, h, min, s: word;
     fosdt : TFRE_DB_DateTime64;
+
+   function mimeTypeToIcon(const mt: String):String;
+   var
+     mtp: TFRE_DB_StringArray;
+   begin
+     GFRE_BT.SeperateString(LowerCase(mt),'/',mtp);
+     Result:='images_apps/test/file.png';
+     case mtp[0] of
+       'audio': Result:='images_apps/test/audio-basic.png';
+       'video': Result:='images_apps/test/video-x-generic-mplayer.png';
+       'image': begin
+                  case mtp[1] of
+                    'bmp': Result:='images_apps/test/image-bmp.png';
+                    'jpeg': Result:='images_apps/test/image-jpeg.png';
+                    'tiff': Result:='images_apps/test/image-tiff.png';
+                    'gif': Result:='images_apps/test/image-gif.png';
+                    'png': Result:='images_apps/test/image-png.png';
+                  end;
+                end;
+       'application': begin
+                        case mtp[1] of
+                          'zip': Result:='images_apps/test/application-zip.png';
+                          'pdf': Result:='images_apps/test/application-pdf.png';
+                          'msword': Result:='images_apps/test/page-word.png';
+                          'postscript': Result:='images_apps/test/application-postscript-2.png';
+                          'rtf': Result:='images_apps/test/application-rtf.png';
+                          'wordperfect5.1': Result:='images_apps/test/application-vnd.wordperfect-abiword.png';
+                        end;
+                      end;
+     end;
+   end;
+
 begin
   EpochToLocal(time,y,mon,d,h,min,s);
   Field('date').AsDateTime := GFRE_DT.EncodeTime(y,mon,d,h,min,s,0);
   Field('name').AsString   := name;
   Field('size').AsUInt64   := size;
+  if is_file then begin
+    Field('sizeHR').AsString := GFRE_BT.ByteToString(size);
+    Field('icon').AsString:=getThemedResource(mimeTypeToIcon(GFRE_BT.FilenameToMimetype(name)));
+  end else begin
+    Field('sizeHR').AsString := '';
+    Field('icon').AsString:=getThemedResource('images_apps/test/folder.png');
+    Field('icon_open').AsString:=getThemedResource('images_apps/test/folder-open.png');
+  end;
   Field('mode').AsUInt32   := mode;
   SetIsFile(is_file);
 end;
@@ -519,14 +560,30 @@ begin
 end;
 
 procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
-var DC_Tree      : IFRE_DB_DERIVED_COLLECTION;
+var
+  DC_Grid      : IFRE_DB_DERIVED_COLLECTION;
+  tr_Grid      : IFRE_DB_SIMPLE_TRANSFORM;
 begin
   inherited;
   if session.IsInteractiveSession then begin
-    DC_Tree := session.NewDerivedCollection('FILEBROWSER');
-    with DC_Tree do begin
+    DC_Grid := session.NewDerivedCollection('FILEBROWSER');
+    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
+    with tr_Grid do begin
+      AddOneToOnescheme('name','','Name',dt_string,true,3,'icon','icon_open');
+      AddOneToOnescheme('sizeHR','','Size',dt_string,true,1);
+      AddOneToOnescheme('date','','Date',dt_date,true,1);
+      AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('icon_open','','',dt_string,false);
+      AddOneToOnescheme('mypath','','',dt_string,false);
+      AddOneToOnescheme('children','','',dt_string,false);
+      AddOneToOnescheme('UIP','uidpath','',dt_string,false);
+      AddConstString('_childrenfunc_','ChildrenData',false);
+      AddConstString('_funcclassname_','TFRE_DB_TEST_FILEDIR',false);
+    end;
+    with DC_Grid do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_FILEBROWSER'),'mypath');
-      SetDisplayType(cdt_Treeview,[cdgf_ShowSearchbox],'Tree',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
+      SetDeriveTransformation(tr_Grid);
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children],'TreeGrid',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
     end;
   end;
 end;
@@ -538,8 +595,7 @@ begin
   inherited MyServerInitializeModule(admin_dbc);
   coll := admin_dbc.Collection('COLL_FILEBROWSER',true,true);
   filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
-  filedir.SetIsFile(false);
-  filedir.SetProperties('Virtual Rooot',true,0,0,0);
+  filedir.SetProperties('Virtual Rooot',false,0,0,0);
   CheckDbResult(coll.Store(filedir),'Error creating root entry');
 end;
 

@@ -39,7 +39,7 @@ unit fos_basis_tools;
 
 interface
 
-uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64;
+uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64,mimepart;
 
 type
   { TFOS_DEFAULT_BASISTOOLS }
@@ -57,12 +57,13 @@ type
     function  Min                       (const A, B:  integer): integer;
     function  Max                       (const A, B:  integer): integer;
     function  RatioPercent              (const A, B:  Double):Double;
+    function  ByteToString              (const byte: QWord): String;
+    function  FilenameToMimetype        (const fname:  String): String;
 
     function  SepLeft                   (const Value, Delimiter: Ansistring): Ansistring;
     function  SepRight                  (const Value, Delimiter: Ansistring): Ansistring;
     function  ValToken2Str              (const Value: integer;   const TokArr:Array of TFOS_VALUETOKEN;const unknown:string=''):String;
     function  BitToken2Str              (const Value: integer;   const TokArr:Array of TFOS_VALUETOKEN):String;
-
 
     procedure SeperateString            (const value,sep:string ; var Strings:TFOSStringArray);
     function  CombineString             (const strings:TFOSStringArray; const sep:string):string;
@@ -592,6 +593,46 @@ function TFOS_DEFAULT_BASISTOOLS.RatioPercent(const A, B: Double): Double;
 begin
   if b=0 then exit(0);
   result:=a/b*100.0;
+end;
+
+function TFOS_DEFAULT_BASISTOOLS.ByteToString(const byte: QWord): String;
+var
+  unity: String;
+  amount: Double;
+begin
+  amount:=byte;
+  if amount>1000 then begin
+    amount:=amount/1024;
+    unity:='kB';
+    if amount>1000 then begin
+      amount:=amount/1024;
+      unity:='MB';
+      if amount>1000 then begin
+        amount:=amount/1024;
+        unity:='GB';
+        if amount>1000 then begin
+          amount:=amount/1024;
+          unity:='TB';
+          if amount>1000 then begin
+            amount:=amount/1024;
+            unity:='PB';
+          end;
+        end;
+      end;
+    end;
+    Result:=FloatToStrF(amount,ffFixed,1,2)+' '+unity;
+  end else begin
+    Result:=IntToStr(byte) + ' Byte';
+  end;
+end;
+
+function TFOS_DEFAULT_BASISTOOLS.FilenameToMimetype(const fname: String): String;
+var
+  mess : TMimePart;
+begin
+ mess:=TMimePart.Create;
+ mess.MimeTypeFromExt(fname);
+ Result:=mess.Primary+'/'+mess.Secondary;
 end;
 
 function TFOS_DEFAULT_BASISTOOLS.SepLeft(const Value, Delimiter: Ansistring): Ansistring;

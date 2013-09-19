@@ -325,6 +325,8 @@ type
     function  Min                       (const A, B:  integer): integer;
     function  Max                       (const A, B:  integer): integer;
     function  RatioPercent              (const A, B:  Double):Double;
+    function  ByteToString              (const byte:  QWord): String;
+    function  FilenameToMimetype        (const fname:  String): String;
 
     function  SepLeft                   (const Value, Delimiter: Ansistring): Ansistring;
     function  SepRight                  (const Value, Delimiter: Ansistring): Ansistring;
