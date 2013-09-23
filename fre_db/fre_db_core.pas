@@ -5562,7 +5562,11 @@ var cnt,i            : Integer;
       out_title := transform_object.Field('OPT').AsString;
       out_field := transform_object.Field('OF').AsString;
       in_field  := transform_object.Field('F').AsString;
-      display   := transform_object.Field('DISP').AsBoolean;
+      if transform_object.FieldExists('DISP') then begin
+        display   := transform_object.Field('DISP').AsBoolean;
+      end else begin
+        display := true;
+      end;
       gdt       := transform_object.Field('GDT').AsString;
       fs        := transform_object.Field('FS').AsInt16;
       icon      := transform_object.Field('IC').AsString;
