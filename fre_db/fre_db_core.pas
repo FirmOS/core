@@ -7473,7 +7473,7 @@ end;
 
 function TFRE_DB_TRANSFORMOBJECT.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object; const filter_fields: boolean): TFRE_DB_Object;
 begin
-
+  abort;
 end;
 
 function TFRE_DB_TRANSFORMOBJECT.GetKey: TFRE_DB_String;
@@ -15280,6 +15280,7 @@ end;
 
 
 procedure TFRE_DB_FIELD.CloneFromField(const Field: TFRE_DB_FIELD);
+var i : NativeInt;
 begin
   _InAccessibleCheck;
   Clear;
@@ -15289,89 +15290,108 @@ begin
     case field.FieldType of
       fdbft_GUID: begin
                     New(FFieldData.guid);
-                    SetLength(FFieldData.guid^,1);
-                    FFieldData.guid^[0] := Field.AsGUID;
+                    SetLength(FFieldData.guid^,Field.ValueCount);
+                    for i := 0 to Field.ValueCount-1 do
+                      FFieldData.guid^[i] := Field.AsGUIDItem[i];
                   end;
       fdbft_Byte: begin
                     New(FFieldData.byte);
-                    SetLength(FFieldData.byte^,1);
-                    FFieldData.byte^[0] := Field.AsByte;
+                    SetLength(FFieldData.byte^,Field.ValueCount);
+                    for i := 0 to Field.ValueCount-1 do
+                      FFieldData.byte^[i] := Field.AsByteItem[i];
                   end;
       fdbft_Int16: begin
                      New(FFieldData.in16);
-                     SetLength(FFieldData.in16^,1);
-                     FFieldData.in16^[0] := Field.AsInt16;
+                     SetLength(FFieldData.in16^,Field.ValueCount);
+                     for i := 0 to Field.ValueCount-1 do
+                       FFieldData.in16^[i] := Field.AsInt16Item[i];
                    end;
       fdbft_UInt16: begin
                       New(FFieldData.ui16);
-                      SetLength(FFieldData.ui16^,1);
-                      FFieldData.ui16^[0] := Field.AsUInt16;
+                      SetLength(FFieldData.ui16^,Field.ValueCount);
+                      for i := 0 to Field.ValueCount-1 do
+                        FFieldData.ui16^[i] := Field.AsUInt16Item[i];
                     end;
       fdbft_Int32: begin
                      New(FFieldData.in32);
-                     SetLength(FFieldData.in32^,1);
-                     FFieldData.in32^[0] := Field.AsInt32;
+                     SetLength(FFieldData.in32^,Field.ValueCount);
+                     for i := 0 to Field.ValueCount-1 do
+                       FFieldData.in32^[i] := Field.AsInt32Item[i];
                    end;
       fdbft_UInt32: begin
                       New(FFieldData.ui32);
-                      SetLength(FFieldData.ui32^,1);
-                      FFieldData.ui32^[0] := Field.AsUInt32;
+                      SetLength(FFieldData.ui32^,Field.ValueCount);
+                      for i := 0 to Field.ValueCount-1 do
+                        FFieldData.ui32^[i] := Field.AsUInt32Item[i];
                     end;
       fdbft_Int64: begin
                      New(FFieldData.in64);
-                     SetLength(FFieldData.in16^,1);
-                     FFieldData.in16^[0] := Field.AsInt64;
+                     SetLength(FFieldData.in64^,Field.ValueCount);
+                     for i := 0 to Field.ValueCount-1 do
+                       FFieldData.in64^[i] := Field.AsInt64Item[i];
                    end;
       fdbft_UInt64: begin
                       New(FFieldData.ui64);
-                      SetLength(FFieldData.ui64^,1);
-                      FFieldData.ui64^[0] := Field.AsUInt64;
+                      SetLength(FFieldData.ui64^,Field.ValueCount);
+                      for i := 0 to Field.ValueCount-1 do
+                        FFieldData.ui64^[i] := Field.AsUInt64Item[i];
                     end;
       fdbft_Real32: begin
                       New(FFieldData.re32);
-                      SetLength(FFieldData.re32^,1);
-                      FFieldData.re32^[0] := Field.AsReal32;
+                      SetLength(FFieldData.re32^,Field.ValueCount);
+                      for i := 0 to Field.ValueCount-1 do
+                        FFieldData.re32^[i] := Field.AsReal32Item[i];
                     end;
       fdbft_Real64: begin
                       New(FFieldData.re64);
-                      SetLength(FFieldData.re64^,1);
-                      FFieldData.re64^[0] := Field.AsReal64;
+                      SetLength(FFieldData.re64^,Field.ValueCount);
+                      for i := 0 to Field.ValueCount-1 do
+                        FFieldData.re64^[i] := Field.AsReal64Item[i];
                     end;
       fdbft_Currency: begin
                         New(FFieldData.curr);
-                        SetLength(FFieldData.curr^,1);
-                        FFieldData.curr^[0] := Field.AsCurrency;
+                        SetLength(FFieldData.curr^,Field.ValueCount);
+                        for i := 0 to Field.ValueCount-1 do
+                          FFieldData.curr^[i] := Field.AsCurrencyItem[i];
                       end;
       fdbft_String: begin
                       New(FFieldData.strg);
-                      SetLength(FFieldData.strg^,1);
-                      FFieldData.strg^[0] := Field.AsString;
+                      SetLength(FFieldData.strg^,Field.ValueCount);
+                      for i := 0 to Field.ValueCount-1 do
+                        FFieldData.strg^[i] := Field.AsStringItem[i];
                     end;
       fdbft_Boolean: begin
                        New(FFieldData.bool);
-                       SetLength(FFieldData.bool^,1);
-                       FFieldData.bool^[0] := Field.AsBoolean;
+                       SetLength(FFieldData.bool^,Field.ValueCount);
+                       for i := 0 to Field.ValueCount-1 do
+                         FFieldData.bool^[i] := Field.AsBooleanItem[i];
                      end;
       fdbft_DateTimeUTC: begin
                            New(FFieldData.date);
-                           SetLength(FFieldData.date^,1);
-                           FFieldData.date^[0] := Field.AsDateTimeUTC;
+                           SetLength(FFieldData.date^,Field.ValueCount);
+                           for i := 0 to Field.ValueCount-1 do
+                             FFieldData.date^[i] := Field.AsDateTimeUTCItem[i];
                          end;
       fdbft_Stream: begin
                       New(FFieldData.strm);
-                      SetLength(FFieldData.strm^,1);
-                      Field.AsStream.Position:=0;
-                      FFieldData.strm^[0].CopyFrom(Field.AsStream,0);
+                      SetLength(FFieldData.strm^,Field.ValueCount);
+                      for i := 0 to Field.ValueCount-1 do
+                        begin
+                          Field.AsStreamItem[i].Position:=0;
+                          FFieldData.strm^[i].CopyFrom(Field.AsStreamItem[i],0);
+                        end;
                     end;
       fdbft_Object: begin
                       New(FFieldData.obj);
-                      SetLength(FFieldData.obj^,1);
-                      FFieldData.obj^[0]  := Field.AsObject.CloneToNewObject;
+                      SetLength(FFieldData.obj^,Field.ValueCount);
+                      for i := 0 to Field.ValueCount-1 do
+                        FFieldData.obj^[i]  := Field.AsObjectItem[i].CloneToNewObject;
                     end;
       fdbft_ObjLink: begin
                        New(FFieldData.obl);
-                       SetLength(FFieldData.obl^,1);
-                       FFieldData.obl^[0]  := Field.AsObjectLink;
+                       SetLength(FFieldData.obl^,Field.ValueCount);
+                       for i := 0 to Field.ValueCount-1 do
+                         FFieldData.obl^[i]  := Field.AsObjectLinkItem[i];
                      end;
       else raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled %s (%s)',[CFRE_DB_FIELDTYPE[FFieldData.FieldType],FieldName]);
     end;
