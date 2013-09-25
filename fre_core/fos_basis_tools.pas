@@ -39,7 +39,7 @@ unit fos_basis_tools;
 
 interface
 
-uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64,mimepart;
+uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64;
 
 type
   { TFOS_DEFAULT_BASISTOOLS }
@@ -58,7 +58,6 @@ type
     function  Max                       (const A, B:  integer): integer;
     function  RatioPercent              (const A, B:  Double):Double;
     function  ByteToString              (const byte: QWord): String;
-    function  FilenameToMimetype        (const fname:  String): String;
 
     function  SepLeft                   (const Value, Delimiter: Ansistring): Ansistring;
     function  SepRight                  (const Value, Delimiter: Ansistring): Ansistring;
@@ -626,14 +625,6 @@ begin
   end;
 end;
 
-function TFOS_DEFAULT_BASISTOOLS.FilenameToMimetype(const fname: String): String;
-var
-  mess : TMimePart;
-begin
- mess:=TMimePart.Create;
- mess.MimeTypeFromExt(fname);
- Result:=mess.Primary+'/'+mess.Secondary;
-end;
 
 function TFOS_DEFAULT_BASISTOOLS.SepLeft(const Value, Delimiter: Ansistring): Ansistring;
 var  x:Integer;

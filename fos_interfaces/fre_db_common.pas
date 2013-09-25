@@ -71,16 +71,6 @@ const
   CFRE_DB_LIVE_CHART_TYPE      : array [TFRE_DB_LIVE_CHART_TYPE] of string     = ('lct_line','lct_sampledline');
   CFRE_DB_CONTENT_TYPE         : array [TFRE_DB_CONTENT_TYPE] of string        = ('ct_html','ct_javascript','ct_pascal');
 
-  //TODO -> RENAME TO FREDB_* and move
-  function  StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
-  procedure ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
-  procedure ConcatGuidArrays                  (var TargetArr:TFRE_DB_GuidArray;const add_array:TFRE_DB_GuidArray);
-  function  GuidInArray                       (const check:TGuid;const arr:TFRE_DB_GUIDArray):boolean;
-  function  FindNthGuidIdx                    (n:integer;const guid:TGuid;const arr:TFRE_DB_GUIDArray):integer;inline;
-  function  CheckAllStringFieldsEmptyInObject (const obj:IFRE_DB_Object):boolean;
-  //function  CalcFieldResultKey                (const field_type:TFRE_DB_FIELDTYPE):String;
-  function  getThemedResource                 (const id: String):String;
-
 type
   { TFRE_DB_HTML_DESC }
 
@@ -896,115 +886,6 @@ type
 
 implementation
 
-  function _getRootObj(const obj:IFRE_DB_Object): IFRE_DB_Object;
-  var
-    current   : IFRE_DB_Object;
-  begin
-   current:=obj;
-   while Assigned(current.Parent) do begin
-     current:=current.Parent;
-   end;
-   Result:=current;
-  end;
-
-  function StringInArray(const src: string; const arr: TFRE_DB_StringArray): boolean;
-  var  i: Integer;
-  begin
-    result := false;
-    for i:=0 to High(arr) do begin
-      if src=arr[i] then exit(true);
-    end;
-  end;
-
-  procedure ConcatStringArrays(var TargetArr: TFRE_DB_StringArray; const add_array: TFRE_DB_StringArray);
-  var i,len_target,high_add_array,cnt :integer;
-  begin
-    len_target     := Length(TargetArr);
-    SetLength(TargetArr,len_target+Length(add_array));
-    high_add_array := high(add_array);
-    cnt := 0;
-    for i:= 0 to high_add_array do begin
-      if not StringInArray(add_array[i],TargetArr) then begin
-        TargetArr[len_target+cnt] := add_array[i]; inc(cnt);
-      end;
-    end;
-    SetLength(TargetArr,len_target+cnt);
-  end;
-
-  procedure ConcatGuidArrays(var TargetArr: TFRE_DB_GuidArray; const add_array: TFRE_DB_GuidArray);
-  var i,len_target,high_add_array,cnt :integer;
-   begin
-     len_target     := Length(TargetArr);
-     SetLength(TargetArr,len_target+Length(add_array));
-     high_add_array := high(add_array);
-     cnt := 0;
-     for i:= 0 to high_add_array do begin
-       if not GuidInArray(add_array[i],TargetArr) then begin
-         TargetArr[len_target+cnt] := add_array[i]; inc(cnt);
-       end;
-     end;
-     SetLength(TargetArr,len_target+cnt);
-   end;
-
-  function GuidInArray(const check: TGuid; const arr: TFRE_DB_GUIDArray): boolean;
-  var  i: Integer;
-  begin
-    result := false;
-    for i:=0 to High(arr) do begin
-      if FREDB_Guids_Same(check,arr[i]) then exit(true);
-    end;
-  end;
-
-
-  function FindNthGuidIdx(n: integer; const guid: TGuid; const arr: TFRE_DB_GUIDArray): integer;
-  var i: Integer;
-  begin
-    result:=-1;
-    if n<=0 then raise EFRE_DB_Exception.Create(edb_ERROR,'must specify a positive integer greater than zero');
-    for i:=0 to high(arr) do begin
-      if FREDB_Guids_Same(guid,arr[i]) then begin
-        dec(n);
-        if n=0 then exit(i);
-      end;
-    end;
-  end;
-
-  function CheckAllStringFieldsEmptyInObject(const obj: IFRE_DB_Object): boolean;
-  var check:boolean;
-    function CheckFunc(const field:IFRE_DB_FIELD):boolean;
-    begin
-      result := false;
-      if field.IsUIDField then exit;
-      //writeln('checking field ',field.FieldName);
-      if field.FieldType=fdbft_Object then begin
-        //writeln('checking recurse on ',field.FieldName);
-        check  := CheckAllStringFieldsEmptyInObject(field.AsObject);
-        result := not check;
-      end else begin
-        if field.FieldType<>fdbft_String then raise EFRE_DB_Exception.Create(edb_ERROR,'checkempty only works on stringfiled-only objects');
-        if field.AsString<>'' then begin
-          result:=true;
-          check:=false;
-        end;
-      end;
-    end;
-  begin
-    //writeln('Checking empty');
-    Check:=true;
-    obj.ForAllFieldsBreak(@CheckFunc);
-    result := check;
-  end;
-
-  //function CalcFieldResultKey(const field_type: TFRE_DB_FIELDTYPE): String;
-  //begin
-  //  result:='$CR_'+CFRE_DB_FIELDTYPE_SHORT[field_type];
-  //end;
-
-  function getThemedResource(const id: String): String;
-  begin
-    Result:='/fre_css/'+cFRE_WEB_STYLE+'/'+id;
-  end;
-
   function String2DBChooserDH(const fts: string): TFRE_DB_CHOOSER_DH;
   begin
     for result in TFRE_DB_CHOOSER_DH do begin
@@ -1109,7 +990,7 @@ implementation
     end;
     Field('caption').AsString:=caption;
     if icon<>'' then begin
-      Field('icon').AsString:=getThemedResource(icon);
+      Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
     Field('big').AsBoolean:=big;
     Result:=Self;
@@ -1232,7 +1113,7 @@ implementation
     end;
     Field('caption').AsString:=caption;
     if icon<>'' then begin
-      Field('icon').AsString:=getThemedResource(icon);
+      Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
     Field('serverFunc').AsObject:=serverFunc.CloneToNewObject();
     Field('big').AsBoolean:=big;
@@ -1273,7 +1154,7 @@ implementation
   begin
     Field('caption').AsString:=caption;
     if icon<>'' then begin
-      Field('icon').AsString:=getThemedResource(icon);
+      Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
     Field('sectionpath').AsObject := restoreUIFunc;
     Field('x').AsInt32:=x;
@@ -1327,7 +1208,7 @@ implementation
     end;
     Field('caption').AsString:=caption;
     if icon<>'' then begin
-      Field('icon').AsString:=getThemedResource(icon);
+      Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
     Field('serverFuncs').AddObject(serverFunc);
     Field('big').AsBoolean:=big;
@@ -1565,7 +1446,7 @@ implementation
     inherited Describe();
     Field('caption').AsString:=caption;
     if icon<>'' then begin
-      Field('icon').AsString:=getThemedResource(icon);
+      Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
     Field('disabled').AsBoolean:=disabled;
     Result:=Self;
@@ -1595,7 +1476,7 @@ implementation
   begin
     Field('serverFunc').AsObject := func;
     if icon<>'' then begin
-      Field('icon').AsString:=getThemedResource(icon);
+      Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
     Field('caption').AsString:=caption;
     Field('tooltip').AsString:=tooltip;
@@ -1778,7 +1659,7 @@ implementation
   var
     obj: IFRE_DB_Object;
   begin
-    obj:=_getRootObj(Self);
+    obj:= Self.ObjectRoot;
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
         TFRE_DB_FORM_DESC(obj.Implementor_HC).AddStore(store);
@@ -1794,7 +1675,7 @@ implementation
   var
     obj: IFRE_DB_Object;
   begin
-    obj:=_getRootObj(Self);
+    obj := Self.ObjectRoot;
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
         (obj.Implementor_HC as TFRE_DB_FORM_DESC).AddDBO(id, session);
@@ -1810,7 +1691,7 @@ implementation
   var
     obj: IFRE_DB_Object;
   begin
-    obj:=_getRootObj(Self);
+    obj := Self.ObjectRoot;
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
         TFRE_DB_FORM_DESC(obj.Implementor_HC).GetStore(id);
@@ -1890,7 +1771,7 @@ implementation
       Field('serverFunc').AsObject:=serverFunc;
     end;
     if icon<>'' then begin
-      Field('icon').AsString:=getThemedResource(icon);
+      Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
     Field('disabled').AsBoolean:=disabled;
     Result:=Self;
@@ -2146,7 +2027,7 @@ implementation
     obj:=GFRE_DBI.NewObject;
     obj.Field('serverFunc').AsObject:=serverFunc;
     if icon<>'' then begin
-      obj.Field('icon').AsString:=getThemedResource(icon);
+      obj.Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
     obj.Field('tooltip').AsString:=tooltip;
     Field('entryActions').AddObject(obj);
@@ -2590,7 +2471,7 @@ implementation
   var
     obj: IFRE_DB_Object;
   begin
-    obj:=_getRootObj(Self);
+    obj:= Self.ObjectRoot;
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
         (obj.Implementor_HC as TFRE_DB_FORM_DESC).AddStore(store);
@@ -2606,7 +2487,7 @@ implementation
   var
     obj: IFRE_DB_Object;
   begin
-    obj:=_getRootObj(Self);
+    obj := Self.ObjectRoot;
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
         (obj.Implementor_HC as TFRE_DB_FORM_DESC).AddDBO(id, session);
@@ -2622,7 +2503,7 @@ implementation
   var
     obj: IFRE_DB_Object;
   begin
-    obj:=_getRootObj(Self);
+    obj := Self.ObjectRoot;
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
         (obj.Implementor_HC as TFRE_DB_FORM_DESC).GetStore(id);

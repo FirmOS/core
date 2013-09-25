@@ -446,6 +446,7 @@ type
 
   TFRE_DB_SchemeObject      = class;
   TFRE_DB_OBJECTCLASS       = class of TFRE_DB_Object;
+  TFOS_BASECLASS            = class of TFOS_BASE;
 
   TFRE_DB_ChangeRecord=class
   end;
@@ -507,6 +508,7 @@ type
     function        IFRE_DB_Object.FieldOnlyExistingObj= FieldOnlyExistingObjI;
     function        IFRE_DB_Object.FieldOnlyExisting   = FieldOnlyExistingI;
     procedure       IFRE_DB_Object.CopyField           = CopyFieldI;
+    function        IFRE_DB_Object.ObjectRoot          = ObjectRootI;
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
     procedure       Finalize                           ;
   public
@@ -541,6 +543,7 @@ type
     function        NeededSize                         : TFRE_DB_SIZE_TYPE;
     function        _ObjectRoot                        : TFRE_DB_Object; // = the last parent with no parent
     function        ObjectRoot                         : TFRE_DB_Object; // = the last parent with no parent
+    function        ObjectRootI                        : IFRE_DB_Object; // = the last parent with no parent
     function        IsObjectRoot                       : Boolean;
     function        Parent                             : TFRE_DB_Object;
     function        ParentI                            : IFRE_DB_Object;
@@ -563,7 +566,7 @@ type
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):TFRE_DB_FIELD;virtual;
     function        FieldPathI                         (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;virtual;
     function        FieldPathExists                    (const name: TFRE_DB_String): Boolean;
-    function        FieldPathListFormat                (const field_list:TFRE_DB_StringArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
+    function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
@@ -694,6 +697,7 @@ type
     function  IFRE_DB_NAMED_OBJECT.FieldOnlyExistingObj = FieldOnlyExistingObjI;
     function  IFRE_DB_NAMED_OBJECT.FieldOnlyExisting    = FieldOnlyExistingI;
     procedure IFRE_DB_NAMED_OBJECT.CopyField            = CopyFieldI;
+    function  IFRE_DB_NAMED_OBJECT.ObjectRoot           = ObjectRootI;
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     property  ObjectName      : TFRE_DB_String       read GetName write SetName;
     property  Description     : TFRE_DB_TEXT read GetDesc write SetDesc;
@@ -943,7 +947,7 @@ type
     FHardCodeClassTyp : TClass;
 
     simple_df         : TFRE_DB_String;
-    formatted_df      : TFRE_DB_StringArray;
+    formatted_df      : TFRE_DB_NameTypeArray;
     formatted_dff     : TFRE_DB_String;
 
     FExplanation      : TFRE_DB_String;
@@ -1001,7 +1005,7 @@ type
     function  GetSchemeFieldI           (const fieldname   :TFRE_DB_NameType): IFRE_DB_FieldSchemeDefinition;
     function  IsA                       (const schemename :TFRE_DB_NameType):Boolean;
     procedure SetSimpleSysDisplayField  (const field_name  :TFRE_DB_String);
-    procedure SetSysDisplayField        (const field_names :TFRE_DB_StringArray;const format:TFRE_DB_String);
+    procedure SetSysDisplayField        (const field_names :TFRE_DB_NameTypeArray;const format:TFRE_DB_String);
     function  GetFormattedDisplay       (const obj : TFRE_DB_Object):TFRE_DB_String;
     function  GetFormattedDisplayI      (const obj : IFRE_DB_Object):TFRE_DB_String;
     function  FormattedDisplayAvailable (const obj : TFRE_DB_Object):boolean;
@@ -1392,55 +1396,135 @@ type
   //Base Class Tranforms a DB Object into another DB Object
   //Has support for "FilterFields" that are fields that may get filtered but are not in the output
 
+  { TFRE_DB_FIELD_TRANSFORM }
+
+  TFRE_DB_FIELD_TRANSFORM=class
+  private
+  protected
+    FInFieldName     : TFRE_DB_NameType;
+    FOutFieldName    : TFRE_DB_NameType;
+    FOutFieldTitle   : TFRE_DB_String;
+    FDisplay         : Boolean;              // Field Should be in Output Displayed
+    //FFilterField     : Boolean;              // Field is in output but not in display -> e.g. a concatenated fulltext field
+    FGuiDisplaytype  : TFRE_DB_DISPLAY_TYPE; // How the gui should display the field
+    FFieldSize       : NativeInt;            // Relative gui size of the element (Column)
+    FIconIdField     : TFRE_DB_String;       // The name of the field holding the resource descriptor url of the through this transform defined column for the normal state
+    FOpenIconIDField : TFRE_DB_String;       // The name of the field holding the resource descriptor url of the through this transform defined column for the open state
+  public
+    procedure AddToViewCollection (const vcd   : TFRE_DB_VIEW_LIST_LAYOUT_DESC); virtual;
+    procedure TransformField      (const conn  : IFRE_DB_CONNECTION ; const input,output : IFRE_DB_Object ; const dependency_object : IFRE_DB_Object); virtual; // A transformed object has the same UID, but not the same Schemeclass as the source, and a subset/transformation of the input object
+  end;
+
+  { TFRE_DB_ONEONE_FT }
+
+  TFRE_DB_ONEONE_FT=class(TFRE_DB_FIELD_TRANSFORM)
+  protected
+  public
+    constructor Create         (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+  end;
+
+  { TFRE_DB_PROGRESS_FT }
+
+  TFRE_DB_PROGRESS_FT=class(TFRE_DB_FIELD_TRANSFORM)
+  protected
+    FInTextField    : TFRE_DB_NameType; // Infield holding text to be displayed in the Progressbar (eg. less/more/much)
+    FOutTextField   : TFRE_DB_NameType; // Outfield holding text to be displayed in the Progressbar (eg. less/more/much)
+    FMaxValue       : Single;
+  public
+    constructor Create              (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const input_textfield:TFRE_DB_String='';const output_textfield:TFRE_DB_String='';const maxValue:Single=100;const display:Boolean=true;const fieldSize: Integer=1);
+    procedure   AddToViewCollection (const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC); override;
+    procedure   TransformField      (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+  end;
+
+  { TFRE_DB_CONST_STRING_FT }
+
+  TFRE_DB_CONST_STRING_FT=class(TFRE_DB_FIELD_TRANSFORM)
+  protected
+    FConstValue : TFRE_DB_String;
+  public
+    constructor Create         (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+  end;
+
+  { TFRE_DB_TEXT_FT }
+
+  TFRE_DB_TEXT_FT=class(TFRE_DB_FIELD_TRANSFORM)
+  protected
+    FWhichText : TFRE_DB_TEXT_SUBTYPE;
+  public
+    constructor Create         (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1);
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+  end;
+
+  { TFRE_DB_COLLECTOR_FT }
+
+  TFRE_DB_COLLECTOR_FT=class(TFRE_DB_FIELD_TRANSFORM)
+  protected
+    FFormatString : TFRE_DB_String;
+    FInfieldList  : TFRE_DB_NameTypeArray;
+  public
+    constructor Create         (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1);
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+  end;
+
+  { TFRE_DB_REFERERENCE_CHAIN_FT }
+
+  TFRE_DB_REFERERENCE_CHAIN_FT=class(TFRE_DB_FIELD_TRANSFORM)
+  protected
+    FRefFieldChain : TFRE_DB_NameTypeArray;
+  public
+    constructor Create         (const ref_field_chain: TFRE_DB_NameTypeArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1);
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+  end;
+
+
+  PFRE_DB_FIELD_TRANSFORM=^TFRE_DB_FIELD_TRANSFORM;
+
+  OFRE_SL_TFRE_DB_FIELD_TRANSFORM = specialize OFOS_SpareList<TFRE_DB_FIELD_TRANSFORM>;
+
   { TFRE_DB_TRANSFORMOBJECT }
 
-  TFRE_DB_TRANSFORMOBJECT=class(TFRE_DB_Object,IFRE_DB_TRANSFORMOBJECT)
+  TFRE_DB_TRANSFORMOBJECT=class(TFOS_BASE,IFRE_DB_TRANSFORMOBJECT)
   private
-    Fkeyfield : TFRE_DB_FIELD;
-    function  GetHasFF: boolean;
-    function  GetKey: TFRE_DB_String;
-    procedure SetKey(const AValue: TFRE_DB_String);
-    procedure _SetHasFilterField(const value:boolean);
-    function  _ObjectsNeedsNoSubfieldSchemeCheck:boolean;override;
+    FTransformList : OFRE_SL_TFRE_DB_FIELD_TRANSFORM;
   protected
-    procedure InternalSetup; override;
+    procedure  Finalize;
+    function   Implementor    : TObject;
+    function   Implementor_HC : TObject;
   public
-    function  TransformInOut (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object ; const filter_fields:boolean=false): TFRE_DB_Object; virtual;
-    property  Key : TFRE_DB_String read GetKey write SetKey;
-    property  HasFilterFields : boolean read GetHasFF;
+    constructor Create; override;
+    function    TransformInOut (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; virtual;
   end;
 
   { TFRE_DB_SIMPLE_TRANSFORM }
 
   TFRE_DB_SIMPLE_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_SIMPLE_TRANSFORM)
   private
-   FCustTransform : IFRE_DB_CUSTOMTRANSFORM;
+    FCustTransform : IFRE_DB_CUSTOMTRANSFORM;
   public
-    function  TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object ; const filter_fields:boolean=false): TFRE_DB_Object; override;
-    //@ Add a Field that collects STRING values to a new String Field
-    //@ format : format string of the new field ; in_fieldlist : list of input fieldnames ; filter_field : true = result field is not in output but can be filtered ; output_title : name of the output field, default=same as input
+    constructor Create                       ; override;
+    function  TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; override;
     procedure SetCustomTransformFunction     (const func : IFRE_DB_CUSTOMTRANSFORM);
-    procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_StringArray;const out_field:TFRE_DB_String;const filter_field:boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    //@ Add a Field that collects STRING values to a new String Field
+    //@ format : format string of the new field ; in_fieldlist : list of input fieldnames ; output_title : name of the output field, default=same as input
+    procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure AddFulltextFilterOnTransformed (const in_fieldlist:TFRE_DB_StringArray);
     procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
     procedure AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const fieldSize: Integer=1);
     procedure AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextShortToOne            (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextLongToOne             (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextHintToOne             (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextKeyToOne              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddFullDumpField               (const fieldname:TFRE_DB_String; const dump_length_max:Integer=0;const filter_field:Boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddDBTextToOne                 (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddMatchingReferencedField     (const ref_field_chain: TFRE_DB_NameTypeArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameType     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
     function  GetViewCollectionDescription   : TFRE_DB_CONTENT_DESC;
-
-    procedure AddMatchingReferencedField     (const ref_field_chain: TFRE_DB_StringArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddMatchingReferencedField     (const ref_field      : TFRE_DB_String     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
   end;
 
   { TFRE_DB_TREE_TRANSFORM }
 
   TFRE_DB_TREE_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_TRANSFORMOBJECT)
-    function  TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object; const filter_fields: boolean=false): TFRE_DB_Object; override; // todo - remove unnecessary fields
+    function  TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object; override; // todo - remove unnecessary fields
   end;
 
   { TFRE_DB_CHART_TRANSFORM }
@@ -1457,7 +1541,7 @@ type
     FChartType          : TFRE_DB_CHART_TYPE;
     FMaxValue           : Integer;
   public
-    function  TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object ; const input: IFRE_DB_Object ; const filter_fields:boolean=false): TFRE_DB_Object; override; // todo - remove unnecessary fields / transform only series fields
+    function   TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; override; // todo - remove unnecessary fields / transform only series fields
     destructor Destroy;override;
   end;
 
@@ -2332,6 +2416,218 @@ implementation
     end;
   end;
 
+{ TFRE_DB_REFERERENCE_CHAIN_FT }
+
+constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer);
+begin
+  FRefFieldChain  := ref_field_chain;
+  FInFieldName    := target_field;
+  FOutFieldName   := output_field;
+  FOutFieldTitle  := output_title;
+  FGuiDisplaytype := gui_display_type;
+  FDisplay        := display;
+  FFieldSize      := fieldSize;
+  if FOutFieldName='' then
+    FOutFieldName := lowercase(FInFieldName);
+end;
+
+procedure TFRE_DB_REFERERENCE_CHAIN_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+var obj       : IFRE_DB_Object;
+    objo      : TFRE_DB_Object;
+    ref_uid   : TGuid;
+    i         : integer;
+    s         : string;
+begin
+  obj         := input;
+  for i:=0 to high(FRefFieldChain) do begin
+    if not obj.FieldExists(FRefFieldChain[i])
+       or (obj.Field(FRefFieldChain[i]).FieldType<>fdbft_ObjLink) then
+         begin
+           output.field(uppercase(FOutFieldName)).asstring := '?*WRONG FIELDTYPE*';
+           exit;
+         end;
+    ref_uid := obj.Field(FRefFieldChain[i]).AsGUID;
+    if not (conn.Implementor_HC as TFRE_DB_CONNECTION).FetchInternal(ref_uid,objo) then begin
+      output.field(uppercase(FOutFieldName)).asstring := '?*UNRESOLVED LINK*';
+      exit;
+    end;
+    obj := objo;
+  end;
+  objo.Assert_CheckStoreLocked;
+  try
+    objo.Set_Store_Locked(false);
+    if obj.FieldExists(FInFieldName) then begin
+      output.field(uppercase(FOutFieldName)).CloneFromField(obj.Field(FInFieldName));
+    end else begin
+      output.field(uppercase(FOutFieldName)).asstring := '?*TARGETFIELD NOT FOUND*';
+    end;
+  finally
+    objo.Set_Store_Locked(true);
+  end;
+end;
+
+{ TFRE_DB_TEXT_FT }
+
+constructor TFRE_DB_TEXT_FT.Create(const fieldname: TFRE_DB_String; const which_text: TFRE_DB_TEXT_SUBTYPE; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer);
+begin
+ FInFieldName     := fieldname;
+ FOutFieldName    := lowercase(out_field);
+ FOutFieldTitle   := output_title;
+ FGuiDisplaytype  := gui_display_type;
+ FDisplay         := display;
+ FFieldSize       := fieldSize;
+ FWhichText       := which_text;
+ if FOutFieldName='' then
+   FOutFieldName:=lowercase(FInFieldName);
+end;
+
+procedure TFRE_DB_TEXT_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+var text      : TFRE_DB_TEXT;
+    out_text  : TFRE_DB_String;
+begin
+  try
+    text := (input.Field(FInFieldName).AsObject).Implementor as TFRE_DB_TEXT;
+    case FWhichText of
+      tst_Short: out_text := text.Getshort;
+      tst_Long:  out_text := text.GetLong;
+      tst_Hint:  out_text := text.GetHint;
+      tst_Key:   out_text := text.GetTKey;
+    end;
+    output.field(uppercase(FOutFieldName)).asstring := out_text;
+  except
+    output.field(uppercase(FOutFieldName)).asstring := 'ERROR';
+  end;
+end;
+
+{ TFRE_DB_FIELD_TRANSFORM }
+
+procedure TFRE_DB_FIELD_TRANSFORM.AddToViewCollection(const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC);
+begin
+  if FDisplay then
+    vcd.AddDataElement.Describe(FOutFieldName,FOutFieldTitle,FGuiDisplaytype,FFieldSize,FDisplay,false,FIconIdField,FOpenIconIDField);
+end;
+
+procedure TFRE_DB_FIELD_TRANSFORM.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+begin
+  raise EFRE_DB_Exception.Create(edb_ERROR,'you need to implement/override a Transformfieldfunction for class '+ClassName);
+end;
+
+{ TFRE_DB_COLLECTOR_FT }
+
+constructor TFRE_DB_COLLECTOR_FT.Create(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer);
+begin
+  FFormatString   := format;
+  FInfieldList    := in_fieldlist;
+  FOutFieldName   := lowercase(out_field);
+  FOutFieldTitle  := output_title;
+  FGuiDisplaytype := gui_display_type;
+  FDisplay        := display;
+  FFieldSize      := fieldSize;
+end;
+
+procedure TFRE_DB_COLLECTOR_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+var data : TFRE_DB_String;
+begin
+  try
+    data := input.FieldPathListFormat(FInfieldList,FFormatString,'');
+  except on e:exception do
+    begin
+      data := 'Transform Error: '+e.Message;
+    end;
+  end;
+  output.field(FOutFieldName).Asstring := data;
+end;
+
+{ TFRE_DB_CONST_STRING_FT }
+
+constructor TFRE_DB_CONST_STRING_FT.Create(const out_field, value: TFRE_DB_String; const display: Boolean; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer);
+begin
+  FOutFieldName   := LowerCase(out_field);
+  FOutFieldTitle  := output_title;
+  FConstValue     := value;
+  FDisplay        := display;
+  FGuiDisplaytype := gui_display_type;
+  FFieldSize      := fieldSize;
+end;
+
+procedure TFRE_DB_CONST_STRING_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+begin
+  output.field(uppercase(FOutFieldName)).AsString := FConstValue;
+end;
+
+{ TFRE_DB_PROGRESS_FT }
+
+constructor TFRE_DB_PROGRESS_FT.Create(const valuefield: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const input_textfield: TFRE_DB_String; const output_textfield: TFRE_DB_String; const maxValue: Single; const display: Boolean; const fieldSize: Integer);
+begin
+  FInFieldName    := valuefield;
+  FOutFieldName   := lowercase(out_field);
+  FOutFieldTitle  := output_title;
+  FInTextField    := input_textfield;
+  FOutTextField   := lowercase(output_textfield);
+  FMaxValue       := maxValue;
+  FGuiDisplaytype := dt_number_pb;
+  FFieldSize      := fieldSize;
+  FDisplay        := display;
+  if FOutFieldName = '' then
+    FOutFieldName := lowercase(FInFieldName);
+  if FOutTextField ='' then
+    FOutTextField := lowercase(FInTextField);
+end;
+
+procedure TFRE_DB_PROGRESS_FT.AddToViewCollection(const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC);
+begin
+  if FDisplay then
+    vcd.AddDataElement.DescribePB(FOutFieldName,FOutFieldTitle,FOutTextField,FMaxValue,FFieldSize);
+end;
+
+procedure TFRE_DB_PROGRESS_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+begin
+  output.field(uppercase(FOutFieldName)).CloneFromField(input.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
+  if FOutTextField<>'' then
+    begin
+      output.field(uppercase(FOutTextField)).CloneFromField(input.Field(FInTextField).Implementor as TFRE_DB_FIELD);
+    end;
+end;
+
+{ TFRE_DB_ONEONE_FT }
+
+constructor TFRE_DB_ONEONE_FT.Create(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer; const iconID: String; const openIconID: String);
+begin
+  FInFieldName     := fieldname;
+  FOutFieldName    := lowercase(out_field);
+  FOutFieldTitle   := output_title;
+  FGuiDisplaytype  := gui_display_type;
+  FDisplay         := display;
+  FFieldSize       := fieldSize;
+  FIconIdField     := iconID;
+  FOpenIconIDField := openIconID;
+  if FOutFieldName='' then
+    FOutFieldName:=lowercase(FInFieldName);
+end;
+
+procedure TFRE_DB_ONEONE_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+var sa        : TFRE_DB_StringArray;
+    i         : nativeint;
+begin
+  assert(FOutFieldName<>'');
+  output.field(uppercase(FOutFieldName)).CloneFromField(input.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
+  case FGuiDisplaytype of
+    dt_string: ;
+    dt_date: ;
+    dt_number: ;
+    dt_number_pb: ;
+    dt_icon:
+      begin
+        SetLength(sa,0);
+        FREDB_SeperateString(output.field(uppercase(FOutFieldName)).asstring,',',sa);
+        for i:=0 to high(sa) do
+          sa[i] := FREDB_getThemedResource(sa[i]);
+        output.field(uppercase(FOutFieldName)).asstring := FREDB_CombineString(sa,',');
+      end;
+    dt_boolean: ;
+  end;
+end;
+
 { TFRE_DB_DOMAIN }
 
 class procedure TFRE_DB_DOMAIN.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -2341,7 +2637,7 @@ begin
   Scheme.Strict(false);
   Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
   scheme.GetSchemeField('objname').required:=true;
-  Scheme.SetSysDisplayField(GFRE_DB.ConstructStringArray(['objname','$DBTEXT:desc']),'%s - (%s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 
   input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_DOMAIN_group');
   input_group.AddInput('objname','$scheme_TFRE_DB_DOMAIN_name');
@@ -2397,7 +2693,7 @@ begin
   inherited RegisterSystemScheme(scheme);
   Scheme.Strict(true);
   Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
-  Scheme.SetSysDisplayField(GFRE_DB.ConstructStringArray(['objname','$DBTEXT:desc']),'%s - (%s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 end;
 
 { TFRE_DB_APPDATA }
@@ -2418,7 +2714,7 @@ begin
   Scheme.Strict(true);
   Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
   scheme.AddSchemeField('version',fdbft_String).SetupFieldDef(true,false);
-  Scheme.SetSysDisplayField(GFRE_DB.ConstructStringArray(['objname','$DBTEXT:desc']),'%s - (%s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 end;
 
 procedure TFRE_DB_APPDATA.SetVersionI(AValue: TFRE_DB_String);
@@ -2433,7 +2729,7 @@ end;
 
 { TFRE_DB_CHART_TRANSFORM }
 
-function TFRE_DB_CHART_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object; const filter_fields: boolean): TFRE_DB_Object;
+function TFRE_DB_CHART_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
 begin
   Result := input.CloneToNewObject.Implementor as TFRE_DB_Object;
 end;
@@ -2445,7 +2741,7 @@ end;
 
 { TFRE_DB_TREE_TRANSFORM }
 
-function TFRE_DB_TREE_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object; const filter_fields: boolean): TFRE_DB_Object;
+function TFRE_DB_TREE_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
 begin
   Result := input.CloneToNewObject.Implementor as TFRE_DB_Object;
 end;
@@ -3089,7 +3385,7 @@ begin
   inherited RegisterSystemScheme(scheme);
   scheme.AddSchemeField('objname',fdbft_String);
   scheme.AddSchemeFieldSubscheme('desc','TFRE_DB_TEXT');
-  Scheme.SetSysDisplayField(GFRE_DB.ConstructStringArray(['objname','$DBTEXT:desc']),'%s - (%s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
   Scheme.Strict(true);
 end;
 
@@ -3144,7 +3440,7 @@ begin
   scheme.AddSchemeField('appdataid',fdbft_ObjLink).SetupFieldDef(false,true);
   scheme.AddSchemeField('domainid',fdbft_ObjLink).SetupFieldDef(true,false);
   scheme.AddSchemeField('domaingroupkey',fdbft_String).SetupFieldDef(true,false);
-  Scheme.SetSysDisplayField(GFRE_DB.ConstructStringArray(['objname','$DBTEXT:desc']),'%s - (%s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 
   input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_GROUP_group_group');
   input_group.AddInput('objname','$scheme_TFRE_DB_GROUP_name');
@@ -3430,7 +3726,7 @@ begin
   scheme.AddSchemeFieldSubscheme('rights','TFRE_DB_RIGHT').multiValues:=true;
   scheme.AddSchemeField('domainid',fdbft_ObjLink).SetupFieldDef(true,false);
   scheme.AddSchemeField('domainrolekey',fdbft_String).SetupFieldDef(true,false);
-  Scheme.SetSysDisplayField(GFRE_DB.ConstructStringArray(['objname','$DBTEXT:desc']),'%s - (%s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 end;
 
 class function TFRE_DB_ROLE.GetDomainRoleKey(const rolepart: TFRE_DB_String; const domain_id: TGUID): TFRE_DB_String;
@@ -4274,9 +4570,11 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION.AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String): TFRE_DB_Errortype;
 begin
-  if not _CheckRight(cSYSR_ADD_USER) then exit(edb_ACCESS);
+  if not _CheckRight(cSYSR_ADD_USER) then
+    exit(edb_ACCESS);
   result := _AddUser(loginatdomain,password,first_name,last_name);
-  if result<>edb_OK then exit;
+  if result<>edb_OK then
+    exit;
   CheckDbResult(_ModifyUserGroups(loginatdomain,GFRE_DB.ConstructStringArray([cSYSUG_DB_USERS+'@'+cSYS_DOMAIN])),'initial assignment of user group failed'); // Login right
   result:=edb_OK;
 end;
@@ -4932,7 +5230,7 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION._CheckRight(const right_name: TFRE_DB_String): boolean;
 begin
-   result := StringInArray(uppercase(right_name),FConnectionRights);
+   result := FREDB_StringInArray(uppercase(right_name),FConnectionRights);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION._CheckLogin(const loginatdomain, pass: TFRE_DB_String): TFRE_DB_Errortype;
@@ -5068,7 +5366,7 @@ begin
     if not _FetchGroupbyID(UserGroupIDs[i],lUserGroup) then begin
       raise EFRE_DB_Exception.Create('Could not fetch group by id '+GFRE_BT.GUID_2_HexString(UserGroupIDs[i]));
     end else begin
-      ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
+      FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
     end;
   end;
   result := lRoleIDs;
@@ -5083,7 +5381,7 @@ begin
     if not _FetchRolebyID(roleids[i],lRole) then begin
       raise EFRE_DB_Exception.Create('Could not fetch role by id '+GFRE_BT.GUID_2_HexString(roleids[i]));
     end else begin
-      ConcatStringArrays(lAllRights,lRole.GetRightNames);
+      FREDB_ConcatStringArrays(lAllRights,lRole.GetRightNames);
     end;
   end;
   result := lAllRights;
@@ -5103,7 +5401,7 @@ function TFRE_DB_SYSTEM_CONNECTION.CheckRightForGroup(const right_name: TFRE_DB_
 var ra : TFRE_DB_StringArray;
 begin
   ra     := GetRightsArrayForGroups(TFRE_DB_GUIDArray.CreatE(group_uid));
-  result := StringInArray(uppercase(right_name),ra);
+  result := FREDB_StringInArray(uppercase(right_name),ra);
 end;
 
 
@@ -5204,213 +5502,27 @@ begin
   FCustTransform := func;
 end;
 
-function TFRE_DB_SIMPLE_TRANSFORM.TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object; const filter_fields: boolean): TFRE_DB_Object;
-var cnt              : integer;
-    i                : Integer;
-    transform_object : TFRE_DB_Object;
-    typ              : TFRE_DB_String;
+constructor TFRE_DB_SIMPLE_TRANSFORM.Create;
+begin
+  inherited Create;
+end;
 
-    procedure _Collector;
-    var outfieldname : TFRE_DB_String;
-        fieldlist : TFRE_DB_StringArray;
-        formats   : TFRE_DB_String;
-        //test      : array of TVarRec;
-        //sa        : array of TFRE_DB_String;
-        //i         : integer;
-        //fld       : TFRE_DB_FIELD;
-        //res       : TFRE_DB_String;
-        filter_field : boolean;
-    begin
-      filter_field := transform_object.Field('FF').AsBoolean;
-      if filter_field <> filter_fields then exit;
-      outfieldname := transform_object.Field('OF').AsString;
-      fieldlist    := transform_object.Field('IL').AsStringArr;
-      formats      := transform_object.Field('F').AsString;
-
-      result.field(outfieldname).Asstring := input.FieldPathListFormat(fieldlist,formats,'');
-
-      //setlength(test,length(fieldlist));
-      //setlength(sa,length(fieldlist));
-      //for i:=0 to high(fieldlist) do begin
-      //  fld := input.FieldPath(fieldlist[i]);
-      //  if assigned(fld) then begin
-      //    sa[i] := fld.AsString;
-      //    test[i].VAnsiString := PAnsiString(sa[i]);
-      //    test[i].VType   := vtAnsiString;
-      //  end else begin
-      //   sa[i] := '';
-      //   test[i].VAnsiString := PAnsiString(sa[i]);
-      //   test[i].VType   := vtAnsiString;
-      //  end;
-      //end;
-      //res :=  Format(formats,test);
-      //result.field(outfieldname).Asstring := res;
-    end;
-
-    procedure _OneOne;
-    var fieldname : TFRE_DB_String;
-        outfname  : TFRE_DB_String;
-        sa        : TFRE_DB_StringArray;
-        i         : nativeint;
-    begin
-      if filter_fields then exit;
-      fieldname := transform_object.Field('F').AsString;
-      outfname  := transform_object.Field('OF').AsString;
-      if outfname='' then outfname:=fieldname;
-      result.field(uppercase(outfname)).CloneFromField(input.Field(fieldname).Implementor as TFRE_DB_FIELD);
-      if  transform_object.Field('GDT').AsString='ICO' then
-        begin
-          SetLength(sa,0);
-          FREDB_SeperateString(result.field(uppercase(outfname)).asstring,',',sa);
-          for i:=0 to high(sa) do
-            sa[i] := getThemedResource(sa[i]);
-          result.field(uppercase(outfname)).asstring := FREDB_CombineString(sa,',');
-        end;
-    end;
-
-    procedure _Constant;
-    var outfname  : TFRE_DB_String;
-    begin
-      if filter_fields then exit;
-      outfname  := transform_object.Field('OF').AsString;
-      result.field(uppercase(outfname)).AsString:=transform_object.Field('VAL').AsString;
-    end;
-
-    procedure _Progress;
-    var fieldname : TFRE_DB_String;
-        outfname  : TFRE_DB_String;
-    begin
-      if filter_fields then exit;
-      fieldname := transform_object.Field('F').AsString;
-      outfname  := transform_object.Field('OF').AsString;
-      if outfname='' then outfname:=fieldname;
-      result.field(uppercase(outfname)).CloneFromField(input.Field(fieldname).Implementor as TFRE_DB_FIELD);
-      if transform_object.Field('TF').AsString<>'' then begin
-        fieldname := transform_object.Field('TF').AsString;
-        outfname  := transform_object.Field('OTF').AsString;
-        if outfname='' then outfname:=fieldname;
-        result.field(uppercase(outfname)).CloneFromField(input.Field(fieldname).Implementor as TFRE_DB_FIELD);
-      end;
-    end;
-
-    procedure _OneOneMatch;
-    var fieldname : TFRE_DB_String;
-        outfname  : TFRE_DB_String;
-        ref_chain : TFRE_DB_StringArray;
-        obj       : IFRE_DB_Object;
-        objo      : TFRE_DB_Object;
-        ref_uid   : TGuid;
-        i         : integer;
-        s         : string;
-    begin
-      if filter_fields then exit;
-      fieldname   := transform_object.Field('F').AsString;
-      outfname    := transform_object.Field('OF').AsString;
-      ref_chain   := transform_object.Field('RFC').AsStringArr;
-      if outfname = '' then outfname:=fieldname;
-      obj         := input;
-      for i:=0 to high(ref_chain) do begin
-        if not obj.FieldExists(ref_chain[i]) or (obj.Field(ref_chain[i]).FieldType<>fdbft_ObjLink) then begin
-          result.field(uppercase(outfname)).asstring := '?*MATCHFIELD TYPE';
-          exit;
-        end;
-        ref_uid := obj.Field(ref_chain[i]).AsGUID;
-        if not (conn.Implementor_HC as TFRE_DB_CONNECTION).FetchInternal(ref_uid,objo) then begin
-          result.field(uppercase(outfname)).asstring := '?*UNRESOLVED LINK*';
-          exit;
-        end;
-        obj := objo;
-      end;
-      objo.Assert_CheckStoreLocked;
-      try
-        objo.Set_Store_Locked(false);
-        if obj.FieldExists(fieldname) then begin
-          result.field(uppercase(outfname)).CloneFromFieldI(obj.Field(fieldname));
-        end else begin
-          result.field(uppercase(outfname)).asstring := '?*TARGETFIELD NOT FOUND*';
-        end;
-      finally
-        objo.Set_Store_Locked(true);
-      end;
-    end;
-
-
-    procedure _DBText(const what:integer);
-    var fieldname : TFRE_DB_String;
-        outfname  : TFRE_DB_String;
-        text      : TFRE_DB_TEXT;
-        out_text  : TFRE_DB_String;
-    begin
-      if filter_fields then exit;
-      fieldname := transform_object.Field('F').AsString;
-      text := (input.Field(fieldname).AsObject).Implementor as TFRE_DB_TEXT;
-      case what of
-        0 :  out_text := text.GetLong;
-        1 :  out_text := text.Getshort;
-        2 :  out_text := text.GetHint;
-        3 :  out_text := text.GetTKey;
-      end;
-      outfname  := transform_object.Field('OF').AsString;
-      if outfname='' then outfname:=fieldname;
-      result.field(uppercase(outfname)).asstring := out_text;
-    end;
-
-    procedure _DumpString;
-    var fieldname:TFRE_DB_String;
-        filter_field:Boolean;
-    begin
-      filter_field := transform_object.Field('FF').AsBoolean;
-      if filter_field <> filter_fields then exit;
-      fieldname := transform_object.Field('F').AsString;
-      if input.FormattedDisplayAvailable then begin
-        result.field(uppercase(fieldname)).asstring := input.GetFormattedDisplay;
-      end else begin
-        result.field(uppercase(fieldname)).asstring := input.DumpToString(0,transform_object.Field('L').AsInt16);
-      end;
-    end;
-
+function TFRE_DB_SIMPLE_TRANSFORM.TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
+  procedure Iterate(var ft : TFRE_DB_FIELD_TRANSFORM ; const idx : NativeInt ; var halt_flag:boolean);
+  begin
+     ft.TransformField(conn,input,result,dependency_obj);
+  end;
 begin
   result := GFRE_DB.NewObject;
-  cnt    := Field('TRANS').ValueCount;
-  for i:= 0 to cnt-1 do begin
-    transform_object := Field('TRANS').AsObjectArr[i];
-    typ              := transform_object.Field('T').AsString;
-    case typ of
-      'CS'   : _Collector;
-      'OO'   : _OneOne;
-      'PRG'  : _Progress;
-      'CONST': _Constant;
-      'DS'   : _DumpString;
-      'DBTS' : _DBText(1);
-      'DBTL' : _DBText(0);
-      'DBTH' : _DBText(2);
-      'DBTK' : _DBText(3);
-      'OORF' : _OneOneMatch;
-      else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNKNOWN SIMPLE TRANSFORM TYPE [%s]',[typ]);
-    end;
-  end;
+  FTransformList.ForAllBreak(@iterate);
   result._Field('uid').AsGUID := input.Field('uid').AsGUID;
-  if Assigned(FCustTransform)
-     and (not filter_fields) then
+  if Assigned(FCustTransform) then
     FCustTransform(conn,dependency_obj,input,result);
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_StringArray; const out_field: TFRE_DB_String; const filter_field: boolean; const output_title: TFRE_DB_String;const gui_display_type:TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String;const display:Boolean;const gui_display_type:TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
 begin
-  obj := GFRE_DB.NewObject;
-  obj.Field('T').AsString     := 'CS';
-  obj.Field('F').AsString     := format;
-  obj.Field('IL').AsStringArr := in_fieldlist;
-  obj.Field('OF').AsString    := lowercase(out_field);
-  obj.Field('FF').AsBoolean   := filter_field;
-  obj.Field('OPT').AsString   := output_title;
-  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
-  obj.Field('FS').AsInt16     := fieldSize;
-  Field('TRANS').AddObject(obj);
-  if filter_field then begin
-    _SetHasFilterField(true);
-  end;
+  FTransformList.Add(TFRE_DB_COLLECTOR_FT.Create(format,in_fieldlist,out_field,output_title,gui_display_type,display,fieldSize));
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddFulltextFilterOnTransformed(const in_fieldlist: TFRE_DB_StringArray);
@@ -5419,262 +5531,47 @@ begin
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddOneToOnescheme(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer; const iconID: String; const openIconID:String);
-var obj:TFRE_DB_Object;
 begin
-  obj                         := GFRE_DB.NewObject;
-  obj.Field('T').Asstring     := 'OO';
-  obj.Field('F').AsString     := fieldname;
-  obj.Field('OF').AsString    := lowercase(out_field);
-  obj.Field('OPT').AsString   := output_title;
-  obj.Field('DISP').AsBoolean := display;
-  obj.Field('FF').AsBoolean   := false;
-  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
-  obj.Field('FS').AsInt16     := fieldSize;
-  obj.Field('IC').AsString    := iconID;
-  obj.Field('OIC').AsString   := openIconID;
-  Field('TRANS').AddObject(obj);
+  FTransformList.Add(TFRE_DB_ONEONE_FT.Create(fieldname,out_field,output_title,gui_display_type,display,fieldSize,iconID,openIconID));
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddProgressTransform(const valuefield: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const textfield: TFRE_DB_String; const out_text: TFRE_DB_String; const maxValue: Single;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
 begin
-  obj                         := GFRE_DB.NewObject;
-  obj.Field('T').Asstring     := 'PRG';
-  obj.Field('F').AsString     := valuefield;
-  obj.Field('OF').AsString    := lowercase(out_field);
-  obj.Field('OPT').AsString   := output_title;
-  obj.Field('TF').AsString    := textfield;
-  obj.Field('OTF').AsString   := lowercase(out_text);
-  obj.Field('MAX').AsReal32   := maxValue;
-  obj.Field('FF').AsBoolean   := false;
-  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[dt_number_pb];
-  obj.Field('FS').AsInt16     := fieldSize;
-  Field('TRANS').AddObject(obj);
+  FTransformList.Add(TFRE_DB_PROGRESS_FT.Create(valuefield,out_field,output_title,textfield,out_text,maxValue,true,fieldSize));
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddConstString(const out_field,value: TFRE_DB_String; const display: Boolean; const output_title: TFRE_DB_String;  const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
 begin
- obj                         := GFRE_DB.NewObject;
- obj.Field('T').Asstring     := 'CONST';
- obj.Field('OF').AsString    := lowercase(out_field);
- obj.Field('OPT').AsString   := output_title;
- obj.Field('VAL').AsString   := value;
- obj.Field('DISP').AsBoolean := display;
- obj.Field('FF').AsBoolean   := false;
- obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
- obj.Field('FS').AsInt16     := fieldSize;
- Field('TRANS').AddObject(obj);
+  FTransformList.Add(TFRE_DB_CONST_STRING_FT.Create(out_field,value,display,output_title,gui_display_type,fieldSize));
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddDBTextShortToOne(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddDBTextToOne(const fieldname: TFRE_DB_String; const which_text: TFRE_DB_TEXT_SUBTYPE; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer);
 begin
-  obj                         := GFRE_DB.NewObject;
-  obj.Field('T').Asstring     := 'DBTS';
-  obj.Field('F').AsString     := fieldname;
-  obj.Field('OF').AsString    := lowercase(out_field);
-  obj.Field('OPT').AsString   := output_title;
-  obj.Field('FF').AsBoolean   := false;
-  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
-  obj.Field('FS').AsInt16     := fieldSize;
-  Field('TRANS').AddObject(obj);
-end;
-
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddDBTextLongToOne(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
-begin
-  obj                         := GFRE_DB.NewObject;
-  obj.Field('T').Asstring     := 'DBTL';
-  obj.Field('F').AsString     := fieldname;
-  obj.Field('OF').AsString    := lowercase(out_field);
-  obj.Field('OPT').AsString   := output_title;
-  obj.Field('FF').AsBoolean   := false;
-  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
-  obj.Field('FS').AsInt16     := fieldSize;
-  Field('TRANS').AddObject(obj);
-end;
-
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddDBTextHintToOne(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
-begin
-  obj                         := GFRE_DB.NewObject;
-  obj.Field('T').Asstring     := 'DBTH';
-  obj.Field('F').AsString     := fieldname;
-  obj.Field('OF').AsString    := lowercase(out_field);
-  obj.Field('OPT').AsString   := output_title;
-  obj.Field('FF').AsBoolean   := false;
-  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
-  obj.Field('FS').AsInt16     := fieldSize;
-  Field('TRANS').AddObject(obj);
-end;
-
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddDBTextKeyToOne(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
-begin
-  obj                         := GFRE_DB.NewObject;
-  obj.Field('T').Asstring     := 'DBTK';
-  obj.Field('F').AsString     := fieldname;
-  obj.Field('OF').AsString    := lowercase(out_field);
-  obj.Field('OPT').AsString   := output_title;
-  obj.Field('FF').AsBoolean   := false;
-  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
-  obj.Field('FS').AsInt16     := fieldSize;
-  Field('TRANS').AddObject(obj);
-end;
-
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddFullDumpField(const fieldname: TFRE_DB_String; const dump_length_max: Integer; const filter_field: Boolean; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
-begin
-  obj                         := GFRE_DB.NewObject;
-  obj.Field('T').Asstring     := 'DS';
-  obj.Field('F').AsString     := fieldname;
-  obj.Field('L').AsInt16      := dump_length_max;
-  obj.Field('FF').AsBoolean   := filter_field;
-  obj.Field('OPT').AsString   := output_title;
-  obj.Field('GDT').AsString   := CFRE_DB_DISPLAY_TYPE[gui_display_type];
-  if filter_field then begin
-    _SetHasFilterField(true);
-  end;
-  obj.Field('FS').AsInt16     := fieldSize;
-  Field('TRANS').AddObject(obj);
+  FTransformList.Add(TFRE_DB_TEXT_FT.Create(fieldname,which_text,out_field,output_title,gui_display_type,true,fieldSize));
 end;
 
 function TFRE_DB_SIMPLE_TRANSFORM.GetViewCollectionDescription: TFRE_DB_CONTENT_DESC;
-var cnt,i            : Integer;
-    transform_object : TFRE_DB_Object;
-    typ              : TFRE_DB_String;
-    vcd              : TFRE_DB_VIEW_LIST_LAYOUT_DESC;
-    filter_field     : boolean;
-
-    procedure _AddEntry;
-    var out_title : string;
-        out_field : string;
-        in_field  : string;
-        gui_dt    : TFRE_DB_DISPLAY_TYPE;
-        gdt       : string;
-        fs        : Integer;
-        icon      : string;
-        openIcon  : String;
-        display   : Boolean;
-
+var vcd : TFRE_DB_VIEW_LIST_LAYOUT_DESC;
+    procedure Iterate(var ft : TFRE_DB_FIELD_TRANSFORM ; const idx : NativeInt ; var halt_flag:boolean);
     begin
-      out_title := transform_object.Field('OPT').AsString;
-      out_field := transform_object.Field('OF').AsString;
-      in_field  := transform_object.Field('F').AsString;
-      if transform_object.FieldExists('DISP') then begin
-        display   := transform_object.Field('DISP').AsBoolean;
-      end else begin
-        display := true;
-      end;
-      gdt       := transform_object.Field('GDT').AsString;
-      fs        := transform_object.Field('FS').AsInt16;
-      icon      := transform_object.Field('IC').AsString;
-      openIcon  := transform_object.Field('OIC').AsString;
-      if gdt<>'' then begin
-        gui_dt    := FREDB_String2DBDisplayType(gdt);
-      end else begin
-        gui_dt := dt_string;
-      end;
-      if out_field='' then out_field:=in_field;
-      vcd.AddDataElement.Describe(lowercase(out_field),out_title,gui_dt,fs,display,false,icon,openIcon);
+      ft.AddToViewCollection(vcd);
     end;
-
-    procedure _AddPrgEntry;
-    var out_title : string;
-        out_field : string;
-        out_label : String;
-        in_field  : string;
-        in_label  : String;
-        gui_dt    : TFRE_DB_DISPLAY_TYPE;
-        gdt       : string;
-        maxVal    : Single;
-        fs        : Integer;
-
-    begin
-      out_title := transform_object.Field('OPT').AsString;
-      out_field := transform_object.Field('OF').AsString;
-      out_label := transform_object.Field('OTF').AsString;
-      in_field  := transform_object.Field('F').AsString;
-      in_label  := transform_object.Field('TF').AsString;
-      gdt       := transform_object.Field('GDT').AsString;
-      maxVal    := transform_object.Field('MAX').AsReal32;
-      fs        := transform_object.Field('FS').AsInt16;
-      if gdt<>'' then begin
-        gui_dt    := FREDB_String2DBDisplayType(gdt);
-      end else begin
-        gui_dt := dt_string;
-      end;
-      if out_field='' then out_field:=in_field;
-      if out_label='' then out_label:=in_label;
-      vcd.AddDataElement.DescribePB(lowercase(out_field),out_title,out_label,maxVal,fs);
-    end;
-
-    procedure _AddConstEntry;
-    var out_title : string;
-        out_field : string;
-        out_label : String;
-        gdt       : String;
-        display   : Boolean;
-        gui_dt    : TFRE_DB_DISPLAY_TYPE;
-        fs        : Integer;
-
-    begin
-      out_title := transform_object.Field('OPT').AsString;
-      out_field := transform_object.Field('OF').AsString;
-      gdt       := transform_object.Field('GDT').AsString;
-      display   := transform_object.Field('DISP').AsBoolean;
-      gui_dt    := FREDB_String2DBDisplayType(gdt);
-      fs        := transform_object.Field('FS').AsInt16;
-
-      vcd.AddDataElement.Describe(lowercase(out_field),out_title,gui_dt,fs,display);
-    end;
-
 begin
   vcd := TFRE_DB_VIEW_LIST_LAYOUT_DESC.create.Describe();
-  cnt    := Field('TRANS').ValueCount;
-  for i:= 0 to cnt-1 do begin
-    transform_object := Field('TRANS').AsObjectArr[i];
-    typ              := transform_object.Field('T').AsString;
-    filter_field     := transform_object.Field('FF').AsBoolean;
-    if filter_field then continue;
-    case typ of
-      'CS'   : _AddEntry;
-      'OO'   : _AddEntry;
-      'PRG'  : _AddPrgEntry;
-      'CONST': _AddConstEntry;
-      'DS'   : _AddEntry;
-      'DBTS' : _AddEntry;
-      'DBTL' : _AddEntry;
-      'DBTH' : _AddEntry;
-      'DBTK' : _AddEntry;
-      'OORF' : _AddEntry;
-      else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNKNOWN SIMPLE TRANSFORM TYPE [%s]',[typ]);
-    end;
-  end;
+  FTransformList.ForAllBreak(@Iterate);
   vcd.AddDataElement.Describe('uid','UID',dt_string,1,false);
   result := vcd;
 end;
 
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field_chain: TFRE_DB_StringArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
-var obj:TFRE_DB_Object;
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field_chain: TFRE_DB_NameTypeArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
 begin
-   obj                          := GFRE_DB.NewObject;
-   obj.Field('T').Asstring      := 'OORF';
-   obj.Field('F').AsString      := target_field;
-   obj.Field('OF').AsString     := lowercase(output_field);
-   obj.Field('OPT').AsString    := output_title;
-   obj.Field('RFC').AsStringArr := ref_field_chain;
-   obj.Field('FF').AsBoolean    := false;
-   obj.Field('GDT').AsString    := CFRE_DB_DISPLAY_TYPE[gui_display_type];
-   obj.Field('FS').AsInt16     := fieldSize;
-   Field('TRANS').AddObject(obj);
+  FTransformList.Add(TFRE_DB_REFERERENCE_CHAIN_FT.Create(ref_field_chain,target_field,output_field,output_title,gui_display_type,true,fieldSize));
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field: TFRE_DB_String; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field: TFRE_DB_NameType; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
 begin
-  AddMatchingReferencedField(TFRE_DB_StringArray.Create(ref_field),target_field,output_field,output_title,gui_display_type,fieldSize);
+  AddMatchingReferencedField(TFRE_DB_NameTypeArray.Create(ref_field),target_field,output_field,output_title,gui_display_type,fieldSize);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckSetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
@@ -6061,16 +5958,16 @@ begin
   use_filter_fields:=false;
   FFilters.ForAllBrk(@Filter);
   if add then begin
-    tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item,false);
+    tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
     iob    := tr_obj;
     use_filter_fields:=false;
     FFiltersTrans.ForAllBrk(@Filter);
-    if FTransform.HasFilterFields then begin
-      use_filter_fields:=true;
-      iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item,true);
-      FFilters.ForAllBrk(@Filter);
-      iob.Finalize;
-    end;
+    //if FTransform.HasFilterFields then begin
+    //  use_filter_fields:=true;
+    //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
+    //  FFilters.ForAllBrk(@Filter);
+    //  iob.Finalize;
+    //end;
     if add then begin
       if cdgf_Children in FGridDisplayFlags then
         begin
@@ -6083,7 +5980,7 @@ begin
               tr_obj.Field('_menufunc_').AsString      := 'Menu';
               tr_obj.Field('_contentfunc_').AsString   := 'Content';
               if item.FieldOnlyExisting('icon',fld) then // icon in source
-                  tr_obj.Field('icon').AsString:= getThemedResource(fld.AsString); // icon in transformed
+                  tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
             end
           else
             begin
@@ -7452,42 +7349,39 @@ begin
 end;
 
 
-
-procedure TFRE_DB_TRANSFORMOBJECT.SetKey(const AValue: TFRE_DB_String);
+function FieldTransformNull(const ft : PFRE_DB_FIELD_TRANSFORM):boolean;
 begin
-  Fkeyfield.AsString := AValue;
+  result := not assigned(ft^);
 end;
 
-procedure TFRE_DB_TRANSFORMOBJECT._SetHasFilterField(const value: boolean);
+function FieldTransformSame(const ft1,ft2 : PFRE_DB_FIELD_TRANSFORM):boolean;
 begin
-  Field('HFF').AsBoolean:=value;
+  result := ft1^=ft2^;
 end;
 
-function TFRE_DB_TRANSFORMOBJECT._ObjectsNeedsNoSubfieldSchemeCheck: boolean;
+procedure TFRE_DB_TRANSFORMOBJECT.Finalize;
 begin
-  Result:=true;
+  Free;
 end;
 
-procedure TFRE_DB_TRANSFORMOBJECT.InternalSetup;
+function TFRE_DB_TRANSFORMOBJECT.Implementor: TObject;
 begin
-  inherited InternalSetup;
-  Fkeyfield := Field('FK');
-  _SetHasFilterField(false);
+  result := self;
 end;
 
-function TFRE_DB_TRANSFORMOBJECT.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object; const filter_fields: boolean): TFRE_DB_Object;
+function TFRE_DB_TRANSFORMOBJECT.Implementor_HC: TObject;
+begin
+  result := self;
+end;
+
+constructor TFRE_DB_TRANSFORMOBJECT.Create;
+begin
+  FTransformList.InitSparseList(nil,@FieldTransformNull,@FieldTransformSame,10);
+end;
+
+function TFRE_DB_TRANSFORMOBJECT.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
 begin
   abort;
-end;
-
-function TFRE_DB_TRANSFORMOBJECT.GetKey: TFRE_DB_String;
-begin
-  result := Fkeyfield.AsString;
-end;
-
-function TFRE_DB_TRANSFORMOBJECT.GetHasFF: boolean;
-begin
-  result := Field('HFF').AsBoolean;
 end;
 
 function TFRE_DB_FieldSchemeDefinition.GetFieldName: TFRE_DB_NameType;
@@ -7898,7 +7792,7 @@ begin
   simple_df := field_name;
 end;
 
-procedure TFRE_DB_SchemeObject.SetSysDisplayField(const field_names: TFRE_DB_StringArray; const format: TFRE_DB_String);
+procedure TFRE_DB_SchemeObject.SetSysDisplayField(const field_names: TFRE_DB_NameTypeArray; const format: TFRE_DB_String);
 begin
   formatted_df  := field_names;
   formatted_dff := format;
@@ -7910,7 +7804,7 @@ begin
     result := obj.FieldPathListFormat(formatted_df,formatted_dff,'{}');
   end else
     if simple_df<>'' then begin
-      result := obj.FieldPathListFormat(GFRE_DB.ConstructStringArray([simple_df]),'%s','{}');
+      result := obj.FieldPathListFormat(TFRE_DB_NameTypeArray.Create(simple_df),'%s','{}');
     end else begin
       result := DefinedSchemeName+' : '+obj.UID_String;
     end;
@@ -8633,7 +8527,7 @@ end;
 
 function TFRE_DB_SchemeObject.MethodExists(const name: TFRE_DB_String): boolean;
 begin
-  result:=StringInArray(uppercase(name),GetAll_IMI_Methods);
+  result:=FREDB_StringInArray(uppercase(name),GetAll_IMI_Methods);
 end;
 
 
@@ -9394,7 +9288,7 @@ procedure TFRE_DB_BASE_CONNECTION._NotifyCollectionObservers(const notify_type: 
   var obs_typ:string;
   begin
     try
-      if StringInArray(uppercase(coll.CollectionName),ncolls) then
+      if FREDB_StringInArray(uppercase(coll.CollectionName),ncolls) then
         coll._NotifyObserversOrRecord(notify_type,obj,obj_uid);
     except on e:Exception do begin
       WriteStr(obs_typ,notify_type);
@@ -10233,7 +10127,7 @@ var i        : NativeInt;
       begin
         if Length(expanded_refs) = count then
           SetLength(expanded_refs,Length(expanded_refs)+256);
-        if not GuidInArray(uid,expanded_refs) then
+        if not FREDB_GuidInArray(uid,expanded_refs) then
           begin
             expanded_refs[count] := uid;
             inc(count);
@@ -10422,7 +10316,10 @@ begin
     if lClass.InheritsFrom(TFRE_DB_Object) then begin
       lObject := TFRE_DB_OBJECTCLASS(lClass).Create;
     end else begin
-     abort; // class construction only works with the "right" base class
+      if lClass.InheritsFrom(TFOS_BASE) then
+        begin
+          lObject := TFOS_BASECLASS(lClass).Create;  // Create a non dbo interfaced object
+        end;
     end;
     if not lObject.GetInterface(InterfaceSpec,intf) then begin
       raise EFRE_DB_Exception.Create(edb_ERROR,'internal interface spec/cast fault');
@@ -12003,6 +11900,11 @@ begin
    Result := _ObjectRoot;
 end;
 
+function TFRE_DB_Object.ObjectRootI: IFRE_DB_Object;
+begin
+  result := ObjectRoot;
+end;
+
 function TFRE_DB_Object.IsObjectRoot: Boolean;
 begin
   result := not assigned(FParentDBO);
@@ -12670,7 +12572,7 @@ begin
   end;
 end;
 
-function TFRE_DB_Object.FieldPathListFormat(const field_list: TFRE_DB_StringArray; const formats: TFRE_DB_String; const empty_val: TFRE_DB_String): TFRE_DB_String;
+function TFRE_DB_Object.FieldPathListFormat(const field_list: TFRE_DB_NameTypeArray; const formats: TFRE_DB_String; const empty_val: TFRE_DB_String): TFRE_DB_String;
 var outfieldname : TFRE_DB_String;
     test      : array of TVarRec;
     sa        : array of TFRE_DB_String;
@@ -16675,7 +16577,7 @@ begin
   field_def.SetupFieldDef(false,false,'','image',false,false,params);
 
   scheme.AddSchemeFieldSubscheme('desc','TFRE_DB_TEXT');
-  Scheme.SetSysDisplayField(GFRE_DB.ConstructStringArray(['login','firstname','lastname']),'%s - (%s %s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('login','firstname','lastname'),'%s - (%s %s)');
 
   input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_USER_user_group');
   input_group.AddInput('login','$scheme_TFRE_DB_USER_login');

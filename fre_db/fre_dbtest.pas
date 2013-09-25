@@ -425,11 +425,11 @@ begin
   Field('size').AsUInt64   := size;
   if is_file then begin
     Field('sizeHR').AsString := GFRE_BT.ByteToString(size);
-    Field('icon').AsString:=getThemedResource(mimeTypeToIcon(GFRE_BT.FilenameToMimetype(name)));
+    Field('icon').AsString:=FREDB_getThemedResource(mimeTypeToIcon(FREDB_Filename2MimeType(name)));
   end else begin
     Field('sizeHR').AsString := '';
-    Field('icon').AsString:=getThemedResource('images_apps/test/folder.png');
-    Field('icon_open').AsString:=getThemedResource('images_apps/test/folder-open.png');
+    Field('icon').AsString:=FREDB_getThemedResource('images_apps/test/folder.png');
+    Field('icon_open').AsString:=FREDB_getThemedResource('images_apps/test/folder-open.png');
   end;
   Field('mode').AsUInt32   := mode;
   SetIsFile(is_file);
@@ -675,8 +675,8 @@ begin
       AddOneToOnescheme('fdbft_Real64','','Real64',dt_String);
       AddOneToOnescheme('fdbft_Currency','','Currency',dt_String);
       AddOneToOnescheme('fdbft_String','','String',dt_String);
-      AddOneToOnescheme('fdbft_Boolean','','Boolean',dt_String);
-      AddOneToOnescheme('fdbft_DateTimeUTC','','Datetime',dt_String);
+      AddOneToOnescheme('fdbft_Boolean','','Boolean',dt_boolean);
+      AddOneToOnescheme('fdbft_DateTimeUTC','','Datetime',dt_date);
       //AddOneToOnescheme('fdbft_Stream','','',dt_String);
       //AddOneToOnescheme('fdbft_ObjLink','','',dt_String);
     end;
@@ -1138,7 +1138,7 @@ begin
   Field('fdbft_Real64').AsReal64           := Double (Random (100000)) / Single((Random (123456789)+1));
   Field('fdbft_Currency').AsCurrency       := Random (1000000) / 100;
   Field('fdbft_String').AsString           := Field('MYID').AsString+'_'+GetRandstring;
-  Field('fdbft_Boolean').AsBoolean         := random(1)=0;
+  Field('fdbft_Boolean').AsBoolean         := random(3)=1;
   Field('fdbft_DateTimeUTC').AsDateTimeUTC := GFRE_DT.Now_UTC;
 end;
 
@@ -2075,11 +2075,11 @@ var    lstatus_icon : TFRE_DB_String;
 begin
   lstatus    := Field('status').AsString;
   case lstatus of
-    'OK'      : lstatus_icon := getThemedResource('images_apps/test/signal_ok.png');
-    'WARNING' : lstatus_icon := getThemedResource('images_apps/test/signal_warning.png');
-    'FAILURE' : lstatus_icon := getThemedResource('images_apps/test/signal_failure.png');
-    'UNKNOWN' : lstatus_icon := getThemedResource('images_apps/test/signal_unknown.png');
-    'NEW'     : lstatus_icon := getThemedResource('images_apps/test/signal_unknown.png');
+    'OK'      : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_ok.png');
+    'WARNING' : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_warning.png');
+    'FAILURE' : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_failure.png');
+    'UNKNOWN' : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_unknown.png');
+    'NEW'     : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_unknown.png');
     else raise EFRE_DB_Exception.Create(edb_ERROR,'UNKNOWN ENUM FIELD VALUE SiGNaL Status');
   end;
   calc.SetAsString(lstatus_icon);
@@ -2154,7 +2154,7 @@ begin
     lobj.Field('firstname').AsString:='FN_' + IntToStr(i);
     lobj.Field('lastname').AsString:='LN_' + IntToStr(i);
     lobj.Field('pass').AsString:='PASS_' + IntToStr(i);
-    lobj.Field('icon').AsString:=getThemedResource('images_apps/test/add.png');
+    lobj.Field('icon').AsString:=FREDB_getThemedResource('images_apps/test/add.png');
     COLL.Store(lobj);
   end;
 

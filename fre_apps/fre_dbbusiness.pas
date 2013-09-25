@@ -169,7 +169,7 @@ begin
   inherited RegisterSystemScheme(scheme);
   scheme.GetSchemeField('objname').required:=true;
   scheme.AddSchemeField('tld',fdbft_String);
-  scheme.SetSysDisplayField(GFRE_DBI.ConstructStringArray(['objname','tld']),'%s (%s)');
+  scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','tld'),'%s (%s)');
   group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_COUNTRY_country_group');
   group.AddInput('objname','$scheme_TFRE_DB_COUNTRY_name');
   group.AddInput('tld','$scheme_TFRE_DB_COUNTRY_tld');
