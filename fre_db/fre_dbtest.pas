@@ -100,10 +100,10 @@ type
   public
     procedure SetProperties (const name : TFRE_DB_String ; const is_file : boolean; const size : NativeInt ; const mode : Cardinal; const time : Longint);
     function  FileDirName   : String;
-    procedure RCB_GotAnswer(const ses : IFRE_DB_UserSession ; const new_input : IFRE_DB_Object ; const status : TFRE_DB_COMMAND_STATUS ; const ocid: Qword ; const opaquedata : IFRE_DB_Object);
   published
     function  WEB_Content       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Menu          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_CreateZip     (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_CHILDRENDATA  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
@@ -441,47 +441,6 @@ begin
   result := Field('name').AsString;
 end;
 
-procedure TFRE_DB_TEST_FILEDIR.RCB_GotAnswer(const ses: IFRE_DB_UserSession; const new_input: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const ocid: Qword; const opaquedata: IFRE_DB_Object);
-var res      : TFRE_DB_STORE_DATA_DESC;
-     i       : NativeInt;
-     cnt     : NativeInt;
-
-     procedure addEntry(const fld : IFRE_DB_Field);
-     var mypath : string;
-         newe   : IFRE_DB_Object;
-         entry  : IFRE_DB_Object;
-     begin
-       if fld.FieldType=fdbft_Object then
-         begin
-           inc(cnt);
-           entry := fld.AsObject;
-           entry.Field('uidpath').AsStringArr := opaquedata.Field('UIP').AsStringArr;
-           mypath                             := opaquedata.Field('LVL').AsString+ entry.Field('name').AsString +'/';
-           //writeln('mypath id : ',mypath);
-           entry.Field('mypath').AsString     := mypath;
-           //writeln('ENTRY ',entry.DumpToString());
-           //writeln('-----------');
-           newe :=  entry.CloneToNewObject();
-           //newe.Field('mypath').AsString:=mypath;
-           //newe.Field('isfile').AsBoolean:=entry.Field('isfile').AsBoolean;
-           //writeln('-----------');
-           //writeln('N ENTRY ',newe.DumpToString());
-           //writeln('-----------');
-           res.addTreeEntry(newe,newe.Field('isfile').AsBoolean=false);
-         end;
-     end;
-
-begin
-  //writeln('GOT REMOTE INPUT ',input.DumpToString());
-  //WriteLn('OPD ',opaquedata.DumpToString );
-  res:=TFRE_DB_STORE_DATA_DESC.create.Describe(0);
-  cnt := 0;
-  new_input.ForAllFields(@addEntry);
-  res.Describe(cnt);
-  writeln('**************** ',res.DumpToString());
-  ses.SendServerClientAnswer(res,ocid);
-end;
-
 function TFRE_DB_TEST_FILEDIR.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
     res : TFRE_DB_STORE_DATA_DESC;
@@ -493,11 +452,59 @@ end;
 
 function TFRE_DB_TEST_FILEDIR.WEB_Menu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  res: TFRE_DB_MENU_DESC;
+  sel: TFRE_DB_String;
+  response: IFRE_DB_Object;
+  opd: IFRE_DB_Object;
+  inp: IFRE_DB_Object;
+
+  procedure GotAnswer(const ses: IFRE_DB_UserSession; const new_input: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const ocid: Qword; const opaquedata: IFRE_DB_Object);
+  var
+    res: TFRE_DB_MENU_DESC;
+    fd : TFRE_DB_TEST_FILEDIR;
+  begin
+    res:=TFRE_DB_MENU_DESC.create.Describe;
+    writeln('SEAS ' + new_input.DumpToString());
+    if new_input.FieldExists('info') then begin
+      fd:=new_input.Field('info').AsObject.Implementor_HC as TFRE_DB_TEST_FILEDIR;
+      if fd.GetIsFile then begin
+        res.AddEntry.Describe('Download','','/download'+opaquedata.Field('fileid').AsString);
+        ses.SendServerClientAnswer(res,ocid);
+      end else begin
+        res.AddEntry.Describe('Create ZIP','',TFRE_DB_SERVER_FUNC_DESC.create.Describe('TFRE_DB_TEST_FILEDIR',opaquedata.Field('rootGUID').AsGUID,'CreateZip'));
+        ses.SendServerClientAnswer(res,ocid);
+      end;
+    end else begin
+      ses.SendServerClientAnswer(res,ocid);
+      ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Error','File/Directory not found!',fdbmt_error));
+    end;
+  end;
+
 begin
-  res:=TFRE_DB_MENU_DESC.create.Describe;
-  res.AddEntry.Describe('Download','','/download/filename.txt');
-  Result:=res;
+
+  writeln('MENU CALL INPUT ',input.DumpToString());
+
+  opd := GFRE_DBI.NewObject;
+  inp := GFRE_DBI.NewObject;
+  inp.Field('fileid').AsString:=copy(input.Field('selected').AsString,1,Length(input.Field('selected').AsString)-1);
+  opd.Field('fileid').AsString:=inp.Field('fileid').AsString;
+  opd.Field('rootGUID').AsGUID:=UID;
+  if ses.InvokeRemoteRequest('SAMPLEFEEDER','GETFILEDIRINFO',inp,response,@GotAnswer,opd)=edb_OK then begin
+    result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+  end else begin
+    result := TFRE_DB_STORE_DATA_DESC.create.Describe(0);
+  end;
+end;
+
+function TFRE_DB_TEST_FILEDIR.WEB_CreateZip(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res : TFRE_DB_DIALOG_DESC;
+begin
+  Result:=GFRE_DB_NIL_DESC;
+  res:=TFRE_DB_DIALOG_DESC.create.Describe('ZIP');
+  res.AddDescription.Describe('','Your ZIP file is ready to download.');
+  res.AddButton.DescribeDownload('Download','/download/test.zip',true);
+//  ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('ZIP','Zip file created. Download: <a href="/download/test.zip">Click here</a>',fdbmt_info));
+  ses.SendServerClientRequest(res);
 end;
 
 function TFRE_DB_TEST_FILEDIR.WEB_CHILDRENDATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;

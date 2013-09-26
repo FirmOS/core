@@ -65,6 +65,7 @@ type
     procedure  GenerateFeedDataTimer   (const ES:IFRE_APS_EVENTSOURCE;const TID:integer;const Data:Pointer;const cp:integer=0);
     procedure  WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); override;
     function   ListDirLevel            (const basepath : string):IFRE_DB_Object;
+    function   GetFileDirInfo          (const fileid : string):IFRE_DB_Object;
   end;
 
 
@@ -100,7 +101,7 @@ begin
   with remote_method_array[1] do
     begin
       classname       := 'SAMPLEFEEDER';
-      methodname      := 'BROWSEPATH';
+      methodname      := 'GETFILEDIRINFO';
       invokationright := ''; //unsafe
     end;
 end;
@@ -145,6 +146,13 @@ begin
       writeln('REPLY ON REQUEST SAMPLEFEEDER.BROWSEPATH ',reply_data.DumpToString());
       AnswerSyncCommand(command_id,reply_data);
     end;
+  if (rclassname='SAMPLEFEEDER') and (rmethodname='GETFILEDIRINFO') then
+    begin
+      reply_data := GetFileDirInfo(input.Field('fileid').AsString);
+      input.Finalize;
+      writeln('REPLY ON REQUEST SAMPLEFEEDER.GETFILEDIRINFO ',reply_data.DumpToString());
+      AnswerSyncCommand(command_id,reply_data);
+    end;
 end;
 
 function TFRE_SAMPLE_FEED_CLIENT.ListDirLevel(const basepath: string): IFRE_DB_Object;
@@ -166,6 +174,22 @@ begin
           inc(count);
         end;
     Until FindNext(info)<>0;
+  FindClose(Info);
+end;
+
+function TFRE_SAMPLE_FEED_CLIENT.GetFileDirInfo(const fileid: string): IFRE_DB_Object;
+var
+  Info  : TSearchRec;
+  entry : TFRE_DB_TEST_FILEDIR;
+begin
+  result := GFRE_DBI.NewObject;
+  If FindFirst(fileid,faAnyFile and faDirectory,Info)=0 then
+    With Info do
+      begin
+        entry := TFRE_DB_TEST_FILEDIR.CreateForDB;
+        entry.SetProperties(name,(Attr and faDirectory) <> faDirectory,Size,mode,Time);
+        result.Field('info').AsObject := entry;
+      end;
   FindClose(Info);
 end;
 

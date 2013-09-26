@@ -52,7 +52,7 @@ type
   TFRE_DB_LAYOUT_POS          = (lt_left,lt_center,lt_right,lt_top,lt_bottom);
   TFRE_DB_SUBSEC_DISPLAY_TYPE = (sec_dt_tab,sec_dt_vertical,sec_dt_hiddentab);
   TFRE_DB_CLIENT_ACTION       = (fdbca_openContent);
-  TFRE_DB_BUTTON_TYPE         = (fdbbt_submit,fdbbt_button,fdbbt_close);
+  TFRE_DB_BUTTON_TYPE         = (fdbbt_submit,fdbbt_button,fdbbt_close,fdbbt_download);
   TFRE_DB_GRID_BUTTON_DEP     = (fdgbd_single,fdgbd_multi,fdgbd_always,fdgbd_manual);
   TFRE_DB_CONTENT_TYPE        = (ct_html,ct_javascript,ct_pascal);
   TFRE_DB_REC_INTERVAL_TYPE   = (rit_once,rit_minute,rit_hour,rit_day,rit_week,rit_month,rit_quarter,rit_year);
@@ -65,7 +65,7 @@ const
   CFRE_DB_CHOOSER_DH           : array [TFRE_DB_CHOOSER_DH] of string          = ('dh_chooser_radio','dh_chooser_check','dh_chooser_combo');
   CFRE_DB_LAYOUT_POS           : array [TFRE_DB_LAYOUT_POS] of string          = ('lt_left','lt_center','lt_right','lt_top','lt_bottom');
   CFRE_DB_SUBSEC_DISPLAY_TYPE  : array [TFRE_DB_SUBSEC_DISPLAY_TYPE] of string = ('sec_dt_tab','sec_dt_vertical','sec_dt_hiddentab');
-  CFRE_DB_BUTTON_TYPE          : array [TFRE_DB_BUTTON_TYPE] of string         = ('bt_submit','bt_button','bt_close');
+  CFRE_DB_BUTTON_TYPE          : array [TFRE_DB_BUTTON_TYPE] of string         = ('bt_submit','bt_button','bt_close','bt_download');
   CFRE_DB_GRID_BUTTON_DEP      : array [TFRE_DB_GRID_BUTTON_DEP] of string     = ('gbd_single','gbd_multi','gbd_always','gbd_manual');
   CFRE_DB_CHART_TYPE           : array [TFRE_DB_CHART_TYPE] of string          = ('ct_pie','ct_column','ct_line');
   CFRE_DB_LIVE_CHART_TYPE      : array [TFRE_DB_LIVE_CHART_TYPE] of string     = ('lct_line','lct_sampledline');
@@ -261,7 +261,7 @@ type
 
   { TFRE_DB_INPUT_DESCRIPTION_DESC }
 
-  TFRE_DB_INPUT_DESCRIPTION_DESC   = class(TFRE_DB_CONTENT_DESC)
+  TFRE_DB_INPUT_DESCRIPTION_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes an info field within a form.
     function  Describe (const caption,description: String) : TFRE_DB_INPUT_DESCRIPTION_DESC;
@@ -447,7 +447,10 @@ type
     //@ Describes a button for a form panel or a dialog.
     //@ fdbbt_close type is only useful for dialogs.
     //@ For fdbbt_close type the serverFunc might be nil (Just closes the dialog).
-    function Describe(const caption: String;const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const buttonType: TFRE_DB_BUTTON_TYPE): TFRE_DB_BUTTON_DESC;
+    function Describe        (const caption: String;const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const buttonType: TFRE_DB_BUTTON_TYPE): TFRE_DB_BUTTON_DESC;
+    //@ Describes a download button for a form panel or a dialog.
+    //@ closeDialog set to true is only useful for dialogs.
+    function DescribeDownload(const caption: String;const downloadId: String; const closeDialog: Boolean): TFRE_DB_BUTTON_DESC;
   end;
 
   { TFRE_DB_FORM_DESC }
@@ -1459,8 +1462,8 @@ implementation
 
   function TFRE_DB_INPUT_DESCRIPTION_DESC.Describe(const caption,description: String): TFRE_DB_INPUT_DESCRIPTION_DESC;
   begin
-    Field('caption').AsString:=caption;
-    Field('descr').AsString:=description;
+    inherited Describe(caption, '', false, false, true, false, description);
+    Result:=Self;
   end;
 
   { TFRE_DB_MAIN_DESC }
@@ -1515,11 +1518,21 @@ implementation
 
   function TFRE_DB_BUTTON_DESC.Describe(const caption: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const buttonType: TFRE_DB_BUTTON_TYPE): TFRE_DB_BUTTON_DESC;
   begin
+    if buttonType=fdbbt_download then raise EFRE_DB_Exception.Create(edb_ERROR,'Please use DescribeDownload to configure a download button (fdbbt_download).');
     Field('caption').AsString:=caption;
     if Assigned(serverFunc) then begin
-      Field('serverFunc').AsObject:=serverFunc as IFRE_DB_Object;
+      Field('serverFunc').AsObject:=serverFunc;
     end;
     Field('buttonType').AsString:=CFRE_DB_BUTTON_TYPE[buttonType];
+    Result:=Self;
+  end;
+
+  function TFRE_DB_BUTTON_DESC.DescribeDownload(const caption: String; const downloadId: String; const closeDialog: Boolean): TFRE_DB_BUTTON_DESC;
+  begin
+    Field('caption').AsString:=caption;
+    Field('downloadId').AsString:=downloadId;
+    Field('closeDialog').AsBoolean:=closeDialog;
+    Field('buttonType').AsString:=CFRE_DB_BUTTON_TYPE[fdbbt_download];
     Result:=Self;
   end;
 

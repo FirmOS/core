@@ -313,12 +313,16 @@ implementation
       end;
       bt:=String2DBButtonType(button.Field('buttonType').AsString);
       case bt of
-        fdbbt_button: jsContentAdd('"    \" type=''button'' "+');
-        fdbbt_submit: jsContentAdd('"    \" type=''submit'' "+');
-        fdbbt_close : begin
-                        jsContentAdd('"    '+propsPrefix+' closeDialog: true \" type=''button'' "+');
-                        hasCloseButton:=true;
-                      end;
+        fdbbt_button  : jsContentAdd('"    \" type=''button'' "+');
+        fdbbt_submit  : jsContentAdd('"    \" type=''submit'' "+');
+        fdbbt_close   : begin
+                          jsContentAdd('"    '+propsPrefix+' closeDialog: true \" type=''button'' "+');
+                          hasCloseButton:=true;
+                        end;
+        fdbbt_download: begin
+                          jsContentAdd('"    '+propsPrefix+' downloadId: '''+button.Field('downloadId').AsString+''', closeDialog: '+BoolToStr(button.Field('closeDialog').AsBoolean,'true','false')+' \" type=''button'' "+');
+                          hasCloseButton:=true;
+                        end;
       end;
       jsContentAdd('">'+button.Field('caption').AsString+'</button>"+');
     end;
@@ -652,7 +656,7 @@ implementation
             jsContentAdd('"<tr id='''+elem.Field('id').AsString+'_tr''>"+');
           end;
           if elem.Field('caption').AsString<>'' then begin
-            if elem.ClassName='TFRE_DB_INPUT_FILE_DESC' then begin
+            if elem is TFRE_DB_INPUT_FILE_DESC then begin
               jsContentAdd('"<td class=''firmosFormFileLabelTD''>"+');
             end else begin
               jsContentAdd('"<td class=''firmosFormLabelTD''>"+');
@@ -666,6 +670,9 @@ implementation
           end;
           jsContentAdd('"class=''firmosFormInputTD''>"+');
           case elem.ClassName of
+            'TFRE_DB_INPUT_DESCRIPTION_DESC': begin
+                                                jsContentAdd('"'+elem.Field('defaultValue').AsString+'"+');
+                                              end;
             'TFRE_DB_INPUT_DESC': begin
                                     _BuildInput(elem.Implementor_HC as TFRE_DB_INPUT_DESC);
                                   end;
