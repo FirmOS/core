@@ -387,33 +387,45 @@ procedure TFRE_DB_TEST_FILEDIR.SetProperties(const name: TFRE_DB_String; const i
 var
     y, mon, d, h, min, s: word;
     fosdt : TFRE_DB_DateTime64;
+    icon  : String;
+    hrtype: String;
 
-   function mimeTypeToIcon(const mt: String):String;
+   procedure mimeTypeToIconAndHRType(const mt: String; var icon: String; var hrtype: String);
    var
      mtp: TFRE_DB_StringArray;
    begin
      GFRE_BT.SeperateString(LowerCase(mt),'/',mtp);
-     Result:='images_apps/test/file.png';
+     icon:='images_apps/test/file.png';
+     hrtype:='Unknown';
      case mtp[0] of
-       'audio': Result:='images_apps/test/audio-basic.png';
-       'video': Result:='images_apps/test/video-x-generic-mplayer.png';
+       'audio': begin
+                  icon:='images_apps/test/audio-basic.png';
+                  hrtype:='Audio';
+                end;
+       'video': begin
+                  icon:='images_apps/test/video-x-generic-mplayer.png';
+                  hrtype:='Video';
+                end;
        'image': begin
+                  hrtype:='Image';
                   case mtp[1] of
-                    'bmp': Result:='images_apps/test/image-bmp.png';
-                    'jpeg': Result:='images_apps/test/image-jpeg.png';
-                    'tiff': Result:='images_apps/test/image-tiff.png';
-                    'gif': Result:='images_apps/test/image-gif.png';
-                    'png': Result:='images_apps/test/image-png.png';
+                    'bmp': icon:='images_apps/test/image-bmp.png';
+                    'jpeg': icon:='images_apps/test/image-jpeg.png';
+                    'tiff': icon:='images_apps/test/image-tiff.png';
+                    'gif': icon:='images_apps/test/image-gif.png';
+                    'png': icon:='images_apps/test/image-png.png';
                   end;
                 end;
        'application': begin
+                        hrtype:='Application file';
                         case mtp[1] of
-                          'zip': Result:='images_apps/test/application-zip.png';
-                          'pdf': Result:='images_apps/test/application-pdf.png';
-                          'msword': Result:='images_apps/test/page-word.png';
-                          'postscript': Result:='images_apps/test/application-postscript-2.png';
-                          'rtf': Result:='images_apps/test/application-rtf.png';
-                          'wordperfect5.1': Result:='images_apps/test/application-vnd.wordperfect-abiword.png';
+                          'zip': icon:='images_apps/test/application-zip.png';
+                          'pdf': icon:='images_apps/test/application-pdf.png';
+                          'msword': icon:='images_apps/test/page-word.png';
+                          'postscript': icon:='images_apps/test/application-postscript-2.png';
+                          'rtf': icon:='images_apps/test/application-rtf.png';
+                          'wordperfect5.1': icon:='images_apps/test/application-vnd.wordperfect-abiword.png';
+                          'octet-stream': hrtype:='Unknown';
                         end;
                       end;
      end;
@@ -426,8 +438,11 @@ begin
   Field('size').AsUInt64   := size;
   if is_file then begin
     Field('sizeHR').AsString := GFRE_BT.ByteToString(size);
-    Field('icon').AsString:=FREDB_getThemedResource(mimeTypeToIcon(FREDB_Filename2MimeType(name)));
+    mimeTypeToIconAndHRType(FREDB_Filename2MimeType(name),icon,hrtype);
+    Field('typeHR').AsString   := hrtype;
+    Field('icon').AsString:=FREDB_getThemedResource(icon);
   end else begin
+    Field('typeHR').AsString   := 'Folder';
     Field('sizeHR').AsString := '';
     Field('icon').AsString:=FREDB_getThemedResource('images_apps/test/folder.png');
     Field('icon_open').AsString:=FREDB_getThemedResource('images_apps/test/folder-open.png');
@@ -463,7 +478,6 @@ var
     fd : TFRE_DB_TEST_FILEDIR;
   begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
-    writeln('SEAS ' + new_input.DumpToString());
     if new_input.FieldExists('info') then begin
       fd:=new_input.Field('info').AsObject.Implementor_HC as TFRE_DB_TEST_FILEDIR;
       if fd.GetIsFile then begin
@@ -480,9 +494,6 @@ var
   end;
 
 begin
-
-  writeln('MENU CALL INPUT ',input.DumpToString());
-
   opd := GFRE_DBI.NewObject;
   inp := GFRE_DBI.NewObject;
   inp.Field('fileid').AsString:=copy(input.Field('selected').AsString,1,Length(input.Field('selected').AsString)-1);
@@ -503,7 +514,6 @@ begin
   res:=TFRE_DB_DIALOG_DESC.create.Describe('ZIP');
   res.AddDescription.Describe('','Your ZIP file is ready to download.');
   res.AddButton.DescribeDownload('Download','/download/test.zip',true);
-//  ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('ZIP','Zip file created. Download: <a href="/download/test.zip">Click here</a>',fdbmt_info));
   ses.SendServerClientRequest(res);
 end;
 
@@ -588,6 +598,7 @@ begin
     with tr_Grid do begin
       AddOneToOnescheme('name','','Name',dt_string,true,3,'icon','icon_open');
       AddOneToOnescheme('sizeHR','','Size',dt_string,true,1);
+      AddOneToOnescheme('typeHR','','Type',dt_string,true,1);
       AddOneToOnescheme('date','','Date',dt_date,true,1);
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('icon_open','','',dt_string,false);
@@ -600,7 +611,7 @@ begin
     with DC_Grid do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_FILEBROWSER'),'mypath');
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children],'TreeGrid',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'TreeGrid',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
     end;
   end;
 end;

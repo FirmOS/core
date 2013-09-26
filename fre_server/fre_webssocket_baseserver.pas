@@ -936,9 +936,9 @@ begin
       exit;
     end else begin
       if uri.SplitPath[0]='download' then begin //FIXXME: (Heli) Hack to test download
-        ResponseHeader[rh_contentDisposition] := 'attachement; filename="hallo.txt"';
+        ResponseHeader[rh_contentDisposition] := 'attachment; filename="hallo.txt"';
         lcontent:='Simple text content.';
-        _SendHttpResponse(200,'OK',[],lcontent,'application/octet-stream');//Safari requires application/octet-stream to force download
+        _SendHttpResponse(200,'OK',[],lcontent,'text/plain');
       end else begin
         lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
         if HttpBaseServer.FetchFileCached(lFilename,lContent) then begin

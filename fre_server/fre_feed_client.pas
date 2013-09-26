@@ -111,6 +111,7 @@ begin
   FEED_Timer      := GFRE_S.AddPeriodicTimer (5000,@GenerateFeedDataTimer);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
   GFRE_DBI.Initialize_Extension_Objects;
+  FREDB_LoadMimetypes('');
 end;
 procedure TFRE_SAMPLE_FEED_CLIENT.MyFinalize;
 begin
