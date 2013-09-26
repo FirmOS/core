@@ -7218,7 +7218,10 @@ var
      begin
        //uids[i] := obj.Field(series_id+'_uid').AsGUID;
        uids[i] := obj.UID;
-       data[i] := obj.Field(series_id).AsReal32;
+       if obj.FieldExists(series_id) then
+         data[i] := obj.Field(series_id).AsReal32
+       else
+         data[i] := 0;
        if ChartTransForm.FUseSeriesColors then begin
          colors[i] := obj.Field(series_id+'_col').AsString;
        end;
@@ -13872,8 +13875,6 @@ function TFRE_DB_FIELD._FieldType: TFRE_DB_FIELDTYPE;
 begin
   result := FFieldData.FieldType;
 end;
-
-
 
 
 procedure TFRE_DB_FIELD._IllegalTypeError(const ill_type: TFRE_DB_FIELDTYPE);
