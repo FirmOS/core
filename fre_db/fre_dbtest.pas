@@ -83,7 +83,7 @@ type
   TFRE_DB_TEST_ALL_TYPES=class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure Gamble;
+    procedure Gamble(const id:int64);
   published
     function  IMI_GetIcon   (const input: IFRE_DB_Object): IFRE_DB_Object;
     function  WEB_Content   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -673,8 +673,11 @@ begin
 end;
 
 procedure TFRE_DB_TEST_APP_ALLGRID_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
-var DC_Grid : IFRE_DB_DERIVED_COLLECTION;
-    tr_Grid : IFRE_DB_SIMPLE_TRANSFORM;
+var DC_Grid  : IFRE_DB_DERIVED_COLLECTION;
+    DC_Grid2 : IFRE_DB_DERIVED_COLLECTION;
+    tr_Grid  : IFRE_DB_SIMPLE_TRANSFORM;
+    tr_Grid2 : IFRE_DB_SIMPLE_TRANSFORM;
+
 begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
@@ -698,22 +701,51 @@ begin
       //AddOneToOnescheme('fdbft_ObjLink','','',dt_String);
     end;
 
+    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid2);
+    with tr_Grid2 do begin
+      AddOneToOnescheme          ('myid','','My Id',dt_number);
+      AddConstString             ('const1','Const1',true,'ConstantT1');
+      AddConstString             ('const2','Const2',false,'ConstantT2');
+      AddCollectorscheme         ('(%s)-| %s | %s €',TFRE_DB_NameTypeArray.create('myid','fdbft_GUID','fdbft_Currency'),'Coll','Collector');
+      AddDBTextToOne             ('dbText',tst_Short,'dbtS','DBText_s');
+      AddDBTextToOne             ('dbText',tst_Long,'dbtL','DBText_l');
+      AddDBTextToOne             ('dbText',tst_Hint,'dbtH','DBText_h');
+      AddDBTextToOne             ('dbText',tst_Key,'dbtK','DBText_k');
+      AddCollectorscheme         ('Value=%s%%',TFRE_DB_NameTypeArray.create('fdbft_Byte'),'prg_txt','CollectorPrg',false);
+      AddProgressTransform       ('fdbft_Byte','ptb','Progress','prg_txt','txt',255);
+      AddMatchingReferencedField ('LINK','data','data','Link to Obj1');
+      AddMatchingReferencedField (TFRE_DB_NameTypeArray.Create('LINK','LINK2'),'data','data2','Link to Obj2 via Obj1');
+    end;
+
+
     DC_Grid := session.NewDerivedCollection('DC_ALLTYPES');
     with DC_Grid do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_AT'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Sortable],'AllTypesTitle');
+      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Sortable],'This grid test all fieldtypes, beside stream and object');
     end;
+
+    DC_Grid2 := session.NewDerivedCollection('DC_AT_EX');
+    with DC_Grid2 do begin
+      SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_AT'));
+      SetDeriveTransformation(tr_Grid2);
+      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Sortable],'This grid shows different extended transformation types');
+    end;
+
   end;
 end;
 
 function TFRE_DB_TEST_APP_ALLGRID_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var lGrid   : TFRE_DB_VIEW_LIST_DESC;
-    DC_Grid : IFRE_DB_DERIVED_COLLECTION;
+    lGrid2  : TFRE_DB_VIEW_LIST_DESC;
+    layout  : TFRE_DB_LAYOUT_DESC;
 begin
-  DC_Grid := ses.FetchDerivedCollection('DC_ALLTYPES');
-  lGrid := DC_Grid.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  result := lGrid;
+  layout := TFRE_DB_LAYOUT_DESC.create.Describe('MyLayout');
+
+  lGrid  := ses.FetchDerivedCollection('DC_ALLTYPES').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  lGrid2 := ses.FetchDerivedCollection('DC_AT_EX').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  layout.SetLayout(nil,lGrid,nil,nil,lGrid2,true,0,1,0,0,1);
+  result := layout;
 end;
 
 { TFRE_DB_TEST_APP_FORMTEST_MOD }
@@ -1097,6 +1129,7 @@ begin
   scheme.AddSchemeField         ('fdbft_DateTimeUTC',fdbft_DateTimeUTC);
   scheme.AddSchemeField         ('fdbft_Stream',fdbft_Stream);
   scheme.AddSchemeField         ('fdbft_ObjLink',fdbft_ObjLink);
+  scheme.AddSchemeFieldSubscheme('dbText','TFRE_DB_TEXT');
   scheme.AddSchemeField         ('calculated',fdbft_String);
 
   input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_TEST_ALL_TYPES');
@@ -1118,9 +1151,11 @@ begin
   input_group.AddInput('fdbft_ObjLink');
 end;
 
-procedure TFRE_DB_TEST_ALL_TYPES.Gamble;
+procedure TFRE_DB_TEST_ALL_TYPES.Gamble(const id: int64);
   const TestChars : TFRE_DB_String = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';//_#*?!"§$%';
   var buf : QWord;
+      ids : string;
+      dbt : IFRE_DB_TEXT;
 
   function GetRandString : TFRE_DB_String;
   var i : integer;
@@ -1157,6 +1192,9 @@ begin
   Field('fdbft_String').AsString           := Field('MYID').AsString+'_'+GetRandstring;
   Field('fdbft_Boolean').AsBoolean         := random(3)=1;
   Field('fdbft_DateTimeUTC').AsDateTimeUTC := GFRE_DT.Now_UTC;
+  ids := IntToStr(id);
+  Field('MYID').AsInt64                    := id;
+  Field('dbText').AsDBText.SetupText('KEY'+ids,'Short_'+ids,'Long_'+ids,'Hint_'+ids);  // This works only if the type of an implicitly created subobject is known, by defining the field in the scheme !
 end;
 
 
@@ -2106,7 +2144,10 @@ procedure CreateTestdata(const dbname: string; const user, pass: string);
 var CONN    : IFRE_DB_CONNECTION;
     COLL    : IFRE_DB_COLLECTION;
     lobj    : IFRE_DB_Object;
+    lo1,lo2 : IFRE_DB_Object;
+    loUID   : TGUID;
     i,t1,t2 : Integer;
+    ato     : TFRE_DB_TEST_ALL_TYPES;
 begin
   t1 := GFRE_BT.Get_Ticks_ms;
 
@@ -2157,12 +2198,24 @@ begin
     COLL.Store(lobj);
   end;
 
+  COLL := Conn.Collection('LINKTARGET');
+  lo2  := GFRE_DBI.NewObject;
+  lo1  := GFRE_DBI.NewObject;
+  lo2.Field('ID').AsString:='LINKOBJ2';
+  lo2.Field('data').AsString := 'LO Data2';
+  lo1.Field('ID').AsString:='LINKOBJ1';
+  lo1.Field('data').AsString := 'LO Data1';
+  lo1.Field('LINK2').AsObjectLink := lo2.UID; // Link LO1 to LO2
+  loUID := lo1.UID;
+  COLL.Store(lo2);
+  COLL.Store(lo1);
+
   COLL := CONN.Collection('COLL_TEST_AT');
   for i := 0 to 10 - 1 do begin
     if i mod 100=0 then writeln('AT ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_ALL_TYPES);
-    lobj.Field('MYID').AsInt64 := i;
-    (lobj.Implementor_HC as TFRE_DB_TEST_ALL_TYPES).Gamble;
+    (lobj.Implementor_HC as TFRE_DB_TEST_ALL_TYPES).Gamble(i);
+    lobj.Field('LINK').AsObjectLink := loUID;
     COLL.Store(lobj);
   end;
 

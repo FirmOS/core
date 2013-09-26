@@ -165,6 +165,7 @@ type
     procedure _LocalToUTC        (var arr:TFRE_DB_DateTimeArray);
     procedure _NotAllowedOnUIDFieldCheck;
 
+    function  _GetAsGUID         : TGuid;
     function  GetAsGUID          : TGuid;
     function  GetAsByte          : Byte;
     function  GetAsInt16         : Smallint;
@@ -282,7 +283,7 @@ type
 
     procedure IntfCast                      (const InterfaceSpec:ShortString ; out Intf) ; // Interpret as Object and then -> IntfCast throws an Exception if not succesful
     function  AsDBText                      :IFRE_DB_TEXT;
-
+    function    _FieldType        : TFRE_DB_FIELDTYPE;
     procedure IFRE_DB_Field.CloneFromField = CloneFromFieldI;
   public
     constructor Create           (const obj:TFRE_DB_Object; const FieldType:TFRE_DB_FIELDTYPE ; const ManualFieldName : string='');
@@ -1660,9 +1661,9 @@ type
     destructor Destroy;override;
     //@Set a String Filter, which can be used before or after the transformation
     //@ filterkey = ID of the Filter / field_name : on which field the filter works / filtertype: how the filter works / on_transform : true = work after transformation / on_filter_field : true = filter works on a transform filter field which is not in the output
-    function   AddStringFieldFilter    (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_StringArray;const filtertype:TFRE_DB_STR_FILTERTYPE;const on_transform:boolean=true;const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    function   AddStringFieldFilter           (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_StringArray;const filtertype:TFRE_DB_STR_FILTERTYPE;const on_transform:boolean=true;const on_filter_field:boolean=false):TFRE_DB_Errortype;
     //function   RemoveStringFieldFilter (const filter_key:TFRE_DB_String;const on_transform:boolean):TFRE_DB_Errortype; //deprecated
-    function   AddBooleanFieldFilter   (const filter_key,field_name:TFRE_DB_String;const value :Boolean;const on_transform:boolean=true;const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    function   AddBooleanFieldFilter          (const filter_key,field_name:TFRE_DB_String;const value :Boolean;const on_transform:boolean=true;const on_filter_field:boolean=false):TFRE_DB_Errortype;
     // Add a UID Field Filter | Match types : dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter
     // dbnf_EXACT,dbnf_EXACT_NEGATED : the filter values array must match the target object field array in order or negated
     function   AddUIDFieldFilter              (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_GUIDArray     ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
@@ -2432,32 +2433,32 @@ begin
 end;
 
 procedure TFRE_DB_REFERERENCE_CHAIN_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
-var obj       : IFRE_DB_Object;
-    objo      : TFRE_DB_Object;
+var objo      : TFRE_DB_Object;
     ref_uid   : TGuid;
     i         : integer;
     s         : string;
+    fld       : TFRE_DB_FIELD;
 begin
-  obj         := input;
+  objo      := input.Implementor as TFRE_DB_Object;
   for i:=0 to high(FRefFieldChain) do begin
-    if not obj.FieldExists(FRefFieldChain[i])
-       or (obj.Field(FRefFieldChain[i]).FieldType<>fdbft_ObjLink) then
+    fld := objo._FieldOnlyExisting(FRefFieldChain[i]);
+    if not assigned(fld)
+       or (fld._FieldType<>fdbft_ObjLink) then
          begin
            output.field(uppercase(FOutFieldName)).asstring := '?*WRONG FIELDTYPE*';
            exit;
          end;
-    ref_uid := obj.Field(FRefFieldChain[i]).AsGUID;
+    ref_uid := objo._Field(FRefFieldChain[i])._GetAsGUID;
     if not (conn.Implementor_HC as TFRE_DB_CONNECTION).FetchInternal(ref_uid,objo) then begin
       output.field(uppercase(FOutFieldName)).asstring := '?*UNRESOLVED LINK*';
       exit;
     end;
-    obj := objo;
   end;
   objo.Assert_CheckStoreLocked;
   try
     objo.Set_Store_Locked(false);
-    if obj.FieldExists(FInFieldName) then begin
-      output.field(uppercase(FOutFieldName)).CloneFromField(obj.Field(FInFieldName));
+    if objo.FieldExists(FInFieldName) then begin
+      output.field(uppercase(FOutFieldName)).CloneFromField(objo.Field(FInFieldName));
     end else begin
       output.field(uppercase(FOutFieldName)).asstring := '?*TARGETFIELD NOT FOUND*';
     end;
@@ -2585,7 +2586,10 @@ begin
   output.field(uppercase(FOutFieldName)).CloneFromField(input.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
   if FOutTextField<>'' then
     begin
-      output.field(uppercase(FOutTextField)).CloneFromField(input.Field(FInTextField).Implementor as TFRE_DB_FIELD);
+      if input.FieldExists(FInTextField) then
+        output.field(uppercase(FOutTextField)).CloneFromField(input.Field(FInTextField).Implementor as TFRE_DB_FIELD)
+      else
+        output.field(uppercase(FOutTextField)).CloneFromField(output.Field(FInTextField).Implementor as TFRE_DB_FIELD);
     end;
 end;
 
@@ -2608,9 +2612,13 @@ end;
 procedure TFRE_DB_ONEONE_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
 var sa        : TFRE_DB_StringArray;
     i         : nativeint;
+    transbase : IFRE_DB_Object;
 begin
-  assert(FOutFieldName<>'');
-  output.field(uppercase(FOutFieldName)).CloneFromField(input.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
+  //if input.FieldExists(FInFieldName) then
+    transbase := input;
+  //else
+  //  transbase := output;
+  output.field(uppercase(FOutFieldName)).CloneFromField(transbase.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
   case FGuiDisplaytype of
     dt_string: ;
     dt_date: ;
@@ -5514,10 +5522,10 @@ function TFRE_DB_SIMPLE_TRANSFORM.TransformInOut(const conn : IFRE_DB_CONNECTION
   end;
 begin
   result := GFRE_DB.NewObject;
-  FTransformList.ForAllBreak(@iterate);
-  result._Field('uid').AsGUID := input.Field('uid').AsGUID;
   if Assigned(FCustTransform) then
     FCustTransform(conn,dependency_obj,input,result);
+  FTransformList.ForAllBreak(@iterate);
+  result._Field('uid').AsGUID := input.Field('uid').AsGUID;
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String;const display:Boolean;const gui_display_type:TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
@@ -12068,7 +12076,7 @@ begin
     exit;
   end else
   if FFieldStore.Find(name,lfield) then begin
-    if lfield.FieldType<>fdbft_NotFound then begin
+    if lfield._FieldType<>fdbft_NotFound then begin
       result := lfield;
     end;
   end;
@@ -13860,6 +13868,11 @@ begin
   IntfCast(IFRE_DB_TEXT,result);
 end;
 
+function TFRE_DB_FIELD._FieldType: TFRE_DB_FIELDTYPE;
+begin
+  result := FFieldData.FieldType;
+end;
+
 
 
 
@@ -14312,6 +14325,15 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'operation not allowed on special UID field!');
 end;
 
+function TFRE_DB_FIELD._GetAsGUID: TGuid;
+begin
+  if FFieldData.FieldType = fdbft_GUID then begin
+    result := FFieldData.guid^[0];
+  end else begin
+    result := _ConvertToGUID;
+  end;
+end;
+
 procedure TFRE_DB_FIELD._InaccessibleCheck;
 begin
   Fobj._InaccessibleCheck;
@@ -14630,11 +14652,7 @@ end;
 function TFRE_DB_FIELD.GetAsGUID: TGuid;
 begin
   _InAccessibleCheck;
-  if FFieldData.FieldType = fdbft_GUID then begin
-    result := FFieldData.guid^[0];
-  end else begin
-    result := _ConvertToGUID;
-  end;
+  result := _GetAsGUID;
 end;
 
 function TFRE_DB_FIELD.GetAsGUIDArray: TFRE_DB_GUIDArray;
@@ -15106,7 +15124,7 @@ end;
 function TFRE_DB_FIELD.FieldType: TFRE_DB_FIELDTYPE;
 begin
   _InAccessibleCheck;
-  result := FFieldData.FieldType;
+  result := _FieldType;
 end;
 
 function TFRE_DB_FIELD.FieldTypeAsString: TFRE_DB_String;
