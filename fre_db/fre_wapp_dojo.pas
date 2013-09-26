@@ -945,6 +945,9 @@ implementation
           jsContentAdd('    ,params: '+_BuildParamsObject(entry.Field('serverFunc').AsObject.Field('params').AsObjectArr));
           jsContentAdd('   }');
         end;
+        if entry.FieldExists('downloadId') then begin
+          jsContentAdd('  ,downloadId: "'+entry.Field('downloadId').AsString+'"');
+        end;
         if entry.FieldExists('icon') then begin
           jsContentAdd('  ,icon: "'+entry.Field('icon').AsString + '"');
         end;
@@ -1927,6 +1930,7 @@ implementation
     jsContentAdd('</head>');
     jsContentAdd('<body class="'+co.Field('style').AsString+'">');
     jsContentAdd('  <div id="FirmOSViewport" class="viewport"></div>');
+    jsContentAdd('  <iframe id="FirmOSDownload" name="FirmOSDownload" style="width: 1px; height: 1px; visibility: hidden; display: none;"></iframe>');
     jsContentAdd('</body>');
     jsContentAdd('</html>');
 

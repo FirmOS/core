@@ -59,13 +59,13 @@ type
   TFRE_HTTP_PARSER_REQ_STATE      = (rprs_PARSEREQ_LINE,rprs_PARSE_HEADERS,rprs_PARSEBODY,rprs_DISPATCHREQUEST);
   TFRE_HTTP_PARSER_ERROR          = (rpe_OK,rpe_CONTINUE,rpe_INVALID_REQ_LINE,rpe_INVALID_REQUEST);
 
-  TFRE_HTTP_ResponseHeaders        = (rh_AcceptRanges,rh_Age,rhETag,rh_Location,rh_ProxyAuth,rh_ReryAfter,rh_Server,rh_Vary,rh_WWWAuth);
+  TFRE_HTTP_ResponseHeaders        = (rh_AcceptRanges,rh_Age,rhETag,rh_Location,rh_ProxyAuth,rh_ReryAfter,rh_Server,rh_Vary,rh_WWWAuth,rh_contentDisposition);
   TFRE_HTTP_ResponseEntityHeaders  = (reh_Allow,reh_ContentEncoding,reh_ContentLanguage,reh_ContentLength,reh_ContentMD5,reh_ContentRange,reh_ContentType,reh_Origin,
                                       reh_Expires,reh_LastModified,reh_Connection,reh_CacheControl,reh_SetCookie,reh_Upgrade,reh_SecWebSocketAccept,reh_SecWebSocketProtocol,reh_SecWebSocketVersion,
                                       reh_old_SecWebSocketOrigin,reh_old_SecWebSocketLocation);
 const
   CFRE_HTTP_ResponseHeaders : Array [TFRE_HTTP_ResponseHeaders] of String =
-                              ('Accept-Ranges','Age','ETag','Location','Proxy-Authenticate','Retry-After','Server','Vary','WWW-Authenticate');
+                              ('Accept-Ranges','Age','ETag','Location','Proxy-Authenticate','Retry-After','Server','Vary','WWW-Authenticate','Content-Disposition');
   CFRE_HTTP_ResponseEntityHeaders : Array [TFRE_HTTP_ResponseEntityHEaders] of String =
                               ('Allow','Content-Encoding','Content-Language','Content-Length','Content-MD5',
                                'Content-Range','Content-Type','Origin','Expires','Last-Modified','Connection','Cache-Control','Set-Cookie','Upgrade','Sec-WebSocket-Accept','Sec-WebSocket-Protocol','Sec-WebSocket-Version',

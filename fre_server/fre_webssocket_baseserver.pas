@@ -927,6 +927,7 @@ var lContent  : TFRE_DB_RawByteString;
     end;
 
 begin
+    ResponseHeader[rh_contentDisposition] := '';
     if (uri.Document='') or ((length(uri.SplitPath)=0) and (ExtractFileExt(uri.Document)='')) then begin //root = application domain, except the stuff some bloke has already put into root, but at least with an extension
       if uri.Document='FirmOS_FRE_WS' then begin
         Handle_WS_Upgrade(uri.Document,uri.Method);
@@ -935,13 +936,19 @@ begin
       end;
       exit;
     end else begin
-      lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
-      if HttpBaseServer.FetchFileCached(lFilename,lContent) then begin
-        extension := ExtractFileExt(lFilename);
-        _SendHttpResponse(200,'OK',[],lcontent,HttpBaseServer.LookupMimeType(extension));
+      if uri.SplitPath[0]='download' then begin //FIXXME: (Heli) Hack to test download
+        ResponseHeader[rh_contentDisposition] := 'attachement; filename="hallo.txt"';
+        lcontent:='Simple text content.';
+        _SendHttpResponse(200,'OK',[],lcontent,'application/octet-stream');//Safari requires application/octet-stream to force download
       end else begin
-        writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
-        _SendHttpResponse(404,'NOT FOUND',[]);
+        lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
+        if HttpBaseServer.FetchFileCached(lFilename,lContent) then begin
+          extension := ExtractFileExt(lFilename);
+          _SendHttpResponse(200,'OK',[],lcontent,HttpBaseServer.LookupMimeType(extension));
+        end else begin
+          writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
+          _SendHttpResponse(404,'NOT FOUND',[]);
+        end;
       end;
     end;
 end;

@@ -111,12 +111,15 @@ type
   { TFRE_DB_MENU_ENTRY_DESC }
 
   TFRE_DB_MENU_ENTRY_DESC    = class(TFRE_DB_CONTENT_DESC)
+  private
+    function  _Describe  (const caption,icon:String; const disabled:Boolean):TFRE_DB_MENU_ENTRY_DESC;
   public
     //@ Describes a menu entry. See also TFRE_DB_MENU_DESC and TFRE_DB_SUBMENU_DESC.
     //@ After the execution of the server function the defined refresh is executed. E.g. an add operation on a grid will define fdbrt_direct to refresh the grid.
     //@ fdbrt_dependent refreshes all filtered stores. See TFRE_DB_VIEW_LIST_DESC.addFilterEvent.
     //@ Only implemented for grids and trees.
     function  Describe  (const caption,icon:String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
+    function  Describe  (const caption,icon:String; const downloadId: String; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
   end;
 
   TFRE_DB_SUBMENU_DESC = class;
@@ -1880,19 +1883,28 @@ implementation
 
   { TFRE_DB_MENU_ENTRY_DESC }
 
-  function TFRE_DB_MENU_ENTRY_DESC.Describe(const caption, icon: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
-  var
-    path :String;
-    cuid :TGuid;
+  function TFRE_DB_MENU_ENTRY_DESC._Describe(const caption, icon: String; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
   begin
     Field('caption').AsString:=caption;
-    if Assigned(serverFunc) then begin
-      Field('serverFunc').AsObject:=serverFunc;
-    end;
     if icon<>'' then begin
       Field('icon').AsString:=getThemedResource(icon);
     end;
     Field('disabled').AsBoolean:=disabled;
+  end;
+
+  function TFRE_DB_MENU_ENTRY_DESC.Describe(const caption, icon: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
+  begin
+    _Describe(caption,icon,disabled);
+    if Assigned(serverFunc) then begin
+      Field('serverFunc').AsObject:=serverFunc;
+    end;
+    Result:=Self;
+  end;
+
+  function TFRE_DB_MENU_ENTRY_DESC.Describe(const caption, icon: String; const downloadId: String; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
+  begin
+    _Describe(caption,icon,disabled);
+    Field('downloadId').AsString:=downloadId;
     Result:=Self;
   end;
 
