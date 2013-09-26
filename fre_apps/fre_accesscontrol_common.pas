@@ -170,7 +170,7 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_domain);
     with tr_domain do begin
       AddOneToOnescheme ('objname','domain',app.FetchAppText(conn,'$gc_domain').Getshort);
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'DOMAIN_DESC',false,app.FetchAppText(conn,'$gc_domain_desc').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'DOMAIN_DESC',app.FetchAppText(conn,'$gc_domain_desc').Getshort);
     end;
     domain_Grid := session.NewDerivedCollection('DOMAINMOD_DOMAIN_GRID');
     with domain_Grid do begin
@@ -195,7 +195,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
     with tr_groupIn do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'GROUP_DESC',false,app.FetchAppText(conn,'$gc_group').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'GROUP_DESC',app.FetchAppText(conn,'$gc_group').Getshort);
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
     with groupin_Grid do begin
@@ -464,7 +464,7 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
     with tr_Role do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'ROLE_DESC',false,app.FetchAppText(conn,'$gc_role').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'ROLE_DESC',app.FetchAppText(conn,'$gc_role').Getshort);
       AddMatchingReferencedField('domainid','objname','domain',app.FetchAppText(conn,'$gc_domainname').Getshort);
    end;
     role_Grid := session.NewDerivedCollection('ROLEMOD_ROLE_GRID');
@@ -504,7 +504,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
     with tr_groupIn do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'GROUP_DESC',false,app.FetchAppText(conn,'$gc_group').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'GROUP_DESC',app.FetchAppText(conn,'$gc_group').Getshort);
     end;
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
     with groupin_Grid do begin
@@ -515,7 +515,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupOut);
     with tr_GroupOut do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'GROUP_DESC',false,app.FetchAppText(conn,'$gc_group').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'GROUP_DESC',app.FetchAppText(conn,'$gc_group').Getshort);
     end;
     groupout_Grid := session.NewDerivedCollection('ROLEMOD_GROUPOUT_GRID');
     with groupout_Grid do begin
@@ -744,7 +744,7 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'GROUP_DESC',false,app.FetchAppText(conn,'$gc_group').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'GROUP_DESC',app.FetchAppText(conn,'$gc_group').Getshort);
       AddMatchingReferencedField('domainid','objname','domain',app.FetchAppText(conn,'$gc_domainname').Getshort);
     end;
     group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_GRID');
@@ -796,7 +796,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
     with tr_RoleIn do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'ROLE_DESC',false,app.FetchAppText(conn,'$gc_role').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'ROLE_DESC',app.FetchAppText(conn,'$gc_role').Getshort);
     end;
     rolein_Grid := session.NewDerivedCollection('GROUPMOD_ROLEIN_GRID');
     with rolein_Grid do begin
@@ -808,7 +808,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleOut);
     with tr_RoleOut do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'ROLE_DESC',false,app.FetchAppText(conn,'$gc_role').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'ROLE_DESC',app.FetchAppText(conn,'$gc_role').Getshort);
     end;
     roleout_Grid := session.NewDerivedCollection('GROUPMOD_ROLEOUT_GRID');
     with roleout_Grid do begin
@@ -1326,7 +1326,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridIn);
     with tr_GridIn do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'GROUP_DESC',false,app.FetchAppText(conn,'$gc_group').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'GROUP_DESC',app.FetchAppText(conn,'$gc_group').Getshort);
     end;
 
     groupin_Grid := session.NewDerivedCollection('USERMOD_GROUPIN_GRID');
@@ -1338,7 +1338,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridOut);
     with tr_GridOut do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'GROUP_DESC',false,app.FetchAppText(conn,'$gc_group').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'GROUP_DESC',app.FetchAppText(conn,'$gc_group').Getshort);
     end;
 
     groupout_Grid := session.NewDerivedCollection('USERMOD_GROUPOUT_GRID');
@@ -1351,7 +1351,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
     with tr_RoleIn do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'ROLE_DESC',false,app.FetchAppText(conn,'$gc_role').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.create('desc.txt'),'ROLE_DESC',app.FetchAppText(conn,'$gc_role').Getshort);
     end;
 
     rolein_Grid := session.NewDerivedCollection('USERMOD_ROLEIN_GRID');
@@ -1363,7 +1363,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleOut);
     with tr_RoleOut do begin
-      AddCollectorscheme('%s',GFRE_DBI.ConstructStringArray(['desc.txt']),'ROLE_DESC',false,app.FetchAppText(conn,'$gc_role').Getshort);
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.create('desc.txt'),'ROLE_DESC',app.FetchAppText(conn,'$gc_role').Getshort);
     end;
     roleout_Grid := session.NewDerivedCollection('USERMOD_ROLEOUT_GRID');
     with roleout_Grid do begin

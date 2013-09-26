@@ -912,7 +912,6 @@ procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Default_Provider(const u
 var lContent  : TFRE_DB_RawByteString;
     lFilename : string;
     i         : Integer;
-    extension : string;
     class_guid      : TGUID;
     lObject         : String;
     lContentType    : string;
@@ -943,8 +942,7 @@ begin
       end else begin
         lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
         if HttpBaseServer.FetchFileCached(lFilename,lContent) then begin
-          extension := ExtractFileExt(lFilename);
-          _SendHttpResponse(200,'OK',[],lcontent,HttpBaseServer.LookupMimeType(extension));
+          _SendHttpResponse(200,'OK',[],lcontent,FREDB_Filename2MimeType(lFilename));
         end else begin
           writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
           _SendHttpResponse(404,'NOT FOUND',[]);

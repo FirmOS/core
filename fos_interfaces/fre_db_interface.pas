@@ -163,9 +163,10 @@ type
   TFRE_DB_ObjLinkArray  = Array of TGuid;
   PFRE_DB_ObjLinkArray  = ^TFRE_DB_ObjLinkArray;
 
-  TFRE_DB_NameType     = String[63]; // Type for named objects (not data of the DB / no unicode and fixed length)
-  PFRE_DB_NameType     = ^TFRE_DB_NameType;
-  TFRE_DB_NameTypeRL   = string[127]; // LEN + (SCHEMENAME + | + FIEDLNAME) = 128 Byte
+  TFRE_DB_NameType      = String[63]; // Type for named objects (not data of the DB / no unicode and fixed length)
+  PFRE_DB_NameType      = ^TFRE_DB_NameType;
+  TFRE_DB_NameTypeRL    = string[127]; // LEN + (SCHEMENAME + | + FIEDLNAME) = 128 Byte
+  TFRE_DB_NameTypeArray = Array of TFRE_DB_NameType;
 
   TFRE_DB_CountedGuid=record
     link  : TGuid;
@@ -175,6 +176,11 @@ type
   TFRE_DB_ReferencesByField=record
     fieldname : TFRE_DB_NameType;
     linklist  : TFRE_DB_GUIDArray;
+  end;
+
+  TFRE_DB_Mimetype=record
+    extension : string[32];
+    mimetype  : string[100];
   end;
 
   TFRE_DB_ObjectReferences = array of TFRE_DB_ReferencesByField;
@@ -584,6 +590,7 @@ type
   IFRE_DB_Object = interface(IFRE_DB_INVOKEABLE)
    ['IFREDBO']
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
+    function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       SetReference                       (const obj : TObject);
     function        GetReference                       : TObject;
     function        GetScheme                          : IFRE_DB_SchemeObject;
@@ -608,7 +615,7 @@ type
     function        FieldOnlyExisting                  (const name:TFRE_DB_String;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
-    function        FieldPathListFormat                (const field_list:TFRE_DB_StringArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
+    function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
@@ -644,6 +651,8 @@ type
     procedure       CopyField                          (const obj:IFRE_DB_Object;const field_name:String);
     procedure       CopyToMemory                       (memory : Pointer;const without_schemes:boolean=false);
   end;
+
+  TFRE_DB_TEXT_SUBTYPE=(tst_Short,tst_Long,tst_Hint,tst_Key);
 
   IFRE_DB_TEXT=interface(IFRE_DB_COMMON)
    ['IFREDBTXT']
@@ -805,7 +814,7 @@ type
     [cFOS_IID_SCHEME_COLL]
   end;
 
-  IFRE_DB_TRANSFORMOBJECT = interface(IFRE_DB_COMMON)
+  IFRE_DB_TRANSFORMOBJECT = interface(IFRE_DB_BASE)
     ['IFDBTO']
   end;
 
@@ -814,18 +823,14 @@ type
   IFRE_DB_SIMPLE_TRANSFORM=interface(IFRE_DB_TRANSFORMOBJECT)
     ['IFDBST']
     procedure SetCustomTransformFunction     (const func : IFRE_DB_CUSTOMTRANSFORM);
-    procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_StringArray;const out_field:TFRE_DB_String;const filter_field:boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure AddFulltextFilterOnTransformed (const in_fieldlist:TFRE_DB_StringArray);
     procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
     procedure AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const fieldSize: Integer=1);
     procedure AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextShortToOne            (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextLongToOne             (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextHintToOne             (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextKeyToOne              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddFullDumpField               (const fieldname:TFRE_DB_String; const dump_length_max:Integer=0;const filter_field:Boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddMatchingReferencedField     (const ref_field_chain: TFRE_DB_StringArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddMatchingReferencedField     (const ref_field      : TFRE_DB_String     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddDBTextToOne                 (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddMatchingReferencedField     (const ref_field_chain: TFRE_DB_NameTypeArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameType     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
   end;
 
 
@@ -1033,7 +1038,7 @@ type
     function  GetSchemeField              (const fieldname    :TFRE_DB_NameType): IFRE_DB_FieldSchemeDefinition;
     function  IsA                         (const schemename   :TFRE_DB_NameType):Boolean;
     procedure SetSimpleSysDisplayField    (const field_name   :TFRE_DB_String);
-    procedure SetSysDisplayField          (const field_names  :TFRE_DB_StringArray;const format:TFRE_DB_String);
+    procedure SetSysDisplayField          (const field_names  :TFRE_DB_NameTypeArray;const format:TFRE_DB_String);
     function  GetFormattedDisplay         (const obj : IFRE_DB_Object):TFRE_DB_String;
     function  FormattedDisplayAvailable   (const obj : IFRE_DB_Object):boolean;
     function  DefinedSchemeName           : TFRE_DB_String;
@@ -1269,10 +1274,13 @@ type
     function   AsObject                      : IFRE_DB_Object;
   end;
 
+  { TFOS_BASE }
+
   TFOS_BASE   = class(TObject)
   public
-    function  Implementor     : TObject;virtual;
-    function  Implementor_HC  : TObject;virtual;
+    constructor Create          ; virtual;
+    function    Implementor     : TObject;virtual;
+    function    Implementor_HC  : TObject;virtual;
   end;
 
   { TFRE_DB_Base }
@@ -1338,6 +1346,7 @@ type
     destructor     Destroy                             ;override;
 
     //Interface - Compatibility Block
+    function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
     procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
@@ -1351,7 +1360,7 @@ type
     function        FieldOnlyExisting                  (const name:TFRE_DB_String;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
-    function        FieldPathListFormat                (const field_list:TFRE_DB_StringArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
+    function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
@@ -1973,6 +1982,9 @@ type
   procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const params:array of const);
   function  RB_Guid_Compare                      (const d1, d2: TGuid): NativeInt; inline;
 
+  procedure FREDB_LoadMimetypes                  (const filename:string);
+  function  FREDB_Filename2MimeType              (const filename:string):String;
+
   function  FREDB_FindStringIndexInArray         (const text:TFRE_DB_String;const strings:TFRE_DB_StringArray):integer;
   function  FREDB_CombineString                  (const strings: TFRE_DB_StringArray; const sep: TFRE_DB_String): TFRE_DB_String;
   procedure FREDB_SeperateString                 (const value,sep : TFRE_DB_String; var Strings: TFRE_DB_StringArray); //TODO UNICODE
@@ -2002,8 +2014,18 @@ type
   function  FREDB_GuidList2Counted               (const arr: TFRE_DB_GUIDArray; const stop_on_first_double: boolean=false): TFRE_DB_CountedGuidArray;
   function  FREDB_ObjReferences2GuidArray        (const ref: TFRE_DB_ObjectReferences) : TFRE_DB_GUIDArray; // TODO -> UNIQUE CHECK, some guids maybe doubled in here
 
-  function  FREDB_ObjectToPtrUInt                 (const obj : TObject):PtrUInt;
-  function  FREDB_PtrUIntToObject                 (const obj : PtrUInt):TObject;
+  function  FREDB_ObjectToPtrUInt                (const obj : TObject):PtrUInt;
+  function  FREDB_PtrUIntToObject                (const obj : PtrUInt):TObject;
+
+  function  FREDB_getThemedResource                 (const id: String): String;
+  function  FREDB_StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
+  procedure FREDB_ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
+  procedure FREDB_ConcatGuidArrays                  (var TargetArr:TFRE_DB_GuidArray;const add_array:TFRE_DB_GuidArray);
+  function  FREDB_GuidInArray                       (const check:TGuid;const arr:TFRE_DB_GUIDArray):boolean;
+  function  FREDB_FindNthGuidIdx                    (n:integer;const guid:TGuid;const arr:TFRE_DB_GUIDArray):integer;inline;
+  function  FREDB_CheckAllStringFieldsEmptyInObject (const obj:IFRE_DB_Object):boolean;
+
+
 
   function  FREDB_String2DBDisplayType           (const fts: string): TFRE_DB_DISPLAY_TYPE;
   procedure FREDB_SiteMap_AddEntry               (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : TFRE_DB_StringArray ;const x,y : integer;  const newsCount:Integer=0; const scale:Single=1; const enabled:Boolean=true);    //obsolete
@@ -2033,6 +2055,7 @@ var
   GFRE_DBI_REG_EXTMGR               : IFRE_DB_EXTENSION_MNGR;
   GFRE_DB_NIL_DESC                  : TFRE_DB_NIL_DESC;
   GFRE_DB_SUPPRESS_SYNC_ANSWER      : TFRE_DB_SUPPRESS_ANSWER_DESC;
+  GFRE_DB_MIME_TYPES                : Array of TFRE_DB_Mimetype;
 
   G_APPMODS_AS_SUBSECTIONS_CALLBACK : IFRE_DB_InvokeMethodCallbackObjectEx;
   G_ADD_2_SITEMAP_CALLBACK          : TAddAppToSiteMap_Callback;
@@ -2058,6 +2081,60 @@ begin
  end else begin
    result := -1;
  end;
+end;
+
+procedure FREDB_LoadMimetypes(const filename: string);
+var cnt : NativeInt;
+
+  procedure add(const ext,mt:string);
+  begin
+   with GFRE_DB_MIME_TYPES[cnt] do
+     begin
+       extension := ext;
+       mimetype  := mt;
+     end;
+     inc(cnt);
+  end;
+
+begin
+  if filename<>'' then
+    begin
+      //TODO PARSE apache MIMETYPEFILE
+      abort;
+    end
+  else
+    begin
+       SetLength(GFRE_DB_MIME_TYPES,14);
+       cnt := 0;
+       add('js','application/javascript');
+       add('html','text/html');
+       add('css','text/css');
+       add('gif','image/gif');
+       add('jpg','image/jpeg');
+       add('png','image/png');
+       add('tiff','image/tiff');
+       add('txt','text/plain');
+       add('svg','image/svg+xml');
+       add('swf','application/x-shockwave-flash');
+       add('woff','application/font-woff');
+       add('ttf','application/octet-stream');
+       add('otf','font/opentype');
+       add('eot','application/vnd.ms-fontobject');
+    end;
+end;
+
+function FREDB_Filename2MimeType(const filename: string): String;
+var
+    i   : NativeInt;
+    ext : string;
+begin
+  ext := Copy(lowercase(ExtractFileExt(filename)),2,maxint);
+  for i := 0 to high(GFRE_DB_MIME_TYPES) do
+    begin
+      if GFRE_DB_MIME_TYPES[i].extension = ext then
+        exit(GFRE_DB_MIME_TYPES[i].mimetype);
+    end;
+  result := 'application/octet-stream';
 end;
 
 function FREDB_FindStringIndexInArray(const text: TFRE_DB_String;  const strings: TFRE_DB_StringArray): integer;
@@ -2313,6 +2390,104 @@ end;
 function FREDB_PtrUIntToObject(const obj: PtrUInt): TObject;
 begin
   result := TObject(obj);
+end;
+
+function FREDB_getThemedResource(const id: String): String;
+begin
+  Result:='/fre_css/'+cFRE_WEB_STYLE+'/'+id;
+end;
+
+function FREDB_StringInArray(const src: string; const arr: TFRE_DB_StringArray): boolean;
+var  i: Integer;
+begin
+  result := false;
+  for i:=0 to High(arr) do
+    if src=arr[i] then
+      exit(true);
+end;
+
+procedure FREDB_ConcatStringArrays(var TargetArr: TFRE_DB_StringArray; const add_array: TFRE_DB_StringArray);
+var i,len_target,high_add_array,cnt :integer;
+begin
+  len_target     := Length(TargetArr);
+  SetLength(TargetArr,len_target+Length(add_array));
+  high_add_array := high(add_array);
+  cnt := 0;
+  for i:= 0 to high_add_array do
+    if not FREDB_StringInArray(add_array[i],TargetArr) then
+      begin
+        TargetArr[len_target+cnt] := add_array[i];
+        inc(cnt);
+      end;
+  SetLength(TargetArr,len_target+cnt);
+end;
+
+procedure FREDB_ConcatGuidArrays(var TargetArr: TFRE_DB_GuidArray; const add_array: TFRE_DB_GuidArray);
+var i,len_target,high_add_array,cnt :integer;
+begin
+   len_target     := Length(TargetArr);
+   SetLength(TargetArr,len_target+Length(add_array));
+   high_add_array := high(add_array);
+   cnt := 0;
+   for i:= 0 to high_add_array do
+     if not FREDB_GuidInArray(add_array[i],TargetArr) then
+       begin
+         TargetArr[len_target+cnt] := add_array[i];
+         inc(cnt);
+       end;
+   SetLength(TargetArr,len_target+cnt);
+end;
+
+function FREDB_GuidInArray(const check: TGuid; const arr: TFRE_DB_GUIDArray): boolean;
+var  i: Integer;
+begin
+  result := false;
+  for i:=0 to High(arr) do
+    if FREDB_Guids_Same(check,arr[i]) then
+      exit(true);
+end;
+
+function FREDB_FindNthGuidIdx(n: integer; const guid: TGuid; const arr: TFRE_DB_GUIDArray): integer;
+var i: Integer;
+begin
+  result:=-1;
+  if n<=0 then raise EFRE_DB_Exception.Create(edb_ERROR,'must specify a positive integer greater than zero');
+  for i:=0 to high(arr) do
+    if FREDB_Guids_Same(guid,arr[i]) then
+      begin
+        dec(n);
+        if n=0 then
+          exit(i);
+      end;
+end;
+
+function FREDB_CheckAllStringFieldsEmptyInObject(const obj: IFRE_DB_Object): boolean;
+var check:boolean;
+  function CheckFunc(const field:IFRE_DB_FIELD):boolean;
+  begin
+    result := false;
+    if field.IsUIDField then
+      exit;
+    if field.FieldType=fdbft_Object then
+      begin
+        check  := FREDB_CheckAllStringFieldsEmptyInObject(field.AsObject);
+        result := not check;
+      end
+    else
+      begin
+        if field.FieldType<>fdbft_String then
+          raise EFRE_DB_Exception.Create(edb_ERROR,'checkempty only works on stringfield-only objects');
+        if field.AsString<>'' then
+          begin
+           result:=true;
+           check:=false;
+          end;
+      end;
+  end;
+begin
+  Check:=true;
+  obj.ForAllFieldsBreak(@CheckFunc);
+  result := check;
 end;
 
 function FREDB_String2DBDisplayType(const fts: string): TFRE_DB_DISPLAY_TYPE;
@@ -3460,6 +3635,10 @@ begin
   result := FRemoteRequestSet;
 end;
 
+constructor TFOS_BASE.Create;
+begin
+  inherited
+end;
 
 function TFOS_BASE.Implementor: TObject;
 begin
@@ -3860,6 +4039,11 @@ begin
   inherited Destroy;
 end;
 
+function TFRE_DB_ObjectEx.ObjectRoot: IFRE_DB_Object;
+begin
+  result := FImplementor.ObjectRoot;
+end;
+
 
 procedure TFRE_DB_ObjectEx.ForAllFields(const iter: IFRE_DB_FieldIterator);
 begin
@@ -3927,7 +4111,7 @@ begin
   result := FImplementor.FieldPathExists(name);
 end;
 
-function TFRE_DB_ObjectEx.FieldPathListFormat(const field_list: TFRE_DB_StringArray; const formats: TFRE_DB_String; const empty_val: TFRE_DB_String): TFRE_DB_String;
+function TFRE_DB_ObjectEx.FieldPathListFormat(const field_list: TFRE_DB_NameTypeArray; const formats: TFRE_DB_String; const empty_val: TFRE_DB_String): TFRE_DB_String;
 begin
   result := FImplementor.FieldPathListFormat(field_list,formats,empty_val);
 end;
@@ -4814,7 +4998,7 @@ begin
   inherited RegisterSystemScheme(scheme);
   Scheme.SetParentSchemeByName('TFRE_DB_NAMED_OBJECT');
   Scheme.Strict(false);
-  Scheme.SetSysDisplayField(GFRE_DBI.ConstructStringArray(['objname','$DBTEXT:desc']),'%s - (%s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 end;
 
 

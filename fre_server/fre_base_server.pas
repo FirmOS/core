@@ -70,7 +70,7 @@ type
     FDispatcher        : TFRE_HTTP_URL_DISPATCHER;
     FSessionTreeLock   : IFOS_LOCK;
 
-    FMimeList          : TFOS_RB_Tree_SS;
+    //FMimeList          : TFOS_RB_Tree_SS;
     cont               : boolean;
     flistener_es       : IFRE_APS_SOCKET_EVENTSOURCE;
     flistener_es_ws    : IFRE_APS_SOCKET_EVENTSOURCE;
@@ -134,7 +134,6 @@ type
     procedure Finalize              ;
     function  FetchFileCached       (file_path:String;var data:TFRE_DB_RawByteString):boolean;
     procedure FetchHullHTML         (var lContent:TFRE_DB_RawByteString;var lContentType:string);
-    function  LookupMimeType        (const extension:string):string;
     procedure DispatchHTTPRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
   end;
 
@@ -183,23 +182,8 @@ end;
 procedure TFRE_BASE_SERVER._SetupHttpBaseServer;
 var dummy:TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
 begin
-  FMimeList    := TFOS_RB_Tree_SS.Create(@Default_RB_String_Compare);
   FDispatcher  := TFRE_HTTP_URL_DISPATCHER.Create;
-  FMimeList.add('.js','application/javascript');
-  FMimeList.add('.html','text/html');
-  FMimeList.add('.css','text/css');
-  FMimeList.add('.gif','image/gif');
-  FMimeList.add('.jpg','image/jpeg');
-  FMimeList.add('.png','image/png');
-  FMimeList.add('.tiff','image/tiff');
-  FMimeList.add('.txt','text/plain');
-  FMimeList.add('.svg','image/svg+xml');
-  FMimeList.add('.swf','application/x-shockwave-flash');
-  FMimeList.add('.woff','application/font-woff');
-  FMimeList.add('.ttf','application/octet-stream');
-  FMimeList.add('.otf','font/opentype');
-  FMimeList.add('.eot','application/vnd.ms-fontobject');
-
+  FREDB_LoadMimetypes('');
 //  FDispatcher.RegisterVirtualProvider('','rest/fre/',@dummy.FREDB_Provider);
   FDispatcher.RegisterDefaultProvider('',@dummy.Default_Provider);
   GFRE_tF.Get_Lock(G_SerializeLock);
@@ -546,15 +530,6 @@ procedure TFRE_BASE_SERVER.FetchHullHTML(var lContent: TFRE_DB_RawByteString; va
 begin
   lContent     := FHull_HTML;
   lContentType := FHull_CT;
-end;
-
-
-function TFRE_BASE_SERVER.LookupMimeType(const extension: string): string;
-begin
-  if not FMimeList.Find(extension,Result) then begin
-    result:='';
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNKNOWN/UNREGISTERED MIMETYPE [%s]',[extension]);
-  end;
 end;
 
 procedure TFRE_BASE_SERVER.DispatchHTTPRequest(const connection_object: TObject; const uri: string; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
