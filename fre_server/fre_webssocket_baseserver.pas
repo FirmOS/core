@@ -935,7 +935,8 @@ begin
       end;
       exit;
     end else begin
-      if uri.SplitPath[0]='download' then begin //FIXXME: (Heli) Hack to test download
+      if (length(uri.SplitPath)>0) and
+        (uri.SplitPath[0]='download') then begin //FIXXME: (Heli) Hack to test download
         ResponseHeader[rh_contentDisposition] := 'attachment; filename="hallo.txt"';
         lcontent:='Simple text content.';
         _SendHttpResponse(200,'OK',[],lcontent,'text/plain');

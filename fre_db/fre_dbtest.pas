@@ -723,7 +723,7 @@ begin
       AddDBTextToOne             ('dbText',tst_Hint,'dbtH','DBText_h');
       AddDBTextToOne             ('dbText',tst_Key,'dbtK','DBText_k');
       AddCollectorscheme         ('Value=%s%%',TFRE_DB_NameTypeArray.create('fdbft_Byte'),'prg_txt','CollectorPrg',false);
-      AddProgressTransform       ('fdbft_Byte','ptb','Progress','prg_txt','txt',255);
+      AddProgressTransform       ('fdbft_Byte','ptb','Progress','prg_txt','txt',100);
       AddMatchingReferencedField ('LINK','data','data','Link to Obj1');
       AddMatchingReferencedField (TFRE_DB_NameTypeArray.Create('LINK','LINK2'),'data','data2','Link to Obj2 via Obj1');
     end;
@@ -1188,7 +1188,7 @@ procedure TFRE_DB_TEST_ALL_TYPES.Gamble(const id: int64);
 
 begin
   Field('fdbft_GUID').AsGUID               := GFRE_DBI.Get_A_Guid;
-  Field('fdbft_Byte').AsByte               := Random (255);
+  Field('fdbft_Byte').AsByte               := Random (100);
   Field('fdbft_Int16').AsInt16             := Random (65535)-32768;
   Field('fdbft_UInt16').AsUInt16           := Random (65535);
   Field('fdbft_Int32').AsInt32             := Int32  (Random(4294967295)-2147483648);
@@ -2222,7 +2222,7 @@ begin
   COLL.Store(lo1);
 
   COLL := CONN.Collection('COLL_TEST_AT');
-  for i := 0 to 10 - 1 do begin
+  for i := 0 to 1000 - 1 do begin
     if i mod 100=0 then writeln('AT ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_ALL_TYPES);
     (lobj.Implementor_HC as TFRE_DB_TEST_ALL_TYPES).Gamble(i);
