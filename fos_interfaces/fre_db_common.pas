@@ -503,12 +503,14 @@ type
     //function  GetGroup             (const id:String): TFRE_DB_INPUT_GROUP_DESC;
   end;
 
-  { TFRE_DB_UPDATE_FORM_DBO_DESC }
+  { TFRE_DB_UPDATE_FORM_DESC }
 
-  TFRE_DB_UPDATE_FORM_DBO_DESC = class(TFRE_DB_CONTENT_DESC)
+  TFRE_DB_UPDATE_FORM_DESC = class(TFRE_DB_CONTENT_DESC)
   public
-    //@ Describes an update of a form dbo.
-    function  Describe        (const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DBO_DESC;
+    //@ Describes an update of a form dbo. All Forms including the given updateObj will be updated.
+    function  DescribeDBO      (const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
+    //@ Describes an update of a form. The form with the given id will be updated be the given object.
+    function  Describe         (const formId: String; const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
   end;
 
   { TFRE_DB_INPUT_GROUP_DESC }
@@ -979,10 +981,17 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_UPDATE_FORM_DBO_DESC }
+  { TFRE_DB_UPDATE_FORM_DESC }
 
-  function TFRE_DB_UPDATE_FORM_DBO_DESC.Describe(const updateObj: IFRE_DB_Object): TFRE_DB_UPDATE_FORM_DBO_DESC;
+  function TFRE_DB_UPDATE_FORM_DESC.DescribeDBO(const updateObj: IFRE_DB_Object): TFRE_DB_UPDATE_FORM_DESC;
   begin
+    Field('obj').AsObject:=updateObj;
+    Result:=Self;
+  end;
+
+  function TFRE_DB_UPDATE_FORM_DESC.Describe(const formId: String; const updateObj: IFRE_DB_Object): TFRE_DB_UPDATE_FORM_DESC;
+  begin
+    Field('formId').AsString:=formId;
     Field('obj').AsObject:=updateObj;
     Result:=Self;
   end;

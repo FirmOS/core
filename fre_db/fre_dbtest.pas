@@ -633,20 +633,33 @@ var
   res    : TFRE_DB_LAYOUT_DESC;
   DC_Tree: IFRE_DB_DERIVED_COLLECTION;
   slider : TFRE_DB_FORM_DESC;
+  block  : TFRE_DB_INPUT_BLOCK_DESC;
 begin
   res  := TFRE_DB_LAYOUT_DESC.Create.Describe();
 
   DC_Tree := ses.FetchDerivedCollection('FILEBROWSER');
   slider:=TFRE_DB_FORM_PANEL_DESC.create.Describe('',true,true,CWSF(@WEB_SliderChanged),500);
-  slider.AddNumber.DescribeSlider('','slider',0,100,false,'100',0,1);
+  slider.contentId:='slider_form';
+  block:=slider.AddBlock.Describe();
+  block.AddNumber(8).DescribeSlider('','slider',0,100,false,'100',0,1);
+  block.AddDate(1).Describe('','slider_date',false,false,true,false,IntToStr(GFRE_DT.Now_UTC));
+
   res.SetAutoSizedLayout(nil,DC_Tree.GetDisplayDescription,nil,nil,slider);
   result := res;
 end;
 
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_SliderChanged(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  updateObj: IFRE_DB_Object;
 begin
   writeln('SliderChanged ' + input.DumpToString);
-  Result:=GFRE_DB_NIL_DESC;
+  if input.FieldExists('slider') then begin
+    updateObj:=GFRE_DBI.NewObject;
+    updateObj.Field('slider_date').AsInt64:=GFRE_DT.Now_UTC - (100-input.Field('slider').AsInt32) * 1000 * 60 * 60 * 24;
+    Result:=TFRE_DB_UPDATE_FORM_DESC.create.Describe('slider_form',updateObj);
+  end else begin
+    Result:=GFRE_DB_NIL_DESC;
+  end;
 end;
 
 { TFRE_DB_TEST_APP_ALLGRID_MOD }

@@ -81,7 +81,7 @@ type
    procedure BuildContextMenu          (const co:TFRE_DB_MENU_DESC; var contentString,contentType:String);
    procedure BuildFormPanel            (const session: TFRE_DB_UserSession; const co:TFRE_DB_FORM_PANEL_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildDialog               (const session: TFRE_DB_UserSession; const co:TFRE_DB_DIALOG_DESC; var contentString,contentType:String);
-   procedure BuildUpdateFormDBO        (const co:TFRE_DB_UPDATE_FORM_DBO_DESC; var contentString,contentType:String);
+   procedure BuildUpdateForm           (const co:TFRE_DB_UPDATE_FORM_DESC; var contentString,contentType:String);
    procedure BuildRefreshStore         (const co:TFRE_DB_REFRESH_STORE_DESC; var contentString,contentType:String);
    procedure BuildCloseDialog          (const co:TFRE_DB_CLOSE_DIALOG_DESC; var contentString,contentType:String);
    procedure BuildSetButtonState       (const co:TFRE_DB_SET_BUTTON_STATE_DESC; var contentString,contentType:String);
@@ -141,8 +141,8 @@ implementation
     if result_object is TFRE_DB_DIALOG_DESC then begin
       gWAC_DOJO.BuildDialog(session,result_object as TFRE_DB_DIALOG_DESC,lContent,lContentType);
     end else
-    if result_object is TFRE_DB_UPDATE_FORM_DBO_DESC then begin
-      gWAC_DOJO.BuildUpdateFormDBO(result_object as TFRE_DB_UPDATE_FORM_DBO_DESC,lContent,lContentType);
+    if result_object is TFRE_DB_UPDATE_FORM_DESC then begin
+      gWAC_DOJO.BuildUpdateForm(result_object as TFRE_DB_UPDATE_FORM_DESC,lContent,lContentType);
     end else
     if result_object is TFRE_DB_SET_BUTTON_STATE_DESC then begin
       gWAC_DOJO.BuildSetButtonState(TFRE_DB_SET_BUTTON_STATE_DESC(result_object),lContent,lContentType);
@@ -1154,14 +1154,18 @@ implementation
     FJsonAction.Free;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO.BuildUpdateFormDBO(const co: TFRE_DB_UPDATE_FORM_DBO_DESC; var contentString, contentType: String);
+  procedure TFRE_DB_WAPP_DOJO.BuildUpdateForm(const co: TFRE_DB_UPDATE_FORM_DESC; var contentString, contentType: String);
   var
     JSonAction:TFRE_JSON_ACTION;
   begin
     JsonAction := TFRE_JSON_ACTION.Create;
 
     JsonAction.ActionType := jat_jsexecute;
-    JsonAction.Action     := 'G_UI_COM.updateFormDBO('+co.Field('obj').AsObject.GetAsJSONString()+');';
+    if co.FieldExists('formId') then begin
+      JsonAction.Action     := 'G_UI_COM.updateForm("'+co.Field('formId').AsString+'",'+co.Field('obj').AsObject.GetAsJSONString()+');';
+    end else begin
+      JsonAction.Action     := 'G_UI_COM.updateFormDBO('+co.Field('obj').AsObject.GetAsJSONString()+');';
+    end;
 
     contentString := JsonAction.AsString;
     contentType:='application/json';
