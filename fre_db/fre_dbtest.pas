@@ -83,7 +83,9 @@ type
   TFRE_DB_TEST_ALL_TYPES=class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure Gamble(const id:int64);
+    procedure   Gamble(const id:int64);
+    procedure   CALC_Uint32 (const calc : IFRE_DB_CALCFIELD_SETTER);
+    procedure   CALC_String (const calc : IFRE_DB_CALCFIELD_SETTER);
   published
     function  IMI_GetIcon   (const input: IFRE_DB_Object): IFRE_DB_Object;
     function  WEB_Content   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -715,6 +717,8 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid2);
     with tr_Grid2 do begin
       AddOneToOnescheme          ('myid','','My Id',dt_number);
+      AddOneToOnescheme          ('calc_string','','Calc_String');
+      AddOneToOnescheme          ('calc_UInt32','','Calc_U32');
       AddConstString             ('const1','Const1',true,'ConstantT1');
       AddConstString             ('const2','Const2',false,'ConstantT2');
       AddCollectorscheme         ('(%s)-| %s | %s €',TFRE_DB_NameTypeArray.create('myid','fdbft_GUID','fdbft_Currency'),'Coll','Collector');
@@ -1141,7 +1145,8 @@ begin
   scheme.AddSchemeField         ('fdbft_Stream',fdbft_Stream);
   scheme.AddSchemeField         ('fdbft_ObjLink',fdbft_ObjLink);
   scheme.AddSchemeFieldSubscheme('dbText','TFRE_DB_TEXT');
-  scheme.AddSchemeField         ('calculated',fdbft_String);
+  scheme.AddCalcSchemeField     ('calc_string',fdbft_String,@CALC_String);
+  scheme.AddCalcSchemeField     ('calc_Uint32',fdbft_UInt32,@CALC_Uint32);
 
   input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_TEST_ALL_TYPES');
   input_group.AddInput('fdbft_GUID');
@@ -1206,6 +1211,16 @@ begin
   ids := IntToStr(id);
   Field('MYID').AsInt64                    := id;
   Field('dbText').AsDBText.SetupText('KEY'+ids,'Short_'+ids,'Long_'+ids,'Hint_'+ids);  // This works only if the type of an implicitly created subobject is known, by defining the field in the scheme !
+end;
+
+procedure TFRE_DB_TEST_ALL_TYPES.CALC_Uint32(const calc: IFRE_DB_CALCFIELD_SETTER);
+begin
+  calc.SetAsUInt32((Field('fdbft_Byte').AsByte+1)*111);
+end;
+
+procedure TFRE_DB_TEST_ALL_TYPES.CALC_String(const calc: IFRE_DB_CALCFIELD_SETTER);
+begin
+  calc.SetAsString('CALC + '+Field('fdbft_Byte').AsString+' '+Field('myid').AsString);
 end;
 
 
@@ -2222,6 +2237,7 @@ begin
   COLL.Store(lo1);
 
   COLL := CONN.Collection('COLL_TEST_AT');
+  //COLL.DefineIndexOnField();
   for i := 0 to 1000 - 1 do begin
     if i mod 100=0 then writeln('AT ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_ALL_TYPES);

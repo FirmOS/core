@@ -610,9 +610,9 @@ type
     function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
     //procedure       SetAsEmptyStringArray              ;
     //function        IsEmptyArray                       : boolean;
-    function        Field                              (const name:TFRE_DB_String):IFRE_DB_FIELD;
-    function        FieldOnlyExistingObj               (const name:TFRE_DB_String):IFRE_DB_Object;
-    function        FieldOnlyExisting                  (const name:TFRE_DB_String;var fld:IFRE_DB_FIELD):boolean;
+    function        Field                              (const name:TFRE_DB_NameType):IFRE_DB_FIELD;
+    function        FieldOnlyExistingObj               (const name:TFRE_DB_NameType):IFRE_DB_Object;
+    function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
@@ -1355,9 +1355,9 @@ type
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
     function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
-    function        Field                              (const name:TFRE_DB_String):IFRE_DB_FIELD;
-    function        FieldOnlyExistingObj               (const name:TFRE_DB_String):IFRE_DB_Object;
-    function        FieldOnlyExisting                  (const name:TFRE_DB_String;var fld:IFRE_DB_FIELD):boolean;
+    function        Field                              (const name:TFRE_DB_NameType):IFRE_DB_FIELD;
+    function        FieldOnlyExistingObj               (const name:TFRE_DB_NameType):IFRE_DB_Object;
+    function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
@@ -4086,17 +4086,17 @@ begin
   result := FImplementor.AsString(without_schemes);
 end;
 
-function TFRE_DB_ObjectEx.Field(const name: TFRE_DB_String): IFRE_DB_FIELD;
+function TFRE_DB_ObjectEx.Field(const name: TFRE_DB_NameType): IFRE_DB_FIELD;
 begin
   result := FImplementor.Field(name);
 end;
 
-function TFRE_DB_ObjectEx.FieldOnlyExistingObj(const name: TFRE_DB_String): IFRE_DB_Object;
+function TFRE_DB_ObjectEx.FieldOnlyExistingObj(const name: TFRE_DB_NameType): IFRE_DB_Object;
 begin
   result := FImplementor.FieldOnlyExistingObj(name);
 end;
 
-function TFRE_DB_ObjectEx.FieldOnlyExisting(const name: TFRE_DB_String; var fld: IFRE_DB_FIELD): boolean;
+function TFRE_DB_ObjectEx.FieldOnlyExisting(const name: TFRE_DB_NameType; var fld: IFRE_DB_FIELD): boolean;
 begin
   result := FImplementor.FieldOnlyExisting(name,fld);
 end;
