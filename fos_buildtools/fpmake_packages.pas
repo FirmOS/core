@@ -212,6 +212,7 @@ program fpmake_packages;
        Dependencies.Add('FRE_BLKCOM');
        Dependencies.Add('fcl-process');
        with Targets do begin
+         AddUnit('../fre_db/fre_dbtest.pas');
          AddUnit('../fre_server/fre_base_server.pas');
          AddUnit('../fre_server/fre_base_client.pas');
          AddUnit('../fre_server/fre_webssocket_baseserver.pas');

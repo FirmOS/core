@@ -117,9 +117,6 @@ program fpmake_test;
          Add('FRE_BLKCOM');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_test_server/';
-       with Targets do begin
-         AddUnit('../fre_db/fre_dbtest.pas');
-       end;
        InstallProgramSuffix := FOSBuild.FOS_Suffix;
        with targets do begin
          AddProgram('fre_testserver.lpr').ExtraEnvironment.Values['FOS_PRODUCT_NAME'] := 'FRE TestServer';
