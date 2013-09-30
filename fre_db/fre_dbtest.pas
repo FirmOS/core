@@ -641,7 +641,7 @@ begin
   slider:=TFRE_DB_FORM_PANEL_DESC.create.Describe('',true,true,CWSF(@WEB_SliderChanged),500);
   slider.contentId:='slider_form';
   block:=slider.AddBlock.Describe();
-  block.AddNumber(8).DescribeSlider('','slider',0,100,false,'100',0,1);
+  block.AddNumber(8).DescribeSlider('','slider',0,100,false,'100',0,101);
   block.AddDate(1).Describe('','slider_date',false,false,true,false,IntToStr(GFRE_DT.Now_UTC));
 
   res.SetAutoSizedLayout(nil,DC_Tree.GetDisplayDescription,nil,nil,slider);
