@@ -186,8 +186,7 @@ type
     procedure       MyServerInitializeModule   (const admin_dbc: IFRE_DB_CONNECTION); override;
   published
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_Refresh_Browser        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_Browser_Tree           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_SliderChanged          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -630,45 +629,24 @@ begin
 end;
 
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var  res    : TFRE_DB_SUBSECTIONS_DESC;
-     sec    : TFRE_DB_SECTION_DESC;
-     menu   : TFRE_DB_MENU_DESC;
+var
+  res    : TFRE_DB_LAYOUT_DESC;
+  DC_Tree: IFRE_DB_DERIVED_COLLECTION;
+  slider : TFRE_DB_FORM_DESC;
 begin
-  res  := TFRE_DB_SUBSECTIONS_DESC.Create.Describe();
-  menu := TFRE_DB_MENU_DESC.create.Describe;
-  menu.AddEntry.Describe('REFRESH','',CWSF(@WEB_Refresh_Browser));
-  sec := res.AddSection.Describe(CWSF(@WEB_Browser_Tree),'Filebrowser',1);
-  sec.SetMenu(menu);
+  res  := TFRE_DB_LAYOUT_DESC.Create.Describe();
+
+  DC_Tree := ses.FetchDerivedCollection('FILEBROWSER');
+  slider:=TFRE_DB_FORM_PANEL_DESC.create.Describe('',true,true,CWSF(@WEB_SliderChanged),500);
+  slider.AddNumber.DescribeSlider('','slider',0,100,false,'100',0,1);
+  res.SetAutoSizedLayout(nil,DC_Tree.GetDisplayDescription,nil,nil,slider);
   result := res;
 end;
 
-function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Refresh_Browser(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var inp      : IFRE_DB_Object;
-    response : IFRE_DB_Object;
-    res      : TFRE_DB_Errortype;
-
-    procedure GotAnswer(const ses : IFRE_DB_UserSession ; const input : IFRE_DB_Object ; const status : TFRE_DB_COMMAND_STATUS ; const origcid : QWORD ; const opaquedata : IFRE_DB_Object);
-    begin
-      ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('JUHU',input.DumpToString(),fdbmt_info));
-    end;
-
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_SliderChanged(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  inp := GFRE_DBI.NewObject;
-  inp.Field('level').AsString:='/';
-  res := ses.InvokeRemoteRequest('SAMPLEFEEDER','BROWSEPATH',inp,response,@GotAnswer,nil);
-  if res=edb_OK then
-    begin
-      result := GFRE_DB_NIL_DESC;
-    end
-  else
-    result := TFRE_DB_MESSAGE_DESC.create.Describe('REQ FAILED',CFRE_DB_Errortype[res],fdbmt_info);
-end;
-
-function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Browser_Tree(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var DC_Tree : IFRE_DB_DERIVED_COLLECTION;
-begin
-  DC_Tree := ses.FetchDerivedCollection('FILEBROWSER');
-  result  := DC_Tree.GetDisplayDescription;
+  writeln('SliderChanged ' + input.DumpToString);
+  Result:=GFRE_DB_NIL_DESC;
 end;
 
 { TFRE_DB_TEST_APP_ALLGRID_MOD }
