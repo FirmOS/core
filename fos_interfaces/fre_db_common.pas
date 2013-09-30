@@ -295,7 +295,7 @@ type
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false;  const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String='';
                         const digits: Integer=0; const minMax: TFRE_DB_Real64Array=nil) : TFRE_DB_INPUT_NUMBER_DESC;
     //@ Describes a number slider within a form.
-    function  DescribeSlider (const caption,field_reference : String; const min,max: Real; const defaultValue:String=''; const digits: Integer=0; const steps: Integer=-1) : TFRE_DB_INPUT_NUMBER_DESC;
+    function  DescribeSlider (const caption,field_reference : String; const min,max: Real; const showValueField: Boolean=true; const defaultValue:String=''; const digits: Integer=0; const steps: Integer=-1) : TFRE_DB_INPUT_NUMBER_DESC;
   end;
 
   TFRE_DB_INPUT_BLOCK_DESC       = class;
@@ -463,7 +463,7 @@ type
     procedure AddStore             (const store: TFRE_DB_STORE_DESC);virtual;
     procedure AddDBO               (const id: String; const session: IFRE_DB_UserSession);virtual;
     function  GetStore             (const id:String): TFRE_DB_STORE_DESC;virtual;
-    function  Describe             (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean=true): TFRE_DB_FORM_DESC;
+    function  Describe             (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
     procedure _FillWithObjectValues(const obj: IFRE_DB_Object);
   public
     //@ Sets the value of the input element with the given id.
@@ -589,7 +589,7 @@ type
   TFRE_DB_FORM_PANEL_DESC    = class(TFRE_DB_FORM_DESC)
   public
     //@ Describes a form content panel. See also TFRE_DB_FORM_DESC.
-    function Describe (const caption:String;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true): TFRE_DB_FORM_PANEL_DESC;
+    function Describe (const caption:String;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0): TFRE_DB_FORM_PANEL_DESC;
     //@ Sets the menu of the form panel. Will be displayed like a file menu in a desktop application.
     procedure SetMenu (const menu: TFRE_DB_MENU_DESC);
   end;
@@ -602,7 +602,7 @@ type
     //@ If defaultClose is true a close button will be added to the dialog which simply closes the dialog.
     //@ If defaultClose is false and no explicit close button is added the dialog will not be closable at all (e.g. force login).
     //@ sendChangedFieldsOnly true: good for data updates, false: all field values are send unconditonally, goot for new objects
-    function  Describe    (const caption:String; const width:Integer=0; const maxHeight:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true): TFRE_DB_DIALOG_DESC;
+    function  Describe    (const caption:String; const width:Integer=0; const maxHeight:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0): TFRE_DB_DIALOG_DESC;
     //@ Adds a html header section to the dialog.
     //@ FIXXME: not implemented yet.
     procedure AddHeader   (const header: TFRE_DB_HTML_DESC);
@@ -1435,10 +1435,11 @@ implementation
     Result:=Self;
   end;
 
-  function TFRE_DB_INPUT_NUMBER_DESC.DescribeSlider(const caption, field_reference: String; const min, max: Real; const defaultValue: String; const digits: Integer; const steps: Integer): TFRE_DB_INPUT_NUMBER_DESC;
+  function TFRE_DB_INPUT_NUMBER_DESC.DescribeSlider(const caption, field_reference: String; const min, max: Real; const showValueField: Boolean; const defaultValue: String; const digits: Integer; const steps: Integer): TFRE_DB_INPUT_NUMBER_DESC;
   begin
     inherited Describe(caption,field_reference,false,false,false,false,defaultValue);
     Field('displaySlider').AsBoolean:=true;
+    Field('showValueField').AsBoolean:=showValueField;
     Field('digits').AsInt16:=digits;
     Field('minMax').AsReal64Arr:=TFRE_DB_Real64Array.create(min,max);
     Field('steps').AsInt16:=steps;
@@ -2102,12 +2103,16 @@ implementation
     end;
   end;
 
-  function TFRE_DB_FORM_DESC.Describe(const caption: String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean): TFRE_DB_FORM_DESC;
+  function TFRE_DB_FORM_DESC.Describe(const caption: String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
   begin
     Field('caption').AsString:=caption;
     Field('defaultClose').AsBoolean:=defaultClose;
     Field('sendChanged').AsBoolean:=sendChangedFieldsOnly;
     Field('editable').AsBoolean:=editable;
+    if Assigned(onChangeFunc) then begin
+      Field('onChangeFunc').AsObject:=onChangeFunc;
+      Field('onChangeDelay').AsInt64:=onChangeDelay;
+    end;
     if not FieldExists('id') then begin
       Field('id').AsString:='id'+UID_String;
     end;
@@ -2548,9 +2553,9 @@ implementation
 
   { TFRE_DB_FORM_PANEL_DESC }
 
-  function TFRE_DB_FORM_PANEL_DESC.Describe(const caption: String;const sendChangedFieldsOnly: Boolean; const editable: Boolean): TFRE_DB_FORM_PANEL_DESC;
+  function TFRE_DB_FORM_PANEL_DESC.Describe(const caption: String;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_PANEL_DESC;
   begin
-    inherited Describe(caption,false,sendChangedFieldsOnly,editable);
+    inherited Describe(caption,false,sendChangedFieldsOnly,editable,onChangeFunc,onChangeDelay);
     Result:=Self;
   end;
 
@@ -2561,9 +2566,9 @@ implementation
 
   { TFRE_DB_DIALOG_DESC }
 
-  function TFRE_DB_DIALOG_DESC.Describe(const caption:String;const width,maxHeight:Integer; const defaultClose,isDraggable:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean): TFRE_DB_DIALOG_DESC;
+  function TFRE_DB_DIALOG_DESC.Describe(const caption:String;const width,maxHeight:Integer; const defaultClose,isDraggable:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_DIALOG_DESC;
   begin
-    inherited Describe('',defaultClose,sendChangedFieldsOnly,editable);
+    inherited Describe('',defaultClose,sendChangedFieldsOnly,editable,onChangeFunc,onChangeDelay);
     Field('dialogCaption').AsString:=caption;
     Field('width').AsInt16:=width;
     Field('maxHeight').AsInt16:=maxHeight;

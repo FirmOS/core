@@ -283,9 +283,18 @@ implementation
       stores:=nil;
     end;
     jsContentAdd('"<form dojoType=''FIRMOS.Form'' id='''+co.Field('id').AsString+'_form'' sendchanged='+BoolToStr(co.Field('sendChanged').AsBoolean,'true','false')+' displayonly='+BoolToStr(co.Field('editable').AsBoolean,'false','true')+'"+');
+    jsContentAdd('"  data-dojo-props=\""+');
     if co.FieldExists('dbos') then begin
-      jsContentAdd('"  data-dojo-props=\"dbos:'+_BuildJSArray(co.Field('dbos').AsStringArr)+'\""+');
+      jsContentAdd('"  dbos:'+_BuildJSArray(co.Field('dbos').AsStringArr)+'"+');
+      propsPrefix:=', ';
+    end else begin
+      propsPrefix:='';
     end;
+    if co.FieldExists('onChangeFunc') then begin
+      jsContentAdd('"    '+propsPrefix+'onChangeClassname:'''+co.FieldPath('onChangeFunc.class').AsString+''', onChangeFunctionname:'''+co.FieldPath('onChangeFunc.func').AsString+''', "+');
+      jsContentAdd('"    onChangeUidPath:'+_BuildJSArray(co.Field('onChangeFunc').AsObject.Field('uidPath').AsStringArr)+' ,onChangeParams:'+_BuildParamsObject(co.Field('onChangeFunc').AsObject.Field('params').AsObjectArr)+',onChangeDelay:'+co.Field('onChangeDelay').AsString+'"+');
+    end;
+    jsContentAdd('"\""+');
     jsContentAdd('">"+');
 
     jsContentAdd('"<table class=''firmosFormTable'' style=''width:100%''>"+');
@@ -379,6 +388,7 @@ implementation
     jsContentAdd('"<input id='''+co.Field('id').AsString+''' name='''+co.Field('field').AsString+'''"+');
     if co.FieldExists('displaySlider') then begin
       jsContentAdd('" dojoType=''FIRMOS.NumberSlider''"+');
+      jsContentAdd('" showvalue='''+BoolToStr(co.Field('showValueField').AsBoolean,'true','false')+'''"+');
     end else begin
       jsContentAdd('" dojoType=''FIRMOS.NumberTextBox''"+');
     end;
