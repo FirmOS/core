@@ -122,6 +122,7 @@ begin
   if Exists(elem)<>-1 then
     exit(false);
   firstspare:=-1;
+  result := true;
   for i:=0 to high(FArray) do
     begin
       if FNullCompare(@FArray[i]) then

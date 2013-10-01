@@ -16773,6 +16773,10 @@ begin
  GFRE_DB.RegisterPrimaryImplementor(TFRE_DB_NAMED_OBJECT,IFRE_DB_NAMED_OBJECT);
  GFRE_DB.RegisterPrimaryImplementor(TFRE_DB_OBJECT,IFRE_DB_OBJECT);
  GFRE_DB.RegisterObjectClass(TFRE_DB_COMMAND);
+ GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('image').Setup('(.+(\.(?i)(jpg|png|gif|bmp))$)',
+                                                     GFRE_DBI.CreateText('$validator_image','Image File Validator'),
+                                                     GFRE_DBI.CreateText('$validator_help_image','Please select an image file.'),
+                                                     '\d\.\/'));
  //if not nosys then GFRE_DB.RegisterSystemSchemes;
  if not nosys then GFRE_DB.Initialize_System_Objects;
 end;
@@ -16784,9 +16788,6 @@ begin
 end;
 
 procedure Init4Server;
-var
-  validator  : IFRE_DB_ClientFieldValidator;
-  params     : TFRE_DB_Object;
 begin
  InitMinimal(true);
  GFRE_DB.RegisterObjectClass(TFRE_DB_COLLECTION);
@@ -16808,11 +16809,7 @@ begin
  GFRE_DB.RegisterObjectClassEx(TFRE_DB_APPLICATION);
  GFRE_DB.RegisterObjectClassEx(TFRE_DB_SERVER_FUNC_DESC);
 
- validator:=GFRE_DBI.NewClientFieldValidator('image').Setup('(.+(\.(?i)(jpg|png|gif|bmp))$)',
-                                                     GFRE_DBI.CreateText('$validator_image','Image File Validator'),
-                                                     GFRE_DBI.CreateText('$validator_help_image','Please select an image file.'),
-                                                     '\d\.\/');
- GFRE_DBI.RegisterSysClientFieldValidator(validator);
+
 
  GFRE_DB_NIL_DESC             := TFRE_DB_NIL_DESC.create;
  GFRE_DB_SUPPRESS_SYNC_ANSWER := TFRE_DB_SUPPRESS_ANSWER_DESC.Create;
