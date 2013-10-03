@@ -5525,9 +5525,9 @@ function TFRE_DB_SIMPLE_TRANSFORM.TransformInOut(const conn : IFRE_DB_CONNECTION
   end;
 begin
   result := GFRE_DB.NewObject;
+  FTransformList.ForAllBreak(@iterate);
   if Assigned(FCustTransform) then
     FCustTransform(conn,dependency_obj,input,result);
-  FTransformList.ForAllBreak(@iterate);
   result._Field('uid').AsGUID := input.Field('uid').AsGUID;
 end;
 

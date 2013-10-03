@@ -4395,7 +4395,7 @@ begin
   raw_object        := input.Field('data').AsObject;
   scheme.SetObjectFieldsWithScheme(raw_object,self,false,conn);
   CheckDbResult(conn.Update(self),'failure on update');  // This instance is freed by now, so rely on the stackframe only (self) pointer is garbage(!!)
-  result := GFRE_DB_NIL_DESC;
+  result := TFRE_DB_CLOSE_DIALOG_DESC.Create.Describe();
 end;
 
 function TFRE_DB_ObjectEx.WEB_DeleteOperation(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
