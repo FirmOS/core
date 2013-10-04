@@ -1,5 +1,6 @@
 unit fre_db_testsuite; 
 {$mode objfpc}{$H+}
+{$modeswitch nestedprocvars}
 {$codepage UTF8}
 
 // RAW Testsuite of DB Core
@@ -12,6 +13,8 @@ uses
 
   var TEST_GUID_1,TEST_GUID_2,TEST_GUID_3 : TGUID;
 
+  procedure RegisterTestCodeClasses;
+
   procedure Check_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object);
 
 type
@@ -21,6 +24,9 @@ type
   TFRE_DB_TEST_CODE_CLASS=class(TFRE_DB_ObjectEx)
   public
     procedure InternalSetup; override;
+    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    procedure   CALC_Uint32 (const calc : IFRE_DB_CALCFIELD_SETTER);
+    procedure   CALC_String (const calc : IFRE_DB_CALCFIELD_SETTER);
   published
     function IMI_SimpleTest(const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
@@ -63,6 +69,8 @@ type
     FSysconn  : IFRE_DB_SYS_CONNECTION;
     FWorkConn : IFRE_DB_CONNECTION;
     procedure ConnectDB(const user,pw:string);
+    procedure WriteObject(const obj : IFRE_DB_Object);
+
   published
     procedure PreCleanup;
     procedure CreateTestDatabase;
@@ -76,6 +84,10 @@ type
     procedure SystemSyncSnapshot;
     procedure SetupTestWorkDB;
     procedure SetupTestCollections;
+    procedure FetchTestColletion;
+    procedure DefineIndices;
+    procedure GenerateIndexTestData;
+    procedure TestIdxRangeQueries;
     procedure DumpDatabase;
   end;
 
@@ -266,6 +278,40 @@ begin
   Field('TST_BOOLEAN').AsInt16 := -33;
 end;
 
+class procedure TFRE_DB_TEST_CODE_CLASS.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  scheme.SetParentSchemeByName('TFRE_DB_OBJECTEX');
+  scheme.AddSchemeField         ('fdbft_GUID',fdbft_GUID);
+  scheme.AddSchemeField         ('fdbft_Byte',fdbft_Byte);
+  scheme.AddSchemeField         ('fdbft_Int16',fdbft_Int16);
+  scheme.AddSchemeField         ('fdbft_UInt16',fdbft_UInt16);
+  scheme.AddSchemeField         ('fdbft_Int32',fdbft_Int32);
+  scheme.AddSchemeField         ('fdbft_UInt32',fdbft_UInt32);
+  scheme.AddSchemeField         ('fdbft_Int64',fdbft_Int64);
+  scheme.AddSchemeField         ('fdbft_UInt64',fdbft_UInt64);
+  scheme.AddSchemeField         ('fdbft_Real32',fdbft_Real32);
+  scheme.AddSchemeField         ('fdbft_Real64',fdbft_Real64);
+  scheme.AddSchemeField         ('fdbft_Currency',fdbft_Currency);
+  scheme.AddSchemeField         ('fdbft_String',fdbft_String);
+  scheme.AddSchemeField         ('fdbft_Boolean',fdbft_Boolean);
+  scheme.AddSchemeField         ('fdbft_DateTimeUTC',fdbft_DateTimeUTC);
+  scheme.AddSchemeField         ('fdbft_Stream',fdbft_Stream);
+  scheme.AddSchemeField         ('fdbft_ObjLink',fdbft_ObjLink);
+  scheme.AddSchemeFieldSubscheme('dbText','TFRE_DB_TEXT');
+  //scheme.AddCalcSchemeField     ('calc_string',fdbft_String,@CALC_String);
+  //scheme.AddCalcSchemeField     ('calc_Uint32',fdbft_UInt32,@CALC_Uint32);
+end;
+
+procedure TFRE_DB_TEST_CODE_CLASS.CALC_Uint32(const calc: IFRE_DB_CALCFIELD_SETTER);
+begin
+  calc.SetAsUInt32((Field('fdbft_Byte').AsByte+1)*111);
+end;
+
+procedure TFRE_DB_TEST_CODE_CLASS.CALC_String(const calc: IFRE_DB_CALCFIELD_SETTER);
+begin
+  calc.SetAsString('CALC/'+Field('fdbft_Byte').AsString+':'+Field('myid').AsString);
+end;
+
 function TFRE_DB_TEST_CODE_CLASS.IMI_SimpleTest(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
   Check_Test_Object('TST_',self);
@@ -325,14 +371,261 @@ begin
 end;
 
 procedure TFRE_DB_PersistanceTests.SetupTestCollections;
+var coll_v,coll_p : IFRE_DB_COLLECTION;
 begin
   GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM');
   GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
   ConnectDB('test1@system','test1');
-  FWorkConn.Collection('TEST_1_VOL',true,true);
-  FWorkConn.Collection('TEST_1_PERS',true,true);
-  //FWorkConn.C;
+  coll_v := FWorkConn.Collection('TEST_1_VOL',true,true);
+  coll_p := FWorkConn.Collection('TEST_1_PERS',true,false);
+  coll_v := FWorkConn.Collection('TEST_1_VOL_U',true,true);   // unique
+  coll_p := FWorkConn.Collection('TEST_1_PERS_U',true,false); // unique
 end;
+
+procedure TFRE_DB_PersistanceTests.FetchTestColletion;
+var coll_v,coll_p : IFRE_DB_COLLECTION;
+begin
+  ConnectDB('test1@system','test1');
+  coll_v := FWorkConn.Collection('TEST_1_VOL',false,true);
+  coll_p := FWorkConn.Collection('TEST_1_PERS',false,false);
+  AssertNotNull(coll_v);
+  AssertNotNull(coll_p);
+  FWorkConn.DeleteCollection('TEST_1_VOL');
+  FWorkConn.DeleteCollection('TEST_1_PERS');
+  coll_v := FWorkConn.Collection('TEST_1_VOL',false,true);
+  coll_p := FWorkConn.Collection('TEST_1_PERS',false,false);
+  AssertNull(coll_v);
+  AssertNull(coll_p);
+  coll_v := FWorkConn.Collection('TEST_1_VOL',true,true);
+  coll_p := FWorkConn.Collection('TEST_1_PERS',true,false);
+  AssertNotNull(coll_v);
+  AssertNotNull(coll_p);
+end;
+
+procedure TFRE_DB_PersistanceTests.DefineIndices;
+var coll_v,coll_p   : IFRE_DB_COLLECTION;
+    coll_vu,coll_pu : IFRE_DB_COLLECTION;
+  procedure DefineTestIndices(const coll : IFRE_DB_COLLECTION ; const unique : boolean);
+  begin
+    CheckDbResult(coll.DefineIndexOnField('fdbft_String',fdbft_String,unique,false,'ixs'),'error creating ixs');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_UInt64',fdbft_UInt64,unique,false,'ixui64'),'error creating ixu64');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_UInt32',fdbft_UInt32,unique,false,'ixui32'),'error creating ixu32');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_UInt16',fdbft_UInt16,unique,false,'ixui16'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_Byte',fdbft_Byte,unique,false,'ixb'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_Boolean',fdbft_Boolean,unique,false,'ixbo'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_Guid',fdbft_GUID,unique,false,'ixu'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_ObjLink',fdbft_ObjLink,unique,false,'ixol'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_Int64',fdbft_Int64,unique,false,'ixi64'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_Int32',fdbft_Int32,unique,false,'ixi32'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_Int16',fdbft_Int16,unique,false,'ixi16'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_DateTimeUTC',fdbft_DateTimeUTC,unique,false,'ixdt'),'error creating ixu');
+    CheckDbResult(coll.DefineIndexOnField('fdbft_Currency',fdbft_Currency,unique,false,'ixc'),'error creating ixu');
+
+    //CheckDbResult(coll.DefineIndexOnField('fdbft_Real32',fdbft_Real32,unique,false,'ixr32'),'error creating ixu');
+    //CheckDbResult(coll.DefineIndexOnField('fdbft_Real64',fdbft_Real64,unique,false,'ixur32'),'error creating ixu');
+    //CheckDbResult(coll.DefineIndexOnField('fdbft_Stream',fdbft_Stream,unique,false,'ixst'),'error creating ixu');
+    //CheckDbResult(coll.DefineIndexOnField('fdbft_Object',fdbft_Object,unique,false,'ixo'),'error creating ixu');
+  end;
+
+begin
+  ConnectDB('test1@system','test1');
+  coll_v  := FWorkConn.Collection('TEST_1_VOL',false,true);
+  coll_p  := FWorkConn.Collection('TEST_1_PERS',false,false);
+  coll_vu := FWorkConn.Collection('TEST_1_VOL_U',false,true);
+  coll_pu := FWorkConn.Collection('TEST_1_PERS_U',false,false);
+  DefineTestIndices(coll_v,false);
+  DefineTestIndices(coll_p,false);
+  DefineTestIndices(coll_vu,True);
+  DefineTestIndices(coll_pu,True);
+end;
+
+procedure TFRE_DB_PersistanceTests.GenerateIndexTestData;
+var coll_v,coll_p   : IFRE_DB_COLLECTION;
+    coll_vu,coll_pu : IFRE_DB_COLLECTION;
+    coll_link       : IFRE_DB_COLLECTION;
+    obj             : IFRE_DB_Object;
+    guid            : TGUID;
+    inserts         : array [0..12] of string   = ('a','aa','b','aaa','aaaa','bar','baz','bazaaar','bazaaaroni','a','b','bar','aa');
+    u64inserts      : array [0..12] of Qword    = (800000000,10,1234,1,2,77,99,800000000,-1,10,11,21,-2);
+    i64inserts      : array [0..12] of Int64    = (-800000000,-10,-20,0,11,22,99,800000000,-1,10,34,33,-2);
+    u32inserts      : array [0..12] of Cardinal = (800000000,10,1234,1,2,77,99,800000000,-1,10,11,21,-2);
+    u16inserts      : array [0..12] of Word     = (800000000,10,1234,1,2,77,99,800000000,-1,10,11,21,-2);
+    bytinserts      : array [0..12] of Byte     = (800000000,10,1234,1,2,77,99,800000000,-1,10,11,21,-2);
+    curinserts      : array [0..12] of Currency = (-800000000.1234,-10.5678,-20.6789,0,1.23456789,22.22233,99.3332,800000000.213123,-1.123123,10.2333,11.333,333.33,-2.33);
+    booinserts      : array [0..12] of Boolean  = (true,false,true,false,false,true,true,true,false,true,false,true,false);
+
+  procedure WriteObjectIdx(const obj : IFRE_DB_Object);
+  begin
+    WriteObject(obj);
+  end;
+
+  procedure GendataforColl(const coll:IFRE_DB_COLLECTION);
+  var i : integer;
+  begin
+    guid := CFRE_DB_NullGUID;
+    for i:= 0 to high(inserts) do
+      begin
+       TGUID_Access(guid).Part2 := i;
+       obj := GFRE_DBI.NewObject;
+       obj.Field('myid').AsUInt32 := 100;
+       obj.Field('uid').AsGUID:=guid;
+       coll_link.Store(obj);
+      end;
+
+    guid := CFRE_DB_NullGUID;
+
+    obj := GFRE_DBI.NewObject;
+    obj.Field('myid').AsUInt32 := 0;
+    obj.Field('fdbft_String').AsString      := '';
+    obj.Field('fdbft_Int64').AsInt64        := 0;
+    obj.Field('fdbft_UInt64').AsUInt64      := 0;
+    obj.Field('fdbft_UInt32').AsUInt32      := 0;
+    obj.Field('fdbft_UInt16').AsUInt16      := 0;
+    obj.Field('fdbft_Int32').AsInt32        := 0;
+    obj.Field('fdbft_Int16').AsInt16        := 0;
+    obj.Field('fdbft_Byte').AsByte          := 0;
+    obj.Field('fdbft_Currency').AsCurrency  := 0;
+    obj.Field('fdbft_DateTimeUTC').AsDateTimeUTC := 0;
+    obj.Field('fdbft_Boolean').AsBoolean    := false;
+    obj.Field('fdbft_GUID').AsGUID          := CFRE_DB_NullGUID;
+    if not coll.IsVolatile then
+      obj.Field('fdbft_ObjLink').AsObjectLink := CFRE_DB_NullGUID;
+    coll.Store(obj);
+    obj := GFRE_DBI.NewObject;
+    obj.Field('myid').AsUInt32 := 1;
+    coll.Store(obj);
+    obj := GFRE_DBI.NewObject;
+    obj.Field('myid').AsUInt32 := 2;
+    coll.Store(obj);
+    obj := GFRE_DBI.NewObject;
+    obj.Field('myid').AsUInt32 := 3;
+    obj.Field('fdbft_String').AsString     := '';
+    obj.Field('fdbft_Int64').AsInt64       := 0;
+    obj.Field('fdbft_UInt64').AsUInt64     := 0;
+    obj.Field('fdbft_UInt32').AsUInt32     := 0;
+    obj.Field('fdbft_UInt16').AsUInt16     := 0;
+    obj.Field('fdbft_Int32').AsInt32       := 0;
+    obj.Field('fdbft_Int16').AsInt16       := 0;
+    obj.Field('fdbft_Byte').AsByte         := 0;
+    obj.Field('fdbft_Boolean').AsBoolean   := false;
+    obj.Field('fdbft_GUID').AsGUID         := CFRE_DB_NullGUID;
+    obj.Field('fdbft_DateTimeUTC').AsDateTimeUTC := -1;
+    if not coll.IsVolatile then
+      obj.Field('fdbft_ObjLink').AsObjectLink := CFRE_DB_NullGUID;
+    coll.Store(obj);
+    for i := high(inserts) downto 0 do
+      begin
+        TGUID_Access(guid).Part2 := i;
+        obj := GFRE_DBI.NewObject;
+        obj.Field('myid').AsUInt32 := 10+i;
+        obj.Field('fdbft_String').AsString   := inserts[i];
+        obj.Field('fdbft_UInt64').AsUInt64   := u64inserts[i];
+        obj.Field('fdbft_UInt32').AsUInt32   := u32inserts[i];
+        obj.Field('fdbft_UInt16').AsUInt16   := u16inserts[i];
+        obj.Field('fdbft_Byte').AsByte       := bytinserts[i];
+        obj.Field('fdbft_Boolean').AsBoolean := booinserts[i];
+        obj.Field('fdbft_Int64').AsInt64     := i64inserts[i];
+        obj.Field('fdbft_Int32').AsInt32     := i64inserts[i];
+        obj.Field('fdbft_Int16').AsInt16     := i64inserts[i];
+        obj.Field('fdbft_Currency').AsCurrency  := curinserts[i];
+        obj.Field('fdbft_GUID').AsGUID       := guid;
+        sleep(1);
+        obj.Field('fdbft_DateTimeUTC').AsDateTimeUTC := GFRE_DT.Now_UTC;
+        if not coll.IsVolatile then
+          obj.Field('fdbft_ObjLink').AsObjectLink := guid;
+        coll.Store(obj);
+      end;
+  end;
+
+  procedure DumpColl(const coll:IFRE_DB_COLLECTION;const idxname :TFRE_DB_NameType);
+  begin
+    writeln('----');
+    writeln('<<ORDER DUMP ',coll.CollectionName,' ',idxname,' ASC');
+    coll.ForAllIndexed(@WriteObjectIdx,idxname,true);
+    writeln('');
+    writeln('<<ORDER DUMP ',coll.CollectionName,' ',idxname,' DESC');
+    coll.ForAllIndexed(@WriteObjectIdx,idxname,false);
+    writeln('----');
+  end;
+
+begin
+   ConnectDB('test1@system','test1');
+   coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
+   coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
+   coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
+   coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
+   coll_link := FWorkConn.Collection('TEST_1_LINKO',true,false);
+   GendataforColl(coll_v);
+   GendataforColl(coll_p);
+   //GendataforColl(coll_vu);
+   //GendataforColl(coll_pu);
+   DumpColl(coll_p,'ixs');
+   DumpColl(coll_p,'ixui64');
+   DumpColl(coll_p,'ixui32');
+   DumpColl(coll_p,'ixui16');
+   DumpColl(coll_p,'ixb');
+   DumpColl(coll_p,'ixbo');
+   DumpColl(coll_p,'ixu');
+   DumpColl(coll_p,'ixol');
+   DumpColl(coll_p,'ixi64');
+   DumpColl(coll_p,'ixi32');
+   DumpColl(coll_p,'ixi16');
+   DumpColl(coll_p,'ixdt');
+   DumpColl(coll_p,'ixc');
+end;
+
+procedure TFRE_DB_PersistanceTests.TestIdxRangeQueries;
+var coll_v,coll_p   : IFRE_DB_COLLECTION;
+    coll_vu,coll_pu : IFRE_DB_COLLECTION;
+    coll_link       : IFRE_DB_COLLECTION;
+    obj             : IFRE_DB_Object;
+
+  function WriteObjectIdx(const obj : IFRE_DB_Object):boolean;
+  begin
+    WriteObject(obj);
+    result := false; //  break
+  end;
+
+begin
+  ConnectDB('test1@system','test1');
+  coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
+  coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
+  coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
+  coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
+
+  //writeln('--RANGE QUERY TEST---');
+  //coll_p.ForAllIndexedSignedRange(-11,1000,@WriteObjectIdx,'ixi64');
+  //writeln('--RANGE QUERY TEST--- END');
+  writeln('--RANGE QUERY TEST---');
+  writeln('-30 -> 33');
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64');
+  writeln('-30 -> MAX');
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,false,true);
+  writeln('NULL -> 30');
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,true,false);
+  writeln('UNSIGNED 1->1300');
+  coll_p.ForAllIndexedUnsignedRange(1,1300,@WriteObjectIdx,'ixui64',true,false,false,4,3);
+  writeln('--RANGE QUERY TEST--- END');
+
+  writeln('--REVERSE RANGE QUERY TEST---');
+  writeln('-30 -> 30');
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',false);
+  writeln('-30 -> MAX');
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',false,false,true);
+  writeln('NULL -> 30');
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',false,true,false,4,3);
+  writeln('--REVERSE RANGE QUERY TEST--- END');
+
+  writeln('--STRING RANGE QUERY--');
+  coll_p.ForAllIndexedStringRange('a','b',@WriteObjectIdx,'ixs');
+  writeln('--STRING RANGE QUERY-- END');
+
+  writeln('--STRING PREFIX QUERY--');
+  coll_p.ForAllIndexPrefixString('ba',@WriteObjectIdx,'ixs');
+  writeln('--STRING PREFIX QUERY-- END');
+
+end;
+
 
 procedure TFRE_DB_PersistanceTests.DumpDatabase;
 begin
@@ -343,6 +636,70 @@ begin
   FWorkConn := GFRE_DB.NewConnection;
   CheckDbResult(FWorkConn.Connect('WORKTEST',user,pw),'connect failed');
 end;
+
+procedure TFRE_DB_PersistanceTests.WriteObject(const obj: IFRE_DB_Object);
+var boo,byt,ui16,ui32,ui64,s,gs,ol,i64,i32,i16,dt: string;
+    cu : string;
+begin
+  //if obj.FieldExists('fdbft_Currency') then
+  //  x := obj.Field('fdbft_Currency').AsInt64
+  //else
+  //  x := 0;
+  if obj.FieldExists('fdbft_Currency') then
+    cu := obj.Field('fdbft_Currency').AsString
+  else
+    cu := '[]';
+  if obj.FieldExists('fdbft_DateTimeUTC') then
+    dt := '['+GFRE_DT.ToStrFOS(obj.Field('fdbft_DateTimeUTC').AsDateTime)+']'
+  else
+    dt := '[]';
+  if obj.FieldExists('fdbft_Int32') then
+    i32 := '['+obj.Field('fdbft_Int32').AsString+']'
+  else
+    i32 := '[]';
+  if obj.FieldExists('fdbft_Int16') then
+    i16 := '['+obj.Field('fdbft_Int16').AsString+']'
+  else
+    i16 := '[]';
+  if obj.FieldExists('fdbft_Int64') then
+    i64 := '['+obj.Field('fdbft_Int64').AsString+']'
+  else
+    i64 := '[]';
+  if obj.FieldExists('fdbft_GUID') then
+    gs := '['+obj.Field('fdbft_GUID').AsString+']'
+  else
+    gs := '[]';
+  if obj.FieldExists('fdbft_ObjLink') then
+    ol :=  obj.Field('fdbft_ObjLink').AsString
+  else
+    ol := '[]';
+  if obj.FieldExists('fdbft_Boolean') then
+    boo := '['+obj.Field('fdbft_Boolean').AsString+']'
+  else
+    boo := '[]';
+  if obj.FieldExists('fdbft_Byte') then
+    byt := '['+obj.Field('fdbft_Byte').AsString+']'
+  else
+    byt := '[]';
+  if obj.FieldExists('fdbft_UInt16') then
+    ui16 := '['+obj.Field('fdbft_UInt16').AsString+']'
+  else
+    ui16 := '[]';
+  if obj.FieldExists('fdbft_UInt32') then
+    ui32 := '['+obj.Field('fdbft_UInt32').AsString+']'
+  else
+    ui32 := '[]';
+  if obj.FieldExists('fdbft_UInt64') then
+    ui64 := '['+obj.Field('fdbft_UInt64').AsString+']'
+  else
+    ui64 := '[]';
+  if obj.FieldExists('fdbft_String') then
+    s := '['+obj.Field('fdbft_String').AsString+']'
+  else
+    s := '[]';
+  writeln(obj.field('myid').AsString:2,'S:',s:12,' U64:',ui64:22,' U32:',ui32:12,' U16:',ui16:8,' B:',byt:6,' BOOL:',boo:4,' G/OBL:',gs:34,' I64: ',i64:12,' I32:',i32:12,' I16:',i16:7,dt:20,' CURR:',cu:16);
+end;
+
 
 procedure TFRE_DB_PersistanceTests.PreCleanup;
 begin
@@ -395,8 +752,6 @@ end;
 
 procedure TFRE_DB_ObjectTests.SetUp;
 begin
-  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_CODE_CLASS);
-  GFRE_DBI.Initialize_Extension_Objects;
   TestObject := GFRE_DB.NewObject;
 end;
 
@@ -589,10 +944,15 @@ begin
   Object1.Finalize;
 end;
 
+procedure RegisterTestCodeClasses;
+begin
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_CODE_CLASS);
+  GFRE_DBI.Initialize_Extension_Objects;
+end;
 
 initialization
   RegisterTest(TFRE_DB_ObjectTests);
-  //RegisterTest(TFRE_DB_PersistanceTests);
+  RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 

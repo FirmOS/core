@@ -68,11 +68,16 @@ type
     function  IndexedObjects  : TFRE_DB_ObjectArray;
     procedure StreamToThis    (const stream:TStream);
     procedure LoadFromThis    (const stream:TStream ; const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+    procedure ForAll          (const func : IFRE_DB_Obj_Iterator ; const ascending : boolean);
+    procedure ForAllBreak     (const func : IFRE_DB_Obj_IteratorBreak ; const ascending : boolean ; var halt : boolean);
   end;
 
   { TFRE_DB_MM_Index }
 
   TFRE_DB_MM_Index=class
+  private
+    type
+      tvaltype = (val_NULL,val_ZERO,val_VAL,val_NEG);
   protected
     FIndex           : TFRE_ART_TREE;
     FIndexName       : TFRE_DB_NameType;
@@ -80,7 +85,9 @@ type
     FFieldname       : TFRE_DB_NameType;
     FUniqueFieldname : TFRE_DB_NameType;
     FFieldType       : TFRE_DB_FIELDTYPE;
+    FFixedKeylen     : NativeInt;
     FUnique          : Boolean;
+    FAllowNull       : Boolean;
     FCollection      : IFRE_DB_PERSISTANCE_COLLECTION;
     //transient data
     transkey        : Array [0..CFREA_maxKeyLen] of Byte;
@@ -90,16 +97,17 @@ type
     FUpdateKeySame  : boolean;
     //transient data end
     function       GetStringRepresentationOfTransientKey : String;
-    procedure      SetTranformedKeyDBS               (const value : TFRE_DB_String ; const update_key : boolean); virtual ;
+    //procedure      SetTranformedKeyDBS               (const value : TFRE_DB_String ; const update_key : boolean ; const is_null_value : Boolean); virtual ;
+
     function       FetchIndexedValsTransformedKey    (var obj : TFRE_DB_ObjectArray):boolean;
-    procedure      TransformToBinaryComparable       (fld:TFRE_DB_FIELD ; const update_key : boolean); virtual; abstract;
+    procedure      TransformToBinaryComparable       (fld:TFRE_DB_FIELD ; const update_key : boolean ; const is_null_value : Boolean); virtual; abstract;
     function       CompareTransformedKeyAndUpdateKey : boolean;
     procedure      StreamToThis                      (const stream: TStream);virtual;
     procedure      StreamIndex                       (const stream: TStream);virtual;
     procedure      LoadIndex                         (const stream: TStream ; const coll : IFRE_DB_PERSISTANCE_COLLECTION);virtual;
     class function CreateFromStream                  (const stream: TStream ; const coll : IFRE_DB_PERSISTANCE_COLLECTION):TFRE_DB_MM_Index;
   public
-    constructor Create                               (const idx_name,fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION);
+    constructor Create                               (const idx_name,fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null : boolean);
     function    Indexname                            : TFRE_DB_NameType;
     function    Uniquename                           : PFRE_DB_NameType;
     procedure   FieldTypeIndexCompatCheck            (fld:TFRE_DB_FIELD); virtual; abstract;
@@ -108,19 +116,37 @@ type
     procedure   IndexDelCheck                        (const obj             : TFRE_DB_Object; const check_only : boolean ; const use_already_transformed_key:boolean); virtual;
     function    SupportsDataType                     (const typ : TFRE_DB_FIELDTYPE):boolean; virtual ; abstract;
     function    IsUnique                             : Boolean;
+    procedure   ForAllIndexed                        (const func: IFRE_DB_Obj_Iterator ; const ascending:boolean);
+    function    IndexTypeTxt                         : String ; virtual; abstract;
   end;
 
 
   { TFRE_DB_UnsignedIndex }
 
   TFRE_DB_UnsignedIndex=class(TFRE_DB_MM_Index)
-    constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION);
+  private
+  public
+    procedure   TransformToBinaryComparable (fld:TFRE_DB_FIELD ; const update_key : boolean ; const is_null_value : Boolean); override;
+    procedure   SetBinaryComparableKey      (const keyvalue:qword ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean);
+    constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null:boolean);
+    procedure   FieldTypeIndexCompatCheck   (fld:TFRE_DB_FIELD ); override;
+    function    SupportsDataType            (const typ: TFRE_DB_FIELDTYPE): boolean; override;
+    function    IndexTypeTxt                : String; override;
+    procedure   ForAllIndexedUnsignedRange  (const min, max: QWord; const func: IFRE_DB_Obj_IteratorBreak; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0);
   end;
 
   { TFRE_DB_SignedIndex }
 
   TFRE_DB_SignedIndex=class(TFRE_DB_MM_Index)
-    constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION);
+  private
+  public
+    procedure   TransformToBinaryComparable (fld:TFRE_DB_FIELD ; const update_key : boolean ; const is_null_value : Boolean); override;
+    procedure   SetBinaryComparableKey      (const keyvalue:int64 ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean);
+    constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null:boolean);
+    procedure   FieldTypeIndexCompatCheck   (fld:TFRE_DB_FIELD ); override;
+    function    SupportsDataType            (const typ: TFRE_DB_FIELDTYPE): boolean; override;
+    function    IndexTypeTxt                : String; override;
+    procedure   ForAllIndexedSignedRange    (const min, max: int64; const func: IFRE_DB_Obj_IteratorBreak; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0);
   end;
 
   { TFRE_DB_TextIndex }
@@ -129,14 +155,18 @@ type
   private
     FCaseInsensitive : Boolean;
   protected
-    procedure   SetTranformedKeyDBS         (const value : TFRE_DB_String ; const update_key : boolean); override ;
+    procedure   SetTranformedKeyDBS         (const value : TFRE_DB_String ; const update_key : boolean ; const is_null_value : Boolean);
+    procedure   SetBinaryComparableKey      (const keyvalue : TFRE_DB_String ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean);
     procedure   StreamToThis                (const stream: TStream);override;
   public
-    constructor Create                      (const idx_name,fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique, case_insensitive : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION);
-    constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION);
+    constructor Create                      (const idx_name,fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique, case_insensitive : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null : boolean);
+    constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null : boolean);
     procedure   FieldTypeIndexCompatCheck   (fld:TFRE_DB_FIELD ); override;
-    procedure   TransformToBinaryComparable (fld:TFRE_DB_FIELD ; const update_key : boolean); override;
+    procedure   TransformToBinaryComparable (fld:TFRE_DB_FIELD ; const update_key : boolean ; const is_null_value : Boolean); override;
     function    SupportsDataType            (const typ: TFRE_DB_FIELDTYPE): boolean; override;
+    function    IndexTypeTxt                : String; override;
+    function    ForAllIndexedTextRange      (const min, max: TFRE_DB_String; const func: IFRE_DB_Obj_IteratorBreak; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0):boolean;
+    function    ForAllIndexPrefixString     (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0):boolean;
   end;
 
   { TFRE_DB_Persistance_Collection }
@@ -188,7 +218,7 @@ type
     procedure   ForAllItems        (const iter    : TFRE_DB_Obj_Iterator); // must allow modification of collection // clones out
     function    ForAllitemsBreak   (const func    : TFRE_DB_Obj_IteratorBreak):boolean;
 
-    function    Store              (var   new_obj : TFRE_DB_Object ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
+    function    Store              (var   new_obj : TFRE_DB_Object ; var error_text : String ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
     function    Delete             (const ouid    : TGUID          ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
 
     function    Fetch              (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
@@ -196,11 +226,17 @@ type
     function    First              : TFRE_DB_Object;
     function    Last               : TFRE_DB_Object;
     function    GetItem            (const num:uint64) : TFRE_DB_Object;
-    function    DefineIndexOnField (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType): TFRE_DB_Errortype;
+    function    DefineIndexOnField (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true): TFRE_DB_Errortype;
     function    GetIndexedObj      (const query_value : TFRE_DB_String   ; out   obj       : TFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function    GetIndexedObj      (const query_value : TFRE_DB_String   ; out   obj       : TFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
-    function    GetIndexedUID      (const query_value: TFRE_DB_String    ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
-    function    GetIndexedUID      (const query_value: TFRE_DB_String    ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
+    function    GetIndexedUID      (const query_value : TFRE_DB_String    ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
+    function    GetIndexedUID      (const query_value : TFRE_DB_String    ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
+    procedure   ForAllIndexed      (const func:IFRE_DB_Obj_Iterator ;const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
+
+    procedure   ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure   ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure   ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure   ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
     procedure   CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean);
   end;
@@ -499,16 +535,231 @@ end;
 
 { TFRE_DB_SignedIndex }
 
-constructor TFRE_DB_SignedIndex.CreateStreamed(const stream: TStream; const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION);
+procedure TFRE_DB_SignedIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const update_key: boolean; const is_null_value: Boolean);
+var val : Int64;
+begin
+  if not is_null_value then
+    val := fld.AsInt64
+  else
+    val := 0;
+  if not update_key then
+    SetBinaryComparableKey(val,transkey,transkeylen,is_null_value)
+  else
+    SetBinaryComparableKey(val,updtranskey,updtranskeylen,is_null_value);
+end;
+
+procedure TFRE_DB_SignedIndex.SetBinaryComparableKey(const keyvalue: int64; const key_target: PByte; var key_len: NativeInt; const is_null: boolean);
+begin
+  if not is_null then
+    begin
+      key_len := FFixedKeylen+1;
+      case FFixedKeylen of
+         2: PSmallInt(@key_target[1])^ := SwapEndian(SmallInt(keyvalue));
+         4: PInteger(@key_target[1])^  := SwapEndian(Integer(keyvalue));
+         8: PInt64(@key_target[1])^    := SwapEndian(keyvalue);
+        else
+          raise EFRE_DB_Exception.Create(edb_UNSUPPORTED,'unsupported fixed length in index transform to binary comparable');
+      end;
+      key_target[1] := key_target[1] xor 128;
+      key_target[0]:=1; // 0 , val , -val are ordered after NULL values which are prefixed by '0' not by '1'
+    end
+  else
+    begin
+      FillByte(key_target[0],key_len,0);
+    end;
+end;
+
+constructor TFRE_DB_SignedIndex.CreateStreamed(const stream: TStream; const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION; const allow_null: boolean);
 begin
   abort;
 end;
 
+procedure TFRE_DB_SignedIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD);
+begin
+  if not SupportsDataType(fld.FieldType) then
+    raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the signed index can only be used to index a signed number field, not a [%s] field.',[fld.FieldTypeAsString])
+end;
+
+function TFRE_DB_SignedIndex.SupportsDataType(const typ: TFRE_DB_FIELDTYPE): boolean;
+begin
+  case typ of
+    fdbft_Int16,
+    fdbft_Int32,
+    fdbft_Int64,
+    fdbft_DateTimeUTC,
+    fdbft_Currency: result := true;
+    else result := false;
+  end;
+end;
+
+function TFRE_DB_SignedIndex.IndexTypeTxt: String;
+begin
+  result := 'signed'
+end;
+
+procedure TFRE_DB_SignedIndex.ForAllIndexedSignedRange(const min, max: int64; const func: IFRE_DB_Obj_IteratorBreak; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0);
+var lokey,hikey       : Array [0..8] of Byte;
+    lokeylen,hikeylen : NativeInt;
+    lokeyp,hikeyp     : PByte;
+
+   procedure IteratorBreak(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean);
+   begin
+     (FREDB_PtrUIntToObject(value) as TFRE_DB_IndexValueStore).ForAllBreak(func,ascending,break);
+   end;
+
+begin
+  if not min_is_null then
+    begin
+      SetBinaryComparableKey(min,@lokey,lokeylen,min_is_null);
+      lokeyp := lokey;
+    end
+  else
+    lokeyp := nil;
+  if not max_is_max then
+    begin
+      SetBinaryComparableKey(max,@hikey,hikeylen,max_is_max);
+      hikeyp := hikey;
+    end
+  else
+    hikeyp := nil;
+  FIndex.RangeScan(lokeyp,hikeyp,lokeylen,hikeylen,@IteratorBreak,max_count,skipfirst,ascending)
+end;
+
 { TFRE_DB_UnsignedIndex }
 
-constructor TFRE_DB_UnsignedIndex.CreateStreamed(const stream: TStream; const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION);
+procedure TFRE_DB_UnsignedIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const update_key: boolean; const is_null_value: Boolean);
+var val    : Qword;
+    guid   : TGuid;
+begin
+  if (not is_null_value) and (fld.FieldType=fdbft_GUID) then
+    begin
+      guid   := fld.AsGUID;
+    end;
+  if (not is_null_value) and (fld.FieldType=fdbft_ObjLink) then
+    begin
+      guid   := fld.AsObjectLink;
+    end;
+  if FFixedKeylen=16 then
+    begin
+      if not is_null_value then
+        if not update_key then
+          begin
+            move(guid,transkey,sizeof(tguid));
+            transkeylen:=16;
+          end
+        else
+          begin
+            move(guid,updtranskey,sizeof(tguid));
+            updtranskeylen:=16;
+          end
+      else
+        if not update_key then
+          begin
+            FillByte(transkey,17,0);
+            transkeylen:=17;
+          end
+        else
+          begin
+            FillByte(updtranskey,17,0);
+            updtranskeylen:=17;
+          end
+      end
+    else
+      begin
+        if not is_null_value then
+          val := fld.AsUInt64
+        else
+          val := 0;
+        if not update_key then
+          SetBinaryComparableKey(val,transkey,transkeylen,is_null_value)
+        else
+          SetBinaryComparableKey(val,transkey,transkeylen,is_null_value)
+      end;
+end;
+
+procedure TFRE_DB_UnsignedIndex.SetBinaryComparableKey(const keyvalue: qword; const key_target: PByte; var key_len: NativeInt; const is_null: boolean);
+begin
+  if not is_null then
+    begin
+      key_len := FFixedKeylen+1;
+      case FFixedKeylen of
+          1: PByte(@key_target[1])^     := Byte(keyvalue);
+          2: PWord(@key_target[1])^     := SwapEndian(Word(keyvalue));
+          4: PCardinal(@key_target[1])^ := SwapEndian(Cardinal(keyvalue));
+          8: PQWord(@key_target[1])^    := SwapEndian(keyvalue);
+        else
+          raise EFRE_DB_Exception.Create(edb_UNSUPPORTED,'unsupported fixed length in index transform to binary comparable');
+      end;
+      key_target[0] := 1; // 0 , val are ordered after NULL values which are prefixed by '0' not by '1'
+    end
+  else
+    begin
+      FillByte(key_target[0],key_len,0);
+    end;
+end;
+
+constructor TFRE_DB_UnsignedIndex.CreateStreamed(const stream: TStream; const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION; const allow_null: boolean);
 begin
   abort;
+end;
+
+procedure TFRE_DB_UnsignedIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD);
+begin
+  if not SupportsDataType(fld.FieldType) then
+    raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the unsigned index can only be used to index a unsigned number field, not a [%s] field.',[fld.FieldTypeAsString])
+end;
+
+function TFRE_DB_UnsignedIndex.SupportsDataType(const typ: TFRE_DB_FIELDTYPE): boolean;
+begin
+  case typ of
+    fdbft_Byte,
+    fdbft_UInt16,
+    fdbft_UInt32,
+    fdbft_UInt64,
+    fdbft_Boolean,
+    fdbft_GUID,
+    fdbft_ObjLink,
+    fdbft_DateTimeUTC: result := true;
+    else result := false;
+  end;
+end;
+
+function TFRE_DB_UnsignedIndex.IndexTypeTxt: String;
+begin
+  if FFixedKeylen=16 then
+    result := 'uid/objectlink'
+  else
+    result := 'unsigned';
+end;
+
+procedure TFRE_DB_UnsignedIndex.ForAllIndexedUnsignedRange(const min, max: QWord; const func: IFRE_DB_Obj_IteratorBreak; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var lokey,hikey       : Array [0..8] of Byte;
+    lokeylen,hikeylen : NativeInt;
+    lokeyp,hikeyp     : PByte;
+
+   procedure IteratorBreak(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean);
+   begin
+     (FREDB_PtrUIntToObject(value) as TFRE_DB_IndexValueStore).ForAllBreak(func,ascending,break);
+   end;
+
+begin
+  if FFixedKeylen = 16 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'no range queries on an uid or objectlink index are allowed');
+  if not min_is_null then
+    begin
+      SetBinaryComparableKey(min,@lokey,lokeylen,min_is_null);
+      lokeyp := lokey;
+    end
+  else
+    lokeyp := nil;
+  if not max_is_max then
+    begin
+      SetBinaryComparableKey(max,@hikey,hikeylen,max_is_max);
+      hikeyp := hikey;
+    end
+  else
+    hikeyp := nil;
+  FIndex.RangeScan(lokeyp,hikeyp,lokeylen,hikeylen,@IteratorBreak,max_count,skipfirst,ascending)
 end;
 
 { TFRE_DB_ChangeStep }
@@ -1590,6 +1841,64 @@ begin
     end;
 end;
 
+procedure TFRE_DB_IndexValueStore.ForAll(const func: IFRE_DB_Obj_Iterator; const ascending: boolean);
+var i   : NativeInt;
+    obj : TFRE_DB_Object;
+
+    procedure CloneOutIndex(const idx : NativeInt);
+    begin
+      obj := FOBJArray[i];
+      obj.Assert_CheckStoreLocked;
+      obj.Set_Store_Locked(false);
+      try
+        func(obj.CloneToNewObject());
+      finally
+        obj.Set_Store_Locked(true);
+      end;
+    end;
+
+begin
+  if ascending then
+    for i := 0 to High(FOBJArray) do
+      CloneOutIndex(i)
+  else
+    for i := High(FOBJArray) downto 0 do
+      CloneOutIndex(i);
+end;
+
+procedure TFRE_DB_IndexValueStore.ForAllBreak(const func: IFRE_DB_Obj_IteratorBreak; const ascending: boolean; var halt: boolean);
+var i    : NativeInt;
+    obj  : TFRE_DB_Object;
+
+    procedure CloneOutIndex(const idx : NativeInt ; var halt:boolean);
+    begin
+      obj := FOBJArray[i];
+      obj.Assert_CheckStoreLocked;
+      obj.Set_Store_Locked(false);
+      try
+        halt := func(obj.CloneToNewObject());
+      finally
+        obj.Set_Store_Locked(true);
+      end;
+    end;
+
+begin
+  if ascending then
+    for i := 0 to High(FOBJArray) do
+      begin
+        CloneOutIndex(i,halt);
+        if halt then
+            break;
+      end
+  else
+    for i := High(FOBJArray) downto 0 do
+      begin
+        CloneOutIndex(i,halt);
+        if halt then
+            break;
+      end;
+end;
+
 { TFRE_DB_Master_Data }
 
 
@@ -1597,7 +1906,7 @@ function TFRE_DB_Master_Data.GetOutBoundRefLinks(const from_obj: TGUID): TFRE_DB
 var key : RFRE_DB_GUID_RefLink_Out_Key;
     cnt : NativeInt;
 
-   procedure Iterate(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
+   procedure Iterate(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var halt : boolean);
    var encap   : TREF_LinkEncapsulation;
        namelen : NativeInt;
    begin
@@ -1625,7 +1934,7 @@ function TFRE_DB_Master_Data.GetInboundLinks(const to_obj: TGUID): TFRE_DB_Objec
 var key : RFRE_DB_GUID_RefLink_In_Key;
     cnt : NativeInt;
 
-   procedure Iterate(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
+   procedure Iterate(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var halt : boolean);
    var namelen : NativeInt;
    begin
      if cnt=Length(result) then
@@ -1652,7 +1961,7 @@ end;
 function TFRE_DB_Master_Data.GetOutBoundRefLinksCount(const from_obj: TGUID): NativeInt;
 var key : RFRE_DB_GUID_RefLink_Out_Key;
 
-   procedure Iterate(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
+   procedure Iterate(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var halt : boolean);
    begin
      inc(result);
    end;
@@ -1667,7 +1976,7 @@ end;
 function TFRE_DB_Master_Data.GetInboundLinksCount(const to_obj: TGUID): NativeInt;
 var key : RFRE_DB_GUID_RefLink_In_Key;
 
-   procedure Iterate(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
+   procedure Iterate(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var halt : boolean);
    begin
      inc(result);
    end;
@@ -1691,7 +2000,7 @@ begin
       if not FetchObject(list[j],ref_obj,true) then
         raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(list[j])]);
       if obj.IsVolatile or obj.IsSystem then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s) to obj(%s) : the linked object is volatile or system!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(list[j])]);
+        raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the linking object is volatile or system!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(list[j])]);
     end;
 end;
 
@@ -2151,12 +2460,29 @@ end;
 
 { TFRE_DB_TextIndex }
 
-procedure TFRE_DB_TextIndex.SetTranformedKeyDBS(const value: TFRE_DB_String; const update_key: boolean);
+procedure TFRE_DB_TextIndex.SetTranformedKeyDBS(const value: TFRE_DB_String; const update_key: boolean; const is_null_value: Boolean);
+begin
+  if not update_key then
+    SetBinaryComparableKey(value,@transkey,transkeylen,is_null_value)
+  else
+    SetBinaryComparableKey(value,@updtranskey,updtranskeylen,is_null_value)
+end;
+
+procedure TFRE_DB_TextIndex.SetBinaryComparableKey(const keyvalue: TFRE_DB_String; const key_target: PByte; var key_len: NativeInt; const is_null: boolean);
+var str : TFRE_DB_String;
 begin
   if FCaseInsensitive then
-    inherited SetTranformedKeyDBS(UpperCase(value),update_key)
+    str := UpperCase(keyvalue)
   else
-    inherited SetTranformedKeyDBS(value,update_key);
+    str := keyvalue;
+  str := #1+str;
+  if is_null then
+    str := #0#0
+  else
+    if str=#1 then
+      str := #0#1;
+  key_len := Length(str);
+  Move(str[1],key_target^,key_len);
 end;
 
 procedure TFRE_DB_TextIndex.StreamToThis(const stream: TStream);
@@ -2169,17 +2495,17 @@ begin
   StreamIndex(stream);
 end;
 
-constructor TFRE_DB_TextIndex.Create(const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique, case_insensitive: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION);
+constructor TFRE_DB_TextIndex.Create(const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique, case_insensitive: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION; const allow_null: boolean);
 begin
-  inherited Create(idx_name,fieldname,fieldtype,unique,collection);
+  inherited Create(idx_name,fieldname,fieldtype,unique,collection,allow_null);
   FCaseInsensitive := case_insensitive;
 end;
 
-constructor TFRE_DB_TextIndex.CreateStreamed(const stream: TStream; const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION);
+constructor TFRE_DB_TextIndex.CreateStreamed(const stream: TStream; const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION;const allow_null : boolean);
 var ci : Boolean;
 begin
   ci := stream.ReadByte=1;
-  Create(idx_name,fieldname,fieldtype,unique,ci,collection);
+  Create(idx_name,fieldname,fieldtype,unique,ci,collection,allow_null);
   LoadIndex(stream,collection);
 end;
 
@@ -2190,9 +2516,17 @@ begin
     raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the text index can only be used to index a string field, not a [%s] field. Maybe use a calculated field with results a string field',[fld.FieldTypeAsString])
 end;
 
-procedure TFRE_DB_TextIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const update_key: boolean);
+procedure TFRE_DB_TextIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const update_key: boolean ;  const is_null_value : Boolean);
+var val : TFRE_DB_String;
 begin
-  SetTranformedKeyDBS(fld.AsString,update_key);
+  if not is_null_value then
+    val := fld.AsString
+  else
+    val := '';
+  if not update_key then
+    SetBinaryComparableKey(val,@transkey,transkeylen,is_null_value)
+  else
+    SetBinaryComparableKey(val,@updtranskey,updtranskeylen,is_null_value)
 end;
 
 function TFRE_DB_TextIndex.SupportsDataType(const typ: TFRE_DB_FIELDTYPE): boolean;
@@ -2203,10 +2537,55 @@ begin
     exit(false)
 end;
 
+function TFRE_DB_TextIndex.IndexTypeTxt: String;
+begin
+  result := 'text';
+end;
+
+function TFRE_DB_TextIndex.ForAllIndexedTextRange(const min, max: TFRE_DB_String; const func: IFRE_DB_Obj_IteratorBreak; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt): boolean;
+var lokey,hikey       : Array [0..8] of Byte;
+    lokeylen,hikeylen : NativeInt;
+    lokeyp,hikeyp     : PByte;
+
+   procedure IteratorBreak(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean);
+   begin
+     (FREDB_PtrUIntToObject(value) as TFRE_DB_IndexValueStore).ForAllBreak(func,ascending,break);
+   end;
+
+begin
+  if not min_is_null then
+    begin
+      SetBinaryComparableKey(min,@lokey,lokeylen,min_is_null);
+      lokeyp := lokey;
+    end
+  else
+    lokeyp := nil;
+  if not max_is_max then
+    begin
+      SetBinaryComparableKey(max,@hikey,hikeylen,max_is_max);
+      hikeyp := hikey;
+    end
+  else
+    hikeyp := nil;
+  result := FIndex.RangeScan(lokeyp,hikeyp,lokeylen,hikeylen,@IteratorBreak,max_count,skipfirst,ascending)
+end;
+
+function TFRE_DB_TextIndex.ForAllIndexPrefixString(const prefix: TFRE_DB_String; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt): boolean;
+var keylen : NativeInt;
+   procedure IteratorBreak(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean);
+   begin
+     (FREDB_PtrUIntToObject(value) as TFRE_DB_IndexValueStore).ForAllBreak(iterator,ascending,break);
+   end;
+
+begin
+  SetBinaryComparableKey(prefix,@transkey,keylen,false);
+  result := FIndex.PrefixScan(@transkey,keylen,@IteratorBreak);
+end;
+
 
 { TFRE_DB_MM_Index }
 
-constructor TFRE_DB_MM_Index.Create(const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION);
+constructor TFRE_DB_MM_Index.Create(const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION; const allow_null: boolean);
 begin
   FIndex           := TFRE_ART_TREE.Create;
   FIndexName       := idx_name;
@@ -2217,6 +2596,26 @@ begin
   FFieldType       := fieldtype;
   FUnique          := unique;
   FCollection      := collection;
+  FAllowNull       := allow_null;
+  case fieldtype of
+    fdbft_GUID,
+    fdbft_ObjLink:      FFixedKeylen := 16;
+    fdbft_Byte:         FFixedKeylen := 1;
+    fdbft_Int16:        FFixedKeylen := 2;
+    fdbft_UInt16:       FFixedKeylen := 2;
+    fdbft_Int32:        FFixedKeylen := 4;
+    fdbft_UInt32:       FFixedKeylen := 4;
+    fdbft_Int64:        FFixedKeylen := 8;
+    fdbft_UInt64:       FFixedKeylen := 8;
+    //fdbft_Real32:       FFixedKeylen := 4;
+    //fdbft_Real64:       FFixedKeylen := 8;
+    fdbft_Currency:     FFixedKeylen := 8;
+    fdbft_String:       FFixedKeylen := 8;
+    fdbft_Boolean:      FFixedKeylen := 1;
+    fdbft_DateTimeUTC:  FFixedKeylen := 8;
+    else
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'unssoported fieldtype for index '+CFRE_DB_FIELDTYPE[fieldtype]);
+  end;
 end;
 
 function TFRE_DB_MM_Index.Indexname: TFRE_DB_NameType;
@@ -2233,19 +2632,23 @@ procedure TFRE_DB_MM_Index.IndexAddCheck(const obj: TFRE_DB_Object; const check_
 var fld          : TFRE_DB_FIELD;
     dummy        : NativeUint;
     values       : TFRE_DB_IndexValueStore;
+    isNullVal    : boolean;
+    s            : string;
 begin
   if not use_already_transformed_key then
     begin
-      if not obj.FieldOnlyExisting(FFieldname,fld) then
-        raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(obj.UID)]);
-      FieldTypeIndexCompatCheck(fld);
-      TransformtoBinaryComparable(fld,false);
+      isNullVal := not obj.FieldOnlyExisting(FFieldname,fld);
+      //if not obj.FieldOnlyExisting(FFieldname,fld) then
+      //  raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(obj.UID)]);
+      if not isNullVal then
+        FieldTypeIndexCompatCheck(fld);
+      TransformtoBinaryComparable(fld,false,isNullVal);
     end;
   if check_only then
       if FIndex.ExistsBinaryKey(@transkey,transkeylen,dummy) then
         begin
           if FUnique then
-            raise EFRE_DB_Exception.Create(edb_EXISTS,'for the unique index [%s/%s/%s] the key already exists [%s]',[FCollection.CollectionName(false),FIndexName,FFieldname,GetStringRepresentationOfTransientKey])
+            raise EFRE_DB_Exception.Create(edb_EXISTS,'for the unique index [%s/%s/%s] the key already exists [ %s]',[FCollection.CollectionName(false),FIndexName,FFieldname,GetStringRepresentationOfTransientKey])
           else
             begin
               values := FREDB_PtrUIntToObject(dummy) as TFRE_DB_IndexValueStore;
@@ -2260,10 +2663,12 @@ begin
     begin
       values := TFRE_DB_IndexValueStore.Create;
       dummy    := FREDB_ObjectToPtrUInt(values);
-      if FIndex.InsertBinaryKey(@transkey,transkeylen,dummy) then
+      s := PChar(@transkey[0])^+PChar(@transkey[1])^+PChar(@transkey[2])^+PChar(@transkey[3])^;
+      if FIndex.InsertBinaryKeyOrFetch(@transkey,transkeylen,dummy) then
         begin
           if not FIndex.ExistsBinaryKey(@transkey,transkeylen,dummy) then
             begin
+              FIndex.InsertBinaryKey(@transkey,transkeylen,dummy);
               abort;
               FIndex.InsertBinaryKey(@transkey,transkeylen,dummy);
             end;
@@ -2287,15 +2692,17 @@ procedure TFRE_DB_MM_Index.IndexUpdCheck(const new_obj, old_obj: TFRE_DB_Object;
 var oldfld,newfld : TFRE_DB_FIELD;
     dummy         : NativeUint;
     values        : TFRE_DB_IndexValueStore;
+    isNullValue   : boolean;
 begin
   if not use_already_transformed_key then
     begin
       old_obj.FieldOnlyExisting(FFieldname,oldfld);
-      if not new_obj.FieldOnlyExisting(FFieldname,newfld) then
-        raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(new_obj.UID)]);
+      isNullValue := new_obj.FieldOnlyExisting(FFieldname,newfld);
+      //if not new_obj.FieldOnlyExisting(FFieldname,newfld) then
+      //  raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(new_obj.UID)]);
       FieldTypeIndexCompatCheck(newfld);
-      TransformtoBinaryComparable(oldfld,false);
-      TransformtoBinaryComparable(newfld,true);
+      TransformtoBinaryComparable(oldfld,false,isNullValue);
+      TransformtoBinaryComparable(newfld,true,isNullValue);
       FUpdateKeySame := CompareTransformedKeyAndUpdateKey;
     end;
   if check_only then
@@ -2322,7 +2729,7 @@ begin
       abort;
       values := TFRE_DB_IndexValueStore.Create;
       dummy    := FREDB_ObjectToPtrUInt(values);
-      if FIndex.InsertBinaryKey(@transkey,transkeylen,dummy) then
+      if FIndex.InsertBinaryKeyOrFetch(@transkey,transkeylen,dummy) then
         begin
           if not FIndex.ExistsBinaryKey(@transkey,transkeylen,dummy) then
             abort;
@@ -2344,7 +2751,7 @@ end;
 
 procedure TFRE_DB_MM_Index.IndexDelCheck(const obj: TFRE_DB_Object; const check_only: boolean; const use_already_transformed_key: boolean);
 begin
-
+  abort;
 end;
 
 function TFRE_DB_MM_Index.IsUnique: Boolean;
@@ -2352,26 +2759,25 @@ begin
   result := FUnique;
 end;
 
-function TFRE_DB_MM_Index.GetStringRepresentationOfTransientKey: String;
+procedure TFRE_DB_MM_Index.ForAllIndexed(const func: IFRE_DB_Obj_Iterator; const ascending: boolean);
+
+  procedure NodeProc(var value : QWord);
+  begin
+    (FREDB_PtrUIntToObject(value) as TFRE_DB_IndexValueStore).ForAll(func,ascending);
+  end;
+
 begin
-  SetLength(result,transkeylen);
-  move(transkey,result[1],transkeylen);
+  if ascending then
+    FIndex.LinearScan(@NodeProc)
+  else
+    FIndex.LinearScan(@NodeProc,true);
 end;
 
-procedure TFRE_DB_MM_Index.SetTranformedKeyDBS(const value: TFRE_DB_String; const update_key: boolean);
+function TFRE_DB_MM_Index.GetStringRepresentationOfTransientKey: String;
 begin
-  if not update_key then
-    begin
-      FillByte(transkey,Length(transkey),0);
-      transkeylen := Length(value);
-      Move(value[1],transkey[0],transkeylen);
-    end
-  else
-    begin
-      FillByte(transkey,Length(transkey),0);
-      updtranskeylen := Length(value);
-      Move(value[1],updtranskey[0],updtranskeylen);
-    end
+  result := GFRE_BT.Dump_Binary(@transkey[0],transkeylen,true,false);
+  //SetLength(result,transkeylen);
+  //move(transkey,result[1],transkeylen);
 end;
 
 function TFRE_DB_MM_Index.FetchIndexedValsTransformedKey(var obj: TFRE_DB_ObjectArray): boolean;
@@ -2401,7 +2807,11 @@ begin
   if FUnique then
     stream.WriteByte(1)
   else
-    stream.WriteByte(0)
+    stream.WriteByte(0);
+  if FAllowNull then
+    stream.WriteByte(1)
+  else
+    stream.WriteByte(0);
 end;
 
 procedure TFRE_DB_MM_Index.StreamIndex(const stream: TStream);
@@ -2447,17 +2857,19 @@ var
     cn,idxn,fieldn : String;
     ft             : TFRE_DB_FIELDTYPE;
     unique         : boolean;
+    allownull      : boolean;
 
 begin
-  cn     := stream.ReadAnsiString;
-  idxn   := stream.ReadAnsiString;
-  fieldn := stream.ReadAnsiString;
-  ft     := FREDB_FieldtypeShortString2Fieldtype(stream.ReadAnsiString);
-  unique := stream.ReadByte=1;
+  cn        := stream.ReadAnsiString;
+  idxn      := stream.ReadAnsiString;
+  fieldn    := stream.ReadAnsiString;
+  ft        := FREDB_FieldtypeShortString2Fieldtype(stream.ReadAnsiString);
+  unique    := stream.ReadByte=1;
+  allownull := stream.ReadByte=1;
   case cn of
-    'TFRE_DB_TextIndex'     : result := TFRE_DB_TextIndex.CreateStreamed(stream,idxn,fieldn,ft,unique,coll);
-    'TFRE_DB_SignedIndex'   : result := TFRE_DB_SignedIndex.CreateStreamed(stream,idxn,fieldn,ft,unique,coll);
-    'TFRE_DB_UnsignedIndex' : result := TFRE_DB_UnsignedIndex.CreateStreamed(stream,idxn,fieldn,ft,unique,coll);
+    'TFRE_DB_TextIndex'     : result := TFRE_DB_TextIndex.CreateStreamed(stream,idxn,fieldn,ft,unique,coll,allownull);
+    'TFRE_DB_SignedIndex'   : result := TFRE_DB_SignedIndex.CreateStreamed(stream,idxn,fieldn,ft,unique,coll,allownull);
+    'TFRE_DB_UnsignedIndex' : result := TFRE_DB_UnsignedIndex.CreateStreamed(stream,idxn,fieldn,ft,unique,coll,allownull);
     else
       raise EFRE_DB_Exception.Create(edb_ERROR,'Unsupported streaming index class [%s]',[cn]);
   end;
@@ -2645,11 +3057,11 @@ begin
   result := FGuidObjStore.LinearScanBreak(@ForAll);
 end;
 
-function TFRE_DB_Persistance_Collection.Store(var new_obj: TFRE_DB_Object; var ncolls: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_Persistance_Collection.Store(var new_obj: TFRE_DB_Object; var error_text: String; var ncolls: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin
    if FVolatile then
     new_obj.Set_Volatile;
-  result := FLayer.StoreOrUpdateObject(new_obj,FName,true,ncolls);
+  result := FLayer.StoreOrUpdateObject(new_obj,FName,true,ncolls,error_text);
 end;
 
 // An object is allowed only once in a collection, but can be stored in multiple collections
@@ -2728,7 +3140,7 @@ begin
   inobj.Set_Store_Locked(false);
   try
    if Length(inobj.__InternalGetCollectionList)<1 then
-     abort;;
+     raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
    result := inobj.CloneToNewObject;
    if result = inobj then
      abort;
@@ -2878,20 +3290,24 @@ begin
   abort;
 end;
 
-function TFRE_DB_Persistance_Collection.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType): TFRE_DB_Errortype;
+function TFRE_DB_Persistance_Collection.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean): TFRE_DB_Errortype;
 var index    : TFRE_DB_MM_Index;
 begin
+  if Count>0 then
+    exit(edb_UNSUPPORTED); // has already entries
+  result := edb_OK;
   if IndexExists(index_name)>=0 then
     exit(edb_EXISTS);
   case FieldType of
     fdbft_GUID,
+    fdbft_ObjLink,
     fdbft_Boolean,
     fdbft_Byte,
     fdbft_UInt16,
     fdbft_UInt32,
     fdbft_UInt64 :
       begin
-        index := TFRE_DB_UnsignedIndex.Create(index_name,fieldname,fieldtype,unique,self);
+        index := TFRE_DB_UnsignedIndex.Create(index_name,fieldname,fieldtype,unique,self,allow_null_value);
       end;
     fdbft_Int16,    // invert Sign bit by xor (1 shl (bits-1)), then swap endian
     fdbft_Int32,
@@ -2899,18 +3315,16 @@ begin
     fdbft_Currency, // = int64*10000;
     fdbft_DateTimeUTC:
       begin
-        index := TFRE_DB_SignedIndex.Create(index_name,fieldname,fieldtype,unique,self);
+        index := TFRE_DB_SignedIndex.Create(index_name,fieldname,fieldtype,unique,self,allow_null_value);
       end;
     //fdbft_Real32: ;
     //fdbft_Real64: ;
     fdbft_String:
       begin
-        index := TFRE_DB_TextIndex.Create(index_name,FieldName,FieldType,unique,ignore_content_case,self);
+        index := TFRE_DB_TextIndex.Create(index_name,FieldName,FieldType,unique,ignore_content_case,self,allow_null_value);
       end;
     //fdbft_Stream: ;
     //fdbft_Object: ;
-    //fdbft_ObjLink: ;
-    //fdbft_CalcField: ;
     else exit(edb_UNSUPPORTED);
   end;
   AddIndex(index);
@@ -2969,7 +3383,8 @@ begin
        raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] is not unique you must not use a point query',[index_name]);
   if not index.SupportsDataType(fdbft_String) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not support a query of [%s]',[index_name,CFRE_DB_FIELDTYPE[fdbft_String]]);
-  index.SetTranformedKeyDBS(query_value,false);
+
+  (index as TFRE_DB_TextIndex).SetTranformedKeyDBS(query_value,false,false);
   result := index.FetchIndexedValsTransformedKey(arr);
   if clone_out then
     obj := CloneOutArray(arr)
@@ -3007,6 +3422,69 @@ begin
   SetLength(obj_uid,Length(objarr));
   for i:=0 to high(objarr) do
     obj_uid[i] := objarr[i].UID;
+end;
+
+procedure TFRE_DB_Persistance_Collection.ForAllIndexed(const func: IFRE_DB_Obj_Iterator; const index_name: TFRE_DB_NameType; const ascending: boolean);
+var idx   : NativeInt;
+    index : TFRE_DB_MM_Index;
+begin
+  idx := IndexExists(index_name);
+  if idx=-1 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+  index := FIndexStore[idx];
+  index.ForAllIndexed(func,ascending);
+end;
+
+procedure TFRE_DB_Persistance_Collection.ForAllIndexedSignedRange(const min_value, max_value: int64; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var idx   : NativeInt;
+    index : TFRE_DB_MM_Index;
+begin
+  idx := IndexExists(index_name);
+  if idx=-1 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+  index := FIndexStore[idx];
+  if not (index is TFRE_DB_SignedIndex) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an signed query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
+  TFRE_DB_SignedIndex(index).ForAllIndexedSignedRange(min_value,max_value,iterator,ascending,min_is_null,max_is_max,max_count,skipfirst)
+end;
+
+procedure TFRE_DB_Persistance_Collection.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var idx   : NativeInt;
+    index : TFRE_DB_MM_Index;
+begin
+  idx := IndexExists(index_name);
+  if idx=-1 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+  index := FIndexStore[idx];
+  if not (index is TFRE_DB_UnsignedIndex) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an unsigned query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
+  TFRE_DB_UnsignedIndex(index).ForAllIndexedUnsignedRange(min_value,max_value,iterator,ascending,min_is_null,max_is_max,max_count,skipfirst)
+end;
+
+procedure TFRE_DB_Persistance_Collection.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var idx   : NativeInt;
+    index : TFRE_DB_MM_Index;
+begin
+  idx := IndexExists(index_name);
+  if idx=-1 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+  index := FIndexStore[idx];
+  if not (index is TFRE_DB_TextIndex) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an text query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
+  TFRE_DB_TextIndex(index).ForAllIndexedTextRange(min_value,max_value,iterator,ascending,min_is_null,max_is_max,max_count,skipfirst)
+end;
+
+procedure TFRE_DB_Persistance_Collection.ForAllIndexPrefixString(const prefix: TFRE_DB_String; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var idx   : NativeInt;
+    index : TFRE_DB_MM_Index;
+begin
+  idx := IndexExists(index_name);
+  if idx=-1 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+  index := FIndexStore[idx];
+  if not (index is TFRE_DB_TextIndex) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an text query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
+  TFRE_DB_TextIndex(index).ForAllIndexPrefixString(prefix,iterator,index_name,ascending,max_count,skipfirst);
 end;
 
 function TFRE_DB_Persistance_Collection.UniqueName: PFRE_DB_NameType;

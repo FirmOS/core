@@ -174,12 +174,14 @@ type
        procedure   ForAllLvlLeafs          (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_DUMP_PROC;const level:Nativeint);
        procedure   ForAllLvlLeafsAndInner  (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_DUMP_PROC;const level:Nativeint); // Head Recursion
 
-       procedure   ForAllNodeLeafs         (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC);
+       procedure   ForAllNodeLeafs         (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC ; var halt : boolean);
        procedure   ForAllLeafsAndInner     (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC);
        procedure   ForAllNodeLeafsRange    (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC ; var halt : boolean ; lmismatch, hmismatch : boolean ; const lo_key,hi_key: PByte ; depth : Nativeint);
+       procedure   ForAllNodeLeafsRangeReverse (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC ; var halt : boolean ; lmismatch, hmismatch : boolean ; const lo_key,hi_key: PByte ; depth : Nativeint);
 
 
        procedure   ForAllValue             (node: PFRE_ART_Node; const node_proc : TFRE_ART_NodeValueProc);
+       procedure   ForAllValueReverse      (node: PFRE_ART_Node; const node_proc : TFRE_ART_NodeValueProc);
        procedure   ForAllValueBreak        (node: PFRE_ART_Node; const node_proc : TFRE_ART_NodeValueBreakProc;var break:boolean);
        procedure   _InnerCheck             ;
      public
@@ -193,7 +195,7 @@ type
        function    InsertStringKeyOrFetch  (const key: string ; var   value  : PtrUInt):boolean;
        function    ExistsStringKey         (const key: String ; var   value: PtrUInt):boolean;
        function    RemoveStringKey         (const key: String ; var   value: PtrUInt):boolean;
-       procedure   LinearScan              (const nested_node_proc : TFRE_ART_NodeValueProc);
+       procedure   LinearScan              (const nested_node_proc : TFRE_ART_NodeValueProc;const desc : boolean=false);
        function    LinearScanBreak         (const nested_node_proc : TFRE_ART_NodeValueBreakProc):Boolean;
        procedure   LinearScanKeyVals       (const nested_node_proc : TFRE_ART_NodeCallback);
        function    FirstKeyVal             (const callback : TFRE_ART_NodeCallback):boolean;
@@ -202,9 +204,9 @@ type
        function    FirstKeyValString       (var key_string: String ; var out_val : PtrUInt) : Boolean;
        function    LastKeyValString        (var key_string: String ; var out_val : PtrUInt) : Boolean;
 
-       procedure   PrefixScan              (const prefix_key : PByte ; key_len : NativeUint ; const nested_node_proc : TFRE_ART_NodeCallback);
+       function    PrefixScan              (const prefix_key : PByte ; key_len : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback):boolean;
 
-       procedure   RangeScan               (const lo_key,hi_key: PByte; const lo_keylen,hi_keylen : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback ; const max_count : NativeInt=0);
+       function    RangeScan               (const lo_key,hi_key: PByte; const lo_keylen,hi_keylen : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback ; const max_count : NativeInt=0 ; skip : NativeInt=0 ; const asc : boolean=true):boolean;
        function    GetValueCount           : NativeUint;
      end;
 
@@ -292,7 +294,7 @@ var i,j     : integer;
   end;
 
   procedure PrefixTest;
-    procedure DumpPrefixScan(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
+    procedure DumpPrefixScan(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var halt:boolean);
     var s:String;
     begin
       SetLength(s,KeyLen);
@@ -513,27 +515,50 @@ begin
   end;
 end;
 
-procedure TFRE_ART_TREE.ForAllNodeLeafs(node: PFRE_ART_Node; const node_proc: TFRE_ART_NODE_PROC);
+procedure TFRE_ART_TREE.ForAllNodeLeafs(node: PFRE_ART_Node; const node_proc: TFRE_ART_NODE_PROC; var halt: boolean);
 var i:NativeInt;
 begin
-  if node=nil then exit;
+  if node=nil then
+    exit;
+  if halt then
+    exit;
   case node^.typ of
     artNodeType4:   with PFRE_ART_Node4(node)^ do
                       for i:=0 to node^.count-1 do
-                        ForAllNodeLeafs(child[i],node_proc);
+                        begin
+                          ForAllNodeLeafs(child[i],node_proc,halt);
+                          if halt then
+                            exit;
+                        end;
     artNodeType16:  with PFRE_ART_Node16(node)^ do
                       for i:=0 to node^.count-1 do
-                        ForAllNodeLeafs(child[i],node_proc);
+                        begin
+                          ForAllNodeLeafs(child[i],node_proc,halt);
+                          if halt then
+                            exit;
+                        end;
     artNodeType48:  with PFRE_ART_Node48(node)^ do
                       for i:=0 to 255 do
                         if childIndex[i]<>CFREA_slot_is_empty then
-                          ForAllNodeLeafs(child[childIndex[i]],node_proc);
+                          begin
+                            ForAllNodeLeafs(child[childIndex[i]],node_proc,halt);
+                            if halt then
+                              exit;
+                          end;
     artNodeType256: with PFRE_ART_Node256(node)^ do
                       for i:=0 to 255 do
                         if assigned(child[i]) then
-                          ForAllNodeLeafs(PFRE_ART_Node256(node)^.child[i],node_proc);
+                          begin
+                            ForAllNodeLeafs(PFRE_ART_Node256(node)^.child[i],node_proc,halt);
+                            if halt then
+                              exit;
+                          end;
     artNodeTypeLeaf:
-        node_proc(node);
+        begin
+          node_proc(node);
+          if halt then
+            exit;
+        end;
   end;
 end;
 
@@ -562,12 +587,13 @@ begin
   node_proc(node);
 end;
 
+//l,hmismatch the depth-1 key is different so dont compare this low, high value as it must be lower/higher ....(radix compare)
 procedure TFRE_ART_TREE.ForAllNodeLeafsRange(node: PFRE_ART_Node; const node_proc: TFRE_ART_NODE_PROC; var halt: boolean ; lmismatch, hmismatch : boolean ; const lo_key, hi_key: PByte; depth: Nativeint);
 var i:NativeInt;
 begin
   if halt then
     exit;
-  if PrefixMismatchAtByte(node,lo_key,CFREA_max_compressed_prefix,depth) <> node^.prefixLength then
+  if (not lmismatch) and (PrefixMismatchAtByte(node,lo_key,CFREA_max_compressed_prefix,depth) <> node^.prefixLength) then
     exit
   else
     depth := depth + node^.prefixLength;
@@ -621,6 +647,65 @@ begin
   end;
 end;
 
+procedure TFRE_ART_TREE.ForAllNodeLeafsRangeReverse(node: PFRE_ART_Node; const node_proc: TFRE_ART_NODE_PROC; var halt: boolean; lmismatch, hmismatch: boolean; const lo_key, hi_key: PByte; depth: Nativeint);
+var i:NativeInt;
+begin
+  if halt then
+    exit;
+  if (not lmismatch) and (PrefixMismatchAtByte(node,lo_key,CFREA_max_compressed_prefix,depth) <> node^.prefixLength) then
+    exit
+  else
+    depth := depth + node^.prefixLength;
+  case node^.typ of
+    artNodeType4:   with PFRE_ART_Node4(node)^ do
+                      for i:=node^.count-1 downto 0 do
+                        begin
+                          if (lmismatch or (key[i]>=lo_key[depth])) and
+                             (hmismatch or (key[i]<=hi_key[depth])) then
+                               begin
+                                 ForAllNodeLeafsRangeReverse(child[i],node_proc,halt,lmismatch or (key[i] <> lo_key[depth]),hmismatch or (key[i] <> hi_key[depth]),lo_key,hi_key,depth+1);
+                               end;
+                          if halt then
+                            exit;
+                        end;
+    artNodeType16:  with PFRE_ART_Node16(node)^ do
+                      for i := node^.count-1 downto 0 do
+                        begin
+                          if (lmismatch or (key[i]>=lo_key[depth])) and
+                             (hmismatch or (key[i]<=hi_key[depth])) then
+                               begin
+                                 ForAllNodeLeafsRangeReverse(child[i],node_proc,halt,lmismatch or (key[i] <> lo_key[depth]),hmismatch or (key[i]<>hi_key[depth]),lo_key,hi_key,depth+1);
+                               end;
+                          if halt then
+                            exit;
+                        end;
+    artNodeType48:  with PFRE_ART_Node48(node)^ do
+                      begin
+                        for i:=255 downto 0 do
+                          if childIndex[i]<>CFREA_slot_is_empty then
+                            begin
+                              if (lmismatch or (childIndex[i]>=lo_key[depth])) and
+                                 (hmismatch or (childIndex[i]<=hi_key[depth])) then
+                                   ForAllNodeLeafsRangeReverse(child[childIndex[i]],node_proc,halt,lmismatch or (childIndex[i]<>lo_key[depth]),hmismatch or (childIndex[i]<>hi_key[depth]),lo_key,hi_key,depth+1);
+                              if halt then
+                                exit;
+                            end;
+                      end;
+    artNodeType256: with PFRE_ART_Node256(node)^ do
+                        for i:=255 downto 0 do
+                          if assigned(child[i]) then
+                            begin
+                              if (lmismatch or (i>=lo_key[depth])) and
+                                 (hmismatch or (i<=hi_key[depth])) then
+                                   ForAllNodeLeafsRangeReverse(child[i],node_proc,halt,lmismatch or (i<>lo_key[depth]),hmismatch or (i<>hi_key[depth]),lo_key,hi_key,depth+1);
+                              if halt then
+                                exit;
+                            end;
+    artNodeTypeLeaf:
+        node_proc(node);
+  end;
+end;
+
 procedure TFRE_ART_TREE.ForAllValue(node: PFRE_ART_Node; const node_proc: TFRE_ART_NodeValueProc);
 var i:NativeInt;
 begin
@@ -640,6 +725,30 @@ begin
                       for i:=0 to 255 do
                         if assigned(child[i]) then
                           ForAllValue(PFRE_ART_Node256(node)^.child[i],node_proc);
+    artNodeTypeLeaf:
+        node_proc(PFRE_ART_LeafNode(node)^.GetStoredValue^);
+  end;
+end;
+
+procedure TFRE_ART_TREE.ForAllValueReverse(node: PFRE_ART_Node; const node_proc: TFRE_ART_NodeValueProc);
+var i:NativeInt;
+begin
+  if node=nil then exit;
+  case node^.typ of
+    artNodeType4:   with PFRE_ART_Node4(node)^ do
+                      for i:=node^.count-1 downto 0 do
+                        ForAllValueReverse(child[i],node_proc);
+    artNodeType16:  with PFRE_ART_Node16(node)^ do
+                      for i:=node^.count-1 downto 0 do
+                        ForAllValueReverse(child[i],node_proc);
+    artNodeType48:  with PFRE_ART_Node48(node)^ do
+                      for i:=255 downto 0 do
+                        if childIndex[i]<>CFREA_slot_is_empty then
+                          ForAllValueReverse(child[childIndex[i]],node_proc);
+    artNodeType256: with PFRE_ART_Node256(node)^ do
+                      for i:=255 downto 0 do
+                        if assigned(child[i]) then
+                          ForAllValueReverse(PFRE_ART_Node256(node)^.child[i],node_proc);
     artNodeTypeLeaf:
         node_proc(PFRE_ART_LeafNode(node)^.GetStoredValue^);
   end;
@@ -1237,6 +1346,7 @@ var
     mismatchPos     : NativeInt;
     child           : PPFRE_ART_Node;
     abs_key_len     : NativeInt;
+    keybyte         : Byte;
 
 begin
   if node=nil then
@@ -1300,7 +1410,17 @@ begin
               InsertChildIntoNode4(PFRE_ART_Node4(newNode),nodeRef,minKey[depth+mismatchPos],node);
               move(minKey[depth+mismatchPos+1],node^.prefix,artmin(node^.prefixLength,CFREA_max_compressed_prefix));
             end;
-          InsertChildIntoNode4(PFRE_ART_Node4(newNode),nodeRef,key[depth+mismatchPos],TFRE_ART_LeafNode.NewAndInitLeaf(value,key,key_len));
+          if depth+mismatchPos<abs_key_len then
+            keybyte := key[depth+mismatchPos]
+          else
+            begin
+              if depth+mismatchPos<>abs_key_len then
+                begin
+                  raise Exception.Create('logic error art tree, glowing in the memory');
+                end;
+              keybyte := 0;
+            end;
+          InsertChildIntoNode4(PFRE_ART_Node4(newNode),nodeRef,keybyte,TFRE_ART_LeafNode.NewAndInitLeaf(value,key,key_len));
           exit(true);
       end;
       depth := depth + node^.prefixLength;
@@ -1325,12 +1445,16 @@ begin
         end;
     end;
   // insert leaf into inner node
+  if depth<abs_key_len then
+    keybyte := key[depth]
+  else
+    keybyte := 0;
   newNode := TFRE_ART_LeafNode.NewAndInitLeaf(value,key,key_len);
   case (node^.typ) of
-    artNodeType4  : InsertChildIntoNode4  (  PFRE_ART_Node4(node),nodeRef,key[depth],newNode);
-    artNodeType16 : InsertChildIntoNode16 ( PFRE_ART_Node16(node),nodeRef,key[depth],newNode);
-    artNodeType48 : InsertChildIntoNode48 ( PFRE_ART_Node48(node),nodeRef,key[depth],newNode);
-    artNodeType256: InsertchildIntoNode256(PFRE_ART_Node256(node),        key[depth],newNode);
+    artNodeType4  : InsertChildIntoNode4  (  PFRE_ART_Node4(node),nodeRef,keybyte,newNode);
+    artNodeType16 : InsertChildIntoNode16 ( PFRE_ART_Node16(node),nodeRef,keybyte,newNode);
+    artNodeType48 : InsertChildIntoNode48 ( PFRE_ART_Node48(node),nodeRef,keybyte,newNode);
+    artNodeType256: InsertchildIntoNode256(PFRE_ART_Node256(node),        keybyte,newNode);
   end;
   result := true;
 end;
@@ -1820,10 +1944,15 @@ begin
     end;
 end;
 
-procedure TFRE_ART_TREE.LinearScan(const nested_node_proc: TFRE_ART_NodeValueProc);
+procedure TFRE_ART_TREE.LinearScan(const nested_node_proc: TFRE_ART_NodeValueProc; const desc: boolean);
 begin
-  ForAllValue(FArtTree,nested_node_proc);
+  if not desc then
+    ForAllValue(FArtTree,nested_node_proc)
+  else
+    ForAllValueReverse(FArtTree,nested_node_proc);
 end;
+
+
 
 function TFRE_ART_TREE.LinearScanBreak(const nested_node_proc: TFRE_ART_NodeValueBreakProc): Boolean;
 var break : boolean;
@@ -1834,6 +1963,7 @@ begin
 end;
 
 procedure TFRE_ART_TREE.LinearScanKeyVals(const nested_node_proc: TFRE_ART_NodeCallback);
+var halt:boolean;
 
   procedure node_proc(const node : PFRE_ART_Node);
   begin
@@ -1842,7 +1972,8 @@ procedure TFRE_ART_TREE.LinearScanKeyVals(const nested_node_proc: TFRE_ART_NodeC
   end;
 
 begin
-  ForAllNodeLeafs(FArtTree,@node_proc);
+  halt := false;
+  ForAllNodeLeafs(FArtTree,@node_proc,halt);
 end;
 
 function TFRE_ART_TREE.FirstKeyVal(const callback: TFRE_ART_NodeCallback): boolean;
@@ -1893,43 +2024,93 @@ begin
       end
 end;
 
-procedure TFRE_ART_TREE.PrefixScan(const prefix_key: PByte; key_len: NativeUint; const nested_node_proc: TFRE_ART_NodeCallback);
-var node : PFRE_ART_Node;
-
+function TFRE_ART_TREE.PrefixScan(const prefix_key: PByte; key_len: NativeUint; const nested_node_proc: TFRE_ART_NodeBreakCallback): boolean;
+var node  : PFRE_ART_Node;
   procedure CheckNode(const node :PFRE_ART_Node);
   begin
     with PFRE_ART_LeafNode(node)^ do
-      nested_node_proc(GetStoredValue^,GetStoredKey,GetStoredKeyLen);
+      nested_node_proc(GetStoredValue^,GetStoredKey,GetStoredKeyLen,result);
   end;
 
 begin
+  result := false;
   node := LookupKeyOrPrefix(FArtTree,prefix_key,key_len,0);
   if not assigned(node) then
     exit;
   if node^.typ=artNodeTypeLeaf then
-    with PFRE_ART_LeafNode(node)^ do
-      nested_node_proc(stored_value,GetStoredKey,GetStoredKeyLen)
+    begin
+      with PFRE_ART_LeafNode(node)^ do
+        nested_node_proc(stored_value,GetStoredKey,GetStoredKeyLen,result);
+      if Result then
+        exit;
+    end
   else
     begin
-      ForAllNodeLeafs(node,@CheckNode);
+      ForAllNodeLeafs(node,@CheckNode,result);
     end;
 end;
 
-procedure TFRE_ART_TREE.RangeScan(const lo_key, hi_key: PByte; const lo_keylen, hi_keylen: NativeUint; const nested_node_proc: TFRE_ART_NodeBreakCallback; const max_count: NativeInt);
+function TFRE_ART_TREE.RangeScan(const lo_key, hi_key: PByte; const lo_keylen, hi_keylen: NativeUint; const nested_node_proc: TFRE_ART_NodeBreakCallback; const max_count: NativeInt; skip: NativeInt; const asc: boolean): boolean;
 var
     halt      : boolean;
     abscnt    : NativeInt;
     abshalt   : NativeInt;
     hi_key_ex : array [0..CFREA_maxKeyLen-1] of Byte;
     lo_key_ex : array [0..CFREA_maxKeyLen-1] of Byte;
+    last_node : PFRE_ART_Node;
 
   procedure Iterate(const node :PFRE_ART_Node);
+
+    function CheckKeyInRange:boolean;
+    var keylen : NativeInt;
+        i      : NAtiveInt;
+        pskey  : PByte;
+    begin
+      result := true;
+      keylen := PFRE_ART_LeafNode(node)^.GetStoredKeyLen;
+      pskey  := PFRE_ART_LeafNode(node)^.GetStoredKey;
+      if keylen<=lo_keylen then
+        for i := 0 to lo_keylen-1 do
+          begin
+            if pskey[i]>lo_key_ex[i] then
+              break;
+            if pskey[i]<lo_key_ex[i] then
+              begin
+                writeln('WARNING ART TREE - RANGE SCAN FAIL LOWER');
+                exit(false);
+              end;
+          end;
+      if keylen>=hi_keylen then
+        for i := 0 to hi_keylen-1 do
+          begin
+            if pskey[i]<hi_key_ex[i] then
+              break;
+            if pskey[i]>hi_key_ex[i] then
+              begin
+                writeln('WARNING ART TREE - RANGE SCAN FAIL HIGHER');
+                exit(false);
+              end;
+          end;
+
+    end;
+
   begin
-    inc(abscnt);
-    with PFRE_ART_LeafNode(node)^ do
-      nested_node_proc(GetStoredValue^,GetStoredKey,GetStoredKeyLen,halt);
+    if not CheckKeyInRange then
+      exit;
+    if skip>0 then
+      dec(skip)
+    else
+      with PFRE_ART_LeafNode(node)^ do
+        begin
+          inc(abscnt);
+          nested_node_proc(GetStoredValue^,GetStoredKey,GetStoredKeyLen,halt);
+          last_node := node;
+        end;
     if (abshalt>0) and (abscnt>=abshalt) then
-      halt := true;
+      begin
+        halt := true;
+        exit;
+      end;
   end;
 
 begin
@@ -1939,11 +2120,19 @@ begin
   FillByte(lo_key_ex[0],SizeOf(lo_key_ex),0);
   if lo_key<>nil then
     Move(lo_key^,lo_key_ex[0],lo_keylen);
-  FillByte(hi_key_ex[0],SizeOf(hi_key_ex),255);
+  FillByte(hi_key_ex[0],SizeOf(hi_key_ex),0);
   if hi_key<>nil then
-    Move(hi_key^,hi_key_ex[0],hi_keylen);
-  ForAllNodeLeafsRange(FArtTree,@Iterate,halt,false,false,@lo_key_ex[0],@hi_key_ex[0],0);
+    Move(hi_key^,hi_key_ex[0],hi_keylen)
+  else
+    FillByte(hi_key_ex[0],SizeOf(hi_key_ex),255);
+  if asc then
+    ForAllNodeLeafsRange(FArtTree,@Iterate,halt,false,false,@lo_key_ex[0],@hi_key_ex[0],0)
+  else
+    ForAllNodeLeafsRangeReverse(FArtTree,@Iterate,halt,false,false,@lo_key_ex[0],@hi_key_ex[0],0);
+  result := halt;
 end;
+
+
 
 function TFRE_ART_TREE.GetValueCount: NativeUint;
 begin
