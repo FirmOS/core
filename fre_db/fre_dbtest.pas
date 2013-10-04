@@ -1993,9 +1993,9 @@ begin
     _AddAppRight(guest_app_rg ,'START','TESTAPP Start','Startup of Test APP'); // Guests are allowed to START the app
     _AddAppRightModules(guest_app_rg,GFRE_DBI.ConstructStringArray(['welcome']));
 
-    conn.StoreRole(ObjectName,domain,admin_app_rg);
-    conn.StoreRole(ObjectName,domain,user_app_rg);
-    conn.StoreRole(ObjectName,domain,guest_app_rg);
+    conn.StoreRole(admin_app_rg,ObjectName,domain);
+    conn.StoreRole(user_app_rg,ObjectName,domain);
+    conn.StoreRole(guest_app_rg,ObjectName,domain);
 
     _AddSystemGroups(conn,domain);
   end;

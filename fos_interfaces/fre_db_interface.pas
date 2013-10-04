@@ -1136,7 +1136,7 @@ type
     function    FetchGroupById              (const group_id:TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchRole                   (const roleatdomain:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewRight                    (const rightname,txt,txt_short:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
+    function    NewRight                    (const rightname:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role:IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var group:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    ModifyGroupRoles            (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
@@ -1190,7 +1190,7 @@ type
     function    FetchRole                   (const roleatdomain:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
-    function    NewRight                    (const rightname,txt,txt_short:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
+    function    NewRight                    (const rightname:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role  :IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    NewAppData                  (const appname,txt,txt_short:TFRE_DB_String;var appdata: IFRE_DB_APPDATA):TFRE_DB_Errortype;
@@ -1208,10 +1208,11 @@ type
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     procedure   ForAllDomains               (const func:IFRE_DB_Obj_Iterator);
-    function    StoreRole                   (const appname:TFRE_DB_String; const domainname: TFRE_DB_NameType; var rg:IFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    StoreRole                   (var   rg:IFRE_DB_ROLE; const appname:TFRE_DB_String=''; const domainname: TFRE_DB_NameType=''):TFRE_DB_Errortype;
     function    StoreGroup                  (const appname:TFRE_DB_String; const domainname: TFRE_DB_NameType; var ug:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    StoreAppData                (var   appdata:IFRE_DB_APPDATA):TFRE_DB_Errortype;
     function    StoreTranslateableText      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
+    function    DeleteTranslateableText     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
     function    UpdateAppData               (var appdata:IFRE_DB_APPDATA):TFRE_DB_Errortype;
     function    CheckRight                  (const right_name:TFRE_DB_String):boolean;
     function    InstallAppDefaults          (const Appname:TFRE_DB_String ):TFRE_DB_Errortype;
@@ -1294,7 +1295,8 @@ type
     function  Debug_ID        : TFRE_DB_String;virtual;
   public
     class procedure  RegisterSystemScheme     (const scheme:IFRE_DB_SCHEMEOBJECT); virtual;
-    class procedure  InstallDBObjects         (const conn:IFRE_DB_SYS_CONNECTION); virtual;
+    class procedure  InstallDBObjects         (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); virtual;
+    class procedure  RemoveDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
     function         CFG_Dont_Finalize_Object : Boolean; virtual;
     function         GetSystemSchemeByName    (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
     function         GetSystemScheme          (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
@@ -1398,6 +1400,17 @@ type
     class function  NewOperation                       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): TGUID;
     constructor     CreateForDB                        ;
     procedure       CopyToMemory                       (memory : Pointer;const without_schemes:boolean=false);
+    class function  GetClassRight                      (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
+    class function  GetClassRightName                  (const right: TFRE_DB_NameType): TFRE_DB_String;
+    function        GetInstanceRightName               (const right: TFRE_DB_NameType): TFRE_DB_String;
+    function        GetInstanceRight                   (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
+    class function  CreateClassRole                    (const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
+    class function  StoreTranslateableText             (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):TFRE_DB_Errortype;
+    class function  DeleteTranslateableText            (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_Errortype;
+    class function  GetTranslateableTextKey            (const key: TFRE_DB_NameType):TFRE_DB_String;
+    class function  GetTranslateableTextShort          (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
+    class function  GetTranslateableTextLong           (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
+    class function  GetTranslateableTextHint           (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
 
   published
     function        WEB_SaveOperation                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -1416,7 +1429,7 @@ type
   public
   protected
     class procedure RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
   end;
 
   TFRE_DB_APPLICATION_MODULE=class;
@@ -1673,7 +1686,7 @@ type
     function    UTCToLocalTimeDB64              (const ADateTime64: TFRE_DB_DateTime64) : TFRE_DB_DateTime64;
 
     function    NewText                         (const key,txt,txt_short:TFRE_DB_String;const hint:TFRE_DB_String=''):IFRE_DB_TEXT;
-    function    NewRight                        (const rightname,txt,txt_short:TFRE_DB_String):IFRE_DB_RIGHT;
+    function    NewRight                        (const rightname:TFRE_DB_String):IFRE_DB_RIGHT;
     function    NewRole                         (const rolename,txt,txt_short:TFRE_DB_String):IFRE_DB_ROLE;
     function    NewGroup                        (const groupname,txt,txt_short:TFRE_DB_String):IFRE_DB_GROUP;
     function    NewClientFieldValidator         (const name: TFRE_DB_String) : IFRE_DB_ClientFieldValidator;
@@ -2578,8 +2591,9 @@ begin
   scheme.AddSchemeField('note',fdbft_String);
 end;
 
-class procedure TFRE_DB_NOTE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_NOTE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
 begin
+   newVersionId:='1.0';
 end;
 
 { TFRE_DB_EDITOR_DATA_DESC }
@@ -4011,7 +4025,11 @@ class procedure TFRE_DB_Base.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOB
 begin
 end;
 
-class procedure TFRE_DB_Base.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_Base.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
+begin
+end;
+
+class procedure TFRE_DB_Base.RemoveDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType);
 begin
 end;
 
@@ -4377,6 +4395,73 @@ end;
 procedure TFRE_DB_ObjectEx.CopyToMemory(memory: Pointer; const without_schemes: boolean);
 begin
   FImplementor.CopyToMemory(memory,without_schemes);
+end;
+
+class function TFRE_DB_ObjectEx.GetClassRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
+begin
+  Result:=GFRE_DBI.NewRight(GetClassRightName(right));
+end;
+
+class function TFRE_DB_ObjectEx.CreateClassRole(const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
+begin
+ result := GFRE_DBI.NewRole('$CR_'+ClassName+'_'+rolename,long_desc,short_desc);
+end;
+
+class function TFRE_DB_ObjectEx.StoreTranslateableText(const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String): TFRE_DB_Errortype;
+begin
+  Result:=conn.StoreTranslateableText(GFRE_DBI.CreateText(GetTranslateableTextKey(key),short_text,long_text,hint_text));
+end;
+
+class function TFRE_DB_ObjectEx.DeleteTranslateableText(const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_Errortype;
+begin
+  Result:=conn.DeleteTranslateableText(GetTranslateableTextKey(key));
+end;
+
+class function TFRE_DB_ObjectEx.GetTranslateableTextKey(const key: TFRE_DB_NameType): TFRE_DB_String;
+begin
+  Result:='$'+ClassName+'_'+key;
+end;
+
+class function TFRE_DB_ObjectEx.GetTranslateableTextShort(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
+var
+  text: IFRE_DB_TEXT;
+begin
+  conn.FetchTranslateableText(GetTranslateableTextKey(key),text);
+  Result:=text.Getshort;
+  text.Finalize;
+end;
+
+class function TFRE_DB_ObjectEx.GetTranslateableTextLong(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
+var
+  text: IFRE_DB_TEXT;
+begin
+  conn.FetchTranslateableText(GetTranslateableTextKey(key),text);
+  Result:=text.GetLong;
+  text.Finalize;
+end;
+
+class function TFRE_DB_ObjectEx.GetTranslateableTextHint(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
+var
+  text: IFRE_DB_TEXT;
+begin
+  conn.FetchTranslateableText(GetTranslateableTextKey(key),text);
+  Result:=text.GetHint;
+  text.Finalize;
+end;
+
+class function TFRE_DB_ObjectEx.GetClassRightName(const right: TFRE_DB_NameType): TFRE_DB_String;
+begin
+  Result:='$O_R_'+uppercase(ClassName+'_'+right);
+end;
+
+function TFRE_DB_ObjectEx.GetInstanceRightName(const right: TFRE_DB_NameType): TFRE_DB_String;
+begin
+ Result:='$'+uppercase(UID_String+'_'+right);
+end;
+
+function TFRE_DB_ObjectEx.GetInstanceRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
+begin
+  Result:=GFRE_DBI.NewRight(GetInstanceRightName(right));
 end;
 
 
@@ -4836,7 +4921,7 @@ var
 begin
   name   := Get_Rightname_App_Role_Subrole(ObjectName,rolename);
   result := GFRE_DBI.NewRole(name,long_desc,short_desc);
-  right:=GFRE_DBI.NewRight(Get_Rightname('START'),'Startup of App','Start App');
+  right:=GFRE_DBI.NewRight(Get_Rightname('START'));
   result.AddRight(right);
 end;
 
@@ -4845,7 +4930,7 @@ var name  : TFRE_DB_String;
     right : IFRE_DB_RIGHT;
 begin
   name  := Get_Rightname(sub_right_name);
-  right := GFRE_DBI.NewRight(name,long_desc,short_desc);
+  right := GFRE_DBI.NewRight(name);
   right_group.AddRight(right);
 end;
 
@@ -4856,7 +4941,7 @@ var name  : TFRE_DB_String;
 begin
   for i:=0 to high(module_names) do begin
     name  := Get_Rightname('$ACMOD_'+module_names[i]);
-    right := GFRE_DBI.NewRight(name,'Automatic Right to access App Module: '+module_names[i],'ACCESS '+module_names[i]);
+    right := GFRE_DBI.NewRight(name);
     right_group.AddRight(right);
   end;
 end;

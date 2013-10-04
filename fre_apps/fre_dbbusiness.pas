@@ -56,7 +56,7 @@ type
   TFRE_DB_COUNTRY = class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_ADDRESS }
@@ -64,7 +64,7 @@ type
   TFRE_DB_ADDRESS = class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_Site }
@@ -72,7 +72,7 @@ type
   TFRE_DB_Site = class (TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
   published
     function IMI_Content            (const input:IFRE_DB_Object):IFRE_DB_Object;
     function IMI_Menu               (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -110,7 +110,7 @@ type
   TFRE_DB_Contact  = class (TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_Tenant }
@@ -119,8 +119,8 @@ type
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
   published
-    function IMI_addCustomer(const input:IFRE_DB_Object):IFRE_DB_Object;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION); override;
+    function        IMI_addCustomer  (const input:IFRE_DB_Object):IFRE_DB_Object;
+    class procedure InstallDBObjects (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_Customer }
@@ -128,7 +128,7 @@ type
   TFRE_DB_Customer = class (TFRE_DB_Contact)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
   published
    function IMI_Menu              (const input:IFRE_DB_Object):IFRE_DB_Object;
    function IMI_Edit              (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -140,7 +140,7 @@ type
   TFRE_DB_GEOPOSITION = class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
   end;
 
 implementation
@@ -170,17 +170,17 @@ begin
   scheme.GetSchemeField('objname').required:=true;
   scheme.AddSchemeField('tld',fdbft_String);
   scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','tld'),'%s (%s)');
-  group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_COUNTRY_country_group');
-  group.AddInput('objname','$scheme_TFRE_DB_COUNTRY_name');
-  group.AddInput('tld','$scheme_TFRE_DB_COUNTRY_tld');
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_country_group'));
+  group.AddInput('objname',GetTranslateableTextKey('scheme_name'));
+  group.AddInput('tld',GetTranslateableTextKey('scheme_tld'));
 end;
 
-class procedure TFRE_DB_COUNTRY.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_COUNTRY.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
 begin
-  inherited InstallDBObjects(conn);
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_COUNTRY_country_group','Country'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_COUNTRY_name','Country Name'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_COUNTRY_tld','Country TLD'));
+  newVersionId:='1.0';
+  StoreTranslateableText(conn,'scheme_country_group','Country');
+  StoreTranslateableText(conn,'scheme_name','Country Name');
+  StoreTranslateableText(conn,'scheme_tld','Country TLD');
 end;
 
 class procedure TFRE_DB_ADDRESS.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -198,29 +198,29 @@ begin
   scheme.AddSchemeFieldSubscheme('country','TFRE_DB_COUNTRY').required:=true;
 
   group:=scheme.AddInputGroup('main').Setup('scheme');
-  group.AddInput('street','$scheme_TFRE_DB_ADDRESS_street');
-  group.AddInput('nr','$scheme_TFRE_DB_ADDRESS_nr');
-  group.AddInput('stair','$scheme_TFRE_DB_ADDRESS_stair');
-  group.AddInput('floor','$scheme_TFRE_DB_ADDRESS_floor');
-  group.AddInput('door','$scheme_TFRE_DB_ADDRESS_door');
-  group.AddInput('co','$scheme_TFRE_DB_ADDRESS_co');
-  group.AddInput('city','$scheme_TFRE_DB_ADDRESS_city');
-  group.AddInput('zip','$scheme_TFRE_DB_ADDRESS_zip');
-  group.AddInput('country','$scheme_TFRE_DB_ADDRESS_country',false,false,'country');
+  group.AddInput('street',GetTranslateableTextKey('scheme_street'));
+  group.AddInput('nr',GetTranslateableTextKey('scheme_nr'));
+  group.AddInput('stair',GetTranslateableTextKey('scheme_stair'));
+  group.AddInput('floor',GetTranslateableTextKey('scheme_floor'));
+  group.AddInput('door',GetTranslateableTextKey('scheme_door'));
+  group.AddInput('co',GetTranslateableTextKey('scheme_co'));
+  group.AddInput('city',GetTranslateableTextKey('scheme_city'));
+  group.AddInput('zip',GetTranslateableTextKey('scheme_zip'));
+  group.AddInput('country',GetTranslateableTextKey('scheme_country'),false,false,'country');
 end;
 
-class procedure TFRE_DB_ADDRESS.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_ADDRESS.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
 begin
-  inherited InstallDBObjects(conn);
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_street','Street'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_nr','Nr'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_stair','Stair'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_floor','Floor'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_door','Door'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_co','Care off'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_city','City'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_zip','ZIP'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_ADDRESS_country','Country'));
+  newVersionId:='1.0';
+  StoreTranslateableText(conn,'scheme_street','Street');
+  StoreTranslateableText(conn,'scheme_nr','Nr');
+  StoreTranslateableText(conn,'scheme_stair','Stair');
+  StoreTranslateableText(conn,'scheme_floor','Floor');
+  StoreTranslateableText(conn,'scheme_door','Door');
+  StoreTranslateableText(conn,'scheme_co','Care off');
+  StoreTranslateableText(conn,'scheme_city','City');
+  StoreTranslateableText(conn,'scheme_zip','ZIP');
+  StoreTranslateableText(conn,'scheme_country','Country');
 end;
 
 class procedure TFRE_DB_GEOPOSITION.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -229,17 +229,17 @@ begin
   inherited RegisterSystemScheme(scheme);
   scheme.AddSchemeField('longitude',fdbft_Real64).required:=true;
   scheme.AddSchemeField('latitude',fdbft_Real64).required:=true;
-  group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_GEOPOSITION_main_group');
-  group.AddInput('longitude','$scheme_TFRE_DB_GEOPOSITION_longitude');
-  group.AddInput('latitude','$scheme_TFRE_DB_GEOPOSITION_latitude');
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
+  group.AddInput('longitude',GetTranslateableTextKey('scheme_longitude'));
+  group.AddInput('latitude',GetTranslateableTextKey('scheme_latitude'));
 end;
 
-class procedure TFRE_DB_GEOPOSITION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_GEOPOSITION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
 begin
-  inherited InstallDBObjects(conn);
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_GEOPOSITION_main_group','Geoposition'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_GEOPOSITION_longitude','Longitude'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_GEOPOSITION_latitude','Latitude'));
+  newVersionId:='1.0';
+  StoreTranslateableText(conn,'scheme_main_group','Geoposition');
+  StoreTranslateableText(conn,'scheme_longitude','Longitude');
+  StoreTranslateableText(conn,'scheme_latitude','Latitude');
 end;
 
 class procedure TFRE_DB_Phone.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -264,43 +264,43 @@ begin
   scheme.AddSchemeFieldSubscheme('mail','TFRE_DB_MAILADDRESS');
   scheme.AddSchemeFieldSubscheme('http','TFRE_DB_WEBADDRESS');
 
-  group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_CONTACT_main_group');
-  group.AddInput('company','$scheme_TFRE_DB_CONTACT_company');
-  group.AddInput('firstname','$scheme_TFRE_DB_CONTACT_firstname');
-  group.AddInput('lastname','$scheme_TFRE_DB_CONTACT_lastname');
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
+  group.AddInput('company',GetTranslateableTextKey('scheme_company'));
+  group.AddInput('firstname',GetTranslateableTextKey('scheme_firstname'));
+  group.AddInput('lastname',GetTranslateableTextKey('scheme_lastname'));
 
-  group:=scheme.AddInputGroup('address').Setup('$scheme_TFRE_DB_CONTACT_address_group');
+  group:=scheme.AddInputGroup('address').Setup(GetTranslateableTextKey('scheme_address_group'));
   group.UseInputGroup('TFRE_DB_ADDRESS','main','mainaddress');
 
-  group:=scheme.AddInputGroup('address_delivery').Setup('$scheme_TFRE_DB_CONTACT_delivery_group');
+  group:=scheme.AddInputGroup('address_delivery').Setup(GetTranslateableTextKey('scheme_delivery_group'));
   group.UseInputGroup('TFRE_DB_ADDRESS','main','deliveryaddress');
 
-  group:=scheme.AddInputGroup('number').Setup('$scheme_TFRE_DB_CONTACT_number_group');
-  group.AddInput('businessphone.number','$scheme_TFRE_DB_CONTACT_bnumber');
-  group.AddInput('mobilephone.number','$scheme_TFRE_DB_CONTACT_mnumber');
-  group.AddInput('privatephone.number','$scheme_TFRE_DB_CONTACT_pnumber');
+  group:=scheme.AddInputGroup('number').Setup(GetTranslateableTextKey('scheme_number_group'));
+  group.AddInput('businessphone.number',GetTranslateableTextKey('scheme_bnumber'));
+  group.AddInput('mobilephone.number',GetTranslateableTextKey('scheme_mnumber'));
+  group.AddInput('privatephone.number',GetTranslateableTextKey('scheme_pnumber'));
 
-  group:=scheme.AddInputGroup('eaddresses').Setup('$scheme_TFRE_DB_CONTACT_eaddress_group');
-  group.AddInput('mail.url','$scheme_TFRE_DB_CONTACT_mail');
-  group.AddInput('http.url','$scheme_TFRE_DB_CONTACT_web');
+  group:=scheme.AddInputGroup('eaddresses').Setup(GetTranslateableTextKey('scheme_eaddress_group'));
+  group.AddInput('mail.url',GetTranslateableTextKey('scheme_mail'));
+  group.AddInput('http.url',GetTranslateableTextKey('scheme_web'));
 end;
 
-class procedure TFRE_DB_Contact.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_Contact.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
 begin
-  inherited InstallDBObjects(conn);
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_main_group','General Information'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_address_group','Mainaddress'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_delivery_group','Deliveryaddress'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_number_group','Phone Numbers'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_eaddress_group','EContact'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_company','Company'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_firstname','Firstname'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_lastname','Lastname'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_bnumber','Business'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_mnumber','Mobile'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_pnumber','Private'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_mail','EMail'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CONTACT_web','Web'));
+  newVersionId:='1.0';
+  StoreTranslateableText(conn,'scheme_main_group','General Information');
+  StoreTranslateableText(conn,'scheme_address_group','Mainaddress');
+  StoreTranslateableText(conn,'scheme_delivery_group','Deliveryaddress');
+  StoreTranslateableText(conn,'scheme_number_group','Phone Numbers');
+  StoreTranslateableText(conn,'scheme_eaddress_group','EContact');
+  StoreTranslateableText(conn,'scheme_company','Company');
+  StoreTranslateableText(conn,'scheme_firstname','Firstname');
+  StoreTranslateableText(conn,'scheme_lastname','Lastname');
+  StoreTranslateableText(conn,'scheme_bnumber','Business');
+  StoreTranslateableText(conn,'scheme_mnumber','Mobile');
+  StoreTranslateableText(conn,'scheme_pnumber','Private');
+  StoreTranslateableText(conn,'scheme_mail','EMail');
+  StoreTranslateableText(conn,'scheme_web','Web');
 end;
 
 { TFRE_DB_Customer }
@@ -313,16 +313,17 @@ begin
   scheme.AddSchemeField('tenantid',fdbft_ObjLink).required:=true;
   scheme.AddSchemeField('customernumber',fdbft_String).required:=true;
 
-  group:=scheme.ReplaceInputGroup('main').Setup('$scheme_TFRE_DB_CUSTOMER_main_group');
-  group.AddInput('customernumber','$scheme_TFRE_DB_CUSTOMER_number');
+  group:=scheme.ReplaceInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
+  group.AddInput('customernumber',GetTranslateableTextKey('scheme_number'));
   group.AddInput('tenantid','',False,true);
   group.UseInputGroup('TFRE_DB_CONTACT','main');
 end;
 
-class procedure TFRE_DB_Customer.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_Customer.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
 begin
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CUSTOMER_main_group','Customer Information'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_CUSTOMER_number','Number'));
+  newVersionId:='1.0';
+  StoreTranslateableText(conn,'scheme_main_group','Customer Information');
+  StoreTranslateableText(conn,'scheme_number','Number');
 end;
 
 function TFRE_DB_Customer.IMI_Menu(const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -409,10 +410,9 @@ begin
   Result:=res;
 end;
 
-class procedure TFRE_DB_Tenant.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_Tenant.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
 begin
-  // Do nothing
-  //inherited InstallDBObjects(conn);
+  newVersionId:='1.0';
 end;
 
 
@@ -429,22 +429,22 @@ begin
   scheme.AddSchemeFieldSubscheme('address','TFRE_DB_ADDRESS').required:=false;
   scheme.AddSchemeField('extension',fdbft_ObjLink);
 
-  group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_SITE_main_group');
-  group.AddInput('objname','$scheme_TFRE_DB_SITE_name');
-  group.AddInput('sitekey','$scheme_TFRE_DB_SITE_key');
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
+  group.AddInput('objname',GetTranslateableTextKey('scheme_name'));
+  group.AddInput('sitekey',GetTranslateableTextKey('scheme_key'));
   group.AddInput('customerid','',false,true);
-  group:=scheme.AddInputGroup('address').Setup('$scheme_TFRE_DB_SITE_address_group');
+  group:=scheme.AddInputGroup('address').Setup(GetTranslateableTextKey('scheme_address_group'));
   group.UseInputGroup('TFRE_DB_ADDRESS','main','address');
   group.UseInputGroup('TFRE_DB_GEOPOSITION','main','position');
 end;
 
-class procedure TFRE_DB_Site.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION);
+class procedure TFRE_DB_Site.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
 begin
-  inherited InstallDBObjects(conn);
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_SITE_main_group','General Information'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_SITE_address_group','Site Address'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_SITE_name','Name'));
-  conn.StoreTranslateableText(GFRE_DBI.CreateText('$scheme_TFRE_DB_SITE_key','Key'));
+  newVersionId:='1.0';
+  StoreTranslateableText(conn,'scheme_main_group','General Information');
+  StoreTranslateableText(conn,'scheme_address_group','Site Address');
+  StoreTranslateableText(conn,'scheme_name','Name');
+  StoreTranslateableText(conn,'scheme_key','Key');
 end;
 
 function TFRE_DB_Site.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
