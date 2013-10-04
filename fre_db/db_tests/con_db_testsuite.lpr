@@ -16,18 +16,18 @@ uses
   //fre_db_persistance_fs_postgres,
   consoletestrunner,
   FOS_DEFAULT_IMPLEMENTATION,
-  FRE_DB_CORE,FRE_DB_INTERFACE,
+  FRE_DB_CORE,FRE_DB_INTERFACE,FRE_dbbase,
   FOS_TOOL_INTERFACES,
   sysutils,
   fre_db_testsuite;
 
 var App: TTestRunner;
       x: TFRE_DB_Object;
-      k  : Currency;
-      kk : int64;
-      u  : UInt64;
-      s  : Int64;
-      ui : uint64;
+      //k  : Currency;
+      //kk : int64;
+      //u  : UInt64;
+      //s  : Int64;
+      //ui : uint64;
 
 begin
   //u := 23;
@@ -55,6 +55,9 @@ begin
   x.Field('SS');
 
   Init4Server;
+  Register_DB_Extensions;
+  RegisterTestCodeClasses;
+
   TEST_GUID_1 := StringToGUID('{00000000-0000-0000-0000-000000000001}');
   TEST_GUID_2 := StringToGUID('{00000000-0000-0000-0000-000000000002}');
   TEST_GUID_3 := StringToGUID('{00000000-0000-0000-0000-000000000003}');

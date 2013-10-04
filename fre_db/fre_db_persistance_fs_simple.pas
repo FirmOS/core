@@ -121,7 +121,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    NewCollection       (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_Errortype; // todo transaction context
      function    DeleteCollection    (const coll_name : TFRE_DB_NameType ; const global_system_namespace:boolean) : TFRE_DB_Errortype; // todo transaction context
 
-     function    StoreOrUpdateObject (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; var notify_collections : TFRE_DB_StringArray) : TFRE_DB_Errortype;
+     function    StoreOrUpdateObject (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; var notify_collections : TFRE_DB_StringArray ; var status_text : string) : TFRE_DB_Errortype;
      function    DeleteObject        (const obj_uid : TGUID    ;  const collection_name: TFRE_DB_NameType = '' ; var notify_collections: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
      function    StartTransaction    (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType ; const raise_ex : boolean=true) : TFRE_DB_Errortype;
      procedure   Commit              ;
@@ -753,16 +753,14 @@ begin
 end;
 
 // This is always the first entry into the store and update chain
-function TFRE_DB_PS_FILE.StoreOrUpdateObject(var obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean; var notify_collections: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.StoreOrUpdateObject(var obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean; var notify_collections: TFRE_DB_StringArray; var status_text: string): TFRE_DB_Errortype;
 var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     error               : TFRE_DB_Errortype;
     to_update_obj       : TFRE_DB_Object;
     change_list         : TFRE_DB_Object;
     ImplicitTransaction : Boolean;
     CleanApply          : Boolean;
-    ex_message          : string;
     i                   : NativeInt;
-
 
 begin
   CleanApply := false;
@@ -832,8 +830,8 @@ begin
         end;
     except on e:Exception do
       begin
-        ex_message := e.Message;
-        raise;
+        result      := edb_ERROR;
+        status_text := e.Message;
       end;
     end;
   finally
@@ -841,7 +839,7 @@ begin
       begin
         writeln('*******************************');
         writeln('>>>>>> STORE OR UPDATE TRANSACTION ERROR !');
-        writeln(ex_message);
+        writeln(status_text);
         writeln('*******************************');
       end;
     if ImplicitTransaction then
