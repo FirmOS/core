@@ -2228,8 +2228,8 @@ begin
   COLL.Store(lo1);
 
   COLL := CONN.Collection('COLL_TEST_AT');
-  //COLL.DefineIndexOnField();
-  for i := 0 to 1000 - 1 do begin
+  CheckDbResult(COLL.DefineIndexOnField('fdbft_GUID',fdbft_GUID,true,true,'ix_uid'),'failed uid index creation ix_uid');
+  for i := 0 to 10 - 1 do begin
     if i mod 100=0 then writeln('AT ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_ALL_TYPES);
     (lobj.Implementor_HC as TFRE_DB_TEST_ALL_TYPES).Gamble(i);

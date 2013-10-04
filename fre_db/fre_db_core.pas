@@ -1089,7 +1089,7 @@ type
     function  ForAllitemsBreak   (const func: TFRE_DB_Obj_IteratorBreak):boolean;
 
 
-    function        Store        (var   new_obj : TFRE_DB_Object ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
+    function        Store        (var   new_obj : TFRE_DB_Object ; var error_text : String ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
     function        Delete       (const ouid    : TGUID          ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
 
     function        Fetch  (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
@@ -1098,13 +1098,19 @@ type
     function        First                        : TFRE_DB_Object;
     function        Last                         : TFRE_DB_Object;
     function        GetItem                      (const num:uint64):TFRE_DB_Object;
-    function        DefineIndexOnField           (const FieldName: TFRE_DB_NameType  ; const FieldType : TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType): TFRE_DB_Errortype;
+    function        DefineIndexOnField           (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true): TFRE_DB_Errortype;
     procedure       CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean);
     // Fetches Snapshot copies of the objects, you need to finalize them
     function        GetIndexedObj      (const query_value : TFRE_DB_String ; out   obj:TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObj      (const query_value : TFRE_DB_String ; out   obj       : TFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean;
     function        GetIndexedUID      (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
     function        GetIndexedUID      (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
+    procedure       ForAllIndexed      (const func:IFRE_DB_Obj_Iterator ;const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
+
+    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
   end;
 
   { IFRE_DB_PERSISTANCE_LAYER }
@@ -1130,7 +1136,7 @@ type
     function  ObjectExists         (const obj_uid : TGUID) : boolean;
     function  DeleteObject         (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = '' ; var ncolls: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
     function  Fetch                (const ouid   :  TGUID  ; out   dbo:TFRE_DB_Object;const internal_object : boolean=false): boolean;
-    function  StoreOrUpdateObject  (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; var notify_collections : TFRE_DB_StringArray) : TFRE_DB_Errortype;
+    function  StoreOrUpdateObject  (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; var notify_collections : TFRE_DB_StringArray ; var status_text : string) : TFRE_DB_Errortype;
     procedure SyncWriteWAL         (const WALMem : TMemoryStream);
     procedure SyncSnapshot         (const final : boolean=false);
   end;
@@ -1324,6 +1330,7 @@ type
   private
     FConnection            : TFRE_DB_BASE_CONNECTION;
     FIsTemporary           : Boolean;
+    FLasterror             : String;
     FObjectLinkStore       : IFRE_DB_PERSISTANCE_COLLECTION; //? Necessary to be referenced here
     FName                  : TFRE_DB_NameType;
     FObservers             : OFRE_DB_ObserverList;
@@ -1386,14 +1393,22 @@ type
     function        GetIndexedObjI      (const query_value : TFRE_DB_String;out obj:IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObj       (const query_value : TFRE_DB_String;out obj:TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedUID       (const query_value : TFRE_DB_String;out obj_uid:TGUID;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    procedure       ForAllIndexed       (const func:IFRE_DB_Obj_Iterator ;const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
+
+    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
     function        RemoveIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        IsVolatile          : Boolean;
 
     function        ItemCount      : Int64         ; virtual;
     function        First          : TFRE_DB_Object; virtual;
     function        Last           : TFRE_DB_Object; virtual;
     function        GetItem        (const num:uint64):IFRE_DB_Object; virtual;
     procedure       ForceFullUpdateForObservers;
+    function        GetLastStatusText   : string;
   end;
 
   //Base Class Tranforms a DB Object into another DB Object
@@ -1754,6 +1769,7 @@ type
   TFRE_DB_BASE_CONNECTION=class(TFOS_BASE)
   private
     FDBName               : TFRE_DB_String;
+    FLasterror            : String;
     FCloned               : boolean;
     FConnected            : Boolean;
     FAuthenticated        : Boolean;
@@ -8693,7 +8709,7 @@ begin
   //if assigned(new_obj.FManageInfo) then
   //  new_obj.FManageInfo := nil;
   suid   := new_obj.UID;
-  result := FObjectLinkStore.Store(new_obj,ncolls);
+  result := FObjectLinkStore.Store(new_obj,FLasterror,ncolls);
   if Result=edb_OK then
     begin
       Fetch(suid,new_obj);
@@ -8801,9 +8817,39 @@ begin
   result := FObjectLinkStore.GetIndexedUID(query_value,obj_uid,index_name);
 end;
 
+procedure TFRE_DB_COLLECTION.ForAllIndexed(const func: IFRE_DB_Obj_Iterator; const index_name: TFRE_DB_NameType; const ascending: boolean);
+begin
+  FObjectLinkStore.ForAllIndexed(func,index_name,ascending);
+end;
+
+procedure TFRE_DB_COLLECTION.ForAllIndexedSignedRange(const min_value, max_value: int64; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+begin
+  FObjectLinkStore.ForAllIndexedSignedRange(min_value,max_value,iterator,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
+end;
+
+procedure TFRE_DB_COLLECTION.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+begin
+  FObjectLinkStore.ForAllIndexedUnsignedRange(min_value,max_value,iterator,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
+end;
+
+procedure TFRE_DB_COLLECTION.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+begin
+  FObjectLinkStore.ForAllIndexedStringRange(min_value,max_value,iterator,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
+end;
+
+procedure TFRE_DB_COLLECTION.ForAllIndexPrefixString(const prefix: TFRE_DB_String; const iterator: IFRE_DB_Obj_IteratorBreak; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+begin
+  FObjectLinkStore.ForAllIndexPrefixString(prefix,iterator,index_name,ascending,max_count,skipfirst);
+end;
+
 function TFRE_DB_COLLECTION.RemoveIndexed(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType): boolean;
 begin
   abort;
+end;
+
+function TFRE_DB_COLLECTION.IsVolatile: Boolean;
+begin
+  result := FObjectLinkStore.IsVolatile;
 end;
 
 function TFRE_DB_COLLECTION.ItemCount: Int64;
@@ -8838,6 +8884,11 @@ end;
 procedure TFRE_DB_COLLECTION.ForceFullUpdateForObservers;
 begin
   _NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID);
+end;
+
+function TFRE_DB_COLLECTION.GetLastStatusText: string;
+begin
+  result := FLasterror;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllColls(const iterator: TFRE_DB_Coll_Iterator);
@@ -9812,7 +9863,7 @@ var dboo   : TFRE_DB_Object;
 begin
   dboo   := dbo;
   objuid := dbo.UID;
-  result := FPersistance_Layer.StoreOrUpdateObject(dboo,'',false,ncolls);
+  result := FPersistance_Layer.StoreOrUpdateObject(dboo,'',false,ncolls,FLasterror);
   if result=edb_OK then
     begin
       _NotifyCollectionObservers(fdbntf_UPDATE,nil,objuid,ncolls);
@@ -13994,6 +14045,10 @@ function TFRE_DB_FIELD._ConvertToByte: Byte;
 
 begin
   case FFieldData.FieldType of
+    fdbft_Boolean:       if FFieldData.bool^[0] then
+                           result := 1
+                         else
+                           result := 0;
     fdbft_Byte:          result := FFieldData.byte^[0];
     fdbft_Int16:         result := FFieldData.in16^[0];
     fdbft_UInt16:        result := FFieldData.ui16^[0];
@@ -14129,7 +14184,7 @@ begin
     fdbft_UInt64:        result := FFieldData.ui64^[0];
     fdbft_Real32:        result := Round(FFieldData.re32^[0]);
     fdbft_Real64:        result := Round(FFieldData.re64^[0]);
-    fdbft_Currency:      result := Round(FFieldData.curr^[0]);
+    fdbft_Currency:      result := PInt64(@FFieldData.curr^[0])^;
     fdbft_DateTimeUTC:   result := FFieldData.date^[0];
     fdbft_String:        _String2;
     else                 _IllegalTypeError(fdbft_Int64);
@@ -14145,6 +14200,10 @@ function TFRE_DB_FIELD._ConvertToUInt64: QWord;
 
 begin
   case FFieldData.FieldType of
+    fdbft_Boolean:       if FFieldData.bool^[0] then
+                           result := 1
+                         else
+                           result := 0;
     fdbft_Byte:          result := FFieldData.byte^[0];
     fdbft_Int16:         result := FFieldData.in16^[0];
     fdbft_UInt16:        result := FFieldData.ui16^[0];
