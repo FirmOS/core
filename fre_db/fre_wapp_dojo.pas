@@ -1536,7 +1536,9 @@ implementation
         end;
         jsContentAdd('  ,actionClassname: "'+co.Field('buttons').AsObjectItem[i].FieldPath('serverFunc.class').AsString + '"');
         jsContentAdd('  ,actionFunctionname: "'+co.Field('buttons').AsObjectItem[i].FieldPath('serverFunc.func').AsString + '"');
-        jsContentAdd('  ,actionUidPath: '+_BuildJSArray(co.Field('buttons').AsObjectItem[i].FieldPath('serverFunc.uidPath').AsStringArr));
+        if co.Field('buttons').AsObjectItem[i].FieldPathExists('serverFunc.uidPath') then begin
+          jsContentAdd('  ,actionUidPath: '+_BuildJSArray(co.Field('buttons').AsObjectItem[i].FieldPath('serverFunc.uidPath').AsStringArr));
+        end;
         jsContentAdd('  ,actionParams: '+_BuildParamsObject(co.Field('buttons').AsObjectItem[i].Field('serverFunc').AsObject.Field('params').AsObjectArr));
         jsContentAdd('});');
 

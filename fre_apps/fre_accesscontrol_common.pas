@@ -1387,6 +1387,7 @@ var
   dc_rolein   : IFRE_DB_DERIVED_COLLECTION;
   dc_roleout  : IFRE_DB_DERIVED_COLLECTION;
   txt         : IFRE_DB_TEXT;
+  user_count  : String;
 begin
   if not conn.CheckRight(Get_Rightname('view_users')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
@@ -1421,7 +1422,8 @@ begin
     main    := usergrid;
   end;
 
-  result  := TFRE_DB_LAYOUT_DESC.create.Describe.SetAutoSizedLayout(nil,main,nil,TFRE_DB_HTML_DESC.create.Describe('<b>'+app.FetchAppText(ses,'$users_info').Getshort+'</b>'));
+  user_count:=IntToStr(conn.AdmGetUserCollection.Count);
+  result  := TFRE_DB_LAYOUT_DESC.create.Describe.SetAutoSizedLayout(nil,main,nil,TFRE_DB_HTML_DESC.create.Describe('<b>'+StringReplace(app.FetchAppText(ses,'$users_info').Getshort,'%user_count%',user_count,[rfReplaceAll])+'</b>'));
 end;
 
 function TFRE_COMMON_USER_MOD.WEB_UserSelected(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
