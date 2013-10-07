@@ -67,8 +67,6 @@ type
 
     TFRE_DB_DateTime64 = int64; // Milliseconds since epoch
 
-    TFRE_SSL_RESULT       = (sslOK,sslNOK);
-
   const
     CFOS_LOG_LEVEL      : Array[TFOS_LOG_LEVEL]         of string  = ('INVALID', 'EMERGENCY', 'ALERT', 'CRITICAL', 'ERROR', 'WARNING', 'NOTICE', 'INFO', 'DEBUG');
     CFOS_LOG_FACILITY   : Array[TFOS_LOG_FACILITY]      of string  = ('INVALID', 'KERNEL', 'USER', 'MAIL', 'DAEMON', 'AUTH', 'SYSLOG', 'LPR', 'NEWS', 'UUCP', 'CRON', 'AUTHPRIV', 'FTP',
@@ -141,21 +139,6 @@ type
         31: (T_PStringArray   : PFOSStringArray)
     end;
 
-    RFRE_CA_BASEINFORMATION = record
-      index      : string;
-      index_attr : string;
-      serial     : string;
-      crlnumber  : string;
-      crl        : string;
-      crt        : string;
-      key        : string;
-      random     : string;
-    end;
-
-    RFRE_CRT_BASEINFORMATION = record
-      crt        : string;
-      key        : string;
-    end;
 
     TFRE_SimpleCallback        = procedure of object;
     TFRE_SimpleCallbackNested  = procedure is nested;
@@ -557,13 +540,6 @@ type
         procedure GetTimeZoneNames       (const AZones: TStringList; const AOnlyGeoZones: Boolean=true);
     end;
 
-    { IFRE_SSL }
-
-    IFRE_SSL=interface
-        function  CreateCA           (const cn,c,st,l,o,ou,email:string; const ca_pass:string; out ca_base_information:RFRE_CA_BASEINFORMATION) : TFRE_SSL_RESULT;
-        function  CreateCrt          (const cn,c,st,l,o,ou,email:string; const ca_pass:string; var ca_base_information:RFRE_CA_BASEINFORMATION; const server:boolean; out crt_base_information: RFRE_CRT_BASEINFORMATION ) : TFRE_SSL_RESULT;
-        function  RevokeCrt          (const cn:string;const ca_pass:string;  const crt:string; var ca_base_information:RFRE_CA_BASEINFORMATION) : TFRE_SSL_RESULT;
-    end;
 
    { TFOS_NonRefCounted_IF }
    TFOS_NonRefCounted_Object=class(TObject)
@@ -628,8 +604,6 @@ type
        GFRE_CPU : IFOS_CPU;           // GLOBAL CPU Thread Control
        GFRE_LOG : IFOS_FILE_LOGGER;   // GLOBAL File Logger Tool
        GFRE_DT  : IFOS_DATETOOLS;
-       GFRE_SSL : IFRE_SSL;
-
 
 implementation
 
