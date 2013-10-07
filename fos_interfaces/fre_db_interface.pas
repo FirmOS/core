@@ -5036,7 +5036,6 @@ end;
 function TFRE_DB_APPLICATION.DelegateInvoke(const modulename: TFRE_DB_String; const methname: string; const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
   if FieldExists(modulename) then begin
-    abort;
     result := Field(modulename).AsObject.Invoke(methname,input,nil,self,nil);
   end else begin
     raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'DelegateInvoke: Module [%s] not found!',[modulename]);

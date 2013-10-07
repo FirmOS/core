@@ -381,16 +381,17 @@ type _tusertype = (utguest,utuser,utadmin,utdemo);
 var conn  : IFRE_DB_SYS_CONNECTION;
     res   : TFRE_DB_Errortype;
 
-    procedure _AddUser(const user: string; const domain : TFRE_DB_NameType; const usertype:_tusertype;firstname:string='';lastname: string='');
-    var passwd : string;
-        login  : string;
+    procedure _AddUser(const user: string; const domain : TFRE_DB_NameType; const usertype:_tusertype;firstname:string='';lastname: string='';passwd : string='');
+    var login  : string;
         ims    : TFRE_DB_Stream;
     begin
       login := user+'@'+domain;
-      case usertype of
-       utadmin: passwd:='a1234';
-       utuser:  passwd:='u1234';
-       utdemo:  passwd:='demo1234';
+      if passwd='' then begin
+        case usertype of
+         utadmin: passwd:='a1234';
+         utuser:  passwd:='u1234';
+         utdemo:  passwd:='demo1234';
+        end;
       end;
       if lastname='' then lastname:='Lastname '+user;
       if firstname='' then firstname:='Firstname '+user;
@@ -432,6 +433,7 @@ begin
       _AddUser('admin1',cSYS_DOMAIN,utadmin);
       _AddUser('admin2',cSYS_DOMAIN,utadmin);
       _AddUser('feeder',cSYS_DOMAIN,utadmin);
+      _AddUser('city',cSYS_Domain,utadmin,'','','city');
 
       _AddUser('user1',cSYS_DOMAIN,utuser);
       _AddUser('user2',cSYS_DOMAIN,utuser);
