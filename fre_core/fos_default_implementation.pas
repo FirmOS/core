@@ -43,13 +43,14 @@ uses FOS_TOOL_INTERFACES;
 
 implementation
 
-uses FOS_TOOL_FACTORY,FOS_BASIS_TOOLS,FOS_FILE_LOGGER,FOS_CPU_TOOLS,FRE_DATE_TOOLS;
+uses FOS_TOOL_FACTORY,FOS_BASIS_TOOLS,FOS_FILE_LOGGER,FOS_CPU_TOOLS,FRE_DATE_TOOLS,fre_openssl;
 
 var gi_TF : TFOS_TOOL_FACTORY;
     gi_BT : TFOS_DEFAULT_BASISTOOLS;
     gi_FL : TObject;
     gi_DT : TObject;
     gi_CT : TObject;
+    gi_SSL: TFRE_SSL_OPENSSLCMD;
 
 procedure Register_Default_Implementations;
 begin
@@ -64,6 +65,11 @@ begin
   if not assigned(GFRE_LOG) then GetFOS_FILE_LOGGER(GFRE_LOG,gi_FL);
   if not assigned(GFRE_CPU) then GetFOS_CPU_TOOL(GFRE_CPU,gi_CT);
   if not assigned(GFRE_DT)  then Get_FOS_DateTools(GFRE_DT,gi_DT);
+  if not assigned(GFRE_SSL) then begin
+    gi_SSL   := TFRE_SSL_OPENSSLCMD.Create;
+    GFRE_SSL := gi_SSL;
+  end;
+
 end;
 
 initialization
@@ -74,6 +80,7 @@ finalization
  gi_FL.Free;
  gi_DT.Free;
  gi_CT.Free;
+ gi_SSL.Free;
 
 end.
 
