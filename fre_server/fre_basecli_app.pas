@@ -60,8 +60,10 @@ type
   private
     FAvailExtensionList  : IFOS_STRINGS;
     FChosenExtensionList : IFOS_STRINGS;
-    FDefaultExtensions: String;
+    FDefaultExtensions   : String;
+    FDefaultStyle        : String;
     procedure SetDefaultExtensions(AValue: String);
+    procedure SetDefaultStyle     (AValue: String);
   protected
     fapplication                   : string;
     filename                       : string;
@@ -96,6 +98,7 @@ type
     constructor Create             (TheOwner: TComponent); override;
     destructor  Destroy            ; override;
     property    DefaultExtensions  : String read FDefaultExtensions write SetDefaultExtensions;
+    property    DefaultStyle       : String read FDefaultStyle      write SetDefaultStyle;
   end;
 
 
@@ -115,6 +118,11 @@ end;
 procedure TFRE_CLISRV_APP.SetDefaultExtensions(AValue: String);
 begin
   FDefaultExtensions:=AValue;
+end;
+
+procedure TFRE_CLISRV_APP.SetDefaultStyle(AValue: String);
+begin
+  FDefaultStyle:=AValue;
 end;
 
 procedure TFRE_CLISRV_APP._CheckDBNameSupplied;
@@ -180,13 +188,11 @@ begin
     GDISABLE_SYNC := true;
   end;
 
-
   if HasOption('f','file') then begin
     filename := GetOptionValue('f','filename');
   end else begin
     filename := 'output';
   end;
-
 
   if HasOption('h','help') then begin
     WriteHelp;
@@ -264,6 +270,8 @@ begin
 
   if HasOption('s','style') then begin
     cFRE_WEB_STYLE := GetOptionValue('s','style');
+  end else begin
+    cFRE_WEB_STYLE := FDefaultStyle;
   end;
 
   if HasOption('i','init') then begin
@@ -636,6 +644,7 @@ begin
   StopOnException      :=True;
   FAvailExtensionList  := GFRE_DBI_REG_EXTMGR.GetExtensionList;
   FAvailExtensionList.SetCaseSensitive(false);
+  FDefaultStyle        := 'firmos';
   FChosenExtensionList := GFRE_TF.Get_FOS_Strings;
 end;
 

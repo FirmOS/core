@@ -2722,7 +2722,8 @@ begin
   inherited RegisterSystemScheme(scheme);
   Scheme.Strict(true);
   Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
-  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
+  //Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
+  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname'),'%s');
 end;
 
 { TFRE_DB_APPDATA }
@@ -12633,13 +12634,20 @@ begin
     if pos('$DBTEXT:',fieldname)=1 then begin  //$DBTEXT:desc
       fieldname := GFRE_BT.SepRight(fieldname,':');
       fld := _FieldOnlyExisting(fieldname);
-      if assigned(fld) and (fld.FieldType=fdbft_Object) then begin
-        if fld.AsObject.SchemeClass='TFRE_DB_TEXT' then begin
-          sa[i] := GFRE_DB.TranslateLong(fld.AsObject as TFRE_DB_TEXT);
+      if assigned(fld) and (fld.FieldType=fdbft_Object) then
+        begin
+          if fld.AsObject.SchemeClass='TFRE_DB_TEXT' then begin
+            sa[i] := GFRE_DB.TranslateLong(fld.AsObject as TFRE_DB_TEXT);
+            test[i].VAnsiString := PAnsiString(sa[i]);
+            test[i].VType       := vtAnsiString;
+          end ;
+         end
+      else
+        begin
+          sa[i] := '';
           test[i].VAnsiString := PAnsiString(sa[i]);
           test[i].VType       := vtAnsiString;
-        end ;
-      end;
+        end;
       continue;
     end;
     fld := FieldPath(fieldname,true);
