@@ -88,6 +88,7 @@ type
     procedure DefineIndices;
     procedure GenerateIndexTestData;
     procedure TestIdxRangeQueries;
+    procedure ReconnectNotSyncedFromWAL;
     procedure DumpDatabase;
   end;
 
@@ -624,6 +625,13 @@ begin
   coll_p.ForAllIndexPrefixString('ba',@WriteObjectIdx,'ixs');
   writeln('--STRING PREFIX QUERY-- END');
 
+end;
+
+procedure TFRE_DB_PersistanceTests.ReconnectNotSyncedFromWAL;
+begin
+  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM');
+  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
+  ConnectDB('test1@system','test1');
 end;
 
 
