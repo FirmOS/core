@@ -19,3 +19,4 @@ full_build_log.txt
 # Manual Build Binaries
 fre_testdatafeed
 fre_testserver
+*.res

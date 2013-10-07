@@ -177,8 +177,9 @@ type
     procedure ExecuteMulti              ;
   end;
 
-
 function   FRE_ProcessCMD(const cmd:string):integer;
+function   FRE_ProcessCMD(const cmd:string; var outstring,errorstring:string):integer;
+function   FRE_ProcessCMDException(const cmd:string):integer;
 
 procedure  Register_DB_Extensions;
 
@@ -912,17 +913,33 @@ begin
 end;
 
 function FRE_ProcessCMD(const cmd: string): integer;
-var prc         : TFRE_Process;
-    outstring   : string;
+var outstring   : string;
     errorstring : string;
+begin
+  result := FRE_ProcessCMD(cmd,outstring,errorstring);
+  if length(outstring)<>0 then writeln (outstring);
+  if length(errorstring)<>0 then writeln (errorstring);
+end;
+
+function FRE_ProcessCMD(const cmd: string; var outstring, errorstring: string): integer;
+var prc         : TFRE_Process;
 begin
   prc      := TFRE_Process.Create(nil);
   try
+    writeln(cmd);
     result := prc.ExecutePiped(cmd,nil,'',outstring,errorstring);
-    if outstring<>'' then writeln(outstring);
-    if errorstring<>'' then writeln(errorstring);
   finally
     prc.free;
+  end;
+end;
+
+function FRE_ProcessCMDException(const cmd: string): integer;
+var outstring   : string;
+    errorstring : string;
+begin
+  result := FRE_ProcessCMD(cmd,outstring,errorstring);
+  if result<>0 then begin
+    raise Exception.Create('Exception raised: Resultcode:'+inttostr(result)+' ERROR:'+errorstring+' OUTPUT:'+outstring);
   end;
 end;
 
