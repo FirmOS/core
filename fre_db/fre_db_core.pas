@@ -4869,13 +4869,10 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreRole(var role: TFRE_DB_ROLE; const appname: TFRE_DB_String; const domainname: TFRE_DB_NameType): TFRE_DB_Errortype;
 var app_id :TGUID;
-    domain_id : TGUID;
 begin
   if not _CheckRight(cSYSR_MOD_RIGHT) then exit(edb_ACCESS);
-  if domainname='' then begin
-    domain_id:=CFRE_DB_NullGUID;
-  end else begin
-    domain_id := _DomainID(domainname);
+  if domainname<>'' then begin
+    role.SetDomainID(_DomainID(domainname));
   end;
   if appname<>'' then begin
     result := GetAppDataID(appname,app_id);
@@ -4883,7 +4880,6 @@ begin
       role.Field('appdataid').AsObjectLink := app_id;
     end else exit;
   end;
-  role.SetDomainID(domain_id);
   result :=FSysRoles.Store(TFRE_DB_Object(role));
 end;
 
