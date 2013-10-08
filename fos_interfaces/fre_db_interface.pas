@@ -1211,10 +1211,10 @@ type
     function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
     function    ModifyUserImage             (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
-    function    RoleExists                  (const roleatdomain:TFRE_DB_String):boolean;
+    function    RoleExists                  (const role: TFRE_DB_String):boolean;
     function    GroupExists                 (const groupatdomain:TFRE_DB_String):boolean;
     function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-    function    DeleteRole                  (const roleatdomain:TFRE_DB_String):TFRE_DB_Errortype;
+    function    DeleteRole                  (const role:TFRE_DB_String):TFRE_DB_Errortype;
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
@@ -1417,6 +1417,7 @@ type
     function        GetInstanceRightName               (const right: TFRE_DB_NameType): TFRE_DB_String;
     function        GetInstanceRight                   (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
     class function  CreateClassRole                    (const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
+    class function  GetClassRoleName                   (const rolename: TFRE_DB_String): TFRE_DB_String;
     class function  StoreTranslateableText             (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):TFRE_DB_Errortype;
     class function  DeleteTranslateableText            (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_Errortype;
     class function  GetTranslateableTextKey            (const key: TFRE_DB_NameType):TFRE_DB_String;
@@ -1493,7 +1494,7 @@ type
     procedure  ServerFinalize                (const admin_dbc : IFRE_DB_CONNECTION); // NOT IMPLEMENTED
 
     function   InstallAppDefaults            (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype; virtual;
-    function   InstallSystemGroupsandRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; virtual;
+    function   InstallDomainGroupsandRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; virtual;
     function   RemoveApp                     (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype; virtual;
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -4438,7 +4439,12 @@ end;
 
 class function TFRE_DB_ObjectEx.CreateClassRole(const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
 begin
- result := GFRE_DBI.NewRole('$CR_'+ClassName+'_'+rolename,long_desc,short_desc);
+ result := GFRE_DBI.NewRole(GetClassRoleName(rolename),long_desc,short_desc);
+end;
+
+class function TFRE_DB_ObjectEx.GetClassRoleName(const rolename: TFRE_DB_String): TFRE_DB_String;
+begin
+  Result:='$CR_'+ClassName+'_'+rolename;
 end;
 
 class function TFRE_DB_ObjectEx.StoreTranslateableText(const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String): TFRE_DB_Errortype;
@@ -4777,10 +4783,10 @@ begin
   // Update Application: Check Version of Appdata Object and create / delete roles and default groups
 end;
 
-function TFRE_DB_APPLICATION.InstallSystemGroupsandRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
+function TFRE_DB_APPLICATION.InstallDomainGroupsandRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
 begin
   // Use Cases
-  // Install all System Groups and Roles for a specific Domain
+  // Install all Domain Groups and Roles for a specific Domain
 end;
 
 function TFRE_DB_APPLICATION.RemoveApp(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
@@ -4985,10 +4991,6 @@ begin
   sys_connection.AddAppGroup   (ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');
   sys_connection.AddAppGroup   (ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin');
   sys_connection.AddAppGroup   (ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest');
-  //FIXXME - remove roles assignement
-  sys_connection.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
-  sys_connection.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'GUEST'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'GUEST'+'@'+domain)]));
-  sys_connection.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'ADMIN'+'@'+domain),Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
 end;
 
 procedure TFRE_DB_APPLICATION._RemoveDefaultGroups(const sys_connection: IFRE_DB_SYS_CONNECTION);

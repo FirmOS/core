@@ -513,10 +513,10 @@ begin
   //_CheckUserSupplied;
   //_CheckPassSupplied;
   writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
-  GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,FUser,FPass);
   CONN := GFRE_DBI.NewSysOnlyConnection;
   CheckDbResult(CONN.Connect('admin@'+cSYS_DOMAIN,'admin'),'cannot connect system db');
   GFRE_DBI.DBInitializeAllExClasses(conn);
+  GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,FUser,FPass);
   conn.Finalize;
 end;
 
