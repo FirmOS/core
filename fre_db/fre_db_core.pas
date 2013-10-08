@@ -513,8 +513,8 @@ type
     procedure       IFRE_DB_Object.CopyField           = CopyFieldI;
     function        IFRE_DB_Object.ObjectRoot          = ObjectRootI;
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
-    procedure       Finalize                           ;
   public
+    procedure       Finalize                           ;
   type
      TFRE_DB_ObjCompareCallback  = procedure(const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD) is nested;
     procedure       __InternalCollectionAdd            (const coll : IFRE_DB_PERSISTANCE_COLLECTION);
@@ -1083,7 +1083,7 @@ type
     function  Count              : int64;
     function  Exists             (const ouid: TGUID): boolean;
 
-    procedure Clear              ;
+    //procedure Clear              ;
     procedure ForAllItems        (const iter : TFRE_DB_Obj_Iterator); // must allow modification of collection items
     function  ForAllitemsBreak   (const func: TFRE_DB_Obj_IteratorBreak):boolean;
 
@@ -1115,7 +1115,7 @@ type
   { IFRE_DB_PERSISTANCE_LAYER }
 
   IFRE_DB_PERSISTANCE_LAYER=interface
-    procedure DEBUG_DisconnectLayer (const db:TFRE_DB_String);
+    procedure DEBUG_DisconnectLayer (const db:TFRE_DB_String;const clean_master_data :boolean = false);
     function  ExistCollection    (const coll_name : TFRE_DB_NameType) : Boolean;
     function  GetCollection      (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
     function  NewCollection      (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_Errortype;
@@ -1349,7 +1349,7 @@ type
     function        FetchI          (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
     function        FirstI          : IFRE_DB_Object;
     function        LastI           : IFRE_DB_Object;
-    procedure       Clear           ;
+    //procedure       Clear           ;
 
     function IFRE_DB_COLLECTION.ForAll        = ForAllI;
     function IFRE_DB_COLLECTION.ForAllBreak   = ForAllBreakI;
@@ -1385,7 +1385,7 @@ type
     procedure       StartBlockUpdating;
     procedure       FinishBlockUpdating;
 
-    function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def'):TFRE_DB_Errortype;
+    function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true):TFRE_DB_Errortype;
 
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
 
@@ -3191,6 +3191,7 @@ function TFRE_DB_COMMAND.CheckoutData: TFRE_DB_Object;
 begin
   result := FData.AsObject;
   FData.Clear(true);
+  result.FParentDBO := nil;
 end;
 
 function TFRE_DB_COMMAND.CheckoutDataI: IFRE_DB_Object;
@@ -8525,7 +8526,6 @@ destructor TFRE_DB_SchemeObject.Destroy;
   end;
 
 begin
-  writeln('DESTROY SCHEME : ',DefinedSchemeName);
   FInputGroups.ForAllBreak(@CleanupIGs);
   FFieldDefs.ForAllBreak(@CleanupFDs);
   inherited Destroy;
@@ -8672,10 +8672,10 @@ begin
  result := Last;
 end;
 
-procedure TFRE_DB_COLLECTION.Clear;
-begin
-  FObjectLinkStore.Clear;
-end;
+//procedure TFRE_DB_COLLECTION.Clear;
+//begin
+//  FObjectLinkStore.Clear;
+//end;
 
 destructor TFRE_DB_COLLECTION.Destroy;
 begin
@@ -8814,9 +8814,9 @@ begin
   end;
 end;
 
-function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType): TFRE_DB_Errortype;
+function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType ; const allow_null_value : boolean=true): TFRE_DB_Errortype;
 begin
-   result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name);
+   result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name,allow_null_value);
 end;
 
 function TFRE_DB_COLLECTION.ExistsIndexed(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType): Boolean;
@@ -10869,14 +10869,12 @@ end;
 destructor TFRE_DB.Destroy;
 var i : NativeInt;
 begin
-  writeln('TODO-{B9293265-8A09-B97F-EE8E-E5B9D2769FAD}');
   for i:=0 to High(FSysSchemes) do
     FSysSchemes[i].free;
   for i:=0 to High(FSysEnums) do
     FSysEnums[i].free;
   for i:=0 to High(FSysClientFieldValidators) do
     FSysClientFieldValidators[i].free;
-
   inherited Destroy;
 end;
 
@@ -11740,12 +11738,15 @@ begin
   if self<>nil then begin
     DebugCheck;
     if assigned(FMediatorExtention) then begin
-      if FMediatorExtention.ClassName='TFRE_DB_NIL_DESC' then begin
-        //writeln('SKIPPING NIL DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
+      if FMediatorExtention is TFRE_DB_NIL_DESC then begin
         exit;
+        writeln('>> WARNING NIL DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
       end;
-      //writeln('FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
-      FMediatorExtention.Free;
+      if FMediatorExtention is TFRE_DB_SUPPRESS_ANSWER_DESC then begin
+        exit;
+        writeln('>> WARNING SUPRESS ANSWER DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
+      end;
+      FMediatorExtention.DestroyFromMediator;
       FMediatorExtention:=nil;
     end else begin
       //writeln('FREE_REAL : ',ClassName,' ',InternalUniqueDebugKey);
@@ -16912,6 +16913,7 @@ begin
 
  GFRE_DB_NIL_DESC             := TFRE_DB_NIL_DESC.create;
  GFRE_DB_SUPPRESS_SYNC_ANSWER := TFRE_DB_SUPPRESS_ANSWER_DESC.Create;
+
  GFRE_DB.Initialize_System_Objects;
 end;
 

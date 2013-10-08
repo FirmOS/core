@@ -108,6 +108,7 @@ type
     class function CreateFromStream                  (const stream: TStream ; const coll : IFRE_DB_PERSISTANCE_COLLECTION):TFRE_DB_MM_Index;
   public
     constructor Create                               (const idx_name,fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null : boolean);
+    destructor  Destroy                              ; override;
     function    Indexname                            : TFRE_DB_NameType;
     function    Uniquename                           : PFRE_DB_NameType;
     procedure   FieldTypeIndexCompatCheck            (fld:TFRE_DB_FIELD); virtual; abstract;
@@ -209,12 +210,13 @@ type
     function    GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
     function    UniqueName         : PFRE_DB_NameType;
     constructor Create             (const coll_name: TFRE_DB_NameType; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
+    destructor  Destroy            ; override;
     function    Count              : int64;
     function    Exists             (const ouid: TGUID): boolean;
-    //function    Delete             (const ouid: TGUID): boolean;
-    //function    Remove             (const ouid : TGUID ; out old_obj : TFRE_DB_Object) : boolean;
-    //function    AddCheck           (const new_guid :TGuid ; const obj :TFRE_DB_Object) : boolean;
+
+
     procedure   Clear              ; // Clear Store but dont free
+
     procedure   ForAllItems        (const iter    : TFRE_DB_Obj_Iterator); // must allow modification of collection // clones out
     function    ForAllitemsBreak   (const func    : TFRE_DB_Obj_IteratorBreak):boolean;
 
@@ -254,6 +256,8 @@ type
     dummy     : PtrUInt;
   public
     constructor Create;
+    destructor  Destroy; override;
+    procedure   Clear;
     function    NewCollection     (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION ; const volatile_in_memory:boolean ; const pers_layer:IFRE_DB_PERSISTANCE_LAYER) : TFRE_DB_Errortype;
     function    DeleteCollection  (const coll_name : TFRE_DB_NameType):TFRE_DB_Errortype;
     function    GetCollection     (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION) : boolean;
@@ -325,6 +329,8 @@ type
     function     InternalRebuildRefindex                                    : TFRE_DB_Errortype;
     procedure    InternalStoreLock                                          ;
 
+    procedure    DEBUG_CleanUpMasterData                                    ;
+
     constructor Create                (const master_name : string ; const Layer : IFRE_DB_PERSISTANCE_LAYER);
     destructor  Destroy               ; override;
     function    GetReferenceCount     (const obj_uid: TGuid; const from: boolean): NativeInt;
@@ -375,6 +381,7 @@ type
     FVolatile       : Boolean;
     FNewCollection  : IFRE_DB_PERSISTANCE_COLLECTION;
   public
+    function    DescribeText            : String; override;
     constructor Create                  (const coll_name: TFRE_DB_NameType;const volatile_in_memory: boolean);
     constructor CreateAsWALReadBack     (const coll_name: TFRE_DB_NameType);
     procedure   CheckExistence          (const master : TFRE_DB_Master_Data); override;
@@ -471,7 +478,8 @@ type
 
     function     GenerateAnObjChangeList(const store : boolean ; const obj : TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; var notify_collections: TFRE_DB_StringArray):TFRE_DB_Errortype;
 
-    procedure    PrintTextLog          ;
+    procedure    PrintTextLog          (const tid : String ; const write_2_wal : boolean);
+
     procedure    Commit                (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const WAL_RepairMode : boolean=false);
     procedure    Rollback              ;
     destructor   Destroy               ;override;
@@ -483,6 +491,11 @@ type
 implementation
 
 { TFRE_DB_NewCollectionStep }
+
+function TFRE_DB_NewCollectionStep.DescribeText: String;
+begin
+  WriteStr(result,' CREATE NEW COLLECTION ',FCollname,' VOLATILE = ',FVolatile)
+end;
 
 constructor TFRE_DB_NewCollectionStep.Create(const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean);
 begin
@@ -1511,7 +1524,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_TransactionalUpdateList.PrintTextLog;
+procedure TFRE_DB_TransactionalUpdateList.PrintTextLog(const tid: String; const write_2_wal: boolean);
 var count : NativeInt = 0;
 
   procedure Dump(var x:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
@@ -1520,8 +1533,35 @@ var count : NativeInt = 0;
     writeln(count:5,x.DescribeText);
   end;
 
+  procedure Describe(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
+  begin
+    try
+      writeln('  STEP : ',idx,'  ',step.DescribeText);
+    except on e:Exception do
+      writeln(' --EX ',e.Message);
+    end;
+  end;
+
+
 begin
-  FChangeList.ForAllBreak(@Dump);
+  exit;
+  if tid='3#C' then
+    count  := count;
+  if tid='5#C' then
+    count  := count;
+
+  if write_2_wal then
+    begin
+      writeln('>>--WRITING WAL TRANSACTION BLOCK -- [',tid,'] STEPS : ',FChangeList.Count);
+      FChangeList.ForAllBreak(@DEscribe);
+      writeln('<<--WRITING WAL TRANSACTION BLOCK -- DONE [',tid,'] STEPS : ',FChangeList.Count);
+    end
+  else
+    begin
+      writeln('>>--READ BACK WAL TRANSACTION BLOCK -- [',FTransId,'] STEPS : ',FChangeList.Count);
+      FChangeList.ForAllBreak(@Describe);
+      writeln('>>--READ BACK WAL TRANSACTION BLOCK -- DONE [',FTransId,'] STEPS : ',FChangeList.Count);
+    end;
 end;
 
 procedure TFRE_DB_TransactionalUpdateList.ProcessCheck(const WAL_RepairMode: boolean);
@@ -1608,6 +1648,7 @@ begin
       FWalMem.WriteAnsiString(IntToStr(FChangeList.Count));
       FChangeList.ForAllBreak(@WriteWal);
       FWalMem.WriteAnsiString(TransID+'#!');
+      PrintTextLog(TransID,true);
       Layer.SyncWriteWAL(FWalMem);
     end;
 end;
@@ -2212,6 +2253,29 @@ begin
   ForAllObjectsInternal(true,false,@BuildRef);
 end;
 
+procedure TFRE_DB_Master_Data.DEBUG_CleanUpMasterData;
+
+  procedure CleanReflinks(var refl : NativeUint);
+  begin
+    TREF_LinkEncapsulation(FREDB_PtrUIntToObject(refl)).Free;
+  end;
+
+  procedure CleanObj(var ob : NativeUint);
+  begin
+    FREDB_PtrUIntToObject(ob).Free;
+  end;
+
+begin
+  FMasterPersistantObjStore.LinearScan(@CleanObj);
+  FMasterPersistantObjStore.Clear;
+  FMasterVolatileObjStore.LinearScan(@CleanObj);
+  FMasterVolatileObjStore.Clear;
+  FMasterRefLinks.LinearScan(@CleanReflinks);
+  FMasterRefLinks.Clear;
+  FMasterCollectionStore.Clear;
+  F_DB_TX_Number            := 0;
+end;
+
 //procedure TFRE_DB_Master_Data._AddRefLink(const from_obj, to_obj: TGuid; const rebuild: boolean);
 //var
 //    from_key,to_key   : TGUID_RefLink_Key;
@@ -2295,6 +2359,11 @@ end;
 
 destructor TFRE_DB_Master_Data.Destroy;
 begin
+  DEBUG_CleanUpMasterData;
+  FMasterPersistantObjStore.Free;
+  FMasterVolatileObjStore.Free;
+  FMasterRefLinks.Free;
+  FMasterCollectionStore.Free;
   inherited Destroy;
 end;
 
@@ -2454,6 +2523,7 @@ begin
       WAL_Transaction := TFRE_DB_TransactionalUpdateList.Create('',self);
       try
         WAL_Transaction.ReadFromBackWalStream(WALStream);
+        WAL_Transaction.PrintTextLog('',false);
         WAL_Transaction.Commit(FLayer,true);
       finally
         WAL_Transaction.Free;
@@ -2624,6 +2694,17 @@ begin
   end;
 end;
 
+destructor TFRE_DB_MM_Index.Destroy;
+
+  procedure ClearIndex(var dummy : NativeUint);
+  begin
+    FREDB_PtrUIntToObject(dummy).free;
+  end;
+
+begin
+  FIndex.LinearScan(@ClearIndex);
+end;
+
 function TFRE_DB_MM_Index.Indexname: TFRE_DB_NameType;
 begin
   result := FIndexName;
@@ -2646,6 +2727,9 @@ begin
       isNullVal := not obj.FieldOnlyExisting(FFieldname,fld);
       //if not obj.FieldOnlyExisting(FFieldname,fld) then
       //  raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the field [%s] which should be indexed by index [%s] could not be found in object [%s]',[FFieldname,FIndexName,GFRE_BT.GUID_2_HexString(obj.UID)]);
+      if isNullVal
+         and (not FAllowNull) then
+           raise EFRE_DB_Exception.Create(edb_UNSUPPORTED,'for the index [%s/%s/%s] the usage of null values (=unset fields) is not allowed',[FCollection.CollectionName(false),FIndexName,FFieldname]);
       if not isNullVal then
         FieldTypeIndexCompatCheck(fld);
       TransformtoBinaryComparable(fld,false,isNullVal);
@@ -2888,6 +2972,25 @@ begin
   FCollTree := TFRE_ART_TREE.Create;
 end;
 
+destructor TFRE_DB_CollectionManageTree.Destroy;
+begin
+  FCollTree.Clear;
+  FCollTree.Free;
+  inherited Destroy;
+end;
+
+procedure TFRE_DB_CollectionManageTree.Clear;
+
+  procedure ClearTree(var dummy : NativeUint);
+  begin
+    FREDB_PtrUIntToObject(dummy).Free;
+  end;
+
+begin
+  FCollTree.LinearScan(@ClearTree);
+  FCollTree.Clear;
+end;
+
 function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
 var coll     : TFRE_DB_Persistance_Collection;
     safename : TFRE_DB_NameType;
@@ -3013,6 +3116,18 @@ begin
  FVolatile     := Volatile;
  FLayer        := pers_layer;
  FUpperName    := UpperCase(FName);
+end;
+
+destructor TFRE_DB_Persistance_Collection.Destroy;
+var
+  i: NativeInt;
+begin
+  for i := 0 to high(FIndexStore) do
+    begin
+     FIndexStore[i].Free;
+    end;
+  Clear;
+  inherited Destroy;
 end;
 
 function TFRE_DB_Persistance_Collection.Count: int64;

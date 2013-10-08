@@ -96,7 +96,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
      function   _InternalFetchConnectedLayer(db_name:TFRE_DB_String;var idx :NativeInt): TFRE_DB_PS_FILE;
 
-     procedure   DEBUG_DisconnectLayer (const db:TFRE_DB_String);
+     procedure  DEBUG_DisconnectLayer (const db:TFRE_DB_String;const clean_master_data :boolean = false);
    public
 
      constructor Create                     (const basedir,name:TFRE_DB_String);
@@ -484,12 +484,14 @@ begin
   idx :=-1;
 end;
 
-procedure TFRE_DB_PS_FILE.DEBUG_DisconnectLayer(const db: TFRE_DB_String);
+procedure TFRE_DB_PS_FILE.DEBUG_DisconnectLayer(const db: TFRE_DB_String; const clean_master_data: boolean);
 var idx : NativeInt;
      l  : TFRE_DB_PS_FILE;
 begin
   if not FGlobalLayer then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'fail');
+  if clean_master_data then
+    FMaster.DEBUG_CleanUpMasterData;
   l := _InternalFetchConnectedLayer(db,idx);
   l.Free;
   FConnectedLayers[idx] := nil;

@@ -97,9 +97,11 @@
       </Item2>
       <Item3>
         <Name Value="EFOpenError"/>
+        <Enabled Value="False"/>
       </Item3>
       <Item4>
         <Name Value="EFRE_DB_Exception"/>
+        <Enabled Value="False"/>
       </Item4>
     </Exceptions>
   </Debugging>

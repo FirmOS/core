@@ -46,7 +46,7 @@ uses
   FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
   FRE_DB_CORE,fre_db_serverdefaults,FRE_DB_SYSRIGHT_CONSTANTS,
 
-  fre_dbbase,
+  fre_dbbase,fre_openssl_cmd,
 
   FRE_APS_IMPL_LE, FOS_FCOM_DEFAULT,FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,FRE_BASE_SERVER
@@ -319,12 +319,14 @@ begin
     Terminate;
     Exit;
   end;
+  Setup_SSL_Interface;
   SetupAPS;
   GFRE_S.Start(TFRE_BASE_SERVER.Create(FDBName));
   GFRE_S.Run;
   TearDownAPS;
   Shutdown_Done;
   Terminate;
+  Cleanup_SSL_Interface;
   exit;
 end;
 

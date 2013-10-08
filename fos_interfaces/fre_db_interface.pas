@@ -698,13 +698,13 @@ type
     function        First               : IFRE_DB_Object;
     function        Last                : IFRE_DB_Object;
     function        GetItem             (const num:uint64):IFRE_DB_Object;
-    procedure       ClearCollection     ;
+    //procedure       ClearCollection     ;
     procedure       StartBlockUpdating  ;
     procedure       FinishBlockUpdating ;
     function        AddObserver         (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     function        RemoveObserver      (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     //Define a basic index according to fieldtype
-    function        DefineIndexOnField  (const FieldName:TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean=true; const ignore_content_case:boolean=true;const index_name:TFRE_DB_NameType='def'):TFRE_DB_Errortype;
+    function        DefineIndexOnField  (const FieldName:TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean=true; const ignore_content_case:boolean=true;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true):TFRE_DB_Errortype;
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
     function        GetIndexedObj       (const query_value : TFRE_DB_String;out obj:IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedUID       (const query_value : TFRE_DB_String;out obj_uid:TGUID;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
@@ -1101,8 +1101,8 @@ type
     function    Connect                   (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CollectionExists          (const name:TFRE_DB_NameType):boolean;
-    function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
+    function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
     function    Delete                    (const ouid: TGUID): TFRE_DB_Errortype;
 
     function    Fetch                     (const ouid:TGUID;out dbo:IFRE_DB_Object)         : boolean;
@@ -1357,6 +1357,7 @@ type
     constructor    create                              ;
     constructor    CreateBound                         (const dbo:IFRE_DB_Object ; const internal_setup : boolean);
     destructor     Destroy                             ;override;
+    destructor     DestroyFromMediator                 ;virtual;
 
     //Interface - Compatibility Block
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
@@ -1598,9 +1599,9 @@ type
     var NILInstances : NativeInt;
   public
      constructor      Create                   ;
-     destructor       Destroy                  ;override;
-     procedure        DestroySingleton         ;
-     function         CFG_Dont_Finalize_Object : Boolean; override;
+     destructor       Destroy                  ; override;
+     destructor       DestroySingleton         ;
+     destructor       DestroyFromMediator      ; override;
   end;
 
   //@ This suppresses the sync answer to the client, a Sync answer should be sent in time by another method
@@ -1612,8 +1613,8 @@ type
     var NILInstances : NativeInt;
     constructor      Create                   ;
     destructor       Destroy                  ;override;
-    procedure        DestroySingleton         ;
-    function         CFG_Dont_Finalize_Object : Boolean; override;
+    destructor       DestroySingleton         ;
+    destructor       DestroyFromMediator      ; override;
   end;
 
   { TFRE_DB_PARAM_DESC }
@@ -2581,16 +2582,20 @@ begin
   exit;
 end;
 
-procedure  TFRE_DB_SUPPRESS_ANSWER_DESC.DestroySingleton;
+destructor TFRE_DB_SUPPRESS_ANSWER_DESC.DestroySingleton;
 begin
-  //FImplementor._InternalSetMediatorScheme(nil,nil);
+  if self=nil then
+    exit;
+  FImplementor._InternalSetMediatorScheme(nil,nil);
   FImplementor.Finalize;
-  //inherited Destroy;
+  FImplementor := Nil;
+  FNamedObject := Nil;
+  Inherited Destroy;
 end;
 
-function TFRE_DB_SUPPRESS_ANSWER_DESC.CFG_Dont_Finalize_Object: Boolean;
+destructor TFRE_DB_SUPPRESS_ANSWER_DESC.DestroyFromMediator;
 begin
-  Result := true;
+  exit;
 end;
 
 { TFRE_DB_NOTE }
@@ -2670,15 +2675,20 @@ begin
   // ignore destroy of the nil description
 end;
 
-procedure TFRE_DB_NIL_DESC.DestroySingleton;
+destructor TFRE_DB_NIL_DESC.DestroySingleton;
 begin
-  //FImplementor._InternalSetMediatorScheme(nil,nil);
+  if self=nil then
+    exit;
+  FImplementor._InternalSetMediatorScheme(nil,nil);
   FImplementor.Finalize;
+  FImplementor := Nil;
+  FNamedObject := Nil;
+  inherited Destroy;
 end;
 
-function TFRE_DB_NIL_DESC.CFG_Dont_Finalize_Object: Boolean;
+destructor TFRE_DB_NIL_DESC.DestroyFromMediator;
 begin
-  Result:=true;
+  exit;
 end;
 
 { TFRE_DB_NIL_DESC }
@@ -4050,7 +4060,8 @@ end;
 constructor TFRE_DB_ObjectEx.create;
 begin
   FBound       := false;
-  if not GFRE_DBI.NewObjectIntf(IFRE_DB_NAMED_OBJECT,FNamedObject,self) then abort;
+  if not GFRE_DBI.NewObjectIntf(IFRE_DB_NAMED_OBJECT,FNamedObject,self) then
+    abort;
   FNamedObject.Supports(IFRE_DB_OBJECT,FImplementor);
   InternalSetup;
 end;
@@ -4067,7 +4078,16 @@ end;
 
 destructor TFRE_DB_ObjectEx.Destroy;
 begin
-  //writeln('--------------------------------------- MEDIATOR DESTROOOYY---');
+  if not FBound then
+    begin
+      if assigned(FNamedObject) then
+        FNamedObject.Finalize;
+    end;
+  inherited Destroy;
+end;
+
+destructor TFRE_DB_ObjectEx.DestroyFromMediator;
+begin
   inherited Destroy;
 end;
 

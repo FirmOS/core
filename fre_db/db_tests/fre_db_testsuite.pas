@@ -374,7 +374,7 @@ end;
 procedure TFRE_DB_PersistanceTests.SetupTestCollections;
 var coll_v,coll_p : IFRE_DB_COLLECTION;
 begin
-  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM');
+  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
   GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
   ConnectDB('test1@system','test1');
   coll_v := FWorkConn.Collection('TEST_1_VOL',true,true);
@@ -460,17 +460,20 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
     WriteObject(obj);
   end;
 
-  procedure GendataforColl(const coll:IFRE_DB_COLLECTION);
+  procedure GendataforColl(const coll:IFRE_DB_COLLECTION;const genlinkobjs : boolean);
   var i : integer;
   begin
-    guid := CFRE_DB_NullGUID;
-    for i:= 0 to high(inserts) do
+    if genlinkobjs then
       begin
-       TGUID_Access(guid).Part2 := i;
-       obj := GFRE_DBI.NewObject;
-       obj.Field('myid').AsUInt32 := 100;
-       obj.Field('uid').AsGUID:=guid;
-       coll_link.Store(obj);
+        guid := CFRE_DB_NullGUID;
+        for i:= 0 to high(inserts) do
+          begin
+           TGUID_Access(guid).Part2 := i;
+           obj := GFRE_DBI.NewObject;
+           obj.Field('myid').AsUInt32 := 100;
+           obj.Field('uid').AsGUID:=guid;
+           coll_link.Store(obj);
+          end;
       end;
 
     guid := CFRE_DB_NullGUID;
@@ -556,8 +559,8 @@ begin
    coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
    coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
    coll_link := FWorkConn.Collection('TEST_1_LINKO',true,false);
-   GendataforColl(coll_v);
-   GendataforColl(coll_p);
+   GendataforColl(coll_p,true);
+   GendataforColl(coll_v,false);
    //GendataforColl(coll_vu);
    //GendataforColl(coll_pu);
    DumpColl(coll_p,'ixs');
@@ -629,7 +632,8 @@ end;
 
 procedure TFRE_DB_PersistanceTests.ReconnectNotSyncedFromWAL;
 begin
-  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM');
+  writeln('***** ------------------------------------------------------');
+  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
   GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
   ConnectDB('test1@system','test1');
 end;
