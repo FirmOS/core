@@ -121,7 +121,8 @@ type
   private
     procedure       SetupApplicationStructure     ; override;
     function        InstallAppDefaults            (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype; override;
-    function        InstallSystemGroupsandRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; override;
+    function        InstallRoles                  (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype;
+    function        InstallDomainGroupsandRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; override;
 
     procedure       _UpdateSitemap            (const session: TFRE_DB_UserSession);
   protected
@@ -1930,7 +1931,7 @@ var old_version  : TFRE_DB_String;
 
     procedure _InstallAllDomains(const obj:IFRE_DB_Object);
     begin
-      InstallSystemGroupsandRoles(conn,obj.Field('objname').asstring);
+      InstallDomainGroupsandRoles(conn,obj.Field('objname').asstring);
     end;
 
 begin
@@ -1965,10 +1966,16 @@ begin
   end;
 end;
 
-function TFRE_DB_TEST_APP.InstallSystemGroupsandRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
-var admin_app_rg : IFRE_DB_ROLE;
-     user_app_rg : IFRE_DB_ROLE;
-    guest_app_rg : IFRE_DB_ROLE;
+function TFRE_DB_TEST_APP.InstallRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
+begin
+
+end;
+
+function TFRE_DB_TEST_APP.InstallDomainGroupsandRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
+var
+  admin_app_rg : IFRE_DB_ROLE;
+  user_app_rg  : IFRE_DB_ROLE;
+  guest_app_rg : IFRE_DB_ROLE;
 begin
   if domain=cSYS_DOMAIN then begin
     writeln('Install for Domain:',domain);
@@ -1998,6 +2005,10 @@ begin
     conn.StoreRole(guest_app_rg,ObjectName,domain);
 
     _AddSystemGroups(conn,domain);
+
+    conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
+    conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'GUEST'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'GUEST'+'@'+domain)]));
+    conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'ADMIN'+'@'+domain),Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
   end;
 end;
 

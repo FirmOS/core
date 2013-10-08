@@ -1290,7 +1290,6 @@ type
     function  SubFormattedDisplayAvailable  : boolean; override;
     function  GetSubFormattedDisplay        (indent: integer=4): TFRE_DB_String; override;
     function  GetRightNames                 :TFRE_DB_StringArray;
-    property  DomainID                      :TGUID read GetDomainID write SetDomainID;
   end;
 
   { TFRE_DB_APPDATA }
@@ -1894,9 +1893,10 @@ type
     function    _UserExists                 (const loginatdomain:TFRE_DB_String):boolean;
     function    _FetchUser                  (const loginatdomain:TFRE_DB_String):TFRE_DB_USER;
     function    _FetchUserById              (const user_id:TGUID;var user: TFRE_DB_USER):boolean;
-    function    _RoleExists                 (const roleatdomain:TFRE_DB_String):boolean;
-    function    _FetchRole                  (const roleatdomain:TFRE_DB_String;var role:TFRE_DB_ROLE):boolean;
-    function    _RoleID                     (const roleatdomain:TFRE_DB_String;var role_id:TGUID):boolean;
+    function    _RoleExists                 (const rolename:TFRE_DB_String):boolean;
+    function    _FetchRole                  (const rolename:TFRE_DB_String;var role:TFRE_DB_ROLE):boolean;
+    function    _getFullRolename            (const rolename:TFRE_DB_String):TFRE_DB_String;
+    function    _RoleID                     (const rolename:TFRE_DB_String;var role_id:TGUID):boolean;
     function    _FetchRolebyID              (const role_id:TGUID;var role:TFRE_DB_ROLE):boolean;
     function    _GroupExists                (const groupatdomain:TFRE_DB_String):boolean;
     function    _FetchGroup                 (const groupatdomain:TFRE_DB_String;var ug: TFRE_DB_GROUP):boolean;
@@ -1911,7 +1911,7 @@ type
     function    _ModifyUserImage            (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
 
     function    _DeleteGroup                (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-    function    _DeleteRole                 (const roleatdomain:TFRE_DB_String):TFRE_DB_Errortype;
+    function    _DeleteRole                 (const rolename:TFRE_DB_String):TFRE_DB_Errortype;
 
     function    _DomainExists               (const name :TFRE_DB_NameType):boolean;
     function    _DomainID                   (const name :TFRE_DB_NameType):TGUID;
@@ -1997,8 +1997,8 @@ type
     function    FetchGroupI                 (const groupatdomain:TFRE_DB_String;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupById              (const group_id:TGUID;var ug: TFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupByIdI             (const group_id:TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    FetchRole                   (const roleatdomain:TFRE_DB_NameType;var role: TFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    FetchRoleI                  (const roleatdomain:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    FetchRole                   (const rolename:TFRE_DB_NameType;var role: TFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    FetchRoleI                  (const rolename:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id:TGUID;var role: TFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleByIdI              (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     procedure   ForAllColls                 (const iterator:TFRE_DB_Coll_Iterator) ;override;
@@ -2027,10 +2027,10 @@ type
     function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
     function    ModifyUserImage             (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
-    function    RoleExists                  (const roleatdomain:TFRE_DB_String):boolean;
+    function    RoleExists                  (const rolename:TFRE_DB_String):boolean;
     function    GroupExists                 (const groupatdomain:TFRE_DB_String):boolean;
     function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-    function    DeleteRole                  (const roleatdomain:TFRE_DB_String):TFRE_DB_Errortype;
+    function    DeleteRole                  (const rolename:TFRE_DB_String):TFRE_DB_Errortype;
     function    StoreRole                   (var role:TFRE_DB_ROLE; const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType):TFRE_DB_Errortype;
     function    StoreGroup                  (const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType;var   ug:TFRE_DB_GROUP):TFRE_DB_Errortype;
     function    StoreGroupDomainbyID        (const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
@@ -2103,7 +2103,7 @@ type
     function    FetchUserById                (const user_id:TGuid;var user:IFRE_DB_USER):TFRE_DB_Errortype;
     function    FetchGroup                   (const groupatdomain:TFRE_DB_String;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupById               (const group_id:TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    FetchRole                    (const roleatdomain:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    FetchRole                    (const rolename:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById                (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewRight                     (const rightname: TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRole                      (const rolename,txt,txt_short:TFRE_DB_String;var role:IFRE_DB_ROLE):TFRE_DB_Errortype;
@@ -2114,10 +2114,10 @@ type
     function    ModifyUserGroups             (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroups             (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserPassword           (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
-    function    RoleExists                   (const roleatdomain:TFRE_DB_String):boolean;
+    function    RoleExists                   (const rolename:TFRE_DB_String):boolean;
     function    GroupExists                  (const groupatdomain:TFRE_DB_String):boolean;
     function    DeleteGroup                  (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-    function    DeleteRole                   (const roleatdomain:TFRE_DB_String):TFRE_DB_Errortype;
+    function    DeleteRole                   (const rolename:TFRE_DB_String):TFRE_DB_Errortype;
     function    StoreRole                    (const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType; var rg:IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    StoreGroup                   (const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType; var ug:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    StoreGroupDomainbyID         (const domain_id: TGUID; var group : IFRE_DB_GROUP): TFRE_DB_Errortype;
@@ -2692,7 +2692,7 @@ var dbo              : IFRE_DB_Object;
       GFRE_DBI.FetchApplications(apps);
       for i:=0 to high(apps) do begin
         if apps[i].ObjectName<>'LOGIN' then begin
-          (apps[i].Implementor_HC as TFRE_DB_APPLICATION).InstallSystemGroupsandRoles(dbc.FSysConnection,dn);
+          (apps[i].Implementor_HC as TFRE_DB_APPLICATION).InstallDomainGroupsandRoles(dbc.FSysConnection,dn);
         end;
       end;
     end;
@@ -3665,8 +3665,8 @@ var syscon       : TFRE_DB_SYSTEM_CONNECTION;
     lDomain      : TFRE_DB_DOMAIN;
 begin
   syscon   := (conn.Implementor_HC as TFRE_DB_CONNECTION).FSysConnection as TFRE_DB_SYSTEM_CONNECTION;
-  if not syscon._FetchDomainbyID(DomainID,lDomain) then begin
-    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(DomainID));
+  if not syscon._FetchDomainbyID(GetDomainID,lDomain) then begin
+    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(GetDomainID));
   end else begin
     result := lDomain.GetName;
   end;
@@ -3681,7 +3681,7 @@ end;
 procedure TFRE_DB_ROLE.SetDomainID(AValue: TGUID);
 begin
  Field('domainid').AsObjectLink := AValue;
- Field('domainrolekey').AsString := GetDomainRoleKey(ObjectName,domainid);
+ Field('domainrolekey').AsString := GetDomainRoleKey(ObjectName,AValue);
 end;
 
 procedure TFRE_DB_ROLE.AddRightI(const right: IFRE_DB_RIGHT);
@@ -3731,8 +3731,8 @@ begin
   Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
   scheme.AddSchemeField('appdataid',fdbft_ObjLink).SetupFieldDef(false,true);
   scheme.AddSchemeFieldSubscheme('rights','TFRE_DB_RIGHT').multiValues:=true;
-  scheme.AddSchemeField('domainid',fdbft_ObjLink).SetupFieldDef(true,false);
-  scheme.AddSchemeField('domainrolekey',fdbft_String).SetupFieldDef(true,false);
+  scheme.AddSchemeField('domainid',fdbft_ObjLink).SetupFieldDef(false,false);
+  scheme.AddSchemeField('domainrolekey',fdbft_String).SetupFieldDef(false,false);
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 end;
 
@@ -3859,7 +3859,7 @@ var domain_id : TGUID;
   begin
     rg := _NewRole(rolename,'View Domain '+domain,'View Domain '+domain);
     rg.AddRight(_NewRight(FREDB_Get_Rightname_UID('VIEWDOM',domain_id)));
-    rg.DomainID:=_DomainID(role_domain);
+    rg.SetDomainID(_DomainID(role_domain));
     FSysRoles.Store(TFRE_DB_Object(rg));
   end;
   procedure SetupDomainRoleEdit(const rolename:string;const role_domain:string);
@@ -3868,7 +3868,7 @@ var domain_id : TGUID;
     rg := _NewRole(rolename,'Administer Domain '+domain,'Administer Domain '+domain);
     rg.AddRight(_NewRight(FREDB_Get_Rightname_UID('VIEWDOM',domain_id)));
     rg.AddRight(_NewRight(FREDB_Get_Rightname_UID('EDITDOM',domain_id)));
-    rg.DomainID:=_DomainID(role_domain);
+    rg.setDomainID(_DomainID(role_domain));
     FSysRoles.Store(TFRE_DB_Object(rg));
   end;
 
@@ -3881,7 +3881,7 @@ var domain_id : TGUID;
       rg := _NewRole(cSYSROLE_DB_ADMIN,'Database Administrator Right Group','Administrator');
       rg.AddRight(_NewRight(cSYSR_CREATE_DB));
       rg.AddRight(_NewRight(cSYSR_DELETE_DB));
-      rg.DomainID:=domain_id;
+      rg.setDomainID(domain_id);
       CheckDbResult(FSysRoles.Store(TFRE_DB_Object(rg)),'Cannot create DB Admin Role');
     end;
     procedure SetupManageRole;
@@ -3893,7 +3893,7 @@ var domain_id : TGUID;
       rg.AddRight(_NewRight(cSYSR_MOD_RIGHT));
       rg.AddRight(_NewRight(cSYSR_MOD_UG));
       rg.AddRight(_NewRight(Get_Rightname_App_Helper('syseditor','START')));
-      rg.DomainID:=domain_id;
+      rg.setDomainID(domain_id);
       FSysRoles.Store(TFRE_DB_Object(rg));
     end;
     procedure SetupManageAppRole;
@@ -3902,7 +3902,7 @@ var domain_id : TGUID;
       rg := _NewRole(cSYSROLE_MANAGE_APPS,'Database App Manager Right Group','App Manager');
       rg.AddRight(_NewRight(cSYSR_INSTALL_APP));
       rg.AddRight(_NewRight(cSYSR_UNINSTALL_APP));
-      rg.DomainID:=domain_id;
+      rg.setDomainID(domain_id);
       FSysRoles.Store(TFRE_DB_Object(rg));
     end;
     procedure SetupUserRole;
@@ -3914,7 +3914,7 @@ var domain_id : TGUID;
       rg.AddRight(_NewRight(cSYSR_WRITE_DBO));
       rg.AddRight(_NewRight(cSYSR_DELETE_DBO));
       rg.AddRight(_NewRight(cSYSR_EXEC_DBO));
-      rg.DomainID:=domain_id;
+      rg.setDomainID(domain_id);
       FSysRoles.Store(TFRE_DB_Object(rg));
     end;
     procedure SetupGuestRole;
@@ -3923,7 +3923,7 @@ var domain_id : TGUID;
       rg := _NewRole(cSYSROLE_DB_GUEST,'Database Guest Right Group','User');
       rg.AddRight(_NewRight(cSYSR_LOGIN_DB));
       rg.AddRight(_NewRight(cSYSR_EXEC_DBO));
-      rg.DomainID:=domain_id;
+      rg.setDomainID(domain_id);
       FSysRoles.Store(TFRE_DB_Object(rg));
     end;
 
@@ -4128,34 +4128,34 @@ begin
   result := false;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._RoleExists(const roleatdomain: TFRE_DB_String): boolean;
-var rolename   : TFRE_DB_String;
-    domain     : TFRE_DB_String;
-    domain_id  : TGUID;
+function TFRE_DB_SYSTEM_CONNECTION._RoleExists(const rolename: TFRE_DB_String): boolean;
 begin
-  FREDB_SplitLocalatDomain(roleatdomain,rolename,domain);
-  domain_Id := _DomainID(domain);
-  result := FSysRoles.ExistsIndexed(TFRE_DB_ROLE.GetDomainRoleKey(rolename,domain_id));
+  result := FSysRoles.ExistsIndexed(_getFullRolename(rolename));
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._FetchRole(const roleatdomain: TFRE_DB_String; var role: TFRE_DB_ROLE): boolean;
-var rolename   : TFRE_DB_String;
-    domain     : TFRE_DB_String;
-    domain_id  : TGUID;
+function TFRE_DB_SYSTEM_CONNECTION._FetchRole(const rolename: TFRE_DB_String; var role: TFRE_DB_ROLE): boolean;
 begin
-  FREDB_SplitLocalatDomain(roleatdomain,rolename,domain);
-  domain_Id := _DomainID(domain);
-  result := FSysRoles.GetIndexedObj(TFRE_DB_ROLE.GetDomainRoleKey(rolename,domain_id),TFRE_DB_Object(role));
+  result := FSysRoles.GetIndexedObj(_getFullRolename(rolename),TFRE_DB_Object(role));
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._RoleID(const roleatdomain: TFRE_DB_String; var role_id: TGUID): boolean;
-var rolename   : TFRE_DB_String;
-    domain     : TFRE_DB_String;
-    domain_id  : TGUID;
+function TFRE_DB_SYSTEM_CONNECTION._getFullRolename(const rolename: TFRE_DB_String): TFRE_DB_String;
+var
+  domainrolename: TFRE_DB_String;
+  domain        : TFRE_DB_String;
+  domain_Id     : TGuid;
 begin
-  FREDB_SplitLocalatDomain(roleatdomain,rolename,domain);
-  domain_Id := _DomainID(domain);
-  result := FSysRoles.GetIndexedUID(TFRE_DB_ROLE.GetDomainRoleKey(rolename,domain_id),role_id);
+  if Pos('@',rolename)=0 then begin
+    Result:=rolename;
+  end else begin
+    FREDB_SplitLocalatDomain(rolename,domainrolename,domain);
+    domain_Id := _DomainID(domain);
+    Result:=TFRE_DB_ROLE.GetDomainRoleKey(domainrolename,domain_id);
+  end;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION._RoleID(const rolename: TFRE_DB_String; var role_id: TGUID): boolean;
+begin
+  result := FSysRoles.GetIndexedUID(_getFullRolename(rolename),role_id);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION._FetchRolebyID(const role_id: TGUID; var role: TFRE_DB_ROLE): boolean;
@@ -4441,14 +4441,9 @@ begin
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._DeleteRole(const roleatdomain: TFRE_DB_String): TFRE_DB_Errortype;
-var rolename   : TFRE_DB_String;
-    domain     : TFRE_DB_String;
-    domain_id  : TGUID;
+function TFRE_DB_SYSTEM_CONNECTION._DeleteRole(const rolename: TFRE_DB_String): TFRE_DB_Errortype;
 begin
-  FREDB_SplitLocalatDomain(roleatdomain,rolename,domain);
-  domain_Id := _DomainID(domain);
-  if FSysRoles.RemoveIndexed(TFRE_DB_ROLE.GetDomainRoleKey(rolename,domain_id)) then begin
+  if FSysRoles.RemoveIndexed(_getFullRolename(rolename)) then begin
     result := edb_OK;
   end else begin
     result := edb_ERROR;
@@ -4463,7 +4458,7 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION._DomainID(const name: TFRE_DB_NameType): TGUID;
 begin
   if not FSysDomains.GetIndexedUID(name,result) then begin
-    result := GUID_NULL;
+    result := CFRE_DB_NullGUID;
   end;
 end;
 
@@ -4662,18 +4657,18 @@ begin
   ug:=tug;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.FetchRole(const roleatdomain: TFRE_DB_NameType; var role: TFRE_DB_ROLE): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.FetchRole(const rolename: TFRE_DB_NameType; var role: TFRE_DB_ROLE): TFRE_DB_Errortype;
 begin
-  _FetchRole(roleatdomain,role);
+  _FetchRole(rolename,role);
   if assigned(role) then
     exit(edb_OK);
   result := edb_NOT_FOUND;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.FetchRoleI(const roleatdomain: TFRE_DB_NameType; var role: IFRE_DB_ROLE): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.FetchRoleI(const rolename: TFRE_DB_NameType; var role: IFRE_DB_ROLE): TFRE_DB_Errortype;
 var roleo : TFRE_DB_ROLE;
 begin
-  result := FetchRole(roleatdomain,roleo);
+  result := FetchRole(rolename,roleo);
   if result = edb_OK then
     role := roleo
   else
@@ -4846,9 +4841,9 @@ begin
  result := _ModifyUserImage(loginatdomain,imagestream);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.RoleExists(const roleatdomain: TFRE_DB_String): boolean;
+function TFRE_DB_SYSTEM_CONNECTION.RoleExists(const rolename: TFRE_DB_String): boolean;
 begin
-  result := _RoleExists(roleatdomain);
+  result := _RoleExists(rolename);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GroupExists(const groupatdomain: TFRE_DB_String): boolean;
@@ -4862,18 +4857,22 @@ begin
   result := _DeleteGroup(groupatdomain);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.DeleteRole(const roleatdomain: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.DeleteRole(const rolename: TFRE_DB_String): TFRE_DB_Errortype;
 begin
   if not _CheckRight(cSYSR_MOD_RIGHT) then exit(edb_ACCESS);
-  result := _DeleteRole(roleatdomain);
+  result := _DeleteRole(rolename);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreRole(var role: TFRE_DB_ROLE; const appname: TFRE_DB_String; const domainname: TFRE_DB_NameType): TFRE_DB_Errortype;
 var app_id :TGUID;
+  role_id: TGUID;
 begin
+  Result:=edb_ERROR;
   if not _CheckRight(cSYSR_MOD_RIGHT) then exit(edb_ACCESS);
   if domainname<>'' then begin
     role.SetDomainID(_DomainID(domainname));
+  end else begin
+    role.Field('domainrolekey').AsString := role.ObjectName;
   end;
   if appname<>'' then begin
     result := GetAppDataID(appname,app_id);
@@ -9922,9 +9921,9 @@ begin
   Result:= FSysConnection.FetchGroupByIdI(group_id,ug);
 end;
 
-function TFRE_DB_CONNECTION.FetchRole(const roleatdomain: TFRE_DB_NameType; var role: IFRE_DB_ROLE): TFRE_DB_Errortype;
+function TFRE_DB_CONNECTION.FetchRole(const rolename: TFRE_DB_NameType; var role: IFRE_DB_ROLE): TFRE_DB_Errortype;
 begin
-  result := FSysConnection.FetchRoleI(roleatdomain,role);
+  result := FSysConnection.FetchRoleI(rolename,role);
 end;
 
 function TFRE_DB_CONNECTION.FetchRoleById(const role_id: TGUID; var role: IFRE_DB_ROLE): TFRE_DB_Errortype;
@@ -9977,9 +9976,9 @@ begin
  result := FSysConnection.ModifyUserPassword(loginatdomain,oldpassword,newpassword);
 end;
 
-function TFRE_DB_CONNECTION.RoleExists(const roleatdomain: TFRE_DB_String): boolean;
+function TFRE_DB_CONNECTION.RoleExists(const rolename: TFRE_DB_String): boolean;
 begin
- result := FSysConnection.RoleExists(roleatdomain);
+ result := FSysConnection.RoleExists(rolename);
 end;
 
 function TFRE_DB_CONNECTION.GroupExists(const groupatdomain: TFRE_DB_String): boolean;
@@ -9992,9 +9991,9 @@ begin
  result := FSysConnection.DeleteGroup(groupatdomain);
 end;
 
-function TFRE_DB_CONNECTION.DeleteRole(const roleatdomain: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_CONNECTION.DeleteRole(const rolename: TFRE_DB_String): TFRE_DB_Errortype;
 begin
- result := FSysConnection.DeleteRole(roleatdomain);
+ result := FSysConnection.DeleteRole(rolename);
 end;
 
 function TFRE_DB_CONNECTION.StoreRole(const appname: TFRE_DB_String; const domainname: TFRE_DB_NameType; var rg: IFRE_DB_ROLE): TFRE_DB_Errortype;
