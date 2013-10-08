@@ -2581,9 +2581,11 @@ begin
   exit;
 end;
 
-procedure TFRE_DB_SUPPRESS_ANSWER_DESC.DestroySingleton;
+procedure  TFRE_DB_SUPPRESS_ANSWER_DESC.DestroySingleton;
 begin
-  inherited Destroy;
+  //FImplementor._InternalSetMediatorScheme(nil,nil);
+  FImplementor.Finalize;
+  //inherited Destroy;
 end;
 
 function TFRE_DB_SUPPRESS_ANSWER_DESC.CFG_Dont_Finalize_Object: Boolean;
@@ -2670,7 +2672,8 @@ end;
 
 procedure TFRE_DB_NIL_DESC.DestroySingleton;
 begin
-  Inherited Destroy;
+  //FImplementor._InternalSetMediatorScheme(nil,nil);
+  FImplementor.Finalize;
 end;
 
 function TFRE_DB_NIL_DESC.CFG_Dont_Finalize_Object: Boolean;

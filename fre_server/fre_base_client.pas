@@ -415,6 +415,7 @@ begin
   if assigned(FApps) then begin
     FApps.Finalize;
   end;
+  FClientQ.Finalize;
   FContinuationLock.Finalize;
   FConnectionLock.Finalize;
   FCMD_Signal.FinalizeIt;

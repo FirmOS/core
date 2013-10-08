@@ -559,27 +559,16 @@ begin
       GFRE_BT.CriticalAbort('cannot setup basedirectory');
     end;
   end;
-  //if _CheckUnclean then begin
-  //  writeln('>UNCLEAN SHUTDOWN DETECTED -> CHECK');
-  //  _SetUnclean(false);
-  //end;
-  //_SetUnclean(true);
   FMaster       := TFRE_DB_Master_Data.Create('GLOBAL',self);
   FGlobalLayer  := True;
 end;
 
-//function TFRE_DB_PS_FILE.Clone(const name: TFRE_DB_String): IFRE_DB_PERSISTANCE_LAYER;
-//var res : TFRE_DB_PS_FILE;
-//begin
-//  res := TFRE_DB_PS_File.InternalCreate(FBasedirectory,name);
-//  res.Fcloned := true;
-//  res.FMaster := FMaster;
-//  result := res;
-//end;
 
 destructor TFRE_DB_PS_FILE.Destroy;
 begin
-
+  writeln('FINALIZING PERSISTENCE LAYER');
+  FMaster.Free;
+  inherited destroy;
 end;
 
 procedure TFRE_DB_PS_FILE.Finalize;

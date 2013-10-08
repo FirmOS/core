@@ -326,6 +326,7 @@ type
     procedure    InternalStoreLock                                          ;
 
     constructor Create                (const master_name : string ; const Layer : IFRE_DB_PERSISTANCE_LAYER);
+    destructor  Destroy               ; override;
     function    GetReferenceCount     (const obj_uid: TGuid; const from: boolean): NativeInt;
     function    GetReferences         (const obj_uid: TGuid ; const from: boolean): TFRE_DB_ObjectReferences;
     function    ExistsObject          (const obj_uid : TGuid ) : Boolean;
@@ -2292,6 +2293,11 @@ begin
   FLayer                    := Layer;
 end;
 
+destructor TFRE_DB_Master_Data.Destroy;
+begin
+  inherited Destroy;
+end;
+
 function TFRE_DB_Master_Data.GetReferenceCount(const obj_uid: TGuid; const from: boolean): NativeInt;
 begin
   if from then
@@ -2761,7 +2767,7 @@ end;
 
 procedure TFRE_DB_MM_Index.ForAllIndexed(const func: IFRE_DB_Obj_Iterator; const ascending: boolean);
 
-  procedure NodeProc(var value : QWord);
+  procedure NodeProc(var value : NativeUint);
   begin
     (FREDB_PtrUIntToObject(value) as TFRE_DB_IndexValueStore).ForAll(func,ascending);
   end;

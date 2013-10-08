@@ -826,7 +826,6 @@ type
   TFRE_DB_FieldSchemeDefinition=class(TObject,IFRE_DB_FieldSchemeDefinition)
   private
     FScheme       : TFRE_DB_SchemeObject;
-    //FIsACalcField : boolean;
     FFieldName    : TFRE_DB_NameType;
     FFieldType    : TFRE_DB_FIELDTYPE;
 
@@ -844,9 +843,6 @@ type
     FvalidatorParams: TFRE_DB_Object;
 
     FCalcMethod         : IFRE_DB_CalcMethod;
-    //FMyFakeCalcFld      : TFRE_DB_FIELD;
-    //FMyFakeCalcFld_Name : TFRE_DB_NameType;
-    //FMyFakeCalcFld_Data : Pointer;
 
     function   getAddConfirm       : Boolean;
     function   getEnum             : TFRE_DB_Enum;
@@ -879,6 +875,7 @@ type
     function   IFRE_DB_FieldSchemeDefinition.ValidateField = ValidateFieldI;
   public
     constructor Create;
+    destructor  Destroy; override;
     function   IsACalcField      : Boolean;
     function   SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false;const add_confirm:Boolean=false ; const validator_params : TFRE_DB_Object=nil):TFRE_DB_FieldSchemeDefinition;
     function   SetupFieldDefI    (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
@@ -925,6 +922,7 @@ type
     function  GetCaptionKey      : TFRE_DB_NameType;
   public
     constructor Create             (const gid : TFRE_DB_NameType ; scheme : TFRE_DB_SchemeObject);
+    destructor  Destroy            ; override;
     function    Setup              (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
     procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean=false;const hidden:Boolean=false; const dataCollection: TFRE_DB_String='');
     procedure   UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
@@ -990,6 +988,7 @@ type
     function  IFRE_DB_SCHEMEOBJECT.ForAllFieldSchemeDefinitions = ForAllFieldSchemeDefinitionsI;
   public
     constructor create;
+    destructor  Destroy;override;
     procedure ForAllFieldSchemeDefinitionsI (const iterator:IFRE_DB_SchemeFieldDef_Iterator);
     procedure ForAllFieldSchemeDefinitions (const iterator:TFRE_DB_SchemeFieldDef_Iterator);
 
@@ -3165,6 +3164,11 @@ begin
   //obj := default(OFRE_InputFieldDef4Group);
   FillByte(obj,sizeof(OFRE_InputFieldDef4Group),0);
   Fields.InitSparseList(obj,@local_FieldDefIsNull,@local_FieldDefCompare);
+end;
+
+destructor TFRE_DB_InputGroupSchemeDefinition.Destroy;
+begin
+  inherited Destroy;
 end;
 
 function TFRE_DB_COMMAND.GetCommandID: UInt64;
@@ -7557,6 +7561,12 @@ begin
   FDepFields.InitSparseList(rdf,@local_DepfieldNullCompare,@local_DepfieldCompare,1);
 end;
 
+destructor TFRE_DB_FieldSchemeDefinition.Destroy;
+begin
+  FvalidatorParams.Free;
+  inherited Destroy;
+end;
+
 
 
 function TFRE_DB_FieldSchemeDefinition.IsACalcField: Boolean;
@@ -7580,16 +7590,17 @@ begin
     end;
   end;
   if validator_key<>'' then begin
-    if GFRE_DB.GetSysClientFieldValidator(validator_key,lValid) then begin
-      setValidator(lValid);
-      if assigned(validator_params) then
-        begin
-          FvalidatorParams.Free;
-          FvalidatorParams := validator_params;
-        end;
-    end else begin
+    if GFRE_DB.GetSysClientFieldValidator(validator_key,lValid) then
+      begin
+        setValidator(lValid);
+        if assigned(validator_params) then
+          begin
+            FvalidatorParams.Free;
+            FvalidatorParams := validator_params;
+          end;
+       end
+    else
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'the client field validator[%s] could not be fetched from the database',[validator_key]);
-    end;
   end;
   result:=self;
 end;
@@ -8497,6 +8508,27 @@ constructor TFRE_DB_SchemeObject.create;
 begin
   FInputGroups.InitSparseList(nil,@InputGroupNull,@CompareInputGroups,10);
   FFieldDefs.InitSparseList(nil,@SchemeFieldDefnull,@CompareSchemefieldDef);
+end;
+
+destructor TFRE_DB_SchemeObject.Destroy;
+
+  procedure CleanupIGs(var ig : TFRE_DB_InputGroupSchemeDefinition ; const idx : NativeInt ; var halt : boolean);
+  begin
+    ig.Free;
+    ig := nil;
+  end;
+
+  procedure CleanupFDs(var fd : TFRE_DB_FieldSchemeDefinition ; const idx : NativeInt ; var halt : boolean);
+  begin
+    fd.Free;
+    fd := nil;
+  end;
+
+begin
+  writeln('DESTROY SCHEME : ',DefinedSchemeName);
+  FInputGroups.ForAllBreak(@CleanupIGs);
+  FFieldDefs.ForAllBreak(@CleanupFDs);
+  inherited Destroy;
 end;
 
 procedure TFRE_DB_SchemeObject.ForAllFieldSchemeDefinitionsI(const iterator: IFRE_DB_SchemeFieldDef_Iterator);
@@ -10835,10 +10867,16 @@ begin
 end;
 
 destructor TFRE_DB.Destroy;
+var i : NativeInt;
 begin
   writeln('TODO-{B9293265-8A09-B97F-EE8E-E5B9D2769FAD}');
-  //FSystemSchemes.ClearCollection;
-  //FSystemSchemes.Free;
+  for i:=0 to High(FSysSchemes) do
+    FSysSchemes[i].free;
+  for i:=0 to High(FSysEnums) do
+    FSysEnums[i].free;
+  for i:=0 to High(FSysClientFieldValidators) do
+    FSysClientFieldValidators[i].free;
+
   inherited Destroy;
 end;
 
@@ -11914,7 +11952,6 @@ destructor TFRE_DB_Object.Destroy;
   end;
 
 begin
-exit;
   FDBO_State := fdbos_Destroying;
   FFieldStore.ForallItems(@DoAllFinalizeFields); // plus unknown fields
   FFieldStore.Free;
@@ -12180,8 +12217,11 @@ end;
 procedure TFRE_DB_Object._InternalSetMediatorScheme(const mediator: TFRE_DB_ObjectEx; const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   FMediatorExtention := mediator;
-  FSchemeName        := scheme.DefinedSchemeName;
-  FCacheSchemeObj    := scheme.Implementor as TFRE_DB_SchemeObject;
+  if assigned(scheme) then
+    begin
+      FSchemeName        := scheme.DefinedSchemeName;
+      FCacheSchemeObj    := scheme.Implementor as TFRE_DB_SchemeObject;
+    end;
 end;
 
 procedure TFRE_DB_Object.__InternalCollectionAdd(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
@@ -16882,7 +16922,8 @@ initialization
 
 finalization
   GFRE_DB.Free;
-  GFRE_DB_NIL_DESC.Free;
+  GFRE_DB_NIL_DESC.DestroySingleton;
+  GFRE_DB_SUPPRESS_SYNC_ANSWER.DestroySingleton;
 
 end.
 
