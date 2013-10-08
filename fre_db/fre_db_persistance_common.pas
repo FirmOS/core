@@ -2761,7 +2761,7 @@ end;
 
 procedure TFRE_DB_MM_Index.ForAllIndexed(const func: IFRE_DB_Obj_Iterator; const ascending: boolean);
 
-  procedure NodeProc(var value : QWord);
+  procedure NodeProc(var value : NativeUint);
   begin
     (FREDB_PtrUIntToObject(value) as TFRE_DB_IndexValueStore).ForAll(func,ascending);
   end;
