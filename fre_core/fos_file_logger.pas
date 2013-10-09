@@ -168,7 +168,7 @@ type
    single_threaded_LOL     : RLogObj;
 
    procedure   GenCheck             (gens: integer;fullpathfilename:string=''); // Removes Logfiles Exceedin Generations Limit
-   procedure   LogToFile            (const filename, entry: string;const Turnaround:integer;const Gens:Integer);
+   function    LogToFile            (const filename, entry: string;const Turnaround:integer;const Gens:Integer):boolean;
    procedure   LogEmergency         (const msg:string);
   public
    procedure   Configure            (CFO:TObject);
@@ -506,9 +506,13 @@ var LO:RLogObjP;
           with Entry_Opts do LogSystem(formated_entry,syslogfacility,LO^.Level);
          end else begin
           if (Entry_Opts.fullfilename<>'') and (Entry_Opts.not_in_full_log=fbtFalse) then begin
-            with Entry_Opts do LogToFile(basedir+targetpreselect+fullfilename,formated_entry,turnaround,generations);
+            with Entry_Opts do begin
+             if LogToFile(basedir+targetpreselect+fullfilename,formated_entry,turnaround,generations)=true then exit;
+            end;
           end;
-          with Entry_Opts do LogToFile(basedir+targetpreselect+filename,formated_entry,turnaround,generations);
+          with Entry_Opts do begin
+            if LogToFile(basedir+targetpreselect+filename,formated_entry,turnaround,generations)=true then exit;
+          end;
          end;
        end;
     finally
@@ -519,9 +523,6 @@ var LO:RLogObjP;
  end;
 
 begin
- {$IFNDEF FPC}
-   priority:=tpLowest;
- {$ENDIF}
   try
     if FIsMultiThreaded then begin
       while not Terminated do begin
@@ -536,7 +537,9 @@ begin
     end else begin
       LogEvents(true);
     end;
+    FOS_IL_Exchange(glogcycledone,2);
  except on e:exception do begin
+   FOS_IL_Exchange(glogcycledone,2);
    LogEmergency('CRITICAL LOGGER ERROR '+e.message);
  end;end;
 end;
@@ -646,7 +649,7 @@ begin
  syslog(CSYSLOG_LEVEL[level],'%s',[PChar(Msg)]);
 end;
 
-procedure TFileLoggerThread.LogToFile(const filename, entry: string; const Turnaround: integer; const Gens: Integer);
+function TFileLoggerThread.LogToFile(const filename, entry: string; const Turnaround: integer; const Gens: Integer): boolean;
 var nam:string;
     f:Text;
     ff:file of byte;
@@ -654,6 +657,7 @@ var nam:string;
     noclose:boolean;
     k:cardinal;
 begin
+   result := false;
    try
     lbasedir:=ExtractFilePath(filename);
     nam:=ExtractFileName(filename);
@@ -672,7 +676,9 @@ begin
           inc(k);
           if k=10 then begin
            nam:=nam;
-           exit;
+           LogEmergency('Can not log to file '+filename);
+           Terminate;
+           exit(true);
           end;
           Reset(ff);
           if IOResult=0 then break;
@@ -697,6 +703,7 @@ begin
     except on E:Exception do begin
      nam:=nam;
     end;end;
+
     AssignFile(f,lBaseDir+nam);
     try
       {$I-}
@@ -705,7 +712,9 @@ begin
        inc(k);
        if k=10 then begin
         nam:=nam;
-        exit;
+        LogEmergency('Can not log to file '+lBaseDir+nam);
+        Terminate;
+        exit(true);
        end;
        if FileExists(lBaseDir+nam) then begin
         Append(f);
@@ -719,7 +728,7 @@ begin
        break;
       until false;
       {$I+}
-    finally
+     finally
      Close(f);
     end;
    except on E:Exception do begin
@@ -794,6 +803,7 @@ end;
 procedure TFileLoggerThread.Sync_Logger;
 begin
  if not FIsMultiThreaded then exit;
+ if glogcycledone=2 then exit;
  FOS_IL_Exchange(glogcycledone,1);
  FE.SetEvent;
  repeat
@@ -807,7 +817,9 @@ end;
 procedure TFileLoggerThread.LogEmergency(const msg: string);
 begin
   try
+    writeln('<************* EMERGENCY LOG *************');
     writeln(msg);
+    writeln('************* EMERGENCY LOG *************>');
   except
   end;
   LogToFile('emergency.log',msg,0,0);
