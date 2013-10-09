@@ -47,7 +47,7 @@ uses sysutils;
 const cFRE_SERVER_VERSION   = 'v0.1 Embedded';
       cFRE_SERVER_COPYRIGHT = '(c) FirmOS Business Solutions Gmbh (www.openfirmos.at)'+LineEnding+
                               '    Helmut Hartl, Franz Schober, Christian Koch'+LineEnding;
-      cFRE_GLOBAL_DIRECTORY = '/fre';
+      cFRE_GLOBAL_DIRECTORY = '/opt/local/fre';
 
 var
       cFRE_WEB_STYLE                  :string = 'firmos';

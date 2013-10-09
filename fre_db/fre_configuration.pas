@@ -57,7 +57,7 @@ procedure Initialize_Read_FRE_CFG_Parameter;
 var cfgfile  : string;
     userfile : string;
 
-  procedure ReadConfigFile;
+  procedure ReadConfigFileandConfigureLogger;
   var ini : TMemIniFile;
 
     procedure ConfigureLogging;
@@ -76,6 +76,8 @@ var cfgfile  : string;
          rule           : string;
          logaction      : TFOS_LOG_RULE_ACTION;
          stoprule       : boolean;
+         defaultdir     : string;
+         fullfilename   : string;
 
     begin
       GFRE_Log.ClearLogRules;
@@ -85,6 +87,15 @@ var cfgfile  : string;
         end;
         sl:=TStringList.Create;
         try
+          defaultdir   := ini.ReadString ('LOGGER','DEFAULT_DIR',cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'log');
+          turnaround   := ini.ReadInteger('LOGGER','DEFAULT_TURNAROUND',1000000);
+          generations  := ini.ReadInteger('LOGGER','DEFAULT_GENERATIONS',10);
+          filename     := ini.ReadString ('LOGGER','DEFAULT_FILENAME','main.log');
+          fullfilename := ini.ReadString ('LOGGER','DEFAULT_FULLFILENAME','full.log');
+          loglevel     := FOSTI_StringToLogLevel    (ini.ReadString('LOGGER','DEFAULT_LOGLEVEL','DEBUG'));
+          facility     := FOSTI_StringToLogFacility (ini.ReadString('LOGGER','DEFAULT_FACILITY','KERNEL'));
+          GFRE_LOG.SetDefaults(filename,fullfilename,defaultdir,turnaround,generations,loglevel,facility);
+
           sl.CommaText := ini.ReadString('LOGGER','TARGETS','');
           for i:=0 to sl.Count-1 do begin
             target      := Uppercase(trim(sl[i]));
@@ -143,10 +154,14 @@ var cfgfile  : string;
 
   begin
     try
-      //writeln('READING CONFIG FILE [',cfgfile,']');
+      writeln('READING CONFIG FILE [',cfgfile,']');
       ini := TMemIniFile.Create(cfgfile);
       try
         cFRE_SERVER_DEFAULT_DIR         := ini.ReadString('BASE','DIR'               , cFRE_SERVER_DEFAULT_DIR);
+        if pos('~',cFRE_SERVER_DEFAULT_DIR)>0 then begin
+          cFRE_SERVER_DEFAULT_DIR := StringReplace(cFRE_SERVER_DEFAULT_DIR,'~',GetUserDir,[]);
+          cFRE_SERVER_DEFAULT_DIR := StringReplace(cFRE_SERVER_DEFAULT_DIR,DirectorySeparator+DirectorySeparator,DirectorySeparator,[]);
+        end;
         cFRE_SERVER_WWW_ROOT_DIR        := ini.ReadString('BASE','WWWROOT'           , cFRE_SERVER_WWW_ROOT_DIR);
         cFRE_SERVER_DEFAULT_TIMEZONE    := ini.ReadString('BASE','TIMEZONE'          , cFRE_SERVER_DEFAULT_TIMEZONE);
         cFRE_WebServerLocation_HixiedWS := ini.ReadString('BASE','HIXIE_WS_LOCATION' , cFRE_WebServerLocation_HixiedWS);
@@ -182,12 +197,9 @@ begin
     end;
   end;
   if cfgfile<>'' then begin
-    ReadConfigFile;
+    ReadConfigFileandConfigureLogger;
   end;
-  if pos('~',cFRE_SERVER_DEFAULT_DIR)>0 then begin
-    cFRE_SERVER_DEFAULT_DIR := StringReplace(cFRE_SERVER_DEFAULT_DIR,'~',GetUserDir,[]);
-    cFRE_SERVER_DEFAULT_DIR := StringReplace(cFRE_SERVER_DEFAULT_DIR,DirectorySeparator+DirectorySeparator,DirectorySeparator,[]);
-  end;
+
   if cFRE_SERVER_WWW_ROOT_DIR='' then begin
     cFRE_SERVER_WWW_ROOT_DIR := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'www';
   end;
