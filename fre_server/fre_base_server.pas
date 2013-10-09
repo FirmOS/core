@@ -285,7 +285,8 @@ var  me           : EFOS_FCOM_MULTIERROR;
      procedure InitHullHTML;
      var res_main : TFRE_DB_MAIN_DESC;
      begin
-       res_main  := TFRE_DB_MAIN_DESC.create.Describe(cFRE_WEB_STYLE,'https://tracker.firmos.at/s/en_UK-wu9k4g-1988229788/6097/12/1.4.0-m2/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector-embededjs/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector-embededjs.js?collectorId=5e38a693');
+//       res_main  := TFRE_DB_MAIN_DESC.create.Describe(cFRE_WEB_STYLE,'https://tracker.firmos.at/s/en_UK-wu9k4g-1988229788/6097/12/1.4.0-m2/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector-embededjs/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector-embededjs.js?collectorId=5e38a693');
+       res_main  := TFRE_DB_MAIN_DESC.create.Describe(cFRE_WEB_STYLE);
        TransFormFunc(FDefaultSession,fct_SyncReply,res_main,FHull_HTML,FHull_CT,false,fdbtt_get2html);
      end;
 
@@ -333,7 +334,7 @@ begin
   end;
   GFRE_DB.LogInfo(dblc_SERVER,'NODE INTERLINK (SERVER/SSL) LISTENING ON (%s) ',[FIL_ListenSockSSL.GetSocket.Get_AI.SocketAsString]);
 
-  FInterLinkEvent := GFRE_S.AddPeriodicSignalTimer(1000,@InterLinkDispatchTimer,nil,dm_OneWorker);
+  FInterLinkEvent := GFRE_S.AddPeriodicSignalTimer(1,@InterLinkDispatchTimer,nil,dm_OneWorker);
   FWFE_Scheduler  := GFRE_S.AddPeriodicTimer(1000,@WFE_DispatchTimerEvent,nil,dm_OneWorker);
 
   _SetupHttpBaseServer;
@@ -567,6 +568,8 @@ begin
             if FUserSessionsTree.Delete(FSession_dispatch_array[i].GetSessionID,lSession) then
               begin
                 writeln('FREEING USER SESSION ',lSession.GetSessionID,' user=',lSession.GetUsername,' from ',lSession.GetClientDetails);
+                GFRE_BT.CriticalAbort('REBOOT');
+                halt;
                 try
                   lSession.free;
                 except on e:exception do
