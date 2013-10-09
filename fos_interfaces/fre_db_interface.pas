@@ -1917,11 +1917,11 @@ type
     procedure   Input_FRE_DB_Command     (const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
     procedure   Input_FRE_DB_Event       (const cmd_event:TFRE_DB_EVENT_METHOD_ENC);
     function    Session_Has_CMDS         : Boolean;
-    function    WorkSessionCommand       : IFRE_DB_COMMAND;
+    function    WorkSessionCommand       (var drop_current_session : boolean): IFRE_DB_COMMAND;
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;const input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const obj:IFRE_DB_Object;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
     function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String;const force_new_session_data : boolean ; const session_takeover : boolean ; out take_over_content : TFRE_DB_CONTENT_DESC ) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; out take_over_content : TFRE_DB_CONTENT_DESC ) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   InitiateTakeover         (const NEW_RASC:IFRE_DB_COMMAND_REQUEST_ANSWER_SC;out take_over_content : TFRE_DB_CONTENT_DESC;const connection_desc:string);
     procedure   Demote                   ;
     procedure   Logout                   ;
@@ -2764,7 +2764,7 @@ end;
 procedure TFRE_DB_UserSession.StoreSessionData;
 var res : TFRE_DB_Errortype;
 begin
-  GFRE_DBI.LogDebug(dblc_SESSION,'STORING SESSIONDATA FOR ['+FUserName+']');
+  GFRE_DBI.LogDebug(dblc_SESSION,'STORING SESSIONDATA FOR ['+FUserName+'] : '+FSessionID);
   if assigned(FSessionData) then begin
     res := GetDBConnection.StoreUserSessionData(FSessionData);
     if res=edb_OK then begin
@@ -2784,7 +2784,18 @@ end;
 
 destructor TFRE_DB_UserSession.Destroy;
 begin
+  RemoveTaskMethod;
+  if assigned(FDbgTimer) then
+    begin
+      FDbgTimer.MarkFinalize;
+      FDbgTimer := nil;
+    end;
   StoreSessionData;
+  try
+    FinishDerivedCollections;
+  except on e:exception do
+    writeln('***>>  ERROR : FAILED TO FINISH DERIVED COLLECTIONS : '+e.Message);
+  end;
   if FPromoted then begin
     FDBConnection.Finalize;
   end;
@@ -2955,7 +2966,7 @@ begin
   result := FSessionQ.SomethingOnQ>0;
 end;
 
-function TFRE_DB_UserSession.WorkSessionCommand:IFRE_DB_COMMAND;
+function TFRE_DB_UserSession.WorkSessionCommand(var drop_current_session: boolean): IFRE_DB_COMMAND;
 var x           : TObject;
     cmd         : IFRE_DB_COMMAND;
     class_name  : TFRE_DB_String;
@@ -3049,7 +3060,6 @@ var x           : TObject;
         ses            : IFRE_DB_UserSession;
         opaq           : IFRE_DB_Object;
     begin
-      writeln('RECEIVE REMOTE SESSION ID ',FSessionID);
       now            := GFRE_BT.Get_DBTimeNow;
       answer_matched := false;
       FContinuationLock.Acquire;
@@ -3185,14 +3195,30 @@ begin
         fct_AsyncRequest: begin
                             if (class_name='FIRMOS') then
                               begin
-                                if (method_name='REG_REM_METH') then begin
-                                  GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.REG_REM_METH  SID[%s]',[FSessionID]);
-                                  _RegisterRemoteRequestSet(input);
-                                  CMD.Data        := GFRE_DB_NIL_DESC;
-                                  CMD.CommandType := fct_SyncRequest;
-                                  CMD.Finalize;
-                                  result := nil;
-                                end;
+                                if (method_name='REG_REM_METH') then
+                                  begin
+                                    GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.REG_REM_METH  SID[%s]',[FSessionID]);
+                                    _RegisterRemoteRequestSet(input);
+                                    CMD.Data        := GFRE_DB_NIL_DESC;
+                                    CMD.CommandType := fct_SyncRequest;
+                                    CMD.Finalize;
+                                    result := nil;
+                                  end
+                                else
+                                if (method_name='WEBSOCKCLOSE') then
+                                  begin
+                                    CMD.Finalize;
+                                    result := nil;
+                                    drop_current_session := true; // First shot, kill session when websocket disconnects
+                                  end
+                                else
+                                  begin
+                                    writeln('UNHANDLED ASYNC REQUEST ?? ',class_name,'.',method_name);
+                                    CMD.Data        := GFRE_DB_NIL_DESC;
+                                    CMD.CommandType := fct_SyncRequest;
+                                    CMD.Finalize;
+                                    result := nil;
+                                  end;
                               end
                             else
                               begin
@@ -3274,7 +3300,7 @@ begin
   result.FConnDesc            := connectiond_desc;
 end;
 
-function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_error: TFRE_DB_String; const force_new_session_data: boolean; const session_takeover: boolean; out take_over_content: TFRE_DB_CONTENT_DESC): TFRE_DB_PromoteResult;
+function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_error: TFRE_DB_String;  force_new_session_data: boolean; const session_takeover: boolean; out take_over_content: TFRE_DB_CONTENT_DESC): TFRE_DB_PromoteResult;
 var err              : TFRE_DB_Errortype;
     l_NDBC             : IFRE_DB_CONNECTION;
     existing_session   : TFRE_DB_UserSession;
@@ -3315,6 +3341,7 @@ begin
        edb_OK: begin
           FDBConnection:=l_NDBC;
           GFRE_DBI.LogInfo(dblc_SERVER,'PROMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,FUserName,user_name]);
+          force_new_session_data := true; //TODO: HACK RZNORD -> (9.10.2013) Session data save/retieve is buggy
           if not force_new_session_data then begin
             if not l_NDBC.FetchUserSessionData(lStoredSessionData) then begin
               GFRE_DBI.LogDebug(dblc_SERVER,'USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
@@ -3322,6 +3349,9 @@ begin
               GFRE_DBI.LogDebug(dblc_SERVER,'USING PERSISTENT SESSION DATA [%s]',[FSessionData.UID_String]);
               FSessionData.Finalize;
               FSessionData:=lStoredSessionData;
+              writeln('STORED SESSION DATA: ');
+              writeln('    ',lStoredSessionData.DumpToString());
+              writeln('STORED SESSION DATA: ');
             end;
           end else begin
             GFRE_DBI.LogDebug(dblc_SERVER,'FORCED USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
@@ -3446,11 +3476,13 @@ begin
 end;
 
 procedure TFRE_DB_UserSession.FinishDerivedCollections;
-var i:integer;
+var i : integer;
+   cn : string;
 begin
   for i:=0 to high(FDC_Array) do begin
     try
-      GetDBConnection.DeleteCollection(FDC_Array[i].CollectionName);
+      cn := FDC_Array[i].CollectionName;
+      GetDBConnection.DeleteCollection(cn);
     except on e:EXception do begin
       writeln('*** --- MAKE A GOD LOG ENTRY ',e.Message);   //TODO: LOOK LEFT
     end;end;

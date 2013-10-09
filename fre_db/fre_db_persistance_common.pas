@@ -399,6 +399,7 @@ type
     FNewObj   : TFRE_DB_Object;
     FColl     : IFRE_DB_PERSISTANCE_COLLECTION;
     FCollName : TFRE_DB_NameType;
+    FIsRoot   : Boolean;
   public
     constructor Create                  (new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);
     constructor CreateAsWalReadBack     (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
@@ -470,7 +471,7 @@ type
     FWalMem      : TMemoryStream;
     FNeedsWAL    : Boolean;
     procedure    ProcessCheck          (const WAL_RepairMode: boolean);
-    procedure    Write_WAL_Or_DCC      (const Layer : IFRE_DB_PERSISTANCE_LAYER);
+    function     Write_WAL_Or_DCC      (const Layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
   public
     constructor  Create                (const TransID : TFRE_DB_NameType ; const master_data : TFRE_DB_Master_Data);
     procedure    ReadFromBackWalStream (const walstream : TStream);
@@ -480,7 +481,7 @@ type
 
     procedure    PrintTextLog          (const tid : String ; const write_2_wal : boolean);
 
-    procedure    Commit                (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const WAL_RepairMode : boolean=false);
+    function     Commit                (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const WAL_RepairMode : boolean=false):boolean;
     procedure    Rollback              ;
     destructor   Destroy               ;override;
   end;
@@ -1629,7 +1630,7 @@ begin
 end;
 
 
-procedure TFRE_DB_TransactionalUpdateList.Write_WAL_Or_DCC(const Layer : IFRE_DB_PERSISTANCE_LAYER);
+function TFRE_DB_TransactionalUpdateList.Write_WAL_Or_DCC(const Layer: IFRE_DB_PERSISTANCE_LAYER): boolean;
 var TransID:String;
 
   procedure WriteWAL(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
@@ -1638,8 +1639,10 @@ var TransID:String;
   end;
 
 begin
+  result := true;
   if FChangeList.Count=0 then
-    raise EFRE_DB_Exception.Create(edb_NO_CHANGE,'TRANSACTIONAL COMMIT FAILED, CHANGELIST EMPTY');
+    exit(false);
+    //raise EFRE_DB_Exception.Create(edb_NO_CHANGE,'TRANSACTIONAL COMMIT FAILED, CHANGELIST EMPTY');
   if FNeedsWAL then
     begin
       FWalMem.Position := 0;
@@ -1653,7 +1656,8 @@ begin
     end;
 end;
 
-procedure TFRE_DB_TransactionalUpdateList.Commit(const Layer: IFRE_DB_PERSISTANCE_LAYER; const WAL_RepairMode: boolean);
+function TFRE_DB_TransactionalUpdateList.Commit(const Layer: IFRE_DB_PERSISTANCE_LAYER; const WAL_RepairMode: boolean): boolean;
+var changes : boolean;
 
   procedure StoreInCollection(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
@@ -1671,9 +1675,15 @@ procedure TFRE_DB_TransactionalUpdateList.Commit(const Layer: IFRE_DB_PERSISTANC
 begin
   ProcessCheck(WAL_RepairMode);
   if not WAL_RepairMode then
-    Write_WAL_Or_DCC(Layer);
-  FChangeList.ForAllBreak(@StoreInCollection);
-  FChangeList.ForAllBreak(@MasterStore);
+    changes := Write_WAL_Or_DCC(Layer);
+  if changes then
+    begin
+      FChangeList.ForAllBreak(@StoreInCollection);
+      FChangeList.ForAllBreak(@MasterStore);
+    end
+  else
+   changes:=changes;
+  result := changes;
 end;
 
 procedure TFRE_DB_TransactionalUpdateList.Rollback;
@@ -1698,6 +1708,9 @@ begin
   FNewObj   := new_obj;
   FColl     := coll;
   FIsStore  := is_store;
+  FIsRoot  := assigned(FNewObj.Parent);
+  if FIsStore = false then
+    FIsStore:=FIsStore;
 end;
 
 constructor TFRE_DB_InsertStep.CreateAsWalReadBack(new_obj: TGuid; const coll: TFRE_DB_NameType; const is_store: boolean; const ws: TStream);
@@ -1801,6 +1814,8 @@ end;
 
 procedure TFRE_DB_InsertStep.WriteToWAL(const m: TMemoryStream);
 begin
+  if FIsStore=false then
+    FIsStore:=FIsStore;
   assert(FIsStore=true);
   m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_INSERT]+BoolToStr(FIsStore,'1','0')+FNewObj.UID_String+FColl.CollectionName);
   InternalWriteObject(m,FNewObj);

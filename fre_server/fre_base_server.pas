@@ -66,11 +66,10 @@ type
   TFRE_BASE_SERVER=class(TObject,IFRE_APS_PROCESS,IFRE_HTTP_BASESERVER)
   private
     FOpenDatabaseList  : OFRE_DB_ConnectionArr;
-    FUserSessionsTree  : TFRE_UserSession_Tree;
+    FUserSessionsTree  : TFRE_UserSession_Tree;  //TODO-> make array
     FDispatcher        : TFRE_HTTP_URL_DISPATCHER;
     FSessionTreeLock   : IFOS_LOCK;
 
-    //FMimeList          : TFOS_RB_Tree_SS;
     cont               : boolean;
     flistener_es       : IFRE_APS_SOCKET_EVENTSOURCE;
     flistener_es_ws    : IFRE_APS_SOCKET_EVENTSOURCE;
@@ -540,8 +539,10 @@ end;
 
 procedure TFRE_BASE_SERVER.InterLinkDispatchTimer(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
 var
-    CMD_Answer      : IFRE_DB_COMMAND;
-    i               : Integer;
+    CMD_Answer         : IFRE_DB_COMMAND;
+    i                  : Integer;
+    drop_session       : boolean;
+    lSession           : TFRE_DB_UserSession;
 begin
   if FTerminating then exit;
   //writeln('Interlinkdispatch Timer ',TiD,' ',GFRE_BT.Get_Ticks_ms,'   ',cp);
@@ -552,11 +553,28 @@ begin
     end;
     for i := 0 to high(FSession_dispatch_array) do begin
       if FSession_dispatch_array[i].Session_Has_CMDS then begin
-        CMD_Answer := FSession_dispatch_array[i].WorkSessionCommand;
-        if assigned(CMD_Answer)  then begin
-          if CMD_Answer.Data.Implementor_HC <> GFRE_DB_SUPPRESS_SYNC_ANSWER then
-            CMD_Answer.GetAnswerInterface.Send_ServerClient(CMD_Answer); //Debug Breakpoint
-        end;
+        drop_session:=false;
+        CMD_Answer := FSession_dispatch_array[i].WorkSessionCommand(drop_session);
+        if not drop_session then
+          begin
+            if assigned(CMD_Answer)  then begin
+              if CMD_Answer.Data.Implementor_HC <> GFRE_DB_SUPPRESS_SYNC_ANSWER then
+                CMD_Answer.GetAnswerInterface.Send_ServerClient(CMD_Answer); //Debug Breakpoint
+            end;
+          end
+        else
+          begin
+            if FUserSessionsTree.Delete(FSession_dispatch_array[i].GetSessionID,lSession) then
+              begin
+                writeln('FREEING USER SESSION ',lSession.GetSessionID,' user=',lSession.GetUsername,' from ',lSession.GetClientDetails);
+                try
+                  lSession.free;
+                except on e:exception do
+                  writeln('SESSION FREE FAILED : ',e.Message);
+                end;
+                FSession_dispatch_array[i]:=nil;
+              end;
+          end;
       end;
     end;
   finally

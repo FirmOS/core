@@ -773,6 +773,7 @@ begin
 end;
 
 destructor TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Destroy;
+var cmd : IFRE_DB_COMMAND;
 begin
   case   FWebsocketMode of
     wsm_INVALID: ;
@@ -783,6 +784,22 @@ begin
     end;
     wsm_FREDB: begin
                  writeln('WEBSOCKET/SESSIONSOCKET ',FSock.GetVerboseDesc,' HANDLER DISCONNECTED/FREED');
+                 try
+                   cmd        := GFRE_DBI.NewDBCommand;
+                   with cmd do begin
+                       CommandType := fct_AsyncRequest;
+                       SetIsClient(true);
+                     InvokeClass  := 'FIRMOS';
+                     InvokeMethod := 'WEBSOCKCLOSE';
+                     CommandID    := 0;
+                     UidPath      := nil;
+                     Data         := nil;
+                     ChangeSession:= '';
+                   end;
+                   FCurrentSession.Input_FRE_DB_Command(cmd);
+                 except on e:exception do
+                   writeln('>> ERROR SENDING WEBSOCK_CLOSE TO CURRENT SESSION ',FCurrentSession.GetSessionID,' : ',e.Message);
+                 end;
                end;
   end;
   inherited Destroy;

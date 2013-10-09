@@ -3216,7 +3216,8 @@ end;
 
 procedure TFRE_DB_COMMAND.SetDataI(const AValue: IFRE_DB_Object);
 begin
-  SetData(AValue.Implementor as TFRE_DB_Object);
+  if assigned(AValue) then
+    SetData(AValue.Implementor as TFRE_DB_Object);
 end;
 
 procedure TFRE_DB_COMMAND.SetCommandID(const AValue: UInt64);
@@ -4761,18 +4762,26 @@ end;
 
 
 function TFRE_DB_SYSTEM_CONNECTION.FetchUserSessionData(var SessionData: IFRE_DB_OBJECT): boolean;
+var userid : string;
 begin
   //TODO Errorhandling
-  result := FSysUserSessionsData.GetIndexedObjI(FConnectedUser.Login,SessionData);
+  Sessiondata := nil;
+  userid :=  uppercase(FConnectedUser.Login+'@'+GFRE_BT.GUID_2_HexString(FConnectedUser.GetDomainID));
+  result := FSysUserSessionsData.GetIndexedObjI(userid,SessionData);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreUserSessionData(var session_data: IFRE_DB_Object):TFRE_DB_Errortype;
 var key : TFRE_DB_String;
+var userid : string;
 begin
- key := uppercase(FConnectedUser.Login);
- session_data.Field('$LOGIN_KEY').AsString := key;
+exit;// HACK RZNORD -> Buggy
+ userid := uppercase(FConnectedUser.Login+'@'+GFRE_BT.GUID_2_HexString(FConnectedUser.GetDomainID));
+ key    := userid;
+ session_data.Field('$LOGIN_KEY').AsString := userid;
  if FSysUserSessionsData.ExistsIndexed(key) then begin
+   writeln('TRY UPDATETE SESSIONDATA : ',userid ,'  ',session_data.DumpToString());
    result := FSysUserSessionsData.UpdateI(session_data);
+   writeln('TRYUPDATE OK');
  end else begin
    result := FSysUserSessionsData.StoreI(session_data);
  end;
@@ -8574,7 +8583,11 @@ end;
 procedure TFRE_DB_COLLECTION.__NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID);
   procedure Notify(const obs : IFRE_DB_COLLECTION_OBSERVER);
   begin
-    obs.ICO_CollectionNotify(notify_type,obj,obj_uid);
+    try
+      obs.ICO_CollectionNotify(notify_type,obj,obj_uid);
+    except on e:exception do
+      writeln('**>> ERROR -- COLLECTION NOTIFY WENT WRONG ',e.Message);
+    end;
   end;
 begin
   FObservers.ForAll(@Notify);
@@ -10133,8 +10146,11 @@ begin
 end;
 
 function TFRE_DB_CONNECTION.StoreUserSessionData(var session_data: IFRE_DB_Object):TFRE_DB_Errortype;
+var sd :IFRE_DB_Object;
 begin
-  result := FSysConnection.StoreUserSessionData(session_data);
+  sd := session_data.CloneToNewObject();
+  result := FSysConnection.StoreUserSessionData(sd);
+  session_data := nil;
 end;
 
 function TFRE_DB_CONNECTION.FetchTranslateableText(const trans_key: TFRE_DB_String; var text: IFRE_DB_TEXT): boolean;
@@ -13025,13 +13041,11 @@ end;
 
 function TFRE_DB_Object.IsSystem: Boolean;
 begin
- _InAccessibleCheck;
  result := fop_SYSTEM in FObjectProps;
 end;
 
 function TFRE_DB_Object.IsVolatile: Boolean;
 begin
- _InAccessibleCheck;
  result := fop_VOLATILE in FObjectProps;
 end;
 

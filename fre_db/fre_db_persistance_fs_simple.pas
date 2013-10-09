@@ -124,7 +124,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    StoreOrUpdateObject (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; var notify_collections : TFRE_DB_StringArray ; var status_text : string) : TFRE_DB_Errortype;
      function    DeleteObject        (const obj_uid : TGUID    ;  const collection_name: TFRE_DB_NameType = '' ; var notify_collections: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
      function    StartTransaction    (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType ; const raise_ex : boolean=true) : TFRE_DB_Errortype;
-     procedure   Commit              ;
+     function    Commit              : boolean;
      procedure   RollBack            ;
      // Transactional Operations Done
 
@@ -752,6 +752,7 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     ImplicitTransaction : Boolean;
     CleanApply          : Boolean;
     i                   : NativeInt;
+    changes             : Boolean;
 
 begin
   CleanApply := false;
@@ -806,9 +807,12 @@ begin
             //if result <>edb_OK then
             //  exit(result);
             if ImplicitTransaction then
-              Commit;
+              changes := Commit;
           CleanApply := true;
-          result := edb_OK;
+          if changes then
+            result := edb_OK
+          else
+            result := edb_NO_CHANGE;
           //CheckThatObjectAndAllSubsSatisfiyCollectionIndexes;
         //  if result<>edb_OK then
         //    exit;
@@ -848,10 +852,10 @@ begin
   FTransaction := TFRE_DB_TransactionalUpdateList.Create(id,FMaster);
 end;
 
-procedure TFRE_DB_PS_FILE.Commit;
+function TFRE_DB_PS_FILE.Commit: boolean;
 begin
   try
-    FTransaction.Commit(self);
+    result := FTransaction.Commit(self);
   finally
     FTransaction.Free;
     FTransaction := nil;
