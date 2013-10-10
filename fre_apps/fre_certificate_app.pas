@@ -391,18 +391,18 @@ var
   role         : IFRE_DB_ROLE;
 begin
   role := _CreateAppRole('view_ca','View CA','Allowed to see the CA.');
-  _AddAppRight(role,'view_ca','View CA','Allowed to see the CA.');
+  _AddAppRight(role,'view_ca');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['certificate_ca']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 
   role := _CreateAppRole('edit_ca','Edit CA','Allowed to edit the CA.');
-  _AddAppRight(role,'view_ca','View CA','Allowed to see the CA.');
-  _AddAppRight(role,'edit_ca','Edit CA','Allowed to edit the CA.');
+  _AddAppRight(role,'view_ca');
+  _AddAppRight(role,'edit_ca');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['certificate_ca']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 
   role := _CreateAppRole('delete_ca','Edit CA','Allowed to delete the CA.');
-  _AddAppRight(role,'delete_ca','Edit CA','Allowed to delete the CA.');
+  _AddAppRight(role,'delete_ca');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['certificate_ca']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 end;
@@ -411,8 +411,8 @@ function TFRE_CERTIFICATE_APP.InstallDomainGroupsandRoles(const conn: IFRE_DB_SY
 begin
   _AddSystemGroups(conn,domain);
 
-  CheckDbResult(conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_ca')])),'InstallDomainGroupsandRoles');
-  CheckDbResult(conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'edit_ca'),Get_Rightname_App_Role_SubRole(ObjectName,'delete_ca')])),'InstallDomainGroupsandRoles');
+  CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_ca')])),'InstallDomainGroupsandRoles');
+  CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'edit_ca'),Get_Rightname_App_Role_SubRole(ObjectName,'delete_ca')])),'InstallDomainGroupsandRoles');
 end;
 
 procedure TFRE_CERTIFICATE_APP._UpdateSitemap(const session: TFRE_DB_UserSession);

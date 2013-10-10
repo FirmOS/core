@@ -1983,8 +1983,8 @@ begin
     admin_app_rg  := _CreateAppRole('ADMIN','TESTAPP ADMIN','Test App Administration Rights');
     user_app_rg   := _CreateAppRole('USER','TESTAPP USER','Test App Default User Rights');
     guest_app_rg  := _CreateAppRole('GUEST','TESTAPP GUEST','Test App Default Guest User Rights');
-    _AddAppRight(admin_app_rg ,'ADMIN'  ,'TESTAPP Admin','Administration of Test APP');
-    _AddAppRight(user_app_rg  ,'START'  ,'TESTAPP Start','Startup of Test APP');
+    _AddAppRight(admin_app_rg ,'ADMIN');
+    _AddAppRight(user_app_rg  ,'START');
 
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['grid']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['grid2']));
@@ -1997,7 +1997,7 @@ begin
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['allgrid']));
     _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['feedbrowser']));
 
-    _AddAppRight(guest_app_rg ,'START','TESTAPP Start','Startup of Test APP'); // Guests are allowed to START the app
+    _AddAppRight(guest_app_rg ,'START'); // Guests are allowed to START the app
     _AddAppRightModules(guest_app_rg,GFRE_DBI.ConstructStringArray(['welcome']));
 
     conn.StoreRole(admin_app_rg,ObjectName,domain);
@@ -2006,9 +2006,9 @@ begin
 
     _AddSystemGroups(conn,domain);
 
-    conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
-    conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'GUEST'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'GUEST'+'@'+domain)]));
-    conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'ADMIN'+'@'+domain),Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
+    conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
+    conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'GUEST'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'GUEST'+'@'+domain)]));
+    conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'ADMIN'+'@'+domain),Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
   end;
 end;
 

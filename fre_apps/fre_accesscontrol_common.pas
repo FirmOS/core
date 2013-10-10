@@ -1930,48 +1930,48 @@ var
   role         : IFRE_DB_ROLE;
 begin
   role := _CreateAppRole('view_users','View Users','Allowed to see user list.');
-  _AddAppRight(role,'view_users','View Users','Allowed to see user list');
+  _AddAppRight(role,'view_users');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 
   role := _CreateAppRole('edit_users','Edit Users','Allowed to create/edit user objects.');
-  _AddAppRight(role,'view_users','View Users','Allowed to see user list');
-  _AddAppRight(role,'edit_users','Edit Users','Allowed to create/edit user objects.');
+  _AddAppRight(role,'view_users');
+  _AddAppRight(role,'edit_users');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 
   role := _CreateAppRole('edit_usergroups','Edit User-Group relation','Allowed to edit group membership of users.');
-  _AddAppRight(role,'view_users','View Users','Allowed to see user list');
-  _AddAppRight(role,'view_groups','View Groups','Allowed to see groups list');
-  _AddAppRight(role,'view_usergroups','View Groups of User','Allowed to see the groups the user is member of');
-  _AddAppRight(role,'view_userroles','View Roles of User','Allowed to see the roles the user is member of');
-  _AddAppRight(role,'view_roles','View Roles','Allowed to see roles list');
-  _AddAppRight(role,'edit_usergroups','Edit User-Group relation','Allowed to edit group membership of users.');
+  _AddAppRight(role,'view_users');
+  _AddAppRight(role,'view_groups');
+  _AddAppRight(role,'view_usergroups');
+  _AddAppRight(role,'view_userroles');
+  _AddAppRight(role,'view_roles');
+  _AddAppRight(role,'edit_usergroups');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 
   role := _CreateAppRole('edit_groups','Edit Groups','Allowed to create/edit group objects.');
-  _AddAppRight(role,'view_groups','View Groups','Allowed to see groups list');
-  _AddAppRight(role,'edit_groups','Edit Groups','Allowed to create/edit group objects.');
+  _AddAppRight(role,'view_groups');
+  _AddAppRight(role,'edit_groups');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['group','role']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 
   role := _CreateAppRole('edit_grouproles','Edit Group-Role relation','Allowed to edit roles of groups.');
-  _AddAppRight(role,'view_groups','View Groups','Allowed to see groups list');
-  _AddAppRight(role,'view_roles','View Roles','Allowed to see roles list');
-  _AddAppRight(role,'view_grouproles','View Roles','Allowed to see roles list');
-  _AddAppRight(role,'edit_grouproles','Edit Group-Role relation','Allowed to edit roles of groups.');
+  _AddAppRight(role,'view_groups');
+  _AddAppRight(role,'view_roles');
+  _AddAppRight(role,'view_grouproles');
+  _AddAppRight(role,'edit_grouproles');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['group','role']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 
   role := _CreateAppRole('view_domains','View Domains','Allowed to see domain list.');
-  _AddAppRight(role,'view_domains','View Domains','Allowed to see domain list and their users and groups');
+  _AddAppRight(role,'view_domains');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['domain']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 
   role := _CreateAppRole('edit_domains','Edit Domains','Allowed to create/edit domains.');
-  _AddAppRight(role,'view_domains','View Domains','Allowed to see domain list and their users and groups');
-  _AddAppRight(role,'edit_domains','Edit Domains','Allowed to create/edit domains and their users and groups');
+  _AddAppRight(role,'view_domains');
+  _AddAppRight(role,'edit_domains');
   _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['domain']));
   CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
 end;
@@ -1982,20 +1982,20 @@ var
 begin
   _AddSystemGroups(conn,domain);
 
-  CheckDbResult(conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users')])),'InstallDomainGroupsAndRoles');
+  CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users')])),'InstallDomainGroupsAndRoles');
   if domain=cSYS_DOMAIN then begin
     role := _CreateAppRole('all_rights','Full access','Has all rights within access control.');
-    _AddAppRight(role,'all_rights','Full access','Has all rights within access control.');
+    _AddAppRight(role,'all_rights');
     _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
     CheckDbResult(conn.StoreRole(role,ObjectName,domain),'InstallDomainGroupsAndRoles');
 
-    //CheckDbResult(conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ROOT'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'all_rights'+'@'+domain)])),'InstallDomainGroupsAndRoles');
+    //CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ROOT'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'all_rights'+'@'+domain)])),'InstallDomainGroupsAndRoles');
 
-    CheckDbResult(conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_users'),
-                                        Get_Rightname_App_Role_SubRole(ObjectName,'edit_usergroups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_groups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_grouproles'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_domains')])),'InstallDomainGroupsAndRoles');
+    CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_users'),
+                                     Get_Rightname_App_Role_SubRole(ObjectName,'edit_usergroups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_groups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_grouproles'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_domains')])),'InstallDomainGroupsAndRoles');
   end else begin
-    CheckDbResult(conn.ModifyGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_users'),
-                                        Get_Rightname_App_Role_SubRole(ObjectName,'edit_usergroups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_groups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_grouproles'),Get_Rightname_App_Role_SubRole(ObjectName,'view_domains')])),'InstallDomainGroupsAndRoles');
+    CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_users'),
+                                     Get_Rightname_App_Role_SubRole(ObjectName,'edit_usergroups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_groups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_grouproles'),Get_Rightname_App_Role_SubRole(ObjectName,'view_domains')])),'InstallDomainGroupsAndRoles');
   end;
 end;
 

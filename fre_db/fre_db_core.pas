@@ -1903,7 +1903,7 @@ type
     function    _FetchGroupbyID             (const group_id:TGUID;var ug: TFRE_DB_GROUP):boolean;
     function    _ModifyUserGroups           (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    _RemoveUserGroups           (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    _ModifyGroupRoles           (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    _SetGroupRoles              (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    _AddGroupRoles              (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
     function    _RemoveGroupRoles           (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    _ModifyUserPassword         (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
@@ -2019,7 +2019,7 @@ type
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role:TFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:TFRE_DB_GROUP):TFRE_DB_Errortype;
     function    NewAppData                  (const appname,txt,txt_short:TFRE_DB_String;var appdata: TFRE_DB_APPDATA):TFRE_DB_Errortype;
-    function    ModifyGroupRoles            (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    SetGroupRoles               (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    AddGroupRoles               (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    RemoveGroupRoles            (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray;const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
@@ -2107,7 +2107,7 @@ type
     function    NewRight                     (const rightname: TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRole                      (const rolename,txt,txt_short:TFRE_DB_String;var role:IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewGroup                     (const groupname,txt,txt_short:TFRE_DB_String;var group:IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    ModifyGroupRoles             (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    SetGroupRoles                (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    AddGroupRoles                (const groupatdomain:TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
     function    RemoveGroupRoles             (const groupatdomain:TFRE_DB_String; const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    ModifyUserGroups             (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
@@ -3986,7 +3986,7 @@ var domain_id : TGUID;
         ug.DomainID := domain_id;
         ug_name     := ug.ObjectName+'@'+domain;
         FSysGroups.Store(TFRE_DB_Object(ug));
-        CheckDbResult(_ModifyGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_ADMIN+'@'+domain,cSYSROLE_DB_MANAGE+'@'+domain,cSYSROLE_DB_USER+'@'+domain,cSYSROLE_MANAGE_APPS+'@'+domain,FREDB_Get_Rightname_UID('EDITDOM',domain_id)+'@'+domain])),'initial assignment of admin rgs to ugs failed');
+        CheckDbResult(_SetGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_ADMIN+'@'+domain,cSYSROLE_DB_MANAGE+'@'+domain,cSYSROLE_DB_USER+'@'+domain,cSYSROLE_MANAGE_APPS+'@'+domain,FREDB_Get_Rightname_UID('EDITDOM',domain_id)+'@'+domain])),'initial assignment of admin rgs to ugs failed');
       end;
     if FRecreateSysObjects then
       _DeleteGroup(cSYSUG_MANAGE_USERS+'@'+domain);
@@ -3996,7 +3996,7 @@ var domain_id : TGUID;
         ug.DomainID := domain_id;
         ug_name     := ug.ObjectName+'@'+domain;
         FSysGroups.Store(TFRE_DB_Object(ug));
-        CheckDbResult(_ModifyGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_MANAGE+'@'+domain,cSYSROLE_DB_USER+'@'+domain,FREDB_Get_Rightname_UID('VIEWDOM',domain_id)+'@'+domain])),'initial assignment of manage rgs to ugs failed');
+        CheckDbResult(_SetGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_MANAGE+'@'+domain,cSYSROLE_DB_USER+'@'+domain,FREDB_Get_Rightname_UID('VIEWDOM',domain_id)+'@'+domain])),'initial assignment of manage rgs to ugs failed');
       end;
     if FRecreateSysObjects then
       _DeleteGroup(cSYSUG_DB_USERS+'@'+domain);
@@ -4006,7 +4006,7 @@ var domain_id : TGUID;
         ug.DomainID := domain_id;
         ug_name     := ug.ObjectName+'@'+domain;
         FSysGroups.Store(TFRE_DB_Object(ug));
-        CheckDbResult(_ModifyGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_USER+'@'+domain,FREDB_Get_Rightname_UID('VIEWDOM',domain_id)+'@'+domain])),'initial assignment of user rgs to ugs failed');
+        CheckDbResult(_SetGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_USER+'@'+domain,FREDB_Get_Rightname_UID('VIEWDOM',domain_id)+'@'+domain])),'initial assignment of user rgs to ugs failed');
       end;
     if not _GroupExists(cSYSUG_DB_GUESTS+'@'+domain) then
       begin
@@ -4014,7 +4014,7 @@ var domain_id : TGUID;
         ug.DomainID := domain_id;
         ug_name     := ug.ObjectName+'@'+domain;
         FSysGroups.Store(TFRE_DB_Object(ug));
-        CheckDbResult(_ModifyGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_GUEST+'@'+domain])),'initial assignment of user rgs to ugs failed');
+        CheckDbResult(_SetGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_GUEST+'@'+domain])),'initial assignment of user rgs to ugs failed');
       end;
   end;
 
@@ -4306,7 +4306,7 @@ begin
   Result := edb_OK;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._ModifyGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._SetGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
 var l_Group          : TFRE_DB_GROUP;
     l_UserUid        : TGUID;
     l_NewRoles       : TFRE_DB_StringArray;
@@ -4815,10 +4815,10 @@ begin
   result:=edb_OK;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.ModifyGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.SetGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin
   if not _CheckRight(cSYSR_MOD_RIGHT) then exit(edb_ACCESS);
-  result := _ModifyGroupRoles(groupatdomain,roles);
+  result := _SetGroupRoles(groupatdomain,roles);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.AddGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
@@ -9991,9 +9991,9 @@ begin
  result := FSysConnection.NewGroupI(groupname,txt,txt_short,group);
 end;
 
-function TFRE_DB_CONNECTION.ModifyGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_CONNECTION.SetGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin
-  result := FSysConnection.ModifyGroupRoles(groupatdomain,roles);
+  result := FSysConnection.SetGroupRoles(groupatdomain,roles);
 end;
 
 function TFRE_DB_CONNECTION.AddGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
@@ -16890,6 +16890,14 @@ begin
                                                      GFRE_DBI.CreateText('$validator_image','Image File Validator'),
                                                      GFRE_DBI.CreateText('$validator_help_image','Please select an image file.'),
                                                      '\d\.\/'));
+ GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('ip').Setup('^([1-9][0-9]{0,1}|1[013-9][0-9]|12[0-689]|2[01][0-9]|22[0-3])([.]([1-9]{0,1}[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){2}[.]([1-9][0-9]{0,1}|[1-9]{0,1}[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-4])(\/([89]|[12][0-9]|3[0-2])|$)$',
+                                                   GFRE_DBI.CreateText('$validator_ip','IP Validator'),
+                                                   GFRE_DBI.CreateText('$validator_help_ip','1.0.0.1 - 223.255.255.254 excluding 127.x.x.x'),
+                                                   '\d\.\/'));
+ GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('mac').Setup('^([0-9a-fA-F]{2}(:|$)){6}$',
+                                                    GFRE_DBI.CreateText('$validator_help_mac','MAC Validator'),
+                                                    GFRE_DBI.CreateText('$validator_mac','00:01:02:03:04:05'),
+                                                    '\da-fA-F:'));
  //if not nosys then GFRE_DB.RegisterSystemSchemes;
  if not nosys then GFRE_DB.Initialize_System_Objects;
 end;

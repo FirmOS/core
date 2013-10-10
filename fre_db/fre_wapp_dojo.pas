@@ -1021,6 +1021,7 @@ implementation
     _storeText(conn,'msg_confirm_yes','Yes');
     _storeText(conn,'msg_confirm_no','No');
     _storeText(conn,'msg_ok','OK');
+    _storeText(conn,'msg_abort','Abort');
     _storeText(conn,'editor_save','Save');
     _storeText(conn,'editor_reset','Reset');
     _storeText(conn,'vnc_cad','Send Ctrl+Alt+Del');
@@ -2078,6 +2079,9 @@ implementation
       fdbmt_warning:begin
                       CSSPostFix:='Warning';
                     end;
+      fdbmt_wait:begin
+                   CSSPostFix:='Wait';
+                 end;
     end;
 
     message_txt := FREDB_String2EscapedJSString(co.Field('msg').AsString,true);
@@ -2090,11 +2094,21 @@ implementation
     jsContentAdd('  "'+message_txt+'"+');
     jsContentAdd('  "</div>"+');
     jsContentAdd('  "<div class=''firmosMessageButtons'+CSSPostFix+'''>"+');
-    if msgType=fdbmt_confirm then begin
-      _BuildButton(_getText(conn,'msg_confirm_yes'),'confirmed','true');
-      _BuildButton(_getText(conn,'msg_confirm_no'),'confirmed','false');
-    end else begin
-      _BuildButton(_getText(conn,'msg_ok'));
+    case msgType of
+      fdbmt_confirm:begin
+                      _BuildButton(_getText(conn,'msg_confirm_yes'),'confirmed','true');
+                      _BuildButton(_getText(conn,'msg_confirm_no'),'confirmed','false');
+                    end;
+      fdbmt_error,
+      fdbmt_info,
+      fdbmt_warning: begin
+                       _BuildButton(_getText(conn,'msg_ok'));
+                     end;
+      fdbmt_wait:begin
+                   if co.FieldExists('serverFunc') then begin
+                     _BuildButton(_getText(conn,'msg_abort'));
+                   end;
+                 end;
     end;
     jsContentAdd('  "</div>"');
     jsContentAdd('  ,closable: false');
