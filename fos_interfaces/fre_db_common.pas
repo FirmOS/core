@@ -866,6 +866,14 @@ type
     function Describe        (const data: TFRE_DB_LIVE_CHART_INIT_DATA_ARRAY): TFRE_DB_LIVE_CHART_INIT_DATA_DESC;
   end;
 
+  { TFRE_DB_NEW_WINDOW_DESC }
+
+  TFRE_DB_NEW_WINDOW_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a new browser window.
+    function Describe        (const url: String): TFRE_DB_NEW_WINDOW_DESC;
+  end;
+
   { TFRE_DB_RESOURCE_DESC }
 
   TFRE_DB_RESOURCE_DESC = class(TFRE_DB_CONTENT_DESC)
@@ -949,6 +957,14 @@ implementation
        if CFRE_DB_CONTENT_TYPE[result]=fts then exit;
     end;
     raise Exception.Create('invalid short DBContentType specifier : ['+fts+']');
+  end;
+
+  { TFRE_DB_NEW_WINDOW_DESC }
+
+  function TFRE_DB_NEW_WINDOW_DESC.Describe(const url: String): TFRE_DB_NEW_WINDOW_DESC;
+  begin
+    Field('url').AsString:=url;
+    Result:=Self;
   end;
 
   { TFRE_DB_INPUT_RECURRENCE_DESC }

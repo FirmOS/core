@@ -108,6 +108,7 @@ type
    procedure BuildShell                (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SHELL_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildEditor               (const session:TFRE_DB_UserSession;const co:TFRE_DB_EDITOR_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildEditorData           (const co:TFRE_DB_EDITOR_DATA_DESC;var contentString,contentType:String);
+   procedure BuildNewWindow            (const co:TFRE_DB_NEW_WINDOW_DESC;var contentString,contentType:String);
    //procedure BuildResource            (const co:TFRE_DB_RESOURCE_DESC;var contentString,contentType:String);
    //procedure BuildInputGroupProxyData (const co:TFRE_DB_INPUT_GROUP_PROXY_DATA_DESC;var contentString,contentType:String);
   end;
@@ -218,6 +219,9 @@ implementation
     end else
     if result_object is TFRE_DB_EDITOR_DATA_DESC then begin
       gWAC_DOJO.BuildEditorData(TFRE_DB_EDITOR_DATA_DESC(result_object),lContent,lContentType);
+    end else
+    if result_object is TFRE_DB_NEW_WINDOW_DESC then begin
+      gWAC_DOJO.BuildNewWindow(TFRE_DB_NEW_WINDOW_DESC(result_object),lContent,lContentType);
     end else begin
       raise Exception.Create('UNKNOWN TRANSFORM ['+result_object.ClassName+']');
     end;
@@ -1047,6 +1051,7 @@ implementation
     _storeText(conn,'rec_end','Until');
     _storeText(conn,'rec_interval','Interval');
     _storeText(conn,'rec_count','Count');
+    _storeText(conn,'ow_error','Unable to open window! Popup Blocker?');
   end;
 
   procedure TFRE_DB_WAPP_DOJO.BuildContextMenu(const co: TFRE_DB_MENU_DESC; var contentString, contentType: String);
@@ -1933,6 +1938,9 @@ implementation
     jsContentAdd('          startDate: "'+_getText(conn,'rec_start')+'", endDate: "'+_getText(conn,'rec_end')+'", noEndDate: "'+_getText(conn,'rec_noend')+'",');
     jsContentAdd('          count: "'+_getText(conn,'rec_count')+'", interval: "'+_getText(conn,'rec_interval')+'"');
     jsContentAdd('         };');
+    jsContentAdd('  G_TEXTS.openWindow =');
+    jsContentAdd('         {error: "'+_getText(conn,'ow_error')+'"');
+    jsContentAdd('         };');
     jsContentAdd('</script>');
 
     jsContentAdd('<script type="text/javascript" src="fre_js/dojo_utils.js"></script>');
@@ -2628,6 +2636,19 @@ implementation
   begin
     contentString := '{"value": "'+FREDB_String2EscapedJSString(co.Field('value').AsString)+'"}';
     contentType   := 'application/json';
+  end;
+
+  procedure TFRE_DB_WAPP_DOJO.BuildNewWindow(const co: TFRE_DB_NEW_WINDOW_DESC; var contentString, contentType: String);
+  var
+    JSonAction : TFRE_JSON_ACTION;
+  begin
+    JsonAction := TFRE_JSON_ACTION.Create;
+
+    JsonAction.ActionType := jat_jsexecute;
+    JsonAction.Action     := 'G_UI_COM.openWindow("'+co.Field('url').AsString+'");';
+    contentString := JsonAction.AsString;
+    contentType:='application/json';
+    JsonAction.Free;
   end;
 
   initialization
