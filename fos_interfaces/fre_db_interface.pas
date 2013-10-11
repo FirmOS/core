@@ -1361,6 +1361,8 @@ type
   end;
   {$M-}
 
+  TFRE_DB_BaseClass=class of TFRE_DB_Base;
+
 
 
   // This is the TFRE_DB_ObjectEx mediator Class for all Code that has no direct access to TFRE_DB_ObjectClass

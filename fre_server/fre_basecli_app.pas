@@ -405,11 +405,6 @@ var conn  : IFRE_DB_SYS_CONNECTION;
       ims.LoadFromFile(cFRE_SERVER_WWW_ROOT_DIR+'/fre_css/'+ cFRE_WEB_STYLE + '/images/LOGIN.png');
       conn.ModifyUserImage(login,ims);
 
-      case usertype of
-        utadmin: begin
-          CheckDbResult(conn.ModifyUserGroups(login,TFRE_DB_StringArray.Create(cSYSUG_ADMIN_USERS+'@'+domain)),'cannot set usergroups '+login);
-        end;
-      end;
     end;
 
 begin

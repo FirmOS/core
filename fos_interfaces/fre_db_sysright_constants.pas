@@ -43,20 +43,8 @@ interface
 uses Sysutils;
 
 const
-  cSYS_APPNAME         = 'SYS';
-  cSYSROLE_DB_ADMIN    = 'SYSROLE_DB_ADMIN';
 
-  cSYSROLE_DB_MANAGE   = 'SYSROLE_DB_MANAGE';
-  cSYSR_MOD_UG         = 'SYSR_MOD_UG';
-
-
-const //SYS_GROUPS
   cSYS_DOMAIN          = 'SYSTEM';
-
-  cSYSUG_MANAGE_USERS  = 'SYSUG_MANAGE_USERS';
-  cSYSUG_ADMIN_USERS   = 'SYSUG_ADMIN_USERS';
-
-
 
   function  Get_Rightname_App_Role_Subrole   (const app_name,sub_role_name:string):string;inline;
   function  Get_Groupname_App_Group_Subgroup (const app_name,sub_group_name:string):string;inline;
