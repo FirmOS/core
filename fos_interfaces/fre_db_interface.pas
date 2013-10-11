@@ -1167,17 +1167,17 @@ type
     function    StoreRole                   (const appname:TFRE_DB_String; const domainname : TFRE_DB_NameType; var rg:IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    StoreGroup                  (const appname:TFRE_DB_String; const domainname : TFRE_DB_NameType; var ug:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    StoreGroupDomainbyID        (const domain_id: TGUID; var group : IFRE_DB_GROUP): TFRE_DB_Errortype;
-    //function    CheckRight                  (const right_name:TFRE_DB_String):boolean;
+    function    CheckRight                  (const right_name:TFRE_DB_String):boolean;
 
     function    CheckAppRight               (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;
     function    CheckAnyDomainRight         (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;
     function    CheckDomainRight            (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType;const domainKey:TFRE_DB_NameType):boolean;
     function    GetDomainsForRight          (const right_name:TFRE_DB_String): TFRE_DB_GUIDArray;
 
-    function    CheckClassRight             (const right_name:TFRE_DB_String; const className: TClass):boolean;
-    function    CheckClassRightSave         (const className: TClass):boolean;
-    function    CheckClassRightNew          (const className: TClass):boolean;
-    function    CheckClassRightDelete       (const className: TClass):boolean;
+    function    CheckClassRight             (const right_name:TFRE_DB_String; const className: TClass; const domain:TFRE_DB_NameType):boolean; // makes only sense on domain level
+    function    CheckClassRightSave         (const className: TClass; const domain:TFRE_DB_NameType):boolean;
+    function    CheckClassRightNew          (const className: TClass; const domain:TFRE_DB_NameType):boolean;
+    function    CheckClassRightDelete       (const className: TClass; const domain:TFRE_DB_NameType):boolean;
 
     function    CheckRightForGroup          (const right_name:TFRE_DB_String;const group_uid : TGuid):boolean;
     function    FetchApplications           (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
@@ -5062,7 +5062,7 @@ var name : TFRE_DB_String;
 begin
   name := Get_Rightname_App_Role_Subrole(ObjectName,sub_group_name);
   if sys_connection.RoleExists(name) then begin
-    CheckDBResult(sys_connection.DeleteRole(name),'cannot delete app right group : '+name);
+    CheckDBResult(sys_connection.DeleteRole(name),'cannot delete app role : '+name);
   end;
 end;
 

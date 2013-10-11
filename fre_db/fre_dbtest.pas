@@ -342,8 +342,6 @@ begin
         end;
       end;
 
-      CheckDbResult(conn.ModifyUserGroups('guest'+'@'+cSYS_DOMAIN,GFRE_DBI.ConstructStringArray([cSYSUG_DB_GUESTS+'@'+cSYS_DOMAIN,Get_Groupname_App_Group_Subgroup('testapp','GUEST'+'@'+cSYS_DOMAIN)])),'cannot set usergroups guest');
-
     login  := 'feeder@'+cSYS_DOMAIN;
     if conn.UserExists(login) then begin
       writeln('Modify Groups for User '+login);

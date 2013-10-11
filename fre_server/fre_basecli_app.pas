@@ -409,9 +409,6 @@ var conn  : IFRE_DB_SYS_CONNECTION;
         utadmin: begin
           CheckDbResult(conn.ModifyUserGroups(login,TFRE_DB_StringArray.Create(cSYSUG_ADMIN_USERS+'@'+domain)),'cannot set usergroups '+login);
         end;
-        utuser,utdemo: begin
-          CheckDbResult(conn.ModifyUserGroups(login,TFRE_DB_StringArray.Create(cSYSUG_DB_USERS+'@'+domain)),'cannot set usergroups '+login);
-        end;
       end;
     end;
 
@@ -457,8 +454,6 @@ begin
       _AddUser('hhartl','firmos',utadmin,'Helmut','Hartl');
       _AddUser('fschober','firmos',utadmin,'Franz','Schober');
       _AddUser('ckoch','firmos',utadmin,'Christian','Koch');
-
-      CheckDbResult(conn.ModifyUserGroups('guest'+'@'+cSYS_DOMAIN,TFRE_DB_StringArray.Create(cSYSUG_DB_GUESTS+'@'+cSYS_DOMAIN)),'cannot set usergroups guest');
 
     finally
       conn.Finalize;
