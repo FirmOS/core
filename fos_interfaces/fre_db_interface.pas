@@ -65,6 +65,8 @@ var
     GCFG_DB_BACKEND_THREAD_CNT     : Integer = 1;
     GCFG_RANDOM_BYTES_DEVICE       : String =  '/dev/random';
 
+    GCFG_SESSION_UNBOUND_TO        : Integer = 30;
+
 type
 
   TFRE_DB_SIZE_TYPE      = integer;
@@ -526,6 +528,8 @@ type
   TFRE_DB_Object_PropertySet   = set of TFRE_DB_Object_Properties;
 
   TFRE_InputGroupDefType=(igd_Bad,igd_Field,igd_UsedGroup,igd_UsedSubGroup);
+
+  TFRE_DB_SESSIONSTATE  =(sta_BAD,sta_ActiveNew,sta_ReUsed,sta_ReUseNotFound);
 
   OFRE_InputFieldDef4Group = record
     typ            : TFRE_InputGroupDefType;
@@ -1817,10 +1821,10 @@ type
   TFRE_DB_OnCheckUserNamePassword     = function  (username,pass:TFRE_DB_String) : TFRE_DB_Errortype of object;
   TFRE_DB_OnGetImpersonatedConnection = function  (const db,username,pass:TFRE_DB_String;out conn : IFRE_DB_CONNECTION):TFRE_DB_Errortype of object;
   TFRE_DB_OnRestoreDefaultConnection  = function  (out   username:TFRE_DB_String;out conn : IFRE_DB_CONNECTION):TFRE_DB_Errortype of object;
-  TFRE_DB_OnExistsUserSessionForUser  = function  (const username:string;out other_session:TFRE_DB_UserSession):boolean of object;
+  TFRE_DB_OnExistsUserSessionForKey   = function  (const key:string;out other_session:TFRE_DB_UserSession):boolean of object;
   TFRE_DB_OnFetchPublisherRAC         = function  (const rcall,rmeth:TFRE_DB_NameType;out rac:IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out right:TFRE_DB_String):boolean of object;
   TFRE_DB_OnFetchSessionByID          = function  (const sessionid : TFRE_DB_String ; var session : IFRE_DB_Usersession):boolean of object;
-  TFRE_DB_PromoteResult               = (pr_OK,pr_Failed,pr_Takeover);
+  TFRE_DB_PromoteResult               = (pr_OK,pr_Failed,pr_Takeover,pr_TakeoverPrepared);
 
   { TFRE_DB_UserSession }
   TFRE_DB_EVENT_METHOD_ENC=class
@@ -1833,6 +1837,7 @@ type
 
   IFRE_DB_UserSession=interface
     function    GetSessionID             : TFRE_DB_String;
+    function    GetSessionState          : TFRE_DB_SESSIONSTATE;
     function    GetSessionAppData        (const app_key:TFRE_DB_String):IFRE_DB_Object;
     function    GetSessionModuleData     (const mod_key:TFRE_DB_String):IFRE_DB_Object;
     function    GetSessionGlobalData     :IFRE_DB_Object;
@@ -1840,6 +1845,9 @@ type
     function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
     function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
     function    GetDBConnection          :IFRE_DB_CONNECTION;
+    function    LoggedIn                 : Boolean;
+    procedure   Logout                   ;
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; out take_over_content : TFRE_DB_CONTENT_DESC ; out existing_session : TFRE_DB_Usersession) : TFRE_DB_PromoteResult; // Promote USER to another USER
 
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
@@ -1876,10 +1884,13 @@ type
     FContinuationArray    : Array [0..10] of TDispatch_Continuation;
     FContinuationLock     : IFOS_LOCK;
   private
+    FTakeoverPrepared     : String;
     FOnFetchSessionById: TFRE_DB_OnFetchSessionByID;
+    FSessionTerminationTO : NativeInt;
  var
     FOnCheckUserNamePW    : TFRE_DB_OnCheckUserNamePassword;
-    FOnExistsUserSession  : TFRE_DB_OnExistsUserSessionForUser;
+    FOnExistsUserSession  : TFRE_DB_OnExistsUserSessionForKey;
+    FonExistsSesForTkKey  : TFRE_DB_OnExistsUserSessionForKey;
     FOnFetchPublisherRAC  : TFRE_DB_OnFetchPublisherRAC;
     FOnGetImpersonatedDBC : TFRE_DB_OnGetImpersonatedConnection;
     FOnRestoreDefaultDBC  : TFRE_DB_OnRestoreDefaultConnection;
@@ -1906,9 +1917,11 @@ type
     FConnDesc             : String;
     FBoundSession_RA_SC   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
     FIsInteractive        : Boolean;
+    FBindState            : TFRE_DB_SESSIONSTATE;
 
     procedure     SetOnCheckUserNamePW    (AValue: TFRE_DB_OnCheckUserNamePassword);
-    procedure     SetOnExistsUserSession  (AValue: TFRE_DB_OnExistsUserSessionForUser);
+    procedure     SetOnExistsUserSession  (AValue: TFRE_DB_OnExistsUserSessionForKey);
+    procedure SetOnExistsUserSession4TakeOver(AValue: TFRE_DB_OnExistsUserSessionForKey);
     procedure     SetOnFetchPublisherRAC(AValue: TFRE_DB_OnFetchPublisherRAC);
     procedure     SetOnFetchSessionById(AValue: TFRE_DB_OnFetchSessionByID);
     procedure     SetOnGetImpersonatedDBC (AValue: TFRE_DB_OnGetImpersonatedConnection);
@@ -1923,6 +1936,9 @@ type
 
     procedure     dbg_TaskMethodDisp     (const ES:IFRE_APS_EVENTSOURCE ; const TID:integer;const Data:Pointer;const cp:integer=0);
   public
+    procedure   SetSessionState          (const sstate : TFRE_DB_SESSIONSTATE);
+    function    GetSessionState          : TFRE_DB_SESSIONSTATE;
+    function    CheckUnboundSessionForPurge : boolean;
     constructor Create                   (const user_name,password:TFRE_DB_String;const default_app:TFRE_DB_String;const default_uid_path : TFRE_DB_GUIDArray ; conn : IFRE_DB_CONNECTION);
     procedure   StoreSessionData         ;
     destructor  Destroy                  ;override;
@@ -1936,11 +1952,11 @@ type
     procedure   Input_FRE_DB_Command     (const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
     procedure   Input_FRE_DB_Event       (const cmd_event:TFRE_DB_EVENT_METHOD_ENC);
     function    Session_Has_CMDS         : Boolean;
-    function    WorkSessionCommand       (var drop_current_session : boolean): IFRE_DB_COMMAND;
+    function    WorkSessionCommand       : IFRE_DB_COMMAND;
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;const input:IFRE_DB_Object):IFRE_DB_Object;
-    function    InternalSessInvokeMethod (const obj:IFRE_DB_Object;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
+    function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
     function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; out take_over_content : TFRE_DB_CONTENT_DESC ) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; out take_over_content : TFRE_DB_CONTENT_DESC ; out existing_session : TFRE_DB_Usersession) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   InitiateTakeover         (const NEW_RASC:IFRE_DB_COMMAND_REQUEST_ANSWER_SC;out take_over_content : TFRE_DB_CONTENT_DESC;const connection_desc:string);
     procedure   Demote                   ;
     procedure   Logout                   ;
@@ -1955,6 +1971,7 @@ type
     procedure   FinishDerivedCollections ;
     function    GetUsername              : String;
     function    GetClientDetails         : String;
+    function    GetTakeOverKey           : String;
     function    GetSessionAppArray       : IFRE_DB_APPLICATION_ARRAY;
 
     procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const interactive_session:boolean);
@@ -1990,7 +2007,8 @@ type
     property    OnGetImpersonatedDBC     :TFRE_DB_OnGetImpersonatedConnection read FOnGetImpersonatedDBC write SetOnGetImpersonatedDBC;
     property    OnWorkCommandsEvent      :TNotifyEvent read FOnWorkCommands write SetOnWorkCommands;
     property    OnRestoreDefaultDBC      :TFRE_DB_OnRestoreDefaultConnection read FOnRestoreDefaultDBC write SetOnRestoreDefaultDBC;
-    property    OnExistsUserSession      :TFRE_DB_OnExistsUserSessionForUser read FOnExistsUserSession write SetOnExistsUserSession;
+    property    OnExistsUserSession      :TFRE_DB_OnExistsUserSessionForKey read FOnExistsUserSession write SetOnExistsUserSession;
+    property    OnExistsUserSession4Key  :TFRE_DB_OnExistsUserSessionForKey read FonExistsSesForTkKey write SetOnExistsUserSession4TakeOver;
     property    OnCheckUserNamePW        :TFRE_DB_OnCheckUserNamePassword read FOnCheckUserNamePW write SetOnCheckUserNamePW;
     property    OnFetchPublisherRAC      :TFRE_DB_OnFetchPublisherRAC read FOnFetchPublisherRAC write SetOnFetchPublisherRAC;
     property    OnFetchSessionById       :TFRE_DB_OnFetchSessionByID read FOnFetchSessionById write SetOnFetchSessionById;
@@ -2735,9 +2753,14 @@ begin
   FOnRestoreDefaultDBC:=AValue;
 end;
 
-procedure TFRE_DB_UserSession.SetOnExistsUserSession(AValue: TFRE_DB_OnExistsUserSessionForUser);
+procedure TFRE_DB_UserSession.SetOnExistsUserSession(AValue: TFRE_DB_OnExistsUserSessionForKey);
 begin
   FOnExistsUserSession:=AValue;
+end;
+
+procedure TFRE_DB_UserSession.SetOnExistsUserSession4TakeOver(AValue: TFRE_DB_OnExistsUserSessionForKey);
+begin
+  FonExistsSesForTkKey:=AValue;
 end;
 
 procedure TFRE_DB_UserSession.SetOnFetchPublisherRAC(AValue: TFRE_DB_OnFetchPublisherRAC);
@@ -2769,11 +2792,12 @@ end;
 constructor TFRE_DB_UserSession.Create(const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String;const default_uid_path : TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION);
 begin
   GFRE_TF.Get_LFQ(FSessionQ);
-  FUserName     := user_name;
-  FDefaultApp   := default_app;
-  FDBConnection := conn;
-  FDefaultUID   := default_uid_path;
-  FSessionID    := 'S'+GFRE_DBI.Get_A_Guid_HEX;
+  FUserName             := user_name;
+  FDefaultApp           := default_app;
+  FDBConnection         := conn;
+  FDefaultUID           := default_uid_path;
+  FSessionID            := 'S'+GFRE_DBI.Get_A_Guid_HEX;
+  FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO;
   _FetchAppsFromDB;
   _InitApps;
   if not assigned(FContinuationLock) then
@@ -2783,6 +2807,11 @@ end;
 procedure TFRE_DB_UserSession.StoreSessionData;
 var res : TFRE_DB_Errortype;
 begin
+  if not FPromoted then
+    begin
+      writeln('YOU COULD NOT STORE SEESION DATA FOR A UNPROMOTED (GUEST) SESSION');
+      exit;
+    end;
   GFRE_DBI.LogDebug(dblc_SESSION,'STORING SESSIONDATA FOR ['+FUserName+'] : '+FSessionID);
   if assigned(FSessionData) then begin
     res := GetDBConnection.StoreUserSessionData(FSessionData);
@@ -2809,7 +2838,8 @@ begin
       FDbgTimer.MarkFinalize;
       FDbgTimer := nil;
     end;
-  StoreSessionData;
+  if FPromoted then
+    StoreSessionData;
   try
     FinishDerivedCollections;
   except on e:exception do
@@ -2912,6 +2942,26 @@ begin
  end;
 end;
 
+procedure TFRE_DB_UserSession.SetSessionState(const sstate: TFRE_DB_SESSIONSTATE);
+begin
+  FBindState := sstate;
+end;
+
+function TFRE_DB_UserSession.GetSessionState: TFRE_DB_SESSIONSTATE;
+begin
+  result     := FBindState;
+end;
+
+function TFRE_DB_UserSession.CheckUnboundSessionForPurge: boolean;
+begin
+  if FBoundSession_RA_SC=nil then
+    begin
+      dec(FSessionTerminationTO);
+      result := FSessionTerminationTO<1;
+      writeln('SESSION ['+fsessionid+'] KO in ',FSessionTerminationTO);
+    end;
+end;
+
 function TFRE_DB_UserSession.SearchSessionAppUID(const app_uid: TGUID; out app: IFRE_DB_Object): boolean;
 var  i: Integer;
 begin
@@ -2985,7 +3035,7 @@ begin
   result := FSessionQ.SomethingOnQ>0;
 end;
 
-function TFRE_DB_UserSession.WorkSessionCommand(var drop_current_session: boolean): IFRE_DB_COMMAND;
+function TFRE_DB_UserSession.WorkSessionCommand: IFRE_DB_COMMAND;
 var x           : TObject;
     cmd         : IFRE_DB_COMMAND;
     class_name  : TFRE_DB_String;
@@ -3016,7 +3066,7 @@ var x           : TObject;
         output        := FDBConnection.InvokeMethod(class_name,method_name,uidp,input,self);
         FcurrentReqID := 0;
         if output=nil then begin
-          raise EFRE_DB_Exception.Create('function delivered nil result');
+          raise EFRE_DB_Exception.Create('function '+class_name+'.'+method_name+' delivered nil result');
         end;
         CMD.Data        := output;
         if request_typ = fct_SyncRequest then begin
@@ -3165,6 +3215,7 @@ begin
                                          class_name  := FDefaultApp;
                                          uidp        := FDefaultUID;
                                          method_name := 'Content';
+                                         input.Field('CLEANUP').AsBoolean := TRUE;
                                          InvokeMethod(false);
                                          CMD.ChangeSession := FSessionID;
                                        end;
@@ -3224,13 +3275,13 @@ begin
                                     result := nil;
                                   end
                                 else
-                                if (method_name='WEBSOCKCLOSE') then
-                                  begin
-                                    CMD.Finalize;
-                                    result := nil;
-                                    drop_current_session := true; // First shot, kill session when websocket disconnects
-                                  end
-                                else
+                                //if (method_name='WEBSOCKCLOSE') then
+                                //  begin
+                                //    CMD.Finalize;
+                                //    result := nil;
+                                //    drop_current_session := true; // First shot, kill session when websocket disconnects
+                                //  end
+                                //else
                                   begin
                                     writeln('UNHANDLED ASYNC REQUEST ?? ',class_name,'.',method_name);
                                     CMD.Data        := GFRE_DB_NIL_DESC;
@@ -3283,23 +3334,21 @@ begin
   GFRE_DBI.LogDebug(dblc_SERVER,'>>(%4.4d ms)<<SESSION/INTERNAL/DISPATCH METHOD %s.%s(%s) SID=[%s]',[et-st,class_name,method_name,GFRE_DBI.GuidArray2SString(uid_path),FSessionID]);
 end;
 
-function TFRE_DB_UserSession.InternalSessInvokeMethod(const obj: IFRE_DB_Object; const method_name: string; const input: IFRE_DB_Object): IFRE_DB_Object;
-var inp:IFRE_DB_Object;
+function TFRE_DB_UserSession.InternalSessInvokeMethod(const app: IFRE_DB_APPLICATION; const method_name: string; const input: IFRE_DB_Object): IFRE_DB_Object;
+var inp  : IFRE_DB_Object;
 begin
   if not assigned(input) then begin
     inp := GFRE_DBI.NewObject;
     inp.SetReference(self);
     try
-      abort;
-      result := obj.Invoke(method_name,inp,self,nil,nil);
+      result := app.AsObject.Invoke(method_name,inp,self,app,GetDBConnection);
     finally
       inp.Finalize;
     end;
   end else begin
     input.SetReference(self);
     try
-      abort;
-      result := obj.Invoke(method_name,input,self,nil,nil);
+      result := app.AsObject.Invoke(method_name,input,self,app,GetDBConnection);
     finally
       input.SetReference(nil);
     end;
@@ -3309,20 +3358,20 @@ end;
 function TFRE_DB_UserSession.CloneSession(const connectiond_desc: string): TFRE_DB_UserSession;
 begin
   result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,FDBConnection);
-  result.OnGetImpersonatedDBC := FOnGetImpersonatedDBC;
-  result.OnExistsUserSession  := FOnExistsUserSession;
-  result.OnRestoreDefaultDBC  := FOnRestoreDefaultDBC;
-  result.OnCheckUserNamePW    := FOnCheckUserNamePW;
-  result.OnFetchPublisherRAC  := FOnFetchPublisherRAC;
-  result.OnFetchSessionById   := FOnFetchSessionById;
-  result.FSessionData         := GFRE_DBI.NewObject;
-  result.FConnDesc            := connectiond_desc;
+  result.OnGetImpersonatedDBC    := FOnGetImpersonatedDBC;
+  result.OnExistsUserSession     := FOnExistsUserSession;
+  result.OnExistsUserSession4Key := FonExistsSesForTkKey;
+  result.OnRestoreDefaultDBC     := FOnRestoreDefaultDBC;
+  result.OnCheckUserNamePW       := FOnCheckUserNamePW;
+  result.OnFetchPublisherRAC     := FOnFetchPublisherRAC;
+  result.OnFetchSessionById      := FOnFetchSessionById;
+  result.FSessionData            := GFRE_DBI.NewObject;
+  result.FConnDesc               := connectiond_desc;
 end;
 
-function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_error: TFRE_DB_String;  force_new_session_data: boolean; const session_takeover: boolean; out take_over_content: TFRE_DB_CONTENT_DESC): TFRE_DB_PromoteResult;
+function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_error: TFRE_DB_String;  force_new_session_data: boolean; const session_takeover: boolean; out take_over_content: TFRE_DB_CONTENT_DESC ; out existing_session : TFRE_DB_UserSession): TFRE_DB_PromoteResult;
 var err              : TFRE_DB_Errortype;
     l_NDBC             : IFRE_DB_CONNECTION;
-    existing_session   : TFRE_DB_UserSession;
     lStoredSessionData : IFRE_DB_Object;
 
     procedure ReinitializeApps;
@@ -3334,13 +3383,30 @@ var err              : TFRE_DB_Errortype;
     end;
 
 begin
+    if session_takeover then
+      begin
+        if FonExistsSesForTkKey(FConnDesc,existing_session) then
+          begin
+            assert(existing_session<>self);
+            existing_session.InitiateTakeover(FBoundSession_RA_SC,take_over_content,FConnDesc);
+            result:=pr_Takeover;
+            exit;
+          end
+        else
+          begin
+            promotion_error := 'Takeover Failed : OLD SESSION NOT FOUND';
+            result          := pr_Failed;
+            exit;
+          end;
+      end;
     FOnExistsUserSession(user_name,existing_session);
-    if session_takeover and assigned(existing_session) then begin
+    if assigned(existing_session) then begin
       err := FOnCheckUserNamePW(user_name,password);
       case err of
         edb_OK : begin
-          existing_session.InitiateTakeover(FBoundSession_RA_SC,take_over_content,FConnDesc);
-          result:=pr_Takeover;
+          promotion_error := 'You are already logged in on '+FConnDesc+' would you like to takeover this existing session ?';
+          existing_session.FTakeoverPrepared := FConnDesc;
+          result := pr_TakeoverPrepared;
         end;
         else begin
           promotion_error := 'Takeover Failed : '+CFRE_DB_Errortype[err];
@@ -3348,11 +3414,6 @@ begin
         end;
       end;
       exit;
-    end;
-    if assigned(existing_session) then begin
-        FPromoted       := false;
-        promotion_error := 'Sorry you cannot be logged in because you are already logged in on : '+existing_session.GetClientDetails;
-        result          := pr_Failed;
     end else begin
       err := FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
       assert(assigned(FSessionData));
@@ -3360,7 +3421,7 @@ begin
        edb_OK: begin
           FDBConnection:=l_NDBC;
           GFRE_DBI.LogInfo(dblc_SERVER,'PROMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,FUserName,user_name]);
-          force_new_session_data := true; //TODO: HACK RZNORD -> (9.10.2013) Session data save/retieve is buggy
+          force_new_session_data := true; //TODO: HACK RZNORD -> (9.10.2013) Session data save/retrieve is buggy
           if not force_new_session_data then begin
             if not l_NDBC.FetchUserSessionData(lStoredSessionData) then begin
               GFRE_DBI.LogDebug(dblc_SERVER,'USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
@@ -3405,18 +3466,20 @@ begin
     FBoundSession_RA_SC := NEW_RASC;
     NEW_RASC.UpdateSessionBinding(self);
   end else begin
-    MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER','This session will be continued on another browser instance.',fdbmt_info,nil);
+    MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER','This session will be continued on another browser instance.',fdbmt_wait,nil);
     sId := FSessionID;
     SendServerClientRequest(msg,'OLD-REVOKED');
+    FBoundSession_RA_SC.DeactivateSessionBinding;
     //---
     FConnDesc := connection_desc;
     NEW_RASC.UpdateSessionBinding(self);
     FBoundSession_RA_SC := NEW_RASC;
+    //take_over_content := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER DONE','Sorry',fdbmt_error);;
     if SearchSessionApp(FcurrentApp,app,idx) then begin
       SendServerClientRequest(GFRE_DB_NIL_DESC,sId);
       take_over_content := InternalSessInvokeMethod(App,'CONTENT',nil).Implementor_HC as TFRE_DB_CONTENT_DESC;
     end else begin
-      MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER FAILED','Sorry',fdbmt_error);
+      MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER FAILED','Sorry - found no default app',fdbmt_error);
       SendServerClientRequest(msg,'BAD-ERROR');
     end;
   end;
@@ -3519,6 +3582,11 @@ begin
   result := FConnDesc;
 end;
 
+function TFRE_DB_UserSession.GetTakeOverKey: String;
+begin
+  result := FTakeoverPrepared;
+end;
+
 function TFRE_DB_UserSession.GetSessionAppArray: IFRE_DB_APPLICATION_ARRAY;
 var i:integer;
 begin
@@ -3536,7 +3604,8 @@ end;
 
 procedure TFRE_DB_UserSession.ClearServerClientInterface;
 begin
-  FBoundSession_RA_SC:=nil;
+  FSessionTerminationTO := 15;
+  FBoundSession_RA_SC   := nil;
 end;
 
 function TFRE_DB_UserSession.GetClientServerInterface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
@@ -3605,7 +3674,8 @@ begin
       end
     else
       begin
-        writeln('BOUND SESSION RAC not assigned FAIL!');
+        FBoundSession_RA_SC := FBoundSession_RA_SC;
+        // Client Session has gone ...
       end;
   except on e:exception do
     begin

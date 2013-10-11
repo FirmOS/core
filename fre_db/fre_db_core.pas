@@ -4774,6 +4774,7 @@ function TFRE_DB_SYSTEM_CONNECTION.StoreUserSessionData(var session_data: IFRE_D
 var key : TFRE_DB_String;
 var userid : string;
 begin
+  result := edb_OK;
 exit;// HACK RZNORD -> Buggy
  userid := uppercase(FConnectedUser.Login+'@'+GFRE_BT.GUID_2_HexString(FConnectedUser.GetDomainID));
  key    := userid;
@@ -16945,8 +16946,10 @@ initialization
 
 finalization
   GFRE_DB.Free;
-  GFRE_DB_NIL_DESC.DestroySingleton;
-  GFRE_DB_SUPPRESS_SYNC_ANSWER.DestroySingleton;
+  if assigned(GFRE_DB_NIL_DESC) then
+    GFRE_DB_NIL_DESC.DestroySingleton;
+  if assigned(GFRE_DB_SUPPRESS_SYNC_ANSWER) then
+    GFRE_DB_SUPPRESS_SYNC_ANSWER.DestroySingleton;
 
 end.
 

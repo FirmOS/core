@@ -86,24 +86,24 @@ type
     FWFE_InTimer       : NativeInt;
 
     FDefaultSession           : TFRE_DB_UserSession;
-    FSession_dispatch_array   : Array of TFRE_DB_UserSession;
+
     FHull_HTML,FHull_CT       : String;
     FTerminating              : boolean;
 
     procedure      _CloseAll              ;
     procedure      _SetupHttpBaseServer   ;
     procedure      InterLinkDispatchTimer (const ES : IFRE_APS_EVENTSOURCE ; const TID:integer;const Data:Pointer;const cp:integer=0);
-    procedure      WFE_DispatchTimerEvent (const ES : IFRE_APS_EVENTSOURCE ; const TID:integer;const Data:Pointer;const cp:integer=0);
+    procedure      WFE_DispatchTimerEvent(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
     procedure      NewConnection          (const session_id:string);
     procedure      ConnectionDropped      (const session_id:string);
     procedure      WorkCommandsCallback   (sender:Tobject);
     procedure      BindInitialSession     (const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean);
-    procedure      UnBindSession          (const sender:TObject ; const session : TFRE_DB_UserSession);
     function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       GetDBWithServerRights                     (const dbname:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       RestoreDefaultConnection                  (out  username : TFRE_DB_String ; out conn : IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       GetImpersonatedDatabaseConnectionSession  (const dbname,username,pass,default_app : string;const default_uid_path : TFRE_DB_GUIDArray ; out dbs:TFRE_DB_UserSession):TFRE_DB_Errortype;
     function       ExistsUserSessionForUser                  (const username:string;out other_session:TFRE_DB_UserSession):boolean;
+    function       ExistsUserSessionForKey                   (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
     function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
     function       FetchPublisherRAC                         (const rcall,rmeth:TFRE_DB_NameType;out rac:IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out right:TFRE_DB_String):boolean;
     function       FetchSessionById                          (const sesid : TFRE_DB_String ; var ses :IFRE_DB_UserSession):boolean;
@@ -452,7 +452,6 @@ var lServerHandler : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
 begin
   lServerHandler                      := TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Create(sock,self);
   lServerHandler.OnBindInitialSession := @BindInitialSession;
-  lServerHandler.OnUnbindSession      := @UnbindSession;
   sock.SetNoDelay(true);
   SOCK.Data        := lServerHandler;
 end;
@@ -483,7 +482,6 @@ var bc : TFRE_SERVED_BASE_CONNECTION;
 begin
   bc                      :=TFRE_SERVED_BASE_CONNECTION.Create;
   bc.OnBindInitialSession := @BindInitialSession;
-  bc.OnUnbindSession      := @UnbindSession;
   SOCK.Data               :=bc;
   bc.SOCK                 :=SOCK;
   SOCK.SetNoDelay(True);
@@ -540,46 +538,30 @@ end;
 
 procedure TFRE_BASE_SERVER.InterLinkDispatchTimer(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
 var
-    CMD_Answer         : IFRE_DB_COMMAND;
-    i                  : Integer;
-    drop_session       : boolean;
-    lSession           : TFRE_DB_UserSession;
+    CMD_Answer               : IFRE_DB_COMMAND;
+    i                        : Integer;
+    lSession                 : TFRE_DB_UserSession;
+    FSession_dispatch_array  : Array of TFRE_DB_UserSession;
 begin
   if FTerminating then exit;
   //writeln('Interlinkdispatch Timer ',TiD,' ',GFRE_BT.Get_Ticks_ms,'   ',cp);
   FSessionTreeLock.Acquire;
   try
-    if FUserSessionsTree.QueryTreeChange then begin
+    //if FUserSessionsTree.QueryTreeChange then begin
       FSession_dispatch_array := FUserSessionsTree.GetAllItemsAsArray;
-    end;
-    for i := 0 to high(FSession_dispatch_array) do begin
-      if FSession_dispatch_array[i].Session_Has_CMDS then begin
-        drop_session:=false;
-        CMD_Answer := FSession_dispatch_array[i].WorkSessionCommand(drop_session);
-        if not drop_session then
+    //end;
+    for i := 0 to high(FSession_dispatch_array) do
+      begin
+        if FSession_dispatch_array[i].Session_Has_CMDS then
           begin
-            if assigned(CMD_Answer)  then begin
-              if CMD_Answer.Data.Implementor_HC <> GFRE_DB_SUPPRESS_SYNC_ANSWER then
-                CMD_Answer.GetAnswerInterface.Send_ServerClient(CMD_Answer); //Debug Breakpoint
-            end;
-          end
-        else
-          begin
-            if FUserSessionsTree.Delete(FSession_dispatch_array[i].GetSessionID,lSession) then
+            CMD_Answer := FSession_dispatch_array[i].WorkSessionCommand;
+            if assigned(CMD_Answer)  then
               begin
-                writeln('FREEING USER SESSION ',lSession.GetSessionID,' user=',lSession.GetUsername,' from ',lSession.GetClientDetails);
-                GFRE_BT.CriticalAbort('REBOOT');
-                halt;
-                try
-                  lSession.free;
-                except on e:exception do
-                  writeln('SESSION FREE FAILED : ',e.Message);
-                end;
-                FSession_dispatch_array[i]:=nil;
+                if CMD_Answer.Data.Implementor_HC <> GFRE_DB_SUPPRESS_SYNC_ANSWER then
+                  CMD_Answer.GetAnswerInterface.Send_ServerClient(CMD_Answer); //Debug Breakpoint
               end;
           end;
       end;
-    end;
   finally
     FSessionTreeLock.Release;
   end;
@@ -587,9 +569,38 @@ end;
 
 
 procedure TFRE_BASE_SERVER.WFE_DispatchTimerEvent(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
+var FSession_dispatch_array   : Array of TFRE_DB_UserSession;
+    i                         : NativeInt;
+    lSession                  : TFRE_DB_UserSession;
 begin
- // GFRE_DT.Now_UTC;
-//  writeln('WFE Dispatch TIMER ',TiD,' ',GFRE_BT.Get_Ticks_ms,'   ',cp);
+  FSessionTreeLock.Acquire;
+  try
+    //if FUserSessionsTree.QueryTreeChange then begin
+      FSession_dispatch_array := FUserSessionsTree.GetAllItemsAsArray;
+    //end;
+    for i := 0 to high(FSession_dispatch_array) do
+      begin
+        if FSession_dispatch_array[i].CheckUnboundSessionForPurge then
+          begin
+            if FUserSessionsTree.Delete(FSession_dispatch_array[i].GetSessionID,lSession) then
+              begin
+                writeln('FREEING USER SESSION ',lSession.GetSessionID,' user=',lSession.GetUsername,' from ',lSession.GetClientDetails);
+                try
+                  lSession.free;
+                except on e:exception do
+                  writeln('SESSION FREE FAILED : ',e.Message);
+                end;
+                FSession_dispatch_array[i]:=nil;
+              end
+            else
+              begin
+                writeln('--CRITICAL ?? - cannot delete unbound session ? ',FSession_dispatch_array[i].GetSessionID);
+              end;
+          end;
+      end;
+  finally
+    FSessionTreeLock.Release;
+  end;
 end;
 
 procedure TFRE_BASE_SERVER.NewConnection(const session_id: string);
@@ -616,12 +627,13 @@ begin
   result:= GetImpersonatedDatabaseConnection(dbname,username,pass,dbc);
   if result=edb_OK then begin
     dbs := TFRE_DB_UserSession.Create(username,'',default_app,default_uid_path,dbc);
-    dbs.OnGetImpersonatedDBC := @GetImpersonatedDatabaseConnection;
-    dbs.OnRestoreDefaultDBC  := @RestoreDefaultConnection;
-    dbs.OnExistsUserSession  := @ExistsUserSessionForUser;
-    dbs.OnCheckUserNamePW    := @CheckUserNamePW;
-    dbs.OnFetchSessionById   := @FetchSessionById;
-    dbs.OnFetchPublisherRAC  := @FetchPublisherRAC;
+    dbs.OnGetImpersonatedDBC    := @GetImpersonatedDatabaseConnection;
+    dbs.OnRestoreDefaultDBC     := @RestoreDefaultConnection;
+    dbs.OnExistsUserSession     := @ExistsUserSessionForUser;
+    dbs.OnExistsUserSession4Key := @ExistsUserSessionForKey;
+    dbs.OnCheckUserNamePW       := @CheckUserNamePW;
+    dbs.OnFetchSessionById      := @FetchSessionById;
+    dbs.OnFetchPublisherRAC     := @FetchPublisherRAC;
   end;
 end;
 
@@ -643,6 +655,33 @@ begin
   FSessionTreeLock.Acquire;
   try
     FUserSessionsTree.ForAllItemsBrk(@SearchUser);
+    if assigned(fsession) then begin
+      other_session     := fsession;
+      result            := true;
+    end;
+  finally
+    FSessionTreeLock.Release;
+  end;
+end;
+
+function TFRE_BASE_SERVER.ExistsUserSessionForKey(const key: string; out other_session: TFRE_DB_UserSession): boolean;
+var fsession : TFRE_DB_UserSession;
+
+  function SearchKey(const session:TFRE_DB_UserSession):boolean;
+  begin
+    if session.GetTakeOverKey=key then begin
+      fsession := session;
+      result   := true;
+    end;
+  end;
+
+begin
+  result        := false;
+  fsession      := nil;
+  other_session := nil;
+  FSessionTreeLock.Acquire;
+  try
+    FUserSessionsTree.ForAllItemsBrk(@SearchKey);
     if assigned(fsession) then begin
       other_session     := fsession;
       result            := true;
@@ -728,14 +767,17 @@ procedure TFRE_BASE_SERVER.BindInitialSession(const back_channel: IFRE_DB_COMMAN
 var ws         : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
     SessionKey : String;
     found      : boolean;
+    reuse_ses  : boolean;
 begin
-  found:=false;
-  if old_session_id<>'' then begin
+  found     := false;
+  reuse_ses := (old_session_id<>'NEW') and (old_session_id<>'');
+  if reuse_ses then begin
     FSessionTreeLock.Acquire;
     try
       if FUserSessionsTree.Find(old_session_id,session) then begin
         GFRE_DBI.LogDebug(dblc_SESSION,'REUSING SESSION [%s]',[old_session_id]);
         found:=true;
+        session.SetSessionState(sta_REUSED);
         session.SetServerClientInterface(back_channel,interactive_session);
       end else begin
         GFRE_DBI.LogDebug(dblc_SESSION,'OLD REQUESTED SESSION NOT FOUND [%s]',[old_session_id]);
@@ -745,8 +787,12 @@ begin
     end;
   end;
   if not found then begin
-    session := FDefaultSession.CloneSession(back_channel.GetInfoForSessionDesc); //  (sender as TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY).GetSocketDesc
+    session                     := FDefaultSession.CloneSession(back_channel.GetInfoForSessionDesc); //  (sender as TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY).GetSocketDesc
     session.OnWorkCommandsEvent := @WorkCommandsCallback;
+    if reuse_ses then
+      session.SetSessionState(sta_ReUseNotFound)
+    else
+      session.SetSessionState(sta_ActiveNew);
     FSessionTreeLock.Acquire;
     try
       FUserSessionsTree.Add(session.GetSessionID,session);
@@ -758,23 +804,6 @@ begin
   end;
 end;
 
-procedure TFRE_BASE_SERVER.UnBindSession(const sender: TObject; const session: TFRE_DB_UserSession);
-var lSession : TFRE_DB_UserSession;
-    sid      : string;
-begin
-  sid := session.GetSessionID;
-  writeln('->>> Unbind SESSION : ',sid);
-  FSessionTreeLock.Acquire;
-  try
-    if FUserSessionsTree.Delete(sid,lSession) then begin
-      writeln('SESSION DISPATCH REMOVED');
-    end else begin
-      writeln('UNBIND SESSION ? NOT FOUND : ',sid);
-    end;
-  finally
-    FSessionTreeLock.Release;
-  end;
-end;
 
 function TFRE_BASE_SERVER.GetImpersonatedDatabaseConnection(const dbname, username, pass: TFRE_DB_String; out dbs: IFRE_DB_CONNECTION): TFRE_DB_Errortype;
 var found : boolean;
