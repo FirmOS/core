@@ -2002,7 +2002,9 @@ begin
     conn.StoreRole(user_app_rg,ObjectName,domain);
     conn.StoreRole(guest_app_rg,ObjectName,domain);
 
-    _AddSystemGroups(conn,domain);
+    conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');
+    conn.AddAppGroup(ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin');
+    conn.AddAppGroup(ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest');
 
     conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
     conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'GUEST'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'GUEST'+'@'+domain)]));

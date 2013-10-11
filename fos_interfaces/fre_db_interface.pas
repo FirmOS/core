@@ -1496,8 +1496,6 @@ type
     function   _CreateAppRole                (const rolename   :TFRE_DB_String;const short_desc,long_desc : TFRE_DB_String):IFRE_DB_ROLE;
     procedure  _AddAppRight                  (const right_group:IFRE_DB_ROLE;const sub_right_name:TFRE_DB_String);
     procedure  _AddAppRightModules           (const right_group:IFRE_DB_ROLE;const module_names:TFRE_DB_StringArray);
-    procedure  _AddSystemGroups              (const sys_connection: IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType); virtual;
-    procedure  _RemoveDefaultGroups          (const sys_connection: IFRE_DB_SYS_CONNECTION); virtual;
 
     procedure  AddApplicationModule          (const module:TFRE_DB_APPLICATION_MODULE);
     function   DelegateInvoke                (const modulename:TFRE_DB_String;const methname:string;const input : IFRE_DB_Object):IFRE_DB_Object;
@@ -1572,8 +1570,6 @@ type
     function   GetEmbeddingApp              : TFRE_DB_APPLICATION;
     function   CheckAppRightModule          (const input_context: IFRE_DB_Object;const module_name:TFRE_DB_String) : Boolean;
     function   FetchAppText                 (const input_context: IFRE_DB_Object;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;
-
-    function   Get_Rightname                (const sub_right_name:string):string;
 
     function   GetToolbarMenu               : TFRE_DB_CONTENT_DESC;virtual;
     function   GetDBConnection              (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
@@ -1845,6 +1841,7 @@ type
     function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
     function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
     function    GetDBConnection          :IFRE_DB_CONNECTION;
+    function    GetDomain                :TFRE_DB_String;
     function    LoggedIn                 : Boolean;
     procedure   Logout                   ;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; out take_over_content : TFRE_DB_CONTENT_DESC ; out existing_session : TFRE_DB_Usersession) : TFRE_DB_PromoteResult; // Promote USER to another USER
@@ -1853,6 +1850,9 @@ type
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
     //Invoke a Method that another Session provides via Register
     function    InvokeRemoteRequest      (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object; var response:IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
+
+    procedure   RegisterTaskMethod       (const TaskMethod:IFRE_DB_InvokeInstanceMethod;const invocation_interval : integer); //DEPRECATED - DONT USE
+    procedure   RemoveTaskMethod         ;
 
     procedure   registerUpdatableContent   (const contentId: String);
     procedure   unregisterUpdatableContent (const contentId: String);
@@ -2001,6 +2001,7 @@ type
     function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
 
     function    GetDBConnection          :IFRE_DB_CONNECTION;
+    function    GetDomain                :TFRE_DB_String;
 
     function    GetPublishedRemoteMeths  : TFRE_DB_RemoteReqSpecArray;
 
@@ -3790,6 +3791,13 @@ begin
   result := FDBConnection;
 end;
 
+function TFRE_DB_UserSession.GetDomain: TFRE_DB_String;
+var
+  loc: TFRE_DB_String;
+begin
+  FREDB_SplitLocalatDomain(FUserName,loc,Result);
+end;
+
 function TFRE_DB_UserSession.GetPublishedRemoteMeths: TFRE_DB_RemoteReqSpecArray;
 begin
   result := FRemoteRequestSet;
@@ -4677,7 +4685,7 @@ var scheme            : IFRE_DB_SCHEMEOBJECT;
     update_object_uid : TGUid;
     raw_object        : IFRE_DB_Object;
 begin
-  if not conn.CheckRight(GetClassRightNameSave) then raise EFRE_DB_Exception.Create('Access denied.');
+  if not conn.CheckClassRightSave(Self.ClassType,ses.getDomain) then raise EFRE_DB_Exception.Create('Access denied.');
   if Not IsObjectRoot then begin
     result := TFRE_DB_MESSAGE_DESC.Create.Describe('SAVE','Error on saving! Saving of Subobject not supported!',fdbmt_error);
     exit;
@@ -5154,20 +5162,6 @@ begin
   end;
 end;
 
-procedure TFRE_DB_APPLICATION._AddSystemGroups(const sys_connection: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType);
-begin
-  sys_connection.AddAppGroup   (ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');
-  sys_connection.AddAppGroup   (ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin');
-  sys_connection.AddAppGroup   (ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest');
-end;
-
-procedure TFRE_DB_APPLICATION._RemoveDefaultGroups(const sys_connection: IFRE_DB_SYS_CONNECTION);
-begin
-  sys_connection.RemoveAppGroup(Objectname,'USER');
-  sys_connection.RemoveAppGroup(Objectname,'ADMIN');
-  sys_connection.RemoveAppGroup(Objectname,'GUEST');
-end;
-
 procedure TFRE_DB_APPLICATION.CreateAppText(const conn: IFRE_DB_SYS_CONNECTION;const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 var txt :IFRE_DB_TEXT;
 begin
@@ -5204,7 +5198,7 @@ end;
 
 function TFRE_DB_APPLICATION.CheckAppRightModule(const conn: IFRE_DB_CONNECTION;const module_name: TFRE_DB_String): Boolean;
 begin
-  result := (not CFG_ApplicationUsesRights) or conn.CheckRight(Get_Rightname('$ACMOD_'+module_name));
+  result := (not CFG_ApplicationUsesRights) or conn.CheckAppRight('$ACMOD_'+module_name,Self.ObjectName);
 end;
 
 function TFRE_DB_APPLICATION.CheckAppRightModule(const input_context: IFRE_DB_Object; const module_name: TFRE_DB_String): Boolean;
@@ -5445,11 +5439,6 @@ end;
 function TFRE_DB_APPLICATION_MODULE.FetchAppText(const input_context: IFRE_DB_Object; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
   result := GetEmbeddingApp.FetchAppText(input_context,translation_key);
-end;
-
-function TFRE_DB_APPLICATION_MODULE.Get_Rightname(const sub_right_name: string): string;
-begin
-  result := GetEmbeddingApp.Get_Rightname(sub_right_name);
 end;
 
 function TFRE_DB_APPLICATION_MODULE.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
