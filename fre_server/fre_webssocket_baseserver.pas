@@ -115,7 +115,6 @@ type
   TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY=class(TFRE_WEBSOCKET_SERVERHANDLER_BASE,IFRE_DB_COMMAND_REQUEST_ANSWER_SC)
   private
     FOnBindDefaultSession : TFRE_DB_FetchSessionCB;
-    FOnUnbindSession      : TFRE_DB_SessionCB;
     type
       TVNC_FBU_RECT=record
         xpos    : Word;
@@ -163,7 +162,6 @@ type
     procedure   WS_VNC_DownClient  (const Sock:IFCOM_SOCK);
 
     procedure   SetOnBindDefaultSession(AValue: TFRE_DB_FetchSessionCB);
-    procedure   SetOnUnbindSession (AValue: TFRE_DB_SessionCB);
     procedure   SendProxyFrame     (const data:TFRE_DB_RawByteString);
     procedure   WebReceived        (const dataframe :  string);
   protected
@@ -183,7 +181,6 @@ type
     procedure   ClientConnected      ; override;
     function    Get_Client_IF        : IR_FRE_APS_FCOM_CLIENT_HANDLER;
     property    OnBindInitialSession : TFRE_DB_FetchSessionCB read FOnBindDefaultSession write SetOnBindDefaultSession;
-    property    OnUnbindSession      : TFRE_DB_SessionCB read FOnUnbindSession write SetOnUnbindSession;
 
     procedure   ReceivedFromClient       (const opcode:byte;const dataframe :  string);override; // Receive a CMD Frame from WEB Browser !
     procedure   Send_ServerClient        (const CMD_Answer: IFRE_DB_COMMAND);
@@ -368,10 +365,6 @@ begin
   FOnBindDefaultSession:=AValue;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.SetOnUnbindSession(AValue: TFRE_DB_SessionCB);
-begin
-  FOnUnbindSession:=AValue;
-end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.BailoutException(const message: string);
 begin
@@ -785,21 +778,14 @@ begin
     wsm_FREDB: begin
                  writeln('WEBSOCKET/SESSIONSOCKET ',FSock.GetVerboseDesc,' HANDLER DISCONNECTED/FREED');
                  try
-                   cmd        := GFRE_DBI.NewDBCommand;
-                   with cmd do begin
-                       CommandType := fct_AsyncRequest;
-                       SetIsClient(true);
-                     InvokeClass  := 'FIRMOS';
-                     InvokeMethod := 'WEBSOCKCLOSE';
-                     CommandID    := 0;
-                     UidPath      := nil;
-                     Data         := nil;
-                     ChangeSession:= '';
-                   end;
-                   FCurrentSession.Input_FRE_DB_Command(cmd);
+                   if assigned(FCurrentSession) then
+                     FCurrentSession.ClearServerClientInterface;
                  except on e:exception do
                    writeln('>> ERROR SENDING WEBSOCK_CLOSE TO CURRENT SESSION ',FCurrentSession.GetSessionID,' : ',e.Message);
                  end;
+               end;
+    wsm_FREDB_DEACTIVATED: begin
+                 writeln('DEACTIVATED SOCKET DESTROYED');
                end;
   end;
   inherited Destroy;

@@ -103,6 +103,7 @@ type
     function  AnswerSyncCommand       (const command_id : QWord ; const data : IFRE_DB_Object) : boolean;
     procedure MySessionEstablished    ; virtual;
     procedure MySessionDisconnected   ; virtual;
+    procedure MySessionSetupFailed    ; virtual;
     procedure MyInitialize            ; virtual;
     procedure MyFinalize              ; virtual;
     procedure QueryUserPass           (out user,pass:string);virtual;
@@ -122,25 +123,43 @@ var arr     : TFRE_DB_RemoteReqSpecArray;
 begin
   case status of
     cdcs_OK: begin
-      if FClientState = csSETUPSESSION then begin;
-        GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SEUP OK : SESSION [%s]',[fMySessionID]);
-        FClientState := csConnected;
-        FApps        := data.Field('APPS').AsObject.CloneToNewObject();
-        writeln('GOT APPS : ',FApps.DumpToString());
-        RegisterRemoteMethods(arr);
-        if Length(arr)>0 then
+      if FClientState = csSETUPSESSION then begin
+        if data.Field('LOGIN_OK').AsBoolean=true then
           begin
-            regdata := GFRE_DBI.NewObject;
-            regdata.Field('mc').AsUInt16 := Length(arr);
-            for i := 0 to length(arr)-1 do
+            GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP OK : SESSION [%s]',[fMySessionID]);
+            FClientState := csConnected;
+            FApps        := data.Field('APPS').AsObject.CloneToNewObject();
+            writeln('GOT APPS : ',FApps.DumpToString());
+            RegisterRemoteMethods(arr);
+            if Length(arr)>0 then
               begin
-                regdata.Field('cl'+IntToStr(i)).AsString := arr[i].classname;
-                regdata.Field('mn'+IntToStr(i)).AsString := arr[i].methodname;
-                regdata.Field('ir'+IntToStr(i)).AsString := arr[i].invokationright;
+                regdata := GFRE_DBI.NewObject;
+                regdata.Field('mc').AsUInt16 := Length(arr);
+                for i := 0 to length(arr)-1 do
+                  begin
+                    regdata.Field('cl'+IntToStr(i)).AsString := arr[i].classname;
+                    regdata.Field('mn'+IntToStr(i)).AsString := arr[i].methodname;
+                    regdata.Field('ir'+IntToStr(i)).AsString := arr[i].invokationright;
+                  end;
+                SendServerCommand('FIRMOS','REG_REM_METH',nil,regdata);
               end;
-            SendServerCommand('FIRMOS','REG_REM_METH',nil,regdata);
+            MySessionEstablished;
+          end
+        else
+          begin
+            GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP FAILED : SESSION [%s]',[fMySessionID]);
+            if assigned(FApps) then
+              try
+                FApps.Finalize;
+              except
+                writeln('*** APP FINALIZE EXCEPTION');
+              end;
+            FApps:=nil;
+            FTimeout     := 5;
+            FClientState := csTimeoutWait;
+            fMySessionID := 'NEW';
+            MySessionSetupFailed;
           end;
-        MySessionEstablished;
       end else begin
         //Connection failed due to an intermediate failure
         writeln('CCB_SetupSession FAILED');
@@ -189,7 +208,8 @@ end;
 
 procedure TFRE_BASE_CLIENT.ConnectionTearDown(const Sock: IFCOM_SOCK);
 begin
-  MySessionDisconnected;
+  //if FClientState=csConnected then
+  //  MySessionDisconnected;
   FConnectionLock.Acquire;
    TFRE_CLIENT_BASE_CONNECTION(sock.Data).Finalize;
    FBaseconnection := nil;
@@ -261,7 +281,10 @@ begin
                    end;
     cls_OK:      begin
                  end;
-    cls_CLOSED: ;
+    cls_CLOSED:  begin
+                     if FClientState=csConnected then
+                       MySessionDisconnected;
+                 end;
   end;
 end;
 
@@ -516,6 +539,11 @@ begin
 end;
 
 procedure TFRE_BASE_CLIENT.MySessionDisconnected;
+begin
+
+end;
+
+procedure TFRE_BASE_CLIENT.MySessionSetupFailed;
 begin
 
 end;

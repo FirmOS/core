@@ -369,10 +369,10 @@ begin
             writeln('<>CLIENT DONE');
             _Statechanged;
             //SOCK.UserData:=nil;
-            writeln('<>CLIENT DONE USERDATA=NIL');
-            writeln('A');
+            //writeln('<>CLIENT DONE USERDATA=NIL');
+            //writeln('A');
             //eventcondition.ConditionHasChanged;
-            writeln('B');
+            //writeln('B');
             exit;
           end;
           else HandleError(SOCK,'invalid state for SOCKCLOSED event');
@@ -491,6 +491,8 @@ var s           : String;
         prom_err : TFRE_DB_String;
         dummy    : TFRE_DB_CONTENT_DESC;
         app      : IFRE_DB_Object;
+        ex_sess  : TFRE_DB_UserSession;
+        sessid   : String;
     begin
       try
         state := ss_READY;
@@ -502,25 +504,38 @@ var s           : String;
         if not assigned(FUserSession) then begin
           if (CMD.InvokeClass='FIRMOS') and (CMD.InvokeMethod='INIT') and (CMD.Answer=false) then begin
             try
-              FOnBindDefaultSession(self,FUserSession,CMD.Data.Field('SESSION_ID').AsString,false);
+              sessid := CMD.Data.Field('SESSION_ID').AsString;
+              FOnBindDefaultSession(self,FUserSession,sessid,false);
               if cmd.Data.Field('USER').AsString<>'' then begin
-                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,true,dummy);
+                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',dummy,ex_sess);
                 writeln('PROMOTION RESULT ',prom_res);
               end;
-              apps := FUserSession.GetSessionAppArray;
-              CMD.Data.ClearAllFields;
-              writeln('ANWSERING FOR ',Length(apps),' APPS');
-              for i:=0 to high(apps) do begin
-                app                         := GFRE_DBI.NewObject;
-                app.Field('CLASS').AsString := apps[i].AsObject.SchemeClass;
-                app.Field('UID').AsGUID     := apps[i].UID;
-                CMD.Data.Field('APPS').AsObject.Field(apps[i].ObjectName).AsObject:=app;
-                writeln('  ',apps[i].ObjectName);
-              end;
+              if prom_res=pr_OK then
+                begin
+                  apps := FUserSession.GetSessionAppArray;
+                  CMD.Data.ClearAllFields;
+                  writeln('ANWSERING FOR ',Length(apps),' APPS');
+                  for i:=0 to high(apps) do begin
+                    app                         := GFRE_DBI.NewObject;
+                    app.Field('CLASS').AsString := apps[i].AsObject.SchemeClass;
+                    app.Field('UID').AsGUID     := apps[i].UID;
+                    CMD.Data.Field('APPS').AsObject.Field(apps[i].ObjectName).AsObject:=app;
+                    CMD.Data.Field('LOGIN_OK').AsBoolean:=true;
+                    CMD.Data.Field('LOGIN_TXT').AsString:='SESSION : '+FUserSession.GetSessionID;
+                    CMD.ChangeSession := FUserSession.GetSessionID;
+                    writeln('  ',apps[i].ObjectName);
+                  end;
+                end
+              else
+                begin
+                  CMD.Data.ClearAllFields;
+                  CMD.Data.Field('LOGIN_OK').AsBoolean := false;
+                  CMD.Data.Field('LOGIN_TXT').AsString := prom_err;
+                  CMD.ChangeSession := 'NEW';
+                end;
               CMD.Answer        := true;
               CMD.CommandType   := fct_SyncReply;
               CMD.ErrorText     := '';
-              CMD.ChangeSession := FUserSession.GetSessionID;
               CMD.FatalClose    := false;
               Send_ServerClient(CMD);
             except on e:exception do begin

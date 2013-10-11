@@ -56,16 +56,16 @@ type
     procedure  SetupApplicationStructure; override;
     procedure  InternalSetup           ; override;
     procedure  InternalFinalize        ; override;
-    function   IMI_No_Apps_ForGuests   (const input:IFRE_DB_Object) : IFRE_DB_Object;
+    function   No_Apps_ForGuests       (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   published
-    function IMI_OnUIChange     (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function IMI_Content        (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function IMI_LoginDlg       (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function IMI_doLogin        (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function IMI_doLogout       (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function IMI_startApp       (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function IMI_BuildSiteMap   (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function IMI_BuildAppList   (const input:IFRE_DB_Object): IFRE_DB_Object;
+    function IMI_OnUIChange      (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function WEB_Content         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_LoginDlg        (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+    function WEB_doLogin         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_doLogout        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function IMI_BuildSiteMap    (const input:IFRE_DB_Object): IFRE_DB_Object;
+    function IMI_BuildAppList    (const input:IFRE_DB_Object): IFRE_DB_Object;
+    function WEB_TakeOverSession (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -91,7 +91,7 @@ begin
   inherited InternalFinalize;
 end;
 
-function TFRE_DB_LOGIN.IMI_No_Apps_ForGuests(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_LOGIN.No_Apps_ForGuests(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var dlg         : TFRE_DB_LAYOUT_DESC;
     dialog      : TFRE_DB_DIALOG_DESC;
     serverFunc  : TFRE_DB_SERVER_FUNC_DESC;
@@ -107,24 +107,13 @@ var dlg         : TFRE_DB_LAYOUT_DESC;
 
 begin
   dlg        := TFRE_DB_LAYOUT_DESC.create.Describe('Public Area');
-  dialog     := TFRE_DB_DIALOG_DESC.create.Describe('',0,500,false,false,false);
-  serverFunc := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'doLogin');
-  //if assigned(input) then begin
-  //  requested_app := input.Field('REQUESTED_APP').AsString;
-  //  if input.FieldExists('message') then begin
-  //    dialog.AddDescription.Describe('Info',input.Field('message').AsString);
-  //  end;
-  //end;
-  //serverFunc.AddParam.Describe('REQUESTED_APP',requested_app);
-
-  dialog.AddButton.Describe('Login',serverFunc,fdbbt_submit);
-  //header := TFRE_DB_HTML_DESC.create.Describe(_getUIHeader('Login'),35);
-  dialog.AddHeader(TFRE_DB_HTML_DESC.create.Describe(_getUIHeader('Login'),35));
-
-  dialog.AddInput.Describe('Username','uname',true);
-  dialog.AddInput.Describe('Password','pass',true,true,false,false,'',nil,false,true);
-  dialog.AddBool.Describe('Clear Session','CLR_SESSION');
-  dialog.AddBool.Describe('Session Takeover','FORCE_TAKEOVER');
+  dialog     := WEB_LoginDlg(input,ses,app,conn).Implementor_HC as TFRE_DB_DIALOG_DESC;
+  //dialog     := TFRE_DB_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
+  //serverFunc := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'doLogin');
+  //dialog.AddButton.Describe('Login',serverFunc,fdbbt_submit);
+  //dialog.AddHeader(TFRE_DB_HTML_DESC.create.Describe(_getUIHeader('Login'),35));
+  //dialog.AddInput.Describe('Username','uname',true);
+  //dialog.AddInput.Describe('Password','pass',true,true,false,false,'',nil,false,true);
   dlg.AddDialog(dialog);
   Result:=dlg;
 end;
@@ -135,7 +124,7 @@ begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_LOGIN.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_LOGIN.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   dialog        : TFRE_DB_DIALOG_DESC;
   requested_app : String;
@@ -162,92 +151,92 @@ var
                           true,true);
     res.updateId:='FirmOSViewport';
     res.windowCaption:='FirmOS Application Server';
-    res.AddDialogEntry.Describe('Login','images_apps/login/profile.svg',CSF(@IMI_LoginDlg));
+    res.AddDialogEntry.Describe('Login','images_apps/login/profile.svg',CWSF(@WEB_LoginDlg));
     result :=  res;
   end;
 
 begin
-  GetSession(input).GetDBConnection.FetchApplications(apps);
-  if Length(apps)=0 then begin
-    result := IMI_No_Apps_ForGuests(input);
-    exit;
-  end else begin
-    result := BuildCollapsedSiteMap;
-    exit;
+  case ses.GetSessionState of
+    sta_BAD:
+      begin
+        result := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION FAIL','You can not resume your session ['+ses.GetSessionID+'], because of an failure, please relogin.',fdbmt_wait);
+      end;
+    sta_ActiveNew,
+    sta_ReUsed:
+      begin
+        conn.FetchApplications(apps);
+        if Length(apps)=0 then begin
+          result := No_Apps_ForGuests(input,ses,app,conn); // => Apps for Guests or Login
+          exit;
+        end else begin
+          result := BuildCollapsedSiteMap;
+          exit;
+        end;
+      end;
+    sta_ReUseNotFound:
+      begin
+        result := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION SUSPENDED','You can not resume your session ['+ses.GetSessionID+'], because it is suspended, please relogin.',fdbmt_wait);
+      end;
   end;
 end;
 
-function TFRE_DB_LOGIN.IMI_LoginDlg(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_LOGIN.WEB_LoginDlg(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var dialog     : TFRE_DB_DIALOG_DESC;
     session    : TFRE_DB_UserSession;
 begin
-  dialog     := TFRE_DB_DIALOG_DESC.create.Describe('',0,500,false,false,false);
-  session    := GetSession(input);
-  if session.LoggedIn then begin
-    dialog.AddButton.Describe('Logout',CSF(@IMI_doLogout),fdbbt_submit);
+  dialog     := TFRE_DB_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
+  if ses.LoggedIn then begin
+    dialog.AddButton.Describe('Logout',CWSF(@WEB_doLogout),fdbbt_submit);
     dialog.AddButton.Describe('Abort',nil,fdbbt_close);
   end else begin
-    dialog.AddButton.Describe('Login',CSF(@IMI_doLogin),fdbbt_submit);
+    dialog.AddButton.Describe('Login',CWSF(@WEB_doLogin),fdbbt_submit);
     dialog.AddButton.Describe('Abort',nil,fdbbt_close);
     dialog.AddInput.Describe('Username','uname',true);
     dialog.AddInput.Describe('Password','pass',true,true,false,false,'',nil,false,true);
-    dialog.AddBool.Describe('Clear Session','CLR_SESSION');
-    dialog.AddBool.Describe('Session Takeover','FORCE_TAKEOVER');
   end;
   Result:=dialog;
 end;
 
-function TFRE_DB_LOGIN.IMI_doLogin(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_LOGIN.WEB_doLogin(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  dialog            : TFRE_DB_DIALOG_DESC;
   pass              : TFRE_DB_INPUT_DESC;
   data              : IFRE_DB_Object;
-  store             : TFRE_DB_STORE_DESC;
   res               : TFRE_DB_Errortype;
-  apps              : IFRE_DB_APPLICATION_ARRAY;
-  header            : TFRE_DB_HTML_DESC;
-  req_app           : string;
-  session           : TFRE_DB_UserSession;
   promotion_error   : TFRE_DB_String;
-  defname           : string;
-  reference         : TObject;
   clear_session     : boolean;
-  session_takeover  : boolean;
   take_over_content : TFRE_DB_CONTENT_DESC;
+  wsf               : TFRE_DB_SERVER_FUNC_DESC;
+  ex_session        : TFRE_DB_UserSession;
 begin
-  GetSession(input,session,false);
+  //GetSession(input,session,false);
   data := input.Field('data').AsObject;
   clear_session := false;
   if data.FieldExists('CLR_SESSION') then begin
     clear_session := data.Field('CLR_SESSION').AsBoolean;
   end;
-  session_takeover := false;
-  if data.FieldExists('FORCE_TAKEOVER') then begin
-    session_takeover := data.Field('FORCE_TAKEOVER').AsBoolean;
+  case ses.Promote(data.Field('uname').AsString,data.Field('pass').AsString,promotion_error,clear_session,false,take_over_content,ex_session) of
+    pr_OK:
+      result := WEB_Content(input,ses,app,ses.GetDBConnection);
+    pr_Failed:
+      begin
+        Result := TFRE_DB_MESSAGE_DESC.Create.Describe('Login Failed',promotion_error,fdbmt_error);
+      end;
+    pr_TakeoverPrepared:
+      begin
+        ses.SendServerClientRequest(TFRE_DB_CLOSE_DIALOG_DESC.create);
+        Result := TFRE_DB_MESSAGE_DESC.Create.Describe('Already logged in.',promotion_error,fdbmt_confirm,CWSF(@WEB_TakeOverSession));
+      end;
+    pr_Takeover:
+      result := take_over_content;  // I am the Session who takes over the "running" session, thus I changed the bound socket and now I am going to heaven ...
   end;
-  case session.Promote(data.Field('uname').AsString,data.Field('pass').AsString,promotion_error,clear_session,session_takeover,take_over_content) of
-    pr_OK:       result := IMI_Content(input);
-    pr_Failed:   Result := TFRE_DB_MESSAGE_DESC.Create.Describe('Login Failed',promotion_error,fdbmt_error);
-    pr_Takeover: result := take_over_content;  // I am the Session who takes over the "running" session, thus I changed the bound socket and now I am going to heaven ...
-  end;
 end;
 
-function TFRE_DB_LOGIN.IMI_doLogout(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_LOGIN.WEB_doLogout(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  GetSession(input).Logout;
-  result := IMI_Content(input);
+  ses.Logout;
+  result := WEB_Content(input,ses,nil,ses.GetDBConnection);
 end;
 
-
-function TFRE_DB_LOGIN.IMI_startApp(const input: IFRE_DB_Object): IFRE_DB_Object;
-var appname     : string;
-    session     : TFRE_DB_UserSession;
-    global_app  : TFRE_DB_APPLICATION;
-    fld         : IFRE_DB_Field;
-    idx         : integer;
-begin
-  abort;
-end;
 
 function TFRE_DB_LOGIN.IMI_BuildSiteMap(const input: IFRE_DB_Object): IFRE_DB_Object;
 var
@@ -298,6 +287,29 @@ begin
   ActiveSection := GetSessionAppData(input).Field('activeApp').AsString;
   res.SetActiveSection(ActiveSection);
   result := res;
+end;
+
+function TFRE_DB_LOGIN.WEB_TakeOverSession(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var promotion_error   : TFRE_DB_String;
+    take_over_content : TFRE_DB_CONTENT_DESC;
+    session           : TFRE_DB_UserSession;
+    res               : TFRE_DB_CONTENT_DESC;
+    ex_session        : TFRE_DB_UserSession;
+begin
+  if input.Field('confirmed').AsString='true' then
+    begin
+      GetSession(input,session,false);
+      case session.Promote('','',promotion_error,false,true,take_over_content,ex_session) of
+        pr_Takeover:
+          begin
+            result := WEB_Content(input,ex_session,nil,ex_session.GetDBConnection);
+          end;
+      end;
+    end
+  else
+    begin
+      result := TFRE_DB_MESSAGE_DESC.create.Describe('No takeover','You choose to not takeover the existing session',fdbmt_wait);
+    end;
 end;
 
 
