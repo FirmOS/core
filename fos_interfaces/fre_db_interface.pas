@@ -374,6 +374,7 @@ type
     function  FieldTypeAsString             : TFRE_DB_String;
     function  ValueCount                    : Integer;
     function  IsUIDField                    : boolean;
+    function  IsDomainIDField               : boolean;
     function  IsObjectField                 : boolean;
     property  AsGUID                        : TGuid read GetAsGUID write SetAsGUID;
     property  AsByte                        : Byte  read GetAsByte write SetAsByte;
