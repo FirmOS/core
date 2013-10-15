@@ -416,7 +416,7 @@ begin
       writeln('delete test domains');
       if conn.DomainExists('firmos') then CheckDbResult(conn.DeleteDomain('firmos'),'cannot delete domain firmos');
       if conn.DomainExists('fpc') then CheckDbResult(conn.DeleteDomain('fpc'),'cannot delete domain fpc');
-      if conn.DomainExists('guest') then CheckDbResult(conn.DeleteDomain('guest'),'cannot delete domain guest');
+      if conn.DomainExists('demo') then CheckDbResult(conn.DeleteDomain('demo'),'cannot delete domain demo');
 
       CheckDbResult(conn.AddDomain('firmos','FirmOS Domain','FirmOS Domain'),'cannot add domain firmos');
       CheckDbResult(conn.AddDomain('fpc','FPC Domain','FPC Domain'),'cannot add domain fpc');
@@ -491,6 +491,13 @@ begin
       writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
       writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForGroups(user.GetUserGroupIDS)));
     end;
+
+    if conn.fetchuser('ADMIN'+'@'+cSYS_DOMAIN,user)=edb_OK then begin
+      writeln('ADMIN : ');
+      writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
+      writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForUser(user)));
+    end;
+
   finally
     conn.Finalize;
   end;

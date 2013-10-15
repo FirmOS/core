@@ -1132,6 +1132,9 @@ type
     function  GetReferences        (const obj_uid:TGuid ; const from: boolean): TFRE_DB_ObjectReferences;
 
     function  StartTransaction     (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType ; const raise_ex : boolean=true) : TFRE_DB_Errortype;
+    function  Commit               : boolean;
+    procedure RollBack             ;
+
     function  ObjectExists         (const obj_uid : TGUID) : boolean;
     function  DeleteObject         (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = '' ; var ncolls: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
     function  Fetch                (const ouid   :  TGUID  ; out   dbo:TFRE_DB_Object;const internal_object : boolean=false): boolean;
@@ -1237,6 +1240,8 @@ type
     function  IFRE_DB_DOMAIN.SetDesc          = SetDescI;
   public
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    function        Domainname(const unique:boolean=false) : TFRE_DB_NameType;
+    function        Domainkey                              : TGUID_String;
   published
     class function  IMC_NewDomainOperation    (const input:IFRE_DB_Object): IFRE_DB_Object;
   end;
@@ -1963,7 +1968,9 @@ type
     function    NewGroupI                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    NewAppDataI                  (const appname,txt,txt_short:TFRE_DB_String;var appdata: IFRE_DB_APPDATA):TFRE_DB_Errortype;
 
-    function    StoreRoleI                   (var rg:IFRE_DB_ROLE; const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType):TFRE_DB_Errortype;
+    function    StoreRoleI                   (var   role:IFRE_DB_ROLE; const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType):TFRE_DB_Errortype;
+    function    StoreRoleI                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID; const appname:TFRE_DB_String=''):TFRE_DB_Errortype;
+
     function    StoreGroupI                  (const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType;var   ug:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    StoreGroupDomainbyIDI        (const domain_id: TGUID; var group: IFRE_DB_GROUP): TFRE_DB_Errortype;
     function    StoreAppDataI                (var   appdata:IFRE_DB_APPDATA):TFRE_DB_Errortype;
@@ -2010,7 +2017,7 @@ type
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     function    IsSystemGroup               (const group_id:TGUID):boolean;
-    procedure   ForAllDomainsI              (const func:IFRE_DB_Obj_Iterator);
+    procedure   ForAllDomainsI              (const func:IFRE_DB_Domain_Iterator);
 
 
     function    FetchUserSessionData        (var SessionData: IFRE_DB_OBJECT):boolean;
@@ -2032,23 +2039,31 @@ type
     function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
     function    DeleteRole                  (const rolename:TFRE_DB_String):TFRE_DB_Errortype;
     function    StoreRole                   (var role:TFRE_DB_ROLE; const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType):TFRE_DB_Errortype;
+    function    StoreRole                   (var role:TFRE_DB_ROLE; const domainUID : TGUID; const appname:TFRE_DB_String):TFRE_DB_Errortype;
     function    StoreGroup                  (const appname:TFRE_DB_String;const domainname:TFRE_DB_NameType;var   ug:TFRE_DB_GROUP):TFRE_DB_Errortype;
     function    StoreGroupDomainbyID        (const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
     function    StoreAppData                (var   appdata:TFRE_DB_APPDATA):TFRE_DB_Errortype;
     function    StoreTranslateableText      (var   txt    :TFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    DeleteTranslateableText     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
     function    UpdateAppData               (var   appdata:TFRE_DB_APPDATA):TFRE_DB_Errortype;
-    function    CheckRight                  (const right_name:TFRE_DB_String):boolean;
 
-    function    CheckAppRight               (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;
-    function    CheckAnyDomainRight         (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;
-    function    CheckDomainRight            (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType;const domainKey:TFRE_DB_NameType):boolean;
-    function    GetDomainsForRight          (const right_name:TFRE_DB_String): TFRE_DB_GUIDArray;
+    function    CheckRight                  (const right_name:TFRE_DB_String):boolean; deprecated;
+    function    CheckAppRight               (const right_name: TFRE_DB_String; const appKey: TFRE_DB_NameType): boolean;    //REMOVE FIXIT
 
-    function    CheckClassRight             (const right_name:TFRE_DB_String; const oclassName: TClass; const domain:TFRE_DB_NameType):boolean; // makes only sense on domain level
-    function    CheckClassRightSave         (const oclassName: TClass; const domain:TFRE_DB_NameType):boolean;
-    function    CheckClassRightNew          (const oclassName: TClass; const domain:TFRE_DB_NameType=''):boolean;
-    function    CheckClassRightDelete       (const oclassName: TClass; const domain:TFRE_DB_NameType):boolean;
+    function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
+    function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
+
+    function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
+    function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
+
+    function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
+    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+
+    function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
+    function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
+
 
     function    RemoveApp                   (const Appname:TFRE_DB_String ):TFRE_DB_Errortype;
     function    GetAppDataID                (const Appname:TFRE_DB_String;var appdata_id :TGuid ):TFRE_DB_Errortype;
@@ -2060,6 +2075,10 @@ type
 
     function    BackupDatabaseReadable      (const to_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;override;
     function    RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;override;
+
+    procedure   StartTransaction             (const trans_id     : TFRE_DB_NameType);
+    procedure   Commit                       ;
+    procedure   Rollback                     ;
   end;
 
 
@@ -2134,15 +2153,22 @@ type
     function    StoreGroupDomainbyID         (const domain_id: TGUID; var group : IFRE_DB_GROUP): TFRE_DB_Errortype;
     function    CheckRight                   (const right_name:TFRE_DB_String):boolean;
 
-    function    CheckAppRight               (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;
-    function    CheckAnyDomainRight         (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;
-    function    CheckDomainRight            (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType;const domainKey:TFRE_DB_NameType):boolean;
-    function    GetDomainsForRight          (const right_name:TFRE_DB_String): TFRE_DB_GUIDArray;
+    function    CheckAppRight               (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean; //REMOVE FIXIT
 
-    function    CheckClassRight             (const right_name:TFRE_DB_String; const oclassName: TClass; const domain:TFRE_DB_NameType):boolean;
-    function    CheckClassRightSave         (const oclassName: TClass; const domain:TFRE_DB_NameType):boolean;
-    function    CheckClassRightNew          (const oclassName: TClass; const domain:TFRE_DB_NameType):boolean;
-    function    CheckClassRightDelete       (const oclassName: TClass; const domain:TFRE_DB_NameType):boolean;
+    function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
+    function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
+
+    function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
+    function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
+
+    function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
+    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+
+    function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
+    function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
+
 
 
     function    AddDomain                    (const domainname:TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
@@ -2696,6 +2722,20 @@ begin
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
 
 end;
+
+function TFRE_DB_DOMAIN.Domainname(const unique: boolean): TFRE_DB_NameType;
+begin
+  if unique then
+    exit(uppercase(ObjectName))
+  else
+    exit(ObjectName)
+end;
+
+function TFRE_DB_DOMAIN.Domainkey: TGUID_String;
+begin
+  result := uppercase(UID_String);
+end;
+
 
 class function TFRE_DB_DOMAIN.IMC_NewDomainOperation(const input: IFRE_DB_Object): IFRE_DB_Object;
 var dbo              : IFRE_DB_Object;
@@ -3773,7 +3813,8 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION.ImpersonateTheClone(const user, pass: TFRE_DB_String): TFRE_DB_Errortype;
 begin
-  if not FCloned then raise EFRE_DB_Exception.Create(edb_ERROR,'you can only impersonate a cloned systemconnection');
+  if not FCloned then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'you can only impersonate a cloned systemconnection');
   FConnectedUser := _FetchUser(user);
   if not assigned(FConnectedUser) then Exit(edb_NOT_FOUND);
   if not FConnectedUser.Checkpassword(pass) then exit(edb_ACCESS);
@@ -4443,8 +4484,8 @@ var login      : TFRE_DB_String;
     domain     : TFRE_DB_String;
 begin
   FREDB_SplitLocalatDomain(loginatdomain,login,domain);
-  if (CheckClassRightNew(TFRE_DB_USER,domain))
-     or (CheckClassRightNew(TFRE_DB_USER))  then
+  if (CheckClassRight4Domain(sr_New,TFRE_DB_USER,domain))
+     or (CheckClassRight4Domain(sr_New,TFRE_DB_USER))  then
        begin
           result := _AddUser(loginatdomain,password,first_name,last_name);
           if result<>edb_OK then
@@ -4465,7 +4506,7 @@ var login      : TFRE_DB_String;
     domain     : TFRE_DB_String;
 begin
   FREDB_SplitLocalatDomain(loginatdomain,login,domain);
-  if not CheckClassRightDelete(TFRE_DB_USER,domain) then exit(edb_ACCESS);
+  if not CheckClassRight4Domain(sr_DELETE,TFRE_DB_USER,domain) then exit(edb_ACCESS);
   result := _DeleteUser(loginatdomain);
 end;
 
@@ -4626,9 +4667,15 @@ begin
   result := (tgroup.GetDomainID=FSysDomainUID);
 end;
 
-procedure TFRE_DB_SYSTEM_CONNECTION.ForAllDomainsI(const func: IFRE_DB_Obj_Iterator);
+procedure TFRE_DB_SYSTEM_CONNECTION.ForAllDomainsI(const func: IFRE_DB_Domain_Iterator);
+
+  procedure myfunc(const domo : TFRE_DB_Object);
+  begin
+    func(domo as TFRE_DB_DOMAIN);
+  end;
+
 begin
- FSysDomains.ForAllI(func);
+  FSysDomains.ForAll(@myfunc);
 end;
 
 
@@ -4679,7 +4726,7 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION.NewAppData(const appname, txt, txt_short: TFRE_DB_String; var appdata: TFRE_DB_APPDATA): TFRE_DB_Errortype;
 begin
-  if not _CheckRight('cSYSR_INSTALL_APP') then exit(edb_ACCESS);
+ if not (CheckClassRight4Domain(sr_NEW,TFRE_DB_APPDATA)) then exit(edb_ACCESS);
   appdata := _NewAppData(appname,txt,txt_short);
   result:=edb_OK;
 end;
@@ -4734,7 +4781,7 @@ var group      : TFRE_DB_String;
     domain     : TFRE_DB_String;
 begin
   FREDB_SplitLocalatDomain(groupatdomain,group,domain);
-  if not CheckClassRightDelete(TFRE_DB_GROUP,domain) then exit(edb_ACCESS);
+  if not CheckClassRight4Domain(sr_DELETE,TFRE_DB_GROUP,domain) then exit(edb_ACCESS);
   result := _DeleteGroup(groupatdomain);
 end;
 
@@ -4762,21 +4809,40 @@ begin
   result :=FSysRoles.Store(TFRE_DB_Object(role));
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.StoreRole(var role: TFRE_DB_ROLE; const domainUID: TGUID; const appname: TFRE_DB_String): TFRE_DB_Errortype;
+var app_id :TGUID;
+  role_id: TGUID;
+begin
+  Result:=edb_ERROR;
+  role.SetDomainID(domainUID);
+  if appname<>'' then begin
+    result := GetAppDataID(appname,app_id);
+    if result=edb_OK then begin
+      role.Field('appdataid').AsObjectLink := app_id;
+    end else exit;
+  end;
+  result :=FSysRoles.Store(TFRE_DB_Object(role));
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.StoreGroup(const appname: TFRE_DB_String; const domainname: TFRE_DB_NameType; var ug: TFRE_DB_GROUP): TFRE_DB_Errortype;
 var app_id    : TGUID;
     domain_id : TGUID;
 begin
-  if not CheckClassRightSave(TFRE_DB_GROUP,domainname) then exit(edb_ACCESS);
-  domain_id := _DomainID(domainname);
-  if appname<>'' then begin
-    result := GetAppDataID(appname,app_id);
-    if result=edb_OK then begin
-      ug.Field('appdataid').AsObjectLink := app_id;
-    end else begin
-      exit;
-    end;
-  end;
-  result := StoreGroupDomainbyID(domain_id,ug);
+  if (CheckClassRight4Domain(sr_SAVE,TFRE_DB_GROUP,domainname))
+    or (CheckClassRight4Domain(sr_SAVE,TFRE_DB_GROUP))  then begin
+      domain_id := _DomainID(domainname);
+      if appname<>'' then begin
+        result := GetAppDataID(appname,app_id);
+        if result=edb_OK then begin
+          ug.Field('appdataid').AsObjectLink := app_id;
+        end else begin
+          exit(edb_NOT_FOUND);
+        end;
+      end;
+      result := StoreGroupDomainbyID(domain_id,ug);
+     end
+  else
+    exit(edb_ACCESS);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreGroupDomainbyID(const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
@@ -4788,13 +4854,13 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.StoreAppData(var appdata: TFRE_DB_APPDATA): TFRE_DB_Errortype;
 var appid : TGUID;
 begin
-  if not _CheckRight('cSYSR_INSTALL_APP') then exit(edb_ACCESS);
+  if not (CheckClassRight4Domain(sr_SAVE,TFRE_DB_APPDATA)) then exit(edb_ACCESS);
   result := FSysAppdata.Store(TFRE_DB_Object(appdata));
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreTranslateableText(var txt: TFRE_DB_TEXT): TFRE_DB_Errortype;
 begin
-  if not _CheckRight('cSYSR_INSTALL_APP') then exit(edb_ACCESS);
+  if not (CheckClassRight4Domain(sr_SAVE,TFRE_DB_APPDATA)) then exit(edb_ACCESS);
   result := FSysTransText.Store(TFRE_DB_Object(txt));
 end;
 
@@ -4804,9 +4870,15 @@ begin
   Result:=edb_OK;
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.CheckAppRight(const right_name: TFRE_DB_String; const appKey: TFRE_DB_NameType): boolean;
+begin
+  result := CheckRight(right_name+'_'+appKey);   //FIXME REMOVE
+end;
+
+
 function TFRE_DB_SYSTEM_CONNECTION.UpdateAppData(var appdata: TFRE_DB_APPDATA): TFRE_DB_Errortype;
 begin
-  if not _CheckRight('cSYSR_INSTALL_APP') then exit(edb_ACCESS);
+  if not (CheckClassRight4Domain(sr_Save,TFRE_DB_APPDATA)) then exit(edb_ACCESS);
   result := Update(TFRE_DB_Object(appdata));
 end;
 
@@ -4815,48 +4887,73 @@ begin
   result := _CheckRight(right_name);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.CheckAppRight(const right_name: TFRE_DB_String; const appKey: TFRE_DB_NameType): boolean;
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4MyDomain(const right_name: TFRE_DB_String; const classtyp: TClass): boolean;
 begin
-  result := CheckRight(right_name+'_'+appKey);
+//  result := CheckClassRight4Domain(right_name,classtyp,FConnectedUser.GetDomain()
+//  FConnectedUser.GetDomainID;
+  result := true; //FIXME
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.CheckAnyDomainRight(const right_name: TFRE_DB_String; const appKey: TFRE_DB_NameType): boolean;
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4MyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
 begin
-  result := CheckRight(right_name+'_'+appKey); //FIXME
+  result := true; //FIXME
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.CheckDomainRight(const right_name: TFRE_DB_String; const appKey: TFRE_DB_NameType; const domainKey: TFRE_DB_NameType): boolean;
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4AnyDomain(const right_name: TFRE_DB_String; const classtyp: TClass): boolean;
 begin
-  result := CheckRight(right_name+'_'+appKey+'#'+domainKey); //FIXME
+  result := true; //FIXME
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForRight(const right_name: TFRE_DB_String): TFRE_DB_GUIDArray;
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4Domain(const right_name: TFRE_DB_String; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;
 begin
-  result := nil ; //FIXME
+  if (domainkey<>'') then
+    result := Checkright((TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+_DomainIDasString(domainkey)))
+  else
+    result := Checkright((TFRE_DB_BaseClass(classtyp)).GetClassRightName(right_name));
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight(const right_name: TFRE_DB_String; const oclassName: TClass; const domain:TFRE_DB_NameType): boolean;
+function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const right_name: TFRE_DB_String; const classtyp: TClass): TFRE_DB_GUIDArray;
 begin
-  result := CheckRight(right_name+'_'+oclassName.ClassName+'_'+domain);
+  result := nil; //FIXME
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.CheckClassRightSave(const oclassName: TClass; const domain:TFRE_DB_NameType): boolean;
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4AnyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
 begin
- result := Checkright((TFRE_DB_BaseClass(oclassName)).GetClassRightNameSave+'@'+_DomainIDasString(domain));
+  result := true; //FIXME
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.CheckClassRightNew(const oclassName: TClass; const domain:TFRE_DB_NameType): boolean;
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;
+var right_name : TFRE_DB_String;
 begin
- if (domain<>'') then
-   result := Checkright((TFRE_DB_BaseClass(oclassName)).GetClassRightNameNew+'@'+_DomainIDasString(domain))
+ case std_right of
+   sr_New    : right_name:=TFRE_DB_BaseClass(classtyp).GetClassRightNameNew;
+   sr_Save   : right_name:=TFRE_DB_BaseClass(classtyp).GetClassRightNameSave;
+   sr_Delete : right_name:=TFRE_DB_BaseClass(classtyp).GetClassRightNameDelete;
+   sr_View   : right_name:=TFRE_DB_BaseClass(classtyp).GetClassRightNameDelete;
  else
-   result := Checkright((TFRE_DB_BaseClass(oclassName)).GetClassRightNameNew);
+   raise EFRE_DB_Exception.Create(edb_INTERNAL,'rightname for standard right is not defined!');
+ end;
+ if (domainkey<>'') then
+   result := Checkright(right_name+'@'+_DomainIDasString(domainkey))
+ else
+   result := Checkright(right_name);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.CheckClassRightDelete(const oclassName: TClass; const domain:TFRE_DB_NameType): boolean;
+function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
 begin
- result := Checkright((TFRE_DB_BaseClass(oclassName)).GetClassRightNameDelete+'@'+_DomainIDasString(domain));
+  result := nil; //FIXME
 end;
+
+function TFRE_DB_SYSTEM_CONNECTION.CheckObjectRight(const right_name: TFRE_DB_String; const uid: TGUID): boolean;
+begin
+  result := true; //FIXME
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.CheckObjectRight(const std_right: TFRE_DB_STANDARD_RIGHT; const uid: TGUID): boolean;
+begin
+  result := true; //FIXME
+end;
+
 
 function TFRE_DB_SYSTEM_CONNECTION.RemoveApp(const Appname: TFRE_DB_String): TFRE_DB_Errortype;
 var  obj     : TFRE_DB_Object;
@@ -4868,7 +4965,7 @@ var  obj     : TFRE_DB_Object;
      res     : TFRE_DB_Errortype;
      dobj    : TFRE_DB_Object;
 begin
-  if not _CheckRight('cSYSR_UNINSTALL_APP') then exit(edb_ACCESS);
+ if not (CheckClassRight4Domain(sr_DELETE,TFRE_DB_APPDATA)) then exit(edb_ACCESS);
   if FSysAppdata.GetIndexedUID(appname,gid) then begin
     if Fetch (gid,obj)=false then begin
       raise EFRE_DB_Exception.Create('Error on Fetching System Object Appdata '+GFRE_BT.GUID_2_HexString(gid));
@@ -5131,6 +5228,24 @@ begin
   result := inherited RestoreDatabaseReadable(from_stream,stream_cb);
 end;
 
+procedure TFRE_DB_SYSTEM_CONNECTION.StartTransaction(const trans_id: TFRE_DB_NameType);
+begin
+  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.StartTransaction(dbt_OLTP,trans_id),'Could not start transaction '+trans_id);
+end;
+
+procedure TFRE_DB_SYSTEM_CONNECTION.Commit;
+begin
+  if not GFRE_DB_DEFAULT_PS_LAYER.Commit then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'Could not commit transaction');
+end;
+
+procedure TFRE_DB_SYSTEM_CONNECTION.Rollback;
+begin
+  abort;
+  //if not GFRE_DB_DEFAULT_PS_LAYER.RollBack then
+  //  raise EFRE_DB_Exception.Create(edb_ERROR,'Could not rollback transaction');
+end;
+
 
 function TFRE_DB_SYSTEM_CONNECTION._AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String): TFRE_DB_Errortype;
 var user       : TFRE_DB_USER;
@@ -5184,7 +5299,6 @@ begin
   if _DomainExists(domainname) then
     exit(edb_EXISTS);
   domain    := _NewDomain(domainname,txt,txt_short);
-
   result := FSysDomains.Store(TFRE_DB_Object(domain));
 //  _SetupSystemGroupsandRoles(domainname);
   _ReloadUserAndRights;
@@ -5235,12 +5349,20 @@ begin
    end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.StoreRoleI(var rg: IFRE_DB_ROLE; const appname: TFRE_DB_String; const domainname: TFRE_DB_NameType): TFRE_DB_Errortype;
-var lRG : TFRE_DB_ROLE;
+function TFRE_DB_SYSTEM_CONNECTION.StoreRoleI(var role: IFRE_DB_ROLE; const appname: TFRE_DB_String; const domainname: TFRE_DB_NameType): TFRE_DB_Errortype;
+var lrole : TFRE_DB_ROLE;
 begin
-  lRG    := rg.Implementor as TFRE_DB_ROLE;
-  result := StoreRole(lRG,appname,domainname);
-  rg     := nil;
+  lrole   := role.Implementor as TFRE_DB_ROLE;
+  result  := StoreRole(lRole,appname,domainname);
+  role    := nil;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.StoreRoleI(var role: IFRE_DB_ROLE; const domainUID: TGUID; const appname: TFRE_DB_String): TFRE_DB_Errortype;
+var lrole : TFRE_DB_ROLE;
+begin
+  lrole   := role.Implementor as TFRE_DB_ROLE;
+  result  := StoreRole(lRole,domainUID,appname);
+  role    := nil;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreGroupI(const appname: TFRE_DB_String;  const domainname:TFRE_DB_NameType; var ug: IFRE_DB_GROUP): TFRE_DB_Errortype;
@@ -5345,13 +5467,25 @@ begin
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetRightsArrayForUser(const user: IFRE_DB_USER): TFRE_DB_StringArray;
-var RAddUser : TFRE_DB_String;
+var RAddUser            : TFRE_DB_String;
+    RAddAppData         : TFRE_DB_String;
+    RSaveAppData        : TFRE_DB_String;
+    RDelAppData         : TFRE_DB_String;
+    RSaveGroup          : TFRE_DB_String;
+    RAccessControlStart : TFRE_DB_String;
+    RAccessControlDummy : TFRE_DB_String;
 begin
   result := GetRightsArrayForGroups(user.GetUserGroupIDs);
   if IsCurrentUserSystemAdmin then
     begin
-      RAddUser := uppercase(TFRE_DB_USER.GetClassRightNameNew);//+'@'+GFRE_BT.GUID_2_HexString(FSysDomainUID));
-      FREDB_ConcatStringArrays(result,TFRE_DB_StringArray.Create('HANSIS_RECHT',RAddUser));
+      RAddUser     := uppercase(TFRE_DB_USER.GetClassRightNameNew);//+'@'+GFRE_BT.GUID_2_HexString(FSysDomainUID));
+      RAddAppData  := uppercase(TFRE_DB_APPDATA.GetClassRightNameNew);
+      RSaveAppData := uppercase(TFRE_DB_APPDATA.GetClassRightNameSave);
+      RDelAppData  := uppercase(TFRE_DB_APPDATA.GetClassRightNameDelete);
+      RSaveGroup   := uppercase(TFRE_DB_GROUP.GetClassRightNameSave);
+      RAccessControlStart := Get_Rightname_App_Helper('ACCESSCONTROL','START');   //REMOVE
+      RAccessControlDummy := Get_Rightname_App_Helper('ACCESSCONTROL','$ACMOD_USER');  //REMOVE DUMMY
+     FREDB_ConcatStringArrays(result,TFRE_DB_StringArray.Create(RAddUser,RAddAppData,RSaveAppData,RDelAppData,RSaveGroup,RAccessControlStart,RAccessControlDummy));
     end;
 end;
 
@@ -5373,6 +5507,7 @@ begin
   FSysUserSessionsData := from.FSysUserSessionsData;
   FSysTransText        := from.FSysTransText;
   FSysAppdata          := from.FSysAppdata;
+  FSysDomainUID        := from.FSysDomainUID;
 end;
 
 function TFRE_DB_BASE_CONNECTION.FetchApplications(var apps:TFRE_DB_APPLICATION_ARRAY): TFRE_DB_Errortype;
@@ -9991,39 +10126,54 @@ begin
   result := FSysConnection.CheckAppRight(right_name,appKey);
 end;
 
-function TFRE_DB_CONNECTION.CheckAnyDomainRight(const right_name: TFRE_DB_String; const appKey: TFRE_DB_NameType): boolean;
+function TFRE_DB_CONNECTION.CheckClassRight4MyDomain(const right_name: TFRE_DB_String; const classtyp: TClass): boolean;
 begin
-  result := FSysConnection.CheckAnyDomainRight(right_name,appKey);
+  result := FSysConnection.CheckClassRight4MyDomain(right_name,classtyp);
 end;
 
-function TFRE_DB_CONNECTION.CheckDomainRight(const right_name: TFRE_DB_String; const appKey: TFRE_DB_NameType; const domainKey: TFRE_DB_NameType): boolean;
+function TFRE_DB_CONNECTION.CheckClassRight4MyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
 begin
- result := FSysConnection.CheckDomainRight(right_name,appKey,domainKey);
+ result := FSysConnection.CheckClassRight4MyDomain(std_right,classtyp);
 end;
 
-function TFRE_DB_CONNECTION.GetDomainsForRight(const right_name: TFRE_DB_String): TFRE_DB_GUIDArray;
+function TFRE_DB_CONNECTION.CheckClassRight4AnyDomain(const right_name: TFRE_DB_String; const classtyp: TClass): boolean;
 begin
- result := FSysConnection.GetDomainsForRight(right_name);
+ result := FSysConnection.CheckClassRight4AnyDomain(right_name,classtyp);
 end;
 
-function TFRE_DB_CONNECTION.CheckClassRight(const right_name: TFRE_DB_String; const oclassName: TClass; const domain:TFRE_DB_NameType): boolean;
+function TFRE_DB_CONNECTION.CheckClassRight4Domain(const right_name: TFRE_DB_String; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;
 begin
-  result := FSysConnection.CheckClassRight(right_name,oclassName,domain);
+ result := FSysConnection.CheckClassRight4Domain(right_name,classtyp,domainkey);
 end;
 
-function TFRE_DB_CONNECTION.CheckClassRightSave(const oclassName: TClass; const domain:TFRE_DB_NameType): boolean;
+function TFRE_DB_CONNECTION.GetDomainsForClassRight(const right_name: TFRE_DB_String; const classtyp: TClass): TFRE_DB_GUIDArray;
 begin
-  result := FSysConnection.CheckClassRightSave(oclassName,domain);
+ result := FSysConnection.GetDomainsForClassRight(right_name,classtyp);
 end;
 
-function TFRE_DB_CONNECTION.CheckClassRightNew(const oclassName: TClass; const domain:TFRE_DB_NameType): boolean;
+function TFRE_DB_CONNECTION.CheckClassRight4AnyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
 begin
-  result := FSysConnection.CheckClassRightNew(oclassName,domain);
+ result := FSysConnection.CheckClassRight4AnyDomain(std_right,classtyp);
 end;
 
-function TFRE_DB_CONNECTION.CheckClassRightDelete(const oclassName: TClass; const domain:TFRE_DB_NameType): boolean;
+function TFRE_DB_CONNECTION.CheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;
 begin
-  result := FSysConnection.CheckClassRightDelete(oclassName,domain);
+ result := FSysConnection.CheckClassRight4Domain(std_right,classtyp,domainkey);
+end;
+
+function TFRE_DB_CONNECTION.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
+begin
+ result := FSysConnection.GetDomainsForClassRight(std_right,classtyp);
+end;
+
+function TFRE_DB_CONNECTION.CheckObjectRight(const right_name: TFRE_DB_String; const uid: TGUID): boolean;
+begin
+ result := FSysConnection.CheckObjectRight(right_name,uid);
+end;
+
+function TFRE_DB_CONNECTION.CheckObjectRight(const std_right: TFRE_DB_STANDARD_RIGHT; const uid: TGUID): boolean;
+begin
+ result := FSysConnection.CheckObjectRight(std_right,uid);
 end;
 
 function TFRE_DB_CONNECTION.AddDomain(const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
@@ -10990,16 +11140,36 @@ end;
 
 procedure TFRE_DB.DBInitializeAllExClasses(const conn: IFRE_DB_SYS_CONNECTION);
 var
-  i         : integer;
-  newVersion: TFRE_DB_NameType;
+  i           : integer;
+  newVersion  : TFRE_DB_NameType;
+  oldVersion  : TFRE_DB_NameType;
+  version_dbo : IFRE_DB_Object;
+  exclassname : ShortString;
+
+  procedure Install4Domain(const domain:IFRE_DB_DOMAIN);
+  begin
+//    writeln('DOMAIN:',domain.Domainname(true),' ',domain.Domainkey, ' ',GFRE_BT.GUID_2_HexString(domain.UID));
+    FExClassArray[i].exclass.InstallDBObjects4Domain(conn,oldVersion,domain.UID);
+  end;
+
 begin
+  //1st Fetch Version Object
+  version_dbo := GFRE_DBI.NewObject;
+//  conn.Starttransaction('INITALLEX');
   for i:=0 to high(FExClassArray) do begin
     try
-      FExClassArray[i].exclass.InstallDBObjects(conn,'',newVersion);
+      //2nd get Version String for exclassname
+      exclassname := FExClassArray[i].exclass.ClassName;
+      oldversion := version_dbo.Field(exclassname).AsString;
+      FExClassArray[i].exclass.InstallDBObjects(conn,oldVersion,newVersion);
+      version_dbo.Field(exclassname).AsString := newVersion;
+      conn.ForAllDomains(@Install4Domain);
     except on e:exception do begin
      GFRE_BT.CriticalAbort('DB INITIALIZATION OF EXCLASS SCHEME: [%s] FAILED DUE TO [%s]',[FExClassArray[i].exclass.ClassName,e.Message]);
     end;end;
    end;
+ // conn.commit;
+   //Store Back Version - Info
 end;
 
 procedure TFRE_DB.DBInitializeAllSystemClasses(const conn: IFRE_DB_SYS_CONNECTION);
@@ -16631,7 +16801,7 @@ begin
   if conn.FetchDomainById(GetDomainID,lDomain)<>edb_OK then begin
     raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(GetDomainID));
   end else begin
-    result := lDomain.GetName;
+    result := lDomain.Domainname(true);
   end;
 end;
 function TFRE_DB_USER.GetDomainID: TGUID;
@@ -16810,7 +16980,7 @@ begin
  ln      := data.field('lastname').AsString;
 
  dbc.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainid').AsString),obj);
- dn := obj.GetName;
+ dn := obj.Domainname(true);
  writeln('dn:',dn);
  if pw<>pwc then
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Password confirm mismatch',fdbmt_error,nil));

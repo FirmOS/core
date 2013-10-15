@@ -79,13 +79,17 @@ type
   PFRE_DB_String         = ^TFRE_DB_String;
   TFRE_DB_RawByteString  = RawByteString;
 
-  TFRE_DB_LOGCATEGORY        = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM);
-  TFRE_DB_Errortype          = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE);
-  TFRE_DB_STR_FILTERTYPE     = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
-  TFRE_DB_NUM_FILTERTYPE     = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
-  TFRE_DB_SchemeType         = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
-  TFRE_DB_COMMANDTYPE        = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
-  TFRE_DB_NotifyObserverType = (fdbntf_INSERT,fdbntf_UPDATE,fdbntf_DELETE,fdbntf_START_UPDATING,fdbntf_ENDUPDATE_APPLY,fdbntf_COLLECTION_RELOAD);
+  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM);
+  TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE);
+  TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
+  TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
+  TFRE_DB_SchemeType          = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
+  TFRE_DB_COMMANDTYPE         = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
+  TFRE_DB_NotifyObserverType  = (fdbntf_INSERT,fdbntf_UPDATE,fdbntf_DELETE,fdbntf_START_UPDATING,fdbntf_ENDUPDATE_APPLY,fdbntf_COLLECTION_RELOAD);
+  TFRE_DB_SUBSEC_DISPLAY_TYPE = (sec_dt_tab,sec_dt_vertical,sec_dt_hiddentab);
+
+
+  TFRE_DB_STANDARD_RIGHT     = (sr_BAD,sr_NEW,sr_SAVE,sr_DELETE,sr_VIEW);
 
 
   EFRE_DB_Exception=class(EFRE_Exception)
@@ -101,15 +105,17 @@ type
 
 
 const
-  CFRE_DB_FIELDTYPE       : Array[TFRE_DB_FIELDTYPE]      of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK');
-  CFRE_DB_FIELDTYPE_SHORT : Array[TFRE_DB_FIELDTYPE]      of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
-  CFRE_DB_Errortype       : Array[TFRE_DB_Errortype]      of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE');
-  CFRE_DB_STR_FILTERTYPE  : Array[TFRE_DB_STR_FILTERTYPE] of String = ('EX','PA','SP','EP');
-  CFRE_DB_NUM_FILTERTYPE  : Array[TFRE_DB_NUM_FILTERTYPE] of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
-  CFRE_DB_LOGCATEGORY     : Array[TFRE_DB_LOGCATEGORY]    of String = ('-','PERSISTANCE','DB','MEMORY','REFLINKS','EXCEPT','SERVER','HTTPSERVER','WEBSOCK','APP','SESSION','FLEXCOM');
-  CFRE_DB_COMMANDTYPE     : Array[TFRE_DB_COMMANDTYPE]    of String = ('S','SR','AR','E');
-  CFRE_DB_DISPLAY_TYPE    : Array[TFRE_DB_DISPLAY_TYPE]   of string = ('STR','DAT','NUM','PRG','ICO','BOO');
-  CFRE_DB_MESSAGE_TYPE    : array [TFRE_DB_MESSAGE_TYPE]  of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
+  CFRE_DB_FIELDTYPE              : Array[TFRE_DB_FIELDTYPE]               of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK');
+  CFRE_DB_FIELDTYPE_SHORT        : Array[TFRE_DB_FIELDTYPE]               of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
+  CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE');
+  CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
+  CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
+  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PERSISTANCE','DB','MEMORY','REFLINKS','EXCEPT','SERVER','HTTPSERVER','WEBSOCK','APP','SESSION','FLEXCOM');
+  CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');
+  CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','ICO','BOO');
+  CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
+  CFRE_DB_SUBSEC_DISPLAY_TYPE    : array [TFRE_DB_SUBSEC_DISPLAY_TYPE]    of string = ('sec_dt_tab','sec_dt_vertical','sec_dt_hiddentab');
+
 
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
@@ -487,6 +493,7 @@ type
   IFRE_DB_FieldSchemeDefinition = interface;
   IFRE_DB_WORKFLOWSTEP          = interface;
   IFRE_DB_WORKFLOW              = interface;
+  IFRE_DB_DOMAIN                = interface;
 
   IFRE_DB_FieldIterator                 = procedure (const obj : IFRE_DB_Field) is nested;
   IFRE_DB_FieldIteratorBrk              = function  (const obj : IFRE_DB_Field):boolean is nested;
@@ -499,6 +506,7 @@ type
   IFRE_DB_ClientFieldValidator_Iterator = procedure (const obj : IFRE_DB_ClientFieldValidator) is nested;
   IFRE_DB_Coll_Iterator                 = procedure (const coll: IFRE_DB_COLLECTION) is nested;
   IFRE_DB_Workflow_Iterator             = procedure (const wfs : IFRE_DB_WORKFLOW) is nested;
+  IFRE_DB_Domain_Iterator               = procedure (const obj : IFRE_DB_Domain) is nested;
 
   TFRE_DB_StreamingCallback             = procedure (const uid,fieldname: TFRE_DB_String ; const stream:TFRE_DB_Stream) is nested;
   TFRE_DB_PhaseProgressCallback         = procedure (const phase,cnt,max: integer) is nested;
@@ -1014,8 +1022,11 @@ type
   end;
 
 
-  IFRE_DB_DOMAIN=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
+  IFRE_DB_DOMAIN=interface(IFRE_DB_BASE)
     ['IFDBUSERDOMAIN']
+    function Domainname (const unique:boolean=false) : TFRE_DB_NameType;
+    function Domainkey                               : TGUID_String;
+    function UID                                     : TGUID;
   end;
 
 
@@ -1169,17 +1180,23 @@ type
     function    StoreGroupDomainbyID        (const domain_id: TGUID; var group : IFRE_DB_GROUP): TFRE_DB_Errortype;
     function    CheckRight                  (const right_name:TFRE_DB_String):boolean;
 
-    function    CheckAppRight               (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;
-    function    CheckAnyDomainRight         (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;
-    function    CheckDomainRight            (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType;const domainKey:TFRE_DB_NameType):boolean;
-    function    GetDomainsForRight          (const right_name:TFRE_DB_String): TFRE_DB_GUIDArray;
+    function    CheckAppRight               (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;      //REMOVE
 
-    function    CheckClassRight             (const right_name:TFRE_DB_String; const className: TClass; const domain:TFRE_DB_NameType):boolean; // makes only sense on domain level
-    function    CheckClassRightSave         (const className: TClass; const domain:TFRE_DB_NameType):boolean;
-    function    CheckClassRightNew          (const className: TClass; const domain:TFRE_DB_NameType):boolean;
-    function    CheckClassRightDelete       (const className: TClass; const domain:TFRE_DB_NameType):boolean;
+    function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
+    function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
 
-    function    CheckRightForGroup          (const right_name:TFRE_DB_String;const group_uid : TGuid):boolean;
+    function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
+    function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
+
+    function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
+    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+
+    function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
+    function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
+
+//    function    CheckRightForGroup          (const right_name:TFRE_DB_String;const group_uid : TGuid):boolean;
     function    FetchApplications           (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
     function    FetchDomainById             (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
@@ -1233,15 +1250,16 @@ type
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
-    procedure   ForAllDomains               (const func:IFRE_DB_Obj_Iterator);
-    function    StoreRole                   (var   rg:IFRE_DB_ROLE; const appname:TFRE_DB_String=''; const domainname: TFRE_DB_NameType=''):TFRE_DB_Errortype;
+    procedure   ForAllDomains               (const func:IFRE_DB_Domain_Iterator);
+    function    StoreRole                   (var   role:IFRE_DB_ROLE; const appname:TFRE_DB_String=''; const domainname: TFRE_DB_NameType=''):TFRE_DB_Errortype;
+    function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID; const appname:TFRE_DB_String=''):TFRE_DB_Errortype;
     function    StoreGroup                  (const appname:TFRE_DB_String; const domainname: TFRE_DB_NameType; var ug:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    StoreAppData                (var   appdata:IFRE_DB_APPDATA):TFRE_DB_Errortype;
     function    StoreTranslateableText      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    DeleteTranslateableText     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
     function    UpdateAppData               (var appdata:IFRE_DB_APPDATA):TFRE_DB_Errortype;
     function    CheckRight                  (const right_name:TFRE_DB_String):boolean;
-    function    InstallAppDefaults          (const Appname:TFRE_DB_String ):TFRE_DB_Errortype;
+    //function    InstallAppDefaults          (const Appname:TFRE_DB_String ):TFRE_DB_Errortype;
     function    RemoveApp                   (const Appname:TFRE_DB_String ):TFRE_DB_Errortype;
     function    RemoveAppGroup              (const Appname:TFRE_DB_String ; const sub_group_name: TFRE_DB_String):TFRE_DB_Errortype;
     function    AddAppGroup                 (const Appname:TFRE_DB_String ; const groupatdomain: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String):TFRE_DB_Errortype;
@@ -1259,8 +1277,10 @@ type
     function    GetRoleIDArray               (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_GUIDArray;
     function    GetRightsArrayForRoles       (const roleids      : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
     function    GetRightsArrayForGroups      (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
+    function    GetRightsArrayForUser        (const user         : IFRE_DB_USER)      : TFRE_DB_StringArray;
     function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
-
+    procedure   StartTransaction             (const trans_id     : TFRE_DB_NameType);
+    procedure   Commit                       ;
     //procedure   DrawScheme                  (const datastream:TStream);
   end;
 
@@ -1290,6 +1310,7 @@ type
 
   IFRE_DB_APPLICATION_MODULE=interface
     ['IFDBAPPM']
+    function   GetImplementorsClass          : TClass;
     function   GetToolbarMenu                : TFRE_DB_CONTENT_DESC;
     function   GetDBConnection               (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
     function   GetDBSessionData              (const input:IFRE_DB_Object): IFRE_DB_Object;
@@ -1308,6 +1329,7 @@ type
     constructor Create          ; virtual;
     function    Implementor     : TObject;virtual;
     function    Implementor_HC  : TObject;virtual;
+    function    GetImplementorsClass : TClass;
   end;
 
   { TFRE_DB_Base }
@@ -1322,6 +1344,7 @@ type
   public
     class procedure  RegisterSystemScheme       (const scheme:IFRE_DB_SCHEMEOBJECT); virtual;
     class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); virtual;
+    class procedure  InstallDBObjects4Domain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
     class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
     function         CFG_Dont_Finalize_Object   : Boolean; virtual;
     function         GetSystemSchemeByName      (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
@@ -1333,6 +1356,7 @@ type
     class function   GetClassRightNameSave      : TFRE_DB_String;
     class function   GetClassRightNameDelete    : TFRE_DB_String;
     class function   GetClassRightNameNew       : TFRE_DB_String;
+    class function   GetClassRightNameView      : TFRE_DB_String;
     class function   GetAllDefaultClassRoleNames: TFRE_DB_StringArray;
     class function   CreateClassRole            (const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
     class function   GetClassRoleName           (const rolename: TFRE_DB_String): TFRE_DB_String;
@@ -1493,10 +1517,7 @@ type
     function   _CheckVersion                 (const sys_connection: IFRE_DB_SYS_CONNECTION;out old_version: TFRE_DB_String) : TFRE_DB_APP_INSTALLSTATE;
     function   _ActualVersion                : TFRE_DB_String; virtual;
     procedure  _SetAppdataVersion            (const sys_connection: IFRE_DB_SYS_CONNECTION;const version: TFRE_DB_String); virtual;
-    procedure  _CreateAndStoreAppdata        (const sys_connection: IFRE_DB_SYS_CONNECTION;const version: TFRE_DB_String); virtual;
     function   _FetchAppdata                 (const sys_connection: IFRE_DB_SYS_CONNECTION;var appdata: IFRE_DB_APPDATA):boolean;
-    function   _CreateAppRole                (const rolename   :TFRE_DB_String;const short_desc,long_desc : TFRE_DB_String):IFRE_DB_ROLE;
-    procedure  _AddAppRight                  (const right_group:IFRE_DB_ROLE;const sub_right_name:TFRE_DB_String);
     procedure  _AddAppRightModules           (const right_group:IFRE_DB_ROLE;const module_names:TFRE_DB_StringArray);
 
     procedure  AddApplicationModule          (const module:TFRE_DB_APPLICATION_MODULE);
@@ -1512,6 +1533,7 @@ type
     function   CheckAppRightModule           (const conn: IFRE_DB_CONNECTION;const module_name:TFRE_DB_String) : Boolean;
     function   CheckAppRightModule           (const input_context: IFRE_DB_Object;const module_name:TFRE_DB_String) : Boolean;
 
+
     procedure  ServerInitialize              (const admin_dbc : IFRE_DB_CONNECTION);
     procedure  ServerFinalize                (const admin_dbc : IFRE_DB_CONNECTION); // NOT IMPLEMENTED
 
@@ -1519,14 +1541,12 @@ type
     function   InstallDomainGroupsandRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; virtual;
     function   RemoveApp                     (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype; virtual;
 
-    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure RegisterSystemScheme     (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure  Finalize                     ;
     function   GetDescription               (conn : IFRE_DB_CONNECTION): IFRE_DB_TEXT;
 
     function   GetSessionData               (const input:IFRE_DB_Object):IFRE_DB_Object; //global
     function   GetSessionAppData            (const input:IFRE_DB_Object):IFRE_DB_Object; //per app
-
-    function   GetAppModulesAsSubSection    (const input:IFRE_DB_Object): TFRE_DB_CONTENT_DESC;
 
     procedure  InitAppDesc                  (const objname,descr_translation_key:TFRE_DB_String);virtual;
     property   ObjectName                   : TFRE_DB_String       read GetName write SetName;
@@ -1536,7 +1556,7 @@ type
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
     function    ShowInApplicationChooser    (const session:IFRE_DB_UserSession): Boolean;virtual;
 
-    procedure  CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
+//    procedure  CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
 
     function   FetchAppText                 (const conn: IFRE_DB_CONNECTION;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
     function   FetchAppText                 (const input_context: IFRE_DB_Object;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
@@ -1544,9 +1564,15 @@ type
 
     function   Get_Rightname                (const sub_right_name:string):string;
 
+    class procedure  CreateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
+    class function   _CreateAppRole         (const rolename   :TFRE_DB_String;const short_desc,long_desc : TFRE_DB_String):IFRE_DB_ROLE;
+    class procedure  _AddAppRight           (const role:IFRE_DB_ROLE;const sub_right_name:TFRE_DB_String);
+
+
   published
-     function   IMI_Content                 (const input:IFRE_DB_Object):IFRE_DB_Object; virtual;
-     function   IMI_OnUIChange              (const input:IFRE_DB_Object):IFRE_DB_Object; virtual;
+     function   WEB_Content                 (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
+
+     function   WEB_OnUIChange              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
   end;
 
     { TFRE_DB_APPLICATION_MODULE }
@@ -1567,7 +1593,6 @@ type
     procedure  MySessionInitializeModule    (const session : TFRE_DB_UserSession);virtual;
     procedure  MySessionPromotionModule     (const session: TFRE_DB_UserSession); virtual;
     procedure  MySessionFinalizeModule      (const session : TFRE_DB_UserSession);virtual;
-    function   GetAppModulesAsSubSection    (const input:IFRE_DB_Object): TFRE_DB_CONTENT_DESC;
 
     function   GetEmbeddingApp              : TFRE_DB_APPLICATION;
     function   CheckAppRightModule          (const input_context: IFRE_DB_Object;const module_name:TFRE_DB_String) : Boolean;
@@ -1702,6 +1727,136 @@ type
   public
     //@ Describes a refresh action. E.g. after an add opertion.
     function  Describe       (): TFRE_DB_CLOSE_DIALOG_DESC;
+  end;
+
+  TFRE_DB_MENU_DESC = class;
+
+  { TFRE_DB_SECTION_DESC }
+
+  TFRE_DB_SECTION_DESC = class(TFRE_DB_CONTENT_DESC)
+  private
+    function  _Describe             (const title :String; const ord:Int16; const sectionId:String; const size:Integer): TFRE_DB_SECTION_DESC;
+  public
+    //@ Describes a single section of the subsections description.
+    //@ The contentFunc is used to get the content description of the section.
+    //@ The ord parameter can be used to sort the sections.
+    function  Describe             (const contentFunc:TFRE_DB_SERVER_FUNC_DESC;const title :String; const ord:Int16; const sectionId:String=''; const size:Integer=-1): TFRE_DB_SECTION_DESC;
+    //@ Used by the framework.
+    //@ DO NO USE.
+    function  _internalDescribe  (const content:TFRE_DB_CONTENT_DESC;const title :String; const ord:Int16; const sectionId:String=''; const size:Integer=-1): TFRE_DB_SECTION_DESC;
+    //@ Sets the section as the active one.
+    //@ Only usefull in case of display type sec_dt_tab
+    procedure SetActive            (const active: Boolean);
+    //@ Sets the menu of the section. Will be displayed like a file menu in a desktop application.
+    procedure SetMenu              (const menu: TFRE_DB_MENU_DESC);
+  end;
+
+  { TFRE_DB_SUBSECTIONS_DESC }
+
+  TFRE_DB_SUBSECTIONS_DESC = class(TFRE_DB_CONTENT_DESC)
+  private
+    fnoActiveSectionSet: Boolean;
+    factiveSectionOrd  : Integer;
+    procedure SetActiveSectionUID (const sectionUID: String);
+    procedure SectionDescribed    (const sectionUID: String; const ord,size: Integer);
+  public
+    constructor Create     ;
+    //@ Describes a collection of content which is displayed either as tabs or vertical arranged with resize handlers.
+    function  Describe        (const displayType: TFRE_DB_SUBSEC_DISPLAY_TYPE=sec_dt_tab): TFRE_DB_SUBSECTIONS_DESC;
+    //@ The serverFunction will be called on an ui change. In this case tab change if the display type is sec_dt_tab.
+    //@ FIXXME - finish implementation.
+    procedure OnUIChange      (const serverFunc: TFRE_DB_SERVER_FUNC_DESC);
+    //@ Creates a new section and adds it.
+    //@ The size parameter is only useful for the display type sec_dt_vertical.
+    function  AddSection       : TFRE_DB_SECTION_DESC;
+    //@ Set the section with the given id as active section.
+    procedure SetActiveSection (const sectionId: String);
+  end;
+
+  { TFRE_DB_MENU_ENTRY_DESC }
+
+  TFRE_DB_MENU_ENTRY_DESC    = class(TFRE_DB_CONTENT_DESC)
+  private
+    function  _Describe  (const caption,icon:String; const disabled:Boolean):TFRE_DB_MENU_ENTRY_DESC;
+  public
+    //@ Describes a menu entry. See also TFRE_DB_MENU_DESC and TFRE_DB_SUBMENU_DESC.
+    //@ After the execution of the server function the defined refresh is executed. E.g. an add operation on a grid will define fdbrt_direct to refresh the grid.
+    //@ fdbrt_dependent refreshes all filtered stores. See TFRE_DB_VIEW_LIST_DESC.addFilterEvent.
+    //@ Only implemented for grids and trees.
+    function  Describe  (const caption,icon:String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
+    function  Describe  (const caption,icon:String; const downloadId: String; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
+  end;
+
+  TFRE_DB_SUBMENU_DESC = class;
+  { TFRE_DB_MENU_DESC }
+
+  TFRE_DB_MENU_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a menu.
+    function  Describe   : TFRE_DB_MENU_DESC;
+    //@ Creates a new menu entry description and adds it.
+    function  AddEntry   : TFRE_DB_MENU_ENTRY_DESC;
+    //@ Creates a new sub menu description and adds it.
+    function  AddMenu    : TFRE_DB_SUBMENU_DESC;
+  end;
+
+  { TFRE_DB_SUBMENU }
+
+  TFRE_DB_SUBMENU_DESC    = class(TFRE_DB_MENU_DESC)
+  public
+    //@ Describes a sub menu. See TFRE_DB_MENU_DESC.
+    function  Describe  (const caption,icon: String; const disabled:Boolean=false):TFRE_DB_SUBMENU_DESC;
+  end;
+
+  { TFRE_DB_RESTORE_UI_DESC }
+
+  TFRE_DB_RESTORE_UI_DESC = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a client side function which should be called.
+    //@ baseContainerId: Start point of the sectionIds path. Can be a section description or a layout description or 'FirmOSViewport' to start at the top.
+    function  Describe       (const baseContainerId: String; const sectionIds: TFRE_DB_StringArray): TFRE_DB_RESTORE_UI_DESC;
+  end;
+
+
+  { TFRE_DB_SITEMAP_ENTRY_DESC }
+
+  TFRE_DB_SITEMAP_ENTRY_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a sitemap entry.
+    //@ Top level entries are arranged automatically. Therefore parameters x and y are ignored for top level entries.
+    function  Describe  (const caption,icon:String; const restoreUIFunc: TFRE_DB_RESTORE_UI_DESC; const x,y:Integer; const id:String=''; const newsCount:Integer=0;  const disabled:Boolean=false; const scale:Single=1): TFRE_DB_SITEMAP_ENTRY_DESC;
+    //@ Creates a new sitemap entry description and adds it.
+    function  AddEntry  : TFRE_DB_SITEMAP_ENTRY_DESC;
+  end;
+
+  { TFRE_DB_SVG_DEF_ELEM_ATTR_DESC }
+
+  TFRE_DB_SVG_DEF_ELEM_ATTR_DESC    = class(TFRE_DB_CONTENT_DESC)
+    //@ Describes an attribute of a SVG definitions element.
+    function  Describe  (const name,value:String): TFRE_DB_SVG_DEF_ELEM_ATTR_DESC;
+  end;
+
+  { TFRE_DB_SVG_DEF_ELEM_DESC }
+
+  TFRE_DB_SVG_DEF_ELEM_DESC    = class(TFRE_DB_CONTENT_DESC)
+    //@ Describes a SVG definitions element. E.g. linearGradient.
+    function  Describe    (const tagName:String): TFRE_DB_SVG_DEF_ELEM_DESC;
+    //@ Adds a sub element. E.g. a 'stop' element to a 'linearGradiant'
+    function AddElement   :TFRE_DB_SVG_DEF_ELEM_DESC;
+    //@ Adds an attribute.
+    function AddAttribute :TFRE_DB_SVG_DEF_ELEM_ATTR_DESC;
+  end;
+  TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY = array of TFRE_DB_SVG_DEF_ELEM_DESC;
+
+
+  { TFRE_DB_SITEMAP_DESC }
+
+  TFRE_DB_SITEMAP_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a sitemap/structure of the application.
+    function  Describe  (const svgDefs: TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY=nil): TFRE_DB_SITEMAP_DESC;
+    //@ Creates a new sitemap entry description and adds it.
+    function  AddEntry  : TFRE_DB_SITEMAP_ENTRY_DESC;
   end;
 
 
@@ -2123,8 +2278,7 @@ var
   GFRE_DB_SUPPRESS_SYNC_ANSWER      : TFRE_DB_SUPPRESS_ANSWER_DESC;
   GFRE_DB_MIME_TYPES                : Array of TFRE_DB_Mimetype;
 
-  G_APPMODS_AS_SUBSECTIONS_CALLBACK : IFRE_DB_InvokeMethodCallbackObjectEx;
-  G_ADD_2_SITEMAP_CALLBACK          : TAddAppToSiteMap_Callback;
+  //G_ADD_2_SITEMAP_CALLBACK          : TAddAppToSiteMap_Callback;
 
 implementation
 
@@ -2676,6 +2830,260 @@ function TFRE_DB_CLOSE_DIALOG_DESC.Describe: TFRE_DB_CLOSE_DIALOG_DESC;
 begin
   Result:=Self;
 end;
+
+{ TFRE_DB_MENU_DESC }
+
+function TFRE_DB_MENU_DESC.Describe: TFRE_DB_MENU_DESC;
+begin
+  if not FieldExists('id') then begin
+    Field('id').AsString:='id'+UID_String;
+  end;
+  Result:=Self;
+end;
+
+function TFRE_DB_MENU_DESC.AddEntry: TFRE_DB_MENU_ENTRY_DESC;
+begin
+   Result := TFRE_DB_MENU_ENTRY_DESC.Create;
+   Field('entries').AddObject(Result);
+end;
+
+function TFRE_DB_MENU_DESC.AddMenu: TFRE_DB_SUBMENU_DESC;
+begin
+  Result := TFRE_DB_SUBMENU_DESC.Create;
+  Field('entries').AddObject(Result);
+end;
+
+{ TFRE_DB_SUBMENU_DESC }
+
+function TFRE_DB_SUBMENU_DESC.Describe(const caption,icon: String; const disabled: Boolean): TFRE_DB_SUBMENU_DESC;
+begin
+  inherited Describe();
+  Field('caption').AsString:=caption;
+  if icon<>'' then begin
+    Field('icon').AsString:=FREDB_getThemedResource(icon);
+  end;
+  Field('disabled').AsBoolean:=disabled;
+  Result:=Self;
+end;
+
+
+{ TFRE_DB_RESTORE_UI_DESC }
+
+function TFRE_DB_RESTORE_UI_DESC.Describe(const baseContainerId: String; const sectionIds: TFRE_DB_StringArray): TFRE_DB_RESTORE_UI_DESC;
+begin
+  Field('baseContainerId').AsString:=baseContainerId;
+  Field('sectionIds').AsStringArr:=sectionIds;
+  Result:=Self;
+end;
+
+{ TFRE_DB_SITEMAP_ENTRY_DESC }
+
+function TFRE_DB_SITEMAP_ENTRY_DESC.Describe(const caption, icon: String; const restoreUIFunc: TFRE_DB_RESTORE_UI_DESC; const x, y: Integer; const id:String; const newsCount:Integer; const disabled: Boolean; const scale:Single): TFRE_DB_SITEMAP_ENTRY_DESC;
+begin
+  Field('caption').AsString:=caption;
+  if icon<>'' then begin
+    Field('icon').AsString:=FREDB_getThemedResource(icon);
+  end;
+  Field('sectionpath').AsObject := restoreUIFunc;
+  Field('x').AsInt32:=x;
+  Field('y').AsInt32:=y;
+  Field('id').AsString:=id;
+  Field('newscount').AsInt16:=newsCount;
+  Field('disabled').AsBoolean:=disabled;
+  Field('scale').AsReal32:=scale;
+  Result:=Self;
+end;
+
+function TFRE_DB_SITEMAP_ENTRY_DESC.AddEntry: TFRE_DB_SITEMAP_ENTRY_DESC;
+begin
+  Result:=TFRE_DB_SITEMAP_ENTRY_DESC.create;
+  Field('entries').AddObject(Result);
+end;
+
+{ TFRE_DB_SVG_DEF_ELEM_ATTR_DESC }
+
+function TFRE_DB_SVG_DEF_ELEM_ATTR_DESC.Describe(const name, value: String): TFRE_DB_SVG_DEF_ELEM_ATTR_DESC;
+begin
+  Field('name').AsString:=name;
+  Field('value').AsString:=value;
+  Result:=Self;
+end;
+
+{ TFRE_DB_SVG_DEF_ELEM_DESC }
+
+function TFRE_DB_SVG_DEF_ELEM_DESC.Describe(const tagName: String): TFRE_DB_SVG_DEF_ELEM_DESC;
+begin
+  Field('tagname').AsString:=tagName;
+  Result:=Self;
+end;
+
+function TFRE_DB_SVG_DEF_ELEM_DESC.AddElement: TFRE_DB_SVG_DEF_ELEM_DESC;
+begin
+  Result:=TFRE_DB_SVG_DEF_ELEM_DESC.create;
+  Field('elems').AddObject(Result);
+end;
+
+function TFRE_DB_SVG_DEF_ELEM_DESC.AddAttribute: TFRE_DB_SVG_DEF_ELEM_ATTR_DESC;
+begin
+  Result:=TFRE_DB_SVG_DEF_ELEM_ATTR_DESC.create;
+  Field('attrs').AddObject(Result);
+end;
+
+{ TFRE_DB_SITEMAP_DESC }
+
+function TFRE_DB_SITEMAP_DESC.Describe(const svgDefs: TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY=nil): TFRE_DB_SITEMAP_DESC;
+var
+  i: Integer;
+begin
+  if not FieldExists('id') then begin
+    Field('id').AsString:='id'+UID_String;
+  end;
+  if Assigned(svgDefs) then begin
+    for i := 0 to Length(svgDefs) - 1 do begin
+      Field('svgDefs').AddObject(svgDefs[i]);
+    end;
+  end;
+  Result:=Self;
+end;
+
+function TFRE_DB_SITEMAP_DESC.AddEntry: TFRE_DB_SITEMAP_ENTRY_DESC;
+begin
+  Result:=TFRE_DB_SITEMAP_ENTRY_DESC.create;
+  Field('entries').AddObject(Result);
+end;
+
+
+{ TFRE_DB_SECTION_DESC }
+
+function TFRE_DB_SECTION_DESC._Describe(const title: String; const ord: Int16; const sectionId: String; const size: Integer): TFRE_DB_SECTION_DESC;
+begin
+  Field('title').AsString:=title;
+  Field('ord').AsInt16:=ord;
+  if sectionId<>'' then begin
+    Field('id').AsString:=sectionId;
+  end else begin
+    if not FieldExists('id') then begin
+      Field('id').AsString:='id'+UID_String;
+    end;
+  end;
+  if (size=-1) then begin
+    Field('size').AsInt16:=1;
+  end else begin
+    Field('size').AsInt16:=size;
+  end;
+  (Parent.Implementor_HC as TFRE_DB_SUBSECTIONS_DESC).SectionDescribed(UID_String,ord,Field('size').AsInt16);
+end;
+
+function TFRE_DB_SECTION_DESC.Describe(const contentFunc: TFRE_DB_SERVER_FUNC_DESC; const title: String; const ord: Int16; const sectionId: String; const size:Integer): TFRE_DB_SECTION_DESC;
+begin
+  _Describe(title,ord,sectionId,size);
+  Field('contentFunc').AsObject:=contentFunc;
+  Result:=Self;
+end;
+
+function TFRE_DB_SECTION_DESC._internalDescribe(const content: TFRE_DB_CONTENT_DESC; const title: String; const ord: Int16; const sectionId: String; const size: Integer): TFRE_DB_SECTION_DESC;
+begin
+  _Describe(title,ord,sectionId,size);
+  Field('content').AsObject:=content;
+  Result:=Self;
+end;
+
+procedure TFRE_DB_SECTION_DESC.SetActive(const active: Boolean);
+begin
+  (Parent.Implementor_HC as TFRE_DB_SUBSECTIONS_DESC).SetActiveSectionUID(UID_String);
+end;
+
+procedure TFRE_DB_SECTION_DESC.SetMenu(const menu: TFRE_DB_MENU_DESC);
+begin
+  Field('menu').AsObject:=menu;
+end;
+
+{ TFRE_DB_SUBSECTIONS_DESC }
+
+procedure TFRE_DB_SUBSECTIONS_DESC.SetActiveSectionUID(const sectionUID: String);
+begin
+  Field('activeSection').AsString:=sectionUID;
+  fnoActiveSectionSet:=false;
+end;
+
+procedure TFRE_DB_SUBSECTIONS_DESC.SectionDescribed(const sectionUID: String; const ord,size: Integer);
+begin
+  Field('sizeSum').AsInt16:=Field('sizeSum').AsInt16+size;
+  if fnoActiveSectionSet then begin
+    if not FieldExists('activeSection') or (ord<factiveSectionOrd) then begin
+      Field('activeSection').AsString:=sectionUID;
+      factiveSectionOrd:=ord;
+    end;
+  end;
+end;
+
+constructor TFRE_DB_SUBSECTIONS_DESC.Create;
+begin
+  fnoActiveSectionSet:=true;
+  inherited Create;
+end;
+
+function TFRE_DB_SUBSECTIONS_DESC.Describe(const displayType: TFRE_DB_SUBSEC_DISPLAY_TYPE): TFRE_DB_SUBSECTIONS_DESC;
+begin
+  Field('dt').AsString:=CFRE_DB_SUBSEC_DISPLAY_TYPE[displayType];
+  Field('sizeSum').AsInt16:=0;
+  if not FieldExists('id') then begin
+    Field('id').AsString:='id'+UID_String;
+  end;
+  Result:=Self;
+end;
+
+procedure TFRE_DB_SUBSECTIONS_DESC.OnUIChange(const serverFunc: TFRE_DB_SERVER_FUNC_DESC);
+begin
+  Field('onUIChange').AsObject:=serverFunc;
+end;
+
+function TFRE_DB_SUBSECTIONS_DESC.AddSection(): TFRE_DB_SECTION_DESC;
+begin
+  Result := TFRE_DB_SECTION_DESC.create;
+  Field('sections').AddObject(Result);
+end;
+
+procedure TFRE_DB_SUBSECTIONS_DESC.SetActiveSection(const sectionId: String);
+var
+  i: Integer;
+begin
+  for i:=0 to Field('sections').ValueCount - 1 do begin
+    if Field('sections').AsObjectItem[i].Field('id').AsString=sectionId then begin
+      SetActiveSectionUID(Field('sections').AsObjectItem[i].UID_String);
+      break;
+    end;
+  end;
+end;
+
+
+{ TFRE_DB_MENU_ENTRY_DESC }
+
+function TFRE_DB_MENU_ENTRY_DESC._Describe(const caption, icon: String; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
+begin
+  Field('caption').AsString:=caption;
+  if icon<>'' then begin
+    Field('icon').AsString:=FREDB_getThemedResource(icon);
+  end;
+  Field('disabled').AsBoolean:=disabled;
+end;
+
+function TFRE_DB_MENU_ENTRY_DESC.Describe(const caption, icon: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
+begin
+  _Describe(caption,icon,disabled);
+  if Assigned(serverFunc) then begin
+    Field('serverFunc').AsObject:=serverFunc;
+  end;
+  Result:=Self;
+end;
+
+function TFRE_DB_MENU_ENTRY_DESC.Describe(const caption, icon: String; const downloadId: String; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
+begin
+  _Describe(caption,icon,disabled);
+  Field('downloadId').AsString:=downloadId;
+  Result:=Self;
+end;
+
 
 { TFRE_DB_MESSAGE_DESC }
 
@@ -3820,6 +4228,11 @@ begin
   result := self;
 end;
 
+function TFOS_BASE.GetImplementorsClass: TClass;
+begin
+  result := self.ClassType;
+end;
+
 //class function TFRE_DB_Base.Get_DBI_ClassMethods : TFOSStringArray;
 //var methodtable : pmethodnametable;
 //    i           : dword;
@@ -3933,6 +4346,11 @@ end;
 class function TFRE_DB_Base.GetClassRightNameNew: TFRE_DB_String;
 begin
   Result:=GetClassRightName('new');
+end;
+
+class function TFRE_DB_Base.GetClassRightNameView: TFRE_DB_String;
+begin
+ Result:=GetClassRightName('view');
 end;
 
 class function TFRE_DB_Base.GetAllDefaultClassRoleNames: TFRE_DB_StringArray;
@@ -4237,18 +4655,32 @@ begin
 end;
 
 class procedure TFRE_DB_Base.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
+begin
+end;
+
+class procedure TFRE_DB_Base.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
 var
   role: IFRE_DB_ROLE;
+  domain_uid_string: TFRE_DB_String;
 begin
-  role := CreateClassRole('new','New ' + ClassName,'Allowed to create ' + ClassName + ' objects');
-  role.AddRight(GetClassRight('new'));
-  CheckDbResult(conn.StoreRole(role),'Error creating '+ClassName+'.new role');
-  role := CreateClassRole('delete','Delete ' + ClassName,'Allowed to delete ' + ClassName + ' objects');
-  role.AddRight(GetClassRight('delete'));
-  CheckDbResult(conn.StoreRole(role),'Error creating '+ClassName+'.delete role');
-  role := CreateClassRole('save','Save ' + ClassName,'Allowed to edit ' + ClassName + ' objects');
-  role.AddRight(GetClassRight('save'));
-  CheckDbResult(conn.StoreRole(role),'Error creating '+ClassName+'.save role');
+ domain_uid_string := Uppercase(GFRE_BT.GUID_2_HexString(domainUID));
+
+ role := CreateClassRole('new','New ' + ClassName,'Allowed to create ' + ClassName + ' objects');
+ role.AddRight(GetClassRight('new'+'@'+domain_uid_string));
+ CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.new role');
+
+ role := CreateClassRole('delete','Delete ' + ClassName,'Allowed to delete ' + ClassName + ' objects');
+ role.AddRight(GetClassRight('delete'+'@'+domain_uid_string));
+ CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.delete role');
+
+ role := CreateClassRole('save','Save ' + ClassName,'Allowed to edit ' + ClassName + ' objects');
+ role.AddRight(GetClassRight('save'+'@'+domain_uid_string));
+ CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.save role');
+
+ role := CreateClassRole('view','View ' + ClassName,'Allowed to edit ' + ClassName + ' objects');
+ role.AddRight(GetClassRight('view'+'@'+domain_uid_string));
+ CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.view role');
+
 end;
 
 class procedure TFRE_DB_Base.RemoveDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType);
@@ -4687,7 +5119,7 @@ var scheme            : IFRE_DB_SCHEMEOBJECT;
     update_object_uid : TGUid;
     raw_object        : IFRE_DB_Object;
 begin
-  if not conn.CheckClassRightSave(Self.ClassType,ses.getDomain) then raise EFRE_DB_Exception.Create('Access denied.');
+  if not conn.CheckClassRight4Domain(sr_Save,Self.ClassType,ses.getDomain) then raise EFRE_DB_Exception.Create('Access denied.');
   if Not IsObjectRoot then begin
     result := TFRE_DB_MESSAGE_DESC.Create.Describe('SAVE','Error on saving! Saving of Subobject not supported!',fdbmt_error);
     exit;
@@ -5100,27 +5532,21 @@ end;
 
 procedure TFRE_DB_APPLICATION._SetAppdataVersion(const sys_connection: IFRE_DB_SYS_CONNECTION; const version: TFRE_DB_String);
 var appdata     : IFRE_DB_APPDATA;
+         res    : TFRE_DB_Errortype;
 begin
   if _FetchAppdata(sys_connection,appdata) then begin
     appdata.Version := version;
     sys_connection.UpdateAppData(appdata);
   end else begin
-    _CreateAndStoreAppdata(sys_connection,version);
+    sys_connection.NewAppData(ObjectName,'','',appdata);
+    appdata.Version := version;
+    res             := sys_connection.StoreAppData(appdata);
+    if res<>edb_OK then begin
+      raise EFRE_DB_Exception.Create(res,'Error storing appdata '+ObjectName);
+    end;
   end;
 end;
 
-procedure TFRE_DB_APPLICATION._CreateAndStoreAppdata(const sys_connection: IFRE_DB_SYS_CONNECTION; const version: TFRE_DB_String);
-var appdata: IFRE_DB_APPDATA;
-    res    : TFRE_DB_Errortype;
-begin
-  writeln('creating app data '+ObjectName+' version:'+version);
-  sys_connection.NewAppData(ObjectName,'','',appdata);
-  appdata.Version := version;
-  res             := sys_connection.StoreAppData(appdata);
-  if res<>edb_OK then begin
-    raise EFRE_DB_Exception.Create(res,'Error storing appdata '+ObjectName);
-  end;
-end;
 
 function TFRE_DB_APPLICATION._FetchAppdata(const sys_connection: IFRE_DB_SYS_CONNECTION; var appdata: IFRE_DB_APPDATA): boolean;
 var res : TFRE_DB_Errortype;
@@ -5132,24 +5558,24 @@ begin
   end;
 end;
 
-function TFRE_DB_APPLICATION._CreateAppRole(const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
+class function TFRE_DB_APPLICATION._CreateAppRole(const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
 var
   name : TFRE_DB_String;
   right: IFRE_DB_RIGHT;
 begin
-  name   := Get_Rightname_App_Role_Subrole(ObjectName,rolename);
+  name   := Get_Rightname_App_Role_Subrole(Classname,rolename);
   result := GFRE_DBI.NewRole(name,long_desc,short_desc);
-  right:=GFRE_DBI.NewRight(Get_Rightname('START'));
+//  right:=GFRE_DBI.NewRight(Get_Rightname('START'));
   result.AddRight(right);
 end;
 
-procedure TFRE_DB_APPLICATION._AddAppRight(const right_group: IFRE_DB_ROLE; const sub_right_name: TFRE_DB_String);
+class procedure TFRE_DB_APPLICATION._AddAppRight(const role: IFRE_DB_ROLE; const sub_right_name: TFRE_DB_String);
 var name  : TFRE_DB_String;
     right : IFRE_DB_RIGHT;
 begin
-  name  := Get_Rightname(sub_right_name);
+  name  :=  Get_Rightname_App_Helper(classname,sub_right_name);
   right := GFRE_DBI.NewRight(name);
-  right_group.AddRight(right);
+  role.AddRight(right);
 end;
 
 procedure TFRE_DB_APPLICATION._AddAppRightModules(const right_group: IFRE_DB_ROLE; const module_names: TFRE_DB_StringArray);
@@ -5164,10 +5590,10 @@ begin
   end;
 end;
 
-procedure TFRE_DB_APPLICATION.CreateAppText(const conn: IFRE_DB_SYS_CONNECTION;const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
+class procedure TFRE_DB_APPLICATION.CreateAppText(const conn: IFRE_DB_SYS_CONNECTION;const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 var txt :IFRE_DB_TEXT;
 begin
-  txt := GFRE_DBI.NewText(ObjectName+'_'+translation_key,long_text,short_text,hint_text);
+  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
   CheckDbResult(conn.StoreTranslateableText(txt),'CreateAppText ' + translation_key);
 end;
 
@@ -5271,7 +5697,7 @@ begin
   ForAllFields(@FieldIterator);
 end;
 
-function TFRE_DB_APPLICATION.IMI_OnUIChange(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_APPLICATION.WEB_OnUIChange(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   GetSessionAppData(input).Field('activeSection').AsString:=input.Field('sectionid').AsString;
   Result:=GFRE_DB_NIL_DESC;
@@ -5301,17 +5727,9 @@ begin
   result := GetSession(input).GetSessionGlobalData;
 end;
 
-
-
 function TFRE_DB_APPLICATION.GetSessionAppData(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
   result := GetSession(input).GetSessionAppData(ObjectName);
-end;
-
-
-function TFRE_DB_APPLICATION.GetAppModulesAsSubSection(const input:IFRE_DB_Object): TFRE_DB_CONTENT_DESC;
-begin
-  result := G_APPMODS_AS_SUBSECTIONS_CALLBACK(self,input).Implementor_HC as TFRE_DB_CONTENT_DESC;
 end;
 
 function TFRE_DB_APPLICATION.AsObject: IFRE_DB_Object;
@@ -5324,14 +5742,88 @@ begin
   result := GetName;
 end;
 
-function TFRE_DB_APPLICATION.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_APPLICATION.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var ActiveSection : String;
+    appobj        : TFRE_DB_APPLICATION;
+    res           : TFRE_DB_SUBSECTIONS_DESC;
+
+    procedure DescribeAppModules(const module:IFRE_DB_APPLICATION_MODULE;const module_order:int16);
+    var
+      menu   : TFRE_DB_MENU_DESC;
+      section: TFRE_DB_SECTION_DESC;
+    begin
+      if conn.CheckClassRight4AnyDomain(sr_VIEW,module.GetImplementorsClass) then
+        begin
+          section:=TFRE_DB_SUBSECTIONS_DESC(res).AddSection.Describe(TFRE_DB_SERVER_FUNC_DESC.Create.Describe(module.AsObject,'content'),module.GetDescription(conn).Getshort,module_order,module.ObjectName);
+          menu:=TFRE_DB_MENU_DESC(module.GetToolbarMenu);
+          if Assigned(menu) then
+            section.SetMenu(menu);
+        end;
+     end;
+
 begin
-  result := GetAppModulesAsSubSection(input);
+  appobj  := self;
+  res     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
+  TFRE_DB_SUBSECTIONS_DESC(res).OnUIChange(CWSF(@WEB_OnUIChange));
+  appobj.ForAllAppModules(@DescribeAppModules);
+  ActiveSection := ses.GetSessionAppData(input).Field('activeSection').AsString;
+  TFRE_DB_SUBSECTIONS_DESC(res).SetActiveSection(ActiveSection);
+  result := res;
 end;
 
 procedure TFRE_DB_APPLICATION.AddAppToSiteMap(const session: TFRE_DB_UserSession; const parent_entry: TFRE_DB_CONTENT_DESC);
+var app         : TFRE_DB_APPLICATION;
+    res         : TFRE_DB_SITEMAP_DESC;
+    parent_e    : TFRE_DB_SITEMAP_ENTRY_DESC;
+    sitemapdata : IFRE_DB_Object;
+    ientry      : integer;
+
+  procedure BuildSM(const entry:IFRE_DB_Object);
+  var caption,
+       icon,id    : String;
+       x,y,i,nc   : integer;
+       scale      : Single;
+       dis        : Boolean;
+     next_lev     : TFRE_DB_SITEMAP_ENTRY_DESC;
+     old_par      : TFRE_DB_SITEMAP_ENTRY_DESC;
+     ial          : TFRE_DB_StringArray;
+     oial         : TFRE_DB_StringArray;
+     isubentry    : integer;
+  begin
+     caption  := entry.Field('CAP').AsString;
+     id       := entry.Field('ID').AsString;
+     nc       := entry.Field('NC').AsInt16;
+     icon     := entry.Field('ICO').AsString;
+     x        := entry.Field('CRD').AsInt32Arr[0];
+     y        := entry.Field('CRD').AsInt32Arr[1];
+     oial     := entry.Field('IAL').AsStringArr;
+     scale    := entry.Field('SCL').AsReal32;
+     dis      := entry.Field('DIS').AsBoolean;
+     SetLength(ial,length(oial)+3);
+     ial[0]   := 'Home';
+     ial[1]   := 'AppContainer';
+     ial[2]   := app.ObjectName;
+     oial     := entry.Field('IAL').AsStringArr;
+     for i:=0 to high(oial) do begin
+       ial[i+3] := oial[i];
+     end;
+     old_par  := parent_e;
+     next_lev := parent_e.AddEntry.Describe(caption,icon,TFRE_DB_RESTORE_UI_DESC.create.Describe('FirmOSViewport',ial),x,y,id,nc,dis,scale);
+     if true then begin
+       parent_e := next_lev;
+       for isubentry := 0 to entry.Field('ENTRIES').valuecount-1 do begin
+         BuildSM(entry.Field('ENTRIES').AsObjectItem[isubentry]);
+       end;
+       parent_e := old_par;
+     end;
+  end;
+
 begin
-  G_ADD_2_SITEMAP_CALLBACK(self,session,parent_entry);
+  parent_e    := parent_entry as TFRE_DB_SITEMAP_ENTRY_DESC;
+  SiteMapData := session.GetSessionAppData(app.ObjectName).FieldOnlyExistingObj('SITEMAP');
+  if assigned(sitemapdata) then
+    for ientry := 0 to sitemapdata.Field('ENTRIES').ValueCount-1 do
+     BuildSM(sitemapdata.Field('ENTRIES').AsObjectItem[ientry]);
 end;
 
 
@@ -5372,6 +5864,12 @@ begin
   ObjectName  := objname;
   SetDescrTranslationKey(descr_translation_key)
 end;
+
+function TFRE_DB_APPLICATION_MODULE.CheckAppRightModule(const input_context: IFRE_DB_Object; const module_name: TFRE_DB_String): Boolean;
+begin
+  result := GetEmbeddingApp.CheckAppRightModule(input_context,module_name);
+end;
+
 
 procedure TFRE_DB_APPLICATION_MODULE.ForAllAppModules(const module_iterator: TFRE_DB_APPLICATION_MODULE_ITERATOR);
   procedure FieldIterator(const fld:IFRE_DB_Field);
@@ -5417,10 +5915,6 @@ begin
 
 end;
 
-function TFRE_DB_APPLICATION_MODULE.GetAppModulesAsSubSection(const input: IFRE_DB_Object): TFRE_DB_CONTENT_DESC;
-begin
-  result := (G_APPMODS_AS_SUBSECTIONS_CALLBACK(self,input).implementor_hc) as TFRE_DB_CONTENT_DESC;
-end;
 
 function TFRE_DB_APPLICATION_MODULE.GetEmbeddingApp: TFRE_DB_APPLICATION;
 var obj:IFRE_DB_Object;
@@ -5431,11 +5925,6 @@ begin
       exit(obj.Implementor_HC as TFRE_DB_APPLICATION);
     end;
   until false;
-end;
-
-function TFRE_DB_APPLICATION_MODULE.CheckAppRightModule(const input_context: IFRE_DB_Object; const module_name: TFRE_DB_String): Boolean;
-begin
-  result := GetEmbeddingApp.CheckAppRightModule(input_context,module_name);
 end;
 
 function TFRE_DB_APPLICATION_MODULE.FetchAppText(const input_context: IFRE_DB_Object; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;

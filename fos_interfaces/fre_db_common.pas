@@ -50,7 +50,6 @@ type
   TFRE_DB_TRANSFORM_TYPE      = (fdbtt_post2json, fdbtt_get2html,fdbtt_WebSocket);
   TFRE_DB_CHOOSER_DH          = (dh_chooser_radio,dh_chooser_check,dh_chooser_combo);
   TFRE_DB_LAYOUT_POS          = (lt_left,lt_center,lt_right,lt_top,lt_bottom);
-  TFRE_DB_SUBSEC_DISPLAY_TYPE = (sec_dt_tab,sec_dt_vertical,sec_dt_hiddentab);
   TFRE_DB_CLIENT_ACTION       = (fdbca_openContent);
   TFRE_DB_BUTTON_TYPE         = (fdbbt_submit,fdbbt_button,fdbbt_close,fdbbt_download);
   TFRE_DB_GRID_BUTTON_DEP     = (fdgbd_single,fdgbd_multi,fdgbd_always,fdgbd_manual);
@@ -64,7 +63,6 @@ type
 const
   CFRE_DB_CHOOSER_DH           : array [TFRE_DB_CHOOSER_DH] of string          = ('dh_chooser_radio','dh_chooser_check','dh_chooser_combo');
   CFRE_DB_LAYOUT_POS           : array [TFRE_DB_LAYOUT_POS] of string          = ('lt_left','lt_center','lt_right','lt_top','lt_bottom');
-  CFRE_DB_SUBSEC_DISPLAY_TYPE  : array [TFRE_DB_SUBSEC_DISPLAY_TYPE] of string = ('sec_dt_tab','sec_dt_vertical','sec_dt_hiddentab');
   CFRE_DB_BUTTON_TYPE          : array [TFRE_DB_BUTTON_TYPE] of string         = ('bt_submit','bt_button','bt_close','bt_download');
   CFRE_DB_GRID_BUTTON_DEP      : array [TFRE_DB_GRID_BUTTON_DEP] of string     = ('gbd_single','gbd_multi','gbd_always','gbd_manual');
   CFRE_DB_CHART_TYPE           : array [TFRE_DB_CHART_TYPE] of string          = ('ct_pie','ct_column','ct_line');
@@ -87,90 +85,6 @@ type
   public
     //@ Describes a refresh action. E.g. after an add opertion.
     function  Describe       (const buttonId:String; const disabled:Boolean): TFRE_DB_SET_BUTTON_STATE_DESC;
-  end;
-
-  { TFRE_DB_RESTORE_UI_DESC }
-
-  TFRE_DB_RESTORE_UI_DESC = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes a client side function which should be called.
-    //@ baseContainerId: Start point of the sectionIds path. Can be a section description or a layout description or 'FirmOSViewport' to start at the top.
-    function  Describe       (const baseContainerId: String; const sectionIds: TFRE_DB_StringArray): TFRE_DB_RESTORE_UI_DESC;
-  end;
-
-  { TFRE_DB_MENU_ENTRY_DESC }
-
-  TFRE_DB_MENU_ENTRY_DESC    = class(TFRE_DB_CONTENT_DESC)
-  private
-    function  _Describe  (const caption,icon:String; const disabled:Boolean):TFRE_DB_MENU_ENTRY_DESC;
-  public
-    //@ Describes a menu entry. See also TFRE_DB_MENU_DESC and TFRE_DB_SUBMENU_DESC.
-    //@ After the execution of the server function the defined refresh is executed. E.g. an add operation on a grid will define fdbrt_direct to refresh the grid.
-    //@ fdbrt_dependent refreshes all filtered stores. See TFRE_DB_VIEW_LIST_DESC.addFilterEvent.
-    //@ Only implemented for grids and trees.
-    function  Describe  (const caption,icon:String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
-    function  Describe  (const caption,icon:String; const downloadId: String; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
-  end;
-
-  TFRE_DB_SUBMENU_DESC = class;
-  { TFRE_DB_MENU_DESC }
-
-  TFRE_DB_MENU_DESC    = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes a menu.
-    function  Describe   : TFRE_DB_MENU_DESC;
-    //@ Creates a new menu entry description and adds it.
-    function  AddEntry   : TFRE_DB_MENU_ENTRY_DESC;
-    //@ Creates a new sub menu description and adds it.
-    function  AddMenu    : TFRE_DB_SUBMENU_DESC;
-  end;
-
-  { TFRE_DB_SUBMENU }
-
-  TFRE_DB_SUBMENU_DESC    = class(TFRE_DB_MENU_DESC)
-  public
-    //@ Describes a sub menu. See TFRE_DB_MENU_DESC.
-    function  Describe  (const caption,icon: String; const disabled:Boolean=false):TFRE_DB_SUBMENU_DESC;
-  end;
-
-  { TFRE_DB_SVG_DEF_ELEM_ATTR_DESC }
-
-  TFRE_DB_SVG_DEF_ELEM_ATTR_DESC    = class(TFRE_DB_CONTENT_DESC)
-    //@ Describes an attribute of a SVG definitions element.
-    function  Describe  (const name,value:String): TFRE_DB_SVG_DEF_ELEM_ATTR_DESC;
-  end;
-
-  { TFRE_DB_SVG_DEF_ELEM_DESC }
-
-  TFRE_DB_SVG_DEF_ELEM_DESC    = class(TFRE_DB_CONTENT_DESC)
-    //@ Describes a SVG definitions element. E.g. linearGradient.
-    function  Describe    (const tagName:String): TFRE_DB_SVG_DEF_ELEM_DESC;
-    //@ Adds a sub element. E.g. a 'stop' element to a 'linearGradiant'
-    function AddElement   :TFRE_DB_SVG_DEF_ELEM_DESC;
-    //@ Adds an attribute.
-    function AddAttribute :TFRE_DB_SVG_DEF_ELEM_ATTR_DESC;
-  end;
-  TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY = array of TFRE_DB_SVG_DEF_ELEM_DESC;
-
-  { TFRE_DB_SITEMAP_ENTRY_DESC }
-
-  TFRE_DB_SITEMAP_ENTRY_DESC    = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes a sitemap entry.
-    //@ Top level entries are arranged automatically. Therefore parameters x and y are ignored for top level entries.
-    function  Describe  (const caption,icon:String; const restoreUIFunc: TFRE_DB_RESTORE_UI_DESC; const x,y:Integer; const id:String=''; const newsCount:Integer=0;  const disabled:Boolean=false; const scale:Single=1): TFRE_DB_SITEMAP_ENTRY_DESC;
-    //@ Creates a new sitemap entry description and adds it.
-    function  AddEntry  : TFRE_DB_SITEMAP_ENTRY_DESC;
-  end;
-
-  { TFRE_DB_SITEMAP_DESC }
-
-  TFRE_DB_SITEMAP_DESC    = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes a sitemap/structure of the application.
-    function  Describe  (const svgDefs: TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY=nil): TFRE_DB_SITEMAP_DESC;
-    //@ Creates a new sitemap entry description and adds it.
-    function  AddEntry  : TFRE_DB_SITEMAP_ENTRY_DESC;
   end;
 
   { TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC }
@@ -657,48 +571,6 @@ type
     procedure AddDialog     (const dialog:TFRE_DB_DIALOG_DESC);
   end;
 
-  { TFRE_DB_SECTION_DESC }
-
-  TFRE_DB_SECTION_DESC = class(TFRE_DB_CONTENT_DESC)
-  private
-    function  _Describe             (const title :String; const ord:Int16; const sectionId:String; const size:Integer): TFRE_DB_SECTION_DESC;
-  public
-    //@ Describes a single section of the subsections description.
-    //@ The contentFunc is used to get the content description of the section.
-    //@ The ord parameter can be used to sort the sections.
-    function  Describe             (const contentFunc:TFRE_DB_SERVER_FUNC_DESC;const title :String; const ord:Int16; const sectionId:String=''; const size:Integer=-1): TFRE_DB_SECTION_DESC;
-    //@ Used by the framework.
-    //@ DO NO USE.
-    function  _internalDescribe  (const content:TFRE_DB_CONTENT_DESC;const title :String; const ord:Int16; const sectionId:String=''; const size:Integer=-1): TFRE_DB_SECTION_DESC;
-    //@ Sets the section as the active one.
-    //@ Only usefull in case of display type sec_dt_tab
-    procedure SetActive            (const active: Boolean);
-    //@ Sets the menu of the section. Will be displayed like a file menu in a desktop application.
-    procedure SetMenu              (const menu: TFRE_DB_MENU_DESC);
-  end;
-
-  { TFRE_DB_SUBSECTIONS_DESC }
-
-  TFRE_DB_SUBSECTIONS_DESC = class(TFRE_DB_CONTENT_DESC)
-  private
-    fnoActiveSectionSet: Boolean;
-    factiveSectionOrd  : Integer;
-    procedure SetActiveSectionUID (const sectionUID: String);
-    procedure SectionDescribed    (const sectionUID: String; const ord,size: Integer);
-  public
-    constructor Create     ;
-    //@ Describes a collection of content which is displayed either as tabs or vertical arranged with resize handlers.
-    function  Describe        (const displayType: TFRE_DB_SUBSEC_DISPLAY_TYPE=sec_dt_tab): TFRE_DB_SUBSECTIONS_DESC;
-    //@ The serverFunction will be called on an ui change. In this case tab change if the display type is sec_dt_tab.
-    //@ FIXXME - finish implementation.
-    procedure OnUIChange      (const serverFunc: TFRE_DB_SERVER_FUNC_DESC);
-    //@ Creates a new section and adds it.
-    //@ The size parameter is only useful for the display type sec_dt_vertical.
-    function  AddSection       : TFRE_DB_SECTION_DESC;
-    //@ Set the section with the given id as active section.
-    procedure SetActiveSection (const sectionId: String);
-  end;
-
   { TFRE_DB_LAYOUT_DESC }
 
   TFRE_DB_LAYOUT_DESC    = class(TFRE_DB_CONTENT_DESC)
@@ -1106,35 +978,6 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_SVG_DEF_ELEM_ATTR_DESC }
-
-  function TFRE_DB_SVG_DEF_ELEM_ATTR_DESC.Describe(const name, value: String): TFRE_DB_SVG_DEF_ELEM_ATTR_DESC;
-  begin
-    Field('name').AsString:=name;
-    Field('value').AsString:=value;
-    Result:=Self;
-  end;
-
-  { TFRE_DB_SVG_DEF_ELEM_DESC }
-
-  function TFRE_DB_SVG_DEF_ELEM_DESC.Describe(const tagName: String): TFRE_DB_SVG_DEF_ELEM_DESC;
-  begin
-    Field('tagname').AsString:=tagName;
-    Result:=Self;
-  end;
-
-  function TFRE_DB_SVG_DEF_ELEM_DESC.AddElement: TFRE_DB_SVG_DEF_ELEM_DESC;
-  begin
-    Result:=TFRE_DB_SVG_DEF_ELEM_DESC.create;
-    Field('elems').AddObject(Result);
-  end;
-
-  function TFRE_DB_SVG_DEF_ELEM_DESC.AddAttribute: TFRE_DB_SVG_DEF_ELEM_ATTR_DESC;
-  begin
-    Result:=TFRE_DB_SVG_DEF_ELEM_ATTR_DESC.create;
-    Field('attrs').AddObject(Result);
-  end;
-
   { TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC }
 
   function TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC.Describe(const caption, icon: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const big: Boolean): TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC;
@@ -1168,62 +1011,6 @@ implementation
       obj.Field('queryids').AsStringArr:=queryIds;
     end;
     Field('stores').AddObject(obj);
-  end;
-
-  { TFRE_DB_RESTORE_UI_DESC }
-
-  function TFRE_DB_RESTORE_UI_DESC.Describe(const baseContainerId: String; const sectionIds: TFRE_DB_StringArray): TFRE_DB_RESTORE_UI_DESC;
-  begin
-    Field('baseContainerId').AsString:=baseContainerId;
-    Field('sectionIds').AsStringArr:=sectionIds;
-    Result:=Self;
-  end;
-
-  { TFRE_DB_SITEMAP_ENTRY_DESC }
-
-  function TFRE_DB_SITEMAP_ENTRY_DESC.Describe(const caption, icon: String; const restoreUIFunc: TFRE_DB_RESTORE_UI_DESC; const x, y: Integer; const id:String; const newsCount:Integer; const disabled: Boolean; const scale:Single): TFRE_DB_SITEMAP_ENTRY_DESC;
-  begin
-    Field('caption').AsString:=caption;
-    if icon<>'' then begin
-      Field('icon').AsString:=FREDB_getThemedResource(icon);
-    end;
-    Field('sectionpath').AsObject := restoreUIFunc;
-    Field('x').AsInt32:=x;
-    Field('y').AsInt32:=y;
-    Field('id').AsString:=id;
-    Field('newscount').AsInt16:=newsCount;
-    Field('disabled').AsBoolean:=disabled;
-    Field('scale').AsReal32:=scale;
-    Result:=Self;
-  end;
-
-  function TFRE_DB_SITEMAP_ENTRY_DESC.AddEntry: TFRE_DB_SITEMAP_ENTRY_DESC;
-  begin
-    Result:=TFRE_DB_SITEMAP_ENTRY_DESC.create;
-    Field('entries').AddObject(Result);
-  end;
-
-  { TFRE_DB_SITEMAP_DESC }
-
-  function TFRE_DB_SITEMAP_DESC.Describe(const svgDefs: TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY=nil): TFRE_DB_SITEMAP_DESC;
-  var
-    i: Integer;
-  begin
-    if not FieldExists('id') then begin
-      Field('id').AsString:='id'+UID_String;
-    end;
-    if Assigned(svgDefs) then begin
-      for i := 0 to Length(svgDefs) - 1 do begin
-        Field('svgDefs').AddObject(svgDefs[i]);
-      end;
-    end;
-    Result:=Self;
-  end;
-
-  function TFRE_DB_SITEMAP_DESC.AddEntry: TFRE_DB_SITEMAP_ENTRY_DESC;
-  begin
-    Result:=TFRE_DB_SITEMAP_ENTRY_DESC.create;
-    Field('entries').AddObject(Result);
   end;
 
   { TFRE_DB_TOPMENU_ENTRY_DESC }
@@ -1468,19 +1255,6 @@ implementation
     Field('digits').AsInt16:=digits;
     Field('minMax').AsReal64Arr:=TFRE_DB_Real64Array.create(min,max);
     Field('steps').AsInt16:=steps;
-    Result:=Self;
-  end;
-
-  { TFRE_DB_SUBMENU_DESC }
-
-  function TFRE_DB_SUBMENU_DESC.Describe(const caption,icon: String; const disabled: Boolean): TFRE_DB_SUBMENU_DESC;
-  begin
-    inherited Describe();
-    Field('caption').AsString:=caption;
-    if icon<>'' then begin
-      Field('icon').AsString:=FREDB_getThemedResource(icon);
-    end;
-    Field('disabled').AsBoolean:=disabled;
     Result:=Self;
   end;
 
@@ -1798,56 +1572,6 @@ implementation
         entry.DeleteField('children');
       end;
     addEntry(entry);
-  end;
-
-
-  { TFRE_DB_MENU_ENTRY_DESC }
-
-  function TFRE_DB_MENU_ENTRY_DESC._Describe(const caption, icon: String; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
-  begin
-    Field('caption').AsString:=caption;
-    if icon<>'' then begin
-      Field('icon').AsString:=FREDB_getThemedResource(icon);
-    end;
-    Field('disabled').AsBoolean:=disabled;
-  end;
-
-  function TFRE_DB_MENU_ENTRY_DESC.Describe(const caption, icon: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
-  begin
-    _Describe(caption,icon,disabled);
-    if Assigned(serverFunc) then begin
-      Field('serverFunc').AsObject:=serverFunc;
-    end;
-    Result:=Self;
-  end;
-
-  function TFRE_DB_MENU_ENTRY_DESC.Describe(const caption, icon: String; const downloadId: String; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
-  begin
-    _Describe(caption,icon,disabled);
-    Field('downloadId').AsString:=downloadId;
-    Result:=Self;
-  end;
-
-  { TFRE_DB_MENU_DESC }
-
-  function TFRE_DB_MENU_DESC.Describe: TFRE_DB_MENU_DESC;
-  begin
-    if not FieldExists('id') then begin
-      Field('id').AsString:='id'+UID_String;
-    end;
-    Result:=Self;
-  end;
-
-  function TFRE_DB_MENU_DESC.AddEntry: TFRE_DB_MENU_ENTRY_DESC;
-  begin
-     Result := TFRE_DB_MENU_ENTRY_DESC.Create;
-     Field('entries').AddObject(Result);
-  end;
-
-  function TFRE_DB_MENU_DESC.AddMenu: TFRE_DB_SUBMENU_DESC;
-  begin
-    Result := TFRE_DB_SUBMENU_DESC.Create;
-    Field('entries').AddObject(Result);
   end;
 
   { TFRE_DB_FORM_INPUT_DESC }
@@ -2678,108 +2402,6 @@ implementation
     Field('data').AddObject(Result);
   end;
 
-  { TFRE_DB_SECTION_DESC }
-
-  function TFRE_DB_SECTION_DESC._Describe(const title: String; const ord: Int16; const sectionId: String; const size: Integer): TFRE_DB_SECTION_DESC;
-  begin
-    Field('title').AsString:=title;
-    Field('ord').AsInt16:=ord;
-    if sectionId<>'' then begin
-      Field('id').AsString:=sectionId;
-    end else begin
-      if not FieldExists('id') then begin
-        Field('id').AsString:='id'+UID_String;
-      end;
-    end;
-    if (size=-1) then begin
-      Field('size').AsInt16:=1;
-    end else begin
-      Field('size').AsInt16:=size;
-    end;
-    (Parent.Implementor_HC as TFRE_DB_SUBSECTIONS_DESC).SectionDescribed(UID_String,ord,Field('size').AsInt16);
-  end;
-
-  function TFRE_DB_SECTION_DESC.Describe(const contentFunc: TFRE_DB_SERVER_FUNC_DESC; const title: String; const ord: Int16; const sectionId: String; const size:Integer): TFRE_DB_SECTION_DESC;
-  begin
-    _Describe(title,ord,sectionId,size);
-    Field('contentFunc').AsObject:=contentFunc;
-    Result:=Self;
-  end;
-
-  function TFRE_DB_SECTION_DESC._internalDescribe(const content: TFRE_DB_CONTENT_DESC; const title: String; const ord: Int16; const sectionId: String; const size: Integer): TFRE_DB_SECTION_DESC;
-  begin
-    _Describe(title,ord,sectionId,size);
-    Field('content').AsObject:=content;
-    Result:=Self;
-  end;
-
-  procedure TFRE_DB_SECTION_DESC.SetActive(const active: Boolean);
-  begin
-    (Parent.Implementor_HC as TFRE_DB_SUBSECTIONS_DESC).SetActiveSectionUID(UID_String);
-  end;
-
-  procedure TFRE_DB_SECTION_DESC.SetMenu(const menu: TFRE_DB_MENU_DESC);
-  begin
-    Field('menu').AsObject:=menu;
-  end;
-
-  { TFRE_DB_SUBSECTIONS_DESC }
-
-  procedure TFRE_DB_SUBSECTIONS_DESC.SetActiveSectionUID(const sectionUID: String);
-  begin
-    Field('activeSection').AsString:=sectionUID;
-    fnoActiveSectionSet:=false;
-  end;
-
-  procedure TFRE_DB_SUBSECTIONS_DESC.SectionDescribed(const sectionUID: String; const ord,size: Integer);
-  begin
-    Field('sizeSum').AsInt16:=Field('sizeSum').AsInt16+size;
-    if fnoActiveSectionSet then begin
-      if not FieldExists('activeSection') or (ord<factiveSectionOrd) then begin
-        Field('activeSection').AsString:=sectionUID;
-        factiveSectionOrd:=ord;
-      end;
-    end;
-  end;
-
-  constructor TFRE_DB_SUBSECTIONS_DESC.Create;
-  begin
-    fnoActiveSectionSet:=true;
-    inherited Create;
-  end;
-
-  function TFRE_DB_SUBSECTIONS_DESC.Describe(const displayType: TFRE_DB_SUBSEC_DISPLAY_TYPE): TFRE_DB_SUBSECTIONS_DESC;
-  begin
-    Field('dt').AsString:=CFRE_DB_SUBSEC_DISPLAY_TYPE[displayType];
-    Field('sizeSum').AsInt16:=0;
-    if not FieldExists('id') then begin
-      Field('id').AsString:='id'+UID_String;
-    end;
-    Result:=Self;
-  end;
-
-  procedure TFRE_DB_SUBSECTIONS_DESC.OnUIChange(const serverFunc: TFRE_DB_SERVER_FUNC_DESC);
-  begin
-    Field('onUIChange').AsObject:=serverFunc;
-  end;
-
-  function TFRE_DB_SUBSECTIONS_DESC.AddSection(): TFRE_DB_SECTION_DESC;
-  begin
-    Result := TFRE_DB_SECTION_DESC.create;
-    Field('sections').AddObject(Result);
-  end;
-
-  procedure TFRE_DB_SUBSECTIONS_DESC.SetActiveSection(const sectionId: String);
-  var
-    i: Integer;
-  begin
-    for i:=0 to Field('sections').ValueCount - 1 do begin
-      if Field('sections').AsObjectItem[i].Field('id').AsString=sectionId then begin
-        SetActiveSectionUID(Field('sections').AsObjectItem[i].UID_String);
-        break;
-      end;
-    end;
-  end;
 
   { TFRE_DB_LAYOUT_DESC }
 
@@ -2878,135 +2500,8 @@ implementation
     Result:=Self;
   end;
 
- function GLOB_GET_APPMODS_AS_SUBSECTIONS_CALLBACK(const obj:TFRE_DB_ObjectEx;const input:IFRE_DB_Object):IFRE_DB_Object;
- var ActiveSection : String;
-     conn          : IFRE_DB_CONNECTION;
-     app           : TFRE_DB_APPLICATION;
-     res           : TFRE_DB_SUBSECTIONS_DESC;
-     module        : TFRE_DB_APPLICATION_MODULE;
-     is_mod        : boolean;
-
-   procedure DescribeAppModules(const module:IFRE_DB_APPLICATION_MODULE;const module_order:int16);
-   var
-     menu   : TFRE_DB_MENU_DESC;
-     section: TFRE_DB_SECTION_DESC;
-   begin
-     if app.CheckAppRightModule(conn,module.ObjectName) then begin
-       section:=TFRE_DB_SUBSECTIONS_DESC(res).AddSection.Describe(TFRE_DB_SERVER_FUNC_DESC.Create.Describe(module.AsObject,'content'),module.GetDescription(conn).Getshort,module_order,module.ObjectName);
-       menu:=TFRE_DB_MENU_DESC(module.GetToolbarMenu);
-       if Assigned(menu) then begin
-         section.SetMenu(menu);
-       end;
-     end;
-   end;
-
-  begin
-   if obj is TFRE_DB_APPLICATION then begin
-     app    := obj as TFRE_DB_APPLICATION;
-     is_mod := false;
-   end else begin
-     module := obj as TFRE_DB_APPLICATION_MODULE;
-     app    := module.GetEmbeddingApp;
-     is_mod := true;
-   end;
-   conn    := app.GetSession(input).GetDBConnection;
-   res     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-   TFRE_DB_SUBSECTIONS_DESC(res).OnUIChange(app.CSF(@app.IMI_OnUIChange));
-   if is_mod then begin
-     module.ForAllAppModules(@DescribeAppModules);
-   end else begin
-     app.ForAllAppModules(@DescribeAppModules);
-   end;
- //  ActiveSection := session.GetSessionAppData(input).Field('activeSection').AsString;
-   ActiveSection := app.GetSessionAppData(input).Field('activeSection').AsString;
-   GFRE_DBI.LogInfo(dblc_APPLICATION,'GETAPPMODSASSUBSECTION ACTIVE SECTION = [%s]',[ActiveSection]);
-   TFRE_DB_SUBSECTIONS_DESC(res).SetActiveSection(ActiveSection);
-   result := res;
- end;
-
- //var ActiveSection:TFRE_DB_String;
-//
-//  procedure DescribeAppModules(const module:IFRE_DB_APPLICATION_MODULE;const module_order:int16);
-//  var
-//    menu   : TFRE_DB_MENU_DESC;
-//    section: TFRE_DB_SECTION_DESC;
-//  begin
-//    section:=TFRE_DB_SUBSECTIONS_DESC(result).AddSection.Describe(TFRE_DB_SERVER_FUNC_DESC.Create.Describe(module.AsObject,'content'),module.Description.Getshort,module_order,module.ObjectName);
-//    menu:=TFRE_DB_MENU_DESC(module.GetToolbarMenu);
-//    if Assigned(menu) then begin
-//      section.SetMenu(menu);
-//    end;
-//  end;
-//
-//begin
-//  result := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-//  TFRE_DB_SUBSECTIONS_DESC(result).OnUIChange(CSF(@IMI_OnUIChange));
-//  ForAllAppModules(@DescribeAppModules);
-//  ActiveSection := GetDBModuleSessionData(input).Field('activeSection').AsString;
-//  GFRE_DBI.LogInfo(dblc_APPLICATION,'MOD GETAPPMODSASSUBSECTION ACTIVE SECTION = [%s]',[ActiveSection]);
-//  TFRE_DB_SUBSECTIONS_DESC(result).SetActiveSection(ActiveSection);
-//end;
-
-
-procedure GLOB_AddAppToSiteMap(const app : TFRE_DB_APPLICATION ; const session: TFRE_DB_UserSession; const parent_entry: TFRE_DB_CONTENT_DESC);
-var res         : TFRE_DB_SITEMAP_DESC;
-    parent_e    : TFRE_DB_SITEMAP_ENTRY_DESC;
-    sitemapdata : IFRE_DB_Object;
-    ientry      : integer;
-
-    procedure BuildSM(const entry:IFRE_DB_Object);
-    var caption,
-          icon,id    : String;
-          x,y,i,nc   : integer;
-          scale      : Single;
-          dis        : Boolean;
-        next_lev     : TFRE_DB_SITEMAP_ENTRY_DESC;
-        old_par      : TFRE_DB_SITEMAP_ENTRY_DESC;
-        ial          : TFRE_DB_StringArray;
-        oial         : TFRE_DB_StringArray;
-        isubentry    : integer;
-    begin
-        caption  := entry.Field('CAP').AsString;
-        id       := entry.Field('ID').AsString;
-        nc       := entry.Field('NC').AsInt16;
-        icon     := entry.Field('ICO').AsString;
-        x        := entry.Field('CRD').AsInt32Arr[0];
-        y        := entry.Field('CRD').AsInt32Arr[1];
-        oial     := entry.Field('IAL').AsStringArr;
-        scale    := entry.Field('SCL').AsReal32;
-        dis      := entry.Field('DIS').AsBoolean;
-        SetLength(ial,length(oial)+3);
-        ial[0]   := 'Home';
-        ial[1]   := 'AppContainer';
-        ial[2]   := app.ObjectName;
-        oial     := entry.Field('IAL').AsStringArr;
-        for i:=0 to high(oial) do begin
-          ial[i+3] := oial[i];
-        end;
-        old_par  := parent_e;
-        next_lev := parent_e.AddEntry.Describe(caption,icon,TFRE_DB_RESTORE_UI_DESC.create.Describe('FirmOSViewport',ial),x,y,id,nc,dis,scale);
-        if true then begin
-          parent_e := next_lev;
-          for isubentry := 0 to entry.Field('ENTRIES').valuecount-1 do begin
-            BuildSM(entry.Field('ENTRIES').AsObjectItem[isubentry]);
-          end;
-          parent_e := old_par;
-        end;
-    end;
-
-begin
-  parent_e    := parent_entry as TFRE_DB_SITEMAP_ENTRY_DESC;
-  SiteMapData :=session.GetSessionAppData(app.ObjectName).FieldOnlyExistingObj('SITEMAP');
-  if assigned(sitemapdata) then begin
-    for ientry := 0 to sitemapdata.Field('ENTRIES').ValueCount-1 do begin
-      BuildSM(sitemapdata.Field('ENTRIES').AsObjectItem[ientry]);
-    end;
-  end;
-end;
 
 initialization
-  G_APPMODS_AS_SUBSECTIONS_CALLBACK := @GLOB_GET_APPMODS_AS_SUBSECTIONS_CALLBACK;
-  G_ADD_2_SITEMAP_CALLBACK          := @GLOB_AddAppToSiteMap;
 
 end.
 

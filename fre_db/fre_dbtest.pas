@@ -324,7 +324,7 @@ begin
     res  := CONN.Connect('admin'+'@'+cSYS_DOMAIN,'admin');
     if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
 
-      conn.InstallAppDefaults('TESTAPP');
+abort;      //conn.InstallAppDefaults('TESTAPP');
 
       for i:= 1 to 3 do begin
         login  := 'admin'+inttostr(i)+'@'+cSYS_DOMAIN;
@@ -1927,9 +1927,9 @@ end;
 function TFRE_DB_TEST_APP.InstallAppDefaults (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
 var old_version  : TFRE_DB_String;
 
-    procedure _InstallAllDomains(const obj:IFRE_DB_Object);
+    procedure _InstallAllDomains(const dom:IFRE_DB_DOMAIN);
     begin
-      InstallDomainGroupsandRoles(conn,obj.Field('objname').asstring);
+      InstallDomainGroupsandRoles(conn,dom.Domainname(false));
     end;
 
 begin

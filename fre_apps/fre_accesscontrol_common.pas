@@ -20,15 +20,15 @@ type
   TFRE_COMMON_ACCESSCONTROL_APP=class(TFRE_DB_APPLICATION)
   private
     procedure       SetupApplicationStructure     ; override;
-    function        InstallAppDefaults            (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype; override;
-    function        InstallRoles                  (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype;
-    function        InstallDomainGroupsAndRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; override;
+//    function        InstallDomainGroupsAndRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; override;
     procedure       _UpdateSitemap                (const session: TFRE_DB_UserSession);
   protected
     procedure       MySessionInitialize           (const session: TFRE_DB_UserSession);override;
     procedure       MySessionPromotion            (const session: TFRE_DB_UserSession); override;
     function        CFG_ApplicationUsesRights     : boolean; override;
     function        _ActualVersion                : TFRE_DB_String; override;
+    class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
   public
     class procedure RegisterSystemScheme          (const scheme:IFRE_DB_SCHEMEOBJECT); override;
   published
@@ -306,11 +306,10 @@ begin
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
 
   CheckDbResult(conn.FetchDomainById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsString),domain),'ModifyDomain');
-  if domain.ObjectName=cSYS_DOMAIN then begin
+  if domain.Domainname(true)=cSYS_DOMAIN then begin
     exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppText(ses,'$modify_domain_diag_cap').Getshort,app.FetchAppText(ses,'$modify_domain_diag_no_system_domain_msg').Getshort,fdbmt_warning,nil));
   end;
 
-  writeln('DOMAIN.UID:',GFRE_BT.GUID_2_HexString(domain.UID));
   writeln('SELECTED',input.Field('selected').AsString);
 
   sf:=CWSF(@WEB_SaveDomain);
@@ -332,13 +331,15 @@ begin
     sf:=CWSF(@WEB_DeleteDomainConfirmed);
     sf.AddParam.Describe('selected',input.Field('selected').AsString);
     CheckDbResult(conn.FetchDomainById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsString),domain),'DeleteDomain');
-    writeln('domain :',domain.ObjectName);
-    if domain.ObjectName=cSYS_DOMAIN then begin
+    if domain.Domainname(true)=cSYS_DOMAIN then begin
       exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppText(ses,'$delete_domain_diag_cap').Getshort,app.FetchAppText(ses,'$delete_domain_diag_no_system_domain_msg').Getshort,fdbmt_warning,nil));
     end;
-    msg := domain.GetName;
+    msg := domain.Domainname(false);
     cap:=app.FetchAppText(ses,'$delete_domain_diag_cap').Getshort;
     msg:=StringReplace(app.FetchAppText(ses,'$delete_domain_diag_msg').Getshort,'%domain_str%',msg,[rfReplaceAll]);
+
+    //  cap := app.FetchAppTextFormated(ses,'$delete_domain_diag_msg',[msg]).Getshort; // ?
+
     Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_confirm,sf);
   end else begin
     result :=GFRE_DB_NIL_DESC;
@@ -1756,250 +1757,6 @@ begin
   AddApplicationModule(TFRE_COMMON_ROLE_MOD.create);
 end;
 
-function TFRE_COMMON_ACCESSCONTROL_APP.InstallAppDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
-var
-  old_version  : TFRE_DB_String;
-
-  procedure _InstallAllDomains(const obj:IFRE_DB_Object);
-  begin
-    InstallDomainGroupsAndRoles(conn,obj.Field('objname').asstring);
-  end;
-
-begin
-  writeln('accesscontrol install appdefault groups');
-
-  case _CheckVersion(conn,old_version) of
-    NotInstalled : begin
-                      _SetAppdataVersion(conn,_ActualVersion);
-                      InstallRoles(conn);
-                      conn.ForAllDomains(@_InstallAllDomains);
-
-                      CreateAppText(conn,'$description','Access Control','Access Control','Access Control');
-                      CreateAppText(conn,'$user_description','Users','Users','Users');
-                      CreateAppText(conn,'$group_description','Groups','Groups','Groups');
-                      CreateAppText(conn,'$role_description','Roles','Roles','Roles');
-                      CreateAppText(conn,'$domain_description','Domains','Domains','Domains');
-
-                      CreateAppText(conn,'$sitemap_main','Access Control','','Access Control');
-                      CreateAppText(conn,'$sitemap_users','Users','','Users');
-                      CreateAppText(conn,'$sitemap_groups','Groups','','Groups');
-                      CreateAppText(conn,'$sitemap_roles','Roles','','Roles');
-                      CreateAppText(conn,'$sitemap_domains','Domains','','Domains');
-
-                      CreateAppText(conn,'$gc_username','Username');
-                      CreateAppText(conn,'$gc_firstname','Firstname');
-                      CreateAppText(conn,'$gc_lastname','Lastname');
-                      CreateAppText(conn,'$gc_group','Group');
-                      CreateAppText(conn,'$gc_role','Role');
-                      CreateAppText(conn,'$gcap_UinG','User is in Group');
-                      CreateAppText(conn,'$gcap_UnotG','User is not in Group');
-                      CreateAppText(conn,'$gcap_UhasR','User has Role');
-                      CreateAppText(conn,'$gcap_UnotR','User has not Role');
-                      CreateAppText(conn,'$gcap_GhasR','Group has Role');
-                      CreateAppText(conn,'$gcap_GnotR','Group has not Role');
-
-                      CreateAppText(conn,'$roles_tab','Roles');
-                      CreateAppText(conn,'$groups_tab','Groups');
-                      CreateAppText(conn,'$users_tab','Users');
-                      CreateAppText(conn,'$note_tab','Note');
-                      CreateAppText(conn,'$userinfo_tab','User Properties');
-                      CreateAppText(conn,'$user_content_header','Informations about the selected user.');
-
-                      CreateAppText(conn,'$modify_user','Modify','','Modify User');
-                      CreateAppText(conn,'$modify_users','Modify','','Modify Users');
-                      CreateAppText(conn,'$delete_user','Delete','','Delete User');
-                      CreateAppText(conn,'$delete_users','Delete','','Delete Users');
-                      CreateAppText(conn,'$add_user','Add','','Add User');
-                      CreateAppText(conn,'$remove_user_from_groups','Remove user from groups');
-                      CreateAppText(conn,'$add_user_to_groups','Add user to groups');
-                      CreateAppText(conn,'$remove_user_from_group','Remove user from group');
-                      CreateAppText(conn,'$add_user_to_group','Add user to group');
-
-                      CreateAppText(conn,'$add_user_diag_cap','Add new user');
-                      CreateAppText(conn,'$modify_user_diag_cap','Modify user');
-                      CreateAppText(conn,'$delete_user_diag_cap','Confirm: Delete user');
-                      CreateAppText(conn,'$delete_users_diag_cap','Confirm: Delete multiple users');
-                      CreateAppText(conn,'$delete_user_diag_msg','User %user_str% will be deleted permanently! Please confirm to continue.');
-                      CreateAppText(conn,'$delete_users_diag_msg','Users %user_str% will be deleted permanently! Please confirm to continue.');
-                      CreateAppText(conn,'$user_deleted_diag_cap','User deleted');
-                      CreateAppText(conn,'$users_deleted_diag_cap','Users deleted');
-                      CreateAppText(conn,'$user_deleted_diag_msg','User %user_str% successfully deleted.');
-                      CreateAppText(conn,'$users_deleted_diag_msg','Users %user_str% successfully deleted.');
-
-
-                      CreateAppText(conn,'$modify_group','Modify','','Modify Group');
-                      CreateAppText(conn,'$modify_groups','Modify','','Modify Groups');
-                      CreateAppText(conn,'$delete_group','Delete','','Delete Group');
-                      CreateAppText(conn,'$delete_groups','Delete','','Delete Groups');
-                      CreateAppText(conn,'$add_group','Add','','Add Group');
-                      CreateAppText(conn,'$remove_group_from_users','Remove users from group');
-                      CreateAppText(conn,'$add_group_to_users','Add users to group');
-                      CreateAppText(conn,'$remove_group_from_user','Remove user from group');
-                      CreateAppText(conn,'$add_group_to_user','Add user to group');
-                      CreateAppText(conn,'$remove_group_from_roles','Remove roles from group');
-                      CreateAppText(conn,'$add_group_to_roles','Add roles to group');
-                      CreateAppText(conn,'$remove_group_from_role','Remove role from group');
-                      CreateAppText(conn,'$add_group_to_role','Add role to group');
-
-                      CreateAppText(conn,'$group_user_in_diag_cap','Add User to Group');
-                      CreateAppText(conn,'$group_user_in_no_group_msg','Please select a group first before adding a user.');
-                      CreateAppText(conn,'$add_group_diag_cap','Add new group');
-                      CreateAppText(conn,'$modify_group_diag_cap','Modify group');
-                      CreateAppText(conn,'$modify_group_diag_no_system_group_msg','You can not modify a system group.');
-                      CreateAppText(conn,'$group_user_out_diag_cap','Remove User from Group');
-                      CreateAppText(conn,'$group_user_out_no_group_msg','Please select a group first before removing a user.');
-                      CreateAppText(conn,'$group_role_in_diag_cap','Add role to group');
-                      CreateAppText(conn,'$group_role_in_no_group_msg','Please select a group first before adding a role.');
-                      CreateAppText(conn,'$group_role_out_diag_cap','Remove role from group');
-                      CreateAppText(conn,'$group_role_out_no_group_msg','Please select a group first before removing a role.');
-                      CreateAppText(conn,'$role_group_in_diag_cap','Add group to role');
-                      CreateAppText(conn,'$role_group_in_no_group_msg','Please select a role first before adding a group.');
-                      CreateAppText(conn,'$role_group_out_diag_cap','Remove group from role');
-                      CreateAppText(conn,'$role_group_out_no_group_msg','Please select a role first before removing a group.');
-
-                      CreateAppText(conn,'$delete_group_diag_cap','Confirm: Delete group');
-                      CreateAppText(conn,'$delete_groups_diag_cap','Confirm: Delete multiple groups');
-                      CreateAppText(conn,'$delete_group_diag_msg','Group %group_str% will be deleted permanently! Please confirm to continue.');
-                      CreateAppText(conn,'$delete_groups_diag_msg','Groupss %group_str% will be deleted permanently! Please confirm to continue.');
-                      CreateAppText(conn,'$group_deleted_diag_cap','Group deleted');
-                      CreateAppText(conn,'$groups_deleted_diag_cap','Groups deleted');
-                      CreateAppText(conn,'$group_deleted_diag_msg','Group %group_str% successfully deleted.');
-                      CreateAppText(conn,'$groups_deleted_diag_msg','Groups %group_str% successfully deleted.');
-
-                      CreateAppText(conn,'$users_info','Overview of all users and assigned groups. There are %user_count% users in the system.');
-                      CreateAppText(conn,'$groups_info','Overview of all groups and members.');
-                      CreateAppText(conn,'$roles_info','Overview of all roles.');
-                      CreateAppText(conn,'$domain_info','Overview of domains.');
-
-                      CreateAppText(conn,'$gc_domainname','Domain');
-                      CreateAppText(conn,'$gc_domain','Domain');
-                      CreateAppText(conn,'$gc_domain_desc','Description');
-                      CreateAppText(conn,'$gcap_UinD','User belongs to Domain');
-                      CreateAppText(conn,'$gcap_UnotinD','User does not belong to Domain');
-                      CreateAppText(conn,'$gcap_GinD','Group belongs to Domain');
-                      CreateAppText(conn,'$gcap_GnotinD','Group does not belong to Domain');
-
-                      CreateAppText(conn,'$modify_domain','Modify','','Modify Domain');
-                      CreateAppText(conn,'$delete_domain','Delete','','Delete Domain');
-                      CreateAppText(conn,'$add_domain','Add','','Add Domain');
-                      CreateAppText(conn,'$add_domain_diag_cap','Add new domain');
-                      CreateAppText(conn,'$modify_domain_diag_cap','Modify domain');
-                      CreateAppText(conn,'$modify_domain_diag_no_system_domain_msg','Editing of the System Domain is not possible.');
-                      CreateAppText(conn,'$delete_domain_diag_no_system_domain_msg','Deletion of the System domain is not possible.');
-                      CreateAppText(conn,'$delete_domain_diag_cap','Confirm: Delete domain');
-                      CreateAppText(conn,'$delete_domain_diag_msg','Domain %domain_str% will be deleted permanently! Please confirm to continue.');
-                      CreateAppText(conn,'$domain_group_in_diag_cap','Adding Group to a domain');
-                      CreateAppText(conn,'$domain_group_in_no_domain_msg','Please select a domain first before adding a group.');
-                      CreateAppText(conn,'$domain_user_in_diag_cap','Adding User to a domain');
-                      CreateAppText(conn,'$domain_user_in_no_domain_msg','Please select a domain first before adding a user.');
-
-                      CreateAppText(conn,'$domain_delete_error_cap','Error');
-                      CreateAppText(conn,'$domain_delete_error_msg','Delete failed %error_msg%');
-                      CreateAppText(conn,'$domain_modify_error_cap','Error');
-                      CreateAppText(conn,'$domain_modify_error_msg','Modify failed %error_msg%');
-
-                      CreateAppText(conn,'$error_fetch_group_msg','Could not fetch group with id %group%');
-                      CreateAppText(conn,'$error_fetch_role_msg','Could not fetch role with id %role%');
-                      CreateAppText(conn,'$error_fetch_user_msg','Could not fetch user with id %user%');
-                      CreateAppText(conn,'$error_delete_user_msg','Could not delete user with id %user%');
-                      CreateAppText(conn,'$error_add_role_msg','Could not add role %role% to group %group%');
-                      CreateAppText(conn,'$error_remove_role_msg','Could not remove role %role% from group %group%');
-                      CreateAppText(conn,'$error_add_group_msg','Could not add user %user% to group %group%');
-                      CreateAppText(conn,'$error_remove_group_msg','Could not remove user %user% from group %group%');
-
-                      //FIXXME - CHECK
-                      CreateAppText(conn,'$and','and'); //used as and within a string - need some kind of a template?
-                      CreateAppText(conn,'$error_no_access','Access denied'); //global text?
-                      CreateAppText(conn,'$button_save','Save'); //global text?
-                   end;
-    SameVersion  : begin
-                      writeln('Version '+old_version+' already installed');
-                   end;
-    OtherVersion : begin
-                      writeln('Old Version '+old_version+' found, updateing');
-                      // do some update stuff
-                      _SetAppdataVersion(conn,_ActualVersion);
-                   end;
-  else
-    raise EFRE_DB_Exception.Create('Undefined App _CheckVersion result');
-  end;
-end;
-
-function TFRE_COMMON_ACCESSCONTROL_APP.InstallRoles(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
-var
-  role         : IFRE_DB_ROLE;
-begin
-  role := _CreateAppRole('view_users','View Users','Allowed to see user list.');
-  _AddAppRight(role,'view_users');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-
-  role := _CreateAppRole('edit_users','Edit Users','Allowed to create/edit user objects.');
-  _AddAppRight(role,'view_users');
-  _AddAppRight(role,'edit_users');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-
-  role := _CreateAppRole('edit_usergroups','Edit User-Group relation','Allowed to edit group membership of users.');
-  _AddAppRight(role,'view_users');
-  _AddAppRight(role,'view_groups');
-  _AddAppRight(role,'view_usergroups');
-  _AddAppRight(role,'view_userroles');
-  _AddAppRight(role,'view_roles');
-  _AddAppRight(role,'edit_usergroups');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-
-  role := _CreateAppRole('edit_groups','Edit Groups','Allowed to create/edit group objects.');
-  _AddAppRight(role,'view_groups');
-  _AddAppRight(role,'edit_groups');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['group','role']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-
-  role := _CreateAppRole('edit_grouproles','Edit Group-Role relation','Allowed to edit roles of groups.');
-  _AddAppRight(role,'view_groups');
-  _AddAppRight(role,'view_roles');
-  _AddAppRight(role,'view_grouproles');
-  _AddAppRight(role,'edit_grouproles');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['group','role']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-
-  role := _CreateAppRole('view_domains','View Domains','Allowed to see domain list.');
-  _AddAppRight(role,'view_domains');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['domain']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-
-  role := _CreateAppRole('edit_domains','Edit Domains','Allowed to create/edit domains.');
-  _AddAppRight(role,'view_domains');
-  _AddAppRight(role,'edit_domains');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['domain']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-end;
-
-function TFRE_COMMON_ACCESSCONTROL_APP.InstallDomainGroupsAndRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
-var
-  role         : IFRE_DB_ROLE;
-begin
-  conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');
-  conn.AddAppGroup(ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin');
-  conn.AddAppGroup(ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest');
-
-  CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users')])),'InstallDomainGroupsAndRoles');
-  if domain=cSYS_DOMAIN then begin
-    role := _CreateAppRole('all_rights','Full access','Has all rights within access control.');
-    _AddAppRight(role,'all_rights');
-    _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
-    CheckDbResult(conn.StoreRole(role,ObjectName,cSYS_DOMAIN),'InstallDomainGroupsAndRoles');
-
-    //CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ROOT'+'@'+cSYS_DOMAIN),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'all_rights'+'@'+cSYS_DOMAIN)])),'InstallDomainGroupsAndRoles');
-
-    CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+cSYS_DOMAIN),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_users'),
-                                     Get_Rightname_App_Role_SubRole(ObjectName,'edit_usergroups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_groups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_grouproles'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_domains')])),'InstallDomainGroupsAndRoles');
-  end else begin
-    CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_users'),
-                                     Get_Rightname_App_Role_SubRole(ObjectName,'edit_usergroups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_groups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_grouproles'),Get_Rightname_App_Role_SubRole(ObjectName,'view_domains')])),'InstallDomainGroupsAndRoles');
-  end;
-end;
 
 procedure TFRE_COMMON_ACCESSCONTROL_APP._UpdateSitemap( const session: TFRE_DB_UserSession);
 var
@@ -2008,11 +1765,11 @@ var
 begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppText(conn,'$sitemap_main').Getshort,'images_apps/accesscontrol/monitor_white.svg','',0,CheckAppRightModule(conn,'user') or CheckAppRightModule(conn,'group') or CheckAppRightModule(conn,'role'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppText(conn,'$sitemap_domains').Getshort,'images_apps/accesscontrol/domain_white.svg','DOMAIN',0,CheckAppRightModule(conn,'domain'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppText(conn,'$sitemap_users').Getshort,'images_apps/accesscontrol/user_white.svg','USER',0,CheckAppRightModule(conn,'user'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppText(conn,'$sitemap_groups').Getshort,'images_apps/accesscontrol/group_white.svg','GROUP',0,CheckAppRightModule(conn,'group'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Roles',FetchAppText(conn,'$sitemap_roles').Getshort,'images_apps/accesscontrol/notebook_white.svg','ROLE',0,CheckAppRightModule(conn,'role'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppText(conn,'$sitemap_main').Getshort,'images_apps/accesscontrol/monitor_white.svg','',0,CheckAppRightModule(conn,'user') or CheckAppRightModule(conn,'group') or CheckAppRightModule(conn,'role') or conn.CheckAppRight('all_rights',ObjectName));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppText(conn,'$sitemap_domains').Getshort,'images_apps/accesscontrol/domain_white.svg','DOMAIN',0,CheckAppRightModule(conn,'domain') or conn.CheckAppRight('all_rights',ObjectName));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppText(conn,'$sitemap_users').Getshort,'images_apps/accesscontrol/user_white.svg','USER',0,CheckAppRightModule(conn,'user') or conn.CheckAppRight('all_rights',ObjectName));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppText(conn,'$sitemap_groups').Getshort,'images_apps/accesscontrol/group_white.svg','GROUP',0,CheckAppRightModule(conn,'group') or conn.CheckAppRight('all_rights',ObjectName));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Roles',FetchAppText(conn,'$sitemap_roles').Getshort,'images_apps/accesscontrol/notebook_white.svg','ROLE',0,CheckAppRightModule(conn,'role') or conn.CheckAppRight('all_rights',ObjectName));
   FREDB_SiteMap_RadialAutoposition(SiteMapData,45);
   session.GetSessionAppData(ObjectName).Field('SITEMAP').AsObject := SiteMapData;
 end;
@@ -2039,6 +1796,233 @@ end;
 function TFRE_COMMON_ACCESSCONTROL_APP._ActualVersion: TFRE_DB_String;
 begin
   Result := '1.0';
+end;
+
+class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; out newVersionId: TFRE_DB_NameType);
+var
+  role         : IFRE_DB_ROLE;
+
+begin
+  inherited;
+
+  newVersionId:='1.0';
+
+  if (currentVersionId='') then begin
+//    InstallRoles(conn);
+    CreateAppText(conn,'$description','Access Control','Access Control','Access Control');
+    CreateAppText(conn,'$user_description','Users','Users','Users');
+    CreateAppText(conn,'$group_description','Groups','Groups','Groups');
+    CreateAppText(conn,'$role_description','Roles','Roles','Roles');
+    CreateAppText(conn,'$domain_description','Domains','Domains','Domains');
+
+    CreateAppText(conn,'$sitemap_main','Access Control','','Access Control');
+    CreateAppText(conn,'$sitemap_users','Users','','Users');
+    CreateAppText(conn,'$sitemap_groups','Groups','','Groups');
+    CreateAppText(conn,'$sitemap_roles','Roles','','Roles');
+    CreateAppText(conn,'$sitemap_domains','Domains','','Domains');
+
+    CreateAppText(conn,'$gc_username','Username');
+    CreateAppText(conn,'$gc_firstname','Firstname');
+    CreateAppText(conn,'$gc_lastname','Lastname');
+    CreateAppText(conn,'$gc_group','Group');
+    CreateAppText(conn,'$gc_role','Role');
+    CreateAppText(conn,'$gcap_UinG','User is in Group');
+    CreateAppText(conn,'$gcap_UnotG','User is not in Group');
+    CreateAppText(conn,'$gcap_UhasR','User has Role');
+    CreateAppText(conn,'$gcap_UnotR','User has not Role');
+    CreateAppText(conn,'$gcap_GhasR','Group has Role');
+    CreateAppText(conn,'$gcap_GnotR','Group has not Role');
+
+    CreateAppText(conn,'$roles_tab','Roles');
+    CreateAppText(conn,'$groups_tab','Groups');
+    CreateAppText(conn,'$users_tab','Users');
+    CreateAppText(conn,'$note_tab','Note');
+    CreateAppText(conn,'$userinfo_tab','User Properties');
+    CreateAppText(conn,'$user_content_header','Informations about the selected user.');
+
+    CreateAppText(conn,'$modify_user','Modify','','Modify User');
+    CreateAppText(conn,'$modify_users','Modify','','Modify Users');
+    CreateAppText(conn,'$delete_user','Delete','','Delete User');
+    CreateAppText(conn,'$delete_users','Delete','','Delete Users');
+    CreateAppText(conn,'$add_user','Add','','Add User');
+    CreateAppText(conn,'$remove_user_from_groups','Remove user from groups');
+    CreateAppText(conn,'$add_user_to_groups','Add user to groups');
+    CreateAppText(conn,'$remove_user_from_group','Remove user from group');
+    CreateAppText(conn,'$add_user_to_group','Add user to group');
+
+    CreateAppText(conn,'$add_user_diag_cap','Add new user');
+    CreateAppText(conn,'$modify_user_diag_cap','Modify user');
+    CreateAppText(conn,'$delete_user_diag_cap','Confirm: Delete user');
+    CreateAppText(conn,'$delete_users_diag_cap','Confirm: Delete multiple users');
+    CreateAppText(conn,'$delete_user_diag_msg','User %user_str% will be deleted permanently! Please confirm to continue.');
+    CreateAppText(conn,'$delete_users_diag_msg','Users %user_str% will be deleted permanently! Please confirm to continue.');
+    CreateAppText(conn,'$user_deleted_diag_cap','User deleted');
+    CreateAppText(conn,'$users_deleted_diag_cap','Users deleted');
+    CreateAppText(conn,'$user_deleted_diag_msg','User %user_str% successfully deleted.');
+    CreateAppText(conn,'$users_deleted_diag_msg','Users %user_str% successfully deleted.');
+
+    CreateAppText(conn,'$modify_group','Modify','','Modify Group');
+    CreateAppText(conn,'$modify_groups','Modify','','Modify Groups');
+    CreateAppText(conn,'$delete_group','Delete','','Delete Group');
+    CreateAppText(conn,'$delete_groups','Delete','','Delete Groups');
+    CreateAppText(conn,'$add_group','Add','','Add Group');
+    CreateAppText(conn,'$remove_group_from_users','Remove users from group');
+    CreateAppText(conn,'$add_group_to_users','Add users to group');
+    CreateAppText(conn,'$remove_group_from_user','Remove user from group');
+    CreateAppText(conn,'$add_group_to_user','Add user to group');
+    CreateAppText(conn,'$remove_group_from_roles','Remove roles from group');
+    CreateAppText(conn,'$add_group_to_roles','Add roles to group');
+    CreateAppText(conn,'$remove_group_from_role','Remove role from group');
+    CreateAppText(conn,'$add_group_to_role','Add role to group');
+
+    CreateAppText(conn,'$group_user_in_diag_cap','Add User to Group');
+    CreateAppText(conn,'$group_user_in_no_group_msg','Please select a group first before adding a user.');
+    CreateAppText(conn,'$add_group_diag_cap','Add new group');
+    CreateAppText(conn,'$modify_group_diag_cap','Modify group');
+    CreateAppText(conn,'$modify_group_diag_no_system_group_msg','You can not modify a system group.');
+    CreateAppText(conn,'$group_user_out_diag_cap','Remove User from Group');
+    CreateAppText(conn,'$group_user_out_no_group_msg','Please select a group first before removing a user.');
+    CreateAppText(conn,'$group_role_in_diag_cap','Add role to group');
+    CreateAppText(conn,'$group_role_in_no_group_msg','Please select a group first before adding a role.');
+    CreateAppText(conn,'$group_role_out_diag_cap','Remove role from group');
+    CreateAppText(conn,'$group_role_out_no_group_msg','Please select a group first before removing a role.');
+    CreateAppText(conn,'$role_group_in_diag_cap','Add group to role');
+    CreateAppText(conn,'$role_group_in_no_group_msg','Please select a role first before adding a group.');
+    CreateAppText(conn,'$role_group_out_diag_cap','Remove group from role');
+    CreateAppText(conn,'$role_group_out_no_group_msg','Please select a role first before removing a group.');
+
+    CreateAppText(conn,'$delete_group_diag_cap','Confirm: Delete group');
+    CreateAppText(conn,'$delete_groups_diag_cap','Confirm: Delete multiple groups');
+    CreateAppText(conn,'$delete_group_diag_msg','Group %group_str% will be deleted permanently! Please confirm to continue.');
+    CreateAppText(conn,'$delete_groups_diag_msg','Groupss %group_str% will be deleted permanently! Please confirm to continue.');
+    CreateAppText(conn,'$group_deleted_diag_cap','Group deleted');
+    CreateAppText(conn,'$groups_deleted_diag_cap','Groups deleted');
+    CreateAppText(conn,'$group_deleted_diag_msg','Group %group_str% successfully deleted.');
+    CreateAppText(conn,'$groups_deleted_diag_msg','Groups %group_str% successfully deleted.');
+
+    CreateAppText(conn,'$users_info','Overview of all users and assigned groups. There are %user_count% users in the system.');
+    CreateAppText(conn,'$groups_info','Overview of all groups and members.');
+    CreateAppText(conn,'$roles_info','Overview of all roles.');
+    CreateAppText(conn,'$domain_info','Overview of domains.');
+
+    CreateAppText(conn,'$gc_domainname','Domain');
+    CreateAppText(conn,'$gc_domain','Domain');
+    CreateAppText(conn,'$gc_domain_desc','Description');
+    CreateAppText(conn,'$gcap_UinD','User belongs to Domain');
+    CreateAppText(conn,'$gcap_UnotinD','User does not belong to Domain');
+    CreateAppText(conn,'$gcap_GinD','Group belongs to Domain');
+    CreateAppText(conn,'$gcap_GnotinD','Group does not belong to Domain');
+
+    CreateAppText(conn,'$modify_domain','Modify','','Modify Domain');
+    CreateAppText(conn,'$delete_domain','Delete','','Delete Domain');
+    CreateAppText(conn,'$add_domain','Add','','Add Domain');
+    CreateAppText(conn,'$add_domain_diag_cap','Add new domain');
+    CreateAppText(conn,'$modify_domain_diag_cap','Modify domain');
+    CreateAppText(conn,'$modify_domain_diag_no_system_domain_msg','Editing of the System Domain is not possible.');
+    CreateAppText(conn,'$delete_domain_diag_no_system_domain_msg','Deletion of the System domain is not possible.');
+    CreateAppText(conn,'$delete_domain_diag_cap','Confirm: Delete domain');
+    CreateAppText(conn,'$delete_domain_diag_msg','Domain %domain_str% will be deleted permanently! Please confirm to continue.');
+    CreateAppText(conn,'$domain_group_in_diag_cap','Adding Group to a domain');
+    CreateAppText(conn,'$domain_group_in_no_domain_msg','Please select a domain first before adding a group.');
+    CreateAppText(conn,'$domain_user_in_diag_cap','Adding User to a domain');
+    CreateAppText(conn,'$domain_user_in_no_domain_msg','Please select a domain first before adding a user.');
+
+    CreateAppText(conn,'$domain_delete_error_cap','Error');
+    CreateAppText(conn,'$domain_delete_error_msg','Delete failed %error_msg%');
+    CreateAppText(conn,'$domain_modify_error_cap','Error');
+    CreateAppText(conn,'$domain_modify_error_msg','Modify failed %error_msg%');
+
+    CreateAppText(conn,'$error_fetch_group_msg','Could not fetch group with id %group%');
+    CreateAppText(conn,'$error_fetch_role_msg','Could not fetch role with id %role%');
+    CreateAppText(conn,'$error_fetch_user_msg','Could not fetch user with id %user%');
+    CreateAppText(conn,'$error_delete_user_msg','Could not delete user with id %user%');
+    CreateAppText(conn,'$error_add_role_msg','Could not add role %role% to group %group%');
+    CreateAppText(conn,'$error_remove_role_msg','Could not remove role %role% from group %group%');
+    CreateAppText(conn,'$error_add_group_msg','Could not add user %user% to group %group%');
+    CreateAppText(conn,'$error_remove_group_msg','Could not remove user %user% from group %group%');
+
+    //FIXXME - CHECK
+    CreateAppText(conn,'$and','and'); //used as and within a string - need some kind of a template?
+    CreateAppText(conn,'$error_no_access','Access denied'); //global text?
+    CreateAppText(conn,'$button_save','Save'); //global text?
+
+    //role := _CreateAppRole('view_users','View Users','Allowed to see user list.');
+    //_AddAppRight(role,'view_users');
+    //_AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user']));
+    //CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
+    //
+    //role := _CreateAppRole('edit_users','Edit Users','Allowed to create/edit user objects.');
+    //_AddAppRight(role,'view_users');
+    //_AddAppRight(role,'edit_users');
+    //_AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
+    //CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
+    //
+    //role := _CreateAppRole('edit_usergroups','Edit User-Group relation','Allowed to edit group membership of users.');
+    //_AddAppRight(role,'view_users');
+    //_AddAppRight(role,'view_groups');
+    //_AddAppRight(role,'view_usergroups');
+    //_AddAppRight(role,'view_userroles');
+    //_AddAppRight(role,'view_roles');
+    //_AddAppRight(role,'edit_usergroups');
+    //_AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
+    //CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
+    //
+    //role := _CreateAppRole('edit_groups','Edit Groups','Allowed to create/edit group objects.');
+    //_AddAppRight(role,'view_groups');
+    //_AddAppRight(role,'edit_groups');
+    //_AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['group','role']));
+    //CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
+    //
+    //role := _CreateAppRole('edit_grouproles','Edit Group-Role relation','Allowed to edit roles of groups.');
+    //_AddAppRight(role,'view_groups');
+    //_AddAppRight(role,'view_roles');
+    //_AddAppRight(role,'view_grouproles');
+    //_AddAppRight(role,'edit_grouproles');
+    //_AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['group','role']));
+    //CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
+    //
+    //role := _CreateAppRole('view_domains','View Domains','Allowed to see domain list.');
+    //_AddAppRight(role,'view_domains');
+    //_AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['domain']));
+    //CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
+    //
+    //role := _CreateAppRole('edit_domains','Edit Domains','Allowed to create/edit domains.');
+    //_AddAppRight(role,'view_domains');
+    //_AddAppRight(role,'edit_domains');
+    //_AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['domain']));
+    //CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
+
+    currentVersionId:='1.0';
+  end;
+  if (currentVersionId='1.0') then begin
+    //next update code
+  end;
+end;
+
+class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+begin
+  inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
+
+//
+//    CheckDbResult(conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User'),'InstallAppGroup');
+//    CheckDbResult(conn.AddAppGroup(ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin'),'InstallAppGroup');
+//    CheckDbResult(conn.AddAppGroup(ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest'),'InstallAppGroup');
+//
+//    CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users')])),'InstallDomainGroupsAndRoles');
+//    if domain=cSYS_DOMAIN then begin
+//      role := _CreateAppRole('all_rights','Full access','Has all rights within access control.');
+//      _AddAppRight(role,'all_rights');
+//      _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['user','group','role']));
+//      CheckDbResult(conn.StoreRole(role,ObjectName,cSYS_DOMAIN),'InstallDomainGroupsAndRoles');
+//
+//      //CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ROOT'+'@'+cSYS_DOMAIN),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'all_rights'+'@'+cSYS_DOMAIN)])),'InstallDomainGroupsAndRoles');
+//
+//      CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+cSYS_DOMAIN),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_users'),
+//                                       Get_Rightname_App_Role_SubRole(ObjectName,'edit_usergroups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_groups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_grouproles'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_domains')])),'InstallDomainGroupsAndRoles');
+//    end else begin
+//      CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_users'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_users'),
+//                                       Get_Rightname_App_Role_SubRole(ObjectName,'edit_usergroups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_groups'),Get_Rightname_App_Role_SubRole(ObjectName,'edit_grouproles'),Get_Rightname_App_Role_SubRole(ObjectName,'view_domains')])),'InstallDomainGroupsAndRoles');
+//    end;
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.RegisterSystemScheme( const scheme: IFRE_DB_SCHEMEOBJECT);
