@@ -129,6 +129,7 @@ type
     FManualFieldName   : TFRE_DB_String; // used for fields without object, (WAL Repair) (TODO: check  FFieldName^ cornercases!)
     Fobj               : TFRE_DB_Object;
     FIsUidField        : Boolean;
+    FIsDomainIDField   : Boolean;
     FCalcMethod        : IFRE_DB_CalcMethod;
   private
     procedure Finalize;
@@ -162,7 +163,7 @@ type
     function  _CheckStoreType    (const expected:TFRE_DB_FIELDTYPE):boolean;
 
     procedure _LocalToUTC        (var arr:TFRE_DB_DateTimeArray);
-    procedure _NotAllowedOnUIDFieldCheck;
+    procedure _NotAllowedOnUIDorDomainIDFieldCheck;
 
     function  _GetAsGUID         : TGuid;
     function  GetAsGUID          : TGuid;
@@ -292,6 +293,7 @@ type
     function    FieldTypeAsString : TFRE_DB_String;
     function    ValueCount        : Integer;
     function    IsUIDField        : boolean;
+    function    IsDomainIDField   : boolean;
     function    IsObjectField     : boolean;
     function    IsFieldCalculated : boolean;
 
@@ -464,6 +466,7 @@ type
   private
    var
     FUID               : TGUID;
+    FDomainID          : TGUID;
     FFieldStore        : _TFRE_DB_FieldTree;
     FCacheSchemeObj    : TFRE_DB_SchemeObject;          // Cache ; TFRE_DB_SchemeObject; only link to ... (dont free)
     FSchemeName        : TFRE_DB_NameType;
@@ -472,7 +475,7 @@ type
     fuidPathUA         : TFRE_DB_GUIDArray;
     FObjectProps       : TFRE_DB_Object_PropertySet; // Runtime Properties
     FInCollectionarr   : array of IFRE_DB_PERSISTANCE_COLLECTION;
-    procedure      _RestoreUID                         ;
+    procedure      _RestoreUIDandDomainID              ;
     procedure      ForAll                              (const iter:TFRE_DB_FieldIterator);
     procedure      ForAllBrk                           (const iter:TFRE_DB_FieldIteratorBrk);
     function       _Field                              (name:TFRE_DB_NameType):TFRE_DB_FIELD;
@@ -539,6 +542,9 @@ type
     function        GetScheme                          : TFRE_DB_SchemeObject;
     function        GetSchemeI                         : IFRE_DB_SchemeObject;
     function        UID                                : TGUID;
+    function        DomainID                           : TGUID;
+    function        DomainID_String                    : TGUID_String;
+    procedure       SetDomainID                        (const domid:TGUID);
     function        UID_String                         : TGUID_String;
     function        UIDP                               : PByte;
     function        GetAsJSON                          (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;virtual;
@@ -1197,17 +1203,17 @@ type
   TFRE_DB_USER=class(TFRE_DB_Object,IFRE_DB_USER)
   private
     Flogin  : TFRE_DB_FIELD;
-    function  GetDomain(const conn:IFRE_DB_CONNECTION): TFRE_DB_NameType;
-    function  GetDomainID : TGUID;
-    function  GetFirstName: TFRE_DB_String;
-    function  GetUserGroupIDS: TFRE_DB_ObjLinkArray;
-    function  GetLastName: TFRE_DB_String;
-    function  GetLogin: TFRE_DB_String;
-    procedure SetFirstName(const AValue: TFRE_DB_String);
-    procedure SetGIDA(AValue: TFRE_DB_ObjLinkArray);
-    procedure SetLastName(const AValue: TFRE_DB_String);
-    procedure Setlogin(const AValue: TFRE_DB_String);
-    procedure SetDomainID(AValue: TGUID);
+    function  GetDomain              (const conn:IFRE_DB_CONNECTION): TFRE_DB_NameType;
+    function  GetDomainIDLink        : TGUID;
+    function  GetFirstName           : TFRE_DB_String;
+    function  GetUserGroupIDS        : TFRE_DB_ObjLinkArray;
+    function  GetLastName            : TFRE_DB_String;
+    function  GetLogin               : TFRE_DB_String;
+    procedure SetFirstName           (const AValue: TFRE_DB_String);
+    procedure SetGIDA                (AValue: TFRE_DB_ObjLinkArray);
+    procedure SetLastName            (const AValue: TFRE_DB_String);
+    procedure Setlogin               (const AValue: TFRE_DB_String);
+    procedure SetDomainIDLink        (AValue: TGUID);
     procedure _UpdateDomainLoginKey;
   protected
     procedure InternalSetup; override;
@@ -1215,7 +1221,7 @@ type
     function  SubFormattedDisplayAvailable: boolean; override;
     function  GetSubFormattedDisplay(indent: integer=4): TFRE_DB_String; override;
     procedure SetImage           (const image_stream : TFRE_DB_Stream);
-    procedure InitData           (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String;const domainid:TGuid);
+    procedure InitData           (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String;const userdomainid:TGuid);
     property  Login              :TFRE_DB_String read GetLogin write Setlogin;
     property  Firstname          :TFRE_DB_String read GetFirstName write SetFirstName;
     property  Lastname           :TFRE_DB_String read GetLastName write SetLastName;
@@ -1245,13 +1251,13 @@ type
 
   TFRE_DB_GROUP=class(TFRE_DB_NAMED_OBJECT,IFRE_DB_GROUP)
   private
-    function  GetDomainID : TGUID;
-    function  GetRoleIDs  : TFRE_DB_ObjLinkArray;
+    function  GetDomainIDLink     : TGUID;
+    procedure SetDomainIDLink     (AValue: TGUID);
+    function  GetRoleIDs          : TFRE_DB_ObjLinkArray;
     function  IFRE_DB_GROUP.GetDesc          = GetDescI;
     function  IFRE_DB_GROUP.SetDesc          = SetDescI;
     function  IFRE_DB_GROUP.AddUserToGroup   = AddUserToGroupI;
     function  IFRE_DB_GROUP.RemoveUserFromGroup = RemoveUserFromGroupI;
-    procedure SetDomainID(AValue: TGUID);
     procedure SetRoleIDs(AValue: TFRE_DB_ObjLinkArray);
     procedure _UpdateDomainGroupKey;
   public
@@ -1265,7 +1271,6 @@ type
     function  SubFormattedDisplayAvailable : boolean; override;
     function  GetSubFormattedDisplay       (indent: integer=4): TFRE_DB_String; override;
     property  RoleIDs                      :TFRE_DB_ObjLinkArray read GetRoleIDs write SetRoleIDs;
-    property  DomainID                     :TGUID read GetDomainID write SetDomainID;
   published
     class     function  IMC_NewGroupOperation (const input:IFRE_DB_Object): IFRE_DB_Object;
     function  IMI_SAVEOPERATION               (const input:IFRE_DB_Object): IFRE_DB_Object;
@@ -1279,8 +1284,8 @@ type
     function  IFRE_DB_ROLE.SetDesc          = SetDescI;
     function  IFRE_DB_ROLE.Addright         = AddRightI;
     function  GetDomain                     (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
-    function  GetDomainID                   : TGUID;
-    procedure SetDomainID                   (AValue: TGUID);
+    function  GetDomainIDLink               : TGUID;
+    procedure SetDomainIDLink               (AValue: TGUID);
   public
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainRoleKey        (const rolepart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
@@ -1360,6 +1365,7 @@ type
     function IFRE_DB_COLLECTION.Last          = LastI;
     function IFRE_DB_COLLECTION.Fetch         = FetchI;
     function IFRE_DB_COLLECTION.GetIndexedObj = GetIndexedObjI;
+    function        _InternalStore (var   new_obj:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
   public
     constructor     Create         (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);
     destructor      Destroy        ;override;
@@ -1766,6 +1772,8 @@ type
 
   TFRE_DB_BASE_CONNECTION=class(TFOS_BASE)
   private
+    FSysDomainUID        : TGuid;
+    FMyDomainID          : TGuid;
     FDBName               : TFRE_DB_String;
     FLasterror            : String;
     FCloned               : boolean;
@@ -1855,7 +1863,8 @@ type
     function           CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid)                :boolean; //Hack
     function           UpcastDBC                    : TFRE_DB_Connection;
 
-
+    function           GetMyDomainID                : TGUID;
+    function           GetMyDomainID_String         : TGUID_String;
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object)                                : boolean; virtual;
     function           FetchInternal                (const ouid:TGUID;out dbo:TFRE_DB_Object)                                : boolean; virtual;
@@ -1872,7 +1881,6 @@ type
   { TFRE_DB_SYSTEM_CONNECTION }
   TFRE_DB_SYSTEM_CONNECTION = class(TFRE_DB_BASE_CONNECTION,IFRE_DB_SYS_CONNECTION)
   private
-    FSysDomainUID        : TGuid;
     FSysAppdata          : TFRE_DB_COLLECTION;
     FSysTransText        : TFRE_DB_COLLECTION;
     FSysUsers            : TFRE_DB_COLLECTION;
@@ -3438,9 +3446,9 @@ begin
 end;
 
 
-function TFRE_DB_GROUP.GetDomainID: TGUID;
+function TFRE_DB_GROUP.GetDomainIDLink: TGUID;
 begin
-  result := Field('domainid').AsObjectLink;
+  result := Field('domainidlink').AsObjectLink;
 end;
 
 
@@ -3449,9 +3457,9 @@ begin
   result := Field('roleids').AsObjectLinkArray;
 end;
 
-procedure TFRE_DB_GROUP.SetDomainID(AValue: TGUID);
+procedure TFRE_DB_GROUP.SetDomainIDLink(AValue: TGUID);
 begin
-  Field('domainid').AsObjectLink := AValue;
+  Field('domainidlink').AsObjectLink := AValue;
   _UpdateDomainGroupKey;
 end;
 
@@ -3474,7 +3482,7 @@ begin
   scheme.GetSchemeField('objname').required:=true;
   scheme.AddSchemeField('roleids',fdbft_ObjLink).SetupFieldDef(false,true);
   scheme.AddSchemeField('appdataid',fdbft_ObjLink);
-  scheme.AddSchemeField('domainid',fdbft_ObjLink).SetupFieldDef(true,false);
+  scheme.AddSchemeField('domainidlink',fdbft_ObjLink).SetupFieldDef(true,false);
   scheme.AddSchemeField('domaingroupkey',fdbft_String).SetupFieldDef(true,false);
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 
@@ -3482,7 +3490,7 @@ begin
   input_group.AddInput('objname','$scheme_TFRE_DB_GROUP_name');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
   input_group:=scheme.AddInputGroup('domain').Setup('$scheme_TFRE_DB_GROUP_group_domain');
-  input_group.AddInput('domainid','$scheme_TFRE_DB_GROUP_domainid',false,false,'$SDC:GROUPMOD_DOMAINS'); // HACK: Fix Domain Name with session prefix
+  input_group.AddInput('domainidlink','$scheme_TFRE_DB_GROUP_domainid',false,false,'$SDC:GROUPMOD_DOMAINS'); // HACK: Fix Domain Name with session prefix
 end;
 
 //function TFRE_DB_GROUP.AddUserToGroupI(const user: IFRE_DB_USER): TFRE_DB_Errortype;
@@ -3550,7 +3558,7 @@ begin
  if txt_s='' then txt_s:=groupname;
  if txt='' then txt:=groupname;
 
- domain_id := GFRE_BT.HexString_2_GUID(data.Field('domainid').AsString);
+ domain_id := GFRE_BT.HexString_2_GUID(data.Field('DOMAINIDLINK').AsString);
  res := dbc.NewGroup(groupname,txt,txt_s,group);
  if res <> edb_OK then
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERROR','TRANSLATE: Creation of group failed '+CFRE_DB_Errortype[res],fdbmt_error,nil));
@@ -3671,22 +3679,22 @@ var syscon       : TFRE_DB_SYSTEM_CONNECTION;
     lDomain      : TFRE_DB_DOMAIN;
 begin
   syscon   := (conn.Implementor_HC as TFRE_DB_CONNECTION).FSysConnection as TFRE_DB_SYSTEM_CONNECTION;
-  if not syscon._FetchDomainbyID(GetDomainID,lDomain) then begin
-    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(GetDomainID));
+  if not syscon._FetchDomainbyID(GetDomainIDLink,lDomain) then begin
+    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(GetDomainIDLink));
   end else begin
     result := lDomain.GetName;
   end;
 end;
 
 
-function TFRE_DB_ROLE.GetDomainID: TGUID;
+function TFRE_DB_ROLE.GetDomainIDLink: TGUID;
 begin
-  result := Field('domainid').AsObjectLink;
+  result := Field('domainidlink').AsObjectLink;
 end;
 
-procedure TFRE_DB_ROLE.SetDomainID(AValue: TGUID);
+procedure TFRE_DB_ROLE.SetDomainIDlink(AValue: TGUID);
 begin
- Field('domainid').AsObjectLink := AValue;
+ Field('domainidlink').AsObjectLink := AValue;
  Field('domainrolekey').AsString := GetDomainRoleKey(ObjectName,AValue);
 end;
 
@@ -3737,14 +3745,14 @@ begin
   Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
   scheme.AddSchemeField('appdataid',fdbft_ObjLink).SetupFieldDef(false,true);
   scheme.AddSchemeFieldSubscheme('rights','TFRE_DB_RIGHT').multiValues:=true;
-  scheme.AddSchemeField('domainid',fdbft_ObjLink).SetupFieldDef(false,false);
+  scheme.AddSchemeField('domainidlink',fdbft_ObjLink).SetupFieldDef(false,false);
   scheme.AddSchemeField('domainrolekey',fdbft_String).SetupFieldDef(false,false);
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 end;
 
 class function TFRE_DB_ROLE.GetDomainRoleKey(const rolepart: TFRE_DB_String; const domain_id: TGUID): TFRE_DB_String;
 begin
-  result := GFRE_BT.GUID_2_HexString(domain_id)+'@'+lowercase(rolepart);
+  result := lowercase(GFRE_BT.GUID_2_HexString(domain_id)+'@'+rolepart);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.ImpersonateTheClone(const user, pass: TFRE_DB_String): TFRE_DB_Errortype;
@@ -3839,7 +3847,9 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_
     if FRecreateSysObjects then
       _DeleteDomain(cSYS_DOMAIN);
     if not _DomainExists(cSYS_DOMAIN) then
-      _AddDomain(cSYS_DOMAIN,'System Domain','SYSTEM DOMAIN');
+      begin
+        _AddDomain(cSYS_DOMAIN,'System Domain','SYSTEM DOMAIN');
+      end;
     FSysDomainUID := _DomainID(cSYS_DOMAIN);
   end;
 
@@ -3865,7 +3875,7 @@ var domain_id : TGUID;
   begin
     rg := _NewRole(rolename,'View Domain '+domain,'View Domain '+domain);
     rg.AddRight(_NewRight(FREDB_Get_Rightname_UID('VIEWDOM',domain_id)));
-    rg.SetDomainID(_DomainID(role_domain));
+    rg.SetDomainIDLink(_DomainID(role_domain));
     FSysRoles.Store(TFRE_DB_Object(rg));
   end;
   procedure SetupDomainRoleEdit(const rolename:string;const role_domain:string);
@@ -3874,7 +3884,7 @@ var domain_id : TGUID;
     rg := _NewRole(rolename,'Administer Domain '+domain,'Administer Domain '+domain);
     rg.AddRight(_NewRight(FREDB_Get_Rightname_UID('VIEWDOM',domain_id)));
     rg.AddRight(_NewRight(FREDB_Get_Rightname_UID('EDITDOM',domain_id)));
-    rg.setDomainID(_DomainID(role_domain));
+    rg.SetDomainIDLink(_DomainID(role_domain));
     FSysRoles.Store(TFRE_DB_Object(rg));
   end;
 
@@ -3887,8 +3897,9 @@ var domain_id : TGUID;
       rg := _NewRole(cSYSROLE_DB_ADMIN,'Database Administrator Right Group','Administrator');
       rg.AddRight(_NewRight(cSYSR_CREATE_DB));
       rg.AddRight(_NewRight(cSYSR_DELETE_DB));
-      rg.setDomainID(domain_id);
-      CheckDbResult(FSysRoles.Store(TFRE_DB_Object(rg)),'Cannot create DB Admin Role');
+      rg.SetDomainIDLink(domain_id);
+      rg.SetDomainID(domain_id);
+      CheckDbResult(FSysRoles._InternalStore(TFRE_DB_Object(rg)),'Cannot create DB Admin Role');
     end;
     procedure SetupManageRole;
     var rg:TFRE_DB_ROLE;
@@ -3899,8 +3910,9 @@ var domain_id : TGUID;
       rg.AddRight(_NewRight(cSYSR_MOD_RIGHT));
       rg.AddRight(_NewRight(cSYSR_MOD_UG));
       rg.AddRight(_NewRight(Get_Rightname_App_Helper('syseditor','START')));
-      rg.setDomainID(domain_id);
-      FSysRoles.Store(TFRE_DB_Object(rg));
+      rg.SetDomainIDLink(domain_id);
+      rg.SetDomainID(domain_id);
+      FSysRoles._InternalStore(TFRE_DB_Object(rg));
     end;
     procedure SetupManageAppRole;
     var rg:TFRE_DB_ROLE;
@@ -3908,8 +3920,9 @@ var domain_id : TGUID;
       rg := _NewRole(cSYSROLE_MANAGE_APPS,'Database App Manager Right Group','App Manager');
       rg.AddRight(_NewRight(cSYSR_INSTALL_APP));
       rg.AddRight(_NewRight(cSYSR_UNINSTALL_APP));
-      rg.setDomainID(domain_id);
-      FSysRoles.Store(TFRE_DB_Object(rg));
+      rg.SetDomainIDLink(domain_id);
+      rg.SetDomainID(domain_id);
+      FSysRoles._InternalStore(TFRE_DB_Object(rg));
     end;
     procedure SetupUserRole;
     var rg:TFRE_DB_ROLE;
@@ -3920,8 +3933,9 @@ var domain_id : TGUID;
       rg.AddRight(_NewRight(cSYSR_WRITE_DBO));
       rg.AddRight(_NewRight(cSYSR_DELETE_DBO));
       rg.AddRight(_NewRight(cSYSR_EXEC_DBO));
-      rg.setDomainID(domain_id);
-      FSysRoles.Store(TFRE_DB_Object(rg));
+      rg.SetDomainIDLink(domain_id);
+      rg.SetDomainID(domain_id);
+      FSysRoles._InternalStore(TFRE_DB_Object(rg));
     end;
     procedure SetupGuestRole;
     var rg:TFRE_DB_ROLE;
@@ -3929,8 +3943,9 @@ var domain_id : TGUID;
       rg := _NewRole(cSYSROLE_DB_GUEST,'Database Guest Right Group','User');
       rg.AddRight(_NewRight(cSYSR_LOGIN_DB));
       rg.AddRight(_NewRight(cSYSR_EXEC_DBO));
-      rg.setDomainID(domain_id);
-      FSysRoles.Store(TFRE_DB_Object(rg));
+      rg.SetDomainIDLink(domain_id);
+      rg.SetDomainID(domain_id);
+      FSysRoles._InternalStore(TFRE_DB_Object(rg));
     end;
 
   begin
@@ -3983,7 +3998,7 @@ var domain_id : TGUID;
     if not _GroupExists(cSYSUG_ADMIN_USERS+'@'+domain) then
       begin
         ug          := _NewGroup(cSYSUG_ADMIN_USERS,'Administrative Database Users','DB ADMINS');
-        ug.DomainID := domain_id;
+        ug.SetDomainIDLink(domain_id);
         ug_name     := ug.ObjectName+'@'+domain;
         FSysGroups.Store(TFRE_DB_Object(ug));
         CheckDbResult(_SetGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_ADMIN+'@'+domain,cSYSROLE_DB_MANAGE+'@'+domain,cSYSROLE_DB_USER+'@'+domain,cSYSROLE_MANAGE_APPS+'@'+domain,FREDB_Get_Rightname_UID('EDITDOM',domain_id)+'@'+domain])),'initial assignment of admin rgs to ugs failed');
@@ -3993,7 +4008,7 @@ var domain_id : TGUID;
     if not _GroupExists(cSYSUG_MANAGE_USERS+'@'+domain) then
       begin
         ug          := _NewGroup(cSYSUG_MANAGE_USERS,'User Management Group','DB Manager');
-        ug.DomainID := domain_id;
+        ug.SetDomainIDLink(domain_id);
         ug_name     := ug.ObjectName+'@'+domain;
         FSysGroups.Store(TFRE_DB_Object(ug));
         CheckDbResult(_SetGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_MANAGE+'@'+domain,cSYSROLE_DB_USER+'@'+domain,FREDB_Get_Rightname_UID('VIEWDOM',domain_id)+'@'+domain])),'initial assignment of manage rgs to ugs failed');
@@ -4003,7 +4018,7 @@ var domain_id : TGUID;
     if not _GroupExists(cSYSUG_DB_USERS+'@'+domain) then
       begin
         ug          := _NewGroup(cSYSUG_DB_USERS,'Database Users','DB USERS');
-        ug.DomainID := domain_id;
+        ug.SetDomainIDLink(domain_id);
         ug_name     := ug.ObjectName+'@'+domain;
         FSysGroups.Store(TFRE_DB_Object(ug));
         CheckDbResult(_SetGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_USER+'@'+domain,FREDB_Get_Rightname_UID('VIEWDOM',domain_id)+'@'+domain])),'initial assignment of user rgs to ugs failed');
@@ -4011,7 +4026,7 @@ var domain_id : TGUID;
     if not _GroupExists(cSYSUG_DB_GUESTS+'@'+domain) then
       begin
         ug          := _NewGroup(cSYSUG_DB_GUESTS,'Database Guest Users','DB USERS');
-        ug.DomainID := domain_id;
+        ug.SetDomainIDLink(domain_id);
         ug_name     := ug.ObjectName+'@'+domain;
         FSysGroups.Store(TFRE_DB_Object(ug));
         CheckDbResult(_SetGroupRoles(ug_name,GFRE_DB.ConstructStringArray([cSYSROLE_DB_GUEST+'@'+domain])),'initial assignment of user rgs to ugs failed');
@@ -4315,6 +4330,8 @@ var l_Group          : TFRE_DB_GROUP;
     role             : TFRE_DB_ROLE;
     i                :  integer;
 begin
+  for i := 0 to high(roles) do
+    roles[i] := lowercase(roles[i]);
   if not _FetchGroup(groupatdomain,l_group) then exit(edb_NOT_FOUND);
   l_NewRoles        := roles;
   setLength(l_NewRolesID,length(l_NewRoles));
@@ -4464,7 +4481,7 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION._DomainID(const name: TFRE_DB_NameType): TGUID;
 begin
   if not FSysDomains.GetIndexedUID(name,result) then begin
-    result := CFRE_DB_NullGUID;
+    raise EFRE_DB_Exception.Create(edb_ERROR,'could not fetch domainid for '+name);
   end;
 end;
 
@@ -4538,6 +4555,7 @@ begin
         exit;
     end;
   FConnectedUser := _FetchUser(loginatdomain);
+  FMyDomainID    := FConnectedUser.GetDomainIDLink;
   if not assigned(FConnectedUser) then
     Exit(edb_NOT_FOUND);
   if not FConnectedUser.Checkpassword(pass) then
@@ -4752,7 +4770,7 @@ var
   tgroup: TFRE_DB_GROUP;
 begin
   FetchGroupById(group_id,tgroup);
-  result := (tgroup.GetDomainID=FSysDomainUID);
+  result := (tgroup.GetDomainIDLink=FSysDomainUID);
 end;
 
 procedure TFRE_DB_SYSTEM_CONNECTION.ForAllDomainsI(const func: IFRE_DB_Obj_Iterator);
@@ -4766,7 +4784,7 @@ var userid : string;
 begin
   //TODO Errorhandling
   Sessiondata := nil;
-  userid :=  uppercase(FConnectedUser.Login+'@'+GFRE_BT.GUID_2_HexString(FConnectedUser.GetDomainID));
+  userid :=  uppercase(FConnectedUser.Login+'@'+GFRE_BT.GUID_2_HexString(FConnectedUser.GetDomainIDLink));
   result := FSysUserSessionsData.GetIndexedObjI(userid,SessionData);
 end;
 
@@ -4776,7 +4794,7 @@ var userid : string;
 begin
   result := edb_OK;
 exit;// HACK RZNORD -> Buggy
- userid := uppercase(FConnectedUser.Login+'@'+GFRE_BT.GUID_2_HexString(FConnectedUser.GetDomainID));
+ userid := uppercase(FConnectedUser.Login+'@'+GFRE_BT.GUID_2_HexString(FConnectedUser.GetDomainIDLink));
  key    := userid;
  session_data.Field('$LOGIN_KEY').AsString := userid;
  if FSysUserSessionsData.ExistsIndexed(key) then begin
@@ -4885,7 +4903,7 @@ begin
   Result:=edb_ERROR;
   if not _CheckRight(cSYSR_MOD_RIGHT) then exit(edb_ACCESS);
   if domainname<>'' then begin
-    role.SetDomainID(_DomainID(domainname));
+    role.SetDomainIDLink(_DomainID(domainname));
   end else begin
     role.Field('domainrolekey').AsString := role.ObjectName;
   end;
@@ -4917,7 +4935,7 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreGroupDomainbyID(const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
 begin
- group.SetDomainID(domain_id);
+ group.SetDomainIDLink(domain_id);
  result := FSysGroups.Store(TFRE_DB_Object(group));
 end;
 
@@ -5277,8 +5295,12 @@ begin
   if _DomainExists(domainname) then
     exit(edb_EXISTS);
   domain    := _NewDomain(domainname,txt,txt_short);
-
-  result := FSysDomains.Store(TFRE_DB_Object(domain));
+  if domainname=cSYS_DOMAIN then
+    begin
+      FSysDomainUID := domain.UID;
+      domain.SetDomainID(FSysDomainUID);
+    end;
+  result := FSysDomains._InternalStore(TFRE_DB_Object(domain));
   _SetupSystemGroupsandRoles(domainname);
   _ReloadUserAndRights;
   FSysDomains.ForceFullUpdateForObservers;
@@ -7715,6 +7737,12 @@ begin
 
   upnewfieldname := uppercase(newfieldname);
 
+  if upnewfieldname='UID' then
+    raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'It is not allowed to redefine the special UID field.');
+
+  if upnewfieldname='DOMAINID' then
+    raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'It is not allowed to redefine the special DOMAIND field.');
+
   if GetFieldDef(upnewfieldname,lFieldSchemeDefinition) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'AddschemeField: schemefield '+newfieldname+' is already set');
 
@@ -7927,10 +7955,9 @@ begin
         exit;
       end;
     end;
-    if not exists then
-      begin
-        raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'Field <%s> is not defined in Scheme <%s>, and strict access is required.',[name,DefinedSchemeName]);
-      end;
+    if not exists
+       and (upname<>'DOMAINID') then
+         raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'Field <%s> is not defined in Scheme <%s>, and strict access is required.',[name,DefinedSchemeName]);
   end;
 end;
 
@@ -8685,6 +8712,19 @@ begin
  result := Last;
 end;
 
+function TFRE_DB_COLLECTION._InternalStore(var new_obj: TFRE_DB_Object): TFRE_DB_Errortype; //No DomainID check
+var suid   : TGuid;
+    ncolls : TFRE_DB_StringArray;
+begin
+  suid   := new_obj.UID;
+  result := FObjectLinkStore.Store(new_obj,FLasterror,ncolls);
+  if Result=edb_OK then
+    begin
+      Fetch(suid,new_obj);
+      _NotifyObserversOrRecord(fdbntf_INSERT,nil,suid);
+    end;
+end;
+
 //procedure TFRE_DB_COLLECTION.Clear;
 //begin
 //  FObjectLinkStore.Clear;
@@ -8743,20 +8783,13 @@ begin
 end;
 
 function TFRE_DB_COLLECTION.Store(var new_obj: TFRE_DB_Object):TFRE_DB_Errortype;
-var suid   : TGuid;
-    ncolls : TFRE_DB_StringArray;
 begin
-  //if assigned(FManageInfo) then
-  //  _DBConnectionBC._CheckSchemeDefinitions(new_obj);
-  //if assigned(new_obj.FManageInfo) then
-  //  new_obj.FManageInfo := nil;
-  suid   := new_obj.UID;
-  result := FObjectLinkStore.Store(new_obj,FLasterror,ncolls);
-  if Result=edb_OK then
-    begin
-      Fetch(suid,new_obj);
-      _NotifyObserversOrRecord(fdbntf_INSERT,nil,suid);
-    end;
+  if new_obj.DomainID<>CFRE_DB_NullGUID then
+    if true then //not CheckRightforDomainChange then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects with a set domainid field!')
+  else
+    new_obj.SetDomainID(FConnection.GetMyDomainID);
+  _InternalStore(new_obj);
 end;
 
 
@@ -9873,6 +9906,16 @@ begin
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'Upcast failed basecass : '+self.ClassName);
 end;
 
+function TFRE_DB_BASE_CONNECTION.GetMyDomainID: TGUID;
+begin
+  result := FMyDomainID;
+end;
+
+function TFRE_DB_BASE_CONNECTION.GetMyDomainID_String: TGUID_String;
+begin
+  result := uppercase(GFRE_BT.GUID_2_HexString(FMyDomainID));
+end;
+
 //function TFRE_DB_BASE_CONNECTION.Store(var new_obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType): TFRE_DB_Errortype;
 //begin
 //  if collection_name='' then
@@ -10661,7 +10704,7 @@ begin
  _storeText('$scheme_TFRE_DB_USER_passwordMD5','Password');
  _storeText('$scheme_TFRE_DB_USER_picture','Picture');
  _storeText('$scheme_TFRE_DB_USER_domain_group','Domain');
- _storeText('$scheme_TFRE_DB_USER_domainid','Domain');
+ _storeText('$scheme_TFRE_DB_USER_domainidlink','Domain');
 
  _storeText('$scheme_TFRE_DB_GROUP_group_group','Group');
  _storeText('$scheme_TFRE_DB_GROUP_group_domain','Domain');
@@ -11737,7 +11780,7 @@ end;
 
 function TFRE_DB_Object.InternalUniqueDebugKey: String;
 begin
-  WriteStr(result,'(',FREDB_ObjectToPtrUInt(self),'-',ClassName,'[',GFRE_BT.GUID_2_HexString(FUID),' ',BoolToStr(assigned(Parent),'C','R'),')');
+  WriteStr(result,'(',FREDB_ObjectToPtrUInt(self),'-',ClassName,'[',GFRE_BT.GUID_2_HexString(FUID)+'/'+GFRE_BT.GUID_2_HexString(FDomainID),' ',BoolToStr(assigned(Parent),'C','R'),')');
 end;
 
 
@@ -11926,9 +11969,24 @@ begin
   result := FUID;
 end;
 
+function TFRE_DB_Object.DomainID: TGUID;
+begin
+ result := FDomainID;
+end;
+
+function TFRE_DB_Object.DomainID_String: TGUID_String;
+begin
+ result := GFRE_BT.GUID_2_HexString(FDomainID);
+end;
+
+procedure TFRE_DB_Object.SetDomainID(const domid: TGUID);
+begin
+  _field('domainid').AsGUID:=domid;
+end;
+
 function TFRE_DB_Object.UID_String: TGUID_String;
 begin
-  result := GFRE_BT.GUID_2_HexString(UID);
+  result := GFRE_BT.GUID_2_HexString(FUID);
 end;
 
 function TFRE_DB_Object.UIDP: PByte;
@@ -11940,11 +11998,12 @@ end;
 constructor TFRE_DB_Object.Create;
 begin
   inherited Create;
-  FDBO_State           := fdbos_Creating;
-  FObjectProps         := [];
-  FFieldStore          := _TFRE_DB_FieldTree.Create(@FREDB_DBNameType_Compare);
-  FUID                 := GFRE_DB.Get_A_GUID;
-  _RestoreUID          ;
+  FDBO_State             := fdbos_Creating;
+  FObjectProps           := [];
+  FFieldStore            := _TFRE_DB_FieldTree.Create(@FREDB_DBNameType_Compare);
+  FUID                   := GFRE_DB.Get_A_GUID;
+  FDomainID              := CFRE_DB_NullGUID;
+  _RestoreUIDandDomainID ;
   InternalSetup;
   assert(FDBO_State=fdbos_Creating);
   FDBO_State:=fdbos_Dirty;
@@ -11955,7 +12014,7 @@ begin
   inherited Create;
   FDBO_State             := fdbos_StreamingCreating;
   FFieldStore            := _TFRE_DB_FieldTree.Create(@FREDB_DBNameType_Compare);
-  _RestoreUID            ;
+  _RestoreUIDandDomainID ;
   if assigned(ExtensionObjectMediatorClass) then begin
     FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self,false);
   end;
@@ -12064,9 +12123,10 @@ begin
   result := Field(name);
 end;
 
-procedure TFRE_DB_Object._RestoreUID;
+procedure TFRE_DB_Object._RestoreUIDandDomainID;
 begin
-  _Field('UID').AsGUID := FUID;
+  _Field('UID').AsGUID      := FUID;
+  _Field('DomainID').AsGUID := FDomainID;
 end;
 
 procedure TFRE_DB_Object.ForAll(const iter: TFRE_DB_FieldIterator);
@@ -12153,6 +12213,8 @@ begin
     lfield.FFieldname := keyp;
     if name='UID' then
       lfield.FIsUidField:= true;
+    if name='DOMAINID' then
+      lfield.FIsDomainIDField := true;
     result := lfield;
   end;
   if lfield.IsFieldCalculated then
@@ -12482,7 +12544,8 @@ begin
         begin
           if generate_new_uids then
             _Field('UID').AsGUID := GFRE_DB.Get_A_Guid;
-          FUID := _Field('UID').AsGUID;
+          FUID       := _Field('UID').AsGUID;
+          FDomainID  := _Field('DomainID').AsGUID;
         end;
     end;
   end;
@@ -12758,7 +12821,7 @@ procedure TFRE_DB_Object.ClearAllFields;
 
   procedure ClearField(const fld:TFRE_DB_FIELD);
   begin
-    if fld.FIsUidField then
+    if fld.FIsUidField or fld.FIsDomainIDField then
       exit;
     fld.Free;
   end;
@@ -12766,7 +12829,7 @@ procedure TFRE_DB_Object.ClearAllFields;
 begin
   _InAccessibleCheck;
   FFieldStore.ClearItems(@ClearField);
-  _RestoreUID;
+  _RestoreUIDandDomainID;
 end;
 
 function TFRE_DB_Object.FieldExists(const name: TFRE_DB_String): boolean;
@@ -14436,10 +14499,10 @@ begin
   end;
 end;
 
-procedure TFRE_DB_FIELD._NotAllowedOnUIDFieldCheck;
+procedure TFRE_DB_FIELD._NotAllowedOnUIDorDomainIDFieldCheck;
 begin
-  if FIsUidField then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'operation not allowed on special UID field!');
+  if FIsUidField or FIsDomainIDField then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'operation not allowed on special UID or DomainID field!');
 end;
 
 function TFRE_DB_FIELD._GetAsGUID: TGuid;
@@ -15091,12 +15154,14 @@ begin
   FFieldData.guid^[0]:=AValue;
   if FIsUidField then
     Fobj.FUID := AValue;
+  if FIsDomainIDField then
+    Fobj.FDomainID := Avalue;
 end;
 
 procedure TFRE_DB_FIELD.SetAsGUIDArray(const AValue: TFRE_DB_GUIDArray);
 begin
   _InAccessibleFieldCheck;
-  _NotAllowedOnUIDFieldCheck;
+  _NotAllowedOnUIDorDomainIDFieldCheck;
   if not _CheckStoreType(fdbft_GUID) then begin
     FFieldData.FieldType := fdbft_GUID;
     New(FFieldData.guid);
@@ -15107,7 +15172,7 @@ end;
 procedure TFRE_DB_FIELD.SetAsGUIDList(idx: Integer; const AValue: TGUID);
 begin
   _InAccessibleFieldCheck;
-  _NotAllowedOnUIDFieldCheck;
+  _NotAllowedOnUIDorDomainIDFieldCheck;
   if not _CheckStoreType(fdbft_GUID) then begin
     New(FFieldData.guid);
   end;
@@ -15373,6 +15438,12 @@ begin
   result := FIsUidField;
 end;
 
+function TFRE_DB_FIELD.IsDomainIDField: boolean;
+begin
+  _InAccessibleFieldCheck;
+  result := FIsDomainIDField;
+end;
+
 function TFRE_DB_FIELD.IsObjectField: boolean;
 begin
  _InAccessibleFieldCheck;
@@ -15558,13 +15629,13 @@ var A:TFRE_DB_GUIDArray;
 begin
   _InAccessibleFieldCheck;
   if not _CheckStoreType(fdbft_GUID) then begin
-    _NotAllowedOnUIDFieldCheck;
+    _NotAllowedOnUIDorDomainIDFieldCheck;
     FFieldData.FieldType := fdbft_GUID;
     New(FFieldData.guid);
     SetLength(FFieldData.guid^,1);
     FFieldData.guid^[0] := value;
   end else begin
-    _NotAllowedOnUIDFieldCheck;
+    _NotAllowedOnUIDorDomainIDFieldCheck;
     A := AsGUIDArr;
     l := Length(a);
     SetLength(A,l+1);
@@ -16664,18 +16735,17 @@ end;
 function TFRE_DB_USER.GetDomain(const conn: IFRE_DB_CONNECTION): TFRE_DB_NameType;
 var lDomain      : IFRE_DB_DOMAIN;
 begin
-  if conn.FetchDomainById(GetDomainID,lDomain)<>edb_OK then begin
-    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(GetDomainID));
+  if conn.FetchDomainById(GetDomainIDLink,lDomain)<>edb_OK then begin
+    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(GetDomainIDLink));
   end else begin
     result := lDomain.GetName;
   end;
 end;
-function TFRE_DB_USER.GetDomainID: TGUID;
+
+
+function TFRE_DB_USER.GetDomainIDLink: TGUID;
 begin
-  if fieldExists('domainid') then
-    result := Field('domainid').AsObjectLink
-  else
-    result := GUID_NULL;
+  result := Field('DOMAINIDLINK').AsObjectLink;
 end;
 
 function TFRE_DB_USER.GetFirstName: TFRE_DB_String;
@@ -16714,28 +16784,15 @@ begin
   _UpdateDomainLoginKey;
 end;
 
-procedure TFRE_DB_USER.SetDomainID(AValue: TGUID);
+procedure TFRE_DB_USER.SetDomainIDLink(AValue: TGUID);
 begin
   Field('domainid').AsObjectLink := AValue;
   _UpdateDomainLoginKey;
 end;
 
-//procedure TFRE_DB_USER.SetDomain(const domainname: TFRE_DB_NameType);
-//var syscon       : TFRE_DB_SYSTEM_CONNECTION;
-//    l_domainid   : TGUID;
-//begin
-//  syscon     := _DBConnectionBC as TFRE_DB_SYSTEM_CONNECTION;
-//  l_domainid := syscon._DomainID(domainname);
-//  if l_domainid=GUID_NULL then begin
-//    raise EFRE_DB_Exception.Create('Could not fetch domain by name '+domainname);
-//  end else begin
-//    SetDomainID(l_domainid);
-//  end;
-//end;
-
 procedure TFRE_DB_USER._UpdateDomainLoginKey;
 begin
-  field('domainloginkey').AsString := GetDomainLoginKey(login,getdomainid);
+  field('domainloginkey').AsString := GetDomainLoginKey(login,GetDomainIDLink);
 end;
 
 procedure TFRE_DB_USER.InternalSetup;
@@ -16761,13 +16818,13 @@ begin
   Field('picture').AsStream := image_stream;
 end;
 
-procedure TFRE_DB_USER.InitData(const nlogin, nfirst, nlast, npasswd: TFRE_DB_String; const domainid: TGuid);
+procedure TFRE_DB_USER.InitData(const nlogin, nfirst, nlast, npasswd: TFRE_DB_String; const userdomainid: TGuid);
 begin
   Login          := nlogin;
   Firstname      := nfirst;
   Lastname       := nlast;
   SetPassword(npasswd);
-  SetDomainID(domainid);
+  SetDomainIDLink(userdomainid);
 end;
 
 procedure TFRE_DB_USER.SetPassword(const pw: TFRE_DB_String);
@@ -16793,7 +16850,7 @@ begin
   scheme.AddSchemeField('lastname',fdbft_String);
   scheme.AddSchemeField('passwordMD5',fdbft_String).SetupFieldDef(true,false,'','',true,true);
   scheme.AddSchemeField('usergroupids',fdbft_ObjLink).SetupFieldDef(false,true);
-  scheme.AddSchemeField('domainid',fdbft_ObjLink).SetupFieldDef(true,false);
+  scheme.AddSchemeField('domainidlink',fdbft_ObjLink).SetupFieldDef(true,false);
   scheme.AddSchemeField('domainloginkey',fdbft_String).SetupFieldDef(true,false);
 
   field_def := scheme.AddSchemeField('picture',fdbft_Stream);
@@ -16812,7 +16869,7 @@ begin
   input_group.AddInput('lastname','$scheme_TFRE_DB_USER_lastname');
   input_group.AddInput('passwordMD5','$scheme_TFRE_DB_USER_passwordMD5');
   input_group:=scheme.AddInputGroup('domain').Setup('$scheme_TFRE_DB_USER_domain_group');
-  input_group.AddInput('domainid','$scheme_TFRE_DB_USER_domainid',false,false,'$SDC:USERMOD_DOMAINS'); // HACK: Fix Domain Name with session prefix
+  input_group.AddInput('domainidlink','$scheme_TFRE_DB_USER_domainidlink',false,false,'$SDC:USERMOD_DOMAINS'); // HACK: Fix Domain Name with session prefix
   input_group:=scheme.AddInputGroup('descr').Setup('$scheme_TFRE_DB_USER_descr_group');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc');
   input_group:=scheme.AddInputGroup('picture').Setup('$scheme_TFRE_DB_USER_picture_group');
@@ -16845,7 +16902,7 @@ begin
  fn      := data.Field('firstname').AsString;
  ln      := data.field('lastname').AsString;
 
- dbc.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainid').AsString),obj);
+ dbc.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainidlink').AsString),obj);
  dn := obj.GetName;
  writeln('dn:',dn);
  if pw<>pwc then

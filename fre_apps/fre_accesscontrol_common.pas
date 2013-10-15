@@ -189,7 +189,7 @@ begin
     end;
     userin_Grid := session.NewDerivedCollection('DOMAINMOD_USERIN_GRID');
     with userin_Grid do begin
-      SetReferentialLinkMode('TFRE_DB_USER|DOMAINID',false);
+      SetReferentialLinkMode('TFRE_DB_USER|DOMAINIDLINK',false);
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppText(conn,'$gcap_UinD').Getshort);
     end;
@@ -200,7 +200,7 @@ begin
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
     with groupin_Grid do begin
-      SetReferentialLinkMode('TFRE_DB_GROUP|DOMAINID',false);
+      SetReferentialLinkMode('TFRE_DB_GROUP|DOMAINIDLINK',false);
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppText(conn,'$gcap_GinD').Getshort);
     end;
@@ -466,13 +466,13 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
     with tr_Role do begin
       AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'ROLE_DESC',app.FetchAppText(conn,'$gc_role').Getshort);
-      AddMatchingReferencedField('domainid','objname','domain',app.FetchAppText(conn,'$gc_domainname').Getshort);
+      AddMatchingReferencedField('DOMAINIDLINK','objname','domain',app.FetchAppText(conn,'$gc_domainname').Getshort);
    end;
     role_Grid := session.NewDerivedCollection('ROLEMOD_ROLE_GRID');
     with role_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetDeriveTransformation(tr_role);
-      AddRightFilterForEntryAndUser('RF','VIEWDOM','DOMAINID');
+      AddRightFilterForEntryAndUser('RF','VIEWDOM','DOMAINIDLINK');
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',nil,nil,CWSF(@WEB_RoleNotification));
     end;
 
@@ -622,12 +622,12 @@ begin
     sel_guid := input.Field('SELECTED').AsGUID;
     if not conn.Fetch(sel_guid,role) then
       raise EFRE_DB_Exception.create(edb_INTERNAL,'role fetch failed)');
-    sel_guid := role.Field('domainid').AsGUID;
+    sel_guid := role.Field('DOMAINIDLINK').AsGUID;
     role.Finalize;
     dc_groupout := ses.FetchDerivedCollection('ROLEMOD_GROUPOUT_GRID');
-    dc_groupout.AddUIDFieldFilter('*domain*','domainid',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
+    dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
     dc_userout := ses.FetchDerivedCollection('ROLEMOD_USEROUT_GRID');
-    dc_userout.AddUIDFieldFilter('*domain*','domainid',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
+    dc_userout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
   end;
 
   result := GFRE_DB_NIL_DESC;
@@ -746,13 +746,13 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
       AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'GROUP_DESC',app.FetchAppText(conn,'$gc_group').Getshort);
-      AddMatchingReferencedField('domainid','objname','domain',app.FetchAppText(conn,'$gc_domainname').Getshort);
+      AddMatchingReferencedField('DOMAINIDLINK','objname','domain',app.FetchAppText(conn,'$gc_domainname').Getshort);
     end;
     group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_GRID');
     with group_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetDeriveTransformation(tr_Grid);
-      AddRightFilterForEntryAndUser('RF','VIEWDOM','DOMAINID');
+      AddRightFilterForEntryAndUser('RF','VIEWDOM','DOMAINIDLINK');
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
     end;
 
@@ -1044,12 +1044,12 @@ begin
     sel_guid := input.Field('SELECTED').AsGUID;
     if not GetDBConnection(input).Fetch(sel_guid,group) then
       raise EFRE_DB_Exception.create(edb_INTERNAL,'group fetch failed)');
-    sel_guid := group.Field('domainid').AsGUID;
+    sel_guid := group.Field('DOMAINIDLINK').AsGUID;
     group.Finalize;
     dc_userout := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
-    dc_userout.AddUIDFieldFilter('*domain*','domainid',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
+    dc_userout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
     dc_roleout := ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
-    dc_roleout.AddUIDFieldFilter('*domain*','domainid',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
+    dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
   end;
   result := GFRE_DB_NIL_DESC;
 end;
@@ -1302,7 +1302,7 @@ begin
       AddOneToOnescheme    ('login','',app.FetchAppText(conn,'$gc_username').Getshort);
       AddOneToOnescheme    ('firstname','',app.FetchAppText(conn,'$gc_firstname').Getshort);
       AddOneToOnescheme    ('lastname','',app.FetchAppText(conn,'$gc_lastname').Getshort);
-      AddMatchingReferencedField('domainid','objname','domain',app.FetchAppText(conn,'$gc_domainname').Getshort);
+      AddMatchingReferencedField('DOMAINIDLINK','objname','domain',app.FetchAppText(conn,'$gc_domainname').Getshort);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Domains);
@@ -1314,7 +1314,7 @@ begin
     with user_grid do begin
       SetDeriveParent           (session.GetDBConnection.AdmGetUserCollection);
       SetDeriveTransformation   (tr_Grid);
-      AddRightFilterForEntryAndUser('RF','VIEWDOM','DOMAINID');
+      AddRightFilterForEntryAndUser('RF','VIEWDOM','DOMAINIDLINK');
       SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
     end;
 
@@ -1442,12 +1442,12 @@ begin
     user_guid := input.Field('SELECTED').AsGUID; // is user
     if not conn.Fetch(user_guid,user) then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppText(ses,'$error_fetch_user_msg').Getshort,'%user%',GUIDToString(user_guid),[rfReplaceAll]));
-    sel_guid := user.Field('domainid').AsGUID;
+    sel_guid := user.Field('DOMAINIDLINK').AsGUID;
     user.Finalize;
     dc_groupout := ses.FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
-    dc_groupout.AddUIDFieldFilter('*domain*','domainid',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
+    dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
     dc_roleout  := ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
-    dc_roleout.AddUIDFieldFilter('*domain*','domainid',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
+    dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
   end;
   if IsContentUpdateVisible(ses,'USER_INFO') then begin
     Result:=WEB_ContentInfo(input,ses,app,conn);

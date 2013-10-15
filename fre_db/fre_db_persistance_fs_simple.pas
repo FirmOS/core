@@ -754,10 +754,18 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     i                   : NativeInt;
     changes             : Boolean;
 
+  procedure GeneralChecks;
+  begin
+    //TODOENABLE
+    //if obj.DomainID=CFRE_DB_NullGUID then
+    //  raise EFRE_DB_Exception.Create(edb_ERROR,'persistance failure, an object without a domianid cannot be stored');
+  end;
+
 begin
   CleanApply := false;
   try
     try
+      GeneralChecks;
       if store then
         begin
           //if collection_name='' then
