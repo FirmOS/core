@@ -515,7 +515,7 @@ var conn : IFRE_DB_SYS_CONNECTION;
 
       CreateAppUserGroups('certificate',domain);
 
-      if domain=cSYS_DOMAIN then begin
+      if domain=CFRE_DB_SYS_DOMAIN_NAME then begin
         _addUsertoGroup('admin1',adminug);
         _addUsertoGroup('admin2',adminug);
         _addUsertoGroup('feeder',adminug);
@@ -540,7 +540,7 @@ var conn : IFRE_DB_SYS_CONNECTION;
     begin
       CONN  := GFRE_DBI.NewConnection;
       try
-        CONN.Connect(dbname,'admin'+'@'+cSYS_DOMAIN,'admin');
+        CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
         COLL  := CONN.Collection('ca');
         COLLC := CONN.Collection('certificate');
       finally
@@ -551,7 +551,7 @@ var conn : IFRE_DB_SYS_CONNECTION;
 begin
   CONN := GFRE_DBI.NewSysOnlyConnection;
   try
-    res  := CONN.Connect('admin@'+cSYS_DOMAIN,'admin');
+    res  := CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
     if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
       conn.InstallAppDefaults('certificate');
       conn.ForAllDomains(@_addUsertoGroupsforDomain);

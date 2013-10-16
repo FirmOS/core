@@ -44,7 +44,7 @@ interface
 uses
   Classes, SysUtils, CustApp,
   FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
-  FRE_DB_CORE,fre_db_serverdefaults,FRE_DB_SYSRIGHT_CONSTANTS,
+  FRE_DB_CORE,fre_db_serverdefaults,
 
   fre_dbbase,fre_openssl_cmd,
 
@@ -82,7 +82,8 @@ type
     procedure   WriteVersion       ;
     procedure   ReCreateDB         ;
     procedure   ReCreateSysDB      ;
-    procedure   ReCreateTestUser   ;
+    procedure   GenerateTestdata   ;
+    procedure   DoUnitTest         ;
     procedure   ShowTestUserRoles  ;
     procedure   InitExtensions     ;
     procedure   RemoveExtensions   ;
@@ -157,8 +158,8 @@ var ErrorMsg : String;
 begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
   ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',
-                          ['help','version','init','remove','list','graph','forcedb','forcesysdb','testuser','dumpdb','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start']);
+                          ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','dumpdb','debugger','file:','extensions:','user:','pass:',
+                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -252,6 +253,7 @@ begin
 
   FinishStartup;
 
+
   if HasOption('x','forcedb') then begin
     FOnlyInitDB:=true;
     ReCreateDB;
@@ -262,22 +264,9 @@ begin
     ReCreateSysDB;
   end;
 
-  if HasOption('t','testuser') then begin
-    FOnlyInitDB:=true;
-    ReCreateTestUser;
-    ShowTestUserRoles;
-  end;
-
-  if HasOption('s','style') then begin
-    cFRE_WEB_STYLE := GetOptionValue('s','style');
-  end else begin
-    cFRE_WEB_STYLE := FDefaultStyle;
-  end;
-
   if HasOption('i','init') then begin
     FOnlyInitDB:=true;
     InitExtensions;
-    ShowTestUserRoles;
     GFRE_DB_DEFAULT_PS_LAYER.SyncSnapshot(true);
     writeln('>INITIALIZATION DONE');
   end;
@@ -289,6 +278,25 @@ begin
     Terminate;
     Exit;
   end;
+
+  if HasOption('t','testdata') then begin
+    FOnlyInitDB:=true;
+    GenerateTestdata;
+  end;
+
+  if HasOption('*','unittests') then begin
+    FOnlyInitDB:=true;
+    DoUnitTest;
+    Terminate;
+    exit;
+  end;
+
+  if HasOption('s','style') then begin
+    cFRE_WEB_STYLE := GetOptionValue('s','style');
+  end else begin
+    cFRE_WEB_STYLE := FDefaultStyle;
+  end;
+
 
   if HasOption('*','show-users') then
     begin
@@ -376,83 +384,24 @@ begin
   gFRE_InstallServerDefaults;
 end;
 
-procedure TFRE_CLISRV_APP.ReCreateTestUser;
-
-type _tusertype = (utguest,utuser,utadmin,utdemo);
-
-var conn  : IFRE_DB_SYS_CONNECTION;
-    res   : TFRE_DB_Errortype;
-
-    procedure _AddUser(const user: string; const domain : TFRE_DB_NameType; const usertype:_tusertype;firstname:string='';lastname: string='';passwd : string='');
-    var login  : string;
-        ims    : TFRE_DB_Stream;
-    begin
-      login := user+'@'+domain;
-      if passwd='' then begin
-        case usertype of
-         utadmin: passwd:='a1234';
-         utuser:  passwd:='u1234';
-         utdemo:  passwd:='demo1234';
-        end;
-      end;
-      if lastname='' then lastname:='Lastname '+user;
-      if firstname='' then firstname:='Firstname '+user;
-
-      if conn.UserExists(login) then CheckDbResult(conn.DeleteUser(login),'cannot delete user '+login);
-      CheckDbResult(conn.AddUser(login,passwd,firstname,lastname),'cannot add user '+login);
-
-      ims := TFRE_DB_Stream.Create;
-      ims.LoadFromFile(cFRE_SERVER_WWW_ROOT_DIR+'/fre_css/'+ cFRE_WEB_STYLE + '/images/LOGIN.png');
-      conn.ModifyUserImage(login,ims);
-
-    end;
-
+procedure TFRE_CLISRV_APP.GenerateTestdata;
+var conn : IFRE_DB_SYS_CONNECTION;
 begin
   _CheckDBNameSupplied;
-  CONN := GFRE_DBI.NewSysOnlyConnection;
-  try
-    res  := CONN.Connect('admin@'+cSYS_DOMAIN,'admin');
-    if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
-      writeln('delete test domains');
-      if conn.DomainExists('firmos') then CheckDbResult(conn.DeleteDomain('firmos'),'cannot delete domain firmos');
-      if conn.DomainExists('fpc') then CheckDbResult(conn.DeleteDomain('fpc'),'cannot delete domain fpc');
-      if conn.DomainExists('demo') then CheckDbResult(conn.DeleteDomain('demo'),'cannot delete domain demo');
+  //_CheckUserSupplied;
+  //_CheckPassSupplied;
+  writeln('Generate Testdata for extensions :'+uppercase(FChosenExtensionList.Commatext));
+  GFRE_DBI_REG_EXTMGR.GenerateTestData4Exts(FChosenExtensionList,FDBName,FUser,FPass);
+end;
 
-      CheckDbResult(conn.AddDomain('firmos','FirmOS Domain','FirmOS Domain'),'cannot add domain firmos');
-      CheckDbResult(conn.AddDomain('fpc','FPC Domain','FPC Domain'),'cannot add domain fpc');
-      CheckDbResult(conn.AddDomain('demo','Demo Domain','Demo Domain'),'cannot add domain demo');
-
-      writeln('create test users');
-
-      _AddUser('admin1',cSYS_DOMAIN,utadmin);
-      _AddUser('admin2',cSYS_DOMAIN,utadmin);
-      _AddUser('feeder',cSYS_DOMAIN,utadmin);
-      _AddUser('city',cSYS_Domain,utadmin,'','','city');
-
-      _AddUser('user1',cSYS_DOMAIN,utuser);
-      _AddUser('user2',cSYS_DOMAIN,utuser);
-
-      _AddUser('demo1',cSYS_DOMAIN,utdemo);
-      _AddUser('demo2',cSYS_DOMAIN,utdemo);
-
-      _AddUser('myadmin','demo',utadmin);
-      _AddUser('user1','demo',utuser);
-      _AddUser('user2','demo',utuser);
-
-      _AddUser('myadmin','fpc',utadmin);
-      _AddUser('user1','fpc',utuser);
-      _AddUser('user2','fpc',utuser);
-
-      _AddUser('myadmin','firmos',utadmin);
-      _AddUser('user1','firmos',utuser);
-      _AddUser('user2','firmos',utuser);
-      _AddUser('hhartl','firmos',utadmin,'Helmut','Hartl');
-      _AddUser('fschober','firmos',utadmin,'Franz','Schober');
-      _AddUser('ckoch','firmos',utadmin,'Christian','Koch');
-
-    finally
-      conn.Finalize;
-    end;
+procedure TFRE_CLISRV_APP.DoUnitTest;
+var conn : IFRE_DB_SYS_CONNECTION;
+begin
+  _CheckDBNameSupplied;
+  //_CheckUserSupplied;
+  //_CheckPassSupplied;
+  writeln('Generate Testdata for extensions :'+uppercase(FChosenExtensionList.Commatext));
+  GFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(FChosenExtensionList,FDBName,FUser,FPass);
 end;
 
 procedure TFRE_CLISRV_APP.ShowTestUserRoles;
@@ -465,10 +414,10 @@ var conn  : IFRE_DB_SYS_CONNECTION;
 begin
   CONN := GFRE_DBI.NewSysOnlyConnection;
   try
-    res  := CONN.Connect('admin@'+cSYS_DOMAIN,'admin');
+    res  := CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
     if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
     for i:= 1 to 3 do begin
-      login  := 'admin'+inttostr(i)+'@'+cSYS_DOMAIN;
+      login  := 'admin'+inttostr(i)+'@'+CFRE_DB_SYS_DOMAIN_NAME;
       if conn.fetchuser(login,user)=edb_OK then begin
         writeln(login+' : ');
         writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
@@ -478,7 +427,7 @@ begin
     end;
 
     for i:= 1 to 3 do begin
-      login  := 'user'+inttostr(i)+'@'+cSYS_DOMAIN;
+      login  := 'user'+inttostr(i)+'@'+CFRE_DB_SYS_DOMAIN_NAME;
       if conn.fetchuser(login,user)=edb_OK then begin
         writeln(login+' : ');
         writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
@@ -486,13 +435,13 @@ begin
       end;
      end;
 
-    if conn.fetchuser('guest'+'@'+cSYS_DOMAIN,user)=edb_OK then begin
+    if conn.fetchuser('guest'+'@'+CFRE_DB_SYS_DOMAIN_NAME,user)=edb_OK then begin
       writeln('GUEST : ');
       writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
       writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForGroups(user.GetUserGroupIDS)));
     end;
 
-    if conn.fetchuser('ADMIN'+'@'+cSYS_DOMAIN,user)=edb_OK then begin
+    if conn.fetchuser('ADMIN'+'@'+CFRE_DB_SYS_DOMAIN_NAME,user)=edb_OK then begin
       writeln('ADMIN : ');
       writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
       writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForUser(user)));
@@ -511,10 +460,10 @@ begin
   //_CheckPassSupplied;
   writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
   CONN := GFRE_DBI.NewSysOnlyConnection;
-  CheckDbResult(CONN.Connect('admin@'+cSYS_DOMAIN,'admin'),'cannot connect system db');
+  CheckDbResult(CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin'),'cannot connect system db');
   GFRE_DBI.DBInitializeAllExClasses(conn);
-  GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,FUser,FPass);
   conn.Finalize;
+  GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,FUser,FPass);
 end;
 
 
@@ -577,7 +526,7 @@ var
   CONN: IFRE_DB_SYS_CONNECTION;
 begin
   CONN := GFRE_DBI.NewSysOnlyConnection;
-  CheckDbResult(CONN.Connect('admin@'+cSYS_DOMAIN,'admin'),'cannot connect system db');
+  CheckDbResult(CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin'),'cannot connect system db');
   CONN.DumpSystem;
   CONN.Finalize;
 end;

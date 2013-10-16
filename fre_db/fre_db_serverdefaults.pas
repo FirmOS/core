@@ -42,7 +42,7 @@ unit fre_db_serverdefaults;
 interface
 
 uses
-  Classes, SysUtils, FRE_DB_CORE, FRE_WAPP_DOJO, FRE_DB_INTERFACE,FRE_DB_SYSRIGHT_CONSTANTS;
+  Classes, SysUtils, FRE_DB_CORE, FRE_WAPP_DOJO, FRE_DB_INTERFACE;
 
   function gFRE_InstallServerDefaults: Boolean;
 
@@ -54,7 +54,7 @@ var
   tob:IFRE_DB_TEXT;
 begin
   conn:=GFRE_DBI.NewSysOnlyConnection;
-  CheckDbResult(conn.Connect('admin@'+cSYS_DOMAIN,'admin'),'CANT CONNECT');
+  CheckDbResult(conn.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin'),'CANT CONNECT');
   gWAC_DOJO.InstallTransformDefaults(conn);
   GFRE_DB.InstallDBDefaults(conn);
   conn.Finalize;

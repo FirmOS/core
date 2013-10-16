@@ -48,8 +48,8 @@ uses
   Classes, SysUtils,FOS_TOOL_INTERFACES,unixutil,
   FRE_DB_COMMON,
   FRE_DB_INTERFACE,
-  FRE_DBBUSINESS,
-  FRE_DB_SYSRIGHT_CONSTANTS;
+  FRE_DBBUSINESS,typinfo,
+  fre_accesscontrol_common;
 
 procedure MetaRegister_Test;
 procedure MetaInitializeDatabase_Test(const dbname :string; const user,pass:string);
@@ -62,8 +62,10 @@ type
   { TFRE_DB_TEST_A }
 
   TFRE_DB_TEST_A=class(TFRE_DB_ObjectEx)
+  private
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     procedure   CALC_CalcIconStatus(const calc : IFRE_DB_CALCFIELD_SETTER);
   end;
@@ -73,6 +75,7 @@ type
   TFRE_DB_TEST_B=class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     function        IMI_Content         (const input:IFRE_DB_Object):IFRE_DB_Object;
     function        IMI_ChildrenData    (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -82,6 +85,7 @@ type
 
   TFRE_DB_TEST_ALL_TYPES=class(TFRE_DB_ObjectEx)
   protected
+    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure   Gamble(const id:int64);
     procedure   CALC_Uint32 (const calc : IFRE_DB_CALCFIELD_SETTER);
@@ -95,6 +99,7 @@ type
 
   TFRE_DB_TEST_FILEDIR=class(TFRE_DB_ObjectEx)
   protected
+    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure InternalSetup; override;
     procedure SetIsFile     (const isfile:boolean);
@@ -120,16 +125,16 @@ type
   TFRE_DB_TEST_APP=class(TFRE_DB_APPLICATION)
   private
     procedure       SetupApplicationStructure     ; override;
-    function        InstallAppDefaults            (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype; override;
-    function        InstallRoles                  (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype;
-    function        InstallDomainGroupsandRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; override;
+
+    class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure  InstallDBObjects4Domain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
+    class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); override;
+    class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
 
     procedure       _UpdateSitemap            (const session: TFRE_DB_UserSession);
   protected
     procedure       MySessionInitialize       (const session: TFRE_DB_UserSession); override;
     procedure       MySessionPromotion        (const session: TFRE_DB_UserSession); override;
-    function        CFG_ApplicationUsesRights : boolean; override;
-    function        _ActualVersion            : TFRE_DB_String; override;
   public
     class procedure RegisterSystemScheme      (const scheme:IFRE_DB_SCHEMEOBJECT); override;
   published
@@ -313,41 +318,105 @@ type
 
 implementation
 
-procedure InitializeTestapp(const dbname: string; const user, pass: string);
+procedure GenerateTestData(const dbname: string; const user, pass: string);
+
+type _tusertype = (utguest,utuser,utadmin,utdemo);
+
 var conn  : IFRE_DB_SYS_CONNECTION;
     res   : TFRE_DB_Errortype;
     i     : integer;
     login : string;
+
+  procedure _AddUser(const user: string; const domain : TFRE_DB_NameType; const usertype:_tusertype;firstname:string='';lastname: string='';passwd : string='');
+  var login  : string;
+      ims    : TFRE_DB_Stream;
+  begin
+    login := user+'@'+domain;
+    if passwd='' then begin
+      case usertype of
+       utadmin: passwd:='a';
+       utuser:  passwd:='u';
+       utdemo:  passwd:='demo1234';
+      end;
+    end;
+    if lastname='' then lastname:='Lastname '+user;
+    if firstname='' then firstname:='Firstname '+user;
+
+    if conn.UserExists(login) then CheckDbResult(conn.DeleteUser(login),'cannot delete user '+login);
+    CheckDbResult(conn.AddUser(login,passwd,firstname,lastname),'cannot add user '+login);
+
+    //ims := TFRE_DB_Stream.Create;
+    //ims.LoadFromFile(cFRE_SERVER_WWW_ROOT_DIR+'/fre_css/'+ cFRE_WEB_STYLE + '/images/LOGIN.png');
+    //conn.ModifyUserImage(login,ims);
+  end;
+
 begin
   CONN := GFRE_DBI.NewSysOnlyConnection;
   try
-    res  := CONN.Connect('admin'+'@'+cSYS_DOMAIN,'admin');
-    if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
+    res  := CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
+    if res<>edb_OK then
+      gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
 
-abort;      //conn.InstallAppDefaults('TESTAPP');
+    if conn.DomainExists('firmos') then CheckDbResult(conn.DeleteDomain('firmos'),'cannot delete domain firmos');
+    if conn.DomainExists('fpc') then CheckDbResult(conn.DeleteDomain('fpc'),'cannot delete domain fpc');
+    if conn.DomainExists('demo') then CheckDbResult(conn.DeleteDomain('demo'),'cannot delete domain demo');
 
-      for i:= 1 to 3 do begin
-        login  := 'admin'+inttostr(i)+'@'+cSYS_DOMAIN;
-        if conn.UserExists(login) then begin
-          writeln('Modify Groups for User '+login);
-          CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray([Get_Groupname_App_Group_Subgroup('testapp','ADMIN'+'@'+cSYS_DOMAIN),Get_Groupname_App_Group_Subgroup('testapp','USER'+'@'+cSYS_DOMAIN)]),true),'cannot set user groups '+login);
-        end;
-      end;
+    CheckDbResult(conn.AddDomain('firmos','FirmOS Domain','FirmOS Domain'),'cannot add domain firmos');
+    CheckDbResult(conn.AddDomain('fpc','FPC Domain','FPC Domain'),'cannot add domain fpc');
+    CheckDbResult(conn.AddDomain('demo','Demo Domain','Demo Domain'),'cannot add domain demo');
 
-      for i:= 1 to 3 do begin
-        login  := 'user'+inttostr(i)+'@'+cSYS_DOMAIN;
-        if conn.UserExists(login) then begin
-          writeln('Modify Groups for User '+login);
-          CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray([Get_Groupname_App_Group_Subgroup('testapp','USER'+'@'+cSYS_DOMAIN)]),true),'cannot set user groups '+login);
-        end;
-      end;
+    writeln('create test users');
 
-    login  := 'feeder@'+cSYS_DOMAIN;
-    if conn.UserExists(login) then begin
-      writeln('Modify Groups for User '+login);
-      CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray([Get_Groupname_App_Group_Subgroup('testapp','ADMIN'+'@'+cSYS_DOMAIN),Get_Groupname_App_Group_Subgroup('testapp','USER'+'@'+cSYS_DOMAIN)]),true),'cannot set user groups '+login);
-    end;
+    _AddUser('admin1',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
+    _AddUser('admin2',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
+    _AddUser('feeder',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
+    _AddUser('city',CFRE_DB_SYS_DOMAIN_NAME,utadmin,'','','city');
 
+    _AddUser('user1',CFRE_DB_SYS_DOMAIN_NAME,utuser);
+    _AddUser('user2',CFRE_DB_SYS_DOMAIN_NAME,utuser);
+
+    _AddUser('demo1',CFRE_DB_SYS_DOMAIN_NAME,utdemo);
+    _AddUser('demo2',CFRE_DB_SYS_DOMAIN_NAME,utdemo);
+
+    _AddUser('myadmin','demo',utadmin);
+    _AddUser('user1','demo',utuser);
+    _AddUser('user2','demo',utuser);
+
+    _AddUser('myadmin','fpc',utadmin);
+    _AddUser('user1','fpc',utuser);
+    _AddUser('user2','fpc',utuser);
+
+    _AddUser('myadmin','firmos',utadmin);
+    _AddUser('user1','firmos',utuser);
+    _AddUser('user2','firmos',utuser);
+    _AddUser('hhartl','firmos',utadmin,'Helmut','Hartl');
+    _AddUser('fschober','firmos',utadmin,'Franz','Schober');
+    _AddUser('ckoch','firmos',utadmin,'Christian','Koch');
+
+    //abort;
+    //for i:= 1 to 3 do begin
+    //    login  := 'admin'+inttostr(i)+'@'+CFRE_DB_SYS_DOMAIN_NAME;
+    //    if conn.UserExists(login) then begin
+    //      writeln('Modify Groups for User '+login);
+    //      CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray([Get_Groupname_App_Group_Subgroup('testapp','ADMIN'+'@'+CFRE_DB_SYS_DOMAIN_NAME),Get_Groupname_App_Group_Subgroup('testapp','USER'+'@'+CFRE_DB_SYS_DOMAIN_NAME)]),true),'cannot set user groups '+login);
+    //    end;
+    //  end;
+    //
+    //  for i:= 1 to 3 do begin
+    //    login  := 'user'+inttostr(i)+'@'+CFRE_DB_SYS_DOMAIN_NAME;
+    //    if conn.UserExists(login) then begin
+    //      writeln('Modify Groups for User '+login);
+    //      CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray([Get_Groupname_App_Group_Subgroup('testapp','USER'+'@'+CFRE_DB_SYS_DOMAIN_NAME)]),true),'cannot set user groups '+login);
+    //    end;
+    //  end;
+    //
+    //login  := 'feeder@'+CFRE_DB_SYS_DOMAIN_NAME;
+    //if conn.UserExists(login) then begin
+    //  writeln('Modify Groups for User '+login);
+    //  CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray([Get_Groupname_App_Group_Subgroup('testapp','ADMIN'+'@'+CFRE_DB_SYS_DOMAIN_NAME),Get_Groupname_App_Group_Subgroup('testapp','USER'+'@'+CFRE_DB_SYS_DOMAIN_NAME)]),true),'cannot set user groups '+login);
+    //end;
+
+    CreateTestdata(dbname,user,pass);
 
   finally
     conn.Finalize;
@@ -355,6 +424,11 @@ abort;      //conn.InstallAppDefaults('TESTAPP');
 end;
 
 { TFRE_DB_TEST_FILEDIR }
+
+class procedure TFRE_DB_TEST_FILEDIR.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId := '1.0';
+end;
 
 class procedure TFRE_DB_TEST_FILEDIR.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
@@ -1018,6 +1092,11 @@ begin
   input_group.AddInput('icon','Icon');
 end;
 
+class procedure TFRE_DB_TEST_B.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId := '1.0';
+end;
+
 function TFRE_DB_TEST_B.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
 var
   res   : TFRE_DB_FORM_DESC;
@@ -1111,6 +1190,11 @@ begin
 end;
 
 { TFRE_DB_TEST_ALL_TYPES }
+
+class procedure TFRE_DB_TEST_ALL_TYPES.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId := '1.0';
+end;
 
 class procedure TFRE_DB_TEST_ALL_TYPES.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 var
@@ -1517,7 +1601,7 @@ end;
 
 function TFRE_DB_TEST_APP_GRID2_MOD.WEB_HelloWorld(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Hello','World '+ses.GetSessionID+'/'+app.ObjectName+' :: '+input.Field('SELECTED').AsStringDump,fdbmt_info);
+  Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Hello','World '+ses.GetSessionID+'/'+app.AppClassName+' :: '+input.Field('SELECTED').AsStringDump,fdbmt_info);
 end;
 
 function TFRE_DB_TEST_APP_GRID2_MOD.WEB_Menu(const input: IFRE_DB_Object;const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION;const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -1911,7 +1995,6 @@ end;
 
 procedure TFRE_DB_TEST_APP.SetupApplicationStructure;
 begin
-  InitAppDesc('testapp','$description');
   AddApplicationModule(TFRE_DB_TEST_APP_WELCOME_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_GRID_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_GRID2_MOD.create);
@@ -1924,93 +2007,92 @@ begin
   AddApplicationModule(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.create);
 end;
 
-function TFRE_DB_TEST_APP.InstallAppDefaults (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
-var old_version  : TFRE_DB_String;
-
-    procedure _InstallAllDomains(const dom:IFRE_DB_DOMAIN);
+class procedure TFRE_DB_TEST_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  if currentVersionId='' then
     begin
-      InstallDomainGroupsandRoles(conn,dom.Domainname(false));
+      CreateAppText(conn,'$description','Test App','Test App','Test App');
+      CreateAppText(conn,'$vnc_description','VNC Test','VNC Test','VNC Test');
+      CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
+      CreateAppText(conn,'$gtf_description','Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
+      CreateAppText(conn,'$edit_description','Editors','Editors','Editors');
+      CreateAppText(conn,'$chart_description','Chart Test','Chart Test','Chart Test');
+      CreateAppText(conn,'$live_chart_description','Live Chart Test','Live Chart Test','Live Chart Test');
+      CreateAppText(conn,'$grid_description','Grid Test','Grid Test','Grid Test');
+      CreateAppText(conn,'$grid2_description','Grid 2 Test','Grid 2 Test','Grid 2 Test');
+      CreateAppText(conn,'$formtest_description','Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
+      CreateAppText(conn,'$allgrid_description','Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
+      CreateAppText(conn,'$feedbrowsetree_description','Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
+      newVersionId     := '1.0.0';
+      currentVersionId := newVersionId;
+   end;
+  if currentVersionId='1.0.0' then
+    begin
+     //actual vesion
+     newVersionId := currentVersionId;
+     exit;
     end;
-
-begin
-
-  case _CheckVersion(conn,old_version) of
-    NotInstalled : begin
-                      _SetAppdataVersion(conn,_ActualVersion);
-                      conn.ForAllDomains(@_InstallAllDomains);
-                      CreateAppText(conn,'$description','Test App','Test App','Test App');
-                      CreateAppText(conn,'$vnc_description','VNC Test','VNC Test','VNC Test');
-                      CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
-                      CreateAppText(conn,'$gtf_description','Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
-                      CreateAppText(conn,'$edit_description','Editors','Editors','Editors');
-                      CreateAppText(conn,'$chart_description','Chart Test','Chart Test','Chart Test');
-                      CreateAppText(conn,'$live_chart_description','Live Chart Test','Live Chart Test','Live Chart Test');
-                      CreateAppText(conn,'$grid_description','Grid Test','Grid Test','Grid Test');
-                      CreateAppText(conn,'$grid2_description','Grid 2 Test','Grid 2 Test','Grid 2 Test');
-                      CreateAppText(conn,'$formtest_description','Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
-                      CreateAppText(conn,'$allgrid_description','Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
-                      CreateAppText(conn,'$feedbrowsetree_description','Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
-                   end;
-    SameVersion  : begin
-                      writeln('Version '+old_version+' already installed');
-                   end;
-    OtherVersion : begin
-                      writeln('Old Version '+old_version+' found, updateing');
-                      // do some update stuff
-                      _SetAppdataVersion(conn,_ActualVersion);
-                   end;
-  else
-    raise EFRE_DB_Exception.Create('Undefined App _CheckVersion result');
-  end;
+  raise EFRE_DB_Exception.Create(edb_ERROR,'could not install application db objects for unknown version '+currentVersionId);
 end;
 
-function TFRE_DB_TEST_APP.InstallRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
+
+class procedure TFRE_DB_TEST_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+var group : IFRE_DB_GROUP;
 begin
+  inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
+
+  //admin_app_role  := _CreateAppRole('ADMIN','TESTAPP ADMIN','Test App Administration Rights');
+  //user_app_role   := _CreateAppRole('USER','TESTAPP USER','Test App Default User Rights');
+  //guest_app_role  := _CreateAppRole('GUEST','TESTAPP GUEST','Test App Default Guest User Rights');
+
+  //_AddAppRight(admin_app_role ,'ADMIN');
+  //_AddAppRight(user_app_role  ,'START');
+  //
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['grid']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['grid2']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['chart']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['live_chart']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['vmcontroller']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['tgf']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['edit']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['formtest']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['allgrid']));
+  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['feedbrowser']));
+  //
+  //_AddAppRight(guest_app_role ,'START'); // Guests are allowed to START the app
+  //_AddAppRightModules(guest_app_role,GFRE_DBI.ConstructStringArray(['welcome']));
+  //
+  //conn.StoreRole(admin_app_role,ObjectName,domain);
+  //conn.StoreRole(user_app_role,ObjectName,domain);
+  //conn.StoreRole(guest_app_role,ObjectName,domain);
+  //
+
+   conn.NewGroup('TESTAPPADMIN','Admin Group for the testapp','Testapp Admins',domainUID,group);
+
+
+  //conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');  // DEMONSTRATION GROUPS -> make your own in your App
+  //conn.AddAppGroup(ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin');
+  //conn.AddAppGroup(ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest');
+  //
+  //conn.AddGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain)));
+  //conn.AddGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'GUEST'+'@'+domain)));
+  //conn.AddGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain));
 
 end;
 
-function TFRE_DB_TEST_APP.InstallDomainGroupsandRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
-var
-  admin_app_rg : IFRE_DB_ROLE;
-  user_app_rg  : IFRE_DB_ROLE;
-  guest_app_rg : IFRE_DB_ROLE;
+class procedure TFRE_DB_TEST_APP.RemoveDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType);
 begin
-  if domain=cSYS_DOMAIN then begin
-    writeln('Install for Domain:',domain);
-
-    admin_app_rg  := _CreateAppRole('ADMIN','TESTAPP ADMIN','Test App Administration Rights');
-    user_app_rg   := _CreateAppRole('USER','TESTAPP USER','Test App Default User Rights');
-    guest_app_rg  := _CreateAppRole('GUEST','TESTAPP GUEST','Test App Default Guest User Rights');
-    _AddAppRight(admin_app_rg ,'ADMIN');
-    _AddAppRight(user_app_rg  ,'START');
-
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['grid']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['grid2']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['chart']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['live_chart']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['vmcontroller']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['tgf']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['edit']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['formtest']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['allgrid']));
-    _AddAppRightModules(user_app_rg,GFRE_DBI.ConstructStringArray(['feedbrowser']));
-
-    _AddAppRight(guest_app_rg ,'START'); // Guests are allowed to START the app
-    _AddAppRightModules(guest_app_rg,GFRE_DBI.ConstructStringArray(['welcome']));
-
-    conn.StoreRole(admin_app_rg,ObjectName,domain);
-    conn.StoreRole(user_app_rg,ObjectName,domain);
-    conn.StoreRole(guest_app_rg,ObjectName,domain);
-
-    conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');
-    conn.AddAppGroup(ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin');
-    conn.AddAppGroup(ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest');
-
-    conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
-    conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'GUEST'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'GUEST'+'@'+domain)]));
-    conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'ADMIN'+'@'+domain),Get_Rightname_App_Role_SubRole(ObjectName,'USER'+'@'+domain)]));
-  end;
+  inherited RemoveDBObjects(conn, currentVersionId);
 end;
+
+class procedure TFRE_DB_TEST_APP.RemoveDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+begin
+  inherited RemoveDBObjects4Domain(conn, currentVersionId, domainUID);
+end;
+
+
+
 
 procedure TFRE_DB_TEST_APP._UpdateSitemap(const session: TFRE_DB_UserSession);
 var
@@ -2020,18 +2102,18 @@ begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main','Main','images_apps/test/sitemap_icon.svg','',0,true);
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Welcome','Welcome','images_apps/test/sitemap_icon.svg','WELCOME',0,CheckAppRightModule(conn,'welcome'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid','Grid','images_apps/test/sitemap_icon.svg','GRID',1,CheckAppRightModule(conn,'grid'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg','CHART',4,CheckAppRightModule(conn,'chart'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg','LIVE_CHART',4,CheckAppRightModule(conn,'live_chart'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg','GRID2',5,CheckAppRightModule(conn,'grid2'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg','formtest',2,CheckAppRightModule(conn,'formtest'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/allgrid','Grid Test','images_apps/test/sitemap_icon.svg','allgrid',2,CheckAppRightModule(conn,'allgrid'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg','feedbrowser',2,CheckAppRightModule(conn,'feedbrowser'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg','TGF',0,CheckAppRightModule(conn,'tgf'));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg','EDIT',0,CheckAppRightModule(conn,'edit'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Welcome','Welcome','images_apps/test/sitemap_icon.svg','WELCOME',0, conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_WELCOME_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid','Grid','images_apps/test/sitemap_icon.svg','GRID',1,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg','CHART',4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_CHART_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg','LIVE_CHART',4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_LIVE_CHART_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg','GRID2',5,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID2_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg','formtest',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FORMTEST_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/allgrid','Grid Test','images_apps/test/sitemap_icon.svg','allgrid',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_ALLGRID_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg','feedbrowser',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg','TGF',0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg','EDIT',0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
-  session.GetSessionAppData(ObjectName).Field('SITEMAP').AsObject := SiteMapData;
+  session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
 
 procedure TFRE_DB_TEST_APP.MySessionInitialize(const session: TFRE_DB_UserSession);
@@ -2048,16 +2130,6 @@ begin
   if session.IsInteractiveSession then begin
     _UpdateSitemap(session);
   end;
-end;
-
-function TFRE_DB_TEST_APP.CFG_ApplicationUsesRights: boolean;
-begin
-  Result := true;
-end;
-
-function TFRE_DB_TEST_APP._ActualVersion: TFRE_DB_String;
-begin
-  Result:='1.0';
 end;
 
 
@@ -2134,6 +2206,11 @@ begin
   scheme.AddCalcSchemeField   ('icon',fdbft_String,@CALC_CalcIconStatus);
 end;
 
+class procedure TFRE_DB_TEST_A.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+   newVersionId := '1.0';
+end;
+
 procedure TFRE_DB_TEST_A.CALC_CalcIconStatus(const calc: IFRE_DB_CALCFIELD_SETTER);
 var    lstatus_icon : TFRE_DB_String;
        lstatus      : TFRE_DB_String;
@@ -2180,7 +2257,7 @@ begin
   t1 := GFRE_BT.Get_Ticks_ms;
 
   CONN := GFRE_DBI.NewConnection;
-  CONN.Connect(dbname,'admin'+'@'+cSYS_DOMAIN,'admin');
+  CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
 
   COLL := CONN.Collection('COLL_TEST_A');
   for i := 0 to 100 - 1 do begin
@@ -2278,32 +2355,19 @@ procedure MetaRegister_Test;
 begin
   Register_DB_Extensions;
   FRE_DBBUSINESS.Register_DB_Extensions;
+  fre_accesscontrol_common.Register_DB_Extensions;
 end;
 
 procedure MetaInitializeDatabase_Test(const dbname: string; const user, pass: string);
 begin
-  InitializeTestapp(dbname,user,pass);
-  CreateTestdata(dbname,user,pass);
 end;
 
 procedure MetaRemove_Test(const dbname: string; const user, pass: string);
-var conn  : IFRE_DB_SYS_CONNECTION;
-     res   : TFRE_DB_Errortype;
-     i     : integer;
-     login : string;
 begin
-   CONN := GFRE_DBI.NewSysOnlyConnection;
-   try
-     res  := CONN.Connect('admin','admin');
-     if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
-     conn.RemoveApp('TESTAPP');
-   finally
-     conn.Finalize;
-   end;
 end;
 
 
 initialization
-  GFRE_DBI_REG_EXTMGR.RegisterNewExtension('TEST',@MetaRegister_Test,@MetaInitializeDatabase_Test,@MetaRemove_Test);
+  GFRE_DBI_REG_EXTMGR.RegisterNewExtension('TEST',@MetaRegister_Test,@MetaInitializeDatabase_Test,@MetaRemove_Test,@GenerateTestData);
 end.
 

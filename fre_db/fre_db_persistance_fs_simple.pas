@@ -55,6 +55,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
    // The global layer is used to initial build and connect the specialized database layers (clone per db)
    // there exists one system database, and n user databases
    // masterdata is global volatile shared, system persistent shared, and per db shared
+  var  FTransaction         : TFRE_DB_TransactionalUpdateList;
 
   type
 
@@ -74,7 +75,6 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FBlockWALWrites      : Boolean;
      FConnectedLayers     : Array of TFRE_DB_PS_FILE;
      FConnectedDB         : TFRE_DB_String;
-     FTransaction         : TFRE_DB_TransactionalUpdateList;
      procedure    _ConnectCheck             ;
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
      function     EscapeDBName              (const name:string):string;
@@ -756,9 +756,8 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
 
   procedure GeneralChecks;
   begin
-    //TODOENABLE
-    //if obj.DomainID=CFRE_DB_NullGUID then
-    //  raise EFRE_DB_Exception.Create(edb_ERROR,'persistance failure, an object without a domianid cannot be stored');
+    if obj.DomainID=CFRE_DB_NullGUID then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'persistance failure, an object without a domainid cannot be stored');
   end;
 
 begin
@@ -805,7 +804,8 @@ begin
             begin
               FTransaction        := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster);
               ImplicitTransaction := True;
-            end;
+            end else
+              ImplicitTransaction := false;
 
             result := FTransaction.GenerateAnObjChangeList(store,obj,collection_name,notify_collections);
             //writeln('>TRANSACTION UPDATE LOG');
@@ -856,8 +856,9 @@ end;
 function TFRE_DB_PS_FILE.StartTransaction(const typ: TFRE_DB_TRANSACTION_TYPE; const ID: TFRE_DB_NameType; const raise_ex: boolean): TFRE_DB_Errortype;
 begin
   if Assigned(FTransaction) then
-    raise EFRE_DB_Exception.Create(edb_EXISTS,'a transaction context was already created');
+   exit(edb_EXISTS);
   FTransaction := TFRE_DB_TransactionalUpdateList.Create(id,FMaster);
+  result := edb_OK;
 end;
 
 function TFRE_DB_PS_FILE.Commit: boolean;

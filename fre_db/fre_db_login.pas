@@ -43,7 +43,7 @@ unit fre_db_login;
 interface
 
 uses
-  Classes, SysUtils,FRE_SYSTEM, FRE_DB_COMMON,FRE_DB_CORE,FOS_REDBLACKTREE_GEN,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE,FRE_DB_WEB_STYLING;
+  Classes, SysUtils,FRE_SYSTEM, FRE_DB_COMMON,FRE_DB_CORE,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE,FRE_DB_WEB_STYLING;
 
 
 type
@@ -58,13 +58,13 @@ type
     procedure  InternalFinalize        ; override;
     function   No_Apps_ForGuests       (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   published
-    function IMI_OnUIChange      (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function WEB_OnUIChange      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_Content         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_LoginDlg        (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function WEB_doLogin         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_doLogout        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function IMI_BuildSiteMap    (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function IMI_BuildAppList    (const input:IFRE_DB_Object): IFRE_DB_Object;
+    function WEB_BuildSiteMap    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_BuildAppList    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_TakeOverSession (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
@@ -74,10 +74,9 @@ implementation
 
 { TFRE_DB_LOGIN }
 
-
 procedure TFRE_DB_LOGIN.SetupApplicationStructure;
 begin
-  ObjectName := 'LOGIN';
+
 end;
 
 procedure TFRE_DB_LOGIN.InternalSetup;
@@ -118,9 +117,9 @@ begin
   Result:=dlg;
 end;
 
-function TFRE_DB_LOGIN.IMI_OnUIChange(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_LOGIN.WEB_OnUIChange(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  GetSessionAppData(input).Field('activeApp').AsString:=input.Field('sectionid').AsString;
+  ses.GetSessionAppData(ClassName).Field('activeApp').AsString:=input.Field('sectionid').AsString;
   Result:=GFRE_DB_NIL_DESC;
 end;
 
@@ -145,8 +144,8 @@ var
     res.AddJiraDialogEntry.Describe('Messages','images_apps/login/messages.svg');
     res.AddEntry.Describe('Home','images_apps/login/home.svg',
                           TFRE_DB_SERVER_FUNC_DESC_ARRAY.Create(
-                            CSF(@IMI_BuildSiteMap),
-                            CSF(@IMI_BuildAppList)
+                            CWSF(@WEB_BuildSiteMap),
+                            CWSF(@WEB_BuildAppList)
                           ),'Home',TFRE_DB_StringArray.Create('SiteMap','AppContainer'),
                           true,true);
     res.updateId:='FirmOSViewport';
@@ -238,7 +237,7 @@ begin
 end;
 
 
-function TFRE_DB_LOGIN.IMI_BuildSiteMap(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_LOGIN.WEB_BuildSiteMap(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   session : TFRE_DB_UserSession;
   res     : TFRE_DB_SITEMAP_DESC;
@@ -254,19 +253,19 @@ begin
     //InitApp(apps[i].Implementor_HC as TFRE_DB_APPLICATION);
     if (apps[i].ShowInApplicationChooser(Session)) then begin
       main:=res.AddEntry;
-      if apps[i].ObjectName='testapp' then begin
+      if apps[i].AppClassName='TFRE_DB_TEST_APP' then begin
         nc:=8
       end else begin
         nc:=0;
       end;
-      main.Describe(apps[i].GetDescription(session.GetDBConnection).Getshort,'',TFRE_DB_RESTORE_UI_DESC.create.Describe('FirmOSViewport',TFRE_DB_StringArray.create('Home','AppContainer',apps[i].ObjectName)),0,0,apps[i].ObjectName,nc);
+      main.Describe(apps[i].GetCaption,'',TFRE_DB_RESTORE_UI_DESC.create.Describe('FirmOSViewport',TFRE_DB_StringArray.create('Home','AppContainer',apps[i].AppClassName)),0,0,apps[i].AppClassName,nc);
       (apps[i].Implementor_HC as TFRE_DB_APPLICATION).AddAppToSiteMap(session,main);
     end;
   end;
   Result:=res;
 end;
 
-function TFRE_DB_LOGIN.IMI_BuildAppList(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_LOGIN.WEB_BuildAppList(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   res     : TFRE_DB_SUBSECTIONS_DESC;
   apps    : IFRE_DB_APPLICATION_ARRAY;
@@ -282,9 +281,9 @@ begin
   res.OnUIChange(TFRE_DB_SERVER_FUNC_DESC.Create.Describe(self,'OnUIChange'));
   for i := 0 to high(apps) do begin
     sf:=TFRE_DB_SERVER_FUNC_DESC.create.Describe(apps[i].AsObject,'content');
-    res.AddSection.Describe(sf,'Title'+IntToStr(i),i,apps[i].ObjectName);
+    res.AddSection.Describe(sf,'Title'+IntToStr(i),i,apps[i].AppClassName);
   end;
-  ActiveSection := GetSessionAppData(input).Field('activeApp').AsString;
+  ActiveSection := ses.GetSessionAppData(ClassName).Field('activeApp').AsString;
   res.SetActiveSection(ActiveSection);
   result := res;
 end;

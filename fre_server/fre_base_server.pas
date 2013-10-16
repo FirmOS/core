@@ -46,11 +46,11 @@ interface
 
 uses  classes, sysutils,fre_aps_interface,fos_fcom_interfaces,fos_fcom_types,fos_tool_interfaces,
       fre_http_srvhandler,fre_db_interface,fre_system,fos_interlocked,
-      fre_db_core,fre_webssocket_baseserver,fre_db_common,FRE_DB_SYSRIGHT_CONSTANTS,
+      fre_db_core,fre_webssocket_baseserver,fre_db_common,
       fre_http_tools,fos_redblacktree_gen,fre_sys_base_cs,
       fre_wapp_dojo;
 
-var cAdminUser:string='admin'+'@'+cSYS_DOMAIN;
+var cAdminUser:string='admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME;
     cAdminPass:string='admin';
     cVersion  :string='0.1 alpha';
 
@@ -222,7 +222,7 @@ var  me           : EFOS_FCOM_MULTIERROR;
          dbname  : string;
          res     : TFRE_DB_Errortype;
          log_txt : string;
-         app     : IFRE_DB_APPLICATION;
+         app     : TFRE_DB_APPLICATION;
      begin
        dblist := GFRE_DB_DEFAULT_PS_LAYER.DatabaseList;
        GFRE_DB.LogInfo(dblc_SERVER,'START SERVING DATABASES [%s]',[dblist.Commatext]);
@@ -234,8 +234,10 @@ var  me           : EFOS_FCOM_MULTIERROR;
          GFRE_DB.LogError(dblc_SERVER,'SERVING SYSTEM DATABASE failed due to [%s]',[CFRE_DB_Errortype[res]]);
          GFRE_BT.CriticalAbort('CANNOT SERVE SYSTEM DB [%s]',[CFRE_DB_Errortype[res]]);
        end;
-       if not FSystemConnection.ApplicationByName('LOGIN',app) then GFRE_BT.CriticalAbort('cannot fetch login app');
-       FLoginApp := App.Implementor_HC as TFRE_DB_LOGIN;
+
+       if not GFRE_DB.GetAppInstanceByClass(TFRE_DB_LOGIN,app) then
+         GFRE_BT.CriticalAbort('cannot fetch login app');
+       FLoginApp := app as TFRE_DB_LOGIN;
        if not assigned(FLoginApp) then begin
          GFRE_BT.CriticalAbort('could not preload login app / not found');
        end;
@@ -256,7 +258,7 @@ var  me           : EFOS_FCOM_MULTIERROR;
            end;
          end;
        end;
-       res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+cSYS_DOMAIN,'','TFRE_DB_LOGIN',GFRE_DB.ConstructGuidArray([FLoginApp.UID]),FDefaultSession);
+       res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'','TFRE_DB_LOGIN',GFRE_DB.ConstructGuidArray([FLoginApp.UID]),FDefaultSession);
        CheckDbResult(res,'COULD NOT CONNECT DEFAULT DB / APP / WITH GUEST ACCESS');
      end;
 
@@ -267,11 +269,11 @@ var  me           : EFOS_FCOM_MULTIERROR;
      begin
        GFRE_DBI.FetchApplications(apps);
        for i:=0 to high(apps) do begin
-         if apps[i].ObjectName<>'LOGIN' then begin
+         if apps[i].AppClassName<>'TFRE_DB_LOGIN' then begin
            if GetDBWithServerRights(DefaultDatabase,dbs)=edb_OK then begin // May be an array with db per app
              (apps[i].Implementor_HC as TFRE_DB_APPLICATION).ServerInitialize(dbs);
            end else begin
-             GFRE_BT.CriticalAbort('CANNOT SERVERINITIALIZE APPLICATION [APP:%s DB: %s]',[apps[i].ObjectName,DefaultDatabase]);
+             GFRE_BT.CriticalAbort('CANNOT SERVERINITIALIZE APPLICATION [APP:%s DB: %s]',[apps[i].AppClassName,DefaultDatabase]);
            end;
          end;
        end;

@@ -519,11 +519,11 @@ var s           : String;
                     app                         := GFRE_DBI.NewObject;
                     app.Field('CLASS').AsString := apps[i].AsObject.SchemeClass;
                     app.Field('UID').AsGUID     := apps[i].UID;
-                    CMD.Data.Field('APPS').AsObject.Field(apps[i].ObjectName).AsObject:=app;
+                    CMD.Data.Field('APPS').AsObject.Field(apps[i].AppClassName).AsObject:=app;
                     CMD.Data.Field('LOGIN_OK').AsBoolean:=true;
                     CMD.Data.Field('LOGIN_TXT').AsString:='SESSION : '+FUserSession.GetSessionID;
                     CMD.ChangeSession := FUserSession.GetSessionID;
-                    writeln('  ',apps[i].ObjectName);
+                    writeln('  ',apps[i].AppClassName);
                   end;
                 end
               else
