@@ -1277,9 +1277,6 @@ type
     function   GetDBConnection               (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
     function   GetDBSessionData              (const input:IFRE_DB_Object): IFRE_DB_Object;
     function   GetDBModuleSessionData        (const input:IFRE_DB_Object): IFRE_DB_Object;
-    //function   getApplication                : IFRE_DB_APPLICATION;
-    function   GetName                       : TFRE_DB_String;
-    function   ObjectName                    : TFRE_DB_String;
     function   GetModuleTitle                (const ses : IFRE_DB_Usersession): TFRE_DB_String;
     function   GetModuleClassName            : Shortstring;
     function   AsObject                      : IFRE_DB_Object;
@@ -1539,7 +1536,7 @@ type
   protected
     procedure  SetupAppModuleStructure       ;virtual;
     procedure  AddApplicationModule          (const module:TFRE_DB_APPLICATION_MODULE);
-    procedure  InitModuleDesc                (const objname,descr_translation_key:TFRE_DB_String);virtual;
+    procedure  InitModuleDesc                (const descr_translation_key:TFRE_DB_String);virtual;
 
     function   IFRE_DB_APPLICATION_MODULE.ObjectName  = GetName;
     function   IFRE_DB_APPLICATION_MODULE.DEscription = GetDesc;
@@ -1561,9 +1558,6 @@ type
     function   GetDBModuleSessionData       (const input:IFRE_DB_Object): IFRE_DB_Object;
     function   GetDependencyFiltervalues    (const input:IFRE_DB_Object; const dependencyfield:string): TFRE_DB_StringArray;
 
-    function   GetName                      : TFRE_DB_String;
-    procedure  SetName                      (const AValue: TFRE_DB_String);
-    property   ObjectName                   : TFRE_DB_String       read GetName write SetName;
     procedure  SetDescrTranslationKey       (const val:TFRE_DB_String);
     function   GetDescrTranslationKey       :TFRE_DB_String;
     function   GetModuleTitle               (const ses : IFRE_DB_Usersession): TFRE_DB_String;
@@ -5484,7 +5478,7 @@ end;
 procedure TFRE_DB_APPLICATION.AddApplicationModule(const module: TFRE_DB_APPLICATION_MODULE);
 var FSubmoduleOrder : Integer;
 begin
-  Field(module.ObjectName).AsObject := module;
+  Field(module.GetModuleClassName).AsObject := module;
   if FieldExists('SubModuleOrder') then begin
     FSubmoduleOrder:=Field('SubModuleOrder').AsInt32;
     inc(FSubModuleOrder);
@@ -5492,7 +5486,7 @@ begin
     FSubModuleOrder:=1;
   end;
   Field('SubModuleOrder').AsInt32 := FSubmoduleOrder;
-  Field(module.ObjectName+'_O').AsInt16:=FSubModuleOrder;
+  Field(module.GetModuleClassName+'_O').AsInt16:=FSubModuleOrder;
 end;
 
 function TFRE_DB_APPLICATION.DelegateInvoke(const modulename: TFRE_DB_String; const methname: string; const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -5691,7 +5685,7 @@ end;
 procedure TFRE_DB_APPLICATION_MODULE.AddApplicationModule(const module: TFRE_DB_APPLICATION_MODULE);
 var FSubmoduleOrder : Integer;
 begin
-  Field(module.ObjectName).AsObject := module;
+  Field(module.GetModuleClassName).AsObject := module;
   if FieldExists('SubModuleOrder') then begin
     FSubmoduleOrder:=Field('SubModuleOrder').AsInt32;
     inc(FSubModuleOrder);
@@ -5699,13 +5693,12 @@ begin
     FSubModuleOrder:=1;
   end;
   Field('SubModuleOrder').AsInt32 := FSubmoduleOrder;
-  Field(module.ObjectName+'_O').AsInt16:=FSubModuleOrder;
+  Field(module.GetModuleClassName+'_O').AsInt16:=FSubModuleOrder;
 end;
 
 
-procedure TFRE_DB_APPLICATION_MODULE.InitModuleDesc(const objname, descr_translation_key: TFRE_DB_String);
+procedure TFRE_DB_APPLICATION_MODULE.InitModuleDesc(const descr_translation_key: TFRE_DB_String);
 begin
-  ObjectName  := objname;
   SetDescrTranslationKey(descr_translation_key)
 end;
 
@@ -5805,7 +5798,7 @@ end;
 
 function TFRE_DB_APPLICATION_MODULE.GetDBModuleSessionData(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  result := GetSession(input).GetSessionModuleData(ObjectName);
+  result := GetSession(input).GetSessionModuleData(ClassName);
 end;
 
 function TFRE_DB_APPLICATION_MODULE.GetDependencyFiltervalues(const input: IFRE_DB_Object; const dependencyfield: string): TFRE_DB_StringArray;
@@ -5816,17 +5809,6 @@ begin
       result := input.Field('dependency').AsObject.Field(dependencyfield).asobject.Field('filtervalues').AsStringArr;
     end;
   end;
-end;
-
-
-function TFRE_DB_APPLICATION_MODULE.GetName: TFRE_DB_String;
-begin
-  result := FNamedObject.getName;
-end;
-
-procedure TFRE_DB_APPLICATION_MODULE.SetName(const AValue: TFRE_DB_String);
-begin
-  FNamedObject.SetName(AValue);
 end;
 
 procedure TFRE_DB_APPLICATION_MODULE.SetDescrTranslationKey(const val: TFRE_DB_String);

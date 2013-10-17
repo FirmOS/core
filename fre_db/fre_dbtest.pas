@@ -655,7 +655,7 @@ end;
 procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('feedbrowser','$feedbrowsetree_description');
+  InitModuleDesc('$feedbrowsetree_description');
 end;
 
 class procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -743,7 +743,7 @@ end;
 procedure TFRE_DB_TEST_APP_ALLGRID_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('allgrid','$allgrid_description');
+  InitModuleDesc('$allgrid_description');
 end;
 
 class procedure TFRE_DB_TEST_APP_ALLGRID_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -835,7 +835,7 @@ end;
 procedure TFRE_DB_TEST_APP_FORMTEST_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('formtest','$formtest_description');
+  InitModuleDesc('$formtest_description');
 end;
 
 procedure TFRE_DB_TEST_APP_FORMTEST_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
@@ -867,7 +867,7 @@ end;
 procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('LIVE_CHART','$live_chart_description')
+  InitModuleDesc('$live_chart_description')
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataLC(const Input:IFRE_DB_Object):IFRE_DB_Object;
@@ -992,7 +992,7 @@ end;
 procedure TFRE_DB_TEST_APP_EDITORS_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('EDIT','$edit_description')
+  InitModuleDesc('$edit_description')
 end;
 
 procedure TFRE_DB_TEST_APP_EDITORS_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1091,7 +1091,7 @@ end;
 procedure TFRE_DB_TEST_APP_WELCOME_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('welcome','$welcome_description');
+  InitModuleDesc('$welcome_description');
 end;
 
 class procedure TFRE_DB_TEST_APP_WELCOME_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -1175,7 +1175,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('TGF','$gtf_description')
+  InitModuleDesc('$gtf_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1361,7 +1361,7 @@ end;
 procedure TFRE_DB_TEST_APP_CHART_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('CHART','$chart_description')
+  InitModuleDesc('$chart_description')
 end;
 
 procedure TFRE_DB_TEST_APP_CHART_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
@@ -1552,7 +1552,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRID2_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('GRID2','$grid2_description')
+  InitModuleDesc('$grid2_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRID2_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1766,13 +1766,13 @@ end;
 
 procedure TFRE_DB_TEST_APP_GRID_MOD.ToggleBlast(const session: TFRE_DB_UserSession);
 begin
-  session.GetSessionModuleData(ObjectName).Field('BLAST').AsBoolean := not session.GetSessionModuleData(ObjectName).Field('BLAST').AsBoolean;
+  session.GetSessionModuleData(ClassName).Field('BLAST').AsBoolean := not session.GetSessionModuleData(ClassName).Field('BLAST').AsBoolean;
   SetBlast(session);
 end;
 
 procedure TFRE_DB_TEST_APP_GRID_MOD.SetBlast(const session: TFRE_DB_UserSession);
 begin
-  if session.GetSessionModuleData(ObjectName).Field('BLAST').AsBoolean=true then begin
+  if session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean=true then begin
     session.RegisterTaskMethod(@PRC_UPDATE_TASK,25);
   end else begin
     session.RemoveTaskMethod;
@@ -1788,7 +1788,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRID_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('GRID','$grid_description')
+  InitModuleDesc('$grid_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRID_MOD.SC_ChangeData_Result(const input: IFRE_DB_Object);
@@ -1845,8 +1845,8 @@ begin
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
     end;
-    if not session.GetSessionModuleData(ObjectName).FieldExists('BLAST') then begin
-      session.GetSessionModuleData(ObjectName).Field('BLAST').AsBoolean:=false;
+    if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin
+      session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean:=false;
     end;
     SetBlast(session);
   end;
@@ -2132,16 +2132,16 @@ begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main','Main','images_apps/test/sitemap_icon.svg','',0,true);
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Welcome','Welcome','images_apps/test/sitemap_icon.svg','WELCOME',0, conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_WELCOME_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid','Grid','images_apps/test/sitemap_icon.svg','GRID',1,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg','CHART',4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_CHART_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg','LIVE_CHART',4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_LIVE_CHART_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg','GRID2',5,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID2_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg','formtest',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FORMTEST_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/allgrid','Grid Test','images_apps/test/sitemap_icon.svg','allgrid',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_ALLGRID_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg','feedbrowser',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg','TGF',0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg','EDIT',0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Welcome','Welcome','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_WELCOME_MOD.ClassName,0, conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_WELCOME_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid','Grid','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_MOD.ClassName,1,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_CHART_MOD.Classname,4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_CHART_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_LIVE_CHART_MOD.Classname,4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_LIVE_CHART_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID2_MOD.Classname,5,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID2_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FORMTEST_MOD.Classname,2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FORMTEST_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/allgrid','Grid Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_ALLGRID_MOD.Classname,2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_ALLGRID_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.Classname,2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.Classname,0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_EDITORS_MOD.Classname,0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
   session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
