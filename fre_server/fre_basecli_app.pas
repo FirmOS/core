@@ -84,7 +84,7 @@ type
     procedure   ReCreateSysDB      ;
     procedure   GenerateTestdata   ;
     procedure   DoUnitTest         ;
-    procedure   ShowTestUserRoles  ;
+    procedure   ShowUserRoles      ;
     procedure   InitExtensions     ;
     procedure   RemoveExtensions   ;
     procedure   RegisterExtensions ;
@@ -274,7 +274,6 @@ begin
   if HasOption('r','remove') then begin
     FOnlyInitDB:=true;
     RemoveExtensions;
-    ShowTestUserRoles;
     Terminate;
     Exit;
   end;
@@ -300,7 +299,7 @@ begin
 
   if HasOption('*','show-users') then
     begin
-      ShowTestUserRoles;
+      ShowUserRoles;
       Terminate;
       Exit;
     end;
@@ -404,48 +403,18 @@ begin
   GFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(FChosenExtensionList,FDBName,FUser,FPass);
 end;
 
-procedure TFRE_CLISRV_APP.ShowTestUserRoles;
+procedure TFRE_CLISRV_APP.ShowUserRoles;
 var conn  : IFRE_DB_SYS_CONNECTION;
     res   : TFRE_DB_Errortype;
-    user  : IFRE_DB_USER;
-    i     : integer;
-    login : string;
 
 begin
   CONN := GFRE_DBI.NewSysOnlyConnection;
   try
     res  := CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
     if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
-    for i:= 1 to 3 do begin
-      login  := 'admin'+inttostr(i)+'@'+CFRE_DB_SYS_DOMAIN_NAME;
-      if conn.fetchuser(login,user)=edb_OK then begin
-        writeln(login+' : ');
-        writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
-        writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForGroups(user.GetUserGroupIDS)));
-        writeln('');
-      end;
-    end;
+    abort;
 
-    for i:= 1 to 3 do begin
-      login  := 'user'+inttostr(i)+'@'+CFRE_DB_SYS_DOMAIN_NAME;
-      if conn.fetchuser(login,user)=edb_OK then begin
-        writeln(login+' : ');
-        writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
-        writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForGroups(user.GetUserGroupIDS)));
-      end;
-     end;
-
-    if conn.fetchuser('guest'+'@'+CFRE_DB_SYS_DOMAIN_NAME,user)=edb_OK then begin
-      writeln('GUEST : ');
-      writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
-      writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForGroups(user.GetUserGroupIDS)));
-    end;
-
-    if conn.fetchuser('ADMIN'+'@'+CFRE_DB_SYS_DOMAIN_NAME,user)=edb_OK then begin
-      writeln('ADMIN : ');
-      writeln('IMG : ',(user.Implementor_HC as TFRE_DB_Object).field('picture').AsString);
-      writeln(GFRE_DBI.StringArray2String(conn.GetRightsArrayForUser(user)));
-    end;
+    // implement generic for all users
 
   finally
     conn.Finalize;

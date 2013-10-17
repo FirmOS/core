@@ -1245,8 +1245,6 @@ type
     function  IFRE_DB_DOMAIN.SetDesc          = SetDescI;
   public
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-
     function        Domainname(const unique:boolean=false) : TFRE_DB_NameType;
     function        Domainkey                              : TGUID_String;
   end;
@@ -1853,6 +1851,7 @@ type
 
     function           GetMyDomainID                : TGUID;
     function           GetMyDomainID_String         : TGUID_String;
+    function           GetSystemDomainID_String     : TGUID_String;
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object)                                : TFRE_DB_Errortype; virtual;
     function           FetchInternal                (const ouid:TGUID;out dbo:TFRE_DB_Object)                                : boolean; virtual;
@@ -1891,17 +1890,16 @@ type
     function    _RoleExists                 (const rolename:TFRE_DB_String):boolean;
     function    _FetchRole                  (const rolename:TFRE_DB_String;var role:TFRE_DB_ROLE):boolean;
     function    _getFullRolename            (const rolename:TFRE_DB_String):TFRE_DB_String;
-    function    _RoleID                     (const rolename:TFRE_DB_String;var role_id:TGUID):boolean;
-    function    _FetchRolebyID              (const role_id:TGUID;var role:TFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    _RoleID                     (const rolename:TFRE_DB_String;const domainUID:TGUID;var role_id:TGUID):boolean;
+    function    _FetchRolebyID              (const role_id:TGUID;var role:TFRE_DB_ROLE;const without_right_check:boolean=false):TFRE_DB_Errortype;
     function    _GroupExists                (const groupatdomain:TFRE_DB_String):boolean;
-    function    _FetchGroup                 (const groupatdomain:TFRE_DB_String;var ug: TFRE_DB_GROUP):boolean;
+    function    _FetchGroup                 (const group: TFRE_DB_String; const domain_id:TGUID; var ug: TFRE_DB_GROUP):boolean;
     function    _GroupID                    (const groupatdomain:TFRE_DB_String;var group_id:TGUID):boolean;
-    function    _FetchGroupbyID             (const group_id:TGUID;var ug: TFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    _FetchGroupbyID             (const group_id:TGUID;var ug: TFRE_DB_GROUP;const without_right_check:boolean=false):TFRE_DB_Errortype;
     function    _ModifyUserGroups           (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    _RemoveUserGroups           (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    _SetGroupRoles              (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    _AddGroupRoles              (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
-    function    _RemoveGroupRoles           (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
+    function    _AddRolesToGroup            (const group:TFRE_DB_String;const domainUID: TGUID; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
+    function    _RemoveRolesFromGroup       (const group:TFRE_DB_String;const domainUID: TGUID; const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    _ModifyUserPassword         (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
     function    _ModifyUserImage            (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
 
@@ -1955,21 +1953,20 @@ type
 
     function    NewRightI                    (const rightname:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRoleI                     (const rolename,txt,txt_short:TFRE_DB_String;var right_group:IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewGroupI                    (const groupname,txt,txt_short:TFRE_DB_String;const domainid:TGuid;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    NewGroupI                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
 
     function    StoreRoleI                   (var   role:IFRE_DB_ROLE; const domainname:TFRE_DB_NameType):TFRE_DB_Errortype;
     function    StoreRoleI                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID):TFRE_DB_Errortype;
 
-    function    StoreGroupI                  (var   group: IFRE_DB_GROUP; const domainname:TFRE_DB_NameType):TFRE_DB_Errortype;
-    function    StoreGroupDomainbyIDI        (var   group: IFRE_DB_GROUP;const domain_id: TGUID): TFRE_DB_Errortype;
+    function    StoreGroupI                  (var   group: IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
     function    StoreTranslateableTextI      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    DeleteTranslateableTextI     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
   protected
     function    IsCurrentUserSystemAdmin     : boolean;
     function    GetRoleIDArray               (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_GUIDArray;
-    function    GetRightsArrayForRoles       (const roleids      : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
-    function    GetRightsArrayForGroups      (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
-    function    GetRightsArrayForUser        (const user         : IFRE_DB_USER)      : TFRE_DB_StringArray;
+    function    _GetRightsArrayForRoles       (const roleids      : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
+    function    _GetRightsArrayForGroups      (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
+    function    _GetRightsArrayForUser        (const user         : IFRE_DB_USER)      : TFRE_DB_StringArray;
     function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
   public
     constructor CreateCloned                (const from:TFRE_DB_SYSTEM_CONNECTION);
@@ -2001,6 +1998,7 @@ type
     function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
     function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype; // TODO: Do all in a Transaction
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
+    function    DomainID                    (const domainname:TFRE_DB_NameType):TGUID;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     function    IsSystemGroup               (const group_id:TGUID):boolean;
     procedure   ForAllDomainsI              (const func:IFRE_DB_Domain_Iterator);
@@ -2011,10 +2009,10 @@ type
 
     function    NewRight                    (const rightname:TFRE_DB_String;var right : TFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role:TFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainid:TGuid; var user_group:TFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    SetGroupRoles               (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    AddGroupRoles               (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    RemoveGroupRoles            (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
+    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:TFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TGUID):TFRE_DB_Errortype;
+    function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray;const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
@@ -2025,8 +2023,7 @@ type
     function    DeleteRole                  (const rolename:TFRE_DB_String):TFRE_DB_Errortype;
     function    StoreRole                   (var role:TFRE_DB_ROLE; const domainname:TFRE_DB_NameType):TFRE_DB_Errortype;
     function    StoreRole                   (var role:TFRE_DB_ROLE; const domainUID : TGUID):TFRE_DB_Errortype;
-    function    StoreGroup                  (var group:TFRE_DB_GROUP;const domainname:TFRE_DB_NameType):TFRE_DB_Errortype;
-    function    StoreGroupDomainbyID        (const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
+    function    StoreGroup                  (const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
     function    StoreTranslateableText      (var   txt    :TFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    DeleteTranslateableText     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
 
@@ -2056,6 +2053,8 @@ type
 
     function    GetClassesVersionDirectory  : IFRE_DB_Object;
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
+
+    function    DumpUserRights               :TFRE_DB_String;
 
     procedure   StartTransaction             (const trans_id     : TFRE_DB_NameType);
     procedure   Commit                       ;
@@ -2105,40 +2104,6 @@ type
 
     function    CreateschemeUniqueKeyDefinition (const schemeClass,FieldName:TFRE_DB_String ; const FieldType:TFRE_DB_FIELDTYPE):TFRE_DB_Errortype;
     function    DropschemeUniqueKeyDefinition   (const schemeClass,FieldName:TFRE_DB_String ; const FieldType:TFRE_DB_FIELDTYPE):TFRE_DB_Errortype;
-
-    function    AddUser                      (const loginatdomain,password,first_name,last_name:TFRE_DB_String):TFRE_DB_Errortype;
-    function    UserExists                   (const loginatdomain:TFRE_DB_String):boolean;
-    function    DeleteUser                   (const loginatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-    function    DeleteUserById               (const user_id:TGUID):TFRE_DB_Errortype;
-    function    FetchUser                    (const loginatdomain:TFRE_DB_String;var user:IFRE_DB_USER):TFRE_DB_Errortype;
-    function    FetchUserById                (const user_id:TGuid;var user:IFRE_DB_USER):TFRE_DB_Errortype;
-    function    FetchGroup                   (const groupatdomain:TFRE_DB_String;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    FetchGroupById               (const group_id:TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    FetchRole                    (const rolename:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    FetchRoleById                (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewRight                     (const rightname: TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
-    function    NewRole                      (const rolename,txt,txt_short:TFRE_DB_String;var role:IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewGroup                     (const groupname,txt,txt_short:TFRE_DB_String;const domainid:TGuid;var group:IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    SetGroupRoles                (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    AddGroupRoles                (const groupatdomain:TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
-    function    RemoveGroupRoles             (const groupatdomain:TFRE_DB_String; const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
-    function    ModifyUserGroups             (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
-    function    RemoveUserGroups             (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    ModifyUserPassword           (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
-    function    RoleExists                   (const rolename:TFRE_DB_String):boolean;
-    function    GroupExists                  (const groupatdomain:TFRE_DB_String):boolean;
-    function    DeleteGroup                  (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-    function    DeleteRole                   (const rolename:TFRE_DB_String):TFRE_DB_Errortype;
-    function    StoreRole                    (const domainname:TFRE_DB_NameType; var rg:IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    StoreGroup                   (const domainname:TFRE_DB_NameType; var ug:IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    StoreGroupDomainbyID         (const domain_id: TGUID; var group : IFRE_DB_GROUP): TFRE_DB_Errortype;
-
-    function    AddDomain                    (const domainname:TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
-    function    FetchDomainById              (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
-    function    DomainId                     (const name :TFRE_DB_NameType):TGUID;
-    function    ModifyDomainById             (const domain_id:TGUID; const domainname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
-    function    DeleteDomainById             (const domain_id:TGUID):TFRE_DB_Errortype;
-    function    IsSystemGroup                (const group_id:TGUID):boolean;
 
     //Warning Fetching from DB, and then from system can have undesired side effects ...
     function    Fetch                       (const ouid:TGUID;out dbo:TFRE_DB_Object) : TFRE_DB_Errortype; override;
@@ -2685,30 +2650,6 @@ begin
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
 
 end;
-
-class procedure TFRE_DB_DOMAIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
-var
-  role: IFRE_DB_ROLE;
-begin
-  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
-
-  role := CreateClassRole('store','Store ' + ClassName,'Allowed to store new ' + ClassName + ' objects');
-  role.AddRight(_GetRight(GetClassRightNameStore));
-  CheckDbResult(conn.StoreRole(role),'Error creating '+ClassName+'.store role');
-
-  role := CreateClassRole('delete','Delete ' + ClassName,'Allowed to delete ' + ClassName + ' objects');
-  role.AddRight(_GetRight(GetClassRightNameDelete));
-  CheckDbResult(conn.StoreRole(role),'Error creating '+ClassName+'.delete role');
-
-  //role := CreateClassRole('update','Update ' + ClassName,'Allowed to edit ' + ClassName + ' objects');
-  //role.AddRight(GetClassRightNameUpdate);
-  //CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.update role');
-  //
-  //role := CreateClassRole('fetch','Fetch ' + ClassName,'Allowed to fetch ' + ClassName + ' objects');
-  //role.AddRight(GetClassRightNameFetch);
-  //CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.fetch role');
-end;
-
 
 function TFRE_DB_DOMAIN.Domainname(const unique: boolean): TFRE_DB_NameType;
 begin
@@ -3508,7 +3449,7 @@ end;
 
 class function TFRE_DB_GROUP.GetDomainGroupKey(const grouppart: TFRE_DB_String; const domain_id: TGUID): TFRE_DB_String;
 begin
-  result := GFRE_BT.GUID_2_HexString(domain_id)+'@'+lowercase(grouppart);
+  result := lowercase(GFRE_BT.GUID_2_HexString(domain_id)+'@'+grouppart);
 end;
 
 class procedure TFRE_DB_GROUP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
@@ -3534,6 +3475,8 @@ var data             : IFRE_DB_Object;
     group            : IFRE_DB_GROUP;
 
 begin
+ abort;  //FIXME MOVE TO ACCESS CONTROL
+
  data    := input.Field('DATA').asobject;
  dbc     := input.GetReference as TFRE_DB_CONNECTION;
 
@@ -3545,11 +3488,11 @@ begin
  if txt='' then txt:=groupname;
 
  domain_id := GFRE_BT.HexString_2_GUID(data.Field('DOMAINIDLINK').AsString);
- res := dbc.NewGroup(groupname,txt,txt_s,domain_id,group);
+// res := dbc.NewGroup(groupname,txt,txt_s,domain_id,group);
  if res <> edb_OK then
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERROR','TRANSLATE: Creation of group failed '+CFRE_DB_Errortype[res],fdbmt_error,nil));
 
- res := dbc.StoreGroupDomainbyID(domain_id,group);
+ res := dbc.sys.StoreGroup(group,domain_id);
  if res=edb_OK then
    exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
  else
@@ -3747,7 +3690,7 @@ begin
   FConnectedUser := _FetchUser(user);
   if not assigned(FConnectedUser) then Exit(edb_NOT_FOUND);
   if not FConnectedUser.Checkpassword(pass) then exit(edb_ACCESS);
-  FConnectionRights := GetRightsArrayForUser(FConnectedUser);
+  FConnectionRights := _GetRightsArrayForUser(FConnectedUser);
 end;
 
 procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_db_restore: boolean);
@@ -3900,7 +3843,7 @@ begin
      FConnectedUser.Finalize;
      if _FetchUserById(useruid,FConnectedUser)<>edb_OK then
        raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not fetch userid on reload of user');
-     FConnectionRights := GetRightsArrayForUser(FConnectedUser);
+     FConnectionRights := _GetRightsArrayForUser(FConnectedUser);
    end;
 end;
 
@@ -3996,23 +3939,27 @@ var
   domain        : TFRE_DB_String;
   domain_Id     : TGuid;
 begin
-  if Pos('@',rolename)=0 then begin
-    Result:=rolename;
-  end else begin
-    FREDB_SplitLocalatDomain(rolename,domainrolename,domain);
-    domain_Id := _DomainID(domain);
-    Result:=TFRE_DB_ROLE.GetDomainRoleKey(domainrolename,domain_id);
-  end;
+  FREDB_SplitLocalatDomain(rolename,domainrolename,domain);
+  domain_Id := _DomainID(domain);
+  Result:=TFRE_DB_ROLE.GetDomainRoleKey(domainrolename,domain_id);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._RoleID(const rolename: TFRE_DB_String; var role_id: TGUID): boolean;
+function TFRE_DB_SYSTEM_CONNECTION._RoleID(const rolename: TFRE_DB_String; const domainUID: TGUID; var role_id: TGUID): boolean;
 begin
-  result := FSysRoles.GetIndexedUID(_getFullRolename(rolename),role_id);
+  result := FSysRoles.GetIndexedUID(TFRE_DB_ROLE.GetDomainRoleKey(rolename,domainUID),role_id);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._FetchRolebyID(const role_id: TGUID; var role: TFRE_DB_ROLE): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._FetchRolebyID(const role_id: TGUID; var role: TFRE_DB_ROLE;const without_right_check:boolean=false): TFRE_DB_Errortype;
 begin
- result := Fetch(role_id,TFRE_DB_Object(role));
+  if without_right_check then
+    begin
+      if FetchInternal(role_id,TFRE_DB_Object(role)) then
+        exit(edb_OK)
+      else
+        exit(edb_ERROR);
+    end
+  else
+    result := Fetch(role_id,TFRE_DB_Object(role));
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION._GroupExists(const groupatdomain: TFRE_DB_String): boolean;
@@ -4025,13 +3972,8 @@ begin
   result := FSysGroups.ExistsIndexed(TFRE_DB_GROUP.GetDomainGroupKey(group,domain_id));
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._FetchGroup(const groupatdomain: TFRE_DB_String; var ug: TFRE_DB_GROUP): boolean;
-var group      : TFRE_DB_String;
-    domain     : TFRE_DB_String;
-    domain_id  : TGUID;
+function TFRE_DB_SYSTEM_CONNECTION._FetchGroup(const group: TFRE_DB_String; const domain_id:TGUID; var ug: TFRE_DB_GROUP): boolean;
 begin
-  FREDB_SplitLocalatDomain(groupatdomain,group,domain);
-  domain_Id := _DomainID(domain);
   result := FSysGroups.GetIndexedObj(TFRE_DB_GROUP.GetDomainGroupKey(group,domain_id),TFRE_DB_Object(ug));
 end;
 
@@ -4045,9 +3987,17 @@ begin
   result := FSysGroups.GetIndexedUID(TFRE_DB_GROUP.GetDomainGroupKey(group,domain_id),group_id);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._FetchGroupbyID(const group_id: TGUID; var ug: TFRE_DB_GROUP):TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._FetchGroupbyID(const group_id: TGUID; var ug: TFRE_DB_GROUP; const without_right_check: boolean): TFRE_DB_Errortype;
 begin
-  result := Fetch(group_id,TFRE_DB_Object(ug));
+  if without_right_check then
+    begin
+      if FetchInternal(group_id,TFRE_DB_Object(ug)) then
+        exit(edb_OK)
+      else
+        exit(edb_ERROR);
+    end
+  else
+    result := Fetch(group_id,TFRE_DB_Object(ug));
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION._ModifyUserGroups(const loginatdomain: TFRE_DB_String; const user_groups: TFRE_DB_StringArray; const keep_existing_groups: boolean): TFRE_DB_Errortype;
@@ -4152,29 +4102,8 @@ begin
   Result := edb_OK;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._SetGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
-var l_Group          : TFRE_DB_GROUP;
-    l_UserUid        : TGUID;
-    l_NewRoles       : TFRE_DB_StringArray;
-    l_NewRolesID     : TFRE_DB_GUIDArray;
-    l_FetchedRoleUID : TGUID;
-    role             : TFRE_DB_ROLE;
-    i                :  integer;
-begin
-  for i := 0 to high(roles) do
-    roles[i] := lowercase(roles[i]);
-  if not _FetchGroup(groupatdomain,l_group) then exit(edb_NOT_FOUND);
-  l_NewRoles        := roles;
-  setLength(l_NewRolesID,length(l_NewRoles));
-  for i:=0 to high(l_NewRoles) do begin
-    if not _RoleID(l_NewRoles[i],l_FetchedRoleUID) then exit(edb_NOT_FOUND);
-    l_NewRolesID[i] :=l_FetchedRoleUID;
-  end;
-  l_Group.RoleIDs   := l_NewRolesID;
-  result := Update(l_Group);
-end;
 
-function TFRE_DB_SYSTEM_CONNECTION._AddGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._AddRolesToGroup(const group: TFRE_DB_String; const domainUID: TGUID; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
 var l_Group            : TFRE_DB_GROUP;
     l_NewRoles         : TFRE_DB_StringArray;
     l_NewRolesID       : TFRE_DB_GUIDArray;
@@ -4184,11 +4113,11 @@ var l_Group            : TFRE_DB_GROUP;
     j                  : NativeInt;
     allready_in        : boolean;
 begin
-  if not _FetchGroup(groupatdomain,l_group) then exit(edb_NOT_FOUND);
+  if not _FetchGroup(group,domainUID,l_group) then exit(edb_NOT_FOUND);
   l_NewRoles        := roles;
   setLength(l_NewRolesID,length(l_NewRoles));
   for i:=0 to high(l_NewRoles) do begin
-    if not _RoleID(l_NewRoles[i],l_FetchedRoleUID) then exit(edb_NOT_FOUND);
+    if not _RoleID(l_NewRoles[i],domainUID,l_FetchedRoleUID) then exit(edb_NOT_FOUND);
     l_NewRolesID[i] :=l_FetchedRoleUID;
   end;
   l_AggregatedRoleID   := l_Group.RoleIDs;
@@ -4209,7 +4138,7 @@ begin
   result := Update(l_Group);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._RemoveGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray; const ignore_not_set: boolean): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._RemoveRolesFromGroup(const group: TFRE_DB_String; const domainUID: TGUID; const roles: TFRE_DB_StringArray; const ignore_not_set: boolean): TFRE_DB_Errortype;
 var l_Group            : TFRE_DB_GROUP;
     l_DelRoles         : TFRE_DB_StringArray;
     l_DelRolesID       : TFRE_DB_GUIDArray;
@@ -4222,11 +4151,11 @@ var l_Group            : TFRE_DB_GROUP;
     l_remove_count     : NativeInt;
 
 begin
-  if not _FetchGroup(groupatdomain,l_group) then exit(edb_NOT_FOUND);
+  if not _FetchGroup(group,domainUID,l_group) then exit(edb_NOT_FOUND);
   l_DelRoles        := roles;
   setLength(l_DelRolesID,length(l_DelRoles));
   for i:=0 to high(l_DelRoles) do begin
-    if not _RoleID(l_DelRoles[i],l_FetchedRoleUID) then exit(edb_NOT_FOUND);
+    if not _RoleID(l_DelRoles[i],domainUID,l_FetchedRoleUID) then exit(edb_NOT_FOUND);
     l_DelRolesID[i] :=l_FetchedRoleUID;
   end;
   l_ReducedRoleID   := l_Group.RoleIDs;
@@ -4393,7 +4322,7 @@ begin
     end
   else
     begin
-      FConnectionRights := GetRightsArrayForUser(FConnectedUser);
+      FConnectionRights := _GetRightsArrayForUser(FConnectedUser);
       FAuthenticated := true;
     end;
   result := edb_OK;
@@ -4479,8 +4408,13 @@ begin
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.FetchGroup(const groupatdomain: TFRE_DB_String; var ug: TFRE_DB_GROUP): TFRE_DB_Errortype;
+var group      : TFRE_DB_String;
+    domain     : TFRE_DB_String;
+    domain_id  : TGUID;
 begin
-  if _FetchGroup(groupatdomain,ug) then exit(edb_OK);
+  FREDB_SplitLocalatDomain(groupatdomain,group,domain);
+  domain_Id := _DomainID(domain);
+  if _FetchGroup(group,domain_id,ug) then exit(edb_OK);
   result := edb_NOT_FOUND;
 end;
 
@@ -4595,6 +4529,11 @@ begin
   result :=_DomainExists(domainname);
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.DomainID(const domainname: TFRE_DB_NameType): TGUID;
+begin
+  result :=_DomainID(domainname);
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.DeleteDomain(const domainname: TFRE_DB_Nametype): TFRE_DB_Errortype;
 begin
   result := _DeleteDomain(domainname);
@@ -4659,25 +4598,29 @@ begin
   result:=edb_OK;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.NewGroup(const groupname, txt, txt_short: TFRE_DB_String; const domainid: TGuid; var user_group: TFRE_DB_GROUP): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.NewGroup(const groupname, txt, txt_short: TFRE_DB_String;var user_group: TFRE_DB_GROUP): TFRE_DB_Errortype;
 begin
   user_group := _NewGroup(groupname,txt,txt_short);
   result:=edb_OK;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.SetGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.AddRolesToGroup(const group: TFRE_DB_String; const domainUID: TGUID; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin
-  result := _SetGroupRoles(groupatdomain,roles);
+ result := _AddRolesToGroup(group,domainUID,roles);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.AddGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.AddGroup(const groupname, txt, txt_short: TFRE_DB_String; const domainUID: TGUID): TFRE_DB_Errortype;
+var group : IFRE_DB_GROUP;
 begin
-  result := _AddGroupRoles(groupatdomain,roles);
+  result := NewGroupI(groupname,txt,txt_short,group);
+  if result<>edb_OK then
+    exit(result);
+  result := StoreGroupI(group,domainUID);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.RemoveGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray; const ignore_not_set: boolean): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.RemoveRolesFromGroup(const group: TFRE_DB_String; const domainUID: TGUID; const roles: TFRE_DB_StringArray; const ignore_not_set: boolean): TFRE_DB_Errortype;
 begin
-  result := _RemoveGroupRoles(groupatdomain,roles, ignore_not_set);
+  result := _RemoveRolesFromGroup(group,domainUID,roles, ignore_not_set);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.ModifyUserGroups(const loginatdomain: TFRE_DB_String; const user_groups: TFRE_DB_StringArray; const keep_existing_groups: boolean): TFRE_DB_Errortype;
@@ -4728,10 +4671,7 @@ function TFRE_DB_SYSTEM_CONNECTION.StoreRole(var role: TFRE_DB_ROLE; const domai
 var  domain_id : TGUID;
 begin
   Result:=edb_ERROR;
-  if domainname<>'' then
-    domain_id := CFRE_DB_NullGUID
-  else
-    domain_id := _DomainID(domainname);
+  domain_id := _DomainID(domainname);
   result := StoreRole(role,domain_id);
 end;
 
@@ -4740,25 +4680,15 @@ var app_id :TGUID;
   role_id: TGUID;
 begin
   Result:=edb_ERROR;
-
-  if domainUID<>CFRE_DB_NullGUID then
-    role.SetDomainIDLink(domainUID)
-  else
-    role.Field('domainrolekey').AsString := role.ObjectName;
-
   role.SetDomainID(domainUID);
+  role.SetDomainIDLink(domainUID);
+//  writeln(role.DumpToString());
   result :=FSysRoles.Store(TFRE_DB_Object(role));
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.StoreGroup( var group: TFRE_DB_GROUP;const domainname: TFRE_DB_NameType): TFRE_DB_Errortype;
-var domain_id : TGUID;
+function TFRE_DB_SYSTEM_CONNECTION.StoreGroup(const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
 begin
-  domain_id := _DomainID(domainname);
-  result := StoreGroupDomainbyID(domain_id,group);
-end;
-
-function TFRE_DB_SYSTEM_CONNECTION.StoreGroupDomainbyID(const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
-begin
+ group.SetDomainID(domain_id);
  group.SetDomainIDLink(domain_id);
  result := FSysGroups.Store(TFRE_DB_Object(group));
 end;
@@ -4781,6 +4711,11 @@ begin
   if result then
     exit;
   result := FREDB_StringInArray(TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+GetMyDomainID_String,FConnectionRights); // GetMyDomainID_String has to be uppercase
+  if result then
+    exit;
+  result := FREDB_StringInArray(TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+GetSystemDomainID_String,FConnectionRights); // check in system domain
+  if result=false then
+    writeln('CLASS RIGHT DENIED MY DOMAIN:',right_name,' ',classtyp.ClassName);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4MyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
@@ -4788,7 +4723,12 @@ begin
  result := IsCurrentUserSystemAdmin;
  if result then
    exit;
-  result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,GetMyDomainID),FConnectionRights);
+ result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,GetMyDomainID),FConnectionRights);
+ if result then
+   exit;
+ result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,FSysDomainUID),FConnectionRights);  // check in system domain
+ if result=false then
+   writeln('CLASS RIGHT DENIED MY DOMAIN:',std_right,' ',classtyp.ClassName);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4AnyDomain(const right_name: TFRE_DB_String; const classtyp: TClass): boolean;
@@ -4796,7 +4736,9 @@ begin
  result := IsCurrentUserSystemAdmin;
  if result then
    exit;
-  result := FREDB_PrefixStringInArray(TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name),FConnectionRights);
+ result := FREDB_PrefixStringInArray(TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name),FConnectionRights);
+ if result=false then
+   writeln('CLASS RIGHT DENIED ANY DOMAIN:',right_name,' ',classtyp.ClassName);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4Domain(const right_name: TFRE_DB_String; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;
@@ -4804,10 +4746,13 @@ begin
  result := IsCurrentUserSystemAdmin;
  if result then
    exit;
-  if (domainkey<>'') then
-    result := FREDB_StringInArray((TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+_DomainIDasString(domainkey)),FConnectionRights) // DomainIDasString has to be uppercase!
-  else
-    result := FREDB_StringInArray((TFRE_DB_BaseClass(classtyp)).GetClassRightName(right_name),FConnectionRights);
+ result := FREDB_StringInArray((TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+_DomainIDasString(domainkey)),FConnectionRights); // DomainIDasString has to be uppercase!
+ if result then
+   exit;
+ result := FREDB_StringInArray((TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+GetSystemDomainID_String),FConnectionRights); // check in system domain
+ if result=false then
+   writeln('CLASS RIGHT DENIED ANY DOMAIN:',right_name,' ',classtyp.ClassName);
+
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const right_name: TFRE_DB_String; const classtyp: TClass): TFRE_DB_GUIDArray;
@@ -4822,16 +4767,19 @@ begin
   if result then
     exit;
   result := FREDB_PrefixStringInArray(_GetStdRightName(std_right,classtyp),FConnectionRights);
+  if result=false then
+    writeln('CLASS RIGHT DENIED DOMAIN:',std_right,' ',classtyp.ClassName);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;
-var domguid : TGuid;
 begin
- if (domainkey<>'') then
-   domguid := _DomainID(domainKey)
- else
-   domguid := CFRE_DB_NullGUID;
- result := IntCheckClassRight4Domain(std_right,ClassTyp,domguid);
+  result := IsCurrentUserSystemAdmin;
+  if result then
+    exit;
+  result := IntCheckClassRight4Domain(std_right,ClassTyp,_DomainID(domainKey));
+  if result then
+    exit;
+  result := IntCheckClassRight4Domain(std_right,ClassTyp,FSysDomainUID);  // check in system domain
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.IntCheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainuid: TGuid): boolean;
@@ -4839,10 +4787,12 @@ begin
  result := IsCurrentUserSystemAdmin;
  if result then
    exit;
- if domainuid=CFRE_DB_NullGUID then
-   result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp),FConnectionRights)
- else
-   result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,domainuid),FConnectionRights);
+ result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,domainuid),FConnectionRights);
+ if result then
+   exit;
+ result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,FSysDomainUID),FConnectionRights);  // check in system domain
+ if result=false then
+   writeln('CLASS RIGHT DENIED DOMAIN:',std_right,' ',classtyp.ClassName);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
@@ -5106,6 +5056,11 @@ begin
     result := FSysSingletons.UpdateI(version_dbo);
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.DumpUserRights: TFRE_DB_String;
+begin
+  result := GFRE_DBI.StringArray2String(FConnectionRights);
+end;
+
 procedure TFRE_DB_SYSTEM_CONNECTION.StartTransaction(const trans_id: TFRE_DB_NameType);
 begin
   CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.StartTransaction(dbt_OLTP,trans_id),'Could not start transaction '+trans_id);
@@ -5195,10 +5150,10 @@ begin
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.NewGroupI(const groupname, txt, txt_short: TFRE_DB_String; const domainid: TGuid; var user_group: IFRE_DB_GROUP): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.NewGroupI(const groupname, txt, txt_short: TFRE_DB_String; var user_group: IFRE_DB_GROUP): TFRE_DB_Errortype;
 var lUG : TFRE_DB_GROUP;
 begin
- result := NewGroup(groupname,txt,txt_short,domainid,lUG);
+ result := NewGroup(groupname,txt,txt_short,lUG);
   if result = edb_OK then begin
     user_group := lUG;
   end else begin
@@ -5223,19 +5178,11 @@ begin
   role    := nil;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.StoreGroupI(var group: IFRE_DB_GROUP; const domainname:TFRE_DB_NameType): TFRE_DB_Errortype;
-var lG : TFRE_DB_GROUP;
-begin
- lG     := group.Implementor as TFRE_DB_GROUP;
- result := StoreGroup(lG,domainname);
- group  := nil;
-end;
-
-function TFRE_DB_SYSTEM_CONNECTION.StoreGroupDomainbyIDI(var group:IFRE_DB_GROUP;const domain_id: TGUID): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.StoreGroupI(var group:IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
 var lUG : TFRE_DB_GROUP;
 begin
  lUG    := group.Implementor as TFRE_DB_GROUP;
- result := StoreGroupDomainbyID(domain_id, lUG);
+ result := StoreGroup(domainUID, lUG);
  group  := nil;
 end;
 
@@ -5270,51 +5217,63 @@ var i            : integer;
     lRoleIDs     : TFRE_DB_ObjLinkArray;
 begin
   for i:=0 to high(UserGroupIDs) do begin
-    if _FetchGroupbyID(UserGroupIDs[i],lUserGroup)<>edb_OK then begin
+    if _FetchGroupbyID(UserGroupIDs[i],lUserGroup,true)<>edb_OK then begin
       raise EFRE_DB_Exception.Create('Could not fetch group by id '+GFRE_BT.GUID_2_HexString(UserGroupIDs[i]));
     end else begin
-      FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
+      lUserGroup.Assert_CheckStoreLocked;
+      lUserGroup.Set_Store_Locked(false);
+      try
+        FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
+      finally
+        lUserGroup.Set_Store_Locked(true);
+      end;
     end;
   end;
   result := lRoleIDs;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.GetRightsArrayForRoles(const roleids: TFRE_DB_GUIDArray): TFRE_DB_StringArray;
+function TFRE_DB_SYSTEM_CONNECTION._GetRightsArrayForRoles(const roleids: TFRE_DB_GUIDArray): TFRE_DB_StringArray;
 var i            : integer;
     lRole        : TFRE_DB_ROLE;
     lAllRights   : TFRE_DB_StringArray;
 begin
   for i:=0 to high(roleids) do begin
-    if _FetchRolebyID(roleids[i],lRole)<>edb_OK then begin
+    if _FetchRolebyID(roleids[i],lRole,true)<>edb_OK then begin
       raise EFRE_DB_Exception.Create('Could not fetch role by id '+GFRE_BT.GUID_2_HexString(roleids[i]));
     end else begin
-      FREDB_ConcatStringArrays(lAllRights,lRole.GetRightNames);
+      lRole.Assert_CheckStoreLocked;
+      lRole.Set_Store_Locked(false);
+      try
+        FREDB_ConcatStringArrays(lAllRights,lRole.GetRightNames);
+      finally
+        lrole.Set_Store_Locked(true);
+      end;
     end;
   end;
   result := lAllRights;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.GetRightsArrayForGroups(const usergroupids: TFRE_DB_GUIDArray): TFRE_DB_StringArray;
+function TFRE_DB_SYSTEM_CONNECTION._GetRightsArrayForGroups(const usergroupids: TFRE_DB_GUIDArray): TFRE_DB_StringArray;
 begin
-  result := GetRightsArrayForRoles(GetRoleIDArray(usergroupids));
+  result := _GetRightsArrayForRoles(GetRoleIDArray(usergroupids));
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.GetRightsArrayForUser(const user: IFRE_DB_USER): TFRE_DB_StringArray;
+function TFRE_DB_SYSTEM_CONNECTION._GetRightsArrayForUser(const user: IFRE_DB_USER): TFRE_DB_StringArray;
 
 function FakeLogin:String;
   begin
-    result := '$O_R_'+uppercase('TFRE_DB_LOGIN_fetch');
+    result := '$O_R_'+uppercase('TFRE_DB_LOGIN_fetch'+'@'+GetSystemDomainID_String);
   end;
 
 begin
-  result := GetRightsArrayForGroups(user.GetUserGroupIDs);
+  result := _GetRightsArrayForGroups(user.GetUserGroupIDs);
   FREDB_ConcatStringArrays(result,TFRE_DB_StringArray.Create(FakeLogin));
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckRightForGroup(const right_name: TFRE_DB_String; const group_uid: TGuid): boolean;
 var ra : TFRE_DB_StringArray;
 begin
-  ra     := GetRightsArrayForGroups(TFRE_DB_GUIDArray.CreatE(group_uid));
+  ra     := _GetRightsArrayForGroups(TFRE_DB_GUIDArray.CreatE(group_uid));
   result := FREDB_StringInArray(uppercase(right_name),ra);
 end;
 
@@ -8637,7 +8596,7 @@ begin
     new_obj.SetDomainID(FConnection.GetMyDomainID);
   if not
      ((FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,new_obj.DomainID))
-       or FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,CFRE_DB_NullGUID)
+       or FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,FConnection.FSysDomainUID)
        or FConnection.IsCurrentUserSystemAdmin) then
          exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+new_obj.DomainID_String);
   result := _InternalStore(new_obj);
@@ -9713,6 +9672,11 @@ begin
   result := uppercase(GFRE_BT.GUID_2_HexString(GetMyDomainID)); // GetMyDomainID_String has to be uppercase
 end;
 
+function TFRE_DB_BASE_CONNECTION.GetSystemDomainID_String: TGUID_String;
+begin
+ result := uppercase(GFRE_BT.GUID_2_HexString(FSysDomainUID)); // GetSystemDomainID_String has to be uppercase
+end;
+
 //function TFRE_DB_BASE_CONNECTION.Store(var new_obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType): TFRE_DB_Errortype;
 //begin
 //  if collection_name='' then
@@ -9728,10 +9692,9 @@ function TFRE_DB_BASE_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Objec
     classt := dbo.Implementor_HC.ClassType;
     if not
      ((IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
-       or IntCheckClassRight4Domain(sr_FETCH,classt,CFRE_DB_NullGUID)
+       or IntCheckClassRight4Domain(sr_FETCH,classt,FSysDomainUID)
        or IsCurrentUserSystemAdmin) then
          begin
-           IntCheckClassRight4Domain(sr_FETCH,classt,CFRE_DB_NullGUID);
            if not dbo.IsSystem then
              dbo.Finalize;
            dbo := nil;
@@ -9766,7 +9729,7 @@ begin
   objclass := dbo.Implementor_HC.ClassType;
   if not
    ((IntCheckClassRight4Domain(sr_UPDATE,objclass,dbo.DomainID))
-     or IntCheckClassRight4Domain(sr_UPDATE,objclass,CFRE_DB_NullGUID)
+     or IntCheckClassRight4Domain(sr_UPDATE,objclass,FSysDomainUID)
      or IsCurrentUserSystemAdmin) then
        exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to update objects in the specified domain : '+new_obj.DomainID_String);
   dboo   := dbo;
@@ -9793,171 +9756,6 @@ begin
   abort;
 end;
 
-function TFRE_DB_CONNECTION.AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String): TFRE_DB_Errortype;
-begin
-  result := FSysConnection.AddUser(loginatdomain,password,first_name,last_name);
-end;
-
-function TFRE_DB_CONNECTION.UserExists(const loginatdomain: TFRE_DB_String): boolean;
-begin
- result := FSysConnection.UserExists(loginatdomain);
-end;
-
-function TFRE_DB_CONNECTION.DeleteUser(const loginatdomain: TFRE_DB_String): TFRE_DB_Errortype;
-begin
- result := FSysConnection.DeleteUser(loginatdomain);
-end;
-
-function TFRE_DB_CONNECTION.DeleteUserById(const user_id: TGUID): TFRE_DB_Errortype;
-begin
-  result :=FSysConnection.DeleteUserById(user_id);
-end;
-
-function TFRE_DB_CONNECTION.FetchUser(const loginatdomain: TFRE_DB_String; var user: IFRE_DB_USER): TFRE_DB_Errortype;
-begin
- result := FSysConnection.FetchUserI(loginatdomain,user);
-end;
-
-function TFRE_DB_CONNECTION.FetchUserById(const user_id: TGuid; var user: IFRE_DB_USER): TFRE_DB_Errortype;
-begin
- Result:= FSysConnection.FetchUserByIdI(user_id,user);
-end;
-
-function TFRE_DB_CONNECTION.FetchGroup(const groupatdomain: TFRE_DB_String; var ug: IFRE_DB_GROUP): TFRE_DB_Errortype;
-begin
-  Result := FSysConnection.FetchGroupI(groupatdomain,ug);
-end;
-
-function TFRE_DB_CONNECTION.FetchGroupById(const group_id: TGUID; var ug: IFRE_DB_GROUP): TFRE_DB_Errortype;
-begin
-  Result:= FSysConnection.FetchGroupByIdI(group_id,ug);
-end;
-
-function TFRE_DB_CONNECTION.FetchRole(const rolename: TFRE_DB_NameType; var role: IFRE_DB_ROLE): TFRE_DB_Errortype;
-begin
-  result := FSysConnection.FetchRoleI(rolename,role);
-end;
-
-function TFRE_DB_CONNECTION.FetchRoleById(const role_id: TGUID; var role: IFRE_DB_ROLE): TFRE_DB_Errortype;
-begin
-  Result:= FSysConnection.FetchRoleByIdI(role_id,role);
-end;
-
-function TFRE_DB_CONNECTION.NewRight(const rightname: TFRE_DB_String; var right: IFRE_DB_RIGHT): TFRE_DB_Errortype;
-begin
- result := FSysConnection.NewRightI(rightname,right);
-end;
-
-function TFRE_DB_CONNECTION.NewRole(const rolename, txt, txt_short: TFRE_DB_String; var role: IFRE_DB_ROLE): TFRE_DB_Errortype;
-begin
- result := FSysConnection.NewRoleI(rolename,txt,txt_short,role);
-end;
-
-function TFRE_DB_CONNECTION.NewGroup(const groupname, txt, txt_short: TFRE_DB_String; const domainid:TGuid; var group: IFRE_DB_GROUP): TFRE_DB_Errortype;
-begin
- result := FSysConnection.NewGroupI(groupname,txt,txt_short,domainid,group);
-end;
-
-function TFRE_DB_CONNECTION.SetGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
-begin
-  result := FSysConnection.SetGroupRoles(groupatdomain,roles);
-end;
-
-function TFRE_DB_CONNECTION.AddGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
-begin
-  result := FSysConnection.AddGroupRoles(groupatdomain,roles);
-end;
-
-function TFRE_DB_CONNECTION.RemoveGroupRoles(const groupatdomain: TFRE_DB_String; const roles: TFRE_DB_StringArray; const ignore_not_set: boolean): TFRE_DB_Errortype;
-begin
-  result := FSysConnection.RemoveGroupRoles(groupatdomain,roles, ignore_not_set);
-end;
-
-function TFRE_DB_CONNECTION.ModifyUserGroups(const loginatdomain: TFRE_DB_String; const user_groups: TFRE_DB_StringArray; const keep_existing_groups: boolean): TFRE_DB_Errortype;
-begin
- result := FSysConnection.ModifyUserGroups(loginatdomain,user_groups,keep_existing_groups);
-end;
-
-function TFRE_DB_CONNECTION.RemoveUserGroups(const loginatdomain: TFRE_DB_String; const user_groups: TFRE_DB_StringArray): TFRE_DB_Errortype;
-begin
- result := FSysConnection.RemoveUserGroups(loginatdomain,user_groups);
-end;
-
-function TFRE_DB_CONNECTION.ModifyUserPassword(const loginatdomain, oldpassword, newpassword: TFRE_DB_String): TFRE_DB_Errortype;
-begin
- result := FSysConnection.ModifyUserPassword(loginatdomain,oldpassword,newpassword);
-end;
-
-function TFRE_DB_CONNECTION.RoleExists(const rolename: TFRE_DB_String): boolean;
-begin
- result := FSysConnection.RoleExists(rolename);
-end;
-
-function TFRE_DB_CONNECTION.GroupExists(const groupatdomain: TFRE_DB_String): boolean;
-begin
- result := FSysConnection.GroupExists(groupatdomain);
-end;
-
-function TFRE_DB_CONNECTION.DeleteGroup(const groupatdomain: TFRE_DB_String): TFRE_DB_Errortype;
-begin
- result := FSysConnection.DeleteGroup(groupatdomain);
-end;
-
-function TFRE_DB_CONNECTION.DeleteRole(const rolename: TFRE_DB_String): TFRE_DB_Errortype;
-begin
- result := FSysConnection.DeleteRole(rolename);
-end;
-
-function TFRE_DB_CONNECTION.StoreRole(const domainname: TFRE_DB_NameType; var rg: IFRE_DB_ROLE): TFRE_DB_Errortype;
-begin
- result := FSysConnection.StoreRoleI(rg,domainname);
-end;
-
-function TFRE_DB_CONNECTION.StoreGroup(const domainname:TFRE_DB_NameType; var ug: IFRE_DB_GROUP): TFRE_DB_Errortype;
-begin
- result := FSysConnection.StoreGroupI(ug,domainname);
-end;
-
-function TFRE_DB_CONNECTION.StoreGroupDomainbyID(const domain_id: TGUID; var group: IFRE_DB_GROUP): TFRE_DB_Errortype;
-begin
-  result := FSysConnection.StoreGroupDomainbyIDI(group,domain_id);
-end;
-
-
-function TFRE_DB_CONNECTION.AddDomain(const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
-begin
-  result := FSysConnection.AddDomain(domainname,txt,txt_short);
-end;
-
-function TFRE_DB_CONNECTION.FetchDomainById(const domain_id: TGUID; var domain: IFRE_DB_DOMAIN): TFRE_DB_Errortype;
-begin
-  Result:= FSysConnection.FetchDomainByIdI(domain_id,domain);
-end;
-
-function TFRE_DB_CONNECTION.DomainId(const name: TFRE_DB_NameType): TGUID;
-begin
-  Result:= FSysConnection._DomainID(name);
-end;
-
-function TFRE_DB_CONNECTION.ModifyDomainById(const domain_id: TGUID; const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
-begin
-  Result:= FSysConnection.ModifyDomainById(domain_id,domainname,txt,txt_short);
-end;
-
-function TFRE_DB_CONNECTION.DeleteDomainById(const domain_id: TGUID): TFRE_DB_Errortype;
-begin
-  Result:= FSysConnection.DeleteDomainById(domain_id);
-end;
-
-function TFRE_DB_CONNECTION.IsSystemGroup(const group_id: TGUID): boolean;
-begin
- Result:= FSysConnection.IsSystemGroup(group_id);
-end;
-
-//function TFRE_DB_CONNECTION.CheckRightForGroup(const right_name: TFRE_DB_String; const group_uid: TGuid): boolean;
-//begin
-//  result := FSysConnection.CheckRightForGroup(right_name,group_uid);
-//end;
 
 function TFRE_DB_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): TFRE_DB_Errortype;
 begin
@@ -16779,12 +16577,12 @@ begin
  fn      := data.Field('firstname').AsString;
  ln      := data.field('lastname').AsString;
 
- dbc.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainidlink').AsString),obj);
+ dbc.sys.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainidlink').AsString),obj);
  dn := obj.Domainname(true);
  writeln('dn:',dn);
  if pw<>pwc then
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Password confirm mismatch',fdbmt_error,nil));
- res := dbc.AddUser(loginf+'@'+dn,pw,fn,ln);
+ res := dbc.sys.AddUser(loginf+'@'+dn,pw,fn,ln);
  if res=edb_OK then
    exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
  else

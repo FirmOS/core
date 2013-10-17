@@ -2012,7 +2012,7 @@ begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
   if currentVersionId='' then
     begin
-      CreateAppText(conn,'$description','Test App','Test App','Test App');
+      CreateAppText(conn,'$caption','Test App','Test App','Test App');
       CreateAppText(conn,'$vnc_description','VNC Test','VNC Test','VNC Test');
       CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
       CreateAppText(conn,'$gtf_description','Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
@@ -2068,7 +2068,7 @@ begin
   //conn.StoreRole(guest_app_role,ObjectName,domain);
   //
 
-   conn.NewGroup('TESTAPPADMIN','Admin Group for the testapp','Testapp Admins',domainUID,group);
+//   conn.NewGroup('TESTAPPADMIN','Admin Group for the testapp','Testapp Admins',domainUID,group);
 
 
   //conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');  // DEMONSTRATION GROUPS -> make your own in your App
