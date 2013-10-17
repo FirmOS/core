@@ -752,7 +752,7 @@ type
   TFRE_DB_DC_STRINGFIELDKEY_LIST      = array of TFRE_DB_DC_STRINGFIELDKEY;
 
   TFRE_DB_CHART_TYPE                  = (fdbct_pie,fdbct_column,fdbct_line);
-  TFRE_DB_LIVE_CHART_TYPE             = (fdblct_line,fdblct_sampledline);
+  TFRE_DB_LIVE_CHART_TYPE             = (fdblct_line,fdblct_sampledline,fdblct_column);
   TFRE_COLLECTION_DISPLAY_TYPE        = (cdt_Invalid,cdt_Listview,cdt_Treeview,cdt_Chartview);
   TFRE_COLLECTION_GRID_DISPLAY_FLAG   = (cdgf_ShowSearchbox,cdgf_Editable,cdgf_Filter,cdgf_Sortable,cdgf_ColumnResizeable,cdgf_ColumnHideable,cdgf_ColumnDragable,cdgf_Details,cdgf_Children,cdgf_enableMultiselect);
   TFRE_COLLECTION_CHART_DISPLAY_FLAG  = (cdcf_None);

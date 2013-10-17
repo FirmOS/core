@@ -68,7 +68,7 @@ const
   CFRE_DB_BUTTON_TYPE          : array [TFRE_DB_BUTTON_TYPE] of string         = ('bt_submit','bt_button','bt_close','bt_download');
   CFRE_DB_GRID_BUTTON_DEP      : array [TFRE_DB_GRID_BUTTON_DEP] of string     = ('gbd_single','gbd_multi','gbd_always','gbd_manual');
   CFRE_DB_CHART_TYPE           : array [TFRE_DB_CHART_TYPE] of string          = ('ct_pie','ct_column','ct_line');
-  CFRE_DB_LIVE_CHART_TYPE      : array [TFRE_DB_LIVE_CHART_TYPE] of string     = ('lct_line','lct_sampledline');
+  CFRE_DB_LIVE_CHART_TYPE      : array [TFRE_DB_LIVE_CHART_TYPE] of string     = ('lct_line','lct_sampledline','lct_column');
   CFRE_DB_CONTENT_TYPE         : array [TFRE_DB_CONTENT_TYPE] of string        = ('ct_html','ct_javascript','ct_pascal');
 
 type
@@ -811,59 +811,61 @@ type
 
   TFRE_DB_LIVE_CHART_DESC    = class(TFRE_DB_CONTENT_DESC)
   private
-    function _Describe           (const id: String; const seriesCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const yMin,yMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray;const legendLabels: TFRE_DB_StringArray;
-                                  const yTickHint: Integer; const initData: TFRE_DB_SERVER_FUNC_DESC;const displayDuration: Integer; const updateInterval: Integer; const buffer: Integer; const seriesType: TFRE_DB_LIVE_CHART_TYPE): TFRE_DB_LIVE_CHART_DESC;
+    function _Describe           (const id: String; const seriesCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const dataMin,dataMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray;const dataLabels: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray;
+                                  const dataTickHint: Integer; const initData: TFRE_DB_SERVER_FUNC_DESC;const dataCount: Integer; const updateInterval: Integer; const buffer: Integer; const seriesType: TFRE_DB_LIVE_CHART_TYPE): TFRE_DB_LIVE_CHART_DESC;
   public
     //@ Describes a live chart.
     //@ id: id of the chart. Needed by the data feeder to address the chart.
     //@ seriesCount: number of series in the chart
     //@ stopStartCB: server function called on start and stop. Parameter action will have the value "start" or "stop".
-    //@ yMin, yMax: limits the y-axis
-    //@ yTickHint: axis will get approximately 'yTickHint' ticks
-    //@ initData: server function called to get the initial data of the live chart. Has to hold displayDuration / updateInterval + buffer + 1 data elements.
-    //@ displayDuration: in milliseconds
+    //@ dataMin, dataMax: limits the data-axis
+    //@ dataTickHint: axis will get approximately 'dataTickHint' ticks
+    //@ initData: server function called to get the initial data of the live chart. Has to hold dataCount + buffer + 1 data elements.
+    //@ dataCount: data count per series
     //@ updateInterval: in milliseconds
     //@ buffer: number of data elements to hold as buffer
-    function Describe            (const id: String; const seriesCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const yMin,yMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray=nil;const legendLabels: TFRE_DB_StringArray=nil;
-                                  const yTickHint: Integer=10; const initData: TFRE_DB_SERVER_FUNC_DESC=nil;const displayDuration: Integer=120000; const updateInterval: Integer=1000; const buffer: Integer=1; const seriesType: TFRE_DB_LIVE_CHART_TYPE=fdblct_line): TFRE_DB_LIVE_CHART_DESC;
+    function Describe            (const id: String; const seriesCount: Integer; const dataCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const dataMin,dataMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray=nil;const legendLabels: TFRE_DB_StringArray=nil;
+                                  const dataTickHint: Integer=10; const initData: TFRE_DB_SERVER_FUNC_DESC=nil; const updateInterval: Integer=1000; const buffer: Integer=1): TFRE_DB_LIVE_CHART_DESC;
 
     //@ Describes a sampled line live chart.
-    //@ displayDuration: in milliseconds
-    //@ samplingInterval: in milliseconds
-    //@ displayDuration / samplingInterval values have to be provided for each line
-    function DescribeSampledLine (const id: String; const seriesCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const yMin,yMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray=nil;const legendLabels: TFRE_DB_StringArray=nil;
-                                  const yTickHint: Integer=10; const displayDuration: Integer=120000; const samplingInterval: Integer=1000): TFRE_DB_LIVE_CHART_DESC;
+    //@ dataCount: data count per series
+    function DescribeSampledLine (const id: String; const seriesCount: Integer; const dataCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const dataMin,dataMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray=nil;const legendLabels: TFRE_DB_StringArray=nil;
+                                  const dataTickHint: Integer=10): TFRE_DB_LIVE_CHART_DESC;
+
+    //@ Describes a column chart.
+    //@ dataCount is the number of columns.
+    //@ seriesCount is the number of values per column. Currently only a seriesCount of 1 is implemented.
+    function DescribeColumn      (const id: String; const dataCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const caption: String; const dataMax: Real; const dataMin: Real=0;
+                                  const seriesColor: TFRE_DB_StringArray=nil; const dataLabels: TFRE_DB_StringArray=nil;  const legendLabels: TFRE_DB_StringArray=nil; const seriesCount: Integer=1): TFRE_DB_LIVE_CHART_DESC;
   end;
 
-  { TFRE_DB_LIVE_CHART_DATA_DESC }
+  { TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC }
 
-  TFRE_DB_LIVE_CHART_DATA_DESC    = class(TFRE_DB_CONTENT_DESC)
+  TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC    = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes the data of a live chart at index "idx".
     //@ id: id of the chart.
     //@ dataIndex: index of the data since the last start action
-    function Describe        (const id: String; const dataIndex: Integer; const data: TFRE_DB_Real32Array): TFRE_DB_LIVE_CHART_DATA_DESC;
+    function Describe        (const id: String; const dataIndex: Integer; const data: TFRE_DB_Real32Array): TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;
   end;
 
-  TFRE_DB_LIVE_CHART_SAMPLED_DATA_ARRAY = array of TFRE_DB_Real32Array;
+  TFRE_DB_LIVE_CHART_DATA_ARRAY = array of TFRE_DB_Real32Array;
 
-  { TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC }
+  { TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC }
 
-  TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC    = class(TFRE_DB_CONTENT_DESC)
+  TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC    = class(TFRE_DB_CONTENT_DESC)
   public
-    //@ Describes the data of a sampled live chart.
+    //@ Describes the complete data of a live chart.
     //@ id: id of the chart.
-    function Describe        (const id: String; const data: TFRE_DB_LIVE_CHART_SAMPLED_DATA_ARRAY): TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC;
+    function Describe        (const id: String; const data: TFRE_DB_LIVE_CHART_DATA_ARRAY): TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
   end;
-
-  TFRE_DB_LIVE_CHART_INIT_DATA_ARRAY = array of TFRE_DB_Real32Array;
 
   { TFRE_DB_LIVE_CHART_INIT_DATA_DESC }
 
   TFRE_DB_LIVE_CHART_INIT_DATA_DESC    = class(TFRE_DB_CONTENT_DESC)
   public
-    //@ Describes the initial data of a live chart.
-    function Describe        (const data: TFRE_DB_LIVE_CHART_INIT_DATA_ARRAY): TFRE_DB_LIVE_CHART_INIT_DATA_DESC;
+    //@ Describes the compleate initial data of a live chart. Has to be used as response within the initData server function.
+    function Describe        (const data: TFRE_DB_LIVE_CHART_DATA_ARRAY): TFRE_DB_LIVE_CHART_INIT_DATA_DESC;
   end;
 
   { TFRE_DB_NEW_WINDOW_DESC }
@@ -983,9 +985,9 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC }
+  { TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC }
 
-  function TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC.Describe(const id: String; const data: TFRE_DB_LIVE_CHART_SAMPLED_DATA_ARRAY): TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC;
+  function TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC.Describe(const id: String; const data: TFRE_DB_LIVE_CHART_DATA_ARRAY): TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
   var
     i: Integer;
   begin
@@ -1041,9 +1043,9 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_LIVE_CHART_DATA_DESC }
+  { TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC }
 
-  function TFRE_DB_LIVE_CHART_DATA_DESC.Describe(const id: String; const dataIndex: Integer; const data: TFRE_DB_Real32Array): TFRE_DB_LIVE_CHART_DATA_DESC;
+  function TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC.Describe(const id: String; const dataIndex: Integer; const data: TFRE_DB_Real32Array): TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;
   begin
     Field('id').AsString:=id;
     Field('dataIndex').AsInt64:=dataIndex;
@@ -1053,7 +1055,7 @@ implementation
 
   { TFRE_DB_LIVE_CHART_INIT_DATA_DESC }
 
-  function TFRE_DB_LIVE_CHART_INIT_DATA_DESC.Describe(const data: TFRE_DB_LIVE_CHART_INIT_DATA_ARRAY): TFRE_DB_LIVE_CHART_INIT_DATA_DESC;
+  function TFRE_DB_LIVE_CHART_INIT_DATA_DESC.Describe(const data: TFRE_DB_LIVE_CHART_DATA_ARRAY): TFRE_DB_LIVE_CHART_INIT_DATA_DESC;
   var
     i: Integer;
   begin
@@ -1368,21 +1370,24 @@ implementation
 
   { TFRE_DB_LIVE_CHART_DESC }
 
-  function TFRE_DB_LIVE_CHART_DESC._Describe(const id: String; const seriesCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const yMin, yMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const yTickHint: Integer; const initData: TFRE_DB_SERVER_FUNC_DESC; const displayDuration: Integer; const updateInterval: Integer; const buffer: Integer;  const seriesType: TFRE_DB_LIVE_CHART_TYPE): TFRE_DB_LIVE_CHART_DESC;
+    function TFRE_DB_LIVE_CHART_DESC._Describe(const id: String; const seriesCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const dataMin, dataMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray; const dataLabels: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const dataTickHint: Integer; const initData: TFRE_DB_SERVER_FUNC_DESC; const dataCount: Integer; const updateInterval: Integer; const buffer: Integer; const seriesType: TFRE_DB_LIVE_CHART_TYPE): TFRE_DB_LIVE_CHART_DESC;
   begin
     Field('id').AsString:=id;
     Field('seriesCount').AsInt16:=seriesCount;
     Field('serverFunc').AsObject:=stopStartCB;
     Field('type').AsString:=CFRE_DB_LIVE_CHART_TYPE[seriesType];
-    Field('yMin').AsReal32:=yMin;
-    Field('yMax').AsReal32:=yMax;
+    Field('dataMin').AsReal32:=dataMin;
+    Field('dataMax').AsReal32:=dataMax;
     Field('caption').AsString:=caption;
-    Field('yTickHint').AsInt16:=yTickHint;
-    Field('displayDuration').AsInt64:=displayDuration;
+    Field('dataTickHint').AsInt16:=dataTickHint;
+    Field('dataCount').AsInt64:=dataCount;
     Field('updateInterval').AsInt16:=updateInterval;
     Field('buffer').AsInt16:=buffer;
     if Assigned(seriesColor) then begin
       Field('seriesColor').AsStringArr:=seriesColor;
+    end;
+    if Assigned(dataLabels) then begin
+      Field('dataLabels').AsStringArr:=dataLabels;
     end;
     if Assigned(legendLabels) then begin
       Field('legendLabels').AsStringArr:=legendLabels;
@@ -1393,14 +1398,19 @@ implementation
     Result:=Self;
   end;
 
-  function TFRE_DB_LIVE_CHART_DESC.Describe(const id: String; const seriesCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const yMin, yMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const yTickHint: Integer; const initData: TFRE_DB_SERVER_FUNC_DESC; const displayDuration: Integer; const updateInterval: Integer; const buffer: Integer; const seriesType: TFRE_DB_LIVE_CHART_TYPE): TFRE_DB_LIVE_CHART_DESC;  begin
-    if seriesType=fdblct_sampledline then raise EFRE_DB_Exception.Create(edb_ERROR,'Use DescribeSampledLine to describe a live chart of type fdblct_sampledline.');
-    Result:=_Describe(id,seriesCount,stopStartCB,yMin,yMax,caption,seriesColor,legendLabels,yTickHint,initData,displayDuration,updateInterval,buffer,seriesType);
+    function TFRE_DB_LIVE_CHART_DESC.Describe(const id: String; const seriesCount: Integer; const dataCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const dataMin, dataMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const dataTickHint: Integer; const initData: TFRE_DB_SERVER_FUNC_DESC; const updateInterval: Integer; const buffer: Integer): TFRE_DB_LIVE_CHART_DESC;  begin
+    Result:=_Describe(id,seriesCount,stopStartCB,dataMin,dataMax,caption,seriesColor,nil,legendLabels,dataTickHint,initData,dataCount,updateInterval,buffer,fdblct_line);
   end;
 
-  function TFRE_DB_LIVE_CHART_DESC.DescribeSampledLine(const id: String; const seriesCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const yMin, yMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const yTickHint: Integer; const displayDuration: Integer; const samplingInterval: Integer): TFRE_DB_LIVE_CHART_DESC;
+    function TFRE_DB_LIVE_CHART_DESC.DescribeSampledLine(const id: String; const seriesCount: Integer; const dataCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const dataMin, dataMax: Real; const caption: String; const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const dataTickHint: Integer): TFRE_DB_LIVE_CHART_DESC;
   begin
-    Result:=_Describe(id,seriesCount,stopStartCB,yMin,yMax,caption,seriesColor,legendLabels,yTickHint,nil,displayDuration,samplingInterval,0,fdblct_sampledline);
+    Result:=_Describe(id,seriesCount,stopStartCB,dataMin,dataMax,caption,seriesColor,nil,legendLabels,dataTickHint,nil,dataCount,0,0,fdblct_sampledline);
+  end;
+
+  function TFRE_DB_LIVE_CHART_DESC.DescribeColumn(const id: String; const dataCount: Integer; const stopStartCB: TFRE_DB_SERVER_FUNC_DESC; const caption: String; const dataMax: Real; const dataMin: Real; const seriesColor: TFRE_DB_StringArray; const dataLabels: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const seriesCount: Integer): TFRE_DB_LIVE_CHART_DESC;
+  begin
+    if Assigned(dataLabels) and (Length(dataLabels)<>dataCount) then raise EFRE_DB_Exception.Create(edb_ERROR,'dataLabels used but count is not the same as dataCount');
+    Result:=_Describe(id,seriesCount,stopStartCB,dataMin,dataMax,caption,seriesColor,dataLabels,legendLabels,dataCount,nil,dataCount,0,0,fdblct_column);
   end;
 
   { TFRE_DB_INPUT_DATE_DESC }
