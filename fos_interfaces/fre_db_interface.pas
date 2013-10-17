@@ -765,7 +765,7 @@ type
   TFRE_DB_DC_STRINGFIELDKEY_LIST      = array of TFRE_DB_DC_STRINGFIELDKEY;
 
   TFRE_DB_CHART_TYPE                  = (fdbct_pie,fdbct_column,fdbct_line);
-  TFRE_DB_LIVE_CHART_TYPE             = (fdblct_line,fdblct_sampledline);
+  TFRE_DB_LIVE_CHART_TYPE             = (fdblct_line,fdblct_sampledline,fdblct_column);
   TFRE_COLLECTION_DISPLAY_TYPE        = (cdt_Invalid,cdt_Listview,cdt_Treeview,cdt_Chartview);
   TFRE_COLLECTION_GRID_DISPLAY_FLAG   = (cdgf_ShowSearchbox,cdgf_Editable,cdgf_Filter,cdgf_Sortable,cdgf_ColumnResizeable,cdgf_ColumnHideable,cdgf_ColumnDragable,cdgf_Details,cdgf_Children,cdgf_enableMultiselect);
   TFRE_COLLECTION_CHART_DISPLAY_FLAG  = (cdcf_None);
@@ -1151,60 +1151,9 @@ type
 
     function    SYS                          : IFRE_DB_SYS_CONNECTION;
 
-//System Functions
-//    function    AddUser                     (const loginatdomain,password,first_name,last_name:TFRE_DB_String):TFRE_DB_Errortype;
-//    function    UserExists                  (const loginatdomain:TFRE_DB_String):boolean;
-//    function    DeleteUser                  (const loginatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-//    function    DeleteUserById              (const user_id:TGUID):TFRE_DB_Errortype;
-//    function    FetchUser                   (const loginatdomain:TFRE_DB_String;var user:IFRE_DB_USER):TFRE_DB_Errortype;
-//    function    FetchUserById               (const user_id:TGUID;var user: IFRE_DB_USER):TFRE_DB_Errortype;
-//    function    FetchGroup                  (const groupatdomain:TFRE_DB_String;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
-//    function    FetchGroupById              (const group_id:TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
-//    function    FetchRole                   (const roleatdomain:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
-//    function    FetchRoleById               (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
-//    function    NewRight                    (const rightname:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
-//    function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role:IFRE_DB_ROLE):TFRE_DB_Errortype;
-//    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var group:IFRE_DB_GROUP):TFRE_DB_Errortype;
-//    function    SetGroupRoles               (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
-//    function    AddGroupRoles               (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray): TFRE_DB_Errortype;
-//    function    RemoveGroupRoles            (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
-//    function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
-//    function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
-//    function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
-//    function    RoleExists                  (const roleatdomain:TFRE_DB_String):boolean;
-//    function    GroupExists                 (const groupatdomain:TFRE_DB_String):boolean;
-//    function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-//    function    DeleteRole                  (const roleatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-//    function    StoreRole                   (const appname:TFRE_DB_String; const domainname : TFRE_DB_NameType; var rg:IFRE_DB_ROLE):TFRE_DB_Errortype;
-//    function    StoreGroup                  (const appname:TFRE_DB_String; const domainname : TFRE_DB_NameType; var ug:IFRE_DB_GROUP):TFRE_DB_Errortype;
-//    function    StoreGroupDomainbyID        (const domain_id: TGUID; var group : IFRE_DB_GROUP): TFRE_DB_Errortype;
-//    function    CheckRight                  (const right_name:TFRE_DB_String):boolean;
-//
-//    function    CheckAppRight               (const right_name:TFRE_DB_String;const appKey: TFRE_DB_NameType):boolean;      //REMOVE
-//
-//    function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
-//    function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
-//
-//    function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
-//    function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
-//    function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
-//
-//    function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
-//    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
-//    function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
-//
-//    function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
-//    function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
-//
-////    function    CheckRightForGroup          (const right_name:TFRE_DB_String;const group_uid : TGuid):boolean;
     function    FetchApplications           (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
-//    function    FetchDomainById             (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
-//    function    ModifyDomainById            (const domain_id:TGUID; const domainname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
-//    function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
-//    function    DomainId                    (const name :TFRE_DB_NameType):TGUID;
-//    function    IsSystemGroup               (const group_id:TGUID):boolean;
-//
+
     function    AdmGetUserCollection        :IFRE_DB_COLLECTION;
     function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
     function    AdmGetGroupCollection       :IFRE_DB_COLLECTION;
@@ -1238,10 +1187,10 @@ type
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
     function    NewRight                    (const rightname:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role  :IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainid:TGuid; var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    SetGroupRoles               (const groupatdomain:TFRE_DB_String;const roles:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    AddGroupRoles               (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    RemoveGroupRoles            (const groupatdomain:TFRE_DB_String;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
+    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TGUID):TFRE_DB_Errortype;
+    function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
@@ -1251,12 +1200,13 @@ type
     function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
     function    DeleteRole                  (const role:TFRE_DB_String):TFRE_DB_Errortype;
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
+    function    DomainID                    (const domainname:TFRE_DB_NameType):TGUID;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     procedure   ForAllDomains               (const func:IFRE_DB_Domain_Iterator);
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainname: TFRE_DB_NameType=''):TFRE_DB_Errortype;
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID ):TFRE_DB_Errortype;
-    function    StoreGroup                  (var   group:IFRE_DB_GROUP; const domainname: TFRE_DB_NameType):TFRE_DB_Errortype;
+    function    StoreGroup                  (var group:IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
     function    StoreTranslateableText      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    DeleteTranslateableText     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
     //function    CheckRight                  (const right_name:TFRE_DB_String):boolean;
@@ -1270,10 +1220,10 @@ type
     function    OverviewDump                :TFRE_DB_String;
     procedure   DumpSystem                  ;
 
-    function    GetRoleIDArray               (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_GUIDArray;
-    function    GetRightsArrayForRoles       (const roleids      : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
-    function    GetRightsArrayForGroups      (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
-    function    GetRightsArrayForUser        (const user         : IFRE_DB_USER)      : TFRE_DB_StringArray;
+    //function    GetRoleIDArray               (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_GUIDArray;
+    //function    GetRightsArrayForRoles       (const roleids      : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
+    //function    GetRightsArrayForGroups      (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
+    //function    GetRightsArrayForUser        (const user         : IFRE_DB_USER)      : TFRE_DB_StringArray;
     function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
     procedure   StartTransaction             (const trans_id     : TFRE_DB_NameType);
     procedure   Commit                       ;
@@ -1283,18 +1233,18 @@ type
     function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
 
     function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
-    function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String):boolean;
     function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
 
     function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
-    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String):boolean;
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
 
     function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
     function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
 
     function    IsCurrentUserSystemAdmin    : boolean;
-
+    function    DumpUserRights               :TFRE_DB_String;
   end;
 
 
@@ -1317,7 +1267,7 @@ type
     function   FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
     function   AppClassName                 : ShortString;
     function   AsObject                     : IFRE_DB_Object;
-    function   GetCaption                   : TFRE_DB_String;
+    function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
   end;
 
   IFRE_DB_APPLICATION_MODULE=interface
@@ -1327,9 +1277,6 @@ type
     function   GetDBConnection               (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
     function   GetDBSessionData              (const input:IFRE_DB_Object): IFRE_DB_Object;
     function   GetDBModuleSessionData        (const input:IFRE_DB_Object): IFRE_DB_Object;
-    //function   getApplication                : IFRE_DB_APPLICATION;
-    function   GetName                       : TFRE_DB_String;
-    function   ObjectName                    : TFRE_DB_String;
     function   GetModuleTitle                (const ses : IFRE_DB_Usersession): TFRE_DB_String;
     function   GetModuleClassName            : Shortstring;
     function   AsObject                      : IFRE_DB_Object;
@@ -1367,20 +1314,20 @@ type
     procedure        GetSession                 (const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean); deprecated; //DEPRECATED DONT USE
     function         GetSession                 (const input: IFRE_DB_Object):TFRE_DB_UserSession; deprecated; //DEPRECATED DONT USE
     class function   _GetClassRight             (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
-    class function   _GetRight                  (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
+    class function   _GetRight                  (const right: TFRE_DB_String): IFRE_DB_RIGHT;
     class function   GetRight4Domain            (const right: TFRE_DB_NameType; const domainUID:TGUID): IFRE_DB_RIGHT;
     class function   GetClassRightName          (const right: TFRE_DB_NameType): TFRE_DB_String;
     class function   GetClassRightNameUpdate    : TFRE_DB_String;
     class function   GetClassRightNameDelete    : TFRE_DB_String;
     class function   GetClassRightNameStore     : TFRE_DB_String;
     class function   GetClassRightNameFetch     : TFRE_DB_String;
-    class function   GetAllDefaultClassRoleNames: TFRE_DB_StringArray;
     class function   CreateClassRole            (const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
     class function   GetClassRoleName           (const rolename: TFRE_DB_String): TFRE_DB_String;
     class function   GetClassRoleNameUpdate     : TFRE_DB_String;
     class function   GetClassRoleNameDelete     : TFRE_DB_String;
     class function   GetClassRoleNameStore      : TFRE_DB_String;
     class function   GetClassRoleNameFetch      : TFRE_DB_String;
+    class function   GetClassStdRoles           (const store:boolean=true; const update:boolean=true; const delete:boolean=true; const fetch:boolean=true): TFRE_DB_StringArray;
 
     procedure        __SetMediator              (const med : TFRE_DB_ObjectEx);
     class function   Get_DBI_InstanceMethods                                            : TFRE_DB_StringArray;
@@ -1564,8 +1511,7 @@ type
 
     function   AsObject                     : IFRE_DB_Object;
     function   AppClassName                 : ShortString;
-    function   GetCaption                   : TFRE_DB_String;
-
+    function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
 
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
     function    ShowInApplicationChooser    (const session:IFRE_DB_UserSession): Boolean;virtual;
@@ -1575,7 +1521,6 @@ type
     function   FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
 
     class procedure  CreateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
-
 
   published
      function   WEB_Content                 (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -1591,13 +1536,13 @@ type
   protected
     procedure  SetupAppModuleStructure       ;virtual;
     procedure  AddApplicationModule          (const module:TFRE_DB_APPLICATION_MODULE);
-    procedure  InitModuleDesc                (const objname,descr_translation_key:TFRE_DB_String);virtual;
+    procedure  InitModuleDesc                (const descr_translation_key:TFRE_DB_String);virtual;
 
     function   IFRE_DB_APPLICATION_MODULE.ObjectName  = GetName;
     function   IFRE_DB_APPLICATION_MODULE.DEscription = GetDesc;
     procedure  MyServerInitializeModule     (const admin_dbc : IFRE_DB_CONNECTION); virtual;
     procedure  CheckClassVisibility         (const session : IFRE_DB_UserSession);virtual;
-    class procedure  InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure  ForAllAppModules              (const module_iterator:TFRE_DB_APPLICATION_MODULE_ITERATOR);
     procedure  MySessionInitializeModule    (const session : TFRE_DB_UserSession);virtual;
@@ -1613,9 +1558,6 @@ type
     function   GetDBModuleSessionData       (const input:IFRE_DB_Object): IFRE_DB_Object;
     function   GetDependencyFiltervalues    (const input:IFRE_DB_Object; const dependencyfield:string): TFRE_DB_StringArray;
 
-    function   GetName                      : TFRE_DB_String;
-    procedure  SetName                      (const AValue: TFRE_DB_String);
-    property   ObjectName                   : TFRE_DB_String       read GetName write SetName;
     procedure  SetDescrTranslationKey       (const val:TFRE_DB_String);
     function   GetDescrTranslationKey       :TFRE_DB_String;
     function   GetModuleTitle               (const ses : IFRE_DB_Usersession): TFRE_DB_String;
@@ -4313,7 +4255,7 @@ begin
   Result:=_GetRight(GetClassRightName(right));
 end;
 
-class function TFRE_DB_Base._GetRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
+class function TFRE_DB_Base._GetRight(const right: TFRE_DB_String): IFRE_DB_RIGHT;
 begin
   Result:=GFRE_DBI.NewRight(right);
 end;
@@ -4350,7 +4292,27 @@ end;
 
 class function TFRE_DB_Base.GetClassRoleNameFetch: TFRE_DB_String;
 begin
- Result:=GetClassRoleName('fetch');
+  Result:=GetClassRoleName('fetch');
+end;
+
+class function TFRE_DB_Base.GetClassStdRoles(const store: boolean; const update: boolean; const delete: boolean; const fetch: boolean): TFRE_DB_StringArray;
+
+ procedure _add(const name : TFRE_DB_String);
+ begin
+  SetLength(result,length(result)+1);
+  result[high(result)] := name;
+ end;
+
+begin
+  SetLength(result,0);
+  if store then
+    _Add(GetClassRoleNameStore);
+  if update then
+    _Add(GetClassRoleNameUpdate);
+  if delete then
+    _Add(GetClassRoleNameDelete);
+  if fetch then
+    _Add(GetClassRoleNameFetch);
 end;
 
 class function TFRE_DB_Base.GetClassRightName(const right: TFRE_DB_NameType): TFRE_DB_String;
@@ -4378,10 +4340,6 @@ begin
   Result:=GetClassRightName('fetch');
 end;
 
-class function TFRE_DB_Base.GetAllDefaultClassRoleNames: TFRE_DB_StringArray;
-begin
-  Result:=GFRE_DBI.ConstructStringArray([GetClassRoleNameUpdate,GetClassRoleNameDelete,GetClassRoleNameStore]);
-end;
 
 procedure TFRE_DB_Base.__SetMediator(const med: TFRE_DB_ObjectEx);
 begin
@@ -5432,12 +5390,10 @@ begin
  result := ClassName;
 end;
 
-function TFRE_DB_APPLICATION.GetCaption: TFRE_DB_String;
+function TFRE_DB_APPLICATION.GetCaption(const ses: IFRE_DB_Usersession): TFRE_DB_String;
 begin
-  result := ClassName;
+  result := FetchAppText(ses,'$caption').Getshort;
 end;
-
-
 
 procedure TFRE_DB_APPLICATION.SessionInitialize(const session: TFRE_DB_UserSession);
 
@@ -5522,7 +5478,7 @@ end;
 procedure TFRE_DB_APPLICATION.AddApplicationModule(const module: TFRE_DB_APPLICATION_MODULE);
 var FSubmoduleOrder : Integer;
 begin
-  Field(module.ObjectName).AsObject := module;
+  Field(module.GetModuleClassName).AsObject := module;
   if FieldExists('SubModuleOrder') then begin
     FSubmoduleOrder:=Field('SubModuleOrder').AsInt32;
     inc(FSubModuleOrder);
@@ -5530,7 +5486,7 @@ begin
     FSubModuleOrder:=1;
   end;
   Field('SubModuleOrder').AsInt32 := FSubmoduleOrder;
-  Field(module.ObjectName+'_O').AsInt16:=FSubModuleOrder;
+  Field(module.GetModuleClassName+'_O').AsInt16:=FSubModuleOrder;
 end;
 
 function TFRE_DB_APPLICATION.DelegateInvoke(const modulename: TFRE_DB_String; const methname: string; const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -5729,7 +5685,7 @@ end;
 procedure TFRE_DB_APPLICATION_MODULE.AddApplicationModule(const module: TFRE_DB_APPLICATION_MODULE);
 var FSubmoduleOrder : Integer;
 begin
-  Field(module.ObjectName).AsObject := module;
+  Field(module.GetModuleClassName).AsObject := module;
   if FieldExists('SubModuleOrder') then begin
     FSubmoduleOrder:=Field('SubModuleOrder').AsInt32;
     inc(FSubModuleOrder);
@@ -5737,13 +5693,12 @@ begin
     FSubModuleOrder:=1;
   end;
   Field('SubModuleOrder').AsInt32 := FSubmoduleOrder;
-  Field(module.ObjectName+'_O').AsInt16:=FSubModuleOrder;
+  Field(module.GetModuleClassName+'_O').AsInt16:=FSubModuleOrder;
 end;
 
 
-procedure TFRE_DB_APPLICATION_MODULE.InitModuleDesc(const objname, descr_translation_key: TFRE_DB_String);
+procedure TFRE_DB_APPLICATION_MODULE.InitModuleDesc(const descr_translation_key: TFRE_DB_String);
 begin
-  ObjectName  := objname;
   SetDescrTranslationKey(descr_translation_key)
 end;
 
@@ -5843,7 +5798,7 @@ end;
 
 function TFRE_DB_APPLICATION_MODULE.GetDBModuleSessionData(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  result := GetSession(input).GetSessionModuleData(ObjectName);
+  result := GetSession(input).GetSessionModuleData(ClassName);
 end;
 
 function TFRE_DB_APPLICATION_MODULE.GetDependencyFiltervalues(const input: IFRE_DB_Object; const dependencyfield: string): TFRE_DB_StringArray;
@@ -5854,17 +5809,6 @@ begin
       result := input.Field('dependency').AsObject.Field(dependencyfield).asobject.Field('filtervalues').AsStringArr;
     end;
   end;
-end;
-
-
-function TFRE_DB_APPLICATION_MODULE.GetName: TFRE_DB_String;
-begin
-  result := FNamedObject.getName;
-end;
-
-procedure TFRE_DB_APPLICATION_MODULE.SetName(const AValue: TFRE_DB_String);
-begin
-  FNamedObject.SetName(AValue);
 end;
 
 procedure TFRE_DB_APPLICATION_MODULE.SetDescrTranslationKey(const val: TFRE_DB_String);

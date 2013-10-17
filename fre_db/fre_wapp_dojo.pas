@@ -97,8 +97,8 @@ type
    procedure BuildChart                (const session:TFRE_DB_UserSession; const co:TFRE_DB_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildChartData            (const co:TFRE_DB_CHART_DATA_DESC;var contentString,contentType:String);
    procedure BuildLiveChart            (const session:TFRE_DB_UserSession; const co:TFRE_DB_LIVE_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
-   procedure BuildLiveChartData        (const co:TFRE_DB_LIVE_CHART_DATA_DESC;var contentString,contentType:String);
-   procedure BuildLiveChartSampledData (const co:TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC;var contentString,contentType:String);
+   procedure BuildLiveChartAtIdxData   (const co:TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;var contentString,contentType:String);
+   procedure BuildLiveChartCompleteData(const co:TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;var contentString,contentType:String);
    procedure BuildLiveChartInitData    (const co:TFRE_DB_LIVE_CHART_INIT_DATA_DESC;var contentString,contentType:String);
    procedure BuildTopMenu              (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_TOPMENU_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildInvalidSessionData   (const co:TFRE_DB_INVALIDATE_SESSION_DATA_DESC;var contentString,contentType:String);
@@ -187,11 +187,11 @@ implementation
     if result_object is TFRE_DB_LIVE_CHART_DESC then begin
       gWAC_DOJO.BuildLiveChart(session,TFRE_DB_LIVE_CHART_DESC(result_object),lContent,lContentType,isInnerContent);
     end else
-    if result_object is TFRE_DB_LIVE_CHART_DATA_DESC then begin
-      gWAC_DOJO.BuildLiveChartData(TFRE_DB_LIVE_CHART_DATA_DESC(result_object),lContent,lContentType);
+    if result_object is TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC then begin
+      gWAC_DOJO.BuildLiveChartAtIdxData(TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC(result_object),lContent,lContentType);
     end else
-    if result_object is TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC then begin
-      gWAC_DOJO.BuildLiveChartSampledData(TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC(result_object),lContent,lContentType);
+    if result_object is TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC then begin
+      gWAC_DOJO.BuildLiveChartCompleteData(TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_LIVE_CHART_INIT_DATA_DESC then begin
       gWAC_DOJO.BuildLiveChartInitData(TFRE_DB_LIVE_CHART_INIT_DATA_DESC(result_object),lContent,lContentType);
@@ -2268,14 +2268,17 @@ implementation
     jsContentAdd('  ,sfUidPath: '+_BuildJSArray(co.FieldPath('serverFunc.uidPath').AsStringArr));
     jsContentAdd('  ,sfParams: '+_BuildParamsObject(co.Field('serverFunc').AsObject.Field('params').AsObjectArr));
     jsContentAdd('  ,type:"'+co.Field('type').AsString+'"');
-    jsContentAdd('  ,yMin:'+co.Field('yMin').AsString);
-    jsContentAdd('  ,yMax:'+co.Field('yMax').AsString);
-    jsContentAdd('  ,yTickHint:'+co.Field('yTickHint').AsString);
-    jsContentAdd('  ,displayDuration:'+co.Field('displayDuration').AsString);
+    jsContentAdd('  ,dataMin:'+co.Field('dataMin').AsString);
+    jsContentAdd('  ,dataMax:'+co.Field('dataMax').AsString);
+    jsContentAdd('  ,dataTickHint:'+co.Field('dataTickHint').AsString);
+    jsContentAdd('  ,dataCount:'+co.Field('dataCount').AsString);
     jsContentAdd('  ,updateInterval:'+co.Field('updateInterval').AsString);
     jsContentAdd('  ,bufferSize:'+co.Field('buffer').AsString);
     if co.FieldExists('seriesColor') then begin
       jsContentAdd('  ,seriesColor:'+  _BuildJSArray(co.Field('seriesColor').AsStringArr));
+    end;
+    if co.FieldExists('dataLabels') then begin
+      jsContentAdd('  ,dataLabels:'+  _BuildJSArray(co.Field('dataLabels').AsStringArr));
     end;
     if co.FieldExists('legendLabels') then begin
       jsContentAdd('  ,legendLabels:'+  _BuildJSArray(co.Field('legendLabels').AsStringArr));
@@ -2304,7 +2307,7 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO.BuildLiveChartData(const co: TFRE_DB_LIVE_CHART_DATA_DESC; var contentString, contentType: String);
+  procedure TFRE_DB_WAPP_DOJO.BuildLiveChartAtIdxData(const co: TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC; var contentString, contentType: String);
   var
     JSonAction     : TFRE_JSON_ACTION;
   begin
@@ -2318,7 +2321,7 @@ implementation
     JsonAction.Free;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO.BuildLiveChartSampledData(const co: TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC; var contentString, contentType: String);
+  procedure TFRE_DB_WAPP_DOJO.BuildLiveChartCompleteData(const co: TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC; var contentString, contentType: String);
   var
     JSonAction : TFRE_JSON_ACTION;
     i          : Integer;

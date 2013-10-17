@@ -77,8 +77,8 @@ type
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
-    function        IMI_Content         (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function        IMI_ChildrenData    (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function        WEB_Content         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_ChildrenData    (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_ALL_TYPES }
@@ -91,7 +91,7 @@ type
     procedure   CALC_Uint32 (const calc : IFRE_DB_CALCFIELD_SETTER);
     procedure   CALC_String (const calc : IFRE_DB_CALCFIELD_SETTER);
   published
-    function  IMI_GetIcon   (const input: IFRE_DB_Object): IFRE_DB_Object;
+    function  WEB_GetIcon   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Content   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
@@ -138,11 +138,11 @@ type
   public
     class procedure RegisterSystemScheme      (const scheme:IFRE_DB_SCHEMEOBJECT); override;
   published
-    function        IMI_Messages         (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function        IMI_News             (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function        IMI_Calendar         (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function        IMI_Profile          (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function        IMI_Dialog           (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function        WEB_Messages         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_News             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_Calendar         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_Profile          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_Dialog           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        IMI_RAW_DATA_FEED    (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
@@ -154,7 +154,7 @@ type
   public
     class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
   published
-    function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_FORMTEST_MOD }
@@ -213,14 +213,14 @@ type
     function  PRC_UPDATE_TASK           (const input:IFRE_DB_Object):IFRE_DB_Object;
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    function  IMI_ToggleUpdates         (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_HelloWorld            (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_ChangeData            (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_Dialog                (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_ReadOnlyDialog        (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_GRID_ITEM_DETAILS     (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_SendADialog           (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_ToggleUpdates         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_HelloWorld            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ChangeData            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_Dialog                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ReadOnlyDialog        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_GRID_ITEM_DETAILS     (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_SendADialog           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_GRID2_MOD }
@@ -236,12 +236,12 @@ type
     function  IMI_HelloWorld            (const input:IFRE_DB_Object):IFRE_DB_Object;
     function  WEB_HelloWorld            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Menu                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  IMI_GRID_ITEM_DETAILS     (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_AddRecordBefore       (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_AddRecordAfter        (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_DelRecord             (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_UpdRecord             (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_UpdateCS              (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_GRID_ITEM_DETAILS     (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_AddRecordBefore       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_AddRecordAfter        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_DelRecord             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdRecord             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdateCS              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_CHART_MOD }
@@ -254,12 +254,12 @@ type
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     function        GetToolbarMenu            : TFRE_DB_CONTENT_DESC;override;
   published
-    function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_ContentLines          (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_ContentPie            (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_ContentColumns        (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_ChartData             (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_UpdateDataColl        (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ContentLines          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ContentPie            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ContentColumns        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ChartData             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdateDataColl        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_LIVE_CHART_MOD }
@@ -271,12 +271,15 @@ type
     procedure       SetupAppModuleStructure ; override;
     function        _SendDataSLC        (const Input:IFRE_DB_Object):IFRE_DB_Object;
     function        _SendDataLC         (const Input:IFRE_DB_Object):IFRE_DB_Object;
+    function        _SendDataCC         (const Input:IFRE_DB_Object):IFRE_DB_Object;
   published
-    function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_ContentSL             (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_ContentL              (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_StartStopSLC          (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_StartStopLC           (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ContentSL             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ContentL              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_ContentC              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_StartStopSLC          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_StartStopLC           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_StartStopC            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_GRIDTREEFORM_MOD }
@@ -287,7 +290,7 @@ type
     procedure       SetupAppModuleStructure ; override;
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_EDITORS_MOD }
@@ -298,22 +301,22 @@ type
     procedure       SetupAppModuleStructure ; override;
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    function  IMI_Content               (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_HtmlEditor            (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_HtmlEditorLoad        (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_HtmlEditorSave        (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_HtmlEditorStart       (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_HtmlEditorStop        (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_JSEditor              (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_JSEditorLoad          (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_JSEditorSave          (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_JSEditorStart         (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_JSEditorStop          (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_PascalEditor          (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_PascalEditorLoad      (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_PascalEditorSave      (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_PascalEditorStart     (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function  IMI_PascalEditorStop      (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_HtmlEditor            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_HtmlEditorLoad        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_HtmlEditorSave        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_HtmlEditorStart       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_HtmlEditorStop        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_JSEditor              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_JSEditorLoad          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_JSEditorSave          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_JSEditorStart         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_JSEditorStop          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_PascalEditor          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_PascalEditorLoad      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_PascalEditorSave      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_PascalEditorStart     (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_PascalEditorStop      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 implementation
@@ -652,7 +655,7 @@ end;
 procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('feedbrowser','$feedbrowsetree_description');
+  InitModuleDesc('$feedbrowsetree_description');
 end;
 
 class procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -740,7 +743,7 @@ end;
 procedure TFRE_DB_TEST_APP_ALLGRID_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('allgrid','$allgrid_description');
+  InitModuleDesc('$allgrid_description');
 end;
 
 class procedure TFRE_DB_TEST_APP_ALLGRID_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -832,7 +835,7 @@ end;
 procedure TFRE_DB_TEST_APP_FORMTEST_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('formtest','$formtest_description');
+  InitModuleDesc('$formtest_description');
 end;
 
 procedure TFRE_DB_TEST_APP_FORMTEST_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
@@ -864,14 +867,14 @@ end;
 procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('LIVE_CHART','$live_chart_description')
+  InitModuleDesc('$live_chart_description')
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataLC(const Input:IFRE_DB_Object):IFRE_DB_Object;
 var
   session: TFRE_DB_UserSession;
   data   : TFRE_DB_Real32Array;
-  res    : TFRE_DB_LIVE_CHART_DATA_DESC;
+  res    : TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;
   i      : Integer;
 begin
   session:=GetSession(input);
@@ -879,71 +882,101 @@ begin
   for i := 0 to 1 do begin
     data[i]:=Random(100);
   end;
-  res:=TFRE_DB_LIVE_CHART_DATA_DESC.create.Describe('lchart',_idx,data);
+  res:=TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC.create.Describe('lchart',_idx,data);
   _idx:=_idx+1;
+  session.SendServerClientRequest(res);
+end;
+
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataCC(const Input: IFRE_DB_Object): IFRE_DB_Object;
+var
+  session: TFRE_DB_UserSession;
+  data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
+  res    : TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
+  i      : Integer;
+begin
+  session:=GetSession(input);
+  SetLength(data,1);
+  SetLength(data[0],8);
+  for i := 0 to 7 do begin
+    data[0][i]:=Random(100);
+  end;
+  res:=TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC.create.Describe('cchart',data);
   session.SendServerClientRequest(res);
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataSLC(const Input: IFRE_DB_Object): IFRE_DB_Object;
 var
   session: TFRE_DB_UserSession;
-  data   : TFRE_DB_LIVE_CHART_SAMPLED_DATA_ARRAY;
-  res    : TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC;
+  data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
+  res    : TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
   i      : Integer;
 begin
   session:=GetSession(input);
   SetLength(data,1);
-  SetLength(data[0],1200);
-  for i := 0 to 1199 do begin
+  SetLength(data[0],4);
+  for i := 0 to 3 do begin
     data[0][i]:=Random(100);
   end;
-  res:=TFRE_DB_LIVE_CHART_SAMPLED_DATA_DESC.create.Describe('slchart',data);
+  res:=TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC.create.Describe('slchart',data);
   session.SendServerClientRequest(res);
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res: TFRE_DB_SUBSECTIONS_DESC;
 begin
   res:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe();
-  res.AddSection.Describe(CSF(@IMI_ContentL),'LC',0);
-  res.AddSection.Describe(CSF(@IMI_ContentSL),'SLC',1);
+  res.AddSection.Describe(CWSF(@WEB_ContentL),'LC',2);
+  res.AddSection.Describe(CWSF(@WEB_ContentSL),'SLC',1);
+  res.AddSection.Describe(CWSF(@WEB_ContentC),'CC',0);
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD.IMI_ContentSL(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentSL(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeSampledLine('slchart',1,CSF(@IMI_StartStopSLC),0,100,'Sampled Live Chart',nil,nil,10,120000,100);
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeSampledLine('slchart',1,4,CWSF(@WEB_StartStopSLC),0,100,'Sampled Live Chart');
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD.IMI_ContentL(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentL(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_LIVE_CHART_DESC.create.Describe('lchart',2,CSF(@IMI_StartStopLC),0,100,'Live Chart',nil,nil,10,nil,120000,1000);
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.Describe('lchart',2,120,CWSF(@WEB_StartStopLC),0,100,'Live Chart');
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD.IMI_StartStopSLC(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  session: TFRE_DB_UserSession;
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  session:=GetSession(input);
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeColumn('cchart',8,CWSF(@WEB_StartStopC),'Live Chart Columns',100,0,TFRE_DB_StringArray.create('3F5490'),TFRE_DB_StringArray.create('A','B','C','D','E','F','G','H'));
+end;
+
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopSLC(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+begin
   if input.Field('action').AsString='start' then begin
-    session.RegisterTaskMethod(@_SendDataSLC,40);
+    ses.RegisterTaskMethod(@_SendDataSLC,1000);
   end else begin
-    session.RemoveTaskMethod;
+    ses.RemoveTaskMethod;
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD.IMI_StartStopLC(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  session: TFRE_DB_UserSession;
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopLC(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  session:=GetSession(input);
   if input.Field('action').AsString='start' then begin
     _idx:=0;
-    session.RegisterTaskMethod(@_SendDataLC,1000);
+    ses.RegisterTaskMethod(@_SendDataLC,1000);
   end else begin
-    session.RemoveTaskMethod;
+    ses.RemoveTaskMethod;
+  end;
+  Result:=GFRE_DB_NIL_DESC;
+end;
+
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
+  i      : Integer;
+begin
+  if input.Field('action').AsString='start' then begin
+    ses.RegisterTaskMethod(@_SendDataCC,1000);
+  end else begin
+    ses.RemoveTaskMethod;
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -959,7 +992,7 @@ end;
 procedure TFRE_DB_TEST_APP_EDITORS_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('EDIT','$edit_description')
+  InitModuleDesc('$edit_description')
 end;
 
 procedure TFRE_DB_TEST_APP_EDITORS_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -967,88 +1000,88 @@ begin
   inherited MySessionInitializeModule(session);
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res: TFRE_DB_SUBSECTIONS_DESC;
 begin
   res:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe();
-  res.AddSection.Describe(CSF(@IMI_HtmlEditor),'Html',1);
-  res.AddSection.Describe(CSF(@IMI_JSEditor),'JS',2);
-  res.AddSection.Describe(CSF(@IMI_PascalEditor),'Pascal',3);
+  res.AddSection.Describe(CWSF(@WEB_HtmlEditor),'Html',1);
+  res.AddSection.Describe(CWSF(@WEB_JSEditor),'JS',2);
+  res.AddSection.Describe(CWSF(@WEB_PascalEditor),'Pascal',3);
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_HtmlEditor(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_HtmlEditor(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_EDITOR_DESC.create.Describe(CSF(@IMI_HtmlEditorLoad),CSF(@IMI_HtmlEditorSave),CSF(@IMI_HtmlEditorStart),CSF(@IMI_HtmlEditorStop));
+  Result:=TFRE_DB_EDITOR_DESC.create.Describe(CWSF(@WEB_HtmlEditorLoad),CWSF(@WEB_HtmlEditorSave),CWSF(@WEB_HtmlEditorStart),CWSF(@WEB_HtmlEditorStop));
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_HtmlEditorLoad(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_HtmlEditorLoad(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_EDITOR_DATA_DESC.create.Describe('Initial Html<BR><BR>Hello');
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_HtmlEditorSave(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_HtmlEditorSave(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_HtmlEditorStart(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_HtmlEditorStart(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_HtmlEditorStop(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_HtmlEditorStop(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_JSEditor(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_JSEditor(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_EDITOR_DESC.create.Describe(CSF(@IMI_JSEditorLoad),CSF(@IMI_JSEditorSave),CSF(@IMI_JSEditorStart),CSF(@IMI_JSEditorStop),ct_javascript);
+  Result:=TFRE_DB_EDITOR_DESC.create.Describe(CWSF(@WEB_JSEditorLoad),CWSF(@WEB_JSEditorSave),CWSF(@WEB_JSEditorStart),CWSF(@WEB_JSEditorStop),ct_javascript);
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_JSEditorLoad(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_JSEditorLoad(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_EDITOR_DATA_DESC.create.Describe('if (true) {'+#10+'  console.log("HELLO");'+#10+'}');
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_JSEditorSave(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_JSEditorSave(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_JSEditorStart(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_JSEditorStart(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_JSEditorStop(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_JSEditorStop(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_PascalEditor(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_PascalEditor(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_EDITOR_DESC.create.Describe(CSF(@IMI_PascalEditorLoad),CSF(@IMI_PascalEditorSave),CSF(@IMI_PascalEditorStart),CSF(@IMI_PascalEditorStop),ct_pascal);
+  Result:=TFRE_DB_EDITOR_DESC.create.Describe(CWSF(@WEB_PascalEditorLoad),CWSF(@WEB_PascalEditorSave),CWSF(@WEB_PascalEditorStart),CWSF(@WEB_PascalEditorStop),ct_pascal);
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_PascalEditorLoad(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_PascalEditorLoad(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_EDITOR_DATA_DESC.create.Describe('if (true) then begin'+#10+'  writeln("HELLO");'+#10+'end;');
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_PascalEditorSave(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_PascalEditorSave(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_PascalEditorStart(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_PascalEditorStart(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_EDITORS_MOD.IMI_PascalEditorStop(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_EDITORS_MOD.WEB_PascalEditorStop(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -1058,7 +1091,7 @@ end;
 procedure TFRE_DB_TEST_APP_WELCOME_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('welcome','$welcome_description');
+  InitModuleDesc('$welcome_description');
 end;
 
 class procedure TFRE_DB_TEST_APP_WELCOME_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -1067,7 +1100,7 @@ begin
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
 end;
 
-function TFRE_DB_TEST_APP_WELCOME_MOD.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_WELCOME_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   result := TFRE_DB_HTML_DESC.create.Describe('Welcome to the Welcome Module');
 end;
@@ -1097,7 +1130,7 @@ begin
   newVersionId := '1.0';
 end;
 
-function TFRE_DB_TEST_B.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_B.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res   : TFRE_DB_FORM_DESC;
   scheme: IFRE_DB_SchemeObject;
@@ -1110,7 +1143,7 @@ begin
   Result:=res;
 end;
 
-function TFRE_DB_TEST_B.IMI_ChildrenData(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_B.WEB_ChildrenData(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res : TFRE_DB_STORE_DATA_DESC;
   obj : IFRE_DB_Object;
@@ -1142,7 +1175,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('TGF','$gtf_description')
+  InitModuleDesc('$gtf_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1177,7 +1210,7 @@ begin
   end;
 end;
 
-function TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   coll  : IFRE_DB_DERIVED_COLLECTION;
   list  : TFRE_DB_VIEW_LIST_DESC;
@@ -1298,7 +1331,7 @@ begin
 end;
 
 
-function TFRE_DB_TEST_ALL_TYPES.IMI_GetIcon(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_ALL_TYPES.WEB_GetIcon(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
 
 end;
@@ -1328,7 +1361,7 @@ end;
 procedure TFRE_DB_TEST_APP_CHART_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('CHART','$chart_description')
+  InitModuleDesc('$chart_description')
 end;
 
 procedure TFRE_DB_TEST_APP_CHART_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
@@ -1417,38 +1450,38 @@ var
   menu: TFRE_DB_MENU_DESC;
 begin
   menu:=TFRE_DB_MENU_DESC.create.Describe;
-  menu.AddEntry.Describe('Update Collection','',CSF(@IMI_UpdateDataColl));
+  menu.AddEntry.Describe('Update Collection','',CWSF(@WEB_UpdateDataColl));
   Result:=menu;
 end;
 
-function TFRE_DB_TEST_APP_CHART_MOD.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_CHART_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   sub_sec_s       : TFRE_DB_SUBSECTIONS_DESC;
 
 begin
   sub_sec_s        := TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_tab);
-  sub_sec_s.AddSection.Describe(CSF(@IMI_ContentLines),'Lines',1);
-  sub_sec_s.AddSection.Describe(CSF(@IMI_ContentPie),'Pie',1);
-  sub_sec_s.AddSection.Describe(CSF(@IMI_ContentColumns),'ColumnH',1);
+  sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentLines),'Lines',1);
+  sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentPie),'Pie',1);
+  sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentColumns),'ColumnH',1);
   result           := sub_sec_s;
 end;
 
-function TFRE_DB_TEST_APP_CHART_MOD.IMI_ContentLines(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentLines(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GetSession(input).FetchDerivedCollection('CHART_L').GetDisplayDescription;
 end;
 
-function TFRE_DB_TEST_APP_CHART_MOD.IMI_ContentPie(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentPie(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GetSession(input).FetchDerivedCollection('CHART_P').GetDisplayDescription;
 end;
 
-function TFRE_DB_TEST_APP_CHART_MOD.IMI_ContentColumns(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentColumns(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GetSession(input).FetchDerivedCollection('CHART_CH').GetDisplayDescription;
 end;
 
-function TFRE_DB_TEST_APP_CHART_MOD.IMI_ChartData(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_CHART_MOD.WEB_ChartData(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res    : TFRE_DB_CHART_DATA_DESC;
   data   : TFRE_DB_Real32Array;
@@ -1489,7 +1522,7 @@ begin
   end;
 end;
 
-function TFRE_DB_TEST_APP_CHART_MOD.IMI_UpdateDataColl(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_CHART_MOD.WEB_UpdateDataColl(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var CHARTDATA : IFRE_DB_COLLECTION;
     data_obj  : IFRE_DB_Object;
 
@@ -1519,7 +1552,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRID2_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('GRID2','$grid2_description')
+  InitModuleDesc('$grid2_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRID2_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1554,14 +1587,14 @@ var
 begin
   menu:=TFRE_DB_MENU_DESC.create.Describe;
   menu.AddEntry.Describe('SEAS1','',CSF(@IMI_HelloWorld));
-  menu.AddEntry.Describe('SEAS2','images_apps/test/cog.png',CSF(@IMI_HelloWorld));
+  menu.AddEntry.Describe('SEAS2','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
   submenu:=menu.AddMenu.Describe('SEAS3','images_apps/test/cog.png');
-  submenu.AddEntry.Describe('SEAS4','',CSF(@IMI_HelloWorld));
-  submenu.AddEntry.Describe('SEAS5','images_apps/test/cog.png',CSF(@IMI_HelloWorld));
+  submenu.AddEntry.Describe('SEAS4','',CWSF(@WEB_HelloWorld));
+  submenu.AddEntry.Describe('SEAS5','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
   submenu:=submenu.AddMenu.Describe('SEAS6','');
-  submenu.AddEntry.Describe('SEAS7','',CSF(@IMI_HelloWorld));
-  submenu.AddEntry.Describe('SEAS8','images_apps/test/cog.png',CSF(@IMI_HelloWorld));
-  menu.AddEntry.Describe('Update Content Section','',CSF(@IMI_UpdateCS));
+  submenu.AddEntry.Describe('SEAS7','',CWSF(@WEB_HelloWorld));
+  submenu.AddEntry.Describe('SEAS8','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
+  menu.AddEntry.Describe('Update Content Section','',CWSF(@WEB_UpdateCS));
   Result:=menu;
 end;
 
@@ -1580,10 +1613,10 @@ begin
   lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button wo TT');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button sSel','Enabled on single Select',fdgbd_single);
   lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button mSel','Enabled on any Selection',fdgbd_multi);
-  lvd_Grid.AddButton.Describe(CSF(@IMI_AddRecordBefore),'images_apps/test/add.png','Add Obj Before','Add one Object');
-  lvd_Grid.AddButton.Describe(CSF(@IMI_AddRecordAfter),'images_apps/test/add.png','Add Obj After','Add one Object');
-  lvd_Grid.AddButton.Describe(CSF(@IMI_DelRecord),'images_apps/test/add.png','Del sel','Delete sel. Objs',fdgbd_multi);
-  lvd_Grid.AddButton.Describe(CSF(@IMI_UpdRecord),'images_apps/test/add.png','Upd sel','Update sel. Objs',fdgbd_multi);
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_AddRecordBefore),'images_apps/test/add.png','Add Obj Before','Add one Object');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_AddRecordAfter),'images_apps/test/add.png','Add Obj After','Add one Object');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_DelRecord),'images_apps/test/add.png','Del sel','Delete sel. Objs',fdgbd_multi);
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_UpdRecord),'images_apps/test/add.png','Upd sel','Update sel. Objs',fdgbd_multi);
 
   html:=TFRE_DB_HTML_DESC.create.Describe('SEAS INITIAL');
   html.contentId:='GRID2_HTML';
@@ -1613,12 +1646,12 @@ begin
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP_GRID2_MOD.IMI_GRID_ITEM_DETAILS(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_GRID_ITEM_DETAILS(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_HTML_DESC.create.Describe('<B>GUGUG</B><BR>SEAS');
 end;
 
-function TFRE_DB_TEST_APP_GRID2_MOD.IMI_AddRecordBefore(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_AddRecordBefore(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var col : IFRE_DB_COLLECTION;
     NEW : IFRE_DB_Object;
     selg: TGUID;
@@ -1644,7 +1677,7 @@ begin
   end;
 end;
 
-function TFRE_DB_TEST_APP_GRID2_MOD.IMI_AddRecordAfter(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_AddRecordAfter(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var col : IFRE_DB_COLLECTION;
     selg: TGUID;
     NEW : IFRE_DB_Object;
@@ -1670,7 +1703,7 @@ begin
   end;
 end;
 
-function TFRE_DB_TEST_APP_GRID2_MOD.IMI_DelRecord(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_DelRecord(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var col       : IFRE_DB_COLLECTION;
     del_guids : TFRE_DB_GUIDArray;
     i         : integer;
@@ -1687,7 +1720,7 @@ begin
   result := GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_GRID2_MOD.IMI_UpdRecord(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_UpdRecord(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var col       : IFRE_DB_COLLECTION;
     upd_guids : TFRE_DB_GUIDArray;
     i         : integer;
@@ -1716,7 +1749,7 @@ begin
   result := GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_GRID2_MOD.IMI_UpdateCS(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_UpdateCS(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   session: TFRE_DB_UserSession;
   html   : TFRE_DB_HTML_DESC;
@@ -1733,13 +1766,13 @@ end;
 
 procedure TFRE_DB_TEST_APP_GRID_MOD.ToggleBlast(const session: TFRE_DB_UserSession);
 begin
-  session.GetSessionModuleData(ObjectName).Field('BLAST').AsBoolean := not session.GetSessionModuleData(ObjectName).Field('BLAST').AsBoolean;
+  session.GetSessionModuleData(ClassName).Field('BLAST').AsBoolean := not session.GetSessionModuleData(ClassName).Field('BLAST').AsBoolean;
   SetBlast(session);
 end;
 
 procedure TFRE_DB_TEST_APP_GRID_MOD.SetBlast(const session: TFRE_DB_UserSession);
 begin
-  if session.GetSessionModuleData(ObjectName).Field('BLAST').AsBoolean=true then begin
+  if session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean=true then begin
     session.RegisterTaskMethod(@PRC_UPDATE_TASK,25);
   end else begin
     session.RemoveTaskMethod;
@@ -1755,7 +1788,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRID_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('GRID','$grid_description')
+  InitModuleDesc('$grid_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRID_MOD.SC_ChangeData_Result(const input: IFRE_DB_Object);
@@ -1810,10 +1843,10 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_A'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details],'',TFRE_DB_StringArray.create('objname'),'',nil,CSF(@IMI_GRID_ITEM_DETAILS));
+      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
     end;
-    if not session.GetSessionModuleData(ObjectName).FieldExists('BLAST') then begin
-      session.GetSessionModuleData(ObjectName).Field('BLAST').AsBoolean:=false;
+    if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin
+      session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean:=false;
     end;
     SetBlast(session);
   end;
@@ -1825,47 +1858,47 @@ var
 begin
   menu:=TFRE_DB_MENU_DESC.create.Describe;
   menu.AddEntry.Describe('LOGOUT','',TFRE_DB_SERVER_FUNC_DESC.create.Describe('FIRMOS','LOGOUT'));
-  menu.AddEntry.Describe('SEAS1','',CSF(@IMI_HelloWorld));
-  menu.AddEntry.Describe('SEAS2','images_apps/test/cog.png',CSF(@IMI_HelloWorld));
+  menu.AddEntry.Describe('SEAS1','',CWSF(@WEB_HelloWorld));
+  menu.AddEntry.Describe('SEAS2','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
   submenu:=menu.AddMenu.Describe('SEAS3','images_apps/test/cog.png');
-  submenu.AddEntry.Describe('SEAS4','',CSF(@IMI_HelloWorld));
-  submenu.AddEntry.Describe('SEAS5','images_apps/test/cog.png',CSF(@IMI_HelloWorld));
+  submenu.AddEntry.Describe('SEAS4','',CWSF(@WEB_HelloWorld));
+  submenu.AddEntry.Describe('SEAS5','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
   submenu:=submenu.AddMenu.Describe('SEAS6','');
-  submenu.AddEntry.Describe('SEAS7','',CSF(@IMI_HelloWorld));
-  submenu.AddEntry.Describe('SEAS8','images_apps/test/cog.png',CSF(@IMI_HelloWorld));
+  submenu.AddEntry.Describe('SEAS7','',CWSF(@WEB_HelloWorld));
+  submenu.AddEntry.Describe('SEAS8','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
   Result:=menu;
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.IMI_ToggleUpdates(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_ToggleUpdates(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   ToggleBlast(GetSession(input));
   result := GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var lvd_Grid     : TFRE_DB_VIEW_LIST_DESC;
     DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
 begin
   DC_Grid_Long := GetSession(input).FetchDerivedCollection('COLL_TEST_A_DERIVED');
   lvd_Grid := DC_Grid_Long.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  lvd_Grid.AddButton.Describe(CSF(@IMI_HelloWorld),'images_apps/test/add.png','Button with TT','Tooltip');
-  lvd_Grid.AddButton.Describe(CSF(@IMI_HelloWorld),'images_apps/test/add.png','Button wo TT');
-  lvd_Grid.AddButton.Describe(CSF(@IMI_HelloWorld),'images_apps/test/add.png','Button sSel','Enabled on single Select',fdgbd_single);
-  lvd_Grid.AddButton.Describe(CSF(@IMI_HelloWorld),'images_apps/test/add.png','Button mSel','Enabled on any Selection',fdgbd_multi);
-  lvd_Grid.AddButton.Describe(CSF(@IMI_Dialog),'images_apps/test/add.png','Dialog');
-  lvd_Grid.AddButton.Describe(CSF(@IMI_ReadOnlyDialog),'images_apps/test/add.png','Read only Dialog');
-  lvd_Grid.AddButton.Describe(CSF(@IMI_ChangeData),'images_apps/test/add.png','Change Dataset');
-  lvd_Grid.AddButton.Describe(CSF(@IMI_ToggleUpdates),'images_apps/test/add.png','ToggleUpdates');
-  lvd_Grid.AddButton.Describe(CSF(@IMI_SendADialog),'images_apps/test/add.png','ServerClientDialog');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button with TT','Tooltip');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button wo TT');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button sSel','Enabled on single Select',fdgbd_single);
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_HelloWorld),'images_apps/test/add.png','Button mSel','Enabled on any Selection',fdgbd_multi);
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_Dialog),'images_apps/test/add.png','Dialog');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_ReadOnlyDialog),'images_apps/test/add.png','Read only Dialog');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_ChangeData),'images_apps/test/add.png','Change Dataset');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_ToggleUpdates),'images_apps/test/add.png','ToggleUpdates');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_SendADialog),'images_apps/test/add.png','ServerClientDialog');
   result := lvd_Grid;
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.IMI_HelloWorld(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_HelloWorld(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Hello','World',fdbmt_info);
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.IMI_ChangeData(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_ChangeData(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res          : TFRE_DB_UPDATE_STORE_DESC;
   entry        : IFRE_DB_Object;
@@ -1886,7 +1919,7 @@ begin
   session.SendServerClientRequest(res);
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.IMI_Dialog(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_Dialog(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res   : TFRE_DB_DIALOG_DESC;
   g     : TFRE_DB_INPUT_GROUP_DESC;
@@ -1929,11 +1962,11 @@ begin
   g.AddChooser.Describe('Chooser','g3.chooser3',store,true,dh_chooser_combo,false,true);
   g.AddChooser.Describe('Chooser CHECK','g3.chooser3',store,false,dh_chooser_check,false,true);
 
-  res.AddButton.Describe('Save',CSF(@IMI_HelloWorld),fdbbt_submit);
+  res.AddButton.Describe('Save',CWSF(@WEB_HelloWorld),fdbbt_submit);
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.IMI_ReadOnlyDialog(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_ReadOnlyDialog(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res  : TFRE_DB_DIALOG_DESC;
   g    : TFRE_DB_INPUT_GROUP_DESC;
@@ -1978,12 +2011,12 @@ begin
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.IMI_GRID_ITEM_DETAILS(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_GRID_ITEM_DETAILS(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_HTML_DESC.create.Describe('<B>GUGUG</B><BR>SEAS');
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.IMI_SendADialog(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_SendADialog(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var res  : TFRE_DB_MESSAGE_DESC;
 begin
   result := GFRE_DB_NIL_DESC;
@@ -2012,7 +2045,7 @@ begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
   if currentVersionId='' then
     begin
-      CreateAppText(conn,'$description','Test App','Test App','Test App');
+      CreateAppText(conn,'$caption','Test App','Test App','Test App');
       CreateAppText(conn,'$vnc_description','VNC Test','VNC Test','VNC Test');
       CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
       CreateAppText(conn,'$gtf_description','Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
@@ -2068,7 +2101,7 @@ begin
   //conn.StoreRole(guest_app_role,ObjectName,domain);
   //
 
-   conn.NewGroup('TESTAPPADMIN','Admin Group for the testapp','Testapp Admins',domainUID,group);
+//   conn.NewGroup('TESTAPPADMIN','Admin Group for the testapp','Testapp Admins',domainUID,group);
 
 
   //conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');  // DEMONSTRATION GROUPS -> make your own in your App
@@ -2091,9 +2124,6 @@ begin
   inherited RemoveDBObjects4Domain(conn, currentVersionId, domainUID);
 end;
 
-
-
-
 procedure TFRE_DB_TEST_APP._UpdateSitemap(const session: TFRE_DB_UserSession);
 var
   SiteMapData  : IFRE_DB_Object;
@@ -2102,16 +2132,16 @@ begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main','Main','images_apps/test/sitemap_icon.svg','',0,true);
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Welcome','Welcome','images_apps/test/sitemap_icon.svg','WELCOME',0, conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_WELCOME_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid','Grid','images_apps/test/sitemap_icon.svg','GRID',1,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg','CHART',4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_CHART_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg','LIVE_CHART',4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_LIVE_CHART_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg','GRID2',5,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID2_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg','formtest',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FORMTEST_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/allgrid','Grid Test','images_apps/test/sitemap_icon.svg','allgrid',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_ALLGRID_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg','feedbrowser',2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg','TGF',0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg','EDIT',0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Welcome','Welcome','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_WELCOME_MOD.ClassName,0, conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_WELCOME_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid','Grid','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_MOD.ClassName,1,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_CHART_MOD.Classname,4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_CHART_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_LIVE_CHART_MOD.Classname,4,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_LIVE_CHART_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID2_MOD.Classname,5,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID2_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FORMTEST_MOD.Classname,2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FORMTEST_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/allgrid','Grid Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_ALLGRID_MOD.Classname,2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_ALLGRID_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.Classname,2,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.Classname,0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_EDITORS_MOD.Classname,0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
   session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
@@ -2145,7 +2175,7 @@ begin
   scheme.AddSchemeFieldSubscheme('editors'        , 'TFRE_DB_TEST_APP_EDITORS_MOD');
 end;
 
-function TFRE_DB_TEST_APP.IMI_Messages(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP.WEB_Messages(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res: TFRE_DB_FORM_PANEL_DESC;
 begin
@@ -2154,7 +2184,7 @@ begin
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP.IMI_News(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP.WEB_News(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res: TFRE_DB_FORM_PANEL_DESC;
 begin
@@ -2163,7 +2193,7 @@ begin
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP.IMI_Calendar(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP.WEB_Calendar(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res: TFRE_DB_FORM_PANEL_DESC;
 begin
@@ -2172,7 +2202,7 @@ begin
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP.IMI_Profile(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP.WEB_Profile(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res: TFRE_DB_FORM_PANEL_DESC;
 begin
@@ -2181,7 +2211,7 @@ begin
   Result:=res;
 end;
 
-function TFRE_DB_TEST_APP.IMI_Dialog(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_TEST_APP.WEB_Dialog(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Message','GUGUG',fdbmt_info);
 end;
@@ -2227,7 +2257,7 @@ begin
   calc.SetAsString(lstatus_icon);
 end;
 
-//function TFRE_DB_TEST_A.IMI_GetIcon(const input: IFRE_DB_Object): IFRE_DB_Object;
+//function TFRE_DB_TEST_A.WEB_GetIcon(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 //var    lstatus_icon : TFRE_DB_String;
 //       lstatus      : TFRE_DB_String;
 //begin

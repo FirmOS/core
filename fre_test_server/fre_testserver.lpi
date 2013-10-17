@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-e TEST -U root -H 10.220.251.10 -u admin1@system -p a1234 -x -y -t -i -D"/>
+        <CommandLineParams Value="-e TEST -U root -H 10.220.251.10 -u admin@system -p admin -x -y -t -i -D"/>
       </local>
     </RunParams>
     <Units Count="7">
