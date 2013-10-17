@@ -165,11 +165,29 @@ type
     //procedure PushSchedulingMethod            (const Method : TFRE_SimpleCallback;const deferred_schedule:boolean=false);
   end;
 
+
+  IFRE_APS_COMM=interface
+    procedure  AddListener_TCP (const Bind_IP:String;const Bind_Port:integer);
+  end;
+
+  IFRE_APS_COMM_CHANNEL_MANAGER=interface // = Thread bound to CPU
+  end;
+
+  IFRE_APS_COMM_CHANNEL_GROUP=interface // = Session Group, VNC Group / Upload / Download Group / HTTP Requests
+  end;
+
+  IFRE_APS_COMM_CHANNEL=interface // Session , VNC , UP/DOWN Load, HTTP Requests
+  end;
+
+  IFRE_APS_COMM_SERVER=interface
+     //procedure GotANewCommChannel ;
+  end;
+
 var
-  GFRE_S:IFRE_APS;
+  GFRE_S  : IFRE_APS;
+  GFRE_SC : IFRE_APS_COMM;
 
 implementation
-
 
 end.
 

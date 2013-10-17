@@ -76,7 +76,7 @@ const cMaxReportEvents        = 10;
       cMaxAPS_Threads         = 64;
 
 var G_SourceID               : int64   = 1;
-    C_Configured_APS_Threads : integer = 16;
+    C_Configured_APS_Threads : integer = 4;
 
 type
 

@@ -302,26 +302,52 @@ uses
     EV_SIGNAL                            = $08;
     EV_PERSIST                           = $10;
     EV_ET                                = $20;
+
+    BEV_EVENT_READING	                 = $01;	//**< error encountered while reading */
+    BEV_EVENT_WRITING	                 = $02;	//**< error encountered while writing */
+    BEV_EVENT_EOF		         = $10;	//**< eof file reached */
+    BEV_EVENT_ERROR		         = $20;	//**< unrecoverable error encountered */
+    BEV_EVENT_TIMEOUT	                 = $40;	//**< user-specified timeout reached */
+    BEV_EVENT_CONNECTED	                 = $80;
+
     // method strings = select,poll,epoll,kqueue,devpoll,evport,win32
 
  type
-  event_base   = record
-  end;
 
-  event_config = record
-  end;
+  bufferevent_options       = (BEV_OPT_CLOSE_ON_FREE=1 SHL 0,BEV_OPT_THREADSAFE=1 SHL 1,BEV_OPT_DEFER_CALLBACKS=1 SHL 2,BEV_OPT_UNLOCK_CALLBACKS=1 SHL 3);
+  bufferevent_flush_mode    = (BEV_NORMAL = 0,BEV_FLUSH = 1,BEV_FINISHED = 2);
+  bufferevent_filter_result = (BEV_OK = 0, BEV_NEED_MORE = 1, BEV_ERROR = 2 );
 
-  event        = record
-  end;
+  event_base                   = record end;
+  event_config                 = record end;
+  event                        = record end;
+  bufferevent                  = record end;
+  evbuffer                     = record end;
+  evdns_base                   = record end;
+  ev_token_bucket_cfg          = record end;
+  bufferevent_rate_limit_group = record end;
 
+  ev_ssize_t       = ssize_t;
+  evutil_socket_t  = cInt;
+  PEvent_base      = ^event_base;
+  Pevent_config    = ^event_config;
+  PEvent           = ^event;
+  PBufferevent     = ^bufferevent;
+  PEvbuffer        = ^evbuffer;
+  Pevdns_base      = ^evdns_base;
+  Pev_token_bucket_cfg          = ^ev_token_bucket_cfg;
+  Pbufferevent_rate_limit_group = ^bufferevent_rate_limit_group;
 
-  evutil_socket_t = cInt;
-  PEvent_base     = ^event_base;
-  Pevent_config   = ^event_config;
-  PEvent          = ^event;
+  tbuffereventpair      = array [0..1] of PBufferevent;
+  tevutil_socket_t_pair = array [0..1] of evutil_socket_t;
 
-  event_callback_fn           = procedure (fd : evutil_socket_t ; short: cshort ; data:pointer) ; cdecl ;
-  event_base_foreach_event_cb = function  (const base : PEvent_base ; const event : PEvent ; const data : Pointer):cInt; cdecl ;
+  event_callback_fn           = procedure (fd : evutil_socket_t      ; short: cshort ; data:pointer) ; cdecl ;
+  event_base_foreach_event_cb = function  (const base : PEvent_base  ; const event : PEvent ; const data : Pointer):cInt; cdecl ;
+  bufferevent_data_cb         = procedure (const bev  : PBufferevent ; const ctx : Pointer); cdecl;
+  bufferevent_event_cb        = procedure (const bev  : PBufferevent ; what: cshort ; const ctx : Pointer); cdecl;
+  bufferevent_filter_cb       = function  (const srv,dst : PEvbuffer ; dst_limit : ev_ssize_t ; mode : bufferevent_flush_mode ; ctx : Pointer):bufferevent_filter_result; cdecl;
+  free_context                = procedure (const ctx : Pointer); cdecl;
+
 
   function  evthread_use_pthreads                                                       : cInt          ; cdecl ; external; // only U*xes / posix
   function  event_get_version                                                           : PChar         ; cdecl ; external;
@@ -359,15 +385,75 @@ uses
   function  event_priority_set             (event :PEvent; priority : cInt)             : cInt          ; cdecl ; external;
   procedure event_active                   (event :PEvent; what     : cInt ; ncalls:cshort)             ; cdecl ; external;
 
+  function  bufferevent_socket_new               (const base : PEvent_base  ; fd   : evutil_socket_t ; options : cInt):PBufferevent                           ; cdecl ; external;
+  function  bufferevent_socket_connect           (const bev  : PBufferevent ; addr : PFCOM_SOCKADDRSTORAGE ;  const socklen : cint) :cint                     ; cdecl ; external;
+  function  bufferevent_socket_connect_hostname  (const bev  : PBufferevent ; evdns_base : Pevdns_base ; family : cInt ; hostname : PChar ; port : cInt):cint ; cdecl ; external;
+  function  bufferevent_socket_get_dns_error     (const bev  : PBufferevent):cInt                        ; cdecl ; external;
+  function  bufferevent_base_set                 (const base : PEvent_base ; bufev : PBufferevent) :cInt ; cdecl ; external;
+  function  bufferevent_get_base                 (const bev  : PBufferevent) : Pevent_base               ; cdecl ; external;
+  function  bufferevent_priority_set             (const bev  : PBufferevent ; pri : cInt ) : cInt        ; cdecl ; external;
+  procedure bufferevent_free                     (const bev  : PBufferevent)                             ; cdecl ; external;
+  procedure bufferevent_setcb                    (const bev  : PBufferevent; readcb,writecb : bufferevent_data_cb ; eventcb : bufferevent_event_cb ; cbarg : Pointer); cdecl ; external ;
+  function  bufferevent_setfd                    (const bev  : PBufferevent; fd : evutil_socket_t):cInt  ; cdecl ; external;
+  function  bufferevent_getfd                    (const bev  : PBufferevent):evutil_socket_t; cdecl ; external;
+  function  bufferevent_get_underlying           (const bev  : PBufferevent):PBufferevent;  cdecl ; external;
+  function  bufferevent_write                    (const bev  : PBufferevent; const data : Pointer ; const size : size_t):cInt; cdecl ; external;
+  function  bufferevent_write_buffer             (const bev  : PBufferevent; const buf  : PEvbuffer):cint; cdecl ; external;
+  function  bufferevent_read                     (const bev  : PBufferevent; const data : Pointer ; const  size : size_t):size_t cdecl ; external;
+  function  bufferevent_read_buffer              (const bev  : PBufferevent; const buf  : PEvbuffer):cint; cdecl ; external;
+  function  bufferevent_get_input                (const bev  : PBufferevent):PEvbuffer; cdecl ; external;
+  function  bufferevent_get_output               (const bev  : PBufferevent):PEvbuffer; cdecl ; external;
+  function  bufferevent_disable                  (const bev  : PBufferevent; event :cshort):cint; cdecl ; external;
+  function  bufferevent_get_enabled              (const bev  : PBufferevent):cshort; cdecl ; external;
+  function  bufferevent_set_timeouts             (const bev  : PBufferevent; const timeout_read,timeout_write : PFCOM_TimeVal):cInt; cdecl ; external;
+  procedure bufferevent_setwatermark             (const bev  : PBufferevent; events : cshort ; lowmark, highmark : size_t); cdecl ; external;
+  procedure bufferevent_lock                     (const bev  : PBufferevent) ;cdecl ; external;
+  procedure bufferevent_unlock                   (const bev  : PBufferevent) ;cdecl ; external;
+  function  bufferevent_flush                    (const bev  : PBufferevent; iotype : cshort ; mode : bufferevent_flush_mode):cint ;cdecl ; external;
+  function  bufferevent_filter_new               (const underlying : PBufferevent; input_filter,output_filter : bufferevent_filter_cb ; options : cInt ; ftx : free_context ; ctx : Pointer):PBufferevent;cdecl ; external;
+  function  bufferevent_pair_new                 (const bas  : PEvent_base ; options : cInt ; pair : tbuffereventpair):cInt ;cdecl ; external;
+  function  bufferevent_pair_get_partner         (const bev  : PBufferevent):PBufferevent;cdecl;external;
+
+  function  ev_token_bucket_cfg_new                      (const read_rate, read_burst, write_rate, write_burst : size_t ; const tick_len : PFCOM_TimeVal):Pev_token_bucket_cfg ; cdecl ; external;
+  procedure ev_token_bucket_cfg_free                     (const cfg  : Pev_token_bucket_cfg ) ;cdecl ; external;
+  function  bufferevent_set_rate_limit                   (const bev  : PBufferevent ; cfg : Pev_token_bucket_cfg):cInt ;cdecl ; external;
+  function  bufferevent_rate_limit_group_new             (const base : PEvent_base  ; cfg : Pev_token_bucket_cfg):Pbufferevent_rate_limit_group;cdecl ; external;
+  function  bufferevent_rate_limit_group_set_cfg         (const grp  : Pbufferevent_rate_limit_group ; cfg : Pev_token_bucket_cfg):cint ;cdecl ; external;
+  function  bufferevent_rate_limit_group_set_min_share   (const grp  : Pbufferevent_rate_limit_group ; const val : size_t):cint ;cdecl ; external;
+  procedure bufferevent_rate_limit_group_free            (const grp  : Pbufferevent_rate_limit_group) ; cdecl ; external;
+  function  bufferevent_add_to_rate_limit_group          (const bev  : PBufferevent ;const g : Pbufferevent_rate_limit_group):cint; cdecl ; external;
+  function  bufferevent_remove_from_rate_limit_group     (const bev  : PBufferevent) : cint ;cdecl ; external;
+  function  bufferevent_get_read_limit                   (const bev  : PBufferevent):ev_ssize_t; cdecl ; external;
+  function  bufferevent_get_write_limit                  (const bev  : PBufferevent):ev_ssize_t; cdecl ; external;
+  function  bufferevent_get_max_to_read                  (const bev  : PBufferevent):ev_ssize_t; cdecl ; external;
+  function  bufferevent_get_max_to_write                 (const bev  : PBufferevent):ev_ssize_t; cdecl ; external;
+  function  bufferevent_rate_limit_group_get_read_limit  (const grp  : Pbufferevent_rate_limit_group):ev_ssize_t;cdecl ; external;
+  function  bufferevent_rate_limit_group_get_write_limit (const grp  : Pbufferevent_rate_limit_group):ev_ssize_t;cdecl ; external;
+
+  //int bufferevent_decrement_read_limit(struct bufferevent *bev, ev_ssize_t decr);
+  //int bufferevent_decrement_write_limit(struct bufferevent *bev, ev_ssize_t decr);
+  //int bufferevent_rate_limit_group_decrement_read(struct bufferevent_rate_limit_group *, ev_ssize_t);
+  //int bufferevent_rate_limit_group_decrement_write(struct bufferevent_rate_limit_group *, ev_ssize_t);
+  //void bufferevent_rate_limit_group_get_totals(struct bufferevent_rate_limit_group *grp,ev_uint64_t *total_read_out, ev_uint64_t *total_written_out);
+  //void bufferevent_rate_limit_group_reset_totals(struct bufferevent_rate_limit_group *grp);
+  //;cdecl ; external;
+  //;cdecl ; external;
+
 
 
 
   // RFC3493
-  function  evutil_inet_ntop               (af : cInt ; src:Pointer ; dst : PChar ;
-                                            dst_len : size_t)                           : PChar         ; cdecl ; external;
-  function  evutil_inet_pton               (af : cInt ; src:Pchar   ; dst : Pointer)    : cInt          ; cdecl ; external;
-  function  evutil_parse_sockaddr_port     (str : PChar ; out_sa : PFCOM_SOCKADDRSTORAGE ;
-                                            var outlen : cInt)                          : cInt          ; cdecl ; external;
+  function  evutil_inet_ntop                    (af : cInt ; src:Pointer ; dst : PChar ; dst_len : size_t) : PChar          ; cdecl ; external;
+  function  evutil_inet_pton                    (af : cInt ; src:Pchar   ; dst : Pointer)    : cInt                         ; cdecl ; external;
+  function  evutil_parse_sockaddr_port          (str : PChar ; out_sa : PFCOM_SOCKADDRSTORAGE ; var outlen : cInt) : cInt   ; cdecl ; external;
+  function  evutil_gai_strerror                 (err : cInt):PChar                                                          ; cdecl ; external;
+  function  evutil_socketpair                   (const d, typ, protocol :cInt ;  sv : tevutil_socket_t_pair):cInt           ; cdecl ; external;
+  function  evutil_make_socket_nonblocking      (sock : evutil_socket_t):cint                                               ; cdecl ; external;
+  function  evutil_make_listen_socket_reuseable (sock : evutil_socket_t):cint                                               ; cdecl ; external;
+  function  evutil_make_socket_closeonexec      (sock : evutil_socket_t):cint                                               ; cdecl ; external;
+  function  evutil_closesocket                  (sock : evutil_socket_t):cint                                               ; cdecl ; external;
+  function  evutil_socket_geterror              (sock : evutil_socket_t):cint                                               ; cdecl ; external;
+  function  evutil_socket_error_to_string       (errcode:cint):Pchar                                                        ; cdecl ; external;
 
   procedure Test_LE;
 
@@ -418,7 +504,7 @@ var meths : PPchar;
       res_string  : string;
 
 begin
-  writeln('Libevent Test');
+  writeln('Libevent Test ',PChar(event_get_version));
 //  res := evutil_parse_sockaddr_port('fe80::ca2a:14ff:fe14:2764',@sa,len);
   len := sizeof(TFCOM_SOCKADDRSTORAGE);
   writeln('sizeof sockaddr ',len);
@@ -433,7 +519,6 @@ begin
     FCOM_AF_INET6: evutil_inet_ntop(FCOM_AF_INET6,@sa.sin6_addr,@res_String[1],Length(res_string));
   end;
   writeln('FORMAT : ',pchar(@res_string[1]),' ',BEtoN(sa.sin_port),' ',BEtoN(sa.sin6_port));
-  exit;
   cfg := event_config_new;
   writeln('cfg ',integer(cfg));
   res := event_config_avoid_method(cfg, 'xx-kqueue');

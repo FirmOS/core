@@ -4,10 +4,12 @@
     <Version Value="9"/>
     <General>
       <Flags>
+        <SaveOnlyProjectUnits Value="True"/>
         <MainUnitHasCreateFormStatements Value="False"/>
         <MainUnitHasTitleStatement Value="False"/>
+        <SaveJumpHistory Value="False"/>
       </Flags>
-      <SessionStorage Value="InProjectDir"/>
+      <SessionStorage Value="InIDEConfig"/>
       <MainUnit Value="0"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
@@ -32,7 +34,7 @@
         <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
       </local>
     </RunParams>
-    <Units Count="5">
+    <Units Count="6">
       <Unit0>
         <Filename Value="con_apstest.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -56,18 +58,28 @@
       <Unit4>
         <Filename Value="../fre_libevent_core.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="FRE_LIBEVENT_CORE"/>
+        <UnitName Value="fre_libevent_core"/>
       </Unit4>
+      <Unit5>
+        <Filename Value="../fre_aps_comm_impl.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_aps_comm_impl"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
+    <Target>
+      <Filename Value="../../../bin/con_apstest"/>
+    </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <Libraries Value="../../fre_external/fre_ext_libs"/>
       <OtherUnitFiles Value="..;../../fre_fcom;../../fre_core;../../fre_db;../../fos_interfaces"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <Conditionals Value="if TargetOS = 'darwin' then
+   CustomOptions := '-WM10.6 -dFOS_LINK_STATIC';"/>
     <Parsing>
       <SyntaxOptions>
         <IncludeAssertionCode Value="True"/>
@@ -75,14 +87,10 @@
     </Parsing>
     <CodeGeneration>
       <TargetCPU Value="i386"/>
-      <Optimizations>
-        <OptimizationLevel Value="0"/>
-      </Optimizations>
     </CodeGeneration>
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsStabs"/>
-        <UseHeaptrc Value="True"/>
       </Debugging>
     </Linking>
     <Other>

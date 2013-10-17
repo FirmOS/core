@@ -6,9 +6,9 @@ uses
  {$IFDEF UNIX}
   cthreads,Sockets,
  {$ENDIF}
-  Classes, FRE_APS_INTERFACE,fre_aps_test,FRE_APS_IMPL_LE,FOS_FCOM_DEFAULT,FOS_TOOL_INTERFACES
+  Classes,sysutils, FRE_APS_INTERFACE,fre_aps_test,FRE_APS_IMPL_LE,FOS_FCOM_DEFAULT,FOS_TOOL_INTERFACES
   ,FOS_BASIS_TOOLS,syncobjs,FOS_LOCKING,FOS_INTERLOCKED,FRE_FCOM_SSL, FRE_LIBEVENT_CORE,
-  FOS_DEFAULT_IMPLEMENTATION
+  FOS_DEFAULT_IMPLEMENTATION, fre_aps_comm_impl
   {$IFDEF WINDOWS}
   ,windows;
   {$ELSE}
@@ -17,6 +17,16 @@ uses
 
 begin
  //
+  if paramstr(1)='testle' then
+     begin
+       Test_LE;
+       exit;
+     end;
+  SetupAPS_Comm;
+  repeat
+    sleep(1000);
+  until false;
+  exit;
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
   SetupAPS;
