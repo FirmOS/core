@@ -9,7 +9,6 @@ interface
 uses
   Classes, SysUtils,
   FOS_TOOL_INTERFACES,
-  FRE_DB_SYSRIGHT_CONSTANTS,
   FRE_DB_INTERFACE,
   FRE_DB_COMMON,
   FRE_DBBASE,
@@ -25,19 +24,15 @@ type
   TFRE_CERTIFICATE_APP=class(TFRE_DB_APPLICATION)
   private
     procedure       SetupApplicationStructure     ; override;
-    function        InstallAppDefaults            (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype; override;
-    function        InstallRoles                  (const conn : IFRE_DB_SYS_CONNECTION):TFRE_DB_Errortype;
-    function        InstallDomainGroupsandRoles   (const conn : IFRE_DB_SYS_CONNECTION; const domain : TFRE_DB_NameType):TFRE_DB_Errortype; override;
     procedure       _UpdateSitemap                (const session: TFRE_DB_UserSession);
   protected
     procedure       MySessionInitialize           (const session: TFRE_DB_UserSession); override;
     procedure       MySessionPromotion            (const session: TFRE_DB_UserSession); override;
     procedure       MyServerInitialize            (const admin_dbc: IFRE_DB_CONNECTION); override;
-    function        CFG_ApplicationUsesRights     : boolean; override;
-    function        _ActualVersion                : TFRE_DB_String; override;
   public
     class procedure RegisterSystemScheme          (const scheme:IFRE_DB_SCHEMEOBJECT); override;
-  published
+    class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID); override;
   end;
 
   { TFRE_CERTIFICATE_CA_MOD }
@@ -78,7 +73,7 @@ end;
 procedure TFRE_CERTIFICATE_CA_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('certificate_ca','$cert_description');
+  InitModuleDesc('$cert_description');
 end;
 
 procedure TFRE_CERTIFICATE_CA_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -95,7 +90,7 @@ begin
     conn := session.GetDBConnection;
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,ca_Grid);
      with ca_grid do begin
-       AddOneToOnescheme('objname','objname',app.FetchAppText(conn,'$ca_name').Getshort);
+       AddOneToOnescheme('objname','objname',app.FetchAppText(session,'$ca_name').Getshort);
      end;
     DC_CA := session.NewDerivedCollection('ca_grid');
     with DC_CA do begin
@@ -106,10 +101,10 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,crt_Grid);
     with crt_Grid do begin
-      AddOneToOnescheme('objname','objname',app.FetchAppText(conn,'$crt_cn').Getshort);
-      AddOneToOnescheme('email','email',app.FetchAppText(conn,'$crt_email').Getshort);
-      AddOneToOnescheme('issued','issued',app.FetchAppText(conn,'$crt_issued').Getshort,dt_date);
-      AddOneToOnescheme('revoked','revoked',app.FetchAppText(conn,'$crt_revoked').Getshort,dt_date);
+      AddOneToOnescheme('objname','objname',app.FetchAppText(session,'$crt_cn').Getshort);
+      AddOneToOnescheme('email','email',app.FetchAppText(session,'$crt_email').Getshort);
+      AddOneToOnescheme('issued','issued',app.FetchAppText(session,'$crt_issued').Getshort,dt_date);
+      AddOneToOnescheme('revoked','revoked',app.FetchAppText(session,'$crt_revoked').Getshort,dt_date);
     end;
     dc_crt := session.NewDerivedCollection('crt_grid');
     with dc_crt do begin
@@ -131,15 +126,15 @@ var
   txt                 : IFRE_DB_TEXT;
 
 begin
- // if not app.CheckAppRightModule(conn,'view_ca') then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  CheckClassVisibility(ses);
 
   dc_ca        := ses.FetchDerivedCollection('ca_grid');
   grid_ca      := dc_ca.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  if conn.CheckRight(Get_Rightname('edit_ca')) then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_CA) then begin
     txt:=app.FetchAppText(ses,'$create_ca');
     grid_ca.AddButton.Describe(CWSF(@WEB_addCertificateAuthority),'images_apps/certificate/create_ca.png',txt.Getshort,txt.GetHint);
   end;
-  if conn.CheckRight(Get_Rightname('delete_ca')) then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_CA) then begin
     txt:=app.FetchAppText(ses,'$delete_ca');
     grid_ca.AddButton.Describe(CWSF(@WEB_DelCertificateAuthority),'images_apps/certificate/delete_ca.png',txt.Getshort,txt.GetHint);
   end;
@@ -165,14 +160,15 @@ var
   txt                 : IFRE_DB_TEXT;
 
 begin
- // if not app.CheckAppRightModule(conn,'view_ca') then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  CheckClassVisibility(ses);
+
   dc_crt       := ses.FetchDerivedCollection('crt_grid');
   grid_crt     := dc_crt.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  if conn.CheckRight(Get_Rightname('edit_ca')) then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_Certificate) then begin
     txt:=app.FetchAppText(ses,'$create_crt');
     grid_crt.AddButton.Describe(CWSF(@WEB_addCertificate),'images_apps/certificate/create_crt.png',txt.Getshort,txt.GetHint);
   end;
-  if conn.CheckRight(Get_Rightname('edit_ca')) then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_Certificate) then begin
     txt:=app.FetchAppText(ses,'$revoke_crt');
     grid_crt.AddButton.Describe(CWSF(@WEB_revokeCertificate),'images_apps/certificate/revoke_crt.png',txt.Getshort,txt.GetHint);
   end;
@@ -258,7 +254,9 @@ var
   res        : TFRE_DB_DIALOG_DESC;
   serverfunc : TFRE_DB_SERVER_FUNC_DESC;
 begin
-  if not conn.CheckRight(Get_Rightname('edit_ca')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+
+  if not conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_CA) then
+    raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   GFRE_DBI.GetSystemScheme(TFRE_DB_CA,scheme);
   res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppText(ses,'$ca_add_diag_cap').Getshort,600,0,true,true,false);
@@ -282,7 +280,9 @@ var
   ca         : TFRE_DB_String;
   dependend  : TFRE_DB_StringArray;
 begin
-  if not conn.CheckRight(Get_Rightname('edit_ca')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+
+  if not conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_Certificate) then
+    raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   dependend  := GetDependencyFiltervalues(input,'uids_ref');
   if length(dependend)=0 then begin
@@ -305,11 +305,12 @@ var
   sel_guid   : TGUID;
   crt        : IFRE_DB_Object;
 begin
-  if not conn.CheckRight(Get_Rightname('edit_ca')) then raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
+  if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_Certificate) then
+    raise EFRE_DB_Exception.Create(app.FetchAppText(ses,'$error_no_access').Getshort);
 
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
     sel_guid := input.Field('SELECTED').AsGUID;
-    if conn.Fetch(sel_guid,crt) then begin
+    if conn.Fetch(sel_guid,crt)=edb_OK then begin
       ((crt.Implementor_HC) as TFRE_DB_Certificate).WEB_Revoke(input,ses,app,conn);
       if conn.Update(crt)<>edb_OK then begin
         raise EFRE_DB_Exception.Create('Error on updating crt object');
@@ -329,92 +330,8 @@ end;
 procedure TFRE_CERTIFICATE_APP.SetupApplicationStructure;
 begin
   inherited SetupApplicationStructure;
-  InitAppDesc('certificate','$description');
+  InitAppDesc('$description');
   AddApplicationModule(TFRE_CERTIFICATE_CA_MOD.create);
-end;
-
-function TFRE_CERTIFICATE_APP.InstallAppDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
-var
-  old_version  : TFRE_DB_String;
-
-  procedure _InstallAllDomains(const obj:IFRE_DB_Object);
-  begin
-    InstallDomainGroupsandRoles(conn,obj.Field('objname').asstring);
-  end;
-
-begin
-  case _CheckVersion(conn,old_version) of
-    NotInstalled : begin
-                      _SetAppdataVersion(conn,_ActualVersion);
-                      InstallRoles(conn);
-                      conn.ForAllDomains(@_InstallAllDomains);
-
-                      CreateAppText(conn,'$description','Certificate','Certificate','Certificate');
-                      CreateAppText(conn,'$sitemap_main','Certificate','Certificate','Certificate');
-                      CreateAppText(conn,'$sitemap_ca','Certificate Authorities','Certificate Authorities','Certificate Authorities');
-
-                      CreateAppText(conn,'$cert_description','Certificate');
-                      CreateAppText(conn,'$create_ca','Create CA');
-                      CreateAppText(conn,'$delete_ca','Delete CA');
-                      CreateAppText(conn,'$ca_name','CA Commonname');
-                      CreateAppText(conn,'$ca_content_header','Properties');
-                      CreateAppText(conn,'$certificate_certificates','Certificates');
-                      CreateAppText(conn,'$certificate_CA','Certificate Authority');
-                      CreateAppText(conn,'$create_crt','Create');
-                      CreateAppText(conn,'$revoke_crt','Revoke');
-                      CreateAppText(conn,'$crt_cn','Commonname');
-                      CreateAppText(conn,'$crt_email','E-Mail');
-                      CreateAppText(conn,'$crt_issued','Issued');
-                      CreateAppText(conn,'$crt_revoked','Revoked');
-                      CreateAppText(conn,'$crt_content_header','Properties');
-                      CreateAppText(conn,'$crt_add_diag_cap','Create Certificate');
-                      CreateAppText(conn,'$ca_add_diag_cap','Create CA');
-                      CreateAppText(conn,'$ca_add_no_ca_msg','Please select a Certificate Authority first.');
-                      CreateAppText(conn,'$button_save','Save');
-
-                  end;
-    SameVersion  : begin
-                      writeln('Version '+old_version+' already installed');
-                   end;
-    OtherVersion : begin
-                      writeln('Old Version '+old_version+' found, updateing');
-                      // do some update stuff
-                      _SetAppdataVersion(conn,_ActualVersion);
-                   end;
-  else
-    raise EFRE_DB_Exception.Create('Undefined App _CheckVersion result');
-  end;
-end;
-
-function TFRE_CERTIFICATE_APP.InstallRoles(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
-var
-  role         : IFRE_DB_ROLE;
-begin
-  role := _CreateAppRole('view_ca','View CA','Allowed to see the CA.');
-  _AddAppRight(role,'view_ca');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['certificate_ca']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-
-  role := _CreateAppRole('edit_ca','Edit CA','Allowed to edit the CA.');
-  _AddAppRight(role,'view_ca');
-  _AddAppRight(role,'edit_ca');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['certificate_ca']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-
-  role := _CreateAppRole('delete_ca','Edit CA','Allowed to delete the CA.');
-  _AddAppRight(role,'delete_ca');
-  _AddAppRightModules(role,GFRE_DBI.ConstructStringArray(['certificate_ca']));
-  CheckDbResult(conn.StoreRole(role,ObjectName),'InstallRoles');
-end;
-
-function TFRE_CERTIFICATE_APP.InstallDomainGroupsandRoles(const conn: IFRE_DB_SYS_CONNECTION; const domain: TFRE_DB_NameType): TFRE_DB_Errortype;
-begin
-  CheckDbResult(conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User'),'InstallAppGroup');
-  CheckDbResult(conn.AddAppGroup(ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin'),'InstallAppGroup');
-  CheckDbResult(conn.AddAppGroup(ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest'),'InstallAppGroup');
-
-  CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'view_ca')])),'InstallDomainGroupsandRoles');
-  CheckDbResult(conn.SetGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain),GFRE_DBI.ConstructStringArray([Get_Rightname_App_Role_SubRole(ObjectName,'edit_ca'),Get_Rightname_App_Role_SubRole(ObjectName,'delete_ca')])),'InstallDomainGroupsandRoles');
 end;
 
 procedure TFRE_CERTIFICATE_APP._UpdateSitemap(const session: TFRE_DB_UserSession);
@@ -424,10 +341,10 @@ var
 begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppText(conn,'$sitemap_main').Getshort,'images_apps/certificate/main_white.svg','',0,true);
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Ca',FetchAppText(conn,'$sitemap_ca').Getshort,'images_apps/certificat/ca.svg','certificate_ca',0,CheckAppRightModule(conn,'certificate_ca'));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppText(session,'$sitemap_main').Getshort,'images_apps/certificate/main_white.svg','',0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_CERTIFICATE_APP));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Ca',FetchAppText(session,'$sitemap_ca').Getshort,'images_apps/certificat/ca.svg',TFRE_CERTIFICATE_CA_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_CERTIFICATE_CA_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
-  session.GetSessionAppData(ObjectName).Field('SITEMAP').AsObject := SiteMapData;
+  session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
 
 procedure TFRE_CERTIFICATE_APP.MySessionInitialize(const session: TFRE_DB_UserSession);
@@ -449,20 +366,54 @@ begin
   inherited MyServerInitialize(admin_dbc);
 end;
 
-function TFRE_CERTIFICATE_APP.CFG_ApplicationUsesRights: boolean;
-begin
-  result := true;
-end;
-
-function TFRE_CERTIFICATE_APP._ActualVersion: TFRE_DB_String;
-begin
-  Result := '1.0';
-end;
-
 class procedure TFRE_CERTIFICATE_APP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION');
+end;
+
+class procedure TFRE_CERTIFICATE_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited;
+
+  newVersionId:='1.0';
+
+  if (currentVersionId='') then
+    begin
+      CreateAppText(conn,'$caption','Certificate','Certificate','Certificate');
+      CreateAppText(conn,'$sitemap_main','Certificate','Certificate','Certificate');
+      CreateAppText(conn,'$sitemap_ca','Certificate Authorities','Certificate Authorities','Certificate Authorities');
+
+      CreateAppText(conn,'$cert_description','Certificate');
+      CreateAppText(conn,'$create_ca','Create CA');
+      CreateAppText(conn,'$delete_ca','Delete CA');
+      CreateAppText(conn,'$ca_name','CA Commonname');
+      CreateAppText(conn,'$ca_content_header','Properties');
+      CreateAppText(conn,'$certificate_certificates','Certificates');
+      CreateAppText(conn,'$certificate_CA','Certificate Authority');
+      CreateAppText(conn,'$create_crt','Create');
+      CreateAppText(conn,'$revoke_crt','Revoke');
+      CreateAppText(conn,'$crt_cn','Commonname');
+      CreateAppText(conn,'$crt_email','E-Mail');
+      CreateAppText(conn,'$crt_issued','Issued');
+      CreateAppText(conn,'$crt_revoked','Revoked');
+      CreateAppText(conn,'$crt_content_header','Properties');
+      CreateAppText(conn,'$crt_add_diag_cap','Create Certificate');
+      CreateAppText(conn,'$ca_add_diag_cap','Create CA');
+      CreateAppText(conn,'$ca_add_no_ca_msg','Please select a Certificate Authority first.');
+      CreateAppText(conn,'$button_save','Save');
+
+      currentVersionId:='1.0';
+    end;
+  if (currentVersionId='1.0') then
+    begin
+    //next update code
+    end;
+end;
+
+class procedure TFRE_CERTIFICATE_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+begin
+  inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
 end;
 
 procedure Register_DB_Extensions;
@@ -474,62 +425,8 @@ end;
 
 
 procedure InitializeCertificateExtension(const dbname: string; const user, pass: string);
-var conn : IFRE_DB_SYS_CONNECTION;
-    res  : TFRE_DB_Errortype;
-    adminug : TFRE_DB_StringArray;
-    userug  : TFRE_DB_StringArray;
-    guestug : TFRE_DB_StringArray;
 
-    procedure _AddUserGroupToArray(const usergroup: string; var a: TFRE_DB_StringArray);
-    begin
-     setlength(a,length(a)+1);
-     a[high(a)] := usergroup;
-    end;
-
-    procedure CreateAppUserGroups(const appname : string;const domain: TFRE_DB_NameType);
-    begin
-      _AddUserGroupToArray(Get_Groupname_App_Group_Subgroup(appname,'ADMIN'+'@'+domain),adminug);
-      _AddUserGroupToArray(Get_Groupname_App_Group_Subgroup(appname,'USER'+'@'+domain),userug);
-      _AddUserGroupToArray(Get_Groupname_App_Group_Subgroup(appname,'GUEST'+'@'+domain),guestug);
-    end;
-
-    procedure _addUsertoGroupsforDomain(const obj: IFRE_DB_Object);
-    var domain  : TFRE_DB_NameType;
-
-        procedure _addUsertoGroup(const user: string; const groupa: TFRE_DB_StringArray);
-        var i     : NativeInt;
-            login : string;
-        begin
-          login  := user+'@'+domain;
-          if conn.UserExists(login) then begin
-            CheckDbResult(conn.ModifyUserGroups(login,groupa,true),'cannot set usergroups '+login);
-          end;
-        end;
-
-    begin
-      domain := obj.Field('objname').asstring;
-
-      setLength(adminug,0);
-      setLength(userug,0);
-      setLength(guestug,0);
-
-      CreateAppUserGroups('certificate',domain);
-
-      if domain=CFRE_DB_SYS_DOMAIN_NAME then begin
-        _addUsertoGroup('admin1',adminug);
-        _addUsertoGroup('admin2',adminug);
-        _addUsertoGroup('feeder',adminug);
-
-        _addUsertoGroup('user1',userug);
-        _addUsertoGroup('user2',userug);
-
-        setLength(guestug,0);
-        CreateAppUserGroups('certificate',domain);
-        _addUsertoGroup('guest',guestug);
-      end;
-    end;
-
-    procedure InitAppDB;
+  procedure InitAppDB;
     var conn  : IFRE_DB_CONNECTION;
         coll  : IFRE_DB_COLLECTION;
         collc : IFRE_DB_COLLECTION;
@@ -549,15 +446,6 @@ var conn : IFRE_DB_SYS_CONNECTION;
     end;
 
 begin
-  CONN := GFRE_DBI.NewSysOnlyConnection;
-  try
-    res  := CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
-    if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
-      conn.InstallAppDefaults('certificate');
-      conn.ForAllDomains(@_addUsertoGroupsforDomain);
-  finally
-    conn.Finalize;
-  end;
 
   InitAppDB;
 
