@@ -53,6 +53,7 @@ var
       cFRE_WEB_STYLE                  :string = 'firmos';
       cFRE_SERVER_DEFAULT_DIR         :string = '~/.firmos/fre';
       cFRE_HAL_CFG_DIR                :string = '';
+      cFRE_TMP_DIR                    :string = '';
       cFRE_JOB_RESULT_DIR             :string = '';
       cFRE_JOB_ARCHIVE_DIR            :string = '';
       cFRE_PID_LOCK_DIR               :string = '';

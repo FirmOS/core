@@ -7985,7 +7985,7 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
         end;
       end;
     end else begin
-      if lowercase(field_name)<>'uid' then begin
+      if (lowercase(field_name)<>'uid') and (lowercase(field_name)<>'domainid') then begin
         raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'updates of unspecified fields is not allowed, field [%s] is not in scheme hierarchy',[field.FieldName]);
       end;
     end;
@@ -9185,7 +9185,8 @@ var refs : TFRE_DB_ObjectReferences;
     end;
 
 begin
-  refs := GetReferences(obj_uid, from);
+  idx   := 0;
+  refs  := GetReferences(obj_uid, from);
   for i := 0 to high(refs) do
     begin
       if (substring_filter='') or (pos(substring_filter,refs[i].fieldname)>0) then
