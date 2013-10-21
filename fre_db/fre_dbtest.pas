@@ -944,7 +944,7 @@ end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeColumn('cchart',8,CWSF(@WEB_StartStopC),'Live Chart Columns',100,0,TFRE_DB_StringArray.create('3F5490'),TFRE_DB_StringArray.create('A','B','C','D','E','F','G','H'));
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeColumn('cchart',8,CWSF(@WEB_StartStopC),'Live Chart Columns',100,0,TFRE_DB_StringArray.create('3F5490'),TFRE_DB_StringArray.create('Disk01','Disk_long_label_02','D03','Disk04','Disk05','Disk06','Disk07','Disk08'));
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopSLC(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
