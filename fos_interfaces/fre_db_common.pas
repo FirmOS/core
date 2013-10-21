@@ -711,6 +711,16 @@ type
                                   const seriesColor: TFRE_DB_StringArray=nil; const dataLabels: TFRE_DB_StringArray=nil;  const legendLabels: TFRE_DB_StringArray=nil; const seriesCount: Integer=1): TFRE_DB_LIVE_CHART_DESC;
   end;
 
+  { TFRE_DB_REDEFINE_LIVE_CHART_DESC }
+
+  TFRE_DB_REDEFINE_LIVE_CHART_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a redefinition of a column chart.
+    //@ See DescribeColumn of TFRE_DB_LIVE_CHART_DESC
+    function DescribeColumn      (const id: String; const dataCount: Integer=0; const dataLabels: TFRE_DB_StringArray=nil; const dataMinMax: TFRE_DB_Real32Array=nil;
+                                  const seriesCount: Integer=0; const legendLabels: TFRE_DB_StringArray=nil; const seriesColor: TFRE_DB_StringArray=nil; const caption: String=''): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
+  end;
+
   { TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC }
 
   TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC    = class(TFRE_DB_CONTENT_DESC)
@@ -831,6 +841,32 @@ implementation
        if CFRE_DB_CONTENT_TYPE[result]=fts then exit;
     end;
     raise Exception.Create('invalid short DBContentType specifier : ['+fts+']');
+  end;
+
+  { TFRE_DB_REDEFINE_LIVE_CHART_DESC }
+
+  function TFRE_DB_REDEFINE_LIVE_CHART_DESC.DescribeColumn(const id: String; const dataCount: Integer; const dataLabels: TFRE_DB_StringArray; const dataMinMax: TFRE_DB_Real32Array; const seriesCount: Integer; const legendLabels: TFRE_DB_StringArray; const seriesColor: TFRE_DB_StringArray; const caption: String): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
+  begin
+    Field('id').AsString:=id;
+    Field('dataCount').AsInt64:=dataCount;
+    if Assigned(dataLabels) then begin
+      Field('dataLabels').AsStringArr:=dataLabels;
+    end;
+    Field('caption').AsString:=caption;
+    if Assigned(dataMinMax) then begin
+      Field('dataMin').AsReal32:=dataMinMax[0];
+      if Length(dataMinMax)=2 then begin
+        Field('dataMax').AsReal32:=dataMinMax[1];
+      end;
+    end;
+    Field('seriesCount').AsInt16:=seriesCount;
+    if Assigned(legendLabels) then begin
+      Field('legendLabels').AsStringArr:=legendLabels;
+    end;
+    if Assigned(seriesColor) then begin
+      Field('seriesColor').AsStringArr:=seriesColor;
+    end;
+    Result:=Self;
   end;
 
   { TFRE_DB_NEW_WINDOW_DESC }
