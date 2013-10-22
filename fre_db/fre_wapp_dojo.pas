@@ -70,12 +70,12 @@ type
    function  _BuildParamsObject        (const co:IFRE_DB_ObjectArray; const keyProp: String='key'; const valueProp: String='value'):String;
    function  _BuildJSArray             (const arr:TFRE_DB_StringArray):String;
    function  _AddParams                (const jsVarName:String;const co:IFRE_DB_ObjectArray;const keyProp:String='key';const valueProp:String='value'):String;
-   procedure  _BuildDialog             (const session: TFRE_DB_UserSession; const co: TFRE_DB_DIALOG_DESC);
-   procedure  _BuildSubSecTabContainer (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC; const tabsHidden: Boolean);
-   procedure  _BuildSubSecVertContainer(const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC);
-   procedure  _BuildMenu               (const co:TFRE_DB_MENU_DESC);
-   procedure  _BuildMenuDef            (const co:TFRE_DB_MENU_DESC);
-   function   _BuildDataArray          (const co:IFRE_DB_ObjectArray):String;
+   procedure _BuildDialog              (const session: TFRE_DB_UserSession; const co: TFRE_DB_DIALOG_DESC);
+   procedure _BuildSubSecTabContainer  (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC; const tabsHidden: Boolean);
+   procedure _BuildSubSecVertContainer (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC);
+   procedure _BuildMenu                (const co:TFRE_DB_MENU_DESC);
+   procedure _BuildMenuDef             (const co:TFRE_DB_MENU_DESC);
+   function  _BuildDataArray           (const co:IFRE_DB_ObjectArray):String;
   public
    function  InstallTransformDefaults  (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
    procedure BuildContextMenu          (const co:TFRE_DB_MENU_DESC; var contentString,contentType:String);
@@ -94,6 +94,7 @@ type
    procedure BuildHtml                 (const session:TFRE_DB_UserSession; const co:TFRE_DB_HTML_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildStoreData            (const co:TFRE_DB_STORE_DATA_DESC; var contentString,contentType:String);
    procedure BuildMessage              (const session:TFRE_DB_UserSession; const co:TFRE_DB_MESSAGE_DESC;var contentString,contentType:String);
+   procedure BuildUpdateMessageProgress(const session:TFRE_DB_UserSession; const co:TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC;var contentString,contentType:String);
    procedure BuildChart                (const session:TFRE_DB_UserSession; const co:TFRE_DB_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildChartData            (const co:TFRE_DB_CHART_DATA_DESC;var contentString,contentType:String);
    procedure BuildLiveChart            (const session:TFRE_DB_UserSession; const co:TFRE_DB_LIVE_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
@@ -178,6 +179,9 @@ implementation
     end else
     if result_object is TFRE_DB_MESSAGE_DESC then begin
       gWAC_DOJO.BuildMessage(session,TFRE_DB_MESSAGE_DESC(result_object),lContent,lContentType);
+    end else
+    if result_object is TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC then begin
+      gWAC_DOJO.BuildUpdateMessageProgress(session,TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_CHART_DESC then begin
       gWAC_DOJO.BuildChart(session,TFRE_DB_CHART_DESC(result_object),lContent,lContentType,isInnerContent);
@@ -1945,6 +1949,12 @@ implementation
     jsContentAdd('  G_TEXTS.openWindow =');
     jsContentAdd('         {error: "'+_getText(conn,'ow_error')+'"');
     jsContentAdd('         };');
+    jsContentAdd('  G_TEXTS.msg =');
+    jsContentAdd('         {yes: "'+_getText(conn,'msg_confirm_yes')+'"');
+    jsContentAdd('         ,no: "'+_getText(conn,'msg_confirm_no')+'"');
+    jsContentAdd('         ,ok: "'+_getText(conn,'msg_ok')+'"');
+    jsContentAdd('         ,abort: "'+_getText(conn,'msg_abort')+'"');
+    jsContentAdd('         };');
     jsContentAdd('</script>');
 
     jsContentAdd('<script type="text/javascript" src="fre_js/dojo_utils.js"></script>');
@@ -2049,87 +2059,45 @@ implementation
   procedure TFRE_DB_WAPP_DOJO.BuildMessage(const session:TFRE_DB_UserSession; const co: TFRE_DB_MESSAGE_DESC; var contentString, contentType: String);
   var
     JSonAction  : TFRE_JSON_ACTION;
-    CSSPostFix  : String;
-    msgType     : TFRE_DB_MESSAGE_TYPE;
-    message_txt : String;
-    conn        : IFRE_DB_CONNECTION;
-
-    procedure _BuildButton(const caption:String; const paramName:String=''; const paramValue: String='');
-    begin
-      jsContentAdd('  "<button dojoType=''dijit.form.Button'' type=''button'' "+');
-      jsContentAdd('  "onClick=\""+');
-      jsContentAdd('  "  var dialog=this.getParent();"+');
-      jsContentAdd('  "  while (dialog && !dialog.isInstanceOf(dijit.Dialog)) {dialog=dialog.getParent();}"+');
-      jsContentAdd('  "  if (dialog) {dialog.hide(true);}"+');
-      if co.FieldExists('serverFunc') then begin
-        jsContentAdd('  "var params = '+_BuildParamsObject(co.Field('serverFunc').AsObject.Field('params').AsObjectArr)+';"+');
-        if paramName<>'' then begin
-          jsContentAdd('  "  params.'+paramName+' = '''+paramValue+''';"+');
-        end;
-        jsContentAdd('  "G_SERVER_COM.callServerFunction('''+co.Field('serverFunc').AsObject.Field('class').AsString + ''',''' + co.Field('serverFunc').AsObject.Field('func').AsString+''','
-                                                            +_BuildJSArray(co.Field('serverFunc').AsObject.Field('uidPath').AsStringArr)+',params);"+');
-      end;
-      jsContentAdd('  "\""+');
-      jsContentAdd('  ">'+caption+'</button>"+');
-    end;
-
   begin
-    conn:=session.GetDBConnection;
     JsonAction := TFRE_JSON_ACTION.Create;
     jsContentClear;
-    msgType:=String2DBMessageType(co.Field('msgType').AsString);
-    case msgType of
-      fdbmt_error:  begin
-                      CSSPostFix:='Error';
-                    end;
-      fdbmt_info: begin
-                    CSSPostFix:='Info';
-                  end;
-      fdbmt_confirm:begin
-                      CSSPostFix:='Confirm';
-                    end;
-      fdbmt_warning:begin
-                      CSSPostFix:='Warning';
-                    end;
-      fdbmt_wait:begin
-                   CSSPostFix:='Wait';
-                 end;
-    end;
-
-    message_txt := FREDB_String2EscapedJSString(co.Field('msg').AsString,true);
-
-    jsContentAdd('var message = new FIRMOS.Dialog({');
+    jsContentAdd('var message = new FIRMOS.Message({');
     jsContentAdd('   id: "'+co.Field('id').AsString+'_message"');
     jsContentAdd('  ,title: "'+co.Field('caption').AsString+'"');
-    jsContentAdd('  ,content: ');
-    jsContentAdd('  "<div class=''firmosMessageIcon'+CSSPostFix+'''></div><div class=''firmosMessage'+CSSPostFix+'''>"+');
-    jsContentAdd('  "'+message_txt+'"+');
-    jsContentAdd('  "</div>"+');
-    jsContentAdd('  "<div class=''firmosMessageButtons'+CSSPostFix+'''>"+');
-    case msgType of
-      fdbmt_confirm:begin
-                      _BuildButton(_getText(conn,'msg_confirm_yes'),'confirmed','true');
-                      _BuildButton(_getText(conn,'msg_confirm_no'),'confirmed','false');
-                    end;
-      fdbmt_error,
-      fdbmt_info,
-      fdbmt_warning: begin
-                       _BuildButton(_getText(conn,'msg_ok'));
-                     end;
-      fdbmt_wait:begin
-                   if co.FieldExists('serverFunc') then begin
-                     _BuildButton(_getText(conn,'msg_abort'));
-                   end;
-                 end;
+    jsContentAdd('  ,msg: "'+FREDB_String2EscapedJSString(co.Field('msg').AsString,true)+'"');
+    jsContentAdd('  ,type: "'+co.Field('msgType').AsString+'"');
+    if co.FieldExists('serverFunc') then begin
+      jsContentAdd('  ,sfClassname:"'+co.FieldPath('serverFunc.class').AsString+'"');
+      jsContentAdd('  ,sfFunctionname:"'+co.FieldPath('serverFunc.func').AsString+'"');
+      jsContentAdd('  ,sfUidPath:'+_BuildJSArray(co.Field('serverFunc').AsObject.Field('uidPath').AsStringArr));
+      jsContentAdd('  ,sfParams:'+_BuildParamsObject(co.Field('serverFunc').AsObject.Field('params').AsObjectArr));
     end;
-    jsContentAdd('  "</div>"');
-    jsContentAdd('  ,closable: false');
+    if co.Field('progressBarId').AsString<>'' then begin
+      jsContentAdd('  ,progressBarId: "'+co.Field('progressBarId').AsString+'"');
+    end;
     jsContentAdd('});');
 
     jsContentAdd('G_UI_COM.showMessage(message);');
 
     JsonAction.ActionType := jat_jsexecute;
     JsonAction.Action     := jsContent;
+    JSonAction.ID         := co.Field('id').AsString;
+
+    contentString := JsonAction.AsString;
+    contentType:='application/json';
+
+    JsonAction.Free;
+  end;
+
+  procedure TFRE_DB_WAPP_DOJO.BuildUpdateMessageProgress(const session: TFRE_DB_UserSession; const co: TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC; var contentString, contentType: String);
+  var
+    JSonAction  : TFRE_JSON_ACTION;
+  begin
+    JsonAction := TFRE_JSON_ACTION.Create;
+
+    JsonAction.ActionType := jat_jsexecute;
+    JsonAction.Action     := 'G_UI_COM.updateMsgProgress("'+co.Field('progressBarId').AsString+'",'+co.Field('percentage').AsString+');';
     JSonAction.ID         := co.Field('id').AsString;
 
     contentString := JsonAction.AsString;
@@ -2567,9 +2535,7 @@ implementation
     JSonAction : TFRE_JSON_ACTION;
     i          : Integer;
     entry      : TFRE_DB_SITEMAP_ENTRY_DESC;
-    conn       : IFRE_DB_CONNECTION;
   begin
-    conn:=session.GetDBConnection;
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
       jsContentClear;
