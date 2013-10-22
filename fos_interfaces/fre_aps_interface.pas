@@ -166,26 +166,61 @@ type
   end;
 
 
-  IFRE_APS_COMM=interface
-    procedure  AddListener_TCP (const Bind_IP:String;const Bind_Port:integer);
+  TAPSC_ListenerState = (als_BAD,als_LISTENING,als_STOPPED,als_LISTEN_ERROR,als_NEW_LISTENER);
+  TAPSC_ChannelState  = (ch_BAD,ch_NEW_SS_CONNECTED,ch_END_CLOSED,ch_STOPPED,ch_ACTIVE);
+
+  IFRE_APSC_DNS_ANSWER=interface
   end;
 
-  IFRE_APS_COMM_CHANNEL_MANAGER=interface // = Thread bound to CPU
+  IFRE_APSC_LISTENER=interface
+    function  GetState            : TAPSC_ListenerState;
+    function  GetErrorString      : string;
+    function  GetListeningAddress : string;
+    procedure Stop;
+    procedure Start;
+    procedure Finalize;
   end;
 
-  IFRE_APS_COMM_CHANNEL_GROUP=interface // = Session Group, VNC Group / Upload / Download Group / HTTP Requests
+  IFRE_APSC_CHANNEL_MANAGER = interface;
+  IFRE_APSC_CHANNEL         = interface;
+
+  TOnNew_APSC_Listener = procedure (const new_listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState) of object;
+  TOnNew_APSC_Channel  = procedure (const channel : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState) of object;
+
+  IFRE_APSC=interface
+    procedure   AddListener_TCP  (Bind_IP,Bind_Port:String);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
+    procedure   SetNewListenerCB (const lcb    : TOnNew_APSC_Listener);
+    procedure   SetNewChannelCB  (const chancb : TOnNew_APSC_Channel);
   end;
 
-  IFRE_APS_COMM_CHANNEL=interface // Session , VNC , UP/DOWN Load, HTTP Requests
+  IFRE_APSC_CHANNEL_MANAGER=interface // = Thread bound to CPU
+    function GetID                    : NativeInt;
+  end;
+
+  IFRE_APSC_CHANNEL_GROUP=interface // = Session Group, VNC Group / Upload / Download Group / HTTP Requests
+  end;
+
+  { IFRE_APSC_CHANNEL }
+
+  IFRE_APSC_CHANNEL=interface // Session , VNC , UP/DOWN Load, HTTP Requests
+    function  GetChannelManager : IFRE_APSC_CHANNEL_MANAGER;
+    function  GetListener       : IFRE_APSC_LISTENER;
+    function  GetConnSocketAddr : String;
+
+    procedure CH_WriteString       (const str : String);
+    procedure Enable_Reading    ;
+    procedure Enable_Writing    ;
+    procedure Finalize;
   end;
 
   IFRE_APS_COMM_SERVER=interface
      //procedure GotANewCommChannel ;
   end;
 
+
 var
   GFRE_S  : IFRE_APS;
-  GFRE_SC : IFRE_APS_COMM;
+  GFRE_SC : IFRE_APSC;
 
 implementation
 

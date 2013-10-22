@@ -22,10 +22,12 @@ begin
        Test_LE;
        exit;
      end;
-  SetupAPS_Comm;
-  repeat
-    sleep(1000);
-  until false;
+  Setup_APS_Comm;
+  Test_APSC;
+  //repeat
+    sleep(15000);
+  //until false;
+  Teardown_APS_Comm;
   exit;
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
