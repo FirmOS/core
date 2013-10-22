@@ -39,8 +39,9 @@ interface
 {$MODE objfpc} {$H+}
 {$interfaces corba}
 {$modeswitch nestedprocvars}
+{$codepage UTF8}
 
-uses Classes,Sysutils,fre_db_interface;
+uses Classes,Sysutils,fre_db_interface,fos_tool_interfaces;
 
 type
 
@@ -66,9 +67,10 @@ type
   { IFRE_SSL }
 
   IFRE_SSL=interface
-      function  CreateCA           (const cn,c,st,l,o,ou,email:string; const ca_pass:string; out ca_base_information:RFRE_CA_BASEINFORMATION) : TFRE_SSL_RESULT;
-      function  CreateCrt          (const cn,c,st,l,o,ou,email:string; const ca_pass:string; var ca_base_information:RFRE_CA_BASEINFORMATION; const server:boolean; out crt_base_information: RFRE_CRT_BASEINFORMATION ) : TFRE_SSL_RESULT;
-      function  RevokeCrt          (const cn:string;const ca_pass:string;  const crt:string; var ca_base_information:RFRE_CA_BASEINFORMATION) : TFRE_SSL_RESULT;
+      function  CreateCA              (const cn,c,st,l,o,ou,email:string; const ca_pass:string; out ca_base_information:RFRE_CA_BASEINFORMATION) : TFRE_SSL_RESULT;
+      function  CreateCrt             (const cn,c,st,l,o,ou,email:string; const ca_pass:string; var ca_base_information:RFRE_CA_BASEINFORMATION; const server:boolean; out crt_base_information: RFRE_CRT_BASEINFORMATION ) : TFRE_SSL_RESULT;
+      function  RevokeCrt             (const cn:string;const ca_pass:string;  const crt:string; var ca_base_information:RFRE_CA_BASEINFORMATION) : TFRE_SSL_RESULT;
+      function  ReadCrtInformation    (const crt: string; out cn,c,st,l,o,ou,email:string; out issued_date,end_date:TFRE_DB_DateTime64) : TFRE_SSL_RESULT;
   end;
 
   function GET_SSL_IF : IFRE_SSL;
@@ -86,7 +88,6 @@ var
 
 function GET_SSL_IF: IFRE_SSL;
 begin
-  abort; // => DISCUSS global interfaces, refcounts and how to handle them, $interfaces corba, finalization, initialization
   if not assigned(PRIVATE_FRE_SSL) then
     raise  EFRE_DB_Exception.Create(edb_ERROR,'no assigned SSL interface');
   result := PRIVATE_FRE_SSL;

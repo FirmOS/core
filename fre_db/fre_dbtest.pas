@@ -279,7 +279,7 @@ type
     function  WEB_ContentC              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_StartStopSLC          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_StartStopLC           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_StartStopC            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_StartStopCC           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_GRIDTREEFORM_MOD }
@@ -892,12 +892,24 @@ var
   session: TFRE_DB_UserSession;
   data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
   res    : TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
-  i      : Integer;
+  redef  : TFRE_DB_REDEFINE_LIVE_CHART_DESC;
+  i,l    : Integer;
 begin
   session:=GetSession(input);
+  if _idx<10 then begin
+    _idx:=_idx+1;
+    l:=8;
+  end else begin
+    if _idx=10 then begin
+      redef:=TFRE_DB_REDEFINE_LIVE_CHART_DESC.create.DescribeColumn('cchart',10,TFRE_DB_StringArray.create('D1','D2','D3','D4','D5','D6','D7','D8','D9','D10'),TFRE_DB_Real32Array.create(50,200),0,nil,TFRE_DB_StringArray.create('AAFFCC'),'Live Chart Columns MOD');
+      session.SendServerClientRequest(redef);
+      _idx:=11;
+    end;
+    l:=10;
+  end;
   SetLength(data,1);
-  SetLength(data[0],8);
-  for i := 0 to 7 do begin
+  SetLength(data[0],l);
+  for i := 0 to l-1 do begin
     data[0][i]:=Random(100);
   end;
   res:=TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC.create.Describe('cchart',data);
@@ -939,12 +951,12 @@ end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentL(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_LIVE_CHART_DESC.create.Describe('lchart',2,120,CWSF(@WEB_StartStopLC),0,100,'Live Chart');
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.Describe('lchart',2,120,CWSF(@WEB_StartStopLC),0,100,'Live Chart',nil,TFRE_DB_StringArray.create('Line 1','Line 2'));
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeColumn('cchart',8,CWSF(@WEB_StartStopC),'Live Chart Columns',100,0,TFRE_DB_StringArray.create('3F5490'),TFRE_DB_StringArray.create('A','B','C','D','E','F','G','H'));
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeColumn('cchart',8,CWSF(@WEB_StartStopCC),'Live Chart Columns',100,0,TFRE_DB_StringArray.create('3F5490'),TFRE_DB_StringArray.create('Disk01','Disk_long_label_02','D03','Disk04','Disk05','Disk06','Disk07','Disk08'));
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopSLC(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -968,12 +980,13 @@ begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopCC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
   i      : Integer;
 begin
   if input.Field('action').AsString='start' then begin
+    _idx:=0;
     ses.RegisterTaskMethod(@_SendDataCC,1000);
   end else begin
     ses.RemoveTaskMethod;

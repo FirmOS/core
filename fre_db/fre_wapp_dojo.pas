@@ -97,6 +97,7 @@ type
    procedure BuildChart                (const session:TFRE_DB_UserSession; const co:TFRE_DB_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildChartData            (const co:TFRE_DB_CHART_DATA_DESC;var contentString,contentType:String);
    procedure BuildLiveChart            (const session:TFRE_DB_UserSession; const co:TFRE_DB_LIVE_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
+   procedure BuildRedefineLiveChart    (const session:TFRE_DB_UserSession; const co:TFRE_DB_REDEFINE_LIVE_CHART_DESC;var contentString,contentType:String);
    procedure BuildLiveChartAtIdxData   (const co:TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;var contentString,contentType:String);
    procedure BuildLiveChartCompleteData(const co:TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;var contentString,contentType:String);
    procedure BuildLiveChartInitData    (const co:TFRE_DB_LIVE_CHART_INIT_DATA_DESC;var contentString,contentType:String);
@@ -186,6 +187,9 @@ implementation
     end else
     if result_object is TFRE_DB_LIVE_CHART_DESC then begin
       gWAC_DOJO.BuildLiveChart(session,TFRE_DB_LIVE_CHART_DESC(result_object),lContent,lContentType,isInnerContent);
+    end else
+    if result_object is TFRE_DB_REDEFINE_LIVE_CHART_DESC then begin
+      gWAC_DOJO.BuildRedefineLiveChart(session,TFRE_DB_REDEFINE_LIVE_CHART_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC then begin
       gWAC_DOJO.BuildLiveChartAtIdxData(TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC(result_object),lContent,lContentType);
@@ -2305,6 +2309,58 @@ implementation
 
       JsonAction.Free;
     end;
+  end;
+
+  procedure TFRE_DB_WAPP_DOJO.BuildRedefineLiveChart(const session: TFRE_DB_UserSession; const co: TFRE_DB_REDEFINE_LIVE_CHART_DESC; var contentString, contentType: String);
+  var
+    JSonAction     : TFRE_JSON_ACTION;
+    prefix         : String;
+    params         : String;
+  begin
+    prefix:='';
+    params:='{';
+    if co.Field('dataCount').AsInt64>0 then begin
+      params:=params+'dataCount: '+co.Field('dataCount').AsString;
+      prefix:=',';
+    end;
+    if co.FieldExists('dataLabels') then begin
+      params:=params+prefix+'dataLabels: '+_BuildJSArray(co.Field('dataLabels').AsStringArr);
+      prefix:=',';
+    end;
+    if co.FieldExists('dataMin') then begin
+      params:=params+prefix+'dataMin: '+co.Field('dataMin').AsString;
+      prefix:=',';
+    end;
+    if co.FieldExists('dataMax') then begin
+      params:=params+prefix+'dataMax: '+co.Field('dataMax').AsString;
+      prefix:=',';
+    end;
+    if co.Field('caption').AsString<>'' then begin
+      params:=params+prefix+'caption: "'+co.Field('caption').AsString + '"';
+      prefix:=',';
+    end;
+    if co.Field('seriesCount').AsInt64>0 then begin
+      params:=params+prefix+'seriesCount: '+co.Field('seriesCount').AsString;
+      prefix:=',';
+    end;
+    if co.FieldExists('legendLabels') then begin
+      params:=params+prefix+'legendLabels: '+_BuildJSArray(co.Field('legendLabels').AsStringArr);
+      prefix:=',';
+    end;
+    if co.FieldExists('seriesColor') then begin
+      params:=params+prefix+'seriesColor: '+_BuildJSArray(co.Field('seriesColor').AsStringArr);
+      prefix:=',';
+    end;
+    params:=params+'}';
+
+    JsonAction := TFRE_JSON_ACTION.Create;
+    JsonAction.ActionType := jat_jsupdate;
+    JsonAction.Action     := 'G_UI_COM.redefineLiveChart("'+co.Field('id').AsString+'",'+params+');';
+
+    contentString := JsonAction.AsString;
+    contentType:='application/json';
+
+    JsonAction.Free;
   end;
 
   procedure TFRE_DB_WAPP_DOJO.BuildLiveChartAtIdxData(const co: TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC; var contentString, contentType: String);
