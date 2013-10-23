@@ -879,11 +879,32 @@ var
   session: TFRE_DB_UserSession;
   data   : TFRE_DB_Real32Array;
   res    : TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;
-  i      : Integer;
+  i,s    : Integer;
+  redef  : TFRE_DB_REDEFINE_LIVE_CHART_DESC;
 begin
   session:=GetSession(input);
-  SetLength(data,2);
-  for i := 0 to 1 do begin
+
+  if _idx<10 then begin
+    s:=2;
+  end else begin
+    if _idx<20 then begin
+      if _idx=10 then begin
+        redef:=TFRE_DB_REDEFINE_LIVE_CHART_DESC.create.DescribeLine('lchart',1,120,TFRE_DB_Real32Array.create(-50,150),TFRE_DB_StringArray.create('AAFFCC'),TFRE_DB_StringArray.create('L1 MOD','L2 MOD'),'Live Chart MOD');
+        session.SendServerClientRequest(redef);
+      end;
+      s:=1;
+    end else begin
+      if _idx=20 then begin
+        redef:=TFRE_DB_REDEFINE_LIVE_CHART_DESC.create.DescribeLine('lchart',2,100,TFRE_DB_Real32Array.create(-50,150),TFRE_DB_StringArray.create('AAFFCC'),TFRE_DB_StringArray.create('L1 MOD 2','L2 MOD 2'),'Live Chart MOD 2');
+        session.SendServerClientRequest(redef);
+      end;
+      s:=2;
+    end;
+  end;
+
+
+  SetLength(data,s);
+  for i := 0 to s-1 do begin
     data[i]:=Random(100);
   end;
   res:=TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC.create.Describe('lchart',_idx,data);
@@ -972,7 +993,7 @@ end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentL(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_LIVE_CHART_DESC.create.Describe('lchart',2,120,CWSF(@WEB_StartStopLC),0,100,'Live Chart',nil,TFRE_DB_StringArray.create('Line 1','Line 2'));
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeLine('lchart',2,120,CWSF(@WEB_StartStopLC),0,100,'Live Chart',nil,TFRE_DB_StringArray.create('Line 1','Line 2'));
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
