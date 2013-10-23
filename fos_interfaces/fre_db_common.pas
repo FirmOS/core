@@ -714,7 +714,14 @@ type
   { TFRE_DB_REDEFINE_LIVE_CHART_DESC }
 
   TFRE_DB_REDEFINE_LIVE_CHART_DESC    = class(TFRE_DB_CONTENT_DESC)
+  private
+    function _Describe           (const id: String; const seriesCount: Integer; const dataCount: Integer; const dataMinMax: TFRE_DB_Real32Array; const dataLabels: TFRE_DB_StringArray;
+                                  const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const caption: String): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
   public
+    //@ Describes a redefinition of a sampled line live chart.
+    //@ See DescribeSampledLine of TFRE_DB_LIVE_CHART_DESC
+    function DescribeSampledLine (const id: String; const seriesCount: Integer=0; const dataCount: Integer=0; const dataMinMax: TFRE_DB_Real32Array=nil;
+                                  const seriesColor: TFRE_DB_StringArray=nil; const legendLabels: TFRE_DB_StringArray=nil; const caption: String=''): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
     //@ Describes a redefinition of a column chart.
     //@ See DescribeColumn of TFRE_DB_LIVE_CHART_DESC
     function DescribeColumn      (const id: String; const dataCount: Integer=0; const dataLabels: TFRE_DB_StringArray=nil; const dataMinMax: TFRE_DB_Real32Array=nil;
@@ -845,7 +852,7 @@ implementation
 
   { TFRE_DB_REDEFINE_LIVE_CHART_DESC }
 
-  function TFRE_DB_REDEFINE_LIVE_CHART_DESC.DescribeColumn(const id: String; const dataCount: Integer; const dataLabels: TFRE_DB_StringArray; const dataMinMax: TFRE_DB_Real32Array; const seriesCount: Integer; const legendLabels: TFRE_DB_StringArray; const seriesColor: TFRE_DB_StringArray; const caption: String): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
+  function TFRE_DB_REDEFINE_LIVE_CHART_DESC._Describe(const id: String; const seriesCount: Integer; const dataCount: Integer; const dataMinMax: TFRE_DB_Real32Array; const dataLabels: TFRE_DB_StringArray; const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const caption: String): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
   begin
     Field('id').AsString:=id;
     Field('dataCount').AsInt64:=dataCount;
@@ -867,6 +874,16 @@ implementation
       Field('seriesColor').AsStringArr:=seriesColor;
     end;
     Result:=Self;
+  end;
+
+  function TFRE_DB_REDEFINE_LIVE_CHART_DESC.DescribeSampledLine(const id: String; const seriesCount: Integer; const dataCount: Integer; const dataMinMax: TFRE_DB_Real32Array; const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const caption: String): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
+  begin
+    Result:=_Describe(id,seriesCount,dataCount,dataMinMax,nil,seriesColor,legendLabels,caption);
+  end;
+
+  function TFRE_DB_REDEFINE_LIVE_CHART_DESC.DescribeColumn(const id: String; const dataCount: Integer; const dataLabels: TFRE_DB_StringArray; const dataMinMax: TFRE_DB_Real32Array; const seriesCount: Integer; const legendLabels: TFRE_DB_StringArray; const seriesColor: TFRE_DB_StringArray; const caption: String): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
+  begin
+    Result:=_Describe(id,seriesCount,dataCount,dataMinMax,dataLabels,seriesColor,legendLabels,caption);
   end;
 
   { TFRE_DB_NEW_WINDOW_DESC }

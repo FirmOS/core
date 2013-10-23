@@ -925,13 +925,30 @@ var
   session: TFRE_DB_UserSession;
   data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
   res    : TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
-  i      : Integer;
+  i,j,l,s: Integer;
+  redef  : TFRE_DB_REDEFINE_LIVE_CHART_DESC;
 begin
   session:=GetSession(input);
-  SetLength(data,1);
-  SetLength(data[0],4);
-  for i := 0 to 3 do begin
-    data[0][i]:=Random(100);
+  if _idx<10 then begin
+    _idx:=_idx+1;
+    l:=4;
+    s:=1;
+  end else begin
+    if _idx=10 then begin
+      redef:=TFRE_DB_REDEFINE_LIVE_CHART_DESC.create.DescribeSampledLine('slchart',2,6,TFRE_DB_Real32Array.create(-50,150),TFRE_DB_StringArray.create('AAFFCC','000000'),TFRE_DB_StringArray.create('L1','L2'),'Sampled Live Chart MOD');
+      session.SendServerClientRequest(redef);
+      _idx:=11;
+    end;
+    l:=6;
+    s:=2;
+  end;
+
+  SetLength(data,s);
+  for i:=0 to s-1 do begin
+    SetLength(data[i],l);
+    for j:=0 to l-1 do begin
+      data[i][j]:=Random(100);
+    end;
   end;
   res:=TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC.create.Describe('slchart',data);
   session.SendServerClientRequest(res);
@@ -966,6 +983,7 @@ end;
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopSLC(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   if input.Field('action').AsString='start' then begin
+    _idx:=0;
     ses.RegisterTaskMethod(@_SendDataSLC,1000);
   end else begin
     ses.RemoveTaskMethod;
