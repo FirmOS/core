@@ -201,8 +201,10 @@ type
 
   TFRE_DB_TEST_APP_GRID_MOD = class (TFRE_DB_APPLICATION_MODULE)
   private
+    _idx: Integer;
     procedure ToggleBlast (const session:TFRE_DB_UserSession);
     procedure SetBlast    (const session:TFRE_DB_UserSession);
+    function  updateWait  (const input: IFRE_DB_Object):IFRE_DB_Object;
   protected
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure ; override;
@@ -221,6 +223,8 @@ type
     function  WEB_ReadOnlyDialog        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_GRID_ITEM_DETAILS     (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_SendADialog           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_WaitMessage           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_AbortWait             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_GRID2_MOD }
@@ -1792,6 +1796,19 @@ begin
   end;
 end;
 
+function TFRE_DB_TEST_APP_GRID_MOD.updateWait(const input: IFRE_DB_Object): IFRE_DB_Object;
+var
+  session: TFRE_DB_UserSession;
+begin
+  session:=GetSession(input);
+  _idx:=_idx+5;
+  session.SendServerClientRequest(TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC.create.Describe('zippingProgress',_idx));
+  if _idx=100 then begin
+    session.RemoveTaskMethod;
+    session.SendServerClientRequest(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe());
+  end;
+end;
+
 class procedure TFRE_DB_TEST_APP_GRID_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
@@ -1903,6 +1920,7 @@ begin
   lvd_Grid.AddButton.Describe(CWSF(@WEB_ChangeData),'images_apps/test/add.png','Change Dataset');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_ToggleUpdates),'images_apps/test/add.png','ToggleUpdates');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_SendADialog),'images_apps/test/add.png','ServerClientDialog');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_WaitMessage),'images_apps/test/add.png','Wait Message');
   result := lvd_Grid;
 end;
 
@@ -2035,6 +2053,19 @@ begin
   result := GFRE_DB_NIL_DESC;
   Res    := TFRE_DB_MESSAGE_DESC.create.Describe('Du wurdest ... ','... ausgeloggt!',fdbmt_info);
   GetSession(input).SendServerClientRequest(res);
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_WaitMessage(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  _idx:=0;
+  ses.RegisterTaskMethod(@updateWait,1000);
+  Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Zipping','Please wait until your zip file is ready for download.',fdbmt_wait,CWSF(@WEB_AbortWait),'zippingProgress');
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_AbortWait(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  ses.RemoveTaskMethod;
+  Result:=GFRE_DB_NIL_DESC;
 end;
 
 { TFRE_DB_TEST_APP }
