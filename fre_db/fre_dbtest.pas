@@ -889,7 +889,7 @@ begin
   end else begin
     if _idx<20 then begin
       if _idx=10 then begin
-        redef:=TFRE_DB_REDEFINE_LIVE_CHART_DESC.create.DescribeLine('lchart',1,120,TFRE_DB_Real32Array.create(-50,150),TFRE_DB_StringArray.create('AAFFCC'),TFRE_DB_StringArray.create('L1 MOD','L2 MOD'),'Live Chart MOD');
+        redef:=TFRE_DB_REDEFINE_LIVE_CHART_DESC.create.DescribeLine('lchart',1,300,TFRE_DB_Real32Array.create(-50,150),TFRE_DB_StringArray.create('AAFFCC'),TFRE_DB_StringArray.create('L1 MOD','L2 MOD'),'Live Chart MOD');
         session.SendServerClientRequest(redef);
       end;
       s:=1;
