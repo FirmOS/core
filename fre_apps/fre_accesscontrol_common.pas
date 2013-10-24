@@ -519,7 +519,7 @@ begin
     with groupin_Grid do begin
       SetReferentialLinkMode('TFRE_DB_GROUP|ROLEIDS',false);
       SetDeriveTransformation(tr_groupIn);
-      SetDisplayType(cdt_Listview,[cdgf_enableMultiselect],app.FetchAppText(session,'$gcap_GhasR').Getshort,nil,'',nil,nil,nil,nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppText(session,'$gcap_GhasR').Getshort,nil,'',nil,nil,nil,nil,CWSF(@WEB_AddToRole));
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupOut);
@@ -531,7 +531,7 @@ begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter('ROLEIDS',false,true);
       SetDeriveTransformation(tr_groupOut);
-      SetDisplayType(cdt_Listview,[cdgf_enableMultiselect],app.FetchAppText(session,'$gcap_GnotR').Getshort,nil,'',nil,nil,nil,nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppText(session,'$gcap_GnotR').Getshort,nil,'',nil,nil,nil,nil,CWSF(@WEB_RemoveFromRole));
     end;
   end;
 end;
@@ -791,7 +791,7 @@ begin
     with userin_Grid do begin
       SetReferentialLinkMode('TFRE_DB_USER|USERGROUPIDS',false);
       SetDeriveTransformation(tr_UserIn);
-      SetDisplayType(cdt_Listview,[cdgf_enableMultiselect],app.FetchAppText(session,'$gcap_UinG').Getshort,nil,'',CWSF(@WEB_UIGMenu),nil,nil,nil,CWSF(@WEB_AddToUser));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppText(session,'$gcap_UinG').Getshort,nil,'',CWSF(@WEB_UIGMenu),nil,nil,nil,CWSF(@WEB_AddToUser));
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserOut);
@@ -805,7 +805,7 @@ begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter('USERGROUPIDS',false,true);
       SetDeriveTransformation(tr_UserOut);
-      SetDisplayType(cdt_Listview,[cdgf_enableMultiselect],app.FetchAppText(session,'$gcap_UnotG').Getshort,nil,'',CWSF(@WEB_UOGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromUser));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppText(session,'$gcap_UnotG').Getshort,nil,'',CWSF(@WEB_UOGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromUser));
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
@@ -817,7 +817,7 @@ begin
       //SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetReferentialLinkMode('ROLEIDS',true);
       SetDeriveTransformation(tr_RoleIn);
-      SetDisplayType(cdt_Listview,[cdgf_enableMultiselect],app.FetchAppText(session,'$gcap_GhasR').Getshort,nil,'',CWSF(@WEB_RIGMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppText(session,'$gcap_GhasR').Getshort,nil,'',CWSF(@WEB_RIGMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleOut);
@@ -829,7 +829,7 @@ begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetUseDependencyAsRefLinkFilter('ROLEIDS',true,true);
       SetDeriveTransformation(tr_RoleOut);
-      SetDisplayType(cdt_Listview,[cdgf_enableMultiselect],app.FetchAppText(session,'$gcap_GnotR').Getshort,nil,'',CWSF(@WEB_ROGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppText(session,'$gcap_GnotR').Getshort,nil,'',CWSF(@WEB_ROGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromRole));
     end;
   end;
 end;
@@ -1369,7 +1369,7 @@ begin
     with groupin_Grid do begin
       SetReferentialLinkMode('USERGROUPIDS',true); // Gather all objects that the USERGROUPIDS Field points to
       SetDeriveTransformation(tr_GridIn);
-      SetDisplayType(cdt_Listview,[cdgf_enableMultiselect],app.FetchAppText(session,'$gcap_UinG').Getshort,nil,'',CWSF(@WEB_GIGMenu),nil,nil,nil,CWSF(@WEB_AddToGroup));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppText(session,'$gcap_UinG').Getshort,nil,'',CWSF(@WEB_GIGMenu),nil,nil,nil,CWSF(@WEB_AddToGroup));
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridOut);
@@ -1382,7 +1382,7 @@ begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter('USERGROUPIDS',true,true);
       SetDeriveTransformation(tr_GridOut);
-      SetDisplayType(cdt_Listview,[cdgf_enableMultiselect],app.FetchAppText(session,'$gcap_UnotG').Getshort,nil,'',CWSF(@WEB_GOGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromGroup));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppText(session,'$gcap_UnotG').Getshort,nil,'',CWSF(@WEB_GOGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromGroup));
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);

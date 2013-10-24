@@ -1829,7 +1829,7 @@ implementation
     Field('columnResize').AsBoolean:=cdgf_ColumnResizeable in displayFlags;
     Field('columnHide').AsBoolean:=cdgf_ColumnHideable in displayFlags;
     Field('columnDrag').AsBoolean:=cdgf_ColumnDragable in displayFlags;
-    Field('multiselect').AsBoolean:=cdgf_enableMultiselect in displayFlags;
+    Field('multiselect').AsBoolean:=cdgf_Multiselect in displayFlags;
     Field('details').AsBoolean:=cdgf_Details in displayFlags;
 
     if not FieldExists('id') then begin
