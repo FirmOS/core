@@ -95,6 +95,7 @@ type
     function  WEB_Content   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
+
   { TFRE_DB_TEST_FILEDIR }
 
   TFRE_DB_TEST_FILEDIR=class(TFRE_DB_ObjectEx)
@@ -114,6 +115,10 @@ type
     function  WEB_CHILDRENDATA  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
+  { TFRE_DB_TEST_FILE }
+
+  TFRE_DB_TEST_FILE=class(TFRE_DB_TEST_FILEDIR)
+  end;
 
 var
   G_UNSAFE_MODUL_GLOBAL_DATA : IFRE_DB_Object;
@@ -193,6 +198,7 @@ type
   published
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_SliderChanged          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_DropAction             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -201,8 +207,10 @@ type
 
   TFRE_DB_TEST_APP_GRID_MOD = class (TFRE_DB_APPLICATION_MODULE)
   private
+    _idx: Integer;
     procedure ToggleBlast (const session:TFRE_DB_UserSession);
     procedure SetBlast    (const session:TFRE_DB_UserSession);
+    procedure updateWait  (const session: IFRE_DB_UserSession);
   protected
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure ; override;
@@ -216,11 +224,16 @@ type
     function  WEB_ToggleUpdates         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_HelloWorld            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_OpenFIRMOS            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_OpenFIRMOSHere        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_Reload                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_ChangeData            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Dialog                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_ReadOnlyDialog        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_GRID_ITEM_DETAILS     (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_SendADialog           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_WaitMessage           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_AbortWait             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_GRID2_MOD }
@@ -252,14 +265,9 @@ type
     procedure       SetupAppModuleStructure ; override;
     procedure       MyServerInitializeModule  (const admin_dbc : IFRE_DB_CONNECTION); override;
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    function        GetToolbarMenu            : TFRE_DB_CONTENT_DESC;override;
   published
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_ContentLines          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_ContentPie            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_ContentColumns        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_ChartData             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_UpdateDataColl        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_LIVE_CHART_MOD }
@@ -518,11 +526,13 @@ begin
     mimeTypeToIconAndHRType(FREDB_Filename2MimeType(name),icon,hrtype);
     Field('typeHR').AsString   := hrtype;
     Field('icon').AsString:=FREDB_getThemedResource(icon);
+    Field('objectclass').AsString:='TFRE_DB_TEST_FILE';
   end else begin
     Field('typeHR').AsString   := 'Folder';
     Field('sizeHR').AsString := '';
     Field('icon').AsString:=FREDB_getThemedResource('images_apps/test/folder.png');
     Field('icon_open').AsString:=FREDB_getThemedResource('images_apps/test/folder-open.png');
+    Field('objectclass').AsString:='TFRE_DB_TEST_FILEDIR';
   end;
   Field('mode').AsUInt32   := mode;
   SetIsFile(is_file);
@@ -681,6 +691,7 @@ begin
       AddOneToOnescheme('icon_open','','',dt_string,false);
       AddOneToOnescheme('mypath','','',dt_string,false);
       AddOneToOnescheme('children','','',dt_string,false);
+      AddOneToOnescheme('objectclass','','',dt_string,false);
       AddOneToOnescheme('UIP','uidpath','',dt_string,false);
       AddConstString('_childrenfunc_','ChildrenData',false);
       AddConstString('_funcclassname_','TFRE_DB_TEST_FILEDIR',false);
@@ -688,7 +699,7 @@ begin
     with DC_Grid do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_FILEBROWSER'),'mypath');
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'TreeGrid',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil,nil,CWSF(@WEB_DropAction));
     end;
   end;
 end;
@@ -706,12 +717,15 @@ end;
 
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  res    : TFRE_DB_LAYOUT_DESC;
-  DC_Tree: IFRE_DB_DERIVED_COLLECTION;
-  slider : TFRE_DB_FORM_DESC;
-  block  : TFRE_DB_INPUT_BLOCK_DESC;
+  res          : TFRE_DB_LAYOUT_DESC;
+  layout_trees : TFRE_DB_LAYOUT_DESC;
+  DC_Tree      : IFRE_DB_DERIVED_COLLECTION;
+  slider       : TFRE_DB_FORM_DESC;
+  block        : TFRE_DB_INPUT_BLOCK_DESC;
+  gl,gr        : TFRE_DB_VIEW_LIST_DESC;
 begin
-  res  := TFRE_DB_LAYOUT_DESC.Create.Describe();
+  res           := TFRE_DB_LAYOUT_DESC.Create.Describe();
+  layout_trees  := TFRE_DB_LAYOUT_DESC.Create.Describe();
 
   DC_Tree := ses.FetchDerivedCollection('FILEBROWSER');
   slider:=TFRE_DB_FORM_PANEL_DESC.create.Describe('',true,true,CWSF(@WEB_SliderChanged),500);
@@ -720,7 +734,13 @@ begin
   block.AddNumber(8).DescribeSlider('','slider',0,100,false,'100',0,101);
   block.AddDate(1).Describe('','slider_date',false,false,true,false,IntToStr(GFRE_DT.Now_UTC));
 
-  res.SetAutoSizedLayout(nil,DC_Tree.GetDisplayDescription,nil,nil,slider);
+  gl:=DC_Tree.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  gr:=DC_Tree.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+
+  gl.SetDropGrid(gr,TFRE_DB_StringArray.create('TFRE_DB_TEST_FILEDIR'));
+
+  layout_trees.SetLayout(gl,gr,nil,nil,nil,true,1,1);
+  res.SetAutoSizedLayout(nil,layout_trees,nil,nil,slider);
   result := res;
 end;
 
@@ -736,6 +756,11 @@ begin
   end else begin
     Result:=GFRE_DB_NIL_DESC;
   end;
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_DropAction(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Drop','You dropped item ' + input.Field('selected').AsString + ' on ' + input.Field('target').AsString,fdbmt_info);
 end;
 
 { TFRE_DB_TEST_APP_ALLGRID_MOD }
@@ -872,6 +897,7 @@ end;
 
 procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataLC(const ses: IFRE_DB_Usersession);
 var
+  session: TFRE_DB_UserSession;
   data   : TFRE_DB_Real32Array;
   res    : TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;
   i      : Integer;
@@ -914,12 +940,10 @@ end;
 
 procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataSLC(const ses: IFRE_DB_Usersession);
 var
-  //session: TFRE_DB_UserSession;
   data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
   res    : TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
   i      : Integer;
 begin
-  //session:=GetSession(input);
   SetLength(data,1);
   SetLength(data[0],4);
   for i := 0 to 3 do begin
@@ -947,7 +971,7 @@ end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentL(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_LIVE_CHART_DESC.create.Describe('lchart',2,120,CWSF(@WEB_StartStopLC),0,100,'Live Chart',nil,TFRE_DB_StringArray.create('Line 1','Line 2'));
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeLine('lchart',2,120,CWSF(@WEB_StartStopLC),0,100,'Live Chart',nil,TFRE_DB_StringArray.create('Line 1','Line 2'));
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -958,6 +982,7 @@ end;
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopSLC(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   if input.Field('action').AsString='start' then begin
+    _idx:=0;
     ses.RegisterTaskMethod(@_SendDataSLC,1000,'SLC');
   end else begin
     ses.RemoveTaskMethod('SLC');
@@ -1426,41 +1451,18 @@ end;
 
 procedure TFRE_DB_TEST_APP_CHART_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
 var
-    DC_CHARTDATA_L : IFRE_DB_DERIVED_COLLECTION;
     DC_CHARTDATA_P : IFRE_DB_DERIVED_COLLECTION;
-    DC_CHARTDATA_C : IFRE_DB_DERIVED_COLLECTION;
     CHARTDATA      : IFRE_DB_COLLECTION;
 begin
   inherited MySessionInitializeModule(session);
   if session.IsInteractiveSession then begin
-    CHARTDATA := session.GetDBConnection.Collection('CHART_MOD_LINE');
-    DC_CHARTDATA_L := session.NewDerivedCollection('CHART_L');
-    with DC_CHARTDATA_L do begin
-      SetDeriveParent(CHARTDATA);
-      SetDisplayTypeChart('Line Chart',fdbct_line,TFRE_DB_StringArray.Create('yval1','yval2','yval3'),false,false);
-    end;
     CHARTDATA := session.GetDBConnection.Collection('CHART_MOD_PIE');
     DC_CHARTDATA_P := session.NewDerivedCollection('CHART_P');
     with DC_CHARTDATA_P do begin
       SetDeriveParent(CHARTDATA);
       SetDisplayTypeChart('Pie Chart',fdbct_pie,TFRE_DB_StringArray.Create('val1'),false,false);
     end;
-    CHARTDATA := session.GetDBConnection.Collection('CHART_MOD_COLUMNS');
-    DC_CHARTDATA_C := session.NewDerivedCollection('CHART_CH');
-    with DC_CHARTDATA_C do begin
-      SetDeriveParent(CHARTDATA);
-      SetDisplayTypeChart('ColumnH Chart',fdbct_column,TFRE_DB_StringArray.Create('val1','val2'),false,false);
-    end;
   end;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
-var
-  menu: TFRE_DB_MENU_DESC;
-begin
-  menu:=TFRE_DB_MENU_DESC.create.Describe;
-  menu.AddEntry.Describe('Update Collection','',CWSF(@WEB_UpdateDataColl));
-  Result:=menu;
 end;
 
 function TFRE_DB_TEST_APP_CHART_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1469,85 +1471,13 @@ var
 
 begin
   sub_sec_s        := TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_tab);
-  sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentLines),'Lines',1);
   sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentPie),'Pie',1);
-  sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentColumns),'ColumnH',1);
   result           := sub_sec_s;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentLines(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-begin
-  Result:=GetSession(input).FetchDerivedCollection('CHART_L').GetDisplayDescription;
 end;
 
 function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentPie(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GetSession(input).FetchDerivedCollection('CHART_P').GetDisplayDescription;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentColumns(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-begin
-  Result:=GetSession(input).FetchDerivedCollection('CHART_CH').GetDisplayDescription;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_ChartData(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-var
-  res    : TFRE_DB_CHART_DATA_DESC;
-  data   : TFRE_DB_Real32Array;
-  uids   : TFRE_DB_GUIDArray;
-  colors : TFRE_DB_StringArray;
-  texts  : TFRE_DB_StringArray;
-  i,max  : Integer;
-begin
-  max:=15;
-  if input.FieldPath('query.sid').AsString='series1' then begin
-    SetLength(data,max);
-    SetLength(uids,max);
-    SetLength(colors,max);
-    SetLength(texts,max);
-    for i := 0 to max - 1 do begin
-      data[i]:=Random(100);
-      if i<10 then begin
-        uids[i]:=GFRE_BT.HexString_2_GUID('11e7b038157fbedaa8b17938f5a2f00' + IntToStr(i));
-      end else begin
-        uids[i]:=GFRE_BT.HexString_2_GUID('11e7b038157fbedaa8b17938f5a2f0' + IntToStr(i));
-      end;
-      colors[i]:='#44667'+IntToStr(i mod 10)+'A';
-      texts[i]:='TEXT ' + IntToStr(i+1);
-    end;
-    res:=TFRE_DB_CHART_DATA_DESC.create.Describe;
-    res.setSeries(data,uids,colors,texts);
-//    res.setSeries(data);
-    Result:=res;
-  end else begin //series2
-    SetLength(data,max);
-    for i := 0 to max - 1 do begin
-      data[i]:=Random(100);
-    end;
-    //data[0]:=10; data[1]:=15; data[2]:=0; data[3]:=10; data[4]:=2;
-    res:=TFRE_DB_CHART_DATA_DESC.create.Describe;
-    res.setSeries(data);
-    Result:=res;
-  end;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_UpdateDataColl(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-var CHARTDATA : IFRE_DB_COLLECTION;
-    data_obj  : IFRE_DB_Object;
-
-  procedure ChangeData(const data_obj:IFRE_DB_Object);
-  begin
-    if random(6)=3 then data_obj.Field('yval1').AsReal32 := data_obj.Field('yval1').AsReal32+(random(10)-5);
-    if random(6)=3 then data_obj.Field('yval2').AsReal32 := data_obj.Field('yval2').AsReal32+(random(10)-5);
-    if random(6)=3 then data_obj.Field('yval3').AsReal32 := data_obj.Field('yval3').AsReal32+(random(10)-5);
-    CHARTDATA.Update(data_obj);
-  end;
-
-begin
-  writeln('DATA CHANGE CHART_MOD_LINE');
-  result    := GFRE_DB_NIL_DESC;
-  CHARTDATA := GetDBConnection(input).Collection('CHART_MOD_LINE',false);
-  CHARTDATA.ForAll(@ChangeData);
 end;
 
 { TFRE_DB_TEST_APP_GRID2_MOD }
@@ -1788,6 +1718,16 @@ begin
   end;
 end;
 
+procedure TFRE_DB_TEST_APP_GRID_MOD.updateWait(const session: IFRE_DB_UserSession);
+begin
+  _idx:=_idx+5;
+  session.SendServerClientRequest(TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC.create.Describe('zippingProgress',_idx));
+  if _idx=100 then begin
+    session.RemoveTaskMethod('UPW');
+    session.SendServerClientRequest(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe());
+  end;
+end;
+
 class procedure TFRE_DB_TEST_APP_GRID_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
@@ -1850,7 +1790,7 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_A'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
+      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
     end;
     if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin
       session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean:=false;
@@ -1865,8 +1805,9 @@ var
 begin
   menu:=TFRE_DB_MENU_DESC.create.Describe;
   menu.AddEntry.Describe('LOGOUT','',TFRE_DB_SERVER_FUNC_DESC.create.Describe('FIRMOS','LOGOUT'));
-  menu.AddEntry.Describe('SEAS1','',CWSF(@WEB_HelloWorld));
-  menu.AddEntry.Describe('SEAS2','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
+  menu.AddEntry.Describe('FIRMOS.AT','',CWSF(@WEB_OpenFIRMOS));
+  menu.AddEntry.Describe('REP FIRMOS.AT','',CWSF(@WEB_OpenFIRMOSHere));
+  menu.AddEntry.Describe('RELOAD','images_apps/test/cog.png',CWSF(@WEB_Reload));
   submenu:=menu.AddMenu.Describe('SEAS3','images_apps/test/cog.png');
   submenu.AddEntry.Describe('SEAS4','',CWSF(@WEB_HelloWorld));
   submenu.AddEntry.Describe('SEAS5','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
@@ -1897,12 +1838,28 @@ begin
   lvd_Grid.AddButton.Describe(CWSF(@WEB_ChangeData),'images_apps/test/add.png','Change Dataset');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_ToggleUpdates),'images_apps/test/add.png','ToggleUpdates');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_SendADialog),'images_apps/test/add.png','ServerClientDialog');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_WaitMessage),'images_apps/test/add.png','Wait Message');
   result := lvd_Grid;
 end;
 
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_HelloWorld(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Hello','World',fdbmt_info);
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_OpenFIRMOS(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('http://www.firmos.at');
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_OpenFIRMOSHere(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('http://www.firmos.at',false);
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_Reload(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false);
 end;
 
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_ChangeData(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -2029,6 +1986,19 @@ begin
   result := GFRE_DB_NIL_DESC;
   Res    := TFRE_DB_MESSAGE_DESC.create.Describe('Du wurdest ... ','... ausgeloggt!',fdbmt_info);
   GetSession(input).SendServerClientRequest(res);
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_WaitMessage(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  _idx:=0;
+  ses.RegisterTaskMethod(@updateWait,1000,'UPW');
+  Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Zipping','Please wait until your zip file is ready for download.',fdbmt_wait,CWSF(@WEB_AbortWait),'zippingProgress');
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_AbortWait(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  ses.RemoveTaskMethod('UPW');
+  Result:=GFRE_DB_NIL_DESC;
 end;
 
 { TFRE_DB_TEST_APP }

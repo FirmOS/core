@@ -769,7 +769,7 @@ type
   TFRE_DB_CHART_TYPE                  = (fdbct_pie,fdbct_column,fdbct_line);
   TFRE_DB_LIVE_CHART_TYPE             = (fdblct_line,fdblct_sampledline,fdblct_column);
   TFRE_COLLECTION_DISPLAY_TYPE        = (cdt_Invalid,cdt_Listview,cdt_Treeview,cdt_Chartview);
-  TFRE_COLLECTION_GRID_DISPLAY_FLAG   = (cdgf_ShowSearchbox,cdgf_Editable,cdgf_Filter,cdgf_Sortable,cdgf_ColumnResizeable,cdgf_ColumnHideable,cdgf_ColumnDragable,cdgf_Details,cdgf_Children,cdgf_enableMultiselect);
+  TFRE_COLLECTION_GRID_DISPLAY_FLAG   = (cdgf_ShowSearchbox,cdgf_Editable,cdgf_Filter,cdgf_Sortable,cdgf_ColumnResizeable,cdgf_ColumnHideable,cdgf_ColumnDragable,cdgf_Details,cdgf_Children,cdgf_Multiselect);
   TFRE_COLLECTION_CHART_DISPLAY_FLAG  = (cdcf_None);
   TFRE_COLLECTION_TREE_DISPLAY_FLAG   = (cdtf_None);
   TFRE_COLLECTION_GRID_DISPLAY_FLAGS  = set of TFRE_COLLECTION_GRID_DISPLAY_FLAG;
@@ -1646,7 +1646,6 @@ type
     //@ Creates a new parameter and adds it to the parameterizable content.
   end;
 
-
   { TFRE_DB_MESSAGE_DESC }
 
   TFRE_DB_MESSAGE_DESC = class(TFRE_DB_CONTENT_DESC)
@@ -1654,8 +1653,15 @@ type
     //@ Describes a message of the given type (error, info or confirm).
     //@ The server function will be called after the user clicks a button.
     //@ For confirm dialogs the server function is required.
-    //@ For wait dialogs an abort button will be displayed if a server function is given.
-    function  Describe (const caption,msg: String;const msgType:TFRE_DB_MESSAGE_TYPE;const serverFunc:TFRE_DB_SERVER_FUNC_DESC=nil): TFRE_DB_MESSAGE_DESC;
+    //@ For wait dialogs an abort button will be displayed if a server function is given and a progressBar will be displayed if the progressBarId is specified.
+    function  Describe (const caption,msg: String;const msgType:TFRE_DB_MESSAGE_TYPE;const serverFunc:TFRE_DB_SERVER_FUNC_DESC=nil;const progressBarId: String=''): TFRE_DB_MESSAGE_DESC;
+  end;
+
+  { TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC }
+
+  TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC = class(TFRE_DB_CONTENT_DESC)
+    //@ Describes an update of a progress indicator within a message dialog.
+    function  Describe (const progressBarId: String; const percentage: Real): TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC;
   end;
 
   { TFRE_DB_EDITOR_DATA_DESC }
@@ -1665,8 +1671,6 @@ type
     //@ Describes the data for an editor.
     function Describe        (const value: String): TFRE_DB_EDITOR_DATA_DESC;
   end;
-
-
 
   { TFRE_DB_REFRESH_STORE_DESC }
 
@@ -2732,6 +2736,15 @@ type
 
    pmethodnametable =  ^tmethodnametable;
 
+{ TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC }
+
+function TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC.Describe(const progressBarId: String; const percentage: Real): TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC;
+begin
+ Field('progressBarId').AsString:=progressBarId;
+ Field('percentage').AsReal32:=percentage;
+ Result:=Self;
+end;
+
 { TFRE_DB_SUPPRESS_ANSWER_DESC }
 
 constructor TFRE_DB_SUPPRESS_ANSWER_DESC.Create;
@@ -3058,7 +3071,7 @@ end;
 
 { TFRE_DB_MESSAGE_DESC }
 
-function TFRE_DB_MESSAGE_DESC.Describe(const caption, msg: String; const msgType: TFRE_DB_MESSAGE_TYPE; const serverFunc: TFRE_DB_SERVER_FUNC_DESC): TFRE_DB_MESSAGE_DESC;
+function TFRE_DB_MESSAGE_DESC.Describe(const caption, msg: String; const msgType: TFRE_DB_MESSAGE_TYPE; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const progressBarId: String): TFRE_DB_MESSAGE_DESC;
 begin
   if not FieldExists('id') then begin
     Field('id').AsString:='id'+UID_String;
@@ -3069,6 +3082,7 @@ begin
   if Assigned(serverFunc) then begin
     Field('serverFunc').AsObject:=serverFunc;
   end;
+  Field('progressBarId').AsString:=progressBarId;
   Result:=Self;
 end;
 
