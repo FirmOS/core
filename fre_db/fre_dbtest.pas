@@ -259,14 +259,9 @@ type
     procedure       SetupAppModuleStructure ; override;
     procedure       MyServerInitializeModule  (const admin_dbc : IFRE_DB_CONNECTION); override;
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    function        GetToolbarMenu            : TFRE_DB_CONTENT_DESC;override;
   published
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_ContentLines          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_ContentPie            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_ContentColumns        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_ChartData             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_UpdateDataColl        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_LIVE_CHART_MOD }
@@ -1476,41 +1471,18 @@ end;
 
 procedure TFRE_DB_TEST_APP_CHART_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
 var
-    DC_CHARTDATA_L : IFRE_DB_DERIVED_COLLECTION;
     DC_CHARTDATA_P : IFRE_DB_DERIVED_COLLECTION;
-    DC_CHARTDATA_C : IFRE_DB_DERIVED_COLLECTION;
     CHARTDATA      : IFRE_DB_COLLECTION;
 begin
   inherited MySessionInitializeModule(session);
   if session.IsInteractiveSession then begin
-    CHARTDATA := session.GetDBConnection.Collection('CHART_MOD_LINE');
-    DC_CHARTDATA_L := session.NewDerivedCollection('CHART_L');
-    with DC_CHARTDATA_L do begin
-      SetDeriveParent(CHARTDATA);
-      SetDisplayTypeChart('Line Chart',fdbct_line,TFRE_DB_StringArray.Create('yval1','yval2','yval3'),false,false);
-    end;
     CHARTDATA := session.GetDBConnection.Collection('CHART_MOD_PIE');
     DC_CHARTDATA_P := session.NewDerivedCollection('CHART_P');
     with DC_CHARTDATA_P do begin
       SetDeriveParent(CHARTDATA);
       SetDisplayTypeChart('Pie Chart',fdbct_pie,TFRE_DB_StringArray.Create('val1'),false,false);
     end;
-    CHARTDATA := session.GetDBConnection.Collection('CHART_MOD_COLUMNS');
-    DC_CHARTDATA_C := session.NewDerivedCollection('CHART_CH');
-    with DC_CHARTDATA_C do begin
-      SetDeriveParent(CHARTDATA);
-      SetDisplayTypeChart('ColumnH Chart',fdbct_column,TFRE_DB_StringArray.Create('val1','val2'),false,false);
-    end;
   end;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
-var
-  menu: TFRE_DB_MENU_DESC;
-begin
-  menu:=TFRE_DB_MENU_DESC.create.Describe;
-  menu.AddEntry.Describe('Update Collection','',CWSF(@WEB_UpdateDataColl));
-  Result:=menu;
 end;
 
 function TFRE_DB_TEST_APP_CHART_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1519,85 +1491,13 @@ var
 
 begin
   sub_sec_s        := TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_tab);
-  sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentLines),'Lines',1);
   sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentPie),'Pie',1);
-  sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentColumns),'ColumnH',1);
   result           := sub_sec_s;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentLines(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-begin
-  Result:=GetSession(input).FetchDerivedCollection('CHART_L').GetDisplayDescription;
 end;
 
 function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentPie(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=GetSession(input).FetchDerivedCollection('CHART_P').GetDisplayDescription;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentColumns(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-begin
-  Result:=GetSession(input).FetchDerivedCollection('CHART_CH').GetDisplayDescription;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_ChartData(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-var
-  res    : TFRE_DB_CHART_DATA_DESC;
-  data   : TFRE_DB_Real32Array;
-  uids   : TFRE_DB_GUIDArray;
-  colors : TFRE_DB_StringArray;
-  texts  : TFRE_DB_StringArray;
-  i,max  : Integer;
-begin
-  max:=15;
-  if input.FieldPath('query.sid').AsString='series1' then begin
-    SetLength(data,max);
-    SetLength(uids,max);
-    SetLength(colors,max);
-    SetLength(texts,max);
-    for i := 0 to max - 1 do begin
-      data[i]:=Random(100);
-      if i<10 then begin
-        uids[i]:=GFRE_BT.HexString_2_GUID('11e7b038157fbedaa8b17938f5a2f00' + IntToStr(i));
-      end else begin
-        uids[i]:=GFRE_BT.HexString_2_GUID('11e7b038157fbedaa8b17938f5a2f0' + IntToStr(i));
-      end;
-      colors[i]:='#44667'+IntToStr(i mod 10)+'A';
-      texts[i]:='TEXT ' + IntToStr(i+1);
-    end;
-    res:=TFRE_DB_CHART_DATA_DESC.create.Describe;
-    res.setSeries(data,uids,colors,texts);
-//    res.setSeries(data);
-    Result:=res;
-  end else begin //series2
-    SetLength(data,max);
-    for i := 0 to max - 1 do begin
-      data[i]:=Random(100);
-    end;
-    //data[0]:=10; data[1]:=15; data[2]:=0; data[3]:=10; data[4]:=2;
-    res:=TFRE_DB_CHART_DATA_DESC.create.Describe;
-    res.setSeries(data);
-    Result:=res;
-  end;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_UpdateDataColl(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-var CHARTDATA : IFRE_DB_COLLECTION;
-    data_obj  : IFRE_DB_Object;
-
-  procedure ChangeData(const data_obj:IFRE_DB_Object);
-  begin
-    if random(6)=3 then data_obj.Field('yval1').AsReal32 := data_obj.Field('yval1').AsReal32+(random(10)-5);
-    if random(6)=3 then data_obj.Field('yval2').AsReal32 := data_obj.Field('yval2').AsReal32+(random(10)-5);
-    if random(6)=3 then data_obj.Field('yval3').AsReal32 := data_obj.Field('yval3').AsReal32+(random(10)-5);
-    CHARTDATA.Update(data_obj);
-  end;
-
-begin
-  writeln('DATA CHANGE CHART_MOD_LINE');
-  result    := GFRE_DB_NIL_DESC;
-  CHARTDATA := GetDBConnection(input).Collection('CHART_MOD_LINE',false);
-  CHARTDATA.ForAll(@ChangeData);
 end;
 
 { TFRE_DB_TEST_APP_GRID2_MOD }
