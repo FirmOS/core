@@ -210,7 +210,7 @@ type
   public
     procedure SC_ChangeData_Result      (const input:IFRE_DB_Object);
     procedure SC_ChangeData_Error       (const input:IFRE_DB_Object);
-    function  PRC_UPDATE_TASK           (const input:IFRE_DB_Object):IFRE_DB_Object;
+    procedure PRC_UPDATE_TASK            (const ses: IFRE_DB_Usersession);
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     function  WEB_ToggleUpdates         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -269,9 +269,9 @@ type
     _idx: Integer;
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure ; override;
-    function        _SendDataSLC        (const Input:IFRE_DB_Object):IFRE_DB_Object;
-    function        _SendDataLC         (const Input:IFRE_DB_Object):IFRE_DB_Object;
-    function        _SendDataCC         (const Input:IFRE_DB_Object):IFRE_DB_Object;
+    procedure       _SendDataSLC        (const ses: IFRE_DB_Usersession);
+    procedure       _SendDataLC         (const ses: IFRE_DB_Usersession);
+    procedure       _SendDataCC         (const ses: IFRE_DB_Usersession);
   published
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_ContentSL             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -870,39 +870,35 @@ begin
   InitModuleDesc('$live_chart_description')
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataLC(const Input:IFRE_DB_Object):IFRE_DB_Object;
+procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataLC(const ses: IFRE_DB_Usersession);
 var
-  session: TFRE_DB_UserSession;
   data   : TFRE_DB_Real32Array;
   res    : TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;
   i      : Integer;
 begin
-  session:=GetSession(input);
   SetLength(data,2);
   for i := 0 to 1 do begin
     data[i]:=Random(100);
   end;
   res:=TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC.create.Describe('lchart',_idx,data);
   _idx:=_idx+1;
-  session.SendServerClientRequest(res);
+  ses.SendServerClientRequest(res);
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataCC(const Input: IFRE_DB_Object): IFRE_DB_Object;
+procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataCC(const ses: IFRE_DB_Usersession);
 var
-  session: TFRE_DB_UserSession;
   data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
   res    : TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
   redef  : TFRE_DB_REDEFINE_LIVE_CHART_DESC;
   i,l    : Integer;
 begin
-  session:=GetSession(input);
   if _idx<10 then begin
     _idx:=_idx+1;
     l:=8;
   end else begin
     if _idx=10 then begin
       redef:=TFRE_DB_REDEFINE_LIVE_CHART_DESC.create.DescribeColumn('cchart',10,TFRE_DB_StringArray.create('D1','D2','D3','D4','D5','D6','D7','D8','D9','D10'),TFRE_DB_Real32Array.create(50,200),0,nil,TFRE_DB_StringArray.create('AAFFCC'),'Live Chart Columns MOD');
-      session.SendServerClientRequest(redef);
+      ses.SendServerClientRequest(redef);
       _idx:=11;
     end;
     l:=10;
@@ -913,24 +909,24 @@ begin
     data[0][i]:=Random(100);
   end;
   res:=TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC.create.Describe('cchart',data);
-  session.SendServerClientRequest(res);
+  ses.SendServerClientRequest(res);
 end;
 
-function TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataSLC(const Input: IFRE_DB_Object): IFRE_DB_Object;
+procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataSLC(const ses: IFRE_DB_Usersession);
 var
-  session: TFRE_DB_UserSession;
+  //session: TFRE_DB_UserSession;
   data   : TFRE_DB_LIVE_CHART_DATA_ARRAY;
   res    : TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;
   i      : Integer;
 begin
-  session:=GetSession(input);
+  //session:=GetSession(input);
   SetLength(data,1);
   SetLength(data[0],4);
   for i := 0 to 3 do begin
     data[0][i]:=Random(100);
   end;
   res:=TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC.create.Describe('slchart',data);
-  session.SendServerClientRequest(res);
+  ses.SendServerClientRequest(res);
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -962,9 +958,9 @@ end;
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopSLC(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   if input.Field('action').AsString='start' then begin
-    ses.RegisterTaskMethod(@_SendDataSLC,1000);
+    ses.RegisterTaskMethod(@_SendDataSLC,1000,'SLC');
   end else begin
-    ses.RemoveTaskMethod;
+    ses.RemoveTaskMethod('SLC');
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -973,9 +969,9 @@ function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_StartStopLC(const input:IFRE_DB_Obj
 begin
   if input.Field('action').AsString='start' then begin
     _idx:=0;
-    ses.RegisterTaskMethod(@_SendDataLC,1000);
+    ses.RegisterTaskMethod(@_SendDataLC,1000,'LC');
   end else begin
-    ses.RemoveTaskMethod;
+    ses.RemoveTaskMethod('LC');
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -987,9 +983,9 @@ var
 begin
   if input.Field('action').AsString='start' then begin
     _idx:=0;
-    ses.RegisterTaskMethod(@_SendDataCC,1000);
+    ses.RegisterTaskMethod(@_SendDataCC,1000,'CC');
   end else begin
-    ses.RemoveTaskMethod;
+    ses.RemoveTaskMethod('CC');
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -1786,9 +1782,9 @@ end;
 procedure TFRE_DB_TEST_APP_GRID_MOD.SetBlast(const session: TFRE_DB_UserSession);
 begin
   if session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean=true then begin
-    session.RegisterTaskMethod(@PRC_UPDATE_TASK,25);
+    session.RegisterTaskMethod(@PRC_UPDATE_TASK,25,'GRID');
   end else begin
-    session.RemoveTaskMethod;
+    session.RemoveTaskMethod('GRID');
   end;
 end;
 
@@ -1814,16 +1810,14 @@ begin
   writeln('---------- CD  TIMEOUT RESULT : ',input.DumpToString());
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.PRC_UPDATE_TASK(const input: IFRE_DB_Object): IFRE_DB_Object;
+procedure TFRE_DB_TEST_APP_GRID_MOD.PRC_UPDATE_TASK(const ses: IFRE_DB_Usersession);
 var
   res          : TFRE_DB_UPDATE_STORE_DESC;
   entry        : IFRE_DB_Object;
   DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
   k            : integer;
-  session      : TFRE_DB_UserSession;
 begin
-  session := GetSession(input);
-  DC_Grid_Long := session.FetchDerivedCollection('COLL_TEST_A_DERIVED');
+  DC_Grid_Long := ses.FetchDerivedCollection('COLL_TEST_A_DERIVED');
   k := DC_Grid_Long.ItemCount;
   if k>0 then begin
     entry := DC_Grid_Long.GetItem(random(k)).CloneToNewObject(); //TODO:CHRIS - We must reject updates for data which is unknown clientside
@@ -1831,7 +1825,7 @@ begin
     entry.Field('number_pb').AsUInt32 := random(1000);
     res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(DC_Grid_Long.CollectionName);
     res.addUpdatedEntry(entry);
-    session.SendServerClientRequest(res);
+    ses.SendServerClientRequest(res);
   end;
 end;
 

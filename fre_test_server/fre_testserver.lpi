@@ -29,6 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
+        <HostApplicationFilename Value="/Users/helly/repos/bin/fre_testserver"/>
         <CommandLineParams Value="-e TEST -U root -H 10.220.251.10 -u admin@system -p admin -x -y -t -i -D"/>
       </local>
     </RunParams>
@@ -90,6 +91,11 @@
     <CodeGeneration>
       <TargetCPU Value="x86_64"/>
     </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf2Set"/>
+      </Debugging>
+    </Linking>
     <Other>
       <CompilerMessages>
         <MsgFileName Value=""/>

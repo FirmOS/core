@@ -50,7 +50,7 @@ uses
   {$ENDIF}
   Classes, SysUtils, CustApp,
   FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
-  FRE_DB_CORE,
+  FRE_DB_CORE,fre_aps_comm_impl,
 
   FRE_APS_IMPL_LE, FOS_FCOM_DEFAULT, FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,FRE_BASE_SERVER,
@@ -118,10 +118,12 @@ begin
   Init4Server;
   GFRE_DBI.SetLocalZone('Europe/Vienna');
   SetupAPS;
+  Setup_APS_Comm;
   FeedClient := TFRE_SAMPLE_FEED_CLIENT.Create;
   GFRE_S.Start(FeedClient);
   GFRE_S.Run;
   TearDownAPS;
+  Teardown_APS_Comm;
   Shutdown_Done;
   FeedClient.Free;
   Terminate;

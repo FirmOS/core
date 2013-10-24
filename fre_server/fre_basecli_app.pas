@@ -48,7 +48,8 @@ uses
 
   fre_dbbase,fre_openssl_cmd,
 
-  FRE_APS_IMPL_LE, FOS_FCOM_DEFAULT,FRE_DB_EMBEDDED_IMPL,
+  FRE_APS_IMPL_LE,fre_aps_comm_impl,
+  FOS_FCOM_DEFAULT,FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,FRE_BASE_SERVER
   ;
 
@@ -76,7 +77,7 @@ type
     procedure  _CheckUserSupplied;
     procedure  _CheckPassSupplied;
 
-    function    ListFromString (const str :string) : IFOS_STRINGS;
+    function    ListFromString     (const str :string) : IFOS_STRINGS;
     procedure   DoRun              ; override ;
     procedure   WriteHelp          ;
     procedure   WriteVersion       ;
@@ -106,7 +107,6 @@ type
 implementation
 
 {$I fos_version_helper.inc}
-
 
 { TFRE_CLISRV_APP }
 
@@ -328,9 +328,11 @@ begin
   end;
   Setup_SSL_Interface;
   SetupAPS;
+  Setup_APS_Comm;
   GFRE_S.Start(TFRE_BASE_SERVER.Create(FDBName));
   GFRE_S.Run;
   TearDownAPS;
+  Teardown_APS_Comm;
   Shutdown_Done;
   Terminate;
   Cleanup_SSL_Interface;

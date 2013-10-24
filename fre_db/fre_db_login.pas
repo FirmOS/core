@@ -208,7 +208,6 @@ var
   wsf               : TFRE_DB_SERVER_FUNC_DESC;
   ex_session        : TFRE_DB_UserSession;
 begin
-  //GetSession(input,session,false);
   data := input.Field('data').AsObject;
   clear_session := false;
   if data.FieldExists('CLR_SESSION') then begin

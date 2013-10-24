@@ -45,7 +45,7 @@ unit fre_aps_interface;
 interface
 
 uses
-  Classes, SysUtils,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FOS_FCOM_INTERFACES;
+  Classes, SysUtils,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FOS_FCOM_INTERFACES,ctypes;
 
 var G_NO_INTERRUPT_FLAG : Boolean = false;
 
@@ -166,8 +166,8 @@ type
   end;
 
 
-  TAPSC_ListenerState = (als_BAD,als_LISTENING,als_STOPPED,als_LISTEN_ERROR,als_NEW_LISTENER);
-  TAPSC_ChannelState  = (ch_BAD,ch_NEW_SS_CONNECTED,ch_END_CLOSED,ch_STOPPED,ch_ACTIVE);
+  TAPSC_ListenerState = (als_BAD,als_LISTENING,als_STOPPED,als_LISTEN_ERROR,als_EVENT_NEW_LISTENER);
+  TAPSC_ChannelState  = (ch_BAD,ch_NEW_SS_CONNECTED,ch_ACTIVE,ch_NEW_CS_CONNECTED);
 
   IFRE_APSC_DNS_ANSWER=interface
   end;
@@ -176,6 +176,7 @@ type
     function  GetState            : TAPSC_ListenerState;
     function  GetErrorString      : string;
     function  GetListeningAddress : string;
+    function  GetID               : string;
     procedure Stop;
     procedure Start;
     procedure Finalize;
@@ -183,33 +184,68 @@ type
 
   IFRE_APSC_CHANNEL_MANAGER = interface;
   IFRE_APSC_CHANNEL         = interface;
+  IFRE_APSC_TIMER           = interface;
 
   TOnNew_APSC_Listener = procedure (const new_listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState) of object;
   TOnNew_APSC_Channel  = procedure (const channel : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState) of object;
 
   IFRE_APSC=interface
-    procedure   AddListener_TCP  (Bind_IP,Bind_Port:String);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
+    procedure   AddListener_TCP  (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
+    procedure   AddClient_TCP    (Host,Port : String; const ID:ShortString ; Bind_IP:string='' ; Bind_Port:String='');
     procedure   SetNewListenerCB (const lcb    : TOnNew_APSC_Listener);
     procedure   SetNewChannelCB  (const chancb : TOnNew_APSC_Channel);
   end;
 
+  TFRE_APSC_TIMER_CALLBACK=procedure(const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean) of object;
+
+  IFRE_APSC_TIMER=interface
+    procedure TIM_Start;
+    procedure TIM_Stop;
+    procedure TIM_SetInterval (const interval_ms : NativeUint);
+    procedure TIM_SetCallback (cb : TFRE_APSC_TIMER_CALLBACK);
+    procedure TIM_SetID       (const ID:String);
+    function  TIM_GetID       : string;
+    procedure TIM_SetMethod   (const m : TMethod);
+    function  TIM_GetMethod   :TMethod;
+    procedure TIM_Trigger     (const flag1:boolean=false ; const flag2:boolean=false); // Must be called in same MANAGER CONTEXT (THREAD)
+    procedure Finalize        ;
+  end;
+
+
   IFRE_APSC_CHANNEL_MANAGER=interface // = Thread bound to CPU
     function GetID                    : NativeInt;
+    function AddTimer                 (interval_ms : NativeUint) : IFRE_APSC_TIMER;
   end;
 
   IFRE_APSC_CHANNEL_GROUP=interface // = Session Group, VNC Group / Upload / Download Group / HTTP Requests
   end;
 
   { IFRE_APSC_CHANNEL }
+  TFRE_APSC_CHANNEL_EVENT = procedure(const channel:IFRE_APSC_CHANNEL) of object;
+
 
   IFRE_APSC_CHANNEL=interface // Session , VNC , UP/DOWN Load, HTTP Requests
     function  GetChannelManager : IFRE_APSC_CHANNEL_MANAGER;
     function  GetListener       : IFRE_APSC_LISTENER;
     function  GetConnSocketAddr : String;
 
-    procedure CH_WriteString       (const str : String);
-    procedure Enable_Reading    ;
-    procedure Enable_Writing    ;
+    function  GetVerboseDesc    : String;
+    procedure SetVerboseDesc    (const desc:string);
+    function  GetHandleKey      : cInt;
+
+    procedure SetOnReadData     (on_read : TFRE_APSC_CHANNEL_EVENT);
+    procedure SetOnDisconnnect  (on_disc : TFRE_APSC_CHANNEL_EVENT);
+
+    procedure  CH_WriteString    (const str : String);
+    procedure  CH_WriteBuffer    (const data : Pointer ; const len : NativeInt);
+    function   CH_GetDataCount   : NativeInt;
+    function   CH_ReadString     : String;
+    function   CH_ReadBuffer     (const data : Pointer ; const len : NativeInt) : NativeInt;
+    function   CH_GetErrorString : String;
+    function   CH_IsClientChannel: Boolean;
+
+    procedure CH_Enable_Reading    ;
+    procedure CH_Enable_Writing    ;
     procedure Finalize;
   end;
 

@@ -87,17 +87,17 @@ type
      FContentStart                        : integer;
      FHasContent                          : boolean;
      FResponse                            : String;
-     FWriteQ                              : IFOS_LFQ;
+     //FWriteQ                              : IFOS_LFQ;
      FResponseHeaders                     : Array[TFRE_HTTP_ResponseHeaders] of String;
      FResponseEntityHeaders               : Array[TFRE_HTTP_ResponseEntityHEaders] of String;
      FHttpBase                            : IFRE_HTTP_BASESERVER;
-
+     FReqErrorState                       : TFRE_HTTP_PARSER_ERROR;
      function  GetResponseEntityHeader(idx: TFRE_HTTP_ResponseEntityHeaders): String;
      function  GetResponseHeader(idx: TFRE_HTTP_ResponseHeaders): String;
      procedure SetResponseEntityHeader(idx: TFRE_HTTP_ResponseEntityHeaders; const AValue: String);
      procedure SetResponseHeader(idx: TFRE_HTTP_ResponseHeaders; const AValue: String);
   protected
-     FSock                                : IFCOM_SOCK;
+     FChannel                             : IFRE_APSC_CHANNEL;
      function  GetContent                 : String;
      function  GetRequestHeaders          : string;
      function  GetRequestUri              : string;
@@ -118,8 +118,9 @@ type
   public
      function    HttpBaseServer     :IFRE_HTTP_BASESERVER;
      function    Response           : string;
-     constructor Create             (const sock:IFCOM_SOCK;const http_server : IFRE_HTTP_BASESERVER);
-     function    ReadSocketData     (const sock:IFCOM_SOCK;const data:string):TFRE_HTTP_PARSER_ERROR;virtual;
+     constructor Create             (const channel:IFRE_APSC_CHANNEL ; const http_server : IFRE_HTTP_BASESERVER);
+     procedure   ReadChannelData    (const channel:IFRE_APSC_CHANNEL);virtual;
+     procedure   DisconnectChannel  (const channel:IFRE_APSC_CHANNEL);virtual;
      function    RawRequest         :String;
      function    FindOldWS_HickseyContent : String;
      property    RequestUri         :string read GetRequestUri;
@@ -273,9 +274,9 @@ var i : TFRE_HTTP_ResponseEntityHeaders;
     lResponse:string;
     lPos:integer;
 begin
-  GFRE_DBI.LogInfo(dblc_HTTPSRV,'< [%s] [%s]',[GFRE_BT.SepLeft(FResponse,#13#10),FSOCK.GetVerboseDesc]);
-  GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[FResponse]);
-  FSock.Offload_Write(FResponse);
+  //GFRE_DBI.LogInfo(dblc_HTTPSRV,'< [%s] [%s]',[GFRE_BT.SepLeft(FResponse,#13#10),FChannel.GetVerboseDesc]);
+  //GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[FResponse]);
+  FChannel.CH_WriteString(FResponse);
 end;
 
 procedure TFRE_HTTP_CONNECTION_HANDLER.HttpRequest(const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
@@ -315,23 +316,23 @@ begin
   result := FResponse;
 end;
 
-constructor TFRE_HTTP_CONNECTION_HANDLER.Create(const sock: IFCOM_SOCK; const http_server: IFRE_HTTP_BASESERVER);
+constructor TFRE_HTTP_CONNECTION_HANDLER.Create(const channel: IFRE_APSC_CHANNEL; const http_server: IFRE_HTTP_BASESERVER);
 begin
-  //writeln('***** Connection Handler Created');
-  FSock := sock;
+  FChannel := channel;
   InitForNewRequest;
   FResponseHeaders        [rh_Server]:='FirmOS FRE HTTP Engine';
   FResponseEntityHeaders  [reh_ContentLength]:='0';
-  GFRE_TF.Get_LFQ(FWriteQ);
   FHttpBase := http_server;
 end;
 
 
-function TFRE_HTTP_CONNECTION_HANDLER.ReadSocketData(const sock: IFCOM_SOCK; const data: string):TFRE_HTTP_PARSER_ERROR;
-var datalen       : integer;
+procedure TFRE_HTTP_CONNECTION_HANDLER.ReadChannelData(const channel: IFRE_APSC_CHANNEL);
+var
+    data          : string;
     lContinue     : boolean;
     lActualPos    : integer;
     lReqLineLen   : integer;
+
     label         cont;
 
 
@@ -380,7 +381,7 @@ var datalen       : integer;
       FRequestMethod := rprm_CONNECT;
       inc(lActualPos,8);
     end else begin
-      result := rpe_INVALID_REQUEST;
+      FReqErrorState := rpe_INVALID_REQUEST;
       exit;
     end;
     //writeln('REQUEST MODE - ',FRequestMethod);
@@ -391,7 +392,7 @@ var datalen       : integer;
        //writeln('REQUEST URI : ',RequestUri);
        inc(lActualPos,FRequestURILen+1);
     end else begin
-      result := rpe_INVALID_REQUEST;
+      FReqErrorState := rpe_INVALID_REQUEST;
       exit;
     end;
     lSpacePos:=PosEx(#13#10,FRequest,lActualPos);
@@ -401,7 +402,7 @@ var datalen       : integer;
        //writeln('REQUEST VERSION  : ',RequestVersion);
        inc(lActualPos,FRequestVersionLen+2);
     end else begin
-      result := rpe_INVALID_REQUEST;
+      FReqErrorState := rpe_INVALID_REQUEST;
       exit;
     end;
     //writeln(lActualPos,'/',lReqLineLen);
@@ -447,7 +448,7 @@ var datalen       : integer;
       if lReqLineLen+1-(FContentStart+FContentLenght)>=0 then begin
          FHasContent:=true;
       end else begin
-        result := rpe_CONTINUE;
+        FReqErrorState := rpe_CONTINUE;
         exit;
       end;
     end else begin
@@ -460,21 +461,20 @@ var datalen       : integer;
   procedure _DispatchRequest;
   begin
     //FMyCookie.CookieString:=GetHeaderField('Cookie');
-    GFRE_DBI.LogInfo(dblc_HTTPSRV,'> %s [%s]',[GFRE_BT.SepLeft(FRequest,#13#10),FSOCK.GetVerboseDesc]);
-    GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[GFRE_BT.SepLeft(FRequest,#13#10#13#10)]);
+    //GFRE_DBI.LogInfo(dblc_HTTPSRV,'> %s [%s]',[GFRE_BT.SepLeft(FRequest,#13#10),FChannel.GetVerboseDesc]);
+    //GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[GFRE_BT.SepLeft(FRequest,#13#10#13#10)]);
     HttpRequest(FRequestMethod);
     InitForNewRequest;
     FInternalState:=rprs_PARSEREQ_LINE;
   end;
 
 begin
-  Result      := rpe_OK;
-  datalen     := length(data);
-  FRequest    := FRequest + data;
+  FReqErrorState := rpe_OK;
+  FRequest    := FRequest + channel.CH_ReadString;
   lReqLineLen := Length(FRequest);
   //writeln('REQ::: ');
   //writeln(FRequest);
-  if datalen=0 then GFRE_BT.CriticalAbort('DATA LEN 0');
+  //if datalen=0 then GFRE_BT.CriticalAbort('DATA LEN 0');
   cont:
     lContinue := false;
     case FInternalState of
@@ -492,6 +492,11 @@ begin
       goto cont;
     end;
   //writeln('ERRORSTATE : ',Result);
+end;
+
+procedure TFRE_HTTP_CONNECTION_HANDLER.DisconnectChannel(const channel: IFRE_APSC_CHANNEL);
+begin
+
 end;
 
 function TFRE_HTTP_CONNECTION_HANDLER.RawRequest: String;

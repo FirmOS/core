@@ -80,8 +80,6 @@ type
     FLoginApp          : TFRE_DB_APPLICATION;
     FSystemConnection  : TFRE_DB_SYSTEM_CONNECTION;
 
-    FInterLinkEvent    : IFRE_APS_TIMER;
-
     FWFE_Scheduler     : IFRE_APS_TIMER;
     FWFE_InTimer       : NativeInt;
 
@@ -90,14 +88,12 @@ type
     FHull_HTML,FHull_CT       : String;
     FTerminating              : boolean;
 
-    procedure      _CloseAll              ;
-    procedure      _SetupHttpBaseServer   ;
-    procedure      InterLinkDispatchTimer (const ES : IFRE_APS_EVENTSOURCE ; const TID:integer;const Data:Pointer;const cp:integer=0);
-    procedure      WFE_DispatchTimerEvent(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
-    procedure      NewConnection          (const session_id:string);
-    procedure      ConnectionDropped      (const session_id:string);
-    procedure      WorkCommandsCallback   (sender:Tobject);
-    procedure      BindInitialSession     (const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean);
+    procedure      _CloseAll                                 ;
+    procedure      _SetupHttpBaseServer                      ;
+    procedure      WFE_DispatchTimerEvent                    (const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
+    procedure      NewConnection                             (const session_id:string);
+    procedure      ConnectionDropped                         (const session_id:string);
+    procedure      BindInitialSession                        (const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean);
     function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       GetDBWithServerRights                     (const dbname:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       RestoreDefaultConnection                  (out  username : TFRE_DB_String ; out conn : IFRE_DB_CONNECTION):TFRE_DB_Errortype;
@@ -111,6 +107,9 @@ type
     DefaultDatabase              : String;
     TransFormFunc                : TFRE_DB_TRANSFORM_FUNCTION;
 
+    HTTPWS_Listener              : IFRE_APSC_LISTENER;
+    FLEX_Listener                : IFRE_APSC_LISTENER;
+
     constructor create           (const defaultdbname : string);
     destructor Destroy           ; override;
     procedure  Setup             ;
@@ -119,21 +118,13 @@ type
     procedure  Interrupt         ;
     function   GetName           : String;
 
-
-    function  ServerHandlerWS       (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean;
-    procedure InitServerSockWS      (const SOCK:IFCOM_SOCK);
-    procedure TearDownServerSockWS  (const Sock:IFCOM_SOCK);
-    procedure ListenerErrorWS       (const listener_sock:IFCOM_SOCK;const Error:EFOS_OS_ERROR); // Listener had an error and will be shutdown
-
-    function  ServerHandlerFC       (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean;
-    procedure InitServerSockFC      (const SOCK:IFCOM_SOCK);
-    procedure TearDownServerSockFC  (const Sock:IFCOM_SOCK);
-    procedure ListenerErrorFC       (const listener_sock:IFCOM_SOCK;const Error:EFOS_OS_ERROR); // Listener had an error and will be shutdown
-
     procedure Finalize              ;
     function  FetchFileCached       (file_path:String;var data:TFRE_DB_RawByteString):boolean;
     procedure FetchHullHTML         (var lContent:TFRE_DB_RawByteString;var lContentType:string);
     procedure DispatchHTTPRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
+
+    procedure APSC_NewListener      (const LISTENER : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
+    procedure APSC_NewChannel       (const channel  : IFRE_APSC_CHANNEL  ; const state : TAPSC_ChannelState);
   end;
 
 
@@ -207,13 +198,6 @@ begin
 end;
 
 procedure TFRE_BASE_SERVER.Setup;
-var  me           : EFOS_FCOM_MULTIERROR;
-     lsock        : IFCOM_SOCK;
-     result       : TFRE_DB_Errortype;
-     WWWDBOx      : TFRE_DB_Object;
-     shandler     : IR_FRE_APS_FCOM_SERVER_HANDLER;
-     flex_handler : IR_FRE_APS_FCOM_SERVER_HANDLER;
-     ssldir       : string;
 
      procedure _ConnectAllDatabases;
      var i       : Integer;
@@ -301,49 +285,48 @@ begin
   FUserSessionsTree  := TFRE_UserSession_Tree.Create(@Default_RB_String_Compare);
   GFRE_TF.Get_Lock(FSessionTreeLock);
 
-  shandler.ListenerError      := @ListenerErrorWS;
-  shandler.ServerHandler      := @ServerHandlerWS;
-  shandler.InitServerSock     := @InitServerSockWS;
-  shandler.TearDownServerSock := @TearDownServerSockWS;
+  //ssldir := SetDirSeparators(cFRE_SERVER_DEFAULT_DIR+'/ssl/server_files/');
+  //GFRE_DB.LogInfo(dblc_SERVER,'HTTP (MAINTENANCE/SERVICE) SERVER SSL LISTENING ON (%s) ',[flistener_es.GetSocket.Get_AI.SocketAsString]);
+  //me:=GFRE_S.AddSocketListener_SSL('*',44443,fil_IPV4,fsp_TCP,shandler,true,flistener_es,fssl_TLSv1,ssldir+cFRE_SSL_CERT_FILE,ssldir+cFRE_SSL_PRIVATE_KEY_FILE,ssldir+cFRE_SSL_ROOT_CA_FILE,@MyGetPW,false,false,false,'DEFAULT');
+  //if me<>ese_OK then begin
+  //  GFRE_BT.CriticalAbort('Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
+  //  exit;
+  //end;
+  //GFRE_DB.LogInfo(dblc_SERVER,'HTTP (MAINTENANCE/SERVICE) SERVER LISTENING ON (%s) ',[flistener_es.GetSocket.Get_AI.SocketAsString]);
 
-  me:=GFRE_S.AddSocketListener('*',44000,fil_IPV4,fsp_TCP,shandler,true,flistener_es);
-  if me<>ese_OK then begin
-    GFRE_BT.CriticalAbort('Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
-    exit;
-  end;
-  ssldir := SetDirSeparators(cFRE_SERVER_DEFAULT_DIR+'/ssl/server_files/');
-  GFRE_DB.LogInfo(dblc_SERVER,'HTTP (MAINTENANCE/SERVICE) SERVER SSL LISTENING ON (%s) ',[flistener_es.GetSocket.Get_AI.SocketAsString]);
-  me:=GFRE_S.AddSocketListener_SSL('*',44443,fil_IPV4,fsp_TCP,shandler,true,flistener_es,fssl_TLSv1,ssldir+cFRE_SSL_CERT_FILE,ssldir+cFRE_SSL_PRIVATE_KEY_FILE,ssldir+cFRE_SSL_ROOT_CA_FILE,@MyGetPW,false,false,false,'DEFAULT');
-  if me<>ese_OK then begin
-    GFRE_BT.CriticalAbort('Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
-    exit;
-  end;
-  GFRE_DB.LogInfo(dblc_SERVER,'HTTP (MAINTENANCE/SERVICE) SERVER LISTENING ON (%s) ',[flistener_es.GetSocket.Get_AI.SocketAsString]);
+  //flex_handler.ListenerError      := @ListenerErrorFC;
+  //flex_handler.ServerHandler      := @ServerHandlerFC;
+  //flex_handler.InitServerSock     := @InitServerSockFC;
+  //flex_handler.TearDownServerSock := @TearDownServerSockFC;
 
-  flex_handler.ListenerError      := @ListenerErrorFC;
-  flex_handler.ServerHandler      := @ServerHandlerFC;
-  flex_handler.InitServerSock     := @InitServerSockFC;
-  flex_handler.TearDownServerSock := @TearDownServerSockFC;
+  //me:=GFRE_S.AddSocketListener('*',44001,fil_IPV4,fsp_TCP,flex_handler,true,FIL_ListenSock);
+  //if me<>ese_OK then begin
+  //  GFRE_BT.CriticalAbort('EVENT SERVER Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
+  //end;
+  //GFRE_DB.LogInfo(dblc_SERVER,'NODE INTERLINK (SERVER) LISTENING ON (%s) ',[FIL_ListenSock.GetSocket.Get_AI.SocketAsString]);
+  //me:=GFRE_S.AddSocketListener_SSL('*',44002,fil_IPV4,fsp_TCP,flex_handler,true,FIL_ListenSockSSL,fssl_TLSv1,ssldir+cFRE_SSL_CERT_FILE,ssldir+cFRE_SSL_PRIVATE_KEY_FILE,ssldir+cFRE_SSL_ROOT_CA_FILE,@MyGetPW,false,false,false,'DEFAULT');
+  //if me<>ese_OK then begin
+  //  GFRE_BT.CriticalAbort('EVENT SERVER Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
+  //end;
+  //GFRE_DB.LogInfo(dblc_SERVER,'NODE INTERLINK (SERVER/SSL) LISTENING ON (%s) ',[FIL_ListenSockSSL.GetSocket.Get_AI.SocketAsString]);
 
-  me:=GFRE_S.AddSocketListener('*',44001,fil_IPV4,fsp_TCP,flex_handler,true,FIL_ListenSock);
-  if me<>ese_OK then begin
-    GFRE_BT.CriticalAbort('EVENT SERVER Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
-  end;
-  GFRE_DB.LogInfo(dblc_SERVER,'NODE INTERLINK (SERVER) LISTENING ON (%s) ',[FIL_ListenSock.GetSocket.Get_AI.SocketAsString]);
-  me:=GFRE_S.AddSocketListener_SSL('*',44002,fil_IPV4,fsp_TCP,flex_handler,true,FIL_ListenSockSSL,fssl_TLSv1,ssldir+cFRE_SSL_CERT_FILE,ssldir+cFRE_SSL_PRIVATE_KEY_FILE,ssldir+cFRE_SSL_ROOT_CA_FILE,@MyGetPW,false,false,false,'DEFAULT');
-  if me<>ese_OK then begin
-    GFRE_BT.CriticalAbort('EVENT SERVER Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
-  end;
-  GFRE_DB.LogInfo(dblc_SERVER,'NODE INTERLINK (SERVER/SSL) LISTENING ON (%s) ',[FIL_ListenSockSSL.GetSocket.Get_AI.SocketAsString]);
-
-  FInterLinkEvent := GFRE_S.AddPeriodicSignalTimer(1,@InterLinkDispatchTimer,nil,dm_OneWorker);
-  FWFE_Scheduler  := GFRE_S.AddPeriodicTimer(1000,@WFE_DispatchTimerEvent,nil,dm_OneWorker);
+  //FInterLinkEvent := GFRE_S.AddPeriodicSignalTimer(1,@InterLinkDispatchTimer,nil,dm_OneWorker);
+  //FWFE_Scheduler  := GFRE_S.AddPeriodicTimer(1000,@WFE_DispatchTimerEvent,nil,dm_OneWorker);
 
   _SetupHttpBaseServer;
   _ConnectAllDatabases;
   _ServerinitializeApps;
 
   InitHullHTML;
+
+  GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
+  GFRE_SC.SetNewListenerCB(@APSC_NewListener);
+  GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
+
+  GFRE_SC.AddListener_TCP ('*','44001','FLEX');
+  GFRE_SC.SetNewListenerCB(@APSC_NewListener);
+  GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
+
 
   writeln('SERVER INITIALIZED, running');
 end;
@@ -372,132 +355,6 @@ end;
 function TFRE_BASE_SERVER.GetName: String;
 begin
   result := 'FRE-Server';
-end;
-
-function TFRE_BASE_SERVER.ServerHandlerWS(const Event: EFOS_FCOM_MULTIEVENT; const SOCK: IFCOM_SOCK; const Datacount: Integer): boolean;
-var s              : String;
-    sr             : integer;
-    sw             : integer;
-    ose            : EFOS_OS_ERROR;
-    ssl_pend       : integer;
-    lServerHandler : TFRE_HTTP_CONNECTION_HANDLER;
-    want           : TFRE_FCOM_SSL_WANTS;
-    amount         : integer;
-    mydatacount    : integer;
-begin
-  result := true;
-  try
-    sock.SSL_Wants(want,amount);
-    //writeln('*** SOCK EVENT ',event,' ', want,' ',amount);
-    case event of
-      esv_SOCKERROR: begin
-        GFRE_DB.LogError(dblc_SERVER,'SOCKET ERROR  [%s]',[SOCK.GetVerboseDesc]);
-      end;
-      esv_SOCKCONNECTED: begin
-        GFRE_DB.LogDebug(dblc_SERVER,'CONNECTION STARTED [%s]',[SOCK.GetVerboseDesc]);
-      end;
-      esv_SOCKREAD: begin
-        ose := sock.ReceiveString(s,Datacount,sr);
-        case ose of
-          EFOS_OS_OK: begin
-            if sr>0 then begin
-              lServerHandler := TFRE_HTTP_CONNECTION_HANDLER(sock.Data);
-              lServerHandler.ReadSocketData(sock,s);
-            end;
-          end;
-          EFOS_CONNECTION_CLOSED : begin
-            sock.CloseEnqueue(99);
-            result:=false;
-          end;
-          EFOS_SSL_WANT_READ: begin
-            writeln('****************************** SSL READ MORE ',sock.GetHandleKey);
-            result := true; // read more
-          end;
-          EFOS_OS_SSL_ERROR: begin
-            //writeln('-esv_SOCK_READ EVENT SSL ERROR ',Datacount,' ', sr,' ',sock.Get_SSL_ErrorString);
-            sock.CloseEnqueue(99);
-          end;
-          else begin
-            writeln('esv_SOCKREAD SOCK RECEIVESTRING ERR ',ose,' ',s);
-            abort;
-          end;
-        end;
-      end;
-      esv_SOCKWRITE: begin
-        writeln('WRITE REQUESTED');
-        abort;
-      end;
-      esv_SOCKCLOSED: begin
-        GFRE_DB.LogDebug(dblc_SERVER,'CONNECTION CLOSED [%s]',[SOCK.GetVerboseDesc]);
-        //lServerHandler := TFRE_HTTP_CONNECTION_HANDLER(sock.Data);
-        //lServerHandler.ReadSocketData(sock,s);
-        result:=false;
-      end;
-      esv_SOCKEXCEPT,
-      esv_SOCKCANTCONNECT,
-      esv_SOCKCONNREFUSED,
-      esv_SOCKCONNTIMEDOUT: begin
-        writeln('ERROR EVENT <'+CFOS_FCOM_MULTIEVENT[Event]+'>');
-      end;
-      else GFRE_BT.CriticalAbort('UNKNOWN STATE IN SERVER HANDLER');
-    end;
-  except on e:exception do begin
-    writeln('SOCKET/COMMON READ:',e.Message);
-    SOCK.CloseEnqueue(2);
-    result:=false;
-  end;end;
-end;
-
-
-procedure TFRE_BASE_SERVER.InitServerSockWS(const SOCK: IFCOM_SOCK);
-var lServerHandler : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
-begin
-  lServerHandler                      := TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Create(sock,self);
-  lServerHandler.OnBindInitialSession := @BindInitialSession;
-  sock.SetNoDelay(true);
-  SOCK.Data        := lServerHandler;
-end;
-
-
-procedure TFRE_BASE_SERVER.TearDownServerSockWS(const Sock: IFCOM_SOCK);
-var lServerHandler : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
-begin
-  writeln('TEAR DOWN WEBSOCKET/HTTP SERVER HANDLER');
-  lServerHandler   := TObject(SOCK.Data) as TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
-  lServerHandler.Free;
-end;
-
-
-procedure TFRE_BASE_SERVER.ListenerErrorWS(const listener_sock: IFCOM_SOCK; const Error: EFOS_OS_ERROR);
-begin
-  writeln('LISTENER ERROR < '+listener_sock.Get_AI.SocketAsString+'>');
-end;
-
-function TFRE_BASE_SERVER.ServerHandlerFC(const Event: EFOS_FCOM_MULTIEVENT; const SOCK: IFCOM_SOCK; const Datacount: Integer): boolean;
-begin
-  result := TFRE_SERVED_BASE_CONNECTION(Sock.Data).Handler(Event,Datacount);
-end;
-
-procedure TFRE_BASE_SERVER.InitServerSockFC(const SOCK: IFCOM_SOCK);
-var bc : TFRE_SERVED_BASE_CONNECTION;
-    us : TFRE_DB_UserSession;
-begin
-  bc                      :=TFRE_SERVED_BASE_CONNECTION.Create;
-  bc.OnBindInitialSession := @BindInitialSession;
-  SOCK.Data               :=bc;
-  bc.SOCK                 :=SOCK;
-  SOCK.SetNoDelay(True);
-end;
-
-procedure TFRE_BASE_SERVER.TearDownServerSockFC(const Sock: IFCOM_SOCK);
-begin
-  writeln('TEAR DOWN ',TFRE_SERVED_BASE_CONNECTION(Sock.Data).SessionID);
-  TFRE_SERVED_BASE_CONNECTION(sock.data).Free;
-end;
-
-procedure TFRE_BASE_SERVER.ListenerErrorFC(const listener_sock: IFCOM_SOCK; const Error: EFOS_OS_ERROR);
-begin
-  writeln('LISTENER ERROR FC < '+listener_sock.Get_AI.SocketAsString+'>');
 end;
 
 procedure TFRE_BASE_SERVER.Finalize;
@@ -537,38 +394,78 @@ begin
   FDispatcher.DispatchRequest(connection_object,uri,method);
 end;
 
-
-procedure TFRE_BASE_SERVER.InterLinkDispatchTimer(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
-var
-    CMD_Answer               : IFRE_DB_COMMAND;
-    i                        : Integer;
-    lSession                 : TFRE_DB_UserSession;
-    FSession_dispatch_array  : Array of TFRE_DB_UserSession;
+procedure TFRE_BASE_SERVER.APSC_NewListener(const LISTENER: IFRE_APSC_LISTENER; const state: TAPSC_ListenerState);
+var lid : String;
 begin
-  if FTerminating then exit;
-  //writeln('Interlinkdispatch Timer ',TiD,' ',GFRE_BT.Get_Ticks_ms,'   ',cp);
-  FSessionTreeLock.Acquire;
-  try
-    //if FUserSessionsTree.QueryTreeChange then begin
-      FSession_dispatch_array := FUserSessionsTree.GetAllItemsAsArray;
-    //end;
-    for i := 0 to high(FSession_dispatch_array) do
-      begin
-        if FSession_dispatch_array[i].Session_Has_CMDS then
-          begin
-            CMD_Answer := FSession_dispatch_array[i].WorkSessionCommand;
-            if assigned(CMD_Answer)  then
-              begin
-                if CMD_Answer.Data.Implementor_HC <> GFRE_DB_SUPPRESS_SYNC_ANSWER then
-                  CMD_Answer.GetAnswerInterface.Send_ServerClient(CMD_Answer); //Debug Breakpoint
-              end;
-          end;
-      end;
-  finally
-    FSessionTreeLock.Release;
-  end;
+  lid :=listener.GetID;
+  if lid='HTTP/WS' then
+    begin
+      if state =als_EVENT_NEW_LISTENER then
+        begin
+          if LISTENER.GetState=als_STOPPED then
+            begin
+              HTTPWS_Listener := listener;
+              HTTPWS_Listener.Start;
+            end
+          else
+            GFRE_BT.CriticalAbort('CANNOT ACTIVATE HTTP/WS SERVER : '+LISTENER.GetErrorString);
+        end;
+    end
+  else
+  if lid='FLEX' then
+    begin
+      if state =als_EVENT_NEW_LISTENER then
+        begin
+          if LISTENER.GetState=als_STOPPED then
+            begin
+              FLEX_Listener := listener;
+              FLEX_Listener.Start;
+            end
+          else
+            GFRE_BT.CriticalAbort('CANNOT ACTIVATE FLEX SERVER : '+LISTENER.GetErrorString);
+        end;
+    end
+  else
+    GFRE_BT.CriticalAbort('unknown listener ?');
 end;
 
+procedure TFRE_BASE_SERVER.APSC_NewChannel(const channel: IFRE_APSC_CHANNEL; const state: TAPSC_ChannelState);
+var lid : String;
+
+  procedure _Setup_New_HTTP_WS_Channel;
+  var lServerHandler : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
+  begin
+    lServerHandler := TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Create(channel,self);
+    lServerHandler.OnBindInitialSession := @BindInitialSession;
+    channel.SetVerboseDesc('HTTP ['+inttostr(channel.GetHandleKey)+']'+'('+channel.GetConnSocketAddr+')');
+    channel.SetOnReadData(@lServerHandler.ReadChannelData);
+    channel.SetOnDisconnnect(@lServerHandler.DisconnectChannel);
+    channel.CH_Enable_Reading;
+  end;
+
+  procedure _Setup_New_Flex_Channel;
+  var bc : TFRE_SERVED_BASE_CONNECTION;
+      us : TFRE_DB_UserSession;
+  begin
+    bc                      :=TFRE_SERVED_BASE_CONNECTION.Create;
+    bc.SetChannel(channel);
+    bc.OnBindInitialSession := @BindInitialSession;
+    channel.SetVerboseDesc('FLEX ['+inttostr(channel.GetHandleKey)+']'+'('+channel.GetConnSocketAddr+')');
+    channel.SetOnReadData(@bc.ReadChannelData);
+    channel.SetOnDisconnnect(@bc.DisconnectChannel);
+    channel.CH_Enable_Reading;
+  end;
+
+begin
+  lid := channel.GetListener.GetID;
+  if lid ='HTTP/WS' then
+    _Setup_New_HTTP_WS_Channel
+  else
+  if lid = 'FLEX' then
+    _Setup_New_Flex_Channel
+  else
+    GFRE_BT.CriticalAbort('unexpected listener id in new channel?');
+end;
 
 procedure TFRE_BASE_SERVER.WFE_DispatchTimerEvent(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
 var FSession_dispatch_array   : Array of TFRE_DB_UserSession;
@@ -615,11 +512,6 @@ begin
   writeln('DROPPED INTERLINK CONNECTION : ',session_id);
 end;
 
-procedure TFRE_BASE_SERVER.WorkCommandsCallback(sender: Tobject);
-begin
-  FInterLinkEvent.FireEventManual(false);
-end;
-
 
 function TFRE_BASE_SERVER.GetImpersonatedDatabaseConnectionSession(const dbname, username, pass,default_app: string;const default_uid_path : TFRE_DB_GUIDArray; out dbs: TFRE_DB_UserSession): TFRE_DB_Errortype;
 var found : boolean;
@@ -644,10 +536,13 @@ var fsession : TFRE_DB_UserSession;
 
   function SearchUser(const session:TFRE_DB_UserSession):boolean;
   begin
-    if uppercase(session.GetUsername)=uppercase(username) then begin
-      fsession := session;
-      result   := true;
-    end;
+    if uppercase(session.GetUsername)=uppercase(username) then
+      begin
+        fsession := session;
+        result   := true;
+      end
+    else
+      result := false;
   end;
 
 begin
@@ -671,10 +566,13 @@ var fsession : TFRE_DB_UserSession;
 
   function SearchKey(const session:TFRE_DB_UserSession):boolean;
   begin
-    if session.GetTakeOverKey=key then begin
-      fsession := session;
-      result   := true;
-    end;
+    if session.GetTakeOverKey=key then
+      begin
+        fsession := session;
+        result   := true;
+      end
+    else
+      result := false;
   end;
 
 begin
@@ -743,7 +641,9 @@ function TFRE_BASE_SERVER.FetchSessionById(const sesid: TFRE_DB_String; var ses:
       begin
         result := true;
         ses := session;
-      end;
+      end
+    else
+      result := false;
   end;
 
 begin
@@ -790,7 +690,6 @@ begin
   end;
   if not found then begin
     session                     := FDefaultSession.CloneSession(back_channel.GetInfoForSessionDesc); //  (sender as TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY).GetSocketDesc
-    session.OnWorkCommandsEvent := @WorkCommandsCallback;
     if reuse_ses then
       session.SetSessionState(sta_ReUseNotFound)
     else

@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-U root -H 10.220.251.10 -D"/>
+        <CommandLineParams Value="-u feeder@system -p a  -U root -H 10.220.251.10 -D"/>
       </local>
     </RunParams>
     <Units Count="4">

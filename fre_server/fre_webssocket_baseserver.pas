@@ -99,12 +99,12 @@ type
     procedure   _EncodeData(data:TFRE_DB_RawByteString;const binary:boolean=false);
     procedure   _SendCloseFrame;
     procedure   _SendHttpResponse (const code: integer; const answer: string; const answer_params: array of const;const content:string='';const contenttype:string='');
+    procedure   ClientConnected;virtual;
   protected
     procedure   Handle_WS_Upgrade  (const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
-    function    ReadSocketData     (const sock:IFCOM_SOCK;const data:string):TFRE_HTTP_PARSER_ERROR; override;
+    procedure   ReadChannelData    (const channel:IFRE_APSC_CHANNEL); override;
   public
     procedure   SendToClient(data:TFRE_DB_RawByteString;const binary:boolean);
-    procedure   ClientConnected;virtual;
     procedure   ReceivedFromClient(const opcode:byte;const dataframe :  string);virtual;
   end;
 
@@ -179,6 +179,7 @@ type
     function    GetInfoForSessionDesc     : String;
   public
     procedure   ClientConnected      ; override;
+    procedure   DisconnectChannel    (const channel:IFRE_APSC_CHANNEL); override;
     function    Get_Client_IF        : IR_FRE_APS_FCOM_CLIENT_HANDLER;
     property    OnBindInitialSession : TFRE_DB_FetchSessionCB read FOnBindDefaultSession write SetOnBindDefaultSession;
 
@@ -187,11 +188,8 @@ type
     procedure   DeactivateSessionBinding ;
     procedure   UpdateSessionBinding     (const new_session : TObject);
 
-
-    function    GetSocketKey         : FCOM_HandleKey;
-    function    GetSocketDesc        : String;
-
     procedure   Default_Provider           (const uri:TFRE_HTTP_URI); // default WWW Provider (not WS)
+    function    GetChannel                 :IFRE_APSC_CHANNEL;
   end;
 
 
@@ -282,8 +280,7 @@ begin
         if FOpcode=8 then begin
            writeln('-- CLOSE VNC WS ',ClassName,'  - ',FWSSockModeProtoVersion);
             _SendCloseFrame;
-            FSock.CloseEnqueue(99);
-            FClientSock.CloseEnqueue(99);
+            FChannel.Finalize;
           exit;
         end else begin
           WebReceived(dataframe);
@@ -299,11 +296,11 @@ begin
        // Fsock.Close;
         exit;
       end else begin
-        GFRE_DBI.LogDebug(dblc_WEBSOCK,'>>INPUT '+FSock.GetVerboseDesc);
-        GFRE_DBI.LogDebug(dblc_WEBSOCK,dataframe);
+        //GFRE_DBI.LogDebug(dblc_WEBSOCK,'>>INPUT '+FChannel.GetVerboseDesc);
+        //GFRE_DBI.LogDebug(dblc_WEBSOCK,dataframe);
         in_params  := GFRE_DBI.JSONObject2Object(dataframe);
-        GFRE_DBI.LogDebug(dblc_WEBSOCK,in_params.DumpToString(10));
-        GFRE_DBI.LogDebug(dblc_WEBSOCK,'********************************************************');
+        //GFRE_DBI.LogDebug(dblc_WEBSOCK,in_params.DumpToString(10));
+        //GFRE_DBI.LogDebug(dblc_WEBSOCK,'********************************************************');
 
         cmd        := GFRE_DBI.NewDBCommand;
         request_typ := in_params.Field('RTYPE').AsString;
@@ -324,7 +321,7 @@ begin
       end;
     end;
     wsm_FREDB_DEACTIVATED : begin
-       GFRE_DBI.LogError(dblc_WEBSOCK,'BAD REQUEST ON DEACTIVTED WEBSOCKET');
+       //GFRE_DBI.LogError(dblc_WEBSOCK,'BAD REQUEST ON DEACTIVTED WEBSOCKET');
     end else begin
       raise EFRE_DB_Exception.Create(edb_ERROR,'BAD WEBSOCKETMODE');
     end;
@@ -763,6 +760,7 @@ begin
   FWebsocketMode := wsm_FREDB;
   FOnBindDefaultSession(self,FCurrentSession,sessionkey,true);
   TransFormFunc := @FRE_WAPP_DOJO.TransformInvocation;
+  FChannel.SetVerboseDesc('FREDB WS ['+inttostr(FChannel.GetHandleKey)+'] ('+sessionkey+') '+FChannel.GetConnSocketAddr);
 end;
 
 destructor TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Destroy;
@@ -776,7 +774,7 @@ begin
       //FBinaryData.Free;
     end;
     wsm_FREDB: begin
-                 writeln('WEBSOCKET/SESSIONSOCKET ',FSock.GetVerboseDesc,' HANDLER DISCONNECTED/FREED');
+                 writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.GetVerboseDesc,' HANDLER DISCONNECTED/FREED');
                  try
                    if assigned(FCurrentSession) then
                      FCurrentSession.ClearServerClientInterface;
@@ -808,7 +806,7 @@ end;
 
 function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.GetInfoForSessionDesc: String;
 begin
-  result := 'WEB:'+FSock.GetVerboseDesc;
+  result := 'WEB:'+FChannel.GetVerboseDesc;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.ClientConnected;
@@ -818,7 +816,7 @@ var proto    : string;
     encoding : string;
     session  : string;
 begin
-  GFRE_DBI.LogDebug(dblc_WEBSOCK,'WEBSOCK CONNECT / WANT PROTOCOL [%s] from [%s] Sock [%d]',[FWebSocket_Protocol,FSock.Get_AI.SocketAsString,FSock.GetHandleKey]);
+  //GFRE_DBI.LogDebug(dblc_WEBSOCK,'WEBSOCK CONNECT / WANT PROTOCOL [%s] from [%s] Sock [%d]',[FWebSocket_Protocol,FChannel.GetVerboseDesc,FChannel.GetHandleKey]);
   proto := FWebSocket_Protocol;
   if Pos('FirmOS-FREDB',proto)=1 then begin
     session := Copy(proto,14,maxint);
@@ -836,10 +834,16 @@ begin
     'base64'           : Setup_VNC_Base64_ProxyMode;
     'X-TEST.firmos.org': Setup_ChristmasMode;
     else begin
-      GFRE_DBI.LogError(dblc_WEBSOCK,'WEBSOCKET - PROTOCOL NOT SUPPORTED!',[]);
-      Fsock.CloseEnqueue(99);
+      //GFRE_DBI.LogError(dblc_WEBSOCK,'WEBSOCKET - PROTOCOL NOT SUPPORTED!',[]);
+      FChannel.Finalize;
     end;
   end;
+end;
+
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DisconnectChannel(const channel: IFRE_APSC_CHANNEL);
+begin
+  writeln('DISCONNECT CHANNEL ',CHANNEL.GetVerboseDesc);
+  Free;
 end;
 
 function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Get_Client_IF: IR_FRE_APS_FCOM_CLIENT_HANDLER;
@@ -878,7 +882,7 @@ begin
   SC_CMD.Field('UIDPATH').AsGUIDArr := CMD_Answer.UidPath;
   SC_CMD.Field('PARAMS').AsObject   := CMD_Answer.Data;
   if CMD_Answer.ChangeSession<>'' then begin // Only if The Session is to be Changed
-    writeln('*******************************        REQUEST A SESSION CHANGE                ************** FROM ',FCurrentSession.GetSessionID,' TO ',CMD_Answer.ChangeSession);
+    //writeln('>>*******************************        REQUEST A SESSION CHANGE                ************** FROM ',FCurrentSession.GetSessionID,' TO ',CMD_Answer.ChangeSession);
     SC_CMD.Field('SESSION').AsString  := CMD_Answer.ChangeSession;
   end;
   SC_CMD.Field('OUTPUT').Clear;
@@ -886,8 +890,8 @@ begin
   lContent := SC_CMD.GetAsJSONString(false,false);//  CMD_Answer.AsJSONString;
   SendToClient(lContent,false);
   SC_CMD.Finalize;
-  GFRE_DBI.LogDebug(dblc_WEBSOCK,'<<OUTPUT '+FSock.GetVerboseDesc);
-  GFRE_DBI.LogDebug(dblc_WEBSOCK,lContent);
+  //GFRE_DBI.LogDebug(dblc_WEBSOCK,'<<OUTPUT '+FChannel.GetVerboseDesc);
+  //GFRE_DBI.LogDebug(dblc_WEBSOCK,lContent);
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DeactivateSessionBinding;
@@ -901,15 +905,6 @@ begin
   FCurrentSession := new_session as TFRE_DB_UserSession;
 end;
 
-function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.GetSocketKey: FCOM_HandleKey;
-begin
-  result := FSock.GetHandleKey;
-end;
-
-function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.GetSocketDesc: String;
-begin
-  result := FSock.GetVerboseDesc;
-end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Default_Provider(const uri: TFRE_HTTP_URI);
 var lContent  : TFRE_DB_RawByteString;
@@ -955,6 +950,11 @@ begin
     end;
 end;
 
+function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.GetChannel: IFRE_APSC_CHANNEL;
+begin
+  result := FChannel;
+end;
+
 procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._ClearHeader;
 begin
   FillByte(FWSHeader[1],SizeOf(FWSHeader),0);
@@ -990,13 +990,13 @@ begin
        data := Copy(FWSHeader,1,npos)+data;
        //writeln('SEND: ',length(data),' : ',GFRE_BT.Dump_Binary(@data[1],Length(data)));
        try
-         FSock.Offload_Write(data);
+         FChannel.CH_WriteString(data);
        except
-         FSock.Offload_Write(data);
+         FChannel.CH_WriteString(data);
        end;
     end;
     fsm_HIXIE: begin
-       FSock.Offload_Write(#0+data+#255);
+       FChannel.CH_WriteString(#0+data+#255);
     end;
   end;
 end;
@@ -1017,10 +1017,10 @@ begin
        PByte(@FWSHeader[2])^ := Byte(lLen);
        npos:=2;
        data := Copy(FWSHeader,1,npos)+data;
-       FSock.Offload_Write(data);
+       FChannel.CH_WriteString(data);
     end;
     fsm_HIXIE: begin
-       FSock.Offload_Write(#0#255);
+       FChannel.CH_WriteString(#0#255);
     end;
   end;
 end;
@@ -1188,18 +1188,7 @@ begin
     FHost :=  GetHeaderField('Host');
     FVersion := StrToIntDef(trim(GetHeaderField('Sec-WebSocket-Version')),0);
     if FVersion=0 then begin // Try Safari / Hicksy
-       //writeln(GetRequestHeaders);
-       //writeln('..');
-       //writeln(GetContent,' ',Length(GetContent));
-       //writeln('--');
-       //writeln(RawRequest);
-       //writeln('...');
-       //writeln(FindOldWS_HickseyContent);
-       //writeln('>>>>>>>');
        ProcessOldWSHandshake;
-       //writeln('>>>>>>>');
-       //repeat until false;
-       //abort;
        FUpgraded   := true;
        ClientConnected;
     end else begin
@@ -1234,7 +1223,8 @@ begin
   end;
 end;
 
-function TFRE_WEBSOCKET_SERVERHANDLER_BASE.ReadSocketData(const sock: IFCOM_SOCK; const data: string): TFRE_HTTP_PARSER_ERROR;
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE.ReadChannelData(const channel: IFRE_APSC_CHANNEL);
+var data : string;
 
   procedure DecodeWS_Proto(ws_data:string);
   var i        : Integer;
@@ -1287,6 +1277,7 @@ function TFRE_WEBSOCKET_SERVERHANDLER_BASE.ReadSocketData(const sock: IFCOM_SOCK
     end;
 
   begin
+    ws_data := channel.CH_ReadString;
     if Length(ws_data)<1 then GFRE_BT.CriticalAbort('YOU MUST PROVIDE DATA LEN='+inttostr(Length(ws_data)));
     if FHeaderShort then begin
       FHeaderShort:=false;
@@ -1392,10 +1383,9 @@ begin
       fsm_HIXIE:   DecodeWS_Proto_Old(data);
     end;
   end else begin
-    Result:=inherited ReadSocketData(sock, data); // Parse Handle HTTP - WS Request;
+    inherited ReadChannelData(channel); // Parse Handle HTTP - WS Request;
   end;
 end;
-
 
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE.SendToClient(data: TFRE_DB_RawByteString; const binary: boolean);
