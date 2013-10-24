@@ -218,6 +218,9 @@ type
     function  WEB_ToggleUpdates         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_HelloWorld            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_OpenFIRMOS            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_OpenFIRMOSHere        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_Reload                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_ChangeData            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Dialog                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_ReadOnlyDialog        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1927,8 +1930,9 @@ var
 begin
   menu:=TFRE_DB_MENU_DESC.create.Describe;
   menu.AddEntry.Describe('LOGOUT','',TFRE_DB_SERVER_FUNC_DESC.create.Describe('FIRMOS','LOGOUT'));
-  menu.AddEntry.Describe('SEAS1','',CWSF(@WEB_HelloWorld));
-  menu.AddEntry.Describe('SEAS2','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
+  menu.AddEntry.Describe('FIRMOS.AT','',CWSF(@WEB_OpenFIRMOS));
+  menu.AddEntry.Describe('REP FIRMOS.AT','',CWSF(@WEB_OpenFIRMOSHere));
+  menu.AddEntry.Describe('RELOAD','images_apps/test/cog.png',CWSF(@WEB_Reload));
   submenu:=menu.AddMenu.Describe('SEAS3','images_apps/test/cog.png');
   submenu.AddEntry.Describe('SEAS4','',CWSF(@WEB_HelloWorld));
   submenu.AddEntry.Describe('SEAS5','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
@@ -1966,6 +1970,21 @@ end;
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_HelloWorld(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Hello','World',fdbmt_info);
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_OpenFIRMOS(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('http://www.firmos.at');
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_OpenFIRMOSHere(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('http://www.firmos.at',false);
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_Reload(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false);
 end;
 
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_ChangeData(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;

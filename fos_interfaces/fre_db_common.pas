@@ -761,12 +761,12 @@ type
     function Describe        (const data: TFRE_DB_LIVE_CHART_DATA_ARRAY): TFRE_DB_LIVE_CHART_INIT_DATA_DESC;
   end;
 
-  { TFRE_DB_NEW_WINDOW_DESC }
+  { TFRE_DB_OPEN_NEW_LOCATION_DESC }
 
-  TFRE_DB_NEW_WINDOW_DESC    = class(TFRE_DB_CONTENT_DESC)
+  TFRE_DB_OPEN_NEW_LOCATION_DESC    = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes a new browser window.
-    function Describe        (const url: String): TFRE_DB_NEW_WINDOW_DESC;
+    function Describe        (const url: String; const inNewWindow: Boolean=true): TFRE_DB_OPEN_NEW_LOCATION_DESC;
   end;
 
   { TFRE_DB_RESOURCE_DESC }
@@ -854,6 +854,15 @@ implementation
     raise Exception.Create('invalid short DBContentType specifier : ['+fts+']');
   end;
 
+  { TFRE_DB_OPEN_NEW_LOCATION_DESC }
+
+  function TFRE_DB_OPEN_NEW_LOCATION_DESC.Describe(const url: String; const inNewWindow: Boolean): TFRE_DB_OPEN_NEW_LOCATION_DESC;
+  begin
+    Field('url').AsString:=url;
+    Field('newWindow').AsBoolean:=inNewWindow;
+    Result:=Self;
+  end;
+
   { TFRE_DB_REDEFINE_LIVE_CHART_DESC }
 
   function TFRE_DB_REDEFINE_LIVE_CHART_DESC._Describe(const id: String; const seriesCount: Integer; const dataCount: Integer; const dataMinMax: TFRE_DB_Real32Array; const dataLabels: TFRE_DB_StringArray; const seriesColor: TFRE_DB_StringArray; const legendLabels: TFRE_DB_StringArray; const caption: String): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
@@ -893,14 +902,6 @@ implementation
   function TFRE_DB_REDEFINE_LIVE_CHART_DESC.DescribeColumn(const id: String; const dataCount: Integer; const dataLabels: TFRE_DB_StringArray; const dataMinMax: TFRE_DB_Real32Array; const seriesCount: Integer; const legendLabels: TFRE_DB_StringArray; const seriesColor: TFRE_DB_StringArray; const caption: String): TFRE_DB_REDEFINE_LIVE_CHART_DESC;
   begin
     Result:=_Describe(id,seriesCount,dataCount,dataMinMax,dataLabels,seriesColor,legendLabels,caption);
-  end;
-
-  { TFRE_DB_NEW_WINDOW_DESC }
-
-  function TFRE_DB_NEW_WINDOW_DESC.Describe(const url: String): TFRE_DB_NEW_WINDOW_DESC;
-  begin
-    Field('url').AsString:=url;
-    Result:=Self;
   end;
 
   { TFRE_DB_INPUT_RECURRENCE_DESC }
