@@ -95,6 +95,7 @@ type
     function  WEB_Content   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
+
   { TFRE_DB_TEST_FILEDIR }
 
   TFRE_DB_TEST_FILEDIR=class(TFRE_DB_ObjectEx)
@@ -114,6 +115,10 @@ type
     function  WEB_CHILDRENDATA  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
+  { TFRE_DB_TEST_FILE }
+
+  TFRE_DB_TEST_FILE=class(TFRE_DB_TEST_FILEDIR)
+  end;
 
 var
   G_UNSAFE_MODUL_GLOBAL_DATA : IFRE_DB_Object;
@@ -193,6 +198,7 @@ type
   published
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_SliderChanged          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_DropAction             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -520,11 +526,13 @@ begin
     mimeTypeToIconAndHRType(FREDB_Filename2MimeType(name),icon,hrtype);
     Field('typeHR').AsString   := hrtype;
     Field('icon').AsString:=FREDB_getThemedResource(icon);
+    Field('objectclass').AsString:='TFRE_DB_TEST_FILE';
   end else begin
     Field('typeHR').AsString   := 'Folder';
     Field('sizeHR').AsString := '';
     Field('icon').AsString:=FREDB_getThemedResource('images_apps/test/folder.png');
     Field('icon_open').AsString:=FREDB_getThemedResource('images_apps/test/folder-open.png');
+    Field('objectclass').AsString:='TFRE_DB_TEST_FILEDIR';
   end;
   Field('mode').AsUInt32   := mode;
   SetIsFile(is_file);
@@ -683,6 +691,7 @@ begin
       AddOneToOnescheme('icon_open','','',dt_string,false);
       AddOneToOnescheme('mypath','','',dt_string,false);
       AddOneToOnescheme('children','','',dt_string,false);
+      AddOneToOnescheme('objectclass','','',dt_string,false);
       AddOneToOnescheme('UIP','uidpath','',dt_string,false);
       AddConstString('_childrenfunc_','ChildrenData',false);
       AddConstString('_funcclassname_','TFRE_DB_TEST_FILEDIR',false);
@@ -690,7 +699,7 @@ begin
     with DC_Grid do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_FILEBROWSER'),'mypath');
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'TreeGrid',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil);
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil,nil,CWSF(@WEB_DropAction));
     end;
   end;
 end;
@@ -708,12 +717,15 @@ end;
 
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  res    : TFRE_DB_LAYOUT_DESC;
-  DC_Tree: IFRE_DB_DERIVED_COLLECTION;
-  slider : TFRE_DB_FORM_DESC;
-  block  : TFRE_DB_INPUT_BLOCK_DESC;
+  res          : TFRE_DB_LAYOUT_DESC;
+  layout_trees : TFRE_DB_LAYOUT_DESC;
+  DC_Tree      : IFRE_DB_DERIVED_COLLECTION;
+  slider       : TFRE_DB_FORM_DESC;
+  block        : TFRE_DB_INPUT_BLOCK_DESC;
+  gl,gr        : TFRE_DB_VIEW_LIST_DESC;
 begin
-  res  := TFRE_DB_LAYOUT_DESC.Create.Describe();
+  res           := TFRE_DB_LAYOUT_DESC.Create.Describe();
+  layout_trees  := TFRE_DB_LAYOUT_DESC.Create.Describe();
 
   DC_Tree := ses.FetchDerivedCollection('FILEBROWSER');
   slider:=TFRE_DB_FORM_PANEL_DESC.create.Describe('',true,true,CWSF(@WEB_SliderChanged),500);
@@ -722,7 +734,13 @@ begin
   block.AddNumber(8).DescribeSlider('','slider',0,100,false,'100',0,101);
   block.AddDate(1).Describe('','slider_date',false,false,true,false,IntToStr(GFRE_DT.Now_UTC));
 
-  res.SetAutoSizedLayout(nil,DC_Tree.GetDisplayDescription,nil,nil,slider);
+  gl:=DC_Tree.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  gr:=DC_Tree.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+
+  gl.SetDropGrid(gr,TFRE_DB_StringArray.create('TFRE_DB_TEST_FILEDIR'));
+
+  layout_trees.SetLayout(gl,gr,nil,nil,nil,true,1,1);
+  res.SetAutoSizedLayout(nil,layout_trees,nil,nil,slider);
   result := res;
 end;
 
@@ -738,6 +756,11 @@ begin
   end else begin
     Result:=GFRE_DB_NIL_DESC;
   end;
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_DropAction(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Drop','You dropped item ' + input.Field('selected').AsString + ' on ' + input.Field('target').AsString,fdbmt_info);
 end;
 
 { TFRE_DB_TEST_APP_ALLGRID_MOD }
