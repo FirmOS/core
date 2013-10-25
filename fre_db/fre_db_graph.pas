@@ -129,34 +129,36 @@ procedure TFRE_DB_GRAPH.WriteFields(const obj: IFRE_DB_SCHEMEOBJECT);
 
   procedure IterateFieldDefs(const fielddef : IFRE_DB_FieldSchemeDefinition);
   var svalidator       :         string;
+      gvalidator       :         IFRE_DB_ClientFieldValidator;
+      genum            :         IFRE_DB_Enum;
       senum            :         string;
       sfieldname       :         string;
       sfieldtype       :         string;
   begin
-    //REWORK
-    //if fielddef.FieldType=fdbft_Object then begin
-    //  WriteSubscheme   (lowercase(fielddef.FieldName),fielddef.GetSubScheme,fielddef.required);
-    //end else begin
-    //  if fielddef.getValidator(svalidator)) then begin
-    //    svalidator      := string(fielddef.getValidator.GetName)+'['+string(fielddef.getValidator.getInfoText)+']';
-    //  end else begin
-    //    svalidator      :='';
-    //  end;
-    //  if assigned      (fielddef.getEnum) then begin
-    //    senum     := string(fielddef.getEnum.GetName)+'[ENUM]';
-    //  end else begin
-    //    senum      :='';
-    //  end;
-    //  sfieldtype := lowercase(CFRE_DB_FIELDTYPE[fielddef.FieldType]);
-    //  if fielddef.multiValues then begin
-    //   sfieldtype :=sfieldtype + ' [ ]';
-    //  end;
-    //  sfieldname:=lowercase(fielddef.FieldName);
-    //  if (fielddef.required) then begin
-    //    sfieldname:='<FONT COLOR="red">'+sfieldname+'</FONT>'
-    //  end;
-    //  plotlist.Add      ('<tr  ><td align="left">'+sfieldname+'</td><td align="left">'+sfieldtype+'</td><td align="left" PORT="'+lowercase(fielddef.FieldName)+'">'+svalidator+' '+senum+'</td></tr>');
-    //end;
+    if fielddef.FieldType=fdbft_Object then begin
+      WriteSubscheme   (lowercase(fielddef.FieldName),fielddef.GetSubScheme,fielddef.required);
+    end else begin
+      if fielddef.getValidator(gvalidator) then begin
+        svalidator      := string(gvalidator.GetName)+'['+string(gValidator.getInfoText)+']';
+      end else begin
+        svalidator      :='';
+      end;
+      fielddef.getEnum(genum);
+      if assigned      (genum) then begin
+        senum     := string(genum.GetName)+'[ENUM]';
+      end else begin
+        senum      :='';
+      end;
+      sfieldtype := lowercase(CFRE_DB_FIELDTYPE[fielddef.FieldType]);
+      if fielddef.multiValues then begin
+       sfieldtype :=sfieldtype + ' [ ]';
+      end;
+      sfieldname:=lowercase(fielddef.FieldName);
+      if (fielddef.required) then begin
+        sfieldname:='<FONT COLOR="red">'+sfieldname+'</FONT>'
+      end;
+      plotlist.Add      ('<tr  ><td align="left">'+sfieldname+'</td><td align="left">'+sfieldtype+'</td><td align="left" PORT="'+lowercase(fielddef.FieldName)+'">'+svalidator+' '+senum+'</td></tr>');
+    end;
   end;
 
 begin
@@ -269,9 +271,12 @@ function TFRE_DB_GRAPH.FormatSchemeHeader(const obj: IFRE_DB_SCHEMEOBJECT): TFRE
 var  fparentscheme      : TFRE_DB_String;
 begin
  result:=uppercase(obj.DefinedSchemename);
- fparentscheme:=obj.GetParentSchemeName;
- if length(fparentscheme)>0 then begin
-  Result:=result+' ('+fparentscheme+')';
+ if Assigned(obj.GetParentScheme) then
+   begin
+     fparentscheme:=obj.GetParentSchemeName;
+     if length(fparentscheme)>0 then begin
+      Result:=result+' ('+fparentscheme+')';
+   end;
  end;
 end;
 
@@ -357,9 +362,12 @@ begin
   WriteFields (obj);
   WriteMethods(obj);
   plotlist.Add('</TABLE>>];');
-  if obj.GetParentSchemeName<>'' then begin
-   AddParent(obj.GetParentSchemeName,obj.DefinedSchemeName);
-  end;
+  if assigned(obj.GetParentScheme) then
+    begin
+      if obj.GetParentSchemeName<>'' then begin
+       AddParent(obj.GetParentSchemeName,obj.DefinedSchemeName);
+      end;
+    end;
 end;
 
 procedure TFRE_DB_GRAPH.ObjectIterator(const obj: IFRE_DB_Object; const conn: TObject);
