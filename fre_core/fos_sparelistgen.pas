@@ -52,8 +52,8 @@ type
          _PTType                      = ^_TType;
          TGFOS_SpareListType          = array of _TType;
          TGFOS_ElemProc               = procedure (var x:_TType;const idx:NativeInt ; var halt_flag:boolean) is nested;
-         TGFOS_ExtCompareElemProc     = function  (const x1,x2 : _PTType) : boolean; // is nested; //of object;
-         TGFOS_ExtCompareNullElemProc = function  (const x1:_PTType) : boolean; //  is nested; //     ; of object;
+         TGFOS_ExtCompareElemProc     = function  (const x1,x2 : _PTType) : boolean;
+         TGFOS_ExtCompareNullElemProc = function  (const x1:_PTType) : boolean;
      private
        FArray        : TGFOS_SpareListType;
        FCnt          : NativeInt;
@@ -62,34 +62,48 @@ type
        FNullElement  : _TType;
        FCompareFunc  : TGFOS_ExtCompareElemProc;
        FNullCompare  : TGFOS_ExtCompareNullElemProc;
+       function  MyNullCompare (const x1:_PTType) : boolean;
+       function  MyExtCompare  (const x1,x2 : _PTType) : boolean;
      public
-       function  Reserve        : NativeInt;
-       procedure InitSparseList (const NullElement:_TType ; const NullCompare : TGFOS_ExtCompareNullElemProc ; const Compare : TGFOS_ExtCompareElemProc ;  const numberofemptyslots:NativeUint=25);
-       function  Add            (const elem: _TType):boolean;
-       function  Exists         (const elem: _TType): NativeInt;
-       function  Delete         (const elem: _TType):Boolean;
-       function  GetElement     (idx : NativeInt): _TType;
-       procedure SetElement     (idx : NativeInt; AValue: _TType);
-       property  Element        [idx : NativeInt]:_TType read GetElement write SetElement; default;
-       function  Count          : NativeInt;
-       function  ForAllBreak    (const elem_func : TGFOS_ElemProc):Boolean;
-       procedure ClearIndex     (const idx : NativeInt);
-       //procedure x; virtual; abstract;
+       function  Reserve           : NativeInt;
+       procedure InitSparseList       (const NullElement:_TType ; const NullCompare : TGFOS_ExtCompareNullElemProc ; const Compare : TGFOS_ExtCompareElemProc ;  const numberofemptyslots:NativeUint=25);
+       procedure InitSparseListPtrCmp (const numberofemptyslots:NativeUint=25);
+       function  Add                  (const elem: _TType):boolean;
+       function  Exists               (const elem: _TType): NativeInt;
+       function  Delete               (const elem: _TType):Boolean;
+       function  GetElement           (idx : NativeInt): _TType;
+       procedure SetElement           (idx : NativeInt; AValue: _TType);
+       function  Count                : NativeInt;
+       function  ForAllBreak          (const elem_func : TGFOS_ElemProc):Boolean;
+       procedure ClearIndex           (const idx : NativeInt);
+       property  Element              [idx : NativeInt]:_TType read GetElement write SetElement; default;
+       procedure _DummyForceFPC_Recompile ; virtual ; abstract;
   end;
 
-  OFOS_SL_TObject  = specialize OFOS_SpareList<TObject>;
-
-  //OFOS_SL_TGuid    = specialize OFOS_SpareList<TGuid>;
 
 implementation
 
-function OFOS_SL_EmptyTestObj(const obj: TObject): boolean;
-begin
-  result := obj=nil;
-end;
-
 { OFOS_SpareList }
 
+function OFOS_SpareList.MyNullCompare(const x1: _PTType): boolean;
+begin
+  if FNullCompare=nil then
+    begin
+      result := x1^=nil;
+    end
+  else
+    begin
+      result := FNullCompare(x1);
+    end;
+end;
+
+function OFOS_SpareList.MyExtCompare(const x1, x2: _PTType): boolean;
+begin
+  if FCompareFunc=nil then
+    result := x1^=x2^
+  else
+    result := FCompareFunc(x1,x2);
+end;
 
 function OFOS_SpareList.Reserve: NativeInt;
 var diff : NativeInt;
@@ -114,6 +128,12 @@ begin
     FArray[i] := NullElement;
 end;
 
+procedure OFOS_SpareList.InitSparseListPtrCmp(const numberofemptyslots: NativeUint);
+begin
+  InitSparseList(nil,nil,nil);
+end;
+
+
 
 function OFOS_SpareList.Add(const elem: _TType): boolean;
 var firstspare : NativeInt;
@@ -124,14 +144,11 @@ begin
   firstspare:=-1;
   result := true;
   for i:=0 to high(FArray) do
-    begin
-      if FNullCompare(@FArray[i]) then
-        begin
-          firstspare := i;
-          break;
-        end;
-    end;
-
+    if MyNullCompare(@FArray[i]) then
+      begin
+        firstspare := i;
+        break;
+      end;
   if firstspare>=0 then
     begin
       FArray[firstspare] := elem;
@@ -150,21 +167,19 @@ var i          : NativeInt;
     isnull     : boolean;
     cmpcnt     : NativeInt;
 begin
-  result     := -1;
-  cmpcnt     :=  0;
+  result  := -1;
+  cmpcnt  :=  0;
   if FCnt = 0 then
     exit(-1);
   for i:=0 to high(FArray) do
-    begin
-      if (not FNullCompare(@FArray[i])) then
-        begin
-          if FCompareFunc(@FArray[i],@elem) then
-            exit(i);
-          inc(cmpcnt);
-          if cmpcnt=FCnt then
-            exit(-1);
-        end;
-    end;
+    if (not MyNullCompare(@FArray[i])) then
+      begin
+        if MyExtCompare(@FArray[i],@elem) then
+          exit(i);
+        inc(cmpcnt);
+        if cmpcnt=FCnt then
+          exit(-1);
+      end;
   exit(-1);
 end;
 
@@ -178,6 +193,7 @@ begin
   FArray[idx] := FNullElement;
   inc(FCurrSpares);
   dec(FCnt);
+  result := true;
 end;
 
 function OFOS_SpareList.GetElement(idx: NativeInt): _TType;
@@ -187,7 +203,7 @@ end;
 
 procedure OFOS_SpareList.SetElement(idx: NativeInt; AValue: _TType);
 begin
-  if FNullCompare(@FArray[idx]) then
+  if MyNullCompare(@FArray[idx]) then
     begin
       FArray[idx] := AValue; // Add
       dec(FCurrSpares);
@@ -196,7 +212,7 @@ begin
   else
     begin
       FArray[idx] := AValue; // Overwrite
-    end;
+    end
 end;
 
 function OFOS_SpareList.Count: NativeInt;
@@ -216,7 +232,7 @@ begin
   savecnt := FCnt;
   for i := 0 to High(FArray) do
     begin
-      if not FNullCompare(@FArray[i]) then
+      if not MyNullCompare(@FArray[i]) then
         begin
           elem_func(FArray[i],i,haltf);
           inc(cnt);

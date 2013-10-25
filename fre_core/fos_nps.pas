@@ -844,7 +844,8 @@ begin
   if idx>=last then begin
    raise Exception.Create('proplist index out of bounds ('+inttostr(idx)+') from ('+inttostr(last)+')');
   end;
-  PL:=IFOS_NPS(PMRepObj(_PLPList[i])^.PList[idx]);
+  //PL:=IFOS_NPS(PMRepObj(_PLPList[i])^.PList[idx]);
+  abort;
  end else begin
    raise Exception.Create('proplist doesnt exist');
  end;
@@ -2083,10 +2084,11 @@ begin
   if idx>=last then begin
    raise Exception.Create('proplist index out of bounds ('+inttostr(idx)+') from ('+inttostr(last)+')');
   end;
-  if PL<>IFOS_NPS(PMRepObj(_PLPList[i])^.PList[idx]) then begin
-   PMRepObj(_PLPList[i])^.PList.Delete(idx); // Drop and Free it if necessary
-   PMRepObj(_PLPList[i])^.PList.Insert(Idx,PL); // Insert at Position
-  end;
+  abort;
+  //if PL<>IFOS_NPS(PMRepObj(_PLPList[i])^.PList[idx]) then begin
+  // PMRepObj(_PLPList[i])^.PList.Delete(idx); // Drop and Free it if necessary
+  // PMRepObj(_PLPList[i])^.PList.Insert(Idx,PL); // Insert at Position
+  //end;
  end else begin
    raise Exception.Create('proplist doesnt exist');
  end;

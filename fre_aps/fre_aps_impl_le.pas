@@ -1833,7 +1833,7 @@ begin
       _CntErr(GOT_BAD_DESCRIPTOR1);
       writeln('>> SOCKET CREATION PROBLEM2 (',FOSError,') ', CLIENT_SOCK.GetHandleKey);
       TObject(CLIENT_SOCK.GetData).Free;
-      TFRE_APSES_RW_SOCKET(CLIENT_SOCK.EventSource).Free; // frees writesource too
+      //TFRE_APSES_RW_SOCKET(CLIENT_SOCK.EventSource).Free; // frees writesource too
       CLIENT_SOCK.EventSource:=nil;
       //FFcomHandler.TearDownClientSock(CLIENT_SOCK);
       result := ese_INTERNAL;

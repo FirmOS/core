@@ -188,12 +188,17 @@ type
 
   TOnNew_APSC_Listener = procedure (const new_listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState) of object;
   TOnNew_APSC_Channel  = procedure (const channel : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState) of object;
+  TOnNew_APSC_Timer    = procedure (const timer   : IFRE_APSC_TIMER) of object;
+  TOnNew_APSC_Signal   = procedure (const signal  : NativeUint) of object;
 
   IFRE_APSC=interface
     procedure   AddListener_TCP  (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
     procedure   AddClient_TCP    (Host,Port : String; const ID:ShortString ; Bind_IP:string='' ; Bind_Port:String='');
+    procedure   AddTimer         (const timer_id: ShortString); // Must be processed in sync with MAIN THREAD ! (locking)
     procedure   SetNewListenerCB (const lcb    : TOnNew_APSC_Listener);
     procedure   SetNewChannelCB  (const chancb : TOnNew_APSC_Channel);
+    procedure   SetNewTimerCB    (const timercb : TOnNew_APSC_Timer);
+    procedure   RunUntilTerminate ;
   end;
 
   TFRE_APSC_TIMER_CALLBACK=procedure(const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean) of object;

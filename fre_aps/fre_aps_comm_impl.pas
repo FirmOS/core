@@ -64,7 +64,7 @@ implementation
 
 type
   TAPSC_CMD  = (cb_NEW_LISTENER=1,cb_START_LISTENER=2,cb_STOP_LISTENER=3,cb_FINALIZE_LISTENER=4,cb_NEW_SOCK_ACCEPTED=5,cb_FINALIZE_MAIN=6,cb_FINALIZE_CHANNEL_MGR=7,cb_FINALIZE_CHANNEL=8,
-                cb_NEW_CLIENT_SOCK=9);
+                cb_NEW_CLIENT_SOCK=9,cb_ADD_GLOBAL_TIMER=10);
 
 function  APSC_CheckResultSetError (const res : cInt ; var error : string ; const prefix : string='' ; const postfix : string =''):boolean;forward;
 procedure APSC_WriteCommpacket     (const cmd : TAPSC_CMD ; data:ShortString ; const fd : cint);forward;
@@ -157,14 +157,23 @@ type
   { TFRE_APS_COMM_MAIN_THREAD }
   TFRE_APSC_CHANNEL         = class;
   TFRE_APSC_CHANNEL_MANAGER = class;
+  TFRE_APSC_TIMER           = class;
 
   OFOS_SL_TFRE_APSC_Listener = specialize OFOS_SpareList<TFRE_APSC_LISTENER>;
+  OFOS_SL_TFRE_APSC_TIMER    = specialize OFOS_SpareList<TFRE_APSC_TIMER>;
 
   TFRE_APS_COMM_MAIN_THREAD = class(TThread) // Manages all Listeners / main sync base
   private
     FCB               : TFRE_APS_LL_EvBaseController;
     FChannelManagers  : Array [0..C_CHANNEL_RUNNER_THREADS-1] of TFRE_APSC_CHANNEL_MANAGER;
     FListenerlList    : OFOS_SL_TFRE_APSC_Listener;
+    FTimerList        : OFOS_SL_TFRE_APSC_Timer;
+    FSigHUP           : PEvent;
+    FSigINT           : PEvent;
+    FSigTERM          : PEvent;
+    FSigUSR1          : PEvent;
+    FSigUSR2          : PEvent;
+    procedure   _SignalDelivered(const sig : cInt);
     function    _GetManagerMinimumConnsIDX : NativeInt;
     procedure   GotCtrCMD (const cmd : TAPSC_CMD ; const data : PShortString);
     procedure   _InSyncDistributeNewAccept(list : TFRE_APSC_Listener ; new_fd : cint; sa : PFCOM_SOCKADDRSTORAGE ; len : socklen_t);
@@ -184,15 +193,19 @@ type
   PFRE_APSC_TIMER = ^TFRE_APSC_TIMER;
   TFRE_APSC_TIMER = class(TObject,IFRE_APSC_TIMER)
   private
-    FManager      : TFRE_APSC_CHANNEL_MANAGER;
-    FEvent        : PEvent;
-    FCallMethod   : TMethod;
-    FCallback     : TFRE_APSC_TIMER_CALLBACK;
-    FId           : string;
-    FInterval     : TTimeVal;
+    FGlobal            : Boolean;
+    FManager           : TFRE_APSC_CHANNEL_MANAGER;
+    FEvent             : PEvent;
+    FCallMethod        : TMethod;
+    FCallback          : TFRE_APSC_TIMER_CALLBACK;
+    FId                : string;
+    FInterval          : TTimeVal;
+    FCreateThreadID    : TThreadID;
     procedure   TimerCallback(const what : cshort);
+    procedure   ThreadCheck;
    public
-    constructor Create(man : TFRE_APSC_CHANNEL_MANAGER ; const base :PEvent_base ; const interval : NativeUint);
+    constructor Create          (man : TFRE_APSC_CHANNEL_MANAGER ; const base :PEvent_base ; const interval : NativeUint);
+    constructor CreateGlobal    (const id : ShortString ; const base :PEvent_base);
     procedure   TIM_Start;
     procedure   TIM_Stop;
     procedure   TIM_SetInterval (const interval_ms : NativeUint);
@@ -277,7 +290,6 @@ type
   end;
 
   OFOS_SL_TFRE_APSC_CHANNEL  = specialize OFOS_SpareList<TFRE_APSC_CHANNEL>;
-  OFOS_SL_TFRE_APSC_TIMER    = specialize OFOS_SpareList<TFRE_APSC_TIMER>;
 
 
   { TFRE_APSC_CHANNEL_MANAGER }
@@ -292,7 +304,7 @@ type
     procedure   _FinalizeChannel (const chan : TFRE_APSC_CHANNEL);
   public
     function    GetID       : NativeInt;
-    function    AddTimer    (interval_ms : NativeUint) : IFRE_APSC_TIMER; // Must be called in sync with CHANELL MANAGER
+    function    AddTimer    (interval_ms : NativeUint) : IFRE_APSC_TIMER; // Must be called in sync with CHANNEL MANAGER
 
     constructor Create   (const ID :Nativeint);
     destructor  Destroy  ; override;
@@ -306,9 +318,13 @@ type
     FMainThread          : TFRE_APS_COMM_MAIN_THREAD;
     FOnNew_APSC_Listener : TOnNew_APSC_Listener;
     FonNew_APSC_Channel  : TOnNew_APSC_Channel;
+    FOnNew_APSC_Timer    : TOnNew_APSC_Timer;
+    FOnNew_APSC_Signal   : TOnNew_APSC_Signal;
     TEST_Listener        : IFRE_APSC_LISTENER;
-    procedure _CallbackManagerSocket (const channel : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
+    procedure _CallbackSignal        (const signal : cint);
+    procedure _CallbackManagerSocket (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
     procedure _CallbackListener      (const listener : TFRE_APSC_Listener ; const state : TAPSC_ListenerState);
+    procedure _CallbackTimer         (const timer    : TFRE_APSC_Timer);
     procedure _ActivateListener      (const listener : TFRE_APSC_Listener);
     procedure _StopListener          (const listener : TFRE_APSC_Listener);
     procedure _FinalizeMain          ;
@@ -316,17 +332,23 @@ type
   protected
 
     procedure   TEST_ListenerCB         (const listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
-    procedure   TEST_ConnectManSockCB   (const channel : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
-    procedure   TEST_DiscoClientChannel (const channel:IFRE_APSC_CHANNEL);
-    procedure   TEST_ReadClientChannel  (const channel:IFRE_APSC_CHANNEL);
+    procedure   TEST_ConnectManSockCB   (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
+    procedure   TEST_DiscoClientChannel (const channel  : IFRE_APSC_CHANNEL);
+    procedure   TEST_ReadClientChannel  (const channel  : IFRE_APSC_CHANNEL);
+    procedure   TEST_NewTimerCB         (const timer    : IFRE_APSC_TIMER);
+    procedure   TEST_TIMER_TIME         (const timer    : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
   public
-    constructor create;
-    destructor  Destroy; override;
-    procedure   AddListener_TCP  (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
-    procedure   AddClient_TCP    (Host,Port : String; const ID:ShortString ; Bind_IP:string='' ; Bind_Port:String='');
-    procedure   ResolveDNS_TCP   (const addrstring : String);
-    procedure   SetNewListenerCB (const lcb : TOnNew_APSC_Listener);
-    procedure   SetNewChannelCB  (const chancb : TOnNew_APSC_Channel);
+    constructor create            ;
+    destructor  Destroy           ; override;
+    procedure   RunUntilTerminate ;
+    procedure   AddTimer          (const timer_id: ShortString); // Must be processed in sync with MAIN THREAD ! (locking)
+    procedure   AddListener_TCP   (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
+    procedure   AddClient_TCP     (Host,Port : String; const ID:ShortString ; Bind_IP:string='' ; Bind_Port:String='');
+    procedure   ResolveDNS_TCP    (const addrstring : String);
+    procedure   SetNewListenerCB  (const lcb : TOnNew_APSC_Listener);
+    procedure   SetNewChannelCB   (const chancb   : TOnNew_APSC_Channel);
+    procedure   SetNewTimerCB     (const timercb  : TOnNew_APSC_Timer);
+    procedure   SetSingnalCB      (const signalcb : TOnNew_APSC_Signal);
   end;
 
 var GAPSC : TFRE_APS_COMM;
@@ -349,9 +371,11 @@ procedure Test_APSC;
 var
   i: Integer;
 begin
+  GFRE_SC.SetNewTimerCB(@GAPSC.TEST_NewTimerCB);
   GFRE_SC.SetNewListenerCB(@GAPSC.TEST_ListenerCB);
   GFRE_SC.SetNewChannelCB(@GAPSC.TEST_ConnectManSockCB);
 
+  GFRE_SC.AddTimer('TEST');
   GFRE_SC.AddListener_TCP('[::1]','44000','IP6L');
   GFRE_SC.AddListener_TCP('[fd9e:21a7:a92c:2323::1]','44000','IP6');
   GFRE_SC.AddListener_TCP('*','44000','I4L');
@@ -361,11 +385,6 @@ begin
    sleep(100);
   until assigned(GAPSC.TEST_Listener);
   writeln('ASYNC : ',GAPSC.TEST_Listener.GetState);
-  ////AddListener_TCP('www.orf.at',44000);
-  ////AddListener_TCP('0.0.0.0','44000');
-  ////AddListener_TCP('[fe80::ca2a:14ff:fe14]','44010');
-  ////AddListener_TCP('0.0.0.0','44000');
-  //AddListener_TCP('[::1]','44000');
 end;
 
 procedure   LogInfo(const s:String;const Args : Array of const);
@@ -528,56 +547,83 @@ begin
     end;
 end;
 
+procedure TFRE_APSC_TIMER.ThreadCheck;
+begin
+  if GetThreadID<>FCreateThreadID then
+    GFRE_BT.CriticalAbort('timer thread context violation');
+end;
+
 constructor TFRE_APSC_TIMER.Create(man: TFRE_APSC_CHANNEL_MANAGER; const base: PEvent_base; const interval: NativeUint);
 begin
   FManager := man;
+  FGlobal  := false;
   FEvent   := event_new(base,-1,EV_READ or EV_WRITE or EV_TIMEOUT or EV_PERSIST,@loc_timer_cb,self);
   APSC_SetupTimeout(interval,FInterval);
+  FCreateThreadID := GetThreadID;
+end;
+
+constructor TFRE_APSC_TIMER.CreateGlobal(const id: ShortString; const base: PEvent_base);
+begin
+  FManager := nil;
+  FGlobal  := true;
+  FId      := id;
+  FEvent   := event_new(base,-1,EV_READ or EV_WRITE or EV_TIMEOUT or EV_PERSIST,@loc_timer_cb,self);
+  APSC_SetupTimeout(1000,FInterval);
+  FCreateThreadID := GetThreadID;
 end;
 
 procedure TFRE_APSC_TIMER.TIM_Start;
 begin
+  ThreadCheck;
   event_add(FEvent,@FInterval);
 end;
 
 procedure TFRE_APSC_TIMER.TIM_Stop;
 begin
+  ThreadCheck;
   event_del(FEvent);
 end;
 
 procedure TFRE_APSC_TIMER.TIM_SetInterval(const interval_ms: NativeUint);
 begin
+  ThreadCheck;
   APSC_SetupTimeout(interval_ms,FInterval);
 end;
 
 procedure TFRE_APSC_TIMER.TIM_SetCallback(cb: TFRE_APSC_TIMER_CALLBACK);
 begin
+  ThreadCheck;
   FCallback := cb;
 end;
 
 procedure TFRE_APSC_TIMER.TIM_SetID(const ID: String);
 begin
- FId := Id;
+  ThreadCheck;
+  FId := Id;
 end;
 
 function TFRE_APSC_TIMER.TIM_GetID: string;
 begin
+  ThreadCheck;
   result := FId;
 end;
 
 procedure TFRE_APSC_TIMER.TIM_SetMethod(const m: TMethod);
 begin
+  ThreadCheck;
   FCallMethod := m;
 end;
 
 function TFRE_APSC_TIMER.TIM_GetMethod: TMethod;
 begin
+  ThreadCheck;
   result := FCallMethod;
 end;
 
 procedure TFRE_APSC_TIMER.TIM_Trigger(const flag1: boolean; const flag2: boolean);
 var what : cshort;
 begin
+  ThreadCheck;
   if flag1 then
     what := what or EV_READ;
   if flag2 then
@@ -587,7 +633,7 @@ end;
 
 destructor TFRE_APSC_TIMER.Destroy;
 begin
-  writeln('TIMER ',FId,' DESTROY');
+  ThreadCheck;
   if assigned(FEvent) then
     begin
       event_del(FEvent);
@@ -598,6 +644,9 @@ end;
 
 procedure TFRE_APSC_TIMER.Finalize;
 begin
+  ThreadCheck;
+  if FManager=nil then
+    GAPSC.FMainThread.FTimerList.Delete(self);
   Free;
 end;
 
@@ -936,6 +985,7 @@ var pack:ShortString;
 begin
   SetLength(pack,sizeof(NativeUint));
   PPtrUInt(@pack[1])^ := PtrUint(chan);
+  assert(assigned(chan));
   APSC_WriteCommpacket(cb_FINALIZE_CHANNEL,pack,FChanBaseCtrl.SourceFD); // send to myself
 end;
 
@@ -1238,18 +1288,6 @@ end;
 
 var g_cnt : qword = 0;
 
-constructor TFRE_APS_LL_EvBaseController.Create(const mydispatch: TAPSC_CtrCMD; const create_dns_base: boolean; const id: string);
-begin
-  FId := id;
-  APSC_CheckRaise(evutil_socketpair(PF_LOCAL,SOCK_STREAM,0, FCommPair),true);
-  //APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[0]),true,FCommPair[0]);
-  APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[1]),true,FCommPair[1]);
-  APSC_CheckRaise(evutil_make_socket_closeonexec(FCommPair[0]),true,FCommPair[0]);
-  APSC_CheckRaise(evutil_make_socket_closeonexec(FCommPair[1]),true,FCommPair[1]);
-  FonDispatch := mydispatch;
-  FCreateDNS  := create_dns_base;
-end;
-
 procedure EventCB_TFRE_APS_LL_EvBaseController(fd : evutil_socket_t ; short: cshort ; data:pointer); cdecl;
 begin
   TFRE_APS_LL_EvBaseController(data)._CommEventfired(APSC_le_evtyp2TAPSC_EV_TYP(short));
@@ -1260,16 +1298,26 @@ begin
   TFRE_APS_LL_EvBaseController(data)._TimeoutEventfired(APSC_le_evtyp2TAPSC_EV_TYP(short));
 end;
 
-procedure TFRE_APS_LL_EvBaseController.Loop;
+
+constructor TFRE_APS_LL_EvBaseController.Create(const mydispatch: TAPSC_CtrCMD; const create_dns_base: boolean; const id: string);
 var res     : cInt;
     timeout : TFCOM_TimeVal;
 begin
+  FId := id;
+  APSC_CheckRaise(evutil_socketpair(PF_LOCAL,SOCK_STREAM,0, FCommPair),true);
+  //APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[0]),true,FCommPair[0]);
+  APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[1]),true,FCommPair[1]);
+  APSC_CheckRaise(evutil_make_socket_closeonexec(FCommPair[0]),true,FCommPair[0]);
+  APSC_CheckRaise(evutil_make_socket_closeonexec(FCommPair[1]),true,FCommPair[1]);
+  FonDispatch := mydispatch;
+  FCreateDNS  := create_dns_base;
+
   FEventBase    := GetANewEventBase;
   if FCreateDNS then
     FDnsBase := evdns_base_new(FEventBase,1);
   FControlEvent := event_new (FEventBase,SinkFD,EV_READ+EV_PERSIST,@EventCB_TFRE_APS_LL_EvBaseController,self);
   FTimeoutE     := event_new (FEventBase,-1,EV_READ+EV_WRITE+EV_TIMEOUT+EV_PERSIST,@EventCB_TFRE_APS_LL_EvBaseController_TO,self);
-  res := event_add(FControlEvent,nil);
+  event_add(FControlEvent,nil);
   if not assigned(FControlEvent) then
     GFRE_BT.CriticalAbort('APSCL - cannot init control event');
   APSC_SetupTimeout(1000,timeout);
@@ -1277,6 +1325,12 @@ begin
   if not assigned(FTimeoutE) then
     GFRE_BT.CriticalAbort('APSCL - cannot init timeout event');
   state := cr_WAIT_LEN;
+end;
+
+
+procedure TFRE_APS_LL_EvBaseController.Loop;
+var res     : cInt;
+begin
   res := event_base_loop(FEventBase,0);
   if res<>0 then
     GFRE_BT.CriticalAbort('APSCL EVENT LOOP FAILED ('+inttostr(res)+')');
@@ -1290,6 +1344,11 @@ end;
 
 
 { TFRE_APS_COMM_LISTENERS_THREADS }
+
+procedure TFRE_APS_COMM_MAIN_THREAD._SignalDelivered(const sig: cInt);
+begin
+  GAPSC._CallbackSignal(sig);
+end;
 
 function TFRE_APS_COMM_MAIN_THREAD._GetManagerMinimumConnsIDX: NativeInt;
 var  i  : NativeInt;
@@ -1319,12 +1378,29 @@ procedure TFRE_APS_COMM_MAIN_THREAD.GotCtrCMD(const cmd: TAPSC_CMD; const data: 
       GFRE_BT.CriticalAbort('critical: double add listener');
   end;
 
+  procedure _AddTimer(const id : Shortstring);
+  var tim : TFRE_APSC_TIMER;
+  begin
+    tim := TFRE_APSC_TIMER.CreateGlobal(id,FCB.FEventBase);
+    if not FTimerList.Add(tim) then
+      GFRE_BT.CriticalAbort('critical: double add timer?');
+    GAPSC._CallbackTimer(tim);
+  end;
+
+  procedure _FinalizeListener(const listener:TFRE_APSC_Listener);
+  begin
+    if not FListenerlList.Delete(listener) then
+      GFRE_BT.CriticalAbort('listener delete / not found');
+    listener._InSync_Finalize;
+  end;
+
 begin
   case cmd of
     cb_NEW_LISTENER      : _AddListenerSocket;
     cb_START_LISTENER    : TFRE_APSC_Listener(PPtrUInt(@data^[1])^)._InSync_Start;
     cb_STOP_LISTENER     : TFRE_APSC_Listener(PPtrUInt(@data^[1])^)._InSync_Stop;
-    cb_FINALIZE_LISTENER : TFRE_APSC_Listener(PPtrUInt(@data^[1])^)._InSync_Finalize;
+    cb_FINALIZE_LISTENER : _FinalizeListener(TFRE_APSC_Listener(PPtrUInt(@data^[1])^));
+    cb_ADD_GLOBAL_TIMER  : _AddTimer(PShortString(@data^)^);
     cb_FINALIZE_MAIN     : _InSync_FinalizeMain;
     else
       GFRE_BT.CriticalAbort('unknown listener control command byte ' + inttostr(ord(cmd)));
@@ -1366,14 +1442,10 @@ begin
   FListenerlList.ForAllBreak(@FinalizeListener);
 end;
 
-function SL_Listenernull (const listener : PFRE_APSC_Listener):boolean;
+procedure EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL(fd : evutil_socket_t ; short: cshort ; data:pointer); cdecl;
 begin
-  result := not assigned(listener^);
-end;
-
-function SL_Listenercompare (const l1,l2 : PFRE_APSC_Listener):boolean;
-begin
-  result := l1^=l2^;
+  writeln('HALLO ',fd);
+  TFRE_APS_COMM_MAIN_THREAD(data)._SignalDelivered(fd);
 end;
 
 constructor TFRE_APS_COMM_MAIN_THREAD.create;
@@ -1382,7 +1454,18 @@ begin
   FCB := TFRE_APS_LL_EvBaseController.Create(@GotCtrCMD,true,'M0');
   for i := 0 to C_CHANNEL_RUNNER_THREADS-1 do
     FChannelManagers[i] := TFRE_APSC_CHANNEL_MANAGER.Create(i);
-  FListenerlList.InitSparseList(nil,@SL_Listenernull,@SL_Listenercompare);
+  FListenerlList.InitSparseListPtrCmp;
+  FTimerList.InitSparseListPtrCmp;
+  FSigHUP  := event_new(FCB.FEventBase,SIGHUP,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
+  FSigINT  := event_new(FCB.FEventBase,SIGINT,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
+  FSigTERM := event_new(FCB.FEventBase,SIGTERM,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
+  FSigUSR1 := event_new(FCB.FEventBase,SIGUSR1,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
+  FSigUSR2 := event_new(FCB.FEventBase,SIGUSR2,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
+  event_add(FSigHUP,nil);
+  event_add(FSigINT,nil);
+  event_add(FSigTERM,nil);
+  event_add(FSigUSR1,nil);
+  event_add(FSigUSR2,nil);
   inherited create(false);
 end;
 
@@ -1403,6 +1486,11 @@ destructor TFRE_APS_COMM_MAIN_THREAD.Destroy;
 begin
   Shutdown;
   FCB.Free;
+  event_free(FSigHUP);
+  event_free(FSigINT);
+  event_free(FSigTERM);
+  event_free(FSigUSR1);
+  event_free(FSigUSR2);
   inherited Destroy;
 end;
 
@@ -1423,6 +1511,22 @@ begin
 end;
 
 { TFRE_APS_COMM }
+
+procedure TFRE_APS_COMM._CallbackSignal(const signal: cint);
+begin
+  if assigned(FOnNew_APSC_Signal) then
+    try
+      FOnNew_APSC_Signal(signal);
+    except on e:exception do
+      LogWarning('New signal CB Exception : '+e.Message,[]);
+    end
+  else
+    try
+      _FinalizeMain;
+    except on e:exception do
+      LogWarning('signal CB Exception : '+e.Message,[]);
+    end;
+end;
 
 procedure TFRE_APS_COMM._CallbackManagerSocket(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
 begin
@@ -1453,6 +1557,22 @@ begin
     listener.free;
   except on e:exception do
     LogWarning('listener CB Exception : '+e.Message,[]);
+  end;
+end;
+
+procedure TFRE_APS_COMM._CallbackTimer(const timer: TFRE_APSC_Timer);
+begin
+  if assigned(FOnNew_APSC_Timer) then
+    try
+      FOnNew_APSC_Timer(timer);
+    except on e:exception do
+      LogWarning('New timer CB Exception : '+e.Message,[]);
+    end
+  else
+  try
+    timer.free;
+  except on e:exception do
+    LogWarning('timer CB Exception : '+e.Message,[]);
   end;
 end;
 
@@ -1543,9 +1663,39 @@ begin
     end;
 end;
 
+procedure TFRE_APS_COMM.TEST_NewTimerCB(const timer: IFRE_APSC_TIMER);
+begin
+  if timer.TIM_GetID='TEST' then
+    begin
+      timer.TIM_SetInterval(100);
+      timer.TIM_SetCallback(@TEST_TIMER_TIME);
+      timer.TIM_Start;
+    end;
+end;
+
+var GTEST_TIMER_CNT : NativeInt=0;
+
+procedure TFRE_APS_COMM.TEST_TIMER_TIME(const timer: IFRE_APSC_TIMER; const flag1, flag2: boolean);
+begin
+  inc(GTEST_TIMER_CNT);
+  writeln(TIMER.TIM_GetID,' FIRED ',flag1,' ',flag2,'  ',GTEST_TIMER_CNT);
+  if GTEST_TIMER_CNT=10 then
+    timer.Finalize;
+end;
+
 constructor TFRE_APS_COMM.create;
- begin
+var ign,dummy: SigactionRec;
+begin
   FMainThread:=TFRE_APS_COMM_MAIN_THREAD.Create;
+  ign.sa_handler := SigActionHandler(SIG_IGN);
+  ign.sa_flags   := 0;
+  FpsigEmptySet(ign.sa_mask);
+  //FPsigaction(SIGPIPE, @ign, @dummy);
+  FPSigaction(SIGUSR1, @ign, @dummy);
+  FPSigaction(SIGUSR2, @ign, @dummy);
+  FPsigaction(SIGINT,  @ign, @dummy);
+  FPSigaction(SIGHUP,  @ign, @dummy);
+  FPSigaction(SIGTERM, @ign, @dummy);
 end;
 
 destructor TFRE_APS_COMM.Destroy;
@@ -1554,6 +1704,16 @@ begin
   FMainThread.WaitFor;
   FMainThread.Free;
   inherited Destroy;
+end;
+
+procedure TFRE_APS_COMM.RunUntilTerminate;
+begin
+  FMainThread.WaitFor;
+end;
+
+procedure TFRE_APS_COMM.AddTimer(const timer_id: ShortString);
+begin
+  APSC_WriteCommpacket(cb_ADD_GLOBAL_TIMER,timer_id,FMainThread.FCB.SourceFD);
 end;
 
 procedure APSC_WriteCommpacket(const cmd : TAPSC_CMD ; data:ShortString ; const fd : cint);
@@ -1697,6 +1857,16 @@ end;
 procedure TFRE_APS_COMM.SetNewChannelCB(const chancb: TOnNew_APSC_Channel);
 begin
   FonNew_APSC_Channel:=chancb;
+end;
+
+procedure TFRE_APS_COMM.SetNewTimerCB(const timercb: TOnNew_APSC_Timer);
+begin
+  FOnNew_APSC_Timer := timercb;
+end;
+
+procedure TFRE_APS_COMM.SetSingnalCB(const signalcb: TOnNew_APSC_Signal);
+begin
+  FOnNew_APSC_Signal := signalcb;
 end;
 
 
