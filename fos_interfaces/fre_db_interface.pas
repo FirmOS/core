@@ -1230,7 +1230,7 @@ type
     function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
     procedure   StartTransaction             (const trans_id     : TFRE_DB_NameType);
     procedure   Commit                       ;
-    //procedure   DrawScheme                  (const datastream:TStream);
+    procedure   DrawScheme                  (const datastream:TStream);
 
     function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
     function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;

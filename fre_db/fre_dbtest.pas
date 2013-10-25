@@ -380,7 +380,6 @@ begin
 
     _AddUser('admin1',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
     _AddUser('admin2',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
-    _AddUser('feeder',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
     _AddUser('city',CFRE_DB_SYS_DOMAIN_NAME,utadmin,'','','city');
 
     _AddUser('user1',CFRE_DB_SYS_DOMAIN_NAME,utuser);
@@ -403,6 +402,16 @@ begin
     _AddUser('hhartl','firmos',utadmin,'Helmut','Hartl');
     _AddUser('fschober','firmos',utadmin,'Franz','Schober');
     _AddUser('ckoch','firmos',utadmin,'Christian','Koch');
+
+
+
+    login :='testfeeder@'+CFRE_DB_SYS_DOMAIN_NAME;
+
+    CheckDbResult(conn.AddUser(login,'x','testfeeder','testfeeder'),'cannot add user '+login);
+    writeln('Modify Groups for User '+login);
+    CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray(['TESTFEEDER'+'@'+CFRE_DB_SYS_DOMAIN_NAME]),true),'cannot set user groups '+login);
+
+
 
     //abort;
     //for i:= 1 to 3 do begin
@@ -789,16 +798,16 @@ begin
     with tr_Grid do begin
       AddOneToOnescheme('MYID','','MYID',dt_number);
       AddOneToOnescheme('fdbft_GUID','','GUID',dt_String);
-      AddOneToOnescheme('fdbft_Byte','','BYTE',dt_String);
-      AddOneToOnescheme('fdbft_Int16','','Int16',dt_String);
-      AddOneToOnescheme('fdbft_UInt16','','UInt16',dt_String);
-      AddOneToOnescheme('fdbft_Int32','','Int32',dt_String);
-      AddOneToOnescheme('fdbft_UInt32','','Uint32',dt_String);
-      AddOneToOnescheme('fdbft_Int64','','Int64',dt_String);
-      AddOneToOnescheme('fdbft_UInt64','','Uint64',dt_String);
-      AddOneToOnescheme('fdbft_Real32','','Real32',dt_String);
-      AddOneToOnescheme('fdbft_Real64','','Real64',dt_String);
-      AddOneToOnescheme('fdbft_Currency','','Currency',dt_String);
+      AddOneToOnescheme('fdbft_Byte','','BYTE',dt_number);
+      AddOneToOnescheme('fdbft_Int16','','Int16',dt_number);
+      AddOneToOnescheme('fdbft_UInt16','','UInt16',dt_number);
+      AddOneToOnescheme('fdbft_Int32','','Int32',dt_number);
+      AddOneToOnescheme('fdbft_UInt32','','Uint32',dt_number);
+      AddOneToOnescheme('fdbft_Int64','','Int64',dt_number);
+      AddOneToOnescheme('fdbft_UInt64','','Uint64',dt_number);
+      AddOneToOnescheme('fdbft_Real32','','Real32',dt_number);
+      AddOneToOnescheme('fdbft_Real64','','Real64',dt_number);
+      AddOneToOnescheme('fdbft_Currency','','Currency',dt_number);
       AddOneToOnescheme('fdbft_String','','String',dt_String);
       AddOneToOnescheme('fdbft_Boolean','','Boolean',dt_boolean);
       AddOneToOnescheme('fdbft_DateTimeUTC','','Datetime',dt_date);
@@ -2019,7 +2028,6 @@ end;
 
 class procedure TFRE_DB_TEST_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
   if currentVersionId='' then
     begin
       CreateAppText(conn,'$caption','Test App','Test App','Test App');
@@ -2051,6 +2059,13 @@ class procedure TFRE_DB_TEST_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS
 var group : IFRE_DB_GROUP;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
+
+  CheckDbResult(conn.AddGroup('TESTFEEDER','Group for Test Data Feeder','Test Feeder',domainUID),'could not create Test feeder group');
+
+  CheckDbResult(conn.AddRolesToGroup('TESTFEEDER',domainUID,GFRE_DBI.ConstructStringArray(
+    [TFRE_DB_TEST_APP.GetClassRoleNameFetch
+    ])),'could not add roles for group TESTFEEDER');
+
 
   //admin_app_role  := _CreateAppRole('ADMIN','TESTAPP ADMIN','Test App Administration Rights');
   //user_app_role   := _CreateAppRole('USER','TESTAPP USER','Test App Default User Rights');

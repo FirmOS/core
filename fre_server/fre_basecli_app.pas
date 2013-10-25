@@ -542,15 +542,15 @@ begin
   try
     if system then begin
       sconn := GFRE_DBI.NewSysOnlyConnection();
-      sconn.Connect('admin','admin');
-      //sconn.DrawScheme(mems);
+      sconn.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
+      sconn.DrawScheme(mems);
     end else begin
       lconn := GFRE_DBI.NewConnection;
-      res   := lconn.Connect(FDBName,'admin','admin');
+      res   := lconn.Connect(FDBName,'admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
       if res<>edb_OK then begin
         WriteLn('SCHDUMP CHECK CONNECT FAILED : ',CFRE_DB_Errortype[res]);
       end;
-      //lconn.DrawScheme(mems);
+      lconn.sys.DrawScheme(mems);
       lconn.Finalize;
     end;
     mems.SaveToFile(filename);
