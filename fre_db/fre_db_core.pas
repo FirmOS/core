@@ -1859,7 +1859,7 @@ type
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
     function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual; // with user rights
-    //procedure          DrawScheme                   (const datastream:TStream);
+    procedure          DrawScheme                   (const datastream:TStream);
     property           RepairOnReferenceCheck       :boolean read FIntegrityRebuild write FIntegrityRebuild;
   end;
 
@@ -5314,44 +5314,49 @@ begin
 end;
 
 
-//procedure TFRE_DB_BASE_CONNECTION.DrawScheme(const datastream: TStream);
-//var  dbgraph : TFRE_DB_GRAPH;
-//
-//  procedure nestedCollectionIterator(const coll: IFRE_DB_Collection);
-//  begin
-//    dbgraph.CollectionIterator(coll);
-//  end;
-//
-//  procedure nestedEmbeddedIterator(const obj:IFRE_DB_SCHEMEOBJECT);
-//  begin
-//    dbgraph.EmbeddedIterator(obj);
-//  end;
-//
-//  procedure nestedSchemeIterator(const obj:IFRE_DB_SCHEMEOBJECT);
-//  begin
-//    dbgraph.SchemeIterator(obj);
-//  end;
-//
-//  procedure nestedObjectIterator(const obj:IFRE_DB_OBJECT);
-//  begin
-//    dbgraph.ObjectIterator(obj,self);
-//  end;
-//
-//begin
-//  writeln('DrawScheme');
-//  dbgraph        :=        TFRE_DB_GRAPH.Create;
-//  try
-//    dbgraph.PlotStart;
-//    self.ForAllCollsI(@nestedCollectionIterator);
-//    self.ForAllSchemesI(@nestedEmbeddedIterator);
-//    self.ForAllSchemesI(@nestedSchemeIterator);
-//    self.ForAllObjectsI(@nestedObjectIterator);
-//    dbgraph.PlotEnd;
-//    dbgraph.PlotScheme(datastream);
-//  finally
-//    dbgraph.Free;
-//  end;
-//end;
+procedure TFRE_DB_BASE_CONNECTION.DrawScheme(const datastream: TStream);
+var  dbgraph : TFRE_DB_GRAPH;
+
+  procedure nestedCollectionIterator(const coll: IFRE_DB_Collection);
+  begin
+    dbgraph.CollectionIterator(coll);
+  end;
+
+  procedure nestedEmbeddedIterator(const obj:IFRE_DB_SCHEMEOBJECT);
+  begin
+    dbgraph.EmbeddedIterator(obj);
+  end;
+
+  procedure nestedSchemeIterator(const obj:IFRE_DB_SCHEMEOBJECT);
+  begin
+    dbgraph.SchemeIterator(obj);
+  end;
+
+  procedure nestedObjectIterator(const obj:IFRE_DB_OBJECT);
+  begin
+    dbgraph.ObjectIterator(obj,self);
+  end;
+
+  procedure nestedCollectionObjectIterator(const coll: IFRE_DB_Collection);
+  begin
+    coll.ForAll(@nestedObjectIterator);
+  end;
+
+begin
+  writeln('DrawScheme');
+  dbgraph        :=        TFRE_DB_GRAPH.Create;
+  try
+    dbgraph.PlotStart;
+    self.ForAllCollsI(@nestedCollectionIterator);
+    self.ForAllSchemesI(@nestedEmbeddedIterator);
+    self.ForAllSchemesI(@nestedSchemeIterator);
+    self.ForAllCollsI(@nestedCollectionObjectIterator);
+    dbgraph.PlotEnd;
+    dbgraph.PlotScheme(datastream);
+  finally
+    dbgraph.Free;
+  end;
+end;
 
 function TFRE_DB_SYSTEM_CONNECTION.Connect(const loginatdomain: TFRE_DB_String; const password: TFRE_DB_String): TFRE_DB_Errortype;
 begin
