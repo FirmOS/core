@@ -798,16 +798,16 @@ begin
     with tr_Grid do begin
       AddOneToOnescheme('MYID','','MYID',dt_number);
       AddOneToOnescheme('fdbft_GUID','','GUID',dt_String);
-      AddOneToOnescheme('fdbft_Byte','','BYTE',dt_String);
-      AddOneToOnescheme('fdbft_Int16','','Int16',dt_String);
-      AddOneToOnescheme('fdbft_UInt16','','UInt16',dt_String);
-      AddOneToOnescheme('fdbft_Int32','','Int32',dt_String);
-      AddOneToOnescheme('fdbft_UInt32','','Uint32',dt_String);
-      AddOneToOnescheme('fdbft_Int64','','Int64',dt_String);
-      AddOneToOnescheme('fdbft_UInt64','','Uint64',dt_String);
-      AddOneToOnescheme('fdbft_Real32','','Real32',dt_String);
-      AddOneToOnescheme('fdbft_Real64','','Real64',dt_String);
-      AddOneToOnescheme('fdbft_Currency','','Currency',dt_String);
+      AddOneToOnescheme('fdbft_Byte','','BYTE',dt_number);
+      AddOneToOnescheme('fdbft_Int16','','Int16',dt_number);
+      AddOneToOnescheme('fdbft_UInt16','','UInt16',dt_number);
+      AddOneToOnescheme('fdbft_Int32','','Int32',dt_number);
+      AddOneToOnescheme('fdbft_UInt32','','Uint32',dt_number);
+      AddOneToOnescheme('fdbft_Int64','','Int64',dt_number);
+      AddOneToOnescheme('fdbft_UInt64','','Uint64',dt_number);
+      AddOneToOnescheme('fdbft_Real32','','Real32',dt_number);
+      AddOneToOnescheme('fdbft_Real64','','Real64',dt_number);
+      AddOneToOnescheme('fdbft_Currency','','Currency',dt_number);
       AddOneToOnescheme('fdbft_String','','String',dt_String);
       AddOneToOnescheme('fdbft_Boolean','','Boolean',dt_boolean);
       AddOneToOnescheme('fdbft_DateTimeUTC','','Datetime',dt_date);
