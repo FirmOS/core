@@ -7,10 +7,12 @@ uses
   cthreads,Sockets,
  {$ENDIF}
   Classes,
-  sysutils, FRE_APS_INTERFACE,fre_aps_test,FRE_APS_IMPL_LE,FOS_FCOM_DEFAULT,FOS_TOOL_INTERFACES
+  sysutils, FRE_APS_INTERFACE,FOS_FCOM_DEFAULT,FOS_TOOL_INTERFACES
   ,FOS_BASIS_TOOLS,syncobjs,FOS_LOCKING,FOS_INTERLOCKED,FRE_FCOM_SSL, FRE_LIBEVENT_CORE,
   FOS_DEFAULT_IMPLEMENTATION,
- fre_aps_comm_impl;
+  //fre_aps_test,
+ //FRE_APS_IMPL_LE
+  fre_aps_comm_impl;
 
 begin
   if paramstr(1)='testle' then

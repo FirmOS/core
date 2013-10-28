@@ -77,7 +77,7 @@ type
        function  ForAllBreak          (const elem_func : TGFOS_ElemProc):Boolean;
        procedure ClearIndex           (const idx : NativeInt);
        property  Element              [idx : NativeInt]:_TType read GetElement write SetElement; default;
-       procedure _DummyForceFPC_Recompile ; virtual ; abstract;
+       //procedure _DummyForceFPC_Recompile ; virtual ; abstract;
   end;
 
 
@@ -89,7 +89,7 @@ function OFOS_SpareList.MyNullCompare(const x1: _PTType): boolean;
 begin
   if FNullCompare=nil then
     begin
-      result := x1^=nil;
+      result := CompareMem(x1,@FNullElement,sizeof(_TType));
     end
   else
     begin
@@ -100,7 +100,7 @@ end;
 function OFOS_SpareList.MyExtCompare(const x1, x2: _PTType): boolean;
 begin
   if FCompareFunc=nil then
-    result := x1^=x2^
+    result := CompareMem(x1,x2,sizeof(_TType))
   else
     result := FCompareFunc(x1,x2);
 end;
@@ -129,8 +129,10 @@ begin
 end;
 
 procedure OFOS_SpareList.InitSparseListPtrCmp(const numberofemptyslots: NativeUint);
+var nullelem : _TType;
 begin
-  InitSparseList(nil,nil,nil);
+  FillByte(nullelem,sizeof(FNullElement),0);
+  InitSparseList(nullelem,nil,nil);
 end;
 
 

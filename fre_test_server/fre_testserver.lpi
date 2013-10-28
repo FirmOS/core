@@ -30,7 +30,7 @@
       <local>
         <FormatVersion Value="1"/>
         <HostApplicationFilename Value="/Users/helly/repos/bin/fre_testserver"/>
-        <CommandLineParams Value="-e TEST -U root -H 10.220.251.10 -u admin@system -p admin -x -y -t -i -D"/>
+        <CommandLineParams Value="-e TEST -U root -H 10.220.251.10 -u admin@system -p admin -x -y -t -i"/>
       </local>
     </RunParams>
     <Units Count="7">
@@ -89,7 +89,7 @@
       </SyntaxOptions>
     </Parsing>
     <CodeGeneration>
-      <TargetCPU Value="x86_64"/>
+      <TargetCPU Value="i386"/>
     </CodeGeneration>
     <Linking>
       <Debugging>

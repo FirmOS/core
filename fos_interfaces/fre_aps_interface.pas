@@ -192,13 +192,15 @@ type
   TOnNew_APSC_Signal   = procedure (const signal  : NativeUint) of object;
 
   IFRE_APSC=interface
-    procedure   AddListener_TCP  (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
-    procedure   AddClient_TCP    (Host,Port : String; const ID:ShortString ; Bind_IP:string='' ; Bind_Port:String='');
-    procedure   AddTimer         (const timer_id: ShortString); // Must be processed in sync with MAIN THREAD ! (locking)
-    procedure   SetNewListenerCB (const lcb    : TOnNew_APSC_Listener);
-    procedure   SetNewChannelCB  (const chancb : TOnNew_APSC_Channel);
-    procedure   SetNewTimerCB    (const timercb : TOnNew_APSC_Timer);
+    procedure   AddListener_TCP   (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
+    procedure   AddClient_TCP     (Host,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ; const localNewChannelCB : TOnNew_APSC_Channel = nil ;  Bind_IP:string='' ; Bind_Port:String='');
+    procedure   AddTimer          (const timer_id: ShortString); // Must be processed in sync with MAIN THREAD ! (locking)
+    procedure   SetNewListenerCB  (const lcb    : TOnNew_APSC_Listener);
+    procedure   SetNewChannelCB   (const chancb : TOnNew_APSC_Channel);
+    procedure   SetNewTimerCB     (const timercb : TOnNew_APSC_Timer);
+    procedure   SetSingnalCB      (const signalcb : TOnNew_APSC_Signal);
     procedure   RunUntilTerminate ;
+    procedure   RequestTerminate  ;
   end;
 
   TFRE_APSC_TIMER_CALLBACK=procedure(const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean) of object;
@@ -260,7 +262,7 @@ type
 
 
 var
-  GFRE_S  : IFRE_APS;
+  //GFRE_S  : IFRE_APS;
   GFRE_SC : IFRE_APSC;
 
 implementation

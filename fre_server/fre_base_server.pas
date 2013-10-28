@@ -44,7 +44,7 @@ unit fre_base_server;
 
 interface
 
-uses  classes, sysutils,fre_aps_interface,fos_fcom_interfaces,fos_fcom_types,fos_tool_interfaces,
+uses  classes, sysutils,fre_aps_interface,fos_fcom_interfaces,fos_fcom_types,fos_tool_interfaces,baseunix,
       fre_http_srvhandler,fre_db_interface,fre_system,fos_interlocked,
       fre_db_core,fre_webssocket_baseserver,fre_db_common,
       fre_http_tools,fos_redblacktree_gen,fre_sys_base_cs,
@@ -111,12 +111,13 @@ type
     FLEX_Listener                : IFRE_APSC_LISTENER;
 
     constructor create           (const defaultdbname : string);
-    destructor Destroy           ; override;
-    procedure  Setup             ;
-    procedure  Terminate         ;
-    procedure  ReInit            ;
-    procedure  Interrupt         ;
-    function   GetName           : String;
+    destructor  Destroy           ; override;
+    procedure   HandleSignals     (const signum : NativeUint);
+    procedure   Setup             ;
+    procedure   Terminate         ;
+    procedure   ReInit            ;
+    procedure   Interrupt         ;
+    function    GetName           : String;
 
     procedure Finalize              ;
     function  FetchFileCached       (file_path:String;var data:TFRE_DB_RawByteString):boolean;
@@ -195,6 +196,17 @@ begin
   //  FInterLinkQ := nil;
   //end;
   inherited Destroy;
+end;
+
+procedure TFRE_BASE_SERVER.HandleSignals(const signum: NativeUint);
+begin
+  case signum of
+    SIGTERM : Terminate;
+    SIGHUP  : ReInit;
+    SIGINT  : Interrupt;
+    else
+      writeln('UNHANDLED CATCHED SIGNAL ',signum);
+  end;
 end;
 
 procedure TFRE_BASE_SERVER.Setup;
@@ -284,6 +296,8 @@ begin
 
   FUserSessionsTree  := TFRE_UserSession_Tree.Create(@Default_RB_String_Compare);
   GFRE_TF.Get_Lock(FSessionTreeLock);
+  GFRE_SC.SetSingnalCB(@HandleSignals);
+
 
   //ssldir := SetDirSeparators(cFRE_SERVER_DEFAULT_DIR+'/ssl/server_files/');
   //GFRE_DB.LogInfo(dblc_SERVER,'HTTP (MAINTENANCE/SERVICE) SERVER SSL LISTENING ON (%s) ',[flistener_es.GetSocket.Get_AI.SocketAsString]);
@@ -336,7 +350,7 @@ procedure TFRE_BASE_SERVER.Terminate;
 begin
   GFRE_DB.LogNotice(dblc_SERVER,'TERMINATE SIGNAL RECEIVED',[]);
   _CloseAll;
-  GFRE_S.Quit;
+  //GFRE_S.Quit;
 end;
 
 procedure TFRE_BASE_SERVER.ReInit;
@@ -349,7 +363,7 @@ begin
   if G_NO_INTERRUPT_FLAG THEN exit;
   writeln('INTERRUPT');
   _CloseAll;
-  GFRE_S.Quit;
+  GFRE_SC.RequestTerminate;
 end;
 
 function TFRE_BASE_SERVER.GetName: String;

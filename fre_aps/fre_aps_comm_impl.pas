@@ -175,9 +175,10 @@ type
     FSigUSR2          : PEvent;
     procedure   _SignalDelivered(const sig : cInt);
     function    _GetManagerMinimumConnsIDX : NativeInt;
+    function    _GetManagerIDX             (const chanman : IFRE_APSC_CHANNEL_MANAGER): NativeInt;
     procedure   GotCtrCMD (const cmd : TAPSC_CMD ; const data : PShortString);
     procedure   _InSyncDistributeNewAccept(list : TFRE_APSC_Listener ; new_fd : cint; sa : PFCOM_SOCKADDRSTORAGE ; len : socklen_t);
-    procedure   _DistributeNewClientSock(const channel : TFRE_APSC_CHANNEL);
+    procedure   _DistributeNewClientSock(const channel : TFRE_APSC_CHANNEL ; const chanman : IFRE_APSC_CHANNEL_MANAGER = nil);
     procedure   _InSync_FinalizeMain;
   public
     constructor Create   ;
@@ -249,6 +250,7 @@ type
     FonRead       : TFRE_APSC_CHANNEL_EVENT;
     FOnDisco      : TFRE_APSC_CHANNEL_EVENT;
     FId           : ShortString;
+    FnewChanCB    : TOnNew_APSC_Channel;
     FFinalizecalled: Boolean;
     procedure   ReadDataEvent;
     procedure   WriteDataEvent;
@@ -257,8 +259,8 @@ type
     procedure   GenericEvent(what : cShort);
     procedure   _InSync_Finalize;
   protected
-    procedure   SetupServedSocket  (fd : cint ; new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; const base : PEvent_base); // a server socket
-    procedure   SetupClientSocket1 (new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; bind_sa : PFCOM_SOCKADDRSTORAGE ; bind_sal : cInt ; const id:ShortString ); // a client socket part 1
+    procedure   SetupServedSocket  (fd : cint ; new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; const base : PEvent_base ; newchannelcb : TOnNew_APSC_Channel); // a server socket
+    procedure   SetupClientSocket1 (new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; bind_sa : PFCOM_SOCKADDRSTORAGE ; bind_sal : cInt ; const id:ShortString ; newchannelcb : TOnNew_APSC_Channel); // a client socket part 1
     procedure   SetupClientSocket2 (const base : PEvent_base ; const dnsbase : Pevdns_base  ;manager : TFRE_APSC_CHANNEL_MANAGER); // a client socket part 2
   public
     function    GetChannelManager   : IFRE_APSC_CHANNEL_MANAGER;
@@ -341,9 +343,10 @@ type
     constructor create            ;
     destructor  Destroy           ; override;
     procedure   RunUntilTerminate ;
+    procedure   RequestTerminate  ;
     procedure   AddTimer          (const timer_id: ShortString); // Must be processed in sync with MAIN THREAD ! (locking)
     procedure   AddListener_TCP   (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
-    procedure   AddClient_TCP     (Host,Port : String; const ID:ShortString ; Bind_IP:string='' ; Bind_Port:String='');
+    procedure   AddClient_TCP     (Host,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ; const localNewChannelCB : TOnNew_APSC_Channel = nil ;  Bind_IP:string='' ; Bind_Port:String='');
     procedure   ResolveDNS_TCP    (const addrstring : String);
     procedure   SetNewListenerCB  (const lcb : TOnNew_APSC_Listener);
     procedure   SetNewChannelCB   (const chancb   : TOnNew_APSC_Channel);
@@ -380,7 +383,7 @@ begin
   GFRE_SC.AddListener_TCP('[fd9e:21a7:a92c:2323::1]','44000','IP6');
   GFRE_SC.AddListener_TCP('*','44000','I4L');
   for i:=0 to 50 do
-       GFRE_SC.AddClient_TCP('[::1]','44000','CL'+inttostr(i),'','');
+       GFRE_SC.AddClient_TCP('[::1]','44000','CL'+inttostr(i));
   repeat
    sleep(100);
   until assigned(GAPSC.TEST_Listener);
@@ -550,7 +553,7 @@ end;
 procedure TFRE_APSC_TIMER.ThreadCheck;
 begin
   if GetThreadID<>FCreateThreadID then
-    GFRE_BT.CriticalAbort('timer thread context violation');
+    GFRE_BT.CriticalAbort('timer thread context violation [%s] vs [%s] ',[inttostr(NativeUint(GetThreadID)),inttostr(NativeUint(FCreateThreadID))]);
 end;
 
 constructor TFRE_APSC_TIMER.Create(man: TFRE_APSC_CHANNEL_MANAGER; const base: PEvent_base; const interval: NativeUint);
@@ -683,8 +686,8 @@ begin
   else
   if (what and BEV_EVENT_CONNECTED)>0 then
     begin
-      FState := ch_ACTIVE;
-      GAPSC._CallbackManagerSocket(self,ch_NEW_CS_CONNECTED);
+      FState     := ch_ACTIVE;
+      FnewChanCB(self,ch_NEW_CS_CONNECTED);
     end
   else
   if (what and BEV_EVENT_ERROR)>0 then
@@ -715,12 +718,13 @@ begin
 end;
 
 
-procedure TFRE_APSC_CHANNEL.SetupServedSocket(fd: cint; new_sa: PFCOM_SOCKADDRSTORAGE; new_sal: cInt; const base: PEvent_base);
+procedure TFRE_APSC_CHANNEL.SetupServedSocket(fd: cint; new_sa: PFCOM_SOCKADDRSTORAGE; new_sal: cInt; const base: PEvent_base; newchannelcb: TOnNew_APSC_Channel);
 begin
   FClient:=false;
   move(new_sa^,Fsockaddr,new_sal);
   Fsockaddr_len := new_sal;
   Fsocket       := fd;
+  FnewChanCB    := newchannelcb;
   try
     if APSC_CheckResultSetError(evutil_make_socket_closeonexec(Fsocket),FChanError,'SETCLOSEONEX: ') then
       exit;
@@ -740,16 +744,17 @@ begin
     FOutBufCB  := evbuffer_add_cb(FOutputBuf,@loc_buffer_cb_out,self);
     FState := ch_ACTIVE;
   finally
-    GAPSC._CallbackManagerSocket(self,ch_NEW_SS_CONNECTED);
+    FnewChanCB(self,ch_NEW_CS_CONNECTED);
   end;
 end;
 
-procedure TFRE_APSC_CHANNEL.SetupClientSocket1(new_sa: PFCOM_SOCKADDRSTORAGE; new_sal: cInt; bind_sa: PFCOM_SOCKADDRSTORAGE; bind_sal: cInt; const id: ShortString);
+procedure TFRE_APSC_CHANNEL.SetupClientSocket1(new_sa: PFCOM_SOCKADDRSTORAGE; new_sal: cInt; bind_sa: PFCOM_SOCKADDRSTORAGE; bind_sal: cInt; const id: ShortString; newchannelcb: TOnNew_APSC_Channel);
 begin
   FClient:=true;
   move(new_sa^,Fsockaddr,new_sal);
   Fsockaddr_len := new_sal;
-  FId := id;
+  FId           := id;
+  FnewChanCB    := newchannelcb;
 end;
 
 procedure TFRE_APSC_CHANNEL.SetupClientSocket2(const base: PEvent_base; const dnsbase: Pevdns_base; manager: TFRE_APSC_CHANNEL_MANAGER);
@@ -782,7 +787,7 @@ begin
     FState     := ch_ACTIVE;
   finally
     if FState=ch_BAD then
-      GAPSC._CallbackManagerSocket(self,ch_NEW_CS_CONNECTED);
+      FnewChanCB(self,ch_NEW_CS_CONNECTED);
   end;
 end;
 
@@ -924,7 +929,7 @@ procedure TFRE_APSC_CHANNEL_MANAGER.GotChannelCtrCMD(const cmd: TAPSC_CMD; const
     new_fd    := pcint(@data^[1+sizeof(PtrUInt)])^;
     new_sa    := @data^[1+sizeof(PtrUInt)+SizeOf(cint)];
     new_sal   := Length(data^)-SizeOf(cint);
-    newchan.SetupServedSocket(new_fd,new_sa,new_sal,FChanBaseCtrl.FEventBase);
+    newchan.SetupServedSocket(new_fd,new_sa,new_sal,FChanBaseCtrl.FEventBase,@GAPSC._CallbackManagerSocket);
     if not FChannelList.Add(newchan) then
       GFRE_BT.CriticalAbort('critical: channel double add ?');
     Inc(FChannelCount);
@@ -999,33 +1004,12 @@ begin
   Result := TFRE_APSC_TIMER.Create(self,FChanBaseCtrl.FEventBase,interval_ms);
 end;
 
-function SL_ChannelNull(const chan : PFRE_APSC_CHANNEL):boolean;
-begin
-  result := not assigned(chan^);
-end;
-
-function SL_ChannelCompare(const chan1,chan2 : PFRE_APSC_CHANNEL):boolean;
-begin
-  result := chan1^=chan2^;
-end;
-
-function SL_TimerNull(const tim : PFRE_APSC_TIMER):boolean;
-begin
-  result := not assigned(tim^);
-end;
-
-function SL_TimerCompare(const tim1,tim2 : PFRE_APSC_TIMER):boolean;
-begin
-  result := tim1^=tim2^;
-end;
-
-
 constructor TFRE_APSC_CHANNEL_MANAGER.Create(const ID: Nativeint);
 begin
    FChannelMgrID := ID;
    FChanBaseCtrl := TFRE_APS_LL_EvBaseController.Create(@GotChannelCtrCMD,true,'C'+inttostr(id));
-   FChannelList.InitSparseList(nil,@SL_ChannelNull,@SL_ChannelCompare);
-   FTimerList.InitSparseList(nil,@SL_TimerNull,@SL_TimerCompare);
+   FChannelList.InitSparseListPtrCmp;
+   FTimerList.InitSparseListPtrCmp;
    inherited create(false);
 end;
 
@@ -1365,6 +1349,15 @@ begin
     end;
 end;
 
+function TFRE_APS_COMM_MAIN_THREAD._GetManagerIDX(const chanman: IFRE_APSC_CHANNEL_MANAGER): NativeInt;
+var  i    : NativeInt;
+begin
+  for i:=0 to high(FChannelManagers) do
+    if FChannelManagers[i] = chanman then
+      exit(i);
+  GFRE_BT.CriticalAbort('try to get an index for a nonexisting channel manager');
+end;
+
 procedure TFRE_APS_COMM_MAIN_THREAD.GotCtrCMD(const cmd: TAPSC_CMD; const data: PShortString);
 
   procedure _AddListenerSocket;
@@ -1419,11 +1412,18 @@ begin
   APSC_WriteCommpacket(cb_NEW_SOCK_ACCEPTED,pack,FChannelManagers[idx].FChanBaseCtrl.SourceFD);
 end;
 
-procedure TFRE_APS_COMM_MAIN_THREAD._DistributeNewClientSock(const channel: TFRE_APSC_CHANNEL);
+procedure TFRE_APS_COMM_MAIN_THREAD._DistributeNewClientSock(const channel: TFRE_APSC_CHANNEL; const chanman: IFRE_APSC_CHANNEL_MANAGER);
 var idx  : NativeInt;
     pack : shortstring;
 begin
-  idx  := _GetManagerMinimumConnsIDX;
+  if chanman=nil then
+    begin
+      idx  := _GetManagerMinimumConnsIDX;
+    end
+  else
+    begin
+      idx := _GetManagerIdx(chanman);
+    end;
   SetLength(pack,sizeof(NativeUint));
   PPtrUInt(@pack[1])^ := PtrUint(channel);
   APSC_WriteCommpacket(cb_NEW_CLIENT_SOCK,pack,FChannelManagers[idx].FChanBaseCtrl.SourceFD);
@@ -1711,6 +1711,11 @@ begin
   FMainThread.WaitFor;
 end;
 
+procedure TFRE_APS_COMM.RequestTerminate;
+begin
+  _FinalizeMain;
+end;
+
 procedure TFRE_APS_COMM.AddTimer(const timer_id: ShortString);
 begin
   APSC_WriteCommpacket(cb_ADD_GLOBAL_TIMER,timer_id,FMainThread.FCB.SourceFD);
@@ -1771,7 +1776,7 @@ begin
   APSC_WriteCommpacket(cb_NEW_LISTENER,pack,FMainThread.FCB.SourceFD);
 end;
 
-procedure TFRE_APS_COMM.AddClient_TCP(Host, Port: String; const ID: ShortString; Bind_IP: string; Bind_Port: String);
+procedure TFRE_APS_COMM.AddClient_TCP(Host, Port: String; const ID: ShortString; const channelmanager: IFRE_APSC_CHANNEL_MANAGER; const localNewChannelCB: TOnNew_APSC_Channel; Bind_IP: string; Bind_Port: String);
 var IP4Only : Boolean;
     IP6Only : boolean;
     sa      : TFCOM_SOCKADDRSTORAGE;
@@ -1802,8 +1807,11 @@ begin
     end;
 
   chan := TFRE_APSC_CHANNEL.Create(nil,nil);
-  chan.SetupClientSocket1(@sa,len,@sabind,bindlen,id);
-  FMainThread._DistributeNewClientSock(chan);
+  if assigned(localNewChannelCB) then
+    chan.SetupClientSocket1(@sa,len,@sabind,bindlen,id,localNewChannelCB)
+  else
+    chan.SetupClientSocket1(@sa,len,@sabind,bindlen,id,@_CallbackManagerSocket);
+  FMainThread._DistributeNewClientSock(chan,channelmanager);
 end;
 
 //procedure callb(dns_result : cint ; typ : cchar ; count : cint ; ttl : cint ;  addresses : pointer ; arg : pointer);cdecl;

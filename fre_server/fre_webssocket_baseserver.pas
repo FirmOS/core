@@ -126,7 +126,6 @@ type
       PVNC_FBU_RECT = ^TVNC_FBU_RECT;
       TFWS_Mode = (wsm_INVALID,wsm_VNCPROXY,wsm_FREDB,wsm_FREDB_DEACTIVATED);
    var
-    FClientSock  : IFCOM_SOCK;
     FProxyState  : TFRE_VNC_PROXY_STATE;
     FWebsocketMode: TFWS_Mode;
     FBinaryData  : TFRE_BINARYDATA;
@@ -155,19 +154,18 @@ type
 
     FCurrentSession          : TFRE_DB_UserSession;
     TransFormFunc            : TFRE_DB_TRANSFORM_FUNCTION;
-
-
-    function    WS_VNC_Client      (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean;
-    procedure   WS_VNC_InitClient  (const SOCK:IFCOM_SOCK);
-    procedure   WS_VNC_DownClient  (const Sock:IFCOM_SOCK);
+    FVNCProxyChannel         : IFRE_APSC_CHANNEL;
 
     procedure   SetOnBindDefaultSession(AValue: TFRE_DB_FetchSessionCB);
     procedure   SendProxyFrame     (const data:TFRE_DB_RawByteString);
     procedure   WebReceived        (const dataframe :  string);
+    procedure   NewProxyChannel    (const proxychan : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState);
+    procedure   VNC_ProxyChannelDisconnect (const channel : IFRE_APSC_CHANNEL);
+    procedure   VNC_ProxyChannelReadData   (const channel : IFRE_APSC_CHANNEL);
   protected
     procedure   BailoutException     (const message:string);
     procedure   BailoutShort         ;
-    procedure   Handle_VNC_Framing   (const sock:IFCOM_SOCK ; const datacount:integer);
+    procedure   Handle_VNC_Framing   (const channel : IFRE_APSC_CHANNEL);
     procedure   Setup_VNC_Base64_ProxyMode;
     procedure   Setup_FirmOS_VC      (const host:string; const port:integer);
     procedure   Setup_ChristmasMode  ;
@@ -180,7 +178,6 @@ type
   public
     procedure   ClientConnected      ; override;
     procedure   DisconnectChannel    (const channel:IFRE_APSC_CHANNEL); override;
-    function    Get_Client_IF        : IR_FRE_APS_FCOM_CLIENT_HANDLER;
     property    OnBindInitialSession : TFRE_DB_FetchSessionCB read FOnBindDefaultSession write SetOnBindDefaultSession;
 
     procedure   ReceivedFromClient       (const opcode:byte;const dataframe :  string);override; // Receive a CMD Frame from WEB Browser !
@@ -194,57 +191,6 @@ type
 
 
 implementation
-
-
-function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.WS_VNC_Client(const Event: EFOS_FCOM_MULTIEVENT; const SOCK: IFCOM_SOCK; const Datacount: Integer): boolean;
-begin
-  result:=true;
-  case Event of
-    esv_SOCKERROR: begin
-      writeln('PROXY CS SOCKET ERROR ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-    end;
-    esv_SOCKCONNECTED: begin
-      writeln('PROXY CS SOCKET CONNECTED ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-      FProxyState := vps_READ_RFB_VERSION_VNC2WC;
-    end;
-    esv_SOCKREAD: begin
-    //  writeln('PROXY CS SOCKET READ ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-      Handle_VNC_Framing(sock,Datacount);
-    end;
-    esv_SOCKCLOSED: begin
-      writeln('PROXY CS SOCKET CLOSED ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-    end;
-    esv_SOCKWRITE: begin
-      writeln('?? PROXY CS SOCKET WRITE ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-    end;
-    esv_SOCKEXCEPT: begin
-      writeln('PROXY CS SOCKET EXCEPT ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-    end;
-    esv_SOCKCANTCONNECT: begin
-      writeln('PROXY CS SOCKET CANT CONNECT ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-    end;
-    esv_SOCKCONNREFUSED: begin
-      writeln('PROXY CS SOCKET REFUSED ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-    end;
-    esv_SOCKCONNTIMEDOUT: begin
-      writeln('PROXY CS SOCKET TIMEDOUT ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-    end;
-    else begin
-      writeln('----> UNKNOWN WEBSOCKET VNC CLIENT EVENT ',Event);
-    end;
-  end;
-end;
-
-procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.WS_VNC_InitClient(const SOCK: IFCOM_SOCK);
-begin
-  writeln('WEBSOCKET INIT - PROXY CS NODELAY ',SOCK.SetNoDelay(true));
-  FClientSock := Sock;
-end;
-
-procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.WS_VNC_DownClient(const Sock: IFCOM_SOCK);
-begin
-  writeln('VNC <--> DOWN PROXY CS TEARDOWN ',SOCK.GetHandleKey,' ',Sock.Get_AI.SocketAsString);
-end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.SendProxyFrame(const data: TFRE_DB_RawByteString);
 var enc:string;
@@ -280,7 +226,12 @@ begin
         if FOpcode=8 then begin
            writeln('-- CLOSE VNC WS ',ClassName,'  - ',FWSSockModeProtoVersion);
             _SendCloseFrame;
+            FVNCProxyChannel.Finalize;
+            FVNCProxyChannel:=nil;
             FChannel.Finalize;
+            FChannel:=nil;
+            Finalize;
+
           exit;
         end else begin
           WebReceived(dataframe);
@@ -337,24 +288,49 @@ begin
     vps_NOT_CONNECTED: ;
     vps_READ_RFB_VERSION_VNC2WC: begin
       FProxyState:=vps_RFB_VERSION_SENT_WC2VNC;
-       FClientSock.Offload_Write(dataframe);
+      FVNCProxyChannel.CH_WriteString(dataframe);
     end;
     vps_RFB_VERSION_SENT_WC2VNC: begin
       FProxyState:=vps_RFB_VERSION_SENT_AUTH_WC2VNC;
-      FClientSock.Offload_Write(dataframe);
+      FVNCProxyChannel.CH_WriteString(dataframe);
     end;
     vps_RFB_VERSION_SENT_AUTH_WC2VNC : begin
       writeln('CLIENT INIT ',dataframe);
       FProxyState:=vps_RFB_VERSION_SENT_CLIENT_INIT_WC2VNC;
-      FClientSock.Offload_Write(dataframe);
+      FVNCProxyChannel.CH_WriteString(dataframe);
     end;
     vps_SHUFFELING: begin
-      FClientSock.Offload_Write(dataframe);
+      FVNCProxyChannel.CH_WriteString(dataframe);
     end;
     else begin
        writeln('RECEIVED FROM WS -> UNHANDLED STATE ',FProxyState);
     end;
   end;
+end;
+
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.NewProxyChannel(const proxychan: IFRE_APSC_CHANNEL; const event: TAPSC_ChannelState);
+begin
+  if event=ch_NEW_CS_CONNECTED then
+    begin
+     FVNCProxyChannel := proxychan;
+     FProxyState      := vps_READ_RFB_VERSION_VNC2WC;
+     FVNCProxyChannel.SetOnDisconnnect(@VNC_ProxyChannelDisconnect);
+     FVNCProxyChannel.SetOnReadData(@VNC_ProxyChannelReadData);
+     FVNCProxyChannel.CH_Enable_Reading;
+     writeln('PART 2 - SETUP VNC PROXY - CHANMANGER ',proxychan.GetChannelManager.GetID);
+    end
+  else
+    GFRE_BT.CriticalAbort('new vnc proxy connect / error handle this '+inttostr(ord(event)));
+end;
+
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.VNC_ProxyChannelDisconnect(const channel: IFRE_APSC_CHANNEL);
+begin
+  writeln('VNC <--> DOWN PROXY CHANNEL '+channel.GetVerboseDesc);
+end;
+
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.VNC_ProxyChannelReadData(const channel: IFRE_APSC_CHANNEL);
+begin
+  Handle_VNC_Framing(channel);
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.SetOnBindDefaultSession(AValue: TFRE_DB_FetchSessionCB);
@@ -379,7 +355,7 @@ end;
 //var Test : specialize TFRE_GetBit<integer>;
 
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Handle_VNC_Framing(const sock: IFCOM_SOCK; const datacount: integer);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Handle_VNC_Framing(const channel: IFRE_APSC_CHANNEL);
 var data          : String;
     sr            : integer;
     done          : boolean;
@@ -683,12 +659,16 @@ var data          : String;
     end;
 
 begin
-  SetLength(data,datacount);
-  sock.ReceiveString(data,datacount,sr);
-  if datacount<>sr then begin
-   // gfre_Bt.CriticalAbort('DC <> SR ??? BAD %d<>%d',[datacount,sr]);
-    writeln(format('WARNING DC <> SR ??? BAD %d<>%d',[datacount,sr]));
-  end;
+  //SetLength(data,datacount);
+  //sock.ReceiveString(data,datacount,sr);
+  //if datacount<>sr then begin
+  // // gfre_Bt.CriticalAbort('DC <> SR ??? BAD %d<>%d',[datacount,sr]);
+  //  writeln(format('WARNING DC <> SR ??? BAD %d<>%d',[datacount,sr]));
+  //end;
+
+  data := channel.CH_ReadString;
+  sr   := Length(data);
+
   FBinaryData.ReadDataCopy(@data[1],sr);
   repeat
     done := true;
@@ -721,18 +701,18 @@ begin
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Setup_VNC_Base64_ProxyMode;
-var res : EFOS_FCOM_MULTIERROR;
+//var res : EFOS_FCOM_MULTIERROR;
 begin
   abort;
-  writeln('BINARY CREATE');
-  FBinaryData := TFRE_BINARYDATA.Create(1024*1024*10,1024*1024*10); // 10 MB Initial binary block / 10 MB Max Block
-  //FBinaryData := TFRE_BINARYDATA.Create(1024*1024*500,1024*1024*500); // 10 MB Initial binary block / 10 MB Max Block
-  FProxyState := vps_NOT_CONNECTED;
-  writeln('ADD A WEBSOCKET VNC CLIENT');
-  res := GFRE_S.AddSocketClient(G_PROXY_ADDRESS,G_PROXY_PORT,fil_IPV4,fsp_TCP,Get_Client_IF);
-  if res <> ese_OK then begin
-    GFRE_BT.CriticalAbort('cant proxy connect to %s:%d',[G_PROXY_ADDRESS,G_PROXY_PORT]);
-  end;
+  //writeln('BINARY CREATE');
+  //FBinaryData := TFRE_BINARYDATA.Create(1024*1024*10,1024*1024*10); // 10 MB Initial binary block / 10 MB Max Block
+  ////FBinaryData := TFRE_BINARYDATA.Create(1024*1024*500,1024*1024*500); // 10 MB Initial binary block / 10 MB Max Block
+  //FProxyState := vps_NOT_CONNECTED;
+  //writeln('ADD A WEBSOCKET VNC CLIENT');
+  //res := GFRE_S.AddSocketClient(G_PROXY_ADDRESS,G_PROXY_PORT,fil_IPV4,fsp_TCP,Get_Client_IF);
+  //if res <> ese_OK then begin
+  //  GFRE_BT.CriticalAbort('cant proxy connect to %s:%d',[G_PROXY_ADDRESS,G_PROXY_PORT]);
+  //end;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Setup_FirmOS_VC(const host: string; const port: integer);
@@ -742,11 +722,9 @@ begin
   FBinaryData := TFRE_BINARYDATA.Create(1024*1024*30,1024*1024*30); // 10 MB Initial binary block / 100 MB Max Block
   //FBinaryData := TFRE_BINARYDATA.Create(1024*1024*100,1024*1024*200); // 10 MB Initial binary block / 10 MB Max Block
   FProxyState := vps_NOT_CONNECTED;
-  res := GFRE_S.AddSocketClient(host,port,fil_IPV4,fsp_TCP,Get_Client_IF);
+  writeln('SETUP VNC PROXY - CHANMANGER ',FChannel.GetChannelManager.GetID);
+  GFRE_SC.AddClient_TCP(host,inttostr(port),'PROX',FChannel.GetChannelManager,@NewProxyChannel);
   FNo_Base64 := true;
-  if res <> ese_OK then begin
-    GFRE_BT.CriticalAbort('cant proxy connect to %s:%d',[G_PROXY_ADDRESS,G_PROXY_PORT]);
-  end;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Setup_ChristmasMode;
@@ -770,8 +748,11 @@ begin
     wsm_INVALID: ;
     wsm_VNCPROXY: begin
       writeln('DESTROY VNC CONNECTION PROXY HANDLER');
-      FClientSock.CloseEnqueue(100);
-      //FBinaryData.Free;
+      if assigned(FVNCProxyChannel) then
+        FVNCProxyChannel.Finalize;
+      if assigned(FChannel) then
+        FChannel.Finalize;
+      writeln('DESTROY VNC CONNECTION PROXY HANDLER OK - !');
     end;
     wsm_FREDB: begin
                  writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.GetVerboseDesc,' HANDLER DISCONNECTED/FREED');
@@ -842,15 +823,12 @@ end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DisconnectChannel(const channel: IFRE_APSC_CHANNEL);
 begin
-  writeln('DISCONNECT CHANNEL ',CHANNEL.GetVerboseDesc);
+  try
+    writeln('DISCONNECT CHANNEL ',CHANNEL.GetVerboseDesc);
+  except
+    writeln('DISCONNECT CHANNEL EX');
+  end;
   Free;
-end;
-
-function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Get_Client_IF: IR_FRE_APS_FCOM_CLIENT_HANDLER;
-begin
-  result.ClientHandler      := @WS_VNC_Client;
-  result.InitClientSock     := @WS_VNC_InitClient;
-  result.TearDownClientSock := @WS_VNC_DownClient;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Send_ServerClient(const CMD_Answer: IFRE_DB_COMMAND);

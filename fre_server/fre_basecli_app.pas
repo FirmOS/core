@@ -48,7 +48,8 @@ uses
 
   fre_dbbase,fre_openssl_cmd,
 
-  FRE_APS_IMPL_LE,fre_aps_comm_impl,
+  //FRE_APS_IMPL_LE,
+  fre_aps_comm_impl,
   FOS_FCOM_DEFAULT,FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,FRE_BASE_SERVER
   ;
@@ -72,6 +73,7 @@ type
     FPass                          : string;
     FDBName                        : string;
     FOnlyInitDB                    : boolean;
+    FBaseServer                    : TFRE_BASE_SERVER;
 
     procedure  _CheckDBNameSupplied;
     procedure  _CheckUserSupplied;
@@ -327,13 +329,11 @@ begin
     Exit;
   end;
   Setup_SSL_Interface;
-  SetupAPS;
   Setup_APS_Comm;
-  GFRE_S.Start(TFRE_BASE_SERVER.Create(FDBName));
-  GFRE_S.Run;
-  TearDownAPS;
+  FBaseServer := TFRE_BASE_SERVER.create(FDBName);
+  FBaseServer.Setup;
+  GFRE_SC.RunUntilTerminate;
   Teardown_APS_Comm;
-  Shutdown_Done;
   Terminate;
   Cleanup_SSL_Interface;
   exit;
