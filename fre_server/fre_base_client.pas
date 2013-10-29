@@ -52,7 +52,7 @@ type
 
   { TFRE_BASE_CLIENT }
 
-  TFRE_BASE_CLIENT=class(TObject,IFRE_APS_PROCESS)
+  TFRE_BASE_CLIENT=class(TObject)
   private
     type
       TBC_ClientState=(csUnknown,csWaitConnect,csConnected,csTimeoutWait,csSETUPSESSION);
@@ -67,7 +67,7 @@ type
       FTimeout                 : integer;
       fMySessionID             : String;
       FClientState             : TBC_ClientState;
-      FCMD_Signal              : IFRE_APS_TIMER;
+      //FCMD_Signal              : IFRE_APS_TIMER;
       FContinuationArray       : Array [0..cFRE_DB_MAX_PENDING_CLIENT_REQUESTS] of TDispatch_Continuation;
       FContinnuationCount      : Nativeint;
       FContinuationLock        : IFOS_LOCK;
@@ -79,7 +79,7 @@ type
 
     procedure CCB_SessionSetup        (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
 
-    function  _GetClientHandler       : IR_FRE_APS_FCOM_CLIENT_HANDLER;
+    //function  _GetClientHandler       : IR_FRE_APS_FCOM_CLIENT_HANDLER;
     procedure ConnectionInit          (const SOCK:IFCOM_SOCK);
     function  ConnectionHandler       (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean;
     procedure ConnectionTearDown      (const Sock:IFCOM_SOCK);

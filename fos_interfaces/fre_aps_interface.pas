@@ -50,120 +50,120 @@ uses
 var G_NO_INTERRUPT_FLAG : Boolean = false;
 
 type
-  IFRE_APS_EVENTSOURCE            = interface;
-  TFRE_DispatchMode               = (dm_INVALID,dm_Sync,dm_OneWorker);
-  IFRE_EVENTCONDITION             = interface;
-  TFRE_ConcurrencyToken           = QWord;
-  TFRE_TimerHandle                = int64;
-
-  TFRE_ConcurrentMethod           = procedure (const TID:integer) of object;
-  TFRE_ConcurrentLocalM           = procedure (const TID:integer);
-  TFRE_DataMethod                 = procedure (const ES:IFRE_APS_EVENTSOURCE;const TID:integer;const Data:Pointer;const cp:integer=0) of object;
-  TFRE_ConditionFunctionEvent     = function  (const TID:integer):boolean of object;
-  TFRE_ConditionEventContinuation = procedure (const TID:integer;const EC:IFRE_EVENTCONDITION) of object;
-  TFRE_Generic_CMD_Handler        = procedure (const TID:integer;const CMD:IFOS_NPS;const cp:integer=0) of object;
-  TFRE_Local_Nested_Method        = procedure (const Data:Tobject) is nested;
-  TFRE_Method                     = procedure of object;
-
-  RFRE_APS_STATUS=record
-    CreatedServerRES  : int64;
-    CreatedClientRES  : int64;
-    CreatedServerWES  : int64;
-    CreatedClientWES  : int64;
-    FreedServerRES    : int64;
-    FreedClientRES    : int64;
-    FreedServerWES    : int64;
-    FreedClientWES    : int64;
-  end;
-
-  IFRE_APS_EVENTSOURCE=interface
-    procedure  MarkFinalize          ;
-    procedure  FinalizeIt            ;
-    procedure  FireEventManual       (const write:boolean=false);
-    procedure  Enable_Read_Pending   ;
-    procedure  Enable_Write_Pending  ;
-    procedure  Enable_Initialize     ;
-    procedure  QuiesceEventSource    ;
-  end;
-
-  IFRE_APS_SOCKET_EVENTSOURCE=interface(IFRE_APS_EVENTSOURCE)
-    function    GetSocket           :IFCOM_SOCK;
-  end;
-
-  IFRE_APS_TIMER=interface(IFRE_APS_EVENTSOURCE)
-  end;
-
-  //IFRE_APS_ONESHOT_TIMER=interface(IFRE_APS_EVENTSOURCE)
-  //  procedure Rearm;
+  //IFRE_APS_EVENTSOURCE            = interface;
+  //TFRE_DispatchMode               = (dm_INVALID,dm_Sync,dm_OneWorker);
+  //IFRE_EVENTCONDITION             = interface;
+  //TFRE_ConcurrencyToken           = QWord;
+  //TFRE_TimerHandle                = int64;
+  //
+  //TFRE_ConcurrentMethod           = procedure (const TID:integer) of object;
+  //TFRE_ConcurrentLocalM           = procedure (const TID:integer);
+  //TFRE_DataMethod                 = procedure (const ES:IFRE_APS_EVENTSOURCE;const TID:integer;const Data:Pointer;const cp:integer=0) of object;
+  //TFRE_ConditionFunctionEvent     = function  (const TID:integer):boolean of object;
+  //TFRE_ConditionEventContinuation = procedure (const TID:integer;const EC:IFRE_EVENTCONDITION) of object;
+  //TFRE_Generic_CMD_Handler        = procedure (const TID:integer;const CMD:IFOS_NPS;const cp:integer=0) of object;
+  //TFRE_Local_Nested_Method        = procedure (const Data:Tobject) is nested;
+  //TFRE_Method                     = procedure of object;
+  //
+  //RFRE_APS_STATUS=record
+  //  CreatedServerRES  : int64;
+  //  CreatedClientRES  : int64;
+  //  CreatedServerWES  : int64;
+  //  CreatedClientWES  : int64;
+  //  FreedServerRES    : int64;
+  //  FreedClientRES    : int64;
+  //  FreedServerWES    : int64;
+  //  FreedClientWES    : int64;
   //end;
-
-  { TFRE_EVENTCONDITION }
-  IFRE_EVENTCONDITION=interface
-    procedure SetData              (const d:pointer);
-    function  GetData              :Pointer;
-    function  QueryConditionChange :boolean;
-    procedure WaitCondition        (const cont_point:cardinal);
-    function  ContPoint            :cardinal;
-    procedure ConditionHasChanged  ;
-    procedure Finalize             ;
-  end;
-
-  IFRE_APS_PROCESS = interface
-    procedure Setup       ;
-    procedure Terminate   ; // KILL
-    procedure ReInit      ; // HUP
-    procedure Interrupt   ; // CTRL-C
-    function  GetName     : String;
-    procedure Finalize    ;
-  end;
-
-  IR_FRE_APS_FCOM_CLIENT_HANDLER=record
-    ClientHandler      : TFRE_FCOM_APS_Event; //function  ClientHandler      (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean;
-    InitClientSock     : TFRE_FCOM_InitEvent; //procedure InitClientSock     (const SOCK:IFCOM_SOCK);
-    TearDownClientSock : TFRE_FCOM_TearDownEvent; //procedure TearDownClientSock (const Sock:IFCOM_SOCK);
-  end;
-
-  IR_FRE_APS_FCOM_SERVER_HANDLER=record
-    ServerHandler      : TFRE_FCOM_APS_Event; //  function  ServerHandler      (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean; // true -> reenable read
-    InitServerSock     : TFRE_FCOM_InitEvent;  //  procedure InitServerSock     (const SOCK:IFCOM_SOCK);
-    TearDownServerSock : TFRE_FCOM_TearDownEvent;  //  procedure TearDownServerSock (const Sock:IFCOM_SOCK);
-    ListenerError      : TFRE_FCOM_SocketError;  // procedure ListenerError      (const listener_sock:IFCOM_SOCK;const Error:EFOS_OS_ERROR); // Listener had an error and will be shutdown
-  end;
-
-
-  { IFRE_APS }
-
-  IFRE_APS=interface
-    procedure SetOnQuitProcedure              (const M:TProcedure);
-    function  GetNewConcurrencyResourceToken  :TFRE_ConcurrencyToken;
-    procedure DropConcurrencyResourceToken    (const ct:TFRE_ConcurrencyToken);
-    function  NewEventCondition               (const continuation_method:TFRE_ConditionEventContinuation;const dm:TFRE_DispatchMode):IFRE_EVENTCONDITION;
-    procedure DC                              (const P:TFRE_ConcurrentMethod;const used_token:TFRE_ConcurrencyToken); //Do Concurrent
-    procedure DCL                             (const P:TFRE_ConcurrentLocalM;const used_token:TFRE_ConcurrencyToken); //Do Concurrent Local Method
-    procedure Start                           (const P:IFRE_APS_PROCESS);
-    function  AddPeriodicTimer                (const time_ms:cardinal;const Func:TFRE_DataMethod;const Data:Pointer=nil;const dispatch_mode:TFRE_DispatchMode=dm_OneWorker;const TimerLostEvent:TFRE_Method=nil):IFRE_APS_TIMER;
-    function  AddPeriodicSignalTimer          (const time_ms:cardinal;const Func:TFRE_DataMethod;const Data:Pointer=nil;const dispatch_mode:TFRE_DispatchMode=dm_OneWorker):IFRE_APS_TIMER;
-    function  AddOneShotTimer                 (const time_ms:cardinal;const Func:TFRE_DataMethod;const Data:Pointer=nil;const dispatch_mode:TFRE_DispatchMode=dm_OneWorker):IFRE_APS_TIMER;
-    function  AddSocketClient                 (const Target_IP: String;const TargetPort: integer; const IP_Layer: FCOM_IP_LAYER;const PROTOCOL: FCOM_SOCKET_PROTCOL;const Handler:IR_FRE_APS_FCOM_CLIENT_HANDLER;const BindIP: String=''; const BindPort: integer=0): EFOS_FCOM_MULTIERROR;
-    function  AddSocketListener               (const Bind_IP:String;const Bind_Port:integer;const IP_Layer:FCOM_IP_LAYER;const PROTOCOL:FCOM_SOCKET_PROTCOL;const Handler:IR_FRE_APS_FCOM_SERVER_HANDLER;const listener_reuse:boolean;out sock:IFRE_APS_SOCKET_EVENTSOURCE):EFOS_FCOM_MULTIERROR;
-    function  AddSocketListener_SSL           (const Bind_IP:String;const Bind_Port:integer;const IP_Layer:FCOM_IP_LAYER;const PROTOCOL:FCOM_SOCKET_PROTCOL;const Handler:IR_FRE_APS_FCOM_SERVER_HANDLER;const listener_reuse:boolean;out sock:IFRE_APS_SOCKET_EVENTSOURCE ;
-                                               const ssl_type:TFRE_FCOM_SSL_Type;const cerifificate_file,private_key_file,root_ca_file:string ; const PasswordCB:TFRE_SSL_Callback=nil; const verify_peer:boolean=false;const fail_no_peer_cert:boolean=false;const verify_peer_cert_once:boolean=true;const cipher_suites:string='DEFAULT'):EFOS_FCOM_MULTIERROR;
-
-    procedure AddCondFunctionEvent            (const Condition:TFRE_ConditionFunctionEvent;const Func:TFRE_DataMethod;const Data:Pointer;const dispatch_mode:TFRE_DispatchMode=dm_Sync);
-    procedure AddCondFuncEventSpec            (const Condition:TFRE_ConditionFunctionEvent;const Func:TFRE_DataMethod;const cp:integer;const TID:integer;const Data:Pointer);
-    procedure BroadCastCondition              ;
-    procedure BroadCastCondition              (const TID:integer);
-
-    procedure AsyncKill                       ;
-
-    procedure Schedule_Timed_LNM              (const in_milliseconds:cardinal;const LocalNestedProc : TFRE_Local_Nested_Method;const Data:TObject);
-
-    procedure Run                             ;
-    procedure Quit                            ;
-    procedure Start_As_Thread                 ;
-    procedure GetStatus                       (var state:RFRE_APS_STATUS);
-    //procedure PushSchedulingMethod            (const Method : TFRE_SimpleCallback;const deferred_schedule:boolean=false);
-  end;
+  //
+  //IFRE_APS_EVENTSOURCE=interface
+  //  procedure  MarkFinalize          ;
+  //  procedure  FinalizeIt            ;
+  //  procedure  FireEventManual       (const write:boolean=false);
+  //  procedure  Enable_Read_Pending   ;
+  //  procedure  Enable_Write_Pending  ;
+  //  procedure  Enable_Initialize     ;
+  //  procedure  QuiesceEventSource    ;
+  //end;
+  //
+  //IFRE_APS_SOCKET_EVENTSOURCE=interface(IFRE_APS_EVENTSOURCE)
+  //  function    GetSocket           :IFCOM_SOCK;
+  //end;
+  //
+  //IFRE_APS_TIMER=interface(IFRE_APS_EVENTSOURCE)
+  //end;
+  //
+  ////IFRE_APS_ONESHOT_TIMER=interface(IFRE_APS_EVENTSOURCE)
+  ////  procedure Rearm;
+  ////end;
+  //
+  //{ TFRE_EVENTCONDITION }
+  //IFRE_EVENTCONDITION=interface
+  //  procedure SetData              (const d:pointer);
+  //  function  GetData              :Pointer;
+  //  function  QueryConditionChange :boolean;
+  //  procedure WaitCondition        (const cont_point:cardinal);
+  //  function  ContPoint            :cardinal;
+  //  procedure ConditionHasChanged  ;
+  //  procedure Finalize             ;
+  //end;
+  //
+  //IFRE_APS_PROCESS = interface
+  //  procedure Setup       ;
+  //  procedure Terminate   ; // KILL
+  //  procedure ReInit      ; // HUP
+  //  procedure Interrupt   ; // CTRL-C
+  //  function  GetName     : String;
+  //  procedure Finalize    ;
+  //end;
+  //
+  //IR_FRE_APS_FCOM_CLIENT_HANDLER=record
+  //  ClientHandler      : TFRE_FCOM_APS_Event; //function  ClientHandler      (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean;
+  //  InitClientSock     : TFRE_FCOM_InitEvent; //procedure InitClientSock     (const SOCK:IFCOM_SOCK);
+  //  TearDownClientSock : TFRE_FCOM_TearDownEvent; //procedure TearDownClientSock (const Sock:IFCOM_SOCK);
+  //end;
+  //
+  //IR_FRE_APS_FCOM_SERVER_HANDLER=record
+  //  ServerHandler      : TFRE_FCOM_APS_Event; //  function  ServerHandler      (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean; // true -> reenable read
+  //  InitServerSock     : TFRE_FCOM_InitEvent;  //  procedure InitServerSock     (const SOCK:IFCOM_SOCK);
+  //  TearDownServerSock : TFRE_FCOM_TearDownEvent;  //  procedure TearDownServerSock (const Sock:IFCOM_SOCK);
+  //  ListenerError      : TFRE_FCOM_SocketError;  // procedure ListenerError      (const listener_sock:IFCOM_SOCK;const Error:EFOS_OS_ERROR); // Listener had an error and will be shutdown
+  //end;
+  //
+  //
+  //{ IFRE_APS }
+  //
+  //IFRE_APS=interface
+  //  procedure SetOnQuitProcedure              (const M:TProcedure);
+  //  function  GetNewConcurrencyResourceToken  :TFRE_ConcurrencyToken;
+  //  procedure DropConcurrencyResourceToken    (const ct:TFRE_ConcurrencyToken);
+  //  function  NewEventCondition               (const continuation_method:TFRE_ConditionEventContinuation;const dm:TFRE_DispatchMode):IFRE_EVENTCONDITION;
+  //  procedure DC                              (const P:TFRE_ConcurrentMethod;const used_token:TFRE_ConcurrencyToken); //Do Concurrent
+  //  procedure DCL                             (const P:TFRE_ConcurrentLocalM;const used_token:TFRE_ConcurrencyToken); //Do Concurrent Local Method
+  //  procedure Start                           (const P:IFRE_APS_PROCESS);
+  //  function  AddPeriodicTimer                (const time_ms:cardinal;const Func:TFRE_DataMethod;const Data:Pointer=nil;const dispatch_mode:TFRE_DispatchMode=dm_OneWorker;const TimerLostEvent:TFRE_Method=nil):IFRE_APS_TIMER;
+  //  function  AddPeriodicSignalTimer          (const time_ms:cardinal;const Func:TFRE_DataMethod;const Data:Pointer=nil;const dispatch_mode:TFRE_DispatchMode=dm_OneWorker):IFRE_APS_TIMER;
+  //  function  AddOneShotTimer                 (const time_ms:cardinal;const Func:TFRE_DataMethod;const Data:Pointer=nil;const dispatch_mode:TFRE_DispatchMode=dm_OneWorker):IFRE_APS_TIMER;
+  //  function  AddSocketClient                 (const Target_IP: String;const TargetPort: integer; const IP_Layer: FCOM_IP_LAYER;const PROTOCOL: FCOM_SOCKET_PROTCOL;const Handler:IR_FRE_APS_FCOM_CLIENT_HANDLER;const BindIP: String=''; const BindPort: integer=0): EFOS_FCOM_MULTIERROR;
+  //  function  AddSocketListener               (const Bind_IP:String;const Bind_Port:integer;const IP_Layer:FCOM_IP_LAYER;const PROTOCOL:FCOM_SOCKET_PROTCOL;const Handler:IR_FRE_APS_FCOM_SERVER_HANDLER;const listener_reuse:boolean;out sock:IFRE_APS_SOCKET_EVENTSOURCE):EFOS_FCOM_MULTIERROR;
+  //  function  AddSocketListener_SSL           (const Bind_IP:String;const Bind_Port:integer;const IP_Layer:FCOM_IP_LAYER;const PROTOCOL:FCOM_SOCKET_PROTCOL;const Handler:IR_FRE_APS_FCOM_SERVER_HANDLER;const listener_reuse:boolean;out sock:IFRE_APS_SOCKET_EVENTSOURCE ;
+  //                                             const ssl_type:TFRE_FCOM_SSL_Type;const cerifificate_file,private_key_file,root_ca_file:string ; const PasswordCB:TFRE_SSL_Callback=nil; const verify_peer:boolean=false;const fail_no_peer_cert:boolean=false;const verify_peer_cert_once:boolean=true;const cipher_suites:string='DEFAULT'):EFOS_FCOM_MULTIERROR;
+  //
+  //  procedure AddCondFunctionEvent            (const Condition:TFRE_ConditionFunctionEvent;const Func:TFRE_DataMethod;const Data:Pointer;const dispatch_mode:TFRE_DispatchMode=dm_Sync);
+  //  procedure AddCondFuncEventSpec            (const Condition:TFRE_ConditionFunctionEvent;const Func:TFRE_DataMethod;const cp:integer;const TID:integer;const Data:Pointer);
+  //  procedure BroadCastCondition              ;
+  //  procedure BroadCastCondition              (const TID:integer);
+  //
+  //  procedure AsyncKill                       ;
+  //
+  //  procedure Schedule_Timed_LNM              (const in_milliseconds:cardinal;const LocalNestedProc : TFRE_Local_Nested_Method;const Data:TObject);
+  //
+  //  procedure Run                             ;
+  //  procedure Quit                            ;
+  //  procedure Start_As_Thread                 ;
+  //  procedure GetStatus                       (var state:RFRE_APS_STATUS);
+  //  //procedure PushSchedulingMethod            (const Method : TFRE_SimpleCallback;const deferred_schedule:boolean=false);
+  //end;
 
 
   TAPSC_ListenerState = (als_BAD,als_LISTENING,als_STOPPED,als_LISTEN_ERROR,als_EVENT_NEW_LISTENER);

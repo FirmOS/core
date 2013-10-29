@@ -60,12 +60,13 @@ type
   published
     function WEB_OnUIChange      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_Content         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_LoginDlg        (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+    function WEB_LoginDlg        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_doLogin         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_doLogout        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_BuildSiteMap    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_BuildAppList    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_TakeOverSession (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_SendPageReload  (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -163,7 +164,7 @@ begin
     sta_ActiveNew,
     sta_ReUsed:
       begin
-        writeln(ses.GetDBConnection.SYS.dumpuserrights);
+        //writeln(ses.GetDBConnection.SYS.dumpuserrights);
         conn.FetchApplications(apps);
         if Length(apps)=0 then begin
           result := No_Apps_ForGuests(input,ses,app,conn); // => Apps for Guests or Login
@@ -175,7 +176,10 @@ begin
       end;
     sta_ReUseNotFound:
       begin
-        result := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION SUSPENDED','You can not resume your session ['+ses.GetSessionID+'], because it is suspended, please relogin.',fdbmt_wait);
+        // Inform about non found session
+        //result := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION SUSPENDED','You can not resume your session ['+ses.GetSessionID+'], because it is suspended, please relogin.',fdbmt_error,CWSF(@WEB_SendPageReload));
+        // Silently discard and send reload
+        result := WEB_SendPageReload(input,ses,app,conn);
       end;
   end;
 end;
@@ -295,7 +299,7 @@ var promotion_error   : TFRE_DB_String;
     res               : TFRE_DB_CONTENT_DESC;
     ex_session        : TFRE_DB_UserSession;
 begin
-  if input.Field('confirmed').AsString='true' then
+  if input.Field('confirmed').AsBoolean=true then
     begin
       GetSession(input,session,false);
       case session.Promote('','',promotion_error,false,true,take_over_content,ex_session) of
@@ -307,8 +311,13 @@ begin
     end
   else
     begin
-      result := TFRE_DB_MESSAGE_DESC.create.Describe('No takeover','You choose to not takeover the existing session',fdbmt_wait);
+      result := TFRE_DB_MESSAGE_DESC.create.Describe('No takeover','You choose to not takeover the existing session',fdbmt_info,CWSF(@WEB_SendPageReload));
     end;
+end;
+
+function TFRE_DB_LOGIN.WEB_SendPageReload(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  result := TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false);
 end;
 
 

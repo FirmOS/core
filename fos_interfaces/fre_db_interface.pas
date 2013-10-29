@@ -2248,8 +2248,6 @@ var
 
 implementation
 
-var     FDbgTimer             : IFRE_APS_TIMER;
-
 function RB_Guid_Compare(const d1, d2: TGuid): NativeInt;
 begin
  if (TGUID_Access(d1).Part1=TGUID_Access(d2).Part1) then begin
@@ -3230,11 +3228,6 @@ end;
 destructor TFRE_DB_UserSession.Destroy;
 begin
   RemoveAllTimers;
-  if assigned(FDbgTimer) then
-    begin
-      FDbgTimer.MarkFinalize;
-      FDbgTimer := nil;
-    end;
   if FPromoted then
     StoreSessionData;
   try

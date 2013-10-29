@@ -299,7 +299,7 @@ function   BIO_flush(b:PBio):integer;
 
 implementation
 
-uses FOS_LOCKING,FOS_FCOM_HANDLES;
+uses FOS_LOCKING;
 
 const SSL_MAX_LOCKS=100;
 

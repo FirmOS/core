@@ -43,7 +43,7 @@ unit fre_aps_comm_impl;
 interface
 
 uses
-  Classes, SysUtils,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_FCOM_INTERFACES,FOS_INTERLOCKED,FRE_FCOM_SSL,fos_fcom_handles,
+  Classes, SysUtils,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_FCOM_INTERFACES,FOS_INTERLOCKED,FRE_FCOM_SSL,
   FRE_LIBEVENT_CORE,sockets,errors,fre_system,fre_db_interface,fos_sparelistgen
   {$IFDEF UNIX}
   ,BASEUNIX

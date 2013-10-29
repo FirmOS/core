@@ -63,7 +63,7 @@ type
 
   TFRE_UserSession_Tree         = specialize TGFOS_RBTree<string,TFRE_DB_UserSession>;
 
-  TFRE_BASE_SERVER=class(TObject,IFRE_APS_PROCESS,IFRE_HTTP_BASESERVER)
+  TFRE_BASE_SERVER=class(TObject,IFRE_HTTP_BASESERVER)
   private
     FOpenDatabaseList  : OFRE_DB_ConnectionArr;
     FUserSessionsTree  : TFRE_UserSession_Tree;  //TODO-> make array
@@ -71,17 +71,9 @@ type
     FSessionTreeLock   : IFOS_LOCK;
 
     cont               : boolean;
-    flistener_es       : IFRE_APS_SOCKET_EVENTSOURCE;
-    flistener_es_ws    : IFRE_APS_SOCKET_EVENTSOURCE;
-
-    FIL_ListenSock     : IFRE_APS_SOCKET_EVENTSOURCE;
-    FIL_ListenSockSSL  : IFRE_APS_SOCKET_EVENTSOURCE;
     Foutput            : String;
     FLoginApp          : TFRE_DB_APPLICATION;
     FSystemConnection  : TFRE_DB_SYSTEM_CONNECTION;
-
-    FWFE_Scheduler     : IFRE_APS_TIMER;
-    FWFE_InTimer       : NativeInt;
 
     FDefaultSession           : TFRE_DB_UserSession;
 
@@ -90,7 +82,7 @@ type
 
     procedure      _CloseAll                                 ;
     procedure      _SetupHttpBaseServer                      ;
-    procedure      WFE_DispatchTimerEvent                    (const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
+    //procedure      WFE_DispatchTimerEvent                    (const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
     procedure      NewConnection                             (const session_id:string);
     procedure      ConnectionDropped                         (const session_id:string);
     procedure      BindInitialSession                        (const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean);
@@ -481,40 +473,40 @@ begin
     GFRE_BT.CriticalAbort('unexpected listener id in new channel?');
 end;
 
-procedure TFRE_BASE_SERVER.WFE_DispatchTimerEvent(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
-var FSession_dispatch_array   : Array of TFRE_DB_UserSession;
-    i                         : NativeInt;
-    lSession                  : TFRE_DB_UserSession;
-begin
-  FSessionTreeLock.Acquire;
-  try
-    //if FUserSessionsTree.QueryTreeChange then begin
-      FSession_dispatch_array := FUserSessionsTree.GetAllItemsAsArray;
-    //end;
-    for i := 0 to high(FSession_dispatch_array) do
-      begin
-        if FSession_dispatch_array[i].CheckUnboundSessionForPurge then
-          begin
-            if FUserSessionsTree.Delete(FSession_dispatch_array[i].GetSessionID,lSession) then
-              begin
-                writeln('FREEING USER SESSION ',lSession.GetSessionID,' user=',lSession.GetUsername,' from ',lSession.GetClientDetails);
-                try
-                  lSession.free;
-                except on e:exception do
-                  writeln('SESSION FREE FAILED : ',e.Message);
-                end;
-                FSession_dispatch_array[i]:=nil;
-              end
-            else
-              begin
-                writeln('--CRITICAL ?? - cannot delete unbound session ? ',FSession_dispatch_array[i].GetSessionID);
-              end;
-          end;
-      end;
-  finally
-    FSessionTreeLock.Release;
-  end;
-end;
+//procedure TFRE_BASE_SERVER.WFE_DispatchTimerEvent(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
+//var FSession_dispatch_array   : Array of TFRE_DB_UserSession;
+//    i                         : NativeInt;
+//    lSession                  : TFRE_DB_UserSession;
+//begin
+//  FSessionTreeLock.Acquire;
+//  try
+//    //if FUserSessionsTree.QueryTreeChange then begin
+//      FSession_dispatch_array := FUserSessionsTree.GetAllItemsAsArray;
+//    //end;
+//    for i := 0 to high(FSession_dispatch_array) do
+//      begin
+//        if FSession_dispatch_array[i].CheckUnboundSessionForPurge then
+//          begin
+//            if FUserSessionsTree.Delete(FSession_dispatch_array[i].GetSessionID,lSession) then
+//              begin
+//                writeln('FREEING USER SESSION ',lSession.GetSessionID,' user=',lSession.GetUsername,' from ',lSession.GetClientDetails);
+//                try
+//                  lSession.free;
+//                except on e:exception do
+//                  writeln('SESSION FREE FAILED : ',e.Message);
+//                end;
+//                FSession_dispatch_array[i]:=nil;
+//              end
+//            else
+//              begin
+//                writeln('--CRITICAL ?? - cannot delete unbound session ? ',FSession_dispatch_array[i].GetSessionID);
+//              end;
+//          end;
+//      end;
+//  finally
+//    FSessionTreeLock.Release;
+//  end;
+//end;
 
 procedure TFRE_BASE_SERVER.NewConnection(const session_id: string);
 begin
