@@ -4768,7 +4768,6 @@ begin
     exit;
   result := FREDB_PrefixStringInArray(_GetStdRightName(std_right,classtyp),FConnectionRights);
   if result=false then
-    writeln('CLASS RIGHT DENIED DOMAIN:',std_right,' ',classtyp.ClassName);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;

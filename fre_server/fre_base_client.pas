@@ -45,8 +45,10 @@ unit fre_base_client;
 interface
 
 uses
-  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_FCOM_INTERFACES,FRE_SYS_BASE_CS,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES,FOS_INTERLOCKED;
+  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FRE_SYS_BASE_CS,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES,FOS_INTERLOCKED,baseunix;
 
+var G_CONNREFUSED_TO : integer = 5;
+    G_RETRY_TO       : integer = 5;
 
 type
 
@@ -67,27 +69,34 @@ type
       FTimeout                 : integer;
       fMySessionID             : String;
       FClientState             : TBC_ClientState;
-      //FCMD_Signal              : IFRE_APS_TIMER;
       FContinuationArray       : Array [0..cFRE_DB_MAX_PENDING_CLIENT_REQUESTS] of TDispatch_Continuation;
       FContinnuationCount      : Nativeint;
       FContinuationLock        : IFOS_LOCK;
       FConnectionLock          : IFOS_LOCK;
       FBaseconnection          : TFRE_CLIENT_BASE_CONNECTION;
-      FClientSock              : IFCOM_SOCK;
       fsendcmd_id              : QWord;
       FClientQ                 : IFOS_LFQ;
 
+      FChannel                 : IFRE_APSC_CHANNEL;
+      FChannelTimer            : IFRE_APSC_TIMER;
+
     procedure CCB_SessionSetup        (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
 
-    //function  _GetClientHandler       : IR_FRE_APS_FCOM_CLIENT_HANDLER;
-    procedure ConnectionInit          (const SOCK:IFCOM_SOCK);
-    function  ConnectionHandler       (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean;
-    procedure ConnectionTearDown      (const Sock:IFCOM_SOCK);
+    procedure  NewChannel   (const channel : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState);
+    procedure  ChannelDisco (const channel : IFRE_APSC_CHANNEL);
+    procedure  ChannelRead  (const channel : IFRE_APSC_CHANNEL);
+
+    //procedure ConnectionInit          (const SOCK:IFCOM_SOCK);
+    //function  ConnectionHandler       (const Event:EFOS_FCOM_MULTIEVENT;const SOCK:IFCOM_SOCK;const Datacount:Integer):boolean;
+    //procedure ConnectionTearDown      (const Sock:IFCOM_SOCK);
+
     procedure SendServerCommand       (const base_connection: TFRE_CLIENT_BASE_CONNECTION; const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER=nil; const timeout: integer=5000);
-    procedure MyConnectionStateChange (sender:Tobject);
-    procedure MyStateCheckTimer       (const ES:IFRE_APS_EVENTSOURCE;const TID:integer;const Data:Pointer;const cp:integer=0); // Timout & CMD Arrived & Answer Arrived
-    procedure MyCommandAnswerArrived  (const sender:TObject;const cmd:IFRE_DB_COMMAND); // from socket
-    procedure MyRequestArrived        (const sender:TObject;const cmd:IFRE_DB_COMMAND); // from socket
+
+    procedure MyStateCheckTimer       (const TIM : IFRE_APSC_TIMER ; const flag1,flag2 : boolean); // Timout & CMD Arrived & Answer Arrived
+    procedure ChannelTimerCB          (const TIM : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
+
+    procedure MyCommandAnswerArrived  (const sender:TObject;const cmd:IFRE_DB_COMMAND);
+    procedure MyRequestArrived        (const sender:TObject;const cmd:IFRE_DB_COMMAND);
     procedure DispatchAnswers         ;
     procedure DispatchRequests        ;
   protected
@@ -98,14 +107,16 @@ type
     procedure Interrupt; virtual;
     procedure Setup;
   public
+    constructor Create                ;
     function  Get_AppClassAndUid      (const appkey : string ; out app_classname : TFRE_DB_String ; out uid : TGuid) : boolean;
     function  SendServerCommand       (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const ContinuationCB : TFRE_DB_CONT_HANDLER=nil;const timeout:integer=5000) : boolean;
     function  AnswerSyncCommand       (const command_id : QWord ; const data : IFRE_DB_Object) : boolean;
     procedure MySessionEstablished    ; virtual;
     procedure MySessionDisconnected   ; virtual;
-    procedure MySessionSetupFailed    ; virtual;
+    procedure MySessionSetupFailed    (const reason : string); virtual;
     procedure MyInitialize            ; virtual;
     procedure MyFinalize              ; virtual;
+    procedure MyConectionTimer        ; virtual;
     procedure QueryUserPass           (out user,pass:string);virtual;
     procedure RegisterRemoteMethods   (var remote_method_array : TFRE_DB_RemoteReqSpecArray); virtual;
     procedure WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); virtual;
@@ -155,10 +166,10 @@ begin
                 writeln('*** APP FINALIZE EXCEPTION');
               end;
             FApps:=nil;
-            FTimeout     := 5;
+            FTimeout     := G_RETRY_TO;
             FClientState := csTimeoutWait;
             fMySessionID := 'NEW';
-            MySessionSetupFailed;
+            MySessionSetupFailed(data.Field('LOGIN_TXT').AsString);
           end;
       end else begin
         //Connection failed due to an intermediate failure
@@ -170,55 +181,109 @@ begin
     cdcs_ERROR: begin
       writeln('Session Setup Error - Server Returned Error: ',error_txt);
       writeln(' ' ,FTimeout,' ',FClientState);
-      FTimeout     := 5;
+      FTimeout     := G_RETRY_TO;
       FClientState := csTimeoutWait;
     end;
   end;
 end;
 
-function TFRE_BASE_CLIENT._GetClientHandler: IR_FRE_APS_FCOM_CLIENT_HANDLER;
+procedure TFRE_BASE_CLIENT.NewChannel(const channel: IFRE_APSC_CHANNEL; const event: TAPSC_ChannelState);
+var data           : IFRE_DB_Object;
+    fuser          : string;
+    fpass          : string;
+
 begin
-  //TFRE_CLIENT_BASE_CONNECTION
-  result.ClientHandler      := @ConnectionHandler;
-  result.InitClientSock     := @ConnectionInit;
-  result.TearDownClientSock := @ConnectionTeardown;
+  case event of
+    ch_NEW_CS_CONNECTED:
+      begin;
+        FClientState    := csSETUPSESSION;
+        FBaseconnection := TFRE_CLIENT_BASE_CONNECTION.Create(Channel);
+        FBaseconnection.OnNewCommandAnswerHere  := @MyCommandAnswerArrived;
+        FBaseconnection.OnNewServerRequest      := @MyRequestArrived;
+        data := GFRE_DBI.NewObject;
+        data.Field('SESSION_ID').AsString:=fMySessionID;
+        QueryUserPass(fuser,fpass);
+        if fuser<>'' then begin
+          data.Field('USER').AsString:=fuser;
+          data.Field('PASS').AsString:=fpass;
+        end;
+        SendServerCommand(FBaseconnection,'FIRMOS','INIT',Nil,data,@CCB_SessionSetup,5000); // Pending Q
+        channel.CH_Enable_Reading;
+      end;
+    else
+      GFRE_BT.CriticalAbort('unexpected newchannel event' +inttostr(ord(event)));
+  end;
 end;
 
-procedure TFRE_BASE_CLIENT.ConnectionInit(const SOCK: IFCOM_SOCK);
+procedure TFRE_BASE_CLIENT.ChannelDisco(const channel: IFRE_APSC_CHANNEL);
 begin
-  FConnectionLock.Acquire;
-    FBaseconnection                         := TFRE_CLIENT_BASE_CONNECTION.Create(sock);
-    sock.Data                               := FBaseconnection;
-    FBaseconnection.OnConnectionStateChange := @MyConnectionStateChange;
-    FBaseconnection.OnNewCommandAnswerHere  := @MyCommandAnswerArrived;
-    FBaseconnection.OnNewServerRequest      := @MyRequestArrived;
-    FClientSock                             := Sock;
-  FConnectionLock.Release;
-end;
+  if channel.CH_GetState<>ch_EOF then
+    begin
+      FTimeout     := G_CONNREFUSED_TO;
+      if channel.CH_GetErrorCode=ESysECONNREFUSED then
+        FClientState := csTimeoutwait;
+    end;
 
-function TFRE_BASE_CLIENT.ConnectionHandler(const Event: EFOS_FCOM_MULTIEVENT; const SOCK: IFCOM_SOCK; const Datacount: Integer): boolean;
-begin
+  if FClientState=csConnected then
+    MySessionDisconnected;
+
   FConnectionLock.Acquire;
   try
-    result := TFRE_CLIENT_BASE_CONNECTION(sock.Data).Handler(Event,Datacount);
+    if assigned(FBaseconnection) then
+      begin
+         FBaseconnection.Finalize;
+         FBaseconnection := nil;
+      end;
+    if FClientState=csConnected then
+      FClientState := csUnknown
+    else
+      FClientState := csTimeoutWait
   finally
+    FChannel := nil;
     FConnectionLock.Release;
   end;
 end;
 
-procedure TFRE_BASE_CLIENT.ConnectionTearDown(const Sock: IFCOM_SOCK);
+procedure TFRE_BASE_CLIENT.ChannelRead(const channel: IFRE_APSC_CHANNEL);
 begin
-  //if FClientState=csConnected then
-  //  MySessionDisconnected;
-  FConnectionLock.Acquire;
-   TFRE_CLIENT_BASE_CONNECTION(sock.Data).Finalize;
-   FBaseconnection := nil;
-   if FClientState=csConnected then begin
-     FClientState := csUnknown;
-   end;
-   FClientSock := nil;
-   FConnectionLock.Release;
+  FBaseconnection.Handler(channel,channel.CH_GetDataCount);
 end;
+
+//procedure TFRE_BASE_CLIENT.ConnectionInit(const SOCK: IFCOM_SOCK);
+//begin
+//  FConnectionLock.Acquire;
+//    FBaseconnection                         := TFRE_CLIENT_BASE_CONNECTION.Create(sock);
+//    sock.Data                               := FBaseconnection;
+//    FBaseconnection.OnConnectionStateChange := @MyConnectionStateChange;
+//    FBaseconnection.OnNewCommandAnswerHere  := @MyCommandAnswerArrived;
+//    FBaseconnection.OnNewServerRequest      := @MyRequestArrived;
+//    FClientSock                             := Sock;
+//  FConnectionLock.Release;
+//end;
+
+//function TFRE_BASE_CLIENT.ConnectionHandler(const Event: EFOS_FCOM_MULTIEVENT; const SOCK: IFCOM_SOCK; const Datacount: Integer): boolean;
+//begin
+//  FConnectionLock.Acquire;
+//  try
+//    result := TFRE_CLIENT_BASE_CONNECTION(sock.Data).Handler(Event,Datacount);
+//  finally
+//    FConnectionLock.Release;
+//  end;
+//end;
+
+//procedure TFRE_BASE_CLIENT.ConnectionTearDown(const Sock: IFCOM_SOCK);
+//begin
+//  //if FClientState=csConnected then
+//  //  MySessionDisconnected;
+//  FConnectionLock.Acquire;
+//   TFRE_CLIENT_BASE_CONNECTION(sock.Data).Finalize;
+//   FBaseconnection := nil;
+//   if FClientState=csConnected then begin
+//     FClientState := csUnknown;
+//   end;
+//   FClientSock := nil;
+//   FConnectionLock.Release;
+//end;
 
 procedure TFRE_BASE_CLIENT.SendServerCommand(const base_connection: TFRE_CLIENT_BASE_CONNECTION; const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER; const timeout: integer);
 var i       : integer;
@@ -248,79 +313,43 @@ begin
   end;
 end;
 
-procedure TFRE_BASE_CLIENT.MyConnectionStateChange(sender: Tobject);
-var hc             : TCONNECTION_STATE;
-    base_connction : TFRE_CLIENT_BASE_CONNECTION;
-    data           : IFRE_DB_Object;
-    fuser          : string;
-    fpass          : string;
-
+procedure TFRE_BASE_CLIENT.MyStateCheckTimer(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
 begin
-  base_connction := TFRE_CLIENT_BASE_CONNECTION(sender);
-  hc := base_connction.ConnectionState;
-  //writeln('state changed ',hc);
-  case  hc of
-    cls_TIMEOUT: begin;
-                 end;
-    cls_REFUSED: begin;
-                   //writeln('CONNECTION REFUSED');
-                   FTimeout     := 10;
-                   FClientState := csTimeoutwait;
-                 end;
-    cls_ERROR: ;
-    cls_CONNECTED: begin
-                     FClientState := csSETUPSESSION;
-                     data := GFRE_DBI.NewObject;
-                     data.Field('SESSION_ID').AsString:=fMySessionID;
-                     QueryUserPass(fuser,fpass);
-                     if fuser<>'' then begin
-                       data.Field('USER').AsString:=fuser;
-                       data.Field('PASS').AsString:=fpass;
-                     end;
-                     SendServerCommand(base_connction,'FIRMOS','INIT',Nil,data,@CCB_SessionSetup,5000); // Pending Q
+  if (flag1=false) and (flag2=false) then
+    begin
+      case FClientState of
+        csUnknown: begin
+                     FClientState:=csWaitConnect;
+                     GFRE_SC.AddClient_TCP('0.0.0.0','44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco);
                    end;
-    cls_OK:      begin
-                 end;
-    cls_CLOSED:  begin
-                     if FClientState=csConnected then
-                       MySessionDisconnected;
-                 end;
-  end;
-end;
+        csWaitConnect: begin
 
-procedure TFRE_BASE_CLIENT.MyStateCheckTimer(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
-var  me : EFOS_FCOM_MULTIERROR;
-begin
-  //writeln('STATECHECK ',FClientState,' ',FTimeout,' ',integer(Data),' ',cp,' ',TID);
-  case cp of
-    0: begin  // Timeout
-          case FClientState of
-            csUnknown: begin
-                         //writeln('LAUNCHING NEW CLIENT');
-                         FClientState:=csWaitConnect;
-                         GFRE_S.AddSocketClient('*',44001,fil_IPV4,fsp_TCP,_GetClientHandler);
-                       end;
-            csWaitConnect: begin
-
-                       end;
-            csConnected: begin
-                         end;
-            csTimeoutWait:begin
-                         dec(FTimeout);
-                         if FTimeout<=0 then begin
-                           FClientState:=csUnknown;
-                         end;
-                       end;
-          end;
-       end;
-     1: begin // Answer Arrived
-          DispatchAnswers;
-        end;
-     2: begin // Service Requests
-          DispatchRequests;
-        end;
+                   end;
+        csConnected: begin
+                     end;
+        csTimeoutWait:begin
+                     dec(FTimeout);
+                     if FTimeout<=0 then begin
+                       FClientState:=csUnknown;
+                     end;
+                   end;
+      end;
+    end;
+  if (flag1=true) then
+    begin
+      DispatchAnswers;
+    end;
+  if (flag2=true) then
+    begin
+      DispatchRequests;
     end;
 end;
+
+procedure TFRE_BASE_CLIENT.ChannelTimerCB(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
+begin
+  MyConectionTimer;
+end;
+
 
 procedure TFRE_BASE_CLIENT.MyCommandAnswerArrived(const sender: TObject; const cmd: IFRE_DB_COMMAND);
 var i              : integer;
@@ -339,7 +368,7 @@ begin
     FContinuationLock.Release;
   end;
   if answer_matched then begin
-    FCMD_Signal.FireEventManual(false);
+    DispatchAnswers;
   end else begin
     GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN COMMAND CID=%d',[CMD.CommandID],catError);
     CMD.Finalize;
@@ -349,7 +378,7 @@ end;
 procedure TFRE_BASE_CLIENT.MyRequestArrived(const sender: TObject; const cmd: IFRE_DB_COMMAND);
 begin
   FClientQ.Push(cmd.Implementor_HC);
-  FCMD_Signal.FireEventManual(true); // Write Signal // Maybe do it async in a seperate thread ?
+  DispatchRequests;
 end;
 
 procedure TFRE_BASE_CLIENT.DispatchAnswers;
@@ -418,7 +447,7 @@ end;
 procedure TFRE_BASE_CLIENT.Terminate;
 begin
   writeln('-QUIT-');
-  GFRE_S.Quit;
+  GFRE_SC.RequestTerminate;
 end;
 
 procedure TFRE_BASE_CLIENT.ReInit;
@@ -429,9 +458,9 @@ end;
 procedure TFRE_BASE_CLIENT.Finalize;
 begin
   MyFinalize;
-  if assigned(FClientSock) then begin
-    FClientSock.Finalize;
-  end;
+  //if assigned(FClientSock) then begin
+  //  FClientSock.Finalize;
+  //end;
   if assigned(FBaseconnection) then begin
     FBaseconnection.Finalize;
   end;
@@ -441,14 +470,13 @@ begin
   FClientQ.Finalize;
   FContinuationLock.Finalize;
   FConnectionLock.Finalize;
-  FCMD_Signal.FinalizeIt;
 end;
 
 procedure TFRE_BASE_CLIENT.Interrupt;
 begin
   if G_NO_INTERRUPT_FLAG THEN exit;
   writeln('INTERRUPT');
-  GFRE_S.Quit;
+  GFRE_SC.RequestTerminate;
 end;
 
 procedure TFRE_BASE_CLIENT.Setup;
@@ -460,7 +488,14 @@ begin
   GFRE_TF.Get_Lock(FConnectionLock);
   GFRE_TF.Get_LFQ(FClientQ);
   MyInitialize;
-  FCMD_Signal  := GFRE_S.AddPeriodicSignalTimer(1000,@MyStatecheckTimer);
+  //GFRE_SC.SetNewTimerCB(@SetupTimers);
+  GFRE_SC.AddTimer('F_STATE',1000,@MyStateCheckTimer);
+end;
+
+constructor TFRE_BASE_CLIENT.Create;
+begin
+  inherited;
+  Setup;
 end;
 
 function TFRE_BASE_CLIENT.Get_AppClassAndUid(const appkey: string; out app_classname: TFRE_DB_String; out uid: TGuid): boolean;
@@ -482,6 +517,11 @@ end;
 procedure TFRE_BASE_CLIENT.MyFinalize;
 begin
 
+end;
+
+procedure TFRE_BASE_CLIENT.MyConectionTimer;
+begin
+  writeln('-> CONNECTION TIMER ACTIVE');
 end;
 
 procedure TFRE_BASE_CLIENT.QueryUserPass(out user, pass: string);
@@ -535,7 +575,9 @@ end;
 
 procedure TFRE_BASE_CLIENT.MySessionEstablished;
 begin
-
+  FChannelTimer := FChannel.GetChannelManager.AddTimer(1000);
+  FChannelTimer.TIM_SetID('CT');
+  FChannelTimer.TIM_SetCallback(@ChannelTimerCB);
 end;
 
 procedure TFRE_BASE_CLIENT.MySessionDisconnected;
@@ -543,9 +585,9 @@ begin
 
 end;
 
-procedure TFRE_BASE_CLIENT.MySessionSetupFailed;
+procedure TFRE_BASE_CLIENT.MySessionSetupFailed(const reason: string);
 begin
-
+  writeln('SETUP FAILED REASON : ',reason);
 end;
 
 

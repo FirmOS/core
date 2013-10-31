@@ -51,7 +51,7 @@ type
 
   TFRE_SAMPLE_FEED_CLIENT=class(TFRE_BASE_CLIENT)
   private
-    FEED_Timer            : IFRE_APS_TIMER;
+    FEED_Timer            : IFRE_APSC_TIMER;
     FFeeding              : Boolean;
     FFeedAppClass         : TFRE_DB_String;
     FFeedAppUid           : TGUid;
@@ -62,7 +62,8 @@ type
     procedure  RegisterRemoteMethods   (var remote_method_array : TFRE_DB_RemoteReqSpecArray); override;
     procedure  MyInitialize            ; override;
     procedure  MyFinalize              ; override;
-    procedure  GenerateFeedDataTimer   (const ES:IFRE_APS_EVENTSOURCE;const TID:integer;const Data:Pointer;const cp:integer=0);
+    procedure  GenerateFeedDataTimer   (const TIM : IFRE_APSC_TIMER ; const flag1,flag2 : boolean); // Timout & CMD Arrived & Answer Arrived
+
     procedure  WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); override;
     function   ListDirLevel            (const basepath : string):IFRE_DB_Object;
     function   GetFileDirInfo          (const fileid : string):IFRE_DB_Object;
@@ -108,17 +109,18 @@ end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyInitialize;
 begin
-  FEED_Timer      := GFRE_S.AddPeriodicTimer (5000,@GenerateFeedDataTimer);
+  FEED_Timer      := GFRE_SC.AddTimer('FEED',1000,@GenerateFeedDataTimer);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
   GFRE_DBI.Initialize_Extension_Objects;
   FREDB_LoadMimetypes('');
 end;
+
 procedure TFRE_SAMPLE_FEED_CLIENT.MyFinalize;
 begin
-  FEED_Timer.FinalizeIt;
+  FEED_Timer.Finalize;
 end;
 
-procedure TFRE_SAMPLE_FEED_CLIENT.GenerateFeedDataTimer(const ES: IFRE_APS_EVENTSOURCE; const TID: integer; const Data: Pointer; const cp: integer);
+procedure TFRE_SAMPLE_FEED_CLIENT.GenerateFeedDataTimer(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
 var vmo : IFRE_DB_Object;
 begin
   if FFeeding then
@@ -140,20 +142,22 @@ end;
 procedure TFRE_SAMPLE_FEED_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
 var reply_data : IFRE_DB_Object;
 begin
+  GFRE_LOG.Log('>TRY INVOKE '+rclassname+'.'+rmethodname,' CID='+inttostr(command_id));
   if (rclassname='SAMPLEFEEDER') and (rmethodname='BROWSEPATH') then
     begin
       reply_data := ListDirLevel(input.Field('level').AsString);
       input.Finalize;
-      writeln('REPLY ON REQUEST SAMPLEFEEDER.BROWSEPATH ',reply_data.DumpToString());
+      GFRE_LOG.Log('REPLY ON REQUEST SAMPLEFEEDER.BROWSEPATH ','FEEDER');
       AnswerSyncCommand(command_id,reply_data);
     end;
   if (rclassname='SAMPLEFEEDER') and (rmethodname='GETFILEDIRINFO') then
     begin
       reply_data := GetFileDirInfo(input.Field('fileid').AsString);
       input.Finalize;
-      writeln('REPLY ON REQUEST SAMPLEFEEDER.GETFILEDIRINFO ',reply_data.DumpToString());
+     GFRE_LOG.Log('REPLY ON REQUEST SAMPLEFEEDER.GETFILEDIRINFO ','FEEDER');
       AnswerSyncCommand(command_id,reply_data);
     end;
+  GFRE_LOG.Log('<TRY INVOKE '+rclassname+'.'+rmethodname,' CID='+inttostr(command_id));
 end;
 
 function TFRE_SAMPLE_FEED_CLIENT.ListDirLevel(const basepath: string): IFRE_DB_Object;

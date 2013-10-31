@@ -42,7 +42,7 @@ unit fre_webssocket_baseserver;
 interface
 
 uses
-  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_INTERFACES,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS,FRE_HTTP_SRVHANDLER,strutils,math,
+  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS,FRE_HTTP_SRVHANDLER,strutils,math,
   FRE_DB_INTERFACE,FRE_DB_COMMON,FRE_DB_CORE,FRE_SYSTEM,fre_binary_buffer,
   fpjson,jsonparser,
   FRE_WAPP_DOJO;
@@ -247,8 +247,8 @@ begin
        // Fsock.Close;
         exit;
       end else begin
-        //GFRE_DBI.LogDebug(dblc_WEBSOCK,'>>INPUT '+FChannel.GetVerboseDesc);
-        //GFRE_DBI.LogDebug(dblc_WEBSOCK,dataframe);
+        GFRE_DBI.LogDebug(dblc_WEBSOCK,'>>INPUT '+FChannel.GetVerboseDesc);
+        GFRE_DBI.LogDebug(dblc_WEBSOCK,dataframe);
         in_params  := GFRE_DBI.JSONObject2Object(dataframe);
         //GFRE_DBI.LogDebug(dblc_WEBSOCK,in_params.DumpToString(10));
         //GFRE_DBI.LogDebug(dblc_WEBSOCK,'********************************************************');
@@ -885,7 +885,7 @@ end;
 
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Default_Provider(const uri: TFRE_HTTP_URI);
-var lContent  : TFRE_DB_RawByteString;
+var  lContent  : TFRE_DB_RawByteString;
     lFilename : string;
     i         : Integer;
     class_guid      : TGUID;
@@ -913,7 +913,7 @@ begin
     end else begin
       if (length(uri.SplitPath)>0) and
         (uri.SplitPath[0]='download') then begin //FIXXME: (Heli) Hack to test download
-        ResponseHeader[rh_contentDisposition] := 'attachment; filename="hallo.txt"';
+        ResponseHeader[rh_contentDisposition] := 'attachment; filename="measurement.zip"';
         lcontent:='Simple text content.';
         _SendHttpResponse(200,'OK',[],lcontent,'text/plain');
       end else begin

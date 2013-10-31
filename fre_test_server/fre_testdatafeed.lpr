@@ -70,6 +70,7 @@ type
     constructor Create(TheOwner: TComponent); override;
     destructor  Destroy; override;
     procedure   WriteHelp; virtual;
+    procedure   CfgTestLog;
   end;
 
 { TFRE_TESTDATA_FEED }
@@ -79,7 +80,7 @@ var
   ErrorMsg   : String;
   FeedClient : TFRE_SAMPLE_FEED_CLIENT;
 begin
-  ErrorMsg:=CheckOptions('hDU:H:u:p:',['help','debugger','remoteuser:','remotehost:','user:','pass:']);
+  ErrorMsg:=CheckOptions('hDU:H:u:p:',['help','debugger','remoteuser:','remotehost:','user:','pass:','test-log']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -114,17 +115,20 @@ begin
   end;
 
   Initialize_Read_FRE_CFG_Parameter;
+
+  if HasOption('*','test-log') then
+    begin
+      writeln('configuring testlogging');
+      CfgTestLog;
+    end;
+
   InitEmbedded;
   Init4Server;
   GFRE_DBI.SetLocalZone('Europe/Vienna');
-  SetupAPS;
   Setup_APS_Comm;
   FeedClient := TFRE_SAMPLE_FEED_CLIENT.Create;
-  GFRE_S.Start(FeedClient);
-  GFRE_S.Run;
-  TearDownAPS;
+  GFRE_SC.RunUntilTerminate;
   Teardown_APS_Comm;
-  Shutdown_Done;
   FeedClient.Free;
   Terminate;
 end;
@@ -146,6 +150,21 @@ begin
   writeln('Usage: ',ExeName,' -h');
   writeln('  -U            | --remoteuser           : user for remote commands');
   writeln('  -H            | --remotehost           : host for remote commands');
+end;
+
+procedure TFRE_TESTDATA_FEED.CfgTestLog;
+begin
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry);  // Server / Connection Start/Close
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Info,'*',flra_DropEntry); // Http/Header / Content
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Debug,'*',flra_DropEntry); // Http/Header / Content
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry); // Server / Dispatch / Input Output
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry); // Websock / JSON / IN / OUT
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // Persistance Layer Debugging
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry); // Database /Filter / Layer Debugging
+  GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
+  GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
+  GFRE_LOG.DisableSyslog;
+  GFRE_LOG.Log('TESTENTRY','START');
 end;
 
 var

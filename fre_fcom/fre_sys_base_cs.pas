@@ -44,7 +44,7 @@ unit fre_sys_base_cs;
 interface
 
 uses
-  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_FCOM_INTERFACES,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE,FOS_INTERLOCKED;
+  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE,FOS_INTERLOCKED;
 
 const cCMD_MAXSize                        = 512*1024;
       cFRE_DB_MAX_PENDING_CLIENT_REQUESTS = 10;
@@ -56,7 +56,7 @@ type TFRE_FCOM_PROTO            = (cfp_TLS); //UDP,TLS,SSH,CLUSTER ...
      TFRE_CMD_ERROR_TYPE        = (cce_INVALID_PROTOVERSION,cce_LOGIN_WRONG);
 
      TINTERNAL_CONNECTION_STATE = (cs_TRYCONNECT,cs_READY,cs_CONTCMD,cs_LOGINFAIL,cs_TIMEOUT,cs_WAITCMD);
-     TCONNECTION_STATE          = (cls_TIMEOUT,cls_REFUSED,cls_ERROR,cls_CONNECTED,cls_OK,cls_CLOSED);
+     //TCONNECTION_STATE          = (cls_TIMEOUT,cls_REFUSED,cls_ERROR,cls_CONNECTED,cls_OK,cls_CLOSED);
 
      TSERVED_CONNECTION_STATE   = (ss_CONNECTED,ss_CONTCMD,ss_READY,ss_WAITCMD);
      TCMD_READ_STATE            = (crs_OK,crs_WAIT_CMD_SZ,crs_PARTIAL_READ,crs_COMMAND_TOO_LONG,crs_FAULT);
@@ -78,11 +78,9 @@ type TFRE_FCOM_PROTO            = (cfp_TLS); //UDP,TLS,SSH,CLUSTER ...
     function           _ReadRest    (dc:cardinal;out cmd:IFRE_DB_COMMAND):TCMD_READ_STATE;
   public
     SessionID   :String;
-    //SOCK        :IFCOM_SOCK;
     constructor Create;
     destructor  Destroy;override;
     procedure   SetChannel          (const channel : IFRE_APSC_CHANNEL);
-    function    Handler             (const Event:EFOS_FCOM_MULTIEVENT;const Datacount:Integer):boolean;virtual;abstract;
     procedure   HandleError         (const err:String);
     Function    GetSessionID        :String;
   end;
@@ -91,30 +89,25 @@ type TFRE_FCOM_PROTO            = (cfp_TLS); //UDP,TLS,SSH,CLUSTER ...
   TFRE_CLIENT_BASE_CONNECTION=class(TFRE_DB_SOCK_CONNECTION)
   private
     var
-      FOnConnectionStateChange : TNotifyEvent;
       FOnNewCommandAnswerHere  : TFRE_DB_CMD_Request;
       FOnNewServerRequest      : TFRE_DB_CMD_Request;
       state                    : TINTERNAL_CONNECTION_STATE;
-      con_state                : TCONNECTION_STATE;
       Ferror                   : string;
 
-    procedure   SetOnConnectionStateChange (AValue: TNotifyEvent);
     procedure   SetOnNewCommandAnswerHere  (AValue: TFRE_DB_CMD_Request);
     procedure   SetOnNewServerRequest      (AValue: TFRE_DB_CMD_Request);
-    procedure   _Statechanged;
   protected
     //function   _ReadACommand(const cmd:IFRE_DB_COMMAND):boolean; // True = Answer = State change
   public
     READ_CMD    : IFRE_DB_Object;
     procedure   InvokeServerCommand (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const CID : Qword;const async:boolean);
     procedure   SendSyncAnswer      (const CID : Qword ; const data : IFRE_DB_Object);
-    constructor Create              (const socket:IFCOM_SOCK);
+    constructor Create              (const channel:IFRE_APSC_CHANNEL);
     destructor  Destroy             ;override;
-    function    ConnectionState     :TCONNECTION_STATE;
-    function    Handler             (const Event:EFOS_FCOM_MULTIEVENT;const Datacount:Integer):boolean;override;
+    //function    ConnectionState     :TCONNECTION_STATE;
+    function    Handler             (const channel : IFRE_APSC_CHANNEL ;const Datacount:Integer):boolean;
     procedure   Test;
     procedure   Finalize;
-    property    OnConnectionStateChange : TNotifyEvent read FOnConnectionStateChange write SetOnConnectionStateChange; // Not Threadsafe
     property    OnNewCommandAnswerHere  : TFRE_DB_CMD_Request read FOnNewCommandAnswerHere write SetOnNewCommandAnswerHere; // Not Threadsafe
     property    OnNewServerRequest      : TFRE_DB_CMD_Request read FOnNewServerRequest write SetOnNewServerRequest; //
   end;
@@ -141,7 +134,6 @@ type TFRE_FCOM_PROTO            = (cfp_TLS); //UDP,TLS,SSH,CLUSTER ...
     procedure   DisconnectChannel         (const channel:IFRE_APSC_CHANNEL);
     constructor Create                    ;
     destructor  Destroy                   ;override;
-    function    Handler                   (const Event:EFOS_FCOM_MULTIEVENT;const Datacount:Integer):boolean;override;
     procedure   Send_ServerClient         (const ECN:IFRE_DB_COMMAND);
     property    OnBindInitialSession      : TFRE_DB_FetchSessionCB read FOnBindDefaultSession write SetOnBindDefaultSession;
     property    OnUnbindSession           : TFRE_DB_SessionCB read FOnUnbindSession write SetOnUnbindSession;
@@ -157,11 +149,6 @@ implementation
 
 { TFRE_CLIENT_BASE_CONNECTION }
 
-procedure TFRE_CLIENT_BASE_CONNECTION.SetOnConnectionStateChange(AValue: TNotifyEvent);
-begin
-  FOnConnectionStateChange:=AValue;
-end;
-
 procedure TFRE_CLIENT_BASE_CONNECTION.SetOnNewCommandAnswerHere(AValue: TFRE_DB_CMD_Request);
 begin
   FOnNewCommandAnswerHere:=AValue;
@@ -170,13 +157,6 @@ end;
 procedure TFRE_CLIENT_BASE_CONNECTION.SetOnNewServerRequest(AValue: TFRE_DB_CMD_Request);
 begin
   FOnNewServerRequest:=AValue;
-end;
-
-procedure TFRE_CLIENT_BASE_CONNECTION._Statechanged;
-begin
-  if assigned(FOnConnectionStateChange) then begin
-    FOnConnectionStateChange(Self);
-  end;
 end;
 
 //function TFRE_CLIENT_BASE_CONNECTION._ReadACommand(const cmd: IFRE_DB_COMMAND):boolean;
@@ -252,11 +232,12 @@ begin
   end;
 end;
 
-constructor TFRE_CLIENT_BASE_CONNECTION.Create(const socket: IFCOM_SOCK);
+constructor TFRE_CLIENT_BASE_CONNECTION.Create(const channel: IFRE_APSC_CHANNEL);
 begin
   inherited Create;
-  state       := cs_TRYCONNECT;
+  state       := cs_READY;
   SessionID   := '-';
+  FCHANNEL    := channel;
 end;
 
 destructor TFRE_CLIENT_BASE_CONNECTION.Destroy;
@@ -266,7 +247,7 @@ begin
 end;
 
 
-function TFRE_CLIENT_BASE_CONNECTION.Handler(const Event: EFOS_FCOM_MULTIEVENT; const Datacount: Integer):boolean;
+function TFRE_CLIENT_BASE_CONNECTION.Handler(const channel: IFRE_APSC_CHANNEL; const Datacount: Integer): boolean;
 var s           : String;
     sr          : NativeInt;
     sw          : NativeInt;
@@ -282,9 +263,7 @@ var s           : String;
         fCMD_SIZE      := 0;
         sizehdr_pos    := 0;
         if cmd.Answer then begin
-          writeln('>GOT ANSWER');
           FOnNewCommandAnswerHere(self,cmd);
-          writeln('<GOT ANSWER');
         end else begin // Request
           FOnNewServerRequest(self,cmd);
         end;
@@ -292,7 +271,6 @@ var s           : String;
         writeln('DISPATCHING ERROR ',e.Message);
       end;end;
     end;
-
 
     procedure _Read_DB_Command;
     begin
@@ -333,33 +311,34 @@ begin
   //    end;
   //  end;
   //  esv_SOCKREAD: begin
-  //    case state of
-  //      cs_READY: begin
-  //        case _ReadHeader(myDatacount) of
-  //          crs_OK:          ;
-  //          crs_WAIT_CMD_SZ: exit;
-  //          crs_FAULT:       SOCK.CloseEnqueue(99); // Drop connection
-  //        end;
-  //        state := cs_WAITCMD;
-  //        if myDataCount>0 then begin
-  //          _Read_DB_Command;
-  //        end;
-  //        exit;
-  //      end;
-  //      cs_WAITCMD: _Read_DB_Command;
-  //      cs_CONTCMD: begin
-  //        writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
-  //        case _ReadRest(myDatacount,cmd) of
-  //          crs_OK: begin
-  //            state:=cs_READY;
-  //            _Dispatch;
-  //            exit;
-  //          end;
-  //          crs_PARTIAL_READ: exit; // Stay in state
-  //        end;
-  //      end;
-  //      else HandleError(SOCK,'invalid state for SOCKREAD event');
-  //    end;
+      myDatacount:=Datacount;
+      case state of
+        cs_READY: begin
+          case _ReadHeader(myDatacount) of
+            crs_OK:          ;
+            crs_WAIT_CMD_SZ: exit;
+            crs_FAULT:       channel.Finalize;
+          end;
+          state := cs_WAITCMD;
+          if myDataCount>0 then begin
+            _Read_DB_Command;
+          end;
+          exit;
+        end;
+        cs_WAITCMD: _Read_DB_Command;
+        cs_CONTCMD: begin
+          writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
+          case _ReadRest(myDatacount,cmd) of
+            crs_OK: begin
+              state:=cs_READY;
+              _Dispatch;
+              exit;
+            end;
+            crs_PARTIAL_READ: exit; // Stay in state
+          end;
+        end;
+        else HandleError('Read Failed');
+      end;
   //  end;
   //  esv_SOCKWRITE: begin
   //      HandleError(SOCK,'invalid state for SOCKWRITE event');
@@ -416,11 +395,6 @@ begin
 end;
 
 
-function TFRE_CLIENT_BASE_CONNECTION.ConnectionState: TCONNECTION_STATE;
-begin
-  result:=con_state;
-end;
-
 procedure TFRE_SERVED_BASE_CONNECTION.SetOnBindDefaultSession(AValue: TFRE_DB_FetchSessionCB);
 begin
   FOnBindDefaultSession:=AValue;
@@ -452,8 +426,7 @@ begin
 end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.ReadChannelData(const channel: IFRE_APSC_CHANNEL);
-var data_count  : NativeInt;
-    myDataCount : NativeInt;
+var myDataCount : NativeInt;
 
     //s           : String;
     //sr          : integer;
@@ -478,19 +451,19 @@ var data_count  : NativeInt;
         state := ss_READY;
         fCMD_SIZE:=0;
         sizehdr_pos:=0;
-        GFRE_DBI.LogDebug(dblc_FLEXCOM,'>>INPUT FROM : '+FCHANNEL.GetVerboseDesc);
-        GFRE_DBI.LogDebug(dblc_FLEXCOM,CMD.AsDBODump);
-        GFRE_DBI.LogDebug(dblc_FLEXCOM,'********************************************************');
+        //GFRE_DBI.LogDebug(dblc_FLEXCOM,'>>INPUT FROM : '+FCHANNEL.GetVerboseDesc);
+        //GFRE_DBI.LogDebug(dblc_FLEXCOM,CMD.AsDBODump);
+        //GFRE_DBI.LogDebug(dblc_FLEXCOM,'********************************************************');
         if not assigned(FUserSession) then begin
           if (CMD.InvokeClass='FIRMOS') and (CMD.InvokeMethod='INIT') and (CMD.Answer=false) then begin
             try
               sessid := CMD.Data.Field('SESSION_ID').AsString;
               FOnBindDefaultSession(self,FUserSession,sessid,false);
               if cmd.Data.Field('USER').AsString<>'' then begin
-                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',dummy,ex_sess);
+                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',dummy,ex_sess,true);
                 writeln('PROMOTION RESULT ',prom_res);
               end;
-              if prom_res=pr_OK then
+              if (prom_res=pr_OK) or (prom_res=pr_Takeover) then
                 begin
                   apps := FUserSession.GetSessionAppArray;
                   CMD.Data.ClearAllFields;
@@ -561,12 +534,10 @@ var data_count  : NativeInt;
 
 
 begin
-  data_count := FCHANNEL.CH_GetDataCount;
-  writeln('SERV READ CHANNEL DATA ',data_count);
-
+  myDataCount := FCHANNEL.CH_GetDataCount;
   case state of
     ss_READY: begin
-      case _ReadHeader(data_count) of
+      case _ReadHeader(myDataCount) of
         crs_OK:               ;
         crs_WAIT_CMD_SZ: exit ;  // stay in cmd read state
         crs_FAULT: begin
@@ -616,191 +587,191 @@ begin
   inherited;
 end;
 
-function TFRE_SERVED_BASE_CONNECTION.Handler(const Event: EFOS_FCOM_MULTIEVENT; const Datacount: Integer):boolean;
-//var s           : String;
-//    sr          : integer;
-//    sw          : integer;
-//    dispatch_it : boolean;
-//    CMD         : IFRE_DB_COMMAND;
-//    myDataCount : Integer;
+//function TFRE_SERVED_BASE_CONNECTION.Handler(const Event: EFOS_FCOM_MULTIEVENT; const Datacount: Integer):boolean;
+////var s           : String;
+////    sr          : integer;
+////    sw          : integer;
+////    dispatch_it : boolean;
+////    CMD         : IFRE_DB_COMMAND;
+////    myDataCount : Integer;
+////
+////
+////    //BindInitialSession(bc,bc.UserSession,'');
+////    //InterLockedIncrement(fSession_Counter);
+////    //bc.SessionID :='S|'+inttostr(fSession_Counter)+'|'+inttostr(sock.GetHandleKey)+'|'+sock.Get_AI.SocketAsString; // Not the DB SessionId ? Obsolete ?
+////    //writeln('INIT FC/SESSION ',bc.SessionID);
+////
+////    procedure _Dispatch;
+////    var id       : Uint64;
+////        apps     : IFRE_DB_APPLICATION_ARRAY;
+////        i        : integer;
+////        prom_res : TFRE_DB_PromoteResult;
+////        prom_err : TFRE_DB_String;
+////        dummy    : TFRE_DB_CONTENT_DESC;
+////        app      : IFRE_DB_Object;
+////        ex_sess  : TFRE_DB_UserSession;
+////        sessid   : String;
+////    begin
+////      try
+////        state := ss_READY;
+////        fCMD_SIZE:=0;
+////        sizehdr_pos:=0;
+////        GFRE_DBI.LogDebug(dblc_FLEXCOM,'>>INPUT FROM : '+SOCK.GetVerboseDesc);
+////        GFRE_DBI.LogDebug(dblc_FLEXCOM,CMD.AsDBODump);
+////        GFRE_DBI.LogDebug(dblc_FLEXCOM,'********************************************************');
+////        if not assigned(FUserSession) then begin
+////          if (CMD.InvokeClass='FIRMOS') and (CMD.InvokeMethod='INIT') and (CMD.Answer=false) then begin
+////            try
+////              sessid := CMD.Data.Field('SESSION_ID').AsString;
+////              FOnBindDefaultSession(self,FUserSession,sessid,false);
+////              if cmd.Data.Field('USER').AsString<>'' then begin
+////                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',dummy,ex_sess);
+////                writeln('PROMOTION RESULT ',prom_res);
+////              end;
+////              if prom_res=pr_OK then
+////                begin
+////                  apps := FUserSession.GetSessionAppArray;
+////                  CMD.Data.ClearAllFields;
+////                  writeln('ANWSERING FOR ',Length(apps),' APPS');
+////                  for i:=0 to high(apps) do begin
+////                    app                         := GFRE_DBI.NewObject;
+////                    app.Field('CLASS').AsString := apps[i].AsObject.SchemeClass;
+////                    app.Field('UID').AsGUID     := apps[i].UID;
+////                    CMD.Data.Field('APPS').AsObject.Field(apps[i].AppClassName).AsObject:=app;
+////                    CMD.Data.Field('LOGIN_OK').AsBoolean:=true;
+////                    CMD.Data.Field('LOGIN_TXT').AsString:='SESSION : '+FUserSession.GetSessionID;
+////                    CMD.ChangeSession := FUserSession.GetSessionID;
+////                    writeln('  ',apps[i].AppClassName);
+////                  end;
+////                end
+////              else
+////                begin
+////                  CMD.Data.ClearAllFields;
+////                  CMD.Data.Field('LOGIN_OK').AsBoolean := false;
+////                  CMD.Data.Field('LOGIN_TXT').AsString := prom_err;
+////                  CMD.ChangeSession := 'NEW';
+////                end;
+////              CMD.Answer        := true;
+////              CMD.CommandType   := fct_SyncReply;
+////              CMD.ErrorText     := '';
+////              CMD.FatalClose    := false;
+////              Send_ServerClient(CMD);
+////            except on e:exception do begin
+////                CMD.Answer      := true;
+////                CMD.CommandType := fct_Error;
+////                CMD.ErrorText   := 'FAIL: '+e.Message;
+////                CMD.CheckoutData.Finalize;
+////                CMD.FatalClose  := true;
+////                Send_ServerClient(CMD);
+////            end;end;
+////          end else begin
+////            CMD.Answer      := true;
+////            CMD.CommandType := fct_Error;
+////            CMD.ErrorText   := 'FAIL: MUST CALL FIRMOS.INIT';
+////            CMD.CheckoutData.Finalize;
+////            CMD.FatalClose  := true;
+////            Send_ServerClient(CMD);
+////          end;
+////        end else begin
+////          FUserSession.Input_FRE_DB_Command(cmd);
+////        end;
+////      except on e:exception do begin
+////        writeln('DISPATCHING ERROR ',e.Message);
+////      end;end;
+////    end;
+////    procedure _Read_DB_Command;
+////    begin
+////      case _ReadCommand(myDataCount,cmd) of
+////        crs_OK: begin
+////          _Dispatch;
+////        end;
+////        crs_PARTIAL_READ: begin
+////          state:=ss_CONTCMD;
+////          exit;
+////        end;
+////        else begin
+////          GFRE_BT.CriticalAbort('SOCK CLOSE');
+////          sock.CloseEnqueue(99);
+////        end;
+////      end;
+////    end;
 //
-//
-//    //BindInitialSession(bc,bc.UserSession,'');
-//    //InterLockedIncrement(fSession_Counter);
-//    //bc.SessionID :='S|'+inttostr(fSession_Counter)+'|'+inttostr(sock.GetHandleKey)+'|'+sock.Get_AI.SocketAsString; // Not the DB SessionId ? Obsolete ?
-//    //writeln('INIT FC/SESSION ',bc.SessionID);
-//
-//    procedure _Dispatch;
-//    var id       : Uint64;
-//        apps     : IFRE_DB_APPLICATION_ARRAY;
-//        i        : integer;
-//        prom_res : TFRE_DB_PromoteResult;
-//        prom_err : TFRE_DB_String;
-//        dummy    : TFRE_DB_CONTENT_DESC;
-//        app      : IFRE_DB_Object;
-//        ex_sess  : TFRE_DB_UserSession;
-//        sessid   : String;
-//    begin
-//      try
-//        state := ss_READY;
-//        fCMD_SIZE:=0;
-//        sizehdr_pos:=0;
-//        GFRE_DBI.LogDebug(dblc_FLEXCOM,'>>INPUT FROM : '+SOCK.GetVerboseDesc);
-//        GFRE_DBI.LogDebug(dblc_FLEXCOM,CMD.AsDBODump);
-//        GFRE_DBI.LogDebug(dblc_FLEXCOM,'********************************************************');
-//        if not assigned(FUserSession) then begin
-//          if (CMD.InvokeClass='FIRMOS') and (CMD.InvokeMethod='INIT') and (CMD.Answer=false) then begin
-//            try
-//              sessid := CMD.Data.Field('SESSION_ID').AsString;
-//              FOnBindDefaultSession(self,FUserSession,sessid,false);
-//              if cmd.Data.Field('USER').AsString<>'' then begin
-//                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',dummy,ex_sess);
-//                writeln('PROMOTION RESULT ',prom_res);
-//              end;
-//              if prom_res=pr_OK then
-//                begin
-//                  apps := FUserSession.GetSessionAppArray;
-//                  CMD.Data.ClearAllFields;
-//                  writeln('ANWSERING FOR ',Length(apps),' APPS');
-//                  for i:=0 to high(apps) do begin
-//                    app                         := GFRE_DBI.NewObject;
-//                    app.Field('CLASS').AsString := apps[i].AsObject.SchemeClass;
-//                    app.Field('UID').AsGUID     := apps[i].UID;
-//                    CMD.Data.Field('APPS').AsObject.Field(apps[i].AppClassName).AsObject:=app;
-//                    CMD.Data.Field('LOGIN_OK').AsBoolean:=true;
-//                    CMD.Data.Field('LOGIN_TXT').AsString:='SESSION : '+FUserSession.GetSessionID;
-//                    CMD.ChangeSession := FUserSession.GetSessionID;
-//                    writeln('  ',apps[i].AppClassName);
-//                  end;
-//                end
-//              else
-//                begin
-//                  CMD.Data.ClearAllFields;
-//                  CMD.Data.Field('LOGIN_OK').AsBoolean := false;
-//                  CMD.Data.Field('LOGIN_TXT').AsString := prom_err;
-//                  CMD.ChangeSession := 'NEW';
-//                end;
-//              CMD.Answer        := true;
-//              CMD.CommandType   := fct_SyncReply;
-//              CMD.ErrorText     := '';
-//              CMD.FatalClose    := false;
-//              Send_ServerClient(CMD);
-//            except on e:exception do begin
-//                CMD.Answer      := true;
-//                CMD.CommandType := fct_Error;
-//                CMD.ErrorText   := 'FAIL: '+e.Message;
-//                CMD.CheckoutData.Finalize;
-//                CMD.FatalClose  := true;
-//                Send_ServerClient(CMD);
-//            end;end;
-//          end else begin
-//            CMD.Answer      := true;
-//            CMD.CommandType := fct_Error;
-//            CMD.ErrorText   := 'FAIL: MUST CALL FIRMOS.INIT';
-//            CMD.CheckoutData.Finalize;
-//            CMD.FatalClose  := true;
-//            Send_ServerClient(CMD);
-//          end;
-//        end else begin
-//          FUserSession.Input_FRE_DB_Command(cmd);
-//        end;
-//      except on e:exception do begin
-//        writeln('DISPATCHING ERROR ',e.Message);
-//      end;end;
-//    end;
-//    procedure _Read_DB_Command;
-//    begin
-//      case _ReadCommand(myDataCount,cmd) of
-//        crs_OK: begin
-//          _Dispatch;
-//        end;
-//        crs_PARTIAL_READ: begin
-//          state:=ss_CONTCMD;
-//          exit;
-//        end;
-//        else begin
-//          GFRE_BT.CriticalAbort('SOCK CLOSE');
-//          sock.CloseEnqueue(99);
-//        end;
-//      end;
-//    end;
-
-begin
-  ////writeln('ENTER CONN HANDLER <',Event,' (in)-> ',state,'>',' ',Datacount);
-  //result := true;
-  //myDataCount := Datacount;
-  //case event of
-  //  esv_SOCKERROR: begin
-  //    HandleError(SOCK,'received error state');
-  //  end;
-  //  esv_SOCKCONNECTED: begin
-  //    case state of
-  //      ss_CONNECTED: begin
-  //        state:=ss_READY;
-  //      end;
-  //      else HandleError(SOCK,'invalid state for SOCKCONNECTED event');
-  //    end;
-  //  end;
-  //  esv_SOCKREAD: begin
-  //    case state of
-  //      ss_READY: begin
-  //        case _ReadHeader(myDataCount) of
-  //          crs_OK:               ;
-  //          crs_WAIT_CMD_SZ: exit ;  // stay in cmd read state
-  //          crs_FAULT: begin
-  //                       SOCK.CloseEnqueue(99); // Drop connection
-  //                     end;
-  //        end;
-  //        state := ss_WAITCMD;
-  //        if myDataCount>0 then begin
-  //          _Read_DB_Command;
-  //        end;
-  //      end;
-  //      ss_WAITCMD: _Read_DB_Command;
-  //      ss_CONTCMD: begin
-  //        writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
-  //        case _ReadRest(myDatacount,cmd) of
-  //          crs_OK: begin
-  //            state:=ss_READY;
-  //            _Dispatch;
-  //            exit;
-  //          end;
-  //          crs_PARTIAL_READ: exit; // Stay in state
-  //        end;
-  //      end;
-  //      else HandleError(SOCK,'invalid state for SOCKREAD event');
-  //    end;
-  //  end;
-  //  esv_SOCKWRITE: begin
-  //    HandleError(SOCK,'invalid state for SOCKWRITE event');
-  //  end;
-  //  esv_SOCKCLOSED: begin
-  //      case state of
-  //        ss_READY: begin
-  //          //if assigned(base_S.SRV) then begin
-  //          //  base_s.SRV.ConnectionDropped(SessionID);
-  //          //end;
-  //        end;
-  //        else HandleError(SOCK,'invalid state for SOCKCLOSED event');
-  //      end;
-  //  end;
-  //  esv_SOCKEXCEPT,
-  //  esv_SOCKCANTCONNECT,
-  //  esv_SOCKCONNREFUSED,
-  //  esv_SOCKCONNTIMEDOUT: begin
-  //    HandleError(SOCK,'ERROR EVENT <'+CFOS_FCOM_MULTIEVENT[Event]+'>');
-  //  end;
-  //  else GFRE_BT.CriticalAbort('UNKNOWN STATE IN SERVER HANDLER');
-  //end;
-  //GFRE_BT.CriticalAbort('DUNK');
-end;
+//begin
+//  ////writeln('ENTER CONN HANDLER <',Event,' (in)-> ',state,'>',' ',Datacount);
+//  //result := true;
+//  //myDataCount := Datacount;
+//  //case event of
+//  //  esv_SOCKERROR: begin
+//  //    HandleError(SOCK,'received error state');
+//  //  end;
+//  //  esv_SOCKCONNECTED: begin
+//  //    case state of
+//  //      ss_CONNECTED: begin
+//  //        state:=ss_READY;
+//  //      end;
+//  //      else HandleError(SOCK,'invalid state for SOCKCONNECTED event');
+//  //    end;
+//  //  end;
+//  //  esv_SOCKREAD: begin
+//  //    case state of
+//  //      ss_READY: begin
+//  //        case _ReadHeader(myDataCount) of
+//  //          crs_OK:               ;
+//  //          crs_WAIT_CMD_SZ: exit ;  // stay in cmd read state
+//  //          crs_FAULT: begin
+//  //                       SOCK.CloseEnqueue(99); // Drop connection
+//  //                     end;
+//  //        end;
+//  //        state := ss_WAITCMD;
+//  //        if myDataCount>0 then begin
+//  //          _Read_DB_Command;
+//  //        end;
+//  //      end;
+//  //      ss_WAITCMD: _Read_DB_Command;
+//  //      ss_CONTCMD: begin
+//  //        writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
+//  //        case _ReadRest(myDatacount,cmd) of
+//  //          crs_OK: begin
+//  //            state:=ss_READY;
+//  //            _Dispatch;
+//  //            exit;
+//  //          end;
+//  //          crs_PARTIAL_READ: exit; // Stay in state
+//  //        end;
+//  //      end;
+//  //      else HandleError(SOCK,'invalid state for SOCKREAD event');
+//  //    end;
+//  //  end;
+//  //  esv_SOCKWRITE: begin
+//  //    HandleError(SOCK,'invalid state for SOCKWRITE event');
+//  //  end;
+//  //  esv_SOCKCLOSED: begin
+//  //      case state of
+//  //        ss_READY: begin
+//  //          //if assigned(base_S.SRV) then begin
+//  //          //  base_s.SRV.ConnectionDropped(SessionID);
+//  //          //end;
+//  //        end;
+//  //        else HandleError(SOCK,'invalid state for SOCKCLOSED event');
+//  //      end;
+//  //  end;
+//  //  esv_SOCKEXCEPT,
+//  //  esv_SOCKCANTCONNECT,
+//  //  esv_SOCKCONNREFUSED,
+//  //  esv_SOCKCONNTIMEDOUT: begin
+//  //    HandleError(SOCK,'ERROR EVENT <'+CFOS_FCOM_MULTIEVENT[Event]+'>');
+//  //  end;
+//  //  else GFRE_BT.CriticalAbort('UNKNOWN STATE IN SERVER HANDLER');
+//  //end;
+//  //GFRE_BT.CriticalAbort('DUNK');
+//end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.Send_ServerClient(const ECN: IFRE_DB_COMMAND);
 var mem:TMemoryStream;
 begin
-  GFRE_DBI.LogDebug(dblc_FLEXCOM,'<<OUTPUT TO '+FCHANNEL.GetVerboseDesc);
-  GFRE_DBI.LogDebug(dblc_FLEXCOM,ECN.AsDBODump);
-  GFRE_DBI.LogDebug(dblc_FLEXCOM,'**************************************************************************');
+  GFRE_DBI.LogDebug(dblc_FLEXCOM,'<<FLEX INVOKE Server Client '+FCHANNEL.GetVerboseDesc+' '+ECN.GetInvokeClass+'.'+ECN.GetInvokeMethod+' '+BoolToStr(ECN.Answer,'ANSWER','REQUEST')+' RID='+INTTOSTR(ECN.CommandID));
+  //GFRE_DBI.LogDebug(dblc_FLEXCOM,ECN.AsDBODump);
+  //GFRE_DBI.LogDebug(dblc_FLEXCOM,'**************************************************************************');
   try
     mem:=TMemoryStream.Create;
     mem.Position:=4;
@@ -930,8 +901,7 @@ begin
 end;
 
 function TFRE_DB_SOCK_CONNECTION._ReadRest(dc: cardinal;out cmd:IFRE_DB_COMMAND): TCMD_READ_STATE;
-var res   : EFOS_OS_ERROR;
-     sr   : integer;
+var  sr   : integer;
    toread : integer;
    dbo    : IFRE_DB_Object;
 begin
@@ -949,8 +919,6 @@ begin
   except on e:Exception do begin
     writeln('ERROR ',e.Message);
   end;end;
-  //writeln('RECEIVE GOT ',res);
-  if res<>EFOS_OS_OK then GFRE_BT.CriticalAbort(' OS FAILURE RECIEVE/READCOMMAND? -> %s',[CFOS_OS_ERROR[res]]);
   if dc<>sr then begin
     GFRE_BT.CriticalAbort('COMMAND ERROR DC=%d  READREST=%d SR=%d',[dc,readrest,sr]);
     FCHANNEL.Finalize;

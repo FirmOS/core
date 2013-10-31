@@ -564,7 +564,6 @@ end;
 function TFRE_DB_TEST_FILEDIR.WEB_Menu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   sel: TFRE_DB_String;
-  response: IFRE_DB_Object;
   opd: IFRE_DB_Object;
   inp: IFRE_DB_Object;
 
@@ -595,7 +594,7 @@ begin
   inp.Field('fileid').AsString:=copy(input.Field('selected').AsString,1,Length(input.Field('selected').AsString)-1);
   opd.Field('fileid').AsString:=inp.Field('fileid').AsString;
   opd.Field('rootGUID').AsGUID:=UID;
-  if ses.InvokeRemoteRequest('SAMPLEFEEDER','GETFILEDIRINFO',inp,response,@GotAnswer,opd)=edb_OK then begin
+  if ses.InvokeRemoteRequest('SAMPLEFEEDER','GETFILEDIRINFO',inp,@GotAnswer,opd)=edb_OK then begin
     result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   end else begin
     result := TFRE_DB_STORE_DATA_DESC.create.Describe(0);
@@ -645,11 +644,12 @@ var obj      : IFRE_DB_Object;
       cnt := 0;
       new_input.ForAllObjects(@addEntry);
       res.Describe(cnt);
+      writeln('RESULT ',res.DumpToString());
       ses.SendServerClientAnswer(res,ocid);
     end;
 
 begin
-  writeln('BROWSE CALL INPUT ',input.DumpToString());
+  //writeln('BROWSE CALL INPUT ',input.DumpToString());
   inp := GFRE_DBI.NewObject;
   lvl := input.Field('parentid').AsString;
   inp.Field('level').AsString:= lvl;
@@ -658,7 +658,7 @@ begin
   opd.Field('UIP').AsGUIDArr := self.GetUIDPathUA;
   opd.Field('LVL').AsString  := lvl;
 
-  if ses.InvokeRemoteRequest('SAMPLEFEEDER','BROWSEPATH',inp,response,@GotAnswer,opd)=edb_OK then
+  if ses.InvokeRemoteRequest('SAMPLEFEEDER','BROWSEPATH',inp,@GotAnswer,opd)=edb_OK then
     begin
       result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
       exit;

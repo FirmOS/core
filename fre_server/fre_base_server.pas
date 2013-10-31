@@ -44,7 +44,7 @@ unit fre_base_server;
 
 interface
 
-uses  classes, sysutils,fre_aps_interface,fos_fcom_interfaces,fos_fcom_types,fos_tool_interfaces,baseunix,
+uses  classes, sysutils,fre_aps_interface,fos_fcom_types,fos_tool_interfaces,baseunix,
       fre_http_srvhandler,fre_db_interface,fre_system,fos_interlocked,
       fre_db_core,fre_webssocket_baseserver,fre_db_common,
       fre_http_tools,fos_redblacktree_gen,fre_sys_base_cs,
@@ -93,8 +93,8 @@ type
     function       ExistsUserSessionForUser                  (const username:string;out other_session:TFRE_DB_UserSession):boolean;
     function       ExistsUserSessionForKey                   (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
     function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
-    function       FetchPublisherRAC                         (const rcall,rmeth:TFRE_DB_NameType;out rac:IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out right:TFRE_DB_String):boolean;
-    function       FetchSessionById                          (const sesid : TFRE_DB_String ; var ses :IFRE_DB_UserSession):boolean;
+    function       FetchPublisherRAC                         (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
+    function       FetchSessionById                          (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
   public
     DefaultDatabase              : String;
     TransFormFunc                : TFRE_DB_TRANSFORM_FUNCTION;
@@ -602,7 +602,7 @@ begin
   result := FDefaultSession.GetDBConnection.CheckLogin(username,pass);
 end;
 
-function TFRE_BASE_SERVER.FetchPublisherRAC(const rcall, rmeth: TFRE_DB_NameType; out rac: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out right:TFRE_DB_String): boolean;
+function TFRE_BASE_SERVER.FetchPublisherRAC(const rcall, rmeth: TFRE_DB_NameType; out ses: TFRE_DB_UserSession ; out right:TFRE_DB_String): boolean;
 
   function SearchRAC(const session:TFRE_DB_UserSession):boolean;
   var arr : TFRE_DB_RemoteReqSpecArray;
@@ -615,7 +615,7 @@ function TFRE_BASE_SERVER.FetchPublisherRAC(const rcall, rmeth: TFRE_DB_NameType
            and (arr[i].methodname=rmeth) then
              begin
                right := arr[i].invokationright;
-               rac := session.GetClientServerInterface;
+               ses   := session;
                result := true;
                exit;
              end;
@@ -625,19 +625,19 @@ function TFRE_BASE_SERVER.FetchPublisherRAC(const rcall, rmeth: TFRE_DB_NameType
 
 begin
   result   := false;
-  rac      := nil;
+  ses      := nil;
   FSessionTreeLock.Acquire;
   try
     FUserSessionsTree.ForAllItemsBrk(@SearchRac);
-    if assigned(rac) then begin
-      result            := true;
+    if assigned(ses) then begin
+      result := true;
     end;
   finally
     FSessionTreeLock.Release;
   end;
 end;
 
-function TFRE_BASE_SERVER.FetchSessionById(const sesid: TFRE_DB_String; var ses: IFRE_DB_UserSession): boolean;
+function TFRE_BASE_SERVER.FetchSessionById(const sesid: TFRE_DB_String; var ses: TFRE_DB_UserSession): boolean;
 
   function SearchSession(const session:TFRE_DB_UserSession):boolean;
   var arr : TFRE_DB_RemoteReqSpecArray;

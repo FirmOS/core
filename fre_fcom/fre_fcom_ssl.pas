@@ -36,6 +36,7 @@ unit fre_fcom_ssl;
 }
 
 {$mode objfpc}{$H+}
+{$modeswitch nestedprocvars}
 
 {-$DEFINE FOS_DEBUG}
 {-$UNDEF FOS_LINK_STATIC}
@@ -44,7 +45,7 @@ unit fre_fcom_ssl;
 interface
 
 
-uses Sysutils,ctypes,FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_FCOM_INTERFACES,FOS_FCOM_TYPES;
+uses Sysutils,ctypes,FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES;
 
 
 {$IFDEF WINDOWS}
@@ -290,6 +291,24 @@ type
  function  BIO_ctrl_get_write_guarantee            (b: PBIO): cint; cdecl;external;
  function  BIO_ctrl                                (b: PBIO ; cmd: cint; larg: clong; parg: Pointer): clong; cdecl;external;
 
+ type
+ TFRE_FCOM_SSL_Type = (fssl_SSLv2,fssl_SSLv3,fssl_TLSv1,fssl_SSLv23,fssl_DTLS1);
+
+ TFRE_SSL_Callback = function:string is nested;
+
+ TFRE_SSL_INFO=record
+   ssl_type              : TFRE_FCOM_SSL_Type;
+   cerifificate_file     : string;
+   private_key_file      : string;
+   root_ca_file          : string;
+   verify_peer           : boolean;
+   fail_no_peer_cert     : boolean;
+   verify_peer_cert_once : boolean;
+   cipher_suites         : string;
+   IsServer              : boolean;
+   password_cb           : TFRE_SSL_Callback;
+ end;
+ PFRE_SSL_INFO=^TFRE_SSL_INFO;
 
 procedure  Setup_FRE_SSL;
 function   FRE_SSL_ERR_Errorcheck (var err: string;const raiseex:boolean=false): boolean;
