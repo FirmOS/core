@@ -231,7 +231,7 @@ var lsl:TStringList;
 begin
   lsl:=TStringList.Create;
   try
-
+    lsl.Add('HOME                    = .');
     lsl.Add('RANDFILE                = $ENV::HOME/.rnd');
     lsl.Add('oid_section             = new_oids');
     lsl.Add('[ new_oids ]');
@@ -391,8 +391,9 @@ begin
     crt_base_information.crt  := GFRE_BT.StringFromFile(dir+DirectorySeparator+'signed_certs'+DirectorySeparator+'crt.crt');
     crt_base_information.key  := GFRE_BT.StringFromFile(dir+DirectorySeparator+'private'+DirectorySeparator+'crt.key');
     LogInfo('Create Crt Done '+cn);
+//    FRE_ProcessCMD('rm -rf '+dir);
   finally
-    FRE_ProcessCMD('rm -rf '+dir);
+//    FRE_ProcessCMD('rm -rf '+dir);
   end;
 end;
 
