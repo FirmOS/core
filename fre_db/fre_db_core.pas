@@ -8596,7 +8596,7 @@ end;
 function TFRE_DB_COLLECTION.Store(var new_obj: TFRE_DB_Object):TFRE_DB_Errortype;
 var objclass : TClass;
 begin
-  objclass := Implementor_HC.ClassType;
+  objclass := new_obj.Implementor_HC.ClassType;
   if new_obj.DomainID=CFRE_DB_NullGUID then
     new_obj.SetDomainID(FConnection.GetMyDomainID);
   if not
