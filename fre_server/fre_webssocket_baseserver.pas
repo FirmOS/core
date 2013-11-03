@@ -913,9 +913,14 @@ begin
     end else begin
       if (length(uri.SplitPath)>0) and
         (uri.SplitPath[0]='download') then begin //FIXXME: (Heli) Hack to test download
-        ResponseHeader[rh_contentDisposition] := 'attachment; filename="measurement.zip"';
-        lcontent:='Simple text content.';
-        _SendHttpResponse(200,'OK',[],lcontent,'text/plain');
+        ResponseHeader[rh_contentDisposition] := 'attachment; filename="measurement.zip"';  //
+        lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
+        if HttpBaseServer.FetchFileCached(lFilename,lContent) then begin
+          _SendHttpResponse(200,'OK',[],lcontent,FREDB_Filename2MimeType(lFilename));
+        end else begin
+          writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
+          _SendHttpResponse(404,'NOT FOUND',[]);
+        end;
       end else begin
         lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
         if HttpBaseServer.FetchFileCached(lFilename,lContent) then begin

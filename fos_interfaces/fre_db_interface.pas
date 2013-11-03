@@ -2324,7 +2324,7 @@ begin
     end
   else
     begin
-       SetLength(GFRE_DB_MIME_TYPES,14);
+       SetLength(GFRE_DB_MIME_TYPES,15);
        cnt := 0;
        add('js','application/javascript');
        add('html','text/html');
@@ -2340,6 +2340,7 @@ begin
        add('ttf','application/octet-stream');
        add('otf','font/opentype');
        add('eot','application/vnd.ms-fontobject');
+       add('zip','application/zip');
     end;
 end;
 

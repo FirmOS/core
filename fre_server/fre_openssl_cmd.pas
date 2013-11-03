@@ -375,21 +375,25 @@ begin
   LogInfo('Creating SSL Conf '+cn);
 
   dir      := PrepareCADirectory(ca_base_information);
-  WriteConf(dir,cn,c,st,l,o,ou,email);
-  LogInfo('Creating Crt Req '+cn);
+  try
+    WriteConf(dir,cn,c,st,l,o,ou,email);
+    LogInfo('Creating Crt Req '+cn);
 
-  FRE_ProcessCMDException('openssl req -nodes -new -keyout '+dir+'/private/crt.key -out '+dir+'/crt_req.pem -config '+dir+'/'+csslcnf);
-  LogInfo('Sign Crt Req '+cn);
-  if server=true then begin
-    FRE_ProcessCMDException('openssl ca -verbose -batch -passin pass:'+ca_pass+' -out '+dir+'/signed_certs/crt.crt -extensions xpserver_ext -extfile '+dir+'/xpxtensions -in '+dir+'/crt_req.pem -config '+dir+'/'+csslcnf);
-  end else begin
-    FRE_ProcessCMDException('openssl ca -verbose -batch -passin pass:'+ca_pass+' -out '+dir+'/signed_certs/crt.crt -extensions xpclient_ext -extfile '+dir+'/xpxtensions -in '+dir+'/crt_req.pem -config '+dir+'/'+csslcnf);
+    FRE_ProcessCMDException('openssl req -nodes -new -keyout '+dir+'/private/crt.key -out '+dir+'/crt_req.pem -config '+dir+'/'+csslcnf);
+    LogInfo('Sign Crt Req '+cn);
+    if server=true then begin
+      FRE_ProcessCMDException('openssl ca -verbose -batch -passin pass:'+ca_pass+' -out '+dir+'/signed_certs/crt.crt -extensions xpserver_ext -extfile '+dir+'/xpxtensions -in '+dir+'/crt_req.pem -config '+dir+'/'+csslcnf);
+    end else begin
+      FRE_ProcessCMDException('openssl ca -verbose -batch -passin pass:'+ca_pass+' -out '+dir+'/signed_certs/crt.crt -extensions xpclient_ext -extfile '+dir+'/xpxtensions -in '+dir+'/crt_req.pem -config '+dir+'/'+csslcnf);
+    end;
+    //  CheckError(Command('openssl pkcs12 -export -passout pass:'+ob.Field('pass').AsString+' -clcerts -in '+cadir_signed+'/'+ob.Field('cn').asstring+'.crt -inkey '+cadir+'/private/'+ob.Field('cn').asstring+'.key -out '+cadir+'/private/'+ob.Field('cn').asstring+'.p12'));
+    ReadCABaseInformation(dir,ca_base_information);
+    crt_base_information.crt  := GFRE_BT.StringFromFile(dir+DirectorySeparator+'signed_certs'+DirectorySeparator+'crt.crt');
+    crt_base_information.key  := GFRE_BT.StringFromFile(dir+DirectorySeparator+'private'+DirectorySeparator+'crt.key');
+    LogInfo('Create Crt Done '+cn);
+  finally
+    FRE_ProcessCMD('rm -rf '+dir);
   end;
-//  CheckError(Command('openssl pkcs12 -export -passout pass:'+ob.Field('pass').AsString+' -clcerts -in '+cadir_signed+'/'+ob.Field('cn').asstring+'.crt -inkey '+cadir+'/private/'+ob.Field('cn').asstring+'.key -out '+cadir+'/private/'+ob.Field('cn').asstring+'.p12'));
-  ReadCABaseInformation(dir,ca_base_information);
-  crt_base_information.crt  := GFRE_BT.StringFromFile(dir+DirectorySeparator+'signed_certs'+DirectorySeparator+'crt.crt');
-  crt_base_information.key  := GFRE_BT.StringFromFile(dir+DirectorySeparator+'private'+DirectorySeparator+'crt.key');
-  LogInfo('Create Crt Done '+cn);
 end;
 
 function TFRE_SSL_OPENSSLCMD.RevokeCrt(const cn: string; const ca_pass: string; const crt: string; var ca_base_information: RFRE_CA_BASEINFORMATION): TFRE_SSL_RESULT;
@@ -400,12 +404,16 @@ begin
   LogInfo('Creating SSL Conf '+cn);
 
   dir      := PrepareCADirectory(ca_base_information);
-  WriteConf(dir,cn,'','','','','','');
-  GFRE_BT.StringToFile(dir+DirectorySeparator+'signed_certs'+DirectorySeparator+'crt.crt',crt);
-  FRE_ProcessCMDException('openssl ca -passin pass:'+ca_pass+' -revoke '+dir+'/signed_certs/crt.crt -config '+dir+'/'+csslcnf);
-  FRE_ProcessCMDException('openssl ca -passin pass:'+ca_pass+' -config '+dir+'/'+csslcnf+' -gencrl -crldays 365 -out '+dir+'/crl/ca.crl');
-  ReadCABaseInformation(dir,ca_base_information);
-  LogInfo('Revoke Crt Done '+cn);
+  try
+    WriteConf(dir,cn,'','','','','','');
+    GFRE_BT.StringToFile(dir+DirectorySeparator+'signed_certs'+DirectorySeparator+'crt.crt',crt);
+    FRE_ProcessCMDException('openssl ca -passin pass:'+ca_pass+' -revoke '+dir+'/signed_certs/crt.crt -config '+dir+'/'+csslcnf);
+    FRE_ProcessCMDException('openssl ca -passin pass:'+ca_pass+' -config '+dir+'/'+csslcnf+' -gencrl -crldays 365 -out '+dir+'/crl/ca.crl');
+    ReadCABaseInformation(dir,ca_base_information);
+    LogInfo('Revoke Crt Done '+cn);
+  finally
+    FRE_ProcessCMD('rm -rf '+dir);
+  end;
 end;
 
 function TFRE_SSL_OPENSSLCMD.ReadCrtInformation(const crt: string; out cn, c, st, l, o, ou, email: string; out issued_date,end_date:int64): TFRE_SSL_RESULT;

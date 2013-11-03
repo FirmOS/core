@@ -82,6 +82,7 @@ type
   public
     constructor                 Create        (const process : TFRE_Process);
     procedure                   Execute;      override;
+    property                    Terminated;
   end;
 
   { TFRE_Process }
@@ -142,6 +143,7 @@ type
     procedure                   PreparePipedStreamAsync    (const cmd: string;    const params: TFRE_DB_StringArray);
     procedure                   SetStreams                 (const inputstream, outputstream, stderrorstream: TStream);
     procedure                   StartAsync                 ;
+    function                    IsRunning                  : boolean;
 
     function                    WaitForAsyncExecution      : integer;
   end;
@@ -896,6 +898,14 @@ end;
 procedure TFRE_Process.StartAsync;
 begin
   thread    := TFRE_ProcessThread.Create(self);
+end;
+
+function TFRE_Process.IsRunning: boolean;
+begin
+  if assigned(thread) then
+    result := not thread.Terminated
+  else
+    result := false;
 end;
 
 procedure TFRE_Process.ProcessStreams(const inputstream, outputstream, stderrorstream: TStream);
