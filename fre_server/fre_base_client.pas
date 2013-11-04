@@ -101,6 +101,7 @@ type
   public
     constructor Create                ;
     destructor  Destroy               ; override ;
+    procedure   Setup                 ; virtual;
     function  Get_AppClassAndUid      (const appkey : string ; out app_classname : TFRE_DB_String ; out uid : TGuid) : boolean;
     function  SendServerCommand       (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const ContinuationCB : TFRE_DB_CONT_HANDLER=nil;const timeout:integer=5000) : boolean;
     function  AnswerSyncCommand       (const command_id : QWord ; const data : IFRE_DB_Object) : boolean;
@@ -109,7 +110,7 @@ type
     procedure MySessionSetupFailed    (const reason : string); virtual;
     procedure MyInitialize            ; virtual;
     procedure MyFinalize              ; virtual;
-    procedure MyConectionTimer        ; virtual;
+    procedure MyConnectionTimer       ; virtual;
     procedure QueryUserPass           (out user,pass:string);virtual;
     procedure RegisterRemoteMethods   (var remote_method_array : TFRE_DB_RemoteReqSpecArray); virtual;
     procedure WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); virtual;
@@ -294,7 +295,7 @@ end;
 
 procedure TFRE_BASE_CLIENT.ChannelTimerCB(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
 begin
-  MyConectionTimer;
+  MyConnectionTimer;
 end;
 
 
@@ -414,9 +415,6 @@ begin
   FClientState := csUnknown;
   fsendcmd_id  := 1;
   fMySessionID := 'NEW';
-  MyInitialize;
-  GFRE_SC.AddTimer('F_STATE',1000,@MyStateCheckTimer);
-  GFRE_SC.SetSingnalCB(@MyHandleSignals);
 end;
 
 destructor TFRE_BASE_CLIENT.Destroy;
@@ -429,6 +427,13 @@ begin
     FApps.Finalize;
   end;
   inherited Destroy;
+end;
+
+procedure TFRE_BASE_CLIENT.Setup;
+begin
+  GFRE_SC.AddTimer('F_STATE',1000,@MyStateCheckTimer);
+  GFRE_SC.SetSingnalCB(@MyHandleSignals);
+  MyInitialize;
 end;
 
 function TFRE_BASE_CLIENT.Get_AppClassAndUid(const appkey: string; out app_classname: TFRE_DB_String; out uid: TGuid): boolean;
@@ -452,7 +457,7 @@ begin
 
 end;
 
-procedure TFRE_BASE_CLIENT.MyConectionTimer;
+procedure TFRE_BASE_CLIENT.MyConnectionTimer;
 begin
 
 end;

@@ -45,133 +45,39 @@ program fre_testdatafeed;
 // lazarus+debugger: => ./fre_testdatafeed -U root -H 10.220.251.10 -D
 
 uses
+  //cmem,
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils, CustApp,
-  FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
-  FRE_DB_CORE,fre_aps_comm_impl,
-
-  FRE_DB_EMBEDDED_IMPL,
-  FRE_CONFIGURATION,FRE_BASE_SERVER,
-  fre_base_client, fre_feed_client
-  ;
+  Classes, SysUtils,
+  fre_feed_client,
+  fre_basefeed_app;
 
 {$I fos_version_helper.inc}
 
 type
+  { TFRE_Testserver }
 
   { TFRE_TESTDATA_FEED }
 
-  TFRE_TESTDATA_FEED = class(TCustomApplication)
-  protected
-    procedure   DoRun; override;
-  public
-    constructor Create(TheOwner: TComponent); override;
-    destructor  Destroy; override;
-    procedure   WriteHelp; virtual;
-    procedure   CfgTestLog;
+  TFRE_TESTDATA_FEED = class(TFRE_BASEDATA_FEED)
+    procedure TestMethod; override;
   end;
+
+  { TFRE_Testserver }
+var
+  Application : TFRE_TESTDATA_FEED;
 
 { TFRE_TESTDATA_FEED }
 
-procedure TFRE_TESTDATA_FEED.DoRun;
-var
-  ErrorMsg   : String;
-  FeedClient : TFRE_SAMPLE_FEED_CLIENT;
+procedure TFRE_TESTDATA_FEED.TestMethod;
 begin
-  ErrorMsg:=CheckOptions('hDU:H:u:p:',['help','debugger','remoteuser:','remotehost:','user:','pass:','test-log']);
-  if ErrorMsg<>'' then begin
-    ShowException(Exception.Create(ErrorMsg));
-    Terminate;
-    Exit;
-  end;
-
-  if HasOption('h','help') then begin
-    WriteHelp;
-    Terminate;
-    Exit;
-  end;
-
-  if HasOption('D','debugger') then
-    G_NO_INTERRUPT_FLAG:=true;
-
-  if HasOption('U','remoteuser') then begin
-    cFRE_REMOTE_USER := GetOptionValue('U','remoteuser');
-  end;
-
-  if HasOption('u','user') then begin
-    cFRE_Feed_User := GetOptionValue('u','user');
-  end;
-
-  if HasOption('p','pass') then begin
-    cFRE_Feed_Pass := GetOptionValue('p','pass');
-  end;
-
-  if HasOption('H','remotehost') then begin
-    cFRE_REMOTE_HOST:= GetOptionValue('H','remotehost');
-  end else begin
-    cFRE_REMOTE_HOST:= '127.0.0.1';
-  end;
-
-  Initialize_Read_FRE_CFG_Parameter;
-
-  if HasOption('*','test-log') then
-    begin
-      writeln('configuring testlogging');
-      CfgTestLog;
-    end;
-
-  InitEmbedded;
-  Init4Server;
-  GFRE_DBI.SetLocalZone('Europe/Vienna');
-  Setup_APS_Comm;
-  FeedClient := TFRE_SAMPLE_FEED_CLIENT.Create;
-  GFRE_SC.RunUntilTerminate;
-  Teardown_APS_Comm;
-  FeedClient.Free;
-  GFRE_DB_DEFAULT_PS_LAYER.Finalize;
-  Terminate;
+  writeln('THIS IS YOU SHINY TEST MEthod used with the undocumented -t option.');
+  halt;
 end;
 
-constructor TFRE_TESTDATA_FEED.Create(TheOwner: TComponent);
 begin
-  inherited Create(TheOwner);
-  StopOnException:=True;
-end;
-
-destructor TFRE_TESTDATA_FEED.Destroy;
-begin
-  inherited Destroy;
-end;
-
-procedure TFRE_TESTDATA_FEED.WriteHelp;
-begin
-  { add your help code here }
-  writeln('Usage: ',ExeName,' -h');
-  writeln('  -U            | --remoteuser           : user for remote commands');
-  writeln('  -H            | --remotehost           : host for remote commands');
-end;
-
-procedure TFRE_TESTDATA_FEED.CfgTestLog;
-begin
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry);  // Server / Connection Start/Close
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Info,'*',flra_DropEntry); // Http/Header / Content
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Debug,'*',flra_DropEntry); // Http/Header / Content
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry); // Server / Dispatch / Input Output
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry); // Websock / JSON / IN / OUT
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // Persistance Layer Debugging
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry); // Database /Filter / Layer Debugging
-  GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
-  GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
-  GFRE_LOG.DisableSyslog;
-  GFRE_LOG.Log('TESTENTRY','START');
-end;
-
-var
-  Application : TFRE_TESTDATA_FEED;
-begin
-  Application:=TFRE_TESTDATA_FEED.Create(nil);
+  Application:=TFRE_TESTDATA_FEED.Create(nil,TFRE_SAMPLE_FEED_CLIENT.Create);
   Application.Title:='FRE_Testdatafeed';
   Application.Run;
   Application.Free;

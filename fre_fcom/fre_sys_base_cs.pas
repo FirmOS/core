@@ -327,7 +327,7 @@ begin
         end;
         cs_WAITCMD: _Read_DB_Command;
         cs_CONTCMD: begin
-          writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
+          //writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
           case _ReadRest(myDatacount,cmd) of
             crs_OK: begin
               state:=cs_READY;
@@ -551,7 +551,7 @@ begin
     end;
     ss_WAITCMD: _Read_DB_Command;
     ss_CONTCMD: begin
-      writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
+      //writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
       case _ReadRest(myDatacount,cmd) of
         crs_OK: begin
           state:=ss_READY;

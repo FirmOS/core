@@ -5540,7 +5540,8 @@ procedure TFRE_DB_DERIVED_COLLECTION.FinishUpdateGathering(const sendupdates: Bo
 begin
   if sendupdates then begin
     //writeln('--------- SEND CLIENT UPDATE/NEW DESCR ------- ',CollectionName);
-    FSession.SendServerClientRequest(FGatherUpdateList);
+//    FSession.SendServerClientRequest(FGatherUpdateList);
+    FSession.DispatchCoroutine(@FSession.COR_SendDerivedCollUpdates,FGatherUpdateList);
   end else begin
     FGatherUpdateList.Free;
   end;

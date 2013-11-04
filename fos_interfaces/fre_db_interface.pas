@@ -1972,7 +1972,7 @@ type
     function    InvokeRemoteRequest      (const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
 
     function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
-    function    RemoveTaskMethod         (const id:string):boolean;
+    function    RemoveTaskMethod         (const id:string='TIMER'):boolean;
 
     procedure   registerUpdatableContent   (const contentId: String);
     procedure   unregisterUpdatableContent (const contentId: String);
@@ -2142,10 +2142,11 @@ type
 
 
     //Invoke a Method that another Session provides via Register
-    function    InvokeRemoteRequest      (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
-    procedure   InvokeRemReqCoRoutine    (const data : Pointer);
-    procedure   AnswerRemReqCoRoutine    (const data : Pointer);
-    function    DispatchCoroutine        (const coroutine : TFRE_APSC_CoRoutine;const data : Pointer):boolean; // Call a Coroutine in this sessions thread context
+    function    InvokeRemoteRequest        (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
+    procedure   InvokeRemReqCoRoutine      (const data : Pointer);
+    procedure   AnswerRemReqCoRoutine      (const data : Pointer);
+    procedure   COR_SendDerivedCollUpdates (const data : Pointer);
+    function    DispatchCoroutine          (const coroutine : TFRE_APSC_CoRoutine;const data : Pointer):boolean; // Call a Coroutine in this sessions thread context
 
 
     //Enable a session to "Publish" Remote Methods, overrides previous set
@@ -4244,6 +4245,11 @@ begin
   finally
     TFRE_DB_RemoteSessionAnswerEncapsulation(data).free;
   end;
+end;
+
+procedure TFRE_DB_UserSession.COR_SendDerivedCollUpdates(const data: Pointer);
+begin
+  SendServerClientRequest(TFRE_DB_CONTENT_DESC(data));
 end;
 
 function TFRE_DB_UserSession.DispatchCoroutine(const coroutine: TFRE_APSC_CoRoutine; const data: Pointer):boolean;
