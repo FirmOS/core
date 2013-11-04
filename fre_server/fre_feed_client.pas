@@ -56,13 +56,14 @@ type
     FFeedAppClass         : TFRE_DB_String;
     FFeedAppUid           : TGUid;
   public
-    procedure  MySessionEstablished    ; override;
-    procedure  MySessionDisconnected   ; override;
+    procedure  MySessionEstablished    (const chanman : IFRE_APSC_CHANNEL_MANAGER); override;
+    procedure  MySessionDisconnected   (const chanman : IFRE_APSC_CHANNEL_MANAGER); override;
     procedure  QueryUserPass           (out user, pass: string); override;
     procedure  RegisterRemoteMethods   (var remote_method_array : TFRE_DB_RemoteReqSpecArray); override;
     procedure  MyInitialize            ; override;
     procedure  MyFinalize              ; override;
     procedure  GenerateFeedDataTimer   (const TIM : IFRE_APSC_TIMER ; const flag1,flag2 : boolean); // Timout & CMD Arrived & Answer Arrived
+    procedure  MyConectionTimer        ; override;
 
     procedure  WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); override;
     function   ListDirLevel            (const basepath : string):IFRE_DB_Object;
@@ -72,16 +73,22 @@ type
 
 implementation
 
-procedure TFRE_SAMPLE_FEED_CLIENT.MySessionEstablished;
+procedure TFRE_SAMPLE_FEED_CLIENT.MySessionEstablished(const chanman: IFRE_APSC_CHANNEL_MANAGER);
 begin
-  if Get_AppClassAndUid('testapp',FFeedAppClass,FFeedAppUid) then begin
+  inherited; // Create and Activate Session Channel Timer
+  if Get_AppClassAndUid('TFRE_DB_TEST_APP',FFeedAppClass,FFeedAppUid) then begin
     FFeeding := True;
   end;
+  FEED_Timer := chanman.AddTimer(5000); // Beside the "normal 1 sec" Timer a 5 sec timer in the channel context
+  FEED_Timer.TIM_SetID('FEED');
+  FEED_Timer.TIM_SetCallback(@GenerateFeedDataTimer);
+  FEED_Timer.TIM_Start;
 end;
 
-procedure TFRE_SAMPLE_FEED_CLIENT.MySessionDisconnected;
+procedure TFRE_SAMPLE_FEED_CLIENT.MySessionDisconnected(const chanman: IFRE_APSC_CHANNEL_MANAGER);
 begin
   FFeeding   := false;
+  inherited;
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.QueryUserPass(out user, pass: string);
@@ -109,7 +116,6 @@ end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyInitialize;
 begin
-  FEED_Timer      := GFRE_SC.AddTimer('FEED',1000,@GenerateFeedDataTimer);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
   GFRE_DBI.Initialize_Extension_Objects;
   FREDB_LoadMimetypes('');
@@ -117,7 +123,7 @@ end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyFinalize;
 begin
-  FEED_Timer.Finalize;
+
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.GenerateFeedDataTimer(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
@@ -130,13 +136,17 @@ begin
         vmo.Field('LIVE STATUS FEED').AsString := 'LSF_0.0.1';
         vmo.Field('TIMESTAMP').AsDateTimeUTC   := GFRE_DT.Now_UTC;
         vmo.Field('SAMPLE_VALUE').AsInt32      := Random(1000)-500;
-        writeln('SEND SUPPRESSED (COMMENTED)');
-        //SendServerCommand(FFeedAppClass,'RAW_DATA_FEED',TFRE_DB_GUIDArray.Create(FFeedAppUid),vmo);
+        SendServerCommand(FFeedAppClass,'RAW_DATA_FEED',TFRE_DB_GUIDArray.Create(FFeedAppUid),vmo);
         writeln('LIVE UPDATE SENT! ' , GFRE_DT.Now_UTC);
       except on e:exception do begin
         writeln('FEED EXCEPTION : ',e.Message);
       end;end;
     end;
+end;
+
+procedure TFRE_SAMPLE_FEED_CLIENT.MyConectionTimer;
+begin
+  writeln('-> CONNECTION TIMER ACTIVE');
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);

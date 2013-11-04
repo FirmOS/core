@@ -65,7 +65,7 @@ type
 
   TFRE_TESTDATA_FEED = class(TCustomApplication)
   protected
-    procedure DoRun; override;
+    procedure   DoRun; override;
   public
     constructor Create(TheOwner: TComponent); override;
     destructor  Destroy; override;
@@ -130,6 +130,7 @@ begin
   GFRE_SC.RunUntilTerminate;
   Teardown_APS_Comm;
   FeedClient.Free;
+  GFRE_DB_DEFAULT_PS_LAYER.Finalize;
   Terminate;
 end;
 

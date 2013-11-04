@@ -260,7 +260,8 @@ type
     FnewChanCB    : TOnNew_APSC_Channel;
     FCreateThreadID : TThreadID;
 
-    FFinalizecalled: Boolean;
+    FFinalizecalled    : Boolean;
+    FDisconnectHandled : Boolean;
 
     procedure   ReadDataEvent;
     procedure   WriteDataEvent;
@@ -269,6 +270,7 @@ type
     procedure   GenericEvent(what : cShort);
     procedure   _InSync_Finalize;
     procedure   ThreadCheck;
+    procedure   EventDisconnectOnce;
 
   protected
     procedure   SetupServedSocket  (fd : cint ; new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; const base : PEvent_base ; newchannelcb : TOnNew_APSC_Channel); // a server socket
@@ -312,7 +314,7 @@ type
     FChannelMgrID : NativeInt;
     FChanBaseCtrl : TFRE_APS_LL_EvBaseController;
     FChannelList  : OFOS_SL_TFRE_APSC_CHANNEL;
-    FTimerList    : OFOS_SL_TFRE_APSC_TIMER;
+    FChanTimerList: OFOS_SL_TFRE_APSC_TIMER;
     FChannelCount : NativeInt;
     procedure   GotChannelCtrCMD (const cmd  : TAPSC_CMD ; const data : PShortString);
     procedure   _FinalizeChannel (const chan : TFRE_APSC_CHANNEL);
@@ -671,7 +673,9 @@ destructor TFRE_APSC_TIMER.Destroy;
 begin
   ThreadCheck;
   if FManager=nil then
-    GAPSC.FMainThread.FTimerList.Delete(self);
+    GAPSC.FMainThread.FTimerList.Delete(self)
+  else
+    FManager.FChanTimerList.Delete(self);
   if assigned(FEvent) then
     begin
       event_del(FEvent);
@@ -711,8 +715,7 @@ begin
   if (what and BEV_EVENT_EOF)>0 then
     begin
       FState := ch_EOF;
-      if assigned(FOnDisco) then
-        FOnDisco(Self);
+      EventDisconnectOnce;
       bufferevent_flush(FBufEvent,EV_WRITE,BEV_FLUSH);
       Finalize;
     end
@@ -727,8 +730,7 @@ begin
     begin
       FState := ch_BAD;
       APSC_CheckResultSetError(-1,FChanError,FChanECode,'','');
-      if assigned(FOnDisco) then
-        FOnDisco(Self);
+      EventDisconnectOnce;
       bufferevent_flush(FBufEvent,EV_WRITE,BEV_FLUSH);
       Finalize;
     end
@@ -745,6 +747,16 @@ procedure TFRE_APSC_CHANNEL.ThreadCheck;
 begin
   if GetThreadID<>FCreateThreadID then
     GFRE_BT.CriticalAbort('channel [%s] thread context violation [%s] vs [%s] ',[GetVerboseDesc,inttostr(NativeUint(GetThreadID)),inttostr(NativeUint(FCreateThreadID))]);
+end;
+
+procedure TFRE_APSC_CHANNEL.EventDisconnectOnce;
+begin
+  if not FDisconnectHandled then
+    begin
+      if assigned(FOnDisco) then
+        FOnDisco(self);
+    end;
+  FDisconnectHandled := true;
 end;
 
 procedure loc_buffer_cb_in(buffer : PEvbuffer ; info : Pevbuffer_cb_info ; arg : Pointer); cdecl;
@@ -977,6 +989,7 @@ end;
 
 destructor TFRE_APSC_CHANNEL.Destroy;
 begin
+  EventDisconnectOnce;
   bufferevent_disable(FBufEvent,EV_READ+EV_WRITE);
   if assigned(FBufEvent) then
     bufferevent_free(FBufEvent);
@@ -1047,7 +1060,7 @@ procedure TFRE_APSC_CHANNEL_MANAGER.GotChannelCtrCMD(const cmd: TAPSC_CMD; const
   begin
     //writeln('FINALIZE CHANNEL ON MGR ',FChannelMgrID);
     FChannelList.ForAllBreak(@FinalizeChans);
-    FTimerList.ForAllBreak(@FinalizeTimers);
+    FChanTimerList.ForAllBreak(@FinalizeTimers);
     FChanBaseCtrl.FinalizeLoop;
   end;
 
@@ -1103,8 +1116,11 @@ begin
 end;
 
 function TFRE_APSC_CHANNEL_MANAGER.AddTimer(interval_ms: NativeUint): IFRE_APSC_TIMER;
+var tim : TFRE_APSC_TIMER;
 begin
-  Result := TFRE_APSC_TIMER.Create(self,FChanBaseCtrl.FEventBase,interval_ms);
+  tim := TFRE_APSC_TIMER.Create(self,FChanBaseCtrl.FEventBase,interval_ms);
+  FChanTimerList.Add(tim);
+  result := tim;
 end;
 
 procedure TFRE_APSC_CHANNEL_MANAGER.ScheduleCoRoutine(const method: TFRE_APSC_CoRoutine; const data: Pointer);
@@ -1124,7 +1140,7 @@ begin
    FChannelMgrID := ID;
    FChanBaseCtrl := TFRE_APS_LL_EvBaseController.Create(@GotChannelCtrCMD,true,'C'+inttostr(id));
    FChannelList.InitSparseListPtrCmp;
-   FTimerList.InitSparseListPtrCmp;
+   FChanTimerList.InitSparseListPtrCmp;
    inherited create(false);
 end;
 
@@ -1551,14 +1567,20 @@ procedure TFRE_APS_COMM_MAIN_THREAD._InSync_FinalizeMain;
     list.Free;
   end;
 
+  procedure FinalizeTimer(var tim : TFRE_APSC_TIMER ; const idx : NativeInt ; var halt : boolean);
+  begin
+    tim.Free;
+  end;
+
+
 begin
   FCB.FinalizeLoop;
   FListenerlList.ForAllBreak(@FinalizeListener);
+  FTimerList.ForAllBreak(@FinalizeTimer);
 end;
 
 procedure EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL(fd : evutil_socket_t ; short: cshort ; data:pointer); cdecl;
 begin
-  writeln('HALLO ',fd);
   TFRE_APS_COMM_MAIN_THREAD(data)._SignalDelivered(fd);
 end;
 
@@ -1600,6 +1622,7 @@ destructor TFRE_APS_COMM_MAIN_THREAD.Destroy;
 begin
   Shutdown;
   FCB.Free;
+
   event_free(FSigHUP);
   event_free(FSigINT);
   event_free(FSigTERM);
