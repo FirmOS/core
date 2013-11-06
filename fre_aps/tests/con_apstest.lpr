@@ -1,6 +1,7 @@
 program CON_apstest;
 
 {$mode objfpc}{$H+}
+{$LIBRARYPATH ../../../lib}
 
 uses
  {$IFDEF UNIX}

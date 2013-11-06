@@ -58,7 +58,7 @@ type
   TFRE_HTTP_PARSER_REQ_STATE      = (rprs_PARSEREQ_LINE,rprs_PARSE_HEADERS,rprs_PARSEBODY,rprs_DISPATCHREQUEST);
   TFRE_HTTP_PARSER_ERROR          = (rpe_OK,rpe_CONTINUE,rpe_INVALID_REQ_LINE,rpe_INVALID_REQUEST);
 
-  TFRE_HTTP_ResponseHeaders        = (rh_AcceptRanges,rh_Age,rhETag,rh_Location,rh_ProxyAuth,rh_ReryAfter,rh_Server,rh_Vary,rh_WWWAuth,rh_contentDisposition);
+  TFRE_HTTP_ResponseHeaders        = (rh_AcceptRanges,rh_Age,rh_ETag,rh_Location,rh_ProxyAuth,rh_ReryAfter,rh_Server,rh_Vary,rh_WWWAuth,rh_contentDisposition);
   TFRE_HTTP_ResponseEntityHeaders  = (reh_Allow,reh_ContentEncoding,reh_ContentLanguage,reh_ContentLength,reh_ContentMD5,reh_ContentRange,reh_ContentType,reh_Origin,
                                       reh_Expires,reh_LastModified,reh_Connection,reh_CacheControl,reh_SetCookie,reh_Upgrade,reh_SecWebSocketAccept,reh_SecWebSocketProtocol,reh_SecWebSocketVersion,
                                       reh_old_SecWebSocketOrigin,reh_old_SecWebSocketLocation);
@@ -109,6 +109,7 @@ type
      procedure SetResponseStatusLine      (const StatusCode:integer; const ReasonPhrase:String);
      procedure SetResponseHeaders         ;
      procedure SetEntityHeaders           ;
+     procedure SetETagandLastModified     (const filename:string; const filesize:NativeUint; const moddate:TFRE_DB_DateTime64);
      procedure SetBody                    (const data:string);
      procedure SendResponse               ;
      procedure HttpRequest                (const method:TFRE_HTTP_PARSER_REQUEST_METHOD);
@@ -263,6 +264,14 @@ begin
   end;
 end;
 
+procedure TFRE_HTTP_CONNECTION_HANDLER.SetETagandLastModified(const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64);
+var s: string;
+begin
+  s:=filename+':'+inttostr(filesize)+':'+inttostr(moddate);
+  ResponseHeader[rh_ETag]                  := GFRE_BT.HashString_MD5_HEX(s);
+  ResponseEntityHeader[reh_LastModified]   := GFRE_DT.ToStrHTTP(moddate);
+end;
+
 procedure TFRE_HTTP_CONNECTION_HANDLER.SetBody(const data: string);
 begin
   FResponse:=FResponse+#13#10+data;
@@ -274,8 +283,8 @@ var i : TFRE_HTTP_ResponseEntityHeaders;
     lResponse:string;
     lPos:integer;
 begin
-  //GFRE_DBI.LogInfo(dblc_HTTPSRV,'< [%s] [%s]',[GFRE_BT.SepLeft(FResponse,#13#10),FChannel.GetVerboseDesc]);
-  //GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[FResponse]);
+  GFRE_DBI.LogInfo(dblc_HTTPSRV,'< [%s] [%s]',[GFRE_BT.SepLeft(FResponse,#13#10),FChannel.GetVerboseDesc]);
+  GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[FResponse]);
   FChannel.CH_WriteString(FResponse);
 end;
 
@@ -461,8 +470,8 @@ var
   procedure _DispatchRequest;
   begin
     //FMyCookie.CookieString:=GetHeaderField('Cookie');
-    //GFRE_DBI.LogInfo(dblc_HTTPSRV,'> %s [%s]',[GFRE_BT.SepLeft(FRequest,#13#10),FChannel.GetVerboseDesc]);
-    //GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[GFRE_BT.SepLeft(FRequest,#13#10#13#10)]);
+    GFRE_DBI.LogInfo(dblc_HTTPSRV,'> %s [%s]',[GFRE_BT.SepLeft(FRequest,#13#10),FChannel.GetVerboseDesc]);
+    GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[GFRE_BT.SepLeft(FRequest,#13#10#13#10)]);
     HttpRequest(FRequestMethod);
     InitForNewRequest;
     FInternalState:=rprs_PARSEREQ_LINE;

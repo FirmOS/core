@@ -612,11 +612,13 @@ begin
   writeln('FORMAT : ',pchar(@res_string[1]),' ',BEtoN(sa.sin_port),' ',BEtoN(sa.sin6_port));
   cfg := event_config_new;
   writeln('cfg ',integer(cfg));
-  res := event_config_avoid_method(cfg, 'xx-kqueue');
-  writeln('avoid : ',res);
-  res := event_config_require_features(cfg, EV_FEATURE_ET or EV_FEATURE_O1 or EV_FEATURE_FDS);
+//  res := event_config_avoid_method(cfg, 'xx-kqueue');
+//  writeln('avoid : ',res);
+//  res := event_config_require_features(cfg, EV_FEATURE_ET or EV_FEATURE_O1 or EV_FEATURE_FDS);
+  res := event_config_require_features(cfg, EV_FEATURE_O1);
   writeln('features : ',res);
-  base := event_base_new_with_config(cfg);
+//  base := event_base_new_with_config(cfg);
+  base := event_base_new;
   event_config_free(cfg);
   writeln('base : ',integer(base));
   _setupUnix;
