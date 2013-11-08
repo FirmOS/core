@@ -65,7 +65,7 @@ type
     procedure SetupdateID   (const AValue: String);
   public
     constructor Create;
-    destructor  Destroy;
+    destructor  Destroy    ; override;
     property    ActionType :TFRE_JSON_ACTIONTYPE read FActionType write SetActionType;
     property    ID         :string read FID write SetID;
     property    updateID   :string read FupdateID write SetupdateID;
@@ -111,12 +111,13 @@ end;
 
 destructor TFRE_JSON_ACTION.Destroy;
 begin
+  FJSONObj.Finalize;
   inherited;
 end;
 
 function TFRE_JSON_ACTION.AsString: string;
 begin
-  result := FJSONObj.GetAsJSON(true).AsJSON;
+  result := FJSONObj.GetAsJSONString(true);
 end;
 
 end.

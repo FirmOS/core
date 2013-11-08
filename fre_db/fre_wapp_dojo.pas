@@ -244,6 +244,7 @@ implementation
   begin
     if conn.FetchTranslateableText('$dojo_'+key,txt) then begin
       Result:=txt.Getshort;
+      txt.Finalize;
     end else begin
       Result:='$dojo_'+key;
     end;
@@ -2397,61 +2398,67 @@ implementation
     end;
 
     subsecs:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
-    entries := '[';
-    for i := 0 to co.Field('entries').ValueCount - 1 do begin
-      entry:=co.Field('entries').AsObjectArr[i].Implementor_HC as TFRE_DB_CONTENT_DESC;
-      if i>0 then begin
-        entries:=entries+',';
-      end;
-      entries:=entries+'{isBig: '+BoolToStr(entry.Field('big').AsBoolean,'true','false');
-      entries:=entries+',entryId: "'+entry.contentId+'"';
-      entries:=entries+',icon: "'+entry.Field('icon').AsString+'"';
-      if entry is TFRE_DB_TOPMENU_ENTRY_DESC then begin
-        entries:=entries+',isDialog: false';
-        if entry.Field('serverFuncs').ValueCount=1 then begin
-          subsecs.AddSection.Describe(entry.Field('serverFuncs').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',i,entry.contentId);
-        end else begin
-          subsubsecs:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
-          for j := 0 to entry.Field('serverFuncs').ValueCount - 1 do begin
-            subsubsecs.AddSection.Describe(entry.Field('serverFuncs').AsObjectArr[j].Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',j,entry.Field('subIds').AsStringArr[j]);
+    try
+      entries := '[';
+      for i := 0 to co.Field('entries').ValueCount - 1 do begin
+        entry := co.Field('entries').AsObjectArr[i].Implementor_HC as TFRE_DB_CONTENT_DESC;
+        if i>0 then begin
+          entries:=entries+',';
+        end;
+        entries:=entries+'{isBig: '+BoolToStr(entry.Field('big').AsBoolean,'true','false');
+        entries:=entries+',entryId: "'+entry.contentId+'"';
+        entries:=entries+',icon: "'+entry.Field('icon').AsString+'"';
+        if entry is TFRE_DB_TOPMENU_ENTRY_DESC then begin
+          entries:=entries+',isDialog: false';
+          if entry.Field('serverFuncs').ValueCount=1 then begin
+            subsecs.AddSection.Describe(entry.Field('serverFuncs').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',i,entry.contentId);
+            entry.Field('serverFuncs').Clear(true);
+          end else begin
+            subsubsecs:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
+            for j := 0 to entry.Field('serverFuncs').ValueCount - 1 do begin
+              subsubsecs.AddSection.Describe(entry.Field('serverFuncs').AsObjectArr[j].Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',j,entry.Field('subIds').AsStringArr[j]);
+            end;
+            subsecs.AddSection._internalDescribe(subsubsecs,'',i,entry.contentId);
+            entry.Field('serverFuncs').Clear(true);
           end;
-          subsecs.AddSection._internalDescribe(subsubsecs,'',i,entry.contentId);
+          if entry.Field('active').AsBoolean then begin
+            subsecs.SetActiveSection(entry.contentId);
+          end;
+        end else begin
+          entries:=entries+',isDialog: true';
+          if entry is TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC then begin
+            entries:=entries+',class: "'+entry.FieldPath('serverFunc.class').AsString+'"';
+            entries:=entries+',func: "'+entry.FieldPath('serverFunc.func').AsString+'"';
+            entries:=entries+',uidpath: '+_BuildJSArray(entry.FieldPath('serverFunc.uidPath').AsStringArr);
+            entries:=entries+',params: '+_BuildParamsObject(entry.Field('serverFunc').AsObject.Field('params').AsObjectArr);
+          end else begin//TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC;
+            entries:=entries+',isJira: true';
+          end;
         end;
-        if entry.Field('active').AsBoolean then begin
-          subsecs.SetActiveSection(entry.contentId);
-        end;
-      end else begin
-        entries:=entries+',isDialog: true';
-        if entry is TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC then begin
-          entries:=entries+',class: "'+entry.FieldPath('serverFunc.class').AsString+'"';
-          entries:=entries+',func: "'+entry.FieldPath('serverFunc.func').AsString+'"';
-          entries:=entries+',uidpath: '+_BuildJSArray(entry.FieldPath('serverFunc.uidPath').AsStringArr);
-          entries:=entries+',params: '+_BuildParamsObject(entry.Field('serverFunc').AsObject.Field('params').AsObjectArr);
-        end else begin//TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC;
-          entries:=entries+',isJira: true';
-        end;
+        entries:=entries+',caption: "'+entry.Field('caption').AsString+'"}';
       end;
-      entries:=entries+',caption: "'+entry.Field('caption').AsString+'"}';
-    end;
-    entries:=entries+']';
-    jsContentAdd('var '+co.Field('id').AsString + ' = new FIRMOS.TopMenu({');
-    jsContentAdd('                 id: "'+co.Field('id').AsString+'"');
-    jsContentAdd('                ,class: "borderContainer firmosTransparent"');
-    jsContentAdd('                ,entries: ' + entries);
-    jsContentAdd('                ,subSecsId: "' + subsecs.contentId + '"');
-    jsContentAdd('});');
+      entries:=entries+']';
+      jsContentAdd('var '+co.Field('id').AsString + ' = new FIRMOS.TopMenu({');
+      jsContentAdd('                 id: "'+co.Field('id').AsString+'"');
+      jsContentAdd('                ,class: "borderContainer firmosTransparent"');
+      jsContentAdd('                ,entries: ' + entries);
+      jsContentAdd('                ,subSecsId: "' + subsecs.contentId + '"');
+      jsContentAdd('});');
 
-    BuildSubsectionContainer(session,command_type,subsecs,contentString,contentType,true);
-    jsContentAdd(subsecs.Field('id').AsString+'.region="center";');
-    jsContentAdd(subsecs.Field('id').AsString+'.class="firmosTransparent";');
-    jsContentAdd(co.Field('id').AsString +'.addChild('+subsecs.Field('id').AsString+');');
+      BuildSubsectionContainer(session,command_type,subsecs,contentString,contentType,true);
+      jsContentAdd(subsecs.Field('id').AsString+'.region="center";');
+      jsContentAdd(subsecs.Field('id').AsString+'.class="firmosTransparent";');
+      jsContentAdd(co.Field('id').AsString +'.addChild('+subsecs.Field('id').AsString+');');
 
-    if not isInnerContent then begin
-      jsContentAdd('G_UI_COM.contentLoaded('+co.Field('id').AsString+',"'+co.Field('windowCaption').AsString+'");');
-    end;
+      if not isInnerContent then begin
+        jsContentAdd('G_UI_COM.contentLoaded('+co.Field('id').AsString+',"'+co.Field('windowCaption').AsString+'");');
+      end;
 
-    if co.FieldExists('dialog') then begin
-      _BuildDialog(session,co.Field('dialog').AsObject.Implementor_HC as TFRE_DB_DIALOG_DESC);
+      if co.FieldExists('dialog') then begin
+        _BuildDialog(session,co.Field('dialog').AsObject.Implementor_HC as TFRE_DB_DIALOG_DESC);
+      end;
+    finally
+      subsecs.Finalize;
     end;
 
     if not isInnerContent then begin

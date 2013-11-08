@@ -328,13 +328,18 @@ begin
     Terminate;
     Exit;
   end;
+
   Setup_SSL_Interface;
   Setup_APS_Comm;
   FBaseServer := TFRE_BASE_SERVER.create(FDBName);
   FBaseServer.Setup;
   GFRE_SC.RunUntilTerminate;
+
+
   Teardown_APS_Comm;
   Terminate;
+  FBaseServer.Free;
+  GFRE_DB_DEFAULT_PS_LAYER.Finalize;
   Cleanup_SSL_Interface;
   exit;
 end;

@@ -495,7 +495,7 @@ var TOB    : TFRE_DB_SIMPLE_TRANSFORM;
     procedure Dump(const ob:TFRE_DB_Object);
     begin
 //      writeln(ob.DumpToString());
-      writeln(ob.GetAsJSON.AsJSON);
+      writeln(ob.GetAsJSONString);
     end;
 
     procedure Dump2(const ob:TFRE_DB_Object);

@@ -53,10 +53,10 @@ type
   TFRE_DB_LOGIN = class (TFRE_DB_APPLICATION)
   private
   public
-    procedure  SetupApplicationStructure; override;
-    procedure  InternalSetup           ; override;
-    procedure  InternalFinalize        ; override;
-    function   No_Apps_ForGuests       (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+    procedure  SetupApplicationStructure ; override;
+    procedure  InternalSetup             ; override;
+    procedure  InternalFinalize          ; override;
+    function   No_Apps_ForGuests         (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   published
     function WEB_OnUIChange      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_Content         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -164,7 +164,6 @@ begin
     sta_ActiveNew,
     sta_ReUsed:
       begin
-        //writeln(ses.GetDBConnection.SYS.dumpuserrights);
         conn.FetchApplications(apps);
         if Length(apps)=0 then begin
           result := No_Apps_ForGuests(input,ses,app,conn); // => Apps for Guests or Login

@@ -65,7 +65,7 @@ var
     GCFG_DB_BACKEND_THREAD_CNT     : Integer = 1;
     GCFG_RANDOM_BYTES_DEVICE       : String =  '/dev/random';
 
-    GCFG_SESSION_UNBOUND_TO        : Integer = 30;
+    GCFG_SESSION_UNBOUND_TO        : Integer = 5;
 
 type
 
@@ -1081,7 +1081,7 @@ type
     function  GetSchemeType                : TFRE_DB_SchemeType;
     function  ValidateObject               (const dbo : IFRE_DB_Object;const raise_errors:boolean=true):boolean;
 
-    function  InvokeMethod_UID             (const suid : TGUID;const methodname:TFRE_DB_String;const input:IFRE_DB_Object;const connection:IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  InvokeMethod_UID             (const suid : TGUID;const methodname:TFRE_DB_String;var input:IFRE_DB_Object;const connection:IFRE_DB_CONNECTION):IFRE_DB_Object;
     procedure ForAllFieldSchemeDefinitions (const iterator:IFRE_DB_SchemeFieldDef_Iterator);
     property  Explanation:TFRE_DB_String read GetExplanation write SetExplanation;
   end;
@@ -1132,7 +1132,7 @@ type
     procedure   ForAllSchemes                (const iterator:IFRE_DB_Scheme_Iterator)                                 ;
     procedure   ForAllEnums                  (const iterator:IFRE_DB_Enum_Iterator)                                   ;
     procedure   ForAllClientFieldValidators  (const iterator:IFRE_DB_ClientFieldValidator_Iterator)                   ;
-    function    InvokeMethod                 (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;const input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
+    function    InvokeMethod                 (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
     function    NewWorkFlowScheme            (const WF_SchemeName:TFRE_DB_NameType):IFRE_DB_WORKFLOW;
     function    DeleteWorkFlowScheme         (const WF_SchemeName:TFRE_DB_NameType):TFRE_DB_Errortype;
@@ -1156,7 +1156,7 @@ type
     function    SYS                          : IFRE_DB_SYS_CONNECTION;
 
     function    FetchApplications           (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
-    function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
+    function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;
 
     function    AdmGetUserCollection        :IFRE_DB_COLLECTION;
     function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
@@ -1268,7 +1268,8 @@ type
 //    function   GetDescription               (conn : IFRE_DB_CONNECTION): IFRE_DB_TEXT;
     function   UID                          : TGUID;
     function   ShowInApplicationChooser     (const session:IFRE_DB_UserSession): Boolean;
-    function   FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
+    function   FetchAppTextShort            (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchAppTextFull             (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;
     function   AppClassName                 : ShortString;
     function   AsObject                     : IFRE_DB_Object;
     function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
@@ -1312,7 +1313,6 @@ type
     class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
     class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
 
-    function         CFG_Dont_Finalize_Object   : Boolean; virtual;
     function         GetSystemSchemeByName      (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
     function         GetSystemScheme            (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
     procedure        GetSession                 (const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean); deprecated; //DEPRECATED DONT USE
@@ -1390,7 +1390,9 @@ type
     constructor    create                              ;
     constructor    CreateBound                         (const dbo:IFRE_DB_Object ; const internal_setup : boolean);
     destructor     Destroy                             ;override;
-    destructor     DestroyFromMediator                 ;virtual;
+    destructor     DestroyFromBackingDBO               ;
+    procedure      FreeFromBackingDBO                  ;virtual;
+    procedure      Free                                ;
 
     //Interface - Compatibility Block
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
@@ -1522,7 +1524,9 @@ type
 
 //    procedure  CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
 
-    function   FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
+    function   _FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
+    function   FetchAppTextShort             (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchAppTextFull              (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
 
     class procedure  CreateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
 
@@ -1554,7 +1558,7 @@ type
     procedure  MySessionFinalizeModule      (const session : TFRE_DB_UserSession);virtual;
 
     function   GetEmbeddingApp              : TFRE_DB_APPLICATION;
-    function   FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;//don't finalize the object
+    function   _FetchAppText                (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;
 
     function   GetToolbarMenu               : TFRE_DB_CONTENT_DESC;virtual;
     function   GetDBConnection              (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
@@ -1601,9 +1605,10 @@ type
     var NILInstances : NativeInt;
   public
      constructor      Create                   ;
+     procedure        Free                     ;
      destructor       Destroy                  ; override;
      destructor       DestroySingleton         ;
-     destructor       DestroyFromMediator      ; override;
+     procedure        FreeFromBackingDBO       ; override;
   end;
 
   //@ This suppresses the sync answer to the client, a Sync answer should be sent in time by another method
@@ -1614,9 +1619,10 @@ type
   public class
     var NILInstances : NativeInt;
     constructor      Create                   ;
+    procedure        Free                     ;
     destructor       Destroy                  ;override;
     destructor       DestroySingleton         ;
-    destructor       DestroyFromMediator      ; override;
+    procedure        FreeFromBackingDBO       ; override;
   end;
 
   { TFRE_DB_PARAM_DESC }
@@ -1958,7 +1964,6 @@ type
     function    GetSessionGlobalData     :IFRE_DB_Object;
     function    NewDerivedCollection     (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
     function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
-    function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
     function    GetDBConnection          :IFRE_DB_CONNECTION;
     function    GetDomain                :TFRE_DB_String;
     function    LoggedIn                 : Boolean;
@@ -2034,6 +2039,7 @@ type
     FContinuationArray    : Array [0..100] of TDispatch_Continuation;
     FContinuationLock     : IFOS_LOCK;
   private
+    FSessionLock          : IFOS_LOCK;
     FTakeoverPrepared     : String;
     FOnFetchSessionById   : TFRE_DB_OnFetchSessionByID;
     FSessionTerminationTO : NativeInt;
@@ -2052,14 +2058,10 @@ type
     FSessionData          : IFRE_DB_Object;
     FTimers               : TList;
 
-    //FDbgTaskMethod        : IFRE_DB_InvokeInstanceMethod;
-    //FDbgTaskIv            : integer;
-
     FRemoteRequestSet     : TFRE_DB_RemoteReqSpecArray;
     FCurrentReqID         : QWord;
 
     FDefaultUID           : TFRE_DB_GUIDArray;
-    FSessionQ             : IFOS_LFQ;
     FDBConnection         : IFRE_DB_CONNECTION;
     FPromoted             : Boolean;
 
@@ -2071,8 +2073,8 @@ type
     FIsInteractive        : Boolean;
     FBindState            : TFRE_DB_SESSIONSTATE;
 
-    procedure     SetOnCheckUserNamePW    (AValue: TFRE_DB_OnCheckUserNamePassword);
-    procedure     SetOnExistsUserSession  (AValue: TFRE_DB_OnExistsUserSessionForKey);
+    procedure     SetOnCheckUserNamePW   (AValue: TFRE_DB_OnCheckUserNamePassword);
+    procedure     SetOnExistsUserSession (AValue: TFRE_DB_OnExistsUserSessionForKey);
     procedure     SetOnExistsUserSession4TakeOver(AValue: TFRE_DB_OnExistsUserSessionForKey);
     procedure     SetOnFetchPublisherRAC(AValue: TFRE_DB_OnFetchPublisherSession);
     procedure     SetOnFetchSessionById(AValue: TFRE_DB_OnFetchSessionByID);
@@ -2089,12 +2091,16 @@ type
     procedure     RemoveAllTimers        ;
 
   public
+    procedure     LockSession            ;
+    procedure     UnlockSession          ;
+    class destructor  destroyit          ;
+    class constructor createit           ;
     procedure   SetSessionState          (const sstate : TFRE_DB_SESSIONSTATE);
     function    GetSessionState          : TFRE_DB_SESSIONSTATE;
     function    CheckUnboundSessionForPurge : boolean;
     constructor Create                   (const user_name,password:TFRE_DB_String;const default_app:TFRE_DB_String;const default_uid_path : TFRE_DB_GUIDArray ; conn : IFRE_DB_CONNECTION);
-    procedure   StoreSessionData         ;
     destructor  Destroy                  ;override;
+    procedure   StoreSessionData         ;
     function    SearchSessionApp         (const app_key:TFRE_DB_String ; out app:TFRE_DB_APPLICATION ; out idx:integer):boolean;
 
     function    SearchSessionAppUID      (const app_uid:TGUID;out app:IFRE_DB_Object):boolean;
@@ -2103,10 +2109,7 @@ type
     procedure   RemoveAllAppsAndFinalize ;
     procedure   SetCurrentApp            (const app_key:TFRE_DB_String);
     procedure   Input_FRE_DB_Command     (const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
-    procedure   Input_FRE_DB_Event       (const cmd_event:TFRE_DB_EVENT_METHOD_ENC);
-    function    Session_Has_CMDS         : Boolean;
-    procedure   WorkSessionCommand       (var cmd : IFRE_DB_COMMAND);
-    function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;const input:IFRE_DB_Object):IFRE_DB_Object;
+    function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
     function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; out take_over_content : TFRE_DB_CONTENT_DESC ; out existing_session : TFRE_DB_Usersession ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
@@ -2139,6 +2142,7 @@ type
 
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
+    procedure   SendServerClientCMD      (const cmd : IFRE_DB_COMMAND);
 
 
     //Invoke a Method that another Session provides via Register
@@ -2158,7 +2162,7 @@ type
 
     function    IsInteractiveSession     : Boolean;
 
-    function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
+    //function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;
 
     function    GetDBConnection          :IFRE_DB_CONNECTION;
     function    GetDomain                :TFRE_DB_String;
@@ -2823,9 +2827,14 @@ begin
   Inherited Create;
 end;
 
+procedure TFRE_DB_SUPPRESS_ANSWER_DESC.Free;
+begin
+  GFRE_BT.CriticalAbort('DONT DESTROY A FRE SINGLETON WITH STANDARD CALLS');
+end;
+
 destructor TFRE_DB_SUPPRESS_ANSWER_DESC.Destroy;
 begin
-  exit;
+  GFRE_BT.CriticalAbort('DONT DESTROY A FRE SINGLETON WITH STANDARD CALLS');
 end;
 
 destructor TFRE_DB_SUPPRESS_ANSWER_DESC.DestroySingleton;
@@ -2839,7 +2848,7 @@ begin
   Inherited Destroy;
 end;
 
-destructor TFRE_DB_SUPPRESS_ANSWER_DESC.DestroyFromMediator;
+procedure TFRE_DB_SUPPRESS_ANSWER_DESC.FreeFromBackingDBO;
 begin
   exit;
 end;
@@ -3170,10 +3179,14 @@ begin
   Inherited Create;
 end;
 
+procedure TFRE_DB_NIL_DESC.Free;
+begin
+  GFRE_BT.CriticalAbort('DONT DESTROY A FRE SINGLETON WITH STANDARD CALLS');
+end;
+
 destructor TFRE_DB_NIL_DESC.Destroy;
 begin
-  exit;
-  // ignore destroy of the nil description
+  GFRE_BT.CriticalAbort('DONT DESTROY A FRE SINGLETON WITH STANDARD CALLS');
 end;
 
 destructor TFRE_DB_NIL_DESC.DestroySingleton;
@@ -3187,7 +3200,7 @@ begin
   inherited Destroy;
 end;
 
-destructor TFRE_DB_NIL_DESC.DestroyFromMediator;
+procedure TFRE_DB_NIL_DESC.FreeFromBackingDBO;
 begin
   exit;
 end;
@@ -3236,6 +3249,16 @@ begin
   FOnFetchSessionById:=AValue;
 end;
 
+procedure TFRE_DB_UserSession.LockSession;
+begin
+  FSessionLock.Acquire;
+end;
+
+procedure TFRE_DB_UserSession.UnlockSession;
+begin
+  FSessionLock.Release;
+end;
+
 procedure TFRE_DB_UserSession.SetOnCheckUserNamePW(AValue: TFRE_DB_OnCheckUserNamePassword);
 begin
   FOnCheckUserNamePW:=AValue;
@@ -3254,7 +3277,7 @@ end;
 
 constructor TFRE_DB_UserSession.Create(const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String;const default_uid_path : TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION);
 begin
-  GFRE_TF.Get_LFQ(FSessionQ);
+  GFRE_TF.Get_Lock(FSessionLock);
   FUserName             := user_name;
   FDefaultApp           := default_app;
   FDBConnection         := conn;
@@ -3266,6 +3289,7 @@ begin
   _InitApps;
   if not assigned(FContinuationLock) then
      GFRE_TF.Get_Lock(TFRE_DB_UserSession.FContinuationLock);
+  writeln('SESSION CREATE ',user_name,' ',default_app);
 end;
 
 procedure TFRE_DB_UserSession.StoreSessionData;
@@ -3284,11 +3308,7 @@ begin
     end else begin
       GFRE_DBI.LogInfo(dblc_SESSION,'STORING SESSIONDATA FOR ['+FUserName+'] FAILED --> '+CFRE_DB_Errortype[res]);
     end;
-    //writeln;
-    //writeln;
-    //writeln(FSessionData.DumpToString);
-    //writeln;
-    //writeln;
+    FSessionData := nil;
   end else begin
     GFRE_DBI.LogWarning(dblc_SESSION,'NO SESSIONDATA FOR ['+FUserName+']');
   end;
@@ -3298,16 +3318,18 @@ destructor TFRE_DB_UserSession.Destroy;
 begin
   RemoveAllTimers;
   if FPromoted then
-    StoreSessionData;
+     writeln('TODO: FIX STORE/RETRIEVE SESSIONDATA');
+    //StoreSessionData;
   try
     FinishDerivedCollections;
   except on e:exception do
     writeln('***>>  ERROR : FAILED TO FINISH DERIVED COLLECTIONS : '+e.Message);
   end;
-  if FPromoted then begin
-    FDBConnection.Finalize;
-  end;
+  FDBConnection.Finalize;
   FTimers.Free;
+  FSessionLock.Finalize;
+  if assigned(FSessionData) then
+    FSessionData.Finalize;
   GFRE_DBI.LogInfo(dblc_SESSION,'FINALIZED USERSESSION [%s] USER [%s]',[FSessionID,FUserName]);
   inherited Destroy;
 end;
@@ -3396,6 +3418,18 @@ begin
   FTimers.Clear;
 end;
 
+class destructor TFRE_DB_UserSession.destroyit;
+begin
+ if assigned(FContinuationLock) then
+    FContinuationLock.Finalize;
+end;
+
+class constructor TFRE_DB_UserSession.createit;
+begin
+
+end;
+
+
 
 procedure TFRE_DB_UserSession.SetSessionState(const sstate: TFRE_DB_SESSIONSTATE);
 begin
@@ -3474,29 +3508,6 @@ end;
 
 
 procedure TFRE_DB_UserSession.Input_FRE_DB_Command(const cmd: IFRE_DB_COMMAND);
-var icmd : IFRE_DB_COMMAND;
-begin
-  icmd := cmd; // TODO REWORK ? - BAD REFACTORING
-  WorkSessionCommand(icmd);
-  if assigned(icmd) then
-    if icmd.Data.Implementor_HC <> GFRE_DB_SUPPRESS_SYNC_ANSWER then
-      icmd.GetAnswerInterface.Send_ServerClient(icmd); //Debug
-end;
-
-procedure TFRE_DB_UserSession.Input_FRE_DB_Event(const cmd_event: TFRE_DB_EVENT_METHOD_ENC);
-begin
- abort;
-  FSessionQ.Push(cmd_event);
-  FOnWorkCommands(self);
-end;
-
-
-function TFRE_DB_UserSession.Session_Has_CMDS: Boolean;
-begin
-  result := FSessionQ.SomethingOnQ>0;
-end;
-
-procedure TFRE_DB_UserSession.WorkSessionCommand(var cmd: IFRE_DB_COMMAND);
 var x           : TObject;
     class_name  : TFRE_DB_String;
     method_name : TFRE_DB_String;
@@ -3510,7 +3521,7 @@ var x           : TObject;
     dummy_idx   : integer;
     i           : Integer;
 
-    procedure InvokeMethod(const async:boolean);
+    procedure InvokeMethod(const async:boolean ; var input: IFRE_DB_Object);
     var st,et : QWord;
     begin
       st := GFRE_BT.Get_Ticks_ms;
@@ -3528,20 +3539,23 @@ var x           : TObject;
         if output=nil then begin
           raise EFRE_DB_Exception.Create('function '+class_name+'.'+method_name+' delivered nil result');
         end;
-        CMD.Data        := output;
-        if request_typ = fct_SyncRequest then begin
-          CMD.CommandType := fct_SyncReply;
-        end;
+        CMD.Data          := output;
+        cmd.CommandType   := fct_SyncReply;
+        cmd.Answer        := true;
+        cmd.ClientCommand := false;
         GFRE_DBI.LogDebug(dblc_SERVER_DATA,'OUTPUT:');
         GFRE_DBI.LogDebug(dblc_SERVER_DATA,'%s',[output.DumpToString(2)]);
+        SendServerClientCMD(cmd);
       except on e:exception do begin
         et := GFRE_BT.Get_Ticks_ms;
         GFRE_DBI.LogError(dblc_SERVER,'>>(%4.4d ms)<<DISPATCH METHOD %s(%s).%s RID = [%d] TYPE[%s] FAILED[%s]',[et-st,class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,request_id,CFRE_DB_COMMANDTYPE[request_typ],e.Message]);
         CMD.CheckoutData.Finalize;
         if not async then begin
-          CMD.CommandType := fct_Error;
-          CMD.Answer      := true;
+          CMD.CommandType   := fct_Error;
+          CMD.Answer        := true;
+          CMD.ClientCommand := false;
           CMD.ErrorText   := 'INVOKE OF ['+class_name+'.'+method_name+'] FAILED '+#13#10+'['+e.Message+']';
+          SendServerClientCMD(cmd);
         end;
       end;end;
       //GFRE_DBI.LogDebug(dblc_SERVER,'<<DISPATCH METHOD %s(%s).%s RID = [%d] TYPE[%s] DONE',[class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,request_id,CFRE_DB_COMMANDTYPE[request_typ]]);
@@ -3634,50 +3648,44 @@ var x           : TObject;
     end;
 
 begin
-  ////x := TObject(FSessionQ.Pop);
-  ////if not(assigned(x)) then exit;
-  //if x is TFRE_DB_EVENT_METHOD_ENC then begin
-  //  result := nil;
-  //  try
-  //    InvokeEvent(TFRE_DB_EVENT_METHOD_ENC(x));
-  //  except on e:exception do begin
-  //    writeln('EVENT INVOKE ERROR ',e.Message);
-  //  end;end;
-  //end else begin
-  //  if not x.GetInterface(IFRE_DB_COMMAND,cmd) then GFRE_BT.CriticalAbort('logic');
-  //    result := CMD;
-  with cmd do begin
-    class_name  := InvokeClass;
-    method_name := InvokeMethod;
-    request_id  := CommandID;
-    request_typ := CommandType;
-    uidp        := UidPath;
-    input       := CMD.CheckoutData;
-  end;
+  with cmd do
+    begin
+      class_name  := InvokeClass;
+      method_name := InvokeMethod;
+      request_id  := CommandID;
+      request_typ := CommandType;
+      uidp        := UidPath;
+      input       := CMD.CheckoutData;
+    end;
   case request_typ of
     fct_SyncRequest:  begin
                         try
                           if (class_name='FIRMOS') then begin
-                              if (method_name='INIT') then begin
-                                   if not FPromoted and (cG_OVERRIDE_USER<>'') and (cG_OVERRIDE_PASS<>'') then begin // AutoLogin
-                                     GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.INIT  AUTOLOGIN  SID[%s] USER[%s]',[FSessionID,cG_OVERRIDE_USER]);
-                                     input.Field('data').AsObject.Field('uname').AsString := cG_OVERRIDE_USER;
-                                     input.Field('data').AsObject.Field('pass').AsString  := cG_OVERRIDE_PASS;
-                                     class_name  := FDefaultApp;
-                                     uidp        := FDefaultUID;
-                                     method_name := 'doLogin';
-                                     InvokeMethod(false);
-                                     CMD.ChangeSession := FSessionID;
-                                   end else begin
-                                     GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.INIT  SID[%s]',[FSessionID]);
-                                     class_name  := FDefaultApp;
-                                     uidp        := FDefaultUID;
-                                     method_name := 'Content';
-                                     input.Field('CLEANUP').AsBoolean := TRUE;
-                                     InvokeMethod(false);
-                                     CMD.ChangeSession := FSessionID;
-                                   end;
-                              end else
+                              if (method_name='INIT') then
+                                begin
+                                   if not FPromoted and (cG_OVERRIDE_USER<>'') and (cG_OVERRIDE_PASS<>'') then
+                                     begin // AutoLogin
+                                       GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.INIT  AUTOLOGIN  SID[%s] USER[%s]',[FSessionID,cG_OVERRIDE_USER]);
+                                       input.Field('data').AsObject.Field('uname').AsString := cG_OVERRIDE_USER;
+                                       input.Field('data').AsObject.Field('pass').AsString  := cG_OVERRIDE_PASS;
+                                       class_name  := FDefaultApp;
+                                       uidp        := FDefaultUID;
+                                       method_name := 'doLogin';
+                                       CMD.ChangeSession := FSessionID;
+                                       InvokeMethod(false,input);
+                                     end
+                                   else
+                                     begin
+                                       GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.INIT  SID[%s]',[FSessionID]);
+                                       class_name  := FDefaultApp;
+                                       uidp        := FDefaultUID;
+                                       method_name := 'Content';
+                                       input.Field('CLEANUP').AsBoolean := TRUE;
+                                       CMD.ChangeSession := FSessionID;
+                                       InvokeMethod(false,input);
+                                     end;
+                                end
+                              else
                               if (method_name='LOGOUT') then begin
                                 GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.LOGOUT  SID[%s]',[FSessionID]);
                                 Logout;
@@ -3685,13 +3693,8 @@ begin
                                 class_name  := FDefaultApp;
                                 uidp        := FDefaultUID;
                                 method_name := 'Content';
-                                InvokeMethod(false);
                                 CMD.ChangeSession := 'LOGGEDOUT';
-                              end else
-                              if (method_name='RELOAD') then begin  //TODO: DOES NOT WORK
-                                GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.RELOAD  SID[%s]',[FSessionID]);
-                                CMD.Data        := GFRE_DB_NIL_DESC;   //TODO: RELOAD DESCRIPTION
-                                CMD.CommandType := fct_SyncRequest;
+                                InvokeMethod(false,input);
                               end else
                               if (method_name='DESTROY') then begin
                                 GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.DESTROY  SID[%s]',[FSessionID]);
@@ -3699,7 +3702,6 @@ begin
                                   unregisterUpdatableContent(input.Field('ids').AsStringItem[i]);
                                 end;
                                 CMD.Data        := GFRE_DB_NIL_DESC;
-                                CMD.CommandType := fct_SyncRequest;
                               end else
                               if (method_name='UNREGISTERDBO') then begin
                                 GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.UNREGISTERDBO  SID[%s]',[FSessionID]);
@@ -3707,18 +3709,21 @@ begin
                                   unregisterUpdatableDBO(input.Field('ids').AsStringItem[i]);
                                 end;
                                 CMD.Data        := GFRE_DB_NIL_DESC;
-                                CMD.CommandType := fct_SyncRequest;
                               end else begin
                                 raise EFRE_DB_Exception.Create(edb_ERROR,'UNKNOWN FIRMOS SPECIFIC COMMAND '+method_name);
                               end;
+                              //cmd.CommandType   := fct_SyncReply;
+                              //cmd.Answer        := true;
+                              //cmd.ClientCommand := false;
                           end else begin
-                             InvokeMethod(false);
+                             InvokeMethod(false,input);
                           end;
                         except on e:Exception do begin
                          cmd.CommandType := fct_Error;
+                         cmd.Answer        := true;
+                         cmd.ClientCommand := false;
                          cmd.ErrorText   := e.Message;
                         end;end;
-                        cmd.SetAnswerInterface(FBoundSession_RA_SC);
                       end;
     fct_AsyncRequest: begin
                         if (class_name='FIRMOS') then
@@ -3727,44 +3732,31 @@ begin
                               begin
                                 GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.REG_REM_METH  SID[%s]',[FSessionID]);
                                 _RegisterRemoteRequestSet(input);
-                                CMD.Data        := GFRE_DB_NIL_DESC;
-                                CMD.CommandType := fct_SyncRequest;
                                 CMD.Finalize;
-                                CMD:=nil;
                               end
                             else
-                            //if (method_name='WEBSOCKCLOSE') then
-                            //  begin
-                            //    CMD.Finalize;
-                            //    result := nil;
-                            //    drop_current_session := true; // First shot, kill session when websocket disconnects
-                            //  end
-                            //else
                               begin
                                 writeln('UNHANDLED ASYNC REQUEST ?? ',class_name,'.',method_name);
-                                CMD.Data        := GFRE_DB_NIL_DESC;
-                                CMD.CommandType := fct_SyncRequest;
                                 CMD.Finalize;
-                                CMD := nil;
                               end;
                           end
                         else
                           begin
-                            InvokeMethod(true);
+                            InvokeMethod(true,input);
                             CMD.Finalize;
-                            CMD := nil;
                           end;
                        end;
     fct_SyncReply:    begin
                         //raise EFRE_DB_Exception.Create(edb_ERROR,'ONLY SYNC REQUESTS IMPLEMENTED,ATM');
                         DispatchSyncRemoteAnswer;
-                        CMD := nil; // no anwser for answers
                       end;
   end;
-  //end;
+  if assigned(input) then
+    input.Finalize ;
 end;
 
-function TFRE_DB_UserSession.InternalSessInvokeMethod(const class_name, method_name: string; const uid_path: TFRE_DB_GUIDArray; const input: IFRE_DB_Object): IFRE_DB_Object;
+
+function TFRE_DB_UserSession.InternalSessInvokeMethod(const class_name, method_name: string; const uid_path: TFRE_DB_GUIDArray; var input: IFRE_DB_Object): IFRE_DB_Object;
 var st,et : QWord;
 begin
   st := GFRE_BT.Get_Ticks_ms;
@@ -3814,8 +3806,12 @@ begin
 end;
 
 function TFRE_DB_UserSession.CloneSession(const connectiond_desc: string): TFRE_DB_UserSession;
+var dbc : IFRE_DB_CONNECTION;
 begin
-  result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,FDBConnection);
+  writeln('CLONE SESSION ::: ', connectiond_desc);
+  if FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,FUserName,FPassMD5,dbc)<>edb_OK then
+    GFRE_BT.CriticalAbort('UNEXPECTED, HANDLE');
+  result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,dbc);
   result.OnGetImpersonatedDBC    := FOnGetImpersonatedDBC;
   result.OnExistsUserSession     := FOnExistsUserSession;
   result.OnExistsUserSession4Key := FonExistsSesForTkKey;
@@ -3879,9 +3875,10 @@ begin
       exit;
     end else begin
       err := FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
-      assert(assigned(FSessionData));
+      //assert(assigned(FSessionData));
       case err of
        edb_OK: begin
+          FDBConnection.Finalize;
           FDBConnection:=l_NDBC;
           GFRE_DBI.LogInfo(dblc_SERVER,'PROMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,FUserName,user_name]);
           force_new_session_data := true; //TODO: HACK RZNORD -> (9.10.2013) Session data save/retrieve is buggy
@@ -4017,12 +4014,13 @@ end;
 function TFRE_DB_UserSession.FetchDerivedCollection(dcname: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 begin
   _FixupDCName(dcname);
-  if not SearchSessionDC(dcname,result) then raise EFRE_DB_Exception.create(edb_ERROR,'THE SESSION [%s] HAS NO DERIVED COLLECTION NAMED [%s]',[FSessionID,dcname]);
+  if not SearchSessionDC(dcname,result) then
+    raise EFRE_DB_Exception.create(edb_ERROR,'THE SESSION [%s] HAS NO DERIVED COLLECTION NAMED [%s]',[FSessionID,dcname]);
 end;
 
 procedure TFRE_DB_UserSession.FinishDerivedCollections;
 var i : integer;
-   cn : string;
+   cn  : string;
 begin
   for i:=0 to high(FDC_Array) do begin
     try
@@ -4068,7 +4066,7 @@ end;
 procedure TFRE_DB_UserSession.ClearServerClientInterface;
 begin
   RemoveAllTimers;
-  FSessionTerminationTO := 15;
+  FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO;
   FBoundSession_RA_SC   := nil;
 end;
 
@@ -4172,6 +4170,14 @@ begin
       writeln('BOUND SESSION RAC EXC: '+e.Message);
     end;
   end
+end;
+
+procedure TFRE_DB_UserSession.SendServerClientCMD(const cmd: IFRE_DB_COMMAND);
+begin
+  if assigned(FBoundSession_RA_SC) then
+    FBoundSession_RA_SC.Send_ServerClient(cmd)
+  else
+    writeln('WARNING DROPPED COMMAND : ',cmd.InvokeClass,'.',cmd.InvokeMethod,' ',cmd.Answer);
 end;
 
 
@@ -4302,10 +4308,10 @@ begin
   result := FIsInteractive;
 end;
 
-function TFRE_DB_UserSession.FetchTranslateableText(const translation_key: TFRE_DB_String; var textObj: IFRE_DB_TEXT): Boolean;
-begin
-  result := GetDBConnection.FetchTranslateableText(translation_key,textObj);
-end;
+//function TFRE_DB_UserSession.FetchTranslateableText(const translation_key: TFRE_DB_String; var textObj: IFRE_DB_TEXT): Boolean;
+//begin
+//  result := GetDBConnection.FetchTranslateableText(translation_key,textObj);
+//end;
 
 function TFRE_DB_UserSession.GetDBConnection: IFRE_DB_CONNECTION;
 begin
@@ -4379,11 +4385,6 @@ end;
 function TFRE_DB_Base.Debug_ID: TFRE_DB_String;
 begin
   result := 'LOGIC: NO DEBUG ID SET';
-end;
-
-function TFRE_DB_Base.CFG_Dont_Finalize_Object: Boolean;
-begin
-  result := false;
 end;
 
 function TFRE_DB_Base.GetSystemSchemeByName(const schemename: TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
@@ -4866,9 +4867,20 @@ begin
   inherited Destroy;
 end;
 
-destructor TFRE_DB_ObjectEx.DestroyFromMediator;
+destructor TFRE_DB_ObjectEx.DestroyFromBackingDBO;
 begin
   inherited Destroy;
+end;
+
+procedure TFRE_DB_ObjectEx.FreeFromBackingDBO;
+begin
+  DestroyFromBackingDBO;
+end;
+
+procedure TFRE_DB_ObjectEx.Free;
+begin
+  if self<>nil then
+    Finalize;
 end;
 
 function TFRE_DB_ObjectEx.ObjectRoot: IFRE_DB_Object;
@@ -5551,34 +5563,33 @@ end;
 
 function TFRE_DB_APPLICATION.GetCaption(const ses: IFRE_DB_Usersession): TFRE_DB_String;
 begin
-  result := FetchAppText(ses,'$caption').Getshort;
+  result := FetchAppTextShort(ses,'$caption');
 end;
+
 
 procedure TFRE_DB_APPLICATION.SessionInitialize(const session: TFRE_DB_UserSession);
 
-  procedure _initSubModules(const field: IFRE_DB_FIELD);
-  var app_module : TFRE_DB_APPLICATION_MODULE;
-      io         : IFRE_DB_Object;
+  function  _initSubModules(const field: IFRE_DB_FIELD):boolean;
   begin
-    if (field.FieldType=fdbft_Object) and  field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE) then begin
-      (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionInitializeModule(session);
-    end;
+    result := false;
+    if (field.FieldType=fdbft_Object) and  field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE) then
+      begin
+        (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionInitializeModule(session);
+      end;
   end;
 
 begin
   MySessionInitialize(session);
-  ForAllFields(@_initSubModules);
+  ForAllFieldsBreak(@_initSubModules);
 end;
 
 procedure TFRE_DB_APPLICATION.SessionFinalize(const session: TFRE_DB_UserSession);
 
   procedure _FinishSubModules(const field: IFRE_DB_FIELD);
   var app_module : TFRE_DB_APPLICATION_MODULE;
-      io         : IFRE_DB_Object;
   begin
-    if (field.FieldType=fdbft_Object) and  field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE) then begin
+    if (field.FieldType=fdbft_Object) and  field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE) then
       (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionFinalizeModule(session);
-    end;
   end;
 
 begin
@@ -5588,18 +5599,17 @@ end;
 
 procedure TFRE_DB_APPLICATION.SessionPromotion(const session: TFRE_DB_UserSession);
 
-  procedure _initSubModules(const field: IFRE_DB_FIELD);
+  function  _initSubModules(const field: IFRE_DB_FIELD):boolean;
   var app_module : TFRE_DB_APPLICATION_MODULE;
-      io         : IFRE_DB_Object;
   begin
-    if (field.FieldType=fdbft_Object) and  field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE) then begin
-      (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionPromotionModule(session);
-    end;
+    result:=false;
+    if (field.FieldType=fdbft_Object) and  field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE) then
+        (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionPromotionModule(session);
   end;
 
 begin
   MySessionPromotion(session);
-  ForAllFields(@_initSubModules);
+  ForAllFieldsBreak(@_initSubModules);
 end;
 
 class procedure TFRE_DB_APPLICATION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -5626,11 +5636,12 @@ begin
 end;
 
 
-function TFRE_DB_APPLICATION.FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
+function TFRE_DB_APPLICATION._FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
-  if not session.GetDBConnection.FetchTranslateableText(uppercase(classname)+'_'+translation_key,result) then begin
-    Result:=GFRE_DBI.CreateText('notfound',translation_key+'_short',translation_key+'_long',translation_key+'_is_missing!');
-  end;
+  if not session.GetDBConnection.FetchTranslateableText(uppercase(classname)+'_'+translation_key,result) then
+    begin
+      Result := GFRE_DBI.CreateText('notfound',translation_key+'_short',translation_key+'_long',translation_key+'_is_missing!');
+    end;
 end;
 
 
@@ -5829,6 +5840,20 @@ begin
   result := true;
 end;
 
+
+function TFRE_DB_APPLICATION.FetchAppTextShort(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): TFRE_DB_String;
+var txt : IFRE_DB_TEXT;
+begin
+  txt := _FetchAppText(session,translation_key);
+  result := txt.Getshort;
+  txt.Finalize;
+end;
+
+function TFRE_DB_APPLICATION.FetchAppTextFull(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
+begin
+  result := _FetchAppText(session,translation_key);
+end;
+
 { TFRE_DB_APPLICATION_MODULE }
 
 procedure TFRE_DB_APPLICATION_MODULE.InternalSetup;
@@ -5885,7 +5910,7 @@ end;
 procedure TFRE_DB_APPLICATION_MODULE.CheckClassVisibility(const session: IFRE_DB_UserSession);
 begin
   if not session.GetDBConnection.sys.CheckClassRight4AnyDomain(sr_FETCH,ClassType) then
-    raise EFRE_DB_Exception.Create(GetEmbeddingApp.FetchAppText(session,'$error_no_access').Getshort);
+    raise EFRE_DB_Exception.Create(GetEmbeddingApp.FetchAppTextShort(session,'$error_no_access'));
 end;
 
 class procedure TFRE_DB_APPLICATION_MODULE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -5930,9 +5955,9 @@ begin
   until false;
 end;
 
-function TFRE_DB_APPLICATION_MODULE.FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
+function TFRE_DB_APPLICATION_MODULE._FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
-  result := GetEmbeddingApp.FetchAppText(session,translation_key);
+  result := GetEmbeddingApp._FetchAppText(session,translation_key);
 end;
 
 function TFRE_DB_APPLICATION_MODULE.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
@@ -5981,8 +6006,11 @@ begin
 end;
 
 function TFRE_DB_APPLICATION_MODULE.GetModuleTitle(const ses: IFRE_DB_Usersession): TFRE_DB_String;
+var txt : IFRE_DB_TEXT;
 begin
-  result := GetEmbeddingApp.FetchAppText(ses,GetDescrTranslationKey).Getshort;
+  txt    := GetEmbeddingApp._FetchAppText(ses,GetDescrTranslationKey);
+  result := txt.Getshort;
+  txt.Finalize;
 end;
 
 function TFRE_DB_APPLICATION_MODULE.GetModuleClassName: Shortstring;

@@ -1054,7 +1054,7 @@ implementation
     if icon<>'' then begin
       Field('icon').AsString:=FREDB_getThemedResource(icon);
     end;
-    Field('serverFunc').AsObject:=serverFunc.CloneToNewObject();
+    Field('serverFunc').AsObject:=serverFunc;
     Field('big').AsBoolean:=big;
     Result:=Self;
   end;
@@ -2040,7 +2040,7 @@ implementation
       txt: IFRE_DB_TEXT;
     begin
        if (key<>'')
-         and session.FetchTranslateableText(key,txt) then
+         and session.GetDBConnection.FetchTranslateableText(key,txt) then
          begin
            Result:=txt.Getshort;
          end

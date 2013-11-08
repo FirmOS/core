@@ -59,9 +59,6 @@ var cnt:integer=0;
     G_PROXY_PORT    : integer;
 
 
-var
-  G_SerializeLock : IFOS_LOCK;
-
 type
   TFRE_VNC_DECODE_State         = (fbu_IDLE,fbu_READ_MSG_TYPE,fbu_READ_MSG_FULL,fbu_CheckRectCntFull);
   TFRE_VNC_SUB_DECODE_State     = (fbuss_READ_RECT_DEF,fbuss_READ_RECT,fbuss_DO_CHECK_HEXTILE_COUNT);
@@ -250,23 +247,26 @@ begin
         GFRE_DBI.LogDebug(dblc_WEBSOCK,'>>INPUT '+FChannel.GetVerboseDesc);
         GFRE_DBI.LogDebug(dblc_WEBSOCK,dataframe);
         in_params  := GFRE_DBI.JSONObject2Object(dataframe);
-        //GFRE_DBI.LogDebug(dblc_WEBSOCK,in_params.DumpToString(10));
-        //GFRE_DBI.LogDebug(dblc_WEBSOCK,'********************************************************');
-
-        cmd        := GFRE_DBI.NewDBCommand;
-        request_typ := in_params.Field('RTYPE').AsString;
-        with cmd do begin
-          case request_typ of
-            'S'  : begin CommandType := fct_SyncRequest  ; cmd.SetIsClient(true); end;
-            'SR' : begin CommandType := fct_SyncReply    ; end; // Answer to a Server Command
-            'E'  : begin CommandType := fct_Error        ; end; // Answer to a Server Command
+        try
+          //GFRE_DBI.LogDebug(dblc_WEBSOCK,in_params.DumpToString(10));
+          //GFRE_DBI.LogDebug(dblc_WEBSOCK,'********************************************************');
+          cmd        := GFRE_DBI.NewDBCommand;
+          request_typ := in_params.Field('RTYPE').AsString;
+          with cmd do begin
+            case request_typ of
+              'S'  : begin CommandType := fct_SyncRequest  ; cmd.SetIsClient(true); end;
+              'SR' : begin CommandType := fct_SyncReply    ; end; // Answer to a Server Command
+              'E'  : begin CommandType := fct_Error        ; end; // Answer to a Server Command
+            end;
+            InvokeClass  := uppercase(in_params.Field('CN').AsString);
+            InvokeMethod := uppercase(in_params.Field('FN').AsString);
+            CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
+            UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
+            Data         := in_params.Field('PARAMS').AsObject.CloneToNewObject;
+            ChangeSession:= '';
           end;
-          InvokeClass  := uppercase(in_params.Field('CN').AsString);
-          InvokeMethod := uppercase(in_params.Field('FN').AsString);
-          CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
-          UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
-          Data         := in_params.Field('PARAMS').AsObject;
-          ChangeSession:= '';
+        finally
+          in_params.Finalize;
         end;
         FCurrentSession.Input_FRE_DB_Command(cmd);
       end;
@@ -742,7 +742,6 @@ begin
 end;
 
 destructor TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Destroy;
-var cmd : IFRE_DB_COMMAND;
 begin
   case   FWebsocketMode of
     wsm_INVALID: ;
@@ -836,18 +835,25 @@ var SC_CMD       : IFRE_DB_Object;
     lContent     : TFRE_DB_RawByteString;
     lContentType : String;
 begin
-  if CMD_Answer.CommandType=fct_SyncReply then begin
-    TransFormFunc(FCurrentSession,fct_SyncRequest,CMD_Answer.Data,lContent,lContentType,false,fdbtt_WebSocket);
-  end else
-  if CMD_Answer.CommandType=fct_SyncRequest then begin
-    TransFormFunc(FCurrentSession,fct_SyncReply,CMD_Answer.Data,lContent,lContentType,false,fdbtt_WebSocket);
-  end else
-  if CMD_Answer.CommandType=fct_Error then begin
-    TransFormFunc(FCurrentSession,CMD_Answer.CommandType,TFRE_DB_MESSAGE_DESC.create.Describe('DISPATCH ERROR',CMD_Answer.ErrorText,fdbmt_error),lContent,lContentType,false,fdbtt_WebSocket);
-    CMD_Answer.CommandType:=fct_SyncReply;
-  end else begin
-     lContent:='';
+  case CMD_Answer.CommandType of
+    fct_SyncRequest,
+    fct_SyncReply,
+    fct_AsyncRequest: TransFormFunc(FCurrentSession,CMD_Answer.CommandType,CMD_Answer.Data,lContent,lContentType,false,fdbtt_WebSocket);
+    fct_Error:        TransFormFunc(FCurrentSession,CMD_Answer.CommandType,TFRE_DB_MESSAGE_DESC.create.Describe('DISPATCH ERROR',CMD_Answer.ErrorText,fdbmt_error),lContent,lContentType,false,fdbtt_WebSocket);
+    else              raise EFRE_DB_Exception.Create(edb_INTERNAL,'WRONG COMMAND TYPE');
   end;
+  //if CMD_Answer.CommandType=fct_SyncReply then begin
+  //  TransFormFunc(FCurrentSession,fct_SyncRequest,CMD_Answer.Data,lContent,lContentType,false,fdbtt_WebSocket);
+  //end else
+  //if CMD_Answer.CommandType=fct_SyncRequest then begin
+  //  TransFormFunc(FCurrentSession,fct_SyncReply,CMD_Answer.Data,lContent,lContentType,false,fdbtt_WebSocket);
+  //end else
+  //if CMD_Answer.CommandType=fct_Error then begin
+  //  TransFormFunc(FCurrentSession,CMD_Answer.CommandType,TFRE_DB_MESSAGE_DESC.create.Describe('DISPATCH ERROR',CMD_Answer.ErrorText,fdbmt_error),lContent,lContentType,false,fdbtt_WebSocket);
+  //  CMD_Answer.CommandType:=fct_SyncReply;
+  //end else begin
+  //   lContent:='';
+  //end;
   SC_CMD := GFRE_DBI.NewObject;
   case CMD_Answer.CommandType of
     fct_SyncRequest  :  SC_CMD.Field('RTYPE').AsString := 'S'  ;
@@ -858,7 +864,7 @@ begin
   SC_CMD.Field('FN').AsString       := CMD_Answer.InvokeMethod;
   SC_CMD.Field('RID').AsString      := IntToStr(CMD_Answer.CommandID);
   SC_CMD.Field('UIDPATH').AsGUIDArr := CMD_Answer.UidPath;
-  SC_CMD.Field('PARAMS').AsObject   := CMD_Answer.Data;
+  SC_CMD.Field('PARAMS').AsObject   := CMD_Answer.CheckoutData;// Data.CloneToNewObject();
   if CMD_Answer.ChangeSession<>'' then begin // Only if The Session is to be Changed
     //writeln('>>*******************************        REQUEST A SESSION CHANGE                ************** FROM ',FCurrentSession.GetSessionID,' TO ',CMD_Answer.ChangeSession);
     SC_CMD.Field('SESSION').AsString  := CMD_Answer.ChangeSession;
@@ -867,7 +873,9 @@ begin
   SC_CMD.Field('OUTPUT').AsString   := lContent;
   lContent := SC_CMD.GetAsJSONString(false,false);//  CMD_Answer.AsJSONString;
   SendToClient(lContent,false);
+
   SC_CMD.Finalize;
+  CMD_Answer.Finalize;
   //GFRE_DBI.LogDebug(dblc_WEBSOCK,'<<OUTPUT '+FChannel.GetVerboseDesc);
   //GFRE_DBI.LogDebug(dblc_WEBSOCK,lContent);
 end;
@@ -971,12 +979,7 @@ begin
          npos:=10;
        end;
        data := Copy(FWSHeader,1,npos)+data;
-       //writeln('SEND: ',length(data),' : ',GFRE_BT.Dump_Binary(@data[1],Length(data)));
-       try
-         FChannel.CH_WriteString(data);
-       except
-         FChannel.CH_WriteString(data);
-       end;
+       FChannel.CH_WriteString(data);
     end;
     fsm_HIXIE: begin
        FChannel.CH_WriteString(#0+data+#255);

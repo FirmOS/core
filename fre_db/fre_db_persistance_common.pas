@@ -70,6 +70,8 @@ type
     procedure LoadFromThis    (const stream:TStream ; const coll: IFRE_DB_PERSISTANCE_COLLECTION);
     procedure ForAll          (const func : IFRE_DB_Obj_Iterator ; const ascending : boolean);
     procedure ForAllBreak     (const func : IFRE_DB_Obj_IteratorBreak ; const ascending : boolean ; var halt : boolean);
+    constructor create        ;
+    destructor Destroy        ;override;
   end;
 
   { TFRE_DB_MM_Index }
@@ -102,6 +104,7 @@ type
     function       FetchIndexedValsTransformedKey    (var obj : TFRE_DB_ObjectArray):boolean;
     procedure      TransformToBinaryComparable       (fld:TFRE_DB_FIELD ; const update_key : boolean ; const is_null_value : Boolean); virtual; abstract;
     function       CompareTransformedKeyAndUpdateKey : boolean;
+    procedure      StreamHeader                      (const stream: TStream);virtual;
     procedure      StreamToThis                      (const stream: TStream);virtual;
     procedure      StreamIndex                       (const stream: TStream);virtual;
     procedure      LoadIndex                         (const stream: TStream ; const coll : IFRE_DB_PERSISTANCE_COLLECTION);virtual;
@@ -126,6 +129,7 @@ type
 
   TFRE_DB_UnsignedIndex=class(TFRE_DB_MM_Index)
   private
+  protected
   public
     procedure   TransformToBinaryComparable (fld:TFRE_DB_FIELD ; const update_key : boolean ; const is_null_value : Boolean); override;
     procedure   SetBinaryComparableKey      (const keyvalue:qword ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean);
@@ -158,7 +162,7 @@ type
   protected
     procedure   SetTranformedKeyDBS         (const value : TFRE_DB_String ; const update_key : boolean ; const is_null_value : Boolean);
     procedure   SetBinaryComparableKey      (const keyvalue : TFRE_DB_String ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean);
-    procedure   StreamToThis                (const stream: TStream);override;
+    procedure   StreamHeader                (const stream: TStream);override;
   public
     constructor Create                      (const idx_name,fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique, case_insensitive : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null : boolean);
     constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null : boolean);
@@ -586,7 +590,8 @@ end;
 
 constructor TFRE_DB_SignedIndex.CreateStreamed(const stream: TStream; const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION; const allow_null: boolean);
 begin
-  abort;
+  Create(idx_name,fieldname,fieldtype,unique,collection,allow_null);
+  LoadIndex(stream,collection);
 end;
 
 procedure TFRE_DB_SignedIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD);
@@ -641,6 +646,7 @@ begin
 end;
 
 { TFRE_DB_UnsignedIndex }
+
 
 procedure TFRE_DB_UnsignedIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const update_key: boolean; const is_null_value: Boolean);
 var val    : Qword;
@@ -715,7 +721,8 @@ end;
 
 constructor TFRE_DB_UnsignedIndex.CreateStreamed(const stream: TStream; const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION; const allow_null: boolean);
 begin
-  abort;
+  Create(idx_name,fieldname,fieldtype,unique,collection,allow_null);
+  LoadIndex(stream,collection);
 end;
 
 procedure TFRE_DB_UnsignedIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD);
@@ -1697,6 +1704,7 @@ destructor TFRE_DB_TransactionalUpdateList.Destroy;
     step.Free;
   end;
 begin
+  FWalMem.Free;
   FChangeList.ForAllBreak(@Cleanup);
 end;
 
@@ -1956,6 +1964,16 @@ begin
       end;
 end;
 
+constructor TFRE_DB_IndexValueStore.create;
+begin
+  inherited;
+end;
+
+destructor TFRE_DB_IndexValueStore.Destroy;
+begin
+  inherited Destroy;
+end;
+
 { TFRE_DB_Master_Data }
 
 
@@ -2093,7 +2111,6 @@ begin
     if not FMasterRefLinks.InsertBinaryKey(@refinkey,33+Length(refin_fn),$BEEF0BAD) then
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'although prechecked the reflink key exists. :-(');
   end;
-
   //writeln('------------------------');
   //writeln('SETUP_INITIAL_REF_LINK');
   //writeln('------------------------');
@@ -2272,17 +2289,37 @@ procedure TFRE_DB_Master_Data.DEBUG_CleanUpMasterData;
 
   procedure CleanReflinks(var refl : NativeUint);
   begin
-    TREF_LinkEncapsulation(FREDB_PtrUIntToObject(refl)).Free;
+    if refl<>$BEEF0BAD then
+      TREF_LinkEncapsulation(FREDB_PtrUIntToObject(refl)).Free;
   end;
 
   procedure CleanObj(var ob : NativeUint);
+  var obj : TFRE_DB_Object;
   begin
-    FREDB_PtrUIntToObject(ob).Free;
+    if ob=0 then
+      exit;
+    obj := TFRE_DB_Object(FREDB_PtrUIntToObject(ob));
+    if obj.IsObjectRoot then
+      begin
+        obj.Set_Store_Locked(False);
+        obj.Free;
+      end;
   end;
 
+  procedure CleanAllChilds(var ob : NativeUint);
+  var obj : TFRE_DB_Object;
+  begin
+    obj := TFRE_DB_Object(FREDB_PtrUIntToObject(ob));
+    if not obj.IsObjectRoot then
+     ob:=0;
+  end;
+
+
 begin
+  FMasterPersistantObjStore.LinearScan(@CleanAllChilds);
   FMasterPersistantObjStore.LinearScan(@CleanObj);
   FMasterPersistantObjStore.Clear;
+  FMasterVolatileObjStore.LinearScan(@CleanAllChilds);
   FMasterVolatileObjStore.LinearScan(@CleanObj);
   FMasterVolatileObjStore.Clear;
   FMasterRefLinks.LinearScan(@CleanReflinks);
@@ -2576,15 +2613,15 @@ begin
   Move(str[1],key_target^,key_len);
 end;
 
-procedure TFRE_DB_TextIndex.StreamToThis(const stream: TStream);
+procedure TFRE_DB_TextIndex.StreamHeader(const stream: TStream);
 begin
-  Inherited StreamToThis(stream);
+  inherited StreamHeader(stream);
   if FCaseInsensitive then
     stream.WriteByte(1)
   else
     stream.WriteByte(0);
-  StreamIndex(stream);
 end;
+
 
 constructor TFRE_DB_TextIndex.Create(const idx_name, fieldname: TFRE_DB_NameType; const fieldtype: TFRE_DB_FIELDTYPE; const unique, case_insensitive: boolean; const collection: IFRE_DB_PERSISTANCE_COLLECTION; const allow_null: boolean);
 begin
@@ -2713,11 +2750,12 @@ destructor TFRE_DB_MM_Index.Destroy;
 
   procedure ClearIndex(var dummy : NativeUint);
   begin
-    FREDB_PtrUIntToObject(dummy).free;
+    TFRE_DB_IndexValueStore(FREDB_PtrUIntToObject(dummy)).free;
   end;
 
 begin
   FIndex.LinearScan(@ClearIndex);
+  FIndex.Free;
 end;
 
 function TFRE_DB_MM_Index.Indexname: TFRE_DB_NameType;
@@ -2735,7 +2773,6 @@ var fld          : TFRE_DB_FIELD;
     dummy        : NativeUint;
     values       : TFRE_DB_IndexValueStore;
     isNullVal    : boolean;
-    s            : string;
 begin
   if not use_already_transformed_key then
     begin
@@ -2766,16 +2803,15 @@ begin
         exit
   else
     begin
-      values := TFRE_DB_IndexValueStore.Create;
+      values   := TFRE_DB_IndexValueStore.Create;
       dummy    := FREDB_ObjectToPtrUInt(values);
-      s := PChar(@transkey[0])^+PChar(@transkey[1])^+PChar(@transkey[2])^+PChar(@transkey[3])^;
       if FIndex.InsertBinaryKeyOrFetch(@transkey,transkeylen,dummy) then
         begin
           if not FIndex.ExistsBinaryKey(@transkey,transkeylen,dummy) then
             begin
               FIndex.InsertBinaryKey(@transkey,transkeylen,dummy);
+              GFRE_BT.CriticalAbort('inserted key but not finding it, failure in tree structure!');
               abort;
-              FIndex.InsertBinaryKey(@transkey,transkeylen,dummy);
             end;
           if not values.Add(obj) then
             raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal index unique/empty/add failure');
@@ -2903,7 +2939,7 @@ begin
   exit(false);
 end;
 
-procedure TFRE_DB_MM_Index.StreamToThis(const stream: TStream);
+procedure TFRE_DB_MM_Index.StreamHeader(const stream: TStream);
 begin
   stream.WriteAnsiString(ClassName);
   stream.WriteAnsiString(FIndexName);
@@ -2917,6 +2953,12 @@ begin
     stream.WriteByte(1)
   else
     stream.WriteByte(0);
+end;
+
+procedure TFRE_DB_MM_Index.StreamToThis(const stream: TStream);
+begin
+  StreamHeader(stream);
+  StreamIndex(stream);
 end;
 
 procedure TFRE_DB_MM_Index.StreamIndex(const stream: TStream);
@@ -2998,7 +3040,7 @@ procedure TFRE_DB_CollectionManageTree.Clear;
 
   procedure ClearTree(var dummy : NativeUint);
   begin
-    FREDB_PtrUIntToObject(dummy).Free;
+    TFRE_DB_Persistance_Collection(FREDB_PtrUIntToObject(dummy)).Free;
   end;
 
 begin
@@ -3138,10 +3180,9 @@ var
   i: NativeInt;
 begin
   for i := 0 to high(FIndexStore) do
-    begin
-     FIndexStore[i].Free;
-    end;
+    FIndexStore[i].Free;
   Clear;
+  FGuidObjStore.Free;
   inherited Destroy;
 end;
 

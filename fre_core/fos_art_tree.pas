@@ -185,6 +185,7 @@ type
        procedure   ForAllValueBreak        (node: PFRE_ART_Node; const node_proc : TFRE_ART_NodeValueBreakProc;var break:boolean);
        procedure   _InnerCheck             ;
      public
+       destructor  Destroy                 ; override;
        procedure   Clear                   ;
        procedure   DumpTree                (const key_as_string : boolean = false ; const with_inner_nodes:boolean=false);
        function    InsertBinaryKey         (const key: PByte  ; const keylen : Nativeint ; const value: PtrUInt):boolean;
@@ -900,6 +901,12 @@ begin
           abort;
         end;
     end;
+end;
+
+destructor TFRE_ART_TREE.Destroy;
+begin
+  Clear;
+  inherited Destroy;
 end;
 
 procedure TFRE_ART_TREE.Clear;

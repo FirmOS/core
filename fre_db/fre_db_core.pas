@@ -997,8 +997,8 @@ type
     procedure ForAllFieldSchemeDefinitionsI (const iterator:IFRE_DB_SchemeFieldDef_Iterator);
     procedure ForAllFieldSchemeDefinitions (const iterator:TFRE_DB_SchemeFieldDef_Iterator);
 
-    function  InvokeMethod_UID_Session  (const instance:TFRE_DB_GUIDArray;const class_name,meth_name:TFRE_DB_String;const in_params:TFRE_DB_Object;const connection:TFRE_DB_CONNECTION; const session: TFRE_DB_UserSession) : IFRE_DB_Object;
-    function  InvokeMethod_UIDI         (const obj_uid : TGUID;const obj_methodname:TFRE_DB_String;const input:IFRE_DB_Object;const connection:IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  InvokeMethod_UID_Session  (const instance:TFRE_DB_GUIDArray;const class_name,meth_name:TFRE_DB_String;var in_params:TFRE_DB_Object;const connection:TFRE_DB_CONNECTION; const session: TFRE_DB_UserSession) : IFRE_DB_Object;
+    function  InvokeMethod_UIDI         (const obj_uid : TGUID;const obj_methodname:TFRE_DB_String;var input:IFRE_DB_Object;const connection:IFRE_DB_CONNECTION):IFRE_DB_Object;
 
     function  GetAll_IMI_Methods        :TFRE_DB_StringArray;
     function  MethodExists              (const name:TFRE_DB_String):boolean;
@@ -1096,7 +1096,7 @@ type
     function        Store        (var   new_obj : TFRE_DB_Object ; var error_text : String ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
     function        Delete       (const ouid    : TGUID          ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
 
-    function        Fetch  (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
+    function        Fetch        (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
 
     function        LinearScan                   (const fieldname: TFRE_DB_NameType;  const field_expr: TFRE_DB_FIELD_EXPRESSION): TFRE_DB_Object;
     function        First                        : TFRE_DB_Object;
@@ -1504,6 +1504,7 @@ type
     function   Implementor_HC : TObject;
   public
     constructor Create; override;
+    destructor  Destroy; override;
     function    TransformInOut (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; virtual;
   end;
 
@@ -1569,7 +1570,6 @@ type
    type
      TDC_Mode=(dc_None,dc_Map2RealCollection,dc_Map2DerivedCollection,dc_ReferentialLinkCollection);
    var
-    //FConnection        : TFRE_DB_BASE_CONNECTION;
     FDCMode            : TDC_Mode;
     FDepObjectsRefers  : Boolean;
     FDepObjectsRefNeg  : Boolean;
@@ -1735,7 +1735,6 @@ type
 
     function   GetDisplayDescription   : TFRE_DB_CONTENT_DESC;
     function   GetDisplayDescriptionFunction (const FilterEventKey:TFRE_DB_String): TFRE_DB_SERVER_FUNC_DESC;
-    //procedure  AddVirtualChildEntry    (const caption:TFRE_DB_String; const FuncClass: String; const uidPath: TFRE_DB_StringArray; const ChildrenFunc:String='ChildrenData';const ContentFunc:String='Content';const MenuFunc:String='Menu');
     procedure  _CheckObserverAdded     (const add:boolean);
   published
     function   IMI_GET_GRID_DATA       (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -1749,7 +1748,7 @@ type
 
   TFRE_DB_Coll_Iterator     = procedure (const coll:TFRE_DB_COLLECTION) is nested;
 
-  _TFRE_DB_CollectionTree   = specialize TGFOS_RBTree<TFRE_DB_String,TFRE_DB_COLLECTION>;
+  _TFRE_DB_CollectionTree   = specialize TGFOS_RBTree<TFRE_DB_String,TFRE_DB_COLLECTION>; // TODO -> make a sparse array
 
   { TFRE_DB_CONNECTION }
   TFRE_DB           =class;
@@ -1775,7 +1774,6 @@ type
     FApps                 : ARRAY of TFRE_DB_APPLICATION;
     FSysWorkflowSchemes   : TFRE_DB_COLLECTION;
     FSysWorkflowInstances : TFRE_DB_COLLECTION;
-    FMasterConMan         : TFRE_DB_Collection;
 
     function            BackupDatabaseReadable      (const to_stream: TStream; const stream_cb: TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype; virtual;
     function            RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;virtual;
@@ -1970,6 +1968,7 @@ type
     function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
   public
     constructor CreateCloned                (const from:TFRE_DB_SYSTEM_CONNECTION);
+    destructor  Destroy                     ; override;
     procedure   DumpSystem                  ;override;
 
     function    Connect                     (const loginatdomain:TFRE_DB_String;const pass:TFRE_DB_String;const rebuild_sys_management:boolean):TFRE_DB_Errortype;
@@ -2002,7 +2001,6 @@ type
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     function    IsSystemGroup               (const group_id:TGUID):boolean;
     procedure   ForAllDomainsI              (const func:IFRE_DB_Domain_Iterator);
-
 
     function    FetchUserSessionData        (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData        (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -2064,7 +2062,8 @@ type
 
   TFRE_DB_CONNECTION=class(TFRE_DB_BASE_CONNECTION,IFRE_DB_CONNECTION)  // Base
   private
-    FSysConnection : TFRE_DB_SYSTEM_CONNECTION;
+    FSysConnection      : TFRE_DB_SYSTEM_CONNECTION;
+    FProxySysconnection : boolean;
     function    IFRE_DB_CONNECTION.GetScheme                   = GetSchemeI;
     function    IFRE_DB_CONNECTION.Collection                  = CollectionI;
     function    IFRE_DB_CONNECTION.StoreScheme                 = StoreSchemeI;
@@ -2082,6 +2081,8 @@ type
     function    IFRE_DB_CONNECTION.GetSchemeCollection         = GetSchemeCollectionI;
     function    IFRE_DB_CONNECTION.AssociateObject             = AssociateObjectI;
     function    IFRE_DB_CONNECTION.DerivedCollection           = DerivedCollectionI;
+  protected
+    procedure   InternalSetupConnection     (const is_system,is_db_restore:boolean); override;
   public
     function    GetDatabaseName           : TFRE_DB_String;
     constructor CreateCloned              (const from:TFRE_DB_CONNECTION);
@@ -2100,7 +2101,7 @@ type
     destructor  Destroy                   ;override;
 
     function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY):TFRE_DB_Errortype;override;
-    function    InvokeMethod              (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;const input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
+    function    InvokeMethod              (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
     function    CreateschemeUniqueKeyDefinition (const schemeClass,FieldName:TFRE_DB_String ; const FieldType:TFRE_DB_FIELDTYPE):TFRE_DB_Errortype;
     function    DropschemeUniqueKeyDefinition   (const schemeClass,FieldName:TFRE_DB_String ; const FieldType:TFRE_DB_FIELDTYPE):TFRE_DB_Errortype;
@@ -2234,6 +2235,8 @@ type
 
     procedure   Initialize_System_Objects    ;
     procedure   Initialize_Extension_Objects ;
+    procedure   Finalize_Extension_Objects   ;
+
   public
     function    JSONObject2Object      (const json_string:string):IFRE_DB_Object;
     function    DefaultDirectory             : TFRE_DB_String;
@@ -3688,8 +3691,10 @@ begin
   if not FCloned then
     raise EFRE_DB_Exception.Create(edb_ERROR,'you can only impersonate a cloned systemconnection');
   FConnectedUser := _FetchUser(user);
-  if not assigned(FConnectedUser) then Exit(edb_NOT_FOUND);
-  if not FConnectedUser.Checkpassword(pass) then exit(edb_ACCESS);
+  if not assigned(FConnectedUser) then
+    exit(edb_NOT_FOUND);
+  if not FConnectedUser.Checkpassword(pass) then
+    exit(edb_ACCESS);
   FConnectionRights := _GetRightsArrayForUser(FConnectedUser);
 end;
 
@@ -4572,8 +4577,7 @@ function TFRE_DB_SYSTEM_CONNECTION.StoreUserSessionData(var session_data: IFRE_D
 var key : TFRE_DB_String;
 var userid : string;
 begin
-  result := edb_OK;
-exit;// HACK RZNORD -> Buggy
+ result := edb_OK;
  userid := uppercase(FConnectedUser.Login+'@'+GFRE_BT.GUID_2_HexString(FConnectedUser.GetDomainIDLink));
  key    := userid;
  session_data.Field('$LOGIN_KEY').AsString := userid;
@@ -5121,9 +5125,15 @@ function TFRE_DB_SYSTEM_CONNECTION._CheckLogin(const loginatdomain, pass: TFRE_D
 var FUser : TFRE_DB_USER;
 begin
   FUser := _FetchUser(loginatdomain);
-  if not assigned(FUser) then Exit(edb_NOT_FOUND);
-  if not FUser.Checkpassword(pass) then exit(edb_ACCESS);
-  result := edb_OK;
+  try
+    if not assigned(FUser) then
+      Exit(edb_NOT_FOUND);
+    if not FUser.Checkpassword(pass) then
+      exit(edb_ACCESS);
+    result := edb_OK;
+  finally
+    Fuser.Finalize;
+  end;
 end;
 
 
@@ -5287,6 +5297,22 @@ begin
   FSysUserSessionsData := from.FSysUserSessionsData;
   FSysTransText        := from.FSysTransText;
   FSysDomainUID        := from.FSysDomainUID;
+end;
+
+destructor TFRE_DB_SYSTEM_CONNECTION.Destroy;
+begin
+  //if not FCloned then
+  //  begin
+  //    FSysTransText.Free;
+  //    FSysUsers.Free;
+  //    FSysRoles.Free;
+  //    FSysGroups.Free;
+  //    FSysDomains.Free;
+  //    FSysUserSessionsData.Free;
+  //    FSysSingletons.Free;
+  //  end;
+  FConnectedUser.Free;
+  inherited Destroy;
 end;
 
 function TFRE_DB_BASE_CONNECTION.FetchApplications(var apps:TFRE_DB_APPLICATION_ARRAY): TFRE_DB_Errortype;
@@ -5898,11 +5924,13 @@ var cnt  : NativeInt;
   procedure LocalInsert(const item:IFRE_DB_Object);
   begin
      _AddToTransformedCollection(item,false,false,childcall);
+     item.Finalize;
   end;
 
   procedure LocalInsertFromParentDerived(const item : TFRE_DB_Object;const id : boolean);
   begin
      _AddToTransformedCollection(item,false,false,childcall);
+     item.Finalize;
   end;
 
   procedure Order(const order_def : TFRE_DB_FIELD);
@@ -6230,10 +6258,36 @@ begin
 end;
 
 destructor TFRE_DB_DERIVED_COLLECTION.Destroy;
+var
+  i: NativeInt;
+
+  procedure MyFinalize(const dbo : TFRE_DB_Object;const b : boolean);
+  begin
+    dbo.Finalize;
+  end;
+
 begin
   if assigned(FParentCollection) then begin
     (FParentCollection.Implementor as TFRE_DB_COLLECTION).RemoveObserver(self);
   end;
+  writeln('DC DESTROY ',FName);
+
+  if assigned(FDependencyObject) then
+    FDependencyObject.Finalize;
+  for i := 0 to high(FExpandedRefs) do
+    FExpandedRefs[i].Finalize;
+
+  FDBOList.ForAllNodes(@MyFinalize);
+  FDBOList.Free;
+  FTransform.free;
+  FitemMenuFunc.Free;
+  FitemDetailsFunc.free;
+  FselectionDepFunc.free;
+  FtreeMenuFunc.free;
+  FdropFunc.free;
+  FdragFunc.free;
+  FGatherUpdateList.free;
+
   inherited Destroy;
 end;
 
@@ -7222,15 +7276,15 @@ begin
 end;
 
 
-function FieldTransformNull(const ft : PFRE_DB_FIELD_TRANSFORM):boolean;
-begin
-  result := not assigned(ft^);
-end;
-
-function FieldTransformSame(const ft1,ft2 : PFRE_DB_FIELD_TRANSFORM):boolean;
-begin
-  result := ft1^=ft2^;
-end;
+//function FieldTransformNull(const ft : PFRE_DB_FIELD_TRANSFORM):boolean;
+//begin
+//  result := not assigned(ft^);
+//end;
+//
+//function FieldTransformSame(const ft1,ft2 : PFRE_DB_FIELD_TRANSFORM):boolean;
+//begin
+//  result := ft1^=ft2^;
+//end;
 
 procedure TFRE_DB_TRANSFORMOBJECT.Finalize;
 begin
@@ -7249,7 +7303,18 @@ end;
 
 constructor TFRE_DB_TRANSFORMOBJECT.Create;
 begin
-  FTransformList.InitSparseList(nil,@FieldTransformNull,@FieldTransformSame,10);
+  //FTransformList.InitSparseList(nil,@FieldTransformNull,@FieldTransformSame,10);
+  FTransformList.InitSparseListPtrCmp;
+end;
+
+destructor TFRE_DB_TRANSFORMOBJECT.Destroy;
+   procedure FinalTrans(var tr : TFRE_DB_FIELD_TRANSFORM ; const idx : NativeInt ; var halt : boolean);
+   begin
+     tr.free;
+   end;
+begin
+   FTransformList.ForAllBreak(@FinalTrans);
+  inherited Destroy;
 end;
 
 function TFRE_DB_TRANSFORMOBJECT.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
@@ -8194,7 +8259,7 @@ begin
 end;
 
 
-function TFRE_DB_SchemeObject.InvokeMethod_UID_Session(const instance: TFRE_DB_GUIDArray; const class_name,meth_name: TFRE_DB_String; const in_params: TFRE_DB_Object; const connection: TFRE_DB_CONNECTION; const session: TFRE_DB_UserSession): IFRE_DB_Object;
+function TFRE_DB_SchemeObject.InvokeMethod_UID_Session(const instance: TFRE_DB_GUIDArray; const class_name,meth_name: TFRE_DB_String; var in_params: TFRE_DB_Object; const connection: TFRE_DB_CONNECTION; const session: TFRE_DB_UserSession): IFRE_DB_Object;
 var i         : Integer;
     child_dbo : TFRE_DB_Object;
     obj       : TFRE_DB_Object;
@@ -8205,6 +8270,8 @@ var i         : Integer;
     obcl      : TFRE_DB_OBJECTCLASS;
     obexcl    : TFRE_DB_OBJECTCLASSEX;
     fake_in_p : TFRE_DB_Object;
+    finob     : TFRE_DB_Object;
+    finalizeob : boolean;
 
     app_if     : IFRE_DB_APPLICATION;
 
@@ -8221,8 +8288,9 @@ var i         : Integer;
    end;
 
 begin
-  result := nil;
-  app_if := nil;
+  result     := nil;
+  app_if     := nil;
+  finalizeob := false;
   if Length(instance)>0 then begin
     if assigned(session) and session.SearchSessionAppUID(instance[0],iobj) then begin
       obj := iobj.Implementor as TFRE_DB_Object;
@@ -8232,64 +8300,89 @@ begin
       obj := idc.Implementor as TFRE_DB_DERIVED_COLLECTION;
     end else begin
       CheckDbResult(connection.Fetch(instance[0],obj),Format('Try to invoke [%s.%s], but cant fetch the instance [%s]',[DefinedSchemeName,meth_name,GFRE_BT.GUID_2_HexString(instance[0])]));
+      finob      := obj;
+      finalizeob := true;
     end;
-    for i := 1 to high(instance) do begin
-      child_dbo:=nil;
-      obj.ForAllFieldsBreak(@_getObj);
-      if Assigned(child_dbo) then begin
-        obj:=child_dbo;
+    try
+      for i := 1 to high(instance) do begin
+        child_dbo:=nil;
+        obj.ForAllFieldsBreak(@_getObj);
+        if Assigned(child_dbo) then begin
+          obj:=child_dbo;
+        end else begin
+          raise EFRE_DB_Exception.Create(edb_ERROR,'INSTANCE METHOD FAILED [%s.%s][%s] - CHILD OBJ NOT FOUND UID=[%s]!',[DefinedSchemeName,meth_name,GFRE_DB.GuidArray2SString(instance),GFRE_BT.GUID_2_HexString(instance[i])]);
+        end;
+      end;
+      scheme := obj.GetScheme;
+      if assigned(scheme) then begin
+        found_o_cl := scheme.DefinedSchemeName;
       end else begin
-        raise EFRE_DB_Exception.Create(edb_ERROR,'INSTANCE METHOD FAILED [%s.%s][%s] - CHILD OBJ NOT FOUND UID=[%s]!',[DefinedSchemeName,meth_name,GFRE_DB.GuidArray2SString(instance),GFRE_BT.GUID_2_HexString(instance[i])]);
+        found_o_cl := obj.ClassName;
+        if assigned(obj.Mediator) then begin
+          found_o_cl := obj.Mediator.ClassName;
+        end;
       end;
-    end;
-    scheme := obj.GetScheme;
-    if assigned(scheme) then begin
-      found_o_cl := scheme.DefinedSchemeName;
-    end else begin
-      found_o_cl := obj.ClassName;
-      if assigned(obj.Mediator) then begin
-        found_o_cl := obj.Mediator.ClassName;
+      if uppercase(found_o_cl) <> uppercase(Class_Name) then begin
+        raise EFRE_DB_Exception.Create(edb_ERROR,'INVOKE FOR [%s.%s] FAILED : CLASS MISMATCH OBJ=[%s / %s]',[class_name,meth_name,found_o_cl,obj.UID_String]);
       end;
-    end;
-    if uppercase(found_o_cl) <> uppercase(Class_Name) then begin
-      raise EFRE_DB_Exception.Create(edb_ERROR,'INVOKE FOR [%s.%s] FAILED : CLASS MISMATCH OBJ=[%s / %s]',[class_name,meth_name,found_o_cl,obj.UID_String]);
-    end;
-    if assigned(in_params) then begin
-      in_params.SetReference(session);
-      try
-        result := obj.Invoke(meth_name,in_params,session,app_if,connection); // NEVER EVER FREE SOMETHING IN THE IN PARAMS
-      finally
-        in_params.Finalize;
+      if assigned(in_params) then begin
+        in_params.SetReference(session);
+        try
+          result := obj.Invoke(meth_name,in_params,session,app_if,connection); // NEVER EVER FREE SOMETHING IN THE IN PARAMS
+        finally
+          in_params.Finalize;
+          in_params := nil;
+        end;
+      end else begin
+        try
+          fake_in_p := GFRE_DB.NewObject;
+          fake_in_p.SetReference(session);
+          result := obj.Invoke(meth_name,fake_in_p,session,app_if,connection);
+        finally
+          fake_in_p.Finalize;
+        end;
       end;
-    end else begin
-      try
-        fake_in_p := GFRE_DB.NewObject;
-        fake_in_p.SetReference(session);
-        result := obj.Invoke(meth_name,fake_in_p,session,app_if,connection);
-      finally
-        fake_in_p.Finalize;
-      end;
+    finally
+      if finalizeob then
+        begin
+          finob.Finalize;
+        end;
     end;
   end else begin
     obcl := GFRE_DB.GetObjectClass(class_name);
     if assigned(obcl) then begin
       in_params.SetReference(session.GetDBConnection.Implementor);
-      result := obcl.Invoke_DBIMC_Method(meth_name,in_params,session,app_if,connection);
+      try
+        result := obcl.Invoke_DBIMC_Method(meth_name,in_params,session,app_if,connection);
+      finally
+        in_params.Finalize;
+        in_params:=nil;
+      end;
     end else begin
        obexcl := GFRE_DB.GetObjectClassEx(class_name);
        if Assigned(obexcl) then begin
          in_params.SetReference(session.GetDBConnection.Implementor);
-         result := obexcl.Invoke_DBIMC_Method(meth_name,in_params,session,app_if,connection);
+         try
+           result := obexcl.Invoke_DBIMC_Method(meth_name,in_params,session,app_if,connection);
+         finally
+           in_params.Finalize;
+           in_params:=nil;
+         end;
        end;
     end;
   end;
 end;
 
-function TFRE_DB_SchemeObject.InvokeMethod_UIDI(const obj_uid: TGUID; const obj_methodname: TFRE_DB_String; const input: IFRE_DB_Object; const connection: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var ga:TFRE_DB_GUIDArray;
+function TFRE_DB_SchemeObject.InvokeMethod_UIDI(const obj_uid: TGUID; const obj_methodname: TFRE_DB_String; var input: IFRE_DB_Object; const connection: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var ga  : TFRE_DB_GUIDArray;
+    inp : TFRE_DB_Object;
 begin
-  setlength(ga,1);ga[0] := obj_uid;
-  result := InvokeMethod_UID_Session(ga,DefinedSchemeName,obj_methodname,input.Implementor as TFRE_DB_Object,Connection.Implementor_HC as TFRE_DB_CONNECTION,nil);
+  setlength(ga,1);
+  ga[0] := obj_uid;
+  inp := input.Implementor as TFRE_DB_Object;
+  result := InvokeMethod_UID_Session(ga,DefinedSchemeName,obj_methodname,inp,Connection.Implementor_HC as TFRE_DB_CONNECTION,nil);
+  if not assigned(inp) then
+    input := nil;
 end;
 
 function TFRE_DB_SchemeObject.ConstructNewInstance(const fail_on_no_cc: boolean): TFRE_DB_Object;
@@ -8535,11 +8628,6 @@ begin
   if Result=edb_OK then
     _NotifyObserversOrRecord(fdbntf_INSERT,nil,suid);
 end;
-
-//procedure TFRE_DB_COLLECTION.Clear;
-//begin
-//  FObjectLinkStore.Clear;
-//end;
 
 destructor TFRE_DB_COLLECTION.Destroy;
 begin
@@ -8959,47 +9047,37 @@ end;
 
 procedure TFRE_DB_BASE_CONNECTION.InternalSetupConnection(const is_system,is_db_restore: boolean);
 
-  //procedure SetupSchemeCollection;
+  //procedure SetupApps;
   //begin
-  //  //FSchemeCollection :=  GFRE_DB.GetSystemSchemeColl;
+  //  Fapps := GFRE_DB.GetApps;
   //end;
-
-  procedure SetupApps;
-  begin
-    Fapps := GFRE_DB.GetApps;
-  end;
-
-  procedure SetupWorkFlowSchemeCollection;
-  var coll : TFRE_DB_COLLECTION;
-  begin
-    if not CollectionExists('SysWorkflowSchemes') then begin
-      //writeln('Fresh instancing SysWorkflowSchemes Collection');
-      coll := Collection('SysWorkflowSchemes');
-      coll.DefineIndexOnField('objname',fdbft_String,True,True);
-    end;
-    FSysWorkflowSchemes := Collection('SysWorkflowSchemes');
-  end;
-
-  procedure SetupWorkFlowInstanceCollection;
-  var coll : TFRE_DB_COLLECTION;
-  begin
-    if not CollectionExists('SysWorkflowInstances') then begin
-      //writeln('Fresh instancing SysWorkflowInstances Collection');
-      coll := Collection('SysWorkflowInstances');
-    end;
-    FSysWorkflowInstances := Collection('SysWorkflowInstances');
-  end;
+  //
+  //procedure SetupWorkFlowSchemeCollection;
+  //var coll : TFRE_DB_COLLECTION;
+  //begin
+  //  if not CollectionExists('SysWorkflowSchemes') then begin
+  //    coll := Collection('SysWorkflowSchemes');
+  //    coll.DefineIndexOnField('objname',fdbft_String,True,True);
+  //  end;
+  //  FSysWorkflowSchemes := Collection('SysWorkflowSchemes');
+  //end;
+  //
+  //procedure SetupWorkFlowInstanceCollection;
+  //var coll : TFRE_DB_COLLECTION;
+  //begin
+  //  if not CollectionExists('SysWorkflowInstances') then begin
+  //    coll := Collection('SysWorkflowInstances');
+  //  end;
+  //  FSysWorkflowInstances := Collection('SysWorkflowInstances');
+  //end;
 
 begin
   _CloneCheck;
-  if not is_system then begin
-    //SetupSchemeCollection;
-    SetupApps;
-    SetupWorkFlowSchemeCollection;
-    SetupWorkFlowInstanceCollection;
-    //SetupEnumCollection;
-    //SetupValidatorCollection;
-  end;
+  //if not is_system then begin
+  //  SetupApps;
+  //  SetupWorkFlowSchemeCollection;
+  //  SetupWorkFlowInstanceCollection;
+  //end;
 end;
 
 constructor TFRE_DB_BASE_CONNECTION.Create;
@@ -9230,7 +9308,7 @@ procedure TFRE_DB_BASE_CONNECTION._NotifyCollectionObservers(const notify_type: 
       WriteStr(obs_typ,notify_type);
       GFRE_DB.LogError(dblc_DB,'COULD NOT FIRE [%s] OBSERVER COLL [%s] UID[%s] ERR[%s] ',[obs_typ,coll.ClassName,GFRE_BT.GUID_2_HexString(obj_UID),e.Message]);
     end;end;
-end;
+  end;
 
 begin
   if (FConnected)  and (length(ncolls)>0) then begin
@@ -9240,12 +9318,52 @@ end;
 
 
 destructor TFRE_DB_BASE_CONNECTION.Destroy;
+
+  procedure FinalizeCollection(const coll:TFRE_DB_COLLECTION);
+  begin
+    coll.free;
+  end;
+
 begin
-  if FCloned then exit;
+  if FCloned then
+    exit;
+  FCollectionStore.ForAllItems(@FinalizeCollection);
   FCollectionStore.Free;
   FCollectionStore:=nil;
 end;
 
+procedure TFRE_DB_CONNECTION.InternalSetupConnection(const is_system, is_db_restore: boolean);
+
+  procedure SetupApps;
+  begin
+    Fapps := GFRE_DB.GetApps;
+  end;
+
+  procedure SetupWorkFlowSchemeCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysWorkflowSchemes') then begin
+      coll := Collection('SysWorkflowSchemes');
+      coll.DefineIndexOnField('objname',fdbft_String,True,True);
+    end;
+    FSysWorkflowSchemes := Collection('SysWorkflowSchemes');
+  end;
+
+  procedure SetupWorkFlowInstanceCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysWorkflowInstances') then begin
+      coll := Collection('SysWorkflowInstances');
+    end;
+    FSysWorkflowInstances := Collection('SysWorkflowInstances');
+  end;
+
+begin
+  SetupApps;
+  SetupWorkFlowSchemeCollection;
+  SetupWorkFlowInstanceCollection;
+  inherited InternalSetupConnection(is_system, is_db_restore);
+end;
 
 function TFRE_DB_CONNECTION.GetDatabaseName: TFRE_DB_String;
 begin
@@ -9257,7 +9375,7 @@ var coll : TFRE_DB_COLLECTION;
     ob   : TFRE_DB_Object;
 begin
   inherited      CreateCloned(from);
-  FSysConnection := TFRE_DB_SYSTEM_CONNECTION.CreateCloned(from.FSysConnection);
+  FSysConnection      := TFRE_DB_SYSTEM_CONNECTION.CreateCloned(from.FSysConnection);
 end;
 
 function TFRE_DB_CONNECTION.ImpersonateClone(const user, pass: TFRE_DB_String;out conn:TFRE_DB_CONNECTION): TFRE_DB_Errortype;
@@ -9272,12 +9390,16 @@ function TFRE_DB_CONNECTION.Connect(const db, user, pass: TFRE_DB_String; const 
 begin
   if FConnected then exit(edb_ALREADY_CONNECTED);
   if uppercase(db)='SYSTEM' then exit(edb_ACCESS);
-  FSysConnection:=ProxySysConnection;
-  if not assigned(FSysConnection) then begin
-    FSysConnection := GFRE_DB.NewDirectSysConnection;
-    result := FSysConnection.Connect(user,pass);
-    if result<>edb_OK then exit(edb_DB_NO_SYSTEM);
-  end;
+  FSysConnection := ProxySysConnection;
+  if not assigned(FSysConnection) then
+    begin
+      FSysConnection := GFRE_DB.NewDirectSysConnection;
+      result := FSysConnection.Connect(user,pass);
+      if result<>edb_OK then
+        exit(edb_DB_NO_SYSTEM);
+    end
+  else
+    FProxySysconnection := true;
   result := _Connect(db,false);
 end;
 
@@ -9400,27 +9522,10 @@ begin
   FDBName              := from.FDBName;
   FConnected           := from.FConnected;
   FPersistance_Layer   := from.FPersistance_Layer;
-  //FSchemeCollection    := from.FSchemeCollection;
   FCollectionStore     := from.FCollectionStore;
   FApps                := from.FApps;
-  //FSysEnum             := from.FSysEnum;
-  //FSysClientValidators := from.FSysClientValidators;
 end;
 
-
-
-//function TFRE_DB_CONNECTION.SchemeExists(const scheme_name: TFRE_DB_String): boolean;
-//begin
-//  Result:=inherited SchemeExists(scheme_name);
-//end;
-
-//function TFRE_DB_CONNECTION.GetScheme(const scheme_name: TFRE_DB_NameType; var scheme: TFRE_DB_SchemeObject): boolean;
-//begin
-//  Result:=inherited GetScheme(scheme_name, scheme);
-//  if result=false then begin //TODO
-//    result := FSysConnection.GetScheme(scheme_name,scheme); //try to find scheme in System schemes
-//  end;
-//end;
 
 function TFRE_DB_CONNECTION.Delete(const ouid: TGUID): TFRE_DB_Errortype;
 begin
@@ -9429,6 +9534,8 @@ end;
 
 destructor TFRE_DB_CONNECTION.Destroy;
 begin
+  if not FProxySysconnection then
+    FSysConnection.Free;
   inherited Destroy;
 end;
 
@@ -9457,14 +9564,19 @@ begin
   setlength(apps,cnt);
 end;
 
-function TFRE_DB_CONNECTION.InvokeMethod(const class_name, method_name: TFRE_DB_String; const uid_path: TFRE_DB_GUIDArray; const input: IFRE_DB_Object; const session: TFRE_DB_UserSession): IFRE_DB_Object;
-var scheme:TFRE_DB_SchemeObject;
+function TFRE_DB_CONNECTION.InvokeMethod(const class_name, method_name: TFRE_DB_String; const uid_path: TFRE_DB_GUIDArray; var input: IFRE_DB_Object; const session: TFRE_DB_UserSession): IFRE_DB_Object;
+var scheme : TFRE_DB_SchemeObject;
+    implem : TFRE_DB_Object;
 begin
   if not GFRE_DB.GetSystemScheme(class_name,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'SCHEME [%s] IS UNKNOWN',[class_name]);
   if assigned(input) then begin
-    result := scheme.InvokeMethod_UID_Session(uid_path,class_name,method_name,input.Implementor as TFRE_DB_Object,self,session);
+    implem := input.Implementor as TFRE_DB_Object;
+    result := scheme.InvokeMethod_UID_Session(uid_path,class_name,method_name,implem,self,session);
+    if not assigned(implem) then
+      input := nil;
   end else begin
-    result := scheme.InvokeMethod_UID_Session(uid_path,class_name,method_name,nil,self,session);
+    implem:=nil;
+    result := scheme.InvokeMethod_UID_Session(uid_path,class_name,method_name,implem,self,session);
   end;
 end;
 
@@ -9710,6 +9822,7 @@ function TFRE_DB_BASE_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Objec
       exit(edb_OK);
   end;
 
+  var dbo2 : TFRE_DB_Object;
 begin
   dbo    := nil;
   result := edb_NOT_FOUND;
@@ -9768,6 +9881,10 @@ begin
   Result:=inherited Fetch(ouid, dbo);
   if result=edb_NOT_FOUND then
     result := FSysConnection.Fetch(ouid,dbo);
+  if not dbo.IsObjectRoot then
+    begin
+      writeln('WARNING : FETCHED A NON OBJECT ROOT ? / SHOULD NOT BE POSSIBLE ');
+    end;
 end;
 
 function TFRE_DB_CONNECTION.FetchInternal(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
@@ -10357,8 +10474,11 @@ begin
   for i:=0 to high(FSysObjectList) do begin
     if FREDB_Guids_Same(FSysObjectList[i].SysGuid,uid) then begin
       obj := FSysObjectList[i].Obj;
-      if not (fop_READ_ONLY in obj.Properties) then raise EFRE_DB_Exception.Create(edb_ERROR,'SYSTEM OBJECTS MUST BE READ ONLY!');
-      if not (fop_SYSTEM in obj.Properties) then raise EFRE_DB_Exception.Create(edb_ERROR,'SYSTEM OBJECTS MUST BE READ ONLY!');
+      if not (fop_READ_ONLY in obj.Properties) then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'SYSTEM OBJECTS MUST BE READ ONLY!');
+      if not (fop_SYSTEM in obj.Properties) then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'SYSTEM OBJECTS MUST BE READ ONLY!');
+      obj := obj.CloneToNewObject; // Maybe think about a better strategy (non-finalize) of sysobjects ?
       exit(true);
     end;
   end;
@@ -10431,6 +10551,11 @@ begin
   end;
 end;
 
+procedure TFRE_DB.Finalize_Extension_Objects;
+begin
+
+end;
+
 function TFRE_DB.JSONObject2Object(const json_string: string): IFRE_DB_Object;
 var  l_JSONParser : TJSONParser;
      l_JSONObject : TJSONObject;
@@ -10469,7 +10594,7 @@ var  l_JSONParser : TJSONParser;
       l_SubDataObj  : IFRE_DB_Object;
       l_GotUid      : Boolean;
       l_Fields      : TFOSStringArray;
-      l_sub_objects : TFRE_DB_StringArray;
+      //l_sub_objects : TFRE_DB_StringArray;
       s             : string;
       l_FieldName   : String;
 
@@ -10522,10 +10647,11 @@ var  l_JSONParser : TJSONParser;
         end;
       end;
     end;
-    l_sub_objects := l_DataObj.GetFieldListFilter(fdbft_Object);
+    //l_sub_objects := l_DataObj.GetFieldListFilter(fdbft_Object);
   end;
 
 begin
+  result := nil;
   l_JSONParser := TJSONParser.Create(json_string);
   try
     jd           := l_JSONParser.Parse;
@@ -10546,6 +10672,7 @@ begin
       end;
     end;
   finally
+    jd.free;
     l_JSONParser.free;
   end;
 end;
@@ -10588,6 +10715,8 @@ begin
     FSysEnums[i].free;
   for i:=0 to High(FSysClientFieldValidators) do
     FSysClientFieldValidators[i].free;
+  for i:=0 to High(FSysObjectList) do
+    FSysObjectList[i].obj.free;
   inherited Destroy;
 end;
 
@@ -11474,17 +11603,20 @@ procedure TFRE_DB_Object.Free;
 
 begin
   if self<>nil then begin
-    DebugCheck;
     if assigned(FMediatorExtention) then begin
       if FMediatorExtention is TFRE_DB_NIL_DESC then begin
-        exit;
         writeln('>> WARNING NIL DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
+        //THink about PARENTED NIL DESCRIPTIONS !!!!
+        FParentDBO := nil;
+        exit;
       end;
       if FMediatorExtention is TFRE_DB_SUPPRESS_ANSWER_DESC then begin
-        exit;
         writeln('>> WARNING SUPRESS ANSWER DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
+        FParentDBO := nil;
+        //THink about PARENTED NIL SUPRESS ANSWER DESCRIPTIONS !!!!
+        exit;
       end;
-      FMediatorExtention.DestroyFromMediator;
+      FMediatorExtention.FreeFromBackingDBO;
       FMediatorExtention:=nil;
     end else begin
       //writeln('FREE_REAL : ',ClassName,' ',InternalUniqueDebugKey);
@@ -11492,6 +11624,7 @@ begin
       //writeln(DumpToString());
       //writeln('---');
     end;
+    DebugCheck;
     inherited Free;
   end;
 end;
@@ -12502,8 +12635,6 @@ procedure TFRE_DB_Object.ClearAllFields;
 
   procedure ClearField(const fld:TFRE_DB_FIELD);
   begin
-    if fld.FIsUidField or fld.FIsDomainIDField then
-      exit;
     fld.Free;
   end;
 
@@ -12731,10 +12862,15 @@ var s:string;
 begin
   _InAccessibleCheck;
   result := TFRE_DB_Object.CreateFromString(self.AsString,false,generate_new_uids);
-  if assigned(FMediatorExtention) then begin
-    result.FMediatorExtention := TFRE_DB_OBJECTCLASSEX(FMediatorExtention.ClassType).CreateBound(result,false);
-    result.SetScheme(GetScheme);
-  end;
+  //if assigned(FMediatorExtention) then begin
+  //  if assigned(result.FMediatorExtention) then
+  //    abort;
+  //  result.FMediatorExtention := TFRE_DB_OBJECTCLASSEX(FMediatorExtention.ClassType).CreateBound(result,false);
+  //  result.SetScheme(GetScheme);
+  //end;
+  if Assigned(FMediatorExtention) and
+     not assigned(result.FMediatorExtention) then
+       GFRE_BT.CriticalAbort('INTERNAL CLONE FAILURE');
 end;
 
 function TFRE_DB_Object.CloneToNewObjectI(const generate_new_uids: boolean): IFRE_DB_Object;
@@ -12928,9 +13064,15 @@ begin
 end;
 
 function TFRE_DB_Object.GetAsJSONString(const without_uid: boolean;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TFRE_DB_String;
+var jd : TJSONData;
 begin
   _InAccessibleCheck;
-  result := GetAsJSON(without_uid,full_dump,stream_cb).AsJSON;
+  jd := GetAsJSON(without_uid,full_dump,stream_cb);
+  try
+    result := jd.AsJSON;
+  finally
+    jd.free;
+  end;
 end;
 
 { TFRE_DB_FIELD }
@@ -12944,7 +13086,8 @@ begin
     New(FFieldData.obj);
     SetLength(FFieldData.obj^,1);
   end else begin
-  //  FFieldData.obj^[0].Free; // NO AUTO FREE ON OVERWRITE
+    //writeln('*********** WARNING OVERWRITE OF OBJECT!!!!!!! in Field ',FFieldName^,' ',Fobj.UID_String);
+    FFieldData.obj^[0].Free; // NO AUTO FREE ON OVERWRITE
   end;
   FFieldData.obj^[0]:=AValue;
   AValue.FParentDBO := self;

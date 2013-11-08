@@ -285,9 +285,11 @@ begin
   FBlockWALWrites:=false;
   if FileExists(FWalFilename) then
     begin
+      _ClearWAL;
+      //HACK
       //Autorepair
-      _RepairWithWAL;
-      raise EFRE_DB_Exception.Create(edb_ERROR,'SERVER SHUTDOWN WAS UNCLEAN, MUST REAPPLY WAL FOR [%s]',[FConnectedDB]);
+      //_RepairWithWAL;
+      //raise EFRE_DB_Exception.Create(edb_ERROR,'SERVER SHUTDOWN WAS UNCLEAN, MUST REAPPLY WAL FOR [%s]',[FConnectedDB]);
     end;
   result := edb_OK;
   _OpenWAL;
@@ -567,9 +569,22 @@ end;
 
 
 destructor TFRE_DB_PS_FILE.Destroy;
+var
+  i: NativeInt;
 begin
   writeln('FINALIZING PERSISTENCE LAYER');
+  if FGlobalLayer then
+    begin
+      for i:=0 to high(FConnectedLayers) do
+         FConnectedLayers[i].Free;
+    end
+  else
+    begin
+      if Length(FConnectedLayers)>0 then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'Connected Layer in non global layer is non empty!');
+    end;
   FMaster.Free;
+
   inherited destroy;
 end;
 

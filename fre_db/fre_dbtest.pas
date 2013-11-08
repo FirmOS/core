@@ -120,9 +120,6 @@ type
   TFRE_DB_TEST_FILE=class(TFRE_DB_TEST_FILEDIR)
   end;
 
-var
-  G_UNSAFE_MODUL_GLOBAL_DATA : IFRE_DB_Object;
-
 type
 
   { TFRE_DB_TEST_APP }
@@ -644,7 +641,6 @@ var obj      : IFRE_DB_Object;
       cnt := 0;
       new_input.ForAllObjects(@addEntry);
       res.Describe(cnt);
-      writeln('RESULT ',res.DumpToString());
       ses.SendServerClientAnswer(res,ocid);
     end;
 
@@ -717,7 +713,6 @@ procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.MyServerInitializeModule(const adm
 var filedir : TFRE_DB_TEST_FILEDIR;
     coll    : IFRE_DB_COLLECTION;
 begin
-  inherited MyServerInitializeModule(admin_dbc);
   coll := admin_dbc.Collection('COLL_FILEBROWSER',true,true);
   filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
   filedir.SetProperties('Virtual Rooot',false,0,0,0);
@@ -876,7 +871,7 @@ procedure TFRE_DB_TEST_APP_FORMTEST_MOD.MyServerInitializeModule(const admin_dbc
 var coll : IFRE_DB_COLLECTION;
 begin
    coll := admin_dbc.Collection('COLL_TEST_AT');
-   G_UNSAFE_MODUL_GLOBAL_DATA := coll.First;
+   //G_UNSAFE_MODUL_GLOBAL_DATA := coll.First;
 end;
 
 class procedure TFRE_DB_TEST_APP_FORMTEST_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -886,8 +881,11 @@ begin
 end;
 
 function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var test : IFRE_DB_Object;
 begin
-  result := G_UNSAFE_MODUL_GLOBAL_DATA.Invoke('Content',input,ses,app,conn);
+  test := conn.Collection('COLL_TEST_AT').First;
+  result := test.Invoke('Content',input,ses,app,conn);
+  test.Finalize;
 end;
 
 { TFRE_DB_TEST_APP_LIVE_CHART_MOD }
@@ -1414,7 +1412,6 @@ var vmo       : IFRE_DB_Object;
     i,max     : Integer;
     CHARTDATA : IFRE_DB_COLLECTION;
 begin
-  inherited MyServerInitializeModule(admin_dbc);
   CHARTDATA := admin_dbc.Collection('CHART_MOD_LINE',true,true);
   max := 60;
   for i := 0 to max - 1 do begin
@@ -1801,10 +1798,10 @@ begin
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
     end;
-    if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin
-      session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean:=false;
-    end;
-    SetBlast(session);
+    //if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin
+    //  session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean:=false;
+    //end;
+    //SetBlast(session);
   end;
 end;
 
@@ -2148,7 +2145,7 @@ end;
 
 procedure TFRE_DB_TEST_APP.MySessionPromotion(const session: TFRE_DB_UserSession);
 begin
-  inherited MySessionInitialize(session);
+  inherited MySessionPromotion(session);
   if session.IsInteractiveSession then begin
     _UpdateSitemap(session);
   end;

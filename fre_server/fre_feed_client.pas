@@ -63,7 +63,7 @@ type
     procedure  MyInitialize            ; override;
     procedure  MyFinalize              ; override;
     procedure  GenerateFeedDataTimer   (const TIM : IFRE_APSC_TIMER ; const flag1,flag2 : boolean); // Timout & CMD Arrived & Answer Arrived
-    procedure  MyConectionTimer        ; override;
+    procedure  MyConnectionTimer       ; override;
 
     procedure  WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); override;
     function   ListDirLevel            (const basepath : string):IFRE_DB_Object;
@@ -129,6 +129,8 @@ end;
 procedure TFRE_SAMPLE_FEED_CLIENT.GenerateFeedDataTimer(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
 var vmo : IFRE_DB_Object;
 begin
+  writeln('SEND SURPRESSED');
+  exit;
   if FFeeding then
     begin
       try
@@ -144,7 +146,7 @@ begin
     end;
 end;
 
-procedure TFRE_SAMPLE_FEED_CLIENT.MyConectionTimer;
+procedure TFRE_SAMPLE_FEED_CLIENT.MyConnectionTimer;
 begin
   writeln('-> CONNECTION TIMER ACTIVE');
 end;
