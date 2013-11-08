@@ -131,6 +131,7 @@ type
 
     procedure  CH_WriteString    (const str : String);
     procedure  CH_WriteBuffer    (const data : Pointer ; const len : NativeInt);
+    procedure  CH_WriteOpenedFile(const fd : cInt ; const offset,len : NativeInt);
     function   CH_GetDataCount   : NativeInt;
     function   CH_ReadString     : String;
     function   CH_ReadBuffer     (const data : Pointer ; const len : NativeInt) : NativeInt;

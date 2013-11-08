@@ -171,12 +171,6 @@ type
     FChannelManagers  : Array [0..C_CHANNEL_RUNNER_THREADS-1] of TFRE_APSC_CHANNEL_MANAGER;
     FListenerlList    : OFOS_SL_TFRE_APSC_Listener;
     FTimerList        : OFOS_SL_TFRE_APSC_Timer;
-    FSigHUP           : PEvent;
-    FSigINT           : PEvent;
-    FSigTERM          : PEvent;
-    FSigUSR1          : PEvent;
-    FSigUSR2          : PEvent;
-    procedure   _SignalDelivered(const sig : cInt);
     function    _GetManagerMinimumConnsIDX : NativeInt;
     function    _GetManagerIDX             (const chanman : IFRE_APSC_CHANNEL_MANAGER): NativeInt;
     procedure   GotCtrCMD (const cmd : TAPSC_CMD ; const data : PShortString);
@@ -290,6 +284,7 @@ type
 
     procedure   CH_WriteString    (const str : String);
     procedure   CH_WriteBuffer    (const data : Pointer ; const len : NativeInt);
+    procedure   CH_WriteOpenedFile(const fd : cInt ; const offset,len : NativeInt);
     procedure   CH_Enable_Reading ;
     procedure   CH_Enable_Writing ;
     function    CH_GetDataCount   : NativeInt;
@@ -372,6 +367,12 @@ type
   end;
 
 var GAPSC : TFRE_APS_COMM;
+
+Procedure DoSig(sig : cint);cdecl;
+begin
+  GAPSC._CallbackSignal(sig);
+end;
+
 
 procedure Setup_APS_Comm;
 begin
@@ -500,21 +501,19 @@ function  GetANewEventBase : PEvent_base;
 var cfg  : Pevent_config;
     feat : Integer;
 begin
-  cfg      := event_config_new;
-  event_config_require_features(cfg, EV_FEATURE_O1);
-  result  := event_base_new_with_config(cfg);
-  event_config_free(cfg);
-  if not assigned(result) then begin
-    LogWarning('Cannot get features O1, using fallback',[]);
-    result:= event_base_new;
-    if not assigned(result) then
-      GFRE_BT.CriticalAbort('COULD NOT AQUIRE ANY EVENTBASE!');
-  end;
-  //feat := event_base_get_features(FLE_Base);
-  //if (feat and EV_FEATURE_ET )>0 then  Include(FLE_Features,evf_EDGE_TRIGGERED);
-  //if (feat and EV_FEATURE_O1 )>0 then  Include(FLE_Features,evf_O1);
-  //if (feat and EV_FEATURE_FDS)>0 then  Include(FLE_Features,evf_FILE_DESCRIPTORS);
-  //writeln('');LogInfo('Eventbase Method : [%s %s  %s  %s ]',[string(event_base_get_method(FLE_Base)),BoolToStr(evf_EDGE_TRIGGERED in FLE_Features,'EDGE TRIGGERED','NOT EDGE TRIGGERED'),
+  //cfg      := event_config_new;
+  //event_config_require_features(cfg, EV_FEATURE_O1);
+  //result  := event_base_new_with_config(cfg);
+  //event_config_free(cfg);
+  //if not assigned(result) then begin
+  //  LogWarning('Cannot get features O1, using fallback',[]);
+  //  result:= event_base_new;
+  //  if not assigned(result) then
+  //    GFRE_BT.CriticalAbort('COULD NOT AQUIRE ANY EVENTBASE!');
+  //end;
+  result := event_base_new;
+  feat := event_base_get_features(result);
+  writeln('Libevent Chosen Method : ',string(event_base_get_method(result)),' Features : ',event_base_get_features(result));
 end;
 
 { TFRE_APSC_Listener }
@@ -909,6 +908,13 @@ procedure TFRE_APSC_CHANNEL.CH_WriteBuffer(const data: Pointer; const len: Nativ
 begin
   ThreadCheck;
   if bufferevent_write(FBufEvent,data,len)<>0 then
+    GFRE_BT.CriticalAbort('critical: channel write  buffer failed ?');
+end;
+
+procedure TFRE_APSC_CHANNEL.CH_WriteOpenedFile(const fd: cInt; const offset, len: NativeInt);
+begin
+  ThreadCheck;
+  if evbuffer_add_file(FOutputBuf,fd,offset,len)<>0 then
     GFRE_BT.CriticalAbort('critical: channel write  buffer failed ?');
 end;
 
@@ -1419,7 +1425,7 @@ var res     : cInt;
     timeout : TFCOM_TimeVal;
 begin
   FId := id;
-  APSC_CheckRaise(evutil_socketpair(PF_LOCAL,SOCK_STREAM,0, FCommPair),true);
+  APSC_CheckRaise(evutil_socketpair(PF_UNIX,SOCK_STREAM,0, FCommPair),true);
   //APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[0]),true,FCommPair[0]);
   APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[1]),true,FCommPair[1]);
   APSC_CheckRaise(evutil_make_socket_closeonexec(FCommPair[0]),true,FCommPair[0]);
@@ -1459,11 +1465,6 @@ end;
 
 
 { TFRE_APS_COMM_LISTENERS_THREADS }
-
-procedure TFRE_APS_COMM_MAIN_THREAD._SignalDelivered(const sig: cInt);
-begin
-  GAPSC._CallbackSignal(sig);
-end;
 
 function TFRE_APS_COMM_MAIN_THREAD._GetManagerMinimumConnsIDX: NativeInt;
 var  i  : NativeInt;
@@ -1579,11 +1580,6 @@ begin
   FTimerList.ForAllBreak(@FinalizeTimer);
 end;
 
-procedure EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL(fd : evutil_socket_t ; short: cshort ; data:pointer); cdecl;
-begin
-  TFRE_APS_COMM_MAIN_THREAD(data)._SignalDelivered(fd);
-end;
-
 constructor TFRE_APS_COMM_MAIN_THREAD.create;
 var i : NativeInt;
 begin
@@ -1592,16 +1588,6 @@ begin
     FChannelManagers[i] := TFRE_APSC_CHANNEL_MANAGER.Create(i);
   FListenerlList.InitSparseListPtrCmp;
   FTimerList.InitSparseListPtrCmp;
-  FSigHUP  := event_new(FCB.FEventBase,SIGHUP,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
-  FSigINT  := event_new(FCB.FEventBase,SIGINT,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
-  FSigTERM := event_new(FCB.FEventBase,SIGTERM,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
-  FSigUSR1 := event_new(FCB.FEventBase,SIGUSR1,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
-  FSigUSR2 := event_new(FCB.FEventBase,SIGUSR2,EV_SIGNAL or EV_PERSIST,@EventCB_TFRE_APS_COMM_MAIN_THREAD_SIGNAL,self);
-  event_add(FSigHUP,nil);
-  event_add(FSigINT,nil);
-  event_add(FSigTERM,nil);
-  event_add(FSigUSR1,nil);
-  event_add(FSigUSR2,nil);
   inherited create(false);
 end;
 
@@ -1622,12 +1608,6 @@ destructor TFRE_APS_COMM_MAIN_THREAD.Destroy;
 begin
   Shutdown;
   FCB.Free;
-
-  event_free(FSigHUP);
-  event_free(FSigINT);
-  event_free(FSigTERM);
-  event_free(FSigUSR1);
-  event_free(FSigUSR2);
   inherited Destroy;
 end;
 
@@ -1817,17 +1797,24 @@ end;
 
 constructor TFRE_APS_COMM.create;
 var ign,dummy: SigactionRec;
+    na       : SigactionRec;
+
 begin
   FMainThread:=TFRE_APS_COMM_MAIN_THREAD.Create;
+
+  na.sa_Handler:=SigActionHandler(@DoSig);
+  na.sa_flags:=0;
+  fpsigemptyset(na.sa_mask);
+
   ign.sa_handler := SigActionHandler(SIG_IGN);
   ign.sa_flags   := 0;
   FpsigEmptySet(ign.sa_mask);
-  //FPsigaction(SIGPIPE, @ign, @dummy);
-  FPSigaction(SIGUSR1, @ign, @dummy);
-  FPSigaction(SIGUSR2, @ign, @dummy);
-  FPsigaction(SIGINT,  @ign, @dummy);
-  FPSigaction(SIGHUP,  @ign, @dummy);
-  FPSigaction(SIGTERM, @ign, @dummy);
+  //FPsigaction(SIGPIPE, @na, @dummy);
+  FPSigaction(SIGUSR1, @na, @dummy);
+  FPSigaction(SIGUSR2, @na, @dummy);
+  FPsigaction(SIGINT,  @na, @dummy);
+  FPSigaction(SIGHUP,  @na, @dummy);
+  FPSigaction(SIGTERM, @na, @dummy);
 end;
 
 destructor TFRE_APS_COMM.Destroy;

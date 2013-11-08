@@ -82,7 +82,9 @@
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Conditionals Value="if TargetOS = 'darwin' then
-   CustomOptions := '-WM10.6 -dFOS_LINK_STATIC';"/>
+   CustomOptions := '-WM10.6 -dFOS_LINK_STATIC';
+   if TargetOS = 'solaris' then
+   CustomOptions := '-k-rpath=$ORIGIN/../lib/lib64rel/solaris';"/>
     <Parsing>
       <SyntaxOptions>
         <IncludeAssertionCode Value="True"/>
