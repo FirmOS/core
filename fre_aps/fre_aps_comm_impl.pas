@@ -513,7 +513,7 @@ begin
   //end;
   result := event_base_new;
   feat := event_base_get_features(result);
-  writeln('Libevent Chosen Method : ',string(event_base_get_method(result)),' Features : ',event_base_get_features(result));
+  //writeln('Libevent Chosen Method : ',string(event_base_get_method(result)),' Features : ',event_base_get_features(result));
 end;
 
 { TFRE_APSC_Listener }
@@ -1806,10 +1806,11 @@ begin
   na.sa_flags:=0;
   fpsigemptyset(na.sa_mask);
 
-  ign.sa_handler := SigActionHandler(SIG_IGN);
-  ign.sa_flags   := 0;
-  FpsigEmptySet(ign.sa_mask);
+  //ign.sa_handler := SigActionHandler(SIG_IGN);
+  //ign.sa_flags   := 0;
+  //FpsigEmptySet(ign.sa_mask);
   //FPsigaction(SIGPIPE, @na, @dummy);
+
   FPSigaction(SIGUSR1, @na, @dummy);
   FPSigaction(SIGUSR2, @na, @dummy);
   FPsigaction(SIGINT,  @na, @dummy);

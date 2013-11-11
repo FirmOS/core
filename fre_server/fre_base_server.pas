@@ -340,7 +340,7 @@ end;
 procedure TFRE_BASE_SERVER.Terminate;
 begin
   GFRE_DB.LogNotice(dblc_SERVER,'TERMINATE SIGNAL RECEIVED',[]);
-  //GFRE_S.Quit;
+  GFRE_SC.RequestTerminate;
 end;
 
 procedure TFRE_BASE_SERVER.ReInit;
@@ -664,7 +664,7 @@ var myhalt       : boolean;
 
   procedure IterateSession(const session : TFRE_DB_UserSession ; var halt:boolean);
   begin
-    writeln('  SESSION: ',session.GetSessionID,' ',session.GetClientDetails);
+    //writeln('  SESSION: ',session.GetSessionID,' ',session.GetClientDetails);
     if session.CheckUnboundSessionForPurge then
       begin
         halt := true;
@@ -697,7 +697,7 @@ var myhalt       : boolean;
   end;
 
 begin
-  writeln('SESSIONS - TIMER ',test_ses_deb);
+  //writeln('SESSIONS - TIMER ',test_ses_deb);
   TestSessionCreationFree;
   myhalt := false;
   ForAllSessionsLocked(@IterateSession,myhalt);

@@ -222,66 +222,74 @@ var
   sw                            : integer;
 
 begin
-  case FWebsocketMode of
-    wsm_INVALID: inherited ReceivedFromClient(opcode,dataframe);
-    wsm_VNCPROXY: begin
-      if FNo_Base64 then begin
-        if FOpcode=8 then begin
-           writeln('-- CLOSE VNC WS ',ClassName,'  - ',FWSSockModeProtoVersion);
-            _SendCloseFrame;
-            FVNCProxyChannel.Finalize;
-            FVNCProxyChannel:=nil;
-            FChannel.Finalize;
-            FChannel:=nil;
-            Finalize;
+  try
+    case FWebsocketMode of
+      wsm_INVALID: inherited ReceivedFromClient(opcode,dataframe);
+      wsm_VNCPROXY: begin
+        if FNo_Base64 then begin
+          if FOpcode=8 then begin
+             writeln('-- CLOSE VNC WS ',ClassName,'  - ',FWSSockModeProtoVersion);
+              _SendCloseFrame;
+              FVNCProxyChannel.Finalize;
+              FVNCProxyChannel:=nil;
+              FChannel.Finalize;
+              FChannel:=nil;
+              Finalize;
 
+            exit;
+          end else begin
+            WebReceived(dataframe);
+          end;
+        end else begin
+          WebReceived(GFRE_BT.Base64Decode(dataframe));
+        end;
+      end;
+      wsm_FREDB: begin
+        if FOpcode=8 then begin
+           writeln('-- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
+          //_SendCloseFrame;
+         // Fsock.Close;
           exit;
         end else begin
-          WebReceived(dataframe);
-        end;
-      end else begin
-        WebReceived(GFRE_BT.Base64Decode(dataframe));
-      end;
-    end;
-    wsm_FREDB: begin
-      if FOpcode=8 then begin
-         writeln('-- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
-        //_SendCloseFrame;
-       // Fsock.Close;
-        exit;
-      end else begin
-        GFRE_DBI.LogDebug(dblc_WEBSOCK,'>>INPUT '+FChannel.GetVerboseDesc);
-        GFRE_DBI.LogDebug(dblc_WEBSOCK,dataframe);
-        in_params  := GFRE_DBI.JSONObject2Object(dataframe);
-        try
-          //GFRE_DBI.LogDebug(dblc_WEBSOCK,in_params.DumpToString(10));
-          //GFRE_DBI.LogDebug(dblc_WEBSOCK,'********************************************************');
-          cmd        := GFRE_DBI.NewDBCommand;
-          request_typ := in_params.Field('RTYPE').AsString;
-          with cmd do begin
-            case request_typ of
-              'S'  : begin CommandType := fct_SyncRequest  ; cmd.SetIsClient(true); end;
-              'SR' : begin CommandType := fct_SyncReply    ; end; // Answer to a Server Command
-              'E'  : begin CommandType := fct_Error        ; end; // Answer to a Server Command
+          GFRE_DBI.LogDebug(dblc_WEBSOCK,'>>INPUT '+FChannel.GetVerboseDesc);
+          GFRE_DBI.LogDebug(dblc_WEBSOCK,dataframe);
+          GFRE_DBI.LogDebug(dblc_WEBSOCK,'-----------------');
+          in_params  := GFRE_DBI.JSONObject2Object(dataframe);
+          try
+            //GFRE_DBI.LogDebug(dblc_WEBSOCK,in_params.DumpToString(10));
+            //GFRE_DBI.LogDebug(dblc_WEBSOCK,'********************************************************');
+            cmd        := GFRE_DBI.NewDBCommand;
+            request_typ := in_params.Field('RTYPE').AsString;
+            with cmd do begin
+              case request_typ of
+                'S'  : begin CommandType := fct_SyncRequest  ; cmd.SetIsClient(true); end;
+                'SR' : begin CommandType := fct_SyncReply    ; end; // Answer to a Server Command
+                'E'  : begin CommandType := fct_Error        ; end; // Answer to a Server Command
+              end;
+              InvokeClass  := uppercase(in_params.Field('CN').AsString);
+              InvokeMethod := uppercase(in_params.Field('FN').AsString);
+              CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
+              UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
+              Data         := in_params.Field('PARAMS').AsObject.CloneToNewObject;
+              ChangeSession:= '';
             end;
-            InvokeClass  := uppercase(in_params.Field('CN').AsString);
-            InvokeMethod := uppercase(in_params.Field('FN').AsString);
-            CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
-            UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
-            Data         := in_params.Field('PARAMS').AsObject.CloneToNewObject;
-            ChangeSession:= '';
+          finally
+            in_params.Finalize;
           end;
-        finally
-          in_params.Finalize;
+          FCurrentSession.Input_FRE_DB_Command(cmd);
         end;
-        FCurrentSession.Input_FRE_DB_Command(cmd);
+      end;
+      wsm_FREDB_DEACTIVATED : begin
+         //GFRE_DBI.LogError(dblc_WEBSOCK,'BAD REQUEST ON DEACTIVTED WEBSOCKET');
+      end else begin
+        raise EFRE_DB_Exception.Create(edb_ERROR,'BAD WEBSOCKETMODE');
       end;
     end;
-    wsm_FREDB_DEACTIVATED : begin
-       //GFRE_DBI.LogError(dblc_WEBSOCK,'BAD REQUEST ON DEACTIVTED WEBSOCKET');
-    end else begin
-      raise EFRE_DB_Exception.Create(edb_ERROR,'BAD WEBSOCKETMODE');
-    end;
+  except on e:exception do
+   begin
+     writeln('*** ERROR PROCESSING WS INPUT : '+e.Message);
+     GFRE_DBI.LogError(dblc_WEBSOCK,'ERROR PROCESSING WS INPUT : '+e.Message);
+   end;
   end;
 end;
 
@@ -829,9 +837,9 @@ end;
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DisconnectChannel(const channel: IFRE_APSC_CHANNEL);
 begin
   try
-    writeln('DISCONNECT CHANNEL ',CHANNEL.GetVerboseDesc);
+    //writeln('DISCONNECT CHANNEL ',CHANNEL.GetVerboseDesc);
   except
-    writeln('DISCONNECT CHANNEL EX');
+    //writeln('DISCONNECT CHANNEL EX');
   end;
   Free;
 end;

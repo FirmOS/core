@@ -1521,7 +1521,7 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_A2'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Sortable],'',TFRE_DB_StringArray.create('objname'),'',CWSF(@WEB_Menu));
+      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Sortable,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',CWSF(@WEB_Menu));
     end;
   end;
 end;
@@ -1566,7 +1566,7 @@ begin
   html:=TFRE_DB_HTML_DESC.create.Describe('SEAS INITIAL');
   html.contentId:='GRID2_HTML';
 
-  layout.SetLayout(lvd_Grid,html,nil,nil,nil,true,1);
+  layout.SetLayout(lvd_Grid,html,nil,nil,nil,true,1,1,1,1,1);
   //layout.contentId:='GRID2_LAYOUT';
   result := layout;
 end;
@@ -1701,9 +1701,8 @@ var
 begin
   Result:=GFRE_DB_NIL_DESC;
   session := GetSession(input);
-  html:=TFRE_DB_HTML_DESC.create.Describe('SEAS ' + IntToStr(Random(1000)));
-  //html.updateId:='GRID2_LAYOUT_content';
-  html.updateId:='GRID2_HTML';
+  html:=TFRE_DB_HTML_DESC.create.Describe('UPDATE ' + IntToStr(Random(1000)));
+  html.updateId:='GRID2_HTML'; //FO-190 | Please Fix
   session.SendServerClientRequest(html);
 end;
 
@@ -1718,7 +1717,8 @@ end;
 procedure TFRE_DB_TEST_APP_GRID_MOD.SetBlast(const session: TFRE_DB_UserSession);
 begin
   if session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean=true then begin
-    session.RegisterTaskMethod(@PRC_UPDATE_TASK,25,'GRID');
+     session.GetSessionModuleData(Classname).Field('BLAST_CNT').AsInt32 := 100;
+    session.RegisterTaskMethod(@PRC_UPDATE_TASK,10,'GRID_BLAST');
   end else begin
     session.RemoveTaskMethod('GRID');
   end;
@@ -1762,11 +1762,21 @@ var
   entry        : IFRE_DB_Object;
   DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
   k            : integer;
+  cnt          : integer;
 begin
   DC_Grid_Long := ses.FetchDerivedCollection('COLL_TEST_A_DERIVED');
+  cnt := ses.GetSessionModuleData(Classname).Field('BLAST_CNT').AsInt32;
+  dec(cnt);
+  ses.GetSessionModuleData(Classname).Field('BLAST_CNT').AsInt32 := cnt;
+  writeln('BLAST CNT ',cnt);
+  if cnt=0 then
+    begin
+      ses.RemoveTaskMethod('GRID_BLAST');
+      ses.GetSessionModuleData(ClassName).Field('BLAST').AsBoolean := false;
+    end;
   k := DC_Grid_Long.ItemCount;
   if k>0 then begin
-    entry := DC_Grid_Long.GetItem(random(k)).CloneToNewObject(); //TODO:CHRIS - We must reject updates for data which is unknown clientside
+    entry := DC_Grid_Long.GetItem(random(k));
     entry.Field('number').AsUInt32 := random(1000);
     entry.Field('number_pb').AsUInt32 := random(1000);
     res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(DC_Grid_Long.CollectionName);
@@ -1796,12 +1806,13 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_A'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
+      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect,cdgf_Sortable ],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
+      SetDefaultOrderField('number',false);
     end;
-    //if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin
-    //  session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean:=false;
-    //end;
-    //SetBlast(session);
+    if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin
+      session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean:=false;
+    end;
+    SetBlast(session);
   end;
 end;
 
@@ -1881,7 +1892,7 @@ begin
   session := GetSession(input);
   DC_Grid_Long := session.FetchDerivedCollection('COLL_TEST_A_DERIVED');
   k := DC_Grid_Long.ItemCount;
-  entry := DC_Grid_Long.First.CloneToNewObject();
+  entry := DC_Grid_Long.First;
   entry.Field('number').AsUInt32 := random(1000);
 
   res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(DC_Grid_Long.CollectionName);
@@ -2279,7 +2290,7 @@ begin
   CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
 
   COLL := CONN.Collection('COLL_TEST_A');
-  for i := 0 to 100 - 1 do begin
+  for i := 0 to 1 - 1 do begin
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i;
     lobj.Field('number_pb').AsUInt32:=i * 10;

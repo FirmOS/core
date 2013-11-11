@@ -785,6 +785,7 @@ type
     [cFOS_IID_DERIVED_COLL]
     procedure  BindSession                   (const session : TFRE_DB_UserSession);
     function   AddOrderField                 (const order_key,field_name:TFRE_DB_String;const ascending : boolean):TFRE_DB_Errortype;
+    procedure  SetDefaultOrderField          (const field_name:TFRE_DB_String;const ascending : boolean);
     procedure  RemoveAllOrderFields          ;
     procedure  RemoveAllFilterFields         ;
     procedure  RemoveAllFiltersPrefix        (const prefix:string);
@@ -2059,7 +2060,8 @@ type
     FTimers               : TList;
 
     FRemoteRequestSet     : TFRE_DB_RemoteReqSpecArray;
-    FCurrentReqID         : QWord;
+    FCurrentReqID         : QWord; // Current ReqID that is beeing processed (from client)
+    FMyReqID              : Qword;
 
     FDefaultUID           : TFRE_DB_GUIDArray;
     FDBConnection         : IFRE_DB_CONNECTION;
@@ -2086,7 +2088,7 @@ type
     procedure     _FetchAppsFromDB       ;
     procedure     _InitApps              ;
 
-    procedure     AddSyncContinuationEntry(const request_id,original_req_id:Qword ; const for_session_id : String ; const callback : TFRE_DB_RemoteCB ; const expire_in : NativeUint ; const opaquedata : IFRE_DB_Object);
+    procedure     AddSyncContinuationEntry (const request_id,original_req_id:Qword ; const for_session_id : String ; const callback : TFRE_DB_RemoteCB ; const expire_in : NativeUint ; const opaquedata : IFRE_DB_Object);
     procedure     INT_TimerCallBack      (const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
     procedure     RemoveAllTimers        ;
 
@@ -2140,7 +2142,7 @@ type
     procedure   unregisterUpdatableDBO     (const id: String);
     function    isUpdatableContentVisible  (const contentId: String): Boolean;
 
-    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
+    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String=''); // Currently no continuation, and answer processing is implemented (TODO: Change to ASYNC REQUEST TYPE (clientsuport needed))
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
     procedure   SendServerClientCMD      (const cmd : IFRE_DB_COMMAND);
 
@@ -3393,6 +3395,7 @@ begin
         FContinuationArray[i].ExpiredAt  := GFRE_BT.Get_DBTimeNow+expire_in;
         FContinuationArray[i].SesID      := for_session_id;
         FContinuationArray[i].OpData     := opaquedata;
+        //FContinuationArray[i].;
         send_ok := true;
         break;
       end;
@@ -3519,16 +3522,20 @@ var x           : TObject;
     session     : TFRE_DB_String;
     session_app : TFRE_DB_APPLICATION;
     dummy_idx   : integer;
-    i           : Integer;
+    st,et : QWord;
+
+    procedure _SendSyncServerClientAnswer;
+    begin
+      cmd.CommandType   := fct_SyncReply;
+      cmd.Answer        := true;
+      cmd.ClientCommand := false;
+      GFRE_DBI.LogDebug(dblc_SESSION,' SA:> %s',[cmd.Data.SchemeClass]);
+      SendServerClientCMD(cmd);
+    end;
 
     procedure InvokeMethod(const async:boolean ; var input: IFRE_DB_Object);
-    var st,et : QWord;
     begin
-      st := GFRE_BT.Get_Ticks_ms;
-      GFRE_DBI.LogDebug(dblc_SERVER,'>>DISPATCH METHOD %s[%s].%s() RID = [%d] TYPE[%s]',[class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,request_id,CFRE_DB_COMMANDTYPE[request_typ]]);
       try
-        GFRE_DBI.LogDebug(dblc_SERVER_DATA,'INPUT:');
-        GFRE_DBI.LogDebug(dblc_SERVER_DATA,'%s',[input.DumpToString(2)]);
         output := nil;
         if method_name='ONUICHANGE' then begin
           output:=nil;
@@ -3540,12 +3547,7 @@ var x           : TObject;
           raise EFRE_DB_Exception.Create('function '+class_name+'.'+method_name+' delivered nil result');
         end;
         CMD.Data          := output;
-        cmd.CommandType   := fct_SyncReply;
-        cmd.Answer        := true;
-        cmd.ClientCommand := false;
-        GFRE_DBI.LogDebug(dblc_SERVER_DATA,'OUTPUT:');
-        GFRE_DBI.LogDebug(dblc_SERVER_DATA,'%s',[output.DumpToString(2)]);
-        SendServerClientCMD(cmd);
+        _SendSyncServerClientAnswer;
       except on e:exception do begin
         et := GFRE_BT.Get_Ticks_ms;
         GFRE_DBI.LogError(dblc_SERVER,'>>(%4.4d ms)<<DISPATCH METHOD %s(%s).%s RID = [%d] TYPE[%s] FAILED[%s]',[et-st,class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,request_id,CFRE_DB_COMMANDTYPE[request_typ],e.Message]);
@@ -3558,9 +3560,6 @@ var x           : TObject;
           SendServerClientCMD(cmd);
         end;
       end;end;
-      //GFRE_DBI.LogDebug(dblc_SERVER,'<<DISPATCH METHOD %s(%s).%s RID = [%d] TYPE[%s] DONE',[class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,request_id,CFRE_DB_COMMANDTYPE[request_typ]]);
-      et := GFRE_BT.Get_Ticks_ms;
-      GFRE_DBI.LogDebug(dblc_SERVER,'>>(%4.4d ms)<<DISPATCH METHOD %s(%s).%s RID = [%d] TYPE[%s] SID[%s] DONE',[et-st,class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,request_id,CFRE_DB_COMMANDTYPE[request_typ],FSessionID]);
     end;
 
     procedure InvokeEvent(event :TFRE_DB_EVENT_METHOD_ENC);
@@ -3603,6 +3602,7 @@ var x           : TObject;
     begin
       now            := GFRE_BT.Get_DBTimeNow;
       answer_matched := false;
+      answerencap    := nil;
       FContinuationLock.Acquire;
       try
         for i:=0 to high(FContinuationArray) do begin
@@ -3631,20 +3631,79 @@ var x           : TObject;
             if FOnFetchSessionById(answerencap.FSesID,ses) then
               begin
                 if ses.DispatchCoroutine(@ses.AnswerRemReqCoRoutine,answerencap) then
-
                 else
-                  writeln('Session for answer is gone');
+                  begin
+                    writeln('Session for answer is gone');
+                    answerencap.free;
+                  end;
               end
             else
               begin
-                GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN COMMAND CID=%d OR TIMEOUT',[CMD.CommandID],catError);
+                GFRE_LOG.Log('CANNOT FETCH SESSION FOR SYNC ANSWER /  CID=%d OR TIMEOUT',[CMD.CommandID],catError);
+                answerencap.free;
               end;
           end;
       end else begin
         GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN COMMAND CID=%d OR TIMEOUT',[CMD.CommandID],catError);
-        GFRE_LOG.Log('DATA : %s ',[CMD.AsDBODump],catError);
+        //GFRE_LOG.Log('DATA : %s ',[CMD.AsDBODump],catError);
+        answerencap.free;
       end;
       CMD.Finalize;
+    end;
+
+    procedure _ProcessInit;
+    begin
+      if not FPromoted and (cG_OVERRIDE_USER<>'') and (cG_OVERRIDE_PASS<>'') then
+        begin // AutoLogin
+          GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.INIT  AUTOLOGIN  SID[%s] USER[%s]',[FSessionID,cG_OVERRIDE_USER]);
+          input.Field('data').AsObject.Field('uname').AsString := cG_OVERRIDE_USER;
+          input.Field('data').AsObject.Field('pass').AsString  := cG_OVERRIDE_PASS;
+          class_name  := FDefaultApp;
+          uidp        := FDefaultUID;
+          method_name := 'doLogin';
+          CMD.ChangeSession := FSessionID;
+          InvokeMethod(false,input);
+        end
+      else
+        begin
+          GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.INIT  SID[%s]',[FSessionID]);
+          class_name  := FDefaultApp;
+          uidp        := FDefaultUID;
+          method_name := 'Content';
+          input.Field('CLEANUP').AsBoolean := TRUE;
+          CMD.ChangeSession := FSessionID;
+          InvokeMethod(false,input);
+        end;
+    end;
+
+    procedure _ProcessLogout;
+    begin
+      Logout;
+      class_name  := FDefaultApp;
+      uidp        := FDefaultUID;
+      method_name := 'Content';
+      CMD.ChangeSession := 'LOGGEDOUT';
+      InvokeMethod(false,input);
+    end;
+
+    procedure _ProcessDestroy;
+    var i : NativeInt;
+    begin
+      for i := 0 to input.Field('ids').ValueCount - 1 do begin
+        unregisterUpdatableContent(input.Field('ids').AsStringItem[i]);
+      end;
+      CMD.Data        := GFRE_DB_NIL_DESC;
+      _SendSyncServerClientAnswer;
+    end;
+
+    procedure _ProcessUnregisterDBO;
+    var i : NativeInt;
+    begin
+      for i := 0 to input.Field('ids').ValueCount - 1 do begin
+        unregisterUpdatableDBO(input.Field('ids').AsStringItem[i]);
+      end;
+      CMD.Data        := GFRE_DB_NIL_DESC;
+      _SendSyncServerClientAnswer;
     end;
 
 begin
@@ -3657,64 +3716,26 @@ begin
       uidp        := UidPath;
       input       := CMD.CheckoutData;
     end;
+  st := GFRE_BT.Get_Ticks_ms;
+  GFRE_DBI.LogInfo(dblc_SESSION,'>>[%s/%s]-(%d/%s) %s[%s].%s ',[FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name]);
   case request_typ of
     fct_SyncRequest:  begin
                         try
                           if (class_name='FIRMOS') then begin
                               if (method_name='INIT') then
-                                begin
-                                   if not FPromoted and (cG_OVERRIDE_USER<>'') and (cG_OVERRIDE_PASS<>'') then
-                                     begin // AutoLogin
-                                       GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.INIT  AUTOLOGIN  SID[%s] USER[%s]',[FSessionID,cG_OVERRIDE_USER]);
-                                       input.Field('data').AsObject.Field('uname').AsString := cG_OVERRIDE_USER;
-                                       input.Field('data').AsObject.Field('pass').AsString  := cG_OVERRIDE_PASS;
-                                       class_name  := FDefaultApp;
-                                       uidp        := FDefaultUID;
-                                       method_name := 'doLogin';
-                                       CMD.ChangeSession := FSessionID;
-                                       InvokeMethod(false,input);
-                                     end
-                                   else
-                                     begin
-                                       GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.INIT  SID[%s]',[FSessionID]);
-                                       class_name  := FDefaultApp;
-                                       uidp        := FDefaultUID;
-                                       method_name := 'Content';
-                                       input.Field('CLEANUP').AsBoolean := TRUE;
-                                       CMD.ChangeSession := FSessionID;
-                                       InvokeMethod(false,input);
-                                     end;
-                                end
+                                _ProcessInit
                               else
                               if (method_name='LOGOUT') then begin
-                                GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.LOGOUT  SID[%s]',[FSessionID]);
-                                Logout;
-                                GFRE_DBI.LogInfo(dblc_SERVER,'>> SENDBACK CONTENT AFTER LOGOUT -> (%s)  SID[%s]',[FDefaultApp,FSessionID]);
-                                class_name  := FDefaultApp;
-                                uidp        := FDefaultUID;
-                                method_name := 'Content';
-                                CMD.ChangeSession := 'LOGGEDOUT';
-                                InvokeMethod(false,input);
+                                _ProcessLogout;
                               end else
                               if (method_name='DESTROY') then begin
-                                GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.DESTROY  SID[%s]',[FSessionID]);
-                                for i := 0 to input.Field('ids').ValueCount - 1 do begin
-                                  unregisterUpdatableContent(input.Field('ids').AsStringItem[i]);
-                                end;
-                                CMD.Data        := GFRE_DB_NIL_DESC;
+                                _ProcessDestroy;
                               end else
                               if (method_name='UNREGISTERDBO') then begin
-                                GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.UNREGISTERDBO  SID[%s]',[FSessionID]);
-                                for i := 0 to input.Field('ids').ValueCount - 1 do begin
-                                  unregisterUpdatableDBO(input.Field('ids').AsStringItem[i]);
-                                end;
-                                CMD.Data        := GFRE_DB_NIL_DESC;
+                                _ProcessUnregisterDBO;
                               end else begin
                                 raise EFRE_DB_Exception.Create(edb_ERROR,'UNKNOWN FIRMOS SPECIFIC COMMAND '+method_name);
                               end;
-                              //cmd.CommandType   := fct_SyncReply;
-                              //cmd.Answer        := true;
-                              //cmd.ClientCommand := false;
                           end else begin
                              InvokeMethod(false,input);
                           end;
@@ -3723,6 +3744,7 @@ begin
                          cmd.Answer        := true;
                          cmd.ClientCommand := false;
                          cmd.ErrorText   := e.Message;
+                         GFRE_DBI.LogInfo(dblc_SESSION,'<< ERROR (%s) [%s/%s]-(%d/%s) %s[%s].%s [%d ms]',[e.Message,FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,et-st]);
                         end;end;
                       end;
     fct_AsyncRequest: begin
@@ -3753,6 +3775,8 @@ begin
   end;
   if assigned(input) then
     input.Finalize ;
+  et := GFRE_BT.Get_Ticks_ms;
+  GFRE_DBI.LogInfo(dblc_SESSION,'<<[%s/%s]-(%d/%s) %s[%s].%s [%d ms]',[FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,et-st]);
 end;
 
 
@@ -4121,7 +4145,8 @@ begin
   cmd  := GFRE_DBI.NewDBCommand;
   cmd.SetIsClient(false);
   cmd.SetIsAnswer(false);
-  request_id := random(100000);
+  request_id := FMyReqID;
+  inc(FMyReqID);
   cmd.SetCommandID(request_id);
   cmd.CommandType:=fct_SyncRequest;
   cmd.Data := description;
@@ -4156,28 +4181,21 @@ begin
   cmd.CommandType:=fct_SyncReply;
   cmd.Data := description;
   GFRE_DBI.LogDebug(dblc_SESSION,'>>SERVER CLIENT ANSWER (%s) RID = [%d] TYPE[%s] SID=%s CHANGE SID=%s',[description.ClassName,answer_id,CFRE_DB_COMMANDTYPE[cmd.CommandType],FSessionID,cmd.ChangeSession]);
-  try
-    if assigned(FBoundSession_RA_SC) then
-      begin
-        FBoundSession_RA_SC.Send_ServerClient(cmd);
-      end
-    else
-      begin
-        writeln('BOUND SESSION RAC not assigned FAIL!');
-      end;
-  except on e:exception do
-    begin
-      writeln('BOUND SESSION RAC EXC: '+e.Message);
-    end;
-  end
+  SendServerClientCMD(CMD);
 end;
 
 procedure TFRE_DB_UserSession.SendServerClientCMD(const cmd: IFRE_DB_COMMAND);
 begin
-  if assigned(FBoundSession_RA_SC) then
-    FBoundSession_RA_SC.Send_ServerClient(cmd)
-  else
-    writeln('WARNING DROPPED COMMAND : ',cmd.InvokeClass,'.',cmd.InvokeMethod,' ',cmd.Answer);
+  try
+    if assigned(FBoundSession_RA_SC) then
+      FBoundSession_RA_SC.Send_ServerClient(cmd)
+    else
+      writeln('WARNING DROPPED COMMAND : ',cmd.InvokeClass,'.',cmd.InvokeMethod,' ',cmd.Answer);
+  except on e:exception do
+    begin
+      writeln('SEND SERVER CLIENT CMD: / BOUND SESSION RAC EXC: '+e.Message);
+    end;
+  end
 end;
 
 
@@ -4216,7 +4234,8 @@ begin
     cmd  := GFRE_DBI.NewDBCommand;
     cmd.SetIsClient(false);
     cmd.SetIsAnswer(False);
-    request_id := random(100000);
+    request_id := FMyReqID;
+    inc(FMyReqID);
     cmd.SetCommandID(request_id);
     cmd.InvokeClass  := rmethodenc.Fclassname;
     cmd.InvokeMethod := rmethodenc.Fmethodname;

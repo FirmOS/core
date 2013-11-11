@@ -1502,6 +1502,7 @@ type
     procedure  Finalize;
     function   Implementor    : TObject;
     function   Implementor_HC : TObject;
+    function   GetFirstFieldname : TFRE_DB_NameType;
   public
     constructor Create; override;
     destructor  Destroy; override;
@@ -1512,7 +1513,7 @@ type
 
   TFRE_DB_SIMPLE_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_SIMPLE_TRANSFORM)
   private
-    FCustTransform : IFRE_DB_CUSTOMTRANSFORM;
+    FCustTransform  : IFRE_DB_CUSTOMTRANSFORM;
   public
     constructor Create                       ; override;
     function  TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; override;
@@ -1611,9 +1612,11 @@ type
     FTreeNodeIconField : TFRE_DB_String;
     FGatherUpdateList  : TFRE_DB_UPDATE_STORE_DESC; // Collects Updates between Start and End
 
-
     FCurrentOrder      : TFRE_DB_DC_ORDER_LIST;
     FCurrentStrFilters : TFRE_DB_DC_STRINGFIELDKEY_LIST;
+    FDefaultOrderField : TFRE_DB_NameType;
+    FDefaultOrderAsc   : Boolean;
+
     FInitialDerived    : Boolean;
     FSession           : TFRE_DB_UserSession;
     procedure       _CheckSetDisplayType (const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
@@ -1695,6 +1698,7 @@ type
 
     function   RemoveFieldFilter       (const filter_key:TFRE_DB_String;const on_transform:boolean=true):TFRE_DB_Errortype;
     function   AddOrderField           (const order_key,field_name:TFRE_DB_String;const ascending : boolean):TFRE_DB_Errortype;
+    procedure  SetDefaultOrderField    (const field_name:TFRE_DB_String;const ascending : boolean);
     procedure  RemoveAllOrderFields    ;
     procedure  RemoveAllFilterFields   ;
     procedure  RemoveAllFiltersPrefix  (const prefix:string);
@@ -6273,7 +6277,7 @@ begin
   writeln('DC DESTROY ',FName);
 
   if assigned(FDependencyObject) then
-    FDependencyObject.Finalize;
+    //FDependencyObject.Finalize;
   for i := 0 to high(FExpandedRefs) do
     FExpandedRefs[i].Finalize;
 
@@ -6589,6 +6593,12 @@ begin
   FOrders.Field(order_key).AsObject := order;
 end;
 
+procedure TFRE_DB_DERIVED_COLLECTION.SetDefaultOrderField(const field_name: TFRE_DB_String; const ascending: boolean);
+begin
+  FDefaultOrderField := field_name;
+  FDefaultOrderAsc   := ascending;
+end;
+
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllOrderFields;
 begin
   FOrders.ClearAllFields;
@@ -6717,6 +6727,12 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'a treeview must not have a transformation set');
   FTransform.Free;
   FTransform := tob;
+  //Set default order as first field
+  if FDefaultOrderField='' then
+    begin
+      FDefaultOrderField := tob.GetFirstFieldname;
+      FDefaultOrderAsc   := true;
+    end;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformationI(const tob: IFRE_DB_TRANSFORMOBJECT);
@@ -7034,12 +7050,18 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
         FInitialDerived := true;
         RemoveAllOrderFields;
         RemoveAllFiltersPrefix('*D_');
-        for i:=0 to high(order) do begin
-          with order[i] do begin
-            ok := format('%2.2d',[order_key]);
-            AddOrderField(ok,order_field,ascending);
+        if Length(order)>0 then
+          for i:=0 to high(order) do begin
+            with order[i] do begin
+              ok := format('%2.2d',[order_key]);
+              AddOrderField(ok,order_field,ascending);
+            end;
+          end
+        else
+          begin
+            if FDefaultOrderField<>'' then
+              AddOrderField('DEF',FDefaultOrderField,FDefaultOrderAsc);
           end;
-        end;
         for i:=0 to high(sortfilterkeys) do begin
           with sortfilterkeys[i] do
             AddStringFieldFilter(filter_key,field_name,TFRE_DB_StringArray.Create(value),filtertype,on_transform,on_filter_field);
@@ -7300,6 +7322,22 @@ function TFRE_DB_TRANSFORMOBJECT.Implementor_HC: TObject;
 begin
   result := self;
 end;
+
+function TFRE_DB_TRANSFORMOBJECT.GetFirstFieldname: TFRE_DB_NameType;
+
+  procedure Getfirst(var ft:TFRE_DB_FIELD_TRANSFORM;const idx :NativeInt;var halt : boolean);
+  begin
+    if ft.FOutFieldName<>'' then
+      begin
+        result := ft.FOutFieldName;
+        halt   := true;
+      end;
+  end;
+
+begin
+  FTransformList.ForAllBreak(@GetFirst);
+end;
+
 
 constructor TFRE_DB_TRANSFORMOBJECT.Create;
 begin
@@ -9878,13 +9916,15 @@ end;
 
 function TFRE_DB_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): TFRE_DB_Errortype;
 begin
+  dbo := nil;
   Result:=inherited Fetch(ouid, dbo);
   if result=edb_NOT_FOUND then
     result := FSysConnection.Fetch(ouid,dbo);
-  if not dbo.IsObjectRoot then
-    begin
-      writeln('WARNING : FETCHED A NON OBJECT ROOT ? / SHOULD NOT BE POSSIBLE ');
-    end;
+  if assigned(dbo) and
+     (not dbo.IsObjectRoot) then
+      begin
+        writeln('WARNING : FETCHED A NON OBJECT ROOT ? / SHOULD NOT BE POSSIBLE ');
+      end;
 end;
 
 function TFRE_DB_CONNECTION.FetchInternal(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
@@ -11605,7 +11645,7 @@ begin
   if self<>nil then begin
     if assigned(FMediatorExtention) then begin
       if FMediatorExtention is TFRE_DB_NIL_DESC then begin
-        writeln('>> WARNING NIL DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
+        //writeln('>> WARNING NIL DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
         //THink about PARENTED NIL DESCRIPTIONS !!!!
         FParentDBO := nil;
         exit;
