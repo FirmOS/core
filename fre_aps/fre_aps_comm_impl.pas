@@ -792,6 +792,7 @@ begin
     if APSC_CheckResultSetError(APSC_SetNoDelay(Fsocket,true),FChanError,FChanECode,'SETNODELAY: ') then
       exit;
     FSocketAddr := APSC_sa2string(@Fsockaddr);
+    FVerboseID  := FSocketAddr;
     FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
     if not assigned(FBufEvent) then
       begin
@@ -814,6 +815,8 @@ begin
   FClient:=true;
   move(new_sa^,Fsockaddr,new_sal);
   Fsockaddr_len := new_sal;
+  FSocketAddr   := APSC_sa2string(@Fsockaddr);
+  FVerboseID    := FSocketAddr;
   FId           := id;
   FnewChanCB    := newchannelcb;
   FOnDisco      := discoevent;

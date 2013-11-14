@@ -80,13 +80,15 @@ begin
     FFeeding := True;
   end;
   FEED_Timer := chanman.AddTimer(2000); // Beside the "normal 1 sec" Timer a 5 sec timer in the channel context
-  FEED_Timer.TIM_SetID('FEED');
+  FEED_Timer.TIM_SetID('FEED_'+inttostr(chanman.GetID));
+  writeln('Generated Feedtimer ',FEED_Timer.TIM_GetID);
   FEED_Timer.TIM_SetCallback(@GenerateFeedDataTimer);
   FEED_Timer.TIM_Start;
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MySessionDisconnected(const chanman: IFRE_APSC_CHANNEL_MANAGER);
 begin
+  writeln('FINALIZING FEED FROM CM_'+inttostr(chanman.GetID));
   FEED_Timer.Finalize;
   FFeeding   := false;
   inherited;

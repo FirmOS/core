@@ -76,6 +76,7 @@ type
 
       FChannel                 : IFRE_APSC_CHANNEL;
       FChannelTimer            : IFRE_APSC_TIMER;
+      FClientStateLock         : IFOS_LOCK;
 
     procedure  CCB_SessionSetup        (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
 
@@ -93,11 +94,11 @@ type
     procedure DispatchAnswers         ;
     procedure MyHandleSignals         (const signal       : NativeUint);
   protected
-    procedure Terminate; virtual;
-    procedure ReInit; virtual;
-    procedure User1; virtual;
-    procedure User2; virtual;
-    procedure Interrupt; virtual;
+    procedure  Terminate; virtual;
+    procedure  ReInit; virtual;
+    procedure  User1; virtual;
+    procedure  User2; virtual;
+    procedure  Interrupt; virtual;
   public
     constructor Create                ;
     destructor  Destroy               ; override ;
@@ -126,58 +127,75 @@ var arr     : TFRE_DB_RemoteReqSpecArray;
     i       : NativeInt;
     regdata : IFRE_DB_Object;
 begin
-  case status of
-    cdcs_OK: begin
-      if FClientState = csSETUPSESSION then begin
-        if data.Field('LOGIN_OK').AsBoolean=true then
-          begin
-            GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP OK : SESSION [%s]',[fMySessionID]);
-            FClientState := csConnected;
-            FApps        := data.Field('APPS').AsObject.CloneToNewObject();
-            writeln('GOT APPS : ',FApps.DumpToString());
-            RegisterRemoteMethods(arr);
-            if Length(arr)>0 then
-              begin
-                regdata := GFRE_DBI.NewObject;
-                regdata.Field('mc').AsUInt16 := Length(arr);
-                for i := 0 to length(arr)-1 do
-                  begin
-                    regdata.Field('cl'+IntToStr(i)).AsString := arr[i].classname;
-                    regdata.Field('mn'+IntToStr(i)).AsString := arr[i].methodname;
-                    regdata.Field('ir'+IntToStr(i)).AsString := arr[i].invokationright;
-                  end;
-                SendServerCommand('FIRMOS','REG_REM_METH',nil,regdata);
-              end;
-            MySessionEstablished(FChannel.GetChannelManager);
-          end
-        else
-          begin
-            GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP FAILED : SESSION [%s]',[fMySessionID]);
-            if assigned(FApps) then
+  FClientStateLock.Acquire;
+  try
+    case status of
+      cdcs_OK: begin
+        if FClientState = csSETUPSESSION then begin
+          if data.Field('LOGIN_OK').AsBoolean=true then
+            begin
+              GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP OK : SESSION [%s]',[fMySessionID]);
+              FClientState := csConnected;
+              FApps        := data.Field('APPS').AsObject.CloneToNewObject();
+              writeln('GOT APPS : ',FApps.DumpToString());
+              RegisterRemoteMethods(arr);
+              if Length(arr)>0 then
+                begin
+                  regdata := GFRE_DBI.NewObject;
+                  regdata.Field('mc').AsUInt16 := Length(arr);
+                  for i := 0 to length(arr)-1 do
+                    begin
+                      regdata.Field('cl'+IntToStr(i)).AsString := arr[i].classname;
+                      regdata.Field('mn'+IntToStr(i)).AsString := arr[i].methodname;
+                      regdata.Field('ir'+IntToStr(i)).AsString := arr[i].invokationright;
+                    end;
+                  SendServerCommand('FIRMOS','REG_REM_METH',nil,regdata);
+                end;
+              MySessionEstablished(FChannel.GetChannelManager);
+            end
+          else
+            begin
+              GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP FAILED : SESSION [%s]',[fMySessionID]);
+              if assigned(FApps) then
+                try
+                  FApps.Finalize;
+                except
+                  writeln('*** APP FINALIZE EXCEPTION');
+                end;
+              FApps:=nil;
+              FTimeout     := G_RETRY_TO;
+              FClientState := csTimeoutWait;
+              fMySessionID := 'NEW';
+              FChannel.Finalize;
+              FChannel:=nil;
               try
-                FApps.Finalize;
+                MySessionSetupFailed(data.Field('LOGIN_TXT').AsString);
               except
-                writeln('*** APP FINALIZE EXCEPTION');
               end;
-            FApps:=nil;
-            FTimeout     := G_RETRY_TO;
-            FClientState := csTimeoutWait;
-            fMySessionID := 'NEW';
-            MySessionSetupFailed(data.Field('LOGIN_TXT').AsString);
-          end;
-      end else begin
-        //Connection failed due to an intermediate failure
-        writeln('CCB_SetupSession FAILED');
-        exit;
+            end;
+        end else begin
+          //Connection failed due to an intermediate failure
+          writeln('CCB_SetupSession FAILED ????');
+          FClientState := csTimeoutWait;
+          fMySessionID := 'NEW';
+          FChannel.Finalize;
+          FChannel:=nil;
+          exit;
+        end;
+      end;
+      cdcs_TIMEOUT: ;
+      cdcs_ERROR: begin
+        writeln('Session Setup Error - Server Returned Error: ',error_txt);
+        writeln(' ' ,FTimeout,' ',FClientState);
+        FTimeout     := G_RETRY_TO;
+        FClientState := csTimeoutWait;
+        fMySessionID := 'NEW';
+        FClientState := csTimeoutWait;
+        FChannel:=nil;
       end;
     end;
-    cdcs_TIMEOUT: ;
-    cdcs_ERROR: begin
-      writeln('Session Setup Error - Server Returned Error: ',error_txt);
-      writeln(' ' ,FTimeout,' ',FClientState);
-      FTimeout     := G_RETRY_TO;
-      FClientState := csTimeoutWait;
-    end;
+  finally
+    FClientStateLock.Release;
   end;
 end;
 
@@ -187,53 +205,65 @@ var data           : IFRE_DB_Object;
     fpass          : string;
 
 begin
-  case event of
-    ch_NEW_CS_CONNECTED:
-      begin;
-        FClientState    := csSETUPSESSION;
-        FBaseconnection := TFRE_CLIENT_BASE_CONNECTION.Create(Channel);
-        FBaseconnection.OnNewCommandAnswerHere  := @MyCommandAnswerArrived;
-        FBaseconnection.OnNewServerRequest      := @MyRequestArrived;
-        data := GFRE_DBI.NewObject;
-        data.Field('SESSION_ID').AsString:=fMySessionID;
-        QueryUserPass(fuser,fpass);
-        if fuser<>'' then begin
-          data.Field('USER').AsString:=fuser;
-          data.Field('PASS').AsString:=fpass;
+  FClientStateLock.Acquire;
+  try
+    writeln('GOT A NEW CHANNEL ON CM_',channel.GetChannelManager.GetID,' ',channel.GetVerboseDesc,' ',event);
+    if assigned(FChannel) then
+      GFRE_BT.CriticalAbort('I SHPOULD NOT HAVE A CHANNEL HERE (B)!');
+    case event of
+      ch_NEW_CS_CONNECTED:
+        begin;
+          FClientState    := csSETUPSESSION;
+          FBaseconnection := TFRE_CLIENT_BASE_CONNECTION.Create(Channel);
+          FBaseconnection.OnNewCommandAnswerHere  := @MyCommandAnswerArrived;
+          FBaseconnection.OnNewServerRequest      := @MyRequestArrived;
+          data := GFRE_DBI.NewObject;
+          data.Field('SESSION_ID').AsString:=fMySessionID;
+          QueryUserPass(fuser,fpass);
+          if fuser<>'' then begin
+            data.Field('USER').AsString:=fuser;
+            data.Field('PASS').AsString:=fpass;
+          end;
+          FChannel := channel;
+          SendServerCommand(FBaseconnection,'FIRMOS','INIT',Nil,data,@CCB_SessionSetup,5000); // Pending Q
+          channel.CH_Enable_Reading;
         end;
-        FChannel := channel;
-        SendServerCommand(FBaseconnection,'FIRMOS','INIT',Nil,data,@CCB_SessionSetup,5000); // Pending Q
-        channel.CH_Enable_Reading;
-      end;
-    else
-      GFRE_BT.CriticalAbort('unexpected newchannel event' +inttostr(ord(event)));
+      else
+        GFRE_BT.CriticalAbort('unexpected newchannel event' +inttostr(ord(event)));
+    end;
+  finally
+    FClientStateLock.Release;
   end;
 end;
 
 procedure TFRE_BASE_CLIENT.ChannelDisco(const channel: IFRE_APSC_CHANNEL);
 begin
-  if channel.CH_GetState<>ch_EOF then
-    begin
-      FTimeout     := G_CONNREFUSED_TO;
-      if channel.CH_GetErrorCode=ESysECONNREFUSED then
-        FClientState := csTimeoutwait;
-    end;
-
-  if FClientState=csConnected then
-    MySessionDisconnected(FChannel.GetChannelManager);
-
-  try
-    if assigned(FBaseconnection) then
+ FClientStateLock.Acquire;
+ try
+    //writeln('CHANNEL ',channel.GetVerboseDesc,' DISCONNECT CM_' ,channel.GetChannelManager.GetID);
+    if channel.CH_GetState<>ch_EOF then
       begin
-         FBaseconnection.Finalize;
-         FBaseconnection := nil;
+        FTimeout     := G_CONNREFUSED_TO;
+        if channel.CH_GetErrorCode=ESysECONNREFUSED then
+          FClientState := csTimeoutwait;
       end;
     if FClientState=csConnected then
-      FClientState := csUnknown
-    else
-      FClientState := csTimeoutWait
+      MySessionDisconnected(FChannel.GetChannelManager);
+    try
+      if assigned(FBaseconnection) then
+        begin
+           FBaseconnection.Finalize;
+           FBaseconnection := nil;
+        end;
+      if FClientState=csConnected then
+        FClientState := csUnknown
+      else
+        FClientState := csTimeoutWait
+    finally
+      FChannel := nil;
+    end;
   finally
-    FChannel := nil;
+    FClientStateLock.Release;
   end;
 end;
 
@@ -270,26 +300,33 @@ end;
 
 procedure TFRE_BASE_CLIENT.MyStateCheckTimer(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
 begin
-  if (flag1=false) and (flag2=false) then
-    begin
-      case FClientState of
-        csUnknown: begin
-                     FClientState:=csWaitConnect;
-                     GFRE_SC.AddClient_TCP('0.0.0.0','44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco);
-                   end;
-        csWaitConnect: begin
+  FClientStateLock.Acquire;
+  try
+    if (flag1=false) and (flag2=false) then
+      begin
+        case FClientState of
+          csUnknown: begin
+                       FClientState:=csWaitConnect;
+                       if Assigned(FChannel) then
+                         GFRE_BT.CriticalAbort('SHOuLD NOT HAVE A CHANNEL HERE!');
+                       GFRE_SC.AddClient_TCP('0.0.0.0','44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco);
+                     end;
+          csWaitConnect: begin
 
-                   end;
-        csConnected: begin
                      end;
-        csTimeoutWait:begin
-                     dec(FTimeout);
-                     if FTimeout<=0 then begin
-                       FClientState:=csUnknown;
+          csConnected: begin
+                       end;
+          csTimeoutWait:begin
+                       dec(FTimeout);
+                       if FTimeout<=0 then begin
+                         FClientState:=csUnknown;
+                       end;
                      end;
-                   end;
+        end;
       end;
-    end;
+  finally
+    FClientStateLock.Release;
+  end;
 end;
 
 procedure TFRE_BASE_CLIENT.ChannelTimerCB(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
@@ -414,6 +451,8 @@ begin
   FClientState := csUnknown;
   fsendcmd_id  := 1;
   fMySessionID := 'NEW';
+  FChannel     := nil;
+  GFRE_TF.Get_Lock(FClientStateLock);
 end;
 
 destructor TFRE_BASE_CLIENT.Destroy;
@@ -425,6 +464,7 @@ begin
   if assigned(FApps) then begin
     FApps.Finalize;
   end;
+  FClientStateLock.Finalize;
   inherited Destroy;
 end;
 

@@ -97,14 +97,12 @@ type TFRE_FCOM_PROTO            = (cfp_TLS); //UDP,TLS,SSH,CLUSTER ...
     procedure   SetOnNewCommandAnswerHere  (AValue: TFRE_DB_CMD_Request);
     procedure   SetOnNewServerRequest      (AValue: TFRE_DB_CMD_Request);
   protected
-    //function   _ReadACommand(const cmd:IFRE_DB_COMMAND):boolean; // True = Answer = State change
   public
     READ_CMD    : IFRE_DB_Object;
     procedure   InvokeServerCommand (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const CID : Qword;const async:boolean);
     procedure   SendSyncAnswer      (const CID : Qword ; const data : IFRE_DB_Object);
     constructor Create              (const channel:IFRE_APSC_CHANNEL);
     destructor  Destroy             ;override;
-    //function    ConnectionState     :TCONNECTION_STATE;
     function    Handler             (const channel : IFRE_APSC_CHANNEL ;const Datacount:Integer):boolean;
     procedure   Test;
     procedure   Finalize;
