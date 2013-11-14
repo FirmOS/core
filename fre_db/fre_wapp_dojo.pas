@@ -242,7 +242,7 @@ implementation
   var
     txt: IFRE_DB_TEXT;
   begin
-    if conn.FetchTranslateableText('$dojo_'+key,txt) then begin
+    if conn.FetchTranslateableTextOBJ('$dojo_'+key,txt) then begin
       Result:=txt.Getshort;
       txt.Finalize;
     end else begin

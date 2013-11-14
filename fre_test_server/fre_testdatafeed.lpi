@@ -77,7 +77,8 @@
     </CodeGeneration>
     <Linking>
       <Debugging>
-        <DebugInfoType Value="dsDwarf2Set"/>
+        <DebugInfoType Value="dsStabs"/>
+        <UseHeaptrc Value="True"/>
       </Debugging>
     </Linking>
     <Other>

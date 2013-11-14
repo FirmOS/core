@@ -44,7 +44,7 @@ uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64;
 type
   { TFOS_DEFAULT_BASISTOOLS }
 
-  TFOS_DEFAULT_BASISTOOLS = class(TInterfacedObject, IFOS_BASIC_TOOLS)
+  TFOS_DEFAULT_BASISTOOLS = class(TObject, IFOS_BASIC_TOOLS)
     function  HashString_MD5            (const Value: ansistring): ansistring;
     function  HashString_MD5_HEX        (const Value: ansistring): ansistring;
     function  HMAC_MD5                  (const Text: ansistring; Key: ansistring): ansistring;
@@ -81,6 +81,9 @@ type
     function  DumpExceptionsBacktrace   :string;
     function  DumpCurrentBacktrace      :string;
     function  Dump_Binary               (p:pointer;const len:cardinal;const no_lineending:boolean=false;const with_address:boolean=false):string;
+
+    procedure ActivateJack              (const timeout:NativeInt=10000);
+    procedure DeactivateJack            ;
 
     function  CreateGUID                :TGUID;
     function  CreateGUID_String         :AnsiString;
@@ -189,6 +192,24 @@ type
       0: (BufAnsiChar: array[0..63] of byte);
       1: (BufLong: array[0..15] of integer);
   end;
+
+
+  { TJackTheRipper }
+
+  TJackTheRipper=class(TThread)
+  private
+    Ftimeout : NativeInt;
+    Fsteps   : NativeInt;
+    FRipp    : boolean;
+    FGTE     : IFOS_TE;
+  public
+    constructor Create(const timeout:NativeInt);
+    destructor  Destroy; override;
+    procedure   Deactivate;
+    procedure   Execute; override;
+  end;
+
+ var Jack : TJackTheRipper;
 
 
 procedure MD5Transform(var Buf: array of longint; const Data: array of longint);
@@ -446,6 +467,45 @@ begin
     Move(State.StateChar,Result[1],16);
   end;
 end;
+
+{ TJackTheRipper }
+
+constructor TJackTheRipper.Create(const timeout: NativeInt);
+begin
+  FRipp  := true;
+  Fsteps := (timeout div 1000)+1;
+  GFRE_TF.Get_TimedEvent(FGTE);
+  Inherited create(False);
+end;
+
+destructor TJackTheRipper.Destroy;
+begin
+  FGTE.Finalize;
+  inherited Destroy;
+end;
+
+procedure TJackTheRipper.Deactivate;
+begin
+  FRipp := false;
+  FGTE.SetEvent;
+end;
+
+procedure TJackTheRipper.Execute;
+var i :NativeInt;
+begin
+  for i:=Fsteps-1 downto 0 do
+    begin
+     FGTE.WaitFor(1000);
+     if not FRipp then
+       exit;
+    end;
+  if FRIPP then
+    begin
+     writeln('||> JACK ATTACK <||');
+     FpKill(GetProcessID,SIGKILL);
+    end;
+end;
+
 
 
 function TFOS_DEFAULT_BASISTOOLS.HashString_MD5(const Value: ansistring): ansistring;
@@ -765,6 +825,8 @@ procedure TFOS_DEFAULT_BASISTOOLS.CriticalAbort(const msg: string;const Exceptio
 begin
   E_FOS_TestNosey;
   writeln('CRITICAL> ',msg);
+  if IsMultiThread then
+    ActivateJack(5000);
   try
     if ExceptionBacktrace then begin
       WriteLn(DumpExceptionsBacktrace);
@@ -845,6 +907,26 @@ begin
      end;
    end;
    if not no_lineending then result:=Result+LineEnding;
+end;
+
+
+procedure TFOS_DEFAULT_BASISTOOLS.ActivateJack(const timeout: NativeInt);
+begin
+  if not IsMultiThread then
+    raise Exception.Create('Jack is currently not available on single threaded programs');
+  if not assigned(Jack) then
+    Jack := TJackTheRipper.Create(timeout);
+end;
+
+procedure TFOS_DEFAULT_BASISTOOLS.DeactivateJack;
+begin
+ if assigned(Jack) then
+   begin
+     Jack.Deactivate;
+     JAck.WaitFor;
+     Jack.Free;
+     Jack := nil;
+   end;
 end;
 
 

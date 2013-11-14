@@ -340,6 +340,7 @@ begin
   FBaseServer.Free;
   GFRE_DB_DEFAULT_PS_LAYER.Finalize;
   Cleanup_SSL_Interface;
+  GFRE_BT.DeactivateJack;
   exit;
 end;
 

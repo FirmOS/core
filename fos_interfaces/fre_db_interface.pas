@@ -435,7 +435,8 @@ type
     property  AsObjectItem      [idx:Integer] : IFRE_DB_Object read GetAsObjectList write SetAsObjectList;
     property  AsObjectLinkItem  [idx:Integer] : TGUID read GetAsObjectLinkList write SetAsObjectLinkList;
 
-    procedure   CloneFromField              (const Field:IFRE_DB_FIELD);
+    procedure  CloneFromField              (const Field:IFRE_DB_FIELD);
+    function   CheckOutObject              : IFRE_DB_Object;
 
     procedure AddGuid                       (const value : TGuid);
     procedure AddByte                       (const value : Byte);
@@ -1157,7 +1158,10 @@ type
     function    SYS                          : IFRE_DB_SYS_CONNECTION;
 
     function    FetchApplications           (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
-    function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;
+    function    FetchTranslateableTextOBJ   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean; // Warning: finalize the TEXTOBJ!
+    function    FetchTranslateableTextShort (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextLong  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextHint  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
 
     function    AdmGetUserCollection        :IFRE_DB_COLLECTION;
     function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
@@ -2039,6 +2043,7 @@ type
   private class var
     FContinuationArray    : Array [0..100] of TDispatch_Continuation;
     FContinuationLock     : IFOS_LOCK;
+    FMyReqID              : NativeUint;
   private
     FSessionLock          : IFOS_LOCK;
     FTakeoverPrepared     : String;
@@ -2061,7 +2066,6 @@ type
 
     FRemoteRequestSet     : TFRE_DB_RemoteReqSpecArray;
     FCurrentReqID         : QWord; // Current ReqID that is beeing processed (from client)
-    FMyReqID              : Qword;
 
     FDefaultUID           : TFRE_DB_GUIDArray;
     FDBConnection         : IFRE_DB_CONNECTION;
@@ -2792,8 +2796,18 @@ end;
 
 procedure TFRE_DB_RemoteSessionAnswerEncapsulation.DispatchAnswer(const ses : IFRE_DB_UserSession);
 begin
-  FContmethod(ses,FData,FStatus,FOCid,Fopaquedata);
-  FData.Finalize;
+  try
+    try
+      FContmethod(ses,FData,FStatus,FOCid,Fopaquedata);
+    except
+      on e:exception do
+        begin
+          GFRE_DBI.LogError(dblc_SESSION,'DISPATCH REMOTE ANSWER FAILED %s',[e.Message]);
+        end;
+    end;
+  finally
+    FData.Finalize;
+  end;
 end;
 
 { TFRE_DB_RemoteSessionInvokeEncapsulation }
@@ -3429,7 +3443,7 @@ end;
 
 class constructor TFRE_DB_UserSession.createit;
 begin
-
+  FMyReqID := 100000;
 end;
 
 
@@ -3517,7 +3531,6 @@ var x           : TObject;
     request_id  : int64;
     request_typ : TFRE_DB_COMMANDTYPE;
     input       : IFRE_DB_Object;
-    output      : IFRE_DB_Object;
     uidp        : TFRE_DB_GUIDArray;
     session     : TFRE_DB_String;
     session_app : TFRE_DB_APPLICATION;
@@ -3534,6 +3547,7 @@ var x           : TObject;
     end;
 
     procedure InvokeMethod(const async:boolean ; var input: IFRE_DB_Object);
+    var output      : IFRE_DB_Object;
     begin
       try
         output := nil;
@@ -3547,11 +3561,15 @@ var x           : TObject;
           raise EFRE_DB_Exception.Create('function '+class_name+'.'+method_name+' delivered nil result');
         end;
         CMD.Data          := output;
-        _SendSyncServerClientAnswer;
+        if not(output.Implementor_HC is TFRE_DB_SUPPRESS_ANSWER_DESC) then
+          _SendSyncServerClientAnswer
+        else
+          CMD.Finalize;
       except on e:exception do begin
         et := GFRE_BT.Get_Ticks_ms;
         GFRE_DBI.LogError(dblc_SERVER,'>>(%4.4d ms)<<DISPATCH METHOD %s(%s).%s RID = [%d] TYPE[%s] FAILED[%s]',[et-st,class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,request_id,CFRE_DB_COMMANDTYPE[request_typ],e.Message]);
         CMD.CheckoutData.Finalize;
+        input := nil;
         if not async then begin
           CMD.CommandType   := fct_Error;
           CMD.Answer        := true;
@@ -3609,7 +3627,7 @@ var x           : TObject;
           cid := cmd.CommandID;
           if cid = FContinuationArray[i].CID then begin
             answerencap := TFRE_DB_RemoteSessionAnswerEncapsulation.Create(input,cdcs_OK,FContinuationArray[i].ORIG_CID,FContinuationArray[i].opData,FContinuationArray[i].Contmethod,FContinuationArray[i].SesID);
-            if now<= FContinuationArray[i].ExpiredAt then
+            if now <= FContinuationArray[i].ExpiredAt then
               answer_matched := true;
             FContinuationArray[i].CID:=0;     // mark slot free
             FContinuationArray[i].Contmethod:=nil;
@@ -3630,12 +3648,17 @@ var x           : TObject;
           begin
             if FOnFetchSessionById(answerencap.FSesID,ses) then
               begin
-                if ses.DispatchCoroutine(@ses.AnswerRemReqCoRoutine,answerencap) then
-                else
-                  begin
-                    writeln('Session for answer is gone');
-                    answerencap.free;
-                  end;
+                try
+                  input := nil ; // ! dont finalize here
+                  if ses.DispatchCoroutine(@ses.AnswerRemReqCoRoutine,answerencap) then
+                  else
+                    begin
+                      writeln('Session for answer is gone');
+                      answerencap.free;
+                    end;
+                 finally
+                   ses.UnlockSession;
+                 end;
               end
             else
               begin
@@ -3645,7 +3668,6 @@ var x           : TObject;
           end;
       end else begin
         GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN COMMAND CID=%d OR TIMEOUT',[CMD.CommandID],catError);
-        //GFRE_LOG.Log('DATA : %s ',[CMD.AsDBODump],catError);
         answerencap.free;
       end;
       CMD.Finalize;
@@ -3714,7 +3736,7 @@ begin
       request_id  := CommandID;
       request_typ := CommandType;
       uidp        := UidPath;
-      input       := CMD.CheckoutData;
+      input       := CMD.CheckoutData; // Think about Finalization
     end;
   st := GFRE_BT.Get_Ticks_ms;
   GFRE_DBI.LogInfo(dblc_SESSION,'>>[%s/%s]-(%d/%s) %s[%s].%s ',[FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name]);
@@ -3769,7 +3791,6 @@ begin
                           end;
                        end;
     fct_SyncReply:    begin
-                        //raise EFRE_DB_Exception.Create(edb_ERROR,'ONLY SYNC REQUESTS IMPLEMENTED,ATM');
                         DispatchSyncRemoteAnswer;
                       end;
   end;
@@ -4146,7 +4167,7 @@ begin
   cmd.SetIsClient(false);
   cmd.SetIsAnswer(false);
   request_id := FMyReqID;
-  inc(FMyReqID);
+  FOS_IL_INC_NATIVE(FMyReqID);
   cmd.SetCommandID(request_id);
   cmd.CommandType:=fct_SyncRequest;
   cmd.Data := description;
@@ -4181,6 +4202,7 @@ begin
   cmd.CommandType:=fct_SyncReply;
   cmd.Data := description;
   GFRE_DBI.LogDebug(dblc_SESSION,'>>SERVER CLIENT ANSWER (%s) RID = [%d] TYPE[%s] SID=%s CHANGE SID=%s',[description.ClassName,answer_id,CFRE_DB_COMMANDTYPE[cmd.CommandType],FSessionID,cmd.ChangeSession]);
+  //GFRE_DBI.LogDebug(dblc_SESSION,'DATA: %s',[description.DumpToString()]);
   SendServerClientCMD(CMD);
 end;
 
@@ -4235,7 +4257,7 @@ begin
     cmd.SetIsClient(false);
     cmd.SetIsAnswer(False);
     request_id := FMyReqID;
-    inc(FMyReqID);
+    FOS_IL_INC_NATIVE(FMyReqID);
     cmd.SetCommandID(request_id);
     cmd.InvokeClass  := rmethodenc.Fclassname;
     cmd.InvokeMethod := rmethodenc.Fmethodname;
@@ -4627,25 +4649,16 @@ begin
    if assigned(MM.code) then
      begin
        WM := IFRE_DB_WebInstanceMethod(MM);
-       try
-         result := wm(input,ses,app,conn);
-       except on e:exception do begin
-         raise EFRE_DB_Exception.Create(edb_ERROR,'WEB INSTANCE METHOD INVOCATION %s.%s (%s) failed (%s)',[Classname,name,Debug_ID,e.Message]);
-       end;end;
+       result := wm(input,ses,app,conn);
      end
    else
      begin
        MM.Code := MethodAddress('IMI_'+name);
        M := IFRE_DB_InvokeInstanceMethod(MM);
-       if assigned(mm.Code) then begin
-         try
-           result := m(input);
-         except on e:exception do begin
-           raise EFRE_DB_Exception.Create(edb_ERROR,'INSTANCE METHOD INVOCATION %s.%s (%s) failed (%s)',[Classname,name,Debug_ID,e.Message]);
-         end;end;
-       end else begin
+       if assigned(mm.Code) then
+         result := m(input)
+       else
           raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'INSTANCE METHOD INVOCATION %s.%s (%s) failed (method not found)',[Classname,name,Debug_ID]);
-       end;
      end;
 end;
 
@@ -5258,30 +5271,18 @@ begin
 end;
 
 class function TFRE_DB_ObjectEx.GetTranslateableTextShort(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
-var
-  text: IFRE_DB_TEXT;
 begin
-  conn.FetchTranslateableText(GetTranslateableTextKey(key),text);
-  Result:=text.Getshort;
-  text.Finalize;
+  conn.FetchTranslateableTextShort(GetTranslateableTextKey(key),result);
 end;
 
 class function TFRE_DB_ObjectEx.GetTranslateableTextLong(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
-var
-  text: IFRE_DB_TEXT;
 begin
-  conn.FetchTranslateableText(GetTranslateableTextKey(key),text);
-  Result:=text.GetLong;
-  text.Finalize;
+  conn.FetchTranslateableTextLong(GetTranslateableTextKey(key),result);
 end;
 
 class function TFRE_DB_ObjectEx.GetTranslateableTextHint(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
-var
-  text: IFRE_DB_TEXT;
 begin
-  conn.FetchTranslateableText(GetTranslateableTextKey(key),text);
-  Result:=text.GetHint;
-  text.Finalize;
+  conn.FetchTranslateableTextHint(GetTranslateableTextKey(key),result);
 end;
 
 function TFRE_DB_ObjectEx.GetInstanceRightName(const right: TFRE_DB_NameType): TFRE_DB_String;
@@ -5657,7 +5658,7 @@ end;
 
 function TFRE_DB_APPLICATION._FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
-  if not session.GetDBConnection.FetchTranslateableText(uppercase(classname)+'_'+translation_key,result) then
+  if not session.GetDBConnection.FetchTranslateableTextOBJ(uppercase(classname)+'_'+translation_key,result) then
     begin
       Result := GFRE_DBI.CreateText('notfound',translation_key+'_short',translation_key+'_long',translation_key+'_is_missing!');
     end;

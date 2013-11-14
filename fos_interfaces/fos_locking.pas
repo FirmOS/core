@@ -75,7 +75,9 @@ type
    procedure   ReleaseWrite;
   end;
 
-  TFOS_TE=class(TInterfacedObject,IFOS_TE) 
+  { TFOS_TE }
+
+  TFOS_TE=class(TInterfacedObject,IFOS_TE)
   private
  {$IFNDEF FPC}
    FSig:TEvent;
@@ -87,6 +89,7 @@ type
    destructor  Destroy; override;
    procedure   WaitFor(timeout:integer);
    function    SetEvent:boolean;
+   procedure   Finalize;
   end;
 
   TFOS_DATA_TE=class(TFOS_TE,IFOS_DATA_TE)
@@ -158,6 +161,11 @@ begin
  {$ELSE}
    FSig.SetEvent;
  {$ENDIF}
+end;
+
+procedure TFOS_TE.Finalize;
+begin
+  Free;
 end;
 
 procedure TFOS_TE.WaitFor(timeout: integer);

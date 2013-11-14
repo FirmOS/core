@@ -2036,18 +2036,10 @@ implementation
     cField : IFRE_DB_OBJECT;
 
     function _getText(const key:TFRE_DB_String):TFRE_DB_String;
-    var
-      txt: IFRE_DB_TEXT;
     begin
-       if (key<>'')
-         and session.GetDBConnection.FetchTranslateableText(key,txt) then
-         begin
-           Result:=txt.Getshort;
-         end
-       else
-         begin
+       if not ((key<>'')
+         and session.GetDBConnection.FetchTranslateableTextShort(key,result)) then
            Result:=key;
-         end;
     end;
 
     procedure _addInput(const obj:PFRE_InputFieldDef4Group; const prefix:String; const requiredParent:Boolean);

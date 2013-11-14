@@ -352,6 +352,7 @@ procedure TFRE_BASE_SERVER.Interrupt;
 begin
   if G_NO_INTERRUPT_FLAG THEN exit;
   writeln('INTERRUPT');
+  GFRE_BT.ActivateJack(30000);
   GFRE_SC.RequestTerminate;
 end;
 

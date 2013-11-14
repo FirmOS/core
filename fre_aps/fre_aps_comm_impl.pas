@@ -573,7 +573,7 @@ end;
 procedure TFRE_APSC_TIMER.ThreadCheck;
 begin
   if GetThreadID<>FCreateThreadID then
-    GFRE_BT.CriticalAbort('timer thread context violation [%s] vs [%s] ',[inttostr(NativeUint(GetThreadID)),inttostr(NativeUint(FCreateThreadID))]);
+    GFRE_BT.CriticalAbort('timer [%s] thread context violation [%s] vs [%s] ',[FId,inttostr(NativeUint(GetThreadID)),inttostr(NativeUint(FCreateThreadID))]);
 end;
 
 constructor TFRE_APSC_TIMER.Create(man: TFRE_APSC_CHANNEL_MANAGER; const base: PEvent_base; const interval: NativeUint);
@@ -1090,7 +1090,7 @@ procedure TFRE_APSC_CHANNEL_MANAGER.GotChannelCtrCMD(const cmd: TAPSC_CMD; const
       TFRE_APSC_CoRoutine(m)(mdata);
     except on e:exception do
       begin
-        writeln('APSC: Coroutine Failed ',FChannelMgrID,' ',e.Message);
+        writeln('**** APSC: Coroutine Failed ',FChannelMgrID,' ',e.Message);
       end;
     end;
   end;

@@ -622,26 +622,28 @@ var obj      : IFRE_DB_Object;
          cnt     : NativeInt;
          newnew  : IFRE_DB_Object;
 
-         procedure addEntry(const obj : IFRE_DB_Object);
+         procedure addEntry(const fld : IFRE_DB_Field);
          var mypath : string;
-             newe   : IFRE_DB_Object;
              entry  : IFRE_DB_Object;
          begin
-           inc(cnt);
-           entry := obj;
-           entry.Field('uidpath').AsStringArr := opaquedata.Field('UIP').AsStringArr;
-           mypath                             := opaquedata.Field('LVL').AsString+ entry.Field('name').AsString +'/';
-           entry.Field('mypath').AsString     := mypath;
-           newe :=  entry.CloneToNewObject();
-           res.addTreeEntry(newe,newe.Field('isfile').AsBoolean=false);
+           if fld.FieldType=fdbft_Object then
+             begin
+               inc(cnt);
+               entry := fld.CheckOutObject;
+               entry.Field('uidpath').AsStringArr := opaquedata.Field('UIP').AsStringArr;
+               mypath                             := opaquedata.Field('LVL').AsString+ entry.Field('name').AsString +'/';
+               entry.Field('mypath').AsString     := mypath;
+               res.addTreeEntry(entry,entry.Field('isfile').AsBoolean=false);
+             end;
          end;
 
     begin
       res:=TFRE_DB_STORE_DATA_DESC.create.Describe(0);
       cnt := 0;
-      new_input.ForAllObjects(@addEntry);
+      new_input.ForAllFields(@addEntry);
       res.Describe(cnt);
       ses.SendServerClientAnswer(res,ocid);
+      opaquedata.Finalize;
     end;
 
 begin
@@ -662,6 +664,8 @@ begin
   else
     begin
       result := TFRE_DB_STORE_DATA_DESC.create.Describe(0);
+      inp.Finalize;
+      opd.Finalize;
     end;
 end;
 
@@ -1177,10 +1181,10 @@ var
   scheme: IFRE_DB_SchemeObject;
 begin
   scheme := GetScheme;
-  res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
-  res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
-  res.FillWithObjectValues(Self,GetSession(input));
-  res.AddButton.Describe('Save',CWSF(@WEB_saveOperation),fdbbt_submit);
+    res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
+    res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
+    res.FillWithObjectValues(Self,GetSession(input));
+    res.AddButton.Describe('Save',CWSF(@WEB_saveOperation),fdbbt_submit);
   Result:=res;
 end;
 

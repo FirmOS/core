@@ -212,7 +212,6 @@ end;
 
 procedure TFRE_BASE_CLIENT.ChannelDisco(const channel: IFRE_APSC_CHANNEL);
 begin
-  writeln('CHANNEL DISCO!');
   if channel.CH_GetState<>ch_EOF then
     begin
       FTimeout     := G_CONNREFUSED_TO;

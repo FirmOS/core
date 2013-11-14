@@ -358,6 +358,9 @@ type
     function  Base64Encode              (const input:string):String;
     function  Base64Decode              (const input:string):String;
 
+    procedure ActivateJack              (const timeout:NativeInt=10000);
+    procedure DeactivateJack            ;
+
     procedure List_Directorys           (basepath:string;const list:IFOS_STRINGS;const levels:cardinal=1;const with_basepath:boolean=true);
     procedure List_Files                (basepath:string;const list: IFOS_STRINGS; const levels: cardinal; const with_basepath: boolean);
     function  Delete_Directory          (folder:ansistring):boolean;
@@ -426,6 +429,7 @@ type
     ['{782020EA-F81D-11DD-8529-001B38430791}']
     procedure   WaitFor(timeout:integer);
     function    SetEvent:boolean;
+    procedure   Finalize;
    end;
 
    IFOS_DATA_TE=interface(IFOS_TE)

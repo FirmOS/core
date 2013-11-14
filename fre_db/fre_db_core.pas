@@ -181,6 +181,8 @@ type
     function  GetAsString        : TFRE_DB_String;
     function  GetAsBoolean       : Boolean;
     function  GetAsObject        : TFRE_DB_Object;
+    function  CheckOutObject     : TFRE_DB_Object;
+    function  CheckOutObjectI    : IFRE_DB_Object;
     function  GetAsStream        : TFRE_DB_Stream;
     function  GetAsObjectLink    : TGuid;
 
@@ -285,6 +287,7 @@ type
     function  AsDBText                      :IFRE_DB_TEXT;
     function    _FieldType        : TFRE_DB_FIELDTYPE;
     procedure IFRE_DB_Field.CloneFromField = CloneFromFieldI;
+    procedure IFRE_DB_Field.CheckOutObject = CheckOutObjectI;
   public
     constructor Create           (const obj:TFRE_DB_Object; const FieldType:TFRE_DB_FIELDTYPE ; const ManualFieldName : string='' ; const calcmethod : IFRE_DB_CalcMethod=nil);
     destructor  Destroy          ;override;
@@ -1094,7 +1097,7 @@ type
 
 
     function        Store        (var   new_obj : TFRE_DB_Object ; var error_text : String ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
-    function        Delete       (const ouid    : TGUID          ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
+    function        Delete       (const ouid    : TGUID          ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype; // RENAME TO REMOVE
 
     function        Fetch        (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
 
@@ -2127,7 +2130,10 @@ type
     function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
 
-    function    FetchTranslateableText       (const trans_key:TFRE_DB_String;var text:IFRE_DB_TEXT):boolean;
+    function    FetchTranslateableTextObj   (const trans_key:TFRE_DB_String;var text:IFRE_DB_TEXT):boolean;
+    function    FetchTranslateableTextShort (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextLong  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextHint  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
 
     function    GetReferences                (const obj_uid:TGuid;const from:boolean):TFRE_DB_ObjectReferences; override;
 
@@ -6184,29 +6190,30 @@ var key  : integer;
           dont_convert_2_utc := false;
         end;
       end;
-    end;
-    case filter_field_type of
-      fdbft_GUID:         AddUIDFieldFilter      (key_val,filter_field_name,GFRE_DB.StringArray2GuidArray(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_Byte:         AddByteFieldFilter     (key_val,filter_field_name,GFRE_DB.StringArray2ByteArray(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_Int16:        AddInt16FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int16Array(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_UInt16:       AddUint16FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt16Array(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_Int32:        Addint32FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int32Array(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_UInt32:       AddUint32FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt32Array(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_Int64:        Addint64FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int64Array(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_UInt64:       AddUint64FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt64Array(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_Real32:       AddReal32FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2Real32Array(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_Real64:       AddReal64FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2Real64Array(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_Currency:     AddCurrencyFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2CurrArray(value_array),num_filt_typ,on_transform,on_filter_field);
-      fdbft_String:       AddStringFieldFilter   (key_val,filter_field_name,value_array,str_filt_typ,on_transform,on_filter_field);
-      fdbft_Boolean:      AddBooleanFieldFilter  (key_val,filter_field_name,FREDB_String2Bool(value_array[0]),on_transform,on_filter_field);
-      fdbft_DateTimeUTC:  begin
-                            if not dont_convert_2_utc then begin
-                              AddDateTimeFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2DateTimeArray(value_array),num_filt_typ,on_transform,on_filter_field);
-                            end else begin
-                              AddDateTimeFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2DateTimeArrayUTC(value_array),num_filt_typ,on_transform,on_filter_field);
-                            end;
-                          end
-      else raise EFRE_DB_Exception.Create(edb_ERROR,'INPUT FILTER TYPE [%d] IS NOT SUPPORTED',[filter_field_type]);
+      case filter_field_type of
+        fdbft_GUID:         AddUIDFieldFilter      (key_val,filter_field_name,GFRE_DB.StringArray2GuidArray(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_Byte:         AddByteFieldFilter     (key_val,filter_field_name,GFRE_DB.StringArray2ByteArray(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_Int16:        AddInt16FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int16Array(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_UInt16:       AddUint16FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt16Array(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_Int32:        Addint32FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int32Array(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_UInt32:       AddUint32FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt32Array(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_Int64:        Addint64FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int64Array(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_UInt64:       AddUint64FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt64Array(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_Real32:       AddReal32FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2Real32Array(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_Real64:       AddReal64FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2Real64Array(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_Currency:     AddCurrencyFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2CurrArray(value_array),num_filt_typ,on_transform,on_filter_field);
+        fdbft_String:       AddStringFieldFilter   (key_val,filter_field_name,value_array,str_filt_typ,on_transform,on_filter_field);
+        fdbft_Boolean:      AddBooleanFieldFilter  (key_val,filter_field_name,FREDB_String2Bool(value_array[0]),on_transform,on_filter_field);
+        fdbft_DateTimeUTC:  begin
+                              if not dont_convert_2_utc then begin
+                                AddDateTimeFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2DateTimeArray(value_array),num_filt_typ,on_transform,on_filter_field);
+                              end else begin
+                                AddDateTimeFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2DateTimeArrayUTC(value_array),num_filt_typ,on_transform,on_filter_field);
+                              end;
+                            end
+        else
+          raise EFRE_DB_Exception.Create(edb_ERROR,'INPUT FILTER TYPE [%d] IS NOT SUPPORTED',[filter_field_type]);
+      end;
     end;
   end;
 
@@ -9833,13 +9840,6 @@ begin
  result := uppercase(GFRE_BT.GUID_2_HexString(FSysDomainUID)); // GetSystemDomainID_String has to be uppercase
 end;
 
-//function TFRE_DB_BASE_CONNECTION.Store(var new_obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType): TFRE_DB_Errortype;
-//begin
-//  if collection_name='' then
-//    exit(edb_INVALID_PARAMS);
-//  result := FPersistance_Layer.StoreOrUpdateObject(new_obj,collection_name);
-//end;
-
 function TFRE_DB_BASE_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): TFRE_DB_Errortype;
 
   function _Check : TFRE_DB_Errortype;
@@ -9860,7 +9860,6 @@ function TFRE_DB_BASE_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Objec
       exit(edb_OK);
   end;
 
-  var dbo2 : TFRE_DB_Object;
 begin
   dbo    := nil;
   result := edb_NOT_FOUND;
@@ -9977,7 +9976,7 @@ begin
   session_data := nil;
 end;
 
-function TFRE_DB_CONNECTION.FetchTranslateableText(const trans_key: TFRE_DB_String; var text: IFRE_DB_TEXT): boolean;
+function TFRE_DB_CONNECTION.FetchTranslateableTextObj(const trans_key: TFRE_DB_String; var text: IFRE_DB_TEXT): boolean;
 var ttxt : TFRE_DB_TEXT;
 begin
   if FSysConnection.FetchTranslateableText(trans_key,ttxt)=edb_OK then begin
@@ -9987,6 +9986,45 @@ begin
     text   := nil;
     result := false;
   end;
+end;
+
+function TFRE_DB_CONNECTION.FetchTranslateableTextShort(const translation_key: TFRE_DB_String; var text: TFRE_DB_String): Boolean;
+var txt:IFRE_DB_TEXT;
+begin
+  result := FetchTranslateableTextObj(translation_key,txt);
+  if result then
+    begin
+      text := txt.Getshort;
+      txt.Finalize;
+    end
+  else
+    text := '';
+end;
+
+function TFRE_DB_CONNECTION.FetchTranslateableTextLong(const translation_key: TFRE_DB_String; var text: TFRE_DB_String): Boolean;
+var txt:IFRE_DB_TEXT;
+begin
+  result := FetchTranslateableTextObj(translation_key,txt);
+  if result then
+    begin
+      text := txt.GetLong;
+      txt.Finalize;
+    end
+  else
+    text := '';
+end;
+
+function TFRE_DB_CONNECTION.FetchTranslateableTextHint(const translation_key: TFRE_DB_String; var text: TFRE_DB_String): Boolean;
+var txt:IFRE_DB_TEXT;
+begin
+  result := FetchTranslateableTextObj(translation_key,txt);
+  if result then
+    begin
+      text := txt.GetHint;
+      txt.Finalize;
+    end
+  else
+    text := '';
 end;
 
 function TFRE_DB_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean): TFRE_DB_ObjectReferences;
@@ -14767,6 +14805,21 @@ begin
       _IllegalTypeError(fdbft_Object);
     end;
   end;
+end;
+
+function TFRE_DB_FIELD.CheckOutObject: TFRE_DB_Object;
+begin
+  if FFieldData.FieldType = fdbft_Object then
+    result := AsObject
+  else
+    _IllegalTypeError(fdbft_Boolean);
+  Clear(true);
+  result.FParentDBO:=nil;
+end;
+
+function TFRE_DB_FIELD.CheckOutObjectI: IFRE_DB_Object;
+begin
+  result := CheckOutObject;
 end;
 
 function TFRE_DB_FIELD.GetAsObjectArray: TFRE_DB_ObjectArray;
