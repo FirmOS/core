@@ -281,7 +281,7 @@ var s           : String;
           exit;
         end;
         else begin
-          GFRE_BT.CriticalAbort('SOCK CLOSE');
+          GFRE_BT.CriticalAbort('FATAL COMMUNICATION ERROR : GOING DOWN');
           FCHANNEL.Finalize;
         end;
       end;
@@ -702,6 +702,7 @@ begin
   end;
   try
     readm.Position:=0;
+    dbo := nil;
     dbo := GFRE_DBI.CreateFromMemory(readm.Memory);
     if dbo.Supports(IFRE_DB_COMMAND,cmd) then begin
       exit(crs_OK);

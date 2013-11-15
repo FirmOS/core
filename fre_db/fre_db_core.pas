@@ -5978,13 +5978,13 @@ var cnt  : NativeInt;
   begin
    for i:=0 to high(FExpandedRefs) do
      begin
-       FExpandedRefs[i].Assert_CheckStoreLocked;
-       try
-         FExpandedRefs[i].Set_Store_Locked(false);
+       //FExpandedRefs[i].Assert_CheckStoreLocked;
+       //try
+         //FExpandedRefs[i].Set_Store_Locked(false);
          LocalInsert(FExpandedRefs[i]);
-       finally
-         FExpandedRefs[i].Set_Store_Locked(true);
-       end;
+       //finally
+       //  FExpandedRefs[i].Set_Store_Locked(true);
+       //end;
      end;
   end;
 
@@ -7109,7 +7109,7 @@ begin
     dc_ReferentialLinkCollection:
         begin
           FInitialDerived := false; // force it
-          FConnection.UpcastDBC.ExpandReferences(FDepObjectList,FDepObjectsRefers,FDepRefConstraint,FExpandedRefs,true);
+          FConnection.UpcastDBC.ExpandReferences(FDepObjectList,FDepObjectsRefers,FDepRefConstraint,FExpandedRefs,false);
         end;
   end;
   if input.FieldExists('parentid') then
@@ -10301,10 +10301,7 @@ end;
 
 function TFRE_DB.CreateFromMemoryI(memory: Pointer; const recreate_weak_schemes: boolean): IFRE_DB_Object;
 begin
-  try
-    result := TFRE_DB_Object.CreateFromMemory(memory,recreate_weak_schemes);
-  except on e:exception do begin
-  end;end;
+  result := TFRE_DB_Object.CreateFromMemory(memory,recreate_weak_schemes);
 end;
 
 function TFRE_DB.CreateFromStringI(const AValue: TFRE_DB_String; const recreate_weak_schemes: boolean): IFRE_DB_Object;

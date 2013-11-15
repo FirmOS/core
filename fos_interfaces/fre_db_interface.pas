@@ -1274,6 +1274,8 @@ type
     function   UID                          : TGUID;
     function   ShowInApplicationChooser     (const session:IFRE_DB_UserSession): Boolean;
     function   FetchAppTextShort            (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchAppTextLong             (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchAppTextHint             (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
     function   FetchAppTextFull             (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;
     function   AppClassName                 : ShortString;
     function   AsObject                     : IFRE_DB_Object;
@@ -1531,6 +1533,8 @@ type
 
     function   _FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
     function   FetchAppTextShort             (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchAppTextLong              (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchAppTextHint              (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
     function   FetchAppTextFull              (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
 
     class procedure  CreateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
@@ -3561,8 +3565,9 @@ var x           : TObject;
           raise EFRE_DB_Exception.Create('function '+class_name+'.'+method_name+' delivered nil result');
         end;
         CMD.Data          := output;
-        if not(output.Implementor_HC is TFRE_DB_SUPPRESS_ANSWER_DESC) then
-          _SendSyncServerClientAnswer
+        if not(output.Implementor_HC is TFRE_DB_SUPPRESS_ANSWER_DESC)
+           and (not async) then
+            _SendSyncServerClientAnswer
         else
           CMD.Finalize;
       except on e:exception do begin
@@ -3787,7 +3792,6 @@ begin
                         else
                           begin
                             InvokeMethod(true,input);
-                            CMD.Finalize;
                           end;
                        end;
     fct_SyncReply:    begin
@@ -5866,6 +5870,22 @@ var txt : IFRE_DB_TEXT;
 begin
   txt := _FetchAppText(session,translation_key);
   result := txt.Getshort;
+  txt.Finalize;
+end;
+
+function TFRE_DB_APPLICATION.FetchAppTextLong(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): TFRE_DB_String;
+var txt : IFRE_DB_TEXT;
+begin
+  txt := _FetchAppText(session,translation_key);
+  result := txt.GetLong;
+  txt.Finalize;
+end;
+
+function TFRE_DB_APPLICATION.FetchAppTextHint(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): TFRE_DB_String;
+var txt : IFRE_DB_TEXT;
+begin
+  txt := _FetchAppText(session,translation_key);
+  result := txt.GetHint;
   txt.Finalize;
 end;
 
