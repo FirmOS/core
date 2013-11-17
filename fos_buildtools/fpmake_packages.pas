@@ -131,9 +131,6 @@ program fpmake_packages;
 
       with targets do begin
         AddUnit('fre_fcom_ssl.pas');
-        AddUnit('fos_fcom_default.pas');
-        AddUnit('fos_fcom_handles.pas');
-        AddUnit('fos_fcom_socket.pas');
         AddUnit('fre_sys_base_cs.pas');
         //TODO: FCOM PACKAGE CHECK
         //AddUnit('fos_fcom_bsdnet.pas');
@@ -157,7 +154,7 @@ program fpmake_packages;
       Dependencies.Add('FRE_FCOM');
       with targets do begin
         //AddUnit('fos_partitiontree.pas');
-        AddUnit('fre_aps_impl_le.pas');
+        AddUnit('fre_aps_comm_impl.pas');
         AddUnit('fre_libevent_core.pas');
       end;
     end;
@@ -220,6 +217,7 @@ program fpmake_packages;
          AddUnit('../fre_server/fre_http_tools.pas');
          AddUnit('../fre_server/fre_feed_client.pas');
          AddUnit('../fre_server/fre_basecli_app.pas');
+         AddUnit('../fre_server/fre_basefeed_app.pas');
          AddUnit('../fre_server/fre_openssl_cmd.pas');
          AddUnit('fre_accesscontrol_common.pas');
        end;
