@@ -106,20 +106,25 @@ begin
 
   while true do
     begin
-      p:=GetMem(blocksize);
-      if p=nil then
-        begin
-          writeln('GetMem resultet nil');
-          writeln('Total Allocated:',total_alloc,' Successfull Getmem Calls:',success_getmems);
-        end
-      else
-        begin
-          inc(total_alloc,blocksize);
-          inc(success_getmems);
-          if (success_getmems mod 1000)=0 then
+      try
+        p:=GetMem(blocksize);
+        if p=nil then
+          begin
+            writeln('GetMem resultet nil');
             writeln('Total Allocated:',total_alloc,' Successfull Getmem Calls:',success_getmems);
-        end;
-  end;
+          end
+        else
+          begin
+            inc(total_alloc,blocksize);
+            inc(success_getmems);
+            if (success_getmems mod 1000)=0 then
+              writeln('Total Allocated:',total_alloc,' Successfull Getmem Calls:',success_getmems);
+          end;
+      except on E:Exception do begin
+        writeln('EXCEPTION:',E.Message);
+        sleep(100);
+      end;end;
+    end;
 end;
 
 procedure TFREResourcetestApplication.TestFileHandles;
