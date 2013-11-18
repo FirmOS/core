@@ -72,7 +72,7 @@ var
 
 procedure TFRE_TESTDATA_FEED.TestMethod;
 begin
-  writeln('THIS IS YOU SHINY TEST MEthod used with the undocumented -t option.');
+  writeln('THIS IS YOUR SHINY TEST Method used with the undocumented -t option.');
   halt;
 end;
 

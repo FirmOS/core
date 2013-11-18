@@ -91,12 +91,12 @@ type
     function       GetDBWithServerRights                     (const dbname:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       RestoreDefaultConnection                  (out  username : TFRE_DB_String ; out conn : IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       GetImpersonatedDatabaseConnectionSession  (const dbname,username,pass,default_app : string;const default_uid_path : TFRE_DB_GUIDArray ; out dbs:TFRE_DB_UserSession):TFRE_DB_Errortype;
-    function       ExistsUserSessionForUser                  (const username:string;out other_session:TFRE_DB_UserSession):boolean;
-    function       ExistsUserSessionForKey                   (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
     function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
-    function       FetchPublisherRAC                         (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
-    function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      TIM_SessionHandler                        (const timer : IFRE_APSC_TIMER;const flaf1,flag2:boolean);
+    function       ExistsUserSessionForUserLocked            (const username:string;out other_session:TFRE_DB_UserSession):boolean;
+    function       ExistsUserSessionForKeyLocked             (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
+    function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
+    function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
   public
     DefaultDatabase              : String;
@@ -518,15 +518,15 @@ begin
     dbs := TFRE_DB_UserSession.Create(username,'',default_app,default_uid_path,dbc);
     dbs.OnGetImpersonatedDBC    := @GetImpersonatedDatabaseConnection;
     dbs.OnRestoreDefaultDBC     := @RestoreDefaultConnection;
-    dbs.OnExistsUserSession     := @ExistsUserSessionForUser;
-    dbs.OnExistsUserSession4Key := @ExistsUserSessionForKey;
+    dbs.OnExistsUserSession     := @ExistsUserSessionForUserLocked;
+    dbs.OnExistsUserSession4Key := @ExistsUserSessionForKeyLocked;
     dbs.OnCheckUserNamePW       := @CheckUserNamePW;
     dbs.OnFetchSessionById      := @FetchSessionByIdLocked;
-    dbs.OnFetchPublisherRAC     := @FetchPublisherRAC;
+    dbs.OnFetchPublisherRAC     := @FetchPublisherSessionLocked;
   end;
 end;
 
-function TFRE_BASE_SERVER.ExistsUserSessionForUser(const username: string; out other_session: TFRE_DB_UserSession): boolean;
+function TFRE_BASE_SERVER.ExistsUserSessionForUserLocked(const username: string; out other_session: TFRE_DB_UserSession): boolean;
 var fsession : TFRE_DB_UserSession;
 
   function SearchUser(const session:TFRE_DB_UserSession):boolean;
@@ -549,6 +549,7 @@ begin
     FUserSessionsTree.ForAllItemsBrk(@SearchUser);
     if assigned(fsession) then begin
       other_session     := fsession;
+      other_session.LockSession;
       result            := true;
     end;
   finally
@@ -556,7 +557,7 @@ begin
   end;
 end;
 
-function TFRE_BASE_SERVER.ExistsUserSessionForKey(const key: string; out other_session: TFRE_DB_UserSession): boolean;
+function TFRE_BASE_SERVER.ExistsUserSessionForKeyLocked(const key: string; out other_session: TFRE_DB_UserSession): boolean;
 var fsession : TFRE_DB_UserSession;
 
   function SearchKey(const session:TFRE_DB_UserSession):boolean;
@@ -579,6 +580,7 @@ begin
     FUserSessionsTree.ForAllItemsBrk(@SearchKey);
     if assigned(fsession) then begin
       other_session     := fsession;
+      other_session.LockSession;
       result            := true;
     end;
   finally
@@ -591,7 +593,7 @@ begin
   result := FDefaultSession.GetDBConnection.CheckLogin(username,pass);
 end;
 
-function TFRE_BASE_SERVER.FetchPublisherRAC(const rcall, rmeth: TFRE_DB_NameType; out ses: TFRE_DB_UserSession ; out right:TFRE_DB_String): boolean;
+function TFRE_BASE_SERVER.FetchPublisherSessionLocked(const rcall, rmeth: TFRE_DB_NameType; out ses: TFRE_DB_UserSession ; out right:TFRE_DB_String): boolean;
 
   function SearchRAC(const session:TFRE_DB_UserSession):boolean;
   var arr : TFRE_DB_RemoteReqSpecArray;
@@ -619,6 +621,7 @@ begin
   try
     FUserSessionsTree.ForAllItemsBrk(@SearchRac);
     if assigned(ses) then begin
+      ses.LockSession;
       result := true;
     end;
   finally
@@ -699,7 +702,12 @@ var myhalt       : boolean;
 
 begin
   //writeln('SESSIONS - TIMER ',test_ses_deb);
-  TestSessionCreationFree;
+  //TestSessionCreationFree;
+
+  myhalt := false;
+
+  TFRE_DB_UserSession.HandleContinuationTimeouts(@FetchSessionByIdLocked);
+
   myhalt := false;
   ForAllSessionsLocked(@IterateSession,myhalt);
   if myhalt then

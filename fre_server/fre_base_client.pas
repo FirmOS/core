@@ -54,7 +54,7 @@ type
 
   { TFRE_BASE_CLIENT }
 
-  TFRE_BASE_CLIENT=class(TObject)
+  TFRE_BASE_CLIENT=class(TFRE_DB_Base)
   private
     type
       TBC_ClientState=(csUnknown,csWaitConnect,csConnected,csTimeoutWait,csSETUPSESSION);
@@ -105,7 +105,8 @@ type
     procedure   Setup                 ; virtual;
     function  Get_AppClassAndUid      (const appkey : string ; out app_classname : TFRE_DB_String ; out uid : TGuid) : boolean;
     function  SendServerCommand       (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const ContinuationCB : TFRE_DB_CONT_HANDLER=nil;const timeout:integer=5000) : boolean;
-    function  AnswerSyncCommand       (const command_id : QWord ; const data : IFRE_DB_Object) : boolean;
+    function  AnswerSyncCommand       (const command_id : QWord ; const data  : IFRE_DB_Object) : boolean;
+    function  AnswerSyncError         (const command_id : QWord ; const error : TFRE_DB_String) : boolean;
     procedure MySessionEstablished    (const chanman : IFRE_APSC_CHANNEL_MANAGER); virtual;
     procedure MySessionDisconnected   (const chanman : IFRE_APSC_CHANNEL_MANAGER); virtual;
     procedure MySessionSetupFailed    (const reason : string); virtual;
@@ -132,7 +133,7 @@ begin
     case status of
       cdcs_OK: begin
         if FClientState = csSETUPSESSION then begin
-          if data.Field('LOGIN_OK').AsBoolean=true then
+          if (data.FieldExists('LOGIN_OK') and (data.Field('LOGIN_OK').AsBoolean=true)) then
             begin
               GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP OK : SESSION [%s]',[fMySessionID]);
               FClientState := csConnected;
@@ -508,13 +509,33 @@ begin
 end;
 
 procedure TFRE_BASE_CLIENT.RegisterRemoteMethods(var remote_method_array: TFRE_DB_RemoteReqSpecArray);
+var rem_methods : TFRE_DB_StringArray;
+    i           : nativeInt;
 begin
-  SetLength(remote_method_array,0);
+  rem_methods := Get_DBI_RemoteMethods;
+  SetLength(remote_method_array,Length(rem_methods));
+  for i:=0 to high(rem_methods) do
+    begin
+      remote_method_array[i].classname       := uppercase(ClassName);
+      remote_method_array[i].methodname      := UpperCase(rem_methods[i]);
+      remote_method_array[i].invokationright := '$REMIC_'+remote_method_array[i].classname+'.'+remote_method_array[i].methodname;
+    end;
 end;
 
 procedure TFRE_BASE_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
 begin
-
+  try
+    if uppercase(rclassname)=uppercase(ClassName) then
+      Invoke_DBREM_Method(rmethodname,command_id,input,cmd_type)
+    else
+      raise EFRE_DB_Exception.Create(edb_ERROR,'Classname mismatch Mine:[%s] <> Requested:[%s] ',[ClassName,rclassname]);
+  except on e:exception
+    do
+      begin
+        AnswerSyncError(command_id,e.Message);
+        input.Finalize;
+      end;
+  end;
 end;
 
 function TFRE_BASE_CLIENT.SendServerCommand(const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER; const timeout: integer): boolean;
@@ -535,9 +556,18 @@ begin
       result := true;
     end
   else
+    result := false;
+end;
+
+function TFRE_BASE_CLIENT.AnswerSyncError(const command_id: QWord; const error: TFRE_DB_String): boolean;
+begin
+  if assigned(FBaseconnection) then
     begin
-      result := false;
-    end;
+      FBaseconnection.SendSyncErrorAnswer(command_id,error);
+      result := true;
+    end
+  else
+    result := false;
 end;
 
 procedure TFRE_BASE_CLIENT.MySessionEstablished(const chanman: IFRE_APSC_CHANNEL_MANAGER);

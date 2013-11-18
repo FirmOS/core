@@ -188,6 +188,7 @@ type
   TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD= class(TFRE_DB_APPLICATION_MODULE)
   protected
     procedure       SetupAppModuleStructure ; override;
+    function        GetToolbarMenu: TFRE_DB_CONTENT_DESC;override;
   public
     class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
     procedure       MySessionInitializeModule  (const session: TFRE_DB_UserSession); override;
@@ -196,6 +197,9 @@ type
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_SliderChanged          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_DropAction             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_FeederTest             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_FeederTestTimeout      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_FeederTestError        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -677,6 +681,17 @@ begin
   InitModuleDesc('$feedbrowsetree_description');
 end;
 
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
+var
+  submenu,menu: TFRE_DB_MENU_DESC;
+begin
+  menu:=TFRE_DB_MENU_DESC.create.Describe;
+  menu.AddEntry.Describe('Feeder Request','',CWSF(@WEB_FeederTest));
+  menu.AddEntry.Describe('Feeder Request (Timeout)','',CWSF(@WEB_FeederTestTimeout));
+  menu.AddEntry.Describe('Feeder Request (Error)','',CWSF(@WEB_FeederTestError));
+  Result:=menu;
+end;
+
 class procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
@@ -769,6 +784,85 @@ end;
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_DropAction(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Drop','You dropped item ' + input.Field('selected').AsString + ' on ' + input.Field('target').AsString,fdbmt_info);
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_FeederTest(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+
+    procedure GotAnswer(const ses: IFRE_DB_UserSession; const new_input: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const ocid: Qword; const opaquedata: IFRE_DB_Object);
+    var stat : string;
+    begin
+      case status of
+        cdcs_OK:      stat := 'CMD_OK';
+        cdcs_TIMEOUT: stat := 'CMD_TIMEOUT';
+        cdcs_ERROR:   stat := 'CMD_ERROR';
+      end;
+      ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat+' '+new_input.GetAsJSONString(),fdbmt_info));
+    end;
+
+
+begin
+  result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+  if ses.InvokeRemoteRequest('TFRE_SAMPLE_FEED_CLIENT','TESTMETHOD',nil,@GotAnswer,nil)=edb_OK then
+    begin
+      result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+      exit;
+    end
+  else
+    begin
+      result := TFRE_DB_MESSAGE_DESC.create.Describe('ERROR','no connected feeder that implements the TestMethod',fdbmt_error);
+    end;
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_FeederTestTimeout(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+
+  procedure GotAnswer(const ses: IFRE_DB_UserSession; const new_input: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const ocid: Qword; const opaquedata: IFRE_DB_Object);
+  var stat : string;
+  begin
+    case status of
+      cdcs_OK:      stat := 'CMD_OK       : '+new_input.GetAsJSONString();
+      cdcs_TIMEOUT: stat := 'CMD_TIMEOUT  : ';
+      cdcs_ERROR:   stat := 'CMD_ERROR    : '+new_input.GetAsJSONString();
+    end;
+    ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat,fdbmt_info));
+  end;
+
+begin
+  result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+  if ses.InvokeRemoteRequest('TFRE_SAMPLE_FEED_CLIENT','TESTTIMEOUT',nil,@GotAnswer,nil)=edb_OK then
+    begin
+      result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+      exit;
+    end
+  else
+    begin
+      result := TFRE_DB_MESSAGE_DESC.create.Describe('ERROR','no connected feeder that implements the TestTimeout',fdbmt_error);
+    end;
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_FeederTestError(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+
+  procedure GotAnswer(const ses: IFRE_DB_UserSession; const new_input: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const ocid: Qword; const opaquedata: IFRE_DB_Object);
+  var stat : string;
+  begin
+    case status of
+      cdcs_OK:      stat := 'CMD_OK';
+      cdcs_TIMEOUT: stat := 'CMD_TIMEOUT';
+      cdcs_ERROR:   stat := 'CMD_ERROR';
+    end;
+    ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat+' '+new_input.GetAsJSONString(),fdbmt_info));
+  end;
+
+begin
+  result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+  if ses.InvokeRemoteRequest('TFRE_SAMPLE_FEED_CLIENT','TESTERROR',nil,@GotAnswer,nil)=edb_OK then
+    begin
+      result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+      exit;
+    end
+  else
+    begin
+      result := TFRE_DB_MESSAGE_DESC.create.Describe('ERROR','no connected feeder that implements the TestTimeout',fdbmt_error);
+    end;
 end;
 
 { TFRE_DB_TEST_APP_ALLGRID_MOD }

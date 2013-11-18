@@ -68,6 +68,10 @@ type
     procedure  WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); override;
     function   ListDirLevel            (const basepath : string):IFRE_DB_Object;
     function   GetFileDirInfo          (const fileid : string):IFRE_DB_Object;
+  published
+    procedure  REM_TestMethod          (const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE);
+    procedure  REM_TestTimeout         (const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE);
+    procedure  REM_TestError           (const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE);
   end;
 
 
@@ -101,15 +105,21 @@ begin
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.RegisterRemoteMethods(var remote_method_array: TFRE_DB_RemoteReqSpecArray);
+var base_idx : NativeInt;
 begin
-  SetLength(remote_method_array,2);
-  with remote_method_array[0] do
+  inherited;
+
+  // THIS IS A SAMPLE FOR NON-STANDARD REMOTE REGISTRATIONS (non REM_* methods)
+  // add virtual methods
+  base_idx := Length(remote_method_array);
+  SetLength(remote_method_array,base_idx+2);
+  with remote_method_array[base_idx] do
     begin
       classname       := 'SAMPLEFEEDER';
       methodname      := 'BROWSEPATH';
       invokationright := ''; //unsafe
     end;
-  with remote_method_array[1] do
+  with remote_method_array[base_idx+1] do
     begin
       classname       := 'SAMPLEFEEDER';
       methodname      := 'GETFILEDIRINFO';
@@ -157,6 +167,7 @@ end;
 procedure TFRE_SAMPLE_FEED_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
 var reply_data : IFRE_DB_Object;
 begin
+  // THIS IS A SAMPLE FOR NON-STANDARD REMOTE REGISTRATIONS (non REM_* methods)
   GFRE_LOG.Log('>TRY INVOKE '+rclassname+'.'+rmethodname,' CID='+inttostr(command_id));
   if (rclassname='SAMPLEFEEDER') and (rmethodname='BROWSEPATH') then
     begin
@@ -164,14 +175,17 @@ begin
       input.Finalize;
       GFRE_LOG.Log('REPLY ON REQUEST SAMPLEFEEDER.BROWSEPATH ','FEEDER');
       AnswerSyncCommand(command_id,reply_data);
-    end;
+    end
+  else
   if (rclassname='SAMPLEFEEDER') and (rmethodname='GETFILEDIRINFO') then
     begin
       reply_data := GetFileDirInfo(input.Field('fileid').AsString);
       input.Finalize;
-     GFRE_LOG.Log('REPLY ON REQUEST SAMPLEFEEDER.GETFILEDIRINFO ','FEEDER');
+      GFRE_LOG.Log('REPLY ON REQUEST SAMPLEFEEDER.GETFILEDIRINFO ','FEEDER');
       AnswerSyncCommand(command_id,reply_data);
-    end;
+    end
+  else
+    inherited;
   GFRE_LOG.Log('<TRY INVOKE '+rclassname+'.'+rmethodname,' CID='+inttostr(command_id));
 end;
 
@@ -211,6 +225,28 @@ begin
         result.Field('info').AsObject := entry;
       end;
   FindClose(Info);
+end;
+
+procedure TFRE_SAMPLE_FEED_CLIENT.REM_TestMethod(const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
+var reply_data : IFRE_DB_Object;
+begin
+  reply_data := GFRE_DBI.NewObject;
+  reply_data.Field('Hello').AsString := 'World!';
+  reply_data.Field('SampleField').AsInt16 := 12345;
+  AnswerSyncCommand(command_id,reply_data);
+  input.Finalize;
+end;
+
+procedure TFRE_SAMPLE_FEED_CLIENT.REM_TestTimeout(const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
+begin
+  writeln('>> A METHOD THAT TIMES OUT WITHOUT SENDING ANSWER');
+  input.Finalize;
+end;
+
+procedure TFRE_SAMPLE_FEED_CLIENT.REM_TestError(const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
+begin
+  writeln('CALLED TestError Method, excepting ...');
+  raise EFRE_DB_Exception.Create(edb_ERROR,'ARBITRARY TEST FAILURE');
 end;
 
 initialization

@@ -100,7 +100,8 @@ type TFRE_FCOM_PROTO            = (cfp_TLS); //UDP,TLS,SSH,CLUSTER ...
   public
     READ_CMD    : IFRE_DB_Object;
     procedure   InvokeServerCommand (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const CID : Qword;const async:boolean);
-    procedure   SendSyncAnswer      (const CID : Qword ; const data : IFRE_DB_Object);
+    procedure   SendSyncAnswer      (const CID : Qword ; const data  : IFRE_DB_Object);
+    procedure   SendSyncErrorAnswer (const CID : Qword ; const error : TFRE_DB_String);
     constructor Create              (const channel:IFRE_APSC_CHANNEL);
     destructor  Destroy             ;override;
     function    Handler             (const channel : IFRE_APSC_CHANNEL ;const Datacount:Integer):boolean;
@@ -206,19 +207,43 @@ begin
 end;
 
 procedure TFRE_CLIENT_BASE_CONNECTION.SendSyncAnswer(const CID: Qword; const data: IFRE_DB_Object);
-var ose : EFOS_OS_ERROR;
-    mem : TMemoryStream;
+var mem : TMemoryStream;
     ECN : IFRE_DB_COMMAND;
-    i   : NativeInt;
 begin
   try
     mem:=TMemoryStream.Create;
     mem.Position:=4;
     ECN := GFRE_DBI.NewDBCommand;
-    ECN.CommandType  := fct_SyncReply;
-    ECN.Answer       := true;
-    ECN.CommandID    := CID;
-    ECN.Data         := Data;
+    ECN.CommandType   := fct_SyncReply;
+    ECN.Answer        := true;
+    ECN.CommandID     := CID;
+    ECN.Data          := Data;
+    ECN.ClientCommand := true;
+    mem.Size:=ECN.NeededSize+sizeof(QWord);
+    ECN.CopyToMemory(mem.Memory+sizeof(QWord));
+    PQWord(mem.Memory)^:=mem.Size-sizeof(qword);
+    mem.Position:=0;
+    FCHANNEL.CH_WriteBuffer(mem.Memory,mem.Size);
+  finally
+    mem.Free;
+    ECN.Finalize;
+  end;
+end;
+
+procedure TFRE_CLIENT_BASE_CONNECTION.SendSyncErrorAnswer(const CID: Qword; const error: TFRE_DB_String);
+var mem : TMemoryStream;
+    ECN : IFRE_DB_COMMAND;
+begin
+  try
+    mem:=TMemoryStream.Create;
+    mem.Position:=4;
+    ECN := GFRE_DBI.NewDBCommand;
+    ECN.CommandType   := fct_Error;
+    ECN.Answer        := true;
+    ECN.CommandID     := CID;
+    ECN.Data          := nil;
+    ECN.ErrorText     := error;
+    ECN.ClientCommand := true;
     mem.Size:=ECN.NeededSize+sizeof(QWord);
     ECN.CopyToMemory(mem.Memory+sizeof(QWord));
     PQWord(mem.Memory)^:=mem.Size-sizeof(qword);
@@ -440,9 +465,9 @@ var myDataCount : NativeInt;
         i        : integer;
         prom_res : TFRE_DB_PromoteResult;
         prom_err : TFRE_DB_String;
-        dummy    : TFRE_DB_CONTENT_DESC;
+        //dummy    : TFRE_DB_CONTENT_DESC;
         app      : IFRE_DB_Object;
-        ex_sess  : TFRE_DB_UserSession;
+        //ex_sess  : TFRE_DB_UserSession;
         sessid   : String;
     begin
       try
@@ -458,7 +483,7 @@ var myDataCount : NativeInt;
               sessid := CMD.Data.Field('SESSION_ID').AsString;
               FOnBindDefaultSession(self,FUserSession,sessid,false);
               if cmd.Data.Field('USER').AsString<>'' then begin
-                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',dummy,ex_sess,true);
+                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',true);
                 writeln('PROMOTION RESULT ',prom_res);
               end;
               if (prom_res=pr_OK) or (prom_res=pr_Takeover) then

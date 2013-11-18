@@ -207,16 +207,16 @@ var
   res               : TFRE_DB_Errortype;
   promotion_error   : TFRE_DB_String;
   clear_session     : boolean;
-  take_over_content : TFRE_DB_CONTENT_DESC;
+  //take_over_content : TFRE_DB_CONTENT_DESC;
   wsf               : TFRE_DB_SERVER_FUNC_DESC;
-  ex_session        : TFRE_DB_UserSession;
+  //ex_session        : TFRE_DB_UserSession;
 begin
   data := input.Field('data').AsObject;
   clear_session := false;
   if data.FieldExists('CLR_SESSION') then begin
     clear_session := data.Field('CLR_SESSION').AsBoolean;
   end;
-  case ses.Promote(data.Field('uname').AsString,data.Field('pass').AsString,promotion_error,clear_session,false,take_over_content,ex_session) of
+  case ses.Promote(data.Field('uname').AsString,data.Field('pass').AsString,promotion_error,clear_session,false) of
     pr_OK:
       result := WEB_Content(input,ses,app,ses.GetDBConnection);
     pr_Failed:
@@ -228,8 +228,8 @@ begin
         ses.SendServerClientRequest(TFRE_DB_CLOSE_DIALOG_DESC.create);
         Result := TFRE_DB_MESSAGE_DESC.Create.Describe('Already logged in.',promotion_error,fdbmt_confirm,CWSF(@WEB_TakeOverSession));
       end;
-    pr_Takeover:
-      result := take_over_content;  // I am the Session who takes over the "running" session, thus I changed the bound socket and now I am going to heaven ...
+    else
+      GFRE_BT.CriticalAbort('unhandled takeover case');
   end;
 end;
 
@@ -293,19 +293,21 @@ end;
 
 function TFRE_DB_LOGIN.WEB_TakeOverSession(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var promotion_error   : TFRE_DB_String;
-    take_over_content : TFRE_DB_CONTENT_DESC;
     session           : TFRE_DB_UserSession;
     res               : TFRE_DB_CONTENT_DESC;
-    ex_session        : TFRE_DB_UserSession;
 begin
   if input.Field('confirmed').AsBoolean=true then
     begin
       GetSession(input,session,false);
-      case session.Promote('','',promotion_error,false,true,take_over_content,ex_session) of
+      case session.Promote('','',promotion_error,false,true) of
         pr_Takeover:
           begin
-            result := WEB_Content(input,ex_session,nil,ex_session.GetDBConnection);
+            result := GFRE_DB_NIL_DESC; // answer with nil / the promotion will sent the content as new S-C request ...
+            //result := GFRE_DB_SUPPRESS_SYNC_ANSWER; // ANSWER WILL BE SENT AS PART OF PROMOTION
+            //result := WEB_Content(input,ex_session,nil,ex_session.GetDBConnection);
           end;
+        else
+          GFRE_BT.CriticalAbort('unhandled takeover case 2');
       end;
     end
   else
