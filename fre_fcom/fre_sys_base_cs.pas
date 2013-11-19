@@ -721,9 +721,7 @@ begin
   end;
   if size_read<fCMD_SIZE then begin
     readrest:=fCMD_SIZE-size_read;
-    writeln(format('COMMAND SIZE NOT FULLY RECEIVED data_count=%d  fCMD_SIZE=%d REST=%d',[data_count,fCMD_SIZE,readrest]));
     exit(crs_PARTIAL_READ);
-    GFRE_BT.CriticalAbort('COMMAND SIZE NOT FULLY RECEIVED = IMPL.BUG data_count=%d  fCMD_SIZE=%d',[data_count,fCMD_SIZE]);
   end;
   try
     readm.Position:=0;

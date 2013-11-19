@@ -815,36 +815,41 @@ begin
           //if collection_name<>'' then
           //  if not GetCollection(collection_name,coll) then
           //    raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
-          if not assigned(FTransaction) then
-            begin
-              FTransaction        := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster);
-              ImplicitTransaction := True;
-            end else
-              ImplicitTransaction := false;
+          try
+            if not assigned(FTransaction) then
+              begin
+                FTransaction        := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster);
+                ImplicitTransaction := True;
+              end else
+                ImplicitTransaction := false;
 
-            result := FTransaction.GenerateAnObjChangeList(store,obj,collection_name,notify_collections);
-            //writeln('>TRANSACTION UPDATE LOG');
-            //FTransaction.PrintTextLog;
-            //writeln('<TRANSACTION UPDATE LOG');
-            //result := FTransaction.ProcessCheck(raise_ex);
-            //if result <>edb_OK then
-            //  exit(result);
-            if ImplicitTransaction then
-              changes := Commit;
-          CleanApply := true;
-          if changes then
-            result := edb_OK
-          else
-            result := edb_NO_CHANGE;
-          //CheckThatObjectAndAllSubsSatisfiyCollectionIndexes;
-        //  if result<>edb_OK then
-        //    exit;
-        ////  CheckThatAllDeletedSubobjectsAreNotReferenced
-        ////  DeleteTheSubobjects         WithRespect To Reflinsk
-        ////  InsertTheNewSubobjects      WithRespect To Reflinks
-        ////  UpdateAllExistingSubobjects WithRespect To Reflinks (overwrite)
-          //writeln('UPDATE ++');
-          //halt;
+              result := FTransaction.GenerateAnObjChangeList(store,obj,collection_name,notify_collections);
+              //writeln('>TRANSACTION UPDATE LOG');
+              //FTransaction.PrintTextLog;
+              //writeln('<TRANSACTION UPDATE LOG');
+              //result := FTransaction.ProcessCheck(raise_ex);
+              //if result <>edb_OK then
+              //  exit(result);
+              if ImplicitTransaction then
+                changes := Commit;
+            CleanApply := true;
+            if changes then
+              result := edb_OK
+            else
+              result := edb_NO_CHANGE;
+            //CheckThatObjectAndAllSubsSatisfiyCollectionIndexes;
+          //  if result<>edb_OK then
+          //    exit;
+          ////  CheckThatAllDeletedSubobjectsAreNotReferenced
+          ////  DeleteTheSubobjects         WithRespect To Reflinsk
+          ////  InsertTheNewSubobjects      WithRespect To Reflinks
+          ////  UpdateAllExistingSubobjects WithRespect To Reflinks (overwrite)
+            //writeln('UPDATE ++');
+            //halt;
+          finally
+            obj.Finalize;
+            obj:=nil;
+          end;
         end;
     except on e:Exception do
       begin
