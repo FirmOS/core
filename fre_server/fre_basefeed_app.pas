@@ -62,6 +62,7 @@ type
     FBaseClient : TFRE_BASE_CLIENT;
     procedure   DoRun; override;
   public
+    procedure   MyRunMethod;virtual;
     constructor Create (TheOwner: TComponent;const client : TFRE_BASE_CLIENT);reintroduce;
     procedure   WriteHelp; virtual;
     procedure   TestMethod; virtual;
@@ -127,11 +128,16 @@ begin
   if HasOption('t','test') then begin
     TestMethod;
   end;
-  GFRE_SC.RunUntilTerminate;
+  MyRunMethod;
   Teardown_APS_Comm;
   FBaseClient.Free;
   GFRE_DB_DEFAULT_PS_LAYER.Finalize;
   Terminate;
+end;
+
+procedure TFRE_BASEDATA_FEED.MyRunMethod;
+begin
+  GFRE_SC.RunUntilTerminate;
 end;
 
 

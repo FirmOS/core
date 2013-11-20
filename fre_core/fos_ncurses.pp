@@ -5,8 +5,6 @@ unit fos_ncurses;
 interface
 
 {$PACKRECORDS C}
-//{$LINKLIB ncursesw}
-//{$LINKLIB c} // should be uses initc ?
 
 {$IFDEF WINDOWS}
 {$ENDIF}
@@ -19,9 +17,11 @@ interface
         {$ENDIF FOS_LINK_STATIC}
       {$ELSE}
         {$IFDEF FOS_LINK_STATIC}
-          {$linklib libncursesw_fos64_darwin_rel-fosdev}
+          {$linklib libncursesw_fos64_darwin_rel-fosdev.a}
         {$ELSE}
           {$linklib libncursesw_fos64_darwin_rel-fosdev}
+          {$linklib libmenuw_fos64_darwin_rel-fosdev}
+          {$linklib libpanelw_fos64_darwin_rel-fosdev}
         {$ENDIF FOS_LINK_STATIC}
       {$ENDIF}
     {$ELSE CPU32}
@@ -104,7 +104,7 @@ interface
               {$ENDIF FOS_LINK_STATIC}
             {$ENDIF}
           {$ENDIF CPU63/32}
-          {$linklib librt.a}
+          //{$linklib librt.a}
         {$ELSE}
         {$ENDIF}
       {$ENDIF}
@@ -117,8 +117,6 @@ interface
 
 {$DEFINE USE_FPC_BYTEBOOL}
 
-const
-   libncurses = 'ncursesw';
 
 type
    PFILE = Pointer;
@@ -155,15 +153,9 @@ type
    mmask_t  = Longint; {longword}
 
 { colors  }
-{$IFNDEF darwin}
 var
-   COLORS : Longint cvar; external;
-   COLOR_PAIRS : Longint cvar; external;
-{$ELSE darwin}
-//FOS_LAZCTWA var
-//FOS_LAZCTWA   COLORS : Longint external libncurses name 'COLORS';
-//FOS_LAZCTWA   COLOR_PAIRS : Longint external libncurses name 'COLOR_PAIRS';
-{$ENDIF darwin}
+   COLORS : Longint ;cvar; external;
+   COLOR_PAIRS : Longint ;cvar; external;
 
 const
    COLOR_BLACK = 0;
@@ -175,6 +167,22 @@ const
    COLOR_CYAN = 6;
    COLOR_WHITE = 7;
 
+   E_OK = 0;
+   E_SYSTEM_ERROR = -(1);
+   E_BAD_ARGUMENT = -(2);
+   E_POSTED = -(3);
+   E_CONNECTED = -(4);
+   E_BAD_STATE = -(5);
+   E_NO_ROOM = -(6);
+   E_NOT_POSTED = -(7);
+   E_UNKNOWN_COMMAND = -(8);
+   E_NO_MATCH = -(9);
+   E_NOT_SELECTABLE = -(10);
+   E_NOT_CONNECTED = -(11);
+   E_REQUEST_DENIED = -(12);
+   E_INVALID_FIELD = -(13);
+   E_CURRENT = -(14);
+
 type
    pNC_FPC_COLOR = ^NC_FPC_COLOR;
    NC_FPC_COLOR = Smallint;
@@ -183,14 +191,8 @@ type
 type
    tacs_map = array [char] of chtype;
    pacs_map = ^tacs_map;
-
-{$IFNDEF darwin}
 var
-   acs_map : tacs_map cvar; external;
-{$ELSE darwin}
-var
-   acs_map : tacs_map cvar; external; // external libncurses name 'acs_map';
-{$ENDIF darwin}
+   acs_map : tacs_map; cvar; external;
 
 //function NCURSES_ACS(c : Longint) : Longint;
 (* VT100 symbols begin here  *)
@@ -345,256 +347,242 @@ type
    PSCREEN = ^TSCREEN;
 
       var
-{$IFNDEF darwin}
-       stdscr  : PWINDOW cvar; external;
-       curscr  : PWINDOW cvar; external;
-       newscr  : PWINDOW cvar; external;
-       LINES   : Longint cvar; external;
-       COLS    : Longint cvar; external;
-       TABSIZE : Longint cvar; external;
-       ESCDELAY: Longint cvar; external;  { ESC expire time in milliseconds  }
-{$ELSE darwin}
-       stdscr  : PWINDOW external libncurses name 'stdscr';
-       curscr  : PWINDOW external libncurses name 'curscr';
-       newscr  : PWINDOW external libncurses name 'newscr';
-       LINES   : Longint external libncurses name 'LINES';
-       COLS    : Longint external libncurses name 'COLS';
-       TABSIZE : Longint external libncurses name 'TABSIZE';
-       ESCDELAY: Longint external libncurses name 'ESCDELAY';
-{$ENDIF darwin}
+       stdscr  : PWINDOW; cvar; external;
+       curscr  : PWINDOW; cvar; external;
+       newscr  : PWINDOW; cvar; external;
+       LINES   : Longint; cvar; external;
+       COLS    : Longint; cvar; external;
+       TABSIZE : Longint; cvar; external;
+       ESCDELAY: Longint; cvar; external;  { ESC expire time in milliseconds  }
 
 (*
  * These functions are extensions - not in XSI Curses.
  *)
 
-function is_term_resized(_para1:Longint; _para2:Longint):Bool;cdecl;external libncurses;
-function keybound(_para1:Longint; _para2:Longint):PChar;cdecl;external  libncurses;
-function curses_version:PChar;cdecl;external  libncurses;
-function assume_default_colors(_para1:Longint; _para2:Longint):Longint; cdecl;external libncurses;
-function define_key(_para1:PChar; _para2:Longint):Longint; cdecl;external libncurses;
-function key_defined(_para1:PChar):Longint; cdecl;external libncurses;
-function keyok(_para1:Longint; _para2:Bool):Longint; cdecl;external libncurses;
-function resize_term(_para1:Longint; _para2:Longint):Longint; cdecl;external libncurses;
-function resizeterm(_para1:Longint; _para2:Longint):Longint; cdecl;external libncurses;
-function use_default_colors:Longint;cdecl;external libncurses;
-function use_extended_names(_para1:Bool):Longint; cdecl;external libncurses;
-function use_legacy_coding(_para1:Longint):Longint; cdecl;external libncurses;
-function wresize(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external libncurses;
-procedure nofilter;cdecl;external  libncurses;
+function is_term_resized(_para1:Longint; _para2:Longint):Bool;cdecl;external ;
+function keybound(_para1:Longint; _para2:Longint):PChar;cdecl;external  ;
+function curses_version:PChar;cdecl;external  ;
+function assume_default_colors(_para1:Longint; _para2:Longint):Longint; cdecl;external ;
+function define_key(_para1:PChar; _para2:Longint):Longint; cdecl;external ;
+function key_defined(_para1:PChar):Longint; cdecl;external ;
+function keyok(_para1:Longint; _para2:Bool):Longint; cdecl;external ;
+function resize_term(_para1:Longint; _para2:Longint):Longint; cdecl;external ;
+function resizeterm(_para1:Longint; _para2:Longint):Longint; cdecl;external ;
+function use_default_colors:Longint;cdecl;external ;
+function use_extended_names(_para1:Bool):Longint; cdecl;external ;
+function use_legacy_coding(_para1:Longint):Longint; cdecl;external ;
+function wresize(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external ;
+procedure nofilter;cdecl;external  ;
 
 (*
  * Function prototypes.  This is the complete XSI Curses list of required
  * functions.
  *)
-function baudrate:Longint; cdecl;external libncurses;
-function beep:Longint; cdecl;external libncurses;
-function can_change_color:Bool;cdecl;external libncurses;
-function cbreak:Longint; cdecl;external libncurses;
-//function color_content(_para1:Smallint; _para2:PSmallint; _para3:PSmallint; _para4:PSmallInt):Longint; cdecl;external libncurses;
-function color_content(color: NC_FPC_COLOR; r, g, b: PSmallint):Longint; cdecl;external libncurses;
+function baudrate:Longint; cdecl;external ;
+function beep:Longint; cdecl;external ;
+function can_change_color:Bool;cdecl;external ;
+function cbreak:Longint; cdecl;external ;
+//function color_content(_para1:Smallint; _para2:PSmallint; _para3:PSmallint; _para4:PSmallInt):Longint; cdecl;external ;
+function color_content(color: NC_FPC_COLOR; r, g, b: PSmallint):Longint; cdecl;external ;
 function copywin(_para1:PWINDOW; _para2:PWINDOW; _para3:Longint; _para4:Longint; _para5:Longint;
-           _para6:Longint; _para7:Longint; _para8:Longint; _para9:Longint):Longint; cdecl;external libncurses;
-function curs_set(_para1:Longint):Longint; cdecl;external libncurses;
-function def_prog_mode:Longint; cdecl;external libncurses;
-function def_shell_mode:Longint; cdecl;external libncurses;
-function delay_output(_para1:Longint):Longint; cdecl;external libncurses;
-procedure delscreen(_para1:PSCREEN);cdecl;external libncurses;
-function delwin(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function derwin(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint; _para5:Longint):PWINDOW;cdecl;external libncurses;
-function doupdate:Longint; cdecl;external libncurses;
-function dupwin(_para1:PWINDOW):PWINDOW;cdecl;external libncurses;
-function echo:Longint; cdecl;external libncurses;
-function endwin:Longint; cdecl;external libncurses;
-function erasechar:PChar;cdecl;external libncurses;
-procedure filter;cdecl;external libncurses;
-function flash:Longint; cdecl;external libncurses;
-function flushinp:Longint; cdecl;external libncurses;
-function getwin(_para1:PFILE):PWINDOW;cdecl;external libncurses;
-function halfdelay(_para1:Longint):Longint; cdecl;external libncurses;
-function has_colors:Bool;cdecl;external libncurses;
-function has_ic:Bool;cdecl;external libncurses;
-function has_il:Bool;cdecl;external libncurses;
-procedure idcok(_para1:PWINDOW; _para2:Bool);cdecl;external libncurses;
-function idlok(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-procedure immedok(_para1:PWINDOW; _para2:Bool);cdecl;external libncurses;
-function initscr:PWINDOW;cdecl;external libncurses;
-//function init_color(_para1:Smallint; _para2:Smallint; _para3:Smallint; _para4:Smallint):Longint; cdecl;external libncurses;
-function init_color(color: NC_FPC_COLOR; r, g, b: Smallint):Longint; cdecl;external libncurses;
-//function init_pair(_para1:Smallint; _para2:Smallint; _para3:Smallint):Longint; cdecl;external libncurses;
-function init_pair(pair: Smallint; f, b: NC_FPC_COLOR):Longint; cdecl;external libncurses; overload;
-function intrflush(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-function isendwin:Bool;cdecl;external libncurses;
-function is_linetouched(_para1:PWINDOW; _para2:Longint):Bool;cdecl;external libncurses;
-function is_wintouched(_para1:PWINDOW):Bool;cdecl;external libncurses;
-function keyname(_para1:Longint):PChar;cdecl;external libncurses;
-function keypad(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-function killchar:PChar;cdecl;external libncurses;
-function leaveok(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-function longname:PChar;cdecl;external libncurses;
-function meta(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-function mvcur(_para1:Longint; _para2:Longint; _para3:Longint; _para4:Longint):Longint; cdecl;external libncurses;
-function mvderwin(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external libncurses;
-function mvwin(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external libncurses;
-function napms(_para1:Longint):Longint; cdecl;external libncurses;
-function newpad(_para1:Longint; _para2:Longint):PWINDOW;cdecl;external libncurses;
-function newterm(_para1:PChar; _para2:PFILE; _para3:PFILE):PSCREEN;cdecl;external libncurses;
-function newwin(_para1:Longint; _para2:Longint; _para3:Longint; _para4:Longint):PWINDOW;cdecl;external libncurses;
-function nl:Longint; cdecl;external libncurses;
-function nocbreak:Longint; cdecl;external libncurses;
-function nodelay(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-function noecho:Longint; cdecl;external libncurses;
-function nonl:Longint; cdecl;external libncurses;
-procedure noqiflush;cdecl;external libncurses;
-function noraw:Longint; cdecl;external libncurses;
-function notimeout(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-function overlay(_para1:PWINDOW; _para2:PWINDOW):Longint; cdecl;external libncurses;
-function overwrite(_para1:PWINDOW; _para2:PWINDOW):Longint; cdecl;external libncurses;
-//function pair_content(_para1:Smallint; _para2:PSmallint; _para3:PSmallInt):Longint; cdecl;external libncurses;
-function pair_content(pair: Smallint; f, b: pNC_FPC_COLOR):Longint; cdecl;external libncurses;
-function pechochar(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external libncurses;
+           _para6:Longint; _para7:Longint; _para8:Longint; _para9:Longint):Longint; cdecl;external ;
+function curs_set(_para1:Longint):Longint; cdecl;external ;
+function def_prog_mode:Longint; cdecl;external ;
+function def_shell_mode:Longint; cdecl;external ;
+function delay_output(_para1:Longint):Longint; cdecl;external ;
+procedure delscreen(_para1:PSCREEN);cdecl;external ;
+function delwin(_para1:PWINDOW):Longint; cdecl;external ;
+function derwin(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint; _para5:Longint):PWINDOW;cdecl;external ;
+function doupdate:Longint; cdecl;external ;
+function dupwin(_para1:PWINDOW):PWINDOW;cdecl;external ;
+function echo:Longint; cdecl;external ;
+function endwin:Longint; cdecl;external ;
+function erasechar:PChar;cdecl;external ;
+procedure filter;cdecl;external ;
+function flash:Longint; cdecl;external ;
+function flushinp:Longint; cdecl;external ;
+function getwin(_para1:PFILE):PWINDOW;cdecl;external ;
+function halfdelay(_para1:Longint):Longint; cdecl;external ;
+function has_colors:Bool;cdecl;external ;
+function has_ic:Bool;cdecl;external ;
+function has_il:Bool;cdecl;external ;
+procedure idcok(_para1:PWINDOW; _para2:Bool);cdecl;external ;
+function idlok(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+procedure immedok(_para1:PWINDOW; _para2:Bool);cdecl;external ;
+function initscr:PWINDOW;cdecl;external ;
+//function init_color(_para1:Smallint; _para2:Smallint; _para3:Smallint; _para4:Smallint):Longint; cdecl;external ;
+function init_color(color: NC_FPC_COLOR; r, g, b: Smallint):Longint; cdecl;external ;
+//function init_pair(_para1:Smallint; _para2:Smallint; _para3:Smallint):Longint; cdecl;external ;
+function init_pair(pair: Smallint; f, b: NC_FPC_COLOR):Longint; cdecl;external ; overload;
+function intrflush(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+function isendwin:Bool;cdecl;external ;
+function is_linetouched(_para1:PWINDOW; _para2:Longint):Bool;cdecl;external ;
+function is_wintouched(_para1:PWINDOW):Bool;cdecl;external ;
+function keyname(_para1:Longint):PChar;cdecl;external ;
+function keypad(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+function killchar:PChar;cdecl;external ;
+function leaveok(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+function longname:PChar;cdecl;external ;
+function meta(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+function mvcur(_para1:Longint; _para2:Longint; _para3:Longint; _para4:Longint):Longint; cdecl;external ;
+function mvderwin(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external ;
+function mvwin(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external ;
+function napms(_para1:Longint):Longint; cdecl;external ;
+function newpad(_para1:Longint; _para2:Longint):PWINDOW;cdecl;external ;
+function newterm(_para1:PChar; _para2:PFILE; _para3:PFILE):PSCREEN;cdecl;external ;
+function newwin(_para1:Longint; _para2:Longint; _para3:Longint; _para4:Longint):PWINDOW;cdecl;external ;
+function nl:Longint; cdecl;external ;
+function nocbreak:Longint; cdecl;external ;
+function nodelay(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+function noecho:Longint; cdecl;external ;
+function nonl:Longint; cdecl;external ;
+procedure noqiflush;cdecl;external ;
+function noraw:Longint; cdecl;external ;
+function notimeout(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+function overlay(_para1:PWINDOW; _para2:PWINDOW):Longint; cdecl;external ;
+function overwrite(_para1:PWINDOW; _para2:PWINDOW):Longint; cdecl;external ;
+//function pair_content(_para1:Smallint; _para2:PSmallint; _para3:PSmallInt):Longint; cdecl;external ;
+function pair_content(pair: Smallint; f, b: pNC_FPC_COLOR):Longint; cdecl;external ;
+function pechochar(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external ;
 function pnoutrefresh(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint; _para5:Longint;
-           _para6:Longint; _para7:Longint):Longint; cdecl;external libncurses;
+           _para6:Longint; _para7:Longint):Longint; cdecl;external ;
 function prefresh(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint; _para5:Longint;
-           _para6:Longint; _para7:Longint):Longint; cdecl;external libncurses;
-function putwin(_para1:PWINDOW; _para2:PFILE):Longint; cdecl;external libncurses;
-procedure qiflush;cdecl;external libncurses;
-function raw:Longint; cdecl;external libncurses;
-function resetty:Longint; cdecl;external libncurses;
-function reset_prog_mode:Longint; cdecl;external libncurses;
-function reset_shell_mode:Longint; cdecl;external libncurses;
+           _para6:Longint; _para7:Longint):Longint; cdecl;external ;
+function putwin(_para1:PWINDOW; _para2:PFILE):Longint; cdecl;external ;
+procedure qiflush;cdecl;external ;
+function raw:Longint; cdecl;external ;
+function resetty:Longint; cdecl;external ;
+function reset_prog_mode:Longint; cdecl;external ;
+function reset_shell_mode:Longint; cdecl;external ;
 
 type TWinInit = function (win: PWINDOW; ncols: Longint): Longint; cdecl;
 
-function ripoffline(line: Longint; init: TWinInit):Longint; cdecl;external libncurses;
+function ripoffline(line: Longint; init: TWinInit):Longint; cdecl;external ;
 
-function savetty:Longint; cdecl;external libncurses;
-function scr_dump(_para1:PChar):Longint; cdecl;external libncurses;
-function scr_init(_para1:PChar):Longint; cdecl;external libncurses;
-function scrollok(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-function scr_restore(_para1:PChar):Longint; cdecl;external libncurses;
-function scr_set(_para1:PChar):Longint; cdecl;external libncurses;
-function set_term(_para1:PSCREEN):PSCREEN;cdecl;external libncurses;
-function slk_attroff(_para1:chtype):Longint; cdecl;external libncurses;
+function savetty:Longint; cdecl;external ;
+function scr_dump(_para1:PChar):Longint; cdecl;external ;
+function scr_init(_para1:PChar):Longint; cdecl;external ;
+function scrollok(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+function scr_restore(_para1:PChar):Longint; cdecl;external ;
+function scr_set(_para1:PChar):Longint; cdecl;external ;
+function set_term(_para1:PSCREEN):PSCREEN;cdecl;external ;
+function slk_attroff(_para1:chtype):Longint; cdecl;external ;
 
-function slk_attron(_para1:chtype):Longint; cdecl;external libncurses;
+function slk_attron(_para1:chtype):Longint; cdecl;external ;
 
-function slk_attrset(_para1:chtype):Longint; cdecl;external libncurses;
-function slk_attr:attr_t;cdecl;external libncurses;
-function slk_attr_set(_para1:attr_t; _para2:Smallint; _para3:Pointer):Longint; cdecl;external libncurses;
-function slk_clear:Longint; cdecl;external libncurses;
-function slk_color(_para1:Smallint):Longint; cdecl;external libncurses;
-function slk_init(_para1:Longint):Longint; cdecl;external libncurses;
-function slk_label(_para1:Longint):PChar;cdecl;external libncurses;
-function slk_noutrefresh:Longint; cdecl;external libncurses;
-function slk_refresh:Longint; cdecl;external libncurses;
-function slk_restore:Longint; cdecl;external libncurses;
-function slk_set(_para1:Longint; _para2:PChar; _para3:Longint):Longint; cdecl;external libncurses;
-function slk_touch:Longint; cdecl;external libncurses;
-function start_color:Longint; cdecl;external libncurses;
-function subpad(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint; _para5:Longint):PWINDOW;cdecl;external libncurses;
-function subwin(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint; _para5:Longint):PWINDOW;cdecl;external libncurses;
-function syncok(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external libncurses;
-function termattrs:chtype;cdecl;external libncurses;
-function termname:PChar;cdecl;external libncurses;
-function typeahead(_para1:Longint):Longint; cdecl;external libncurses;
-function ungetch(_para1:Longint):Longint; cdecl;external libncurses;
-procedure use_env(_para1:Bool);cdecl;external libncurses;
-function vidattr(_para1:chtype):Longint; cdecl;external libncurses;
-function waddch(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external libncurses;
-function waddchnstr(_para1:PWINDOW; _para2:Pchtype; _para3:Longint):Longint; cdecl;external libncurses;
-function waddnstr(_para1:PWINDOW; _para2:PChar; _para3:Longint):Longint; cdecl;external libncurses;
-function wattr_on(_para1:PWINDOW; _para2:attr_t; _para3:Pointer):Longint; cdecl;external libncurses;
-function wattr_off(_para1:PWINDOW; _para2:attr_t; _para3:Pointer):Longint; cdecl;external libncurses;
-function wbkgd(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external libncurses;
-procedure wbkgdset(_para1:PWINDOW; _para2:chtype);cdecl;external libncurses;
+function slk_attrset(_para1:chtype):Longint; cdecl;external ;
+function slk_attr:attr_t;cdecl;external ;
+function slk_attr_set(_para1:attr_t; _para2:Smallint; _para3:Pointer):Longint; cdecl;external ;
+function slk_clear:Longint; cdecl;external ;
+function slk_color(_para1:Smallint):Longint; cdecl;external ;
+function slk_init(_para1:Longint):Longint; cdecl;external ;
+function slk_label(_para1:Longint):PChar;cdecl;external ;
+function slk_noutrefresh:Longint; cdecl;external ;
+function slk_refresh:Longint; cdecl;external ;
+function slk_restore:Longint; cdecl;external ;
+function slk_set(_para1:Longint; _para2:PChar; _para3:Longint):Longint; cdecl;external ;
+function slk_touch:Longint; cdecl;external ;
+function start_color:Longint; cdecl;external ;
+function subpad(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint; _para5:Longint):PWINDOW;cdecl;external ;
+function subwin(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint; _para5:Longint):PWINDOW;cdecl;external ;
+function syncok(_para1:PWINDOW; _para2:Bool):Longint; cdecl;external ;
+function termattrs:chtype;cdecl;external ;
+function termname:PChar;cdecl;external ;
+function typeahead(_para1:Longint):Longint; cdecl;external ;
+function ungetch(_para1:Longint):Longint; cdecl;external ;
+procedure use_env(_para1:Bool);cdecl;external ;
+function vidattr(_para1:chtype):Longint; cdecl;external ;
+function waddch(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external ;
+function waddchnstr(_para1:PWINDOW; _para2:Pchtype; _para3:Longint):Longint; cdecl;external ;
+function waddnstr(_para1:PWINDOW; _para2:PChar; _para3:Longint):Longint; cdecl;external ;
+function wattr_on(_para1:PWINDOW; _para2:attr_t; _para3:Pointer):Longint; cdecl;external ;
+function wattr_off(_para1:PWINDOW; _para2:attr_t; _para3:Pointer):Longint; cdecl;external ;
+function wbkgd(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external ;
+procedure wbkgdset(_para1:PWINDOW; _para2:chtype);cdecl;external ;
 function wborder(_para1:PWINDOW; _para2:chtype; _para3:chtype; _para4:chtype; _para5:chtype; 
-           _para6:chtype; _para7:chtype; _para8:chtype; _para9:chtype):Longint; cdecl;external libncurses;
-function wchgat(_para1:PWINDOW; _para2:Longint; _para3:attr_t; _para4:Smallint; _para5:Pointer):Longint; cdecl;external libncurses;
-function wclear(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function wclrtobot(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function wclrtoeol(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function wcolor_set(_para1:PWINDOW; _para2:Smallint; _para3:Pointer):Longint; cdecl;external libncurses;
-procedure wcursyncup(_para1:PWINDOW);cdecl;external libncurses;
-function wdelch(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function wechochar(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external libncurses;
-function werase(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function wgetch(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function wgetnstr(_para1:PWINDOW; _para2:PChar; _para3:Longint):Longint; cdecl;external libncurses;
-function whline(_para1:PWINDOW; _para2:chtype; _para3:Longint):Longint; cdecl;external libncurses;
-function winch(_para1:PWINDOW):chtype;cdecl;external libncurses;
-function winchnstr(_para1:PWINDOW; _para2:Pchtype; _para3:Longint):Longint; cdecl;external libncurses;
-function winnstr(_para1:PWINDOW; _para2:PChar; _para3:Longint):Longint; cdecl;external libncurses;
-function winsch(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external libncurses;
-function winsdelln(_para1:PWINDOW; _para2:Longint):Longint; cdecl;external libncurses;
-function winsnstr(_para1:PWINDOW; _para2:PChar; _para3:Longint):Longint; cdecl;external libncurses;
+           _para6:chtype; _para7:chtype; _para8:chtype; _para9:chtype):Longint; cdecl;external ;
+function wchgat(_para1:PWINDOW; _para2:Longint; _para3:attr_t; _para4:Smallint; _para5:Pointer):Longint; cdecl;external ;
+function wclear(_para1:PWINDOW):Longint; cdecl;external ;
+function wclrtobot(_para1:PWINDOW):Longint; cdecl;external ;
+function wclrtoeol(_para1:PWINDOW):Longint; cdecl;external ;
+function wcolor_set(_para1:PWINDOW; _para2:Smallint; _para3:Pointer):Longint; cdecl;external ;
+procedure wcursyncup(_para1:PWINDOW);cdecl;external ;
+function wdelch(_para1:PWINDOW):Longint; cdecl;external ;
+function wechochar(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external ;
+function werase(_para1:PWINDOW):Longint; cdecl;external ;
+function wgetch(_para1:PWINDOW):Longint; cdecl;external ;
+function wgetnstr(_para1:PWINDOW; _para2:PChar; _para3:Longint):Longint; cdecl;external ;
+function whline(_para1:PWINDOW; _para2:chtype; _para3:Longint):Longint; cdecl;external ;
+function winch(_para1:PWINDOW):chtype;cdecl;external ;
+function winchnstr(_para1:PWINDOW; _para2:Pchtype; _para3:Longint):Longint; cdecl;external ;
+function winnstr(_para1:PWINDOW; _para2:PChar; _para3:Longint):Longint; cdecl;external ;
+function winsch(_para1:PWINDOW; _para2:chtype):Longint; cdecl;external ;
+function winsdelln(_para1:PWINDOW; _para2:Longint):Longint; cdecl;external ;
+function winsnstr(_para1:PWINDOW; _para2:PChar; _para3:Longint):Longint; cdecl;external ;
 { realised as inline function }
-//function wmove(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external libncurses;
-function wnoutrefresh(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function wredrawln(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external libncurses;
-function wrefresh(_para1:PWINDOW):Longint; cdecl;external libncurses;
-function wscrl(_para1:PWINDOW; _para2:Longint):Longint; cdecl;external libncurses;
-function wsetscrreg(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external libncurses;
-procedure wsyncdown(_para1:PWINDOW);cdecl;external libncurses;
-procedure wsyncup(_para1:PWINDOW);cdecl;external libncurses;
-procedure wtimeout(_para1:PWINDOW; _para2:Longint);cdecl;external libncurses;
-function wtouchln(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint):Longint; cdecl;external libncurses;
-function wvline(_para1:PWINDOW; _para2:chtype; _para3:Longint):Longint; cdecl;external libncurses;
+//function wmove(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external ;
+function wnoutrefresh(_para1:PWINDOW):Longint; cdecl;external ;
+function wredrawln(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external ;
+function wrefresh(_para1:PWINDOW):Longint; cdecl;external ;
+function wscrl(_para1:PWINDOW; _para2:Longint):Longint; cdecl;external ;
+function wsetscrreg(_para1:PWINDOW; _para2:Longint; _para3:Longint):Longint; cdecl;external ;
+procedure wsyncdown(_para1:PWINDOW);cdecl;external ;
+procedure wsyncup(_para1:PWINDOW);cdecl;external ;
+procedure wtimeout(_para1:PWINDOW; _para2:Longint);cdecl;external ;
+function wtouchln(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:Longint):Longint; cdecl;external ;
+function wvline(_para1:PWINDOW; _para2:chtype; _para3:Longint):Longint; cdecl;external ;
 
 (*
  * These are also declared in <ncursesw/term.h>:
  *)
 
-function tigetflag(_para1:PChar):Longint; cdecl;external libncurses;
-function tigetnum(_para1:PChar):Longint; cdecl;external libncurses;
-function tigetstr(_para1:PChar):PChar;cdecl;external libncurses;
-function putp(_para1:PChar):Longint; cdecl;external libncurses;
+function tigetflag(_para1:PChar):Longint; cdecl;external ;
+function tigetnum(_para1:PChar):Longint; cdecl;external ;
+function tigetstr(_para1:PChar):PChar;cdecl;external ;
+function putp(_para1:PChar):Longint; cdecl;external ;
 
 var
-{$IFNDEF darwin}
-   ttytype : array of PChar cvar; external;  { needed for backward compatibility  }
-{$ELSE darwin}
-   ttytype : array of PChar external libncurses  name 'ttytype';
-{$ENDIF darwin}
+   ttytype : array of PChar ; cvar; external;  { needed for backward compatibility  }
 
 (*
  * Function prototypes for wide-character operations.
  *)
-{function vid_puts(_para1:attr_t; _para2:Smallint; _para3:pointer; _para4:function (_para1:cint):cint):longint; cdecl;external libncurses;
-function vidputs(_para1:chtype; _para2:function (_para1:Longint):Longint):Longint; cdecl;external libncurses;}
+{function vid_puts(_para1:attr_t; _para2:Smallint; _para3:pointer; _para4:function (_para1:cint):cint):longint; cdecl;external ;
+function vidputs(_para1:chtype; _para2:function (_para1:Longint):Longint):Longint; cdecl;external ;}
 type TPutc = function(arg:Longint):Longint; cdecl;
-function vid_puts(attrs:attr_t; pair:Smallint; opts:Pointer; _putc:TPutc):Longint; cdecl;external libncurses;
-function vidputs(attrs:chtype; _putc:TPutc):Longint; cdecl;external libncurses;
+function vid_puts(attrs:attr_t; pair:Smallint; opts:Pointer; _putc:TPutc):Longint; cdecl;external ;
+function vidputs(attrs:chtype; _putc:TPutc):Longint; cdecl;external ;
 
-function erasewchar(_para1:Pwchar_t):Longint; cdecl;external libncurses;
-function getcchar(_para1:Pcchar_t; _para2:Pwchar_t; _para3:Pattr_t; _para4:PSmallInt; _para5:Pointer):Longint; cdecl;external libncurses;
-function key_name(_para1:wchar_t):PChar;cdecl;external libncurses;
-function killwchar(_para1:Pwchar_t):Longint; cdecl;external libncurses;
-function pecho_wchar(_para1:PWINDOW; _para2:Pcchar_t):Longint; cdecl;external libncurses;
-function setcchar(_para1:Pcchar_t; _para2:Pwchar_t; _para3:attr_t; _para4:Smallint; _para5:Pointer):Longint; cdecl;external libncurses;
-function slk_wset(_para1:Longint; _para2:Pwchar_t; _para3:Longint):Longint; cdecl;external libncurses;
-function term_attrs:attr_t;cdecl;external  libncurses;
-function unget_wch(_para1:wchar_t):longint; cdecl;external libncurses;
-function vid_attr(_para1:attr_t; _para2:Smallint; _para3:pointer):longint; cdecl;external libncurses;
-function wadd_wch(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external libncurses;
-function wadd_wchnstr(_para1:PWINDOW; _para2:Pcchar_t; _para3:Longint):longint; cdecl;external libncurses;
-function waddnwstr(_para1:PWINDOW; _para2:Pwchar_t; _para3:Longint):longint; cdecl;external libncurses;
-function wbkgrnd(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external libncurses;
-procedure wbkgrndset(_para1:PWINDOW; _para2:Pcchar_t);cdecl;external  libncurses;
+function erasewchar(_para1:Pwchar_t):Longint; cdecl;external ;
+function getcchar(_para1:Pcchar_t; _para2:Pwchar_t; _para3:Pattr_t; _para4:PSmallInt; _para5:Pointer):Longint; cdecl;external ;
+function key_name(_para1:wchar_t):PChar;cdecl;external ;
+function killwchar(_para1:Pwchar_t):Longint; cdecl;external ;
+function pecho_wchar(_para1:PWINDOW; _para2:Pcchar_t):Longint; cdecl;external ;
+function setcchar(_para1:Pcchar_t; _para2:Pwchar_t; _para3:attr_t; _para4:Smallint; _para5:Pointer):Longint; cdecl;external ;
+function slk_wset(_para1:Longint; _para2:Pwchar_t; _para3:Longint):Longint; cdecl;external ;
+function term_attrs:attr_t;cdecl;external  ;
+function unget_wch(_para1:wchar_t):longint; cdecl;external ;
+function vid_attr(_para1:attr_t; _para2:Smallint; _para3:pointer):longint; cdecl;external ;
+function wadd_wch(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external ;
+function wadd_wchnstr(_para1:PWINDOW; _para2:Pcchar_t; _para3:Longint):longint; cdecl;external ;
+function waddnwstr(_para1:PWINDOW; _para2:Pwchar_t; _para3:Longint):longint; cdecl;external ;
+function wbkgrnd(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external ;
+procedure wbkgrndset(_para1:PWINDOW; _para2:Pcchar_t);cdecl;external  ;
 function wborder_set(_para1:PWINDOW; _para2:Pcchar_t; _para3:Pcchar_t; _para4:Pcchar_t; _para5:Pcchar_t; 
-           _para6:Pcchar_t; _para7:Pcchar_t; _para8:Pcchar_t; _para9:Pcchar_t):longint; cdecl;external libncurses;
-function wecho_wchar(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external libncurses;
-function wget_wch(_para1:PWINDOW; _para2:PLongint):longint; cdecl;external libncurses;
-function wgetbkgrnd(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external libncurses;
-function wgetn_wstr(_para1:PWINDOW; _para2:PLongint; _para3:Longint):longint; cdecl;external libncurses;
-function whline_set(_para1:PWINDOW; _para2:Pcchar_t; _para3:Longint):longint; cdecl;external libncurses;
-function win_wch(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external libncurses;
-function win_wchnstr(_para1:PWINDOW; _para2:Pcchar_t; _para3:Longint):longint; cdecl;external libncurses;
-function winnwstr(_para1:PWINDOW; _para2:Pwchar_t; _para3:Longint):longint; cdecl;external libncurses;
-function wins_nwstr(_para1:PWINDOW; _para2:Pwchar_t; _para3:Longint):longint; cdecl;external libncurses;
-function wins_wch(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external libncurses;
-function winwstr(_para1:PWINDOW; _para2:Pwchar_t):longint; cdecl;external libncurses;
-function wunctrl(_para1:Pcchar_t):Pwchar_t;cdecl;external libncurses;
-function wvline_set(_para1:PWINDOW; _para2:Pcchar_t; _para3:Longint):longint; cdecl;external libncurses;
+           _para6:Pcchar_t; _para7:Pcchar_t; _para8:Pcchar_t; _para9:Pcchar_t):longint; cdecl;external ;
+function wecho_wchar(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external ;
+function wget_wch(_para1:PWINDOW; _para2:PLongint):longint; cdecl;external ;
+function wgetbkgrnd(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external ;
+function wgetn_wstr(_para1:PWINDOW; _para2:PLongint; _para3:Longint):longint; cdecl;external ;
+function whline_set(_para1:PWINDOW; _para2:Pcchar_t; _para3:Longint):longint; cdecl;external ;
+function win_wch(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external ;
+function win_wchnstr(_para1:PWINDOW; _para2:Pcchar_t; _para3:Longint):longint; cdecl;external ;
+function winnwstr(_para1:PWINDOW; _para2:Pwchar_t; _para3:Longint):longint; cdecl;external ;
+function wins_nwstr(_para1:PWINDOW; _para2:Pwchar_t; _para3:Longint):longint; cdecl;external ;
+function wins_wch(_para1:PWINDOW; _para2:Pcchar_t):longint; cdecl;external ;
+function winwstr(_para1:PWINDOW; _para2:Pwchar_t):longint; cdecl;external ;
+function wunctrl(_para1:Pcchar_t):Pwchar_t;cdecl;external ;
+function wvline_set(_para1:PWINDOW; _para2:Pcchar_t; _para3:Longint):longint; cdecl;external ;
 
 const
    A_NORMAL = 0;
@@ -932,13 +920,8 @@ type
    pnc_wacs = ^tacs_map;
 
 var
-{$IFNDEF darwin}
    //_nc_wacs : pcchar_t cvar; external;
-   _nc_wacs : tnc_wacs cvar; external;
-{$ELSE darwin}
-   //_nc_wacs : pcchar_t external libncurses name '_nc_wacs';
-   _nc_wacs : tnc_wacs external libncurses name '_nc_wacs';
-{$ENDIF darwin}
+   _nc_wacs : tnc_wacs ; cvar; external;
 
 function NCURSES_WACS(c: chtype): cchar_t; inline;
 
@@ -1048,11 +1031,11 @@ type
    bstate : mmask_t;     { button state bits }
 end;
 
-function getmouse(_para1:PMEVENT):longint; cdecl;external libncurses;
-function ungetmouse(_para1:PMEVENT):longint; cdecl;external libncurses;
+function getmouse(_para1:PMEVENT):longint; cdecl;external ;
+function ungetmouse(_para1:PMEVENT):longint; cdecl;external ;
 function mousemask(_para1:mmask_t; _para2:Pmmask_t):mmask_t;cdecl;external;
 function wenclose(_para1:PWINDOW; _para2:Longint; _para3:Longint):Bool;cdecl;external;
-function mouseinterval(_para1:Longint):longint; cdecl;external libncurses;
+function mouseinterval(_para1:Longint):longint; cdecl;external ;
 function wmouse_trafo(_para1:PWINDOW; _para2:PLongint; _para3:PLongint; _para4:Bool):Bool;cdecl;external;
 
 {
@@ -1129,32 +1112,250 @@ function wmove(win: PWINDOW; y,x: Smallint): Longint; inline;
 
 (* C varargs  procedures*)
 
-function tparm(_para1:PChar):PChar;cdecl; varargs; external libncurses; overload;
-function mvprintw(_para1:Longint; _para2:Longint; _para3:PChar):Longint; cdecl; varargs; external libncurses; overload;
-function mvscanw(_para1:Longint; _para2:Longint; _para3:PChar):Longint; cdecl; varargs;external libncurses; overload;
-function mvwprintw(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:PChar):Longint; cdecl; varargs; external libncurses; overload;
-function mvwscanw(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:PChar):Longint; cdecl; varargs; external libncurses; overload;
-function scanw(_para1:PChar):Longint; cdecl; varargs; external libncurses; overload;
-function wprintw(_para1:PWINDOW; _para2:PChar):Longint; cdecl; varargs; external libncurses; overload;
-function wscanw(_para1:PWINDOW; _para2:PChar):Longint; cdecl; varargs; external libncurses; overload;
-function printw(_para1:PChar):Longint; cdecl; varargs; external libncurses; overload;
-{function vwprintw(_para1:PWINDOW; _para2:PChar; _para3:va_list):Longint; cdecl;external libncurses;
-function vw_printw(_para1:PWINDOW; _para2:PChar; _para3:va_list):Longint; cdecl;external libncurses;
-function vwscanw(_para1:PWINDOW; _para2:PChar; _para3:va_list):Longint; cdecl;external libncurses;
-function vw_scanw(_para1:PWINDOW; _para2:PChar; _para3:va_list):Longint; cdecl;external libncurses;}
+function tparm(_para1:PChar):PChar;cdecl; varargs; external ; overload;
+function mvprintw(_para1:Longint; _para2:Longint; _para3:PChar):Longint; cdecl; varargs; external ; overload;
+function mvscanw(_para1:Longint; _para2:Longint; _para3:PChar):Longint; cdecl; varargs;external ; overload;
+function mvwprintw(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:PChar):Longint; cdecl; varargs; external ; overload;
+function mvwscanw(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:PChar):Longint; cdecl; varargs; external ; overload;
+function scanw(_para1:PChar):Longint; cdecl; varargs; external ; overload;
+function wprintw(_para1:PWINDOW; _para2:PChar):Longint; cdecl; varargs; external ; overload;
+function wscanw(_para1:PWINDOW; _para2:PChar):Longint; cdecl; varargs; external ; overload;
+function printw(_para1:PChar):Longint; cdecl; varargs; external ; overload;
+{function vwprintw(_para1:PWINDOW; _para2:PChar; _para3:va_list):Longint; cdecl;external ;
+function vw_printw(_para1:PWINDOW; _para2:PChar; _para3:va_list):Longint; cdecl;external ;
+function vwscanw(_para1:PWINDOW; _para2:PChar; _para3:va_list):Longint; cdecl;external ;
+function vw_scanw(_para1:PWINDOW; _para2:PChar; _para3:va_list):Longint; cdecl;external ;}
 
 {$IF DEFINED(FPC_OBJFPC) OR DEFINED(FPC_DELPHI)}
-{function tparm(_para1:PChar; args:array of const):PChar;cdecl;external libncurses; overload;
-function mvprintw(_para1:Longint; _para2:Longint; _para3:PChar; args:array of const):Longint; cdecl;external libncurses; overload;
-function mvscanw(_para1:Longint; _para2:Longint; _para3:PChar; args:array of const):Longint; cdecl;external libncurses; overload;
-function mvwprintw(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:PChar; args:array of const):Longint; cdecl;external libncurses; overload;
-function mvwscanw(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:PChar; args:array of const):Longint; cdecl;external libncurses; overload;
-function scanw(_para1:PChar; args:array of const):Longint; cdecl;external libncurses; overload;
-function wprintw(_para1:PWINDOW; _para2:PChar; args:array of const):Longint; cdecl;external libncurses; overload;
-function wscanw(_para1:PWINDOW; _para2:PChar; args:array of const):Longint; cdecl;external libncurses; overload;
-function printw(_para1:PChar; args:array of const):Longint; cdecl;external libncurses; overload;}
-
+{function tparm(_para1:PChar; args:array of const):PChar;cdecl;external ; overload;
+function mvprintw(_para1:Longint; _para2:Longint; _para3:PChar; args:array of const):Longint; cdecl;external ; overload;
+function mvscanw(_para1:Longint; _para2:Longint; _para3:PChar; args:array of const):Longint; cdecl;external ; overload;
+function mvwprintw(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:PChar; args:array of const):Longint; cdecl;external ; overload;
+function mvwscanw(_para1:PWINDOW; _para2:Longint; _para3:Longint; _para4:PChar; args:array of const):Longint; cdecl;external ; overload;
+function scanw(_para1:PChar; args:array of const):Longint; cdecl;external ; overload;
+function wprintw(_para1:PWINDOW; _para2:PChar; args:array of const):Longint; cdecl;external ; overload;
+function wscanw(_para1:PWINDOW; _para2:PChar; args:array of const):Longint; cdecl;external ; overload;
+function printw(_para1:PChar; args:array of const):Longint; cdecl;external ; overload;}
 {$ENDIF}
+
+type
+   PPANEL  = ^TPANEL;
+   TPANEL = record
+        win : PWINDOW;
+        below : PPANEL;
+        above : PPANEL;
+        user : Pointer;
+     end;
+
+function panel_window(_para1:PPANEL):PWINDOW; cdecl;external ;
+procedure update_panels; cdecl;external ;
+function hide_panel(_para1:PPANEL):Longint; cdecl;external ;
+function show_panel(_para1:PPANEL):Longint; cdecl;external ;
+function del_panel(_para1:PPANEL):Longint; cdecl;external ;
+function top_panel(_para1:PPANEL):Longint; cdecl;external ;
+function bottom_panel(_para1:PPANEL):Longint; cdecl;external ;
+function new_panel(_para1:PWINDOW):PPANEL; cdecl;external ;
+function panel_above(_para1:PPANEL):PPANEL; cdecl;external ;
+function panel_below(_para1:PPANEL):PPANEL; cdecl;external ;
+function set_panel_userptr(_para1:PPANEL; _para2:pointer):Longint; cdecl;external ;
+function panel_userptr(_para1:PPANEL):pointer; cdecl;external ;
+function move_panel(_para1:PPANEL; _para2:Longint; _para3:Longint):Longint; cdecl;external ;
+function replace_panel(_para1:PPANEL; _para2:PWINDOW):Longint; cdecl;external ;
+function panel_hidden(_para1:PPANEL):Longint; cdecl;external ;
+
+type
+   cuchar = Byte;
+   Menu_Options = Longint;
+   Item_Options = Longint;
+
+const
+//    TEXT = TEXT_ncurses;
+{ Menu options:  }
+   O_ONEVALUE = $01;   { Only one item can be selected for this menu. }
+   O_SHOWDESC = $02;   { Display the item descriptions when the menu is posted.  }
+   O_ROWMAJOR = $04;   { Display the menu in row-major order.  }
+   O_IGNORECASE = $08; { Ignore the case when pattern-matching. }
+   O_SHOWMATCH = $10;  { Move the cursor to within the item name while pattern-matching.  }
+   O_NONCYCLIC = $20;  { Don't wrap around next-item and previous-item, requests to the other end of the menu. }
+{ Item options:  }
+   O_SELECTABLE = $01;
+
+type
+   TTEXT = record
+        str : PChar;
+        length : Word;
+     end;
+
+   ppITEM = ^pITEM;
+   pITEM  = ^tITEM;
+
+   pMENU = ^tMENU;
+   ppMENU = ^pMENU;
+
+   tITEM = record
+        name : TTEXT;         { name of menu item                          }
+        description : TTEXT;  { description of item, optional in display   }
+        imenu : pMENU;        { Pointer to parent menu                     }
+        userptr : Pointer;    { Pointer to user defined per item data      }
+        opt : Item_Options;   { Item options                               }
+        index : Smallint;     { Item number if connected to a menu         }
+        y : Smallint;         { y and x location of item in menu           }
+        x : Smallint;
+        value : Bool;         { Selection value                            }
+        left : pITEM;         { neighbor items                             }
+        right : pITEM;
+        up : pITEM;
+        down : pITEM;
+     end;
+
+
+
+   tagITEM = tITEM;
+
+   Menu_Hook = procedure (_para1:pMENU);cdecl;
+
+   tMENU = record
+        height : Smallint;      { Nr. of chars high                }
+        width : Smallint;       { Nr. of chars wide                }
+        rows : Smallint;        { Nr. of items high                }
+        cols : Smallint;        { Nr. of items wide                }
+        frows : Smallint;       { Nr. of formatted items high      }
+        fcols : Smallint;       { Nr. of formatted items wide      }
+        arows : Smallint;       { Nr. of items high (actual)       }
+        namelen : Smallint;     { Max. name length                 }
+        desclen : Smallint;     { Max. description length          }
+        marklen : Smallint;     { Length of mark, if any           }
+        itemlen : Smallint;     { Length of one item               }
+        spc_desc : Smallint;    { Spacing for descriptor           }
+        spc_cols : Smallint;    { Spacing for columns              }
+        spc_rows : Smallint;    { Spacing for rows                 }
+        pattern : PChar;        { Buffer to store match chars      }
+        pindex : Smallint;      { Index into pattern buffer        }
+        win : PWINDOW;          { Window containing menu           }
+        sub : PWINDOW;          { Subwindow for menu display       }
+        userwin : PWINDOW;      { User's window                    }
+        usersub : PWINDOW;      { User's subwindow                 }
+        items : ppITEM;         { array of items                   }
+        nitems : Smallint;      { Nr. of items in menu             }
+        curitem : pITEM;        { Current item                     }
+        toprow : Smallint;      { Top row of menu                  }
+        fore : chtype;          { Selection attribute              }
+        back : chtype;          { Nonselection attribute           }
+        grey : chtype;          { Inactive attribute               }
+        pad : cuchar;           { Pad character                    }
+        menuinit : Menu_Hook;   { User hooks                       }
+        menuterm : Menu_Hook;
+        iteminit : Menu_Hook;
+        itemterm : Menu_Hook;
+        userptr : Pointer;      { Pointer to menus user data       }
+        mark : PChar;           { Pointer to marker string         }
+        opt : Menu_Options;     { Menu options                     }
+        status : Word;          { Internal state of menu           }
+     end;
+
+
+
+
+   tagMENU = tMENU;
+
+{ Define keys  }
+
+const
+   REQ_LEFT_ITEM     = KEY_MAX + 1;
+   REQ_RIGHT_ITEM    = KEY_MAX + 2;
+   REQ_UP_ITEM       = KEY_MAX + 3;
+   REQ_DOWN_ITEM     = KEY_MAX + 4;
+   REQ_SCR_ULINE     = KEY_MAX + 5;
+   REQ_SCR_DLINE     = KEY_MAX + 6;
+   REQ_SCR_DPAGE     = KEY_MAX + 7;
+   REQ_SCR_UPAGE     = KEY_MAX + 8;
+   REQ_FIRST_ITEM    = KEY_MAX + 9;
+   REQ_LAST_ITEM     = KEY_MAX + 10;
+   REQ_NEXT_ITEM     = KEY_MAX + 11;
+   REQ_PREV_ITEM     = KEY_MAX + 12;
+   REQ_TOGGLE_ITEM   = KEY_MAX + 13;
+   REQ_CLEAR_PATTERN = KEY_MAX + 14;
+   REQ_BACK_PATTERN  = KEY_MAX + 15;
+   REQ_NEXT_MATCH    = KEY_MAX + 16;
+   REQ_PREV_MATCH    = KEY_MAX + 17;
+   MIN_MENU_COMMAND  = KEY_MAX + 1;
+   MAX_MENU_COMMAND  = KEY_MAX + 17;
+
+{
+ * Some AT&T code expects MAX_COMMAND to be out-of-band not
+ * just for menu commands but for forms ones as well.
+  }
+{ --------- prototypes for libmenu functions -----------------------------  }
+
+function menu_items(_para1:PMENU):ppITEM; cdecl;external ;
+function current_item(_para1:PMENU):pITEM; cdecl;external ;
+function new_item(_para1:PChar; _para2:PChar):pITEM; cdecl;external ;
+function new_menu(_para1:PPITEM):pMENU; cdecl;external ;
+function item_opts(_para1:PITEM):Item_Options; cdecl;external ;
+function menu_opts(_para1:PMENU):Menu_Options; cdecl;external ;
+function item_init(_para1:PMENU):Menu_Hook; cdecl;external ;
+function item_term(_para1:PMENU):Menu_Hook; cdecl;external ;
+function menu_init(_para1:PMENU):Menu_Hook; cdecl;external ;
+function menu_term(_para1:PMENU):Menu_Hook; cdecl;external ;
+function menu_sub(_para1:PMENU):PWINDOW; cdecl;external ;
+function menu_win(_para1:PMENU):PWINDOW; cdecl;external ;
+function item_description(_para1:PITEM):PChar; cdecl;external ;
+function item_name(_para1:PITEM):PChar; cdecl;external ;
+function menu_mark(_para1:PMENU):PChar; cdecl;external ;
+function menu_request_name(_para1:Longint):PChar; cdecl;external ;
+function menu_pattern(_para1:PMENU):PChar; cdecl;external ;
+function menu_userptr(_para1:PMENU):Pointer; cdecl;external ;
+function item_userptr(_para1:PITEM):Pointer; cdecl;external ;
+function menu_back(_para1:PMENU):chtype; cdecl;external ;
+function menu_fore(_para1:PMENU):chtype; cdecl;external ;
+function menu_grey(_para1:PMENU):chtype; cdecl;external ;
+function free_item(_para1:PITEM):Longint; cdecl;external ;
+function free_menu(_para1:PMENU):Longint; cdecl;external ;
+function item_count(_para1:PMENU):Longint; cdecl;external ;
+function item_index(_para1:PITEM):Longint; cdecl;external ;
+function item_opts_off(_para1:PITEM; _para2:Item_Options):Longint; cdecl;external ;
+function item_opts_on(_para1:PITEM; _para2:Item_Options):Longint; cdecl;external ;
+function menu_driver(_para1:PMENU; _para2:Longint):Longint; cdecl;external ;
+function menu_opts_off(_para1:PMENU; _para2:Menu_Options):Longint; cdecl;external ;
+function menu_opts_on(_para1:PMENU; _para2:Menu_Options):Longint; cdecl;external ;
+function menu_pad(_para1:PMENU):Longint; cdecl;external ;
+function pos_menu_cursor(_para1:PMENU):Longint; cdecl;external ;
+function post_menu(_para1:PMENU):Longint; cdecl;external ;
+function scale_menu(_para1:PMENU; _para2:PLongint; _para3:PLongint):Longint; cdecl;external ;
+function set_current_item(menu:PMENU; item:PITEM):Longint; cdecl;external ;
+//function set_item_init(_para1:PMENU; _para2:procedure (_para1:PMENU)):Longint; cdecl;external ;
+function set_item_init(_para1:PMENU; _para2:Menu_Hook):Longint; cdecl;external ;
+function set_item_opts(_para1:PITEM; _para2:Item_Options):Longint; cdecl;external ;
+//function set_item_term(_para1:PMENU; _para2:procedure (_para1:PMENU)):Longint; cdecl;external ;
+function set_item_term(_para1:PMENU; _para2:Menu_Hook):Longint; cdecl;external ;
+function set_item_userptr(_para1:PITEM; _para2:Pointer):Longint; cdecl;external ;
+function set_item_value(_para1:PITEM; _para2:Bool):Longint; cdecl;external ;
+function set_menu_back(_para1:PMENU; _para2:chtype):Longint; cdecl;external ;
+function set_menu_fore(_para1:PMENU; _para2:chtype):Longint; cdecl;external ;
+function set_menu_format(_para1:PMENU; _para2:Longint; _para3:Longint):Longint; cdecl;external ;
+function set_menu_grey(_para1:PMENU; _para2:chtype):Longint; cdecl;external ;
+//function set_menu_init(_para1:PMENU; _para2:procedure (_para1:PMENU)):Longint; cdecl;external ;
+function set_menu_init(_para1:PMENU; _para2:Menu_Hook):Longint; cdecl;external ;
+function set_menu_items(_para1:PMENU; _para2:PPITEM):Longint; cdecl;external ;
+function set_menu_mark(_para1:PMENU; _para2:PChar):Longint; cdecl;external ;
+function set_menu_opts(_para1:PMENU; _para2:Menu_Options):Longint; cdecl;external ;
+function set_menu_pad(_para1:PMENU; _para2:Longint):Longint; cdecl;external ;
+function set_menu_pattern(_para1:PMENU; _para2:PChar):Longint; cdecl;external ;
+function set_menu_sub(_para1:PMENU; _para2:PWINDOW):Longint; cdecl;external ;
+//function set_menu_term(_para1:PMENU; _para2:procedure (_para1:PMENU)):Longint; cdecl;external ;
+function set_menu_term(_para1:PMENU; _para2:Menu_Hook):Longint; cdecl;external ;
+function set_menu_userptr(_para1:PMENU; _para2:Pointer):Longint; cdecl;external ;
+function set_menu_win(_para1:PMENU; _para2:PWINDOW):Longint; cdecl;external ;
+function set_top_row(_para1:PMENU; _para2:Longint):Longint; cdecl;external ;
+function top_row(_para1:PMENU):Longint; cdecl;external ;
+function unpost_menu(_para1:PMENU):Longint; cdecl;external ;
+function menu_request_by_name(_para1:PChar):Longint; cdecl;external ;
+function set_menu_spacing(_para1:PMENU; _para2:Longint; _para3:Longint; _para4:Longint):Longint; cdecl;external ;
+function menu_spacing(_para1:PMENU; _para2:PLongint; _para3:PLongint; _para4:PLongint):Longint; cdecl;external ;
+function item_value(_para1:PITEM):Bool; cdecl;external ;
+function item_visible(_para1:PITEM):Bool; cdecl;external ;
+procedure menu_format(_para1:PMENU; _para2:PLongint; _para3:PLongint); cdecl;external ;
+
 
 implementation
 
@@ -1348,7 +1549,7 @@ end;
   setupterm are declared in <ncursesw/term.h>:
   int setupterm(char *term, int fildes, int *errret);
 }
-function setupterm(term:PChar; fildes:Longint; errret:Plongint):Longint; cdecl;external libncurses;
+function setupterm(term:PChar; fildes:Longint; errret:Plongint):Longint; cdecl;external ;
 
 function setterm(term: PChar): Longint;
 begin
