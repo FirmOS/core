@@ -796,7 +796,7 @@ function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_FeederTest(const input: IFRE_DB
         cdcs_TIMEOUT: stat := 'CMD_TIMEOUT';
         cdcs_ERROR:   stat := 'CMD_ERROR';
       end;
-      ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat+' '+new_input.GetAsJSONString(),fdbmt_info));
+      ses.SendServerClientAnswer(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat+' '+new_input.GetAsJSONString(),fdbmt_info),ocid);
     end;
 
 
@@ -823,7 +823,7 @@ function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_FeederTestTimeout(const input: 
       cdcs_TIMEOUT: stat := 'CMD_TIMEOUT  : ';
       cdcs_ERROR:   stat := 'CMD_ERROR    : '+new_input.GetAsJSONString();
     end;
-    ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat,fdbmt_info));
+    ses.SendServerClientAnswer(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat,fdbmt_info),ocid);
   end;
 
 begin
@@ -849,7 +849,7 @@ function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_FeederTestError(const input: IF
       cdcs_TIMEOUT: stat := 'CMD_TIMEOUT';
       cdcs_ERROR:   stat := 'CMD_ERROR';
     end;
-    ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat+' '+new_input.GetAsJSONString(),fdbmt_info));
+    ses.SendServerClientAnswer(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat+' '+new_input.GetAsJSONString(),fdbmt_info),ocid);
   end;
 
 begin
