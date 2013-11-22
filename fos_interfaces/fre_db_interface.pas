@@ -4238,6 +4238,8 @@ end;
 
 procedure TFRE_DB_UserSession.SetServerClientInterface(const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const interactive_session: boolean);
 begin
+  if assigned(FBoundSession_RA_SC) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,' REUSE SESSION FAILED, ALREADY BOUND INTERFACE FOUND');
   FBoundSession_RA_SC := sc_interface;
   FIsInteractive      := interactive_session;
 end;

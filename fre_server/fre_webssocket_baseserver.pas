@@ -245,8 +245,10 @@ begin
       wsm_FREDB: begin
         if FOpcode=8 then begin
            writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
-          //_SendCloseFrame;
-         // Fsock.Close;
+          _SendCloseFrame;
+          GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) WEBSOCK REQUESTED CLOSE '+FChannel.GetVerboseDesc);
+          DeactivateSessionBinding;
+          FChannel.Finalize;
           exit;
         end else begin
           GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
@@ -760,7 +762,7 @@ begin
         FChannel.Finalize;
     end;
     wsm_FREDB: begin
-                 writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.GetVerboseDesc,' HANDLER DISCONNECTED/FREED');
+                 writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.GetVerboseDesc,' HANDLER DISCONNECTED/FREED -> Clearing Session/Channel Binding');
                  try
                    if assigned(FCurrentSession) then
                      FCurrentSession.ClearServerClientInterface;
@@ -875,13 +877,26 @@ begin
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DeactivateSessionBinding;
+var loc : TFRE_DB_UserSession;
+    sid : String;
 begin
+  loc             := FCurrentSession;
   FCurrentSession := nil;
   FWebsocketMode  := wsm_FREDB_DEACTIVATED;
+  //GFRE_DBI.LogDebug(dblc_LOCKING,'(!)> '+loc.GetSessionID+ );
+  loc.LockSession;
+  try
+    sid:=loc.GetSessionID;
+    loc.ClearServerClientInterface;
+  finally
+    loc.UnlockSession;
+  end;
+  GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) CLEARED THE Session Channel Interface / Binding '+FChannel.GetVerboseDesc+ ' <-> '+sid);
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.UpdateSessionBinding(const new_session: TObject);
 begin
+  GFRE_DBI.LogInfo(dblc_SESSION,' WS UPDATE SESSION BINDING FOR '+FCHANNEL.GetVerboseDesc+' '+(new_session as TFRE_DB_UserSession).GetSessionID);
   FCurrentSession := new_session as TFRE_DB_UserSession;
 end;
 

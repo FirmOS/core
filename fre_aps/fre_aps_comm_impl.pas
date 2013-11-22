@@ -697,6 +697,7 @@ end;
 
 procedure TFRE_APSC_CHANNEL.ReadDataEvent;
 begin
+  LogDebug('READ ON CHANNEL '+_GetDebugID,[]);
   if Assigned(FonRead) then
     FonRead(self);
 end;
@@ -720,7 +721,7 @@ procedure TFRE_APSC_CHANNEL.GenericEvent(what: cShort);
 begin
   if (what and BEV_EVENT_EOF)>0 then
     begin
-      LogDebug('READ EOF (CLOSE) on CHANNEL '+_GetDebugID,[]);
+      LogDebug('READ EOF (CLOSE) on CHANNEL '+_GetDebugID+' FLAGS '+inttostr(what),[]);
       FState := ch_EOF;
       EventDisconnectOnce;
       bufferevent_flush(FBufEvent,EV_WRITE,BEV_FLUSH);

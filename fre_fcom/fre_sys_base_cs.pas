@@ -632,11 +632,13 @@ end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.DeactivateSessionBinding;
 begin
+  GFRE_DBI.LogInfo(dblc_SESSION,' DEACTIVATE SESSION BINDING FOR '+FCHANNEL.GetVerboseDesc+' '+FUserSession.GetSessionID);
   FUserSession := nil;
 end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.UpdateSessionBinding(const new_session: TObject);
 begin
+  GFRE_DBI.LogInfo(dblc_SESSION,' UPDATE SESSION BINDING FOR '+FCHANNEL.GetVerboseDesc+' TO '+(new_session as TFRE_DB_UserSession).GetSessionID);
   FUserSession := new_session as TFRE_DB_UserSession;
 end;
 
