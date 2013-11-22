@@ -240,6 +240,12 @@ begin
 
   // NOW The initial startup is done (connections can be made, but no extensions initialized)
   PrepareStartup;
+
+  if HasOption('*','test-log') then
+    begin
+      CfgTestLog;
+    end;
+
   RegisterExtensions;
 
   if HasOption('U','remoteuser') then begin
@@ -269,7 +275,6 @@ begin
     FOnlyInitDB:=true;
     InitExtensions;
     GFRE_DB_DEFAULT_PS_LAYER.SyncSnapshot(true);
-    writeln('>INITIALIZATION DONE');
   end;
 
   if HasOption('r','remove') then begin
@@ -304,13 +309,6 @@ begin
       Terminate;
       Exit;
     end;
-
-  if HasOption('*','test-log') then
-    begin
-      writeln('configuring testlogging');
-      CfgTestLog;
-    end;
-
 
 
   if HasOption('q','dumpdb') then
@@ -379,14 +377,14 @@ end;
 procedure TFRE_CLISRV_APP.ReCreateDB;
 begin
   _CheckDBNameSupplied;
-  writeln('DELETE DB ',FDBName,' ',GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase(FDBName));
-  writeln('CREATE DB ',FDBName,' ',GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase(FDBName));
+  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase(FDBName),'DELETE DB FAILED : '+FDBName);
+  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase(FDBName),'CREATE DB FAILED : '+FDBName);
 end;
 
 procedure TFRE_CLISRV_APP.ReCreateSysDB;
 begin
-  writeln('DELETE SYSTEM ',GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('SYSTEM'));
-  writeln('CREATE SYSTEM ',GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase('SYSTEM'));
+  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('SYSTEM'),'DELETE SYSTEM DB FAILED');
+  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase('SYSTEM'),'CREATE SYSTEM DB FAILED');
   gFRE_InstallServerDefaults;
 end;
 
@@ -396,7 +394,6 @@ begin
   _CheckDBNameSupplied;
   //_CheckUserSupplied;
   //_CheckPassSupplied;
-  writeln('Generate Testdata for extensions :'+uppercase(FChosenExtensionList.Commatext));
   GFRE_DBI_REG_EXTMGR.GenerateTestData4Exts(FChosenExtensionList,FDBName,FUser,FPass);
 end;
 
@@ -406,7 +403,6 @@ begin
   _CheckDBNameSupplied;
   //_CheckUserSupplied;
   //_CheckPassSupplied;
-  writeln('Generate Testdata for extensions :'+uppercase(FChosenExtensionList.Commatext));
   GFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(FChosenExtensionList,FDBName,FUser,FPass);
 end;
 
@@ -434,7 +430,7 @@ begin
   _CheckDBNameSupplied;
   //_CheckUserSupplied;
   //_CheckPassSupplied;
-  writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
+  //writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
   CONN := GFRE_DBI.NewSysOnlyConnection;
   CheckDbResult(CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin'),'cannot connect system db');
   GFRE_DBI.DBInitializeAllExClasses(conn);
@@ -488,8 +484,7 @@ begin
   InitEmbedded;
   Init4Server;
   GFRE_DBI.LocalZone := cFRE_SERVER_DEFAULT_TIMEZONE;
-  writeln('STARTUP @LOCAL TIME :',GFRE_DT.ToStrFOS(GFRE_DT.UTCToLocalTime(GFRE_DT.Now_UTC,GFRE_DBI.LocalZone)),'  UTC TIME :',GFRE_DT.ToStrFOS(GFRE_DT.Now_UTC));
-//TODO SUPRESS INTERRUPTS (lazarus?)->  if CMD_CheckParam('NOINT') then G_NO_INTERRUPT_FLAG := true;
+  //writeln('STARTUP @LOCAL TIME :',GFRE_DT.ToStrFOS(GFRE_DT.UTCToLocalTime(GFRE_DT.Now_UTC,GFRE_DBI.LocalZone)),'  UTC TIME :',GFRE_DT.ToStrFOS(GFRE_DT.Now_UTC));
 end;
 
 procedure TFRE_CLISRV_APP.FinishStartup;
@@ -509,12 +504,13 @@ end;
 
 procedure TFRE_CLISRV_APP.CfgTestLog;
 begin
-  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry); //     DROP :  Server / Connection Start/Close
-  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Info,'*',flra_DropEntry);  //    DROP : Http/Header / Content
-  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Debug,'*',flra_DropEntry); //    DROP : Http/Header / Content
-  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER_DATA],fll_Debug,'*',flra_DropEntry);// DROP : Server / Dispatch / Input Output
-  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry); //    DROP : Websock / JSON / IN / OUT
-  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry); //     DROP :  Server / Connection Start/Close
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Info,'*',flra_DropEntry);  //    DROP : Http/Header / Content
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Debug,'*',flra_DropEntry); //    DROP : Http/Header / Content
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER_DATA],fll_Debug,'*',flra_DropEntry);// DROP : Server / Dispatch / Input Output
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry); //    DROP : Websock / JSON / IN / OUT
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry); //       DROP : Database /Filter / Layer Debugging
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging

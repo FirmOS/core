@@ -265,6 +265,7 @@ type
     procedure   _InSync_Finalize;
     procedure   ThreadCheck;
     procedure   EventDisconnectOnce;
+    function    _GetDebugID         : String;
 
   protected
     procedure   SetupServedSocket  (fd : cint ; new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; const base : PEvent_base ; newchannelcb : TOnNew_APSC_Channel); // a server socket
@@ -307,6 +308,7 @@ type
   TFRE_APSC_CHANNEL_MANAGER = class(TThread,IFRE_APSC_CHANNEL_MANAGER)
   private
     FChannelMgrID : NativeInt;
+    FCMVerbose    : String[8];
     FChanBaseCtrl : TFRE_APS_LL_EvBaseController;
     FChannelList  : OFOS_SL_TFRE_APSC_CHANNEL;
     FChanTimerList: OFOS_SL_TFRE_APSC_TIMER;
@@ -411,12 +413,17 @@ end;
 
 procedure   LogInfo(const s:String;const Args : Array of const);
 begin
-  GFRE_LOG.Log(s,args,'',fll_Info,'APSCOMM');
+  GFRE_LOG.Log(s,args,'APSCOMM',fll_Info,'APSCOMM');
+end;
+
+procedure LogDebug(const s:String;const Args : Array of const);
+begin
+  GFRE_LOG.Log(s,args,'APSCOMM',fll_Debug,'APSCOMM');
 end;
 
 procedure   LogWarning           (const s:String;const Args : Array of const);
 begin
-  GFRE_LOG.Log(s,args,'',fll_Warning,'APSCOMM');
+  GFRE_LOG.Log(s,args,'APSCOMM',fll_Warning,'APSCOMM');
 end;
 
 function APSC_TranslateOsError(const os_error: cint; const prefix: string=''; postfix: string=''): string;
@@ -713,6 +720,7 @@ procedure TFRE_APSC_CHANNEL.GenericEvent(what: cShort);
 begin
   if (what and BEV_EVENT_EOF)>0 then
     begin
+      LogDebug('READ EOF (CLOSE) on CHANNEL '+_GetDebugID,[]);
       FState := ch_EOF;
       EventDisconnectOnce;
       bufferevent_flush(FBufEvent,EV_WRITE,BEV_FLUSH);
@@ -750,12 +758,24 @@ end;
 
 procedure TFRE_APSC_CHANNEL.EventDisconnectOnce;
 begin
+  if FDisconnectHandled then
+    LogDebug('EVENT DISCONNECT ONCE (ALREADY HANDLED/SUPRESSING) FIRED ON '+_GetDebugID,[])
+  else
+    LogDebug('EVENT DISCONNECT ONCE FIRED ON '+_GetDebugID,[]);
   if not FDisconnectHandled then
     begin
       if assigned(FOnDisco) then
         FOnDisco(self);
     end;
   FDisconnectHandled := true;
+end;
+
+function TFRE_APSC_CHANNEL._GetDebugID: String;
+begin
+  if FClient then
+    result := 'CS'+inttostr(Fsocket)+'#'+FSocketAddr+' '+FVerboseID
+  else
+    result := 'SS'+inttostr(Fsocket)+'#'+FSocketAddr+' '+FVerboseID;
 end;
 
 procedure loc_buffer_cb_in(buffer : PEvbuffer ; info : Pevbuffer_cb_info ; arg : Pointer); cdecl;
@@ -805,6 +825,7 @@ begin
     FInBufCB   := evbuffer_add_cb(FInputBuf,@loc_buffer_cb_in,self);
     FOutBufCB  := evbuffer_add_cb(FOutputBuf,@loc_buffer_cb_out,self);
     FState := ch_ACTIVE;
+    LogDebug('CONNECTED SERVED CHANNEL : '+_GetDebugID,[]);
   finally
     FnewChanCB(self,ch_NEW_CS_CONNECTED);
   end;
@@ -854,6 +875,7 @@ begin
     if APSC_CheckResultSetError(APSC_SetNoDelay(Fsocket,true),FChanError,FChanECode,'SETNODELAY: ') then
       exit;
     FState     := ch_ACTIVE;
+    LogDebug('STARTED CLIENT CHANNEL : '+_GetDebugID,[]);
   finally
     if FState=ch_BAD then
       FnewChanCB(self,ch_NEW_CS_CONNECTED);
@@ -998,6 +1020,7 @@ end;
 
 destructor TFRE_APSC_CHANNEL.Destroy;
 begin
+  LogDebug('DESTROY CHANNEL : '+_GetDebugID,[]);
   EventDisconnectOnce;
   bufferevent_disable(FBufEvent,EV_READ+EV_WRITE);
   if assigned(FBufEvent) then
@@ -1010,6 +1033,7 @@ begin
   if FFinalizecalled then
     exit;
   FFinalizecalled := true;
+  LogDebug('FINALIZE CHANNEL CALLED - '+_GetDebugID,[]);
   FManager._FinalizeChannel(self);
 end;
 
@@ -1147,6 +1171,7 @@ end;
 constructor TFRE_APSC_CHANNEL_MANAGER.Create(const ID: Nativeint);
 begin
    FChannelMgrID := ID;
+   FCMVerbose    := 'CM#'+inttostr(ID);
    FChanBaseCtrl := TFRE_APS_LL_EvBaseController.Create(@GotChannelCtrCMD,true,'C'+inttostr(id));
    FChannelList.InitSparseListPtrCmp;
    FChanTimerList.InitSparseListPtrCmp;
@@ -1163,7 +1188,9 @@ procedure TFRE_APSC_CHANNEL_MANAGER.Execute;
 begin
   try
     GFRE_LOG.RegisterThread('CM#'+inttostr(FChannelMgrID));
+    LogInfo(FCMVerbose+' STARTUP',[]);
     FChanBaseCtrl.Loop;
+    LogInfo(FCMVerbose+' LOOP TERMINATED',[]);
   except on E:Exception do begin
     try
       GFRE_LOG.Log('APSCOMM CHANNEL MANAGER '+inttostr(FChannelMgrID)+' ['+e.Message+']','',fll_Emergency,'APSW',true);
@@ -1300,6 +1327,7 @@ begin
       FLock.Acquire;
       try
         FState := als_LISTENING;
+        LogDebug('LISTENER STARTED ON '+FListenAddr,[]);
       finally
         FLock.Release;
       end;
@@ -1314,6 +1342,7 @@ begin
       FLock.Acquire;
       try
         FState := als_STOPPED;
+        LogDebug('LISTENER STOPPED ON '+FListenAddr,[]);
       finally
         FLock.Release;
       end;

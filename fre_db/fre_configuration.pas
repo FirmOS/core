@@ -154,7 +154,7 @@ var cfgfile  : string;
 
   begin
     try
-      writeln('READING CONFIG FILE [',cfgfile,']');
+      //writeln('READING CONFIG FILE [',cfgfile,']');
       ini := TMemIniFile.Create(cfgfile);
       try
         cFRE_SERVER_DEFAULT_DIR         := ini.ReadString('BASE','DIR'               , cFRE_SERVER_DEFAULT_DIR);

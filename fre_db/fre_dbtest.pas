@@ -409,7 +409,6 @@ begin
     login :='testfeeder@'+CFRE_DB_SYS_DOMAIN_NAME;
 
     CheckDbResult(conn.AddUser(login,'x','testfeeder','testfeeder'),'cannot add user '+login);
-    writeln('Modify Groups for User '+login);
     CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray(['TESTFEEDER'+'@'+CFRE_DB_SYS_DOMAIN_NAME]),true),'cannot set user groups '+login);
 
 

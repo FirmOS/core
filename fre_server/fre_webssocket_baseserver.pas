@@ -228,14 +228,12 @@ begin
       wsm_VNCPROXY: begin
         if FNo_Base64 then begin
           if FOpcode=8 then begin
-             writeln('-- CLOSE VNC WS ',ClassName,'  - ',FWSSockModeProtoVersion);
+              GFRE_DBI.LogDebug(dblc_WEBSOCK,' VNC WEBSOCK CLOSE REQUESTED'+FChannel.GetVerboseDesc);
               _SendCloseFrame;
               FVNCProxyChannel.Finalize;
               FVNCProxyChannel:=nil;
               FChannel.Finalize;
               FChannel:=nil;
-              Finalize;
-
             exit;
           end else begin
             WebReceived(dataframe);
@@ -246,18 +244,14 @@ begin
       end;
       wsm_FREDB: begin
         if FOpcode=8 then begin
-           writeln('-- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
+           writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
           //_SendCloseFrame;
          // Fsock.Close;
           exit;
         end else begin
-          GFRE_DBI.LogDebug(dblc_WEBSOCK,'>>INPUT '+FChannel.GetVerboseDesc);
-          GFRE_DBI.LogDebug(dblc_WEBSOCK,dataframe);
-          GFRE_DBI.LogDebug(dblc_WEBSOCK,'-----------------');
+          GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
           in_params  := GFRE_DBI.JSONObject2Object(dataframe);
           try
-            //GFRE_DBI.LogDebug(dblc_WEBSOCK,in_params.DumpToString(10));
-            //GFRE_DBI.LogDebug(dblc_WEBSOCK,'********************************************************');
             cmd        := GFRE_DBI.NewDBCommand;
             request_typ := in_params.Field('RTYPE').AsString;
             with cmd do begin
@@ -760,12 +754,10 @@ begin
   case   FWebsocketMode of
     wsm_INVALID: ;
     wsm_VNCPROXY: begin
-      writeln('DESTROY VNC CONNECTION PROXY HANDLER');
       if assigned(FVNCProxyChannel) then
         FVNCProxyChannel.Finalize;
       if assigned(FChannel) then
         FChannel.Finalize;
-      writeln('DESTROY VNC CONNECTION PROXY HANDLER OK - !');
     end;
     wsm_FREDB: begin
                  writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.GetVerboseDesc,' HANDLER DISCONNECTED/FREED');
@@ -810,7 +802,7 @@ var proto    : string;
     encoding : string;
     session  : string;
 begin
-  //GFRE_DBI.LogDebug(dblc_WEBSOCK,'WEBSOCK CONNECT / WANT PROTOCOL [%s] from [%s] Sock [%d]',[FWebSocket_Protocol,FChannel.GetVerboseDesc,FChannel.GetHandleKey]);
+  GFRE_DBI.LogDebug(dblc_WEBSOCK,'WEBSOCK CONNECT / WANT PROTOCOL [%s] from [%s] Sock [%d]',[FWebSocket_Protocol,FChannel.GetVerboseDesc,FChannel.GetHandleKey]);
   proto := FWebSocket_Protocol;
   if Pos('FirmOS-FREDB',proto)=1 then begin
     session := Copy(proto,14,maxint);
@@ -828,20 +820,21 @@ begin
     'base64'           : Setup_VNC_Base64_ProxyMode;
     'X-TEST.firmos.org': Setup_ChristmasMode;
     else begin
-      //GFRE_DBI.LogError(dblc_WEBSOCK,'WEBSOCKET - PROTOCOL NOT SUPPORTED!',[]);
+      GFRE_DBI.LogError(dblc_WEBSOCK,'WEBSOCKET - PROTOCOL NOT SUPPORTED!',[]);
       FChannel.Finalize;
     end;
   end;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DisconnectChannel(const channel: IFRE_APSC_CHANNEL);
+var Channeldesc : string;
 begin
   try
-    //writeln('DISCONNECT CHANNEL ',CHANNEL.GetVerboseDesc);
-  except
-    //writeln('DISCONNECT CHANNEL EX');
+    Channeldesc := channel.GetVerboseDesc;
+    Free;
+  except on e:exception do
+    GFRE_DBI.LogError(dblc_WEBSOCK,'DISCONNECT CHANNEL '+Channeldesc+'  EXCEPTION '+e.Message);
   end;
-  Free;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Send_ServerClient(const CMD_Answer: IFRE_DB_COMMAND);
@@ -856,18 +849,6 @@ begin
     fct_Error:        TransFormFunc(FCurrentSession,CMD_Answer.CommandType,TFRE_DB_MESSAGE_DESC.create.Describe('DISPATCH ERROR',CMD_Answer.ErrorText,fdbmt_error),lContent,lContentType,false,fdbtt_WebSocket);
     else              raise EFRE_DB_Exception.Create(edb_INTERNAL,'WRONG COMMAND TYPE');
   end;
-  //if CMD_Answer.CommandType=fct_SyncReply then begin
-  //  TransFormFunc(FCurrentSession,fct_SyncRequest,CMD_Answer.Data,lContent,lContentType,false,fdbtt_WebSocket);
-  //end else
-  //if CMD_Answer.CommandType=fct_SyncRequest then begin
-  //  TransFormFunc(FCurrentSession,fct_SyncReply,CMD_Answer.Data,lContent,lContentType,false,fdbtt_WebSocket);
-  //end else
-  //if CMD_Answer.CommandType=fct_Error then begin
-  //  TransFormFunc(FCurrentSession,CMD_Answer.CommandType,TFRE_DB_MESSAGE_DESC.create.Describe('DISPATCH ERROR',CMD_Answer.ErrorText,fdbmt_error),lContent,lContentType,false,fdbtt_WebSocket);
-  //  CMD_Answer.CommandType:=fct_SyncReply;
-  //end else begin
-  //   lContent:='';
-  //end;
   SC_CMD := GFRE_DBI.NewObject;
   case CMD_Answer.CommandType of
     fct_SyncRequest  :  SC_CMD.Field('RTYPE').AsString := 'S'  ;
@@ -890,8 +871,7 @@ begin
 
   SC_CMD.Finalize;
   CMD_Answer.Finalize;
-  //GFRE_DBI.LogDebug(dblc_WEBSOCK,'<<OUTPUT '+FChannel.GetVerboseDesc);
-  //GFRE_DBI.LogDebug(dblc_WEBSOCK,lContent);
+  GFRE_DBI.LogDebug(dblc_WS_JSON,'<- '+FChannel.GetVerboseDesc+LineEnding+lContent);
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DeactivateSessionBinding;

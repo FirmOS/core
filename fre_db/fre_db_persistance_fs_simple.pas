@@ -361,7 +361,7 @@ var f : TFileStream;
 begin
   if not coll.IsVolatile then
     begin
-      writeln('  ->> SYNCING COLL ',coll.CollectionName(false));
+      //writeln('  ->> SYNCING COLL ',coll.CollectionName(false));
       GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
       f :=  TFileStream.Create(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col',fmCreate+fmOpenReadWrite);
       try
@@ -457,14 +457,14 @@ begin
       exit;
     end;
 
-  writeln('>WRITEING MEMORY TO DISK FOR DB : ',FConnectedDB);
+  //writeln('>WRITEING MEMORY TO DISK FOR DB : ',FConnectedDB);
   FMaster.MasterColls.ForAllCollections(@WriteColls);
-  writeln('-Syncing Objects');
+  //writeln('-Syncing Objects');
   FMaster.ForAllObjectsInternal(true,false,@StoreObjects);
-  writeln('<WRITEING MEMORY TO DISK DONE   : ',FConnectedDB);
+  //writeln('<WRITEING MEMORY TO DISK DONE   : ',FConnectedDB);
   if assigned(FWalStream) then
     begin
-      writeln('DROPPING WAL');
+      //writeln('DROPPING WAL');
       _CloseWAL;
       _ClearWAL;
       if not final then

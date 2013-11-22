@@ -80,7 +80,7 @@ type
   TFRE_DB_RawByteString  = RawByteString;
 
 
-  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA);
+  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
@@ -111,7 +111,7 @@ const
   CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
-  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PERSISTANCE','DB','MEMORY','REFLINKS','EXCEPT','SERVER','HTTPSERVER','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA');
+  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PERSISTANCE','DB','MEMORY','REFLINKS','EXCEPT','SERVER','HTTPSERVER','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO');
   CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');
   CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','ICO','BOO');
   CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
@@ -3374,7 +3374,7 @@ begin
   _InitApps;
   if not assigned(FContinuationLock) then
      GFRE_TF.Get_Lock(TFRE_DB_UserSession.FContinuationLock);
-  writeln('SESSION CREATE ',user_name,' ',default_app);
+  GFRE_DBI.LogInfo(dblc_SESSION,'SESSION CREATE User:'+user_name+' App:'+default_app);
 end;
 
 procedure TFRE_DB_UserSession.StoreSessionData;
@@ -5304,7 +5304,7 @@ end;
 
 procedure TFRE_DB_ObjectEx.Finalize;
 begin
-  writeln('FINALIZE MEDIATOR CALL  ',ClassName);
+  //writeln('FINALIZE MEDIATOR CALL  ',ClassName);
   FImplementor.Finalize;
 end;
 
@@ -6627,7 +6627,6 @@ procedure TFRE_DBI_REG_EXTMGR.RegisterExtensions4DB(const list: IFOS_STRINGS);
   procedure Iterate(const ext : IFRE_DB_EXTENSION_GRP);
   begin
     if list.IndexOf(ext.GetExtensionName)>-1 then begin
-      writeln('REGISTERING FOR EXTENSION : ',ext.GetExtensionName);
       ext.RegisterExtensionAndDependencies;
     end;
   end;
@@ -6641,7 +6640,6 @@ procedure TFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(const list: IFOS_STRINGS ;
   procedure Iterate(const ext : IFRE_DB_EXTENSION_GRP);
   begin
     if list.IndexOf(ext.GetExtensionName)>-1 then begin
-      writeln('INITIALIZING EXTENSION : ',ext.GetExtensionName,' DB : ',db);
       ext.InitializeDatabaseForExtension(db,user,pass);
     end;
   end;
@@ -6655,7 +6653,6 @@ procedure TFRE_DBI_REG_EXTMGR.GenerateTestData4Exts(const list: IFOS_STRINGS; co
   procedure Iterate(const ext : IFRE_DB_EXTENSION_GRP);
   begin
     if list.IndexOf(ext.GetExtensionName)>-1 then begin
-      writeln('GENERATING TESTDATA EXTENSION : ',ext.GetExtensionName,' DB : ',db);
       ext.GenerateTestdataForExtension(db,user,pass);
     end;
   end;
@@ -6668,7 +6665,6 @@ procedure TFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(const list: IFOS_STRINGS; co
   procedure Iterate(const ext : IFRE_DB_EXTENSION_GRP);
   begin
     if list.IndexOf(ext.GetExtensionName)>-1 then begin
-      writeln('DOING UNITTEST FOR EXTENSION : ',ext.GetExtensionName,' DB : ',db);
       ext.DoUnitTestforExtension(db,user,pass);
     end;
   end;

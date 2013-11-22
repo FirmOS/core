@@ -5054,12 +5054,10 @@ function TFRE_DB_SYSTEM_CONNECTION.GetClassesVersionDirectory: IFRE_DB_Object;
 begin
   if not FSysSingletons.GetIndexedObjI('CLASSVERSIONS',result) then
     result := GFRE_DBI.NewObject;
-  writeln('DUMPLOAD:',result.DumpToString(10));
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreClassesVersionDirectory(const version_dbo: IFRE_DB_Object): TFRE_DB_Errortype;
 begin
-  writeln('DUMPNOW:',version_dbo.DumpToString);
   if not FSysSingletons.ExistsIndexed('CLASSVERSIONS') then
     begin
       version_dbo.Field('singletonkey').asstring:='CLASSVERSIONS';
@@ -6794,21 +6792,27 @@ begin
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
-//var idbo : IFRE_DB_Object;
+var idbo : IFRE_DB_Object;
 begin
-  abort;
-  //if FDCMode=dc_ReferentialLinkCollection then
-  //  begin
-  //    result := FConnection.Fetch(ouid,dbo);
-  //    exit;
-  //  end;
-  //if not assigned(FParentCollection) then
-  //  raise EFRE_DB_Exception.Create(edb_ERROR,'DC FETCH, BUT NO PARENT DC ASSIGNED');
-  //Result := FParentCollection.Fetch(ouid, idbo);
-  //if result then
-  //  dbo := idbo.Implementor as TFRE_DB_Object
-  //else
-  //  dbo := nil;
+  case FDCMode of
+    dc_Map2RealCollection,
+    dc_Map2DerivedCollection:
+      begin
+       if not assigned(FParentCollection) then
+         raise EFRE_DB_Exception.Create(edb_ERROR,'DC FETCH, BUT NO PARENT DC ASSIGNED');
+       Result := FParentCollection.Fetch(ouid, idbo);
+       if result then
+         dbo := idbo.Implementor as TFRE_DB_Object
+       else
+         dbo := nil;
+      end;
+    dc_ReferentialLinkCollection:
+      begin
+          result := FConnection.Fetch(ouid,dbo)=edb_OK;
+      end;
+    else
+      raise EFRE_DB_Exception.Create(edb_ERROR,'Unsuported fetch for derived collection '+FName);
+  end;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllEntries;

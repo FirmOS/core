@@ -474,9 +474,7 @@ var myDataCount : NativeInt;
         state := ss_READY;
         fCMD_SIZE:=0;
         sizehdr_pos:=0;
-        //GFRE_DBI.LogDebug(dblc_FLEXCOM,'>>INPUT FROM : '+FCHANNEL.GetVerboseDesc);
-        //GFRE_DBI.LogDebug(dblc_FLEXCOM,CMD.AsDBODump);
-        //GFRE_DBI.LogDebug(dblc_FLEXCOM,'********************************************************');
+        GFRE_DBI.LogDebug(dblc_FLEX_IO,'> '+FCHANNEL.GetVerboseDesc+LineEnding+CMD.AsDBODump);
         if not assigned(FUserSession) then begin
           if (CMD.InvokeClass='FIRMOS') and (CMD.InvokeMethod='INIT') and (CMD.Answer=false) then begin
             try
@@ -613,9 +611,8 @@ end;
 procedure TFRE_SERVED_BASE_CONNECTION.Send_ServerClient(const ECN: IFRE_DB_COMMAND);
 var mem:TMemoryStream;
 begin
-  GFRE_DBI.LogDebug(dblc_FLEXCOM,'<<FLEX INVOKE Server Client '+FCHANNEL.GetVerboseDesc+' '+ECN.GetInvokeClass+'.'+ECN.GetInvokeMethod+' '+BoolToStr(ECN.Answer,'ANSWER','REQUEST')+' RID='+INTTOSTR(ECN.CommandID));
-  //GFRE_DBI.LogDebug(dblc_FLEXCOM,ECN.AsDBODump);
-  //GFRE_DBI.LogDebug(dblc_FLEXCOM,'**************************************************************************');
+  GFRE_DBI.LogDebug(dblc_FLEXCOM,'< '+FCHANNEL.GetVerboseDesc+' '+ECN.GetInvokeClass+'.'+ECN.GetInvokeMethod+' '+BoolToStr(ECN.Answer,'ANSWER','REQUEST')+' RID='+INTTOSTR(ECN.CommandID));
+  GFRE_DBI.LogDebug(dblc_FLEX_IO,'<< '+ECN.AsDBODump);
   try
     mem:=TMemoryStream.Create;
     mem.Position:=4;

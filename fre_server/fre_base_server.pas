@@ -332,7 +332,6 @@ begin
   GFRE_SC.AddListener_TCP ('*','44001','FLEX');
   GFRE_SC.SetNewListenerCB(@APSC_NewListener);
   GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
-  writeln('SERVER INITIALIZED, running');
   FSessiontimer := GFRE_SC.AddTimer('SESSION',1000,@TIM_SessionHandler);
 end;
 
