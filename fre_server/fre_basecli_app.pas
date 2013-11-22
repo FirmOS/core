@@ -504,13 +504,13 @@ end;
 
 procedure TFRE_CLISRV_APP.CfgTestLog;
 begin
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry); //     DROP :  Server / Connection Start/Close
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Info,'*',flra_DropEntry);  //    DROP : Http/Header / Content
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Debug,'*',flra_DropEntry); //    DROP : Http/Header / Content
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER_DATA],fll_Debug,'*',flra_DropEntry);// DROP : Server / Dispatch / Input Output
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry); //    DROP : Websock / JSON / IN / OUT
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry); //       DROP : Database /Filter / Layer Debugging
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging

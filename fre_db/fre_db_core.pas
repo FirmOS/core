@@ -7124,7 +7124,7 @@ begin
           FParentIds[0] := FParentIds[high(FParentIds)];
           SetLength(FParentIds,1);
         end;
-      FConnection.UpcastDBC.ExpandReferences(FParentIds,not FChildParentMode,TFRE_DB_StringArray.create(FParentChldLinkFld),FExpandedRefs,true);
+      FConnection.UpcastDBC.ExpandReferences(FParentIds,not FChildParentMode,TFRE_DB_StringArray.create(FParentChldLinkFld),FExpandedRefs,false);
     end
   else
     SetLength(FParentIds,0);

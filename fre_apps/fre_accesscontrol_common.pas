@@ -470,7 +470,6 @@ var role_Grid     : IFRE_DB_DERIVED_COLLECTION;
     conn          : IFRE_DB_CONNECTION;
 
 begin
-  exit;
   inherited MySessionInitializeModule(session);
   if session.IsInteractiveSession then begin
     app  := GetEmbeddingApp;
