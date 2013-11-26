@@ -133,6 +133,7 @@ type
   private
     procedure Finalize;
     procedure _InAccessibleFieldCheck  ; inline;
+    procedure _CheckEmptyArray         ; inline;
 
 
     function  _StreamingSize      : TFRE_DB_SIZE_TYPE;
@@ -5566,15 +5567,14 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.BeginUpdateGathering;
 begin
-  if assigned(FGatherUpdateList) then raise EFRE_DB_Exception.Create(edb_ERROR,'UPDATE GATHERING ALREADY STARTED');
+  if assigned(FGatherUpdateList) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'UPDATE GATHERING ALREADY STARTED');
   FGatherUpdateList := TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.FinishUpdateGathering(const sendupdates: Boolean);
 begin
   if sendupdates then begin
-    //writeln('--------- SEND CLIENT UPDATE/NEW DESCR ------- ',CollectionName);
-//    FSession.SendServerClientRequest(FGatherUpdateList);
     FSession.DispatchCoroutine(@FSession.COR_SendDerivedCollUpdates,FGatherUpdateList);
   end else begin
     FGatherUpdateList.Free;
@@ -13500,6 +13500,7 @@ function TFRE_DB_FIELD.GetAsByte: Byte;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_Byte then begin
+    _CheckEmptyArray;
     result := FFieldData.byte^[0];
   end else begin
     result := _ConvertToByte;
@@ -13510,6 +13511,7 @@ function TFRE_DB_FIELD.GetAsInt16: Smallint;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_Int16 then begin
+    _CheckEmptyArray;
     result := FFieldData.in16^[0];
   end else begin
     result := _ConvertToInt16;
@@ -13520,6 +13522,7 @@ function TFRE_DB_FIELD.GetAsInt32: longint;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_Int32 then begin
+    _CheckEmptyArray;
     result := FFieldData.in32^[0];
   end else begin
     result := _ConvertToInt32;
@@ -13530,6 +13533,7 @@ function TFRE_DB_FIELD.GetAsInt64: int64;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_Int64 then begin
+    _CheckEmptyArray;
     result := FFieldData.in64^[0];
   end else begin
     result := _ConvertToInt64;
@@ -13540,6 +13544,7 @@ function TFRE_DB_FIELD.GetAsSingle: Single;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_Real32 then begin
+    _CheckEmptyArray;
     result := FFieldData.re32^[0];
   end else begin
     result := _ConvertToSingle;
@@ -13550,6 +13555,7 @@ function TFRE_DB_FIELD.GetAsUInt16: Word;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_UInt16 then begin
+    _CheckEmptyArray;
     result := FFieldData.ui16^[0];
   end else begin
     result := _ConvertToUInt16;
@@ -13560,6 +13566,7 @@ function TFRE_DB_FIELD.GetAsUInt32: longword;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_UInt32 then begin
+    _CheckEmptyArray;
     result := FFieldData.ui32^[0];
   end else begin
     result := _ConvertToUInt32;
@@ -13570,6 +13577,7 @@ function TFRE_DB_FIELD.GetAsUInt64: uint64;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_UInt64 then begin
+    _CheckEmptyArray;
     result := FFieldData.ui64^[0];
   end else begin
     result := _ConvertToUInt64;
@@ -13732,6 +13740,7 @@ function TFRE_DB_FIELD.GetAsBoolean: Boolean;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_Boolean then begin
+    _CheckEmptyArray;
     result := FFieldData.bool^[0];
   end else begin
     result := _ConvertToBool;
@@ -14411,6 +14420,7 @@ end;
 function TFRE_DB_FIELD._GetAsGUID: TGuid;
 begin
   if FFieldData.FieldType = fdbft_GUID then begin
+    _CheckEmptyArray;
     result := FFieldData.guid^[0];
   end else begin
     result := _ConvertToGUID;
@@ -14420,6 +14430,12 @@ end;
 procedure TFRE_DB_FIELD._InAccessibleFieldCheck;
 begin
   Fobj._InaccessibleCheck;
+end;
+
+procedure TFRE_DB_FIELD._CheckEmptyArray;
+begin
+  if Length(FFieldData.guid^)=0 then // type is not relevant for check
+    raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the field of type [%s] is an empty array, cant access elements. use empty array check',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
 end;
 
 //function TFRE_DB_FIELD._DBConnectionBC: TFRE_DB_BASE_CONNECTION;
@@ -14603,6 +14619,7 @@ function TFRE_DB_FIELD.GetAsCurrency: Currency;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_Currency then begin
+    _CheckEmptyArray;
     result := FFieldData.curr^[0];
   end else begin
     result := _ConvertToCurrency;
@@ -14632,6 +14649,7 @@ function TFRE_DB_FIELD.GetAsDateTime: TFRE_DB_DateTime64;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_DateTimeUTC then begin
+    _CheckEmptyArray;
     result := GFRE_DB.UTCToLocalTimeDB64(FFieldData.date^[0]);
   end else begin
     result := _ConvertToDateTime;
@@ -14667,6 +14685,7 @@ function TFRE_DB_FIELD.GetAsDateTimeUTC: TFRE_DB_DateTime64;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_DateTimeUTC then begin
+    _CheckEmptyArray;
     result := FFieldData.date^[0];
   end else begin
     result := _ConvertToDateTime;
@@ -14677,6 +14696,7 @@ function TFRE_DB_FIELD.GetAsString: TFRE_DB_String;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_String then begin
+    _CheckEmptyArray;
     result := FFieldData.strg^[0];
   end else begin
     result := _ConvertToString;
@@ -14707,6 +14727,7 @@ function TFRE_DB_FIELD.GetAsDouble: Double;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_Real64 then begin
+    _CheckEmptyArray;
     result := FFieldData.re64^[0];
   end else begin
     result := _ConvertToDouble;
@@ -14793,6 +14814,7 @@ begin
   _InAccessibleFieldCheck;
   field_type := FFieldData.FieldType;
   if field_type = fdbft_Object then begin
+    _CheckEmptyArray;
     result := FFieldData.obj^[0];
   end else begin
     if field_type=fdbft_NotFound then begin
@@ -14867,6 +14889,7 @@ begin
   _InAccessibleFieldCheck;
   field_type := FFieldData.FieldType;
   if field_type = fdbft_Stream then begin
+    _CheckEmptyArray;
     result := FFieldData.strm^[0];
   end else begin
     if field_type=fdbft_NotFound then begin
@@ -14882,6 +14905,7 @@ function TFRE_DB_FIELD.GetAsObjectLink: TGuid;
 begin
   _InAccessibleFieldCheck;
   if FFieldData.FieldType = fdbft_ObjLink then begin
+    _CheckEmptyArray;
     result := FFieldData.obl^[0];
   end else begin
     _IllegalTypeError(fdbft_ObjLink);

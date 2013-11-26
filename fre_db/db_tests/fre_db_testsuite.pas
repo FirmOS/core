@@ -52,6 +52,14 @@ type
     procedure UID_Path_Simple;
     procedure UID_String;
     procedure UID_Set;
+
+    procedure DOMAIND_Exists;
+    procedure DOMAIND_Delete;
+    procedure DOMAIND_Delete2;
+    procedure DOMAIND_Path_Simple;
+    procedure DOMAIND_String;
+    procedure DOMAIND_Set;
+
     procedure Mediator_Empty;
     procedure ObjectProperties;
     procedure FieldTypes;
@@ -394,8 +402,8 @@ begin
   FWorkConn.DeleteCollection('TEST_1_VOL');
   FWorkConn.DeleteCollection('TEST_1_PERS');
   coll_v := FWorkConn.Collection('TEST_1_VOL',false,true);
-  coll_p := FWorkConn.Collection('TEST_1_PERS',false,false);
   AssertNull(coll_v);
+  coll_p := FWorkConn.Collection('TEST_1_PERS',false,false);
   AssertNull(coll_p);
   coll_v := FWorkConn.Collection('TEST_1_VOL',true,true);
   coll_p := FWorkConn.Collection('TEST_1_PERS',true,false);
@@ -784,7 +792,7 @@ end;
 
 procedure TFRE_DB_ObjectTests.FieldCount;
 begin
-  AssertEquals(1,TestObject.FieldCount(false));
+  AssertEquals(2,TestObject.FieldCount(false)); // UID / DOMAINID
 end;
 
 procedure TFRE_DB_ObjectTests.UID_NotNull;
@@ -830,6 +838,41 @@ procedure TFRE_DB_ObjectTests.UID_Set;
 begin
   TestObject.Field('UID').AsGUID:=TEST_GUID_1;
   AssertTrue(TestObject.UID=TEST_GUID_1);
+end;
+
+procedure TFRE_DB_ObjectTests.DOMAIND_Exists;
+begin
+  AssertTrue(TestObject.FieldExists('doMainId'));
+end;
+
+procedure TFRE_DB_ObjectTests.DOMAIND_Delete;
+begin
+  try
+    TestObject.DeleteField('DomaiNid');
+  except
+    exit;
+  end;
+  Fail('DomainID Field was deleted');
+end;
+
+procedure TFRE_DB_ObjectTests.DOMAIND_Delete2;
+begin
+
+end;
+
+procedure TFRE_DB_ObjectTests.DOMAIND_Path_Simple;
+begin
+
+end;
+
+procedure TFRE_DB_ObjectTests.DOMAIND_String;
+begin
+
+end;
+
+procedure TFRE_DB_ObjectTests.DOMAIND_Set;
+begin
+
 end;
 
 procedure TFRE_DB_ObjectTests.Mediator_Empty;

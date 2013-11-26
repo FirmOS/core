@@ -122,6 +122,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    DeleteCollection    (const coll_name : TFRE_DB_NameType ; const global_system_namespace:boolean) : TFRE_DB_Errortype; // todo transaction context
 
      function    StoreOrUpdateObject (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; var notify_collections : TFRE_DB_StringArray ; var status_text : string) : TFRE_DB_Errortype;
+     //* collection_name = '' delete from all ->  collectionname<>'' only remove from collection
      function    DeleteObject        (const obj_uid : TGUID    ;  const collection_name: TFRE_DB_NameType = '' ; var notify_collections: TFRE_DB_StringArray = nil):TFRE_DB_Errortype;
      function    StartTransaction    (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType ; const raise_ex : boolean=true) : TFRE_DB_Errortype;
      function    Commit              : boolean;
@@ -727,7 +728,7 @@ begin
 
     delete_object.Set_Store_Locked(false);
       try
-        FTransaction.AddChangeStep(TFRE_DB_DeleteStep.Create(delete_object,false));
+        FTransaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(delete_object,false));
         if ImplicitTransaction then
           Commit;
       finally

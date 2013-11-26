@@ -3940,7 +3940,6 @@ end;
 function TFRE_DB_UserSession.CloneSession(const connectiond_desc: string): TFRE_DB_UserSession;
 var dbc : IFRE_DB_CONNECTION;
 begin
-  writeln('CLONE SESSION ::: ', connectiond_desc);
   if FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,FUserName,FPassMD5,dbc)<>edb_OK then
     GFRE_BT.CriticalAbort('UNEXPECTED, HANDLE');
   result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,dbc);
@@ -5472,12 +5471,14 @@ begin
 end;
 
 
+//My instance gets freed on function termination (fetch, invoke method, free) tus we need to change our copy and feed the uptade with the copy of us.
 function TFRE_DB_ObjectEx.WEB_SaveOperation(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var scheme            : IFRE_DB_SCHEMEOBJECT;
     update_object_uid : TGUid;
     raw_object        : IFRE_DB_Object;
 begin
-  if not conn.sys.CheckClassRight4Domain(sr_UPDATE,Self.ClassType,ses.getDomain) then raise EFRE_DB_Exception.Create('Access denied.');
+  if not conn.sys.CheckClassRight4Domain(sr_UPDATE,Self.ClassType,ses.getDomain) then
+    raise EFRE_DB_Exception.Create('Access denied.');
   if Not IsObjectRoot then begin
     result := TFRE_DB_MESSAGE_DESC.Create.Describe('SAVE','Error on saving! Saving of Subobject not supported!',fdbmt_error);
     exit;
@@ -5487,7 +5488,7 @@ begin
   update_object_uid := UID;
   raw_object        := input.Field('data').AsObject;
   scheme.SetObjectFieldsWithScheme(raw_object,self,false,conn);
-  CheckDbResult(conn.Update(self),'failure on update');  // This instance is freed by now, so rely on the stackframe only (self) pointer is garbage(!!)
+  CheckDbResult(conn.Update(self.CloneToNewObject()),'failure on update');  // This instance is freed by now, so rely on the stackframe only (self) pointer is garbage(!!)
   result := TFRE_DB_CLOSE_DIALOG_DESC.Create.Describe();
 end;
 

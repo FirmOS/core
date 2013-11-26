@@ -524,6 +524,8 @@ type
       function     ReadDefaultIniValue(const section,value,default:string):String;
    end;
 
+   TFRE_TZ_Iterator = procedure(const zonename, timezoneletters : String ; const sec_offset,fixed_offset : integer ; const valid_to_year,valid_to_month,valid_to_day,valid_to_secs_in_day:Integer ; const valid_until_gmt : boolean) is nested;
+
    {$INTERFACES CORBA}
     IFOS_DATETOOLS=interface
     //"float" datetime
@@ -542,6 +544,7 @@ type
         function  EncodeTime             (const year,month,day,hour,minute,second,millisecond:longint):TFRE_DB_DateTime64;
     //Timezones
         procedure GetTimeZoneNames       (const AZones: TStringList; const AOnlyGeoZones: Boolean=true);
+        procedure ForAllTimeZones        (const iter: TFRE_TZ_Iterator; const only_geozones: boolean);
     end;
 
 

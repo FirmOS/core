@@ -38,6 +38,7 @@ unit fre_basecli_app;
 }
 
 {$mode objfpc}{$H+}
+{$modeswitch nestedprocvars}
 
 interface
 
@@ -80,6 +81,7 @@ type
 
     function    ListFromString     (const str :string) : IFOS_STRINGS;
     procedure   DoRun              ; override ;
+    procedure   PrintTimeZones     ;
     procedure   WriteHelp          ;
     procedure   WriteVersion       ;
     procedure   ReCreateDB         ;
@@ -160,7 +162,7 @@ begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
   ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',
                           ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','dumpdb','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests']);
+                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -169,6 +171,8 @@ begin
     Exit;
   end;
 
+  if HasOption('*','printtz') then
+    PrintTimeZones;
   if HasOption('D','debugger') then
     G_NO_INTERRUPT_FLAG:=true;
 
@@ -340,6 +344,28 @@ begin
   Cleanup_SSL_Interface;
   GFRE_BT.DeactivateJack;
   exit;
+end;
+
+procedure TFRE_CLISRV_APP.PrintTimeZones;
+var cnt : NativeInt;
+    sl  : TStringlist;
+  procedure PrintTZ(const zonename, timezoneletters : String ; const sec_offset,fixed_offset : integer ; const valid_to_year,valid_to_month,valid_to_day,valid_to_secs_in_day:Integer ; const valid_until_gmt : boolean);
+  begin
+    inc(cnt);
+    writeln(cnt:3,':',zonename:12,' ',timezoneletters:12,' offset ',sec_offset,' fixed ',fixed_offset,' valid until ',valid_to_year,':',valid_to_month,':',valid_to_day,':',valid_to_secs_in_day,' until GMT ',valid_until_gmt);
+  end;
+begin
+  cnt:=0;
+  GFRE_DT.ForAllTimeZones(@PrintTZ,true);
+  writeln('----');
+  sl:=TStringList.Create;
+  try
+    GFRE_DT.GetTimeZoneNames(sl);
+    writeln(sl.Text);
+  finally
+    sl.free;
+  end;
+  halt(0);
 end;
 
 procedure TFRE_CLISRV_APP.WriteHelp;

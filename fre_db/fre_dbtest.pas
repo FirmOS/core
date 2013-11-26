@@ -377,8 +377,6 @@ begin
     CheckDbResult(conn.AddDomain('fpc','FPC Domain','FPC Domain'),'cannot add domain fpc');
     CheckDbResult(conn.AddDomain('demo','Demo Domain','Demo Domain'),'cannot add domain demo');
 
-    writeln('create test users');
-
     _AddUser('admin1',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
     _AddUser('admin2',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
     _AddUser('city',CFRE_DB_SYS_DOMAIN_NAME,utadmin,'','','city');
@@ -1726,7 +1724,6 @@ var col : IFRE_DB_COLLECTION;
     num : UInt32;
 begin
   Result := GFRE_DB_NIL_DESC;
-  writeln('ADD BEFORE');
   writeln(input.Field('SELECTED').AsString);
   selg := GFRE_BT.HexString_2_GUID(input.Field('SELECTED').AsString);
   col    := GetDBConnection(input).Collection('COLL_TEST_A2');
@@ -2387,7 +2384,7 @@ begin
   CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
 
   COLL := CONN.Collection('COLL_TEST_A');
-  for i := 0 to 1 - 1 do begin
+  for i := 0 to 2 - 1 do begin
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i;
     lobj.Field('number_pb').AsUInt32:=i * 10;
@@ -2403,7 +2400,7 @@ begin
     COLL.Store(lobj);
   end;
   COLL := CONN.Collection('COLL_TEST_A2');
-  for i := 0 to 250 - 1 do begin
+  for i := 0 to 2 - 1 do begin
     if i mod 100=0 then writeln('ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i*10;

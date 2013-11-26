@@ -38,11 +38,12 @@ unit fre_date_tools;
 } 
 
 {$mode objfpc}{$H+}
+{$modeswitch nestedprocvars}
 
 interface
 
 uses
-  Classes, SysUtils,strutils,upascaltz,upascaltz_types,FOS_NPS, FOS_TOOL_INTERFACES,zstream;
+  Classes, SysUtils,strutils,upascaltz,upascaltz_types, FOS_TOOL_INTERFACES,zstream;
 
   //3.3.1 Full Date
   //
@@ -106,15 +107,11 @@ const
   CFRE_DT_MONTH   : array[1..12] of string = ('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec');
 
 type
-
   { TFRE_TZ_TOOLS }
 
   TFRE_TZ_TOOLS=class(TPascalTZ,IFOS_DATETOOLS)
   private
     frefcount : longint;
-    function  QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
-    function  _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
-    function  _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
     procedure _DT2TZDT(const dbdate:TFRE_DB_DateTime64;var result:TTZDateTime);
   public
     function  SaveTZInternal:string;
@@ -135,6 +132,7 @@ type
     function  Now_UTC                :TFRE_DB_DateTime64;
     procedure DecodeTime             (const date:TFRE_DB_DateTime64;var year,month,day,hour,minute,second,millisecond:longint);
     function  EncodeTime             (const year,month,day,hour,minute,second,millisecond:longint):TFRE_DB_DateTime64;
+    procedure ForAllTimeZones        (const iter: TFRE_TZ_Iterator; const only_geozones: boolean);
   end;
 
 Const
@@ -180,26 +178,6 @@ End;
 
 
 { TFRE_TZ_TOOLS }
-
-function TFRE_TZ_TOOLS.QueryInterface(constref iid: tguid; out obj): longint; cdecl;
-begin
-  if getinterface(iid,obj) then
-    result:=S_OK
-  else
-    result:=longint(E_NOINTERFACE);
-end;
-
-function TFRE_TZ_TOOLS._AddRef: longint; cdecl;
-begin
-  _addref:=interlockedincrement(frefcount);
-end;
-
-function TFRE_TZ_TOOLS._Release: longint; cdecl;
-begin
-  _Release:=interlockeddecrement(frefcount);
-  if _Release=0 then
-    self.destroy;
-end;
 
 procedure TFRE_TZ_TOOLS._DT2TZDT(const dbdate: TFRE_DB_DateTime64; var result:TTZDateTime);
 var y,d,m : longint;
@@ -577,6 +555,31 @@ end;
 function TFRE_TZ_TOOLS.EncodeTime(const year, month, day, hour, minute, second, millisecond: longint): TFRE_DB_DateTime64;
 begin
   result:= ((int64(GregorianToJulian(Year,Month,Day)-c1970)*86400)+(Hour*3600)+(Minute*60)+Second)*1000+millisecond;
+end;
+
+procedure TFRE_TZ_TOOLS.ForAllTimeZones(const iter: TFRE_TZ_Iterator ; const only_geozones:boolean);
+var i : NativeInt;
+   LT : AnsiString;
+begin
+  LT := '';
+  for i := 0 to High(FZones) do
+    if FZones[i].Name<>LT then
+      begin
+        LT:=FZones[i].Name;
+        if only_geozones then
+          begin
+            if Pos('/',LT)>0 then
+              with Fzones[i] do
+                with RuleValidUntil do
+                  iter(trim(Name),trim(TimeZoneLetters),Offset,RuleFixedOffset,Year,Month,Day,SecsInDay,RuleValidUntilGMT);
+          end
+        else
+          begin
+            with Fzones[i] do
+              with RuleValidUntil do
+                iter(Name,TimeZoneLetters,Offset,RuleFixedOffset,Year,Month,Day,SecsInDay,RuleValidUntilGMT);
+          end;
+      end;
 end;
 
 

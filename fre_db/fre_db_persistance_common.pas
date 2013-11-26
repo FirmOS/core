@@ -50,10 +50,10 @@ uses
   fos_art_tree,fos_sparelistgen;
 
 type
-  TFRE_DB_WAL_Step_Type = (fdb_WAL_INSERT,fdb_WAL_UPDATE,fdb_WAL_DELETE,fdb_WAL_NEW_COLLECTION,fdb_WAL_DELETE_COLLECTION,fdb_WAL_CREATE_IDX,fdb_WAL_DROP_IDX);
+  TFRE_DB_WAL_Step_Type = (fdb_WAL_INSERT,fdb_WAL_UPDATE,fdb_WAL_DELETE_SUB_OBJECT,fdb_WAL_NEW_COLLECTION,fdb_WAL_DELETE_COLLECTION,fdb_WAL_CREATE_IDX,fdb_WAL_DROP_IDX,fdb_WAL_DELETE_OBJECT);
 
 const
-  CFRE_DB_WAL_Step_Type : array [TFRE_DB_WAL_Step_Type] of Char = ('I','U','D','C','Z','+','-');
+  CFRE_DB_WAL_Step_Type : array [TFRE_DB_WAL_Step_Type] of Char = ('I','U','d','C','Z','+','-','D');
 
 type
   { TFRE_DB_IndexValueStore }
@@ -418,15 +418,15 @@ type
     procedure   UnprepareCollection     ; override;
   end;
 
-  { TFRE_DB_DeleteStep }
+  { TFRE_DB_DeleteSubObjectStep }
 
-  TFRE_DB_DeleteStep=class(TFRE_DB_ChangeStep)
+  TFRE_DB_DeleteSubObjectStep=class(TFRE_DB_ChangeStep)
   private
     FDelObj  : TFRE_DB_Object;
     CollName : TFRE_DB_NameType;
     FObjPtr  : ^TFRE_DB_Object;
   public
-    constructor Create                   (var del_obj : TFRE_DB_Object ; const is_store : boolean);
+    constructor Create                   (var del_obj : TFRE_DB_Object ; const is_store : boolean); // all collections or a single collection
     function    DescribeText             : String; override;
     function    Needs_WAL: Boolean       ; override;
     procedure   WriteToWAL               (const m:TMemoryStream) ; override;
@@ -474,20 +474,20 @@ type
     FMaster      : TFRE_DB_Master_Data;
     FWalMem      : TMemoryStream;
     FNeedsWAL    : Boolean;
-    procedure    ProcessCheck          (const WAL_RepairMode: boolean);
-    function     Write_WAL_Or_DCC      (const Layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
+    procedure    ProcessCheck            (const WAL_RepairMode: boolean);
+    function     Write_WAL_Or_DCC        (const Layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
   public
-    constructor  Create                (const TransID : TFRE_DB_NameType ; const master_data : TFRE_DB_Master_Data);
-    procedure    ReadFromBackWalStream (const walstream : TStream);
-    procedure    AddChangeStep         (const step:TFRE_DB_ChangeStep);
+    constructor  Create                  (const TransID : TFRE_DB_NameType ; const master_data : TFRE_DB_Master_Data);
+    procedure    ReadFromBackWalStream   (const walstream : TStream);
+    procedure    AddChangeStep           (const step:TFRE_DB_ChangeStep);
 
-    function     GenerateAnObjChangeList(const store : boolean ; const obj : TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; var notify_collections: TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function     GenerateAnObjChangeList (const store : boolean ; const obj : TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; var notify_collections: TFRE_DB_StringArray):TFRE_DB_Errortype;
 
-    procedure    PrintTextLog          (const tid : String ; const write_2_wal : boolean);
+    procedure    PrintTextLog            (const tid : String ; const write_2_wal : boolean);
 
-    function     Commit                (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const WAL_RepairMode : boolean=false):boolean;
-    procedure    Rollback              ;
-    destructor   Destroy               ;override;
+    function     Commit                  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const WAL_RepairMode : boolean=false):boolean;
+    procedure    Rollback                ;
+    destructor   Destroy                 ;override;
   end;
 
   //var
@@ -1248,16 +1248,16 @@ begin
     end;
 end;
 
-{ TFRE_DB_DeleteStep }
+{ TFRE_DB_DeleteSubObjectStep }
 
-constructor TFRE_DB_DeleteStep.Create(var del_obj: TFRE_DB_Object; const is_store: boolean);
+constructor TFRE_DB_DeleteSubObjectStep.Create(var del_obj: TFRE_DB_Object; const is_store: boolean);
 begin
   FDelObj   := del_obj;
   FIsStore  := is_store;
   FObjPtr   := @del_obj;
 end;
 
-function TFRE_DB_DeleteStep.DescribeText: String;
+function TFRE_DB_DeleteSubObjectStep.DescribeText: String;
 begin
   if assigned(FDelObj.Parent) then
       WriteStr(result,' DELETE CHILD OBJECT ',FDelObj.UID_String,' IN PARENT ',FDelObj.Parent.UID_String)
@@ -1265,7 +1265,7 @@ begin
       WriteStr(result,' DELETE ROOT OBJECT ',FDelObj.UID_String);
 end;
 
-function TFRE_DB_DeleteStep.Needs_WAL: Boolean;
+function TFRE_DB_DeleteSubObjectStep.Needs_WAL: Boolean;
 begin
   if FDelObj.IsVolatile then
     exit(false);
@@ -1274,12 +1274,12 @@ begin
   result := true;
 end;
 
-procedure TFRE_DB_DeleteStep.WriteToWAL(const m: TMemoryStream);
+procedure TFRE_DB_DeleteSubObjectStep.WriteToWAL(const m: TMemoryStream);
 begin
-   m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_DELETE]+BoolToStr(FIsStore,'1','0')+FDelObj.UID_String+CollName);
+   m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_DELETE_SUB_OBJECT]+BoolToStr(FIsStore,'1','0')+FDelObj.UID_String+CollName);
 end;
 
-procedure TFRE_DB_DeleteStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DeleteSubObjectStep.StoreInCollectionCheck(const master: TFRE_DB_Master_Data; const check: boolean);
 var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
       i : NativeInt;
 begin
@@ -1294,7 +1294,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_DeleteStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DeleteSubObjectStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
   writeln('*****DELETE STEP .... ReMOVINg : ',FDelObj.UID_String);
   assert(IsInsert=false);
@@ -1365,10 +1365,10 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     to_update_obj : TFRE_DB_Object;
     i             : NativeInt;
 
-    //procedure WriteGuid(const o : TFRE_DB_Object ; const idx : NativeInt; var halt:boolean);
-    //begin
-    //  write(idx,' ',o.UID_String,',');
-    //end;
+    procedure WriteGuid(var o : TFRE_DB_Object ; const idx : NativeInt; var halt:boolean);
+    begin
+      write(idx,' ',o.UID_String,',');
+    end;
 
     //function ObjectGuidCompare(const o1,o2:TFRE_DB_Object):boolean;
     //begin
@@ -1437,7 +1437,10 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
 
     procedure GenerateInserts(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
-      self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store));
+      if new_object.IsObjectRoot then
+        self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store)) // Todo breakup insert sub and insert root ...
+      else
+        self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store));
       if store then
         halt := true; // In insert case only generate an insert for the root object
     end;
@@ -1449,11 +1452,9 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
           writeln('EXISTS CHECK DELETE FAILED ');
           system.halt;
         end;
-      self.AddChangeStep(TFRE_DB_DeleteStep.Create(del_object,store));
+      self.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(del_object,store));
     end;
 begin
-  //if G_DEBUG_TRIGGER_1=true then
-  //  G_DEBUG_TRIGGER_1:=true;
   if store then
     begin
       to_update_obj := nil;
@@ -1717,6 +1718,8 @@ begin
   FColl     := coll;
   FIsStore  := is_store;
   FIsRoot  := assigned(FNewObj.Parent);
+  if FIsRoot then
+    FIsRoot := FIsRoot;
   if FIsStore = false then
     FIsStore:=FIsStore;
 end;
