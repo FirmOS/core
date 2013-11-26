@@ -188,7 +188,7 @@ type
   TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD= class(TFRE_DB_APPLICATION_MODULE)
   protected
     procedure       SetupAppModuleStructure ; override;
-    function        GetToolbarMenu: TFRE_DB_CONTENT_DESC;override;
+    function        GetToolbarMenu       (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
   public
     class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
     procedure       MySessionInitializeModule  (const session: TFRE_DB_UserSession); override;
@@ -215,7 +215,7 @@ type
   protected
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure ; override;
-    function        GetToolbarMenu          : TFRE_DB_CONTENT_DESC;override;
+    function        GetToolbarMenu       (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
   public
     procedure SC_ChangeData_Result      (const input:IFRE_DB_Object);
     procedure SC_ChangeData_Error       (const input:IFRE_DB_Object);
@@ -245,7 +245,7 @@ type
     procedure       SetupAppModuleStructure ; override;
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    function  GetToolbarMenu            : TFRE_DB_CONTENT_DESC;override;
+    function  GetToolbarMenu            (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  IMI_HelloWorld            (const input:IFRE_DB_Object):IFRE_DB_Object;
     function  WEB_HelloWorld            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -574,7 +574,7 @@ var
     if new_input.FieldExists('info') then begin
       fd:=new_input.Field('info').AsObject.Implementor_HC as TFRE_DB_TEST_FILEDIR;
       if fd.GetIsFile then begin
-        res.AddEntry.Describe('Download','','/download'+opaquedata.Field('fileid').AsString);
+        res.AddEntry.DescribeDownload('Download','','/download'+opaquedata.Field('fileid').AsString);
         ses.SendServerClientAnswer(res,ocid);
       end else begin
         res.AddEntry.Describe('Create ZIP','',TFRE_DB_SERVER_FUNC_DESC.create.Describe('TFRE_DB_TEST_FILEDIR',opaquedata.Field('rootGUID').AsGUID,'CreateZip'));
@@ -678,14 +678,23 @@ begin
   InitModuleDesc('$feedbrowsetree_description');
 end;
 
-function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
 var
-  submenu,menu: TFRE_DB_MENU_DESC;
+  submenu,menu : TFRE_DB_MENU_DESC;
+  test         : IFRE_DB_Object;
+  myuid          : TGuid;
+
 begin
+  test  := ses.GetDBConnection.Collection('COLL_TEST_AT').First;
+  myuid := test.UID;
+  test.Finalize;
+
   menu:=TFRE_DB_MENU_DESC.create.Describe;
   menu.AddEntry.Describe('Feeder Request','',CWSF(@WEB_FeederTest));
   menu.AddEntry.Describe('Feeder Request (Timeout)','',CWSF(@WEB_FeederTestTimeout));
   menu.AddEntry.Describe('Feeder Request (Error)','',CWSF(@WEB_FeederTestError));
+  menu.AddEntry.DescribeDownload('Download a File','','README.md');
+  menu.AddEntry.DescribeDownload('Download from a DBO','',ses.GetDownLoadLink4StreamField(myuid,'fdbft_Stream'));
   Result:=menu;
 end;
 
@@ -1412,9 +1421,11 @@ end;
 
 procedure TFRE_DB_TEST_ALL_TYPES.Gamble(const id: int64);
   const TestChars : TFRE_DB_String = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';//_#*?!"§$%';
+
   var buf : QWord;
       ids : string;
       dbt : IFRE_DB_TEXT;
+      str : TFRE_DB_Stream;
 
   function GetRandString : TFRE_DB_String;
   var i : integer;
@@ -1435,6 +1446,7 @@ procedure TFRE_DB_TEST_ALL_TYPES.Gamble(const id: int64);
   end;
 
 begin
+  Field('fdbft_Stream').AsStream.WriteAnsiString('THIS IS A TESTCONTENT '+#13#10+' ! '+#10+'<'+UID_String+'>');
   Field('fdbft_GUID').AsGUID               := GFRE_DBI.Get_A_Guid;
   Field('fdbft_Byte').AsByte               := Random (100);
   Field('fdbft_Int16').AsInt16             := Random (65535)-32768;
@@ -1621,7 +1633,7 @@ begin
   end;
 end;
 
-function TFRE_DB_TEST_APP_GRID2_MOD.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
+function TFRE_DB_TEST_APP_GRID2_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
 var
   submenu,menu: TFRE_DB_MENU_DESC;
 begin
@@ -1682,7 +1694,7 @@ var
   res: TFRE_DB_MENU_DESC;
 begin
   res:=TFRE_DB_MENU_DESC.create.Describe;
-  res.AddEntry.Describe('Menu entry','','/');
+  res.AddEntry.DescribeDownload('Menu entry','','/');
   Result:=res;
 end;
 
@@ -1910,7 +1922,7 @@ begin
   end;
 end;
 
-function TFRE_DB_TEST_APP_GRID_MOD.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
+function TFRE_DB_TEST_APP_GRID_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
 var
   submenu,menu: TFRE_DB_MENU_DESC;
 begin

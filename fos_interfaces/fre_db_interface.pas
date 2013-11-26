@@ -1286,7 +1286,7 @@ type
   IFRE_DB_APPLICATION_MODULE=interface
     ['IFDBAPPM']
     function   GetImplementorsClass          : TClass;
-    function   GetToolbarMenu                : TFRE_DB_CONTENT_DESC;
+    function   GetToolbarMenu                (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
     function   GetDBConnection               (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
     function   GetDBSessionData              (const input:IFRE_DB_Object): IFRE_DB_Object;
     function   GetDBModuleSessionData        (const input:IFRE_DB_Object): IFRE_DB_Object;
@@ -1572,7 +1572,7 @@ type
     function   GetEmbeddingApp              : TFRE_DB_APPLICATION;
     function   _FetchAppText                (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;
 
-    function   GetToolbarMenu               : TFRE_DB_CONTENT_DESC;virtual;
+    function   GetToolbarMenu               (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; virtual;
     function   GetDBConnection              (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
     function   GetDBSessionData             (const input:IFRE_DB_Object): IFRE_DB_Object;
     function   GetDBModuleSessionData       (const input:IFRE_DB_Object): IFRE_DB_Object;
@@ -1770,8 +1770,8 @@ type
     //@ After the execution of the server function the defined refresh is executed. E.g. an add operation on a grid will define fdbrt_direct to refresh the grid.
     //@ fdbrt_dependent refreshes all filtered stores. See TFRE_DB_VIEW_LIST_DESC.addFilterEvent.
     //@ Only implemented for grids and trees.
-    function  Describe  (const caption,icon:String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
-    function  Describe  (const caption,icon:String; const downloadId: String; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
+    function  Describe          (const caption,icon:String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
+    function  DescribeDownload  (const caption,icon:String; const downloadId: String; const disabled:Boolean=false):TFRE_DB_MENU_ENTRY_DESC;
   end;
 
   TFRE_DB_SUBMENU_DESC = class;
@@ -2000,12 +2000,13 @@ type
     function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
     function    RemoveTaskMethod         (const id:string='TIMER'):boolean;
 
-    procedure   registerUpdatableContent   (const contentId: String);
-    procedure   unregisterUpdatableContent (const contentId: String);
-    function    IsContentUpdateVisible     (const contentId: String):Boolean;
-    procedure   registerUpdatableDBO       (const id: String);
-    procedure   unregisterUpdatableDBO     (const id: String);
-    function    isUpdatableContentVisible  (const contentId: String): Boolean;
+    procedure   registerUpdatableContent     (const contentId: String);
+    procedure   unregisterUpdatableContent   (const contentId: String);
+    function    IsContentUpdateVisible       (const contentId: String):Boolean;
+    procedure   registerUpdatableDBO         (const id: String);
+    procedure   unregisterUpdatableDBO       (const id: String);
+    function    isUpdatableContentVisible    (const contentId: String): Boolean;
+    function    GetDownLoadLink4StreamField  (const obj_uid:TGUID ; const fieldname : TFRE_DB_NameType):String;
   end;
 
   TFRE_DB_RemoteReqSpec      = record
@@ -2192,6 +2193,7 @@ type
     function    GetDomain                :TFRE_DB_String;
 
     function    GetPublishedRemoteMeths  : TFRE_DB_RemoteReqSpecArray;
+    function    GetDownLoadLink4StreamField (const obj_uid:TGUID ; const fieldname : TFRE_DB_NameType):String;
 
     property    OnGetImpersonatedDBC     :TFRE_DB_OnGetImpersonatedConnection read FOnGetImpersonatedDBC write SetOnGetImpersonatedDBC;
     property    OnRestoreDefaultDBC      :TFRE_DB_OnRestoreDefaultConnection read FOnRestoreDefaultDBC write SetOnRestoreDefaultDBC;
@@ -3181,7 +3183,7 @@ begin
   Result:=Self;
 end;
 
-function TFRE_DB_MENU_ENTRY_DESC.Describe(const caption, icon: String; const downloadId: String; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
+function TFRE_DB_MENU_ENTRY_DESC.DescribeDownload(const caption, icon: String; const downloadId: String; const disabled: Boolean): TFRE_DB_MENU_ENTRY_DESC;
 begin
   _Describe(caption,icon,disabled);
   Field('downloadId').AsString:=downloadId;
@@ -4508,6 +4510,11 @@ end;
 function TFRE_DB_UserSession.GetPublishedRemoteMeths: TFRE_DB_RemoteReqSpecArray;
 begin
   result := FRemoteRequestSet;
+end;
+
+function TFRE_DB_UserSession.GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType): String;
+begin
+  result := GFRE_BT.Str2HexStr(FSessionID)+'-'+GFRE_BT.GUID_2_HexString(obj_uid)+'-'+GFRE_BT.Str2HexStr(fieldname);
 end;
 
 constructor TFOS_BASE.Create;
@@ -5960,7 +5967,7 @@ var ActiveSection : String;
           title := module.GetModuleTitle(ses);
           id    := module.GetModuleClassName;
           section:=TFRE_DB_SUBSECTIONS_DESC(res).AddSection.Describe(csf,title,module_order,id);
-          menu:=TFRE_DB_MENU_DESC(module.GetToolbarMenu);
+          menu:=TFRE_DB_MENU_DESC(module.GetToolbarMenu(ses));
           if Assigned(menu) then
             section.SetMenu(menu);
         end;
@@ -6173,7 +6180,7 @@ begin
   result := GetEmbeddingApp._FetchAppText(session,translation_key);
 end;
 
-function TFRE_DB_APPLICATION_MODULE.GetToolbarMenu: TFRE_DB_CONTENT_DESC;
+function TFRE_DB_APPLICATION_MODULE.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
 begin
   result := nil;
 end;
