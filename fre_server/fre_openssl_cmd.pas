@@ -315,7 +315,7 @@ end;
 
 procedure TFRE_SSL_OPENSSLCMD.ReadCABaseInformation(const dir: string; var ca_base_information: RFRE_CA_BASEINFORMATION);
 
-  procedure _ReadFile(var content:string; const filename: string);
+  procedure _ReadFile(var content:RawByteString; const filename: string);
   begin
     if FileExists(dir+DirectorySeparator+filename) then begin
       content := GFRE_BT.StringFromFile(dir+DirectorySeparator+filename);

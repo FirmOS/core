@@ -48,19 +48,19 @@ type
   TFRE_SSL_RESULT       = (sslOK,sslNOK);
 
   RFRE_CA_BASEINFORMATION = record
-    index      : string;
-    index_attr : string;
-    serial     : string;
-    crlnumber  : string;
-    crl        : string;
-    crt        : string;
-    key        : string;
-    random     : string;
+    index      : RawByteString;
+    index_attr : RawByteString;
+    serial     : RawByteString;
+    crlnumber  : RawByteString;
+    crl        : RawByteString;
+    crt        : RawByteString;
+    key        : RawByteString;
+    random     : RawByteString;
   end;
 
   RFRE_CRT_BASEINFORMATION = record
-    crt        : string;
-    key        : string;
+    crt        : RawByteString;
+    key        : RawByteString;
   end;
 
 

@@ -138,6 +138,7 @@ type
   public
     destructor Destroy;override;
     procedure  AsRawByteString (var rb_string : TFRE_DB_RawByteString);
+    procedure  SetFromRawByteString (const rb_string : TFRE_DB_RawByteString);
   end;
 
   TFRE_DB_GUIDArray     = Array of TGuid;
@@ -2938,6 +2939,13 @@ begin
   SetLength(rb_string,Size);
   if size>0 then
     Move(Memory^,rb_string[1],Size);
+end;
+
+procedure TFRE_DB_Stream.SetFromRawByteString(const rb_string: TFRE_DB_RawByteString);
+begin
+  Size := Length(rb_string);
+  if size>0 then
+    Move(rb_string[1],Memory^,Size);
 end;
 
 { TFRE_DB_CLOSE_DIALOG_DESC }
