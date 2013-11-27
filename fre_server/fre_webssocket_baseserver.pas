@@ -99,7 +99,7 @@ type
     procedure   _ClearHeader;
     procedure   _EncodeData(data:TFRE_DB_RawByteString;const binary:boolean=false);
     procedure   _SendCloseFrame;
-    procedure   _SendHttpResponse                (const code: integer; const answer: string; const answer_params: array of const;const content:string='';const contenttype:string='';const contentlength : NativeUint=0);
+    procedure   _SendHttpResponse                (const code: integer; const answer: string; const answer_params: array of const;const content:string='';const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
     procedure   _SendHttpFileWithRangeCheck      (const lfilename: string; range: string; const isAttachment:boolean=false);
     procedure   _SendHttpFile                    (const lfilename: string; const offset:NativeUint=0; const len : NativeUint=0; const isAttachment:boolean=false;const ispartial:boolean=false);
     procedure   ClientConnected;virtual;
@@ -911,6 +911,9 @@ var  lContent  : TFRE_DB_RawByteString;
     res_obj         : IFRE_DB_Object;
     in_params       : IFRE_DB_Object;
     rcode           : integer;
+    enc_field       : TFRE_DB_NameTypeRL;
+    is_attachment   : boolean;
+    attachment_filename : string;
 
     procedure _SendHull; // Todo -> make static on server start
     begin
@@ -923,6 +926,8 @@ begin
     ResponseHeader[rh_ETag]                := '';
     ResponseEntityHeader[reh_LastModified] := '';
     ResponseEntityHeader[reh_ContentRange] := '';
+    ResponseEntityHeader[reh_Expires]      := '';
+
     if (uri.Document='') or ((length(uri.SplitPath)=0) and (ExtractFileExt(uri.Document)='')) then begin //root = application domain, except the stuff some bloke has already put into root, but at least with an extension
       if uri.Document='FirmOS_FRE_WS' then begin
         Handle_WS_Upgrade(uri.Document,uri.Method);
@@ -932,13 +937,36 @@ begin
       exit;
     end else begin
       lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
-      if (length(uri.SplitPath)>0) and
-        (uri.SplitPath[0]='download') then
+      if (length(uri.SplitPath)>0) then
         begin
-          _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),true);
-        end else begin
-          _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),false);
-  //        _SendHttpFile(lFilename);
+          if (uri.SplitPath[0]='download') then
+            begin
+              _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),true);
+            end
+          else
+          if (uri.SplitPath[0]='FDBOSF') then
+            begin
+              enc_field := uri.Document;
+              if (Length(uri.SplitPath)=6)   // FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'//0|1/filename+GFRE_BT.Str2HexStr(fieldname);
+                  and HttpBaseServer.FetchStreamDBO(uri.SplitPath[1],uri.SplitPath[2],enc_field,lContent) then
+                   begin
+                     is_attachment       := uri.SplitPath[3]='A';
+                     lContentType        := GFRE_BT.HexStr2Str(uri.SplitPath[4]);
+                     attachment_filename := GFRE_BT.HexStr2Str(uri.SplitPath[5]);
+                     _SendHttpResponse(200,'OK',[],lContent,lContentType,is_attachment,attachment_filename);
+                   end
+              else
+                begin
+                   _SendHttpResponse(420,'DBO STREAM FETCH FAILED',[]);
+                end;
+            end
+          else
+            begin
+              _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),false);
+            end;
+        end
+      else
+        begin
         end;
     end;
 end;
@@ -1013,7 +1041,8 @@ begin
   end;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpResponse(const code: integer; const answer: string;const answer_params: array of const; const content: string;const contenttype: string; const contentlength: NativeUint);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpResponse(const code: integer; const answer: string; const answer_params: array of const; const content: string; const contenttype: string; const is_attachment: boolean; const attachment_filename: string);
+var att_header : string;
 begin
   SetResponseStatusLine(code,format(answer,answer_params));
   ResponseEntityHeader[reh_ContentLength]:=inttostr(Length(content));
@@ -1024,10 +1053,18 @@ begin
   end;
   ResponseEntityHeader[reh_Allow]      := 'GET, POST, PUT, DELETE, OPTIONS, TRACE';
   ResponseEntityHeader[reh_Connection] := 'keep-alive';
-  ResponseEntityHeader[reh_Expires]    := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
+  //ResponseEntityHeader[reh_Expires]    := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
   //if assigned(FSessionCookie) then begin
   //  ResponseEntityHeader[reh_SetCookie]  := FSessionCookie.CookieString;
   //end;
+  if is_attachment then
+    begin
+      if attachment_filename='' then
+        att_header := 'attachment;'
+      else
+        att_header := 'attachment; filename="'+attachment_filename+'"';
+      ResponseHeader[rh_contentDisposition] := att_header;
+    end;
   ResponseHeader      [rh_Location]       :='';
   SetResponseHeaders;
   SetEntityHeaders;

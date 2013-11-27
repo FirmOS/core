@@ -52,6 +52,7 @@ type
     procedure  DispatchHttpRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
     procedure  FetchHullHTML         (var lContent:TFRE_DB_RawByteString;var lContentType:string);
     function   FetchFileCached       (file_path:String;var data:TFRE_DB_RawByteString):boolean;
+    function   FetchStreamDBO        (const enc_sessionid,enc_uid : string ; var end_field : TFRE_DB_NameTypeRL ; var lcontent:TFRE_DB_RawByteString):boolean;
   end;
 
   { TFRE_HTTP_CONNECTION_HANDLER }

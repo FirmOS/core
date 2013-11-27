@@ -694,7 +694,8 @@ begin
   menu.AddEntry.Describe('Feeder Request (Timeout)','',CWSF(@WEB_FeederTestTimeout));
   menu.AddEntry.Describe('Feeder Request (Error)','',CWSF(@WEB_FeederTestError));
   menu.AddEntry.DescribeDownload('Download a File','','README.md');
-  menu.AddEntry.DescribeDownload('Download from a DBO','',ses.GetDownLoadLink4StreamField(myuid,'fdbft_Stream'));
+  menu.AddEntry.DescribeDownload('Download from a DBO (Attachment)','',ses.GetDownLoadLink4StreamField(myuid,'fdbft_Stream',true,'x-safe-this/file-as-saveas','super_file.txt'));
+  menu.AddEntry.DescribeDownload('Download from a DBO (Non Attachment)','',ses.GetDownLoadLink4StreamField(myuid,'fdbft_Stream',false,'application/octet-stream','super_file.txt'));
   Result:=menu;
 end;
 

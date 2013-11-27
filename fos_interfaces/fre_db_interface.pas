@@ -137,6 +137,7 @@ type
   TFRE_DB_Stream     = class(TMemoryStream)
   public
     destructor Destroy;override;
+    procedure  AsRawByteString (var rb_string : TFRE_DB_RawByteString);
   end;
 
   TFRE_DB_GUIDArray     = Array of TGuid;
@@ -2006,7 +2007,7 @@ type
     procedure   registerUpdatableDBO         (const id: String);
     procedure   unregisterUpdatableDBO       (const id: String);
     function    isUpdatableContentVisible    (const contentId: String): Boolean;
-    function    GetDownLoadLink4StreamField  (const obj_uid:TGUID ; const fieldname : TFRE_DB_NameType):String;
+    function    GetDownLoadLink4StreamField  (const obj_uid:TGUID ; const fieldname : TFRE_DB_NameType;const is_attachment : boolean ; const mime_type : string ; const file_name : string):String;
   end;
 
   TFRE_DB_RemoteReqSpec      = record
@@ -2113,7 +2114,9 @@ type
     procedure     INT_TimerCallBack      (const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
     procedure     RemoveAllTimers        ;
 
+
   public
+    function      FetchStreamDBO_OTCU    (const uid:TGUID ; var end_field : TFRE_DB_NameTypeRL ; var lcontent : TFRE_DB_RawByteString) : Boolean; // Other Thread Context Unsafe
     class procedure HandleContinuationTimeouts(const onfetch: TFRE_DB_OnFetchSessionByID);
     procedure     LockSession            ;
     procedure     UnlockSession          ;
@@ -2193,7 +2196,7 @@ type
     function    GetDomain                :TFRE_DB_String;
 
     function    GetPublishedRemoteMeths  : TFRE_DB_RemoteReqSpecArray;
-    function    GetDownLoadLink4StreamField (const obj_uid:TGUID ; const fieldname : TFRE_DB_NameType):String;
+    function    GetDownLoadLink4StreamField  (const obj_uid:TGUID ; const fieldname : TFRE_DB_NameType;const is_attachment : boolean ; const mime_type : string ; const file_name : string):String;
 
     property    OnGetImpersonatedDBC     :TFRE_DB_OnGetImpersonatedConnection read FOnGetImpersonatedDBC write SetOnGetImpersonatedDBC;
     property    OnRestoreDefaultDBC      :TFRE_DB_OnRestoreDefaultConnection read FOnRestoreDefaultDBC write SetOnRestoreDefaultDBC;
@@ -2930,6 +2933,13 @@ begin
   inherited Destroy;
 end;
 
+procedure TFRE_DB_Stream.AsRawByteString(var rb_string: TFRE_DB_RawByteString);
+begin
+  SetLength(rb_string,Size);
+  if size>0 then
+    Move(Memory^,rb_string[1],Size);
+end;
+
 { TFRE_DB_CLOSE_DIALOG_DESC }
 
 function TFRE_DB_CLOSE_DIALOG_DESC.Describe: TFRE_DB_CLOSE_DIALOG_DESC;
@@ -3504,6 +3514,26 @@ begin
   for i:=FTimers.Count-1 downto 0 do
     IFRE_APSC_TIMER(FTimers[i]).Finalize;
   FTimers.Clear;
+end;
+
+function TFRE_DB_UserSession.FetchStreamDBO_OTCU(const uid: TGUID; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString): Boolean;
+var dbo: IFRE_DB_Object;
+    fld: IFRE_DB_Field;
+begin
+  result := FDBConnection.Fetch(uid,dbo)=edb_OK;
+  if result then
+    begin
+      try
+        end_field := GFRE_BT.HexStr2Str(end_field);
+        if not dbo.FieldOnlyExisting(end_field,fld) then
+          exit(false);
+        if not (fld.FieldType=fdbft_Stream) then
+          exit(false);
+        fld.AsStream.AsRawByteString(lcontent);
+      finally
+        dbo.Finalize;
+      end;
+    end;
 end;
 
 class destructor TFRE_DB_UserSession.destroyit;
@@ -4512,9 +4542,9 @@ begin
   result := FRemoteRequestSet;
 end;
 
-function TFRE_DB_UserSession.GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType): String;
+function TFRE_DB_UserSession.GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; const mime_type: string; const file_name: string): String;
 begin
-  result := GFRE_BT.Str2HexStr(FSessionID)+'-'+GFRE_BT.GUID_2_HexString(obj_uid)+'-'+GFRE_BT.Str2HexStr(fieldname);
+  result := '/FDBOSF/'+FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'+BoolToStr(is_attachment,'A','N')+'/'+ GFRE_BT.Str2HexStr(mime_type)+'/'+ GFRE_BT.Str2HexStr(file_name)+'/'+ GFRE_BT.Str2HexStr(fieldname);
 end;
 
 constructor TFOS_BASE.Create;

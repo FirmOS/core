@@ -98,6 +98,8 @@ type
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
+
+    function       FetchStreamDBO                            (const enc_sessionid,enc_uid : string ; var end_field : TFRE_DB_NameTypeRL ; var lcontent:TFRE_DB_RawByteString):boolean;
   public
     DefaultDatabase              : String;
     TransFormFunc                : TFRE_DB_TRANSFORM_FUNCTION;
@@ -745,6 +747,24 @@ begin
     if halt<>true then
       FSessionTreeLock.Release;
   end;
+end;
+
+function TFRE_BASE_SERVER.FetchStreamDBO(const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString): boolean;
+var fetch_uid : TGuid;
+    ses       : TFRE_DB_UserSession;
+begin
+  try
+    fetch_uid := GFRE_BT.HexString_2_GUID(enc_uid);
+  except
+    exit(false);
+  end;
+  result := FetchSessionByIdLocked(enc_sessionid,ses);
+  if assigned(ses) then
+    try
+      result := ses.FetchStreamDBO_OTCU(fetch_uid,end_field,lcontent);
+    finally
+      ses.UnlockSession;
+    end;
 end;
 
 constructor TFRE_BASE_SERVER.create(const defaultdbname: string);
