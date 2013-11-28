@@ -5366,7 +5366,7 @@ end;
 
 function TFRE_DB_ObjectEx.CloneToNewObject(const generate_new_uids:boolean): IFRE_DB_Object;
 begin
-  result := FImplementor.CloneToNewObject;
+  result := FImplementor.CloneToNewObject(generate_new_uids)
 end;
 
 function TFRE_DB_ObjectEx.Mediator: TFRE_DB_ObjectEx;

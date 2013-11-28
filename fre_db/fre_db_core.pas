@@ -1793,7 +1793,7 @@ type
     function            Implementor                  : TObject;
   protected
     function            GetReferences               (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String) : TFRE_DB_GUIDArray;
-    //function            GetReferencesCount          (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String ; const stop_on_first : boolean=false) : NativeInt;
+    function            GetReferencesCount          (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String ; const stop_on_first : boolean=false) : NativeInt;
 
     procedure          _NotifyCollectionObservers   (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID ; const ncolls:TFRE_DB_StringArray);
     procedure          _CheckSchemeDefinitions      (const obj:TFRE_DB_Object);
@@ -5876,7 +5876,7 @@ begin
         begin
           if FChildParentMode then
             begin
-              if (Length(FConnection.GetReferences(iob.UID,false,FParentChldLinkFld))>0) then
+              if (FConnection.GetReferencesCount(iob.UID,false,FParentChldLinkFld,true)>0) then
                 begin
                   tr_obj.Field('children').AsString        := 'UNCHECKED';
                 end;
@@ -9303,6 +9303,8 @@ function TFRE_DB_BASE_CONNECTION.GetReferences(const obj_uid: TGuid; const from:
 var refs : TFRE_DB_ObjectReferences;
     i    : NativeInt;
     idx  : NativeInt;
+    filt : TFRE_DB_String;
+
 
     procedure AddToResult(const ll : TFRE_DB_GUIDArray);
     var i : NativeInt;
@@ -9318,13 +9320,33 @@ var refs : TFRE_DB_ObjectReferences;
 
 begin
   idx   := 0;
+  filt  := UpperCase(substring_filter);
   refs  := GetReferences(obj_uid, from);
   for i := 0 to high(refs) do
     begin
-      if (substring_filter='') or (pos(substring_filter,refs[i].fieldname)>0) then
+      if (filt='') or (pos(filt,refs[i].fieldname)>0) then
         AddToResult(refs[i].linklist);
     end;
-  SetLength(Result,idx);
+  SetLength(result,idx);
+end;
+
+function TFRE_DB_BASE_CONNECTION.GetReferencesCount(const obj_uid: TGuid; const from: boolean; const substring_filter: TFRE_DB_String; const stop_on_first: boolean): NativeInt;
+var refs : TFRE_DB_ObjectReferences;
+    i    : NativeInt;
+    filt : TFRE_DB_String;
+
+begin
+  result := 0;
+  filt   := UpperCase(substring_filter);
+  refs   := GetReferences(obj_uid, from);
+  for i := 0 to high(refs) do
+    begin
+      if (filt='') or (pos(filt,refs[i].fieldname)>0) then
+        inc(Result,Length(refs[i].linklist));
+      if (stop_on_first=true)
+         and (result>0) then
+           exit;
+    end;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION._NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const ncolls: TFRE_DB_StringArray);
@@ -12936,7 +12958,7 @@ end;
 
 function TFRE_DB_Object.CloneToNewObjectI(const generate_new_uids: boolean): IFRE_DB_Object;
 begin
-  result := CloneToNewObject;
+  result := CloneToNewObject(generate_new_uids);
 end;
 
 function TFRE_DB_Object.ReferencesObjectsFromData: Boolean;

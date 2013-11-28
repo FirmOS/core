@@ -68,6 +68,7 @@ type
     procedure SetNullArray;
     procedure StreamTest;
     procedure StreamTest2;
+    procedure CloneToNewChangeGUIDS;
   end;
 
   { TFRE_DB_PersistanceTests }
@@ -999,6 +1000,21 @@ begin
   Object1.Finalize;
 end;
 
+procedure TFRE_DB_ObjectTests.CloneToNewChangeGUIDS;
+var Object1 : TFRE_DB_TEST_CODE_CLASS;
+    Object2 : IFRE_DB_Object;
+begin
+  writeln('--- Clone2New---');
+  Object1 := TFRE_DB_TEST_CODE_CLASS.CreateForDB;
+  Fill_Test_Object('TST_',Object1);
+  Object1.Field('SUBOBJECT').AsObject := TFRE_DB_TEST_CODE_CLASS.CreateForDB;
+  writeln(Object1.DumpToString);
+  Object2 := Object1.CloneToNewObject(true);
+  writeln('----');
+  writeln(Object2.DumpToString);
+  writeln('--- Clone2New---END');
+end;
+
 procedure RegisterTestCodeClasses;
 begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_CODE_CLASS);
@@ -1007,7 +1023,7 @@ end;
 
 initialization
   RegisterTest(TFRE_DB_ObjectTests);
-  RegisterTest(TFRE_DB_PersistanceTests);
+  //RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 
