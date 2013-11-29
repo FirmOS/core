@@ -1146,7 +1146,6 @@ type
     function    WorkFlowSchemeExists         (const WF_SchemeName:TFRE_DB_NameType):boolean;
     procedure   ForAllWorkFlowSchemes        (const iterator:IFRE_DB_Workflow_Iterator);
 
-    function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String ; const stop_on_first : boolean=false) : NativeInt;
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ObjectsRefers : Boolean ; ref_constraints : TFRE_DB_StringArray ;  var expanded_refs : TFRE_DB_GUIDArray);
     function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String) : TFRE_DB_GUIDArray;
 

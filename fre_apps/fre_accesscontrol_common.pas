@@ -1483,9 +1483,8 @@ begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
-  ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString:=input.Field('SELECTED').AsString;
-
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
+    ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString:=input.Field('SELECTED').AsString;
     user_guid := input.Field('SELECTED').AsGUID; // is user
     CheckDbResult(conn.Fetch(user_guid,user),StringReplace(app.FetchAppTextShort(ses,'$error_fetch_user_msg'),'%user%',GUIDToString(user_guid),[rfReplaceAll]));
     sel_guid := user.Field('DOMAINIDLINK').AsGUID;
@@ -1494,6 +1493,8 @@ begin
     dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
     dc_roleout  := ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
     dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(sel_guid),dbnf_EXACT,false);
+  end else begin
+     ses.GetSessionModuleData(ClassName).DeleteField('selectedUsers');
   end;
   if IsContentUpdateVisible(ses,'USER_INFO') then begin
     Result:=WEB_ContentInfo(input,ses,app,conn);
@@ -1515,7 +1516,7 @@ begin
   load_func   := CWSF(@WEB_NoteLoad);
   save_func   := CWSF(@WEB_NoteSave);
 
-  if ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString<>''  then begin
+  if ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers')  then begin
     load_func.AddParam.Describe('linkid',ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString);
     save_func.AddParam.Describe('linkid',ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString);
   end;
@@ -1785,7 +1786,7 @@ begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
-  if ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString<>''  then begin
+  if ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers')  then begin
     sel_guid := ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsGUID;
     CheckDbResult(conn.sys.FetchUserById(sel_guid,user),'UserContent');
     GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
