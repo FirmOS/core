@@ -12923,11 +12923,11 @@ begin
       handle := FpOpen(pointer(FileName),O_RDONLY); // O_SYNC
       res    := fpgeterrno;
     until (handle<>-1) or (res<>ESysEINTR);
-    if (handle<0) then raise EFRE_DB_Exception.Create(edb_ERROR,'could not find the dbo [%d]',[res]);
+    if (handle<0) then raise EFRE_DB_Exception.Create(edb_ERROR,'could not find the dbo [%d] [%s]',[res,filename]);
     fs:=THandleStream.Create(handle);
     m.LoadFromStream(fs);
     if m.Size<Sizeof(CFRE_DB_ObjectHdr) then begin
-      raise EFRE_DB_Exception.Create(edb_ERROR,'invalid dbo file '+inttostr(m.size));
+      raise EFRE_DB_Exception.Create(edb_ERROR,'invalid dbo file [%s size=%d]',[filename,m.size]);
     end else begin
       result:= TFRE_DB_Object.CreateFromMemory(m.Memory,recreate_weak_schemes);
     end;

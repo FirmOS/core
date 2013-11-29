@@ -403,13 +403,15 @@ end;
 procedure TFRE_CLISRV_APP.ReCreateDB;
 begin
   _CheckDBNameSupplied;
-  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase(FDBName),'DELETE DB FAILED : '+FDBName);
+  if GFRE_DB_DEFAULT_PS_LAYER.DatabaseExists(FDBName) then
+    CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase(FDBName),'DELETE DB FAILED : '+FDBName);
   CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase(FDBName),'CREATE DB FAILED : '+FDBName);
 end;
 
 procedure TFRE_CLISRV_APP.ReCreateSysDB;
 begin
-  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('SYSTEM'),'DELETE SYSTEM DB FAILED');
+  if GFRE_DB_DEFAULT_PS_LAYER.DatabaseExists('SYSTEM') then
+    CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('SYSTEM'),'DELETE SYSTEM DB FAILED');
   CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase('SYSTEM'),'CREATE SYSTEM DB FAILED');
   gFRE_InstallServerDefaults;
 end;
