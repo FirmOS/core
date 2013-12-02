@@ -407,7 +407,7 @@ begin
     login :='testfeeder@'+CFRE_DB_SYS_DOMAIN_NAME;
 
     CheckDbResult(conn.AddUser(login,'x','testfeeder','testfeeder'),'cannot add user '+login);
-    CheckDbResult(conn.ModifyUserGroups(login,GFRE_DBI.ConstructStringArray(['TESTFEEDER'+'@'+CFRE_DB_SYS_DOMAIN_NAME]),true),'cannot set user groups '+login);
+    CheckDbResult(conn.ModifyUserGroups(login,TFRE_DB_StringArray.Create('TESTFEEDER'+'@'+CFRE_DB_SYS_DOMAIN_NAME),true),'cannot set user groups '+login);
 
 
 
@@ -686,8 +686,11 @@ var
 
 begin
   test  := ses.GetDBConnection.Collection('COLL_TEST_AT').First;
-  myuid := test.UID;
-  test.Finalize;
+  if assigned(test) then
+    begin
+      myuid := test.UID;
+      test.Finalize;
+    end;
 
   menu:=TFRE_DB_MENU_DESC.create.Describe;
   menu.AddEntry.Describe('Feeder Request','',CWSF(@WEB_FeederTest));
@@ -989,8 +992,13 @@ function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_Content(const input: IFRE_DB_Object; 
 var test : IFRE_DB_Object;
 begin
   test := conn.Collection('COLL_TEST_AT').First;
-  result := test.Invoke('Content',input,ses,app,conn);
-  test.Finalize;
+  if assigned(test) then
+    begin
+      result := test.Invoke('Content',input,ses,app,conn);
+      test.Finalize;
+    end
+  else
+    result := TFRE_DB_MESSAGE_DESC.create.Describe('ERROR','the COLL_TEST_A collection does not have any objects in it',fdbmt_error);
 end;
 
 { TFRE_DB_TEST_APP_LIVE_CHART_MOD }
@@ -2177,9 +2185,9 @@ begin
 
   CheckDbResult(conn.AddGroup('TESTFEEDER','Group for Test Data Feeder','Test Feeder',domainUID),'could not create Test feeder group');
 
-  CheckDbResult(conn.AddRolesToGroup('TESTFEEDER',domainUID,GFRE_DBI.ConstructStringArray(
-    [TFRE_DB_TEST_APP.GetClassRoleNameFetch
-    ])),'could not add roles for group TESTFEEDER');
+  CheckDbResult(conn.AddRolesToGroup('TESTFEEDER',domainUID,TFRE_DB_StringArray.Create(
+    TFRE_DB_TEST_APP.GetClassRoleNameFetch
+    )),'could not add roles for group TESTFEEDER');
 
 
   //admin_app_role  := _CreateAppRole('ADMIN','TESTAPP ADMIN','Test App Administration Rights');

@@ -717,7 +717,6 @@ type
     function        Update              (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
     function        Fetch               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
     function        CollectionName      : TFRE_DB_NameType;
-    function        LinearScan          (const fieldname:TFRE_DB_NameType;const field_expr:TFRE_DB_FIELD_EXPRESSION):IFRE_DB_Object; // Linear Search / Fetch/Semantics/Finalize needed
     function        ItemCount           : Int64;
     function        First               : IFRE_DB_Object;
     function        Last                : IFRE_DB_Object;
@@ -1900,22 +1899,6 @@ type
     function    StringArray2GuidArray  (const A:TFRE_DB_StringArray):TFRE_DB_GUIDArray;
     function    CountedObjLinks2String (const A:TFRE_DB_CountedGuidArray):TFRE_DB_String;
 
-    function    ConstructGuidArray     (const A:Array of TGuid)   :TFRE_DB_GUIDArray;
-    function    ConstructByteArray     (const A:Array of Byte)    :TFRE_DB_ByteArray;
-    function    ConstructInt16Array    (const A:Array of Int16)   :TFRE_DB_Int16Array;
-    function    ConstructInt32Array    (const A:Array of Int32)   :TFRE_DB_Int32Array;
-    function    ConstructInt64Array    (const A:Array of Int64)   :TFRE_DB_Int64Array;
-    function    ConstructUInt16Array   (const A:Array of UInt16)  :TFRE_DB_UInt16Array;
-    function    ConstructUInt32Array   (const A:Array of UInt32)  :TFRE_DB_UInt32Array;
-    function    ConstructUInt64Array   (const A:Array of UInt64)  :TFRE_DB_UInt64Array;
-    function    ConstructReal32Array   (const A:Array of Single)  :TFRE_DB_Real32Array;
-    function    ConstructReal64Array   (const A:Array of Double)  :TFRE_DB_Real64Array;
-    function    ConstructCurrencyArray (const A:Array of Currency):TFRE_DB_CurrencyArray;
-    function    ConstructStringArray   (const A:Array of TFRE_DB_String)  :TFRE_DB_StringArray;
-    function    ConstructBooleanArray  (const A:Array of Boolean):TFRE_DB_BoolArray;
-    function    ConstructDateTimeArray (const A:Array of TFRE_DB_DateTime64):TFRE_DB_DateTimeArray;
-    function    ConstructStreamArray   (const A:Array of TFRE_DB_Stream):TFRE_DB_StreamArray;
-    function    ConstructObjectArray   (const A:Array of IFRE_DB_Object):IFRE_DB_ObjectArray;
 
     function    CreateText             (const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):IFRE_DB_TEXT;
 
@@ -1984,7 +1967,7 @@ type
     function    GetSessionAppData        (const app_key:TFRE_DB_String):IFRE_DB_Object;
     function    GetSessionModuleData     (const mod_key:TFRE_DB_String):IFRE_DB_Object;
     function    GetSessionGlobalData     :IFRE_DB_Object;
-    function    NewDerivedCollection     (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
+    function    NewDerivedCollection     (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION; // Session DC
     function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
     function    GetDBConnection          :IFRE_DB_CONNECTION;
     function    GetDomain                :TFRE_DB_String;

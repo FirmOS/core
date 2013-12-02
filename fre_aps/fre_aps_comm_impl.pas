@@ -58,7 +58,7 @@ const C_CHANNEL_RUNNER_THREADS = 4;
 procedure Setup_APS_Comm;
 procedure Teardown_APS_Comm;
 
-procedure Test_APSC;
+procedure Test_APSC(const what:string='');
 
 implementation
 
@@ -391,24 +391,29 @@ begin
   GAPSC:=nil;
 end;
 
-procedure Test_APSC;
+procedure Test_APSC(const what:string);
 var
   i: Integer;
 begin
-  GFRE_SC.SetNewTimerCB(@GAPSC.TEST_NewTimerCB);
-  GFRE_SC.SetNewListenerCB(@GAPSC.TEST_ListenerCB);
-  GFRE_SC.SetNewChannelCB(@GAPSC.TEST_ConnectManSockCB);
+  case  what of
+     '' :
+         begin
+           GFRE_SC.SetNewTimerCB(@GAPSC.TEST_NewTimerCB);
+           GFRE_SC.SetNewListenerCB(@GAPSC.TEST_ListenerCB);
+           GFRE_SC.SetNewChannelCB(@GAPSC.TEST_ConnectManSockCB);
 
-  GFRE_SC.AddTimer('TEST',1000,nil);
-  GFRE_SC.AddListener_TCP('[::1]','44000','IP6L');
-  GFRE_SC.AddListener_TCP('[fd9e:21a7:a92c:2323::1]','44000','IP6');
-  GFRE_SC.AddListener_TCP('*','44000','I4L');
-  for i:=0 to 50 do
-       GFRE_SC.AddClient_TCP('[::1]','44000','CL'+inttostr(i));
-  repeat
-   sleep(100);
-  until assigned(GAPSC.TEST_Listener);
-  writeln('ASYNC : ',GAPSC.TEST_Listener.GetState);
+           GFRE_SC.AddTimer('TEST',1000,nil);
+           GFRE_SC.AddListener_TCP('[::1]','44000','IP6L');
+           GFRE_SC.AddListener_TCP('[fd9e:21a7:a92c:2323::1]','44000','IP6');
+           GFRE_SC.AddListener_TCP('*','44000','I4L');
+           for i:=0 to 50 do
+               GFRE_SC.AddClient_TCP('[::1]','44000','CL'+inttostr(i));
+            repeat
+             sleep(100);
+            until assigned(GAPSC.TEST_Listener);
+            writeln('ASYNC : ',GAPSC.TEST_Listener.GetState);
+        end;
+  end;
 end;
 
 procedure   LogInfo(const s:String;const Args : Array of const);

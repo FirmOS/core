@@ -230,8 +230,11 @@ begin
           if FOpcode=8 then begin
               GFRE_DBI.LogDebug(dblc_WEBSOCK,' VNC WEBSOCK CLOSE REQUESTED'+FChannel.GetVerboseDesc);
               _SendCloseFrame;
-              FVNCProxyChannel.Finalize;
-              FVNCProxyChannel:=nil;
+              if assigned(FVNCProxyChannel) then
+                begin
+                 FVNCProxyChannel.Finalize;
+                 FVNCProxyChannel:=nil;
+                end;
               FChannel.Finalize;
               FChannel:=nil;
             exit;

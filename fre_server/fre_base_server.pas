@@ -249,7 +249,7 @@ procedure TFRE_BASE_SERVER.Setup;
            end;
          end;
        end;
-       res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'',FDefaultAPP_Class,GFRE_DB.ConstructGuidArray([FDefaultAPP_UID]),FDefaultSession);
+       res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'',FDefaultAPP_Class,TFRE_DB_GUIDArray.Create(FDefaultAPP_UID),FDefaultSession);
        CheckDbResult(res,'COULD NOT CONNECT DEFAULT DB / APP / WITH GUEST ACCESS');
      end;
 
