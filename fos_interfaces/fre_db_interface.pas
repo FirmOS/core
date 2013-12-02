@@ -2151,7 +2151,7 @@ type
     procedure   unregisterUpdatableDBO     (const id: String);
     function    isUpdatableContentVisible  (const contentId: String): Boolean;
 
-    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String=''); // Currently no continuation, and answer processing is implemented (TODO: Change to ASYNC REQUEST TYPE (clientsuport needed))
+    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String=''); // Currently no continuation, and answer processing is implemented, is an Async request
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
     procedure   SendServerClientCMD      (const cmd : IFRE_DB_COMMAND);
 
@@ -4326,7 +4326,7 @@ begin
   request_id := FMyReqID;
   FOS_IL_INC_NATIVE(FMyReqID);
   cmd.SetCommandID(request_id);
-  cmd.CommandType:=fct_SyncRequest;
+  cmd.CommandType:=fct_AsyncRequest;
   cmd.Data := description;
   if session_id<>'' then begin
     cmd.ChangeSession:=session_id;

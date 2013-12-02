@@ -856,6 +856,7 @@ begin
   end;
   SC_CMD := GFRE_DBI.NewObject;
   case CMD_Answer.CommandType of
+    fct_AsyncRequest :  SC_CMD.Field('RTYPE').AsString := 'A'  ;
     fct_SyncRequest  :  SC_CMD.Field('RTYPE').AsString := 'S'  ;
     fct_SyncReply    :  SC_CMD.Field('RTYPE').AsString := 'SR' ;
     fct_Error        :  SC_CMD.Field('RTYPE').AsString := 'E'  ;

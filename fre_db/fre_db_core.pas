@@ -5288,12 +5288,10 @@ begin
       if FetchGroupbyID(UserGroupIDs[i],lUserGroup,true)<>edb_OK then begin
         raise EFRE_DB_Exception.Create('Could not fetch group by id '+GFRE_BT.GUID_2_HexString(UserGroupIDs[i]));
       end else begin
-        lUserGroup.Assert_CheckStoreLocked;
-        lUserGroup.Set_Store_Locked(false);
         try
           FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
         finally
-          lUserGroup.Set_Store_Locked(true);
+          lUserGroup.Finalize;
         end;
       end;
     end;
@@ -5314,12 +5312,10 @@ begin
       if FetchRolebyID(roleids[i],lRole,true)<>edb_OK then begin
         raise EFRE_DB_Exception.Create('Could not fetch role by id '+GFRE_BT.GUID_2_HexString(roleids[i]));
       end else begin
-        lRole.Assert_CheckStoreLocked;
-        lRole.Set_Store_Locked(false);
         try
           FREDB_ConcatStringArrays(lAllRights,lRole.GetRightNames);
         finally
-          lrole.Set_Store_Locked(true);
+          lrole.Finalize;
         end;
       end;
     end;
@@ -10165,7 +10161,8 @@ function TFRE_DB_BASE_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Objec
       if not
        ((IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
          or IntCheckClassRight4Domain(sr_FETCH,classt,FSysDomainUID)
-         or IsCurrentUserSystemAdmin) then
+         or IsCurrentUserSystemAdmin
+         or without_right_check) then
            begin
              if not dbo.IsSystem then
                dbo.Finalize;
