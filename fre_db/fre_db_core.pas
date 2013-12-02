@@ -460,9 +460,6 @@ type
   end;
 
   OFRE_SL_TFRE_DB_Object  = specialize OFOS_SpareList<TFRE_DB_Object>;
-
-  TFRE_DB_ObjCompareEventType = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged);
-
   { TFRE_DB_Object }
 
   TFRE_DB_Object=class(TFRE_DB_Base,IFRE_DB_Object)
@@ -487,6 +484,7 @@ type
     function       _ReadOnlyCheck                      : boolean;
     procedure      CheckMediatorSetup                  ;
     procedure      _InAccessibleCheck                  ; inline ;
+    function       _ReservedFieldName                 (const upper_name:TFRE_DB_NameType):boolean;
     procedure      _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
   protected
     FDBO_State      : TFRE_DB_ObjectState;
@@ -521,10 +519,14 @@ type
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
   public
     procedure       Finalize                           ;
+    class procedure  GenerateAnObjChangeList            (const first_obj,second_obj : TFRE_DB_Object);
+
   type
-     TFRE_DB_ObjCompareCallback  = procedure(const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD) is nested;
-    procedure       __InternalCollectionAdd            (const coll : IFRE_DB_PERSISTANCE_COLLECTION);
-    function        __InternalCollectionExists         (const coll : IFRE_DB_PERSISTANCE_COLLECTION):boolean;
+    TFRE_DB_ObjCompareCallback  = procedure(const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD) is nested;
+    procedure       __InternalCollectionAdd            (const coll     : IFRE_DB_PERSISTANCE_COLLECTION);
+    function        __InternalCollectionRemove         (const coll     : IFRE_DB_PERSISTANCE_COLLECTION):NativeInt; // result = new cnt
+    function        __InternalCollectionExists         (const coll     : IFRE_DB_PERSISTANCE_COLLECTION):NativeInt; // -1 = not found, else index
+    function        __InternalCollectionExistsName     (const collname : TFRE_DB_NameType):NativeInt; // -1 = not found, else index
     function        __InternalGetCollectionList        :IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
     procedure       __InternalGetFullObjectList        (var list: OFRE_SL_TFRE_DB_Object);
     procedure       __InternalCompareToObj             (const compare_obj : TFRE_DB_Object ; callback : TFRE_DB_ObjCompareCallback);
@@ -550,8 +552,8 @@ type
     procedure       SetDomainID                        (const domid:TGUID);
     function        UID_String                         : TGUID_String;
     function        UIDP                               : PByte;
-    function        GetAsJSON                          (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;virtual;
-    function        GetAsJSONString                    (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_String;virtual;
+    function        GetAsJSON                          (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;virtual;
+    function        GetAsJSONString                    (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_String;virtual;
     function        NeededSize                         : TFRE_DB_SIZE_TYPE;
     function        _ObjectRoot                        : TFRE_DB_Object; // = the last parent with no parent
     function        ObjectRoot                         : TFRE_DB_Object; // = the last parent with no parent
@@ -1106,7 +1108,7 @@ type
     function        First                        : TFRE_DB_Object;
     function        Last                         : TFRE_DB_Object;
     function        GetItem                      (const num:uint64):TFRE_DB_Object;
-    function        DefineIndexOnField           (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true): TFRE_DB_Errortype;
+    function        DefineIndexOnField           (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
     procedure       CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean);
     // Fetches Snapshot copies of the objects, you need to finalize them
     function        GetIndexedObj      (const query_value : TFRE_DB_String ; out   obj:TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
@@ -1383,13 +1385,15 @@ type
     procedure       StartBlockUpdating;
     procedure       FinishBlockUpdating;
 
-    function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true):TFRE_DB_Errortype;
+    function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
 
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
 
     function        GetIndexedObjI      (const query_value : TFRE_DB_String;out obj:IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObj       (const query_value : TFRE_DB_String;out obj:TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedUID       (const query_value : TFRE_DB_String;out obj_uid:TGUID;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        GetIndexedObjs      (const query_value : TFRE_DB_String; out   obj   : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def'):boolean;
+    function        GetIndexedUIDs      (const query_value : TFRE_DB_String; out obj_uid : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def'):boolean;
     procedure       ForAllIndexed       (const func:IFRE_DB_Obj_Iterator ;const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
 
     procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
@@ -5505,7 +5509,8 @@ begin
   FTransformList.ForAllBreak(@iterate);
   if Assigned(FCustTransform) then
     FCustTransform(conn,dependency_obj,input,result);
-  result._Field('uid').AsGUID := input.Field('uid').AsGUID;
+  result._Field('uid').AsGUID      := input.Field('uid').AsGUID;
+  result._Field('domainid').AsGUID := input.Field('domainid').AsGUID;
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String;const display:Boolean;const gui_display_type:TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
@@ -6265,7 +6270,8 @@ var key  : integer;
       str_filt_typ        : TFRE_DB_STR_FILTERTYPE;
       key_val             : string;
   begin
-    if filter_def.FieldName='UID' then exit;
+    if filter_def.FieldName='UID' then
+      exit;
     inc(key);
     if filter_def.FieldType=fdbft_Object then begin
       with filter_def.AsObject do begin
@@ -8010,7 +8016,9 @@ var current                : TFRE_DB_SchemeObject;
 begin
   result  := false;
   current := self;
-  if fieldname='UID' then exit;
+  if (fieldname='UID') or
+     (fieldname='DOMAINID') then
+       exit;
   repeat
     if GetFieldDef(UpperCase(fieldname),fieldschemedef) then
       exit(true);
@@ -8329,7 +8337,10 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
 
   begin
     field_name := field.FieldName;
-    if uppercase(field_name) = 'UID' then exit; // no uid updates
+    if uppercase(field_name) = 'UID' then
+      exit; // no uid updates
+    if uppercase(field_name) = 'DOMAINID' then
+      exit; // no uid updates
     if GetSchemeField(field_name,scheme_field_def) then begin
       raw_field_type     := field.FieldType;
       scheme_field_type  := scheme_field_def.FieldType;
@@ -8480,8 +8491,9 @@ var failure:boolean;
   begin
     result:=false;
     field_to_check_fieldName := field_to_check.FieldName;
-    if field_to_check_fieldName='UID' then
-      exit;
+    if (field_to_check_fieldName='UID') or
+       (field_to_check_fieldName='DOMAINID') then
+         exit;
     try
       _FieldAccessCheck(field_to_check_fieldName); // strict check
     except on e:exception do begin
@@ -9129,9 +9141,9 @@ begin
   end;
 end;
 
-function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType ; const allow_null_value : boolean=true): TFRE_DB_Errortype;
+function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false): TFRE_DB_Errortype;
 begin //nl
-   result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name,allow_null_value);
+  result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name,allow_null_value,unique_null_values);
 end;
 
 function TFRE_DB_COLLECTION.ExistsIndexed(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType): Boolean;
@@ -9159,6 +9171,25 @@ end;
 function TFRE_DB_COLLECTION.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType): boolean;
 begin //nl
   result := FObjectLinkStore.GetIndexedUID(query_value,obj_uid,index_name);
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjs(const query_value: TFRE_DB_String; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType): boolean;
+var oobj : TFRE_DB_ObjectArray;
+       i : NativeInt;
+begin //nl
+  obj := nil;
+  result := FObjectLinkStore.GetIndexedObj(query_value,oobj,index_name);
+  if Result then
+    begin
+      SetLength(obj,length(oobj));
+      for i := 0 to high(oobj) do
+        obj[i] := oobj[i];
+    end;
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedUIDs(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType): boolean;
+begin
+  result := FObjectLinkStore.GetIndexedUID(query_value,obj_uid,index_name,false);
 end;
 
 procedure TFRE_DB_COLLECTION.ForAllIndexed(const func: IFRE_DB_Obj_Iterator; const index_name: TFRE_DB_NameType; const ascending: boolean);
@@ -10946,7 +10977,7 @@ begin
   FBigLock.Release;
 end;
 
-function TFRE_DB.JSONObject2Object(const json_string: string): IFRE_DB_Object;
+function TFRE_DB.JSONObject2Object(const json_string: string): IFRE_DB_Object; //TODO: Handle DomainID ?
 var  l_JSONParser : TJSONParser;
      l_JSONObject : TJSONObject;
      l_DataObj    : IFRE_DB_Object;
@@ -11788,14 +11819,154 @@ begin
   Free;
 end;
 
-//procedure TFRE_DB_Object.RemoveAllRefLinks;
-//var rl : TFRE_DB_ObjectReferences;
-//     i : NativeInt;
-//begin
-//  rl := ReferencesFromData;
-//  for i := 0 to high(rl) do
-//    DeleteField(rl[i].fieldname);
-//end;
+class procedure TFRE_DB_Object.GenerateAnObjChangeList(const first_obj, second_obj: TFRE_DB_Object);
+var deleted_obj   : OFRE_SL_TFRE_DB_Object;
+    inserted_obj  : OFRE_SL_TFRE_DB_Object;
+    updated_obj   : OFRE_SL_TFRE_DB_Object;
+    coll          : IFRE_DB_PERSISTANCE_COLLECTION;
+    to_update_obj : TFRE_DB_Object;
+    i             : NativeInt;
+
+    procedure WriteGuid(var o : TFRE_DB_Object ; const idx : NativeInt; var halt:boolean);
+    begin
+      write(idx,' ',o.UID_String,',');
+    end;
+
+    //function ObjectGuidCompare(const o1,o2:TFRE_DB_Object):boolean;
+    //begin
+    //  result := FREDB_Guids_Same(o1.UID,o2.UID);
+    //end;
+
+    procedure SearchInOldAndRemoveExistingInNew(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    begin
+      if deleted_obj.Exists(o)<>-1 then
+        begin
+          updated_obj.Add(o);
+          inserted_obj.ClearIndex(idx);
+        end
+    end;
+
+    procedure SearchInUpdatesAndRemoveExistingFromOld(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    var ex : NativeInt;
+    begin
+      if updated_obj.Exists(o)<>-1 then
+        deleted_obj.ClearIndex(idx);
+    end;
+
+    procedure GenerateUpdates(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    //var child      : TFRE_DB_Object;
+    //    //updatestep : TFRE_DB_UpdateStep;
+    //
+    //    procedure CompareEvent (const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD);
+    //    begin
+    //      case compare_event of
+    //        cev_FieldDeleted: ;
+    //            //updatestep.addsubstep(cev_FieldDeleted,new_fld,nil);
+    //        cev_FieldAdded: ;
+    //            //updatestep.addsubstep(cev_FieldAdded,new_fld,nil);
+    //        cev_FieldChanged : ;
+    //            //updatestep.addsubstep(cev_FieldChanged,new_fld,old_field);
+    //      end;
+    //    end;
+
+    begin
+      //if new_object.IsObjectRoot then
+      //  begin
+      //    updatestep := TFRE_DB_UpdateStep.Create(new_object,to_update_obj,store);
+      //    new_object.__InternalCompareToObj(to_update_obj,@CompareEvent);
+      //  end
+      //else
+      //  begin
+      //    child      := to_update_obj.FetchChildObj(new_object.UID);
+      //    assert(assigned(child));
+      //    updatestep := TFRE_DB_UpdateStep.Create(new_object,child,store);
+      //    new_object.__InternalCompareToObj(child,@CompareEvent);
+      //  end;
+      //if updatestep.HasNoChanges then
+      //  updatestep.Free
+      //else
+      //  begin
+      //    self.AddChangeStep(updatestep);
+      //    //writeln(updatestep.DescribeText);
+      //  end;
+      //   //FTransaction.PostProcessUpdateStep(updatestep);
+    end;
+
+    procedure GenerateInserts(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    begin
+      //if new_object.IsObjectRoot then
+      //  self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store)) // Todo breakup insert sub and insert root ...
+      //else
+      //  self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store));
+      //if store then
+      //  halt := true; // In insert case only generate an insert for the root object
+    end;
+
+    procedure GenerateDeletes(var del_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
+    begin
+      //if not FMaster.ExistsObject(del_object.UID) then
+      //  begin
+      //    writeln('EXISTS CHECK DELETE FAILED ');
+      //    system.halt;
+      //  end;
+      //assert(not del_object.IsObjectRoot);
+      //self.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(del_object,collection_name,store));
+    end;
+begin
+  if (not assigned(first_obj)) or
+     (not assigned(second_obj)) then
+       raise EFRE_DB_Exception.Create(edb_ERROR,'both the first and the second compare object must be assigned');
+
+  //try
+  //  deleted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
+  //  inserted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
+  //  updated_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
+  //  //if assigneD(to_update_obj) then
+  //    //to_update_obj.Field('pemper').AsString:='faker';
+  //  //to_update_obj.Field('TEST').AsString:='fuuker';
+  //  //to_update_obj.FieldPath('desc.txt').AsString:='ChangedChanged';
+  //  //to_update_obj.DeleteField('desc');
+  //  //obj.DeleteField('desc');
+  //
+  //  //writeln('--- OLD OBJECT ----');
+  //  //if assigned(to_update_obj) then
+  //  //  writeln(to_update_obj.DumpToString());
+  //  //writeln('--- NEW OBJECT -----');
+  //  //writeln(obj.DumpToString());
+  //  //writeln('------------');
+  //
+  //  if assigned(to_update_obj) then // update case
+  //    to_update_obj.__InternalGetFullObjectList(deleted_obj);
+  //  obj.__InternalGetFullObjectList(inserted_obj);
+  ////
+  ////      writeln('------------------------');
+  ////      writeln(' STEP A');
+  ////      write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
+  ////      write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
+  ////      writeln('STEP B');
+  ////      writeln('------------------------');
+  //
+  //  // Yields the updated_obj in the updatelist and the inserts in the newlist, all objects come from the "new non persitent object copy"
+  //  inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);
+  //  // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
+  //  deleted_obj.ForAllBreak(@SearchInUpdatesAndRemoveExistingFromOld);
+  //
+  //  //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
+  //  //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
+  //  //write('UPDATED  LIST [');updated_obj.ForAllBreak(@WriteGuid);writeln('] ',updated_obj.Count);
+  //
+  //  if deleted_obj.Count>0 then
+  //    deleted_obj.ForAllBreak(@GenerateDeletes);
+  //  if inserted_obj.Count>0 then
+  //    inserted_obj.ForAllBreak(@GenerateInserts);
+  //  if updated_obj.Count>0 then
+  //    updated_obj.ForAllBreak(@GenerateUpdates);
+  //  result := edb_OK;
+  //finally
+  //  if assigned(to_update_obj) then
+  //    to_update_obj.Set_Store_Locked(true);
+  //end;
+end;
 
 
 function TFRE_DB_Object.InternalUniqueDebugKey: String;
@@ -12317,6 +12488,15 @@ begin
       raise EFRE_DB_Exception.Create(edb_ERROR,'this object is stored, illegal modification : '+InternalUniqueDebugKey);
 end;
 
+function TFRE_DB_Object._ReservedFieldName(const upper_name: TFRE_DB_NameType): boolean;
+begin
+  if (upper_name='UID')
+     or (upper_name='DOMAINID') then
+       exit(true)
+  else
+    exit(false);
+end;
+
 procedure TFRE_DB_Object._InternalSetMediatorScheme(const mediator: TFRE_DB_ObjectEx; const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   FMediatorExtention := mediator;
@@ -12329,19 +12509,55 @@ end;
 
 procedure TFRE_DB_Object.__InternalCollectionAdd(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
 begin
-  if __InternalCollectionExists(coll) then
+  if __InternalCollectionExists(coll)<>-1 then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'try internal add object [%s] to collection [%s], but its already existing',[self.InternalUniqueDebugKey,coll.CollectionName]);
   SetLength(FInCollectionarr,Length(FInCollectionarr)+1);
   FInCollectionarr[High(FInCollectionarr)] := coll;
 end;
 
-function TFRE_DB_Object.__InternalCollectionExists(const coll: IFRE_DB_PERSISTANCE_COLLECTION): boolean;
+function TFRE_DB_Object.__InternalCollectionRemove(const coll: IFRE_DB_PERSISTANCE_COLLECTION): NativeInt;
+var new_coll_array : array of IFRE_DB_PERSISTANCE_COLLECTION;
+    i,cnt          : NativeInt;
+begin
+  if __InternalCollectionExists(coll)=-1 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'try internal del object [%s] from collection [%s], but its not existing in this collection',[self.InternalUniqueDebugKey,coll.CollectionName]);
+  if Length(FInCollectionarr)=1 then
+    SetLength(FInCollectionarr,0)
+  else
+    begin
+      SetLength(new_coll_array,Length(FInCollectionarr)-1);
+      cnt := 0;
+      for i := 0 to length(FInCollectionarr) do
+        begin
+          if coll.CollectionName(true) <> FInCollectionarr[i].CollectionName(true) then
+            begin
+              new_coll_array[cnt] := FInCollectionarr[i];
+              inc(cnt);
+            end;
+        end;
+      FInCollectionarr := new_coll_array;
+    end;
+  result := Length(FInCollectionarr);
+end;
+
+function TFRE_DB_Object.__InternalCollectionExists(const coll: IFRE_DB_PERSISTANCE_COLLECTION): NativeInt;
 var i : NativeInt;
 begin
+  result := -1;
   for i := 0 to high(FInCollectionarr) do
     if coll.CollectionName(true) = FInCollectionarr[i].CollectionName(true) then
-      exit(true);
-  result:=false;
+      exit(i);
+end;
+
+function TFRE_DB_Object.__InternalCollectionExistsName(const collname: TFRE_DB_NameType): NativeInt;
+var i         : NativeInt;
+    lCollname : TFRE_DB_NameType;
+begin
+  result    := -1;
+  lCollname := UpperCase(collname);
+  for i := 0 to high(FInCollectionarr) do
+    if lcollname = FInCollectionarr[i].CollectionName(true) then
+      exit(i);
 end;
 
 function TFRE_DB_Object.__InternalGetCollectionList: IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
@@ -12443,12 +12659,12 @@ function TFRE_DB_Object.CalcFieldExists(const name: TFRE_DB_NameType; var calcul
 var scheme:TFRE_DB_SchemeObject;
 begin
   result:=false;
-  if name<>'UID' then begin
-    scheme:=GetScheme;
-    if assigned(scheme) then begin
-      result:=scheme.CalcFieldExists(name,calculated_field_type,calcmethod);
+  if not _ReservedFieldName(uppercase(name)) then
+    begin
+      scheme:=GetScheme;
+      if assigned(scheme) then
+        result:=scheme.CalcFieldExists(name,calculated_field_type,calcmethod);
     end;
-  end;
 end;
 
 procedure TFRE_DB_Object.InternalSetup;
@@ -12459,16 +12675,14 @@ end;
 procedure TFRE_DB_Object.SchemeFieldAccessCheck(const name: TFRE_DB_NameType);
 var scheme:TFRE_DB_SchemeObject;
 begin
-//  if FSchemeName<>'' then begin
-    if name<>'UID' then begin
-      scheme:=GetScheme;
-      if assigned(scheme) then begin
-        scheme._FieldAccessCheck(name);
-      end else begin
-        //abort;// HMM System DB load WAC case
-      end;
+  if not _ReservedFieldName(uppercase(name)) then begin
+    scheme:=GetScheme;
+    if assigned(scheme) then begin
+      scheme._FieldAccessCheck(name);
+    end else begin
+      //abort;// HMM System DB load WAC case
     end;
-//  end;
+  end;
 end;
 
 
@@ -12836,7 +13050,8 @@ function TFRE_DB_Object.DeleteField(const name: TFRE_DB_String): Boolean;
 var lfield:TFRE_DB_FIELD;
 begin
   _InAccessibleCheck;
-  if uppercase(name)='UID' then raise EFRE_DB_Exception.Create(edb_ACCESS,'UID field cannot be deleted');
+  if _ReservedFieldName(uppercase(name)) then
+    raise EFRE_DB_Exception.Create(edb_ACCESS,'reserved fields cannot be deleted');
   result := FFieldStore.Delete(uppercase(name),lfield);
   if result then begin
     lfield.Free;
@@ -13238,23 +13453,25 @@ begin
   ForAllObjectsBreak(@SearchChild);
 end;
 
-function TFRE_DB_Object.GetAsJSON(const without_uid: boolean;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
+function TFRE_DB_Object.GetAsJSON(const without_reserved_fields: boolean; const full_dump: boolean; const stream_cb: TFRE_DB_StreamingCallback): TJSONData;
 var ro:TJSONObject;
     ra:TJSONArray;
     i : integer;
   procedure ExportField(const Field:TFRE_DB_FIELD);
   begin
-    if without_uid then begin
-      if field.FieldName='UID' then exit;
+    if without_reserved_fields then begin
+      if _ReservedFieldName(uppercase(field.FieldName)) then
+        exit;
     end;
-    ro.Add(lowercase(Field.FieldName),Field.GetAsJSON(without_uid,false,stream_cb));
+    ro.Add(lowercase(Field.FieldName),Field.GetAsJSON(without_reserved_fields,false,stream_cb));
   end;
   procedure ExportFieldFD(const Field:TFRE_DB_FIELD);
   begin
-    if without_uid then begin
-      if field.FieldName='UID' then exit;
+    if without_reserved_fields then begin
+      if _ReservedFieldName(uppercase(field.FieldName)) then
+        exit;
     end;
-    ra.Add(Field.GetAsJSON(without_uid,true,stream_cb));
+    ra.Add(Field.GetAsJSON(without_reserved_fields,true,stream_cb));
   end;
 
 begin
@@ -13275,11 +13492,11 @@ begin
   end;
 end;
 
-function TFRE_DB_Object.GetAsJSONString(const without_uid: boolean;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TFRE_DB_String;
+function TFRE_DB_Object.GetAsJSONString(const without_reserved_fields: boolean; const full_dump: boolean; const stream_cb: TFRE_DB_StreamingCallback): TFRE_DB_String;
 var jd : TJSONData;
 begin
   _InAccessibleCheck;
-  jd := GetAsJSON(without_uid,full_dump,stream_cb);
+  jd := GetAsJSON(without_reserved_fields,full_dump,stream_cb);
   try
     result := jd.AsJSON;
   finally

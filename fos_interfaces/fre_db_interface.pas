@@ -612,6 +612,8 @@ type
 
   { IFRE_DB_Object }
 
+  TFRE_DB_ObjCompareEventType = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged);
+
   IFRE_DB_Object = interface(IFRE_DB_INVOKEABLE)
    ['IFREDBO']
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
@@ -621,13 +623,14 @@ type
     function        GetScheme                          : IFRE_DB_SchemeObject;
     function        GetSystemSchemeByName              (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
     function        GetSystemScheme                    (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
-    function        GetAsJSON                          (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
-    function        GetAsJSONString                    (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_String;
+    function        GetAsJSON                          (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
+    function        GetAsJSONString                    (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_String;
     function        CloneToNewObject                   (const create_new_uids:boolean=false): IFRE_DB_Object;
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
     procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
     function        UID                                : TGUID;
+    function        DomainID                           : TGUID;
     function        UID_String                         : TGUID_String;
     function        NeededSize                         : TFRE_DB_SIZE_TYPE;
     function        Parent                             : IFRE_DB_Object;
@@ -727,9 +730,12 @@ type
     function        AddObserver         (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     function        RemoveObserver      (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     //Define a basic index according to fieldtype
-    function        DefineIndexOnField  (const FieldName:TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean=true; const ignore_content_case:boolean=true;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true):TFRE_DB_Errortype;
+    function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
-    function        GetIndexedObj       (const query_value : TFRE_DB_String;out obj:IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        GetIndexedObj       (const query_value : TFRE_DB_String; out obj     : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        GetIndexedObjs      (const query_value : TFRE_DB_String; out   obj   : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def'):boolean;
+    function        GetIndexedUIDs      (const query_value : TFRE_DB_String; out obj_uid : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def'):boolean;
+
     function        GetIndexedUID       (const query_value : TFRE_DB_String;out obj_uid:TGUID;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     procedure       ForAllIndexed       (const func:IFRE_DB_Obj_Iterator ;const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
     function        RemoveIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
@@ -1411,6 +1417,7 @@ type
     procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
     function        UID                                : TGUID;
     function        UID_String                         : TGUID_String;
+    function        DomainID                           : TGUID;
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
     function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
@@ -1604,7 +1611,9 @@ type
     procedure SetUpdateId     (AValue: TFRE_DB_String);
     procedure SetWindowCaption(AValue: TFRE_DB_String);
   published
+    // An id to indentify the content
     property  contentId    : TFRE_DB_String read GetContentId write SetContentId;
+    // This content should update an content with contentID (don't forget to set a new(the same) contentID again! (updateID is only for special cases, as if updateID is unset contentID is used in update case)
     property  updateId     : TFRE_DB_String read GetUpdateId write SetUpdateId;
     property  windowCaption: TFRE_DB_String read GetWindowCaption write SetWindowCaption;
   end;
@@ -2217,6 +2226,8 @@ type
     PGUID_Access = ^TGUID_Access;
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
+  procedure CheckDbResultColl                    (const res:TFRE_DB_Errortype ; const coll : IFRE_DB_COLLECTION ; const error_prefix : TFRE_DB_String ; const tolerate_no_change : boolean=true);
+
   procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
   procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const params:array of const);
   function  RB_Guid_Compare                      (const d1, d2: TGuid): NativeInt; inline;
@@ -2751,6 +2762,16 @@ begin
      if CFRE_DB_FIELDTYPE_SHORT[result]=fts then exit;
   end;
   raise EFRE_DB_Exception.Create(edb_ERROR,'invalid short fieldtype specifier : ['+fts+']');
+end;
+
+procedure CheckDbResultColl(const res: TFRE_DB_Errortype; const coll: IFRE_DB_COLLECTION; const error_prefix: TFRE_DB_String; const tolerate_no_change: boolean);
+begin
+  if res<>edb_OK then begin
+    if tolerate_no_change
+       and (res=edb_NO_CHANGE) then
+         exit;
+    raise EFRE_DB_Exception.Create(res,error_prefix+' : '+coll.GetLastStatusText);
+  end;
 end;
 
 procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
@@ -5146,6 +5167,11 @@ end;
 function TFRE_DB_ObjectEx.UID_String: TGUID_String;
 begin
   result := FImplementor.UID_String;
+end;
+
+function TFRE_DB_ObjectEx.DomainID: TGUID;
+begin
+  result := FImplementor.DomainID;
 end;
 
 

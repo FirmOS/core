@@ -2121,6 +2121,8 @@ var
   end;
 
 begin
+  if not assigned(FArtTree) then
+    exit;
   halt    := false;
   abscnt  := 0;
   abshalt := max_count;

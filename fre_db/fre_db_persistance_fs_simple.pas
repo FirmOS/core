@@ -728,7 +728,14 @@ begin
 
     delete_object.Set_Store_Locked(false);
       try
-        FTransaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(delete_object,false));
+        if delete_object.IsObjectRoot then
+           begin
+             FTransaction.AddChangeStep(TFRE_DB_DeleteObjectStep.Create(delete_object,collection_name,false));
+           end
+         else
+           begin
+             FTransaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(delete_object,collection_name,false));
+           end;
         if ImplicitTransaction then
           Commit;
       finally

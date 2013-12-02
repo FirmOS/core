@@ -15,7 +15,7 @@ uses
 
   procedure RegisterTestCodeClasses;
 
-  procedure Check_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object);
+  procedure Check_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object;const check_domid:boolean=false);
 
 type
 
@@ -56,8 +56,6 @@ type
     procedure DOMAIND_Exists;
     procedure DOMAIND_Delete;
     procedure DOMAIND_Delete2;
-    procedure DOMAIND_Path_Simple;
-    procedure DOMAIND_String;
     procedure DOMAIND_Set;
 
     procedure Mediator_Empty;
@@ -108,25 +106,25 @@ procedure Fill_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object);
 var dbs : TFRE_DB_Stream;
 begin
   obj.ClearAllFields;
-  obj.Field(field_prefix+'STRING').AsStringArr               := GFRE_DB.ConstructStringArray(['äüö ÄÜÖ ß','מדוע לא דברו עברית?','ག་རེ་བྱས་ཁོ་རང་ཚོས་བོད་སྐད་ཆ་དེ་ག་རང་བཤད་ཀྱི་མ་རེད།','लोकांना मराठी का बोलता येत नाही?']);
+  obj.Field(field_prefix+'STRING').AsStringArr               := TFRE_DB_StringArray.Create('äüö ÄÜÖ ß','מדוע לא דברו עברית?','ག་རེ་བྱས་ཁོ་རང་ཚོས་བོད་སྐད་ཆ་དེ་ག་རང་བཤད་ཀྱི་མ་རེད།','लोकांना मराठी का बोलता येत नाही?');
   obj.Field(field_prefix+'STRING_NA').SetAsEmptyStringArray  ;
 
-  obj.Field(field_prefix+'UID').AsGUIDArr                    := GFRE_DB.ConstructGuidArray([TEST_GUID_1,TEST_GUID_2,TEST_GUID_3]);
-  obj.Field(field_prefix+'BYTE').AsByteArr                   := GFRE_DB.ConstructByteArray([0,255,256,-1]);
-  obj.Field(field_prefix+'INT16').AsInt16Arr                 := GFRE_DB.ConstructInt16Array([-32768,32767,0,65535]);
-  obj.Field(field_prefix+'INT32').AsInt32Arr                 := GFRE_DB.ConstructInt32Array([-2147483648,2147483647,0,4294967295]);
-  obj.Field(field_prefix+'INT64').AsInt64Arr                 := GFRE_DB.ConstructInt64Array([-9223372036854775808,9223372036854775807,0,18446744073709551615]);
-  obj.Field(field_prefix+'UINT16').AsUInt16Arr               := GFRE_DB.ConstructUInt16Array([-32768,32767,0,65535]);
-  obj.Field(field_prefix+'UINT32').AsUInt32Arr               := GFRE_DB.ConstructUInt32Array([-2147483648,2147483647,0,4294967295]);
-  obj.Field(field_prefix+'UINT64').AsUInt64Arr               := GFRE_DB.ConstructUInt64Array([-9223372036854775808,9223372036854775807,0,18446744073709551615]);
+  obj.Field(field_prefix+'UID').AsGUIDArr                    := TFRE_DB_GuidArray.Create(TEST_GUID_1,TEST_GUID_2,TEST_GUID_3);
+  obj.Field(field_prefix+'BYTE').AsByteArr                   := TFRE_DB_ByteArray.Create(0,255,256,-1);
+  obj.Field(field_prefix+'INT16').AsInt16Arr                 := TFRE_DB_Int16Array.Create(-32768,32767,0,65535);
+  obj.Field(field_prefix+'INT32').AsInt32Arr                 := TFRE_DB_Int32Array.Create(-2147483648,2147483647,0,4294967295);
+  obj.Field(field_prefix+'INT64').AsInt64Arr                 := TFRE_DB_Int64Array.Create(-9223372036854775808,9223372036854775807,0,18446744073709551615);
+  obj.Field(field_prefix+'UINT16').AsUInt16Arr               := TFRE_DB_UInt16Array.Create(-32768,32767,0,65535);
+  obj.Field(field_prefix+'UINT32').AsUInt32Arr               := TFRE_DB_UInt32Array.Create(-2147483648,2147483647,0,4294967295);
+  obj.Field(field_prefix+'UINT64').AsUInt64Arr               := TFRE_DB_UInt64Array.Create(-9223372036854775808,9223372036854775807,0,18446744073709551615);
 
-  obj.Field(field_prefix+'REAL32').AsReal32Arr               := GFRE_DB.ConstructReal32Array ([pi,0,1,-2.2,3.3,-4.4]);
-  obj.Field(field_prefix+'REAL64').AsReal64Arr               := GFRE_DB.ConstructReal64Array ([pi,0,1,-2.2,3.3,-4.4]);
+  obj.Field(field_prefix+'REAL32').AsReal32Arr               := TFRE_DB_Real32Array.Create(pi,0,1,-2.2,3.3,-4.4);
+  obj.Field(field_prefix+'REAL64').AsReal64Arr               := TFRE_DB_Real64Array.Create(pi,0,1,-2.2,3.3,-4.4);
 
-  obj.Field(field_prefix+'CURRENCY').AsCurrencyArr           := GFRE_DB.ConstructCurrencyArray([122.93,100.2,33.90]);
-  obj.Field(field_prefix+'BOOLEAN').AsBooleanArr             := GFRE_DB.ConstructBooleanArray([true,false,false,true]);
-  obj.Field(field_prefix+'DATE').AsDateTimeArr               := GFRE_DB.ConstructDateTimeArray([10000000,20000000,30000000,40000000]);
-  obj.Field(field_prefix+'DATE_UTC').AsDateTimeUTCArr        := GFRE_DB.ConstructDateTimeArray([10000000,20000000,30000000,40000000]);
+  obj.Field(field_prefix+'CURRENCY').AsCurrencyArr           := TFRE_DB_CurrencyArray.Create(122.93,100.2,33.90);
+  obj.Field(field_prefix+'BOOLEAN').AsBooleanArr             := TFRE_DB_BoolArray.Create(true,false,false,true);
+  obj.Field(field_prefix+'DATE').AsDateTimeArr               := TFRE_DB_DateTimeArray.Create(10000000,20000000,30000000,40000000);
+  obj.Field(field_prefix+'DATE_UTC').AsDateTimeUTCArr        := TFRE_DB_DateTimeArray.Create(10000000,20000000,30000000,40000000);
   obj.Field(field_prefix+'DATE_NOW').AsDateTime              := GFRE_DT.DateTimeToDBDateTime64(now);
   obj.Field(field_prefix+'STREAM1').AsStream.WriteAnsiString('THIS IS A TESTSTREAM');
   dbs := TFRE_DB_Stream.Create;
@@ -143,9 +141,10 @@ begin
   dbs.WriteAnsiString('THIS IS A TESTSTREAM2');
   dbs.WriteAnsiString('THIS IS A TESTSTREAM2');
   obj.Field(field_prefix+'STREAM2').AddStream(dbs);
+  obj.field('domainid').AsGUID:=TEST_GUID_3;
 end;
 
-procedure Check_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object);
+procedure Check_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object;const check_domid:boolean=false);
 var dbs :  TFRE_DB_Stream;
     sa   : TFRE_DB_StringArray;
     cs   : TFRE_DB_String;
@@ -277,6 +276,8 @@ begin
    for i:= 1 to 5 do begin
      assert(dbs.ReadAnsiString='THIS IS A TESTSTREAM2');
    end;
+   if check_domid then
+     assert(obj.DomainID=TEST_GUID_3);
 end;
 
 { TFRE_DB_TEST_CODE_CLASS }
@@ -481,7 +482,7 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
            obj := GFRE_DBI.NewObject;
            obj.Field('myid').AsUInt32 := 100;
            obj.Field('uid').AsGUID:=guid;
-           coll_link.Store(obj);
+           CheckDbResultColl(coll_link.Store(obj),coll_link,'Gentestdata: ');
           end;
       end;
 
@@ -562,7 +563,8 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
   end;
 
 begin
-   ConnectDB('test1@system','test1');
+   //ConnectDB('test1@system','test1');
+   ConnectDB('admin@system','admin'); //TODO: Setup Rights so that testuser can create index test data
    coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
    coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
    coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
@@ -570,8 +572,8 @@ begin
    coll_link := FWorkConn.Collection('TEST_1_LINKO',true,false);
    GendataforColl(coll_p,true);
    GendataforColl(coll_v,false);
-   //GendataforColl(coll_vu);
-   //GendataforColl(coll_pu);
+   //GendataforColl(coll_vu,true);
+   //GendataforColl(coll_pu,false);
    DumpColl(coll_p,'ixs');
    DumpColl(coll_p,'ixui64');
    DumpColl(coll_p,'ixui32');
@@ -605,6 +607,11 @@ begin
   coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
   coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
   coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
+
+  assert(assigned(coll_v));
+  assert(assigned(coll_p));
+  assert(assigned(coll_vu));
+  assert(assigned(coll_pu));
 
   //writeln('--RANGE QUERY TEST---');
   //coll_p.ForAllIndexedSignedRange(-11,1000,@WriteObjectIdx,'ixi64');
@@ -858,22 +865,15 @@ end;
 
 procedure TFRE_DB_ObjectTests.DOMAIND_Delete2;
 begin
-
+  TestObject.ClearAllFields;
+  AssertTrue('DomainID Field was cleared',TestObject.FieldExists('domainid'));
 end;
 
-procedure TFRE_DB_ObjectTests.DOMAIND_Path_Simple;
-begin
-
-end;
-
-procedure TFRE_DB_ObjectTests.DOMAIND_String;
-begin
-
-end;
 
 procedure TFRE_DB_ObjectTests.DOMAIND_Set;
 begin
-
+  TestObject.Field('DoMaInId').AsGUID:=TEST_GUID_2;
+  AssertTrue(TestObject.DomainID=TEST_GUID_2);
 end;
 
 procedure TFRE_DB_ObjectTests.Mediator_Empty;
@@ -950,11 +950,10 @@ begin
   Object3 := Object2.CloneToNewObject();
   Object4 := Object3.CloneToNewObject();
 
-  Check_Test_Object('TST_',Object3);
-  Check_Test_Object('TST_',Object4);
+  Check_Test_Object('TST_',Object3,true);
+  Check_Test_Object('TST_',Object4,true);
 
   Object2.free;
-
 end;
 
 procedure TFRE_DB_ObjectTests.StreamTest2;
@@ -1022,8 +1021,8 @@ begin
 end;
 
 initialization
-  RegisterTest(TFRE_DB_ObjectTests);
-  //RegisterTest(TFRE_DB_PersistanceTests);
+  //RegisterTest(TFRE_DB_ObjectTests);
+  RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 

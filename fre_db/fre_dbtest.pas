@@ -1817,7 +1817,8 @@ begin
   Result:=GFRE_DB_NIL_DESC;
   session := GetSession(input);
   html:=TFRE_DB_HTML_DESC.create.Describe('UPDATE ' + IntToStr(Random(1000)));
-  html.updateId:='GRID2_HTML'; //FO-190 | Please Fix
+  //html.updateId:='GRID2_HTML';
+  html.contentId:='GRID2_HTML';
   session.SendServerClientRequest(html);
 end;
 
