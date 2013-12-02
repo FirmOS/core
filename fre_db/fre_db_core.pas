@@ -6837,6 +6837,7 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParent(const coll: TFRE_DB_COLLECT
 begin
   AcquireBigColl;
   try
+    if not Assigned(coll) then raise EFRE_DB_Exception.Create(edb_ERROR,'PLEASE PROVIDE A ASSIGNED DERIVE PARENT');
     if FDCMode<>dc_None then raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
     FIdField:=idField;
     if coll is TFRE_DB_DERIVED_COLLECTION then begin
@@ -6897,6 +6898,7 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParentI(const coll: IFRE_DB_COLLECTION; const idField: String);
 begin //nl
+  if not Assigned(coll) then raise EFRE_DB_Exception.Create(edb_ERROR,'PLEASE PROVIDE A ASSIGNED DERIVE PARENT');
   SetDeriveParent(coll.Implementor as TFRE_DB_COLLECTION, idField);
 end;
 
