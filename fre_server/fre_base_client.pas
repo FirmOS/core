@@ -208,12 +208,12 @@ var data           : IFRE_DB_Object;
 begin
   FClientStateLock.Acquire;
   try
-    writeln('GOT A NEW CHANNEL ON CM_',channel.GetChannelManager.GetID,' ',channel.GetVerboseDesc,' ',event);
+    writeln('GOT A NEW CHANNEL ON CM_',channel.GetChannelManager.GetID,' ',channel.GetVerboseDesc,' ',event,' ',channel.GetHandleKey);
     if assigned(FChannel) then
-      GFRE_BT.CriticalAbort('I SHPOULD NOT HAVE A CHANNEL HERE (B)!');
+      GFRE_BT.CriticalAbort('I SHOULD NOT HAVE A CHANNEL HERE (B)!');
     case event of
       ch_NEW_CS_CONNECTED:
-        begin;
+        begin
           FClientState    := csSETUPSESSION;
           FBaseconnection := TFRE_CLIENT_BASE_CONNECTION.Create(Channel);
           FBaseconnection.OnNewCommandAnswerHere  := @MyCommandAnswerArrived;
