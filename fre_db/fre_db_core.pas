@@ -519,7 +519,7 @@ type
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
   public
     procedure       Finalize                           ;
-    class procedure  GenerateAnObjChangeList            (const first_obj,second_obj : TFRE_DB_Object);
+    class procedure  GenerateAnObjChangeList(const first_obj, second_obj: TFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator);
 
   type
     TFRE_DB_ObjCompareCallback  = procedure(const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD) is nested;
@@ -2239,6 +2239,7 @@ type
     procedure   RegisterPrimaryImplementor (const ObClass  : TClass ; const InterfaceSpec : ShortString); //register the primary implementor of an interface;
     function    GetInterfaceClass          (const InterfaceSpec : ShortString ; out ObClass:TClass) : boolean;
 
+    procedure   GenerateAnObjChangeList    (const first_obj, second_obj: IFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator);
 
     function    NewObject              (const ObjClass:TFRE_DB_OBJECTCLASS) : TFRE_DB_Object;
     function    NewObject              (const ObjClass:TFRE_DB_OBJECTCLASSEX) : TFRE_DB_Object;
@@ -2331,6 +2332,9 @@ var
   GDISABLE_SYNC            : boolean;
 
   procedure GFRE_DB_Init_Check;
+
+  function     DBObjIsNull           (const obj   : PFRE_DB_Object) : Boolean;
+  function     ObjectGuidCompare     (const o1,o2 : PFRE_DB_Object):boolean;
 
 implementation
 
@@ -11267,6 +11271,11 @@ begin
   end;
 end;
 
+procedure TFRE_DB.GenerateAnObjChangeList(const first_obj, second_obj: IFRE_DB_Object; const InsertCB, DeleteCB: IFRE_DB_Obj_Iterator; const UpdateCB: IFRE_DB_UpdateChange_Iterator);
+begin
+  TFRE_DB_Object.GenerateAnObjChangeList(first_obj.Implementor as TFRE_DB_Object,second_obj.Implementor as TFRE_DB_Object,InsertCB,DeleteCB,UpdateCB);
+end;
+
 
 procedure TFRE_DB.DBInitializeAllExClasses(const conn: IFRE_DB_SYS_CONNECTION);
 var
@@ -11819,23 +11828,27 @@ begin
   Free;
 end;
 
-class procedure TFRE_DB_Object.GenerateAnObjChangeList(const first_obj, second_obj: TFRE_DB_Object);
+function     ObjectGuidCompare     (const o1,o2 : PFRE_DB_Object):boolean;
+begin
+  result := FREDB_Guids_Same(o1^.UID,o2^.UID);
+end;
+
+function     DBObjIsNull           (const obj   : PFRE_DB_Object) : Boolean;
+begin
+  result := not assigned(obj^);
+end;
+
+class procedure TFRE_DB_Object.GenerateAnObjChangeList(const first_obj, second_obj: TFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator);
 var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     inserted_obj  : OFRE_SL_TFRE_DB_Object;
     updated_obj   : OFRE_SL_TFRE_DB_Object;
     coll          : IFRE_DB_PERSISTANCE_COLLECTION;
-    to_update_obj : TFRE_DB_Object;
     i             : NativeInt;
 
     procedure WriteGuid(var o : TFRE_DB_Object ; const idx : NativeInt; var halt:boolean);
     begin
       write(idx,' ',o.UID_String,',');
     end;
-
-    //function ObjectGuidCompare(const o1,o2:TFRE_DB_Object):boolean;
-    //begin
-    //  result := FREDB_Guids_Same(o1.UID,o2.UID);
-    //end;
 
     procedure SearchInOldAndRemoveExistingInNew(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
@@ -11854,118 +11867,87 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     end;
 
     procedure GenerateUpdates(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-    //var child      : TFRE_DB_Object;
-    //    //updatestep : TFRE_DB_UpdateStep;
-    //
-    //    procedure CompareEvent (const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD);
-    //    begin
-    //      case compare_event of
-    //        cev_FieldDeleted: ;
-    //            //updatestep.addsubstep(cev_FieldDeleted,new_fld,nil);
-    //        cev_FieldAdded: ;
-    //            //updatestep.addsubstep(cev_FieldAdded,new_fld,nil);
-    //        cev_FieldChanged : ;
-    //            //updatestep.addsubstep(cev_FieldChanged,new_fld,old_field);
-    //      end;
-    //    end;
+    var child      : TFRE_DB_Object;
+        procedure CompareEvent (const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD);
+        begin
+          case compare_event of
+            cev_FieldDeleted:  UpdateCB(assigned(child),second_obj,cev_FieldDeleted,new_fld,nil);
+            cev_FieldAdded:    UpdateCB(assigned(child),second_obj,cev_FieldAdded,new_fld,Nil);
+            cev_FieldChanged : UpdateCB(assigned(child),second_obj,cev_FieldChanged,new_fld,old_field);
+          end;
+        end;
 
     begin
-      //if new_object.IsObjectRoot then
-      //  begin
-      //    updatestep := TFRE_DB_UpdateStep.Create(new_object,to_update_obj,store);
-      //    new_object.__InternalCompareToObj(to_update_obj,@CompareEvent);
-      //  end
-      //else
-      //  begin
-      //    child      := to_update_obj.FetchChildObj(new_object.UID);
-      //    assert(assigned(child));
-      //    updatestep := TFRE_DB_UpdateStep.Create(new_object,child,store);
-      //    new_object.__InternalCompareToObj(child,@CompareEvent);
-      //  end;
-      //if updatestep.HasNoChanges then
-      //  updatestep.Free
-      //else
-      //  begin
-      //    self.AddChangeStep(updatestep);
-      //    //writeln(updatestep.DescribeText);
-      //  end;
-      //   //FTransaction.PostProcessUpdateStep(updatestep);
+      if new_object.IsObjectRoot then
+        begin
+          child:=nil;
+          new_object.__InternalCompareToObj(second_obj,@CompareEvent);
+        end
+      else
+        begin
+          child := second_obj.FetchChildObj(new_object.UID);
+          assert(assigned(child));
+          new_object.__InternalCompareToObj(child,@CompareEvent);
+        end;
     end;
 
     procedure GenerateInserts(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
-      //if new_object.IsObjectRoot then
-      //  self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store)) // Todo breakup insert sub and insert root ...
-      //else
-      //  self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store));
-      //if store then
-      //  halt := true; // In insert case only generate an insert for the root object
+      InsertCB(new_object);
     end;
 
     procedure GenerateDeletes(var del_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
-      //if not FMaster.ExistsObject(del_object.UID) then
-      //  begin
-      //    writeln('EXISTS CHECK DELETE FAILED ');
-      //    system.halt;
-      //  end;
-      //assert(not del_object.IsObjectRoot);
-      //self.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(del_object,collection_name,store));
+      DeleteCB(del_object);
     end;
 begin
   if (not assigned(first_obj)) or
      (not assigned(second_obj)) then
        raise EFRE_DB_Exception.Create(edb_ERROR,'both the first and the second compare object must be assigned');
 
-  //try
-  //  deleted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
-  //  inserted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
-  //  updated_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
-  //  //if assigneD(to_update_obj) then
-  //    //to_update_obj.Field('pemper').AsString:='faker';
-  //  //to_update_obj.Field('TEST').AsString:='fuuker';
-  //  //to_update_obj.FieldPath('desc.txt').AsString:='ChangedChanged';
-  //  //to_update_obj.DeleteField('desc');
-  //  //obj.DeleteField('desc');
+    deleted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
+    inserted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
+    updated_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
+
+    //if assigneD(second_obj) then
+    //  second_obj.Field('pemper').AsString:='faker';
+    //second_obj.Field('TEST').AsString:='fuuker';
+    //second_obj.FieldPath('desc.txt').AsString:='ChangedChanged';
+    //second_obj.DeleteField('desc');
+    //first_obj.DeleteField('desc');
   //
-  //  //writeln('--- OLD OBJECT ----');
-  //  //if assigned(to_update_obj) then
-  //  //  writeln(to_update_obj.DumpToString());
-  //  //writeln('--- NEW OBJECT -----');
-  //  //writeln(obj.DumpToString());
-  //  //writeln('------------');
-  //
-  //  if assigned(to_update_obj) then // update case
-  //    to_update_obj.__InternalGetFullObjectList(deleted_obj);
-  //  obj.__InternalGetFullObjectList(inserted_obj);
-  ////
-  ////      writeln('------------------------');
-  ////      writeln(' STEP A');
-  ////      write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
-  ////      write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
-  ////      writeln('STEP B');
-  ////      writeln('------------------------');
-  //
-  //  // Yields the updated_obj in the updatelist and the inserts in the newlist, all objects come from the "new non persitent object copy"
-  //  inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);
-  //  // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
-  //  deleted_obj.ForAllBreak(@SearchInUpdatesAndRemoveExistingFromOld);
-  //
-  //  //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
-  //  //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
-  //  //write('UPDATED  LIST [');updated_obj.ForAllBreak(@WriteGuid);writeln('] ',updated_obj.Count);
-  //
-  //  if deleted_obj.Count>0 then
-  //    deleted_obj.ForAllBreak(@GenerateDeletes);
-  //  if inserted_obj.Count>0 then
-  //    inserted_obj.ForAllBreak(@GenerateInserts);
-  //  if updated_obj.Count>0 then
-  //    updated_obj.ForAllBreak(@GenerateUpdates);
-  //  result := edb_OK;
-  //finally
-  //  if assigned(to_update_obj) then
-  //    to_update_obj.Set_Store_Locked(true);
-  //end;
+    //writeln('--- OLD OBJECT ----');
+    //if assigned(second_obj) then
+    //  writeln(second_obj.DumpToString());
+    //writeln('--- NEW OBJECT -----');
+    //writeln(first_obj.DumpToString());
+    //writeln('------------');
+
+    if assigned(second_obj) then // update case 2nd = to_update, 1st=obj
+      second_obj.__InternalGetFullObjectList(deleted_obj);
+
+    first_obj.__InternalGetFullObjectList(inserted_obj);
+
+   //writeln('------------------------');
+   //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
+   //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
+   //writeln('------------------------');
+
+    // Yields the updated_obj in the updatelist and the inserts in the newlist, all objects come from the "new non persitent object copy"
+    inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);
+    // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
+    deleted_obj.ForAllBreak(@SearchInUpdatesAndRemoveExistingFromOld);
+
+    //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
+    //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
+    //write('UPDATED  LIST [');updated_obj.ForAllBreak(@WriteGuid);writeln('] ',updated_obj.Count);
+
+    if deleted_obj.Count>0 then
+      deleted_obj.ForAllBreak(@GenerateDeletes);
+    if inserted_obj.Count>0 then
+      inserted_obj.ForAllBreak(@GenerateInserts);
+    if updated_obj.Count>0 then
+      updated_obj.ForAllBreak(@GenerateUpdates);
 end;
 
 

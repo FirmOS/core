@@ -500,10 +500,13 @@ type
   IFRE_DB_WORKFLOW              = interface;
   IFRE_DB_DOMAIN                = interface;
 
+  TFRE_DB_ObjCompareEventType           = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged);
+
   IFRE_DB_FieldIterator                 = procedure (const obj : IFRE_DB_Field) is nested;
   IFRE_DB_FieldIteratorBrk              = function  (const obj : IFRE_DB_Field):boolean is nested;
   IFRE_DB_Obj_Iterator                  = procedure (const obj : IFRE_DB_Object) is nested;
   IFRE_DB_Obj_IteratorBreak             = function  (const obj : IFRE_DB_Object):Boolean is nested;
+  IFRE_DB_UpdateChange_Iterator         = procedure (const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field) is nested;
   IFRE_DB_ObjUid_IteratorBreak          = procedure (const uid : TGUID ; var halt : boolean) is nested;
   IFRE_DB_Scheme_Iterator               = procedure (const obj : IFRE_DB_SchemeObject) is nested;
   IFRE_DB_SchemeFieldDef_Iterator       = procedure (const obj : IFRE_DB_FieldSchemeDefinition) is nested;
@@ -611,8 +614,6 @@ type
   end;
 
   { IFRE_DB_Object }
-
-  TFRE_DB_ObjCompareEventType = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged);
 
   IFRE_DB_Object = interface(IFRE_DB_INVOKEABLE)
    ['IFREDBO']
@@ -1861,6 +1862,7 @@ type
   TFRE_DB_DESCRIPTION_CLASS  = class of TFRE_DB_CONTENT_DESC;
 
   IFRE_DB=interface
+    procedure   GenerateAnObjChangeList         (const first_obj, second_obj: IFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator);
     function    NewDBCommand                    : IFRE_DB_COMMAND;
     function    FetchApplications               (var apps : IFRE_DB_APPLICATION_ARRAY):TFRE_DB_Errortype;
     function    GetFormatSettings               : TFormatSettings;

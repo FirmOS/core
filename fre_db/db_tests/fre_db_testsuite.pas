@@ -67,6 +67,7 @@ type
     procedure StreamTest;
     procedure StreamTest2;
     procedure CloneToNewChangeGUIDS;
+    procedure GenericChangelistTest;
   end;
 
   { TFRE_DB_PersistanceTests }
@@ -1014,6 +1015,76 @@ begin
   writeln('--- Clone2New---END');
 end;
 
+procedure TFRE_DB_ObjectTests.GenericChangelistTest;
+var obj1,obj2 : TFRE_DB_Object;
+    d1,d2     : TFRE_DB_Object;
+
+  procedure Insert(const o : IFRE_DB_Object);
+  begin
+    writeln('INSERT STEP : ',o.UID_String,' ',o.SchemeClass,' ',BoolToStr(o.IsObjectRoot,' ROOT OBJECT ',' CHILD OBJECT '));
+    writeln(o.DumpToString(2));
+  end;
+
+  procedure Delete(const o : IFRE_DB_Object);
+    function  _ParentFieldnameIfExists:String;
+    begin
+      if not o.IsObjectRoot then
+        result := o.ParentField.FieldName
+      else
+        result := '';
+    end;
+
+  begin
+    writeln('DELETE STEP : ',o.UID_String,' ',o.SchemeClass,BoolToStr(o.IsObjectRoot,' ROOT OBJECT ',' CHILD OBJECT '),_ParentFieldnameIfExists);
+    writeln(o.DumpToString(2));
+  end;
+
+  procedure Update(const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field);
+  var nfn,nft,ofn,oft,updt,ofv,nfv : TFRE_DB_NameType;
+  begin
+    if assigned(new_field) then
+      begin
+        nfn := new_field.FieldName;
+        nft := new_field.FieldTypeAsString;
+        if new_field.IsEmptyArray then
+          nfv := '(empty array)'
+        else
+          nfv := new_field.AsString;
+      end;
+    if assigned(old_field) then
+      begin
+        ofn := old_field.FieldName;
+        oft := old_field.FieldTypeAsString;
+        if old_field.IsEmptyArray then
+          ofv := '(empty array)'
+        else
+          ofv := old_field.AsString;
+      end;
+    case update_type of
+      cev_FieldDeleted: updt := 'DELETE FIELD '+nfn+'('+nft+')';
+      cev_FieldAdded:   updt := 'ADD FIELD '+nfn+'('+nft+')';
+      cev_FieldChanged: updt := 'CHANGE FIELD : '+nfn+' FROM '+ofv+':'+oft+' TO '+nfv+':'+nft;
+    end;
+    writeln('UPDATE STEP : ',update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
+  end;
+
+begin
+  obj1 := GFRE_DB.NewObject;
+  Fill_Test_Object('chang_',obj1);
+  obj2 := obj1.CloneToNewObject();
+  Fill_Test_Object('chung_',obj2);
+  Fill_Test_Object('sub',obj1.Field('newo').AsObject);
+  Fill_Test_Object('subsub',obj1.Field('newo').AsObject.Field('newnewo').AsObject);
+
+  Fill_Test_Object('old',obj2.Field('oldo').AsObject);
+
+  writeln('-----');
+  writeln('-----');
+  writeln('COMPARE - chang-chung');
+  GFRE_DBI.GenerateAnObjChangeList(obj1,obj2,@Insert,@Delete,@Update);
+  writeln('------');
+end;
+
 procedure RegisterTestCodeClasses;
 begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_CODE_CLASS);
@@ -1021,8 +1092,8 @@ begin
 end;
 
 initialization
-  //RegisterTest(TFRE_DB_ObjectTests);
-  RegisterTest(TFRE_DB_PersistanceTests);
+  RegisterTest(TFRE_DB_ObjectTests);
+  //RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 
