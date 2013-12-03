@@ -319,11 +319,11 @@ type
     //@ Use objectclassesSingle to limit the target drop object to the given classes in case of single selection.
     //@ Data entry _disabledrag_ set to true can be used to disable drag explicitly for objects.
     //@ Data entry _disabledrop_ set to true on entries of the target gird can be used to disable drop explicitly for objects.
-    procedure SetDropGrid         (const grid:TFRE_DB_VIEW_LIST_DESC; const objectclassesMultiple:TFRE_DB_StringArray=nil; const objectclassesSingle:TFRE_DB_StringArray=nil);
+    procedure SetDropGrid         (const grid:TFRE_DB_VIEW_LIST_DESC; const DnDClassesMultiple:TFRE_DB_StringArray=nil; const DnDClassesSingle:TFRE_DB_StringArray=nil);
     //@ Limits the dragable objects to those matching one of the given objectclasses.
     //@ Data entry _disabledrag_ set to true can be used to disable drag explicitly for objects.
     //@ Ignored if drag and drop is not enabled. See function SetDropGrid.
-    procedure SetDragObjClasses   (const objectclasses:TFRE_DB_StringArray);
+    procedure SetDragClasses      (const DnDclasses:TFRE_DB_StringArray);
     //@ Adds an entry to the action column of the list.
     //@ FIXXME: Not implemented yet.
     procedure AddEntryAction      (const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const icon: String; const tooltip:String='');
@@ -1835,21 +1835,21 @@ implementation
     Field('filteredStore').AddObject(obj);
   end;
 
-  procedure TFRE_DB_VIEW_LIST_DESC.SetDropGrid(const grid: TFRE_DB_VIEW_LIST_DESC; const objectclassesMultiple:TFRE_DB_StringArray; const objectclassesSingle:TFRE_DB_StringArray);
+  procedure TFRE_DB_VIEW_LIST_DESC.SetDropGrid(const grid: TFRE_DB_VIEW_LIST_DESC; const DnDclassesMultiple:TFRE_DB_StringArray; const DnDClassesSingle:TFRE_DB_StringArray);
   begin
     Field('dragId').AsString:=Field('id').AsString;
     grid.Field('dropId').AsString:=Field('id').AsString;
-    if Assigned(objectclassesMultiple) then begin
-      grid.Field('dropObjClassesMultiple').AsStringArr:=objectclassesMultiple;
+    if Assigned(DnDclassesMultiple) then begin
+      grid.Field('dropClassesMultiple').AsStringArr:=DnDclassesMultiple;
     end;
-    if Assigned(objectclassesSingle) then begin
-      grid.Field('dropObjClassesSingle').AsStringArr:=objectclassesSingle;
+    if Assigned(DnDClassesSingle) then begin
+      grid.Field('dropClassesSingle').AsStringArr:=DnDClassesSingle;
     end;
   end;
 
-  procedure TFRE_DB_VIEW_LIST_DESC.SetDragObjClasses(const objectclasses: TFRE_DB_StringArray);
+  procedure TFRE_DB_VIEW_LIST_DESC.SetDragClasses(const DnDclasses: TFRE_DB_StringArray);
   begin
-    Field('dragObjClasses').AsStringArr:=objectclasses;
+    Field('dragClasses').AsStringArr:=DnDclasses;
   end;
 
   procedure TFRE_DB_VIEW_LIST_DESC.AddEntryAction(const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const icon: String; const tooltip:String);

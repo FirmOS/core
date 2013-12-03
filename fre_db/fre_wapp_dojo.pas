@@ -1447,19 +1447,20 @@ implementation
     if not co.Field('multiselect').AsBoolean then begin
       jsContentAdd('  ,selectionMode: "single"');
     end;
+    jsContentAdd('  ,deselectOnRefresh: "false"');
     if co.FieldExists('dropId') then begin
       jsContentAdd('  ,dndAcceptType: "'+co.Field('dropId').AsString+'_grid"');
-      if co.FieldExists('dropObjClassesMultiple') then begin
-        jsContentAdd('  ,dropObjClassesMultiple: '+_BuildJSArray(co.Field('dropObjClassesMultiple').AsStringArr));
+      if co.FieldExists('dropClassesMultiple') then begin
+        jsContentAdd('  ,dropClassesMultiple: '+_BuildJSArray(co.Field('dropClassesMultiple').AsStringArr));
       end;
-      if co.FieldExists('dropObjClassesSingle') then begin
-        jsContentAdd('  ,dropObjClassesSingle: '+_BuildJSArray(co.Field('dropObjClassesSingle').AsStringArr));
+      if co.FieldExists('dropClassesSingle') then begin
+        jsContentAdd('  ,dropClassesSingle: '+_BuildJSArray(co.Field('dropClassesSingle').AsStringArr));
       end;
     end;
     if co.FieldExists('dragId') then begin
       jsContentAdd('  ,dndSourceType: "'+co.Field('dragId').AsString+'_grid"');
-      if co.FieldExists('dragObjClasses') then begin
-        jsContentAdd('  ,dragObjClasses: '+_BuildJSArray(co.Field('dragObjClasses').AsStringArr));
+      if co.FieldExists('dragClasses') then begin
+        jsContentAdd('  ,dragClasses: '+_BuildJSArray(co.Field('dragClasses').AsStringArr));
       end;
     end else begin
       jsContentAdd('  ,dndDisabled: true');
