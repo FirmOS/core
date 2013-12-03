@@ -961,9 +961,6 @@ implementation
           _addEntry(entry.Field('entries').AsObjectItem[i]);
         end;
         jsContentAdd('  ]');
-        if entry.FieldExists('icon') then begin
-          jsContentAdd('  ,icon: "'+entry.Field('icon').AsString + '"');
-        end;
       end else begin
         if entry.FieldExists('serverFunc') then begin
           jsContentAdd('  ,action: {');
@@ -978,9 +975,12 @@ implementation
         if entry.FieldExists('downloadId') then begin
           jsContentAdd('  ,downloadId: "'+entry.Field('downloadId').AsString+'"');
         end;
-        if entry.FieldExists('icon') then begin
-          jsContentAdd('  ,icon: "'+entry.Field('icon').AsString + '"');
-        end;
+      end;
+      if entry.FieldExists('id') then begin
+        jsContentAdd('  ,id: "'+entry.Field('id').AsString + '"');
+      end;
+      if entry.FieldExists('icon') then begin
+        jsContentAdd('  ,icon: "'+entry.Field('icon').AsString + '"');
       end;
       jsContentAdd('  ,disabled: ' + BoolToStr(entry.Field('disabled').AsBoolean,'true','false'));
       jsContentAdd('  }');
@@ -1222,7 +1222,7 @@ implementation
     JsonAction := TFRE_JSON_ACTION.Create;
 
     JsonAction.ActionType := jat_jsexecute;
-    JsonAction.Action     := 'G_UI_COM.setButtonState("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disabled').AsBoolean,'true','false')+');';
+    JsonAction.Action     := 'G_UI_COM.setButtonState("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disabled').AsBoolean,'true','false')+',"'+co.Field('newCaption').AsString+'");';
 
     contentString := JsonAction.AsString;
     contentType:='application/json';
@@ -1524,8 +1524,12 @@ implementation
     jsContentAdd(' var ' + co.Field('id').AsString + '_cp = new dijit.layout.ContentPane({id: "' + co.Field('id').AsString + '_cp", region: "center", content: '+co.Field('id').AsString+'_grid});');
     jsContentAdd(lcVar + '.addChild('+co.Field('id').AsString+'_cp);');
 
-    if co.FieldExists('buttons') or co.Field('showSearch').AsBoolean then begin
-      jsContentAdd('var '+co.Field('id').AsString+'_toolbar = new dijit.Toolbar({region: "top"});');
+    if co.FieldExists('buttons') or co.Field('showSearch').AsBoolean or co.FieldExists('menu') then begin
+      if co.FieldExists('menu') then begin
+        _BuildMenu(co.Field('menu').AsObject.Implementor_HC as TFRE_DB_MENU_DESC);
+      end else begin
+        jsContentAdd('var toolbar = new dijit.Toolbar({region: "top"});');
+      end;
 
       for i := 0 to co.Field('buttons').ValueCount - 1 do begin
         button:=co.Field('buttons').AsObjectItem[i].Implementor_HC as TFRE_DB_VIEW_LIST_BUTTON_DESC;
@@ -1564,16 +1568,16 @@ implementation
           jsContentAdd('  ,label: "'+button.Field('tooltip').AsString+'"');
           jsContentAdd('});');
         end;
-        jsContentAdd(''+co.Field('id').AsString+'_toolbar.addChild(button);');
+        jsContentAdd('toolbar.addChild(button);');
         jsContentAdd(co.Field('id').AsString+'_grid.registerButton(button,"'+co.Field('buttons').AsObjectItem[i].Field('dep').AsString+'");');
       end;
-      jsContentAdd(lcVar + '.addChild('+co.Field('id').AsString+'_toolbar);');
+      jsContentAdd(lcVar + '.addChild(toolbar);');
       if co.Field('showSearch').AsBoolean then begin
         jsContentAdd('var input = new dijit.form.TextBox({id: "'+co.Field('id').AsString+'_search",');
         jsContentAdd('   grid_: '+co.Field('id').AsString+'_grid');
         jsContentAdd('  ,style: "float: right; margin: 0 4px;"');
         jsContentAdd('  ,onKeyPress: function(event) {if (event.charOrCode==13) { this.grid_.doSearch(this.get("value")); } }});');
-        jsContentAdd(''+co.Field('id').AsString+'_toolbar.addChild(input);');
+        jsContentAdd('toolbar.addChild(input);');
         jsContentAdd('dojo.place("<label for='''+co.Field('id').AsString+'_search'' style=''margin: 4px 0 0; float: right;''>'+_getText(conn,'search_label')+'</label>", input.domNode, "after");');
       end;
     end;

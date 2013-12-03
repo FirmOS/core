@@ -84,7 +84,7 @@ type
   TFRE_DB_SET_BUTTON_STATE_DESC = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes a refresh action. E.g. after an add opertion.
-    function  Describe       (const buttonId:String; const disabled:Boolean): TFRE_DB_SET_BUTTON_STATE_DESC;
+    function  Describe       (const buttonId:String; const disabled:Boolean; const newCaption:String=''): TFRE_DB_SET_BUTTON_STATE_DESC;
   end;
 
   { TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC }
@@ -308,6 +308,8 @@ type
                                    const displayFlags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS=[cdgf_ShowSearchbox,cdgf_Editable,cdgf_Filter,cdgf_Sortable];
                                    const detailsFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const selectionDepFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const saveFunc:TFRE_DB_SERVER_FUNC_DESC=nil;
                                    const dropFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const dragFunc: TFRE_DB_SERVER_FUNC_DESC=nil): TFRE_DB_VIEW_LIST_DESC;
+    //@ Sets the menu of the form panel. Will be displayed like a file menu in a desktop application.
+    procedure SetMenu (const menu: TFRE_DB_MENU_DESC);
     //@ Creates a new list view button and adds it.
     function  AddButton           :TFRE_DB_VIEW_LIST_BUTTON_DESC;
     //@ Adds a filtered store to the list view.
@@ -987,10 +989,11 @@ implementation
 
   { TFRE_DB_SET_BUTTON_STATE_DESC }
 
-  function TFRE_DB_SET_BUTTON_STATE_DESC.Describe(const buttonId: String; const disabled: Boolean): TFRE_DB_SET_BUTTON_STATE_DESC;
+    function TFRE_DB_SET_BUTTON_STATE_DESC.Describe(const buttonId: String; const disabled: Boolean; const newCaption: String): TFRE_DB_SET_BUTTON_STATE_DESC;
   begin
     Field('id').AsString:=buttonId;
     Field('disabled').AsBoolean:=disabled;
+    Field('newCaption').AsString:=newCaption;
     Result:=Self;
   end;
 
@@ -1822,6 +1825,11 @@ implementation
     if not FieldExists('toolbarTop') then Field('toolbarTop').AsBoolean:=false;
     if not FieldExists('toolbarBottom') then Field('toolbarBottom').AsBoolean:=false;
     Result:=Self;
+  end;
+
+  procedure TFRE_DB_VIEW_LIST_DESC.SetMenu(const menu: TFRE_DB_MENU_DESC);
+  begin
+    Field('menu').AsObject:=menu;
   end;
 
   procedure TFRE_DB_VIEW_LIST_DESC.AddFilterEvent(const filteredStoreId, refId: String);
