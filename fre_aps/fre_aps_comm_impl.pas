@@ -110,6 +110,7 @@ type
     FonDispatch    : TAPSC_CtrCMD;
     FCreateDNS     : Boolean;
     FId            : String;
+    Ftimeout       : TFCOM_TimeVal;
     procedure  _CommEventfired    (what : TAPSC_EV_TYP);
     procedure  _TimeoutEventfired (what : TAPSC_EV_TYP);
   public
@@ -870,6 +871,7 @@ begin
     if FConnectHost<>'' then
       begin
         //bufferevent_socket_connect_hostname()
+        writeln('---------HERE----ABORT');
         abort; // implement
       end
     else
@@ -884,7 +886,11 @@ begin
     LogDebug('STARTED CLIENT CHANNEL : '+_GetDebugID,[]);
   finally
     if FState=ch_BAD then
-      FnewChanCB(self,ch_NEW_CS_CONNECTED);
+      begin
+        //BAD STATE
+        writeln('BAD STATE :: ',FChanError,' ',FChanECode);
+        FnewChanCB(self,ch_NEW_CHANNEL_FAILED);
+      end;
   end;
 end;
 
@@ -1329,8 +1335,8 @@ var res : cint;
 begin
   if assigned(FEvent) then
     begin
-      res := event_add(FEvent,nil);
       FLock.Acquire;
+      res := event_add(FEvent,nil);
       try
         FState := als_LISTENING;
         LogDebug('LISTENER STARTED ON '+FListenAddr,[]);
@@ -1428,6 +1434,7 @@ begin
          state := cr_WAIT_LEN;
       end;
   end;
+  event_add(FControlEvent,nil);
 end;
 
 procedure TFRE_APS_LL_EvBaseController._TimeoutEventfired(what: TAPSC_EV_TYP);
@@ -1460,7 +1467,6 @@ end;
 
 constructor TFRE_APS_LL_EvBaseController.Create(const mydispatch: TAPSC_CtrCMD; const create_dns_base: boolean; const id: string);
 var res     : cInt;
-    timeout : TFCOM_TimeVal;
 begin
   FId := id;
   APSC_CheckRaise(evutil_socketpair(PF_UNIX,SOCK_STREAM,0, FCommPair),true);
@@ -1476,11 +1482,13 @@ begin
     FDnsBase := evdns_base_new(FEventBase,1);
   FControlEvent := event_new (FEventBase,SinkFD,EV_READ+EV_PERSIST,@EventCB_TFRE_APS_LL_EvBaseController,self);
   FTimeoutE     := event_new (FEventBase,-1,EV_READ+EV_WRITE+EV_TIMEOUT+EV_PERSIST,@EventCB_TFRE_APS_LL_EvBaseController_TO,self);
+  //FControlEvent := event_new (FEventBase,SinkFD,EV_READ,@EventCB_TFRE_APS_LL_EvBaseController,self);
+  //FTimeoutE     := event_new (FEventBase,-1,EV_READ+EV_WRITE+EV_TIMEOUT,@EventCB_TFRE_APS_LL_EvBaseController_TO,self);
   event_add(FControlEvent,nil);
   if not assigned(FControlEvent) then
     GFRE_BT.CriticalAbort('APSCL - cannot init control event');
-  APSC_SetupTimeout(1000,timeout);
-  res := event_add(FTimeoutE,@timeout);
+  APSC_SetupTimeout(1000,Ftimeout);
+  res := event_add(FTimeoutE,@Ftimeout);
   if not assigned(FTimeoutE) then
     GFRE_BT.CriticalAbort('APSCL - cannot init timeout event');
   state := cr_WAIT_LEN;
@@ -1847,8 +1855,8 @@ begin
   //ign.sa_handler := SigActionHandler(SIG_IGN);
   //ign.sa_flags   := 0;
   //FpsigEmptySet(ign.sa_mask);
-  //FPsigaction(SIGPIPE, @na, @dummy);
 
+  FPsigaction(SIGPIPE, @na, @dummy);
   FPSigaction(SIGUSR1, @na, @dummy);
   FPSigaction(SIGUSR2, @na, @dummy);
   FPsigaction(SIGINT,  @na, @dummy);

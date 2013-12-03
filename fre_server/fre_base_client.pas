@@ -229,6 +229,11 @@ begin
           SendServerCommand(FBaseconnection,'FIRMOS','INIT',Nil,data,@CCB_SessionSetup,5000); // Pending Q
           channel.CH_Enable_Reading;
         end;
+      ch_NEW_CHANNEL_FAILED:
+        begin
+          writeln('NEW CHANNEL ',channel.GetVerboseDesc,' FAILED ',channel.CH_GetErrorString,' ',channel.CH_GetErrorCode);
+          channel.Finalize;
+        end
       else
         GFRE_BT.CriticalAbort('unexpected newchannel event' +inttostr(ord(event)));
     end;
@@ -309,7 +314,7 @@ begin
           csUnknown: begin
                        FClientState:=csWaitConnect;
                        if Assigned(FChannel) then
-                         GFRE_BT.CriticalAbort('SHOuLD NOT HAVE A CHANNEL HERE!');
+                         GFRE_BT.CriticalAbort('SHOULD NOT HAVE A CHANNEL HERE!');
                        GFRE_SC.AddClient_TCP('0.0.0.0','44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco);
                      end;
           csWaitConnect: begin

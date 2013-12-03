@@ -52,7 +52,7 @@ var G_NO_INTERRUPT_FLAG : Boolean = false;
 type
 
   TAPSC_ListenerState = (als_BAD,als_LISTENING,als_STOPPED,als_LISTEN_ERROR,als_EVENT_NEW_LISTENER);
-  TAPSC_ChannelState  = (ch_BAD,ch_NEW_SS_CONNECTED,ch_ACTIVE,ch_NEW_CS_CONNECTED,ch_EOF);
+  TAPSC_ChannelState  = (ch_BAD,ch_NEW_SS_CONNECTED,ch_ACTIVE,ch_NEW_CS_CONNECTED,ch_NEW_CHANNEL_FAILED,ch_EOF);
 
   IFRE_APSC_DNS_ANSWER=interface
   end;
