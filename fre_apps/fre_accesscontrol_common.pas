@@ -316,8 +316,6 @@ begin
     exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$modify_domain_diag_cap'),app.FetchAppTextShort(ses,'$modify_domain_diag_no_system_domain_msg'),fdbmt_warning,nil));
   end;
 
-  writeln('SELECTED',input.Field('selected').AsString);
-
   sf:=CWSF(@WEB_SaveDomain);
   sf.AddParam.Describe('selected',input.Field('selected').AsString);
   res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),sf,fdbbt_submit);
