@@ -120,6 +120,7 @@ type
     property  CookieString : String read GetAsString write SetFromString;
   end;
 
+  function FRE_URI_Escape(const s: String): String;
 
 implementation
 
@@ -156,6 +157,41 @@ begin
   else
     Result := 0;
   end;
+end;
+
+//Debug Versions of URIParser
+function FRE_URI_Escape(const s: String; const Allowed: TSysCharSet): String;
+var
+  i, L: Integer;
+  P: PChar;
+begin
+  L := Length(s);
+  for i := 1 to Length(s) do
+    if not (s[i] in Allowed) then Inc(L,2);
+  if L = Length(s) then
+  begin
+    Result := s;
+    Exit;
+  end;
+
+  SetLength(Result, L);
+  P := @Result[1];
+  for i := 1 to Length(s) do
+  begin
+    if not (s[i] in Allowed) then
+    begin
+      P^ := '%'; Inc(P);
+      StrFmt(P, '%.2x', [ord(s[i])]); Inc(P);
+    end
+    else
+      P^ := s[i];
+    Inc(P);
+  end;
+end;
+
+function FRE_URI_Escape(const s: String): String;
+begin
+  result := FRE_URI_Escape(s,ValidPathChars);
 end;
 
 function Unescape(const s: String): String;
