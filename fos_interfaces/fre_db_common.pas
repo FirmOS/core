@@ -79,12 +79,14 @@ type
   end;
 
 
-  { TFRE_DB_SET_BUTTON_STATE_DESC }
+  { TFRE_DB_UPDATE_UI_ELEMENT_DESC }
 
-  TFRE_DB_SET_BUTTON_STATE_DESC = class(TFRE_DB_CONTENT_DESC)
+  TFRE_DB_UPDATE_UI_ELEMENT_DESC = class(TFRE_DB_CONTENT_DESC)
   public
-    //@ Describes a refresh action. E.g. after an add opertion.
-    function  Describe       (const buttonId:String; const disabled:Boolean; const newCaption:String=''): TFRE_DB_SET_BUTTON_STATE_DESC;
+    //@ Describes a status change. Used to enable/disable the element or to change the caption.
+    function  DescribeStatus     (const elementId:String; const disabled:Boolean; const newCaption:String=''): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+    //@ Describes a submenu change. Used to change a submenu within a toolbar.
+    function  DescribeSubmenu    (const elementId:String; const menu: TFRE_DB_MENU_DESC): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
   end;
 
   { TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC }
@@ -987,13 +989,20 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_SET_BUTTON_STATE_DESC }
+  { TFRE_DB_UPDATE_UI_ELEMENT_DESC }
 
-    function TFRE_DB_SET_BUTTON_STATE_DESC.Describe(const buttonId: String; const disabled: Boolean; const newCaption: String): TFRE_DB_SET_BUTTON_STATE_DESC;
+  function TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeStatus(const elementId: String; const disabled: Boolean; const newCaption: String): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
   begin
-    Field('id').AsString:=buttonId;
+    Field('id').AsString:=elementId;
     Field('disabled').AsBoolean:=disabled;
     Field('newCaption').AsString:=newCaption;
+    Result:=Self;
+  end;
+
+  function TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeSubmenu(const elementId: String; const menu: TFRE_DB_MENU_DESC): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+  begin
+    Field('id').AsString:=elementId;
+    Field('menu').AsObject:=menu;
     Result:=Self;
   end;
 

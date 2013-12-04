@@ -84,7 +84,7 @@ type
    procedure BuildUpdateForm           (const co:TFRE_DB_UPDATE_FORM_DESC; var contentString,contentType:String);
    procedure BuildRefreshStore         (const co:TFRE_DB_REFRESH_STORE_DESC; var contentString,contentType:String);
    procedure BuildCloseDialog          (const co:TFRE_DB_CLOSE_DIALOG_DESC; var contentString,contentType:String);
-   procedure BuildSetButtonState       (const co:TFRE_DB_SET_BUTTON_STATE_DESC; var contentString,contentType:String);
+   procedure BuildUpdateUIElement      (const co:TFRE_DB_UPDATE_UI_ELEMENT_DESC; var contentString,contentType:String);
    procedure BuildUpdateStore          (const co:TFRE_DB_UPDATE_STORE_DESC; var contentString,contentType:String);
    procedure BuildGridContainer        (const session:TFRE_DB_UserSession; const co:TFRE_DB_VIEW_LIST_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildTreeContainer        (const session:TFRE_DB_UserSession; const co:TFRE_DB_VIEW_TREE_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
@@ -147,8 +147,8 @@ implementation
     if result_object is TFRE_DB_UPDATE_FORM_DESC then begin
       gWAC_DOJO.BuildUpdateForm(result_object as TFRE_DB_UPDATE_FORM_DESC,lContent,lContentType);
     end else
-    if result_object is TFRE_DB_SET_BUTTON_STATE_DESC then begin
-      gWAC_DOJO.BuildSetButtonState(TFRE_DB_SET_BUTTON_STATE_DESC(result_object),lContent,lContentType);
+    if result_object is TFRE_DB_UPDATE_UI_ELEMENT_DESC then begin
+      gWAC_DOJO.BuildUpdateUIElement(TFRE_DB_UPDATE_UI_ELEMENT_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_REFRESH_STORE_DESC then begin
       gWAC_DOJO.BuildRefreshStore(TFRE_DB_REFRESH_STORE_DESC(result_object),lContent,lContentType);
@@ -1215,15 +1215,22 @@ implementation
     JsonAction.Free;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO.BuildSetButtonState(const co: TFRE_DB_SET_BUTTON_STATE_DESC; var contentString, contentType: String);
+  procedure TFRE_DB_WAPP_DOJO.BuildUpdateUIElement(const co: TFRE_DB_UPDATE_UI_ELEMENT_DESC; var contentString, contentType: String);
   var
     JSonAction:TFRE_JSON_ACTION;
   begin
     JsonAction := TFRE_JSON_ACTION.Create;
+    jsContentClear;
+
+    if co.FieldExists('disabled') then begin
+      jsContentAdd('G_UI_COM.updateUIElement("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disabled').AsBoolean,'true','false')+',"'+co.Field('newCaption').AsString+'");');
+    end else begin
+      _BuildMenuDef(co.Field('menu').AsObject.Implementor_HC as TFRE_DB_MENU_DESC);
+      jsContentAdd('G_UI_COM.updateUIElementSubmenu("'+co.Field('id').AsString+'",'+co.Field('menu').AsObject.Field('id').AsString+');');
+    end;
 
     JsonAction.ActionType := jat_jsexecute;
-    JsonAction.Action     := 'G_UI_COM.setButtonState("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disabled').AsBoolean,'true','false')+',"'+co.Field('newCaption').AsString+'");';
-
+    JsonAction.Action     := jsContent;
     contentString := JsonAction.AsString;
     contentType:='application/json';
     JsonAction.Free;
