@@ -132,6 +132,8 @@ program fpmake_packages;
       with targets do begin
         AddUnit('fre_fcom_ssl.pas');
         AddUnit('fre_sys_base_cs.pas');
+        AddUnit('../fre_server/fre_http_tools.pas');
+        AddUnit('fre_http_client.pas');
         //TODO: FCOM PACKAGE CHECK
         //AddUnit('fos_fcom_bsdnet.pas');
         //AddUnit('fos_fcom_engine.pas');
@@ -214,7 +216,7 @@ program fpmake_packages;
          AddUnit('../fre_server/fre_base_client.pas');
          AddUnit('../fre_server/fre_webssocket_baseserver.pas');
          AddUnit('../fre_server/fre_http_srvhandler.pas');
-         AddUnit('../fre_server/fre_http_tools.pas');
+//         AddUnit('../fre_server/fre_http_tools.pas');
          AddUnit('../fre_server/fre_feed_client.pas');
          AddUnit('../fre_server/fre_basecli_app.pas');
          AddUnit('../fre_server/fre_basefeed_app.pas');

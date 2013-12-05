@@ -1065,7 +1065,7 @@ var obj1,obj2 : TFRE_DB_Object;
       cev_FieldAdded:   updt := 'ADD FIELD '+nfn+'('+nft+')';
       cev_FieldChanged: updt := 'CHANGE FIELD : '+nfn+' FROM '+ofv+':'+oft+' TO '+nfv+':'+nft;
     end;
-    writeln('UPDATE STEP : ',update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
+    writeln('UPDATE STEP : ',BoolToStr(is_child_update,' CHILD UPDATE ',' ROOT UPDATE '), update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
   end;
 
 begin

@@ -5689,7 +5689,7 @@ begin
   AcquireBigColl;
   try
     if sendupdates then begin
-      FSession.DispatchCoroutine(@FSession.COR_SendDerivedCollUpdates,FGatherUpdateList);
+      FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,FGatherUpdateList);
     end else begin
       FGatherUpdateList.Free;
     end;

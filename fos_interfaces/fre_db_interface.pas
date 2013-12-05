@@ -1989,6 +1989,10 @@ type
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
 
+    //Send a Server Client Message in behalv of another session (think about security)
+    function    SendDelegatedContentToClient (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
+    //  ses.SendDelegatedEventToSession(sessionID,SF,input.CloneToNewObject());
+
     //Invoke a Method that another Session provides via Register, in the context of that session (feeder session)
     function    InvokeRemoteRequest      (const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
 
@@ -2123,6 +2127,8 @@ type
     destructor  Destroy                  ;override;
     procedure   StoreSessionData         ;
     function    SearchSessionApp         (const app_key:TFRE_DB_String ; out app:TFRE_DB_APPLICATION ; out idx:integer):boolean;
+    function    SendDelegatedContentToClient (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
+
 
     function    SearchSessionAppUID      (const app_uid:TGUID;out app:IFRE_DB_Object):boolean;
     function    SearchSessionDCUID       (const  dc_uid:TGUID;out dc:IFRE_DB_DERIVED_COLLECTION):boolean;
@@ -2171,7 +2177,7 @@ type
     function    InvokeRemoteRequest        (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
     procedure   InvokeRemReqCoRoutine      (const data : Pointer);
     procedure   AnswerRemReqCoRoutine      (const data : Pointer);
-    procedure   COR_SendDerivedCollUpdates (const data : Pointer);
+    procedure   COR_SendContentOnBehalf    (const data : Pointer);
     function    DispatchCoroutine          (const coroutine : TFRE_APSC_CoRoutine;const data : Pointer):boolean; // Call a Coroutine in this sessions thread context
 
 
@@ -3466,6 +3472,20 @@ begin
   result := false;
 end;
 
+function TFRE_DB_UserSession.SendDelegatedContentToClient(sessionID: TFRE_DB_String; const content: TFRE_DB_CONTENT_DESC): boolean;
+var session : TFRE_DB_UserSession;
+begin
+  result := OnFetchSessionById(sessionID,session);
+  if result then
+    begin
+      try
+        result := session.DispatchCoroutine(@session.COR_SendContentOnBehalf,content);
+      finally
+        session.UnlockSession;
+      end;
+    end;
+end;
+
 function TFRE_DB_UserSession.SearchSessionDC(dc_name: TFRE_DB_String; out dc: IFRE_DB_DERIVED_COLLECTION): boolean;
 var  i: Integer;
 begin
@@ -3768,10 +3788,12 @@ var x           : TObject;
             else
               answerencap := TFRE_DB_RemoteSessionAnswerEncapsulation.Create(input,cdcs_OK,FContinuationArray[i].ORIG_CID,FContinuationArray[i].opData,FContinuationArray[i].Contmethod,FContinuationArray[i].SesID);
             if now <= FContinuationArray[i].ExpiredAt then
-              answer_matched := true;
-            FContinuationArray[i].CID:=0;     // mark slot free
-            FContinuationArray[i].Contmethod:=nil;
-            FContinuationArray[i].ExpiredAt:=0;
+              begin
+                answer_matched := true;
+                FContinuationArray[i].CID:=0;     // mark slot free
+                FContinuationArray[i].Contmethod:=nil;
+                FContinuationArray[i].ExpiredAt:=0;
+              end;
             break;
           end;
         end;
@@ -3807,7 +3829,7 @@ var x           : TObject;
               end;
           end;
       end else begin
-        GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN COMMAND CID=%d OR TIMEOUT',[CMD.CommandID],catError);
+        GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN/TIMEDOUT COMMAND CID=%d OR TIMEOUT',[CMD.CommandID],catError);
         answerencap.free;
       end;
       CMD.Finalize;
@@ -4484,7 +4506,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_UserSession.COR_SendDerivedCollUpdates(const data: Pointer);
+procedure TFRE_DB_UserSession.COR_SendContentOnBehalf(const data: Pointer);
 begin
   SendServerClientRequest(TFRE_DB_CONTENT_DESC(data));
 end;

@@ -408,7 +408,7 @@ var
     begin
       writeln(cnt,' Answer : ',http_status,' ',content_len,' ',contenttyp);
       inc(cnt);
-      //writeln(copy(PChar(content),1));
+      writeln(copy(PChar(content),1,maxint));
       sender.Free;
     end;
 

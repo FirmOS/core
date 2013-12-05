@@ -23,7 +23,7 @@ begin
      end;
   Setup_APS_Comm;
 
-  Test_APSC;
+  Test_APSC(ParamStr(1));
   GFRE_SC.RunUntilTerminate;
   Teardown_APS_Comm;
   exit;
