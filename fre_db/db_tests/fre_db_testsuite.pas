@@ -68,6 +68,7 @@ type
     procedure StreamTest2;
     procedure CloneToNewChangeGUIDS;
     procedure GenericChangelistTest;
+    procedure TestStreamFieldClone;
   end;
 
   { TFRE_DB_PersistanceTests }
@@ -1083,6 +1084,18 @@ begin
   writeln('COMPARE - chang-chung');
   GFRE_DBI.GenerateAnObjChangeList(obj1,obj2,@Insert,@Delete,@Update);
   writeln('------');
+end;
+
+procedure TFRE_DB_ObjectTests.TestStreamFieldClone;
+var obj1,obj2 : TFRE_DB_Object;
+begin
+   obj1 := GFRE_DB.NewObject;
+   obj2 := GFRE_DB.NewObject;
+   obj1.Field('TESTSTREAM').AsStream.SetFromRawByteString('TeStStream#091'+#254+'A');
+   obj2.Field('STR').CloneFromField(obj1.Field('TESTSTREAM'));
+   writeln('--');
+   writeln(obj2.DumpToString());
+   writeln('--');
 end;
 
 procedure RegisterTestCodeClasses;

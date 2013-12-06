@@ -300,7 +300,6 @@ type
     function    IsObjectField     : boolean;
     function    IsFieldCalculated : boolean;
 
-    procedure   CloneFromFieldFull(const Field:TFRE_DB_FIELD); // Array Clone
     procedure   CloneFromField    (const Field:TFRE_DB_FIELD); // Value 0 = Fieldclone
     procedure   CloneFromFieldI   (const Field:IFRE_DB_FIELD);
 
@@ -14664,15 +14663,13 @@ end;
 function TFRE_DB_FIELD._ConvertToString(const idx:integer=0): TFRE_DB_String;
 
   function _StreamToStringAsURLAccess:TFRE_DB_String;
-  //var s:TFRE_DB_String;
-  //    i:integer;
+  var s:TFRE_DB_String;
+      i:integer;
   begin
-    result := '/FREDB_SFA/'+GFRE_BT.GUID_2_HexString(Fobj.UID)+'/'+gfre_bt.Str2HexStr(FFieldName^);
-    result := '/fre_css/'+ cFRE_WEB_STYLE + '/images/user.png'; // FIXXME
-    //i:=FFieldData.strm^[idx].Size;
-    //SetLength(s,i);
-    //Move(FFieldData.strm^[idx].Memory^,s[1],i);
-    //result:=GFRE_BT.Base64Encode(s);
+    i:=FFieldData.strm^[idx].Size;
+    SetLength(s,i);
+    Move(FFieldData.strm^[idx].Memory^,s[1],i);
+    result:=GFRE_BT.Base64Encode(s);
   end;
 
 
@@ -15729,33 +15726,6 @@ begin
   result := assigned(FCalcMethod);
 end;
 
-procedure TFRE_DB_FIELD.CloneFromFieldFull(const Field: TFRE_DB_FIELD);
-begin
-  _InAccessibleFieldCheck;
-  Clear;
-  if Field.FieldType=fdbft_NotFound then exit; //Empty Fields => Do nothing?
-  case field.FieldType of
-    fdbft_GUID:        AsGUIDArr         := field.AsGUIDArr;
-    fdbft_Byte:        AsByteArr         := field.AsByteArr;
-    fdbft_Int16:       AsInt16Arr        := field.AsInt16Arr;
-    fdbft_UInt16:      AsUint16Arr       := Field.AsUInt16Arr;
-    fdbft_Int32:       AsInt32Arr        := Field.AsInt32Arr;
-    fdbft_UInt32:      AsUInt32Arr       := Field.AsUInt32Arr;
-    fdbft_Int64:       AsInt64Arr        := Field.AsInt64Arr;
-    fdbft_UInt64:      AsUInt64Arr       := Field.AsUInt64Arr;
-    fdbft_Real32:      AsReal32Arr       := Field.AsReal32Arr;
-    fdbft_Real64:      AsReal64Arr       := Field.AsReal64Arr;
-    fdbft_Currency:    AsCurrencyArr     := Field.AsCurrencyArr;
-    fdbft_String:      AsStringArr       := Field.AsStringArr;
-    fdbft_Boolean:     AsBooleanArr      := Field.AsBooleanArr;
-    fdbft_DateTimeUTC: AsDateTimeUTCArr  := Field.AsDateTimeUTCArr;
-    fdbft_Stream:      AsStreamArr       := Field.AsStreamArr;
-    fdbft_Object:      AsObjectArr       := Field.AsObjectArr;
-    fdbft_ObjLink:     AsObjectLinkArray := Field.AsObjectLinkArray;
-    else raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled %s (%s)',[CFRE_DB_FIELDTYPE[FFieldData.FieldType],FieldName]);
-  end;
-end;
-
 
 procedure TFRE_DB_FIELD.CloneFromField(const Field: TFRE_DB_FIELD);
 var i : NativeInt;
@@ -15855,6 +15825,7 @@ begin
                       SetLength(FFieldData.strm^,Field.ValueCount);
                       for i := 0 to Field.ValueCount-1 do
                         begin
+                          FFieldData.strm^[i] := TFRE_DB_Stream.Create;
                           Field.AsStreamItem[i].Position:=0;
                           FFieldData.strm^[i].CopyFrom(Field.AsStreamItem[i],0);
                         end;

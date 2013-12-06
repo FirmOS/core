@@ -137,7 +137,7 @@ type
   TFRE_DB_Stream     = class(TMemoryStream)
   public
     destructor Destroy;override;
-    procedure  AsRawByteString (var rb_string : TFRE_DB_RawByteString);
+    function   AsRawByteString      : TFRE_DB_RawByteString;
     procedure  SetFromRawByteString (const rb_string : TFRE_DB_RawByteString);
   end;
 
@@ -2945,11 +2945,15 @@ begin
   inherited Destroy;
 end;
 
-procedure TFRE_DB_Stream.AsRawByteString(var rb_string: TFRE_DB_RawByteString);
+function TFRE_DB_Stream.AsRawByteString :  TFRE_DB_RawByteString;
 begin
-  SetLength(rb_string,Size);
   if size>0 then
-    Move(Memory^,rb_string[1],Size);
+    begin
+      SetLength(result,Size);
+      Move(Memory^,result[1],Size);
+    end
+  else
+    result := '';
 end;
 
 procedure TFRE_DB_Stream.SetFromRawByteString(const rb_string: TFRE_DB_RawByteString);
@@ -3568,7 +3572,7 @@ begin
           exit(false);
         if not (fld.FieldType=fdbft_Stream) then
           exit(false);
-        fld.AsStream.AsRawByteString(lcontent);
+        lcontent := fld.AsStream.AsRawByteString;
       finally
         dbo.Finalize;
       end;
