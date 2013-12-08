@@ -45,7 +45,7 @@ unit fre_fcom_ssl;
 interface
 
 
-uses Sysutils,ctypes,FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES;
+uses Sysutils,ctypes,FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,BaseUnix,pthreads;
 
 
 {$IFDEF WINDOWS}
@@ -279,12 +279,12 @@ type
  function  SSL_get_shutdown                        (ssl: PSSL):cInt; cdecl;external;
  function  CRYPTO_num_locks                        :Cint; cdecl;external;
  procedure CRYPTO_set_locking_callback             (callback:pointer);cdecl;external;
-// procedure CRYPTO_set_id_callback                  (callback:pointer);cdecl;external;
+ procedure CRYPTO_set_id_callback                  (callback:pointer);cdecl;external;
  function  BIO_new_bio_pair                        (var bio1 : PBIO; writebuf1 : cint;var  bio2 : PBIO;writebuf2 : cint):cint;cdecl;external;
  procedure SSL_set_bio                             (ssl: PSSL; rbio : PBIO ; wbio : PBIO); cdecl;external;
  function  BIO_read                                (b: PBIO; Buf: PChar; Len: cInt): cInt; cdecl;external;
  function  BIO_write                               (b: PBIO; Buf: PChar; Len: cInt): cInt; cdecl;external;
-// function  BIO_flush                               (b: PBIO): cInt; cdecl;external;
+ //function  BIO_flush                               (b: PBIO): cInt; cdecl;external;
  function  BIO_ctrl_pending                        (b: PBIO): cInt; cdecl;external;
  function  BIO_ctrl_wpending                       (b: PBIO): cInt; cdecl;external;
  function  BIO_ctrl_get_read_request               (b: PBIO): cint; cdecl;external;
@@ -339,19 +339,20 @@ begin
   end;
 end;
 
-//function id_function:LongInt;cdecl;
-//begin
-// {$IFDEF UNIX}
-//  result:=FpGetpid;
-// {$ELSE}
-//  result := GetCurrentThreadId;
-// {$ENDIF}
-//end;
+function id_function:NativeInt;cdecl;
+begin
+ {$IFDEF UNIX}
+  result := NativeInt(pthread_self);
+ {$ELSE}
+  result := GetCurrentThreadId;
+ {$ENDIF}
+end;
 
 procedure Setup_FRE_SSL;
 var i: Integer;
 begin
-  if FInitialized then exit;
+  if FInitialized then
+    exit;
   SSL_NUMLOCKS:=CRYPTO_num_locks;
   if SSL_NUMLOCKS>SSL_MAX_LOCKS then begin
      GFRE_BT.CriticalAbort('SSL NEEDS MORE LOCKS !!! %d nedded %d is max',[SSL_NUMLOCKS,SSL_MAX_LOCKS]);
@@ -363,7 +364,7 @@ begin
   CRYPTO_set_locking_callback(@locking_function);
   SSL_library_init;
   SSL_load_error_strings;
-  //CRYPTO_set_id_callback(@id_function);
+  CRYPTO_set_id_callback(@id_function);
 end;
 
 procedure Cleanup_FRE_SSL;

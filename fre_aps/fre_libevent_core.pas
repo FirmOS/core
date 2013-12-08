@@ -319,6 +319,9 @@ uses
     BEV_OPT_DEFER_CALLBACKS              =1 SHL 2;
     BEV_OPT_UNLOCK_CALLBACKS             =1 SHL 3;
 
+    BUFFEREVENT_SSL_OPEN                 = 0;
+    BUFFEREVENT_SSL_CONNECTING           = 1;
+    BUFFEREVENT_SSL_ACCEPTING            = 2;
 
     // method strings = select,poll,epoll,kqueue,devpoll,evport,win32
 
@@ -338,11 +341,13 @@ uses
   bufferevent_rate_limit_group = record end;
   evdns_getaddrinfo_request    = record end;
   evbuffer_cb_entry            = record end;
+  ssl_st                       = record end;
 
 
   ev_off_t                   = off_t;
   ev_ssize_t                 = ssize_t;
   evutil_socket_t            = cInt;
+  Pssl_st                    = ^ssl_st;
   PEvent_base                = ^event_base;
   Pevent_config              = ^event_config;
   PEvent                     = ^event;
@@ -498,8 +503,16 @@ uses
   //int bufferevent_rate_limit_group_decrement_write(struct bufferevent_rate_limit_group *, ev_ssize_t);
   //void bufferevent_rate_limit_group_get_totals(struct bufferevent_rate_limit_group *grp,ev_uint64_t *total_read_out, ev_uint64_t *total_written_out);
   //void bufferevent_rate_limit_group_reset_totals(struct bufferevent_rate_limit_group *grp);
+
   //;cdecl ; external;
   //;cdecl ; external;
+
+  //SSL
+  function bufferevent_get_openssl_error                  (const bev : PBufferevent):culong; cdecl; external;
+  function bufferevent_openssl_filter_new                 (const base : PEvent_base ; underlying : Pbufferevent ;  ssl : Pssl_st ;  ssl_state : cInt ; options : cint):Pbufferevent;cdecl ; external;
+  function bufferevent_openssl_socket_new                 (const base : PEvent_base ;  fd : evutil_socket_t ; ssl : Pssl_st ; ssl_state : cInt ; options : cint):PBufferevent ; cdecl ; external;
+  function bufferevent_openssl_get_ssl                    (const bev : PBufferevent):Pssl_st; cdecl ; external;
+  function bufferevent_ssl_renegotiate                    (const bev : Pbufferevent):cint; cdecl ; external;
 
   //dns
   function  evdns_base_new                                (event_base:PEvent_base ; initialize_nameservers : cint):Pevdns_base ; cdecl ; external ;

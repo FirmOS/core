@@ -88,6 +88,7 @@ type
      FContentStart                        : integer;
      FHasContent                          : boolean;
      FResponse                            : String;
+     FSSL_Enabled                         : boolean;
      //FWriteQ                              : IFOS_LFQ;
      FResponseHeaders                     : Array[TFRE_HTTP_ResponseHeaders] of String;
      FResponseEntityHeaders               : Array[TFRE_HTTP_ResponseEntityHEaders] of String;
@@ -120,7 +121,7 @@ type
   public
      function    HttpBaseServer     :IFRE_HTTP_BASESERVER;
      function    Response           : string;
-     constructor Create             (const channel:IFRE_APSC_CHANNEL ; const http_server : IFRE_HTTP_BASESERVER);
+     constructor Create             (const channel:IFRE_APSC_CHANNEL ; const http_server : IFRE_HTTP_BASESERVER;const ssl_enabled : Boolean=false);
      procedure   ReadChannelData    (const channel:IFRE_APSC_CHANNEL);virtual;
      procedure   DisconnectChannel  (const channel:IFRE_APSC_CHANNEL);virtual;
      function    RawRequest         :String;
@@ -326,9 +327,10 @@ begin
   result := FResponse;
 end;
 
-constructor TFRE_HTTP_CONNECTION_HANDLER.Create(const channel: IFRE_APSC_CHANNEL; const http_server: IFRE_HTTP_BASESERVER);
+constructor TFRE_HTTP_CONNECTION_HANDLER.Create(const channel: IFRE_APSC_CHANNEL; const http_server: IFRE_HTTP_BASESERVER; const ssl_enabled: Boolean);
 begin
-  FChannel := channel;
+  FChannel     := channel;
+  FSSL_Enabled := ssl_enabled;
   InitForNewRequest;
   FResponseHeaders        [rh_Server]:='FirmOS FRE HTTP Engine';
   FResponseEntityHeaders  [reh_ContentLength]:='0';

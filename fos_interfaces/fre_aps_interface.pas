@@ -62,6 +62,7 @@ type
     function  GetErrorString      : string;
     function  GetListeningAddress : string;
     function  GetID               : string;
+    procedure EnableSSL           (const server_ctx : PSSL_CTX);
     procedure Stop;
     procedure Start;
     procedure Finalize;

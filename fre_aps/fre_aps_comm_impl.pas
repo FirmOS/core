@@ -144,6 +144,8 @@ type
     FEvent        : PEvent;
     FLock         : IFOS_LOCK;
     FId           : String;
+    FSSL_CTX      : PSSL_CTX;
+    FSSL_Enabled  : Boolean;
   protected
     procedure  SetupEvent          (const sa_data : PShortString ; const event_base : PEvent_base);
     function   GetState            : TAPSC_ListenerState;
@@ -153,6 +155,7 @@ type
     procedure  _InSync_Stop;
     procedure  _InSync_Finalize;
   public
+    procedure  EnableSSL           (const server_ctx : PSSL_CTX);
     procedure  Stop;
     procedure  Start;
     procedure  Finalize; // called over manager
@@ -257,6 +260,8 @@ type
     FId           : ShortString;
     FnewChanCB    : TOnNew_APSC_Channel;
     FCreateThreadID : TThreadID;
+    FClientSSL_CTX  : PSSL_CTX;
+    FSSL_Enabled    : Boolean;
 
     FFinalizecalled    : Boolean;
     FDisconnectHandled : Boolean;
@@ -334,6 +339,7 @@ type
   { TFRE_APS_COMM }
   TFRE_APS_COMM=class(Tobject,IFRE_APSC)
   private
+    FSSL_CTX             : PSSL_CTX;
     FMainThread          : TFRE_APS_COMM_MAIN_THREAD;
     FOnNew_APSC_Listener : TOnNew_APSC_Listener;
     FonNew_APSC_Channel  : TOnNew_APSC_Channel;
@@ -351,6 +357,7 @@ type
   protected
 
     procedure   TEST_ListenerCB         (const listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
+    procedure   TEST_ListenerCB_SSL     (const listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
     procedure   TEST_ConnectManSockCB   (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
     procedure   TEST_DiscoClientChannel (const channel  : IFRE_APSC_CHANNEL);
     procedure   TEST_ReadClientChannel  (const channel  : IFRE_APSC_CHANNEL);
@@ -422,15 +429,20 @@ begin
 
            GFRE_SC.AddTimer('TEST',1000,nil);
            GFRE_SC.AddListener_TCP('[::1]','44000','IP6L');
-           GFRE_SC.AddListener_TCP('[fd9e:21a7:a92c:2323::1]','44000','IP6');
+           //GFRE_SC.AddListener_TCP('[fd9e:21a7:a92c:2323::1]','44000','IP6');
            GFRE_SC.AddListener_TCP('*','44000','I4L');
-           for i:=0 to 50 do
+           for i:=1 to 3 do
                GFRE_SC.AddClient_TCP('[::1]','44000','CL'+inttostr(i));
             repeat
              sleep(100);
             until assigned(GAPSC.TEST_Listener);
             writeln('ASYNC : ',GAPSC.TEST_Listener.GetState);
         end;
+     'echoserver':  begin
+                       GFRE_SC.SetNewListenerCB(@GAPSC.TEST_ListenerCB_SSL);
+                       GFRE_SC.SetNewChannelCB(@GAPSC.TEST_ConnectManSockCB);
+                       GFRE_SC.AddListener_TCP('*','44000','IP46-ECHO');
+                    end;
      'httpclient' : begin
                       cnt := 0;
                       for i:=0 to 100 do
@@ -878,7 +890,14 @@ begin
       exit;
     FSocketAddr := APSC_sa2string(@Fsockaddr);
     FVerboseID  := FSocketAddr;
-    FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+    if FSSL_Enabled then
+      begin
+        FBufEvent := bufferevent_openssl_socket_new(base, Fsocket, FClientSSL_CTX,BUFFEREVENT_SSL_ACCEPTING,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+      end
+    else
+      begin
+        FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+      end;
     if not assigned(FBufEvent) then
       begin
         FChanError:='did not get a bufferevent';
@@ -1096,7 +1115,14 @@ begin
   FManager  := manager;
   FListener := listener;
   if assigned(listener) then // case serversocket
-    FCreateThreadID := GetThreadID;
+    begin
+      FCreateThreadID := GetThreadID;
+      if FListener.FSSL_Enabled then
+        begin
+          FSSL_Enabled:=true;
+          FClientSSL_CTX :=  SSL_new(FListener.FSSL_CTX);
+        end;
+    end;
 end;
 
 destructor TFRE_APSC_CHANNEL.Destroy;
@@ -1315,6 +1341,7 @@ begin
           end;end;
         end;
       GAPSC.FMainThread._InSyncDistributeNewAccept(self,new_fd,@sa,len);
+      event_add(FEvent,nil);
     end
   else
     begin
@@ -1374,7 +1401,7 @@ begin
       exit;
     if APSC_CheckResultSetError(fplisten(FListensock,10),FError,FEcode,'LISTEN: ') then
       exit;
-    FEvent := event_new(event_base,FListensock,EV_READ+EV_PERSIST,@INT_AcceptCB,self);
+    FEvent := event_new(event_base,FListensock,EV_READ,@INT_AcceptCB,self);
     if not assigned(FEvent) then
       begin
         FError:='did not get an event';
@@ -1445,6 +1472,12 @@ end;
 procedure TFRE_APSC_Listener._InSync_Finalize;
 begin
   Free;
+end;
+
+procedure TFRE_APSC_Listener.EnableSSL(const server_ctx: PSSL_CTX);
+begin
+  FSSL_Enabled := true;
+  FSSL_CTX := server_ctx;
 end;
 
 procedure TFRE_APSC_Listener.Stop;
@@ -1860,6 +1893,19 @@ begin
   //listener.finalize;
 end;
 
+procedure TFRE_APS_COMM.TEST_ListenerCB_SSL(const listener: IFRE_APSC_LISTENER; const state: TAPSC_ListenerState);
+var err :string;
+begin
+  err := listener.GetErrorString;
+  writeln('LISTENER STATE ',listener.Getstate,' ',listener.GetListeningAddress,' ',state,' ',err);
+  if state =als_EVENT_NEW_LISTENER then
+    begin
+      TEST_Listener := listener;
+      TEST_Listener.EnableSSL(FSSL_CTX);
+      TEST_Listener.Start;
+    end;
+end;
+
 procedure TFRE_APS_COMM.TEST_ConnectManSockCB(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
 begin
   if channel.CH_IsClientChannel then
@@ -1888,6 +1934,7 @@ begin
 end;
 
 procedure TFRE_APS_COMM.TEST_ReadClientChannel(const channel: IFRE_APSC_CHANNEL);
+var data : string;
 begin
   if channel.CH_IsClientChannel then
     begin
@@ -1897,8 +1944,12 @@ begin
     end
   else
     begin
+      data := channel.CH_ReadString;
       writeln('GOT ON  SS: ',channel.GetVerboseDesc,' ',channel.CH_ReadString);
-      channel.Finalize;
+      data := 'ECHO : '+data;
+      writeln(data);
+      channel.CH_WriteString(data);
+      //channel.Finalize;
     end;
 end;
 
@@ -1926,7 +1977,26 @@ constructor TFRE_APS_COMM.create;
 var ign,dummy: SigactionRec;
     na       : SigactionRec;
 
+  procedure SetupSSL_Ctx;
+  var fre_ssl_i     : TFRE_SSL_INFO;
+  begin
+    with fre_ssl_i do
+      begin
+        ssl_type := fssl_TLSv1;
+        cerifificate_file := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_CERT_FILE; //'/fre/ssl/server_files/server_cert.pem';
+        private_key_file  := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_PRIVATE_KEY_FILE; //'/fre/ssl/server_files/server_key.pem';
+        root_ca_file      := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_ROOT_CA_FILE;//'/fre/ssl/server_files/ca_cert.pem';
+        fail_no_peer_cert := false;
+        verify_peer       := false;
+        verify_peer_cert_once:= false;
+        IsServer          := true;
+        cipher_suites     := 'DEFAULT';
+      end;
+    FSSL_CTX := FRE_Setup_SSL_Context(@fre_ssl_i);
+  end;
+
 begin
+  SetupSSL_Ctx;
   FMainThread:=TFRE_APS_COMM_MAIN_THREAD.Create;
 
   na.sa_Handler:=SigActionHandler(@DoSig);
