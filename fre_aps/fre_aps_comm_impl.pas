@@ -66,7 +66,7 @@ implementation
 
 type
   TAPSC_CMD  = (cb_NEW_LISTENER=1,cb_START_LISTENER=2,cb_STOP_LISTENER=3,cb_FINALIZE_LISTENER=4,cb_NEW_SOCK_ACCEPTED=5,cb_FINALIZE_MAIN=6,cb_FINALIZE_CHANNEL_MGR=7,cb_FINALIZE_CHANNEL=8,
-                cb_NEW_CLIENT_SOCK=9,cb_ADD_GLOBAL_TIMER=10,cb_SCHED_COROUTINE=11);
+                cb_NEW_CLIENT_SOCK=9,cb_ADD_GLOBAL_TIMER=10,cb_SCHED_COROUTINE=11,cb_NEW_LISTENER_UX=12);
 
 function  APSC_CheckResultSetError (const res : cInt ; var error : string ; var os_ecode : NativeInt ; const prefix : string='' ; const postfix : string =''):boolean;forward;
 procedure APSC_WriteCommpacket     (const cmd : TAPSC_CMD ; data:ShortString ; const fd : cint);forward;
@@ -144,15 +144,21 @@ type
     FEvent        : PEvent;
     FLock         : IFOS_LOCK;
     FId           : String;
+    FSSL_CTX      : PSSL_CTX;
+    FSSL_Enabled  : Boolean;
+    FsockaddrUnix : sockaddr_un;
   protected
-    procedure  SetupEvent          (const sa_data : PShortString ; const event_base : PEvent_base);
+    procedure  SetupEvent              (const sa_data : PShortString ; const event_base : PEvent_base);
+    procedure  SetupUnixSocketListener (const event_base: PEvent_base);
     function   GetState            : TAPSC_ListenerState;
     function   GetErrorString      : string;
     function   GetListeningAddress : string;
     procedure  _InSync_Start;
     procedure  _InSync_Stop;
     procedure  _InSync_Finalize;
+    function   IsIPListener : boolean;
   public
+    procedure  EnableSSL           (const server_ctx : PSSL_CTX);
     procedure  Stop;
     procedure  Start;
     procedure  Finalize; // called over manager
@@ -257,6 +263,8 @@ type
     FId           : ShortString;
     FnewChanCB    : TOnNew_APSC_Channel;
     FCreateThreadID : TThreadID;
+    FClientSSL_CTX  : PSSL_CTX;
+    FSSL_Enabled    : Boolean;
 
     FFinalizecalled    : Boolean;
     FDisconnectHandled : Boolean;
@@ -272,7 +280,7 @@ type
     function    _GetDebugID         : String;
 
   protected
-    procedure   SetupServedSocket    (fd : cint ; new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; const base : PEvent_base ; newchannelcb : TOnNew_APSC_Channel); // a server socket
+    procedure   SetupServedSocket    (fd : cint ; new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; const base : PEvent_base ; newchannelcb : TOnNew_APSC_Channel;const is_ip_socket:boolean); // a server socket
     procedure   SetupClientSocket1   (new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; bind_sa : PFCOM_SOCKADDRSTORAGE ; bind_sal : cInt ; const id:ShortString ; newchannelcb : TOnNew_APSC_Channel ; readevent,discoevent : TFRE_APSC_CHANNEL_EVENT); // a client socket part 1
     procedure   SetupClientSocketDNS (const host : string ; port : NativeInt ; bind_sa : PFCOM_SOCKADDRSTORAGE ; bind_sal : cInt ; const id:ShortString ; newchannelcb : TOnNew_APSC_Channel ; readevent,discoevent : TFRE_APSC_CHANNEL_EVENT); // a client socket part 1
     procedure   SetupClientSocket2   (const base : PEvent_base ; const dnsbase : Pevdns_base  ;manager : TFRE_APSC_CHANNEL_MANAGER); // a client socket part 2
@@ -334,6 +342,7 @@ type
   { TFRE_APS_COMM }
   TFRE_APS_COMM=class(Tobject,IFRE_APSC)
   private
+    FSSL_CTX             : PSSL_CTX;
     FMainThread          : TFRE_APS_COMM_MAIN_THREAD;
     FOnNew_APSC_Listener : TOnNew_APSC_Listener;
     FonNew_APSC_Channel  : TOnNew_APSC_Channel;
@@ -345,12 +354,14 @@ type
     procedure _CallbackListener      (const listener : TFRE_APSC_Listener ; const state : TAPSC_ListenerState);
     procedure _CallbackTimer         (const timer    : IFRE_APSC_Timer);
     procedure _ActivateListener      (const listener : TFRE_APSC_Listener);
+    procedure _AddUnixSockListener   (const listener : TFRE_APSC_Listener);
     procedure _StopListener          (const listener : TFRE_APSC_Listener);
     procedure _FinalizeMain          ;
     procedure _FinalizeListener      (const listener : TFRE_APSC_Listener);
   protected
 
     procedure   TEST_ListenerCB         (const listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
+    procedure   TEST_ListenerCB_SSL     (const listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
     procedure   TEST_ConnectManSockCB   (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
     procedure   TEST_DiscoClientChannel (const channel  : IFRE_APSC_CHANNEL);
     procedure   TEST_ReadClientChannel  (const channel  : IFRE_APSC_CHANNEL);
@@ -365,6 +376,7 @@ type
 
 
     procedure   AddListener_TCP   (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
+    procedure   AddListener_UX    (const special_file:shortstring ; const id:shortstring);
     procedure   AddClient_TCP     (IP,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String='');
     procedure   AddClient_TCP_DNS (Host,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String='');
     procedure   ResolveDNS_TCP    (const addrstring : String);
@@ -408,7 +420,7 @@ var
     begin
       writeln(cnt,' Answer : ',http_status,' ',content_len,' ',contenttyp);
       inc(cnt);
-      //writeln(copy(PChar(content),1));
+      writeln(copy(PChar(content),1,maxint));
       sender.Free;
     end;
 
@@ -422,15 +434,25 @@ begin
 
            GFRE_SC.AddTimer('TEST',1000,nil);
            GFRE_SC.AddListener_TCP('[::1]','44000','IP6L');
-           GFRE_SC.AddListener_TCP('[fd9e:21a7:a92c:2323::1]','44000','IP6');
+           //GFRE_SC.AddListener_TCP('[fd9e:21a7:a92c:2323::1]','44000','IP6');
            GFRE_SC.AddListener_TCP('*','44000','I4L');
-           for i:=0 to 50 do
+           for i:=1 to 3 do
                GFRE_SC.AddClient_TCP('[::1]','44000','CL'+inttostr(i));
             repeat
              sleep(100);
             until assigned(GAPSC.TEST_Listener);
             writeln('ASYNC : ',GAPSC.TEST_Listener.GetState);
         end;
+     'echounix': begin
+                    GFRE_SC.SetNewListenerCB(@GAPSC.TEST_ListenerCB);
+                    GFRE_SC.SetNewChannelCB(@GAPSC.TEST_ConnectManSockCB);
+                    GFRE_SC.AddListener_UX('/tmp/helitest','UXS');
+                 end;
+     'echossl':  begin
+                       GFRE_SC.SetNewListenerCB(@GAPSC.TEST_ListenerCB_SSL);
+                       GFRE_SC.SetNewChannelCB(@GAPSC.TEST_ConnectManSockCB);
+                       GFRE_SC.AddListener_TCP('*','44000','IP46-ECHO');
+                    end;
      'httpclient' : begin
                       cnt := 0;
                       for i:=0 to 100 do
@@ -862,7 +884,7 @@ begin
 end;
 
 
-procedure TFRE_APSC_CHANNEL.SetupServedSocket(fd: cint; new_sa: PFCOM_SOCKADDRSTORAGE; new_sal: cInt; const base: PEvent_base; newchannelcb: TOnNew_APSC_Channel);
+procedure TFRE_APSC_CHANNEL.SetupServedSocket(fd: cint; new_sa: PFCOM_SOCKADDRSTORAGE; new_sal: cInt; const base: PEvent_base; newchannelcb: TOnNew_APSC_Channel;const is_ip_socket:boolean);
 begin
   FClient:=false;
   move(new_sa^,Fsockaddr,new_sal);
@@ -874,11 +896,19 @@ begin
       exit;
     if APSC_CheckResultSetError(evutil_make_socket_nonblocking(Fsocket),FChanError,FChanECode,'SETNONBLOCK: ') then
       exit;
-    if APSC_CheckResultSetError(APSC_SetNoDelay(Fsocket,true),FChanError,FChanECode,'SETNODELAY: ') then
-      exit;
+    if is_ip_socket and
+       APSC_CheckResultSetError(APSC_SetNoDelay(Fsocket,true),FChanError,FChanECode,'SETNODELAY: ') then
+        exit;
     FSocketAddr := APSC_sa2string(@Fsockaddr);
     FVerboseID  := FSocketAddr;
-    FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+    if FSSL_Enabled then
+      begin
+        FBufEvent := bufferevent_openssl_socket_new(base, Fsocket, FClientSSL_CTX,BUFFEREVENT_SSL_ACCEPTING,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+      end
+    else
+      begin
+        FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+      end;
     if not assigned(FBufEvent) then
       begin
         FChanError:='did not get a bufferevent';
@@ -1096,16 +1126,25 @@ begin
   FManager  := manager;
   FListener := listener;
   if assigned(listener) then // case serversocket
-    FCreateThreadID := GetThreadID;
+    begin
+      FCreateThreadID := GetThreadID;
+      if FListener.FSSL_Enabled then
+        begin
+          FSSL_Enabled:=true;
+          FClientSSL_CTX :=  SSL_new(FListener.FSSL_CTX);
+        end;
+    end;
 end;
 
 destructor TFRE_APSC_CHANNEL.Destroy;
 begin
   LogDebug('DESTROY CHANNEL : '+_GetDebugID,[]);
   EventDisconnectOnce;
-  bufferevent_disable(FBufEvent,EV_READ+EV_WRITE);
   if assigned(FBufEvent) then
-    bufferevent_free(FBufEvent);
+    begin
+      bufferevent_disable(FBufEvent,EV_READ+EV_WRITE);
+      bufferevent_free(FBufEvent);
+    end;
   inherited;
 end;
 
@@ -1134,9 +1173,9 @@ procedure TFRE_APSC_CHANNEL_MANAGER.GotChannelCtrCMD(const cmd: TAPSC_CMD; const
     new_fd    := pcint(@data^[1+sizeof(PtrUInt)])^;
     new_sa    := @data^[1+sizeof(PtrUInt)+SizeOf(cint)];
     new_sal   := Length(data^)-SizeOf(cint);
-    newchan.SetupServedSocket(new_fd,new_sa,new_sal,FChanBaseCtrl.FEventBase,@GAPSC._CallbackManagerSocket);
     if not FChannelList.Add(newchan) then
       GFRE_BT.CriticalAbort('critical: channel double add ?');
+    newchan.SetupServedSocket(new_fd,new_sa,new_sal,FChanBaseCtrl.FEventBase,@GAPSC._CallbackManagerSocket,list.IsIPListener);
     Inc(FChannelCount);
   end;
 
@@ -1315,6 +1354,7 @@ begin
           end;end;
         end;
       GAPSC.FMainThread._InSyncDistributeNewAccept(self,new_fd,@sa,len);
+      event_add(FEvent,nil);
     end
   else
     begin
@@ -1374,12 +1414,49 @@ begin
       exit;
     if APSC_CheckResultSetError(fplisten(FListensock,10),FError,FEcode,'LISTEN: ') then
       exit;
-    FEvent := event_new(event_base,FListensock,EV_READ+EV_PERSIST,@INT_AcceptCB,self);
+    FEvent := event_new(event_base,FListensock,EV_READ,@INT_AcceptCB,self);
     if not assigned(FEvent) then
       begin
         FError:='did not get an event';
         exit;
       end;
+  FState := als_STOPPED;
+  finally
+    GAPSC._CallbackListener(self,als_EVENT_NEW_LISTENER);
+  end;
+end;
+
+procedure TFRE_APSC_Listener.SetupUnixSocketListener(const event_base: PEvent_base);
+var len   : NativeInt;
+begin
+  GFRE_TF.Get_Lock(FLock);
+  FState := als_BAD;
+  try
+    len := 128; //strlen(FsockaddrUnix.sun_path) + sizeof(FsockaddrUnix.sun_family);
+    FListensock := fpsocket(PF_UNIX,SOCK_STREAM,0);
+
+  if FListensock = -1 then
+    begin
+      FError := APSC_TranslateOsError(fpgeterrno,'CREATE');
+      exit;
+    end;
+    //if APSC_CheckResultSetError(evutil_make_listen_socket_reuseable(FListensock),FError,FEcode,'SETREUSEABLE: ') then
+    //  exit;
+    if APSC_CheckResultSetError(evutil_make_socket_closeonexec(FListensock),FError,FEcode,'SETCLOSEONEX: ') then
+      exit;
+    if APSC_CheckResultSetError(evutil_make_socket_nonblocking(FListensock),FError,FEcode,'SETNONBLOCK: ') then
+      exit;
+    if APSC_CheckResultSetError(fpbind(FListensock,@FsockaddrUnix,len),FError,FEcode,'BIND: ') then
+      exit;
+    if APSC_CheckResultSetError(fplisten(FListensock,10),FError,FEcode,'LISTEN: ') then
+      exit;
+    FEvent := event_new(event_base,FListensock,EV_READ,@INT_AcceptCB,self);
+    if not assigned(FEvent) then
+      begin
+        FError:='did not get an event';
+        exit;
+      end;
+  FListenAddr := FsockaddrUnix.sun_path;
   FState := als_STOPPED;
   finally
     GAPSC._CallbackListener(self,als_EVENT_NEW_LISTENER);
@@ -1447,6 +1524,17 @@ begin
   Free;
 end;
 
+function TFRE_APSC_Listener.IsIPListener: boolean;
+begin
+  Result := FsockaddrUnix.sun_path='';
+end;
+
+procedure TFRE_APSC_Listener.EnableSSL(const server_ctx: PSSL_CTX);
+begin
+  FSSL_Enabled := true;
+  FSSL_CTX := server_ctx;
+end;
+
 procedure TFRE_APSC_Listener.Stop;
 begin
   GAPSC._StopListener(self);
@@ -1471,7 +1559,8 @@ begin
       event_del(FEvent);
       event_free(FEvent);
     end;
-  FLock.Finalize;
+  if assigned(FLock) then
+    FLock.Finalize;
   inherited Destroy;
 end;
 
@@ -1620,14 +1709,19 @@ end;
 procedure TFRE_APS_COMM_MAIN_THREAD.GotCtrCMD(const cmd: TAPSC_CMD; const data: PShortString);
 
   procedure _AddListenerSocket;
-  var sa  : TFCOM_SOCKADDRSTORAGE;
-      len : NativeInt;
-      nsl : TFRE_APSC_Listener;
+  var   nsl : TFRE_APSC_Listener;
   begin
     nsl := TFRE_APSC_Listener.Create;
-    nsl.SetupEvent(data,FCB.FEventBase);
     if not FListenerlList.Add(nsl) then
       GFRE_BT.CriticalAbort('critical: double add listener');
+    nsl.SetupEvent(data,FCB.FEventBase);
+  end;
+
+  procedure _AddListenerSocketUnix(const ls : TFRE_APSC_Listener);
+  begin
+    ls.SetupUnixSocketListener(FCB.FEventBase);
+    if not FListenerlList.Add(ls) then
+      GFRE_BT.CriticalAbort('critical: double add unix listener');
   end;
 
   procedure _AddTimer(tim : TFRE_APSC_TIMER);
@@ -1648,6 +1742,7 @@ procedure TFRE_APS_COMM_MAIN_THREAD.GotCtrCMD(const cmd: TAPSC_CMD; const data: 
 begin
   case cmd of
     cb_NEW_LISTENER      : _AddListenerSocket;
+    cb_NEW_LISTENER_UX   : _AddListenerSocketUnix(TFRE_APSC_Listener(PPtrUInt(@data^[1])^));
     cb_START_LISTENER    : TFRE_APSC_Listener(PPtrUInt(@data^[1])^)._InSync_Start;
     cb_STOP_LISTENER     : TFRE_APSC_Listener(PPtrUInt(@data^[1])^)._InSync_Stop;
     cb_FINALIZE_LISTENER : _FinalizeListener(TFRE_APSC_Listener(PPtrUInt(@data^[1])^));
@@ -1692,12 +1787,20 @@ procedure TFRE_APS_COMM_MAIN_THREAD._InSync_FinalizeMain;
 
   procedure FinalizeListener(var list : TFRE_APSC_Listener ; const idx : NativeInt ; var halt : boolean);
   begin
-    list.Free;
+    try
+      list.Free;
+    except on e:Exception do
+      writeln('FAILURE FREEING LISTENER '+e.Message);
+    end;
   end;
 
   procedure FinalizeTimer(var tim : TFRE_APSC_TIMER ; const idx : NativeInt ; var halt : boolean);
   begin
-    tim.Free;
+    try
+      tim.Free;
+    except on e:Exception do
+      writeln('FAILURE FREEING TIMER '+e.Message);
+    end;
   end;
 
 
@@ -1799,7 +1902,7 @@ begin
     end
   else
   try
-    listener.free;
+    listener.Finalize;
   except on e:exception do
     LogWarning('listener CB Exception : '+e.Message,[]);
   end;
@@ -1821,6 +1924,14 @@ begin
   SetLength(pack,sizeof(NativeUint));
   PPtrUInt(@pack[1])^ := PtrUint(listener);
   APSC_WriteCommpacket(cb_START_LISTENER,pack,FMainThread.FCB.SourceFD);
+end;
+
+procedure TFRE_APS_COMM._AddUnixSockListener(const listener: TFRE_APSC_Listener);
+var pack:ShortString;
+begin
+  SetLength(pack,sizeof(NativeUint));
+  PPtrUInt(@pack[1])^ := PtrUint(listener);
+  APSC_WriteCommpacket(cb_NEW_LISTENER_UX,pack,FMainThread.FCB.SourceFD);
 end;
 
 procedure TFRE_APS_COMM._StopListener(const listener: TFRE_APSC_Listener);
@@ -1860,6 +1971,19 @@ begin
   //listener.finalize;
 end;
 
+procedure TFRE_APS_COMM.TEST_ListenerCB_SSL(const listener: IFRE_APSC_LISTENER; const state: TAPSC_ListenerState);
+var err :string;
+begin
+  err := listener.GetErrorString;
+  writeln('LISTENER STATE ',listener.Getstate,' ',listener.GetListeningAddress,' ',state,' ',err);
+  if state =als_EVENT_NEW_LISTENER then
+    begin
+      TEST_Listener := listener;
+      TEST_Listener.EnableSSL(FSSL_CTX);
+      TEST_Listener.Start;
+    end;
+end;
+
 procedure TFRE_APS_COMM.TEST_ConnectManSockCB(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
 begin
   if channel.CH_IsClientChannel then
@@ -1888,6 +2012,7 @@ begin
 end;
 
 procedure TFRE_APS_COMM.TEST_ReadClientChannel(const channel: IFRE_APSC_CHANNEL);
+var data : string;
 begin
   if channel.CH_IsClientChannel then
     begin
@@ -1897,8 +2022,12 @@ begin
     end
   else
     begin
+      data := channel.CH_ReadString;
       writeln('GOT ON  SS: ',channel.GetVerboseDesc,' ',channel.CH_ReadString);
-      channel.Finalize;
+      data := 'ECHO : '+data;
+      writeln(data);
+      channel.CH_WriteString(data);
+      //channel.Finalize;
     end;
 end;
 
@@ -1926,7 +2055,26 @@ constructor TFRE_APS_COMM.create;
 var ign,dummy: SigactionRec;
     na       : SigactionRec;
 
+  procedure SetupSSL_Ctx;
+  var fre_ssl_i     : TFRE_SSL_INFO;
+  begin
+    with fre_ssl_i do
+      begin
+        ssl_type := fssl_TLSv1;
+        cerifificate_file := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_CERT_FILE; //'/fre/ssl/server_files/server_cert.pem';
+        private_key_file  := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_PRIVATE_KEY_FILE; //'/fre/ssl/server_files/server_key.pem';
+        root_ca_file      := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_ROOT_CA_FILE;//'/fre/ssl/server_files/ca_cert.pem';
+        fail_no_peer_cert := false;
+        verify_peer       := false;
+        verify_peer_cert_once:= false;
+        IsServer          := true;
+        cipher_suites     := 'DEFAULT';
+      end;
+    FSSL_CTX := FRE_Setup_SSL_Context(@fre_ssl_i);
+  end;
+
 begin
+  SetupSSL_Ctx;
   FMainThread:=TFRE_APS_COMM_MAIN_THREAD.Create;
 
   na.sa_Handler:=SigActionHandler(@DoSig);
@@ -2029,6 +2177,20 @@ begin
   SetLength(pack,len+30);
   move(sa,pack[30+1],len);
   APSC_WriteCommpacket(cb_NEW_LISTENER,pack,FMainThread.FCB.SourceFD);
+end;
+
+procedure TFRE_APS_COMM.AddListener_UX(const special_file: shortstring; const id: shortstring);
+var uxl : TFRE_APSC_Listener;
+begin
+  if Length(special_file)>=108 then
+    raise Exception.Create('the unix socket path has to be shorter then 108 chars');
+  if FileExists(special_file) then
+    APSC_CheckRaiseOSCall(FpUnlink(special_file),'unlink unix socket','',false);
+  uxl:=TFRE_APSC_Listener.Create;
+  uxl.FsockaddrUnix.sun_path   := trim(special_file);
+  uxl.FsockaddrUnix.sun_path[Length(special_file)]:=#0;
+  uxl.FsockaddrUnix.sun_family := PF_UNIX;
+  _AddUnixSockListener(uxl);
 end;
 
 procedure TFRE_APS_COMM.AddClient_TCP(IP, Port: String; const ID: ShortString; const channelmanager: IFRE_APSC_CHANNEL_MANAGER; localNewChannelCB: TOnNew_APSC_Channel; localRead: TFRE_APSC_CHANNEL_EVENT; localDisconnect: TFRE_APSC_CHANNEL_EVENT; Bind_IP: string; Bind_Port: String);

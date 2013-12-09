@@ -52,6 +52,7 @@ const cFRE_SERVER_VERSION   = 'v0.1 Embedded';
 var
       cFRE_WEB_STYLE                  :string = 'firmos';
       cFRE_SERVER_DEFAULT_DIR         :string = '~/.firmos/fre';
+      cFRE_SERVER_DEFAULT_SSL_DIR     :string = '~/.firmos/fre/ssl/server_files/';
       cFRE_HAL_CFG_DIR                :string = '';
       cFRE_TMP_DIR                    :string = '';
       cFRE_JOB_RESULT_DIR             :string = '';

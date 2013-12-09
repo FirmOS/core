@@ -116,6 +116,8 @@ type
     procedure QueryUserPass           (out user,pass:string);virtual;
     procedure RegisterRemoteMethods   (var remote_method_array : TFRE_DB_RemoteReqSpecArray); virtual;
     procedure WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); virtual;
+    function  GetCurrentChanManLocked : IFRE_APSC_CHANNEL_MANAGER;
+    procedure UnlockCurrentChanMan    ;
   end;
 
 
@@ -541,6 +543,17 @@ begin
         input.Finalize;
       end;
   end;
+end;
+
+function TFRE_BASE_CLIENT.GetCurrentChanManLocked: IFRE_APSC_CHANNEL_MANAGER;
+begin
+  FClientStateLock.Acquire;
+  result := FChannel.GetChannelManager;
+end;
+
+procedure TFRE_BASE_CLIENT.UnlockCurrentChanMan;
+begin
+  FClientStateLock.Release;
 end;
 
 function TFRE_BASE_CLIENT.SendServerCommand(const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER; const timeout: integer): boolean;

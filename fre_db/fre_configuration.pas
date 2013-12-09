@@ -162,6 +162,10 @@ var cfgfile  : string;
           cFRE_SERVER_DEFAULT_DIR := StringReplace(cFRE_SERVER_DEFAULT_DIR,'~',GetUserDir,[]);
           cFRE_SERVER_DEFAULT_DIR := StringReplace(cFRE_SERVER_DEFAULT_DIR,DirectorySeparator+DirectorySeparator,DirectorySeparator,[]);
         end;
+        if pos('~',cFRE_SERVER_DEFAULT_SSL_DIR)>0 then begin
+          cFRE_SERVER_DEFAULT_SSL_DIR := StringReplace(cFRE_SERVER_DEFAULT_SSL_DIR,'~',GetUserDir,[]);
+          cFRE_SERVER_DEFAULT_SSL_DIR := StringReplace(cFRE_SERVER_DEFAULT_SSL_DIR,DirectorySeparator+DirectorySeparator,DirectorySeparator,[]);
+        end;
         cFRE_SERVER_WWW_ROOT_DIR        := ini.ReadString('BASE','WWWROOT'           , cFRE_SERVER_WWW_ROOT_DIR);
         cFRE_SERVER_DEFAULT_TIMEZONE    := ini.ReadString('BASE','TIMEZONE'          , cFRE_SERVER_DEFAULT_TIMEZONE);
         cFRE_WebServerLocation_HixiedWS := ini.ReadString('BASE','HIXIE_WS_LOCATION' , cFRE_WebServerLocation_HixiedWS);

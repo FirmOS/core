@@ -46,7 +46,7 @@ interface
 
 uses  classes, sysutils,fre_aps_interface,fos_fcom_types,fos_tool_interfaces,baseunix,
       fre_http_srvhandler,fre_db_interface,fre_system,fos_interlocked,
-      fre_db_core,fre_webssocket_baseserver,fre_db_common,
+      fre_db_core,fre_webssocket_baseserver,fre_db_common,fre_fcom_ssl,
       fre_http_tools,fos_redblacktree_gen,fre_sys_base_cs,
       fre_wapp_dojo;
 
@@ -80,10 +80,10 @@ type
     FDefaultAPP_Class  : Shortstring;
     FSystemConnection  : TFRE_DB_SYSTEM_CONNECTION;
 
-    FDefaultSession           : TFRE_DB_UserSession;
-
-    FHull_HTML,FHull_CT       : String;
-    FTerminating              : boolean;
+    FSSL_CTX             : PSSL_CTX;
+    FDefaultSession      : TFRE_DB_UserSession;
+    FHull_HTML,FHull_CT  : String;
+    FTerminating         : boolean;
 
     procedure      _SetupHttpBaseServer                      ;
     procedure      BindInitialSession                        (const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean);
@@ -105,6 +105,7 @@ type
     TransFormFunc                : TFRE_DB_TRANSFORM_FUNCTION;
 
     HTTPWS_Listener              : IFRE_APSC_LISTENER;
+    HTTPSWSS_Listener            : IFRE_APSC_LISTENER;
     FLEX_Listener                : IFRE_APSC_LISTENER;
 
     constructor create           (const defaultdbname : string);
@@ -284,6 +285,24 @@ procedure TFRE_BASE_SERVER.Setup;
        res_main.Finalize;
      end;
 
+     procedure _SetupSSL_Ctx;
+     var fre_ssl_i     : TFRE_SSL_INFO;
+     begin
+       with fre_ssl_i do
+         begin
+           ssl_type := fssl_TLSv1;
+           cerifificate_file     := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_CERT_FILE;
+           private_key_file      := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_PRIVATE_KEY_FILE;
+           root_ca_file          := cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_ROOT_CA_FILE;
+           fail_no_peer_cert     := false;
+           verify_peer           := false;
+           verify_peer_cert_once := false;
+           IsServer              := true;
+           cipher_suites         := 'DEFAULT';
+         end;
+       FSSL_CTX := FRE_Setup_SSL_Context(@fre_ssl_i);
+     end;
+
 begin
   TransFormFunc     := @FRE_WAPP_DOJO.TransformInvocation;
   FOpenDatabaseList.init;
@@ -294,37 +313,10 @@ begin
   GFRE_TF.Get_Lock(FSessionTreeLock);
   GFRE_SC.SetSingnalCB(@HandleSignals);
 
-  //ssldir := SetDirSeparators(cFRE_SERVER_DEFAULT_DIR+'/ssl/server_files/');
-  //GFRE_DB.LogInfo(dblc_SERVER,'HTTP (MAINTENANCE/SERVICE) SERVER SSL LISTENING ON (%s) ',[flistener_es.GetSocket.Get_AI.SocketAsString]);
-  //me:=GFRE_S.AddSocketListener_SSL('*',44443,fil_IPV4,fsp_TCP,shandler,true,flistener_es,fssl_TLSv1,ssldir+cFRE_SSL_CERT_FILE,ssldir+cFRE_SSL_PRIVATE_KEY_FILE,ssldir+cFRE_SSL_ROOT_CA_FILE,@MyGetPW,false,false,false,'DEFAULT');
-  //if me<>ese_OK then begin
-  //  GFRE_BT.CriticalAbort('Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
-  //  exit;
-  //end;
-  //GFRE_DB.LogInfo(dblc_SERVER,'HTTP (MAINTENANCE/SERVICE) SERVER LISTENING ON (%s) ',[flistener_es.GetSocket.Get_AI.SocketAsString]);
-
-  //flex_handler.ListenerError      := @ListenerErrorFC;
-  //flex_handler.ServerHandler      := @ServerHandlerFC;
-  //flex_handler.InitServerSock     := @InitServerSockFC;
-  //flex_handler.TearDownServerSock := @TearDownServerSockFC;
-
-  //me:=GFRE_S.AddSocketListener('*',44001,fil_IPV4,fsp_TCP,flex_handler,true,FIL_ListenSock);
-  //if me<>ese_OK then begin
-  //  GFRE_BT.CriticalAbort('EVENT SERVER Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
-  //end;
-  //GFRE_DB.LogInfo(dblc_SERVER,'NODE INTERLINK (SERVER) LISTENING ON (%s) ',[FIL_ListenSock.GetSocket.Get_AI.SocketAsString]);
-  //me:=GFRE_S.AddSocketListener_SSL('*',44002,fil_IPV4,fsp_TCP,flex_handler,true,FIL_ListenSockSSL,fssl_TLSv1,ssldir+cFRE_SSL_CERT_FILE,ssldir+cFRE_SSL_PRIVATE_KEY_FILE,ssldir+cFRE_SSL_ROOT_CA_FILE,@MyGetPW,false,false,false,'DEFAULT');
-  //if me<>ese_OK then begin
-  //  GFRE_BT.CriticalAbort('EVENT SERVER Cant create listening socket <%s>',[CFOS_FCOM_MULTIERROR[me]]);
-  //end;
-  //GFRE_DB.LogInfo(dblc_SERVER,'NODE INTERLINK (SERVER/SSL) LISTENING ON (%s) ',[FIL_ListenSockSSL.GetSocket.Get_AI.SocketAsString]);
-
-  //FInterLinkEvent := GFRE_S.AddPeriodicSignalTimer(1,@InterLinkDispatchTimer,nil,dm_OneWorker);
-  //FWFE_Scheduler  := GFRE_S.AddPeriodicTimer(1000,@WFE_DispatchTimerEvent,nil,dm_OneWorker);
-
   _SetupHttpBaseServer;
   _ConnectAllDatabases;
   _ServerinitializeApps;
+  _SetupSSL_Ctx;
   InitHullHTML;
 
   GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
@@ -334,6 +326,11 @@ begin
   GFRE_SC.AddListener_TCP ('*','44001','FLEX');
   GFRE_SC.SetNewListenerCB(@APSC_NewListener);
   GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
+
+  GFRE_SC.AddListener_TCP ('*','44003','HTTPS/WSS');
+  GFRE_SC.SetNewListenerCB(@APSC_NewListener);
+  GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
+
   FSessiontimer := GFRE_SC.AddTimer('SESSION',1000,@TIM_SessionHandler);
 end;
 
@@ -403,6 +400,21 @@ procedure TFRE_BASE_SERVER.APSC_NewListener(const LISTENER: IFRE_APSC_LISTENER; 
 var lid : String;
 begin
   lid :=listener.GetID;
+  if lid='HTTPS/WSS' then
+    begin
+      if state =als_EVENT_NEW_LISTENER then
+        begin
+          if LISTENER.GetState=als_STOPPED then
+            begin
+              HTTPSWSS_Listener := listener;
+              HTTPSWSS_Listener.EnableSSL(FSSL_Ctx);
+              HTTPSWSS_Listener.Start;
+            end
+          else
+            GFRE_BT.CriticalAbort('CANNOT ACTIVATE HTTPS/WSS SERVER : '+LISTENER.GetErrorString);
+        end;
+    end
+  else
   if lid='HTTP/WS' then
     begin
       if state =als_EVENT_NEW_LISTENER then
@@ -448,6 +460,18 @@ var lid : String;
     channel.CH_Enable_Reading;
   end;
 
+  procedure _Setup_New_HTTPS_WSS_Channel;
+  var lServerHandler : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
+  begin
+    lServerHandler := TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Create(channel,self,true);
+    lServerHandler.OnBindInitialSession := @BindInitialSession;
+    channel.SetVerboseDesc('HTTPS ['+inttostr(channel.GetHandleKey)+']'+'('+channel.GetConnSocketAddr+')');
+    channel.SetOnReadData(@lServerHandler.ReadChannelData);
+    channel.SetOnDisconnnect(@lServerHandler.DisconnectChannel);
+    channel.CH_Enable_Reading;
+  end;
+
+
   procedure _Setup_New_Flex_Channel;
   var bc : TFRE_SERVED_BASE_CONNECTION;
       us : TFRE_DB_UserSession;
@@ -465,6 +489,9 @@ begin
   lid := channel.GetListener.GetID;
   if lid ='HTTP/WS' then
     _Setup_New_HTTP_WS_Channel
+  else
+  if lid ='HTTPS/WSS' then
+    _Setup_New_HTTPS_WSS_Channel
   else
   if lid = 'FLEX' then
     _Setup_New_Flex_Channel

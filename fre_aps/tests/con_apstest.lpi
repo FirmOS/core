@@ -74,7 +74,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;../../fre_fcom;../../fre_core;../../fre_db;../../fos_interfaces"/>
+      <OtherUnitFiles Value="..;../../fre_fcom;../../fre_core;../../fre_db;../../fre_server;../../fos_interfaces"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Conditionals Value="if TargetOS = 'darwin' then

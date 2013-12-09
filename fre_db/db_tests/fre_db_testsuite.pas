@@ -68,6 +68,7 @@ type
     procedure StreamTest2;
     procedure CloneToNewChangeGUIDS;
     procedure GenericChangelistTest;
+    procedure TestStreamFieldClone;
   end;
 
   { TFRE_DB_PersistanceTests }
@@ -1065,7 +1066,7 @@ var obj1,obj2 : TFRE_DB_Object;
       cev_FieldAdded:   updt := 'ADD FIELD '+nfn+'('+nft+')';
       cev_FieldChanged: updt := 'CHANGE FIELD : '+nfn+' FROM '+ofv+':'+oft+' TO '+nfv+':'+nft;
     end;
-    writeln('UPDATE STEP : ',update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
+    writeln('UPDATE STEP : ',BoolToStr(is_child_update,' CHILD UPDATE ',' ROOT UPDATE '), update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
   end;
 
 begin
@@ -1083,6 +1084,18 @@ begin
   writeln('COMPARE - chang-chung');
   GFRE_DBI.GenerateAnObjChangeList(obj1,obj2,@Insert,@Delete,@Update);
   writeln('------');
+end;
+
+procedure TFRE_DB_ObjectTests.TestStreamFieldClone;
+var obj1,obj2 : TFRE_DB_Object;
+begin
+   obj1 := GFRE_DB.NewObject;
+   obj2 := GFRE_DB.NewObject;
+   obj1.Field('TESTSTREAM').AsStream.SetFromRawByteString('TeStStream#091'+#254+'A');
+   obj2.Field('STR').CloneFromField(obj1.Field('TESTSTREAM'));
+   writeln('--');
+   writeln(obj2.DumpToString());
+   writeln('--');
 end;
 
 procedure RegisterTestCodeClasses;

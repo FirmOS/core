@@ -1223,23 +1223,30 @@ var i,j       : NativeInt;
     procedure _DeletedField;
     begin
       with FSublist[i] do
-        case newfield.FieldType of
-          fdbft_Object:
-            begin
-              writeln('MASTERSTORE ABORT 1');
-              abort;
-              master.DeleteObject(newfield.AsObject.UID,check);
+        begin
+          to_upd_obj.Set_Store_Locked(false);
+          try
+            case newfield.FieldType of
+              fdbft_Object:
+                begin
+                  writeln('MASTERSTORE ABORT 1');
+                  abort;
+                  master.DeleteObject(newfield.AsObject.UID,check);
+                end;
+              fdbft_ObjLink:
+                begin
+                  writeln('MASTERSTORE ABORT 2');
+                  abort;
+                  master._RemoveRefLinkFieldDelRefs(to_upd_obj,newfield,check);
+                end;
+              else begin
+                if not check then
+                  to_upd_obj.DeleteField(newfield.FieldName);
+              end; // ok
             end;
-          fdbft_ObjLink:
-            begin
-              writeln('MASTERSTORE ABORT 2');
-              abort;
-              master._RemoveRefLinkFieldDelRefs(to_upd_obj,newfield,check);
-            end;
-          else begin
-            if not check then
-              to_upd_obj.DeleteField(newfield.FieldName);
-          end; // ok
+          finally
+            to_upd_obj.Set_Store_Locked(true);
+          end;
         end;
     end;
 
@@ -1255,7 +1262,7 @@ var i,j       : NativeInt;
                 exit;
               to_upd_obj.Set_Store_Locked(false);
               try
-                to_upd_obj.Field(newfield.FieldName).CloneFromFieldFull(newfield);
+                to_upd_obj.Field(newfield.FieldName).CloneFromField(newfield);
               finally
                 to_upd_obj.Set_Store_Locked(true);
               end;
@@ -1297,7 +1304,7 @@ var i,j       : NativeInt;
                 exit;
               to_upd_obj.Set_Store_Locked(false);
               try
-                to_upd_obj.Field(newfield.FieldName).CloneFromFieldFull(newfield);
+                to_upd_obj.Field(newfield.FieldName).CloneFromField(newfield);
               finally
                 to_upd_obj.Set_Store_Locked(true);
               end;

@@ -9,13 +9,16 @@ uses
  {$ENDIF}
   Classes,
   sysutils, FRE_APS_INTERFACE,FOS_TOOL_INTERFACES
-  ,FOS_BASIS_TOOLS,syncobjs,FOS_LOCKING,FOS_INTERLOCKED,FRE_FCOM_SSL, FRE_LIBEVENT_CORE,
-  FOS_DEFAULT_IMPLEMENTATION,
+  ,FOS_BASIS_TOOLS,syncobjs,FOS_LOCKING,FOS_INTERLOCKED,FRE_FCOM_SSL, FRE_LIBEVENT_CORE,fre_system,
+  FOS_DEFAULT_IMPLEMENTATION,fre_configuration,
   //fre_aps_test,
  //FRE_APS_IMPL_LE
-  fre_aps_comm_impl;
+  fre_aps_comm_impl, fre_http_client;
 
 begin
+  Initialize_Read_FRE_CFG_Parameter;
+  writeln(cFRE_SERVER_DEFAULT_SSL_DIR,' ',cFRE_SSL_PRIVATE_KEY_FILE,' ',cFRE_SSL_CERT_FILE,' ',cFRE_SSL_ROOT_CA_FILE);
+  writeln(FileExists(cFRE_SERVER_DEFAULT_SSL_DIR+DirectorySeparator+cFRE_SSL_PRIVATE_KEY_FILE));
   if paramstr(1)='testle' then
      begin
        Test_LE;
@@ -23,7 +26,8 @@ begin
      end;
   Setup_APS_Comm;
 
-  Test_APSC;
+
+  Test_APSC(ParamStr(1));
   GFRE_SC.RunUntilTerminate;
   Teardown_APS_Comm;
   exit;
