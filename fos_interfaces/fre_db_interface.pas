@@ -506,6 +506,7 @@ type
   IFRE_DB_FieldIteratorBrk              = function  (const obj : IFRE_DB_Field):boolean is nested;
   IFRE_DB_Obj_Iterator                  = procedure (const obj : IFRE_DB_Object) is nested;
   IFRE_DB_Obj_IteratorBreak             = function  (const obj : IFRE_DB_Object):Boolean is nested;
+  IFRE_DB_ObjectIteratorBrk             = procedure (const obj:IFRE_DB_Object; var halt:boolean) is nested;
   IFRE_DB_UpdateChange_Iterator         = procedure (const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field) is nested;
   IFRE_DB_ObjUid_IteratorBreak          = procedure (const uid : TGUID ; var halt : boolean) is nested;
   IFRE_DB_Scheme_Iterator               = procedure (const obj : IFRE_DB_SchemeObject) is nested;
@@ -660,25 +661,22 @@ type
     function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String;const without_schemes:boolean=false);
-    //function        ReferencesObjects                  : Boolean;
+
     function        ReferencesObjectsFromData          : Boolean;
-    //function        ReferenceList                      : TFRE_DB_GUIDArray;
-    //function        ReferenceListFromData              : TFRE_DB_CountedGuidArray;
-    //function        ReferenceListFromDataNocount       : TFRE_DB_GuidArray;
-    //function        ReferencesDetailed                 : TFRE_DB_String;
-    //function        IsReferenced                       : Boolean;
-    //function        ReferencedByList                   : TFRE_DB_GUIDArray;
-    //function        ReferencedByList                   (const from_scheme: TFRE_DB_String): TFRE_DB_GUIDArray;
-    //function        ReferencedByList                   (const from_schemes: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
     function        GetFieldListFilter                 (const field_type:TFRE_DB_FIELDTYPE):TFRE_DB_StringArray;
     function        GetUIDPath                         :TFRE_DB_StringArray;
     function        GetUIDPathUA                       :TFRE_DB_GUIDArray;
-    //function        GetDBConnection                    :IFRE_DB_Connection;
+
     function        Invoke                             (const method:TFRE_DB_String;const input:IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        Mediator                           : TFRE_DB_ObjectEx;
     procedure       Set_ReadOnly                       ;
     procedure       CopyField                          (const obj:IFRE_DB_Object;const field_name:String);
     procedure       CopyToMemory                       (memory : Pointer;const without_schemes:boolean=false);
+
+    function        ForAllObjectsBreakHierarchic       (const iter:IFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
+    function        FetchObjByUID                      (const childuid:TGuid ; var obj : IFRE_DB_Object):boolean;
+    function        FetchObjWithStringFieldValue       (const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString): boolean;
+    procedure       SetAllSimpleObjectFieldsFromObject (const source_object : IFRE_DB_Object); // only first level, no uid, domid, obj, objlink fields
   end;
 
   TFRE_DB_TEXT_SUBTYPE=(tst_Short,tst_Long,tst_Hint,tst_Key);
@@ -1444,6 +1442,12 @@ type
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String;const without_schemes:boolean=false);
     function        ReferencesObjectsFromData          : Boolean;
+
+    function        ForAllObjectsBreakHierarchic       (const iter:IFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
+    function        FetchObjByUID                      (const childuid:TGuid ; var obj : IFRE_DB_Object):boolean;
+    function        FetchObjWithStringFieldValue       (const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString=''): boolean;
+    procedure       SetAllSimpleObjectFieldsFromObject (const source_object : IFRE_DB_Object); // only first level, no uid, domid, obj, objlink fields
+
     function        GetFieldListFilter                 (const field_type:TFRE_DB_FIELDTYPE):TFRE_DB_StringArray;
     function        GetUIDPath                         :TFRE_DB_StringArray;
     function        GetUIDPathUA                       :TFRE_DB_GUIDArray;
@@ -5338,6 +5342,26 @@ end;
 function TFRE_DB_ObjectEx.ReferencesObjectsFromData: Boolean;
 begin
   result := FImplementor.ReferencesObjectsFromData;
+end;
+
+function TFRE_DB_ObjectEx.ForAllObjectsBreakHierarchic(const iter: IFRE_DB_ObjectIteratorBrk): boolean;
+begin
+  result := FImplementor.ForAllObjectsBreakHierarchic(iter);
+end;
+
+function TFRE_DB_ObjectEx.FetchObjByUID(const childuid: TGuid; var obj: IFRE_DB_Object): boolean;
+begin
+  result := FImplementor.FetchObjByUID(childuid,obj);
+end;
+
+function TFRE_DB_ObjectEx.FetchObjWithStringFieldValue(const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString): boolean;
+begin
+  result := FetchObjWithStringFieldValue(field_name,fieldvalue,obj,ClassnameToMatch);
+end;
+
+procedure TFRE_DB_ObjectEx.SetAllSimpleObjectFieldsFromObject(const source_object: IFRE_DB_Object);
+begin
+  FImplementor.SetAllSimpleObjectFieldsFromObject(source_object);
 end;
 
 function TFRE_DB_ObjectEx.GetFieldListFilter(const field_type: TFRE_DB_FIELDTYPE): TFRE_DB_StringArray;

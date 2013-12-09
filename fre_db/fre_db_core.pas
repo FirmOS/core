@@ -515,6 +515,9 @@ type
     function        IFRE_DB_Object.FieldOnlyExisting   = FieldOnlyExistingI;
     procedure       IFRE_DB_Object.CopyField           = CopyFieldI;
     function        IFRE_DB_Object.ObjectRoot          = ObjectRootI;
+    function        IFRE_DB_Object.ForAllObjectsBreakHierarchic=ForAllObjectsBreakHierarchicI;
+    function        IFRE_DB_Object.FetchObjByUID       = FetchObjByUIDI;
+
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
   public
     procedure       Finalize                           ;
@@ -542,7 +545,7 @@ type
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
     procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
 
-    function        ForAllObjectsBreak                 (const iter:TFRE_DB_ObjectIteratorBrk ; const with_subobjects:boolean=true):boolean; // includes root object (self)
+    function        ForAllObjectsBreakHierarchic       (const iter:TFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
     function        GetScheme                          : TFRE_DB_SchemeObject;
     function        GetSchemeI                         : IFRE_DB_SchemeObject;
     function        UID                                : TGUID;
@@ -610,7 +613,12 @@ type
     function        Properties                         : TFRE_DB_Object_PropertySet;
     procedure       CopyField                          (const obj:TFRE_DB_Object;const field_name:String);
     procedure       CopyFieldI                         (const obj:IFRE_DB_Object;const field_name:String);
-    function        FetchChildObj                      (const childuid:TGuid):TFRE_DB_Object;
+    function        FetchObjByUID                      (const childuid:TGuid):TFRE_DB_Object; // fetches also root
+
+    function        ForAllObjectsBreakHierarchicI      (const iter:IFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
+    function        FetchObjByUIDI                     (const childuid:TGuid ; var obj : IFRE_DB_Object):boolean;
+    function        FetchObjWithStringFieldValue       (const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString=''): boolean;
+    procedure       SetAllSimpleObjectFieldsFromObject (const source_object : IFRE_DB_Object); // only first level, no uid, domid, obj, objlink fields
   end;
 
   { TFRE_DB_COMMAND }
@@ -711,6 +719,9 @@ type
     function  IFRE_DB_NAMED_OBJECT.FieldOnlyExisting    = FieldOnlyExistingI;
     procedure IFRE_DB_NAMED_OBJECT.CopyField            = CopyFieldI;
     function  IFRE_DB_NAMED_OBJECT.ObjectRoot           = ObjectRootI;
+    function  IFRE_DB_NAMED_OBJECT.ForAllObjectsBreakHierarchic=ForAllObjectsBreakHierarchicI;
+    function  IFRE_DB_NAMED_OBJECT.FetchObjByUID       = FetchObjByUIDI;
+
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     property  ObjectName      : TFRE_DB_String       read GetName write SetName;
     property  Description     : TFRE_DB_TEXT read GetDesc write SetDesc;
@@ -1103,7 +1114,6 @@ type
 
     function        Fetch        (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
 
-    function        LinearScan                   (const fieldname: TFRE_DB_NameType;  const field_expr: TFRE_DB_FIELD_EXPRESSION): TFRE_DB_Object;
     function        First                        : TFRE_DB_Object;
     function        Last                         : TFRE_DB_Object;
     function        GetItem                      (const num:uint64):TFRE_DB_Object;
@@ -1340,7 +1350,6 @@ type
 
     procedure       ForAllI         (const func:IFRE_DB_Obj_Iterator);
     procedure       ForAllBreakI    (const func:IFRE_DB_Obj_IteratorBreak);
-    //function        LinearScanI     (const fieldname:TFRE_DB_NameType;const field_expr:TFRE_DB_FIELD_EXPRESSION):IFRE_DB_Object; // Linear Search / Fetch/Semantics/Finalize needed
     function        StoreI          (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
     function        UpdateI         (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
     function        FetchI          (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
@@ -1353,7 +1362,6 @@ type
     function IFRE_DB_COLLECTION.ForAllModify  = ForAllModifyI;
     function IFRE_DB_COLLECTION.Store         = StoreI;
     function IFRE_DB_COLLECTION.Update        = UpdateI;
-    function IFRE_DB_COLLECTION.LinearScan    = LinearScanI;
     function IFRE_DB_COLLECTION.First         = FirstI;
     function IFRE_DB_COLLECTION.Last          = LastI;
     function IFRE_DB_COLLECTION.Fetch         = FetchI;
@@ -1666,7 +1674,6 @@ type
     function IFRE_DB_DERIVED_COLLECTION.ForAllModify             = ForAllModifyI;
     function IFRE_DB_DERIVED_COLLECTION.Store                    = StoreI;
     function IFRE_DB_DERIVED_COLLECTION.Update                   = UpdateI;
-    function IFRE_DB_DERIVED_COLLECTION.LinearScan               = LinearScanI;
     function IFRE_DB_DERIVED_COLLECTION.First                    = FirstI;
     function IFRE_DB_DERIVED_COLLECTION.Last                     = LastI;
     function IFRE_DB_DERIVED_COLLECTION.Fetch                    = FetchI;
@@ -8951,10 +8958,6 @@ begin //nl
   dbo := ldbo;
 end;
 
-//function TFRE_DB_COLLECTION.LinearScanI(const fieldname: TFRE_DB_NameType; const field_expr: TFRE_DB_FIELD_EXPRESSION): IFRE_DB_Object;
-//begin //nl
-//  result := LinearScan(fieldname,field_expr);
-//end;
 
 function TFRE_DB_COLLECTION.FirstI: IFRE_DB_Object;
 begin //nl
@@ -9084,12 +9087,6 @@ function TFRE_DB_COLLECTION.CollectionName: TFRE_DB_NameType;
 begin
   result := FName;
 end;
-
-//function TFRE_DB_COLLECTION.LinearScan(const fieldname: TFRE_DB_NameType;  const field_expr: TFRE_DB_FIELD_EXPRESSION): TFRE_DB_Object;
-//begin
-//  abort;
-//  result := FObjectLinkStore.LinearScan(fieldname,field_expr);
-//end;
 
 function TFRE_DB_COLLECTION.AddObserver(const obs: IFRE_DB_COLLECTION_OBSERVER): boolean;
 begin
@@ -11884,7 +11881,7 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
         end
       else
         begin
-          child := second_obj.FetchChildObj(new_object.UID);
+          child := second_obj.FetchObjByUID(new_object.UID);
           assert(assigned(child));
           new_object.__InternalCompareToObj(child,@CompareEvent);
         end;
@@ -12038,7 +12035,7 @@ begin
   ForAllFields(@Iterate);
 end;
 
-function TFRE_DB_Object.ForAllObjectsBreak(const iter: TFRE_DB_ObjectIteratorBrk; const with_subobjects: boolean): boolean;
+function TFRE_DB_Object.ForAllObjectsBreakHierarchic(const iter: TFRE_DB_ObjectIteratorBrk): boolean;
 var halt : boolean;
 
   procedure IterateWithSub(const obj : TFRE_DB_Object);
@@ -12061,34 +12058,9 @@ var halt : boolean;
       obj.ForAllBrk(@IterateField);
   end;
 
-  procedure IterateFirstLevel;
-    //function IterateFieldObjs(const fld : TFRE_DB_FIELD):boolean;
-    //var i : NativeInt;
-    //begin
-    //  if halt then
-    //    exit(true);
-    //  if fld.IsObjectField then
-    //    for i:=0 to fld.ValueCount-1 do
-    //      begin
-    //        halt   := Iter(Fld.AsObjectArr[i]);
-    //        result := halt;
-    //      end;
-    //end;
-  begin
-    abort; // untested
-    //if halt then
-    //  exit;
-    //halt := iter(self);
-    //if not halt then
-    //  ForAllBrk(@IterateFieldObjs);
-  end;
-
 begin
   halt := false;
-  if with_subobjects then
-    IterateWithSub(self)
-  else
-    IterateFirstLevel;
+  IterateWithSub(self);
   result := halt;
 end;
 
@@ -12554,7 +12526,7 @@ procedure TFRE_DB_Object.__InternalGetFullObjectList(var list: OFRE_SL_TFRE_DB_O
   end;
 
 begin
-  ForAllObjectsBreak(@BuildList);
+  ForAllObjectsBreakHierarchic(@BuildList);
 end;
 
 procedure TFRE_DB_Object.__InternalCompareToobj(const compare_obj: TFRE_DB_Object; callback: TFRE_DB_ObjCompareCallback);
@@ -13418,7 +13390,18 @@ begin
   CopyField(obj.Implementor as TFRE_DB_Object,field_name);
 end;
 
-function TFRE_DB_Object.FetchChildObj(const childuid: TGuid): TFRE_DB_Object;
+function TFRE_DB_Object.ForAllObjectsBreakHierarchicI(const iter: IFRE_DB_ObjectIteratorBrk): boolean;
+
+  procedure Iterat(const obj:TFRE_DB_Object; var halt:boolean);
+  begin
+    iter(obj,halt)
+  end;
+
+begin
+  result := ForAllObjectsBreakHierarchic(@iterat);
+end;
+
+function TFRE_DB_Object.FetchObjByUID(const childuid: TGuid): TFRE_DB_Object;
 
   procedure SearchChild(const obj:TFRE_DB_Object; var halt:boolean);
   begin
@@ -13431,7 +13414,76 @@ function TFRE_DB_Object.FetchChildObj(const childuid: TGuid): TFRE_DB_Object;
 
 begin
   result := nil;
-  ForAllObjectsBreak(@SearchChild);
+  ForAllObjectsBreakHierarchic(@SearchChild);
+end;
+
+function TFRE_DB_Object.FetchObjByUIDI(const childuid: TGuid; var obj: IFRE_DB_Object): boolean;
+begin
+  obj    := FetchObjByUID(childuid);
+  result := assigned(obj);
+end;
+
+function TFRE_DB_Object.FetchObjWithStringFieldValue(const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString): boolean;
+
+  procedure SearchChild(const searchobj:TFRE_DB_Object; var halt:boolean);
+  var fld : IFRE_DB_FIELD;
+  begin
+    if (ClassnameToMatch<>'') and
+       (uppercase(searchobj.SchemeClass)<>ClassnameToMatch) then
+         exit;
+    if searchobj.FieldOnlyExistingI(field_name,fld) and
+       (fld.FieldType=fdbft_String) then
+         if fld.AsString=fieldvalue then
+           begin
+             obj    := searchobj;
+             halt   := true;
+           end;
+  end;
+
+begin
+  obj := nil;
+  ClassnameToMatch := uppercase(ClassnameToMatch);
+  ForAllObjectsBreakHierarchic(@SearchChild);
+  result := assigned(obj);
+end;
+
+procedure TFRE_DB_Object.SetAllSimpleObjectFieldsFromObject(const source_object: IFRE_DB_Object);
+
+  procedure iterat(const fld:IFRE_DB_Field);
+  begin
+    case fld.FieldType of
+      fdbft_Object,
+      fdbft_ObjLink: ; //skip
+      fdbft_GUID:
+        begin
+          if fld.IsUIDField then
+            exit;
+          Field(fld.FieldName).CloneFromFieldI(fld);
+        end;
+      fdbft_Byte,
+      fdbft_Int16,
+      fdbft_UInt16,
+      fdbft_Int32,
+      fdbft_UInt32,
+      fdbft_Int64,
+      fdbft_UInt64,
+      fdbft_Real32,
+      fdbft_Real64,
+      fdbft_Currency,
+      fdbft_String,
+      fdbft_Boolean,
+      fdbft_DateTimeUTC,
+      fdbft_Stream:
+        begin
+          Field(fld.FieldName).CloneFromFieldI(fld)
+        end;
+      else
+        raise EFRE_DB_Exception.Create(edb_ERROR,'setsimpleobjectfieldsfromobject - not all fieldtypes handled');
+    end;
+  end;
+
+begin
+  source_object.ForAllFields(@iterat);
 end;
 
 function TFRE_DB_Object.GetAsJSON(const without_reserved_fields: boolean; const full_dump: boolean; const stream_cb: TFRE_DB_StreamingCallback): TJSONData;

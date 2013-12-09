@@ -229,7 +229,6 @@ type
     function    Delete             (const ouid    : TGUID          ; var ncolls : TFRE_DB_StringArray=nil):TFRE_DB_Errortype;
 
     function    Fetch              (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
-    function    LinearScan         (const fieldname: TFRE_DB_NameType;  const field_expr: TFRE_DB_FIELD_EXPRESSION): TFRE_DB_Object;
     function    First              : TFRE_DB_Object;
     function    Last               : TFRE_DB_Object;
     function    GetItem            (const num:uint64) : TFRE_DB_Object;
@@ -1530,7 +1529,7 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
         end
       else
         begin
-          child      := to_update_obj.FetchChildObj(new_object.UID);
+          child      := to_update_obj.FetchObjByUID(new_object.UID);
           assert(assigned(child));
           updatestep := TFRE_DB_UpdateStep.Create(new_object,child,store);
           new_object.__InternalCompareToObj(child,@CompareEvent);
@@ -1924,7 +1923,7 @@ begin
   if FNewObj.IsObjectRoot then
     begin
       assert((check=true) or (length(FNewObj.__InternalGetCollectionList)>0));
-      FNewObj.ForAllObjectsBreak(@MasterStoreAndSubObjects)
+      FNewObj.ForAllObjectsBreakHierarchic(@MasterStoreAndSubObjects)
     end
   else
     begin
@@ -2366,7 +2365,7 @@ var
 
 begin
   Result := edb_OK;
-  obj.ForAllObjectsBreak(@Store);
+  obj.ForAllObjectsBreakHierarchic(@Store);
 end;
 
 function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
@@ -3582,28 +3581,6 @@ begin
     obj := CloneOutObject(FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object)
   else
     obj := nil;
-end;
-
-function TFRE_DB_Persistance_Collection.LinearScan(const fieldname: TFRE_DB_NameType; const field_expr: TFRE_DB_FIELD_EXPRESSION): TFRE_DB_Object;
-var obj : TFRE_DB_Object;
-
-  function ForAll(var val:PtrUInt):boolean;
-  begin
-    obj := TFRE_DB_Object(val);
-    obj.Assert_CheckStoreLocked;
-    obj.Set_Store_Locked(false);
-    try
-      result := field_expr(obj.Field(fieldname));
-    finally
-      obj.Set_Store_Locked(true);
-    end;
-  end;
-
-begin
- if FGuidObjStore.LinearScanBreak(@ForAll) then
-   result := CloneOutObject(obj)
- else
-   result := nil;
 end;
 
 function TFRE_DB_Persistance_Collection.First: TFRE_DB_Object;

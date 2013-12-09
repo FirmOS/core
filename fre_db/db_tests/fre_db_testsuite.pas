@@ -69,6 +69,9 @@ type
     procedure CloneToNewChangeGUIDS;
     procedure GenericChangelistTest;
     procedure TestStreamFieldClone;
+    procedure ForAllHierarchicTest;
+
+
   end;
 
   { TFRE_DB_PersistanceTests }
@@ -97,6 +100,7 @@ type
     procedure DefineIndices;
     procedure GenerateIndexTestData;
     procedure TestIdxRangeQueries;
+    procedure TestIdxUpdate;
     procedure ReconnectNotSyncedFromWAL;
     procedure DumpDatabase;
   end;
@@ -574,8 +578,8 @@ begin
    coll_link := FWorkConn.Collection('TEST_1_LINKO',true,false);
    GendataforColl(coll_p,true);
    GendataforColl(coll_v,false);
-   //GendataforColl(coll_vu,true);
-   //GendataforColl(coll_pu,false);
+   GendataforColl(coll_pu,false);
+   GendataforColl(coll_vu,false);
    DumpColl(coll_p,'ixs');
    DumpColl(coll_p,'ixui64');
    DumpColl(coll_p,'ixui32');
@@ -646,6 +650,33 @@ begin
   coll_p.ForAllIndexPrefixString('ba',@WriteObjectIdx,'ixs');
   writeln('--STRING PREFIX QUERY-- END');
 
+end;
+
+procedure TFRE_DB_PersistanceTests.TestIdxUpdate;
+var coll_v,coll_p   : IFRE_DB_COLLECTION;
+    coll_vu,coll_pu : IFRE_DB_COLLECTION;
+    coll_link       : IFRE_DB_COLLECTION;
+    obj             : IFRE_DB_Object;
+
+  function WriteObjectIdx(const obj : IFRE_DB_Object):boolean;
+  begin
+    WriteObject(obj);
+    result := false; //  break
+  end;
+
+begin
+  ConnectDB('test1@system','test1');
+  coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
+  coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
+  coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
+  coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
+
+  writeln('--- INDEX UPDATE TEST SIGNED ---');
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,true,true,3);
+  writeln('--- INDEX UPDATE TEST SIGNED --- END');
+  writeln('--- INDEX UPDATE TEST SIGNED ---');
+  coll_pu.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,true,true,3);
+  writeln('--- INDEX UPDATE TEST SIGNED --- END');
 end;
 
 procedure TFRE_DB_PersistanceTests.ReconnectNotSyncedFromWAL;
@@ -727,7 +758,7 @@ begin
     s := '['+obj.Field('fdbft_String').AsString+']'
   else
     s := '[]';
-  writeln(obj.field('myid').AsString:2,'S:',s:12,' U64:',ui64:22,' U32:',ui32:12,' U16:',ui16:8,' B:',byt:6,' BOOL:',boo:4,' G/OBL:',gs:34,' I64: ',i64:12,' I32:',i32:12,' I16:',i16:7,dt:20,' CURR:',cu:16);
+  writeln(obj.field('myid').AsString:2,'S:',s:12,' U64:',ui64:22,' U32:',ui32:12,' U16:',ui16:8,' B:',byt:6,' BOOL:',boo:4,' G/OBL:',gs:34,' I64: ',i64:12,' I32:',i32:12,' I16:',i16:7,dt:20,' CURR:',cu:16,' |',obj.UID_String);
 end;
 
 
@@ -1096,6 +1127,50 @@ begin
    writeln('--');
    writeln(obj2.DumpToString());
    writeln('--');
+end;
+
+procedure TFRE_DB_ObjectTests.ForAllHierarchicTest;
+var obj2 : TFRE_DB_Object;
+    obj       : IFRE_DB_Object;
+    copyo     : IFRE_DB_Object;
+    cnt       : integer;
+
+    procedure Iterator(const obji : IFRE_DB_Object ; var halt : Boolean);
+    begin
+      inc(cnt);
+      writeln('----CNT --- ',cnt,' ',obji.UID_String);
+      case cnt of
+        1: assert(obji.UID=TEST_GUID_1);
+        2: assert(obji.UID=TEST_GUID_2);
+        3: assert(obji.UID=TEST_GUID_3);
+      end;
+    end;
+
+begin
+  cnt := 0;
+  obj2 := GFRE_DB.NewObject;
+  obj2.Field('uid').AsGUID:=TEST_GUID_1;
+  Fill_Test_Object('chung_',obj2);
+  Fill_Test_Object('sub',obj2.Field('newo').AsObject);
+  obj2.Field('newo').AsObject.Field('uid').AsGUID:=TEST_GUID_2;
+  Fill_Test_Object('subsub',obj2.Field('newo').AsObject.Field('newnewo').AsObject);
+  obj2.Field('newo').AsObject.Field('newnewo').AsObject.Field('uid').AsGUID:=TEST_GUID_3;
+  obj2.ForAllObjectsBreakHierarchicI(@Iterator);
+
+  assert(obj2.FetchObjByUIDI(TEST_GUID_3,obj));
+  writeln('Fetched SUBO 3 ',obj.DumpToString());
+  writeln('----');
+  obj:=nil;
+  assert(obj2.FetchObjWithStringFieldValue('SUBSTRING','äüö ÄÜÖ ß',obj,'XX')=false);
+  writeln('----');
+  obj:=nil;
+  assert(obj2.FetchObjWithStringFieldValue('SUBSTRING','äüö ÄÜÖ ß',obj));
+  writeln('Fetched SUBO 2 via stringkey ',obj.DumpToString());
+  writeln('----');
+  copyo := GFRE_DBI.NewObject;
+  copyo.SetAllSimpleObjectFieldsFromObject(obj);
+  writeln('--- COPYO SET',copyo.DumpToString());
+  writeln('--');
 end;
 
 procedure RegisterTestCodeClasses;
