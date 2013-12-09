@@ -1456,7 +1456,7 @@ implementation
     end;
     jsContentAdd('  ,deselectOnRefresh: "false"');
     if co.FieldExists('dropId') then begin
-      jsContentAdd('  ,dndAcceptType: "'+co.Field('dropId').AsString+'_grid"');
+      jsContentAdd('  ,dndAcceptType: '+_BuildJSArray(co.Field('dropId').AsStringArr));
       if co.FieldExists('dropClassesMultiple') then begin
         jsContentAdd('  ,dropClassesMultiple: '+_BuildJSArray(co.Field('dropClassesMultiple').AsStringArr));
       end;
@@ -1465,7 +1465,7 @@ implementation
       end;
     end;
     if co.FieldExists('dragId') then begin
-      jsContentAdd('  ,dndSourceType: "'+co.Field('dragId').AsString+'_grid"');
+      jsContentAdd('  ,dndSourceType: "'+co.Field('dragId').AsString+'"');
       if co.FieldExists('dragClasses') then begin
         jsContentAdd('  ,dragClasses: '+_BuildJSArray(co.Field('dragClasses').AsStringArr));
       end;

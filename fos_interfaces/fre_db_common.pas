@@ -1853,14 +1853,39 @@ implementation
   end;
 
   procedure TFRE_DB_VIEW_LIST_DESC.SetDropGrid(const grid: TFRE_DB_VIEW_LIST_DESC; const DnDclassesMultiple:TFRE_DB_StringArray; const DnDClassesSingle:TFRE_DB_StringArray);
+  var
+    i,j  : Integer;
+    isnew: Boolean;
   begin
-    Field('dragId').AsString:=Field('id').AsString;
-    grid.Field('dropId').AsString:=Field('id').AsString;
+    Field('dragId').AsString:=Field('id').AsString+'_grid';
+    grid.Field('dropId').AddString(Field('id').AsString+'_grid');
     if Assigned(DnDclassesMultiple) then begin
-      grid.Field('dropClassesMultiple').AsStringArr:=DnDclassesMultiple;
+      for i := 0 to Length(DnDclassesMultiple) - 1 do begin
+        isnew:=true;
+        for j := 0 to grid.Field('dropClassesMultiple').ValueCount - 1 do begin
+          if grid.Field('dropClassesMultiple').AsStringItem[j]=DnDclassesMultiple[i] then begin
+            isnew:=false;
+            break;
+          end;
+        end;
+        if isnew then begin
+          grid.Field('dropClassesMultiple').AddString(DnDclassesMultiple[i]);
+        end;
+      end;
     end;
     if Assigned(DnDClassesSingle) then begin
-      grid.Field('dropClassesSingle').AsStringArr:=DnDClassesSingle;
+      for i := 0 to Length(DnDClassesSingle) - 1 do begin
+        isnew:=true;
+        for j := 0 to grid.Field('dropClassesSingle').ValueCount - 1 do begin
+          if grid.Field('dropClassesSingle').AsStringItem[j]=DnDClassesSingle[i] then begin
+            isnew:=false;
+            break;
+          end;
+        end;
+        if isnew then begin
+          grid.Field('dropClassesSingle').AddString(DnDClassesSingle[i]);
+        end;
+      end;
     end;
   end;
 
