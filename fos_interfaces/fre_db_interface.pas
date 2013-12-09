@@ -4424,16 +4424,10 @@ end;
 
 procedure TFRE_DB_UserSession.SendServerClientCMD(const cmd: IFRE_DB_COMMAND);
 begin
-  try
     if assigned(FBoundSession_RA_SC) then
       FBoundSession_RA_SC.Send_ServerClient(cmd)
     else
-      writeln('WARNING DROPPED COMMAND : ',cmd.InvokeClass,'.',cmd.InvokeMethod,' ',cmd.Answer);
-  except on e:exception do
-    begin
-      writeln('SEND SERVER CLIENT CMD: / BOUND SESSION RAC EXC: '+e.Message);
-    end;
-  end
+      GFRE_DBI.LogWarning(dblc_SESSION,'WARNING DROPPED COMMAND : %s %s',[cmd.InvokeClass+'.'+cmd.InvokeMethod,' ',cmd.Answer]);
 end;
 
 
