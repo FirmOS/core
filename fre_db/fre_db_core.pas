@@ -10525,6 +10525,7 @@ begin
     ex_obj_cl := GetObjectClassEx(ClName);
     if assigned(ex_obj_cl) then begin
       result    := TFRE_DB_NAMED_OBJECT.CreateStreaming(ex_obj_cl);
+      result.FSchemeName := ex_obj_cl.ClassName;
     end else begin
        raise EFRE_DB_Exception.Create(edb_ERROR,'STREAMING FAILURE OBJECT CLASS ['+ClName+'] IS UNKNOWN, YOU MAY NEED TO REGISTER IT');
     end;
@@ -12066,7 +12067,8 @@ end;
 
 function TFRE_DB_Object.GetScheme: TFRE_DB_SchemeObject;
 begin
-  if FSchemeName='' then exit(nil);
+  if (FSchemeName='') then
+    exit(nil);
   if not assigned(FCacheSchemeObj) then begin
     if not GFRE_DB.GetSystemScheme(FSchemeName,TFRE_DB_SchemeObject(FCacheSchemeObj)) then begin
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not access schemeobject from object Schemename [%s] - Classname [%s]',[FSchemeName,ClassName]);
@@ -12348,7 +12350,7 @@ begin
   name := UpperCase(name);
   if Pos('.',name)>0 then raise EFRE_DB_Exception.Create(' "." character is not allowed in fieldnames');
   result:=nil;
-  SchemeFieldAccessCheck(name);
+  //SchemeFieldAccessCheck(name);
   if FFieldStore.Find(name,lfield) then begin
     result := lfield;
   end else begin
@@ -12798,10 +12800,16 @@ begin
       Move (mempointer^,lschemename[1],lschemenamelen);inc(mempointer,lschemenamelen);
     end;
   end;
-
   result := GFRE_DB.NewObjectStreaming(lClassname);
   result.FParentDBO := parent;
-  result.FSchemeName:=lschemename;
+  if result.FSchemeName='' then
+    begin
+      if lschemename='' then
+        begin
+          writeln('********** WARNING SCHEMENAME NOT IN STREAMED OBJECT ',lClassname);
+        end;
+      result.FSchemeName:=lschemename;
+    end;
   result.InternalSetup;
   result.CopyFromMem(mempointer,lFieldcount,recreate_weak_schemes,generate_new_uids);
   //result.InternalSetup;
