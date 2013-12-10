@@ -39,12 +39,22 @@ unit fos_basis_tools;
 
 interface
 
-uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64;
+uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64,
+{$ifdef UNIX}
+     BaseUnix,Unix;
+{$endif}
+{$IFDEF MSWINDOWS}
+     Windows;
+     var _IntFreq:int64;
+{$endif}
+
 
 type
   { TFOS_DEFAULT_BASISTOOLS }
 
   TFOS_DEFAULT_BASISTOOLS = class(TObject, IFOS_BASIC_TOOLS)
+  public
+    destructor Destroy                  ; override;
     function  HashString_MD5            (const Value: ansistring): ansistring;
     function  HashString_MD5_HEX        (const Value: ansistring): ansistring;
     function  HMAC_MD5                  (const Text: ansistring; Key: ansistring): ansistring;
@@ -131,16 +141,6 @@ type
   end;
 
 implementation
-
-
-{$ifdef UNIX}
-uses BaseUnix,Unix;
-{$endif}
-{$IFDEF MSWINDOWS}
-uses Windows;
-
-var _IntFreq:int64;
-{$endif}
 
 
 type
@@ -507,6 +507,15 @@ begin
 end;
 
 
+destructor TFOS_DEFAULT_BASISTOOLS.Destroy;
+begin
+   try
+     GFRE_BT.DeactivateJack; // at least we reached the unit finalization code
+   except
+     writeln('JACK GOT NAILED');
+   end;
+  inherited Destroy;
+end;
 
 function TFOS_DEFAULT_BASISTOOLS.HashString_MD5(const Value: ansistring): ansistring;
 var MD5Context: TMD5Ctx;
@@ -3465,7 +3474,6 @@ end;
 initialization
   //DBT:=TFOS_DEFAULT_BASISTOOLS.Create;
 finalization
-  //DBT.Free;
 
 end.
 

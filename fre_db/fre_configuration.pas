@@ -213,6 +213,7 @@ begin
   cFRE_JOB_RESULT_DIR  := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'job'+DirectorySeparator;
   cFRE_JOB_ARCHIVE_DIR := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'jobarchive'+DirectorySeparator;
   cFRE_TMP_DIR         := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'tmp'+DirectorySeparator;
+  cFRE_UX_SOCKS_DIR    := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'sockets'+DirectorySeparator;
 
   //GFRE_DBI.LogInfo(dblc_PERSITANCE,'DB BASE DIR : '+cFRE_SERVER_DEFAULT_DIR);
   //GFRE_DBI.LogInfo(dblc_PERSITANCE,'DB WWW  DIR : '+cFRE_SERVER_WWW_ROOT_DIR);
@@ -224,12 +225,14 @@ begin
   ForceDirectories(cFRE_JOB_RESULT_DIR);
   ForceDirectories(cFRE_JOB_ARCHIVE_DIR);
   ForceDirectories(cFRE_TMP_DIR);
+  ForceDirectories(cFRE_UX_SOCKS_DIR);
 
   if not DirectoryExists(cFRE_HAL_CFG_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND HAL BASEDIR [%s]',[cFRE_HAL_CFG_DIR]);
   if not DirectoryExists(cFRE_PID_LOCK_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND PIDLOCK BASEDIR [%s]',[cFRE_PID_LOCK_DIR]);
   if not DirectoryExists(cFRE_JOB_RESULT_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND JOB RESULT BASEDIR [%s]',[cFRE_JOB_RESULT_DIR]);
   if not DirectoryExists(cFRE_JOB_ARCHIVE_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND JOB ARCHIVE BASEDIR [%s]',[cFRE_JOB_ARCHIVE_DIR]);
   if not DirectoryExists(cFRE_TMP_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND TMP BASEDIR [%s]',[cFRE_TMP_DIR]);
+  if not DirectoryExists(cFRE_UX_SOCKS_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND UX SOCKETS BASEDIR [%s]',[cFRE_UX_SOCKS_DIR]);
 
   cFRE_ALERTING_CONFIG_FILE := cFRE_HAL_CFG_DIR+'alerting_config.dbo';
   cFRE_ALERTING_STATUS_FILE := cFRE_HAL_CFG_DIR+'alerting_status.dbo';

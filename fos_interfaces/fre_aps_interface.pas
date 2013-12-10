@@ -80,11 +80,14 @@ type
   TFRE_APSC_CHANNEL_EVENT  = procedure (const channel      : IFRE_APSC_CHANNEL) of object;
   TFRE_APSC_CoRoutine      = procedure (const Data         : Pointer) of Object;
 
+  { IFRE_APSC }
+
   IFRE_APSC=interface
     procedure   AddListener_TCP   (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
     procedure   AddClient_TCP     (Host,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ; localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String='');
     procedure   AddClient_TCP_DNS (Host,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String='');
     procedure   AddListener_UX    (const special_file:shortstring ; const id:shortstring);
+    procedure   AddClient_UX      (const special_file:shortstring ; const ID:Shortstring ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil);
     function    AddTimer          (const timer_id: ShortString ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; local_new_timercb : TOnNew_APSC_Timer=nil) : IFRE_APSC_TIMER; // Must be called in sync with MAIN EVENT LOOP
     procedure   SetNewListenerCB  (const lcb    : TOnNew_APSC_Listener);
     procedure   SetNewChannelCB   (const chancb : TOnNew_APSC_Channel);
@@ -132,20 +135,21 @@ type
     procedure SetOnReadData     (on_read : TFRE_APSC_CHANNEL_EVENT);
     procedure SetOnDisconnnect  (on_disc : TFRE_APSC_CHANNEL_EVENT);
 
-    procedure  CH_WriteString    (const str : String);
-    procedure  CH_WriteBuffer    (const data : Pointer ; const len : NativeInt);
-    procedure  CH_WriteOpenedFile(const fd : cInt ; const offset,len : NativeInt);
-    function   CH_GetDataCount   : NativeInt;
-    function   CH_ReadString     : String;
-    function   CH_ReadBuffer     (const data : Pointer ; const len : NativeInt) : NativeInt;
-    function   CH_GetErrorString : String;
-    function   CH_GetErrorCode   : NativeInt;
-    function   CH_IsClientChannel: Boolean;
-    function   CH_GetState       : TAPSC_ChannelState;
+    procedure  CH_WriteString      (const str : String);
+    procedure  CH_WriteBuffer      (const data : Pointer ; const len : NativeInt);
+    procedure  CH_SAFE_WriteBuffer (const data : Pointer ; const len : NativeInt); // data gets copied ...
+    procedure  CH_WriteOpenedFile  (const fd : cInt ; const offset,len : NativeInt);
+    function   CH_GetDataCount     : NativeInt;
+    function   CH_ReadString       : String;
+    function   CH_ReadBuffer       (const data : Pointer ; const len : NativeInt) : NativeInt;
+    function   CH_GetErrorString   : String;
+    function   CH_GetErrorCode     : NativeInt;
+    function   CH_IsClientChannel  : Boolean;
+    function   CH_GetState         : TAPSC_ChannelState;
 
     procedure CH_Enable_Reading    ;
     procedure CH_Enable_Writing    ;
-    procedure Finalize;
+    procedure Finalize             ; // Calling Finalize on channel will close it, but no Disconnect event gets fired, only when the partner socket diconnects
   end;
 
   IFRE_APS_COMM_SERVER=interface
@@ -154,7 +158,6 @@ type
 
 
 var
-  //GFRE_S  : IFRE_APS;
   GFRE_SC : IFRE_APSC;
 
 implementation

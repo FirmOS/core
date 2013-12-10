@@ -30,7 +30,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="CLIENT"/>
+        <CommandLineParams Value="unixclient"/>
         <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
       </local>
     </RunParams>
@@ -87,11 +87,11 @@ if TargetOS = 'solaris' then
       </SyntaxOptions>
     </Parsing>
     <CodeGeneration>
-      <TargetCPU Value="x86_64"/>
+      <TargetCPU Value="i386"/>
     </CodeGeneration>
     <Linking>
       <Debugging>
-        <DebugInfoType Value="dsDwarf2Set"/>
+        <DebugInfoType Value="dsStabs"/>
         <UseHeaptrc Value="True"/>
       </Debugging>
     </Linking>

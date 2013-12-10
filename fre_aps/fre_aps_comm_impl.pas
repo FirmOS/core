@@ -234,30 +234,41 @@ type
 
   TFRE_APSC_CHANNEL=class(TObject,IFRE_APSC_CHANNEL)
   private
-    FState        : TAPSC_ChannelState;
-    FClient       : Boolean;
-    FDoDNS        : Boolean;
-    Fsockaddr     : TFCOM_SOCKADDRSTORAGE;
-    Fsockaddr_len : cInt;
-    Fsockaddrbind : TFCOM_SOCKADDRSTORAGE;
-    Fsockaddrb_len: cInt;
-    FSocketAddr   : string;
-    Fsocket       : cInt;
-    FChanError    : String;
-    FChanECode    : NativeInt;
-    FBufEvent     : PBufferevent;
-    FManager      : TFRE_APSC_CHANNEL_MANAGER;
-    FListener     : TFRE_APSC_Listener;
-    FInputBuf     : PEvbuffer;
-    FOutputBuf    : PEvbuffer;
-    FInBufCB      : Pevbuffer_cb_entry;
-    FOutBufCB     : Pevbuffer_cb_entry;
-    FTotalInRead  : NativeUint;
-    FTotalOutWrite: NativeUint;
-    FVerboseID    : String;
-    FConnectHost  : String; // do it via DNS
-    FConnectPort  : Cardinal;
-    FConnectFam   : cInt;
+  type
+    TSAFE_WRITE_ENCAP=class
+      FData : Pointer;
+      FLen  : NativeInt;
+    end;
+  var
+    FState            : TAPSC_ChannelState;
+    FClient           : Boolean;
+    FDoDNS            : Boolean;
+    FIsIPSocket       : Boolean;
+    Fsockaddr         : TFCOM_SOCKADDRSTORAGE;
+    Fsockaddr_len     : cInt;
+    Fsockaddrbind     : TFCOM_SOCKADDRSTORAGE;
+    Fsockaddrb_len    : cInt;
+    FsockaddrUnix     : sockaddr_un;
+    FsockaddrUnix_len : cInt;
+    FSocketAddr       : string;
+    Fsocket           : cInt;
+    FChanError        : String;
+    FChanECode        : NativeInt;
+    FBufEvent         : PBufferevent;
+    FManager          : TFRE_APSC_CHANNEL_MANAGER;
+    FListener         : TFRE_APSC_Listener;
+    FInputBuf         : PEvbuffer;
+    FOutputBuf        : PEvbuffer;
+    FInBufCB          : Pevbuffer_cb_entry;
+    FOutBufCB         : Pevbuffer_cb_entry;
+    FTotalInRead      : NativeUint;
+    FTotalOutWrite    : NativeUint;
+    FVerboseID        : String;
+    FConnectHost      : String; // do it via DNS or unix socket
+    FConnectPort      : Cardinal;
+    FConnectFam       : cInt;
+
+
     FonRead       : TFRE_APSC_CHANNEL_EVENT;
     FOnDisco      : TFRE_APSC_CHANNEL_EVENT;
     FId           : ShortString;
@@ -280,10 +291,13 @@ type
     function    _GetDebugID         : String;
 
   protected
-    procedure   SetupServedSocket    (fd : cint ; new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; const base : PEvent_base ; newchannelcb : TOnNew_APSC_Channel;const is_ip_socket:boolean); // a server socket
-    procedure   SetupClientSocket1   (new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; bind_sa : PFCOM_SOCKADDRSTORAGE ; bind_sal : cInt ; const id:ShortString ; newchannelcb : TOnNew_APSC_Channel ; readevent,discoevent : TFRE_APSC_CHANNEL_EVENT); // a client socket part 1
-    procedure   SetupClientSocketDNS (const host : string ; port : NativeInt ; bind_sa : PFCOM_SOCKADDRSTORAGE ; bind_sal : cInt ; const id:ShortString ; newchannelcb : TOnNew_APSC_Channel ; readevent,discoevent : TFRE_APSC_CHANNEL_EVENT); // a client socket part 1
-    procedure   SetupClientSocket2   (const base : PEvent_base ; const dnsbase : Pevdns_base  ;manager : TFRE_APSC_CHANNEL_MANAGER); // a client socket part 2
+    procedure   SetupServedSocket      (fd : cint ; new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; const base : PEvent_base ; newchannelcb : TOnNew_APSC_Channel;const is_ip_socket:boolean); // a server socket
+    procedure   SetupClientSocketTCP   (new_sa : PFCOM_SOCKADDRSTORAGE ; new_sal : cInt ; bind_sa : PFCOM_SOCKADDRSTORAGE ; bind_sal : cInt ; const id:ShortString ; newchannelcb : TOnNew_APSC_Channel ; readevent,discoevent : TFRE_APSC_CHANNEL_EVENT); // a client socket part 1
+    procedure   StartClientSockConnect (const base : PEvent_base ; const dnsbase : Pevdns_base  ;manager : TFRE_APSC_CHANNEL_MANAGER); // a client socket part 2
+    procedure   SetupClientSocketDNS   (const host : string ; port : NativeInt ; bind_sa : PFCOM_SOCKADDRSTORAGE ; bind_sal : cInt ; const id : ShortString ; newchannelcb : TOnNew_APSC_Channel ; readevent,discoevent : TFRE_APSC_CHANNEL_EVENT); // a client socket part 1
+    procedure   SetupClientSocketUX    (const special_file : Shortstring ; const id : ShortString ; newchannelcb : TOnNew_APSC_Channel ; readevent,discoevent : TFRE_APSC_CHANNEL_EVENT);
+
+    procedure   COR_SafeWriteBuffer(const data: pointer);
   public
     function    GetChannelManager   : IFRE_APSC_CHANNEL_MANAGER;
     function    GetListener         : IFRE_APSC_LISTENER;
@@ -298,6 +312,7 @@ type
 
     procedure   CH_WriteString    (const str : String);
     procedure   CH_WriteBuffer    (const data : Pointer ; const len : NativeInt);
+    procedure   CH_SAFE_WriteBuffer (const data : Pointer ; const len : NativeInt); // data gets copied ...
     procedure   CH_WriteOpenedFile(const fd : cInt ; const offset,len : NativeInt);
     procedure   CH_Enable_Reading ;
     procedure   CH_Enable_Writing ;
@@ -308,6 +323,7 @@ type
     function    CH_GetErrorCode   : NativeInt;
     function    CH_IsClientChannel: Boolean;
     function    CH_GetState       : TAPSC_ChannelState;
+
 
     constructor Create  (manager : TFRE_APSC_CHANNEL_MANAGER ; listener : TFRE_APSC_LISTENER);
     destructor  Destroy;override;
@@ -363,8 +379,10 @@ type
     procedure   TEST_ListenerCB         (const listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
     procedure   TEST_ListenerCB_SSL     (const listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
     procedure   TEST_ConnectManSockCB   (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
+    procedure   TEST_NewCLientSock2     (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
     procedure   TEST_DiscoClientChannel (const channel  : IFRE_APSC_CHANNEL);
     procedure   TEST_ReadClientChannel  (const channel  : IFRE_APSC_CHANNEL);
+    procedure   TEST_ReadClientChannel2 (const channel  : IFRE_APSC_CHANNEL);
     procedure   TEST_NewTimerCB         (const timer    : IFRE_APSC_TIMER);
     procedure   TEST_TIMER_TIME         (const timer    : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
   public
@@ -379,6 +397,7 @@ type
     procedure   AddListener_UX    (const special_file:shortstring ; const id:shortstring);
     procedure   AddClient_TCP     (IP,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String='');
     procedure   AddClient_TCP_DNS (Host,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String='');
+    procedure   AddClient_UX      (const special_file:shortstring ; const ID:Shortstring ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil);
     procedure   ResolveDNS_TCP    (const addrstring : String);
     procedure   SetNewListenerCB  (const lcb : TOnNew_APSC_Listener);
     procedure   SetNewChannelCB   (const chancb   : TOnNew_APSC_Channel);
@@ -446,12 +465,15 @@ begin
      'echounix': begin
                     GFRE_SC.SetNewListenerCB(@GAPSC.TEST_ListenerCB);
                     GFRE_SC.SetNewChannelCB(@GAPSC.TEST_ConnectManSockCB);
-                    GFRE_SC.AddListener_UX('/tmp/helitest','UXS');
+                    GFRE_SC.AddListener_UX('/tmp/uxtest','UXS');
                  end;
      'echossl':  begin
                        GFRE_SC.SetNewListenerCB(@GAPSC.TEST_ListenerCB_SSL);
                        GFRE_SC.SetNewChannelCB(@GAPSC.TEST_ConnectManSockCB);
                        GFRE_SC.AddListener_TCP('*','44000','IP46-ECHO');
+                    end;
+     'unixclient' : begin
+                      GFRE_SC.AddClient_UX('/tmp/uxtest','UXS',nil,@GAPSC.TEST_NewCLientSock2,@GAPSC.TEST_ReadClientChannel2,@GAPSC.TEST_DiscoClientChannel);
                     end;
      'httpclient' : begin
                       cnt := 0;
@@ -798,19 +820,24 @@ begin
     begin
       FState     := ch_ACTIVE;
       Fsocket    := bufferevent_getfd(FBufEvent);
+      if FIsIPSocket then
+        begin
+          if APSC_CheckResultSetError(APSC_SetNoDelay(Fsocket,true),FChanError,FChanECode,'CLIENT/CONN/SETNODELAY: ') then
+            BailOut
+        end;
       if APSC_CheckResultSetError(evutil_make_socket_closeonexec(Fsocket),FChanError,FChanECode,'CLIENT/CONN/SETCLOSEONEX: ') then
         BailOut
       else
       if APSC_CheckResultSetError(evutil_make_socket_nonblocking(Fsocket),FChanError,FChanECode,'CLIENT/CONN/SETNONBLOCK: ') then
         BailOut
       else
-      if APSC_CheckResultSetError(APSC_SetNoDelay(Fsocket,true),FChanError,FChanECode,'CLIENT/CONN/SETNODELAY: ') then
-        BailOut
-      else
         begin
           Fsockaddr_len:=SizeOf(FSockAddr);
-          dnsres := fpgetpeername(Fsocket,@Fsockaddr,@Fsockaddr_len);
-          FSocketAddr := APSC_sa2string(@Fsockaddr);
+          if FIsIPSocket then
+            begin
+              dnsres := fpgetpeername(Fsocket,@Fsockaddr,@Fsockaddr_len);
+              FSocketAddr := APSC_sa2string(@Fsockaddr);
+            end;
           FnewChanCB(self,ch_NEW_CS_CONNECTED);
         end;
     end
@@ -821,6 +848,11 @@ begin
       dnsres :=  bufferevent_socket_get_dns_error(FBufEvent);
       if not APSC_CheckResultSetError(dnsres,FChanError,FChanECode,'DNS:','') then
         APSC_CheckResultSetError(-1,FChanError,FChanECode,'SOCK:','');
+      if FChanECode=0 then
+        begin
+          FChanECode := -1;
+          FChanError := 'no extended error info available';
+        end;
       BailOut;
     end
   else
@@ -891,6 +923,7 @@ begin
   Fsockaddr_len := new_sal;
   Fsocket       := fd;
   FnewChanCB    := newchannelcb;
+  FIsIPSocket   := is_ip_socket;
   try
     if APSC_CheckResultSetError(evutil_make_socket_closeonexec(Fsocket),FChanError,FChanECode,'SETCLOSEONEX: ') then
       exit;
@@ -926,7 +959,7 @@ begin
   end;
 end;
 
-procedure TFRE_APSC_CHANNEL.SetupClientSocket1(new_sa: PFCOM_SOCKADDRSTORAGE; new_sal: cInt; bind_sa: PFCOM_SOCKADDRSTORAGE; bind_sal: cInt; const id: ShortString; newchannelcb: TOnNew_APSC_Channel; readevent, discoevent: TFRE_APSC_CHANNEL_EVENT);
+procedure TFRE_APSC_CHANNEL.SetupClientSocketTCP(new_sa: PFCOM_SOCKADDRSTORAGE; new_sal: cInt; bind_sa: PFCOM_SOCKADDRSTORAGE; bind_sal: cInt; const id: ShortString; newchannelcb: TOnNew_APSC_Channel; readevent, discoevent: TFRE_APSC_CHANNEL_EVENT);
 begin
   FClient:=true;
   move(new_sa^,Fsockaddr,new_sal);
@@ -937,16 +970,16 @@ begin
   FnewChanCB    := newchannelcb;
   FOnDisco      := discoevent;
   FonRead       := readevent;
+  FIsIPSocket   := true;
 end;
 
 procedure TFRE_APSC_CHANNEL.SetupClientSocketDNS(const host: string; port: NativeInt; bind_sa: PFCOM_SOCKADDRSTORAGE; bind_sal: cInt; const id: ShortString; newchannelcb: TOnNew_APSC_Channel; readevent, discoevent: TFRE_APSC_CHANNEL_EVENT);
 begin
-  FClient := True;
-  FDoDNS  := True;
-  //move(new_sa^,Fsockaddr,new_sal);
+  FClient       := True;
+  FDoDNS        := True;
   Fsockaddr_len := 0;
-  //FSocketAddr   := APSC_sa2string(@Fsockaddr);
-  //FVerboseID    := FSocketAddr;
+  FSocketAddr   := '';
+  FVerboseID    := '';
   FConnectHost  := host;
   FConnectPort  := port;
   FId           := id;
@@ -955,7 +988,7 @@ begin
   FonRead       := readevent;
 end;
 
-procedure TFRE_APSC_CHANNEL.SetupClientSocket2(const base: PEvent_base; const dnsbase: Pevdns_base; manager: TFRE_APSC_CHANNEL_MANAGER);
+procedure TFRE_APSC_CHANNEL.StartClientSockConnect(const base: PEvent_base; const dnsbase: Pevdns_base; manager: TFRE_APSC_CHANNEL_MANAGER);
 begin
   try
     Fsocket := -1;
@@ -979,8 +1012,16 @@ begin
       end
     else
       begin
-        if APSC_CheckResultSetError(bufferevent_socket_connect(FBufEvent,@Fsockaddr,Fsockaddr_len),FChanError,FChanECode,'','') then
-          exit;
+        if FIsIPSocket then
+          begin
+            if APSC_CheckResultSetError(bufferevent_socket_connect(FBufEvent,@Fsockaddr,Fsockaddr_len),FChanError,FChanECode,'','') then
+              exit;
+          end
+        else
+          begin
+            if APSC_CheckResultSetError(bufferevent_socket_connect(FBufEvent,@FsockaddrUnix,FsockaddrUnix_len),FChanError,FChanECode,'','') then
+              exit;
+          end
       end;
     FState     := ch_WAIT;
     LogDebug('STARTED CLIENT CHANNEL : '+_GetDebugID,[]);
@@ -990,6 +1031,47 @@ begin
         //BAD STATE
         FnewChanCB(self,ch_NEW_CHANNEL_FAILED);
       end;
+  end;
+end;
+
+procedure TFRE_APSC_CHANNEL.SetupClientSocketUX(const special_file: Shortstring; const id: ShortString; newchannelcb: TOnNew_APSC_Channel; readevent, discoevent: TFRE_APSC_CHANNEL_EVENT);
+begin
+  if Length(special_file)>=108 then
+    raise Exception.Create('the unix socket path has to be shorter then 108 chars');
+  if not FileExists(special_file) then
+    raise Exception.Create('could not connect path does not exist : ['+special_file+']');
+
+  FsockaddrUnix.sun_path   := trim(special_file);
+  FsockaddrUnix.sun_path[Length(special_file)]:=#0;
+  FsockaddrUnix.sun_family := PF_UNIX;
+
+  FClient       := True;
+  FDoDNS        := false;
+  Fsockaddr_len := 0;
+  FSocketAddr   := '';
+  FsockaddrUnix.sun_family := AF_UNIX;
+  FsockaddrUnix.sun_path   := special_file;
+  FsockaddrUnix_len := 128;
+  FVerboseID    := '';
+  FIsIPSocket   := false;
+  FConnectHost  := special_file;
+  FConnectPort  := 0;
+  FId           := id;
+  FnewChanCB    := newchannelcb;
+  FOnDisco      := discoevent;
+  FonRead       := readevent;
+end;
+
+procedure TFRE_APSC_CHANNEL.COR_SafeWriteBuffer(const data: pointer);
+var senc : TSAFE_WRITE_ENCAP;
+begin
+  try
+    senc := TSAFE_WRITE_ENCAP(data);
+    CH_WriteBuffer(senc.fdata,senc.flen);
+    Freemem(senc.FData);
+    senc.Free;
+  except on e:Exception do
+    GFRE_BT.CriticalAbort('COR_SafeWritebuffer failed : '+e.Message);
   end;
 end;
 
@@ -1045,6 +1127,16 @@ begin
   ThreadCheck;
   if bufferevent_write(FBufEvent,data,len)<>0 then
     GFRE_BT.CriticalAbort('critical: channel write  buffer failed ?');
+end;
+
+procedure TFRE_APSC_CHANNEL.CH_SAFE_WriteBuffer(const data: Pointer; const len: NativeInt);
+var senc : TSAFE_WRITE_ENCAP;
+begin
+  senc := TSAFE_WRITE_ENCAP.Create;
+  senc.FData := Getmem(len);
+  senc.FLen  := len;
+  move(data^,senc.FData^,len);
+  FManager.ScheduleCoRoutine(@COR_SafeWriteBuffer,senc);
 end;
 
 procedure TFRE_APSC_CHANNEL.CH_WriteOpenedFile(const fd: cInt; const offset, len: NativeInt);
@@ -1183,7 +1275,7 @@ procedure TFRE_APSC_CHANNEL_MANAGER.GotChannelCtrCMD(const cmd: TAPSC_CMD; const
   var newchan : TFRE_APSC_CHANNEL;
   begin
     newchan   := TFRE_APSC_CHANNEL(PPtrUInt(@data^[1])^);
-    newchan.SetupClientSocket2(FChanBaseCtrl.FEventBase,FChanBaseCtrl.FDnsBase,self);
+    newchan.StartClientSockConnect(FChanBaseCtrl.FEventBase,FChanBaseCtrl.FDnsBase,self);
     if not FChannelList.Add(newchan) then
       GFRE_BT.CriticalAbort('critical: channel double add ?');
     Inc(FChannelCount);
@@ -1456,8 +1548,8 @@ begin
         FError:='did not get an event';
         exit;
       end;
-  FListenAddr := FsockaddrUnix.sun_path;
-  FState := als_STOPPED;
+    FListenAddr := FsockaddrUnix.sun_path;
+    FState := als_STOPPED;
   finally
     GAPSC._CallbackListener(self,als_EVENT_NEW_LISTENER);
   end;
@@ -2003,10 +2095,26 @@ begin
     end;
 end;
 
+procedure TFRE_APS_COMM.TEST_NewCLientSock2(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
+begin
+  writeln('CLIENT CHANNEL CONNECT ON MGR ',channel.GetChannelManager.GetID,' ',channel_event);
+  if channel_event=ch_NEW_CS_CONNECTED then
+    begin
+      channel.CH_WriteString('HELLO SERVER');
+      channel.CH_Enable_Reading;
+      channel.SetOnDisconnnect(@TEST_DiscoClientChannel);
+      //channel.SetOnReadData(@TEST_ReadClientChannel2);
+    end
+  else
+    begin
+      channel.Finalize;
+    end;
+end;
+
 procedure TFRE_APS_COMM.TEST_DiscoClientChannel(const channel: IFRE_APSC_CHANNEL);
 begin
   if channel.CH_IsClientChannel then
-    writeln('CLIENT CHANNEL DISCONNECT ',channel.GetConnSocketAddr)
+    writeln('** CLIENT CHANNEL DISCONNECT ',channel.GetConnSocketAddr)
   else
     writeln('SERVED CHANNEL DISCONNECT ',channel.GetConnSocketAddr);
 end;
@@ -2028,6 +2136,19 @@ begin
       writeln(data);
       channel.CH_WriteString(data);
       //channel.Finalize;
+    end;
+end;
+
+procedure TFRE_APS_COMM.TEST_ReadClientChannel2(const channel: IFRE_APSC_CHANNEL);
+var reads:string;
+begin
+  if channel.CH_GetState=ch_ACTIVE then
+    begin
+      reads := channel.CH_ReadString;
+      writeln(reads);
+      channel.CH_WriteString('GOT FROM SERVER: '+reads);
+      writeln('FINALIZING CHANNEL');
+      channel.Finalize;
     end;
 end;
 
@@ -2187,6 +2308,7 @@ begin
   if FileExists(special_file) then
     APSC_CheckRaiseOSCall(FpUnlink(special_file),'unlink unix socket','',false);
   uxl:=TFRE_APSC_Listener.Create;
+  uxl.FId := id;
   uxl.FsockaddrUnix.sun_path   := trim(special_file);
   uxl.FsockaddrUnix.sun_path[Length(special_file)]:=#0;
   uxl.FsockaddrUnix.sun_family := PF_UNIX;
@@ -2228,7 +2350,7 @@ begin
   if not assigned(localNewChannelCB) then
     localNewChannelCB := @_CallbackManagerSocket;
 
-  chan.SetupClientSocket1(@sa,len,@sabind,bindlen,id,localNewChannelCB,localRead,localDisconnect);
+  chan.SetupClientSocketTCP(@sa,len,@sabind,bindlen,id,localNewChannelCB,localRead,localDisconnect);
 
   FMainThread._DistributeNewClientSock(chan,channelmanager);
 end;
@@ -2242,6 +2364,23 @@ begin
   if not assigned(localNewChannelCB) then
     localNewChannelCB := @_CallbackManagerSocket;
   chan.SetupClientSocketDNS(Host,strtoint(port),@sabind,bindlen,id,localNewChannelCB,localRead,localDisconnect);
+  FMainThread._DistributeNewClientSock(chan,channelmanager);
+end;
+
+procedure TFRE_APS_COMM.AddClient_UX(const special_file: shortstring; const ID: Shortstring; const channelmanager: IFRE_APSC_CHANNEL_MANAGER; localNewChannelCB: TOnNew_APSC_Channel; localRead: TFRE_APSC_CHANNEL_EVENT; localDisconnect: TFRE_APSC_CHANNEL_EVENT);
+var chan    : TFRE_APSC_CHANNEL;
+    sabind  : TFCOM_SOCKADDRSTORAGE;
+    bindlen : cInt;
+begin
+  chan := TFRE_APSC_CHANNEL.Create(nil,nil);
+  try
+    if not assigned(localNewChannelCB) then
+      localNewChannelCB := @_CallbackManagerSocket;
+    chan.SetupClientSocketUX(special_file,id,localNewChannelCB,localRead,localDisconnect);
+  except
+    chan.free;
+    raise;
+  end;
   FMainThread._DistributeNewClientSock(chan,channelmanager);
 end;
 
