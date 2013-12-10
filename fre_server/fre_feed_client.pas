@@ -68,6 +68,7 @@ type
     procedure  WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); override;
     function   ListDirLevel            (const basepath : string):IFRE_DB_Object;
     function   GetFileDirInfo          (const fileid : string):IFRE_DB_Object;
+    procedure  SubfeederEvent          (const id:string; const dbo:IFRE_DB_Object);override;
   published
     procedure  REM_TestMethod          (const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE);
     procedure  REM_TestTimeout         (const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE);
@@ -132,6 +133,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
   GFRE_DBI.Initialize_Extension_Objects;
   FREDB_LoadMimetypes('');
+  AddSubFeederEventViaUX('samplesub');
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyFinalize;
@@ -225,6 +227,12 @@ begin
         result.Field('info').AsObject := entry;
       end;
   FindClose(Info);
+end;
+
+procedure TFRE_SAMPLE_FEED_CLIENT.SubfeederEvent(const id: string; const dbo: IFRE_DB_Object);
+begin
+  writeln('GOT FROM SF ',id);
+  writeln(dbo.DumpToString());
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.REM_TestMethod(const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);

@@ -165,6 +165,7 @@ begin
   finally
     FLock.Release;
   end;
+  Freemem(mem);
 end;
 
 end.

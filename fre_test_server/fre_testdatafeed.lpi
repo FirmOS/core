@@ -73,7 +73,7 @@
     <Conditionals Value="if TargetOS = 'darwin' then
    CustomOptions := '-WM10.6';"/>
     <CodeGeneration>
-      <TargetCPU Value="i386"/>
+      <TargetCPU Value="x86_64"/>
     </CodeGeneration>
     <Linking>
       <Debugging>

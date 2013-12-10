@@ -268,7 +268,6 @@ type
     FConnectPort      : Cardinal;
     FConnectFam       : cInt;
 
-
     FonRead       : TFRE_APSC_CHANNEL_EVENT;
     FOnDisco      : TFRE_APSC_CHANNEL_EVENT;
     FId           : ShortString;
@@ -323,6 +322,7 @@ type
     function    CH_GetErrorCode   : NativeInt;
     function    CH_IsClientChannel: Boolean;
     function    CH_GetState       : TAPSC_ChannelState;
+    function    CH_GetID          : ShortString;
 
 
     constructor Create  (manager : TFRE_APSC_CHANNEL_MANAGER ; listener : TFRE_APSC_LISTENER);
@@ -1209,6 +1209,11 @@ function TFRE_APSC_CHANNEL.CH_GetState: TAPSC_ChannelState;
 begin
   ThreadCheck;
   result := FState;
+end;
+
+function TFRE_APSC_CHANNEL.CH_GetID: ShortString;
+begin
+  result := FId;
 end;
 
 

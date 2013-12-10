@@ -45,7 +45,8 @@ unit fre_base_client;
 interface
 
 uses
-  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FRE_SYS_BASE_CS,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES,FOS_INTERLOCKED,baseunix;
+  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FRE_SYS_BASE_CS,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES,
+  FRE_SYSTEM,baseunix;
 
 var G_CONNREFUSED_TO : integer = 5;
     G_RETRY_TO       : integer = 5;
@@ -64,6 +65,15 @@ type
         Answer     : IFRE_DB_COMMAND;
         ExpiredAt  : TFRE_DB_DateTime64;
       end;
+      TSUB_FEED_CSTATE=(sfc_NOT_CONNECTED,sfc_TRYING,sfc_OK);
+      TSUB_CMD_STATE  =(cs_READ_LEN,cs_READ_DATA);
+      TSUB_FEED_STATE=class
+        FId           : ShortString;
+        FConnectState : TSUB_FEED_CSTATE;
+        FCMDState     : TSUB_CMD_STATE;
+        FLen          : Cardinal;
+        FData         : Pointer
+      end;
     var
       FApps                    : IFRE_DB_Object;
       FTimeout                 : integer;
@@ -77,22 +87,30 @@ type
       FChannel                 : IFRE_APSC_CHANNEL;
       FChannelTimer            : IFRE_APSC_TIMER;
       FClientStateLock         : IFOS_LOCK;
+      FSubFeedLock             : IFOS_LOCK;
+      FSubfeedlist             : TList;
 
     procedure  CCB_SessionSetup        (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
 
-    procedure  NewChannel   (const channel : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState);
-    procedure  ChannelDisco (const channel : IFRE_APSC_CHANNEL);
-    procedure  ChannelRead  (const channel : IFRE_APSC_CHANNEL);
+    procedure  NewChannel              (const channel : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState);
+    procedure  ChannelDisco            (const channel : IFRE_APSC_CHANNEL);
+    procedure  ChannelRead             (const channel : IFRE_APSC_CHANNEL);
 
     procedure SendServerCommand       (const base_connection: TFRE_CLIENT_BASE_CONNECTION; const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER=nil; const timeout: integer=5000);
 
     procedure MyStateCheckTimer       (const TIM : IFRE_APSC_TIMER ; const flag1,flag2 : boolean); // Timout & CMD Arrived & Answer Arrived
+    procedure MySubFeederStateTimer   (const TIM : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
     procedure ChannelTimerCB          (const TIM : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
 
     procedure MyCommandAnswerArrived  (const sender:TObject;const cmd:IFRE_DB_COMMAND);
     procedure MyRequestArrived        (const sender:TObject;const cmd:IFRE_DB_COMMAND);
     procedure DispatchAnswers         ;
     procedure MyHandleSignals         (const signal       : NativeUint);
+
+    procedure   SubFeederNewSocket          (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
+    procedure   SubfeederReadClientChannel  (const channel  : IFRE_APSC_CHANNEL);
+    procedure   SubfeederDiscoClientChannel (const channel  : IFRE_APSC_CHANNEL);
+
   protected
     procedure  Terminate; virtual;
     procedure  ReInit; virtual;
@@ -118,6 +136,8 @@ type
     procedure WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); virtual;
     function  GetCurrentChanManLocked : IFRE_APSC_CHANNEL_MANAGER;
     procedure UnlockCurrentChanMan    ;
+    procedure AddSubFeederEventViaUX  (const special_file : Shortstring);
+    procedure SubfeederEvent          (const id:string; const dbo:IFRE_DB_Object);virtual;
   end;
 
 
@@ -337,6 +357,32 @@ begin
   end;
 end;
 
+procedure TFRE_BASE_CLIENT.MySubFeederStateTimer(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
+var i    : NativeInt;
+    subs : TSUB_FEED_STATE;
+begin
+  writeln('SUB FEEDER ROUND');
+  FSubFeedLock.Acquire;
+  try
+    for i := 0 to FSubfeedlist.Count-1 do
+      begin
+        subs := TSUB_FEED_STATE(FSubfeedlist[i]);
+        case subs.FConnectState of
+          sfc_NOT_CONNECTED:
+            begin // Start a client
+              subs.FConnectState:=sfc_TRYING;
+              writeln('START CLIENT ',subs.FId);
+              GFRE_SC.AddClient_UX(subs.FId,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel);
+            end;
+          sfc_TRYING: ; // do nothing
+          sfc_OK: ; // do nothing
+        end;
+      end;
+  finally
+    FSubFeedLock.Release;
+  end;
+end;
+
 procedure TFRE_BASE_CLIENT.ChannelTimerCB(const TIM: IFRE_APSC_TIMER; const flag1, flag2: boolean);
 begin
   MyConnectionTimer;
@@ -423,6 +469,104 @@ begin
   end;
 end;
 
+procedure TFRE_BASE_CLIENT.SubFeederNewSocket(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
+var subs : TSUB_FEED_STATE;
+    id   : NativeInt;
+begin
+  writeln('SUBFEEDER CLIENT CHANNEL CONNECT ON MGR ',channel.GetChannelManager.GetID,' ',channel_event);
+  if channel_event=ch_NEW_CS_CONNECTED then
+    begin
+      FSubFeedLock.Acquire;
+      try
+        id   := StrToInt(channel.CH_GetID);
+        subs := TSUB_FEED_STATE(FSubfeedlist[id]);
+        subs.FConnectState := sfc_OK;
+        subs.FCMDState     := cs_READ_LEN;
+        writeln('SUBFEEDER '+subs.FId,' CONNECTED');
+        channel.CH_Enable_Reading;
+      finally
+        FSubFeedLock.Release;
+      end;
+    end
+  else
+    begin
+      channel.Finalize;
+    end;
+end;
+
+procedure TFRE_BASE_CLIENT.SubfeederReadClientChannel(const channel: IFRE_APSC_CHANNEL);
+var subs  : TSUB_FEED_STATE;
+    id    : NativeInt;
+    len   : cardinal;
+    fcont : boolean;
+    dbo   : IFRE_DB_Object;
+begin
+  //writeln('READ SUBFEEDER ',channel.CH_GetID);
+  FSubFeedLock.Acquire;
+  try
+    id   := StrToInt(channel.CH_GetID);
+    subs := TSUB_FEED_STATE(FSubfeedlist[id]);
+    repeat
+      fcont := false;
+      case subs.FCMDState of
+        cs_READ_LEN:
+          begin
+            if channel.CH_GetDataCount>=4 then
+              begin
+                channel.CH_ReadBuffer(@subs.FLen,4);
+                fcont := true;
+                getmem(subs.FData,subs.FLen);
+                subs.FCMDState:=cs_READ_DATA;
+              end;
+          end;
+        cs_READ_DATA:
+          begin
+            if channel.CH_GetDataCount>=subs.FLen then
+              begin
+                channel.CH_ReadBuffer(subs.FData,subs.FLen);
+                fcont := true;
+                try
+                  try
+                    dbo := GFRE_DBI.CreateFromMemory(subs.FData);
+                    SubfeederEvent(subs.FId,dbo);
+                  finally
+                    Freemem(subs.FData);
+                    if assigned(dbo) then
+                      dbo.Finalize;
+                  end;
+                except on e:exception do
+                  begin
+                    writeln('SUB CHANNEL READ FAILED ',e.Message);
+                    channel.Finalize;
+                    subs.FConnectState := sfc_NOT_CONNECTED;
+                  end;
+                end;
+                subs.FCMDState := cs_READ_LEN;
+              end;
+          end;
+      end;
+    until fcont=false;
+    //subs.FConnectState := sfc_NOT_CONNECTED;
+  finally
+    FSubFeedLock.Release;
+  end;
+end;
+
+procedure TFRE_BASE_CLIENT.SubfeederDiscoClientChannel(const channel: IFRE_APSC_CHANNEL);
+var subs : TSUB_FEED_STATE;
+    id   : NativeInt;
+begin
+  FSubFeedLock.Acquire;
+  try
+    id   := StrToInt(channel.CH_GetID);
+    subs := TSUB_FEED_STATE(FSubfeedlist[id]);
+    subs.FConnectState := sfc_NOT_CONNECTED;
+    writeln('SUBFEEDER '+subs.FId,' DISCONNECTED');
+  finally
+    FSubFeedLock.Release;
+  end;
+end;
+
 procedure TFRE_BASE_CLIENT.Terminate;
 begin
   writeln('SIGNAL TERMINATE');
@@ -461,6 +605,8 @@ begin
   fMySessionID := 'NEW';
   FChannel     := nil;
   GFRE_TF.Get_Lock(FClientStateLock);
+  GFRE_TF.Get_Lock(FSubFeedLock);
+  FSubfeedlist:=TList.Create;
 end;
 
 destructor TFRE_BASE_CLIENT.Destroy;
@@ -473,12 +619,15 @@ begin
     FApps.Finalize;
   end;
   FClientStateLock.Finalize;
+  FSubFeedLock.Finalize;
+  FSubfeedlist.Free;
   inherited Destroy;
 end;
 
 procedure TFRE_BASE_CLIENT.Setup;
 begin
   GFRE_SC.AddTimer('F_STATE',1000,@MyStateCheckTimer);
+  GFRE_SC.AddTimer('F_SUB_STATE',1000,@MySubFeederStateTimer);
   GFRE_SC.SetSingnalCB(@MyHandleSignals);
   MyInitialize;
 end;
@@ -554,6 +703,25 @@ end;
 procedure TFRE_BASE_CLIENT.UnlockCurrentChanMan;
 begin
   FClientStateLock.Release;
+end;
+
+procedure TFRE_BASE_CLIENT.AddSubFeederEventViaUX(const special_file: Shortstring);
+var sub_state : TSUB_FEED_STATE;
+begin
+  FSubFeedLock.Acquire;
+  try
+    sub_state := TSUB_FEED_STATE.Create;
+    sub_state.FConnectState := sfc_NOT_CONNECTED;
+    sub_state.FId := cFRE_UX_SOCKS_DIR+special_file;
+    FSubfeedlist.Add(sub_state);
+  finally
+    FSubFeedLock.Release;
+  end;
+end;
+
+procedure TFRE_BASE_CLIENT.SubfeederEvent(const id: string; const dbo: IFRE_DB_Object);
+begin
+
 end;
 
 function TFRE_BASE_CLIENT.SendServerCommand(const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER; const timeout: integer): boolean;

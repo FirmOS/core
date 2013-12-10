@@ -12806,7 +12806,7 @@ begin
     begin
       if lschemename='' then
         begin
-          writeln('********** WARNING SCHEMENAME NOT IN STREAMED OBJECT ',lClassname);
+          //writeln('********** WARNING SCHEMENAME NOT IN STREAMED OBJECT ',lClassname); //TODO:CRIT
         end;
       result.FSchemeName:=lschemename;
     end;
