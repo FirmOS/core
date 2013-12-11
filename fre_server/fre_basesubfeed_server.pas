@@ -156,6 +156,7 @@ var mem : pointer;
     siz : Cardinal;
     i : Nativeint;
 begin
+  writeln('PUSHDATA:',data_object.DumpToString());
   siz := GetDboAsBufferLen(data_object,mem);
   data_object.Finalize;
   FLock.Acquire;

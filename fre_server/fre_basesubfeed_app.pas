@@ -109,7 +109,7 @@ begin
   if HasOption('H','remotehost') then begin
     cFRE_REMOTE_HOST:= GetOptionValue('H','remotehost');
   end else begin
-    cFRE_REMOTE_HOST:= '127.0.0.1';
+    cFRE_REMOTE_HOST:= '';
   end;
 
   if HasOption('T','toolpath') then begin
@@ -117,13 +117,11 @@ begin
   end;
 
   Initialize_Read_FRE_CFG_Parameter;
-
   if HasOption('*','test-log') then
     begin
       writeln('configuring testlogging');
       CfgTestLog;
     end;
-
   InitEmbedded;
   Init4Server;
   GFRE_DBI.SetLocalZone('Europe/Vienna');
