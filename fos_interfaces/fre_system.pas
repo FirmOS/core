@@ -79,6 +79,7 @@ var
       cFRE_Feed_Pass                  :string = '';
       cFRE_MWS_IP                     :string = ''; // connect the MWS non standard over IP
       cFRE_SUBFEEDER_IP               :string = ''; // use an IP connect for all subfeeders (portmapping is static subfeederdefined)
+      cFRE_ToolsPath                  :string = '/usr';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;

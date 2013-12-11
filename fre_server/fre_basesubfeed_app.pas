@@ -78,7 +78,7 @@ procedure TFRE_BASESUBDATA_FEED.DoRun;
 var
   ErrorMsg   : String;
 begin
-  ErrorMsg:=CheckOptions('thDU:H:u:p:',['test','help','debugger','remoteuser:','remotehost:','user:','pass:','test-log']);
+  ErrorMsg:=CheckOptions('thDU:H:u:p:T:',['test','help','debugger','remoteuser:','remotehost:','user:','pass:','toolpath:','test-log']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -110,6 +110,10 @@ begin
     cFRE_REMOTE_HOST:= GetOptionValue('H','remotehost');
   end else begin
     cFRE_REMOTE_HOST:= '127.0.0.1';
+  end;
+
+  if HasOption('T','toolpath') then begin
+    cFRE_ToolsPath:= GetOptionValue('T','toolpath');
   end;
 
   Initialize_Read_FRE_CFG_Parameter;
@@ -160,6 +164,7 @@ begin
   writeln('Usage: ',ExeName,' -h');
   writeln('  -U            | --remoteuser           : user for remote commands');
   writeln('  -H            | --remotehost           : host for remote commands');
+  writeln('  -T            | --toolpath             : base path for tools e.g. sg3utils');
 end;
 
 procedure TFRE_BASESUBDATA_FEED.TestMethod;
