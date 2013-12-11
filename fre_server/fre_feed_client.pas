@@ -133,7 +133,10 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
   GFRE_DBI.Initialize_Extension_Objects;
   FREDB_LoadMimetypes('');
-  AddSubFeederEventViaUX('samplesub');
+  if cFRE_SUBFEEDER_IP='' then
+    AddSubFeederEventViaUX('samplesub')
+  else
+    AddSubFeederEventViaTCP(cFRE_SUBFEEDER_IP,'44100','samplesub');
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyFinalize;

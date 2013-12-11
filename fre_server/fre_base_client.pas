@@ -72,7 +72,10 @@ type
         FConnectState : TSUB_FEED_CSTATE;
         FCMDState     : TSUB_CMD_STATE;
         FLen          : Cardinal;
-        FData         : Pointer
+        FData         : Pointer;
+        FSpecfile     : Shortstring;
+        FIp           : Shortstring;
+        FPort         : Shortstring;
       end;
     var
       FApps                    : IFRE_DB_Object;
@@ -136,7 +139,8 @@ type
     procedure WorkRemoteMethods       (const rclassname,rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE); virtual;
     function  GetCurrentChanManLocked : IFRE_APSC_CHANNEL_MANAGER;
     procedure UnlockCurrentChanMan    ;
-    procedure AddSubFeederEventViaUX  (const special_file : Shortstring);
+    procedure AddSubFeederEventViaUX  (const special_id : Shortstring);
+    procedure AddSubFeederEventViaTCP (const ip,port,special_id : Shortstring);
     procedure SubfeederEvent          (const id:string; const dbo:IFRE_DB_Object);virtual;
   end;
 
@@ -337,7 +341,10 @@ begin
                        FClientState:=csWaitConnect;
                        if Assigned(FChannel) then
                          GFRE_BT.CriticalAbort('SHOULD NOT HAVE A CHANNEL HERE!');
-                       GFRE_SC.AddClient_TCP('0.0.0.0','44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco);
+                       if cFRE_MWS_IP<>'' then
+                         GFRE_SC.AddClient_TCP(cFRE_MWS_IP,'44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco)
+                       else
+                         GFRE_SC.AddClient_TCP('0.0.0.0','44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco)
                      end;
           csWaitConnect: begin
 
@@ -361,7 +368,6 @@ procedure TFRE_BASE_CLIENT.MySubFeederStateTimer(const TIM: IFRE_APSC_TIMER; con
 var i    : NativeInt;
     subs : TSUB_FEED_STATE;
 begin
-  writeln('SUB FEEDER ROUND');
   FSubFeedLock.Acquire;
   try
     for i := 0 to FSubfeedlist.Count-1 do
@@ -371,8 +377,10 @@ begin
           sfc_NOT_CONNECTED:
             begin // Start a client
               subs.FConnectState:=sfc_TRYING;
-              writeln('START CLIENT ',subs.FId);
-              GFRE_SC.AddClient_UX(subs.FId,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel);
+              if subs.FSpecfile<>'' then
+                GFRE_SC.AddClient_UX(subs.FSpecfile,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel)
+              else
+                GFRE_SC.AddClient_TCP(subs.FIp,subs.FPort,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel);
             end;
           sfc_TRYING: ; // do nothing
           sfc_OK: ; // do nothing
@@ -473,7 +481,6 @@ procedure TFRE_BASE_CLIENT.SubFeederNewSocket(const channel: IFRE_APSC_CHANNEL; 
 var subs : TSUB_FEED_STATE;
     id   : NativeInt;
 begin
-  writeln('SUBFEEDER CLIENT CHANNEL CONNECT ON MGR ',channel.GetChannelManager.GetID,' ',channel_event);
   if channel_event=ch_NEW_CS_CONNECTED then
     begin
       FSubFeedLock.Acquire;
@@ -482,7 +489,6 @@ begin
         subs := TSUB_FEED_STATE(FSubfeedlist[id]);
         subs.FConnectState := sfc_OK;
         subs.FCMDState     := cs_READ_LEN;
-        writeln('SUBFEEDER '+subs.FId,' CONNECTED');
         channel.CH_Enable_Reading;
       finally
         FSubFeedLock.Release;
@@ -501,7 +507,6 @@ var subs  : TSUB_FEED_STATE;
     fcont : boolean;
     dbo   : IFRE_DB_Object;
 begin
-  //writeln('READ SUBFEEDER ',channel.CH_GetID);
   FSubFeedLock.Acquire;
   try
     id   := StrToInt(channel.CH_GetID);
@@ -528,9 +533,16 @@ begin
                 try
                   try
                     dbo := GFRE_DBI.CreateFromMemory(subs.FData);
-                    SubfeederEvent(subs.FId,dbo);
+                    try
+                      SubfeederEvent(subs.FId,dbo);
+                    except on e:exception do
+                      begin
+                        writeln('Failure in Subfeeder event processing '+e.Message);
+                      end;
+                    end;
                   finally
                     Freemem(subs.FData);
+                    subs.FData:=nil;
                     if assigned(dbo) then
                       dbo.Finalize;
                   end;
@@ -546,7 +558,6 @@ begin
           end;
       end;
     until fcont=false;
-    //subs.FConnectState := sfc_NOT_CONNECTED;
   finally
     FSubFeedLock.Release;
   end;
@@ -560,8 +571,16 @@ begin
   try
     id   := StrToInt(channel.CH_GetID);
     subs := TSUB_FEED_STATE(FSubfeedlist[id]);
+    if subs.FCMDState=cs_READ_DATA then
+      begin
+        if assigned(subs.FData) then
+          begin
+            writeln('****************** SUBSUBFEEDER : Disconnected while reading data!');
+            Freemem(subs.FData);
+          end;
+        subs.FData := nil;
+      end;
     subs.FConnectState := sfc_NOT_CONNECTED;
-    writeln('SUBFEEDER '+subs.FId,' DISCONNECTED');
   finally
     FSubFeedLock.Release;
   end;
@@ -610,6 +629,7 @@ begin
 end;
 
 destructor TFRE_BASE_CLIENT.Destroy;
+var  i: NativeInt;
 begin
   MyFinalize;
   if assigned(FBaseconnection) then begin
@@ -620,6 +640,10 @@ begin
   end;
   FClientStateLock.Finalize;
   FSubFeedLock.Finalize;
+  for i:=0 to FSubfeedlist.Count-1 do
+    begin
+      TSUB_FEED_STATE(FSubfeedlist[i]).free;
+    end;
   FSubfeedlist.Free;
   inherited Destroy;
 end;
@@ -705,14 +729,32 @@ begin
   FClientStateLock.Release;
 end;
 
-procedure TFRE_BASE_CLIENT.AddSubFeederEventViaUX(const special_file: Shortstring);
+procedure TFRE_BASE_CLIENT.AddSubFeederEventViaUX(const special_id: Shortstring);
 var sub_state : TSUB_FEED_STATE;
 begin
   FSubFeedLock.Acquire;
   try
     sub_state := TSUB_FEED_STATE.Create;
     sub_state.FConnectState := sfc_NOT_CONNECTED;
-    sub_state.FId := cFRE_UX_SOCKS_DIR+special_file;
+    sub_state.FId           := special_id;
+    sub_state.FSpecfile     := cFRE_UX_SOCKS_DIR+special_id;
+    FSubfeedlist.Add(sub_state);
+  finally
+    FSubFeedLock.Release;
+  end;
+end;
+
+procedure TFRE_BASE_CLIENT.AddSubFeederEventViaTCP(const ip, port, special_id: Shortstring);
+var sub_state : TSUB_FEED_STATE;
+begin
+  FSubFeedLock.Acquire;
+  try
+    sub_state := TSUB_FEED_STATE.Create;
+    sub_state.FConnectState := sfc_NOT_CONNECTED;
+    sub_state.FId           := special_id;
+    sub_state.FSpecfile     := '';
+    sub_state.FPort         := port;
+    sub_state.FIp           := ip;
     FSubfeedlist.Add(sub_state);
   finally
     FSubFeedLock.Release;

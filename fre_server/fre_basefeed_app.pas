@@ -78,7 +78,7 @@ procedure TFRE_BASEDATA_FEED.DoRun;
 var
   ErrorMsg   : String;
 begin
-  ErrorMsg:=CheckOptions('thDU:H:u:p:',['test','help','debugger','remoteuser:','remotehost:','user:','pass:','test-log']);
+  ErrorMsg:=CheckOptions('thDU:H:u:p:',['test','help','debugger','remoteuser:','remotehost:','user:','pass:','test-log','subfeederip:','mwsip:']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -90,6 +90,12 @@ begin
     Terminate;
     Exit;
   end;
+
+  if HasOption('*','subfeederip') then
+    cFRE_SUBFEEDER_IP := GetOptionValue('*','subfeederip');
+
+  if HasOption('*','mwsip') then
+    cFRE_MWS_IP := GetOptionValue('*','mwsip');
 
   if HasOption('D','debugger') then
     G_NO_INTERRUPT_FLAG:=true;
