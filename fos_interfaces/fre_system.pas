@@ -77,6 +77,7 @@ var
       cFRE_REMOTE_HOST                :string = '';
       cFRE_Feed_User                  :string = '';
       cFRE_Feed_Pass                  :string = '';
+      cFRE_ToolsPath                  :string = '/usr';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;
