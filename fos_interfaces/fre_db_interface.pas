@@ -5618,7 +5618,7 @@ begin
     if conn.Collection('note').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(noteobj.Field('note').asstring));
     end else begin
-      exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe('New'));
+      exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(''));
     end;
   end else begin
     exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(''));

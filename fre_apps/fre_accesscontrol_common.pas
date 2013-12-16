@@ -105,6 +105,8 @@ type
     function        WEB_ContentGroups         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_RoleNotification      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_AddToRole             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_GIRMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_GORMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_RemoveFromRole        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
@@ -122,10 +124,13 @@ type
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentGroups         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_AddDomain             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_CreateDomain          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ModifyDomain          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_DeleteDomain          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_DeleteDomainConfirmed (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_SaveDomain            (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_DGMenu                (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_DGNotification        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -174,7 +179,7 @@ begin
     with domain_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetDomainCollection);
       SetDeriveTransformation(tr_domain);
-      SetDisplayType(cdt_Listview,[],'');
+      SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_DGMenu),nil,CWSF(@WEB_DGNotification));
       AddRightFilterForEntryAndUser('RF','VIEWDOM');
     end;
 
@@ -228,18 +233,18 @@ begin
   domaingrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
 
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_DOMAIN) then begin  //class right without domain
-    txt:=app.FetchAppTextFull(ses,'$add_domain');
-    domaingrid.AddButton.Describe(CWSF(@WEB_AddDomain),'images_apps/accesscontrol/add_domain.png',txt.Getshort,txt.GetHint);
+    txt:=app.FetchAppTextFull(ses,'$tb_add_domain');
+    domaingrid.AddButton.Describe(CWSF(@WEB_AddDomain),'',txt.Getshort,txt.GetHint);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
-    txt:=app.FetchAppTextFull(ses,'$modify_domain');
-    domaingrid.AddButton.Describe(CWSF(@WEB_ModifyDomain),'images_apps/accesscontrol/modify_domain.png',txt.Getshort,txt.GetHint,fdgbd_single);
+    txt:=app.FetchAppTextFull(ses,'$tb_modify_domain');
+    domaingrid.AddButton.DescribeManualType('tb_modify_domain',CWSF(@WEB_ModifyDomain),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
-    txt:=app.FetchAppTextFull(ses,'$delete_domain');
-    domaingrid.AddButton.Describe(CWSF(@WEB_DeleteDomain),'images_apps/accesscontrol/delete_domain.png',txt.Getshort,txt.GetHint,fdgbd_multi);
+    txt:=app.FetchAppTextFull(ses,'$tb_delete_domain');
+    domaingrid.AddButton.DescribeManualType('tb_delete_domain',CWSF(@WEB_DeleteDomain),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
 
@@ -293,8 +298,13 @@ begin
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
   res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_domain_diag_cap'),600,0,true,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
-  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CSCF('TFRE_DB_DOMAIN','NewDomainOperation'),fdbbt_submit);
+  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CWSF(@WEB_CreateDomain),fdbbt_submit);
   Result:=res;
+end;
+
+function TFRE_COMMON_DOMAIN_MOD.WEB_CreateDomain(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_MESSAGE_DESC.create.Describe('Create Domain','Please implement me!',fdbmt_info);
 end;
 
 function TFRE_COMMON_DOMAIN_MOD.WEB_ModifyDomain(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -347,7 +357,7 @@ begin
 
     Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_confirm,sf);
   end else begin
-    result :=GFRE_DB_NIL_DESC;
+    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_delete_single_select'));
   end;
 end;
 
@@ -399,6 +409,65 @@ begin
    exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$domain_modify_error_cap'),StringReplace(app.FetchAppTextShort(ses,'$domain_delete_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
 end;
 
+function TFRE_COMMON_DOMAIN_MOD.WEB_DGMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res   : TFRE_DB_MENU_DESC;
+  func  : TFRE_DB_SERVER_FUNC_DESC;
+  domain: IFRE_DB_DOMAIN;
+begin
+  if input.Field('selected').ValueCount=1 then begin
+    CheckDbResult(conn.sys.FetchDomainById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsString),domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
+    if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
+      Result:=GFRE_DB_NIL_DESC;
+    end else begin
+      res:=TFRE_DB_MENU_DESC.create.Describe;
+      if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
+        func:=CWSF(@WEB_ModifyDomain);
+        func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+        res.AddEntry.Describe(app.FetchAppTextShort(ses,'$cm_modify_domain'),'',func);
+      end;
+
+      if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
+        func:=CWSF(@WEB_DeleteDomain);
+        func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+        res.AddEntry.Describe(app.FetchAppTextShort(ses,'$cm_delete_domain'),'',func);
+      end;
+
+      Result:=res;
+    end;
+  end else begin
+    Result:=GFRE_DB_NIL_DESC;
+  end;
+end;
+
+function TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  domain: IFRE_DB_DOMAIN;
+begin
+  if input.Field('selected').ValueCount=1 then begin
+    CheckDbResult(conn.sys.FetchDomainById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsString),domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
+    if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
+      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
+      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_domain',true));
+    end else begin
+      if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',false));
+      end else begin
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
+      end;
+      if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_domain',false));
+      end else begin
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_domain',true));
+      end;
+    end;
+  end else begin
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_domain',true));
+  end;
+  Result:=GFRE_DB_NIL_DESC;
+end;
+
 
 { TFRE_COMMON_ROLE_MOD }
 
@@ -407,20 +476,20 @@ var
   role     : IFRE_DB_ROLE;
   group    : IFRE_DB_GROUP;
   i        : Integer;
-  dependend: TFRE_DB_StringArray;
   res      : TFRE_DB_Errortype;
+  roleUid  : TFRE_DB_String;
 begin
-  dependend  := GetDependencyFiltervalues(input,'uids_ref');
-  if length(dependend)=0 then begin
-    if addrole then begin
-      Result:=TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$role_group_in_diag_cap'),app.FetchAppTextShort(ses,'$role_group_in_no_group_msg'),fdbmt_warning,nil);
+  if input.FieldExists('uids_ref') then begin
+    roleUid:=input.Field('uids_ref').AsString;
+  end else begin
+    if input.FieldPathExists('dependency.uids_ref.filtervalues') and (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+      roleUid:=input.FieldPath('dependency.uids_ref.filtervalues').AsString;
     end else begin
-      Result:=TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$role_group_out_diag_cap'),app.FetchAppTextShort(ses,'$role_group_out_no_group_msg'),fdbmt_warning,nil);
+      raise EFRE_DB_Exception.Create('Exactly on group has to be passed to AddRemoveRole!');
     end;
-    exit;
   end;
 
-  CheckDbResult(conn.sys.FetchRoleById(GFRE_BT.HexString_2_GUID(dependend[0]),role),'_addremoverole');
+  CheckDbResult(conn.sys.FetchRoleById(GFRE_BT.HexString_2_GUID(roleUid),role),'_addremoverole');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.sys.FetchGroupById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
@@ -520,7 +589,7 @@ begin
     with groupin_Grid do begin
       SetReferentialLinkMode('TFRE_DB_GROUP|ROLEIDS',false);
       SetDeriveTransformation(tr_groupIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',nil,nil,nil,nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupOut);
@@ -532,7 +601,7 @@ begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter('ROLEIDS',false,true);
       SetDeriveTransformation(tr_groupOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',nil,nil,nil,nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,nil,nil,CWSF(@WEB_RemoveFromRole));
     end;
   end;
 end;
@@ -652,6 +721,57 @@ begin
   Result:=_addremoverole(input,ses,app,conn,true);
 end;
 
+function TFRE_COMMON_ROLE_MOD.WEB_GIRMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res       : TFRE_DB_MENU_DESC;
+  func      : TFRE_DB_SERVER_FUNC_DESC;
+  txt       : TFRE_DB_String;
+begin
+
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
+     input.FieldPathExists('dependency.uids_ref.filtervalues') and
+     (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+    res:=TFRE_DB_MENU_DESC.create.Describe;
+    func:=CWSF(@WEB_RemoveFromRole);
+    func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
+    func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+    if input.Field('selected').ValueCount=1 then begin
+      txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_role');
+    end else begin
+      txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_roles');
+    end;
+    res.AddEntry.Describe(txt,'',func);
+    Result:=res;
+  end else begin
+    Result:=GFRE_DB_NIL_DESC;
+  end;
+end;
+
+function TFRE_COMMON_ROLE_MOD.WEB_GORMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res       : TFRE_DB_MENU_DESC;
+  func      : TFRE_DB_SERVER_FUNC_DESC;
+  txt       : TFRE_DB_String;
+begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
+     input.FieldPathExists('dependency.uids_ref.filtervalues') and
+     (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+    res:=TFRE_DB_MENU_DESC.create.Describe;
+    func:=CWSF(@WEB_AddToRole);
+    func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
+    func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+    if input.Field('selected').ValueCount=1 then begin
+      txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_role');
+    end else begin
+      txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_roles');
+    end;
+    res.AddEntry.Describe(txt,'',func);
+    Result:=res;
+  end else begin
+    Result:=GFRE_DB_NIL_DESC;
+  end;
+end;
+
 function TFRE_COMMON_ROLE_MOD.WEB_RemoveFromRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
@@ -688,20 +808,21 @@ var
   role     : IFRE_DB_ROLE;
   group    : IFRE_DB_GROUP;
   i        : Integer;
-  dependend: TFRE_DB_StringArray;
   res      : TFRE_DB_Errortype;
+  groupUid : TFRE_DB_String;
 begin
-  dependend  := GetDependencyFiltervalues(input,'uids_ref');
-  if length(dependend)=0 then begin
-    if addrole then begin
-      Result:=TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$group_role_in_diag_cap'),app.FetchAppTextShort(ses,'$group_role_in_no_group_msg'),fdbmt_warning,nil);
+
+  if input.FieldExists('uids_ref') then begin
+    groupUid:=input.Field('uids_ref').AsString;
+  end else begin
+    if input.FieldPathExists('dependency.uids_ref.filtervalues') and (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+      groupUid:=input.FieldPath('dependency.uids_ref.filtervalues').AsString;
     end else begin
-      Result:=TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$group_role_out_diag_cap'),app.FetchAppTextShort(ses,'$group_role_out_no_group_msg'),fdbmt_warning,nil);
+      raise EFRE_DB_Exception.Create('Exactly on group has to be passed to AddRemoveRole!');
     end;
-    exit;
   end;
 
-  conn.sys.FetchGroupById(GFRE_BT.HexString_2_GUID(dependend[0]),group);
+  conn.sys.FetchGroupById(GFRE_BT.HexString_2_GUID(groupUid),group);
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.sys.FetchRoleById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),role)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_role_msg'),'%role%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
@@ -852,18 +973,18 @@ begin
   dc_group := ses.FetchDerivedCollection('GROUPMOD_GROUP_GRID');
   groupgrid := dc_group.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) then begin
-    txt:=app.FetchAppTextFull(ses,'$add_group');
-    groupgrid.AddButton.Describe(CWSF(@WEB_AddGroup),'images_apps/accesscontrol/add_group.png',txt.Getshort,txt.GetHint);
+    txt:=app.FetchAppTextFull(ses,'$tb_add_group');
+    groupgrid.AddButton.Describe(CWSF(@WEB_AddGroup),'',txt.Getshort,txt.GetHint);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
-    txt:=app.FetchAppTextFull(ses,'$modify_group');
-    groupgrid.AddButton.Describe(CWSF(@WEB_ModifyGroup),'images_apps/accesscontrol/modify_group.png',txt.Getshort,txt.GetHint,fdgbd_single);
+    txt:=app.FetchAppTextFull(ses,'$tb_modify_group');
+    groupgrid.AddButton.Describe(CWSF(@WEB_ModifyGroup),'',txt.Getshort,txt.GetHint,fdgbd_single);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then begin
-    txt:=app.FetchAppTextFull(ses,'$delete_group');
-    groupgrid.AddButton.Describe(CWSF(@WEB_DeleteGroup),'images_apps/accesscontrol/delete_group.png',txt.Getshort,txt.GetHint,fdgbd_multi);
+    txt:=app.FetchAppTextFull(ses,'$tb_delete_group');
+    groupgrid.AddButton.Describe(CWSF(@WEB_DeleteGroup),'',txt.Getshort,txt.GetHint,fdgbd_multi);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain('changeuser',TFRE_DB_GROUP) then begin
@@ -1037,24 +1158,24 @@ var
 begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) or conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then begin
     if input.Field('selected').ValueCount=1 then begin
-      mtxt:=app.FetchAppTextShort(ses,'$modify_group');
-      dtxt:=app.FetchAppTextShort(ses,'$delete_group');
+      mtxt:=app.FetchAppTextShort(ses,'$cm_modify_group');
+      dtxt:=app.FetchAppTextShort(ses,'$cm_delete_group');
     end else begin
-      mtxt:=app.FetchAppTextShort(ses,'$modify_groups');
-      dtxt:=app.FetchAppTextShort(ses,'$delete_groups');
+      mtxt:=app.FetchAppTextShort(ses,'$cm_modify_group');
+      dtxt:=app.FetchAppTextShort(ses,'$cm_delete_groups');
     end;
     res:=TFRE_DB_MENU_DESC.create.Describe;
     if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
       begin
         func:=CWSF(@WEB_ModifyGroup);
         func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-        res.AddEntry.Describe(mtxt,'images_apps/accesscontrol/modify_group.png',func,input.Field('selected').ValueCount>1);
+        res.AddEntry.Describe(mtxt,'',func,input.Field('selected').ValueCount>1);
       end;
     if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then
       begin
         func:=CWSF(@WEB_DeleteGroup);
         func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-        res.AddEntry.Describe(dtxt,'images_apps/accesscontrol/delete_group.png',func);
+        res.AddEntry.Describe(dtxt,'',func);
       end;
     Result:=res;
   end else begin
@@ -1094,18 +1215,18 @@ var
   txt       : TFRE_DB_String;
 begin
   if conn.sys.CheckClassRight4AnyDomain('changeuser',TFRE_DB_GROUP) and
-     input.FieldPathExists('dependency.gids_ref.filtervalues') and
-     (input.FieldPath('dependency.gids_ref.filtervalues').ValueCount=1) then begin
+    input.FieldPathExists('dependency.uids_ref.filtervalues') and
+     (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CWSF(@WEB_RemoveFromUser);
-    func.AddParam.Describe('gids_ref',input.FieldPath('dependency.gids_ref.filtervalues').AsString);
+    func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'$remove_group_from_user');
+      txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_user');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'$remove_group_from_users');
+      txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_users');
     end;
-    res.AddEntry.Describe(txt,'images_apps/accesscontrol/remove_group_user.png',func);
+    res.AddEntry.Describe(txt,'',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1119,18 +1240,18 @@ var
   txt       : TFRE_DB_String;
 begin
   if conn.sys.CheckClassRight4AnyDomain('changeuser',TFRE_DB_GROUP) and
-     input.FieldPathExists('dependency.gids_ref.filtervalues') and
-     (input.FieldPath('dependency.gids_ref.filtervalues').ValueCount=1) then begin
+     input.FieldPathExists('dependency.uids_ref.filtervalues') and
+     (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CWSF(@WEB_AddToUser);
-    func.AddParam.Describe('gids_ref',input.FieldPath('dependency.gids_ref.filtervalues').AsString);
+    func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'$add_group_to_user');
+      txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_user');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'$add_group_to_users');
+      txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_users');
     end;
-    res.AddEntry.Describe(txt,'images_apps/accesscontrol/add_group_user.png',func);
+    res.AddEntry.Describe(txt,'',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1142,19 +1263,23 @@ var
   user     : IFRE_DB_USER;
   group    : IFRE_DB_GROUP;
   i        : Integer;
-  dependend: TFRE_DB_StringArray;
   res      : TFRE_DB_Errortype;
+  groupUid : TFRE_DB_String;
 begin
   if not conn.sys.CheckClassRight4AnyDomain('changeuser',TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
-  dependend  := GetDependencyFiltervalues(input,'uids_ref');
-  if length(dependend)=0 then begin
-    Result:=TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$group_user_in_diag_cap'),app.FetchAppTextShort(ses,'$group_user_in_no_group_msg'),fdbmt_warning,nil);
-    exit;
+  if input.FieldExists('uids_ref') then begin
+    groupUid:=input.Field('uids_ref').AsString;
+  end else begin
+    if input.FieldPathExists('dependency.uids_ref.filtervalues') and (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+      groupUid:=input.FieldPath('dependency.uids_ref.filtervalues').AsString;
+    end else begin
+      raise EFRE_DB_Exception.Create('Exactly on group has to be passed to WEB_RemoveFromUser!');
+    end;
   end;
 
-  CheckDbResult(conn.sys.FetchGroupById(GFRE_BT.HexString_2_GUID(dependend[0]),group),'RemoveFromUser');
+  CheckDbResult(conn.sys.FetchGroupById(GFRE_BT.HexString_2_GUID(groupUid),group),'RemoveFromUser');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.sys.FetchUserById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
@@ -1170,19 +1295,23 @@ var
   user     : IFRE_DB_USER;
   group    : IFRE_DB_GROUP;
   i        : Integer;
-  dependend: TFRE_DB_StringArray;
   res      : TFRE_DB_Errortype;
+  groupUid : TFRE_DB_String;
 begin
   if not conn.sys.CheckClassRight4AnyDomain('changeuser',TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
-  dependend  := GetDependencyFiltervalues(input,'uids_ref');
-  if length(dependend)=0 then begin
-    Result:=TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$group_user_in_diag_cap'),app.FetchAppTextShort(ses,'$group_user_in_no_group_msg'),fdbmt_warning,nil);
-    exit;
+  if input.FieldExists('uids_ref') then begin
+    groupUid:=input.Field('uids_ref').AsString;
+  end else begin
+    if input.FieldPathExists('dependency.uids_ref.filtervalues') and (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+      groupUid:=input.FieldPath('dependency.uids_ref.filtervalues').AsString;
+    end else begin
+      raise EFRE_DB_Exception.Create('Exactly on group has to be passed to WEB_AddToUser!');
+    end;
   end;
 
-  CheckDbResult(conn.sys.FetchGroupById(GFRE_BT.HexString_2_GUID(dependend[0]),group),'AddToUser');
+  CheckDbResult(conn.sys.FetchGroupById(GFRE_BT.HexString_2_GUID(groupUid),group),'AddToUser');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.sys.FetchUserById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsStringArr[i]),user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
@@ -1200,18 +1329,18 @@ var
 begin
 
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
-     input.FieldPathExists('dependency.gids_ref.filtervalues') and
-     (input.FieldPath('dependency.gids_ref.filtervalues').ValueCount=1) then begin
+     input.FieldPathExists('dependency.uids_ref.filtervalues') and
+     (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CWSF(@WEB_RemoveFromRole);
-    func.AddParam.Describe('gids_ref',input.FieldPath('dependency.gids_ref.filtervalues').AsString);
+    func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'$remove_group_from_role');
+      txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_role');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'$remove_group_from_roles');
+      txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_roles');
     end;
-    res.AddEntry.Describe(txt,'images_apps/accesscontrol/remove_group_role.png',func);
+    res.AddEntry.Describe(txt,'',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1225,18 +1354,18 @@ var
   txt       : TFRE_DB_String;
 begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
-     input.FieldPathExists('dependency.gids_ref.filtervalues') and
-     (input.FieldPath('dependency.gids_ref.filtervalues').ValueCount=1) then begin
+     input.FieldPathExists('dependency.uids_ref.filtervalues') and
+     (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CWSF(@WEB_AddToRole);
-    func.AddParam.Describe('gids_ref',input.FieldPath('dependency.gids_ref.filtervalues').AsString);
+    func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'$add_group_to_role');
+      txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_role');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'$add_group_to_roles');
+      txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_roles');
     end;
-    res.AddEntry.Describe(txt,'images_apps/accesscontrol/add_group_role.png',func);
+    res.AddEntry.Describe(txt,'',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1354,7 +1483,7 @@ begin
       SetDeriveParent           (session.GetDBConnection.AdmGetUserCollection);
       SetDeriveTransformation   (tr_Grid);
       AddRightFilterForEntryAndUser('RF','VIEWDOM','DOMAINIDLINK');
-      SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
+      SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
     end;
 
     domain_cb := session.NewDerivedCollection('USERMOD_DOMAINS');
@@ -1437,13 +1566,13 @@ begin
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) or conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_USER) or conn.sys.CheckClassRight4AnyDomain('changeuser',TFRE_DB_GROUP) then begin
     sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
     if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) then begin
-      txt:=app.FetchAppTextFull(ses,'$add_user');
-      usergrid.AddButton.Describe(CWSF(@WEB_AddUser),'images_apps/accesscontrol/add_user.png',txt.Getshort,txt.GetHint);
+      txt:=app.FetchAppTextFull(ses,'$tb_add_user');
+      usergrid.AddButton.Describe(CWSF(@WEB_AddUser),'',txt.Getshort,txt.GetHint);
       txt.Finalize;
     end;
     if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_USER) then begin
-      txt:=app.FetchAppTextFull(ses,'$delete_user');
-      usergrid.AddButton.Describe(CWSF(@WEB_DeleteUser),'images_apps/accesscontrol/delete_user.png',txt.Getshort,txt.GetHint,fdgbd_multi);
+      txt:=app.FetchAppTextFull(ses,'$tb_delete_user');
+      usergrid.AddButton.Describe(CWSF(@WEB_DeleteUser),'',txt.Getshort,txt.GetHint,fdgbd_multi);
       txt.Finalize;
     end;
     sec.AddSection.Describe(CWSF(@WEB_ContentInfo),app.FetchAppTextShort(ses,'$userinfo_tab'),1);
@@ -1466,8 +1595,7 @@ begin
     main    := usergrid;
   end;
 
-  user_count:=IntToStr(conn.AdmGetUserCollection.Count);
-  result  := TFRE_DB_LAYOUT_DESC.create.Describe.SetAutoSizedLayout(nil,main,nil,TFRE_DB_HTML_DESC.create.Describe('<b>'+StringReplace(app.FetchAppTextShort(ses,'$users_info'),'%user_count%',user_count,[rfReplaceAll])+'</b>'));
+  result  := TFRE_DB_LAYOUT_DESC.create.Describe.SetAutoSizedLayout(nil,main,nil,TFRE_DB_HTML_DESC.create.Describe('<b>'+app.FetchAppTextShort(ses,'$users_info')+'</b>'));
 end;
 
 function TFRE_COMMON_USER_MOD.WEB_UserSelected(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -1647,14 +1775,14 @@ begin
 
   if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_USER) then begin
     if input.Field('selected').ValueCount=1 then begin
-      dtxt := app.FetchAppTextShort(ses,'$delete_user');
+      dtxt := app.FetchAppTextShort(ses,'$cm_delete_user');
     end else begin
-      dtxt := app.FetchAppTextShort(ses,'$delete_users');
+      dtxt := app.FetchAppTextShort(ses,'$cm_delete_users');
     end;
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CWSF(@WEB_DeleteUser);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-    res.AddEntry.Describe(dtxt,'images_apps/accesscontrol/delete_user.png',func);
+    res.AddEntry.Describe(dtxt,'',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1667,7 +1795,6 @@ var
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
 begin
-
   if conn.sys.CheckClassRight4AnyDomain('changeuser',TFRE_DB_GROUP) and
      input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
@@ -1676,11 +1803,11 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'$remove_user_from_group');
+      txt:=app.FetchAppTextShort(ses,'$cm_remove_user_from_group');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'$remove_user_from_groups');
+      txt:=app.FetchAppTextShort(ses,'$cm_remove_user_from_groups');
     end;
-    res.AddEntry.Describe(txt,'images_apps/accesscontrol/remove_user_group.png',func);
+    res.AddEntry.Describe(txt,'',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1701,11 +1828,11 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'$add_user_to_group');
+      txt:=app.FetchAppTextShort(ses,'$cm_add_user_to_group');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'$add_user_to_groups');
+      txt:=app.FetchAppTextShort(ses,'$cm_add_user_to_groups');
     end;
-    res.AddEntry.Describe(txt,'images_apps/accesscontrol/add_user_group.png',func);
+    res.AddEntry.Describe(txt,'',func);
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1824,11 +1951,11 @@ begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppTextShort(session,'$sitemap_main'),'images_apps/accesscontrol/monitor_white.svg','',0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ACCESSCONTROL_APP));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppTextShort(session,'$sitemap_domains'),'images_apps/accesscontrol/domain_white.svg',TFRE_COMMON_DOMAIN_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppTextShort(session,'$sitemap_users'),'images_apps/accesscontrol/user_white.svg',TFRE_COMMON_USER_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_USER_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppTextShort(session,'$sitemap_groups'),'images_apps/accesscontrol/group_white.svg',TFRE_COMMON_GROUP_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_GROUP_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Roles',FetchAppTextShort(session,'$sitemap_roles'),'images_apps/accesscontrol/notebook_white.svg',TFRE_COMMON_ROLE_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ROLE_MOD));
-  FREDB_SiteMap_RadialAutoposition(SiteMapData,45);
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppTextShort(session,'$sitemap_groups'),'images_apps/accesscontrol/group_white.svg',TFRE_COMMON_GROUP_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_GROUP_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppTextShort(session,'$sitemap_users'),'images_apps/accesscontrol/user_white.svg',TFRE_COMMON_USER_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_USER_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppTextShort(session,'$sitemap_domains'),'images_apps/accesscontrol/domain_white.svg',TFRE_COMMON_DOMAIN_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD));
+  FREDB_SiteMap_RadialAutoposition(SiteMapData,225);
   session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
 
@@ -1867,6 +1994,8 @@ begin
     CreateAppText(conn,'$sitemap_roles','Roles','','Roles');
     CreateAppText(conn,'$sitemap_domains','Domains','','Domains');
 
+    CreateAppText(conn,'$error_delete_single_select','Exactly one object has to be selected for deletion.');
+
     CreateAppText(conn,'$gc_username','Username');
     CreateAppText(conn,'$gc_firstname','Firstname');
     CreateAppText(conn,'$gc_lastname','Lastname');
@@ -1886,18 +2015,17 @@ begin
     CreateAppText(conn,'$userinfo_tab','User Properties');
     CreateAppText(conn,'$user_content_header','Informations about the selected user.');
 
-    CreateAppText(conn,'$modify_user','Modify','','Modify User');
-    CreateAppText(conn,'$modify_users','Modify','','Modify Users');
-    CreateAppText(conn,'$delete_user','Delete','','Delete User');
-    CreateAppText(conn,'$delete_users','Delete','','Delete Users');
-    CreateAppText(conn,'$add_user','Add','','Add User');
-    CreateAppText(conn,'$remove_user_from_groups','Remove user from groups');
-    CreateAppText(conn,'$add_user_to_groups','Add user to groups');
-    CreateAppText(conn,'$remove_user_from_group','Remove user from group');
-    CreateAppText(conn,'$add_user_to_group','Add user to group');
+    CreateAppText(conn,'$tb_delete_user','Delete','','Delete User');
+    CreateAppText(conn,'$tb_add_user','Add','','Add User');
+
+    CreateAppText(conn,'$cm_delete_user','Delete','','Delete User');
+    CreateAppText(conn,'$cm_delete_users','Delete','','Delete Users');
+    CreateAppText(conn,'$cm_remove_user_from_groups','Remove user from groups');
+    CreateAppText(conn,'$cm_add_user_to_groups','Add user to groups');
+    CreateAppText(conn,'$cm_remove_user_from_group','Remove user from group');
+    CreateAppText(conn,'$cm_add_user_to_group','Add user to group');
 
     CreateAppText(conn,'$add_user_diag_cap','Add new user');
-    CreateAppText(conn,'$modify_user_diag_cap','Modify user');
     CreateAppText(conn,'$delete_user_diag_cap','Confirm: Delete user');
     CreateAppText(conn,'$delete_users_diag_cap','Confirm: Delete multiple users');
     CreateAppText(conn,'$delete_user_diag_msg','User %user_str% will be deleted permanently! Please confirm to continue.');
@@ -1907,19 +2035,20 @@ begin
     CreateAppText(conn,'$user_deleted_diag_msg','User %user_str% successfully deleted.');
     CreateAppText(conn,'$users_deleted_diag_msg','Users %user_str% successfully deleted.');
 
-    CreateAppText(conn,'$modify_group','Modify','','Modify Group');
-    CreateAppText(conn,'$modify_groups','Modify','','Modify Groups');
-    CreateAppText(conn,'$delete_group','Delete','','Delete Group');
-    CreateAppText(conn,'$delete_groups','Delete','','Delete Groups');
-    CreateAppText(conn,'$add_group','Add','','Add Group');
-    CreateAppText(conn,'$remove_group_from_users','Remove users from group');
-    CreateAppText(conn,'$add_group_to_users','Add users to group');
-    CreateAppText(conn,'$remove_group_from_user','Remove user from group');
-    CreateAppText(conn,'$add_group_to_user','Add user to group');
-    CreateAppText(conn,'$remove_group_from_roles','Remove roles from group');
-    CreateAppText(conn,'$add_group_to_roles','Add roles to group');
-    CreateAppText(conn,'$remove_group_from_role','Remove role from group');
-    CreateAppText(conn,'$add_group_to_role','Add role to group');
+    CreateAppText(conn,'$cm_modify_group','Modify','','Modify Group');
+    CreateAppText(conn,'$cm_delete_group','Delete','','Delete Group');
+    CreateAppText(conn,'$cm_delete_groups','Delete','','Delete Groups');
+    CreateAppText(conn,'$tb_add_group','Add','','Add Group');
+    CreateAppText(conn,'$tb_modify_group','Modify','','Modify Group');
+    CreateAppText(conn,'$tb_delete_group','Delete','','Delete Group');
+    CreateAppText(conn,'$cm_remove_group_from_users','Remove users from group');
+    CreateAppText(conn,'$cm_add_group_to_users','Add users to group');
+    CreateAppText(conn,'$cm_remove_group_from_user','Remove user from group');
+    CreateAppText(conn,'$cm_add_group_to_user','Add user to group');
+    CreateAppText(conn,'$cm_remove_group_from_roles','Remove roles from group');
+    CreateAppText(conn,'$cm_add_group_to_roles','Add roles to group');
+    CreateAppText(conn,'$cm_remove_group_from_role','Remove role from group');
+    CreateAppText(conn,'$cm_add_group_to_role','Add role to group');
 
     CreateAppText(conn,'$group_user_in_diag_cap','Add User to Group');
     CreateAppText(conn,'$group_user_in_no_group_msg','Please select a group first before adding a user.');
@@ -1946,7 +2075,7 @@ begin
     CreateAppText(conn,'$group_deleted_diag_msg','Group %group_str% successfully deleted.');
     CreateAppText(conn,'$groups_deleted_diag_msg','Groups %group_str% successfully deleted.');
 
-    CreateAppText(conn,'$users_info','Overview of all users and assigned groups. There are %user_count% users in the system.');
+    CreateAppText(conn,'$users_info','Overview of all users and assigned groups.');
     CreateAppText(conn,'$groups_info','Overview of all groups and members.');
     CreateAppText(conn,'$roles_info','Overview of all roles.');
     CreateAppText(conn,'$domain_info','Overview of domains.');
@@ -1959,9 +2088,11 @@ begin
     CreateAppText(conn,'$gcap_GinD','Group belongs to Domain');
     CreateAppText(conn,'$gcap_GnotinD','Group does not belong to Domain');
 
-    CreateAppText(conn,'$modify_domain','Modify','','Modify Domain');
-    CreateAppText(conn,'$delete_domain','Delete','','Delete Domain');
-    CreateAppText(conn,'$add_domain','Add','','Add Domain');
+    CreateAppText(conn,'$tb_modify_domain','Modify','','Modify Domain');
+    CreateAppText(conn,'$tb_delete_domain','Delete','','Delete Domain');
+    CreateAppText(conn,'$tb_add_domain','Add','','Add Domain');
+    CreateAppText(conn,'$cm_modify_domain','Modify');
+    CreateAppText(conn,'$cm_delete_domain','Delete');
     CreateAppText(conn,'$add_domain_diag_cap','Add new domain');
     CreateAppText(conn,'$modify_domain_diag_cap','Modify domain');
     CreateAppText(conn,'$modify_domain_diag_no_system_domain_msg','Editing of the System Domain is not possible.');
