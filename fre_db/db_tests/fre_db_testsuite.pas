@@ -471,7 +471,7 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
     curinserts      : array [0..12] of Currency = (-800000000.1234,-10.5678,-20.6789,0,1.23456789,22.22233,99.3332,800000000.213123,-1.123123,10.2333,11.333,333.33,-2.33);
     booinserts      : array [0..12] of Boolean  = (true,false,true,false,false,true,true,true,false,true,false,true,false);
 
-  procedure WriteObjectIdx(const obj : IFRE_DB_Object);
+  procedure WriteObjectIdx(const obj : IFRE_DB_Object ; var halt : boolean);
   begin
     WriteObject(obj);
   end;
@@ -558,13 +558,16 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
   end;
 
   procedure DumpColl(const coll:IFRE_DB_COLLECTION;const idxname :TFRE_DB_NameType);
+  var hlt : boolean;
   begin
     writeln('----');
     writeln('<<ORDER DUMP ',coll.CollectionName,' ',idxname,' ASC');
-    coll.ForAllIndexed(@WriteObjectIdx,idxname,true);
+    hlt := false;
+    coll.ForAllIndexed(@WriteObjectIdx,hlt,idxname,true);
     writeln('');
     writeln('<<ORDER DUMP ',coll.CollectionName,' ',idxname,' DESC');
-    coll.ForAllIndexed(@WriteObjectIdx,idxname,false);
+    hlt := false;
+    coll.ForAllIndexed(@WriteObjectIdx,hlt,idxname,false);
     writeln('----');
   end;
 
@@ -578,8 +581,8 @@ begin
    coll_link := FWorkConn.Collection('TEST_1_LINKO',true,false);
    GendataforColl(coll_p,true);
    GendataforColl(coll_v,false);
-   GendataforColl(coll_pu,false);
-   GendataforColl(coll_vu,false);
+   //GendataforColl(coll_pu,false);
+   //GendataforColl(coll_vu,false);
    DumpColl(coll_p,'ixs');
    DumpColl(coll_p,'ixui64');
    DumpColl(coll_p,'ixui32');
@@ -600,11 +603,11 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
     coll_vu,coll_pu : IFRE_DB_COLLECTION;
     coll_link       : IFRE_DB_COLLECTION;
     obj             : IFRE_DB_Object;
+    hlt             : boolean;
 
-  function WriteObjectIdx(const obj : IFRE_DB_Object):boolean;
+  procedure WriteObjectIdx(const obj : IFRE_DB_Object ; var halt:boolean);
   begin
     WriteObject(obj);
-    result := false; //  break
   end;
 
 begin
@@ -624,30 +627,40 @@ begin
   //writeln('--RANGE QUERY TEST--- END');
   writeln('--RANGE QUERY TEST---');
   writeln('-30 -> 33');
-  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64');
+  hlt := false;
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64');
   writeln('-30 -> MAX');
-  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,false,true);
+  hlt := false;
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',true,false,true);
   writeln('NULL -> 30');
-  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,true,false);
+  hlt := false;
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',true,true,false);
   writeln('UNSIGNED 1->1300');
-  coll_p.ForAllIndexedUnsignedRange(1,1300,@WriteObjectIdx,'ixui64',true,false,false,4,3);
+  hlt := false;
+  coll_p.ForAllIndexedUnsignedRange(1,1300,@WriteObjectIdx,hlt,'ixui64',true,false,false,4,3);
   writeln('--RANGE QUERY TEST--- END');
 
   writeln('--REVERSE RANGE QUERY TEST---');
   writeln('-30 -> 30');
-  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',false);
+
+  hlt := false;
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',false);
   writeln('-30 -> MAX');
-  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',false,false,true);
+  hlt := false;
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',false,false,true);
   writeln('NULL -> 30');
-  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',false,true,false,4,3);
+  hlt := false;
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',false,true,false,4,3);
   writeln('--REVERSE RANGE QUERY TEST--- END');
 
   writeln('--STRING RANGE QUERY--');
-  coll_p.ForAllIndexedStringRange('a','b',@WriteObjectIdx,'ixs');
+  hlt := false;
+  coll_p.ForAllIndexedStringRange('a','b',@WriteObjectIdx,hlt,'ixs');
   writeln('--STRING RANGE QUERY-- END');
 
   writeln('--STRING PREFIX QUERY--');
-  coll_p.ForAllIndexPrefixString('ba',@WriteObjectIdx,'ixs');
+  hlt := false;
+  coll_p.ForAllIndexPrefixString('ba',@WriteObjectIdx,hlt,'ixs');
   writeln('--STRING PREFIX QUERY-- END');
 
 end;
@@ -657,26 +670,45 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
     coll_vu,coll_pu : IFRE_DB_COLLECTION;
     coll_link       : IFRE_DB_COLLECTION;
     obj             : IFRE_DB_Object;
+    hlt             : boolean;
 
-  function WriteObjectIdx(const obj : IFRE_DB_Object):boolean;
+  procedure WriteObjectIdx(const obj : IFRE_DB_Object ; var halt : boolean);
   begin
     WriteObject(obj);
-    result := false; //  break
+  end;
+
+  procedure UpdateObjectIdx(const obj : IFRE_DB_Object ; var halt : boolean);
+  begin
+    obj.Field('fdbft_String').AsString    := 'Updated';
+    obj.Field('fdbft_UInt64').AsUInt64    := 12345678;
+    obj.Field('fdbft_UInt32').AsUInt32    := 12345;
+    obj.Field('fdbft_UInt16').AsUInt16    := 123;
+    obj.Field('fdbft_Int64').AsInt64      := -123456;
+    obj.Field('fdbft_Int32').AsInt32      := -12345;
+    obj.Field('fdbft_Int16').AsInt16      := -123;
+    obj.Field('fdbft_Byte').AsByte        := 12;
+    obj.Field('fdbft_Boolean').AsBoolean  := true;
+    obj.Field('fdbft_GUID').AsGUID        := TEST_GUID_3;
+    obj.Field('fdbft_DateTimeUTC').AsDateTimeUTC := 120000;
+    coll_p.Update(obj);
   end;
 
 begin
-  ConnectDB('test1@system','test1');
+  ConnectDB('admin@system','admin');
   coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
   coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
   coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
   coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
 
   writeln('--- INDEX UPDATE TEST SIGNED ---');
-  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,true,true,3);
+  hlt := false;
+  coll_p.ForAllIndexedSignedRange(-30,30,@UpdateObjectIdx,hlt,'ixi64',true,true,true,1);
+  hlt := false;
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',true,true,true,1);
   writeln('--- INDEX UPDATE TEST SIGNED --- END');
-  writeln('--- INDEX UPDATE TEST SIGNED ---');
-  coll_pu.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,true,true,3);
-  writeln('--- INDEX UPDATE TEST SIGNED --- END');
+  //writeln('--- INDEX UPDATE TEST SIGNED ---');
+  //coll_pu.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,'ixi64',true,true,true,3);
+  //writeln('--- INDEX UPDATE TEST SIGNED --- END');
 end;
 
 procedure TFRE_DB_PersistanceTests.ReconnectNotSyncedFromWAL;
@@ -1180,8 +1212,8 @@ begin
 end;
 
 initialization
-  RegisterTest(TFRE_DB_ObjectTests);
-  //RegisterTest(TFRE_DB_PersistanceTests);
+  //RegisterTest(TFRE_DB_ObjectTests);
+  RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 

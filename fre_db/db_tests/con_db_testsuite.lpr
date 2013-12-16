@@ -26,6 +26,8 @@ begin
   Initialize_Read_FRE_CFG_Parameter;
   GFRE_DB_DEFAULT_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db');
 
+  DefaultFormat      := fPlain;
+  DefaultRunAllTests := true;
 
   Init4Server;
   Register_DB_Extensions;

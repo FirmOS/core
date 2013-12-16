@@ -505,7 +505,7 @@ type
   IFRE_DB_FieldIterator                 = procedure (const obj : IFRE_DB_Field) is nested;
   IFRE_DB_FieldIteratorBrk              = function  (const obj : IFRE_DB_Field):boolean is nested;
   IFRE_DB_Obj_Iterator                  = procedure (const obj : IFRE_DB_Object) is nested;
-  IFRE_DB_Obj_IteratorBreak             = function  (const obj : IFRE_DB_Object):Boolean is nested;
+  //IFRE_DB_Obj_IteratorBreak             = function  (const obj : IFRE_DB_Object):Boolean is nested;
   IFRE_DB_ObjectIteratorBrk             = procedure (const obj:IFRE_DB_Object; var halt:boolean) is nested;
   IFRE_DB_UpdateChange_Iterator         = procedure (const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field) is nested;
   IFRE_DB_ObjUid_IteratorBreak          = procedure (const uid : TGUID ; var halt : boolean) is nested;
@@ -713,7 +713,7 @@ type
     function        Count               : QWord;
     function        Exists              (const ouid:TGUID):boolean;
     procedure       ForAll              (const func:IFRE_DB_Obj_Iterator);
-    procedure       ForAllBreak         (const func:IFRE_DB_Obj_IteratorBreak);
+    procedure       ForAllBreak         (const func:IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
     function        Remove              (const ouid:TGUID):boolean;
     function        Store               (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
     function        Update              (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -736,14 +736,17 @@ type
     function        GetIndexedUIDs      (const query_value : TFRE_DB_String; out obj_uid : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def'):boolean;
 
     function        GetIndexedUID       (const query_value : TFRE_DB_String;out obj_uid:TGUID;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
-    procedure       ForAllIndexed       (const func:IFRE_DB_Obj_Iterator ;const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
+
+    procedure       ForAllIndexed       (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
+
+
     function        RemoveIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
 
     // skip_first = number of different index values to skip, max_count = number of different index values to deliver
-    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_Obj_IteratorBreak ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
     procedure       ForceFullUpdateForObservers;
     function        GetLastStatusText   : string;
@@ -2506,6 +2509,7 @@ begin
     result := false;
   end else raise EFRE_DB_Exception.Create(edb_ERROR,'invalid string to bool conversion : value=['+str+']');
 end;
+
 
 function FREDB_String2NativeInt(const str: String): NativeInt;
 var Error: word;
@@ -5498,36 +5502,10 @@ begin
       bounddbo := GFRE_DBI.NewObject;
     end;
   bounddbo._InternalSetMediatorScheme(self,scheme);
-  FBound := true;
   FBound       := true;
   FImplementor := bounddbo;
   FImplementor.Supports(IFRE_DB_NAMED_OBJECT,FNamedObject);
   InternalSetup;
-  //var ex_class : TFRE_DB_ObjectEx;
-  //    dbo      : TFRE_DB_Object;
-  //    name     : TFRE_DB_String;
-  //begin
-  // if FHasHardcodeClass then begin
-  //   assert(assigned(FHardCodeClassTyp));
-  //   name := FHardCodeClassTyp.ClassName;
-  //   if FHardCodeClassTyp.InheritsFrom(TFRE_DB_OBJECTEX) then begin
-  //     if IsA('TFRE_DB_NAMED_OBJECT') then begin
-  //       dbo                    := GFRE_DB.NewNamedObject;
-  //     end else begin
-  //       dbo                    := GFRE_DB.NewObject;
-  //     end;
-  //     ex_class               := TFRE_DB_OBJECTCLASSEX(FHardCodeClassTyp).CreateBound(dbo);
-  //     dbo.FMediatorExtention := ex_class;
-  //     result                 := dbo;
-  //   end else begin
-  //     if FHardCodeClassTyp.InheritsFrom(TFRE_DB_Object) then begin
-  //       result := TFRE_DB_OBJECTCLASS(FHardCodeClassTyp).Create as TFRE_DB_Object;
-  //     end else abort; // Check this out
-  //   end;
-  // end else begin
-  //   result := GFRE_DB.NewObject;
-  // end;
-  // result.SetScheme(self);
 end;
 
 procedure TFRE_DB_ObjectEx.CopyToMemory(memory: Pointer; const without_schemes: boolean);
