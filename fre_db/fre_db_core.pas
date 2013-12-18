@@ -1430,6 +1430,8 @@ type
     FInFieldName     : TFRE_DB_NameType;
     FOutFieldName    : TFRE_DB_NameType;
     FOutFieldTitle   : TFRE_DB_String;
+    FSortable        : Boolean;              // Field can be sorted
+    FFilterable      : Boolean;              // Field can be filtered
     FDisplay         : Boolean;              // Field Should be in Output Displayed
     //FFilterField     : Boolean;              // Field is in output but not in display -> e.g. a concatenated fulltext field
     FGuiDisplaytype  : TFRE_DB_DISPLAY_TYPE; // How the gui should display the field
@@ -1446,7 +1448,7 @@ type
   TFRE_DB_ONEONE_FT=class(TFRE_DB_FIELD_TRANSFORM)
   protected
   public
-    constructor Create         (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
+    constructor Create         (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
   end;
 
@@ -1458,7 +1460,7 @@ type
     FOutTextField   : TFRE_DB_NameType; // Outfield holding text to be displayed in the Progressbar (eg. less/more/much)
     FMaxValue       : Single;
   public
-    constructor Create              (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const input_textfield:TFRE_DB_String='';const output_textfield:TFRE_DB_String='';const maxValue:Single=100;const display:Boolean=true;const fieldSize: Integer=1);
+    constructor Create              (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const input_textfield:TFRE_DB_String='';const output_textfield:TFRE_DB_String='';const maxValue:Single=100;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1);
     procedure   AddToViewCollection (const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC); override;
     procedure   TransformField      (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
   end;
@@ -1469,7 +1471,7 @@ type
   protected
     FConstValue : TFRE_DB_String;
   public
-    constructor Create         (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    constructor Create         (const out_field,value:TFRE_DB_String;const display: Boolean=false; const sortable:Boolean=false; const filterable:Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
   end;
 
@@ -1479,7 +1481,7 @@ type
   protected
     FWhichText : TFRE_DB_TEXT_SUBTYPE;
   public
-    constructor Create         (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1);
+    constructor Create         (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false; const fieldSize: Integer=1);
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
   end;
 
@@ -1490,7 +1492,7 @@ type
     FFormatString : TFRE_DB_String;
     FInfieldList  : TFRE_DB_NameTypeArray;
   public
-    constructor Create         (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1);
+    constructor Create         (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1);
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
   end;
 
@@ -1500,7 +1502,7 @@ type
   protected
     FRefFieldChain : TFRE_DB_NameTypeArray;
   public
-    constructor Create         (const ref_field_chain: TFRE_DB_NameTypeArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1);
+    constructor Create         (const ref_field_chain: TFRE_DB_NameTypeArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false; const fieldSize: Integer=1);
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
   end;
 
@@ -1536,14 +1538,14 @@ type
     procedure SetCustomTransformFunction     (const func : IFRE_DB_CUSTOMTRANSFORM);
     //@ Add a Field that collects STRING values to a new String Field
     //@ format : format string of the new field ; in_fieldlist : list of input fieldnames ; output_title : name of the output field, default=same as input
-    procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure AddFulltextFilterOnTransformed (const in_fieldlist:TFRE_DB_StringArray);
-    procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
-    procedure AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const fieldSize: Integer=1);
-    procedure AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddDBTextToOne                 (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddMatchingReferencedField     (const ref_field_chain: TFRE_DB_NameTypeArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameType     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
+    procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
+    procedure AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1);
+    procedure AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1);
+    procedure AddDBTextToOne                 (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1);
+    procedure AddMatchingReferencedField     (const ref_field_chain: TFRE_DB_NameTypeArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1);
+    procedure AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameType     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1);
 
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
     function  GetViewCollectionDescription   : TFRE_DB_CONTENT_DESC;
@@ -2393,7 +2395,7 @@ implementation
 
 { TFRE_DB_REFERERENCE_CHAIN_FT }
 
-constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer);
+constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display,sortable,filterable: Boolean; const fieldSize: Integer);
 begin
   FRefFieldChain  := ref_field_chain;
   FInFieldName    := target_field;
@@ -2401,6 +2403,8 @@ begin
   FOutFieldTitle  := output_title;
   FGuiDisplaytype := gui_display_type;
   FDisplay        := display;
+  FSortable       := sortable;
+  FFilterable     := filterable;
   FFieldSize      := fieldSize;
   if FOutFieldName='' then
     FOutFieldName := lowercase(FInFieldName);
@@ -2446,13 +2450,15 @@ end;
 
 { TFRE_DB_TEXT_FT }
 
-constructor TFRE_DB_TEXT_FT.Create(const fieldname: TFRE_DB_String; const which_text: TFRE_DB_TEXT_SUBTYPE; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer);
+constructor TFRE_DB_TEXT_FT.Create(const fieldname: TFRE_DB_String; const which_text: TFRE_DB_TEXT_SUBTYPE; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display,sortable,filterable: Boolean; const fieldSize: Integer);
 begin
  FInFieldName     := fieldname;
  FOutFieldName    := lowercase(out_field);
  FOutFieldTitle   := output_title;
  FGuiDisplaytype  := gui_display_type;
  FDisplay         := display;
+ FSortable        := sortable;
+ FFilterable      := filterable;
  FFieldSize       := fieldSize;
  FWhichText       := which_text;
  if FOutFieldName='' then
@@ -2482,7 +2488,7 @@ end;
 procedure TFRE_DB_FIELD_TRANSFORM.AddToViewCollection(const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC);
 begin
   if FDisplay then
-    vcd.AddDataElement.Describe(FOutFieldName,FOutFieldTitle,FGuiDisplaytype,FFieldSize,FDisplay,false,FIconIdField,FOpenIconIDField);
+    vcd.AddDataElement.Describe(FOutFieldName,FOutFieldTitle,FGuiDisplaytype,FSortable,FFilterable,FFieldSize,FDisplay,false,FIconIdField,FOpenIconIDField);
 end;
 
 procedure TFRE_DB_FIELD_TRANSFORM.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
@@ -2492,7 +2498,7 @@ end;
 
 { TFRE_DB_COLLECTOR_FT }
 
-constructor TFRE_DB_COLLECTOR_FT.Create(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer);
+constructor TFRE_DB_COLLECTOR_FT.Create(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display,sortable,filterable: Boolean; const fieldSize: Integer);
 begin
   FFormatString   := format;
   FInfieldList    := in_fieldlist;
@@ -2500,6 +2506,8 @@ begin
   FOutFieldTitle  := output_title;
   FGuiDisplaytype := gui_display_type;
   FDisplay        := display;
+  FSortable       := sortable;
+  FFilterable     := filterable;
   FFieldSize      := fieldSize;
 end;
 
@@ -2518,12 +2526,14 @@ end;
 
 { TFRE_DB_CONST_STRING_FT }
 
-constructor TFRE_DB_CONST_STRING_FT.Create(const out_field, value: TFRE_DB_String; const display: Boolean; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer);
+constructor TFRE_DB_CONST_STRING_FT.Create(const out_field, value: TFRE_DB_String; const display,sortable,filterable: Boolean; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer);
 begin
   FOutFieldName   := LowerCase(out_field);
   FOutFieldTitle  := output_title;
   FConstValue     := value;
   FDisplay        := display;
+  FSortable       := sortable;
+  FFilterable     := filterable;
   FGuiDisplaytype := gui_display_type;
   FFieldSize      := fieldSize;
 end;
@@ -2535,7 +2545,7 @@ end;
 
 { TFRE_DB_PROGRESS_FT }
 
-constructor TFRE_DB_PROGRESS_FT.Create(const valuefield: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const input_textfield: TFRE_DB_String; const output_textfield: TFRE_DB_String; const maxValue: Single; const display: Boolean; const fieldSize: Integer);
+constructor TFRE_DB_PROGRESS_FT.Create(const valuefield: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const input_textfield: TFRE_DB_String; const output_textfield: TFRE_DB_String; const maxValue: Single; const display,sortable,filterable: Boolean; const fieldSize: Integer);
 begin
   FInFieldName    := valuefield;
   FOutFieldName   := lowercase(out_field);
@@ -2546,6 +2556,8 @@ begin
   FGuiDisplaytype := dt_number_pb;
   FFieldSize      := fieldSize;
   FDisplay        := display;
+  FSortable       := sortable;
+  FFilterable     := filterable;
   if FOutFieldName = '' then
     FOutFieldName := lowercase(FInFieldName);
   if FOutTextField ='' then
@@ -2555,7 +2567,7 @@ end;
 procedure TFRE_DB_PROGRESS_FT.AddToViewCollection(const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC);
 begin
   if FDisplay then
-    vcd.AddDataElement.DescribePB(FOutFieldName,FOutFieldTitle,FOutTextField,FMaxValue,FFieldSize);
+    vcd.AddDataElement.DescribePB(FOutFieldName,FOutFieldTitle,FOutTextField,FMaxValue,FSortable,FFilterable,FFieldSize);
 end;
 
 procedure TFRE_DB_PROGRESS_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
@@ -2572,13 +2584,15 @@ end;
 
 { TFRE_DB_ONEONE_FT }
 
-constructor TFRE_DB_ONEONE_FT.Create(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer; const iconID: String; const openIconID: String);
+constructor TFRE_DB_ONEONE_FT.Create(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display,sortable,filterable: Boolean; const fieldSize: Integer; const iconID: String; const openIconID: String);
 begin
   FInFieldName     := fieldname;
   FOutFieldName    := lowercase(out_field);
   FOutFieldTitle   := output_title;
   FGuiDisplaytype  := gui_display_type;
   FDisplay         := display;
+  FSortable        := sortable;
+  FFilterable      := filterable;
   FFieldSize       := fieldSize;
   FIconIdField     := iconID;
   FOpenIconIDField := openIconID;
@@ -5523,9 +5537,9 @@ begin
   result._Field('domainid').AsGUID := input.Field('domainid').AsGUID;
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String;const display:Boolean;const gui_display_type:TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String;const display,sortable,filterable:Boolean;const gui_display_type:TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
 begin
-  FTransformList.Add(TFRE_DB_COLLECTOR_FT.Create(format,in_fieldlist,out_field,output_title,gui_display_type,display,fieldSize));
+  FTransformList.Add(TFRE_DB_COLLECTOR_FT.Create(format,in_fieldlist,out_field,output_title,gui_display_type,display,sortable,filterable,fieldSize));
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddFulltextFilterOnTransformed(const in_fieldlist: TFRE_DB_StringArray);
@@ -5533,24 +5547,24 @@ begin
  // abort; FIXXME
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddOneToOnescheme(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const fieldSize: Integer; const iconID: String; const openIconID:String);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddOneToOnescheme(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display,sortable,filterable: Boolean; const fieldSize: Integer; const iconID: String; const openIconID:String);
 begin
-  FTransformList.Add(TFRE_DB_ONEONE_FT.Create(fieldname,out_field,output_title,gui_display_type,display,fieldSize,iconID,openIconID));
+  FTransformList.Add(TFRE_DB_ONEONE_FT.Create(fieldname,out_field,output_title,gui_display_type,display,sortable,filterable,fieldSize,iconID,openIconID));
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddProgressTransform(const valuefield: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const textfield: TFRE_DB_String; const out_text: TFRE_DB_String; const maxValue: Single;const fieldSize: Integer);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddProgressTransform(const valuefield: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const textfield: TFRE_DB_String; const out_text: TFRE_DB_String; const maxValue: Single;const sortable,filterable:Boolean; const fieldSize: Integer);
 begin
-  FTransformList.Add(TFRE_DB_PROGRESS_FT.Create(valuefield,out_field,output_title,textfield,out_text,maxValue,true,fieldSize));
+  FTransformList.Add(TFRE_DB_PROGRESS_FT.Create(valuefield,out_field,output_title,textfield,out_text,maxValue,true,sortable,filterable,fieldSize));
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddConstString(const out_field,value: TFRE_DB_String; const display: Boolean; const output_title: TFRE_DB_String;  const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddConstString(const out_field,value: TFRE_DB_String; const display: Boolean; const output_title: TFRE_DB_String;  const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer);
 begin
-  FTransformList.Add(TFRE_DB_CONST_STRING_FT.Create(out_field,value,display,output_title,gui_display_type,fieldSize));
+  FTransformList.Add(TFRE_DB_CONST_STRING_FT.Create(out_field,value,display,sortable,filterable,output_title,gui_display_type,fieldSize));
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddDBTextToOne(const fieldname: TFRE_DB_String; const which_text: TFRE_DB_TEXT_SUBTYPE; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddDBTextToOne(const fieldname: TFRE_DB_String; const which_text: TFRE_DB_TEXT_SUBTYPE; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean; const fieldSize: Integer);
 begin
-  FTransformList.Add(TFRE_DB_TEXT_FT.Create(fieldname,which_text,out_field,output_title,gui_display_type,true,fieldSize));
+  FTransformList.Add(TFRE_DB_TEXT_FT.Create(fieldname,which_text,out_field,output_title,gui_display_type,true,sortable,filterable,fieldSize));
 end;
 
 function TFRE_DB_SIMPLE_TRANSFORM.GetViewCollectionDescription: TFRE_DB_CONTENT_DESC;
@@ -5562,19 +5576,19 @@ var vcd : TFRE_DB_VIEW_LIST_LAYOUT_DESC;
 begin
   vcd := TFRE_DB_VIEW_LIST_LAYOUT_DESC.create.Describe();
   FTransformList.ForAllBreak(@Iterate);
-  vcd.AddDataElement.Describe('uid','UID',dt_string,1,false);
+  vcd.AddDataElement.Describe('uid','UID',dt_string,false,false,1,false);
   result := vcd;
 end;
 
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field_chain: TFRE_DB_NameTypeArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field_chain: TFRE_DB_NameTypeArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer);
 begin
-  FTransformList.Add(TFRE_DB_REFERERENCE_CHAIN_FT.Create(ref_field_chain,target_field,output_field,output_title,gui_display_type,true,fieldSize));
+  FTransformList.Add(TFRE_DB_REFERERENCE_CHAIN_FT.Create(ref_field_chain,target_field,output_field,output_title,gui_display_type,true,sortable,filterable,fieldSize));
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field: TFRE_DB_NameType; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const fieldSize: Integer);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field: TFRE_DB_NameType; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer);
 begin
-  AddMatchingReferencedField(TFRE_DB_NameTypeArray.Create(ref_field),target_field,output_field,output_title,gui_display_type,fieldSize);
+  AddMatchingReferencedField(TFRE_DB_NameTypeArray.Create(ref_field),target_field,output_field,output_title,gui_display_type,sortable,filterable,fieldSize);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckSetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);

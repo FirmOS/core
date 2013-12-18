@@ -717,10 +717,10 @@ begin
     DC_Grid := session.NewDerivedCollection('FILEBROWSER');
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
-      AddOneToOnescheme('name','','Name',dt_string,true,3,'icon','icon_open');
-      AddOneToOnescheme('sizeHR','','Size',dt_string,true,1);
-      AddOneToOnescheme('typeHR','','Type',dt_string,true,1);
-      AddOneToOnescheme('date','','Date',dt_date,true,1);
+      AddOneToOnescheme('name','','Name',dt_string,true,false,false,3,'icon','icon_open');
+      AddOneToOnescheme('sizeHR','','Size',dt_string);
+      AddOneToOnescheme('typeHR','','Type',dt_string);
+      AddOneToOnescheme('date','','Date',dt_date);
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('icon_open','','',dt_string,false);
       AddOneToOnescheme('mypath','','',dt_string,false);
@@ -941,14 +941,14 @@ begin
     with DC_Grid do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_AT'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Sortable],'This grid test all fieldtypes, beside stream and object');
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'This grid test all fieldtypes, beside stream and object');
     end;
 
     DC_Grid2 := session.NewDerivedCollection('DC_AT_EX');
     with DC_Grid2 do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_AT'));
       SetDeriveTransformation(tr_Grid2);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Sortable],'This grid shows different extended transformation types');
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'This grid shows different extended transformation types');
     end;
 
   end;
@@ -1353,7 +1353,7 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_B'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Children],'GRID');
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Children],'GRID');
     end;
 
     DC_Tree := session.NewDerivedCollection('COLL_TEST_B_DERIVED_TREE');
@@ -1637,7 +1637,7 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_A2'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Sortable,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',CWSF(@WEB_Menu));
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',CWSF(@WEB_Menu));
     end;
   end;
 end;
@@ -1922,7 +1922,7 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_A'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_Filter,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect,cdgf_Sortable ],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
       SetDefaultOrderField('number',false);
     end;
     if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin

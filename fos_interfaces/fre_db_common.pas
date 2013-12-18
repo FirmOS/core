@@ -114,15 +114,15 @@ type
 
   TFRE_DB_DATA_ELEMENT_DESC = class(TFRE_DB_CONTENT_DESC)
   private
-    function   _Describe     (const id,caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE; const size: Integer; const display: Boolean; const required: Boolean; const iconId:String; const openIconId:String):TFRE_DB_DATA_ELEMENT_DESC;
+    function   _Describe     (const id,caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE; const sortable: Boolean; const filterable: Boolean; const size: Integer; const display: Boolean; const required: Boolean; const iconId:String; const openIconId:String):TFRE_DB_DATA_ELEMENT_DESC;
   public
     //@ Describes an entry of a collection view.
     //@ FIXXME: required parameter not implemented yet.
-    function   Describe      (const id,caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE=dt_string; const size: Integer=1; const display: Boolean=true; const required: Boolean=false; const iconId:String=''; const openIconId:String=''):TFRE_DB_DATA_ELEMENT_DESC;
+    function   Describe      (const id,caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE=dt_string; const sortable: Boolean=false; const filterable:Boolean=false; const size: Integer=1; const display: Boolean=true; const required: Boolean=false; const iconId:String=''; const openIconId:String=''):TFRE_DB_DATA_ELEMENT_DESC;
     //@ Describes a 'progressbar' entry.
     //@ If labelId is given the value of this field will be used as label of the progressbar otherwise
     //@ the value (id field) will be used as label followed by a percent sign.
-    function   DescribePB    (const id,caption: TFRE_DB_String; const labelId: string=''; const maxValue: Single=100; const size: Integer=1; const required: Boolean=false):TFRE_DB_DATA_ELEMENT_DESC;
+    function   DescribePB    (const id,caption: TFRE_DB_String; const labelId: string=''; const maxValue: Single=100; const sortable: Boolean=false; const filterable:Boolean=false; const size: Integer=1; const required: Boolean=false):TFRE_DB_DATA_ELEMENT_DESC;
     //@ Sets the store which holds the possible values of the data field.
     //@ Only useful if the visualisation (e.g. TFRE_DB_VIEW_LIST_DESC) is editable.
     //@ FIXXME: not implemented yet.
@@ -307,7 +307,7 @@ type
     //@ If editable is true and no saveFunc is defined each entry has to have a _schemeclass_ defined. _schemeclass_.saveOperation will be called.
     //@
     function  Describe            (const store: TFRE_DB_STORE_DESC; const layout: TFRE_DB_VIEW_LIST_LAYOUT_DESC; const itemContextMenuFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const title:String='';
-                                   const displayFlags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS=[cdgf_ShowSearchbox,cdgf_Editable,cdgf_Filter,cdgf_Sortable];
+                                   const displayFlags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS=[cdgf_ShowSearchbox,cdgf_Editable];
                                    const detailsFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const selectionDepFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const saveFunc:TFRE_DB_SERVER_FUNC_DESC=nil;
                                    const dropFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const dragFunc: TFRE_DB_SERVER_FUNC_DESC=nil): TFRE_DB_VIEW_LIST_DESC;
     //@ Sets the menu of the form panel. Will be displayed like a file menu in a desktop application.
@@ -1819,8 +1819,6 @@ implementation
     if Assigned(dragFunc) then begin
       Field('dragFunc').AsObject:=dragFunc.CloneToNewObject();
     end;
-    Field('filter').AsBoolean:=cdgf_Filter in displayFlags;
-    Field('sortable').AsBoolean:=cdgf_Sortable in displayFlags;
     Field('children').AsBoolean:=cdgf_Children in displayFlags;
     Field('columnResize').AsBoolean:=cdgf_ColumnResizeable in displayFlags;
     Field('columnHide').AsBoolean:=cdgf_ColumnHideable in displayFlags;
@@ -2428,12 +2426,14 @@ implementation
 
   { TFRE_DB_DATA_ELEMENT_DESC }
 
-  function TFRE_DB_DATA_ELEMENT_DESC._Describe(const id, caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE; const size: Integer; const display: Boolean; const required: Boolean; const iconId: String; const openIconId: String): TFRE_DB_DATA_ELEMENT_DESC;
+  function TFRE_DB_DATA_ELEMENT_DESC._Describe(const id, caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE; const sortable: Boolean; const filterable: Boolean; const size: Integer; const display: Boolean; const required: Boolean; const iconId: String; const openIconId: String): TFRE_DB_DATA_ELEMENT_DESC;
   begin
    Field('id').AsString:=id;
    Field('caption').AsString:=caption;
    Field('displayType').AsString:=CFRE_DB_DISPLAY_TYPE[displayType];
    Field('display').AsBoolean:=display;
+   Field('sortable').AsBoolean:=sortable;
+   Field('filterable').AsBoolean:=filterable;
    Field('required').AsBoolean:=required;
    Field('size').AsInt16:=size;
    if iconId<>'' then begin
@@ -2444,16 +2444,16 @@ implementation
    end;
   end;
 
-  function TFRE_DB_DATA_ELEMENT_DESC.Describe(const id, caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE; const size: Integer; const display: Boolean; const required: Boolean; const iconId: String; const openIconId:String): TFRE_DB_DATA_ELEMENT_DESC;
+  function TFRE_DB_DATA_ELEMENT_DESC.Describe(const id, caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE; const sortable: Boolean; const filterable: Boolean; const size: Integer; const display: Boolean; const required: Boolean; const iconId: String; const openIconId: String): TFRE_DB_DATA_ELEMENT_DESC;
   begin
     if displayType=dt_number_pb then raise EFRE_DB_Exception.Create(edb_ERROR,'Please use DescribePB to configure a progress bar (dt_number_pb).');
-    _Describe(id,caption,displayType,size,display,required,iconId,openIconId);
+    _Describe(id,caption,displayType,sortable,filterable,size,display,required,iconId,openIconId);
     Result:=Self;
   end;
 
-  function TFRE_DB_DATA_ELEMENT_DESC.DescribePB(const id, caption: TFRE_DB_String; const labelId: string; const maxValue: Single; const size: Integer; const required: Boolean): TFRE_DB_DATA_ELEMENT_DESC;
+  function TFRE_DB_DATA_ELEMENT_DESC.DescribePB(const id, caption: TFRE_DB_String; const labelId: string; const maxValue: Single; const sortable: Boolean; const filterable: Boolean; const size: Integer; const required: Boolean): TFRE_DB_DATA_ELEMENT_DESC;
   begin
-    _Describe(id,caption,dt_number_pb,size,true,required,'','');
+    _Describe(id,caption,dt_number_pb,sortable,filterable,size,true,required,'','');
     Field('labelId').AsString:=labelId;
     Field('maxValue').AsReal32:=maxValue;
     Result:=Self;

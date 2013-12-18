@@ -1324,9 +1324,8 @@ implementation
         if FREDB_String2DBDisplayType(elem.Field('displayType').AsString)=dt_number_pb then begin
           jsContentAdd('     '+elem.Field('id').AsString+': FIRMOS.gridPBColumn({');
           jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
-          if not co.Field('sortable').AsBoolean then begin
-            jsContentAdd('       ,sortable: false');
-          end;
+          jsContentAdd('      ,sortable: '+BoolToStr(elem.Field('sortable').AsBoolean,'true','false'));
+          jsContentAdd('      ,filterable: '+BoolToStr(elem.Field('filterable').AsBoolean,'true','false'));
           jsContentAdd('      ,dataType: "' + elem.Field('displayType').AsString + '"');
           jsContentAdd('      ,maxValue: ' + elem.Field('maxValue').AsString);
           if elem.Field('labelId').AsString<>'' then begin
@@ -1341,9 +1340,8 @@ implementation
             jsContentAdd('     '+elem.Field('id').AsString+': {');
           end;
           jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
-          if not co.Field('sortable').AsBoolean then begin
-            jsContentAdd('       ,sortable: false');
-          end;
+          jsContentAdd('      ,sortable: '+BoolToStr(elem.Field('sortable').AsBoolean,'true','false'));
+          jsContentAdd('      ,filterable: '+BoolToStr(elem.Field('filterable').AsBoolean,'true','false'));
           jsContentAdd('      ,dataType: "' + elem.Field('displayType').AsString + '"');
           case FREDB_String2DBDisplayType(elem.Field('displayType').AsString) of
             dt_string : begin
@@ -1475,9 +1473,6 @@ implementation
     jsContentAdd('  ,parentId: "' + co.Field('id').AsString + '"');
     if not co.Field('columnHide').AsBoolean then begin
       jsContentAdd('  ,hiderDisabled: true');
-    end;
-    if not co.Field('filter').AsBoolean then begin
-      jsContentAdd('  ,filterDisabled: true');
     end;
     if not co.Field('columnDrag').AsBoolean then begin
       jsContentAdd('  ,reorderDisabled: true');
