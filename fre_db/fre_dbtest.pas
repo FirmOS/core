@@ -899,23 +899,23 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
-      AddOneToOnescheme('MYID','','MYID',dt_number);
-      AddOneToOnescheme('fdbft_GUID','','GUID',dt_String);
-      AddOneToOnescheme('fdbft_Byte','','BYTE',dt_number);
-      AddOneToOnescheme('fdbft_Int16','','Int16',dt_number);
-      AddOneToOnescheme('fdbft_UInt16','','UInt16',dt_number);
-      AddOneToOnescheme('fdbft_Int32','','Int32',dt_number);
-      AddOneToOnescheme('fdbft_UInt32','','Uint32',dt_number);
-      AddOneToOnescheme('fdbft_Int64','','Int64',dt_number);
-      AddOneToOnescheme('fdbft_UInt64','','Uint64',dt_number);
-      AddOneToOnescheme('fdbft_Real32','','Real32',dt_number);
-      AddOneToOnescheme('fdbft_Real64','','Real64',dt_number);
-      AddOneToOnescheme('fdbft_Currency','','Currency',dt_number);
-      AddOneToOnescheme('fdbft_String','','String',dt_String);
-      AddOneToOnescheme('fdbft_Boolean','','Boolean',dt_boolean);
-      AddOneToOnescheme('fdbft_DateTimeUTC','','Datetime',dt_date);
-      //AddOneToOnescheme('fdbft_Stream','','',dt_String);
-      //AddOneToOnescheme('fdbft_ObjLink','','',dt_String);
+      AddOneToOnescheme('MYID','','MYID',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_GUID','','GUID',dt_String,true,true,true);
+      AddOneToOnescheme('fdbft_Byte','','BYTE',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_Int16','','Int16',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_UInt16','','UInt16',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_Int32','','Int32',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_UInt32','','Uint32',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_Int64','','Int64',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_UInt64','','Uint64',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_Real32','','Real32',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_Real64','','Real64',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_Currency','','Currency',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_String','','String',dt_String,true,true,true);
+      AddOneToOnescheme('fdbft_Boolean','','Boolean',dt_boolean,true,true,true);
+      AddOneToOnescheme('fdbft_DateTimeUTC','','Datetime',dt_date,true,true,true);
+      //AddOneToOnescheme('fdbft_Stream','','',dt_String,true,true,true);
+      //AddOneToOnescheme('fdbft_ObjLink','','',dt_String,true,true,true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid2);
