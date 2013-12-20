@@ -723,7 +723,7 @@ type
     function        First               : IFRE_DB_Object;
     function        Last                : IFRE_DB_Object;
     function        GetItem             (const num:uint64):IFRE_DB_Object;
-    //procedure       ClearCollection     ;
+    procedure       ClearCollection     ;
     procedure       StartBlockUpdating  ;
     procedure       FinishBlockUpdating ;
     function        AddObserver         (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
