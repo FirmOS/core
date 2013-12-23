@@ -162,6 +162,7 @@ var cfgfile  : string;
           cFRE_SERVER_DEFAULT_DIR := StringReplace(cFRE_SERVER_DEFAULT_DIR,'~',GetUserDir,[]);
           cFRE_SERVER_DEFAULT_DIR := StringReplace(cFRE_SERVER_DEFAULT_DIR,DirectorySeparator+DirectorySeparator,DirectorySeparator,[]);
         end;
+        cFRE_SERVER_DEFAULT_SSL_DIR         := ini.ReadString('SSL','DIR'               , cFRE_SERVER_DEFAULT_SSL_DIR);
         if pos('~',cFRE_SERVER_DEFAULT_SSL_DIR)>0 then begin
           cFRE_SERVER_DEFAULT_SSL_DIR := StringReplace(cFRE_SERVER_DEFAULT_SSL_DIR,'~',GetUserDir,[]);
           cFRE_SERVER_DEFAULT_SSL_DIR := StringReplace(cFRE_SERVER_DEFAULT_SSL_DIR,DirectorySeparator+DirectorySeparator,DirectorySeparator,[]);
