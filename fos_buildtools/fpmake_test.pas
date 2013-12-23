@@ -95,6 +95,7 @@ program fpmake_test;
          Add('FRE_CORE');
          Add('FRE_FCOM');
          Add('FRE_APS');
+         Add('FRE_DB');
        end;
        Directory:=cFOS_BUILD_PREFIX+'fre_aps/tests/';
        InstallProgramSuffix := FOSBuild.FOS_Suffix;

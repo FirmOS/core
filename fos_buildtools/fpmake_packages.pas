@@ -128,6 +128,7 @@ program fpmake_packages;
       Directory:=cFOS_BUILD_PREFIX+'fre_fcom';
       Dependencies.Add('FRE_INTF');
       Dependencies.Add('FRE_CORE');
+      Dependencies.Add('pthreads');
 
       with targets do begin
         AddUnit('fre_fcom_ssl.pas');
@@ -220,6 +221,8 @@ program fpmake_packages;
          AddUnit('../fre_server/fre_feed_client.pas');
          AddUnit('../fre_server/fre_basecli_app.pas');
          AddUnit('../fre_server/fre_basefeed_app.pas');
+         AddUnit('../fre_server/fre_basesubfeed_server.pas');
+         AddUnit('../fre_server/fre_basesubfeed_app.pas');
          AddUnit('../fre_server/fre_openssl_cmd.pas');
          AddUnit('fre_accesscontrol_common.pas');
        end;
