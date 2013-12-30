@@ -49,7 +49,7 @@ uses SysUtils;
 const CFREA_max_compressed_prefix =  9;
       CFREA_slot_is_empty         = $30;
       CFREA_emptyMarkerQW         = $3030303030303030;
-      CFREA_maxKeyLen             = 1024;
+      CFREA_maxKeyLen             = 512;
 
 type
    {$PACKENUM 1}

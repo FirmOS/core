@@ -637,7 +637,7 @@ type
     function        NeededSize                         : TFRE_DB_SIZE_TYPE;
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
-    function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
+    function        AsString                           :TFRE_DB_String;
     //procedure       SetAsEmptyStringArray              ;
     //function        IsEmptyArray                       : boolean;
     function        Field                              (const name:TFRE_DB_NameType):IFRE_DB_FIELD;
@@ -660,7 +660,7 @@ type
     function        SchemeClass                        : TFRE_DB_NameType;
     function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
     function        IsObjectRoot                       : Boolean;
-    procedure       SaveToFile                         (const filename:TFRE_DB_String;const without_schemes:boolean=false);
+    procedure       SaveToFile                         (const filename:TFRE_DB_String);
 
     function        ReferencesObjectsFromData          : Boolean;
     function        GetFieldListFilter                 (const field_type:TFRE_DB_FIELDTYPE):TFRE_DB_StringArray;
@@ -671,7 +671,7 @@ type
     function        Mediator                           : TFRE_DB_ObjectEx;
     procedure       Set_ReadOnly                       ;
     procedure       CopyField                          (const obj:IFRE_DB_Object;const field_name:String);
-    procedure       CopyToMemory                       (memory : Pointer;const without_schemes:boolean=false);
+    procedure       CopyToMemory                       (memory : Pointer);
 
     function        ForAllObjectsBreakHierarchic       (const iter:IFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
     function        FetchObjByUID                      (const childuid:TGuid ; var obj : IFRE_DB_Object):boolean;
@@ -739,14 +739,13 @@ type
 
     procedure       ForAllIndexed       (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
 
-
     function        RemoveIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
 
     // skip_first = number of different index values to skip, max_count = number of different index values to deliver
-    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_idx_vals : boolean=false);
+    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_idx_vals : boolean=false);
+    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_idx_vals : boolean=false);
+    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
 
     procedure       ForceFullUpdateForObservers;
     function        GetLastStatusText   : string;
@@ -1155,6 +1154,7 @@ type
 
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ObjectsRefers : Boolean ; ref_constraints : TFRE_DB_StringArray ;  var expanded_refs : TFRE_DB_GUIDArray);
     function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String) : TFRE_DB_GUIDArray;
+    function    GetReferences                (const obj_uid:TGuid;const from:boolean):TFRE_DB_ObjectReferences;
 
 
     function    StartNewWorkFlow             (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String):UInt64;
@@ -1422,7 +1422,7 @@ type
     function        DomainID                           : TGUID;
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
-    function        AsString                           (const without_schemes:boolean=false):TFRE_DB_String;
+    function        AsString                           : TFRE_DB_String;
     function        Field                              (const name:TFRE_DB_NameType):IFRE_DB_FIELD;
     function        FieldOnlyExistingObj               (const name:TFRE_DB_NameType):IFRE_DB_Object;
     function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
@@ -1443,7 +1443,7 @@ type
     function        SchemeClass                        : TFRE_DB_NameType;
     function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
     function        IsObjectRoot                       : Boolean;
-    procedure       SaveToFile                         (const filename:TFRE_DB_String;const without_schemes:boolean=false);
+    procedure       SaveToFile                         (const filename:TFRE_DB_String);
     function        ReferencesObjectsFromData          : Boolean;
 
     function        ForAllObjectsBreakHierarchic       (const iter:IFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
@@ -1471,7 +1471,7 @@ type
     procedure       CopyField                          (const obj:IFRE_DB_Object;const field_name:String);
     class function  NewOperation                       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): TGUID;
     constructor     CreateForDB                        ;
-    procedure       CopyToMemory                       (memory : Pointer;const without_schemes:boolean=false);
+    procedure       CopyToMemory                       (memory : Pointer);
     function        GetInstanceRightName               (const right: TFRE_DB_NameType): TFRE_DB_String;
     function        GetInstanceRight                   (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
     class function  StoreTranslateableText             (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):TFRE_DB_Errortype;
@@ -1901,9 +1901,9 @@ type
     function    NewObjectSchemeByName  (const Scheme : TFRE_DB_NameType): IFRE_DB_Object;
 
 
-    function    CreateFromFile         (const filename:TFRE_DB_String ;  const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
-    function    CreateFromMemory       (memory : Pointer      ;  const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
-    function    CreateFromString       (const AValue:TFRE_DB_String   ;  const recreate_weak_schemes: boolean=false):IFRE_DB_Object;
+    function    CreateFromFile         (const filename:TFRE_DB_String):IFRE_DB_Object;
+    function    CreateFromMemory       (memory : Pointer):IFRE_DB_Object;
+    function    CreateFromString       (const AValue:TFRE_DB_String):IFRE_DB_Object;
 
     function    NewConnection          (const direct : boolean = true): IFRE_DB_CONNECTION;
     function    NewSysOnlyConnection   : IFRE_DB_SYS_CONNECTION; // always direct=embedded
@@ -2241,7 +2241,7 @@ type
     PGUID_Access = ^TGUID_Access;
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
-  procedure CheckDbResultColl                    (const res:TFRE_DB_Errortype ; const coll : IFRE_DB_COLLECTION ; const error_prefix : TFRE_DB_String ; const tolerate_no_change : boolean=true);
+  procedure CheckDbResultColl                    (const res:TFRE_DB_Errortype ; const coll : IFRE_DB_COLLECTION ; const error_prefix : TFRE_DB_String ='' ; const tolerate_no_change : boolean=true);
 
   procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
   procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const params:array of const);
@@ -5221,9 +5221,9 @@ begin
   result := FImplementor.ParentField;
 end;
 
-function TFRE_DB_ObjectEx.AsString(const without_schemes: boolean): TFRE_DB_String;
+function TFRE_DB_ObjectEx.AsString: TFRE_DB_String;
 begin
-  result := FImplementor.AsString(without_schemes);
+  result := FImplementor.AsString;
 end;
 
 function TFRE_DB_ObjectEx.Field(const name: TFRE_DB_NameType): IFRE_DB_FIELD;
@@ -5327,9 +5327,9 @@ begin
   result := FImplementor.IsObjectRoot;
 end;
 
-procedure TFRE_DB_ObjectEx.SaveToFile(const filename: TFRE_DB_String; const without_schemes: boolean);
+procedure TFRE_DB_ObjectEx.SaveToFile(const filename: TFRE_DB_String);
 begin
-  FImplementor.SaveToFile(filename,without_schemes);
+  FImplementor.SaveToFile(filename);
 end;
 
 //function TFRE_DB_ObjectEx.ReferencesObjects: Boolean;
@@ -5508,9 +5508,9 @@ begin
   InternalSetup;
 end;
 
-procedure TFRE_DB_ObjectEx.CopyToMemory(memory: Pointer; const without_schemes: boolean);
+procedure TFRE_DB_ObjectEx.CopyToMemory(memory: Pointer);
 begin
-  FImplementor.CopyToMemory(memory,without_schemes);
+  FImplementor.CopyToMemory(memory);
 end;
 
 class function TFRE_DB_ObjectEx.StoreTranslateableText(const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String): TFRE_DB_Errortype;
