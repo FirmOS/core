@@ -2654,6 +2654,7 @@ implementation
     jsContentAdd(' ,stopEditFunc: "'+co.FieldPath('stopEditFunc.func').AsString+'"');
     jsContentAdd(' ,stopEditUidPath: '+_BuildJSArray(co.FieldPath('stopEditFunc.uidPath').AsStringArr));
     jsContentAdd(' ,stopEditParams: '+_BuildParamsObject(co.Field('stopEditFunc').AsObject.Field('params').AsObjectArr));
+    jsContentAdd(' ,tbBottom: '+BoolToStr(co.Field('tbBottom').AsBoolean,'true','false'));
     jsContentAdd('});');
 
     if not isInnerContent then begin

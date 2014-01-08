@@ -607,7 +607,7 @@ type
   TFRE_DB_EDITOR_DESC    = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes an editor.
-    function Describe        (const loadFunc,saveFunc,startEditFunc,stopEditFunc: TFRE_DB_SERVER_FUNC_DESC; const contentType: TFRE_DB_CONTENT_TYPE=ct_html): TFRE_DB_EDITOR_DESC;
+    function Describe        (const loadFunc,saveFunc,startEditFunc,stopEditFunc: TFRE_DB_SERVER_FUNC_DESC; const contentType: TFRE_DB_CONTENT_TYPE=ct_html; const toolbarBottom: Boolean=true): TFRE_DB_EDITOR_DESC;
   end;
 
   { TFRE_DB_VNC_DESC }
@@ -2578,7 +2578,7 @@ implementation
 
   { TFRE_DB_EDITOR_DESC }
 
-  function TFRE_DB_EDITOR_DESC.Describe(const loadFunc,saveFunc,startEditFunc,stopEditFunc: TFRE_DB_SERVER_FUNC_DESC; const contentType: TFRE_DB_CONTENT_TYPE): TFRE_DB_EDITOR_DESC;
+  function TFRE_DB_EDITOR_DESC.Describe(const loadFunc,saveFunc,startEditFunc,stopEditFunc: TFRE_DB_SERVER_FUNC_DESC; const contentType: TFRE_DB_CONTENT_TYPE; const toolbarBottom: Boolean): TFRE_DB_EDITOR_DESC;
   begin
     if not FieldExists('id') then begin
       Field('id').AsString:='id'+UID_String;
@@ -2588,6 +2588,7 @@ implementation
     Field('startEditFunc').AsObject:=startEditFunc;
     Field('stopEditFunc').AsObject:=stopEditFunc;
     Field('contentType').AsString:=CFRE_DB_CONTENT_TYPE[contentType];
+    Field('tbBottom').AsBoolean:=toolbarBottom;
     Result:=Self;
   end;
 
