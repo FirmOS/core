@@ -1737,7 +1737,11 @@ begin
       depth := depth + node^.prefixLength;
   end;
 
-  child := findChild(node,key[depth]);
+  if depth<keyLength then
+    child := findChild(node,key[depth])
+  else
+    child := findChild(node,0);
+
   if assigned(child^) then
     begin
       if IsALeafNode(child^) and LeafMatches(child^,key,keyLength,depth) then
