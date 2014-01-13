@@ -23,12 +23,27 @@ type
 
   TFRE_DB_TEST_CODE_CLASS=class(TFRE_DB_ObjectEx)
   public
-    procedure InternalSetup; override;
+    procedure       InternalSetup; override;
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure   CALC_Uint32 (const calc : IFRE_DB_CALCFIELD_SETTER);
     procedure   CALC_String (const calc : IFRE_DB_CALCFIELD_SETTER);
   published
     function IMI_SimpleTest(const input:IFRE_DB_Object):IFRE_DB_Object;
+  end;
+
+  SC_A1=class(TFRE_DB_ObjectEx)
+  end;
+
+  SC_B1=class(TFRE_DB_ObjectEx)
+  end;
+
+  SC_C1=class(TFRE_DB_ObjectEx)
+  end;
+
+  SC_A10=class(TFRE_DB_ObjectEx)
+  end;
+
+  SC_A11=class(TFRE_DB_ObjectEx)
   end;
 
 
@@ -98,6 +113,9 @@ type
     procedure SetupTestCollections;
     procedure FetchTestColletion;
     procedure DoReflinkTests;
+    procedure ReftestCodeClassesStore;
+    procedure CheckRefTestCodeClasses;
+    procedure ChangeRefTestCodeClasses;
     procedure DefineIndices;
     procedure GenerateIndexTestData;
     procedure TestIdxRangeQueries;
@@ -287,6 +305,7 @@ begin
      assert(obj.DomainID=TEST_GUID_3);
 end;
 
+
 { TFRE_DB_TEST_CODE_CLASS }
 
 procedure TFRE_DB_TEST_CODE_CLASS.InternalSetup;
@@ -399,6 +418,7 @@ begin
   coll_v := FWorkConn.Collection('TEST_1_VOL_U',true,true);   // unique
   coll_p := FWorkConn.Collection('TEST_1_PERS_U',true,false); // unique
   coll_p := FWorkConn.Collection('REFTEST',true,false); // unique
+  coll_p := FWorkConn.Collection('REFTEST_CC',true,false);
 end;
 
 procedure TFRE_DB_PersistanceTests.FetchTestColletion;
@@ -409,8 +429,8 @@ begin
   coll_p := FWorkConn.Collection('TEST_1_PERS',false,false);
   AssertNotNull(coll_v);
   AssertNotNull(coll_p);
-  FWorkConn.DeleteCollection('TEST_1_VOL');
   FWorkConn.DeleteCollection('TEST_1_PERS');
+  FWorkConn.DeleteCollection('TEST_1_VOL');
   coll_v := FWorkConn.Collection('TEST_1_VOL',false,true);
   AssertNull(coll_v);
   coll_p := FWorkConn.Collection('TEST_1_PERS',false,false);
@@ -441,39 +461,158 @@ begin
   u3 := n3.UID;
 
   n1.Field('ID').AsString:='FIRST';
-  CheckDbResultColl(coll_p.Store(n1),coll_p);
+  CheckDbResult(coll_p.Store(n1));
   n2.Field('ID').AsString:='SECOND';
   n2.Field('LINK').AsObjectLink := u1; // Points to FIRST
-  CheckDbResultColl(coll_p.Store(n2),coll_p);
+  CheckDbResult(coll_p.Store(n2));
   n3.Field('ID').AsString:='THIRD';
   n3.Field('LINK').AsObjectLink := u2; // Points to SECOND
-  CheckDbResultColl(coll_p.Store(n3),coll_p);
+  CheckDbResult(coll_p.Store(n3));
 
-  ra  := FWorkConn.GetReferences(u1,true,'');
+  ra  := FWorkConn.GetReferences(u1,true,'','');
   AssertTrue(length(ra)=0);
-  obr := FWorkConn.GetReferences(u1,true);
+  obr := FWorkConn.GetReferencesDetailed(u1,true);
   AssertTrue(length(obr)=0);
 
-  ra := FWorkConn.GetReferences(u1,false,'');
+  ra := FWorkConn.GetReferences(u1,false,'','');
   AssertTrue(length(ra)=1);
-  AssertTrue(ra[0]=u2);
-  obr := FWorkConn.GetReferences(u1,false);
+  AssertTrue('got bad uid',ra[0]=u2);
+  obr := FWorkConn.GetReferencesDetailed(u1,false);
   AssertTrue(length(obr)=1);
 
-  ra := FWorkConn.GetReferences(u2,true,'');
+  ra := FWorkConn.GetReferences(u2,true,'','');
   AssertTrue(length(ra)=1);
   AssertTrue(ra[0]=u1);
-  obr := FWorkConn.GetReferences(u2,true);
+  obr := FWorkConn.GetReferencesDetailed(u2,true);
   AssertTrue(length(obr)=1);
 
 
-  ra := FWorkConn.GetReferences(u2,false,'');
+  ra := FWorkConn.GetReferences(u2,false,'','');
   AssertTrue(length(ra)=1);
   AssertTrue(ra[0]=u3);
 
+end;
+
+var u1u,u2u,u3u,u4u,u10u,u11u : TGUID;
+
+procedure TFRE_DB_PersistanceTests.ReftestCodeClassesStore;
+var U1  : SC_A10;
+    U2  : SC_A1;
+    U3  : SC_B1;
+    U4  : SC_C1;
+    U10 : SC_A11;
+    cp  : IFRE_DB_COLLECTION;
+
+begin
+  U1   := SC_A10.CreateForDB;
+  u1u  := u1.UID;
+  U2   := SC_A1.CreateForDB;
+  u2u  := u2.UID;
+  U3   := SC_B1.CreateForDB;
+  u3u  := u3.UID;
+  U4   := SC_C1.CreateForDB;
+  u4u  := u4.UID;
+  U10  := SC_A11.CreateForDB;
+  u10u := u10.UID;
+  ConnectDB('admin@system','admin');
+  cp  := FWorkConn.Collection('REFTEST_CC',false,true);
+
+  U1.Field('LINK1').AddObjectLink(U2.UID);
+  U1.Field('LINK1').AddObjectLink(U3.UID);
+  U1.Field('LINK1').AddObjectLink(U4.UID);
+  CheckDbResult(cp.Store(U2));
+  CheckDbResult(cp.Store(U3));
+  CheckDbResult(cp.Store(U4));
+  CheckDbResult(cp.Store(U1));
+
+  U10.Field('LINK2').AddObjectLink(u2u);
+  U10.Field('LINK2').AddObjectLink(u3u);
+  u10.Field('LINK3').AddObjectLink(u3u);
+  CheckDbResult(cp.Store(U10));
+end;
 
 
-  //assert(ra.);
+// Reflink Example
+// Outbound Links: U1 (SC_A10):LINK1 -> U2(SC_A1),U3(SC_B1),U4(SC_C1)
+//                 U10(SC_A11):LINK2 -> U2(SC_A1),U3(SC_B1)
+//                 U10(SC_A11):LINK3 -> U3(SC_B1)
+
+// Inbound  Links: U2(SC_A1) <- U1(SC_A10):LINK1
+//                 U3(SC_B1) <- U1(SC_A10):LINK1
+//                 U4(SC_C1) <- U1(SC_A10):LINK1
+
+//                 U2(SC_A1) <- U10(SC_A11):LINK2
+//                 U3(SC_B1) <- U10(SC_A11):LINK2
+
+//                 U3(SC_B1) <- U10(SC_A11):LINK3
+
+procedure TFRE_DB_PersistanceTests.CheckRefTestCodeClasses;
+var obr : TFRE_DB_ObjectReferences;
+
+  function FREDB_DumpObjLinks(const for_text:string;const obr : TFRE_DB_ObjectReferences ; const from : boolean):IFOS_STRINGS;
+  var i : integer;
+  begin
+    result := GFRE_TF.Get_FOS_Strings;
+    for i:=0 to high(obr) do
+      begin
+        if from then
+          result.Add(for_text+'.'+obr[i].fieldname+' -> '+obr[i].schemename+'['+GFRE_BT.GUID_2_HexString(obr[i].linked_uid)+']')
+        else
+          result.Add(for_text+' <- '+obr[i].schemename+'['+GFRE_BT.GUID_2_HexString(obr[i].linked_uid)+'].'+obr[i].fieldname);
+      end;
+  end;
+
+begin
+  ConnectDB('admin@system','admin');
+  writeln('--- OUTBOUND EXAMPLE ---');
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true),true).Text);
+  writeln(FREDB_DumpObjLinks('U10(SC_A11)'+GFRE_BT.GUID_2_HexString(u10u),FWorkConn.GetReferencesDetailed(u10u,true),true).Text);
+  writeln('--- INBOUND FOR EXAMPLE ---');
+  writeln(FREDB_DumpObjLinks('U2(SC_A1)'+GFRE_BT.GUID_2_HexString(u2u),FWorkConn.GetReferencesDetailed(u2u,false),false).Text);
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false),false).Text);
+  writeln(FREDB_DumpObjLinks('U4(SC_C1)'+GFRE_BT.GUID_2_HexString(u4u),FWorkConn.GetReferencesDetailed(u4u,false),false).Text);
+  writeln('OUTBOUND FILTER on U1: SC_A1:');
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true,'SC_A1',''),true).Text);
+  writeln('OUTBOUND FILTER on U1: SC_:');
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true,'SC_',''),true).Text);
+  writeln('OUTBOUND FILTER on U1: :LINK');
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true,'','LINK'),true).Text);
+  writeln('OUTBOUND FILTER on U1: :LINK1');
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true,'','LINK1'),true).Text);
+
+  writeln('INBOUND FILTER on U3: SC_A10:');
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false,'SC_A10',''),false).Text);
+  writeln('INBOUND FILTER on U3: :LINK2');
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false,'','LINK2'),false).Text);
+
+  writeln('INBOUND FILTER on U3: SC_A11:');
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false,'SC_A11',''),false).Text);
+  writeln('INBOUND FILTER on U3: :LINK3');
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false,'','LINK3'),false).Text);
+
+end;
+
+// Reflink Example - Change
+// Outbound Links: U1 (SC_A10):LINK1 -> U2(SC_A1),U3(SC_B1),U4(SC_C1)
+//                 U10(SC_A11):LINK2 -> U2(SC_A1),U3(SC_B1)
+//                 U10(SC_A11):LINK3 -> U3(SC_B1)
+
+// Inbound  Links: U2(SC_A1) <- U1(SC_A10):LINK1
+//                 U3(SC_B1) <- U1(SC_A10):LINK1
+//                 U4(SC_C1) <- U1(SC_A10):LINK1
+
+//                 U2(SC_A1) <- U10(SC_A11):LINK2
+//                 U3(SC_B1) <- U10(SC_A11):LINK2
+
+//                 U3(SC_B1) <- U10(SC_A11):LINK3
+
+procedure TFRE_DB_PersistanceTests.ChangeRefTestCodeClasses;
+var res : TFRE_DB_Errortype;
+begin
+  ConnectDB('admin@system','admin');
+  res := FWorkConn.Delete(u2u);
+
+
 
 end;
 
@@ -546,7 +685,7 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
            obj := GFRE_DBI.NewObject;
            obj.Field('myid').AsUInt32 := 100;
            obj.Field('uid').AsGUID:=guid;
-           CheckDbResultColl(coll_link.Store(obj),coll_link,'Gentestdata: ');
+           CheckDbResult(coll_link.Store(obj));
           end;
       end;
 
@@ -1280,11 +1419,18 @@ end;
 procedure RegisterTestCodeClasses;
 begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_CODE_CLASS);
+  GFRE_DBI.RegisterObjectClassEx(SC_A1);
+  GFRE_DBI.RegisterObjectClassEx(SC_A10);
+  GFRE_DBI.RegisterObjectClassEx(SC_A11);
+  GFRE_DBI.RegisterObjectClassEx(SC_B1);
+  GFRE_DBI.RegisterObjectClassEx(SC_C1);
+  GFRE_DBI.RegisterObjectClassEx(SC_C1);
+
   GFRE_DBI.Initialize_Extension_Objects;
 end;
 
 initialization
-  RegisterTest(TFRE_DB_ObjectTests);
+  //RegisterTest(TFRE_DB_ObjectTests);
   RegisterTest(TFRE_DB_PersistanceTests);
 
 end.

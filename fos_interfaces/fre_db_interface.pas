@@ -69,19 +69,18 @@ var
 
 type
 
-  TFRE_DB_SIZE_TYPE      = integer;
-  Int16                  = Smallint;
-  Int32                  = Longint;
-  UInt16                 = word;
-  UInt32                 = longword;
-  TGUID_String           = string[sizeof(TGUid)*2];
-  TFRE_DB_String         = type AnsiString(CP_UTF8);
-  PFRE_DB_String         = ^TFRE_DB_String;
-  TFRE_DB_RawByteString  = RawByteString;
-
+  TFRE_DB_SIZE_TYPE           = integer;
+  Int16                       = Smallint;
+  Int32                       = Longint;
+  UInt16                      = word;
+  UInt32                      = longword;
+  TGUID_String                = string[sizeof(TGUid)*2];
+  TFRE_DB_String              = type AnsiString(CP_UTF8);
+  PFRE_DB_String              = ^TFRE_DB_String;
+  TFRE_DB_RawByteString       = RawByteString;
 
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO);
-  TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE);
+  TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
   TFRE_DB_SchemeType          = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
@@ -108,7 +107,7 @@ type
 const
   CFRE_DB_FIELDTYPE              : Array[TFRE_DB_FIELDTYPE]               of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK');
   CFRE_DB_FIELDTYPE_SHORT        : Array[TFRE_DB_FIELDTYPE]               of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
-  CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE');
+  CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
   CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PERSISTANCE','DB','MEMORY','REFLINKS','EXCEPT','SERVER','HTTPSERVER','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO');
@@ -141,6 +140,7 @@ type
     procedure  SetFromRawByteString (const rb_string : TFRE_DB_RawByteString);
   end;
 
+  TFRE_DB_GUID          = TGuid;
   TFRE_DB_GUIDArray     = Array of TGuid;
   PFRE_DB_GUIDArray     = ^TFRE_DB_GUIDArray;
   TFRE_DB_ByteArray     = Array of Byte;
@@ -174,10 +174,14 @@ type
   TFRE_DB_ObjLinkArray  = Array of TGuid;
   PFRE_DB_ObjLinkArray  = ^TFRE_DB_ObjLinkArray;
 
-  TFRE_DB_NameType      = String[63]; // Type for named objects (not data of the DB / no unicode and fixed length)
-  PFRE_DB_NameType      = ^TFRE_DB_NameType;
-  TFRE_DB_NameTypeRL    = string[127]; // LEN + (SCHEMENAME + | + FIEDLNAME) = 128 Byte
-  TFRE_DB_NameTypeArray = Array of TFRE_DB_NameType;
+  TFRE_DB_NameType        = String[63]; // Type for named objects (not data of the DB / no unicode and fixed length)
+  PFRE_DB_NameType        = ^TFRE_DB_NameType;
+  TFRE_DB_NameTypeRL      = string[129]; // SCHEMENAME(64 + < + FIELDNAME(64)  = 129 Byte (InboundLink)
+                                         // FIELDNAME(64) + > + SCHEMENAME(64) = 129 Byte (Outboundlink)
+  TFRE_DB_TransStepId      = String[80]; // Nametype+/+number
+  TFRE_DB_NameTypeArray    = Array of TFRE_DB_NameType;
+  TFRE_DB_NameTypeRLArray  = Array of TFRE_DB_NameTypeRL;
+  TFRE_DB_NameTypeRLArrArr = Array of TFRE_DB_NameTypeRLArray;
 
   TFRE_DB_CountedGuid=record
     link  : TGuid;
@@ -185,8 +189,9 @@ type
   end;
 
   TFRE_DB_ReferencesByField=record
-    fieldname : TFRE_DB_NameType;
-    linklist  : TFRE_DB_GUIDArray;
+    fieldname  : TFRE_DB_NameType;
+    schemename : TFRE_DB_NameType;
+    linked_uid : TFRE_DB_GUID;
   end;
 
   TFRE_DB_Mimetype=record
@@ -748,7 +753,6 @@ type
     procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
 
     procedure       ForceFullUpdateForObservers;
-    function        GetLastStatusText   : string;
     function        IsVolatile          : Boolean;
   end;
 
@@ -1153,8 +1157,10 @@ type
     procedure   ForAllWorkFlowSchemes        (const iterator:IFRE_DB_Workflow_Iterator);
 
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ObjectsRefers : Boolean ; ref_constraints : TFRE_DB_StringArray ;  var expanded_refs : TFRE_DB_GUIDArray);
-    function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const substring_filter : TFRE_DB_String) : TFRE_DB_GUIDArray;
-    function    GetReferences                (const obj_uid:TGuid;const from:boolean):TFRE_DB_ObjectReferences;
+
+    function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
+    function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
+    function    GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
 
 
     function    StartNewWorkFlow             (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String):UInt64;
@@ -2241,10 +2247,9 @@ type
     PGUID_Access = ^TGUID_Access;
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
-  procedure CheckDbResultColl                    (const res:TFRE_DB_Errortype ; const coll : IFRE_DB_COLLECTION ; const error_prefix : TFRE_DB_String ='' ; const tolerate_no_change : boolean=true);
 
-  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
-  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const params:array of const);
+  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
+  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const);
   function  RB_Guid_Compare                      (const d1, d2: TGuid): NativeInt; inline;
 
   procedure FREDB_LoadMimetypes                  (const filename:string);
@@ -2277,7 +2282,7 @@ type
   function  FREDB_Guid_ArraysSame                (const arr1,arr2: TFRE_DB_GUIDArray):boolean;
   function  FREDB_CheckGuidsUnique               (const arr: TFRE_DB_GUIDArray):boolean;
   function  FREDB_GuidList2Counted               (const arr: TFRE_DB_GUIDArray; const stop_on_first_double: boolean=false): TFRE_DB_CountedGuidArray;
-  function  FREDB_ObjReferences2GuidArray        (const ref: TFRE_DB_ObjectReferences) : TFRE_DB_GUIDArray; // TODO -> UNIQUE CHECK, some guids maybe doubled in here
+  //function  FREDB_ObjReferences2GuidArray        (const ref: TFRE_DB_ObjectReferences) : TFRE_DB_GUIDArray; // TODO FIX (struc changed) -> UNIQUE CHECK, some guids maybe doubled in here
 
   function  FREDB_ObjectToPtrUInt                (const obj : TObject):PtrUInt;
   function  FREDB_PtrUIntToObject                (const obj : PtrUInt):TObject;
@@ -2623,22 +2628,22 @@ begin
   SetLength(result,found);
 end;
 
-function FREDB_ObjReferences2GuidArray(const ref: TFRE_DB_ObjectReferences): TFRE_DB_GUIDArray;
-var i,j : NativeInt;
-    cnt : NativeInt;
-begin
-  cnt := 0;
-  for i := 0 to high(ref) do
-    cnt := cnt + Length(ref[i].linklist);
-  SetLength(Result,cnt);
-  cnt   := 0;
-  for i := 0 to High(ref) do
-    for j := 0 to high(ref[i].linklist) do
-      begin
-        Result[cnt] := ref[i].linklist[j];
-        inc(cnt);
-      end;
-end;
+//function FREDB_ObjReferences2GuidArray(const ref: TFRE_DB_ObjectReferences): TFRE_DB_GUIDArray;
+//var i,j : NativeInt;
+//    cnt : NativeInt;
+//begin
+//  cnt := 0;
+//  for i := 0 to high(ref) do
+//    cnt := cnt + Length(ref[i].linklist);
+//  SetLength(Result,cnt);
+//  cnt   := 0;
+//  for i := 0 to High(ref) do
+//    for j := 0 to high(ref[i].linklist) do
+//      begin
+//        Result[cnt] := ref[i].linklist[j];
+//        inc(cnt);
+//      end;
+//end;
 
 function FREDB_Guids_SortPredicate(const d1, d2: TGuid): boolean;
 var res : NativeInt;
@@ -2778,16 +2783,6 @@ begin
      if CFRE_DB_FIELDTYPE_SHORT[result]=fts then exit;
   end;
   raise EFRE_DB_Exception.Create(edb_ERROR,'invalid short fieldtype specifier : ['+fts+']');
-end;
-
-procedure CheckDbResultColl(const res: TFRE_DB_Errortype; const coll: IFRE_DB_COLLECTION; const error_prefix: TFRE_DB_String; const tolerate_no_change: boolean);
-begin
-  if res<>edb_OK then begin
-    if tolerate_no_change
-       and (res=edb_NO_CHANGE) then
-         exit;
-    raise EFRE_DB_Exception.Create(res,error_prefix+' : '+coll.GetLastStatusText);
-  end;
 end;
 
 procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);

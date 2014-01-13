@@ -65,7 +65,7 @@ type
     procedure  heapify                      (const dst : PSortType ; const size : NativeInt);
     procedure  heap_sift_down               (const dst : PSortType; const sstart,send : NativeInt);
   public
-    procedure   xxx;virtual;abstract;
+    //procedure   xxx;virtual;abstract;
     procedure   InitData                     (const sort_function : TSortProc;const data:PSortType;const size:NativeInt);
     function    Data                         : PSortType;
     procedure   quick_sort                   ;

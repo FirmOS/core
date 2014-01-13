@@ -68,14 +68,16 @@ type
        function  Reserve           : NativeInt;
        procedure InitSparseList       (const NullElement:_TType ; const NullCompare : TGFOS_ExtCompareNullElemProc ; const Compare : TGFOS_ExtCompareElemProc ;  const numberofemptyslots:NativeUint=25);
        procedure InitSparseListPtrCmp (const numberofemptyslots:NativeUint=25);
-       function  Add                  (const elem: _TType):boolean;
-       function  Exists               (const elem: _TType): NativeInt;
+       function  Add                  (const elem: _TType):NativeInt; // new result = insert index or -1 on exists
+       function  Exists               (const elem: _TType):NativeInt;
        function  Delete               (const elem: _TType):Boolean;
        function  GetElement           (idx : NativeInt): _TType;
        procedure SetElement           (idx : NativeInt; AValue: _TType);
        function  Count                : NativeInt;
        function  ForAllBreak          (const elem_func : TGFOS_ElemProc):Boolean;
        procedure ClearIndex           (const idx : NativeInt);
+       function  GetLastNotNull       (var elem : _TType):NativeInt;
+       function  GetFirstNotNull      (var elem : _TType):NativeInt;
        property  Element              [idx : NativeInt]:_TType read GetElement write SetElement; default;
        //procedure _DummyForceFPC_Recompile ; virtual ; abstract;
   end;
@@ -137,14 +139,13 @@ end;
 
 
 
-function OFOS_SpareList.Add(const elem: _TType): boolean;
+function OFOS_SpareList.Add(const elem: _TType): NativeInt;
 var firstspare : NativeInt;
     i          : NAtiveInt;
 begin
   if Exists(elem)<>-1 then
-    exit(false);
+    exit(-1);
   firstspare:=-1;
-  result := true;
   for i:=0 to high(FArray) do
     if MyNullCompare(@FArray[i]) then
       begin
@@ -160,6 +161,7 @@ begin
       firstspare := Reserve;
       FArray[firstspare] := elem;
     end;
+  result := firstspare;
   dec(FCurrSpares);
   inc(FCnt);
 end;
@@ -257,6 +259,40 @@ begin
     end
   else
     raise Exception.create('SPARELIST - CLEARINDEX OUT OF BOUNDS');
+end;
+
+function OFOS_SpareList.GetLastNotNull(var elem: _TType): NativeInt;
+var i          : NativeInt;
+    isnull     : boolean;
+begin
+  result  := -1;
+  elem    :=  FNullElement;
+  if FCnt = 0 then
+    exit(-1);
+  for i:= high(FArray) downto 0 do
+    if (not MyNullCompare(@FArray[i])) then
+      begin
+        elem := FArray[i];
+        exit(i);
+      end;
+  exit(-1);
+end;
+
+function OFOS_SpareList.GetFirstNotNull(var elem: _TType): NativeInt;
+var i          : NativeInt;
+    isnull     : boolean;
+begin
+  result  := -1;
+  elem    := FNullElement;
+  if FCnt = 0 then
+    exit(-1);
+  for i:= 0 to high(FArray) do
+    if (not MyNullCompare(@FArray[i])) then
+      begin
+        elem := FArray[i];
+        exit(i);
+      end;
+  exit(-1);
 end;
 
 
