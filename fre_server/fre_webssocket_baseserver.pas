@@ -221,6 +221,76 @@ var
   session                       : TFRE_DB_String;
   sw                            : integer;
 
+  procedure _ProcessCloseFrame;
+  begin
+     writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
+    _SendCloseFrame;
+    GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) WEBSOCK REQUESTED CLOSE '+FChannel.GetVerboseDesc);
+    DeactivateSessionBinding;
+    FChannel.Finalize;
+    exit;
+  end;
+
+  procedure _ProcessTextFrame;
+  begin
+    GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
+    in_params  := GFRE_DBI.JSONObject2Object(dataframe);
+    try
+      cmd        := GFRE_DBI.NewDBCommand;
+      request_typ := in_params.Field('RTYPE').AsString;
+      with cmd do begin
+        case request_typ of
+          'S'  : begin CommandType := fct_SyncRequest  ; cmd.SetIsClient(true); end;
+          'SR' : begin CommandType := fct_SyncReply    ; end; // Answer to a Server Command
+          'E'  : begin CommandType := fct_Error        ; end; // Answer to a Server Command
+        end;
+        InvokeClass  := uppercase(in_params.Field('CN').AsString);
+        InvokeMethod := uppercase(in_params.Field('FN').AsString);
+        CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
+        UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
+        Data         := in_params.Field('PARAMS').AsObject.CloneToNewObject;
+        ChangeSession:= '';
+      end;
+    finally
+      in_params.Finalize;
+    end;
+    FCurrentSession.Input_FRE_DB_Command(cmd);
+  end;
+
+  procedure _ProcessBinaryFrame; //TODO:HH - Test and Fix 13.01.2014
+  var len_binary,len_json : Integer;
+      jsontext            : RawByteString;
+      binary_text         : RawByteString;
+  begin
+    len_json    := PInteger(@dataframe[1])^; // Hostbyte order ?
+    jsontext    := Copy(dataframe[5],len_json);
+    len_binary  := Length(dataframe)-4-len_json;
+    binary_text := Copy(dataframe[1+4+len_json],len_binary);
+    GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
+    in_params  := GFRE_DBI.JSONObject2Object(jsontext);
+    try
+      cmd        := GFRE_DBI.NewDBCommand;
+      request_typ := in_params.Field('RTYPE').AsString;
+      with cmd do begin
+        case request_typ of
+          'S'  : begin CommandType := fct_SyncRequest  ; cmd.SetIsClient(true); end;
+          'SR' : begin CommandType := fct_SyncReply    ; end; // Answer to a Server Command
+          'E'  : begin CommandType := fct_Error        ; end; // Answer to a Server Command
+        end;
+        InvokeClass  := uppercase(in_params.Field('CN').AsString);
+        InvokeMethod := uppercase(in_params.Field('FN').AsString);
+        CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
+        UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
+        Data         := in_params.Field('PARAMS').AsObject.CloneToNewObject;
+        Data.Field('BINARY_DATA').AsStream.SetFromRawByteString(binary_text);
+        ChangeSession:= '';
+      end;
+    finally
+      in_params.Finalize;
+    end;
+    FCurrentSession.Input_FRE_DB_Command(cmd);
+  end;
+
 begin
   try
     case FWebsocketMode of
@@ -246,38 +316,17 @@ begin
         end;
       end;
       wsm_FREDB: begin
-        if FOpcode=8 then begin
-           writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
-          _SendCloseFrame;
-          GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) WEBSOCK REQUESTED CLOSE '+FChannel.GetVerboseDesc);
-          DeactivateSessionBinding;
-          FChannel.Finalize;
-          exit;
-        end else begin
-          GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
-          in_params  := GFRE_DBI.JSONObject2Object(dataframe);
-          try
-            cmd        := GFRE_DBI.NewDBCommand;
-            request_typ := in_params.Field('RTYPE').AsString;
-            with cmd do begin
-              case request_typ of
-                'S'  : begin CommandType := fct_SyncRequest  ; cmd.SetIsClient(true); end;
-                'SR' : begin CommandType := fct_SyncReply    ; end; // Answer to a Server Command
-                'E'  : begin CommandType := fct_Error        ; end; // Answer to a Server Command
-              end;
-              InvokeClass  := uppercase(in_params.Field('CN').AsString);
-              InvokeMethod := uppercase(in_params.Field('FN').AsString);
-              CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
-              UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
-              Data         := in_params.Field('PARAMS').AsObject.CloneToNewObject;
-              ChangeSession:= '';
+        case FOpcode of
+          1:  _ProcessTextFrame;
+          2:  _ProcessBinaryFrame;
+          8:  _ProcessCloseFrame;
+          else
+            begin
+              writeln('Ignoring unsupported websocket dataframe type : ',FOpcode);
+              GFRE_DBI.LogError(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+'Ignoring unsupported WS Frame : '+inttostr(FOpcode));
             end;
-          finally
-            in_params.Finalize;
           end;
-          FCurrentSession.Input_FRE_DB_Command(cmd);
         end;
-      end;
       wsm_FREDB_DEACTIVATED : begin
          //GFRE_DBI.LogError(dblc_WEBSOCK,'BAD REQUEST ON DEACTIVTED WEBSOCKET');
       end else begin
