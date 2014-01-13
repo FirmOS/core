@@ -263,9 +263,11 @@ var
       binary_text         : RawByteString;
   begin
     len_json    := PInteger(@dataframe[1])^; // Hostbyte order ?
-    jsontext    := Copy(dataframe[5],len_json);
+    SetLength(jsontext,len_json);
+    Move(dataframe[5],jsontext[1],len_json);
     len_binary  := Length(dataframe)-4-len_json;
-    binary_text := Copy(dataframe[1+4+len_json],len_binary);
+    SetLength(binary_text,len_binary);
+    Move(dataframe[1+4+len_json],binary_text[1],len_binary);
     GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
     in_params  := GFRE_DBI.JSONObject2Object(jsontext);
     try
