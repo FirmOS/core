@@ -17247,11 +17247,22 @@ var dbo              : IFRE_DB_Object;
     fn,ln            : String;
     dn               : TFRE_DB_NameType;
     obj              : IFRE_DB_DOMAIN;
+    sessionData      : IFRE_DB_OBJECT;
 begin
  writeln('------NEW USER');
  writeln(input.DumpToString);
  data    := input.Field('DATA').asobject;
  dbc     := input.GetReference as TFRE_DB_CONNECTION;
+
+ dbc.FetchUserSessionData(sessionData);
+ if data.FieldExists('BINARY_DATA') then begin
+   sessionData.Field('tmpPicture').AsStream:=data.Field('BINARY_DATA').AsStream;
+   //data.Field('name').AsString;
+   //data.Field('size').AsUInt32;
+   //data.Field('type').AsString;
+   //data.Field('field').AsString;
+   exit(GFRE_DB_NIL_DESC);
+ end;
 
  loginf  := data.Field('login').AsString;
  pw      := data.Field('PASSWORDMD5').AsString;
