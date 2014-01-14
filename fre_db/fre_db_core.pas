@@ -1134,33 +1134,34 @@ type
   IFRE_DB_PERSISTANCE_LAYER=interface
     procedure DEBUG_DisconnectLayer (const db:TFRE_DB_String;const clean_master_data :boolean = false);
 
-    function  GetLastError       : TFRE_DB_String;
-    function  ExistCollection    (const coll_name : TFRE_DB_NameType) : Boolean;
-    function  GetCollection      (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
-    function  NewCollection      (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
-    function  DeleteCollection   (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
+    function  GetLastError                  : TFRE_DB_String;
+    function  ExistCollection               (const coll_name : TFRE_DB_NameType) : Boolean;
+    function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
+    function  NewCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+    function  DeleteCollection              (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
 
-    function  Connect              (const db_name:TFRE_DB_String ; out database_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
-    function  DatabaseList         : IFOS_STRINGS;
-    function  DatabaseExists       (const dbname:TFRE_DB_String):Boolean;
-    function  CreateDatabase       (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-    function  DeleteDatabase       (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-    procedure Finalize             ;
+    function  Connect                       (const db_name:TFRE_DB_String ; out database_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
+    function  DatabaseList                  : IFOS_STRINGS;
+    function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
+    function  CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+    function  DeleteDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+    procedure Finalize                      ;
 
-    function  GetReferences         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
-    function  GetReferencesCount    (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
-    function  GetReferencesDetailed (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
+    function  GetReferences                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
+    function  GetReferencesCount            (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
+    function  GetReferencesDetailed         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
 
-    function  StartTransaction     (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType) : TFRE_DB_Errortype;
-    function  Commit               : boolean;
-    procedure RollBack             ;
+    function  StartTransaction              (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType) : TFRE_DB_Errortype;
+    function  Commit                        : boolean;
+    procedure RollBack                      ;
 
-    function  ObjectExists         (const obj_uid : TGUID) : boolean;
-    function  DeleteObject         (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
-    function  Fetch                (const ouid   :  TGUID  ; out   dbo:TFRE_DB_Object;const internal_object : boolean=false): boolean;
-    function  StoreOrUpdateObject  (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
-    procedure SyncWriteWAL         (const WALMem : TMemoryStream);
-    procedure SyncSnapshot         (const final : boolean=false);
+    function  ObjectExists                  (const obj_uid : TGUID) : boolean;
+    function  DeleteObject                  (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
+    function  Fetch                         (const ouid   :  TGUID  ; out   dbo:TFRE_DB_Object;const internal_object : boolean=false): boolean;
+    function  StoreOrUpdateObject           (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
+    procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
+    procedure SyncSnapshot                  (const final : boolean=false);
+    procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification);
   end;
 
   { TFRE_DB_TEXT }
@@ -2323,6 +2324,7 @@ type
     procedure   ClearGUID              (var uid:TGUID);
     function    Get_A_Guid             : TGUID;
     function    Get_A_Guid_HEX         : Ansistring;
+    function    GetLastPLayerError     : AnsiString;
 
     function    InstallDBDefaults      (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
   end;
@@ -2338,7 +2340,7 @@ type
 
 var
   GFRE_DB                  : TFRE_DB;
-  GFRE_DB_DEFAULT_PS_LAYER : IFRE_DB_PERSISTANCE_LAYER;
+  GFRE_DB_PS_LAYER         : IFRE_DB_PERSISTANCE_LAYER;
   GDROP_WAL                : boolean;
   GDISABLE_WAL             : boolean;
   GDISABLE_SYNC            : boolean;
@@ -5156,7 +5158,7 @@ procedure TFRE_DB_SYSTEM_CONNECTION.StartTransaction(const trans_id: TFRE_DB_Nam
 begin
   AcquireBig;
   try
-    CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.StartTransaction(dbt_OLTP,trans_id),'Could not start transaction '+trans_id);
+    CheckDbResult(GFRE_DB_PS_LAYER.StartTransaction(dbt_OLTP,trans_id),'Could not start transaction '+trans_id);
   finally
     ReleaseBig;
   end;
@@ -5166,7 +5168,7 @@ procedure TFRE_DB_SYSTEM_CONNECTION.Commit;
 begin
   AcquireBig;
   try
-    if not GFRE_DB_DEFAULT_PS_LAYER.Commit then
+    if not GFRE_DB_PS_LAYER.Commit then
       raise EFRE_DB_Exception.Create(edb_ERROR,'Could not commit transaction');
   finally
     ReleaseBig;
@@ -5176,7 +5178,7 @@ end;
 procedure TFRE_DB_SYSTEM_CONNECTION.Rollback;
 begin
   abort;
-  //if not GFRE_DB_DEFAULT_PS_LAYER.RollBack then
+  //if not GFRE_DB_PS_LAYER.RollBack then
   //  raise EFRE_DB_Exception.Create(edb_ERROR,'Could not rollback transaction');
 end;
 
@@ -9480,7 +9482,7 @@ begin
   try
     _CloneCheck;
     if FConnected then exit(edb_ALREADY_CONNECTED);
-    result :=   GFRE_DB_DEFAULT_PS_LAYER.Connect(db,FPersistance_Layer);
+    result :=   GFRE_DB_PS_LAYER.Connect(db,FPersistance_Layer);
     if result=edb_OK then begin
       FConnected         := true;
       InternalSetupConnection(is_system,false);
@@ -10738,7 +10740,7 @@ end;
 
 function TFRE_DB.DatabaseListI(const user: TFRE_DB_String; const pass: TFRE_DB_String): IFOS_STRINGS;
 begin
-  result := GFRE_DB_DEFAULT_PS_LAYER.DatabaseList; // TODO Network, etc
+  result := GFRE_DB_PS_LAYER.DatabaseList; // TODO Network, etc
 end;
 
 function TFRE_DB._NewObject(const Scheme: TFRE_DB_String; const fail_on_no_cc: boolean): TFRE_DB_Object;
@@ -10865,6 +10867,11 @@ var x:TGuid;
 begin
   x := Get_A_Guid;
   result := GFRE_BT.Mem2HexStr(PByte(@x),sizeof(TGuid));
+end;
+
+function TFRE_DB.GetLastPLayerError: AnsiString;
+begin
+  result := GFRE_DB_PS_LAYER.GetLastError;
 end;
 
 function TFRE_DB.InstallDBDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
@@ -11498,7 +11505,7 @@ function TFRE_DB.NewDirectSysConnection: TFRE_DB_SYSTEM_CONNECTION;
 begin
  GFRE_DB_Init_Check;
  result := TFRE_DB_SYSTEM_CONNECTION.Create;
- //result.FPersistance_Layer  := GFRE_DB_DEFAULT_PS_LAYER.Clone('SYSTEM'); // Layer per instance
+ //result.FPersistance_Layer  := GFRE_DB_PS_LAYER.Clone('SYSTEM'); // Layer per instance
 end;
 
 
@@ -17315,7 +17322,7 @@ end;
 procedure GFRE_DB_Init_Check;
 begin
   if not assigned(GFRE_DB) then raise EFRE_DB_Exception.Create(edb_ERROR,'NO DB INTERFACE ASSIGNED / STARTUP PROCEDURE WRONG');
-  if not assigned(GFRE_DB_DEFAULT_PS_LAYER) then raise EFRE_DB_Exception.Create(edb_ERROR,'NO DEFAULT PERSISTANCE LAYER ASSIGNED / STARTUP PROCEDURE WRONG');
+  if not assigned(GFRE_DB_PS_LAYER) then raise EFRE_DB_Exception.Create(edb_ERROR,'NO DEFAULT PERSISTANCE LAYER ASSIGNED / STARTUP PROCEDURE WRONG');
 end;
 
 procedure Init4Server;

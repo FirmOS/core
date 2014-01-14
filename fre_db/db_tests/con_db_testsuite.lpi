@@ -92,7 +92,7 @@
     </Other>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="4">
+    <Exceptions Count="5">
       <Item1>
         <Name Value="EAbort"/>
         <Enabled Value="False"/>
@@ -108,6 +108,9 @@
         <Name Value="EFRE_DB_Exception"/>
         <Enabled Value="False"/>
       </Item4>
+      <Item5>
+        <Name Value="EFRE_DB_PL_Exception"/>
+      </Item5>
     </Exceptions>
   </Debugging>
 </CONFIG>

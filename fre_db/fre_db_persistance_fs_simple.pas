@@ -61,22 +61,23 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
    TFRE_DB_PS_FILE = class(TObject,IFRE_DB_PERSISTANCE_LAYER)
    private
-     FMaster              : TFRE_DB_Master_Data; // Global, Volatile, Per DB, at least one for system
-     FBasedirectory       : TFRE_DB_String;
-     FMasterCollDir       : TFRE_DB_String;
-     FLocalConnDir        : TFRE_DB_String;
-     FCollectionsDir      : TFRE_DB_String;
-     FMetaDir             : TFRE_DB_String;
-     FWalDir              : TFRE_DB_String;
-     FWalFilename         : TFRE_DB_String;
-     FWalStream           : THandleStream;
-     FConnected           : Boolean;
-     FGlobalLayer         : Boolean;
-     FBlockWALWrites      : Boolean;
-     FConnectedLayers     : Array of TFRE_DB_PS_FILE;
-     FConnectedDB         : TFRE_DB_String;
-     FLastError           : TFRE_DB_String;
-     FLastErrorCode       : TFRE_DB_Errortype;
+     FMaster               : TFRE_DB_Master_Data; // Global, Volatile, Per DB, at least one for system
+     FBasedirectory        : TFRE_DB_String;
+     FMasterCollDir        : TFRE_DB_String;
+     FLocalConnDir         : TFRE_DB_String;
+     FCollectionsDir       : TFRE_DB_String;
+     FMetaDir              : TFRE_DB_String;
+     FWalDir               : TFRE_DB_String;
+     FWalFilename          : TFRE_DB_String;
+     FWalStream            : THandleStream;
+     FConnected            : Boolean;
+     FGlobalLayer          : Boolean;
+     FBlockWALWrites       : Boolean;
+     FConnectedLayers      : Array of TFRE_DB_PS_FILE;
+     FConnectedDB          : TFRE_DB_String;
+     FLastError            : TFRE_DB_String;
+     FLastErrorCode        : TFRE_DB_Errortype;
+     FChangeNotificationIF : IFRE_DB_DBChangedNotification;
 
      procedure    _ConnectCheck             ;
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
@@ -140,6 +141,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   SyncWriteWAL        (const WALMem : TMemoryStream);
      procedure   SyncSnapshot        (const final : boolean=false);
      function    GetLastError        : TFRE_DB_String;
+     procedure   SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification);
    end;
 
 implementation
@@ -190,14 +192,14 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
         _LoadObjectPersistent(g,obj);
         result := FMaster.InternalStoreObjectFromStable(obj);
         if result<>edb_OK then
-          raise EFRE_DB_Exception.Create(result,'FAILED TO RECREATE MEMORY FROM STABLE at [%s]',[GFRE_BT.GUID_2_HexString(g)]);
+          raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RECREATE MEMORY FROM STABLE at [%s]',[GFRE_BT.GUID_2_HexString(g)]);
       end;
     begin
       GFRE_BT.List_Files(FMasterCollDir,@add_guid);
       result := FMaster.InternalRebuildRefindex;
       FMaster.InternalStoreLock;
       if result<>edb_OK then
-        raise EFRE_DB_Exception.Create(result,'FAILED TO RECREATE REFERENTIAL INTEGRITY FROM STABLE');
+        raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RECREATE REFERENTIAL INTEGRITY FROM STABLE');
     end;
 
     procedure _BuildCollections;
@@ -299,7 +301,7 @@ begin
       //HACK
       //Autorepair
       //_RepairWithWAL;
-      //raise EFRE_DB_Exception.Create(edb_ERROR,'SERVER SHUTDOWN WAS UNCLEAN, MUST REAPPLY WAL FOR [%s]',[FConnectedDB]);
+      //raise EFRE_DB_PL_Exception.Create(edb_ERROR,'SERVER SHUTDOWN WAS UNCLEAN, MUST REAPPLY WAL FOR [%s]',[FConnectedDB]);
     end;
   result := edb_OK;
   _OpenWAL;
@@ -312,7 +314,7 @@ begin
   result := FMaster.MasterColls.GetCollection(coll_name,Collection);
   if (not result)
      and (FGlobalLayer=false) then // Fetch from Global
-      result := GFRE_DB_DEFAULT_PS_LAYER.GetCollection(coll_name,Collection);
+      result := GFRE_DB_PS_LAYER.GetCollection(coll_name,Collection);
 end;
 
 function TFRE_DB_PS_FILE.ExistCollection(const coll_name: TFRE_DB_NameType): Boolean;
@@ -333,7 +335,7 @@ begin
         res    := fpgeterrno;
       until (handle<>-1) or (res<>ESysEINTR);
       if (handle<0)  then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'could not open the WAL [%d]',[res]);
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'could not open the WAL [%d]',[res]);
       FWalStream := THandleStream.Create(handle);
     end
   else
@@ -345,7 +347,7 @@ begin
         res    := fpgeterrno;
       until (handle<>-1) or (res<>ESysEINTR);
       if (handle<0)  then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'could not open the WAL [%d]',[res]);
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'could not open the WAL [%d]',[res]);
       FWalStream := THandleStream.Create(handle);
     end;
 end;
@@ -363,7 +365,7 @@ begin
     exit; // do not delete a  WAL File
   if FileExists(FWalFilename) then
     if not DeleteFile(FWalFilename) then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'WAL DELETE FAILED ['+FConnectedDB+']');
+      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'WAL DELETE FAILED ['+FConnectedDB+']');
 end;
 
 procedure TFRE_DB_PS_FILE._StoreCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
@@ -394,7 +396,7 @@ begin
   try
     res := FMaster.MasterColls.NewCollection(name,coll,false,self);
     if res <> edb_OK then
-      raise EFRE_DB_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
+      raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
     coll.GetPersLayerIntf.LoadFromThis(f);
   finally
     f.free;
@@ -501,7 +503,7 @@ var idx : NativeInt;
      l  : TFRE_DB_PS_FILE;
 begin
   if not FGlobalLayer then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'fail');
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fail');
   if clean_master_data then
     FMaster.DEBUG_CleanUpMasterData;
   l := _InternalFetchConnectedLayer(db,idx);
@@ -601,7 +603,7 @@ begin
   else
     begin
       if Length(FConnectedLayers)>0 then
-        raise EFRE_DB_Exception.Create(edb_INTERNAL,'Connected Layer in non global layer is non empty!');
+        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'Connected Layer in non global layer is non empty!');
     end;
   FMaster.Free;
 
@@ -739,7 +741,7 @@ begin
   try
     //if collection_name='' then
     if not Fetch(obj_uid,delete_object,true) then
-      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[GFRE_BT.GUID_2_HexString(obj_uid)]);
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[GFRE_BT.GUID_2_HexString(obj_uid)]);
 
     //SetLength(notify_collections,Length(delete_object.__InternalGetCollectionList));
     //for i := 0 to high(notify_collections) do
@@ -785,7 +787,7 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
   procedure GeneralChecks;
   begin
     if obj.DomainID=CFRE_DB_NullGUID then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'persistance failure, an object without a domainid cannot be stored');
+      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'persistance failure, an object without a domainid cannot be stored');
   end;
 
 begin
@@ -795,9 +797,9 @@ begin
   if store then
     begin
       //if collection_name='' then
-      //  raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+      //  raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
       //if not GetCollection(collection_name,coll) then
-      //  raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
+      //  raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
       if not assigned(FTransaction) then
         begin
           FTransaction        := TFRE_DB_TransactionalUpdateList.Create('S',Fmaster);
@@ -820,11 +822,11 @@ begin
   else
     begin
       //if not Fetch(obj.UID,to_update_obj,true) then
-      //  raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
+      //  raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
       //coll := nil;
       //if collection_name<>'' then
       //  if not GetCollection(collection_name,coll) then
-      //    raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+      //    raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
       try
         if not assigned(FTransaction) then
           begin
@@ -885,7 +887,7 @@ begin
     try
       result := FTransaction.Commit(self);
     except
-      on E:EFRE_DB_Exception do
+      on E:EFRE_DB_PL_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
@@ -914,7 +916,7 @@ begin
   if GDISABLE_WAL then
     exit;
   if FBlockWALWrites then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'DOING WAL WRITES WHILE BLOCKED !!');
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'DOING WAL WRITES WHILE BLOCKED !!');
   //writeln('####  ',FLayerStats.Name);
   if not assigned(FWalStream) then
     _OpenWAL;
@@ -941,6 +943,11 @@ end;
 function TFRE_DB_PS_FILE.GetLastError: TFRE_DB_String;
 begin
   result := FLastError;
+end;
+
+procedure TFRE_DB_PS_FILE.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification);
+begin
+  FChangeNotificationIF := change_if;
 end;
 
 function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false): TFRE_DB_Errortype;

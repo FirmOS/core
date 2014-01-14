@@ -394,12 +394,11 @@ type
   public
     function   Needs_WAL                   : Boolean; virtual; abstract;
     function   IsInsert                    : Boolean;
-    function   DescribeText                : String ; virtual; abstract;
     procedure  CheckExistence              (const master : TFRE_DB_Master_Data); virtual;    // CHECK:  Is Existence required or bad ?
     procedure  WriteToWAL                  (const m:TMemoryStream); virtual ; abstract;
     procedure  WalReconstructionphase      (const master : TFRE_DB_Master_Data); virtual;   // Regenerate Step Data not written to WAL
-    procedure  ChangeInCollectionCheckOrDo (const master : TFRE_DB_Master_Data ; const check : boolean); virtual ; abstract;
-    procedure  MasterStore                 (const master : TFRE_DB_Master_Data ; const check : boolean); virtual ; abstract;
+    procedure  ChangeInCollectionCheckOrDo (const master : TFRE_DB_Master_Data ; const check : boolean); virtual ; abstract; { Do all collection related checks or stores (+collection indices) }
+    procedure  MasterStore                 (const master : TFRE_DB_Master_Data ; const check : boolean); virtual ; abstract; { Do all objectc related checks or stores, (+reflink index) }
     class function CreateFromWal           (const wal : TStream) : TFRE_DB_Changestep;
     procedure  SetStepID                   (const id:NativeInt);
     function   GetTransActionStepID        : TFRE_DB_TransStepId;
@@ -413,7 +412,6 @@ type
     FVolatile       : Boolean;
     FNewCollection  : IFRE_DB_PERSISTANCE_COLLECTION;
   public
-    function    DescribeText                 : String; override;
     constructor Create                       (const coll_name: TFRE_DB_NameType;const volatile_in_memory: boolean);
     constructor CreateAsWALReadBack          (const coll_name: TFRE_DB_NameType);
     procedure   CheckExistence               (const master : TFRE_DB_Master_Data); override;
@@ -429,9 +427,7 @@ type
   TFRE_DB_DeleteCollectionStep=class(TFRE_DB_ChangeStep)
   private
     FCollname       : TFRE_DB_NameType;
-    FVolatile       : Boolean;
   public
-    function    DescribeText                 : String; override;
     constructor Create                       (const coll_name: TFRE_DB_NameType);
     constructor CreateAsWALReadBack          (const coll_name: TFRE_DB_NameType);
     procedure   CheckExistence               (const master : TFRE_DB_Master_Data); override;
@@ -450,12 +446,9 @@ type
     FNewObj   : TFRE_DB_Object;
     FColl     : IFRE_DB_PERSISTANCE_COLLECTION;
     FCollName : TFRE_DB_NameType;
-    FIsRoot   : Boolean;
   public
-    constructor Create                       (new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);
+    constructor Create                       (new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);  { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
-    destructor  Destroy                      ; override;
-    function    DescribeText                 : String; override;
     function    IsARootInsert                : Boolean;
     function    Needs_WAL: Boolean           ; override;
     function    CheckExistence               (const master : TFRE_DB_Master_Data ; const raise_ex:boolean): TFRE_DB_Errortype;
@@ -463,6 +456,25 @@ type
     procedure   MasterStore                  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
     procedure   WriteToWAL                   (const m:TMemoryStream);override;
   end;
+
+  { TFRE_DB_InsertSubStep }
+
+  TFRE_DB_InsertSubStep=class(TFRE_DB_ChangeStep)
+  private
+    FNewObj   : TFRE_DB_Object;
+    FColl     : IFRE_DB_PERSISTANCE_COLLECTION;
+    FCollName : TFRE_DB_NameType;
+  public
+    constructor Create                       (new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean); { ? is_store is used to differentiate the store from the update case}
+    constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
+    function    IsARootInsert                : Boolean;
+    function    Needs_WAL: Boolean           ; override;
+    function    CheckExistence               (const master : TFRE_DB_Master_Data ; const raise_ex:boolean): TFRE_DB_Errortype;
+    procedure   ChangeInCollectionCheckOrDo  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   MasterStore                  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   WriteToWAL                   (const m:TMemoryStream);override;
+  end;
+
 
   { TFRE_DB_DeleteSubObjectStep }
 
@@ -473,7 +485,6 @@ type
     FObjPtr  : ^TFRE_DB_Object;
   public
     constructor Create                        (var del_obj : TFRE_DB_Object ; const from_coll : TFRE_DB_NameType ; const is_store : boolean); // all collections or a single collection
-    function    DescribeText                  : String; override;
     function    Needs_WAL: Boolean            ; override;
     procedure   WriteToWAL                    (const m:TMemoryStream) ; override;
     procedure   ChangeInCollectionCheckOrDo   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
@@ -490,7 +501,6 @@ type
     FWouldNeedMasterDelete : Boolean;
   public
     constructor Create                        (var del_obj : TFRE_DB_Object ; const from_coll : TFRE_DB_NameType ; const is_store : boolean); // all collections or a single collection
-    function    DescribeText                  : String; override;
     function    Needs_WAL: Boolean            ; override;
     procedure   WriteToWAL                    (const m:TMemoryStream) ; override;
     procedure   ChangeInCollectionCheckOrDo   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
@@ -517,7 +527,6 @@ type
   public
     constructor Create                        (obj,to_update_obj : TFRE_DB_Object ; const is_insert : boolean);
     constructor CreateAsWalReadBack           (new_obj : TGuid ; const is_store : boolean ; const ws:TStream);
-    function    DescribeText                  : String; override;
     function    HasNoChanges                  : Boolean;
     function    Needs_WAL: Boolean            ; override;
     procedure   WriteToWAL                    (const m:TMemoryStream);override;
@@ -534,6 +543,7 @@ type
   TFRE_DB_TransactionalUpdateList = class(TObject)
   private
     FChangeList  : OFRE_SL_TFRE_DB_ChangeStep; // The sparse List has to be ordered (!) / deletetions and reinsertions must not happen
+    FNotifyIf    : IFRE_DB_DBChangedNotification;
     FTransId     : TFRE_DB_NameType;
     FMaster      : TFRE_DB_Master_Data;
     FWalMem      : TMemoryStream;
@@ -547,44 +557,93 @@ type
 
     procedure    GenerateAnObjChangeList (const store : boolean ; const obj : TFRE_DB_Object ; const collection_name : TFRE_DB_NameType);
 
-    procedure    PrintTextLog            (const tid : String ; const write_2_wal : boolean);
     function     GetTransActionId        : TFRE_DB_NameType;
     function     GetTransLastStepTransId : TFRE_DB_TransStepId;
+    function     GetNotifyIF             : IFRE_DB_DBChangedNotification;
 
     function     Commit                  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const WAL_RepairMode : boolean=false):boolean;
     procedure    Rollback                ;
     destructor   Destroy                 ;override;
   end;
 
-  //var
-  //    GSYS_COLLS  : TFRE_DB_CollectionManageTree;
+  TFRE_DB_DBChangedNotificationBase = class(TObject,IFRE_DB_DBChangedNotification)
+  protected
+  public
+    procedure  CollectionCreated (const coll_name : TFRE_DB_NameType ; const volatile : Boolean) ; virtual ; abstract;
+    procedure  CollectionDeleted (const coll_name: TFRE_DB_NameType) ; virtual ; abstract;
+  end;
 
 implementation
 
-{ TFRE_DB_DeleteCollectionStep }
+{ TFRE_DB_InsertSubStep }
 
-function TFRE_DB_DeleteCollectionStep.DescribeText: String;
+constructor TFRE_DB_InsertSubStep.Create(new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_store: boolean);
+var cn:string;
 begin
-  WriteStr(result,' DELETE COLLECTION ',FCollname,' VOLATILE = ',FVolatile)
+  FNewObj   := new_obj;
+  FColl     := coll;
+  FIsStore  := is_store;
+  assert(not assigned(FNewObj.Parent));
 end;
+
+constructor TFRE_DB_InsertSubStep.CreateAsWalReadBack(new_obj: TGuid; const coll: TFRE_DB_NameType; const is_store: boolean; const ws: TStream);
+begin
+  FIsStore       := is_store;
+  FCollName      := coll;
+  FIsWalReadBack := true;
+  InternalReadObject(ws,FNewObj);
+  if not FREDB_Guids_Same(FNewObj.UID,new_obj) then
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'read back wal insertsubstep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(FNewObj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
+end;
+
+
+function TFRE_DB_InsertSubStep.IsARootInsert: Boolean;
+begin
+
+end;
+
+function TFRE_DB_InsertSubStep.Needs_WAL: Boolean;
+begin
+
+end;
+
+function TFRE_DB_InsertSubStep.CheckExistence(const master: TFRE_DB_Master_Data; const raise_ex: boolean): TFRE_DB_Errortype;
+begin
+
+end;
+
+procedure TFRE_DB_InsertSubStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+begin
+
+end;
+
+procedure TFRE_DB_InsertSubStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+begin
+
+end;
+
+procedure TFRE_DB_InsertSubStep.WriteToWAL(const m: TMemoryStream);
+begin
+
+end;
+
+{ TFRE_DB_DeleteCollectionStep }
 
 constructor TFRE_DB_DeleteCollectionStep.Create(const coll_name: TFRE_DB_NameType);
 begin
   FCollname      := coll_name;
-  //FVolatile      := volatile_in_memory;
 end;
 
 constructor TFRE_DB_DeleteCollectionStep.CreateAsWALReadBack(const coll_name: TFRE_DB_NameType);
 begin
   FCollname      := coll_name;
-  //FVolatile      := false;
 end;
 
 procedure TFRE_DB_DeleteCollectionStep.CheckExistence(const master: TFRE_DB_Master_Data);
 var coll : IFRE_DB_PERSISTANCE_COLLECTION;
 begin
   if not Master.MasterColls.GetCollection(FCollname,coll) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'collection [%s] does not exists!',[FCollname]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'collection [%s] does not exists!',[FCollname]);
 end;
 
 procedure TFRE_DB_DeleteCollectionStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
@@ -599,7 +658,8 @@ begin
     begin
       res := Master.MasterColls.DeleteCollection(FCollname);
       if res<>edb_OK  then
-        raise EFRE_DB_Exception.Create(res,'failed to delete new collection [%s] in transaction step',[FCollname]);
+        raise EFRE_DB_PL_Exception.Create(res,'failed to delete new collection [%s] in transaction step',[FCollname]);
+      FTransList.GetNotifyIF.CollectionDeleted(FCollname);
     end;
 end;
 
@@ -632,11 +692,6 @@ begin
     FWouldNeedMasterDelete := false;
 end;
 
-function TFRE_DB_DeleteObjectStep.DescribeText: String;
-begin
-  assert(not FDelObj.IsObjectRoot);
-  WriteStr(result,' DELETE ROOT OBJECT ',FDelObj.UID_String);
-end;
 
 function TFRE_DB_DeleteObjectStep.Needs_WAL: Boolean;
 begin
@@ -662,7 +717,7 @@ begin
      and (CollName<>'') then
        begin
          if FDelObj.__InternalCollectionExistsName(CollName)=-1 then
-           raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the request to delete object [%s] from collection [%s] could not be completed, the object is not stored in the requested collection',[FDelObj.UID_String,CollName]);
+           raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the request to delete object [%s] from collection [%s] could not be completed, the object is not stored in the requested collection',[FDelObj.UID_String,CollName]);
        end;
   arr := FDelObj.__InternalGetCollectionList;
   if CollName='' then
@@ -704,10 +759,6 @@ end;
 
 { TFRE_DB_NewCollectionStep }
 
-function TFRE_DB_NewCollectionStep.DescribeText: String;
-begin
-  WriteStr(result,' CREATE NEW COLLECTION ',FCollname,' VOLATILE = ',FVolatile)
-end;
 
 constructor TFRE_DB_NewCollectionStep.Create(const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean);
 begin
@@ -725,7 +776,7 @@ procedure TFRE_DB_NewCollectionStep.CheckExistence(const master: TFRE_DB_Master_
 var coll : IFRE_DB_PERSISTANCE_COLLECTION;
 begin
   if Master.MasterColls.GetCollection(FCollname,coll) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'collection [%s] already exists!',[FCollname]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'collection [%s] already exists!',[FCollname]);
 end;
 
 procedure TFRE_DB_NewCollectionStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
@@ -740,7 +791,8 @@ begin
     begin
       res := Master.MasterColls.NewCollection(FCollname,FNewCollection,FVolatile,Master.FLayer);
       if res<>edb_OK  then
-        raise EFRE_DB_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
+        raise EFRE_DB_PL_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
+      FTransList.GetNotifyIF.CollectionCreated(FCollname,FVolatile);
     end;
 end;
 
@@ -788,7 +840,7 @@ begin
          4: PInteger(@key_target[1])^  := SwapEndian(Integer(keyvalue));
          8: PInt64(@key_target[1])^    := SwapEndian(keyvalue);
         else
-          raise EFRE_DB_Exception.Create(edb_UNSUPPORTED,'unsupported fixed length in index transform to binary comparable');
+          raise EFRE_DB_PL_Exception.Create(edb_UNSUPPORTED,'unsupported fixed length in index transform to binary comparable');
       end;
       key_target[1] := key_target[1] xor 128;
       key_target[0]:=1; // 0 , val , -val are ordered after NULL values which are prefixed by '0' not by '1'
@@ -809,7 +861,7 @@ end;
 procedure TFRE_DB_SignedIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD);
 begin
   if not SupportsDataType(fld.FieldType) then
-    raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the signed index can only be used to index a signed number field, not a [%s] field.',[fld.FieldTypeAsString])
+    raise EFRE_DB_PL_Exception.Create(edb_ILLEGALCONVERSION,'the signed index can only be used to index a signed number field, not a [%s] field.',[fld.FieldTypeAsString])
 end;
 
 function TFRE_DB_SignedIndex.SupportsDataType(const typ: TFRE_DB_FIELDTYPE): boolean;
@@ -915,7 +967,7 @@ begin
           4: PCardinal(@key_target[1])^ := SwapEndian(Cardinal(keyvalue));
           8: PQWord(@key_target[1])^    := SwapEndian(keyvalue);
         else
-          raise EFRE_DB_Exception.Create(edb_UNSUPPORTED,'unsupported fixed length in index transform to binary comparable');
+          raise EFRE_DB_PL_Exception.Create(edb_UNSUPPORTED,'unsupported fixed length in index transform to binary comparable');
       end;
       key_target[0] := 1; // 0 , val are ordered after NULL values which are prefixed by '0' not by '1'
     end
@@ -935,7 +987,7 @@ end;
 procedure TFRE_DB_UnsignedIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD);
 begin
   if not SupportsDataType(fld.FieldType) then
-    raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the unsigned index can only be used to index a unsigned number field, not a [%s] field.',[fld.FieldTypeAsString])
+    raise EFRE_DB_PL_Exception.Create(edb_ILLEGALCONVERSION,'the unsigned index can only be used to index a unsigned number field, not a [%s] field.',[fld.FieldTypeAsString])
 end;
 
 function TFRE_DB_UnsignedIndex.SupportsDataType(const typ: TFRE_DB_FIELDTYPE): boolean;
@@ -975,7 +1027,7 @@ begin
   if only_count_unique_vals=false then
     E_FOS_Implement;
   if FFixedKeylen = 16 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'no range queries on an uid or objectlink index are allowed');
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'no range queries on an uid or objectlink index are allowed');
   if not min_is_null then
     begin
       SetBinaryComparableKey(min,@lokey,lokeylen,min_is_null);
@@ -1058,12 +1110,12 @@ var stepheader : String;
       for result in TFRE_DB_WAL_Step_Type do
         if CFRE_DB_WAL_Step_Type[result]=hdr then
           exit;
-      raise EFRE_DB_Exception.Create(edb_ERROR,'could not convert walsteptype [%s]',[hdr]);
+      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'could not convert walsteptype [%s]',[hdr]);
     end;
 begin
   stepheader := wal.ReadAnsiString;
   if (Length(stepheader)<1) then
-       raise EFRE_DB_Exception.Create(edb_ERROR,'step header bad');
+       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'step header bad');
   ttyp    := WAL_STEP_TYPE_FROM_CHAR(stepheader[1]);
   case ttyp of
       fdb_WAL_INSERT:
@@ -1090,7 +1142,7 @@ begin
         end;
       else
         begin
-           raise EFRE_DB_Exception.Create(edb_ERROR,'unimplemented transaction step header '+stepheader[2]);
+           raise EFRE_DB_PL_Exception.Create(edb_ERROR,'unimplemented transaction step header '+stepheader[2]);
         end;
     end;
 end;
@@ -1163,7 +1215,7 @@ begin
   FIsWalReadBack := true;
   InternalReadObject(ws,upobj);
   if not FREDB_Guids_Same(upobj.UID,new_obj) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'read back wal updatestep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(upobj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'read back wal updatestep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(upobj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
 
   fcnt := ws.ReadDWord;
   SetLength(FSublist,Fcnt);
@@ -1175,7 +1227,7 @@ begin
           2 : FSublist[i].updtyp:=cev_FieldAdded;
           3 : FSublist[i].updtyp:=cev_FieldChanged;
           else
-            raise EFRE_DB_Exception.Create(edb_ERROR,'invalid substep encoding');
+            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'invalid substep encoding');
         end;
         size := ws.ReadQWord;
         if size>0 then
@@ -1199,32 +1251,6 @@ begin
       //Step     := self;
     end;
   inc(fcnt);
-end;
-
-function TFRE_DB_UpdateStep.DescribeText: String;
-var i : NativeInt;
-    s : string;
-begin
-  result := ' UPDATE OBJECT ['+upobj.SchemeClass+' | '+upobj.UID_String+'] '+LineEnding;
-  for i:=0 to FCNT-1 do
-    with FSublist[i] do
-      case updtyp of
-        cev_FieldDeleted:
-          begin
-            WriteStr(s,'  ',i:4,'>DELETE FIELD : ',newfield.FieldName,' ',newfield.AsString,LineEnding);
-            result := result +s;
-          end;
-        cev_FieldAdded:
-          begin
-            WriteStr(s,'  ',i:4,'>ADDED FIELD : ',newfield.FieldName,' : ',newfield.AsString,LineEnding);
-            result := result +s;
-          end;
-        cev_FieldChanged:
-          begin
-            WriteStr(s,'  ',i:4,'>FIELD CHANGE : ',oldfield.FieldName,' ',oldfield.AsString,' => ',newfield.AsString,LineEnding);
-            result := result +s;
-          end;
-      end;
 end;
 
 function TFRE_DB_UpdateStep.HasNoChanges: Boolean;
@@ -1267,7 +1293,7 @@ begin
                   lmem := @lbuffer[0];
                   csize := newfield.CopyFieldToMem(lmem);
                   if csize<>size then
-                    raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal field stream sice error [%d<>%d]',[size,csize]);
+                    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal field stream sice error [%d<>%d]',[size,csize]);
                   m.WriteBuffer(lMem^,size);
                 end
               else
@@ -1276,7 +1302,7 @@ begin
                   try
                    csize := newfield.CopyFieldToMem(lMem);
                    if csize<>size then
-                     raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal field stream sice error [%d<>%d]',[size,csize]);
+                     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal field stream sice error [%d<>%d]',[size,csize]);
 
                     m.WriteBuffer(lMem^,size);
                   finally
@@ -1465,7 +1491,7 @@ var i,j       : NativeInt;
 begin
   if to_upd_obj.IsObjectRoot then
     if length(to_upd_obj.__InternalGetCollectionList)=0 then
-      raise EFRE_DB_Exception.Create(edb_INTERNAL,'must have internal collections to store into');
+      raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'must have internal collections to store into');
   for i:=0 to FCnt-1 do
     begin
       with FSublist[i] do
@@ -1488,12 +1514,6 @@ begin
   FIsStore  := is_store;
   FObjPtr   := @del_obj;
   CollName  := from_coll;
-end;
-
-function TFRE_DB_DeleteSubObjectStep.DescribeText: String;
-begin
-  assert(FDelObj.IsObjectRoot);
-  WriteStr(result,' DELETE CHILD OBJECT ',FDelObj.UID_String,' IN PARENT ',FDelObj.Parent.UID_String)
 end;
 
 function TFRE_DB_DeleteSubObjectStep.Needs_WAL: Boolean;
@@ -1567,7 +1587,7 @@ begin
     end;
   idcheck := walstream.ReadAnsiString;
   if FTransId+'#!'<>idcheck then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'wals stream bad transactions dont match [''%s'' <> ''%s'']',[idcheck,FTransId]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'wals stream bad transactions dont match [''%s'' <> ''%s'']',[idcheck,FTransId]);
 end;
 
 
@@ -1670,11 +1690,12 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     procedure GenerateInserts(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
       if new_object.IsObjectRoot then
-        self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store)) // Todo breakup insert sub and insert root ...
+        self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store))
       else
-        self.AddChangeStep(TFRE_DB_InsertStep.Create(new_object,coll,store));
+        self.AddChangeStep(TFRE_DB_InsertSubStep.Create(new_object,coll,store));
       if store then
         halt := true; // In insert case only generate an insert for the root object
+      abort;
     end;
 
     procedure GenerateDeletes(var del_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
@@ -1692,24 +1713,24 @@ begin
     begin
       to_update_obj := nil;
       if collection_name='' then
-        raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+        raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
       if not FMaster.MasterColls.GetCollection(collection_name,coll) then
-        raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
     end
   else
     begin
        if not FMaster.FetchObject(obj.UID,to_update_obj,true) then
-         raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
+         raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
        coll := nil;
        //SetLength(notify_collections,Length(to_update_obj.__InternalGetCollectionList));
        //for i := 0 to high(notify_collections) do
        //  notify_collections[i] := to_update_obj.__InternalGetCollectionList[i].CollectionName();
        //if Length(notify_collections)=0 then
-       //  raise EFRE_DB_Exception.Create(edb_INTERNAL,'lenght of internalcollections for object [%s] is empty, on update case !',[to_update_obj.UID_String]);
+       //  raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'lenght of internalcollections for object [%s] is empty, on update case !',[to_update_obj.UID_String]);
        if collection_name<>'' then
          begin
            if not FMaster.MasterColls.GetCollection(collection_name,coll) then
-             raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the collectionname [%s] specified for an update request, does not exist',[collection_name]);
+             raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the collectionname [%s] specified for an update request, does not exist',[collection_name]);
            //TODO Check if update object has Collection
            //TODO Check if collection has updateobject
          end;
@@ -1765,46 +1786,6 @@ begin
   end;
 end;
 
-procedure TFRE_DB_TransactionalUpdateList.PrintTextLog(const tid: String; const write_2_wal: boolean);
-var count : NativeInt = 0;
-
-  procedure Dump(var x:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
-  begin
-    inc(count);
-    writeln(count:5,x.DescribeText);
-  end;
-
-  procedure Describe(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
-  begin
-    try
-      writeln('  STEP : ',idx,'  ',step.DescribeText);
-    except on e:Exception do
-      writeln(' --EX ',e.Message);
-    end;
-  end;
-
-
-begin
-  exit;
-  if tid='3#C' then
-    count  := count;
-  if tid='5#C' then
-    count  := count;
-
-  if write_2_wal then
-    begin
-      writeln('>>--WRITING WAL TRANSACTION BLOCK -- [',tid,'] STEPS : ',FChangeList.Count);
-      FChangeList.ForAllBreak(@DEscribe);
-      writeln('<<--WRITING WAL TRANSACTION BLOCK -- DONE [',tid,'] STEPS : ',FChangeList.Count);
-    end
-  else
-    begin
-      writeln('>>--READ BACK WAL TRANSACTION BLOCK -- [',FTransId,'] STEPS : ',FChangeList.Count);
-      FChangeList.ForAllBreak(@Describe);
-      writeln('>>--READ BACK WAL TRANSACTION BLOCK -- DONE [',FTransId,'] STEPS : ',FChangeList.Count);
-    end;
-end;
-
 function TFRE_DB_TransactionalUpdateList.GetTransActionId: TFRE_DB_NameType;
 begin
   result := FTransId;
@@ -1813,6 +1794,11 @@ end;
 function TFRE_DB_TransactionalUpdateList.GetTransLastStepTransId: TFRE_DB_TransStepId;
 begin
   //result := FChangeList.;
+end;
+
+function TFRE_DB_TransactionalUpdateList.GetNotifyIF: IFRE_DB_DBChangedNotification;
+begin
+  result := FNotifyIf;
 end;
 
 procedure TFRE_DB_TransactionalUpdateList.ProcessCheck(const WAL_RepairMode: boolean);
@@ -1876,7 +1862,7 @@ begin
   result := true;
   if FChangeList.Count=0 then
     exit(false);
-    //raise EFRE_DB_Exception.Create(edb_NO_CHANGE,'TRANSACTIONAL COMMIT FAILED, CHANGELIST EMPTY');
+    //raise EFRE_DB_PL_Exception.Create(edb_NO_CHANGE,'TRANSACTIONAL COMMIT FAILED, CHANGELIST EMPTY');
   if FNeedsWAL then
     begin
       FWalMem.Position := 0;
@@ -1885,7 +1871,6 @@ begin
       FWalMem.WriteAnsiString(IntToStr(FChangeList.Count));
       FChangeList.ForAllBreak(@WriteWal);
       FWalMem.WriteAnsiString(TransID+'#!');
-      PrintTextLog(TransID,true);
       Layer.SyncWriteWAL(FWalMem);
     end;
 end;
@@ -1907,9 +1892,14 @@ var changes : boolean;
   end;
 
 begin
+  { Perform all necessary prechecks before changing the Database }
   ProcessCheck(WAL_RepairMode);
+
+  { Write the WAL Log }
   if not WAL_RepairMode then
     changes := Write_WAL_Or_DCC(Layer);
+
+  { Apply the changes, and record the Notifications }
   if changes then
     begin
       FChangeList.ForAllBreak(@StoreInCollection);
@@ -1943,11 +1933,7 @@ begin
   FNewObj   := new_obj;
   FColl     := coll;
   FIsStore  := is_store;
-  FIsRoot  := assigned(FNewObj.Parent);
-  if FIsRoot then
-    FIsRoot := FIsRoot;
-  if FIsStore = false then
-    FIsStore:=FIsStore;
+  assert(assigned(FNewObj.Parent));
 end;
 
 constructor TFRE_DB_InsertStep.CreateAsWalReadBack(new_obj: TGuid; const coll: TFRE_DB_NameType; const is_store: boolean; const ws: TStream);
@@ -1957,24 +1943,7 @@ begin
   FIsWalReadBack := true;
   InternalReadObject(ws,FNewObj);
   if not FREDB_Guids_Same(FNewObj.UID,new_obj) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'read back wal insertstep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(FNewObj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
-end;
-
-destructor TFRE_DB_InsertStep.Destroy;
-begin
-  inherited Destroy;
-end;
-
-function TFRE_DB_InsertStep.DescribeText: String;
-begin
-  if assigned(FNewObj.Parent) then
-    begin
-      WriteStr(result,' INSERT NEW CHILD OBJECT ',FNewObj.UID_String,' IN PARENT ',FNewObj.Parent.UID_String,' FIELD ',FNewObj.ParentField.FieldName,' OBJROOT : ',FNewObj.ObjectRoot.UID_String);
-    end
-  else
-    begin
-      WriteStr(result,' INSERT NEW ROOT OBJECT ',FNewObj.UID_String,' INTO ',fcoll.CollectionName(false));
-    end;
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'read back wal insertstep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(FNewObj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
 end;
 
 function TFRE_DB_InsertStep.IsARootInsert: Boolean;
@@ -1996,7 +1965,7 @@ function TFRE_DB_InsertStep.CheckExistence(const master: TFRE_DB_Master_Data; co
 begin
   if master.ExistsObject(FNewObj.UID) then
     if raise_ex then
-      raise EFRE_DB_Exception.Create(edb_EXISTS,'the obj [%s] does already exist in master data.')
+      raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the obj [%s] does already exist in master data.')
     else
       exit(edb_EXISTS);
   result := edb_OK;
@@ -2009,7 +1978,7 @@ begin
   //writeln('********** INSERT CHECK ',FNewObj.UID_String,' ',FNewObj.ClassName,'  ',IsARootInsert);
   if FIsWalReadBack then
     if not FTransList.FMaster.MasterColls.GetCollection(FCollName,FColl) then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'insert step, wal repair collection [%s] does not exist!',[FCollName]);
+      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'insert step, wal repair collection [%s] does not exist!',[FCollName]);
 
   if IsARootInsert then
     FColl.GetPersLayerIntf.StoreInThisColl(FNewObj,check)
@@ -2018,7 +1987,7 @@ begin
        //TODO think about child objects storing in other collections
       if IsInsert then
         begin
-          raise EFRE_DB_Exception.Create(edb_INTERNAL,'ONLY ROOT OBJECTS CAN BE INSERTED CURRENTLY');
+          raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'ONLY ROOT OBJECTS CAN BE INSERTED CURRENTLY');
         end
       else
         begin
@@ -2128,7 +2097,7 @@ begin
       stream.ReadBuffer(uid,SizeOf(TGuid));
       FOBJArray[i] := uid;
       if not coll.GetPersLayerIntf.FetchIntFromColl(uid,obj) then //
-        raise EFRE_DB_Exception.Create(edb_ERROR,'STREAM LOAD INDEX ERROR CANT FIND [%s] IN COLLECTION',[GFRE_BT.GUID_2_HexString(uid)]);
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'STREAM LOAD INDEX ERROR CANT FIND [%s] IN COLLECTION',[GFRE_BT.GUID_2_HexString(uid)]);
     end;
 end;
 
@@ -2330,7 +2299,7 @@ begin
   result := FMasterRefLinks.ExistsBinaryKey(@refoutkey,refoutkey.KeyLength,value);
   if result and
      (value<>$BAD0BEEF) then
-       raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, value invalid [%d]',[value]);
+       raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, value invalid [%d]',[value]);
 end;
 
 function TFRE_DB_Master_Data.__RefLinkInboundExists(const from_uid: TFRE_DB_GUID; const fieldname: TFRE_DB_NameType; to_object: TFRE_DB_GUID; const scheme_link: TFRE_DB_NameTypeRL): boolean;
@@ -2341,7 +2310,7 @@ begin
   result := FMasterRefLinks.ExistsBinaryKey(@refinkey,refinkey.KeyLength,value);
   if result
      and (value<>$BEEF0BAD) then
-       raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal inbound reflink structure bad, value invalid [%d]',[value]);
+       raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal inbound reflink structure bad, value invalid [%d]',[value]);
 end;
 
 procedure TFRE_DB_Master_Data.__CheckReferenceLink(const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; link: TFRE_DB_GUID; var scheme_link: TFRE_DB_NameTypeRL);
@@ -2351,14 +2320,14 @@ var j       : NativeInt;
 begin
   //writeln('TODO _ PARALLEL CHECK OF REFLINK INDEX TREE');
   if not FetchObject(link,ref_obj,true) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link)]);
   if obj.IsVolatile or obj.IsSystem then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the linking object is volatile or system!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the linking object is volatile or system!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link)]);
   scheme_link := uppercase(fieldname+'>'+ref_obj.SchemeClass);
    if __RefLinkOutboundExists(obj.UID,fieldname,link,scheme_link) then
-     raise EFRE_DB_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
+     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
    if __RefLinkInboundExists(obj.UID,fieldname,link,uppercase(obj.SchemeClass+'<'+fieldname)) then
-     raise EFRE_DB_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
+     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
 end;
 
 // Setup the "to_list" for KEY-UID,Field,(Subkeys)
@@ -2371,11 +2340,11 @@ var refoutkey : RFRE_DB_GUID_RefLink_InOut_Key;
 begin
   __SetupOutboundLinkKey(from_key.UID,references_to,FromFieldToSchemename,refoutkey);
   if not FMasterRefLinks.InsertBinaryKey(@refoutkey,refoutkey.KeyLength,$BAD0BEEF) then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'although prechecked the reflink fromkey exists. :-(');
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink fromkey exists. :-(');
 
   __SetupInboundLinkKey(from_key.UID,references_to,LinkFromSchemenameField,refinkey);
   if not FMasterRefLinks.InsertBinaryKey(@refinkey,refinkey.KeyLength,$BEEF0BAD) then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'although prechecked the reflink tokey exists. :-(');
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink tokey exists. :-(');
 end;
 
 procedure TFRE_DB_Master_Data._ChangeRefLink(const from_obj: TFRE_DB_Object; const fieldname: TFRE_DB_NameType; const references_to_list: TFRE_DB_GUIDArray);
@@ -2397,7 +2366,7 @@ begin
   //move(fieldname[1],refkey.FieldName,Length(fieldname));
   //refkey.RefTyp := $99;
   //if not FMasterRefLinks.ExistsBinaryKey(@refkey,17+Length(fieldname),dummy) then
-  //  raise EFRE_DB_Exception.Create(edb_INTERNAL,'although prechecked the reflink key to change does not exists. :-(');
+  //  raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink key to change does not exists. :-(');
   //reenc := FREDB_PtrUIntToObject(dummy) as TREF_LinkEncapsulation;
   //
   ////dummyold := reenc.Links;
@@ -2411,7 +2380,7 @@ begin
   //for i := 0 to high(reenc.FLinks) do begin
   //  move(reenc.FLinks[i],refinkey.GUID,16);
   //  if not FMasterRefLinks.RemoveBinaryKey(@refinkey,33+Length(refin_fn),dummy) then
-  //    raise EFRE_DB_Exception.Create(edb_INTERNAL,'although prechecked the to delete reflink key does not exists. :-(');
+  //    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the to delete reflink key does not exists. :-(');
   //end;
   //// RemoveOldLinks
   //
@@ -2420,7 +2389,7 @@ begin
   //for i := 0 to high(references_to_list) do begin
   //  move(references_to_list[i],refinkey.GUID,16);
   //  if not FMasterRefLinks.InsertBinaryKey(@refinkey,33+Length(refin_fn),$BEEF0BAD) then
-  //    raise EFRE_DB_Exception.Create(edb_INTERNAL,'although prechecked the inbound reflink key exists. :-(');
+  //    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the inbound reflink key exists. :-(');
   //end;
 
 
@@ -2539,7 +2508,7 @@ procedure TFRE_DB_Master_Data.DEBUG_CleanUpMasterData;
   begin
     if (refl<>$BEEF0BAD) and
        (refl<>$BAD0BEEF) then
-         raise EFRE_DB_Exception.Create(edb_INTERNAL,'tree node inconsistency/bad value');
+         raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'tree node inconsistency/bad value');
   end;
 
   procedure CleanObj(var ob : NativeUint);
@@ -2599,7 +2568,7 @@ end;
 //      for i:= 0 to high(guidarray) do begin
 //        if FREDB_Guids_Same(guidarray[i],set_guid) then begin
 //          if not rebuild then begin
-//            raise EFRE_DB_Exception.Create(edb_EXISTS,'guid %s already set in linklist',[GFRE_BT.GUID_2_HexString(set_guid)]);
+//            raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'guid %s already set in linklist',[GFRE_BT.GUID_2_HexString(set_guid)]);
 //          end else begin
 //            GFRE_DB.LogWarning(dblc_REFERENCES,'rebuild : guid %s already set in linklist',[GFRE_BT.GUID_2_HexString(set_guid)]);
 //          end;
@@ -2622,8 +2591,8 @@ end;
 //    end;
 //
 //begin
-//  //if not Exists(from_obj) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'while updating reflinks, the  from object uid=%s was not found',[GFRE_BT.GUID_2_HexString(from_obj)]);
-//  //if not Exists(to_obj) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'while updating reflinks, the to object uid=%s was not found',[GFRE_BT.GUID_2_HexString(to_obj)]);
+//  //if not Exists(from_obj) then raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'while updating reflinks, the  from object uid=%s was not found',[GFRE_BT.GUID_2_HexString(from_obj)]);
+//  //if not Exists(to_obj) then raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'while updating reflinks, the to object uid=%s was not found',[GFRE_BT.GUID_2_HexString(to_obj)]);
 //  //from_field_name := GFRE_BT.GUID_2_HexString(from_obj);
 //  //to_field_name   := GFRE_BT.GUID_2_HexString(to_obj);
 //  assert(from_obj<>to_obj);
@@ -2808,18 +2777,18 @@ begin
   if (obj.IsVolatile
      or obj.IsSystem)
      and (Length(references_to_list)>0) then
-       raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'a volatile or system object is not allowed to reference other objects');
+       raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a volatile or system object is not allowed to reference other objects');
   if obj.IsVolatile then
     begin
       if check_only then
         begin
           if FMasterVolatileObjStore.ExistsBinaryKey(@key,SizeOf(TGuid),dummy) then // TODO:Remove DEBUG CHECK
-            raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store volatile object')
+            raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store volatile object')
         end
       else
         begin
           if not FMasterVolatileObjStore.InsertBinaryKey(@key,SizeOf(TGuid),FREDB_ObjectToPtrUInt(obj)) then
-            raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store volatile object')
+            raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store volatile object')
         end;
     end
   else
@@ -2828,12 +2797,12 @@ begin
       if check_only then
         begin
           if FMasterPersistantObjStore.ExistsBinaryKey(@key,SizeOf(TGuid),dummy) then
-            raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store persistent object');
+            raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store persistent object');
         end
       else
         begin
           if not FMasterPersistantObjStore.InsertBinaryKeyOrFetch(@key,sizeof(tguid),dummy) then
-            raise EFRE_DB_Exception.Create(edb_EXISTS,'cannot store persistent object [%s]',[obj.InternalUniqueDebugKey]);
+            raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store persistent object [%s]',[obj.InternalUniqueDebugKey]);
           if Length(references_to_list)>0 then
             _SetupInitialRefLinks(obj,references_to_list,scheme_links);
         end;
@@ -2846,12 +2815,12 @@ begin
   if check_only then
     begin
       if GetReferencesCount(obj_uid,false) > 0 then
-        raise EFRE_DB_Exception.Create(edb_OBJECT_REFERENCED,'DELETE OF OBJECT [%s] FAILED, OBJECT IS REFERENCED',[GFRE_BT.GUID_2_HexString(obj_uid)]);
+        raise EFRE_DB_PL_Exception.Create(edb_OBJECT_REFERENCED,'DELETE OF OBJECT [%s] FAILED, OBJECT IS REFERENCED',[GFRE_BT.GUID_2_HexString(obj_uid)]);
       exit;
     end;
   if not FMasterVolatileObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TGuid),dummy) then
     if not FMasterPersistantObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TGuid),dummy) then
-      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'DELETE OF OBJECT [%s] FAILED, OBJECT NOT FOUND',[GFRE_BT.GUID_2_HexString(obj_uid)])
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'DELETE OF OBJECT [%s] FAILED, OBJECT NOT FOUND',[GFRE_BT.GUID_2_HexString(obj_uid)])
 end;
 
 procedure TFRE_DB_Master_Data.ForAllObjectsInternal(const pers, volatile: boolean; const iter: TFRE_DB_Obj_Iterator);
@@ -2882,7 +2851,6 @@ begin
       WAL_Transaction := TFRE_DB_TransactionalUpdateList.Create('',self);
       try
         WAL_Transaction.ReadFromBackWalStream(WALStream);
-        WAL_Transaction.PrintTextLog('',false);
         WAL_Transaction.Commit(FLayer,true);
       finally
         WAL_Transaction.Free;
@@ -2945,7 +2913,7 @@ end;
 procedure TFRE_DB_TextIndex.FieldTypeIndexCompatCheck(fld: TFRE_DB_FIELD);
 begin
   if fld.FieldType<>fdbft_String then
-    raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'the text index can only be used to index a string field, not a [%s] field. Maybe use a calculated field with results a string field',[fld.FieldTypeAsString])
+    raise EFRE_DB_PL_Exception.Create(edb_ILLEGALCONVERSION,'the text index can only be used to index a string field, not a [%s] field. Maybe use a calculated field with results a string field',[fld.FieldTypeAsString])
 end;
 
 procedure TFRE_DB_TextIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const key: PByte; var keylen: Nativeint);
@@ -3053,7 +3021,7 @@ begin
     fdbft_Boolean:      FFixedKeylen := 1;
     fdbft_DateTimeUTC:  FFixedKeylen := 8;
     else
-      raise EFRE_DB_Exception.Create(edb_INTERNAL,'unssoported fieldtype for index '+CFRE_DB_FIELDTYPE[fieldtype]);
+      raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'unssoported fieldtype for index '+CFRE_DB_FIELDTYPE[fieldtype]);
   end;
   InitializeNullKey;
 end;
@@ -3110,7 +3078,7 @@ begin
   isNullVal := not obj.FieldOnlyExisting(FFieldname,fld);
   if isNullVal
     and (not FAllowNull) then
-      raise EFRE_DB_Exception.Create(edb_UNSUPPORTED,'for the index [%s] the usage of null values (=unset fields) is not allowed',[_GetIndexStringSpec]);
+      raise EFRE_DB_PL_Exception.Create(edb_UNSUPPORTED,'for the index [%s] the usage of null values (=unset fields) is not allowed',[_GetIndexStringSpec]);
   if not isNullVal then
     FieldTypeIndexCompatCheck(fld);
   TransformtoBinaryComparable(fld,@key,keylen);
@@ -3145,7 +3113,7 @@ begin
     FieldTypeIndexCompatCheck(newfld);
   TransformtoBinaryComparable(newfld,ukey,ukeylen);
   if CompareTransformedKeys(key,ukey,keylen,ukeylen) then // This should not happen, as the change compare has to happen earlier
-    raise EFRE_DB_Exception.Create(edb_ERROR,'cant update the index for object [%s] / for the unique index [%s] the values would be the same ([%s]->[%s])',[new_obj.UID_String,_GetIndexStringSpec,FFieldname,GetStringRepresentationOfTransientKey(OldIsNullValue,key,keylen),GetStringRepresentationOfTransientKey(isNullValue,ukey,ukeylen)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cant update the index for object [%s] / for the unique index [%s] the values would be the same ([%s]->[%s])',[new_obj.UID_String,_GetIndexStringSpec,FFieldname,GetStringRepresentationOfTransientKey(OldIsNullValue,key,keylen),GetStringRepresentationOfTransientKey(isNullValue,ukey,ukeylen)]);
   //writeln('INDEX CHANGE ',_GetIndexStringSpec,' REMOVE VAL ',oldfld.AsString,' ',new_obj.UID_String);
   //writeln('INDEX CHANGE ',_GetIndexStringSpec,' ADD VAL '   ,newfld.AsString,' ',new_obj.UID_String);
   if check_only then
@@ -3241,28 +3209,28 @@ var dummy  : NativeUint;
 begin
   if isNullVal and
      not FAllowNull then
-       raise EFRE_DB_Exception.Create(edb_EXISTS,'trying to add a null value for the index [%s/%s/%s], which is not allowing null values value=[ %s]',[FCollection.CollectionName(false),FIndexName,FFieldname,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)]);
+       raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'trying to add a null value for the index [%s/%s/%s], which is not allowing null values value=[ %s]',[FCollection.CollectionName(false),FIndexName,FFieldname,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)]);
   if FIndex.ExistsBinaryKey(key,keylen,dummy) then // if not existing then
     begin
       values := FREDB_PtrUIntToObject(dummy) as TFRE_DB_IndexValueStore;
       if isNullVal then
         begin
           if FUniqueNullVals then
-            raise EFRE_DB_Exception.Create(edb_EXISTS,'for the null-unique index [%s] the null key value already exists [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
+            raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'for the null-unique index [%s] the null key value already exists [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
           else
             begin
               if values.Exists(obj_uid) then
-                raise EFRE_DB_Exception.Create(edb_EXISTS,'for the non null-unique index [%s] the value(=obj) already exists',[_GetIndexStringSpec])
+                raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'for the non null-unique index [%s] the value(=obj) already exists',[_GetIndexStringSpec])
             end;
         end
       else
         begin
           if FUnique then
-            raise EFRE_DB_Exception.Create(edb_EXISTS,'for the unique index [%s] the key already exists [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
+            raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'for the unique index [%s] the key already exists [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
           else
             begin
               if values.Exists(obj_uid) then
-                raise EFRE_DB_Exception.Create(edb_EXISTS,'for the non unique index [%s] the value [ %s] already exists',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
+                raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'for the non unique index [%s] the value [ %s] already exists',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
             end;
         end
     end
@@ -3275,22 +3243,22 @@ var dummy        : NativeUint;
 begin
   if not FAllowNull
      and isNullVal then
-       raise EFRE_DB_Exception.Create(edb_ERROR,'delete check failed idx [%s] does not allow null values.',[_GetIndexStringSpec]);
+       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'delete check failed idx [%s] does not allow null values.',[_GetIndexStringSpec]);
 
   nullvalExist := NullvalueExists(values);
   if FUniqueNullVals
      and isNullVal
      and nullvalExist then
-       raise EFRE_DB_Exception.Create(edb_ERROR,'delete check failed idx [%s] does allow only one unique null value, and a null value already exist',[_GetIndexStringSpec]);
+       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'delete check failed idx [%s] does allow only one unique null value, and a null value already exist',[_GetIndexStringSpec]);
 
   if FIndex.ExistsBinaryKey(key,keylen,dummy) then // if not existing then
     begin
       values := FREDB_PtrUIntToObject(dummy) as TFRE_DB_IndexValueStore;
       if not values.Exists(obj_uid) then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'delete check failed idx [%s] value does not exist [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'delete check failed idx [%s] value does not exist [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
     end
   else
-    raise EFRE_DB_Exception.Create(edb_EXISTS,'for the unique index [%s] the key to delete does not exists [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
+    raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'for the unique index [%s] the key to delete does not exists [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
 end;
 
 procedure TFRE_DB_MM_Index._InternalAddGuidToValstore(const key: PByte; const keylen: Nativeint ; const isNullVal : boolean ; const uid: TGUID);
@@ -3308,7 +3276,7 @@ begin
           GFRE_BT.CriticalAbort('inserted key but not finding it, failure in tree structure!');
         end;
       if not values.Add(uid) then
-        raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal index unique/empty/add failure');
+        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'unexpected internal index unique/empty/add failure');
     end
   else
     begin // exists
@@ -3317,18 +3285,18 @@ begin
       if isNullVal then
         begin
           if FUniqueNullVals then
-            raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal null-unique index add/exists failure')
+            raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'unexpected internal null-unique index add/exists failure')
           else
             if not values.Add(UID) then
-              raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal index non null-unique add failure');
+              raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'unexpected internal index non null-unique add failure');
         end
       else
         begin
           if FUnique then
-            raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal unique index add/exists failure')
+            raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'unexpected internal unique index add/exists failure')
           else
             if not values.Add(UID) then
-              raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected internal index non unique add failure');
+              raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'unexpected internal index non unique add failure');
         end;
     end;
 end;
@@ -3339,13 +3307,13 @@ var
    values : TFRE_DB_IndexValueStore;
 begin
   if not FIndex.ExistsBinaryKey(key,keylen,dummy) then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old value?',[_GetIndexStringSpec]);
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old value?',[_GetIndexStringSpec]);
   values := FREDB_PtrUIntToObject(dummy) as TFRE_DB_IndexValueStore;
   if not values.RemoveUID(uid) then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old obj uid [%s] value in indexvaluestore?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old obj uid [%s] value in indexvaluestore?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
   if values.ObjectCount=0 then
     if not FIndex.RemoveBinaryKey(key,keylen,dummy) then
-      raise EFRE_DB_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot remove the index node entry for old obj uid [%s] in indextree?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
+      raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot remove the index node entry for old obj uid [%s] in indextree?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
 end;
 
 function TFRE_DB_MM_Index.GetStringRepresentationOfTransientKey(const isnullvalue: boolean; const key: PByte; const keylen: Nativeint): String;
@@ -3435,7 +3403,7 @@ begin
       ixs := TFRE_DB_IndexValueStore.Create;
       ixs.LoadFromThis(stream,coll);
       if not FIndex.InsertBinaryKey(@key[1],keylen,FREDB_ObjectToPtrUInt(ixs)) then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'stream load : index add failure [%s]',[key]);
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'stream load : index add failure [%s]',[key]);
     end;
 end;
 
@@ -3460,7 +3428,7 @@ begin
     'TFRE_DB_SignedIndex'   : result := TFRE_DB_SignedIndex.CreateStreamed(stream,idxn,fieldn,ft,unique,coll,allownull,uniquenull);
     'TFRE_DB_UnsignedIndex' : result := TFRE_DB_UnsignedIndex.CreateStreamed(stream,idxn,fieldn,ft,unique,coll,allownull,uniquenull);
     else
-      raise EFRE_DB_Exception.Create(edb_ERROR,'Unsupported streaming index class [%s]',[cn]);
+      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'Unsupported streaming index class [%s]',[cn]);
   end;
 end;
 
@@ -3705,14 +3673,14 @@ begin
   if checkphase then
     begin
       if FGuidObjStore.ExistsBinaryKey(new_obj.UIDP,SizeOf(TGuid),dummy) then
-        raise EFRE_DB_Exception.Create(edb_EXISTS,'object [%s] already exists on store in collection [%s]',[new_obj.UID_String,FName]);
+        raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'object [%s] already exists on store in collection [%s]',[new_obj.UID_String,FName]);
       IndexAddCheck(new_obj,true);
     end
   else
     begin
         IndexAddCheck(new_obj,false);
         if not FGuidObjStore.InsertBinaryKey(new_obj.UIDP,SizeOf(TGUID),FREDB_ObjectToPtrUInt(new_obj)) then
-          raise EFRE_DB_Exception.Create(edb_INTERNAL,'store of object [%s] in collection [%s] failed -> already exists on store after exist check ?',[new_obj.UID_String,FName]);
+          raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'store of object [%s] in collection [%s] failed -> already exists on store after exist check ?',[new_obj.UID_String,FName]);
         new_obj.__InternalCollectionAdd(self); // Add The Colection Reference to a directly stored master or child object
         assert(length(new_obj.__InternalGetCollectionList)>0);
     end;
@@ -3730,7 +3698,7 @@ begin
   if checkphase then
     begin
       if not FGuidObjStore.ExistsBinaryKey(del_obj.UIDP,SizeOf(TGuid),dummy) then
-        raise EFRE_DB_Exception.Create(edb_EXISTS,'object [%s] does not exist on delete in collection [%s]',[del_obj.UID_String,FName]);
+        raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'object [%s] does not exist on delete in collection [%s]',[del_obj.UID_String,FName]);
       IndexDelCheck(del_obj,true);
     end
   else
@@ -3739,7 +3707,7 @@ begin
      //FGuidObjStore.RemoveBinaryKey(@ouid,SizeOf(ouid),dummy);
       IndexDelCheck(del_obj,false);
       if not FGuidObjStore.RemoveBinaryKey(del_obj.UIDP,SizeOf(TGUID),_dummy) then
-        raise EFRE_DB_Exception.Create(edb_INTERNAL,'delete of object [%s] in collection [%s] failed -> does not exists on delete after exist check ?',[del_obj.UID_String,FName]);
+        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'delete of object [%s] in collection [%s] failed -> does not exists on delete after exist check ?',[del_obj.UID_String,FName]);
       cnt := del_obj.__InternalCollectionRemove(self); // Add The Colection Reference to a directly stored master or child object
       if cnt=0 then
         begin
@@ -3754,7 +3722,7 @@ begin
   inobj.Set_Store_Locked(false);
   try
    if Length(inobj.__InternalGetCollectionList)<1 then
-     raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
+     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
    result := inobj.CloneToNewObject;
    if result = inobj then
      abort;
@@ -3769,7 +3737,7 @@ begin
   SetLength(result,length(objarr));
   for i:=0 to high(objarr) do
     if not Fetch(objarr[i],result[i]) then
-      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'cloneout failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'cloneout failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
 end;
 
 procedure TFRE_DB_Persistance_Collection.StreamToThis(const stream: TStream);
@@ -3809,10 +3777,10 @@ var in_txt : String;
 begin
   in_txt := stream.ReadAnsiString;
   if in_txt<>'FDBC' then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID : signature bad');
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID : signature bad');
   in_txt := stream.ReadAnsiString;
   if in_txt<>FName then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID NAME DIFFERS: [%s <> %s]',[in_txt,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID NAME DIFFERS: [%s <> %s]',[in_txt,FName]);
   cnt := stream.ReadQWord;
   //writeln('RELOADING COLLECTION ',in_txt,' / ',cnt);
   for i := 1 to cnt do
@@ -3821,9 +3789,9 @@ begin
       assert(Length(in_txt)=16);
       move(in_txt[1],uid,16);
       if not FLayer.Fetch(uid,dbo,true) then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'COLLECTION LOAD / FETCH FAILED [%s]',[GFRE_BT.GUID_2_HexString(uid)]);
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / FETCH FAILED [%s]',[GFRE_BT.GUID_2_HexString(uid)]);
       if not FGuidObjStore.InsertBinaryKey(dbo.UIDP,SizeOf(TGUID),FREDB_ObjectToPtrUInt(dbo)) then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'COLLECTION LOAD / INSERT FAILED [%s] EXISTS',[GFRE_BT.GUID_2_HexString(uid)]);
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / INSERT FAILED [%s] EXISTS',[GFRE_BT.GUID_2_HexString(uid)]);
       dbo.__InternalCollectionAdd(self);
     end;
   cnt := stream.ReadQWord;
@@ -3970,7 +3938,7 @@ begin
               if nullValExists then // We need to to an index update if a nullvalue for this object is already indexed
                 begin
                   if not FetchIntFromColl(newobj.UID,oldobj) then
-                    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'FIELDCHANGE Internal an object should be updated but was not found [%s]',[newobj.UID_String]);
+                    raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'FIELDCHANGE Internal an object should be updated but was not found [%s]',[newobj.UID_String]);
                   oldobj.Assert_CheckStoreLocked;
                   try
                     oldobj.Set_Store_Locked(false);
@@ -4004,7 +3972,7 @@ begin
   if result then
     begin
       if Length(arr)<>1 then
-        raise EFRE_DB_Exception.create(edb_INTERNAL,'a unique index internal store contains [%d] elements!',[length(arr)]);
+        raise EFRE_DB_PL_Exception.create(edb_INTERNAL,'a unique index internal store contains [%d] elements!',[length(arr)]);
       obj := arr[0];
     end;
 end;
@@ -4026,13 +3994,13 @@ var idx     : NativeInt;
 begin
   idx := IndexExists(index_name);
   if idx=-1 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
   index := FIndexStore[idx];
   if check_is_unique and
      not index.IsUnique then
-       raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] is not unique you must not use a point query',[index_name]);
+       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] is not unique you must not use a point query',[index_name]);
   if not index.SupportsDataType(fdbft_String) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not support a query of [%s]',[index_name,CFRE_DB_FIELDTYPE[fdbft_String]]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not support a query of [%s]',[index_name,CFRE_DB_FIELDTYPE[fdbft_String]]);
 
   (index as TFRE_DB_TextIndex).SetBinaryComparableKey(query_value,@key[0],keylen,false);
   result := index.FetchIndexedValsTransformedKey(arr,key,keylen);
@@ -4066,7 +4034,7 @@ var idx   : NativeInt;
 begin
   idx := IndexExists(index_name);
   if idx=-1 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
   SetLength(guids,0);
   index := FIndexStore[idx];
   index.AppendAllIndexedUids(guids,ascending,max_count,skipfirst,only_count_unique_vals);
@@ -4078,10 +4046,10 @@ var idx   : NativeInt;
 begin
   idx := IndexExists(index_name);
   if idx=-1 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
   index := FIndexStore[idx];
   if not (index is TFRE_DB_SignedIndex) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an signed query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an signed query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
   TFRE_DB_SignedIndex(index).ForAllIndexedSignedRange(min_value,max_value,guids,ascending,min_is_null,max_is_max,max_count,skipfirst,only_count_unique_vals)
 end;
 
@@ -4091,10 +4059,10 @@ var idx   : NativeInt;
 begin
   idx := IndexExists(index_name);
   if idx=-1 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
   index := FIndexStore[idx];
   if not (index is TFRE_DB_UnsignedIndex) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an unsigned query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an unsigned query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
   TFRE_DB_UnsignedIndex(index).ForAllIndexedUnsignedRange(min_value,max_value,guids,ascending,min_is_null,max_is_max,max_count,skipfirst,only_count_unique_vals)
 end;
 
@@ -4104,10 +4072,10 @@ var idx   : NativeInt;
 begin
   idx := IndexExists(index_name);
   if idx=-1 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
   index := FIndexStore[idx];
   if not (index is TFRE_DB_TextIndex) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an text query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an text query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
   TFRE_DB_TextIndex(index).ForAllIndexedTextRange(min_value,max_value,guids,ascending,min_is_null,max_is_max,max_count,skipfirst,only_count_unique_vals)
 end;
 
@@ -4117,10 +4085,10 @@ var idx   : NativeInt;
 begin
   idx := IndexExists(index_name);
   if idx=-1 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
   index := FIndexStore[idx];
   if not (index is TFRE_DB_TextIndex) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an text query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an text query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
   TFRE_DB_TextIndex(index).ForAllIndexPrefixString(prefix,guids,index_name,ascending,max_count,skipfirst,only_count_unique_vals);
 end;
 

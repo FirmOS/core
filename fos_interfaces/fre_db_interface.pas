@@ -99,6 +99,9 @@ type
     constructor Create(const et:TFRE_DB_Errortype;msg:TFRE_DB_String;params:array of const);
   end;
 
+  EFRE_DB_PL_Exception=class(EFRE_DB_Exception)
+  end;
+
   TFRE_DB_FIELDTYPE     = (fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink);
   TFRE_DB_DISPLAY_TYPE  = (dt_string,dt_date,dt_number,dt_number_pb,dt_icon,dt_boolean);
   TFRE_DB_MESSAGE_TYPE  = (fdbmt_error,fdbmt_warning,fdbmt_info,fdbmt_confirm,fdbmt_wait);
@@ -510,7 +513,6 @@ type
   IFRE_DB_FieldIterator                 = procedure (const obj : IFRE_DB_Field) is nested;
   IFRE_DB_FieldIteratorBrk              = function  (const obj : IFRE_DB_Field):boolean is nested;
   IFRE_DB_Obj_Iterator                  = procedure (const obj : IFRE_DB_Object) is nested;
-  //IFRE_DB_Obj_IteratorBreak             = function  (const obj : IFRE_DB_Object):Boolean is nested;
   IFRE_DB_ObjectIteratorBrk             = procedure (const obj:IFRE_DB_Object; var halt:boolean) is nested;
   IFRE_DB_UpdateChange_Iterator         = procedure (const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field) is nested;
   IFRE_DB_ObjUid_IteratorBreak          = procedure (const uid : TGUID ; var halt : boolean) is nested;
@@ -1099,6 +1101,11 @@ type
     function  InvokeMethod_UID             (const suid : TGUID;const methodname:TFRE_DB_String;var input:IFRE_DB_Object;const connection:IFRE_DB_CONNECTION):IFRE_DB_Object;
     procedure ForAllFieldSchemeDefinitions (const iterator:IFRE_DB_SchemeFieldDef_Iterator);
     property  Explanation:TFRE_DB_String read GetExplanation write SetExplanation;
+  end;
+
+  IFRE_DB_DBChangedNotification = interface
+    procedure  CollectionCreated (const coll_name : TFRE_DB_NameType ; const volatile : Boolean);
+    procedure  CollectionDeleted (const coll_name : TFRE_DB_NameType);
   end;
 
   TFRE_DB_APPLICATION       = Class;
@@ -1946,8 +1953,7 @@ type
     procedure   ClearGUID              (var uid:TGUID);
     function    Get_A_Guid             : TGUID;
     function    Get_A_Guid_HEX         : Ansistring;
-
-
+    function    GetLastPLayerError     : AnsiString;
     property    LocalZone              : TFRE_DB_String read GetLocalZone write SetLocalZone;
     property    StringFormatSettings   : TFormatSettings read GetFormatSettings write SetFormatSettings;
   end;
@@ -2248,8 +2254,8 @@ type
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
 
-  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
-  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const);
+  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const append_detail_errorcode : boolean = true ; const tolerate_no_change : boolean=true);
+  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const ; const append_detail_errorcode : boolean = true ; const tolerate_no_change : boolean=true);
   function  RB_Guid_Compare                      (const d1, d2: TGuid): NativeInt; inline;
 
   procedure FREDB_LoadMimetypes                  (const filename:string);
@@ -2785,27 +2791,23 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'invalid short fieldtype specifier : ['+fts+']');
 end;
 
-procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_errorcode : boolean = false ; const tolerate_no_change : boolean=true);
+procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_detail_errorcode : boolean ; const tolerate_no_change : boolean);
 begin
-  if res<>edb_OK then begin
-    if tolerate_no_change
-       and (res=edb_NO_CHANGE) then
-         exit;
-    if append_errorcode then begin
-      raise EFRE_DB_Exception.Create(res,error_string+' : '+CFRE_DB_Errortype[res]);
-    end else begin
-      raise EFRE_DB_Exception.Create(res,error_string);
-    end;
-  end;
+  CheckDbResultFmt(res,error_string,[],append_detail_errorcode,tolerate_no_change);
 end;
 
-
-procedure CheckDbResultFmt(const res: TFRE_DB_Errortype; const error_string: TFRE_DB_String; const params: array of const);
+procedure CheckDbResultFmt(const res: TFRE_DB_Errortype; const error_string: TFRE_DB_String; const params: array of const; const append_detail_errorcode: boolean; const tolerate_no_change: boolean);
+var str : string;
 begin
-  if res<>edb_OK then begin
-    raise EFRE_DB_Exception.Create(res,error_string,params);
-  end;
+ if (res=edb_OK) or
+    ((res=edb_NO_CHANGE) and tolerate_no_change) then
+      exit;
+ str := Format(error_string,params);
+ if append_detail_errorcode then
+   str:=str+LineEnding+GFRE_DBI.GetLastPLayerError;
+ raise EFRE_DB_Exception.Create(res,str);
 end;
+
 
 type
    tmethodnamerec = packed record

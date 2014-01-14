@@ -363,8 +363,8 @@ begin
   result_code := FSysconn.Connect('admin@system','admin');
   AssertTrue('SYS CONNECT FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_OK);
   FSysconn.DumpSystem;
-  //GFRE_DB_DEFAULT_PS_LAYER.SyncSnapshot;
-  //GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM');
+  //GFRE_DB_PS_LAYER.SyncSnapshot;
+  //GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM');
   //FSysconn.Finalize;
   //FSysconn    := GFRE_DBI.NewSysOnlyConnection;
   //result_code := FSysconn.Connect('admin@system','admin');
@@ -397,21 +397,21 @@ end;
 
 procedure TFRE_DB_PersistanceTests.SystemSyncSnapshot;
 begin
-  GFRE_DB_DEFAULT_PS_LAYER.SyncSnapshot;
+  GFRE_DB_PS_LAYER.SyncSnapshot;
 end;
 
 procedure TFRE_DB_PersistanceTests.SetupTestWorkDB;
 var res : TFRE_DB_Errortype;
 begin
-  res := GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase('WORKTEST');
+  res := GFRE_DB_PS_LAYER.CreateDatabase('WORKTEST');
   AssertTrue('CREATE DB FAILED '+CFRE_DB_Errortype[res],res=edb_OK);
 end;
 
 procedure TFRE_DB_PersistanceTests.SetupTestCollections;
 var coll_v,coll_p : IFRE_DB_COLLECTION;
 begin
-  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
-  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
+  GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
+  GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
   ConnectDB('test1@system','test1');
   coll_v := FWorkConn.Collection('TEST_1_VOL',true,true);
   coll_p := FWorkConn.Collection('TEST_1_PERS',true,false);
@@ -504,6 +504,7 @@ var U1  : SC_A10;
     cp  : IFRE_DB_COLLECTION;
 
 begin
+  //GFRE_DB_PS_LAYER;
   U1   := SC_A10.CreateForDB;
   u1u  := u1.UID;
   U2   := SC_A1.CreateForDB;
@@ -611,9 +612,15 @@ var res : TFRE_DB_Errortype;
 begin
   ConnectDB('admin@system','admin');
   res := FWorkConn.Delete(u2u);
-
-
-
+  AssertTrue(res=edb_OBJECT_REFERENCED);
+  res := FWorkConn.Delete(u3u);
+  AssertTrue(res=edb_OBJECT_REFERENCED);
+  res := FWorkConn.Delete(u4u);
+  AssertTrue(res=edb_OBJECT_REFERENCED);
+  res := FWorkConn.Delete(u1u);
+  CheckDbResult(res);
+  res := FWorkConn.Delete(u1u);
+  AssertTrue(res=edb_NOT_FOUND);
 end;
 
 procedure TFRE_DB_PersistanceTests.DefineIndices;
@@ -926,8 +933,8 @@ end;
 procedure TFRE_DB_PersistanceTests.ReconnectNotSyncedFromWAL;
 begin
   writeln('***** ------------------------------------------------------');
-  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
-  GFRE_DB_DEFAULT_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
+  GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
+  GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
   ConnectDB('test1@system','test1');
 end;
 
@@ -1008,35 +1015,35 @@ end;
 
 procedure TFRE_DB_PersistanceTests.PreCleanup;
 begin
-  GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('TEST_/|\%DB%''');
-  GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('SYSTEM');
-  GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('WORKTEST');
+  GFRE_DB_PS_LAYER.DeleteDatabase('TEST_/|\%DB%''');
+  GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM');
+  GFRE_DB_PS_LAYER.DeleteDatabase('WORKTEST');
 end;
 
 procedure TFRE_DB_PersistanceTests.CreateTestDatabase;
 var res : TFRE_DB_Errortype;
 begin
-  res := GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase('TEST_/|\%DB%''');
+  res := GFRE_DB_PS_LAYER.CreateDatabase('TEST_/|\%DB%''');
   AssertTrue('CREATE DB FAILED '+CFRE_DB_Errortype[res],res=edb_OK);
 end;
 
 procedure TFRE_DB_PersistanceTests.LayerListDatabases;
 var idx : integer;
 begin
-  AssertTrue(GFRE_DB_DEFAULT_PS_LAYER.DatabaseList.Find('TEST_/|\%DB%''',idx));
+  AssertTrue(GFRE_DB_PS_LAYER.DatabaseList.Find('TEST_/|\%DB%''',idx));
 end;
 
 procedure TFRE_DB_PersistanceTests.DropTestDatabase;
 var res : TFRE_DB_Errortype;
 begin
-  res := GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('TEST_/|\%DB%''');
+  res := GFRE_DB_PS_LAYER.DeleteDatabase('TEST_/|\%DB%''');
   AssertTrue(res=edb_OK);
 end;
 
 procedure TFRE_DB_PersistanceTests.SystemCreate;
 var res : TFRE_DB_Errortype;
 begin
-  res := GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase('SYSTEM');
+  res := GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM');
 end;
 
 procedure TFRE_DB_PersistanceTests.SystemWrongUser;
