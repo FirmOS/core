@@ -99,8 +99,9 @@ type
     procedure   _ClearHeader;
     procedure   _EncodeData(data:TFRE_DB_RawByteString;const binary:boolean=false);
     procedure   _SendCloseFrame;
+    procedure   _SendHttpResponseStream          (const code: integer; const answer: string; const content:TMemoryStream;const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
     procedure   _SendHttpResponse                (const code: integer; const answer: string; const answer_params: array of const;const content:string='';const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
-    procedure   _SendHttpFileWithRangeCheck      (const lfilename: string; range: string; const isAttachment:boolean=false);
+    procedure   _SendHttpFileWithRangeCheck      (const lfilename: string; range: string; const isAttachment:boolean=false ; const dont_search_cache : boolean=false;const accept_encoding:string='';const if_none_match : string='');
     procedure   _SendHttpFile                    (const lfilename: string; const offset:NativeUint=0; const len : NativeUint=0; const isAttachment:boolean=false;const ispartial:boolean=false);
     procedure   ClientConnected;virtual;
   protected
@@ -977,11 +978,12 @@ var  lContent  : TFRE_DB_RawByteString;
     end;
 
 begin
-    ResponseHeader[rh_contentDisposition]  := '';
-    ResponseHeader[rh_ETag]                := '';
-    ResponseEntityHeader[reh_LastModified] := '';
-    ResponseEntityHeader[reh_ContentRange] := '';
-    ResponseEntityHeader[reh_Expires]      := '';
+    ResponseHeader[rh_contentDisposition]     := '';
+    ResponseHeader[rh_ETag]                   := '';
+    ResponseEntityHeader[reh_LastModified]    := '';
+    ResponseEntityHeader[reh_ContentRange]    := '';
+    ResponseEntityHeader[reh_Expires]         := '';
+    ResponseEntityHeader[reh_ContentEncoding] := '';
 
     if (uri.Document='') or ((length(uri.SplitPath)=0) and (ExtractFileExt(uri.Document)='')) then begin //root = application domain, except the stuff some bloke has already put into root, but at least with an extension
       if uri.Document='FirmOS_FRE_WS' then begin
@@ -996,7 +998,7 @@ begin
         begin
           if (uri.SplitPath[0]='download') then
             begin
-              _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),true);
+              _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),true,true);
             end
           else
           if (uri.SplitPath[0]='FDBOSF') then
@@ -1017,7 +1019,7 @@ begin
             end
           else
             begin
-              _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),false);
+              _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),false,false,GetHeaderField('Accept-Encoding'),GetHeaderField('If-None-Match'));
             end;
         end
       else
@@ -1096,6 +1098,34 @@ begin
   end;
 end;
 
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpResponseStream(const code: integer; const answer: string; const content: TMemoryStream; const contenttype: string; const is_attachment: boolean; const attachment_filename: string);
+var att_header : string;
+begin
+  SetResponseStatusLine(code,answer);
+  ResponseEntityHeader[reh_ContentLength]:=inttostr(content.Size);
+  if contenttype<>'' then begin
+    ResponseEntityHeader[reh_ContentType]:=contenttype;
+  end else begin
+    ResponseEntityHeader[reh_ContentType]:='';
+  end;
+  ResponseEntityHeader[reh_Allow]      := 'GET, POST, PUT, DELETE, OPTIONS, TRACE';
+  ResponseEntityHeader[reh_Connection] := 'keep-alive';
+  if is_attachment then
+    begin
+      if attachment_filename='' then
+        att_header := 'attachment;'
+      else
+        att_header := 'attachment; filename="'+attachment_filename+'"';
+      ResponseHeader[rh_contentDisposition] := att_header;
+    end;
+  ResponseHeader      [rh_Location]       :='';
+  SetResponseHeaders;
+  SetEntityHeaders;
+  SetBody('');
+  SendResponse;
+  FChannel.CH_WriteBuffer(content.Memory,content.Size);
+end;
+
 procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpResponse(const code: integer; const answer: string; const answer_params: array of const; const content: string; const contenttype: string; const is_attachment: boolean; const attachment_filename: string);
 var att_header : string;
 begin
@@ -1127,91 +1157,140 @@ begin
   SendResponse;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileWithRangeCheck(const lfilename: string; range: string; const isAttachment: boolean);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileWithRangeCheck(const lfilename: string; range: string; const isAttachment: boolean; const dont_search_cache: boolean; const accept_encoding: string; const if_none_match: string);
 var
-  fn          : string;
-  info        : stat;
-  flength     : NativeInt;
-  frangetype  : string;
-  frangestart : string;
-  frangeend   : string;
-  foffset     : NativeUInt;
-  fend        : NativeUInt;
-begin
-  fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+lfilename;
-  if FileExists(fn) then
-    begin
-      if fpstat(fn,info)<>0 then
-        raise EFRE_DB_Exception.Create(edb_INTERNAL,'Stat for file '+fn+' failed!');
-      flength := info.st_size;
-      fend    := flength;
-      foffset :=0;
+  fn           : string;
+  info         : stat;
+  flength      : NativeInt;
+  frangetype   : string;
+  frangestart  : string;
+  frangeend    : string;
+  foffset      : NativeUInt;
+  fend         : NativeUInt;
+  gzip_allowed : Boolean;
+  metae        : TFRE_HTTP_METAENTRY;
 
-      if length(range)<>0 then
+  procedure _ProcessRangeRequest;
+  begin
+      GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Range: %s',[range]);
+      frangetype  := GFRE_BT.SplitString(range,'=');
+      if frangetype<>'bytes' then
         begin
-          GFRE_DBI.LogDebug(dblc_HTTPSRV,'Range: %s',[range]);
-          frangetype  := GFRE_BT.SplitString(range,'=');
-          if frangetype<>'bytes' then
-            begin
-              _SendHttpResponse(416,'REQUEST RANGE OTHER THAN BYTES NOT SUPPORTED',[]);
-              exit;
-            end;
-          if Pos(',',range)>0 then
-            begin
-              _SendHttpResponse(416,'MULTIPLE REQUEST RANGES NOT SUPPORTED',[]);
-              exit;
-            end;
-          frangestart := GFRE_BT.SplitString(range,'-');
-          GFRE_DBI.LogDebug(dblc_HTTPSRV,'Rangestart: %s',[frangestart]);
-          if length(range)>0 then
-            frangeend := range;
-          GFRE_DBI.LogDebug(dblc_HTTPSRV,'Rangeend: %s',[frangeend]);
-          if (length(frangestart)=0) and (length(frangeend)=0) then
-            begin
-              _SendHttpResponse(416,'NO START OR END RANGE DEFINED',[]);
-              exit;
-            end;
-          if length(frangestart)>0 then
-            foffset := StrToInt64(frangestart);
-          if length(frangeend)>0 then
-            fend    := StrToInt64(frangeend);
-          GFRE_DBI.LogDebug(dblc_HTTPSRV,'Rangeoffset: %d',[foffset]);
-          GFRE_DBI.LogDebug(dblc_HTTPSRV,'Totallength: %d',[flength]);
+          _SendHttpResponse(416,'REQUEST RANGE OTHER THAN BYTES NOT SUPPORTED',[]);
+          exit;
+        end;
+      if Pos(',',range)>0 then
+        begin
+          _SendHttpResponse(416,'MULTIPLE REQUEST RANGES NOT SUPPORTED',[]);
+          exit;
+        end;
+      frangestart := GFRE_BT.SplitString(range,'-');
+      GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangestart: %s',[frangestart]);
+      if length(range)>0 then
+        frangeend := range;
+      GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangeend: %s',[frangeend]);
+      if (length(frangestart)=0) and (length(frangeend)=0) then
+        begin
+          _SendHttpResponse(416,'NO START OR END RANGE DEFINED',[]);
+          exit;
+        end;
+      if length(frangestart)>0 then
+        foffset := StrToInt64(frangestart);
+      if length(frangeend)>0 then
+        fend    := StrToInt64(frangeend);
+      GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangeoffset: %d',[foffset]);
+      GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Totallength: %d',[flength]);
+      if foffset>flength then
+        begin
+          _SendHttpResponse(416,'RANGE START IS LARGER THAN FILESIZE',[]);
+          exit;
+        end;
+      if fend>flength then
+        begin
+          _SendHttpResponse(416,'RANGE END IS LARGER THAN FILESIZE',[]);
+          exit;
+        end;
 
-          if foffset>flength then
-            begin
-              _SendHttpResponse(416,'RANGE START IS LARGER THAN FILESIZE',[]);
-              exit;
-            end;
-          if fend>flength then
-            begin
-              _SendHttpResponse(416,'RANGE END IS LARGER THAN FILESIZE',[]);
-              exit;
-            end;
+      flength:= fend-foffset;
+      GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangelength: %d',[flength]);
+      if flength<=0 then
+        begin
+          _SendHttpResponse(416,'RANGE LENGTH IS EQUAL OR BELOW ZERO',[]);
+          exit;
+        end;
 
-          flength:= fend-foffset;
-          GFRE_DBI.LogDebug(dblc_HTTPSRV,'Rangelength: %d',[flength]);
-          if flength<=0 then
-            begin
-              _SendHttpResponse(416,'RANGE LENGTH IS EQUAL OR BELOW ZERO',[]);
-              exit;
-            end;
+      ResponseEntityHeader[reh_ContentRange] :=' bytes '+IntToStr(foffset)+'-'+IntToStr(foffset+flength)+'/'+inttostr(info.st_size);
+      SetETagandLastModified(lfilename,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
+      _SendHttpFile(lfilename,foffset,flength,isAttachment,true);
+  end;
 
-          ResponseEntityHeader[reh_ContentRange] :=' bytes '+IntToStr(foffset)+'-'+IntToStr(foffset+flength)+'/'+inttostr(info.st_size);
-          SetETagandLastModified(lfilename,info.st_size,info.st_mtime*1000);
-          _SendHttpFile(lfilename,foffset,flength,isAttachment,true);
+begin
+  //HttpBaseServer.FetchFileCached();
+  gzip_allowed := pos('gzip',accept_encoding)>0;
+  fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+lfilename;
+  if pos('resources/blank.gif',fn)>0 then
+    fn:=fn;
+  HttpBaseServer.FetchMetaEntry(fn,metae);
+  if assigned(metae) then
+    begin
+      if if_none_match=metae.ETag then
+        begin
+          _SendHttpResponse(304,'NOT CHANGED',[]);
+          exit;
+        end;
+      if metae.Cached then
+        begin { cached }
+          if gzip_allowed and metae.CacheIsZipped then
+            begin
+              ResponseEntityHeader[reh_ContentEncoding] := 'gzip';
+              ResponseEntityHeader[reh_LastModified]    := GFRE_DT.ToStrHTTP(metae.ModificationDate);
+              ResponseHeader[rh_ETag]                   := metae.ETag;
+              ResponseEntityHeader[reh_Expires]         := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
+              _SendHttpResponseStream(200,'OK',metae.Content,metae.MimeType);
+              exit;
+            end
+          else
+            begin
+               ResponseEntityHeader[reh_LastModified]    := GFRE_DT.ToStrHTTP(metae.ModificationDate);
+               ResponseHeader[rh_ETag]                   := metae.ETag;
+               ResponseEntityHeader[reh_Expires]         := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
+               _SendHttpResponseStream(200,'OK',metae.Content,metae.MimeType);
+               exit;
+            end
+        end
+      else
+        begin { not cached }
+
+        end;
+    end;
+  //if gzip_allowed and
+  //  begin
+  //
+  //  end;
+  //else
+    begin
+      if FileExists(fn) then
+        begin
+          if fpstat(fn,info)<>0 then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'Stat for file '+fn+' failed!');
+          flength := info.st_size;
+          fend    := flength;
+          foffset :=0;
+
+          if length(range)<>0 then
+             _ProcessRangeRequest
+          else
+            begin
+               SetETagandLastModified(fn,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
+              _SendHttpFile(lfilename,0,flength,isAttachment,false);
+            end;
         end
       else
         begin
-           SetETagandLastModified(lfilename,info.st_size,info.st_mtime*1000);
-          _SendHttpFile(lfilename,0,flength,isAttachment,false);
-        end;
-    end
-  else
-    begin
-     writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
-     _SendHttpResponse(404,'NOT FOUND',[]);
-   end;
+         writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
+         _SendHttpResponse(404,'NOT FOUND',[]);
+       end;
+    end;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFile(const lfilename: string; const offset:NativeUint; const len : NativeUint; const isAttachment: boolean;const ispartial:boolean);
@@ -1241,7 +1320,7 @@ begin
               if fpstat(fn,info)<>0 then
                 raise EFRE_DB_Exception.Create(edb_INTERNAL,'Stat for file '+fn+' failed!');
               flength := info.st_size;
-              SetETagandLastModified(lfilename,info.st_size,info.st_mtime*1000);
+              SetETagandLastModified(lfilename,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
             end
           else
             flength := len;

@@ -80,6 +80,11 @@ var
       cFRE_MWS_IP                     :string = ''; // connect the MWS non standard over IP
       cFRE_SUBFEEDER_IP               :string = ''; // use an IP connect for all subfeeders (portmapping is static subfeederdefined)
       cFRE_ToolsPath                  :string = '/usr';
+      cFRE_FORCE_CLEAR_HTTP_META      :boolean=false;
+      cFRE_FORCE_CLEAN_ZIP_HTTP_FILES :boolean=false;
+      cFRE_BUILD_ZIP_HTTP_FILES       :boolean=true;
+      cFRE_USE_STATIC_CACHE           :boolean=true;
+      cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;

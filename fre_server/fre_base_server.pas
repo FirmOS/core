@@ -47,7 +47,7 @@ interface
 uses  classes, sysutils,fre_aps_interface,fos_fcom_types,fos_tool_interfaces,baseunix,
       fre_http_srvhandler,fre_db_interface,fre_system,fos_interlocked,
       fre_db_core,fre_webssocket_baseserver,fre_db_common,fre_fcom_ssl,
-      fre_http_tools,fos_redblacktree_gen,fre_sys_base_cs,
+      fre_http_tools,fos_redblacktree_gen,fre_sys_base_cs,zstream,fos_art_tree,
       fre_wapp_dojo;
 
 var cAdminUser:string='admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME;
@@ -72,7 +72,11 @@ type
     FDispatcher        : TFRE_HTTP_URL_DISPATCHER;
     FSessionTreeLock   : IFOS_LOCK;
     FSessiontimer      : IFRE_APSC_TIMER;
-
+    FStaticHTTPMeta    : TFRE_ART_TREE;
+    FTotalZippedFiles  : NativeInt;
+    FTotalBytesCached  : NativeInt;
+    FTotalZFilesCache  : NativeInt;
+    FTotalPFilesCache  : NativeInt;
 
     cont               : boolean;
     Foutput            : String;
@@ -100,6 +104,7 @@ type
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
 
     function       FetchStreamDBO                            (const enc_sessionid,enc_uid : string ; var end_field : TFRE_DB_NameTypeRL ; var lcontent:TFRE_DB_RawByteString):boolean;
+    function       GetETag                                   (const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64):String;
   public
     DefaultDatabase              : String;
     TransFormFunc                : TFRE_DB_TRANSFORM_FUNCTION;
@@ -118,6 +123,8 @@ type
     function    GetName           : String;
 
     procedure Finalize              ;
+    function  FetchMetaEntry        (file_path:String;var metae : TFRE_HTTP_METAENTRY):boolean; // Concurrent Entry (!)
+
     function  FetchFileCached       (file_path:String;var data:TFRE_DB_RawByteString):boolean;
     procedure FetchHullHTML         (var lContent:TFRE_DB_RawByteString;var lContentType:string);
     procedure DispatchHTTPRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
@@ -138,10 +145,209 @@ uses FRE_DB_LOGIN;
 
 procedure TFRE_BASE_SERVER._SetupHttpBaseServer;
 var dummy:TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
+
+    procedure _SetupZippingAndCaching;
+    var list    : IFOS_STRINGS;
+           i    : NativeInt;
+       cachexts : TFRE_DB_StringArray;
+
+      function CheckFilenameExtension(const filename : string ; const exclude_zip : boolean):boolean;
+      begin
+        result :=  (pos('.git',filename)>0) or
+                   (pos('.DS_Store',filename)>0) or
+                   (pos('.sh',filename)>0) or
+                   ((pos('.gzip',filename)>0) and exclude_zip);
+      end;
+
+      procedure CleanZipFiles(filename:string);
+      var ext   : String;
+           fn   : string;
+         path   : String;
+         fnbase : String;
+         info   : stat;
+         gzip   : TGZFileStream;
+         plain  : TFileStream;
+
+      begin
+        if CheckFilenameExtension(filename,false) then
+          exit;
+        if pos('.gzip',filename)>0 then
+          begin
+            GFRE_DB.LogInfo(dblc_HTTP_ZIP,'FORCE DELETING ZIPPED FILE [%s]',[filename]);
+            if not DeleteFile(filename) then
+              GFRE_DB.LogError(dblc_HTTP_ZIP,'(!) FAILED : FORCE DELETING ZIPPED FILE [%s]',[filename]);
+          end;
+      end;
+
+      procedure BuildMetaStructure(filename:string ; const idx : NativeInt);
+      var dummy : NativeUint;
+          ext   : String;
+           fn   : string;
+          fnz   : string;
+         path   : String;
+         fnbase : String;
+         info   : stat;
+         zinfo  : stat;
+         metae  : TFRE_HTTP_METAENTRY;
+
+      begin
+        if CheckFilenameExtension(filename,true) then
+          exit;
+        ext    := ExtractFileExt(filename);
+        fn     := ExtractFileName(filename);
+        SetLength(fn,Length(fn)-Length(ext));
+        path   := ExtractFilePath(filename);
+        fnbase := path+fn;
+        fnz    := filename+'.gzip';
+        if fpstat(fnbase+ext,info)<>0 then
+          GFRE_BT.CriticalAbort('Process www content cannot stat : '+filename+' '+fnbase+ext);
+        metae := TFRE_HTTP_METAENTRY.create;
+        metae.Filename         := filename;
+        metae.FileExtension    := ext;
+        metae.ModificationDate := GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime));
+        metae.ModFileDate      := info.st_mtime;
+        metae.Size             := info.st_size;
+        metae.Cached           := false;
+        metae.ZippedExist      := false;
+        metae.ETag             := GetETag(filename,metae.size,metae.ModificationDate);
+        metae.MimeType         := FREDB_Filename2MimeType(metae.Filename);
+        metae.ZippedExist := FileExists(fnz);
+        if metae.ZippedExist then
+          begin
+            if fpstat(fnz,zinfo)<>0 then
+              GFRE_BT.CriticalAbort('Process www content cannot stat zipped : '+fnz);
+            if zinfo.st_mtime<>info.st_mtime then
+              begin
+                GFRE_DB.LogNotice(dblc_HTTP_ZIP,'Zipped file modification dates differ, must delete : '+fnz+' Originaldate: '+GFRE_DT.ToStrFOS(GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)))+' Zipped: '+GFRE_DT.ToStrFOS(GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(zinfo.st_mtime))));
+                if not DeleteFile(fnz) then
+                  gfre_bt.CriticalAbort('cannot delete zipped http server file : '+fnz);
+                metae.ZippedExist := false;
+              end
+            else
+              begin
+                metae.ZippedSize  := zinfo.st_size;
+              end;
+          end
+        else
+          begin
+            metae.ZippedSize  := 0;
+          end;
+        metae.CalcRatio;
+        if not FStaticHTTPMeta.InsertStringKey(filename,FREDB_ObjectToPtrUInt(metae)) then
+          GFRE_BT.CriticalAbort('cannot add metaentry '+filename+' to metacache');
+        if not FStaticHTTPMeta.ExistsStringKey(filename,dummy) then
+          GFRE_BT.CriticalAbort('paranoia check failed, add metaentry '+filename+' does not exist in metacache');
+      end;
+
+      procedure ZipFiles(var value : NativeUint);
+      var metae : TFRE_HTTP_METAENTRY;
+          gzip  : TGZFileStream;
+          plain : TFileStream;
+          fnz   : string;
+          info  : stat;
+      begin
+        metae := TFRE_HTTP_METAENTRY(FREDB_PtrUIntToObject(value));
+        if metae.ZippedExist=false then
+          begin
+            fnz := metae.Filename+'.gzip';
+            GFRE_DB.LogDebug(dblc_HTTP_ZIP,'ZIPPING FILE [%s]',[metae.Filename]);
+            try
+              plain := TFileStream.Create(metae.filename,fmOpenRead);
+              gzip := TGZFileStream.create(fnz,gzopenwrite);
+              gzip.CopyFrom(plain,0);
+            finally
+              plain.free;
+              gzip.free;
+            end;
+            if FileSetDate(fnz,metae.ModFileDate)<>0 then
+              GFRE_BT.CriticalAbort('cannot change modification timestamp of zip file : '+fnz);
+            if FpStat(fnz,info)<>0 then
+              GFRE_BT.CriticalAbort('cannot stat zip file : '+fnz);
+            metae.ZippedSize:=info.st_size;
+            metae.CalcRatio;
+            if info.st_mtime<>metae.ModFileDate then
+              GFRE_BT.CriticalAbort('paranoia modification time change failed : '+fnz);
+            GFRE_DB.LogInfo(dblc_HTTP_ZIP,'ZIPPED FILE [%s Size %d kb changed to %d kb, ratio %s]',[metae.Filename,metae.Size div 1024,metae.ZippedSize div 1024,FormatFloat('##0.00%',metae.ZipRatio)]);
+            metae.ZippedExist:=true;
+          end;
+        inc(FTotalZippedFiles);
+      end;
+
+      procedure CacheFiles(var value : NativeUint);
+      var metae : TFRE_HTTP_METAENTRY;
+          gzip  : TGZFileStream;
+          plain : TFileStream;
+          fnz   : string;
+          info  : stat;
+      begin
+        metae := TFRE_HTTP_METAENTRY(FREDB_PtrUIntToObject(value));
+        if FREDB_StringInArray(LowerCase(metae.FileExtension),cachexts) then
+          begin
+            if (metae.ZippedExist) and
+               (metae.ZipRatio > 5) then
+              begin
+                inc(FTotalZFilesCache);
+                GFRE_DB.LogDebug(dblc_HTTP_CACHE,'Selected zipped file [%s] for caching size=[%2.2f kb] Ratio %s ',[metae.Filename+'.gzip',metae.ZippedSize / 1024,FormatFloat('##0.00%',metae.ZipRatio)]);
+                metae.Cached:=true;
+                metae.CacheIsZipped:=true;
+                inc(FTotalBytesCached,metae.ZippedSize);
+                metae.Content := TMemoryStream.Create;
+                metae.Content.LoadFromFile(metae.Filename+'.gzip');
+                if metae.Content.Size<>metae.ZippedSize then
+                  GFRE_BT.CriticalAbort('zipped content caching failed for %s, file size and stream size differ [%d<>%d]',[metae.Filename,metae.ZippedSize,metae.Content.Size]);
+              end
+            else
+              begin
+                inc(FTotalPFilesCache);
+                GFRE_DB.LogDebug(dblc_HTTP_CACHE,'Selected plain file [%s] for caching size=[%2.2f kb] Ratio %s ',[metae.Filename,metae.Size / 1024,FormatFloat('##0.00%',metae.ZipRatio)]);
+                metae.Cached:=true;
+                metae.CacheIsZipped:=false;
+                metae.Content := TMemoryStream.Create;
+                metae.Content.LoadFromFile(metae.Filename);
+                if metae.Content.Size<>metae.Size then
+                  GFRE_BT.CriticalAbort('plain content caching failed for %s, file size and stream size differ [%d<>%d]',[metae.Filename,metae.Size,metae.Content.Size]);
+                inc(FTotalBytesCached,metae.Size);
+              end;
+          end;
+      end;
+
+    begin
+      writeln('cFRE_SERVER_WWW_ROOT_DIR ',cFRE_SERVER_WWW_ROOT_DIR);
+      list := GFRE_TF.Get_FOS_Strings;
+      GFRE_BT.List_Files(cFRE_SERVER_WWW_ROOT_DIR,list,10000,true);
+      if cFRE_FORCE_CLEAN_ZIP_HTTP_FILES then
+        begin
+          GFRE_DB.LogNotice(dblc_HTTP_ZIP,'FORCE CLEANING ALL GZIPPED FILES');
+          for i:=0 to list.Count-1 do
+            CleanZipFiles(list[i]);
+        end;
+      for i:=0 to list.Count-1 do
+        BuildMetaStructure(list[i],i);
+      if cFRE_BUILD_ZIP_HTTP_FILES then
+        begin
+          GFRE_DB.LogNotice(dblc_HTTP_ZIP,'GZIPPING FILES FOR HTTP TRANSFER');
+          FTotalZippedFiles:=0;
+          FStaticHTTPMeta.LinearScan(@Zipfiles);
+          GFRE_DB.LogNotice(dblc_HTTP_ZIP,'[%d] GZIPED FILES READY',[FTotalZippedFiles]);
+        end;
+      if cFRE_USE_STATIC_CACHE then
+        begin
+          FREDB_SeperateString(cFRE_STATIC_HTTP_CACHE_EXTS,',',cachexts);
+          for i:=0 to high(cachexts) do
+            cachexts[i] := LowerCase(cachexts[i]);
+          GFRE_DB.LogNotice(dblc_HTTP_CACHE,'BUILDING STATIC CACHE FOR TYPES [%s]',[cFRE_STATIC_HTTP_CACHE_EXTS]);
+          FStaticHTTPMeta.LinearScan(@Cachefiles);
+          GFRE_DB.LogNotice(dblc_HTTP_CACHE,'TOTALLY CACHED PLAIN/ZIPPED [%d / %d] FILES AND %s [MB]',[FTotalPFilesCache,FTotalZFilesCache,FormatFloat('###,###,###,##0.00',FTotalBytesCached / (1024*1024))]);
+        end
+      else
+        GFRE_DB.LogNotice(dblc_HTTP_CACHE,'NOT USING STATIC CACHING');
+    end;
+
 begin
   FDispatcher  := TFRE_HTTP_URL_DISPATCHER.Create;
   FREDB_LoadMimetypes('');
   FDispatcher.RegisterDefaultProvider('',@dummy.Default_Provider);
+  _SetupZippingAndCaching;
 end;
 
 destructor TFRE_BASE_SERVER.Destroy;
@@ -362,6 +568,16 @@ end;
 procedure TFRE_BASE_SERVER.Finalize;
 begin
   free;
+end;
+
+function TFRE_BASE_SERVER.FetchMetaEntry(file_path: String; var metae: TFRE_HTTP_METAENTRY): boolean;
+var dummy : PtrUInt;
+begin
+  result :=  FStaticHTTPMeta.ExistsStringKey(file_path,dummy);
+  if result then
+    metae := TFRE_HTTP_METAENTRY(FREDB_PtrUIntToObject(dummy))
+  else
+    metae := nil;
 end;
 
 function TFRE_BASE_SERVER.FetchFileCached(file_path: String; var data: TFRE_DB_RawByteString): boolean;
@@ -794,9 +1010,15 @@ begin
     end;
 end;
 
+function TFRE_BASE_SERVER.GetETag(const filename: string; const filesize: NativeUint; const moddate: TFRE_DB_DateTime64): String;
+begin
+  result := GFRE_BT.HashString_MD5_HEX(filename+':'+inttostr(filesize)+':'+inttostr(moddate));
+end;
+
 constructor TFRE_BASE_SERVER.create(const defaultdbname: string);
 begin
   DefaultDatabase := defaultdbname;
+  FStaticHTTPMeta := TFRE_ART_TREE.Create;
 end;
 
 procedure TFRE_BASE_SERVER.BindInitialSession(const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; out  session: TFRE_DB_UserSession; const old_session_id: string;  const interactive_session: boolean);

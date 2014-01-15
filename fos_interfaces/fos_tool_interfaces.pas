@@ -589,6 +589,7 @@ type
 
 
    const
+     CFOS_LL_Target:Array [TFOS_LOG_LEVEL] of string = ('INVALID','EMERGENCY','ALERT','CRITICAL','ERROR', 'WARNING', 'NOTICE', 'INFO', 'DEBUG');
      CFOS_Proptype:Array [ptNotFound..ptStringArray] of String=
                             ('ptNotFound','ptNull','ptBool','ptByte','ptShortInt','ptSmallInt','ptWord','ptLongInt',
                             'ptLongword','ptInt64','ptQWord','ptSingle','ptDouble',
@@ -605,6 +606,22 @@ type
      catWarning ='WARN';
      catError   ='ERROR';
      catCritical='CRITICAL';
+
+   //var cat      : TFRE_DB_String;
+   //    logentry : TFRE_DB_String;
+   //    target   : string;
+   //begin
+   //  cat := CFRE_DB_LOGCATEGORY[category];
+   //  case typ of
+   //    0 : target:='INFO';
+   //    1 : target:='WARNING';
+   //    2 : target:='ERROR';
+   //    3 : target:='DEBUG';
+   //    4 : target:='NOTICE';
+   //  end;
+   //  GFRE_LOG.Log(msg,param,cat,level,target,false);
+   //end;
+
 
    var GFRE_TF  : IFOS_TOOL_FACTORY;  // GLOBAL TOOL INTERFACE
        GFRE_BT  : IFOS_BASIC_TOOLS;   // GLOBAL Basic Tools
@@ -745,6 +762,21 @@ begin
    if CFOS_LOG_RULE_ACTION[result]=str then exit;
  end;
  raise EFOS_TI_Exception.Create('invalid logruleaction specifier : ['+str+']');
+end;
+
+function FOSTI_LogLevelToTarget(const ll: TFOS_LOG_LEVEL): string;
+begin
+  case ll of
+    fll_Invalid: result := '';
+    fll_Emergency: ;
+    fll_Alert: ;
+    fll_Critical: ;
+    fll_Error: ;
+    fll_Warning: ;
+    fll_Notice: ;
+    fll_Info: ;
+    fll_Debug: ;
+  end;
 end;
 
 

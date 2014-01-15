@@ -492,17 +492,17 @@ end;
 
 procedure   LogInfo(const s:String;const Args : Array of const);
 begin
-  GFRE_LOG.Log(s,args,'APSCOMM',fll_Info,'APSCOMM');
+  GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Info,CFOS_LL_Target[fll_Info],false);
 end;
 
 procedure LogDebug(const s:String;const Args : Array of const);
 begin
-  GFRE_LOG.Log(s,args,'APSCOMM',fll_Debug,'APSCOMM');
+  GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Debug,CFOS_LL_Target[fll_Debug],false);
 end;
 
-procedure   LogWarning           (const s:String;const Args : Array of const);
+procedure   LogWarning(const s:String;const Args : Array of const);
 begin
-  GFRE_LOG.Log(s,args,'APSCOMM',fll_Warning,'APSCOMM');
+  GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Warning,CFOS_LL_Target[fll_Warning],false);
 end;
 
 function APSC_TranslateOsError(const os_error: cint; const prefix: string=''; postfix: string=''): string;
@@ -953,7 +953,7 @@ begin
     FInBufCB   := evbuffer_add_cb(FInputBuf,@loc_buffer_cb_in,self);
     FOutBufCB  := evbuffer_add_cb(FOutputBuf,@loc_buffer_cb_out,self);
     FState := ch_ACTIVE;
-    LogDebug('CONNECTED SERVED CHANNEL : '+_GetDebugID,[]);
+    LogInfo('CONNECTED SERVED CHANNEL : '+_GetDebugID,[]);
   finally
     FnewChanCB(self,ch_NEW_CS_CONNECTED);
   end;
@@ -1024,7 +1024,7 @@ begin
           end
       end;
     FState     := ch_WAIT;
-    LogDebug('STARTED CLIENT CHANNEL : '+_GetDebugID,[]);
+    LogInfo('STARTED CLIENT CHANNEL : '+_GetDebugID,[]);
   finally
     if FState=ch_BAD then
       begin
@@ -1235,7 +1235,7 @@ end;
 
 destructor TFRE_APSC_CHANNEL.Destroy;
 begin
-  LogDebug('DESTROY CHANNEL : '+_GetDebugID,[]);
+  LogInfo('DESTROY CHANNEL : '+_GetDebugID,[]);
   EventDisconnectOnce;
   if assigned(FBufEvent) then
     begin
@@ -1250,7 +1250,7 @@ begin
   if FFinalizecalled then
     exit;
   FFinalizecalled := true;
-  LogDebug('FINALIZE CHANNEL CALLED - '+_GetDebugID,[]);
+  LogInfo('FINALIZE CHANNEL CALLED - '+_GetDebugID,[]);
   FManager._FinalizeChannel(self);
 end;
 
@@ -1417,9 +1417,9 @@ procedure TFRE_APSC_CHANNEL_MANAGER.Execute;
 begin
   try
     GFRE_LOG.RegisterThread('CM#'+inttostr(FChannelMgrID));
-    LogInfo(FCMVerbose+' STARTUP',[]);
+    LogDebug(FCMVerbose+' STARTUP',[]);
     FChanBaseCtrl.Loop;
-    LogInfo(FCMVerbose+' LOOP TERMINATED',[]);
+    LogDebug(FCMVerbose+' LOOP TERMINATED',[]);
   except on E:Exception do begin
     try
       GFRE_LOG.Log('APSCOMM CHANNEL MANAGER '+inttostr(FChannelMgrID)+' ['+e.Message+']','',fll_Emergency,'APSW',true);
@@ -1594,7 +1594,7 @@ begin
       res := event_add(FEvent,nil);
       try
         FState := als_LISTENING;
-        LogDebug('LISTENER STARTED ON '+FListenAddr,[]);
+        LogInfo('LISTENER STARTED ON '+FListenAddr,[]);
       finally
         FLock.Release;
       end;
@@ -1609,7 +1609,7 @@ begin
       FLock.Acquire;
       try
         FState := als_STOPPED;
-        LogDebug('LISTENER STOPPED ON '+FListenAddr,[]);
+        LogInfo('LISTENER STOPPED ON '+FListenAddr,[]);
       finally
         FLock.Release;
       end;
