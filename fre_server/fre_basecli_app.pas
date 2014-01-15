@@ -162,7 +162,7 @@ begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
   ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',
                           ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','dumpdb','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz']);
+                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz','cleanzip','nozip','nocache']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -210,6 +210,12 @@ begin
     Terminate;
     Exit;
   end;
+  if HasOption('*','cleanzip') then
+    cFRE_FORCE_CLEAN_ZIP_HTTP_FILES := true;
+  if HasOption('*','nozip') then
+    cFRE_BUILD_ZIP_HTTP_FILES := false;
+  if HasOption('*','nocache') then
+    cFRE_USE_STATIC_CACHE := false;
 
   if HasOption('e','extensions') then begin // has to be after possible recreate db
     FChosenExtensionList :=  ListFromString(GetOptionValue('e','extensions'));
@@ -278,7 +284,7 @@ begin
   if HasOption('i','init') then begin
     FOnlyInitDB:=true;
     InitExtensions;
-    GFRE_DB_DEFAULT_PS_LAYER.SyncSnapshot(true);
+    GFRE_DB_PS_LAYER.SyncSnapshot(true);
   end;
 
   if HasOption('r','remove') then begin
@@ -340,7 +346,7 @@ begin
   Teardown_APS_Comm;
   Terminate;
   FBaseServer.Free;
-  GFRE_DB_DEFAULT_PS_LAYER.Finalize;
+  GFRE_DB_PS_LAYER.Finalize;
   Cleanup_SSL_Interface;
   GFRE_BT.DeactivateJack;
   exit;
@@ -403,16 +409,16 @@ end;
 procedure TFRE_CLISRV_APP.ReCreateDB;
 begin
   _CheckDBNameSupplied;
-  if GFRE_DB_DEFAULT_PS_LAYER.DatabaseExists(FDBName) then
-    CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase(FDBName),'DELETE DB FAILED : '+FDBName);
-  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase(FDBName),'CREATE DB FAILED : '+FDBName);
+  if GFRE_DB_PS_LAYER.DatabaseExists(FDBName) then
+    CheckDbResult(GFRE_DB_PS_LAYER.DeleteDatabase(FDBName),'DELETE DB FAILED : '+FDBName);
+  CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase(FDBName),'CREATE DB FAILED : '+FDBName);
 end;
 
 procedure TFRE_CLISRV_APP.ReCreateSysDB;
 begin
-  if GFRE_DB_DEFAULT_PS_LAYER.DatabaseExists('SYSTEM') then
-    CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.DeleteDatabase('SYSTEM'),'DELETE SYSTEM DB FAILED');
-  CheckDbResult(GFRE_DB_DEFAULT_PS_LAYER.CreateDatabase('SYSTEM'),'CREATE SYSTEM DB FAILED');
+  if GFRE_DB_PS_LAYER.DatabaseExists('SYSTEM') then
+    CheckDbResult(GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM'),'DELETE SYSTEM DB FAILED');
+  CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM'),'CREATE SYSTEM DB FAILED');
   gFRE_InstallServerDefaults;
 end;
 
@@ -532,14 +538,33 @@ end;
 
 procedure TFRE_CLISRV_APP.CfgTestLog;
 begin
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry); //     DROP :  Server / Connection Start/Close
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Info,'*',flra_DropEntry);  //    DROP : Http/Header / Content
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Debug,'*',flra_DropEntry); //    DROP : Http/Header / Content
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER_DATA],fll_Debug,'*',flra_DropEntry);// DROP : Server / Dispatch / Input Output
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry); //    DROP : Websock / JSON / IN / OUT
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry); //       DROP : Database /Filter / Layer Debugging
+//GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry);         // DROP MAIN DB  DEBUG
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Debug,'*',flra_DropEntry);    // DROP APSCOMM DEBUG
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Info,'*',flra_DropEntry);     // DROP APSCOMM INFO
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);    // DROP : JSON
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry);     // DROP : Server / DEBUG
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER_DATA],fll_Debug,'*',flra_DropEntry);// DROP : Server / Dispatch / Input Output
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Notice,'*',flra_DropEntry);    // DROP : Server / NOTICE
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Info,'*',flra_DropEntry);      // DROP : Server / INFO
+
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_ZIP],fll_Debug,'*',flra_DropEntry);
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_CACHE],fll_Debug,'*',flra_DropEntry);
+
+  { Uncomment to see HTTP REQUESTS Log on console }
+
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_REQ],fll_Info,'*',flra_DropEntry);     // DROP : Http/Header / Content
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_REQ],fll_Debug,'*',flra_DropEntry);    // DROP : Http/Header / Content
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_RES],fll_Info,'*',flra_DropEntry);     // DROP : Http/Header / Content
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_RES],fll_Debug,'*',flra_DropEntry);    // DROP : Http/Header / Content
+
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry);    // DROP : Websock / JSON / IN / OUT
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry);         // DROP : Database /Filter / Layer Debugging
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Warning,'*',flra_DropEntry);       // DROP : Database WARNING
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Debug,'*',flra_DropEntry);    // DROP SESSION  DEBUG
+  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
+
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
   GFRE_LOG.DisableSyslog;

@@ -2423,7 +2423,7 @@ begin
   end;
   COLL := CONN.Collection('COLL_TEST_A2');
   for i := 0 to 2 - 1 do begin
-    if i mod 100=0 then writeln('ENDLESS ',i);
+    //if i mod 100=0 then writeln('ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i*10;
     lobj.Field('number_pb').AsUInt32:=i*10;
@@ -2464,7 +2464,7 @@ begin
   COLL := CONN.Collection('COLL_TEST_AT');
   CheckDbResult(COLL.DefineIndexOnField('fdbft_GUID',fdbft_GUID,true,true,'ix_uid'),'failed uid index creation ix_uid');
   for i := 0 to 10 - 1 do begin
-    if i mod 100=0 then writeln('AT ENDLESS ',i);
+    //if i mod 100=0 then writeln('AT ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_ALL_TYPES);
     (lobj.Implementor_HC as TFRE_DB_TEST_ALL_TYPES).Gamble(i);
     lobj.Field('LINK').AsObjectLink := loUID;
@@ -2474,7 +2474,7 @@ begin
   CONN.Finalize;
 
   t2 := GFRE_BT.Get_Ticks_ms;
-  writeln('TIME ',t2-t1);
+  //writeln('TIME ',t2-t1);
 end;
 
 procedure Register_DB_Extensions;

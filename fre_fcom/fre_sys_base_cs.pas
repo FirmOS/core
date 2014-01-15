@@ -488,7 +488,7 @@ var myDataCount : NativeInt;
                 begin
                   apps := FUserSession.GetSessionAppArray;
                   CMD.Data.ClearAllFields;
-                  writeln('ANWSERING FOR ',Length(apps),' APPS');
+                  writeln('ANSWERING FOR ',Length(apps),' APPS');
                   for i:=0 to high(apps) do begin
                     app                         := GFRE_DBI.NewObject;
                     app.Field('CLASS').AsString := apps[i].AsObject.SchemeClass;

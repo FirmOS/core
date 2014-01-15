@@ -60,6 +60,7 @@ var
       cFRE_JOB_ARCHIVE_DIR            :string = '';
       cFRE_PID_LOCK_DIR               :string = '';
       cFRE_SERVER_WWW_ROOT_DIR        :string = '';
+      cFRE_SERVER_WWW_ROOT_FILENAME   :string = 'FREROOT.html';
       cFRE_SERVER_DEFAULT_TIMEZONE    :string = 'Europe/Vienna';
       cFRE_WebServerLocation_HixiedWS :string = '127.0.0.1:44000';
       cFRE_SSL_CERT_FILE              :string = 'server_cert.pem';
@@ -80,6 +81,12 @@ var
       cFRE_MWS_IP                     :string = ''; // connect the MWS non standard over IP
       cFRE_SUBFEEDER_IP               :string = ''; // use an IP connect for all subfeeders (portmapping is static subfeederdefined)
       cFRE_ToolsPath                  :string = '/usr';
+      cFRE_FORCE_CLEAR_HTTP_META      :boolean=false;
+      cFRE_FORCE_CLEAN_ZIP_HTTP_FILES :boolean=false;
+      cFRE_BUILD_ZIP_HTTP_FILES       :boolean=true;
+      cFRE_USE_STATIC_CACHE           :boolean=true;
+      cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml'; // comma seperated,lowecase (!!)
+      cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowecase (!!)
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;

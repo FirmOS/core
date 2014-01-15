@@ -52,7 +52,7 @@ implementation
 
 procedure InitEmbedded;
 begin
-  GFRE_DB_DEFAULT_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db');
+  GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db');
 end;
 
 initialization

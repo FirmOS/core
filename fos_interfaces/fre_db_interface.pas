@@ -79,7 +79,7 @@ type
   PFRE_DB_String              = ^TFRE_DB_String;
   TFRE_DB_RawByteString       = RawByteString;
 
-  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTPSRV,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO);
+  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
@@ -113,7 +113,7 @@ const
   CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
-  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PERSISTANCE','DB','MEMORY','REFLINKS','EXCEPT','SERVER','HTTPSERVER','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO');
+  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PERSISTANCE','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE');
   CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');
   CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','ICO','BOO');
   CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
@@ -185,6 +185,7 @@ type
   TFRE_DB_NameTypeArray    = Array of TFRE_DB_NameType;
   TFRE_DB_NameTypeRLArray  = Array of TFRE_DB_NameTypeRL;
   TFRE_DB_NameTypeRLArrArr = Array of TFRE_DB_NameTypeRLArray;
+  TFRE_DB_MimeTypeStr   = string[100];
 
   TFRE_DB_CountedGuid=record
     link  : TGuid;
@@ -199,7 +200,7 @@ type
 
   TFRE_DB_Mimetype=record
     extension : string[32];
-    mimetype  : string[100];
+    mimetype  : TFRE_DB_MimeTypeStr;
   end;
 
   TFRE_DB_ObjectReferences = array of TFRE_DB_ReferencesByField;
@@ -2259,7 +2260,7 @@ type
   function  RB_Guid_Compare                      (const d1, d2: TGuid): NativeInt; inline;
 
   procedure FREDB_LoadMimetypes                  (const filename:string);
-  function  FREDB_Filename2MimeType              (const filename:string):String;
+  function  FREDB_Filename2MimeType              (const filename:string):TFRE_DB_MimeTypeStr;
 
   function  FREDB_FindStringIndexInArray         (const text:TFRE_DB_String;const strings:TFRE_DB_StringArray):integer;
   function  FREDB_CombineString                  (const strings: TFRE_DB_StringArray; const sep: TFRE_DB_String): TFRE_DB_String;
@@ -2295,6 +2296,7 @@ type
 
   function  FREDB_getThemedResource                 (const id: String): String;
   function  FREDB_StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
+  function  FREDB_StringInArrayIdx                  (const src:string;const arr:TFRE_DB_StringArray):NativeInt;
   function  FREDB_PrefixStringInArray               (const pfx:string;const arr:TFRE_DB_StringArray):boolean;
   procedure FREDB_ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
   procedure FREDB_ConcatGuidArrays                  (var TargetArr:TFRE_DB_GuidArray;const add_array:TFRE_DB_GuidArray);
@@ -2398,7 +2400,7 @@ begin
     end;
 end;
 
-function FREDB_Filename2MimeType(const filename: string): String;
+function FREDB_Filename2MimeType(const filename: string): TFRE_DB_MimeTypeStr;
 var
     i   : NativeInt;
     ext : string;
@@ -2674,12 +2676,17 @@ begin
 end;
 
 function FREDB_StringInArray(const src: string; const arr: TFRE_DB_StringArray): boolean;
+begin
+  result := FREDB_StringInArrayIdx(src,arr)<>-1;
+end;
+
+function FREDB_StringInArrayIdx(const src: string; const arr: TFRE_DB_StringArray): NativeInt;
 var  i: NativeInt;
 begin
-  result := false;
   for i:=0 to High(arr) do
     if src=arr[i] then
-      exit(true);
+      exit(i);
+  exit(-1);
 end;
 
 function FREDB_PrefixStringInArray(const pfx: string; const arr: TFRE_DB_StringArray): boolean;
@@ -3614,7 +3621,7 @@ begin
     begin
       dec(FSessionTerminationTO);
       result := FSessionTerminationTO<1;
-      writeln('SESSION ['+fsessionid+'] KO in ',FSessionTerminationTO);
+      GFRE_DBI.LogInfo(dblc_SESSION,'SESSION ['+fsessionid+'] KO in '+inttostr(FSessionTerminationTO));
     end;
 end;
 

@@ -2170,7 +2170,6 @@ type
     procedure       SetFormatSettings       (const AValue: TFormatSettings);
     procedure       SetLocalZone            (const AValue: TFRE_DB_String);
     function        NewObjectStreaming      (const ClName: ShortString) : TFRE_DB_Object;
-    procedure       _InternalLog            (const typ:integer;const level:TFOS_LOG_LEVEL;const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
   protected
     function    NewScheme                   (const Scheme_Name: TFRE_DB_String;const typ : TFRE_DB_SchemeType) : TFRE_DB_SchemeObject;
     procedure   SafeFinalize                (intf : IFRE_DB_BASE);
@@ -3705,7 +3704,7 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysTransText') then begin
-      GFRE_DB.LogInfo(dblc_DB,'Adding System collection SysTransText');
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysTransText');
       coll := Collection('SysTransText');
       coll.DefineIndexOnField('t_key',fdbft_String,True,True);
     end;
@@ -3716,7 +3715,7 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysSessionData') then begin
-      GFRE_DB.LogInfo(dblc_DB,'Adding System collection SysSessionData',[]);
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysSessionData',[]);
       coll := Collection('SysSessionData');
       coll.DefineIndexOnField('$LOGIN_KEY',fdbft_String,True,True);
     end;
@@ -3727,7 +3726,7 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysDomain') then begin
-      GFRE_DB.LogInfo(dblc_DB,'Adding System collection SysDomain');
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysDomain');
       coll := Collection('SysDomain');
       coll.DefineIndexOnField('objname',fdbft_String,True,True);
     end;
@@ -3738,7 +3737,7 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysUser') then begin
-      GFRE_DB.LogInfo(dblc_DB,'Adding System collection SysUser');
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysUser');
       coll := Collection('SysUser');
       coll.DefineIndexOnField('domainloginkey',fdbft_String,True,True);
     end;
@@ -3749,7 +3748,7 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysRole') then begin
-      GFRE_DB.LogInfo(dblc_DB,'Adding System collection SysRole');
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysRole');
       coll := Collection('SysRole');
       coll.DefineIndexOnField('domainrolekey',fdbft_String,True,True);
     end;
@@ -10576,22 +10575,6 @@ begin
   end;
 end;
 
-procedure TFRE_DB._InternalLog(const typ: integer; const level:TFOS_LOG_LEVEL; const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
-var cat      : TFRE_DB_String;
-    logentry : TFRE_DB_String;
-    target   : string;
-begin
-  cat := CFRE_DB_LOGCATEGORY[category];
-  case typ of
-    0 : target:='INFO';
-    1 : target:='WARNING';
-    2 : target:='ERROR';
-    3 : target:='DEBUG';
-    4 : target:='NOTICE';
-  end;
-  GFRE_LOG.Log(msg,param,cat,level,target,false);
-end;
-
 function TFRE_DB.NewScheme(const Scheme_Name: TFRE_DB_String; const typ: TFRE_DB_SchemeType): TFRE_DB_SchemeObject;
 var ccn             : shortstring;
     base_code_class : TFRE_DB_OBJECTCLASS;
@@ -11791,27 +11774,27 @@ end;
 
 procedure TFRE_DB.LogInfo(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
 begin
-  _InternalLog(0,fll_Info,category,msg,param);
+  GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Info,CFOS_LL_Target[fll_Info],false);
 end;
 
 procedure TFRE_DB.LogWarning(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
 begin
- _InternalLog(1,fll_Warning,category,msg,param);
+  GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Warning,CFOS_LL_Target[fll_Warning],false);
 end;
 
 procedure TFRE_DB.LogError(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
 begin
- _InternalLog(2,fll_Error,category,msg,param);
+  GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Error,CFOS_LL_Target[fll_Error],false);
 end;
 
 procedure TFRE_DB.LogDebug(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
 begin
- _InternalLog(3,fll_Debug,category,msg,param);
+  GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Debug,CFOS_LL_Target[fll_Debug],false);
 end;
 
 procedure TFRE_DB.LogNotice(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
 begin
- _InternalLog(4,fll_Notice,category,msg,param);
+  GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Notice,CFOS_LL_Target[fll_Notice],false);
 end;
 
 
@@ -17248,11 +17231,22 @@ var dbo              : IFRE_DB_Object;
     fn,ln            : String;
     dn               : TFRE_DB_NameType;
     obj              : IFRE_DB_DOMAIN;
+    sessionData      : IFRE_DB_OBJECT;
 begin
  writeln('------NEW USER');
  writeln(input.DumpToString);
  data    := input.Field('DATA').asobject;
  dbc     := input.GetReference as TFRE_DB_CONNECTION;
+
+ dbc.FetchUserSessionData(sessionData);
+ if data.FieldExists('BINARY_DATA') then begin
+   sessionData.Field('tmpPicture').AsStream:=data.Field('BINARY_DATA').AsStream;
+   //data.Field('name').AsString;
+   //data.Field('size').AsUInt32;
+   //data.Field('type').AsString;
+   //data.Field('field').AsString;
+   exit(GFRE_DB_NIL_DESC);
+ end;
 
  loginf  := data.Field('login').AsString;
  pw      := data.Field('PASSWORDMD5').AsString;

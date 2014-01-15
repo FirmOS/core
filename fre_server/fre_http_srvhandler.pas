@@ -45,14 +45,40 @@ unit fre_http_srvhandler;
 interface
 
 uses
-  Classes, SysUtils,strutils,FRE_DB_INTERFACE,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS;
+  Classes, SysUtils,strutils,FRE_DB_INTERFACE,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS,zstream;
 
 type
+
+  { TFRE_HTTP_METAENTRY }
+
+  TFRE_HTTP_METAENTRY = packed class
+    ETag             : String[64];
+    ModificationDate : TFRE_DB_DateTime64;
+    ModFileDate      : NativeUint;
+    Size             : NativeUint;
+    ZippedSize       : NativeUint;
+    AccessOrder      : NativeUint;
+    ZipRatio         : double;
+    Cached           : Boolean;
+    ZippedExist      : Boolean;
+    HasZippedCache   : Boolean;
+    HasUnZippedCache : Boolean;
+    InMemoryOnly     : Boolean;
+    FileExtension    : String[12];
+    Filename         : String;
+    MimeType         : String;
+    ContentUnZipped  : TMemoryStream;
+    ContentZipped    : TMemoryStream;
+    procedure CalcRatio;
+    procedure SetUnzippedContentFromString(const data:string);
+    procedure PopulateZippedCacheFromUnzipped;
+  end;
+
   IFRE_HTTP_BASESERVER=interface
     procedure  DispatchHttpRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
-    procedure  FetchHullHTML         (var lContent:TFRE_DB_RawByteString;var lContentType:string);
-    function   FetchFileCached       (file_path:String;var data:TFRE_DB_RawByteString):boolean;
+    function   FetchMetaEntry        (file_path:String;var metae : TFRE_HTTP_METAENTRY):boolean;
     function   FetchStreamDBO        (const enc_sessionid,enc_uid : string ; var end_field : TFRE_DB_NameTypeRL ; var lcontent:TFRE_DB_RawByteString):boolean;
+    function   GetETag               (const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64):String;
   end;
 
   { TFRE_HTTP_CONNECTION_HANDLER }
@@ -136,6 +162,41 @@ type
   end;
 
 implementation
+
+{ TFRE_HTTP_METAENTRY }
+
+procedure TFRE_HTTP_METAENTRY.CalcRatio;
+begin
+  if ZippedSize=0 then
+    ZipRatio:=0
+  else
+    ZipRatio := 100-GFRE_BT.RatioPercent(ZippedSize,Size);
+end;
+
+procedure TFRE_HTTP_METAENTRY.SetUnzippedContentFromString(const data: string);
+begin
+  ContentUnZipped := TMemoryStream.Create;
+  ContentUnZipped.SetSize(Length(data));
+  Move(data[1],ContentUnZipped.Memory^,ContentUnZipped.Size);
+  HasUnZippedCache := true;
+end;
+
+procedure TFRE_HTTP_METAENTRY.PopulateZippedCacheFromUnzipped;
+var zstream : Tcompressionstream;
+begin
+  ContentZipped.Free;
+  ContentZipped := TMemoryStream.Create;
+  zstream := Tcompressionstream.Create(cldefault,ContentZipped);
+  try
+    zstream.CopyFrom(ContentUnZipped,0);
+    zstream.free;
+    ZippedSize := ContentZipped.Size;
+    HasZippedCache := true;
+  finally
+   // zstream.free;
+  end;
+end;
+
 
 { TOffloadWriteObject }
 
@@ -267,11 +328,9 @@ begin
 end;
 
 procedure TFRE_HTTP_CONNECTION_HANDLER.SetETagandLastModified(const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64);
-var s: string;
 begin
-  s:=filename+':'+inttostr(filesize)+':'+inttostr(moddate);
-  ResponseHeader[rh_ETag]                  := GFRE_BT.HashString_MD5_HEX(s);
-  ResponseEntityHeader[reh_LastModified]   := GFRE_DT.ToStrHTTP(moddate);
+  ResponseEntityHeader[reh_LastModified] := GFRE_DT.ToStrHTTP(moddate);
+  ResponseHeader[rh_ETag]                := HttpBaseServer.GetETag(filename,filesize,moddate);
 end;
 
 procedure TFRE_HTTP_CONNECTION_HANDLER.SetBody(const data: string);
@@ -285,8 +344,8 @@ var i : TFRE_HTTP_ResponseEntityHeaders;
     lResponse:string;
     lPos:integer;
 begin
-  GFRE_DBI.LogInfo(dblc_HTTPSRV,'< [%s] [%s]',[GFRE_BT.SepLeft(FResponse,#13#10),FChannel.GetVerboseDesc]);
-  GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[FResponse]);
+  GFRE_DBI.LogInfo(dblc_HTTP_RES,'< [%s] [%s] [Answerlen: %d]',[GFRE_BT.SepLeft(FResponse,#13#10),FChannel.GetVerboseDesc,Length(FResponse)]);
+  GFRE_DBI.LogDebug(dblc_HTTP_RES,FResponse);
   FChannel.CH_WriteString(FResponse);
 end;
 
@@ -473,8 +532,8 @@ var
   procedure _DispatchRequest;
   begin
     //FMyCookie.CookieString:=GetHeaderField('Cookie');
-    GFRE_DBI.LogInfo(dblc_HTTPSRV,'> %s [%s]',[GFRE_BT.SepLeft(FRequest,#13#10),FChannel.GetVerboseDesc]);
-    GFRE_DBI.LogDebug(dblc_HTTPSRV,'%s',[GFRE_BT.SepLeft(FRequest,#13#10#13#10)]);
+    GFRE_DBI.LogInfo(dblc_HTTP_REQ,'> %s [%s]',[GFRE_BT.SepLeft(FRequest,#13#10),FChannel.GetVerboseDesc]);
+    GFRE_DBI.LogDebug(dblc_HTTP_REQ,'%s',[GFRE_BT.SepLeft(FRequest,#13#10#13#10)]);
     HttpRequest(FRequestMethod);
     InitForNewRequest;
     FInternalState:=rprs_PARSEREQ_LINE;

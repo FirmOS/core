@@ -196,6 +196,9 @@ type
        function    InsertStringKeyOrFetch  (const key: string ; var   value  : PtrUInt):boolean;
        function    ExistsStringKey         (const key: String ; var   value: PtrUInt):boolean;
        function    RemoveStringKey         (const key: String ; var   value: PtrUInt):boolean;
+
+       function    InsertUInt64Key         (const key: Uint64 ; var value : PtrUInt):boolean;
+
        procedure   LinearScan              (const nested_node_proc : TFRE_ART_NodeValueProc;const desc : boolean=false);
        function    LinearScanBreak         (const nested_node_proc : TFRE_ART_NodeValueBreakProc):Boolean;
        procedure   LinearScanKeyVals       (const nested_node_proc : TFRE_ART_NodeCallback);
@@ -1859,6 +1862,17 @@ begin
   result :=erase(FArtTree,@FArtTree,key,keylen,0,value);
   if result then
     dec(FValueCount);
+end;
+
+function TFRE_ART_TREE.InsertUInt64Key(const key: Uint64; var value: PtrUInt): boolean;
+var ukey : UInt64;
+begin
+  {$IFDEF ENDIAN_LITTLE}
+    ukey := SwapEndian(key);
+  {$ELSE}
+    ukey := key;
+  {$ENDIF}
+  result := InsertBinaryKey(@ukey,8,value);
 end;
 
 function TFRE_ART_TREE.InsertStringKey(const key: string; const value: PtrUInt): boolean;
