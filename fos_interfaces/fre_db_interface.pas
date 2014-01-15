@@ -2285,6 +2285,7 @@ type
 
   function  FREDB_getThemedResource                 (const id: String): String;
   function  FREDB_StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
+  function  FREDB_StringInArrayIdx                  (const src:string;const arr:TFRE_DB_StringArray):NativeInt;
   function  FREDB_PrefixStringInArray               (const pfx:string;const arr:TFRE_DB_StringArray):boolean;
   procedure FREDB_ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
   procedure FREDB_ConcatGuidArrays                  (var TargetArr:TFRE_DB_GuidArray;const add_array:TFRE_DB_GuidArray);
@@ -2664,12 +2665,17 @@ begin
 end;
 
 function FREDB_StringInArray(const src: string; const arr: TFRE_DB_StringArray): boolean;
+begin
+  result := FREDB_StringInArrayIdx(src,arr)<>-1;
+end;
+
+function FREDB_StringInArrayIdx(const src: string; const arr: TFRE_DB_StringArray): NativeInt;
 var  i: NativeInt;
 begin
-  result := false;
   for i:=0 to High(arr) do
     if src=arr[i] then
-      exit(true);
+      exit(i);
+  exit(-1);
 end;
 
 function FREDB_PrefixStringInArray(const pfx: string; const arr: TFRE_DB_StringArray): boolean;

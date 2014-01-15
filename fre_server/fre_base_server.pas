@@ -118,13 +118,13 @@ type
     procedure   Setup             ;
     procedure   Terminate         ;
     procedure   ReInit            ;
+    procedure   DeploymentDump    ;
     procedure   Interrupt         ;
     function    GetName           : String;
 
     procedure Finalize              ;
     function  FetchMetaEntry        (file_path:String;var metae : TFRE_HTTP_METAENTRY):boolean; // Concurrent Entry (!)
 
-    function  FetchFileCached       (file_path:String;var data:TFRE_DB_RawByteString):boolean;
     procedure DispatchHTTPRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
 
     procedure APSC_NewListener      (const LISTENER : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
@@ -312,7 +312,6 @@ var dummy:TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
     end;
 
   begin
-    writeln('cFRE_SERVER_WWW_ROOT_DIR ',cFRE_SERVER_WWW_ROOT_DIR);
     list := GFRE_TF.Get_FOS_Strings;
     GFRE_BT.List_Files(cFRE_SERVER_WWW_ROOT_DIR,list,10000,true);
     if cFRE_FORCE_CLEAN_ZIP_HTTP_FILES then
@@ -422,6 +421,7 @@ begin
   case signum of
     SIGTERM : Terminate;
     SIGHUP  : ReInit;
+    SIGUSR1 : DeploymentDump;
     SIGINT  : Interrupt;
     else
       writeln('UNHANDLED CATCHED SIGNAL ',signum);
@@ -556,6 +556,74 @@ begin
   GFRE_DB_DEFAULT_PS_LAYER.SyncSnapshot(false);
 end;
 
+procedure TFRE_BASE_SERVER.DeploymentDump;
+var deployexts : TFRE_DB_StringArray;
+    deployccat : TFRE_DB_StringArray;
+    ext_count  : TFRE_DB_Int32Array;
+    pos,i      : NativeInt;
+    stats      : string;
+    sorttree   : TFRE_ART_TREE;
+    fn         : string;
+
+  procedure DeploymentStage1(var value : NativeUint);
+  var metae : TFRE_HTTP_METAENTRY;
+  begin
+     metae := TFRE_HTTP_METAENTRY(FREDB_PtrUIntToObject(value));
+     pos := FREDB_StringInArrayIdx(LowerCase(metae.FileExtension),deployexts);
+     if pos<>-1 then
+       begin
+         if metae.AccessOrder>0 then
+           begin
+             GFRE_DB.LogDebug(dblc_SERVER,'>DEPLOYMENT SCAN : [%s] [%d]',[metae.Filename,metae.AccessOrder]);
+             inc(ext_count[pos]);
+             if not sorttree.InsertUInt64Key(metae.AccessOrder,value) then
+               GFRE_DB.LogError(dblc_SERVER,'>DEPLOYMENT SCAN : [%s] [%d] NON UNIQUE ACCESS ORDER !!!! (?)',[metae.Filename,metae.AccessOrder]);
+           end
+         else
+           GFRE_DB.LogDebug(dblc_SERVER,'>DEPLOYMENT SCAN : SKIPPING, NOT ACCESSED [%s] [%d]',[metae.Filename,metae.AccessOrder]);
+       end;
+  end;
+
+  procedure DeploymentStage2(var value : NativeUint);
+  var metae   : TFRE_HTTP_METAENTRY;
+      content : string;
+  begin
+     metae := TFRE_HTTP_METAENTRY(FREDB_PtrUIntToObject(value));
+     pos := FREDB_StringInArrayIdx(LowerCase(metae.FileExtension),deployexts);
+     if pos=-1 then
+       GFRE_BT.CriticalAbort('logic - deployment case');
+     GFRE_DB.LogDebug(dblc_SERVER,'>DEPLOYMENT PHASE 2 AGGREGATING : FILE [%s] [%d]',[metae.Filename,metae.AccessOrder]);
+     content := GFRE_BT.StringFromFile(metae.Filename);
+     if content<>'' then
+       deployccat[pos] := deployccat[pos]+LineEnding+Format('// CONCAT FILE Name : [%s] Accessorder [%d] ',[metae.Filename,metae.AccessOrder])+LineEnding+content
+     else
+       GFRE_DB.LogWarning(dblc_SERVER,'>DEPLOYMENT PHASE 2 AGGREGATING : FILE [%s] [%d] - FILE IS EMPTY',[metae.Filename,metae.AccessOrder]);
+  end;
+
+begin
+  GFRE_DB.LogNotice(dblc_SERVER,'GOT AN DEPLOYMENT DUMP REQUEST');
+  sorttree := TFRE_ART_TREE.Create;
+  try
+    FREDB_SeperateString(cFRE_DEPLOY_CONTENT_EXTS,',',deployexts);
+    SetLength(ext_count,Length(deployexts));
+    SetLength(deployccat,Length(deployexts));
+    FStaticHTTPMeta.LinearScan(@DeploymentStage1);
+    for i:=0 to high(ext_count) do
+      stats := stats + deployexts[i]+' => '+inttostr(ext_count[i])+' Files ';
+    GFRE_DB.LogNotice(dblc_SERVER,'CONCATENATING THE FOLLOWING TYPES [%s]',[stats]);
+    sorttree.LinearScan(@DeploymentStage2,true);
+    for i:=0 to high(deployccat) do
+      begin
+        fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+'fos_deploy'+deployexts[i];
+        DeleteFile(fn);
+        GFRE_BT.StringToFile(fn,deployccat[i]);
+      end;
+    GFRE_DB.LogNotice(dblc_SERVER,'DONE PROCESSING DEPLOYMENT FILES');
+  finally
+    sorttree.free;
+  end;
+end;
+
 procedure TFRE_BASE_SERVER.Interrupt;
 begin
   if G_NO_INTERRUPT_FLAG THEN exit;
@@ -574,36 +642,22 @@ begin
   free;
 end;
 
+var lGAE : NativeUInt;
+
 function TFRE_BASE_SERVER.FetchMetaEntry(file_path: String; var metae: TFRE_HTTP_METAENTRY): boolean;
 var dummy : PtrUInt;
 begin
   result :=  FStaticHTTPMeta.ExistsStringKey(file_path,dummy);
   if result then
-    metae := TFRE_HTTP_METAENTRY(FREDB_PtrUIntToObject(dummy))
+    begin
+      metae := TFRE_HTTP_METAENTRY(FREDB_PtrUIntToObject(dummy));
+      if metae.AccessOrder=0 then
+        metae.AccessOrder := FOS_IL_INC_NATIVE(lGAE);
+    end
   else
     metae := nil;
 end;
 
-function TFRE_BASE_SERVER.FetchFileCached(file_path: String; var data: TFRE_DB_RawByteString): boolean;
-var fn : String;
-    fh : THandle;
-    fs : int64;
-    fs2: int64;
-begin
-  fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+file_path;
-  if FileExists(fn) then begin
-    fh := FileOpen(fn,fmOpenRead+fmShareDenyNone);
-    fs := FileSeek(fh,0,fsFromEnd);
-    SetLength(data,fs);
-    FileSeek(fh,0,fsFromBeginning);
-    fs2 := FileRead(fh,data[1],fs);
-    if fs2<>fs then abort;
-    FileClose(fh);
-    result := true;
-  end else begin
-    result := false;
-  end;
-end;
 
 
 procedure TFRE_BASE_SERVER.DispatchHTTPRequest(const connection_object: TObject; const uri: string; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);

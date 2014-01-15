@@ -85,7 +85,8 @@ var
       cFRE_FORCE_CLEAN_ZIP_HTTP_FILES :boolean=false;
       cFRE_BUILD_ZIP_HTTP_FILES       :boolean=true;
       cFRE_USE_STATIC_CACHE           :boolean=true;
-      cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml';
+      cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml'; // comma seperated,lowecase (!!)
+      cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowecase (!!)
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;

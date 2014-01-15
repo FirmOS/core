@@ -57,6 +57,7 @@ type
     ModFileDate      : NativeUint;
     Size             : NativeUint;
     ZippedSize       : NativeUint;
+    AccessOrder      : NativeUint;
     ZipRatio         : double;
     Cached           : Boolean;
     ZippedExist      : Boolean;

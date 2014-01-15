@@ -101,8 +101,9 @@ type
     procedure   _SendCloseFrame;
     procedure   _SendHttpResponseStream          (const code: integer; const answer: string; const content:TMemoryStream;const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
     procedure   _SendHttpResponse                (const code: integer; const answer: string; const answer_params: array of const;const content:string='';const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
-    procedure   _SendHttpFileWithRangeCheck      (const lfilename: string; const isAttachment:boolean=false);
+    procedure   _SendHttpFileWithRangeCheck      (lfilename: string; const isAttachment:boolean=false);
     procedure   _SendHttpFile                    (const lfilename: string; const offset:NativeUint=0; const len : NativeUint=0; const isAttachment:boolean=false;const ispartial:boolean=false);
+    procedure   _SendHttpFileMetaData            (const metae : TFRE_HTTP_METAENTRY ; const send_zipped : boolean);
     procedure   ClientConnected;virtual;
   protected
     procedure   Handle_WS_Upgrade  (const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
@@ -1154,7 +1155,7 @@ begin
   SendResponse;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileWithRangeCheck(const lfilename: string; const isAttachment: boolean);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileWithRangeCheck(lfilename: string; const isAttachment: boolean);
 var
   fn              : string;
   info            : stat;
@@ -1233,7 +1234,10 @@ begin
   if lfilename<>'/' then
     fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+lfilename
   else
-    fn:=cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+cFRE_SERVER_WWW_ROOT_FILENAME;
+    begin
+      fn:=cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+cFRE_SERVER_WWW_ROOT_FILENAME;
+      lfilename:=cFRE_SERVER_WWW_ROOT_FILENAME;
+    end;
 
   HttpBaseServer.FetchMetaEntry(fn,metae);
   if assigned(metae) then
@@ -1265,50 +1269,44 @@ begin
         end
       else
         begin { not cached }
-
+           gzip_allowed:=false;
+           _SendHttpFileMetadata(metae,gzip_allowed and metae.ZippedExist);
+           exit;
         end;
     end;
-  //if gzip_allowed and
-  //  begin
-  //
-  //  end;
-  //else
-    begin
-      if FileExists(fn) then
-        begin
-          if fpstat(fn,info)<>0 then
-            raise EFRE_DB_Exception.Create(edb_INTERNAL,'Stat for file '+fn+' failed!');
-          flength := info.st_size;
-          fend    := flength;
-          foffset :=0;
+    {Fallback no metadata ...}
+    if FileExists(fn) then
+      begin
+        if fpstat(fn,info)<>0 then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'Stat for file '+fn+' failed!');
+        flength := info.st_size;
+        fend    := flength;
+        foffset :=0;
 
-          if length(range)<>0 then
-             _ProcessRangeRequest
-          else
-            begin
-               SetETagandLastModified(fn,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
-              _SendHttpFile(lfilename,0,flength,isAttachment,false);
-            end;
-        end
-      else
-        begin
-         writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
-         _SendHttpResponse(404,'NOT FOUND',[]);
-       end;
-    end;
+        if length(range)<>0 then
+           _ProcessRangeRequest
+        else
+          begin
+             SetETagandLastModified(fn,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
+            _SendHttpFile(lfilename,0,flength,isAttachment,false);
+          end;
+      end
+    else
+      begin
+       writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
+       _SendHttpResponse(404,'NOT FOUND',[]);
+     end;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFile(const lfilename: string; const offset:NativeUint; const len : NativeUint; const isAttachment: boolean;const ispartial:boolean);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFile(const lfilename: string; const offset: NativeUint; const len: NativeUint; const isAttachment: boolean; const ispartial: boolean);
 var fn          : string;
     fh          : THandle;
     info        : Stat;
     flength     : NativeUint;
 
 begin
- fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+lfilename;
  if FileExists(fn) then
    begin
-
      fh := FileOpen(fn,fmOpenRead+fmShareDenyNone);
      if fh=-1 then
        raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not get filehandle for '+fn+' !');
@@ -1350,6 +1348,55 @@ begin
  else
    begin
      writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
+     _SendHttpResponse(404,'NOT FOUND',[]);
+   end;
+end;
+
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileMetaData(const metae: TFRE_HTTP_METAENTRY; const send_zipped: boolean);
+var fn          : string;
+    fh          : THandle;
+    info        : Stat;
+    flength     : NativeUint;
+
+begin
+ if send_zipped then
+   begin
+     fn := metae.Filename+'.gzip';
+     ResponseEntityHeader[reh_ContentEncoding] := 'gzip';
+     flength := metae.ZippedSize;
+   end
+ else
+   begin
+     fn := metae.Filename;
+     flength := metae.Size;
+   end;
+
+ if FileExists(fn) then
+   begin
+     ResponseEntityHeader[reh_LastModified]    := GFRE_DT.ToStrHTTP(metae.ModificationDate);
+     ResponseHeader[rh_ETag]                   := metae.ETag;
+     ResponseEntityHeader[reh_Expires]         := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
+     ResponseEntityHeader[reh_ContentLength]   := inttostr(flength);
+
+     fh := FileOpen(fn,fmOpenRead+fmShareDenyNone);
+     if fh=-1 then
+       raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not get filehandle for '+fn+' !');
+     SetResponseStatusLine(200,'OK');
+     //if isAttachment then
+     //  ResponseHeader[rh_contentDisposition] := 'attachment; filename="'+ExtractFileName(lfilename)+'"';
+
+     ResponseEntityHeader[reh_ContentType]   := metae.MimeType;
+     ResponseEntityHeader[reh_Allow]         := 'GET, POST, PUT, DELETE, OPTIONS, TRACE';
+     ResponseEntityHeader[reh_Connection]    := 'keep-alive';
+     ResponseHeader      [rh_Location]       :='';
+     SetResponseHeaders;
+     SetEntityHeaders;
+     SetBody(''); // no data here
+     SendResponse;
+     FChannel.CH_WriteOpenedFile(fh,0,flength);
+   end
+ else
+   begin
      _SendHttpResponse(404,'NOT FOUND',[]);
    end;
 end;
