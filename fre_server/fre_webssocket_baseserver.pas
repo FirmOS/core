@@ -101,7 +101,7 @@ type
     procedure   _SendCloseFrame;
     procedure   _SendHttpResponseStream          (const code: integer; const answer: string; const content:TMemoryStream;const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
     procedure   _SendHttpResponse                (const code: integer; const answer: string; const answer_params: array of const;const content:string='';const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
-    procedure   _SendHttpFileWithRangeCheck      (const lfilename: string; range: string; const isAttachment:boolean=false ; const dont_search_cache : boolean=false;const accept_encoding:string='';const if_none_match : string='');
+    procedure   _SendHttpFileWithRangeCheck      (const lfilename: string; const isAttachment:boolean=false);
     procedure   _SendHttpFile                    (const lfilename: string; const offset:NativeUint=0; const len : NativeUint=0; const isAttachment:boolean=false;const ispartial:boolean=false);
     procedure   ClientConnected;virtual;
   protected
@@ -971,12 +971,6 @@ var  lContent  : TFRE_DB_RawByteString;
     is_attachment   : boolean;
     attachment_filename : string;
 
-    procedure _SendHull; // Todo -> make static on server start
-    begin
-      HttpBaseServer.FetchHullHTML(lContent,lContentType);
-      _SendHttpResponse(200,'OK',[],lcontent,lContentType);
-    end;
-
 begin
     ResponseHeader[rh_contentDisposition]     := '';
     ResponseHeader[rh_ETag]                   := '';
@@ -986,11 +980,14 @@ begin
     ResponseEntityHeader[reh_ContentEncoding] := '';
 
     if (uri.Document='') or ((length(uri.SplitPath)=0) and (ExtractFileExt(uri.Document)='')) then begin //root = application domain, except the stuff some bloke has already put into root, but at least with an extension
-      if uri.Document='FirmOS_FRE_WS' then begin
-        Handle_WS_Upgrade(uri.Document,uri.Method);
-      end else begin
-        _SendHull;
-      end;
+      if uri.Document='FirmOS_FRE_WS' then
+        begin
+          Handle_WS_Upgrade(uri.Document,uri.Method);
+        end
+      else
+        begin
+          _SendHttpFileWithRangeCheck('/');
+        end;
       exit;
     end else begin
       lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
@@ -998,7 +995,7 @@ begin
         begin
           if (uri.SplitPath[0]='download') then
             begin
-              _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),true,true);
+              _SendHttpFileWithRangeCheck(lFilename);
             end
           else
           if (uri.SplitPath[0]='FDBOSF') then
@@ -1019,7 +1016,7 @@ begin
             end
           else
             begin
-              _SendHttpFileWithRangeCheck(lFilename,GetHeaderField('Range'),false,false,GetHeaderField('Accept-Encoding'),GetHeaderField('If-None-Match'));
+              _SendHttpFileWithRangeCheck(lFilename);
             end;
         end
       else
@@ -1157,18 +1154,21 @@ begin
   SendResponse;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileWithRangeCheck(const lfilename: string; range: string; const isAttachment: boolean; const dont_search_cache: boolean; const accept_encoding: string; const if_none_match: string);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileWithRangeCheck(const lfilename: string; const isAttachment: boolean);
 var
-  fn           : string;
-  info         : stat;
-  flength      : NativeInt;
-  frangetype   : string;
-  frangestart  : string;
-  frangeend    : string;
-  foffset      : NativeUInt;
-  fend         : NativeUInt;
-  gzip_allowed : Boolean;
-  metae        : TFRE_HTTP_METAENTRY;
+  fn              : string;
+  info            : stat;
+  flength         : NativeInt;
+  frangetype      : string;
+  frangestart     : string;
+  frangeend       : string;
+  foffset         : NativeUInt;
+  fend            : NativeUInt;
+  gzip_allowed    : Boolean;
+  metae           : TFRE_HTTP_METAENTRY;
+  range           : string;
+  accept_encoding : string;
+  if_none_match   : string;
 
   procedure _ProcessRangeRequest;
   begin
@@ -1225,11 +1225,16 @@ var
   end;
 
 begin
-  //HttpBaseServer.FetchFileCached();
+  accept_encoding := GetHeaderField('Accept-Encoding');
+  range           := GetHeaderField('Range');
+  if_none_match   := GetHeaderField('If-None-Match');
+
   gzip_allowed := pos('gzip',accept_encoding)>0;
-  fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+lfilename;
-  if pos('resources/blank.gif',fn)>0 then
-    fn:=fn;
+  if lfilename<>'/' then
+    fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+lfilename
+  else
+    fn:=cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+cFRE_SERVER_WWW_ROOT_FILENAME;
+
   HttpBaseServer.FetchMetaEntry(fn,metae);
   if assigned(metae) then
     begin
@@ -1240,13 +1245,13 @@ begin
         end;
       if metae.Cached then
         begin { cached }
-          if gzip_allowed and metae.CacheIsZipped then
+          if gzip_allowed and metae.HasZippedCache then
             begin
               ResponseEntityHeader[reh_ContentEncoding] := 'gzip';
               ResponseEntityHeader[reh_LastModified]    := GFRE_DT.ToStrHTTP(metae.ModificationDate);
               ResponseHeader[rh_ETag]                   := metae.ETag;
               ResponseEntityHeader[reh_Expires]         := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
-              _SendHttpResponseStream(200,'OK',metae.Content,metae.MimeType);
+              _SendHttpResponseStream(200,'OK',metae.ContentZipped,metae.MimeType);
               exit;
             end
           else
@@ -1254,7 +1259,7 @@ begin
                ResponseEntityHeader[reh_LastModified]    := GFRE_DT.ToStrHTTP(metae.ModificationDate);
                ResponseHeader[rh_ETag]                   := metae.ETag;
                ResponseEntityHeader[reh_Expires]         := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
-               _SendHttpResponseStream(200,'OK',metae.Content,metae.MimeType);
+               _SendHttpResponseStream(200,'OK',metae.ContentUnZipped,metae.MimeType);
                exit;
             end
         end

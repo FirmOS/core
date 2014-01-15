@@ -45,13 +45,13 @@ unit fre_http_srvhandler;
 interface
 
 uses
-  Classes, SysUtils,strutils,FRE_DB_INTERFACE,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS;
+  Classes, SysUtils,strutils,FRE_DB_INTERFACE,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS,zstream;
 
 type
 
   { TFRE_HTTP_METAENTRY }
 
-  TFRE_HTTP_METAENTRY = class
+  TFRE_HTTP_METAENTRY = packed class
     ETag             : String[64];
     ModificationDate : TFRE_DB_DateTime64;
     ModFileDate      : NativeUint;
@@ -60,17 +60,21 @@ type
     ZipRatio         : double;
     Cached           : Boolean;
     ZippedExist      : Boolean;
-    CacheIsZipped    : Boolean;
+    HasZippedCache   : Boolean;
+    HasUnZippedCache : Boolean;
+    InMemoryOnly     : Boolean;
     FileExtension    : String[12];
     Filename         : String;
     MimeType         : String;
-    Content          : TMemoryStream;
+    ContentUnZipped  : TMemoryStream;
+    ContentZipped    : TMemoryStream;
     procedure CalcRatio;
+    procedure SetUnzippedContentFromString(const data:string);
+    procedure PopulateZippedCacheFromUnzipped;
   end;
 
   IFRE_HTTP_BASESERVER=interface
     procedure  DispatchHttpRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
-    procedure  FetchHullHTML         (var lContent:TFRE_DB_RawByteString;var lContentType:string);
     function   FetchMetaEntry        (file_path:String;var metae : TFRE_HTTP_METAENTRY):boolean;
     function   FetchStreamDBO        (const enc_sessionid,enc_uid : string ; var end_field : TFRE_DB_NameTypeRL ; var lcontent:TFRE_DB_RawByteString):boolean;
     function   GetETag               (const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64):String;
@@ -167,6 +171,31 @@ begin
   else
     ZipRatio := 100-GFRE_BT.RatioPercent(ZippedSize,Size);
 end;
+
+procedure TFRE_HTTP_METAENTRY.SetUnzippedContentFromString(const data: string);
+begin
+  ContentUnZipped := TMemoryStream.Create;
+  ContentUnZipped.SetSize(Length(data));
+  Move(data[1],ContentUnZipped.Memory^,ContentUnZipped.Size);
+  HasUnZippedCache := true;
+end;
+
+procedure TFRE_HTTP_METAENTRY.PopulateZippedCacheFromUnzipped;
+var zstream : Tcompressionstream;
+begin
+  ContentZipped.Free;
+  ContentZipped := TMemoryStream.Create;
+  zstream := Tcompressionstream.Create(cldefault,ContentZipped);
+  try
+    zstream.CopyFrom(ContentUnZipped,0);
+    zstream.free;
+    ZippedSize := ContentZipped.Size;
+    HasZippedCache := true;
+  finally
+   // zstream.free;
+  end;
+end;
+
 
 { TOffloadWriteObject }
 
