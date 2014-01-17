@@ -244,13 +244,13 @@ type
 
     procedure   GetAllUIDS         (var uids : TFRE_DB_GUIDArray);
 
-    function    Store              (var   new_obj : TFRE_DB_Object):TFRE_DB_Errortype;
+    function    Store              (const new_obj : IFRE_DB_Object):TFRE_DB_Errortype;
     function    Delete             (const ouid    : TGUID):TFRE_DB_Errortype;
 
     function    Fetch              (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
     function    First              : TFRE_DB_Object;
     function    Last               : TFRE_DB_Object;
-    function    GetItem            (const num:uint64) : TFRE_DB_Object;
+    function    GetItem            (const num:uint64) : IFRE_DB_Object;
     function    DefineIndexOnField (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
 
     function    GetIndexedObj      (const query_value : TFRE_DB_String   ; out   obj       : TFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def'):boolean; // for the string fieldtype
@@ -569,8 +569,8 @@ type
   TFRE_DB_DBChangedNotificationBase = class(TObject,IFRE_DB_DBChangedNotification)
   protected
   public
-    procedure  CollectionCreated (const coll_name : TFRE_DB_NameType ; const volatile : Boolean) ; virtual ; abstract;
-    procedure  CollectionDeleted (const coll_name: TFRE_DB_NameType) ; virtual ; abstract;
+    procedure  CollectionCreated (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ; const volatile : Boolean) ; virtual ; abstract;
+    procedure  CollectionDeleted (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ; virtual ; abstract;
   end;
 
 implementation
@@ -659,7 +659,7 @@ begin
       res := Master.MasterColls.DeleteCollection(FCollname);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to delete new collection [%s] in transaction step',[FCollname]);
-      FTransList.GetNotifyIF.CollectionDeleted(FCollname);
+      //FTransList.GetNotifyIF.CollectionDeleted(FCollname);
     end;
 end;
 
@@ -792,7 +792,7 @@ begin
       res := Master.MasterColls.NewCollection(FCollname,FNewCollection,FVolatile,Master.FLayer);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
-      FTransList.GetNotifyIF.CollectionCreated(FCollname,FVolatile);
+      //FTransList.GetNotifyIF.CollectionCreated(FCollname,FVolatile);
     end;
 end;
 
@@ -3650,11 +3650,9 @@ begin
   FGuidObjStore.LinearScan(@ForAll);
 end;
 
-function TFRE_DB_Persistance_Collection.Store(var new_obj: TFRE_DB_Object): TFRE_DB_Errortype;
+function TFRE_DB_Persistance_Collection.Store(const new_obj: IFRE_DB_Object): TFRE_DB_Errortype;
 begin
    result := edb_OK;
-   if FVolatile then
-    new_obj.Set_Volatile;
    try
      FLayer.StoreOrUpdateObject(new_obj,FName,true);
    except
@@ -3846,7 +3844,7 @@ begin
    result := CloneOutObject(result);
 end;
 
-function TFRE_DB_Persistance_Collection.GetItem(const num: uint64): TFRE_DB_Object;
+function TFRE_DB_Persistance_Collection.GetItem(const num: uint64): IFRE_DB_Object;
 begin
   abort;
 end;

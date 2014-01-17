@@ -53,7 +53,7 @@ uses
   {$ENDIF}
   ;
 
-const C_CHANNEL_RUNNER_THREADS = 4;
+const C_CHANNEL_RUNNER_THREADS = 16;
 var
     cAPSC_JACK_TIMEOUT:integer= 5000;
 

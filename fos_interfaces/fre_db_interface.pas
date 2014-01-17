@@ -1105,8 +1105,8 @@ type
   end;
 
   IFRE_DB_DBChangedNotification = interface
-    procedure  CollectionCreated (const coll_name : TFRE_DB_NameType ; const volatile : Boolean);
-    procedure  CollectionDeleted (const coll_name : TFRE_DB_NameType);
+    //procedure  CollectionCreated (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ; const volatile : Boolean) ;
+    //procedure  CollectionDeleted (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ;
   end;
 
   TFRE_DB_APPLICATION       = Class;

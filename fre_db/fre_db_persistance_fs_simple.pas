@@ -129,7 +129,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    NewCollection       (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
      function    DeleteCollection    (const coll_name : TFRE_DB_NameType) : TFRE_DB_TransStepId; // todo transaction context
 
-     function    StoreOrUpdateObject (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
+     function    StoreOrUpdateObject (const   iobj:IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
 
      { Delete Operation :  collection_name = '' delete from all ->  collectionname<>'' only remove from collection }
      function    DeleteObject        (const obj_uid : TGUID    ;  const collection_name: TFRE_DB_NameType = '') : TFRE_DB_TransStepId;
@@ -146,10 +146,15 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
 implementation
 
+var GNOTIF_LOG : TFRE_DB_DBChangedNotificationBase;
+
 function Get_PersistanceLayer_PS_Simple(const basedir: TFRE_DB_String): IFRE_DB_PERSISTANCE_LAYER;
 var l_Persistance_Layer : TFRE_DB_PS_FILE;
 begin
+  if not assigned(GNOTIF_LOG) then
+    GNOTIF_LOG := TFRE_DB_DBChangedNotificationBase.Create;
   l_Persistance_Layer := TFRE_DB_PS_FILE.Create(basedir,'BASE');
+  l_Persistance_Layer.SetNotificationStreamCallback(GNOTIF_LOG);
   result              := l_Persistance_Layer;
 end;
 
@@ -774,7 +779,7 @@ begin
 end;
 
 // This is always the first entry into the store and update chain
-function TFRE_DB_PS_FILE.StoreOrUpdateObject(var obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean): TFRE_DB_TransStepId;
+function TFRE_DB_PS_FILE.StoreOrUpdateObject(const iobj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean): TFRE_DB_TransStepId;
 var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     error               : TFRE_DB_Errortype;
     to_update_obj       : TFRE_DB_Object;
@@ -783,6 +788,7 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     CleanApply          : Boolean;
     i                   : NativeInt;
     changes             : Boolean;
+    obj                 : TFRE_DB_Object;
 
   procedure GeneralChecks;
   begin
@@ -791,6 +797,7 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
   end;
 
 begin
+  obj := iobj.Implementor as TFRE_DB_Object;
   CleanApply := false;
   try
   GeneralChecks;
@@ -806,6 +813,9 @@ begin
           ImplicitTransaction := True;
         end;
       to_update_obj := nil;
+      //    Todo -> Object Volatile, when stored in volatile collection
+      //    if FVolatile then new_obj.Set_Volatile;
+      //
       FTransaction.GenerateAnObjChangeList(store,obj,collection_name);
       result := FTransaction.GetTransLastStepTransId;
       //writeln('>TRANSACTION INSERT LOG');

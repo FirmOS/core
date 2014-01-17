@@ -1103,23 +1103,23 @@ type
   IFRE_DB_PERSISTANCE_COLLECTION=interface
     function        GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
 
-    function        IsVolatile         : boolean;
-    function        CollectionName     (const unique:boolean=true):TFRE_DB_NameType;
-    function        Count              : int64;
-    function        Exists             (const ouid: TGUID): boolean;
-    procedure       GetAllUIDS         (var uids : TFRE_DB_GUIDArray);
-    function        Store              (var   new_obj : TFRE_DB_Object):TFRE_DB_Errortype;
-    function        Delete             (const ouid    : TGUID):TFRE_DB_Errortype; // RENAME TO REMOVE
-    function        Fetch              (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
-    function        First                        : TFRE_DB_Object;
-    function        Last                         : TFRE_DB_Object;
-    function        GetItem                      (const num:uint64):TFRE_DB_Object;
-    function        DefineIndexOnField           (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
+    function        IsVolatile                 : boolean;
+    function        CollectionName             (const unique:boolean=true):TFRE_DB_NameType;
+    function        Count                      : int64;
+    function        Exists                     (const ouid: TGUID): boolean;
+    procedure       GetAllUIDS                 (var uids : TFRE_DB_GUIDArray);
+    function        Store                      (const new_obj : IFRE_DB_Object):TFRE_DB_Errortype;
+    function        Delete                     (const ouid    : TGUID):TFRE_DB_Errortype; // RENAME TO REMOVE
+    function        Fetch                      (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
+    function        First                      : TFRE_DB_Object;
+    function        Last                       : TFRE_DB_Object;
+    function        GetItem                    (const num:uint64) : IFRE_DB_Object;
+    function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
     // Fetches Snapshot copies of the objects, you need to finalize them
-    function        GetIndexedObj      (const query_value : TFRE_DB_String ; out   obj:TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
-    function        GetIndexedObj      (const query_value : TFRE_DB_String ; out   obj       : TFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean;
-    function        GetIndexedUID      (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
-    function        GetIndexedUID      (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
+    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj:TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : TFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean;
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
 
     procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
 
@@ -1158,7 +1158,7 @@ type
     function  ObjectExists                  (const obj_uid : TGUID) : boolean;
     function  DeleteObject                  (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
     function  Fetch                         (const ouid   :  TGUID  ; out   dbo:TFRE_DB_Object;const internal_object : boolean=false): boolean;
-    function  StoreOrUpdateObject           (var   obj:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
+    function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
     procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
     procedure SyncSnapshot                  (const final : boolean=false);
     procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification);
@@ -9308,7 +9308,7 @@ begin
 end;
 
 function TFRE_DB_COLLECTION.GetItem(const num: uint64): IFRE_DB_Object;
-var obj : TFRE_DB_Object;
+var obj : IFRE_DB_Object;
 begin
   obj := FObjectLinkStore.GetItem(num);
   if assigned(obj) then
