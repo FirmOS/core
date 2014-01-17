@@ -65,6 +65,7 @@ type
     procedure   MyRunMethod;virtual;
     constructor Create (TheOwner: TComponent;const client : TFRE_BASE_CLIENT);reintroduce;
     procedure   WriteHelp; virtual;
+    procedure   WriteVersion; virtual;
     procedure   TestMethod; virtual;
     procedure   CfgTestLog;
   end;
@@ -72,13 +73,15 @@ type
 
 implementation
 
+{$I fos_version_helper.inc}
+
 { TFRE_BASEDATA_FEED }
 
 procedure TFRE_BASEDATA_FEED.DoRun;
 var
   ErrorMsg   : String;
 begin
-  ErrorMsg:=CheckOptions('thDU:H:u:p:',['test','help','debugger','remoteuser:','remotehost:','user:','pass:','test-log','subfeederip:','mwsip:']);
+  ErrorMsg:=CheckOptions('thvDU:H:u:p:',['test','help','version','debugger','remoteuser:','remotehost:','user:','pass:','test-log','subfeederip:','mwsip:']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -87,6 +90,12 @@ begin
 
   if HasOption('h','help') then begin
     WriteHelp;
+    Terminate;
+    Exit;
+  end;
+
+  if HasOption('v','version') then begin
+    WriteVersion;
     Terminate;
     Exit;
   end;
@@ -161,6 +170,20 @@ begin
   writeln('Usage: ',ExeName,' -h');
   writeln('  -U            | --remoteuser           : user for remote commands');
   writeln('  -H            | --remotehost           : host for remote commands');
+  writeln('  -h            | --help                 : print this help');
+  writeln('  -v            | --version              : print version info');
+  writeln('  -u <user>     | --user=<user>          : specify user');
+  writeln('  -p <password> | --pass=<password>      : specify password');
+  writeln('                  --debugger             : set debug flag');
+  writeln('                  --test-log             : enable console test-log');
+  writeln('                  --subfeederip=<ip>     : connect to subfeeder via ip');
+  writeln('                  --mwsip=<ip>           : connect to mws via ip');
+  writeln;
+end;
+
+procedure TFRE_BASEDATA_FEED.WriteVersion;
+begin
+  writeln(GFOS_VHELP_GET_VERSION_STRING);
 end;
 
 procedure TFRE_BASEDATA_FEED.TestMethod;
