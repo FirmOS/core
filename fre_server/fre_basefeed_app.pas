@@ -73,7 +73,6 @@ type
 
 implementation
 
-{$I fos_version_helper.inc}
 
 { TFRE_BASEDATA_FEED }
 
@@ -183,7 +182,6 @@ end;
 
 procedure TFRE_BASEDATA_FEED.WriteVersion;
 begin
-  writeln(GFOS_VHELP_GET_VERSION_STRING);
 end;
 
 procedure TFRE_BASEDATA_FEED.TestMethod;
