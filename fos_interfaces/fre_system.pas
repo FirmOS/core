@@ -88,6 +88,7 @@ var
       cFRE_USE_STATIC_CACHE           :boolean=true;
       cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml'; // comma seperated,lowecase (!!)
       cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowecase (!!)
+      cFRE_MACHINE_NAME               :string = '';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;
