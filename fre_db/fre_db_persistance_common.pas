@@ -449,7 +449,6 @@ type
   public
     constructor Create                       (new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);  { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
-    function    IsARootInsert                : Boolean;
     function    Needs_WAL: Boolean           ; override;
     function    CheckExistence               (const master : TFRE_DB_Master_Data ; const raise_ex:boolean): TFRE_DB_Errortype;
     procedure   ChangeInCollectionCheckOrDo  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
@@ -467,7 +466,6 @@ type
   public
     constructor Create                       (new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean); { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
-    function    IsARootInsert                : Boolean;
     function    Needs_WAL: Boolean           ; override;
     function    CheckExistence               (const master : TFRE_DB_Master_Data ; const raise_ex:boolean): TFRE_DB_Errortype;
     procedure   ChangeInCollectionCheckOrDo  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
@@ -583,7 +581,7 @@ begin
   FNewObj   := new_obj;
   FColl     := coll;
   FIsStore  := is_store;
-  assert(not assigned(FNewObj.Parent));
+  assert(assigned(FNewObj.Parent));
 end;
 
 constructor TFRE_DB_InsertSubStep.CreateAsWalReadBack(new_obj: TGuid; const coll: TFRE_DB_NameType; const is_store: boolean; const ws: TStream);
@@ -594,12 +592,6 @@ begin
   InternalReadObject(ws,FNewObj);
   if not FREDB_Guids_Same(FNewObj.UID,new_obj) then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'read back wal insertsubstep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(FNewObj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
-end;
-
-
-function TFRE_DB_InsertSubStep.IsARootInsert: Boolean;
-begin
-
 end;
 
 function TFRE_DB_InsertSubStep.Needs_WAL: Boolean;
@@ -614,7 +606,18 @@ end;
 
 procedure TFRE_DB_InsertSubStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
+  abort;
+    begin
+       //TODO think about child objects storing in other collections
+      if IsInsert then
+        begin
+          raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'ONLY ROOT OBJECTS CAN BE INSERTED CURRENTLY');
+        end
+      else
+        begin
 
+        end;
+    end;
 end;
 
 procedure TFRE_DB_InsertSubStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
@@ -1933,7 +1936,7 @@ begin
   FNewObj   := new_obj;
   FColl     := coll;
   FIsStore  := is_store;
-  assert(assigned(FNewObj.Parent));
+  assert(not assigned(FNewObj.Parent));
 end;
 
 constructor TFRE_DB_InsertStep.CreateAsWalReadBack(new_obj: TGuid; const coll: TFRE_DB_NameType; const is_store: boolean; const ws: TStream);
@@ -1946,16 +1949,9 @@ begin
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'read back wal insertstep failed, uids mismatch [%s<>[%s]',[GFRE_BT.GUID_2_HexString(FNewObj.UID),GFRE_BT.GUID_2_HexString(new_obj)]);
 end;
 
-function TFRE_DB_InsertStep.IsARootInsert: Boolean;
-begin
-  result := not assigned(FNewObj.Parent);
-end;
-
 function TFRE_DB_InsertStep.Needs_WAL: Boolean;
 begin
   if FNewObj.IsVolatile then
-    exit(false);
-  if not IsARootInsert then // Only root objects need to be in WAL
     exit(false);
   result := true;
 end;
@@ -1979,21 +1975,7 @@ begin
   if FIsWalReadBack then
     if not FTransList.FMaster.MasterColls.GetCollection(FCollName,FColl) then
       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'insert step, wal repair collection [%s] does not exist!',[FCollName]);
-
-  if IsARootInsert then
-    FColl.GetPersLayerIntf.StoreInThisColl(FNewObj,check)
-  else
-    begin
-       //TODO think about child objects storing in other collections
-      if IsInsert then
-        begin
-          raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'ONLY ROOT OBJECTS CAN BE INSERTED CURRENTLY');
-        end
-      else
-        begin
-
-        end;
-    end;
+  FColl.GetPersLayerIntf.StoreInThisColl(FNewObj,check)
 end;
 
 procedure TFRE_DB_InsertStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
