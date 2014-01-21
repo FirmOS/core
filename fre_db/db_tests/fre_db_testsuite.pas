@@ -17,6 +17,8 @@ uses
 
   procedure Check_Test_Object(const field_prefix:string;const obj:IFRE_DB_Object;const check_domid:boolean=false);
 
+  procedure CfgTestLog;
+
 type
 
   { TFRE_DB_TEST_CODE_CLASS }
@@ -90,6 +92,8 @@ type
   end;
 
   { TFRE_DB_PersistanceTests }
+
+  {TODO: Check that a object cannot be in a volatile and a non volatile collection (!) }
 
   TFRE_DB_PersistanceTests = class(TTestcase)
   private
@@ -305,6 +309,39 @@ begin
      assert(obj.DomainID=TEST_GUID_3);
 end;
 
+procedure CfgTestLog;
+begin
+//GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry);         // DROP MAIN DB  DEBUG
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Debug,'*',flra_DropEntry);    // DROP APSCOMM DEBUG
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Info,'*',flra_DropEntry);     // DROP APSCOMM INFO
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);    // DROP : JSON
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry);     // DROP : Server / DEBUG
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER_DATA],fll_Debug,'*',flra_DropEntry);// DROP : Server / Dispatch / Input Output
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Notice,'*',flra_DropEntry);    // DROP : Server / NOTICE
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Info,'*',flra_DropEntry);      // DROP : Server / INFO
+
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_ZIP],fll_Debug,'*',flra_DropEntry);
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_CACHE],fll_Debug,'*',flra_DropEntry);
+
+  { Uncomment to see HTTP REQUESTS Log on console }
+
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_REQ],fll_Info,'*',flra_DropEntry);     // DROP : Http/Header / Content
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_REQ],fll_Debug,'*',flra_DropEntry);    // DROP : Http/Header / Content
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_RES],fll_Info,'*',flra_DropEntry);     // DROP : Http/Header / Content
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_RES],fll_Debug,'*',flra_DropEntry);    // DROP : Http/Header / Content
+  //
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry);    // DROP : Websock / JSON / IN / OUT
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry);         // DROP : Database /Filter / Layer Debugging
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Warning,'*',flra_DropEntry);       // DROP : Database WARNING
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Debug,'*',flra_DropEntry);    // DROP SESSION  DEBUG
+  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
+
+  GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
+  GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
+  GFRE_LOG.DisableSyslog;
+end;
 
 { TFRE_DB_TEST_CODE_CLASS }
 
@@ -504,7 +541,6 @@ var U1  : SC_A10;
     cp  : IFRE_DB_COLLECTION;
 
 begin
-  //GFRE_DB_PS_LAYER;
   U1   := SC_A10.CreateForDB;
   u1u  := u1.UID;
   U2   := SC_A1.CreateForDB;
@@ -611,12 +647,12 @@ procedure TFRE_DB_PersistanceTests.ChangeRefTestCodeClasses;
 var res : TFRE_DB_Errortype;
 begin
   ConnectDB('admin@system','admin');
-  res := FWorkConn.Delete(u2u);
-  AssertTrue(res=edb_OBJECT_REFERENCED);
-  res := FWorkConn.Delete(u3u);
-  AssertTrue(res=edb_OBJECT_REFERENCED);
-  res := FWorkConn.Delete(u4u);
-  AssertTrue(res=edb_OBJECT_REFERENCED);
+  //res := FWorkConn.Delete(u2u);
+  //AssertTrue(res=edb_OBJECT_REFERENCED);
+  //res := FWorkConn.Delete(u3u);
+  //AssertTrue(res=edb_OBJECT_REFERENCED);
+  //res := FWorkConn.Delete(u4u);
+  //AssertTrue(res=edb_OBJECT_REFERENCED);
   res := FWorkConn.Delete(u1u);
   CheckDbResult(res);
   res := FWorkConn.Delete(u1u);

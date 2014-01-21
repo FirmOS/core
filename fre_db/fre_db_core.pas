@@ -97,10 +97,6 @@ type
   TFRE_DB_ObjLinkArray  = Array of TGuid;
   PFRE_DB_ObjLinkArray  = ^TFRE_DB_ObjLinkArray;
 
-  IFRE_DB_PERSISTANCE_COLLECTION       = interface;
-  IFRE_DB_PERSISTANCE_COLLECTION_ARRAY = array of IFRE_DB_PERSISTANCE_COLLECTION;
-
-
   TFRE_DB_FieldData=record
     FieldType : TFRE_DB_FIELDTYPE;
     case byte of
@@ -536,6 +532,7 @@ type
     procedure       __InternalGetFullObjectList        (var list: OFRE_SL_TFRE_DB_Object);
     procedure       __InternalCompareToObj             (const compare_obj : TFRE_DB_Object ; callback : TFRE_DB_ObjCompareCallback);
     function        InternalUniqueDebugKey             : String;
+    function        GetDescriptionID                   : String;
     procedure       Set_ReadOnly                       ;
     procedure       Set_Volatile                       ;
     procedure       Set_System                         ;
@@ -1074,96 +1071,6 @@ type
   TFRE_DB_Guid_Iterator                 = procedure (const obj:TGUID) is nested;
   //TFRE_DB_Obj_IteratorBreak             = function  (const obj:TFRE_DB_Object):Boolean is nested;
 
-
-
-  IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER=interface
-    procedure     StoreInThisColl     (const new_obj         : TFRE_DB_Object ; const checkphase : boolean);
-    procedure     UpdateInThisColl    (const new_fld,old_fld : TFRE_DB_FIELD  ; const old_obj,new_obj : TFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const checkphase : boolean);
-
-    procedure     DeleteFromThisColl  (const del_obj         : TFRE_DB_Object ; const checkphase : boolean);
-    procedure     StreamToThis        (const stream          : TStream);
-    procedure     LoadFromThis        (const stream          : TStream);
-    function      FetchIntFromColl    (const uid:TGuid ; var obj : TFRE_DB_Object):boolean;
-  end;
-
-  // Abstraction of a Collection in the Persistance Layer
-  // Manages Object Storage
-  // -
-  // Every Object has to be in one collection to be storeable
-  // Objects can be in more than one Collection
-  // Objects stored in temporary collections do not feature referential integrity management
-  // Subobjects can be stored in collections too
-  //
-  // Every object store originates in the collection, but also checks for other collections
-  //
-  // Every Persistance Collection manages indexes for data
-
-  { IFRE_DB_PERSISTANCE_COLLECTION }
-
-  IFRE_DB_PERSISTANCE_COLLECTION=interface
-    function        GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
-
-    function        IsVolatile                 : boolean;
-    function        CollectionName             (const unique:boolean=true):TFRE_DB_NameType;
-    function        Count                      : int64;
-    function        Exists                     (const ouid: TGUID): boolean;
-    procedure       GetAllUIDS                 (var uids : TFRE_DB_GUIDArray);
-    function        Store                      (const new_obj : IFRE_DB_Object):TFRE_DB_Errortype;
-    function        Delete                     (const ouid    : TGUID):TFRE_DB_Errortype; // RENAME TO REMOVE
-    function        Fetch                      (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
-    function        First                      : TFRE_DB_Object;
-    function        Last                       : TFRE_DB_Object;
-    function        GetItem                    (const num:uint64) : IFRE_DB_Object;
-    function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
-    // Fetches Snapshot copies of the objects, you need to finalize them
-    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj:TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
-    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : TFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean;
-    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
-    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
-
-    procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-
-    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-  end;
-
-  { IFRE_DB_PERSISTANCE_LAYER }
-
-  IFRE_DB_PERSISTANCE_LAYER=interface
-    procedure DEBUG_DisconnectLayer (const db:TFRE_DB_String;const clean_master_data :boolean = false);
-
-    function  GetLastError                  : TFRE_DB_String;
-    function  ExistCollection               (const coll_name : TFRE_DB_NameType) : Boolean;
-    function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
-    function  NewCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
-    function  DeleteCollection              (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
-
-    function  Connect                       (const db_name:TFRE_DB_String ; out database_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
-    function  DatabaseList                  : IFOS_STRINGS;
-    function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
-    function  CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-    function  DeleteDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-    procedure Finalize                      ;
-
-    function  GetReferences                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
-    function  GetReferencesCount            (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
-    function  GetReferencesDetailed         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
-
-    function  StartTransaction              (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType) : TFRE_DB_Errortype;
-    function  Commit                        : boolean;
-    procedure RollBack                      ;
-
-    function  ObjectExists                  (const obj_uid : TGUID) : boolean;
-    function  DeleteObject                  (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
-    function  Fetch                         (const ouid   :  TGUID  ; out   dbo:TFRE_DB_Object;const internal_object : boolean=false): boolean;
-    function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
-    procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
-    procedure SyncSnapshot                  (const final : boolean=false);
-    procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification);
-  end;
-
   { TFRE_DB_TEXT }
 
   TFRE_DB_TEXT = class (TFRE_DB_OBJECT,IFRE_DB_TEXT)
@@ -1339,6 +1246,7 @@ type
     FIsTemporary           : Boolean;
     FObjectLinkStore       : IFRE_DB_PERSISTANCE_COLLECTION; //? Necessary to be referenced here
     FName                  : TFRE_DB_NameType;
+    FUniqueName            :  TFRE_DB_NameType;
     FObservers             : OFRE_DB_ObserverList;
     FObserverUpdates       : Array of RFRE_DB_UPDATE_ENTRY;
     FObserverBlockupdating : Boolean;
@@ -1387,7 +1295,7 @@ type
 
     procedure       ClearCollection;
 
-    function        CollectionName :TFRE_DB_NameType;
+    function        CollectionName (const unique:boolean=false):TFRE_DB_NameType;
 
     function        AddObserver                (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     function        RemoveObserver             (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
@@ -5091,7 +4999,7 @@ begin
   //InternalClearAll(true);
   //for i:=0 to count-1 do begin
   //  obj := ReadElement;
-  //  abort; //Add object to Persistant Master Obj Store
+  //  abort; //Add object to Persistent Master Obj Store
   //  //FMasterCollection._InternalAdd(obj.UID,obj).SetObjManInfDirty;
   //end;
   //writeln('MASTER COUNT : ',FObjectStore.Count);
@@ -8928,6 +8836,7 @@ begin
   inherited Create;
   FObjectLinkStore := pers_coll;
   FName            := name;
+  FUniqueName      := uppercase(name);
   FObservers.Init;
   FConnection     := connection;
 end;
@@ -8990,14 +8899,19 @@ function TFRE_DB_COLLECTION._InternalStore(var new_obj: TFRE_DB_Object): TFRE_DB
 var suid   : TGuid;
 begin //nl
   suid   := new_obj.UID;
-  result := FObjectLinkStore.Store(new_obj);
+  result := edb_OK;
+  try
+    FConnection.FPersistance_Layer.StoreOrUpdateObject(new_obj,FName,true);
+  except
+    result := edb_PERSISTANCE_ERROR;
+  end;
   if Result=edb_OK then
     _NotifyObserversOrRecord(fdbntf_INSERT,nil,suid);
 end;
 
 procedure TFRE_DB_COLLECTION._IterateOverGUIDArray(const guids: TFRE_DB_GUIDArray; const iter: IFRE_DB_ObjectIteratorBrk; var halt:boolean);
 var i   : NativeInt;
-    obj : TFRE_DB_Object;
+    obj : IFRE_DB_Object;
 begin
  for i := 0 to high(guids) do
    begin
@@ -9011,13 +8925,13 @@ end;
 
 procedure TFRE_DB_COLLECTION._IterateOverGUIDArrayT(const guids: TFRE_DB_GUIDArray; const iter: TFRE_DB_ObjectIteratorBrk; var halt: boolean);
 var i   : NativeInt;
-    obj : TFRE_DB_Object;
+    obj : IFRE_DB_Object;
 begin
  for i := 0 to high(guids) do
    begin
      if not FObjectLinkStore.Fetch(guids[i],obj) then
        raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
-     iter(obj,halt);
+     iter(obj.Implementor as TFRE_DB_Object,halt);
      if halt then
        break;
    end;
@@ -9053,7 +8967,7 @@ end;
 procedure TFRE_DB_COLLECTION.ForAll(const func: TFRE_DB_Obj_Iterator);
 var uids : TFRE_DB_GUIDArray;
        i : NativeInt;
-     obj : TFRE_DB_Object;
+     obj : IFRE_DB_Object;
 
 begin //nl
   FObjectLinkStore.GetAllUIDS(uids);
@@ -9061,7 +8975,7 @@ begin //nl
     begin
        if not FObjectLinkStore.Fetch(uids[i],obj) then
          raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(uids[i]));
-       func(obj);
+       func(obj.Implementor as TFRE_DB_Object);
     end;
 end;
 
@@ -9078,11 +8992,16 @@ function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): boolean;
 var ncolls : TFRE_DB_StringArray;
     res    : TFRE_DB_Errortype;
 begin //nl
-  res := FObjectLinkStore.Delete(ouid);
+  try
+    FConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
+    res := edb_OK;
+  except
+    res := edb_PERSISTANCE_ERROR;
+  end;
   result := (res=edb_OK);
-  //if Result then begin
-  //  FConnection._NotifyCollectionObservers(fdbntf_DELETE,nil,ouid,ncolls);
-  //end;
+  if Result then begin
+    FConnection._NotifyCollectionObservers(fdbntf_DELETE,nil,ouid,ncolls);
+  end;
 end;
 
 function TFRE_DB_COLLECTION.Store(var new_obj: TFRE_DB_Object):TFRE_DB_Errortype;
@@ -9116,8 +9035,13 @@ begin //nl
 end;
 
 function TFRE_DB_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
+var dboi : IFRE_DB_Object;
 begin //nl -> TODO: Check if in collection
-  result := FObjectLinkStore.Fetch(ouid,dbo);
+  result := FObjectLinkStore.Fetch(ouid,dboi);
+  if result then
+    dbo := dboi.Implementor as TFRE_DB_Object
+  else
+    dbo := nil;
 end;
 
 procedure TFRE_DB_COLLECTION.ClearCollection;
@@ -9136,8 +9060,10 @@ begin //nl
   end;
 end;
 
-function TFRE_DB_COLLECTION.CollectionName: TFRE_DB_NameType;
+function TFRE_DB_COLLECTION.CollectionName(const unique: boolean): TFRE_DB_NameType;
 begin
+  if unique then
+    result := FName;
   result := FName;
 end;
 
@@ -9216,9 +9142,13 @@ begin //nl
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedObj(const query_value: TFRE_DB_String; out obj: TFRE_DB_Object; const index_name: TFRE_DB_NameType): boolean;
+var obi : IFRE_DB_Object;
 begin //nl
-  obj    := nil;
-  result := FObjectLinkStore.GetIndexedObj(query_value,obj,index_name);
+  result := FObjectLinkStore.GetIndexedObj(query_value,obi,index_name);
+  if result then
+    obj := obi.Implementor as TFRE_DB_Object
+  else
+    obj := nil;
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType): boolean;
@@ -9227,17 +9157,8 @@ begin //nl
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedObjs(const query_value: TFRE_DB_String; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType): boolean;
-var oobj : TFRE_DB_ObjectArray;
-       i : NativeInt;
 begin //nl
-  obj := nil;
-  result := FObjectLinkStore.GetIndexedObj(query_value,oobj,index_name);
-  if Result then
-    begin
-      SetLength(obj,length(oobj));
-      for i := 0 to high(oobj) do
-        obj[i] := oobj[i];
-    end;
+  result := FObjectLinkStore.GetIndexedObj(query_value,obj,index_name);
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUIDs(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType): boolean;
@@ -9298,13 +9219,23 @@ begin
 end;
 
 function TFRE_DB_COLLECTION.First: TFRE_DB_Object;
+var obi : IFRE_DB_Object;
 begin
-  result := FObjectLinkStore.First;
+  obi := FObjectLinkStore.First;
+  if assigned(obi) then
+    result := obi.Implementor as TFRE_DB_Object
+  else
+    result := nil;
 end;
 
 function TFRE_DB_COLLECTION.Last: TFRE_DB_Object;
+var obi : IFRE_DB_Object;
 begin
-  result := FObjectLinkStore.Last;
+  obi := FObjectLinkStore.Last;
+  if assigned(obi) then
+    result := obi.Implementor as TFRE_DB_Object
+  else
+    result := nil;
 end;
 
 function TFRE_DB_COLLECTION.GetItem(const num: uint64): IFRE_DB_Object;
@@ -10210,6 +10141,7 @@ begin
 end;
 
 function TFRE_DB_BASE_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object; const without_right_check: boolean): TFRE_DB_Errortype;
+var dbi : IFRE_DB_Object;
 
   function _Check : TFRE_DB_Errortype;
   var classt : TClass;
@@ -10235,7 +10167,7 @@ begin
   try
     dbo    := nil;
     result := edb_NOT_FOUND;
-    if FPersistance_Layer.Fetch(ouid,dbo,false) then
+    if FPersistance_Layer.Fetch(ouid,dbi,false) then
       exit(_Check);
     if GFRE_DB.FetchSysObject(ouid,dbo) then
       exit(_Check);
@@ -11873,11 +11805,6 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     coll          : IFRE_DB_PERSISTANCE_COLLECTION;
     i             : NativeInt;
 
-    procedure WriteGuid(var o : TFRE_DB_Object ; const idx : NativeInt; var halt:boolean);
-    begin
-      write(idx,' ',o.UID_String,',');
-    end;
-
     procedure SearchInOldAndRemoveExistingInNew(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
       if deleted_obj.Exists(o)<>-1 then
@@ -11929,46 +11856,20 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
       DeleteCB(del_object);
     end;
 begin
-  if (not assigned(first_obj)) or
-     (not assigned(second_obj)) then
-       raise EFRE_DB_Exception.Create(edb_ERROR,'both the first and the second compare object must be assigned');
+  if (not assigned(first_obj)) then
+       raise EFRE_DB_Exception.Create(edb_ERROR,'at least the first object must be assigned');
 
     deleted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
     inserted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
     updated_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
-
-    //if assigneD(second_obj) then
-    //  second_obj.Field('pemper').AsString:='faker';
-    //second_obj.Field('TEST').AsString:='fuuker';
-    //second_obj.FieldPath('desc.txt').AsString:='ChangedChanged';
-    //second_obj.DeleteField('desc');
-    //first_obj.DeleteField('desc');
-  //
-    //writeln('--- OLD OBJECT ----');
-    //if assigned(second_obj) then
-    //  writeln(second_obj.DumpToString());
-    //writeln('--- NEW OBJECT -----');
-    //writeln(first_obj.DumpToString());
-    //writeln('------------');
 
     if assigned(second_obj) then // update case 2nd = to_update, 1st=obj
       second_obj.__InternalGetFullObjectList(deleted_obj);
 
     first_obj.__InternalGetFullObjectList(inserted_obj);
 
-   //writeln('------------------------');
-   //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
-   //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
-   //writeln('------------------------');
-
-    // Yields the updated_obj in the updatelist and the inserts in the newlist, all objects come from the "new non persitent object copy"
-    inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);
-    // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
+    inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);    // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
     deleted_obj.ForAllBreak(@SearchInUpdatesAndRemoveExistingFromOld);
-
-    //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
-    //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
-    //write('UPDATED  LIST [');updated_obj.ForAllBreak(@WriteGuid);writeln('] ',updated_obj.Count);
 
     if deleted_obj.Count>0 then
       deleted_obj.ForAllBreak(@GenerateDeletes);
@@ -11982,6 +11883,11 @@ end;
 function TFRE_DB_Object.InternalUniqueDebugKey: String;
 begin
   WriteStr(result,'(',FREDB_ObjectToPtrUInt(self),'-',ClassName,'[',GFRE_BT.GUID_2_HexString(FUID)+'/'+GFRE_BT.GUID_2_HexString(FDomainID),' ',BoolToStr(assigned(Parent),'C','R'),')');
+end;
+
+function TFRE_DB_Object.GetDescriptionID: String;
+begin
+  result := BoolToStr(assigned(Parent),'C','R')+UID_String+':'+DomainID_String+'('+SchemeClass+')';
 end;
 
 
@@ -13175,18 +13081,6 @@ begin
     result := uppercase(FMediatorExtention.ClassName)
   else
     result := UpperCase(ClassName);
-  //result := '';
-  //if assigned(FMediatorExtention) then begin
-  //  exit(uppercase(FMediatorExtention.ClassName));
-  //end;
-  //if FSchemeName<>'' then begin
-  //  result := FSchemeName;
-  //end else
-  //if (ClassType<>TFRE_DB_Object) and (ClassName<>'') then begin // if there is a codeclass set, then the schemeclass must have the same name
-  //  result := uppercase(ClassName);
-  //end;
-  //if result='' then
-  //  result := uppercase(ClassName);
 end;
 
 function TFRE_DB_Object.IsA(const schemename: TFRE_DB_NameType): Boolean;
