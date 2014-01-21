@@ -595,7 +595,7 @@ var deployexts : TFRE_DB_StringArray;
      GFRE_DB.LogDebug(dblc_SERVER,'>DEPLOYMENT PHASE 2 AGGREGATING : FILE [%s] [%d]',[metae.Filename,metae.AccessOrder]);
      content := GFRE_BT.StringFromFile(metae.Filename);
      if content<>'' then
-       deployccat[pos] := deployccat[pos]+LineEnding+Format('// CONCAT FILE Name : [%s] Accessorder [%d] ',[metae.Filename,metae.AccessOrder])+LineEnding+content
+       deployccat[pos] := deployccat[pos]+LineEnding+Format('// CONCAT FILE Name : [%s] Accessorder [%d] ',[metae.Filename,metae.AccessOrder])+LineEnding
      else
        GFRE_DB.LogWarning(dblc_SERVER,'>DEPLOYMENT PHASE 2 AGGREGATING : FILE [%s] [%d] - FILE IS EMPTY',[metae.Filename,metae.AccessOrder]);
   end;
@@ -1082,6 +1082,7 @@ var ws         : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
 begin
   found     := false;
   reuse_ses := (old_session_id<>'NEW') and (old_session_id<>'');
+  GFRE_DBI.LogInfo(dblc_SESSION,'BindInitialSession ['+old_session_id+'] ');
   if reuse_ses then begin
     if FetchSessionByIdLocked(old_session_id,session) then
       begin

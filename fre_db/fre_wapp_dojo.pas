@@ -44,7 +44,7 @@ unit fre_wapp_dojo;
 interface
 
 uses
-  Classes, SysUtils, FRE_DB_INTERFACE, FRE_DB_COMMON, FRE_JSON_ACTION, jsonparser,fpjson,FOS_TOOL_INTERFACES;
+  Classes, SysUtils, FRE_DB_INTERFACE, FRE_DB_COMMON, FRE_JSON_ACTION, jsonparser,fpjson,FOS_TOOL_INTERFACES,fre_system;
 
 type
 
@@ -1916,20 +1916,6 @@ implementation
     jsContentAdd('<head>');
     jsContentAdd('<meta http-equiv="Content-Type" content="text/html;charset=utf-8">');
     jsContentAdd('<title>'+co.Field('caption').AsString+'</title>');
-
-    //jsContentAdd('<link href=''http://fonts.googleapis.com/css?family=Source+Sans+Pro:200,300,400,600,700,900,200italic,300italic,400italic,600italic,700italic,900italic'' rel=''stylesheet'' type=''text/css''>');
-    jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/app.css" media="screen">');
-    jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/webfont/fos_fonts.css" media="screen">');
-    jsContentAdd('<link rel="stylesheet" type="text/css" href="aloha/src/css/aloha.css" media="screen">');
-
-    jsContentAdd('<script type="text/javascript" src="fre_js/config.js"></script>');
-    jsContentAdd('<script src="dojo/dojo/dojo.js"></script>');
-    jsContentAdd('<script>define.amd.jQuery = true;</script>');
-    jsContentAdd('<script src="aloha/src/lib/vendor/jquery-1.7.2.js"></script>');
-    jsContentAdd('<script src="aloha/src/lib/aloha.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
-    jsContentAdd('<script src="d3/d3.js" ></script>');
-    jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js"></script>');
-
     jsContentAdd('<script type="text/javascript">');
     jsContentAdd('  G_TEXTS = {};');
     jsContentAdd('  G_TEXTS.gridfilter =');
@@ -1965,16 +1951,40 @@ implementation
     jsContentAdd('         };');
     jsContentAdd('</script>');
 
-    jsContentAdd('<script type="text/javascript" src="fre_js/dojo_utils.js"></script>');
+    //jsContentAdd('<link href=''http://fonts.googleapis.com/css?family=Source+Sans+Pro:200,300,400,600,700,900,200italic,300italic,400italic,600italic,700italic,900italic'' rel=''stylesheet'' type=''text/css''>');
+
+    //jsContentAdd('<script type="text/javascript" src=fre_js/fos_deploy.js"></script>');
+
+    if cFRE_JS_DEBUG then begin
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/app.css" media="screen">');
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/fos_fonts.css" media="screen">');
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="aloha/src/css/aloha.css" media="screen">');
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="codemirror/lib/codemirror.css media="screen">');
+
+      jsContentAdd('<script type="text/javascript" src="fre_js/config.js"></script>');
+      jsContentAdd('<script src="dojo/dojo/dojo.js"></script>');
+      jsContentAdd('<script>define.amd.jQuery = true;</script>');
+      jsContentAdd('<script src="aloha/src/lib/vendor/jquery-1.7.2.js"></script>');
+      jsContentAdd('<script src="aloha/src/lib/aloha.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
+      jsContentAdd('<script src="d3/d3.js" ></script>');
+      jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js"></script>');
+      jsContentAdd('<script type="text/javascript" src="fre_js/dojo_utils.js"></script>');
+      jsContentAdd('<script type="text/javascript" src="codemirror/lib/codemirror.js"></script>');
+      jsContentAdd('<script type="text/javascript" src="codemirror/mode/javascript/javascript.js"></script>');
+      jsContentAdd('<script type="text/javascript" src="codemirror/mode/pascal/pascal.js"></script>');
+    end else begin
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="js/all.css" media="screen">');
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/all.css" media="screen">');
+
+      jsContentAdd('<script src="js/framework.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
+      jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js"></script>');
+    end;
+
 
     if co.Field('jira').AsString<>'' then begin
       jsContentAdd('<script>window.ATL_JQ_PAGE_PROPS =  { "triggerFunction": function(showCollectorDialog) { window._showCollectorDialog = showCollectorDialog; } };</script>');
       jsContentAdd('<script type="text/javascript" src="' + co.Field('jira').AsString + '"></script>');
     end;
-    jsContentAdd('<script type="text/javascript" src="codemirror/lib/codemirror.js"></script>');
-    jsContentAdd('<link rel="stylesheet" type="text/css" href="codemirror/lib/codemirror.css"></link>');
-    jsContentAdd('<script type="text/javascript" src="codemirror/mode/javascript/javascript.js"></script>');
-    jsContentAdd('<script type="text/javascript" src="codemirror/mode/pascal/pascal.js"></script>');
 
     jsContentAdd('<script type="text/javascript">');
     jsContentAdd('  dojo.addOnLoad(function() {');

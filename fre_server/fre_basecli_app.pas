@@ -162,7 +162,7 @@ begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
   ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',
                           ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','dumpdb','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz','cleanzip','nozip','nocache']);
+                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz','cleanzip','nozip','nocache','jsdebug']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -312,6 +312,11 @@ begin
     cFRE_WEB_STYLE := FDefaultStyle;
   end;
 
+  if HasOption('*','jsdebug') then begin
+    cFRE_JS_DEBUG := true;
+  end else begin
+    cFRE_JS_DEBUG := false;
+  end;
 
   if HasOption('*','show-users') then
     begin
