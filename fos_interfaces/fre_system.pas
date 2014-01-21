@@ -61,6 +61,7 @@ var
       cFRE_JOB_ARCHIVE_DIR            :string = '';
       cFRE_PID_LOCK_DIR               :string = '';
       cFRE_SERVER_WWW_ROOT_DIR        :string = '';
+      cFRE_SERVER_WWW_ROOT_DYNAMIC    :string = '';
       cFRE_SERVER_WWW_ROOT_FILENAME   :string = 'FREROOT.html';
       cFRE_SERVER_DEFAULT_TIMEZONE    :string = 'Europe/Vienna';
       cFRE_WebServerLocation_HixiedWS :string = '127.0.0.1:44000';
@@ -88,6 +89,7 @@ var
       cFRE_USE_STATIC_CACHE           :boolean=true;
       cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml'; // comma seperated,lowecase (!!)
       cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowecase (!!)
+      cFRE_MACHINE_NAME               :string = '';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;

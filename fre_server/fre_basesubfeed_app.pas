@@ -65,6 +65,7 @@ type
     constructor Create      (TheOwner: TComponent ; const Server : TFRE_BASESUBFEED_SERVER) ; reintroduce ;
     destructor  Destroy     ;override;
     procedure   WriteHelp   ; virtual;
+    procedure   WriteVersion; virtual;
     procedure   TestMethod  ; virtual;
     procedure   CfgTestLog  ;
   end;
@@ -72,13 +73,14 @@ type
 
 implementation
 
+
 { TFRE_BASESUBDATA_FEED }
 
 procedure TFRE_BASESUBDATA_FEED.DoRun;
 var
   ErrorMsg   : String;
 begin
-  ErrorMsg:=CheckOptions('thDU:H:u:p:T:',['test','help','debugger','remoteuser:','remotehost:','user:','pass:','toolpath:','test-log']);
+  ErrorMsg:=CheckOptions('thvDU:H:T:',['test','help','version','debugger','remoteuser:','remotehost:','toolpath:','test-log']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -91,19 +93,17 @@ begin
     Exit;
   end;
 
+  if HasOption('v','version') then begin
+    WriteVersion;
+    Terminate;
+    Exit;
+  end;
+
   if HasOption('D','debugger') then
     G_NO_INTERRUPT_FLAG:=true;
 
   if HasOption('U','remoteuser') then begin
     cFRE_REMOTE_USER := GetOptionValue('U','remoteuser');
-  end;
-
-  if HasOption('u','user') then begin
-    cFRE_Feed_User := GetOptionValue('u','user');
-  end;
-
-  if HasOption('p','pass') then begin
-    cFRE_Feed_Pass := GetOptionValue('p','pass');
   end;
 
   if HasOption('H','remotehost') then begin
@@ -162,7 +162,15 @@ begin
   writeln('Usage: ',ExeName,' -h');
   writeln('  -U            | --remoteuser           : user for remote commands');
   writeln('  -H            | --remotehost           : host for remote commands');
+  writeln('  -h            | --help                 : print this help');
+  writeln('  -v            | --version              : print version info');
   writeln('  -T            | --toolpath             : base path for tools e.g. sg3utils');
+  writeln('                  --debugger             : set debug flag');
+  writeln('                  --test-log             : enable console test-log');
+end;
+
+procedure TFRE_BASESUBDATA_FEED.WriteVersion;
+begin
 end;
 
 procedure TFRE_BASESUBDATA_FEED.TestMethod;
