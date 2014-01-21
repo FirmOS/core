@@ -400,15 +400,12 @@ begin
   FDispatcher.Free;
   FUserSessionsTree.Free;
   FSessionTreeLock.Finalize;
-  writeln('DEF SESSION FREE');
   FDefaultSession.Free;
 
   FSystemConnection.Free;
   FSystemConnection:=nil;
-  GFRE_DBI.LogDebug(dblc_SERVER,'SERVER SHUTDOWN DONE');
-  writeln('Syncdb');
+  GFRE_DBI.LogInfo(dblc_SERVER,'SERVER SHUTDOWN DONE');
   GFRE_DB_DEFAULT_PS_LAYER.SyncSnapshot(true);
-  writeln('Syncdb-done');
 
   GFRE_DBI.LogDebug(dblc_SERVER,'DATABASE COUNT [%d]',[FOpenDatabaseList.Count]);
   FOpenDatabaseList.ForAllBrk(@CloseAll);
@@ -529,8 +526,8 @@ begin
   _SetupSSL_Ctx;
   _SetupHttpBaseServer;
 
-  GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
   GFRE_SC.SetNewListenerCB(@APSC_NewListener);
+  GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
   GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
 
   GFRE_SC.AddListener_TCP ('*','44001','FLEX');
@@ -626,8 +623,8 @@ end;
 
 procedure TFRE_BASE_SERVER.Interrupt;
 begin
+  GFRE_DB.LogNotice(dblc_SERVER,'**** INTERRUPT REQUESTED (CTRL-C)');
   if G_NO_INTERRUPT_FLAG THEN exit;
-  writeln('INTERRUPT');
   GFRE_BT.ActivateJack(30000);
   GFRE_SC.RequestTerminate;
 end;

@@ -7335,10 +7335,8 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
       if lOrderChanged then begin
         FCurrentOrder := order;
       end;
-     writeln('********* ORDERCHANGED : ',CollectionName,' ',lOrderChanged,'  ',FInitialDerived);
 
      if lOrderChanged or (not FInitialDerived)  then begin
-       writeln(':::ORDERING IT NEW ',CollectionName);
         FInitialDerived := true;
         RemoveAllOrderFields;
         RemoveAllFiltersPrefix('*D_');

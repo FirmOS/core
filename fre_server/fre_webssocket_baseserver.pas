@@ -225,7 +225,7 @@ var
 
   procedure _ProcessCloseFrame;
   begin
-     writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
+     //writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
     _SendCloseFrame;
     GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) WEBSOCK REQUESTED CLOSE '+FChannel.GetVerboseDesc);
     DeactivateSessionBinding;
@@ -1669,7 +1669,7 @@ var data : string;
      again:
       lfull_len := QueryRestLen;
       if lfull_len<12 then begin // TODO Hang - Check for only 1 single packet and no stuffer behind
-        writeln('-- REQUESTLEN SHORT -- possible STALL ',lfull_len,' ',ClassName,'  - ',FWSSockModeProtoVersion);
+        //writeln('-- REQUESTLEN SHORT -- possible STALL ',lfull_len,' ',ClassName,'  - ',FWSSockModeProtoVersion);
         if lfull_len>=6 then begin // try decode shortframe;
           continue_short_decode := TryDecodeShortFrame(lfull_len);
         end;

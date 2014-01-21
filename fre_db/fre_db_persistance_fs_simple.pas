@@ -573,7 +573,6 @@ destructor TFRE_DB_PS_FILE.Destroy;
 var
   i: NativeInt;
 begin
-  writeln('FINALIZING PERSISTENCE LAYER');
   if FGlobalLayer then
     begin
       for i:=0 to high(FConnectedLayers) do
