@@ -526,8 +526,8 @@ begin
   _SetupSSL_Ctx;
   _SetupHttpBaseServer;
 
-  GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
   GFRE_SC.SetNewListenerCB(@APSC_NewListener);
+  GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
   GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
 
   GFRE_SC.AddListener_TCP ('*','44001','FLEX');
