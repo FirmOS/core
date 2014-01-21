@@ -101,8 +101,8 @@ type
     procedure   _SendCloseFrame;
     procedure   _SendHttpResponseStream          (const code: integer; const answer: string; const content:TMemoryStream;const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
     procedure   _SendHttpResponse                (const code: integer; const answer: string; const answer_params: array of const;const content:string='';const contenttype:string='';const is_attachment:boolean=false;const attachment_filename:string='');
-    procedure   _SendHttpFileWithRangeCheck      (lfilename: string; const isAttachment:boolean=false);
-    procedure   _SendHttpFile                    (const lfilename: string; const offset:NativeUint=0; const len : NativeUint=0; const isAttachment:boolean=false;const ispartial:boolean=false);
+    procedure   _SendHttpFileWithRangeCheck      (lfilename: string; const isAttachment:boolean=false;const use_dynamic_wwwroot : boolean=false ; const accept_range_requests : boolean = false);
+    procedure   __SendHttpFile                   (const lfilename: string; const ispartial:boolean ; const isAttachment:boolean=false ; const offset:NativeUint=0; const len : NativeUint=0 ; const accept_range_request : boolean = false);
     procedure   _SendHttpFileMetaData            (const metae : TFRE_HTTP_METAENTRY ; const send_zipped : boolean);
     procedure   ClientConnected;virtual;
   protected
@@ -225,7 +225,7 @@ var
 
   procedure _ProcessCloseFrame;
   begin
-     writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
+     //writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
     _SendCloseFrame;
     GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) WEBSOCK REQUESTED CLOSE '+FChannel.GetVerboseDesc);
     DeactivateSessionBinding;
@@ -979,6 +979,7 @@ begin
     ResponseEntityHeader[reh_ContentRange]    := '';
     ResponseEntityHeader[reh_Expires]         := '';
     ResponseEntityHeader[reh_ContentEncoding] := '';
+    ResponseHeader[rh_AcceptRanges]           := '';
 
     if (uri.Document='') or ((length(uri.SplitPath)=0) and (ExtractFileExt(uri.Document)='')) then begin //root = application domain, except the stuff some bloke has already put into root, but at least with an extension
       if uri.Document='FirmOS_FRE_WS' then
@@ -991,12 +992,12 @@ begin
         end;
       exit;
     end else begin
-      lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
       if (length(uri.SplitPath)>0) then
         begin
+          lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
           if (uri.SplitPath[0]='download') then
             begin
-              _SendHttpFileWithRangeCheck(lFilename);
+              _SendHttpFileWithRangeCheck(lFilename,true,true,true);
             end
           else
           if (uri.SplitPath[0]='FDBOSF') then
@@ -1022,6 +1023,8 @@ begin
         end
       else
         begin
+           lFilename:=uri.Document;
+           _SendHttpFileWithRangeCheck(lFilename);
         end;
     end;
 end;
@@ -1155,24 +1158,31 @@ begin
   SendResponse;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileWithRangeCheck(lfilename: string; const isAttachment: boolean);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileWithRangeCheck(lfilename: string; const isAttachment: boolean; const use_dynamic_wwwroot: boolean; const accept_range_requests: boolean);
 var
   fn              : string;
-  info            : stat;
-  flength         : NativeInt;
-  frangetype      : string;
-  frangestart     : string;
-  frangeend       : string;
-  foffset         : NativeUInt;
-  fend            : NativeUInt;
   gzip_allowed    : Boolean;
   metae           : TFRE_HTTP_METAENTRY;
   range           : string;
   accept_encoding : string;
   if_none_match   : string;
 
-  procedure _ProcessRangeRequest;
+  procedure _ProcessRangeRequestAndSendFile;
+  var
+    info            : stat;
+    flength         : NativeInt;
+    frangetype      : string;
+    frangestart     : string;
+    frangeend       : string;
+    foffset         : NativeUInt;
+    fend            : NativeUInt;
+
   begin
+      if fpstat(fn,info)<>0 then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'Stat for file '+fn+' failed!');
+      flength := info.st_size;
+      fend    := flength;
+      foffset := 0;
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Range: %s',[range]);
       frangetype  := GFRE_BT.SplitString(range,'=');
       if frangetype<>'bytes' then
@@ -1196,11 +1206,16 @@ var
           exit;
         end;
       if length(frangestart)>0 then
-        foffset := StrToInt64(frangestart);
+        foffset := StrToInt64Def(frangestart,-1);
       if length(frangeend)>0 then
-        fend    := StrToInt64(frangeend);
+        fend    := StrToInt64Def(frangeend,-1);
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangeoffset: %d',[foffset]);
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Totallength: %d',[flength]);
+      if (foffset=-1) or (fend=-1) then
+        begin
+          _SendHttpResponse(416,'COULD NOT PARSE RANGE',[]);
+          exit;
+        end;
       if foffset>flength then
         begin
           _SendHttpResponse(416,'RANGE START IS LARGER THAN FILESIZE',[]);
@@ -1219,10 +1234,9 @@ var
           _SendHttpResponse(416,'RANGE LENGTH IS EQUAL OR BELOW ZERO',[]);
           exit;
         end;
-
       ResponseEntityHeader[reh_ContentRange] :=' bytes '+IntToStr(foffset)+'-'+IntToStr(foffset+flength)+'/'+inttostr(info.st_size);
-      SetETagandLastModified(lfilename,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
-      _SendHttpFile(lfilename,foffset,flength,isAttachment,true);
+      SetETagandLastModified(fn,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime))); { Setting eTag here, to prevent 2nd stat in __SendHttpFile}
+      __SendHttpFile(fn,true,isAttachment,foffset,flength,accept_range_requests);
   end;
 
 begin
@@ -1232,16 +1246,26 @@ begin
 
   gzip_allowed := pos('gzip',accept_encoding)>0;
   if lfilename<>'/' then
-    fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+lfilename
+    begin
+      if not use_dynamic_wwwroot then
+        begin
+          fn := cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+lfilename
+        end
+      else
+        begin
+          fn := cFRE_SERVER_WWW_ROOT_DYNAMIC+DirectorySeparator+lfilename
+        end;
+    end
   else
     begin
       fn:=cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+cFRE_SERVER_WWW_ROOT_FILENAME;
       lfilename:=cFRE_SERVER_WWW_ROOT_FILENAME;
     end;
 
+
   HttpBaseServer.FetchMetaEntry(fn,metae);
   if assigned(metae) then
-    begin
+    begin { When metadataexist, no range query is implemented by now }
       if if_none_match=metae.ETag then
         begin
           _SendHttpResponse(304,'NOT CHANGED',[]);
@@ -1273,83 +1297,81 @@ begin
            _SendHttpFileMetadata(metae,gzip_allowed and metae.ZippedExist);
            exit;
         end;
+    end
+  else
+    begin {No metadata availlable}
+       if use_dynamic_wwwroot then
+         begin
+           if length(range)<>0 then
+              _ProcessRangeRequestAndSendFile
+           else
+             __SendHttpFile(fn,false,isAttachment,0,0,accept_range_requests);
+         end
+       else
+         begin
+           _SendHttpResponse(404,'NOT FOUND (NO META)',[]);
+         end;
     end;
-    {Fallback no metadata ...}
-    if FileExists(fn) then
-      begin
-        if fpstat(fn,info)<>0 then
-          raise EFRE_DB_Exception.Create(edb_INTERNAL,'Stat for file '+fn+' failed!');
-        flength := info.st_size;
-        fend    := flength;
-        foffset :=0;
-
-        if length(range)<>0 then
-           _ProcessRangeRequest
-        else
-          begin
-             SetETagandLastModified(fn,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
-            _SendHttpFile(lfilename,0,flength,isAttachment,false);
-          end;
-      end
-    else
-      begin
-       writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
-       _SendHttpResponse(404,'NOT FOUND',[]);
-     end;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFile(const lfilename: string; const offset: NativeUint; const len: NativeUint; const isAttachment: boolean; const ispartial: boolean);
-var fn          : string;
-    fh          : THandle;
-    info        : Stat;
-    flength     : NativeUint;
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE.__SendHttpFile(const lfilename: string; const ispartial: boolean; const isAttachment: boolean; const offset: NativeUint; const len: NativeUint ; const accept_range_request : boolean = false);
+var fh : THandle;
+
+  procedure _OpenFile;
+  begin
+    fh := FileOpen(lfilename,fmOpenRead+fmShareDenyNone);
+    if fh=-1 then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not get filehandle for '+lfilename+' !');
+  end;
+
+  procedure SetCommonFields(const data_len : NativeUint);
+  begin
+    if isAttachment then
+       ResponseHeader[rh_contentDisposition] := 'attachment; filename="'+ExtractFileName(lfilename)+'"';
+    if accept_range_request then
+       ResponseHeader[rh_AcceptRanges]  := 'bytes';
+    ResponseEntityHeader[reh_ContentLength] := inttostr(data_len);
+    ResponseEntityHeader[reh_ContentType]   := FREDB_Filename2MimeType(lFilename);
+    ResponseEntityHeader[reh_Allow]         := 'GET, POST, PUT, DELETE, OPTIONS, TRACE';
+    ResponseEntityHeader[reh_Connection]    := 'keep-alive';
+    ResponseEntityHeader[reh_Expires]       := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
+    ResponseHeader      [rh_Location]       :='';
+    SetResponseHeaders;
+    SetEntityHeaders;
+    SetBody(''); // no data here
+    SendResponse;
+  end;
+
+  procedure _SendPartial;
+  begin
+    _OpenFile;
+    SetResponseStatusLine(206,format('Partial Content',[]));
+    SetCommonFields(len);
+    FChannel.CH_WriteOpenedFile(fh,offset,len);
+  end;
+
+  procedure _SendFull;
+  var info     : stat;
+      flength  : NativeUint;
+  begin
+    if fpstat(lfilename,info)<>0 then
+      begin
+        _SendHttpResponse(404,'NOT FOUND (STAT)',[]);
+        exit;
+      end;
+    flength := info.st_size;
+    _OpenFile;
+    SetResponseStatusLine(200,format('OK',[]));
+    SetETagandLastModified(lfilename,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
+    SetCommonFields(flength);
+    FChannel.CH_WriteOpenedFile(fh,0,flength);
+  end;
 
 begin
- if FileExists(fn) then
-   begin
-     fh := FileOpen(fn,fmOpenRead+fmShareDenyNone);
-     if fh=-1 then
-       raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not get filehandle for '+fn+' !');
-
-     if (ispartial) then
-       begin
-         flength := len;
-         SetResponseStatusLine(206,format('Partial Content',[]));
-       end
-     else
-       begin
-          if len=0 then
-            begin
-              if fpstat(fn,info)<>0 then
-                raise EFRE_DB_Exception.Create(edb_INTERNAL,'Stat for file '+fn+' failed!');
-              flength := info.st_size;
-              SetETagandLastModified(lfilename,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
-            end
-          else
-            flength := len;
-          SetResponseStatusLine(200,format('OK',[]));
-       end;
-
-     if isAttachment then
-       ResponseHeader[rh_contentDisposition] := 'attachment; filename="'+ExtractFileName(lfilename)+'"';
-     ResponseHeader[rh_AcceptRanges]         := 'bytes';
-     ResponseEntityHeader[reh_ContentLength] := inttostr(flength);
-     ResponseEntityHeader[reh_ContentType]   := FREDB_Filename2MimeType(lFilename);
-     ResponseEntityHeader[reh_Allow]         := 'GET, POST, PUT, DELETE, OPTIONS, TRACE';
-     ResponseEntityHeader[reh_Connection]    := 'keep-alive';
-     ResponseEntityHeader[reh_Expires]       := GFRE_DT.ToStrHTTP(GFRE_DT.Now_UTC+cFRE_DBT_1_YEAR);
-     ResponseHeader      [rh_Location]       :='';
-     SetResponseHeaders;
-     SetEntityHeaders;
-     SetBody(''); // no data here
-     SendResponse;
-     FChannel.CH_WriteOpenedFile(fh,offset,flength);
-   end
- else
-   begin
-     writeln('********************>>>>>>>>>>>>>>>>>>>>>>>>>>>>                              ** 404 ** ',lFilename);
-     _SendHttpResponse(404,'NOT FOUND',[]);
-   end;
+  if ispartial then
+    _SendPartial
+  else
+    _SendFull;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE._SendHttpFileMetaData(const metae: TFRE_HTTP_METAENTRY; const send_zipped: boolean);
@@ -1647,7 +1669,7 @@ var data : string;
      again:
       lfull_len := QueryRestLen;
       if lfull_len<12 then begin // TODO Hang - Check for only 1 single packet and no stuffer behind
-        writeln('-- REQUESTLEN SHORT -- possible STALL ',lfull_len,' ',ClassName,'  - ',FWSSockModeProtoVersion);
+        //writeln('-- REQUESTLEN SHORT -- possible STALL ',lfull_len,' ',ClassName,'  - ',FWSSockModeProtoVersion);
         if lfull_len>=6 then begin // try decode shortframe;
           continue_short_decode := TryDecodeShortFrame(lfull_len);
         end;

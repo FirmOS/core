@@ -3201,7 +3201,7 @@ begin
   else
     begin
       _InternalAddGuidToValstore(@key,keylen,isNullVal,obj.UID);
-      FCollection.GetPersLayerIntf.;
+      //FCollection.GetPersLayerIntf.;
     end;
 end;
 
@@ -4165,7 +4165,7 @@ end;
 
 function TFRE_DB_Persistance_Collection.GetPersLayer: IFRE_DB_PERSISTANCE_LAYER;
 begin
-
+  result := FLayer;
 end;
 
 function TFRE_DB_Persistance_Collection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType): boolean;

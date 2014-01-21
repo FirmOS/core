@@ -65,7 +65,7 @@ var
     GCFG_DB_BACKEND_THREAD_CNT     : Integer = 1;
     GCFG_RANDOM_BYTES_DEVICE       : String =  '/dev/random';
 
-    GCFG_SESSION_UNBOUND_TO        : Integer = 5;
+    GCFG_SESSION_UNBOUND_TO        : Integer = 600; //if this value is too low some browsers will be stuck in an endless loop
 
 type
 
@@ -4008,6 +4008,12 @@ var x           : TObject;
       _SendSyncServerClientAnswer;
     end;
 
+    procedure _ProcessBinaryBulkTransfer;
+    begin
+      CMD.Data        := GFRE_DB_NIL_DESC;
+      _SendSyncServerClientAnswer;
+    end;
+
     procedure _ProcessUnregisterDBO;
     var i : NativeInt;
     begin
@@ -4042,6 +4048,9 @@ begin
                               end else
                               if (method_name='DESTROY') then begin
                                 _ProcessDestroy;
+                              end else
+                              if (method_name='BINARYBULKTRANSFER') then begin
+                                _ProcessBinaryBulkTransfer;
                               end else
                               if (method_name='UNREGISTERDBO') then begin
                                 _ProcessUnregisterDBO;

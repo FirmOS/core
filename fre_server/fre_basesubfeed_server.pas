@@ -156,6 +156,8 @@ var mem : pointer;
     siz : Cardinal;
     i : Nativeint;
 begin
+//  GFRE_DBI.LogDebug(dblc_APPLICATION,'PushDataToClients[%s]',[data_object.DumpToString()]);
+
   siz := GetDboAsBufferLen(data_object,mem);
   data_object.Finalize;
   FLock.Acquire;

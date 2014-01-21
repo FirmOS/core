@@ -58,7 +58,7 @@ var cfgfile  : string;
     userfile : string;
 
   procedure ReadConfigFileandConfigureLogger;
-  var ini : TMemIniFile;
+  var ini          : TMemIniFile;
 
     procedure ConfigureLogging;
     var sl              : TStringList;
@@ -168,6 +168,7 @@ var cfgfile  : string;
           cFRE_SERVER_DEFAULT_SSL_DIR := StringReplace(cFRE_SERVER_DEFAULT_SSL_DIR,DirectorySeparator+DirectorySeparator,DirectorySeparator,[]);
         end;
         cFRE_SERVER_WWW_ROOT_DIR        := ini.ReadString('BASE','WWWROOT'           , cFRE_SERVER_WWW_ROOT_DIR);
+        cFRE_SERVER_WWW_ROOT_DYNAMIC    := ini.ReadString('BASE','WWWROOT_DYNAMIC'   , cFRE_SERVER_WWW_ROOT_DYNAMIC);
         cFRE_SERVER_DEFAULT_TIMEZONE    := ini.ReadString('BASE','TIMEZONE'          , cFRE_SERVER_DEFAULT_TIMEZONE);
         cFRE_WebServerLocation_HixiedWS := ini.ReadString('BASE','HIXIE_WS_LOCATION' , cFRE_WebServerLocation_HixiedWS);
         cFRE_SSL_CERT_FILE              := ini.ReadString('SSL','CERT'               , cFRE_SSL_CERT_FILE);
@@ -179,6 +180,11 @@ var cfgfile  : string;
         cFRE_MONITORING_USER            := ini.ReadString('MONITORING','USER'        , cFRE_MONITORING_USER);
         cFRE_MONITORING_KEY_FILE        := ini.ReadString('MONITORING','KEY_FILE'    , cFRE_MONITORING_KEY_FILE);
         cFRE_MONITORING_DEST_DIR        := ini.ReadString('MONITORING','DIRECTORY'   , cFRE_MONITORING_DEST_DIR);
+        cFRE_MACHINE_NAME               := ini.ReadString('MACHINE','NAME', cFRE_MACHINE_NAME);
+        if cFRE_MACHINE_NAME='' then
+          begin
+            GFRE_BT.CriticalAbort('No NAME set in subsection [MACHINE] in .ini File');
+          end;
         ConfigureLogging;
       finally
         ini.Free;
@@ -208,6 +214,10 @@ begin
   if cFRE_SERVER_WWW_ROOT_DIR='' then begin
     cFRE_SERVER_WWW_ROOT_DIR := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'www';
   end;
+  if cFRE_SERVER_WWW_ROOT_DYNAMIC='' then begin
+    cFRE_SERVER_WWW_ROOT_DYNAMIC := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'wwwdynamic';
+  end;
+
 
   cFRE_HAL_CFG_DIR     := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'hal'+DirectorySeparator;
   cFRE_PID_LOCK_DIR    := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'pidlocks'+DirectorySeparator;
@@ -227,6 +237,7 @@ begin
   ForceDirectories(cFRE_JOB_ARCHIVE_DIR);
   ForceDirectories(cFRE_TMP_DIR);
   ForceDirectories(cFRE_UX_SOCKS_DIR);
+  ForceDirectories(cFRE_SERVER_WWW_ROOT_DYNAMIC);
 
   if not DirectoryExists(cFRE_HAL_CFG_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND HAL BASEDIR [%s]',[cFRE_HAL_CFG_DIR]);
   if not DirectoryExists(cFRE_PID_LOCK_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND PIDLOCK BASEDIR [%s]',[cFRE_PID_LOCK_DIR]);
@@ -234,6 +245,7 @@ begin
   if not DirectoryExists(cFRE_JOB_ARCHIVE_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND JOB ARCHIVE BASEDIR [%s]',[cFRE_JOB_ARCHIVE_DIR]);
   if not DirectoryExists(cFRE_TMP_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND TMP BASEDIR [%s]',[cFRE_TMP_DIR]);
   if not DirectoryExists(cFRE_UX_SOCKS_DIR) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND UX SOCKETS BASEDIR [%s]',[cFRE_UX_SOCKS_DIR]);
+  if not DirectoryExists(cFRE_SERVER_WWW_ROOT_DYNAMIC) then GFRE_BT.CriticalAbort('FRE_SYSTEM STARTUP COULD NOT/CREATE FIND DYNMIC WWWROOR BASEDIR [%s]',[cFRE_SERVER_WWW_ROOT_DYNAMIC]);
 
   cFRE_ALERTING_CONFIG_FILE := cFRE_HAL_CFG_DIR+'alerting_config.dbo';
   cFRE_ALERTING_STATUS_FILE := cFRE_HAL_CFG_DIR+'alerting_status.dbo';

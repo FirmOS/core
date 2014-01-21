@@ -400,15 +400,12 @@ begin
   FDispatcher.Free;
   FUserSessionsTree.Free;
   FSessionTreeLock.Finalize;
-  writeln('DEF SESSION FREE');
   FDefaultSession.Free;
 
   FSystemConnection.Free;
   FSystemConnection:=nil;
-  GFRE_DBI.LogDebug(dblc_SERVER,'SERVER SHUTDOWN DONE');
-  writeln('Syncdb');
+  GFRE_DBI.LogInfo(dblc_SERVER,'SERVER SHUTDOWN DONE');
   GFRE_DB_PS_LAYER.SyncSnapshot(true);
-  writeln('Syncdb-done');
 
   GFRE_DBI.LogDebug(dblc_SERVER,'DATABASE COUNT [%d]',[FOpenDatabaseList.Count]);
   FOpenDatabaseList.ForAllBrk(@CloseAll);
@@ -529,8 +526,8 @@ begin
   _SetupSSL_Ctx;
   _SetupHttpBaseServer;
 
-  GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
   GFRE_SC.SetNewListenerCB(@APSC_NewListener);
+  GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
   GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
 
   GFRE_SC.AddListener_TCP ('*','44001','FLEX');
@@ -595,7 +592,7 @@ var deployexts : TFRE_DB_StringArray;
      GFRE_DB.LogDebug(dblc_SERVER,'>DEPLOYMENT PHASE 2 AGGREGATING : FILE [%s] [%d]',[metae.Filename,metae.AccessOrder]);
      content := GFRE_BT.StringFromFile(metae.Filename);
      if content<>'' then
-       deployccat[pos] := deployccat[pos]+LineEnding+Format('// CONCAT FILE Name : [%s] Accessorder [%d] ',[metae.Filename,metae.AccessOrder])+LineEnding+content
+       deployccat[pos] := deployccat[pos]+LineEnding+Format('// CONCAT FILE Name : [%s] Accessorder [%d] ',[metae.Filename,metae.AccessOrder])+LineEnding
      else
        GFRE_DB.LogWarning(dblc_SERVER,'>DEPLOYMENT PHASE 2 AGGREGATING : FILE [%s] [%d] - FILE IS EMPTY',[metae.Filename,metae.AccessOrder]);
   end;
@@ -626,8 +623,8 @@ end;
 
 procedure TFRE_BASE_SERVER.Interrupt;
 begin
+  GFRE_DB.LogNotice(dblc_SERVER,'**** INTERRUPT REQUESTED (CTRL-C)');
   if G_NO_INTERRUPT_FLAG THEN exit;
-  writeln('INTERRUPT');
   GFRE_BT.ActivateJack(30000);
   GFRE_SC.RequestTerminate;
 end;
@@ -1082,6 +1079,7 @@ var ws         : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
 begin
   found     := false;
   reuse_ses := (old_session_id<>'NEW') and (old_session_id<>'');
+  GFRE_DBI.LogInfo(dblc_SESSION,'BindInitialSession ['+old_session_id+'] ');
   if reuse_ses then begin
     if FetchSessionByIdLocked(old_session_id,session) then
       begin
