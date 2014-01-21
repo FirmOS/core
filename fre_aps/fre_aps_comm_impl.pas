@@ -495,6 +495,12 @@ begin
   GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Info,CFOS_LL_Target[fll_Info],false);
 end;
 
+procedure   LogNotice(const s:String;const Args : Array of const);
+begin
+  GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Notice,CFOS_LL_Target[fll_Notice],false);
+end;
+
+
 procedure LogDebug(const s:String;const Args : Array of const);
 begin
   GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Debug,CFOS_LL_Target[fll_Debug],false);
@@ -504,6 +510,12 @@ procedure   LogWarning(const s:String;const Args : Array of const);
 begin
   GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Warning,CFOS_LL_Target[fll_Warning],false);
 end;
+
+procedure   LogError(const s:String;const Args : Array of const);
+begin
+  GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Error,CFOS_LL_Target[fll_Error],false);
+end;
+
 
 function APSC_TranslateOsError(const os_error: cint; const prefix: string=''; postfix: string=''): string;
 begin
@@ -1299,7 +1311,7 @@ procedure TFRE_APSC_CHANNEL_MANAGER.GotChannelCtrCMD(const cmd: TAPSC_CMD; const
   procedure _FinalizeAllChannels;
     procedure FinalizeChans(var chan : TFRE_APSC_CHANNEL ; const idx :NativeInt ; var halt : boolean);
     begin
-      writeln('Finalizing channel ',chan.GetHandleKey,' ');
+      LogDebug('Finalizing channel %d',[chan.GetHandleKey]);
       chan.Free;
       chan := nil;
     end;
@@ -1309,21 +1321,21 @@ procedure TFRE_APSC_CHANNEL_MANAGER.GotChannelCtrCMD(const cmd: TAPSC_CMD; const
       tim := nil;
     end;
   begin
-    writeln('FINALIZE CHANNEL ON MGR ',FChannelMgrID);
+    LogDebug('FINALIZE ALL CHANNELS ON MGR %d',[FChannelMgrID]);
     try
       FChannelList.ForAllBreak(@FinalizeChans);
     except on e:exception do
-      writeln('CHANNEL FINALIZE EXCEPTION: ',e.Message);
+      LogError('CHANNEL FINALIZE EXCEPTION: %s',[e.Message]);
     end;
-    writeln('FINALIZING TIMER');
+    LogDebug('FINALIZING TIMERS',[]);
     try
       FChanTimerList.ForAllBreak(@FinalizeTimers);
     except on e:exception do
-      writeln('CHANNEL TIMER EXCEPTION: ',e.Message);
+      LogError('TIMER FINALIZE EXCEPTION: %s',[e.Message]);
     end;
-    writeln('FINALIZING BASELOOP');
+    LogDebug('FINALIZE BASELOOP ON MGR %d',[FChannelMgrID]);
     FChanBaseCtrl.FinalizeLoop;
-    writeln('FINALIZING DONE');
+    LogDebug('FINALIZE BASELOOP ON MGR %d DONE',[FChannelMgrID]);
   end;
 
   //TODO Beautify CoRoutine Encap with private Record Type
@@ -1594,7 +1606,7 @@ begin
       res := event_add(FEvent,nil);
       try
         FState := als_LISTENING;
-        LogInfo('LISTENER STARTED ON '+FListenAddr,[]);
+        LogNotice('LISTENER STARTED ON '+FListenAddr,[]);
       finally
         FLock.Release;
       end;
@@ -2234,7 +2246,7 @@ end;
 
 procedure TFRE_APS_COMM.RequestTerminate;
 begin
-  writeln('REQUEST TERM');
+   LogInfo('TERMINATE REQUESTED',[]);
   _FinalizeMain;
   GFRE_BT.ActivateJack(cAPSC_JACK_TIMEOUT);
 end;
