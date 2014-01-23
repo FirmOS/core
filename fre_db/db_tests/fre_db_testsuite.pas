@@ -93,7 +93,8 @@ type
 
   { TFRE_DB_PersistanceTests }
 
-  {TODO: Check that a object cannot be in a volatile and a non volatile collection (!) }
+  {TODO: Check that an object cannot be in a volatile and a non volatile collection (!) }
+  {TODO: Check that an objectlink field is unique (!) }
 
   TFRE_DB_PersistanceTests = class(TTestcase)
   private

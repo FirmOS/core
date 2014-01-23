@@ -1501,9 +1501,8 @@ type
      TDC_Mode=(dc_None,dc_Map2RealCollection,dc_Map2DerivedCollection,dc_ReferentialLinkCollection);
    var
     FDCMode            : TDC_Mode;
-    FDepObjectsRefers  : Boolean;
     FDepObjectsRefNeg  : Boolean;
-    FDepRefConstraint  : TFRE_DB_StringArray;
+    FDepRefConstraint  : TFRE_DB_NameTypeRLArray;
     FDependencyRef     : TFRE_DB_StringArray; // Array of inbound dpendencies (usually one)
     FParentIds         : TFRE_DB_GUIDArray;
     FDependencyObject  : IFRE_DB_Object;
@@ -1577,6 +1576,7 @@ type
 
     procedure  DC_SetFilters_From_Input      (const filter_defs:TFRE_DB_Object);
     procedure  ForAllI                       (const func:IFRE_DB_Obj_Iterator);
+    procedure  _CheckDepRefConstraint        ;
 
   protected
     class function Forced_In_Memory: Boolean; override;
@@ -1638,8 +1638,8 @@ type
     procedure  SetDeriveParent                 (const coll:TFRE_DB_COLLECTION; const idField: String='uid');
     // Creates a virtual Parent Collection In Memory, which acts as derive Parent
     //procedure  SetVirtualMode                  (const StringIndexKey : String='');
-    procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : TFRE_DB_String ; const dependency_object_refers : boolean ; const dependency_reference : string = 'uids');
-    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : TFRE_DB_String ; const dependency_object_refers : boolean ; const negate : boolean ; const dependency_reference : string = 'uids');
+    procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids');
+    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_object_refers : boolean ; const negate : boolean ; const dependency_reference : string = 'uids');
 
 
     procedure  SetDeriveParentI        (const coll:IFRE_DB_COLLECTION; const idField: String='uid');
@@ -2025,8 +2025,8 @@ type
     function    GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;override;
 
 
-    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ObjectsRefers : Boolean ; ref_constraints : TFRE_DB_StringArray ;  var expanded_refs : TFRE_DB_ObjectArray);
-    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ObjectsRefers : Boolean ; ref_constraints : TFRE_DB_StringArray ;  var expanded_refs : TFRE_DB_GUIDArray);
+    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_ObjectArray);
+    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
 
 
     function    DerivedCollection            (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): TFRE_DB_DERIVED_COLLECTION;
@@ -5928,7 +5928,6 @@ begin
           begin
             if FChildParentMode then
               begin
-                abort;
                 if (FConnection.GetReferencesCount(iob.UID,false,FParentChldLinkFld,'')>0) then
                   begin
                     tr_obj.Field('children').AsString        := 'UNCHECKED';
@@ -5940,7 +5939,7 @@ begin
               end
             else
               begin
-                //abort;
+                // Non Reflink Child Parent Mode
               end;
           end;
         if update_data then begin
@@ -6300,7 +6299,19 @@ begin //nl
  FDBOList.ForallNodes(@Add);
 end;
 
-
+procedure TFRE_DB_DERIVED_COLLECTION._CheckDepRefConstraint;
+var i : NativeInt;
+begin
+  for i:=0 to high(FDepRefConstraint) do
+    begin
+      if (pos(FDepRefConstraint[i],'>')=-1)
+         and (pos(FDepRefConstraint[i],'<')=-1) then
+           begin
+             raise EFRE_DB_Exception.Create(edb_ERROR,'schemelinkspecification bad in collection : '+FName);
+           end;
+    end;
+  //writeln('TODO::: implement checkdefrefconstraint');
+end;
 
 
 class function TFRE_DB_DERIVED_COLLECTION.Forced_In_Memory: Boolean;
@@ -6798,8 +6809,9 @@ begin
 end;
 
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetReferentialLinkMode(const scheme_and_field_constraint: TFRE_DB_String; const dependency_object_refers: boolean; const dependency_reference: string);
+procedure TFRE_DB_DERIVED_COLLECTION.SetReferentialLinkMode(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const dependency_reference: string);
 var collif : IFRE_DB_COLLECTION;
+    i      : NativeInt;
 begin
   AcquireBigColl;
   try
@@ -6807,32 +6819,38 @@ begin
       raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
     FDCMode           := dc_ReferentialLinkCollection;
     FIdField          := 'uid';
-    FDepObjectsRefers := dependency_object_refers;
     SetLength(FDependencyRef,1);
     FDependencyRef[0] := dependency_reference;
-    if dependency_object_refers then
-      FREDB_SeperateString(uppercase(scheme_and_field_constraint),'>',FDepRefConstraint)
-    else
-      FREDB_SeperateString(uppercase(scheme_and_field_constraint),'<',FDepRefConstraint);
+    //if dependency_object_refers then
+    //  FREDB_SeperateString(uppercase(scheme_and_field_constraint),'>',FDepRefConstraint)
+    //else
+    //  FREDB_SeperateString(uppercase(scheme_and_field_constraint),'<',FDepRefConstraint);
+    SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
+    for i := 0 to high(scheme_and_field_constraint) do
+      FDepRefConstraint[i] := scheme_and_field_constraint[i];
+    _CheckDepRefConstraint;
+
     FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
   finally
     ReleaseBigColl;
   end;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetUseDependencyAsRefLinkFilter(const scheme_and_field_constraint: TFRE_DB_String; const dependency_object_refers: boolean; const negate: boolean; const dependency_reference: string);
+procedure TFRE_DB_DERIVED_COLLECTION.SetUseDependencyAsRefLinkFilter(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const dependency_object_refers: boolean; const negate: boolean; const dependency_reference: string);
+var
+  i: NativeInt;
 begin
   AcquireBigColl;
   try
     FUseDepAsLinkFilt := true;
-    FDepObjectsRefers := dependency_object_refers;
     SetLength(FDependencyRef,1);
     FDependencyRef[0] := dependency_reference;
     FDepObjectsRefNeg := negate;
-    if dependency_object_refers then
-      FREDB_SeperateString(uppercase(scheme_and_field_constraint),'>',FDepRefConstraint)
-    else
-      FREDB_SeperateString(uppercase(scheme_and_field_constraint),'<',FDepRefConstraint);
+    SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
+    for i := 0 to high(scheme_and_field_constraint) do
+      FDepRefConstraint[i] := scheme_and_field_constraint[i];
+    //SetLength(FDepRefConstraint,1);
+    //FDepRefConstraint[0] := scheme_and_field_constraint;
   finally
     ReleaseBigColl;
   end;
@@ -7274,7 +7292,7 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
           begin
             if Length(FDepObjectList)>0 then
               begin
-                (FConnection.UpcastDBC).ExpandReferences(FDepObjectList,FDepObjectsRefers,FDepRefConstraint,exrefs);
+                (FConnection.UpcastDBC).ExpandReferences(FDepObjectList,FDepRefConstraint,exrefs);
                 if FDepObjectsRefNeg then
                   AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_NoValueInFilter)
                 else
@@ -7308,7 +7326,8 @@ begin
       dc_ReferentialLinkCollection:
           begin
             FInitialDerived := false; // force it
-            FConnection.UpcastDBC.ExpandReferences(FDepObjectList,FDepObjectsRefers,FDepRefConstraint,FExpandedRefs);
+            if Length(FDepObjectList)>0 then
+              FConnection.UpcastDBC.ExpandReferences(FDepObjectList,FDepRefConstraint,FExpandedRefs);
           end;
     end;
     if input.FieldExists('parentid') then
@@ -7319,7 +7338,8 @@ begin
             FParentIds[0] := FParentIds[high(FParentIds)];
             SetLength(FParentIds,1);
           end;
-        FConnection.UpcastDBC.ExpandReferences(FParentIds,not FChildParentMode,TFRE_DB_StringArray.create(FParentChldLinkFld),FExpandedRefs);
+        abort;
+        //FConnection.UpcastDBC.ExpandReferences(FParentIds,not FChildParentMode,TFRE_DB_StringArray.create(FParentChldLinkFld),FExpandedRefs);
       end
     else
       SetLength(FParentIds,0);
@@ -10143,6 +10163,8 @@ var dbi : IFRE_DB_Object;
   function _Check : TFRE_DB_Errortype;
   var classt : TClass;
   begin
+      if not assigned(dbo) then
+        dbo    := dbi.Implementor as TFRE_DB_Object;
       classt := dbo.Implementor_HC.ClassType;
       if not
        ((IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
@@ -10191,6 +10213,7 @@ begin
     objuid := dbo.UID;
     try
       FPersistance_Layer.StoreOrUpdateObject(dboo,'',false);
+      result := edb_OK;
       //if result=edb_OK then
       //  begin
       //    _NotifyCollectionObservers(fdbntf_UPDATE,nil,objuid,ncolls);
@@ -10345,60 +10368,78 @@ begin
    result := FSysConnection.GetReferencesDetailed(obj_uid,from,scheme_prefix_filter,field_exact_filter);
 end;
 
-procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ObjectsRefers: Boolean; ref_constraints: TFRE_DB_StringArray; var expanded_refs: TFRE_DB_ObjectArray);
+procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints : TFRE_DB_NameTypeRLArray ; var expanded_refs: TFRE_DB_ObjectArray);
 var i        : NativeInt;
     FReflist : TFRE_DB_GUIDArray;
 begin //nl
-  ExpandReferences(ObjectList,ObjectsRefers,ref_constraints,FReflist);
+  ExpandReferences(ObjectList,ref_constraints,FReflist);
   SetLength(expanded_refs,Length(FReflist));
   for i := 0 to high(expanded_refs) do
     if Fetch(FReflist[i],expanded_refs[i])<>edb_OK then
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'FAILED TO FETCH EXPANDED REFERENCED;CHAINED OBJECT');
 end;
 
-procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ObjectsRefers: Boolean; ref_constraints: TFRE_DB_StringArray; var expanded_refs: TFRE_DB_GUIDArray);
+procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ; var expanded_refs: TFRE_DB_GUIDArray);
 var i        : NativeInt;
     obj      : TFRE_DB_Object;
-    compare  : TFRE_DB_NameTypeRL;
+    comparef : TFRE_DB_NameType;
     count    : NativeInt;
 
-  //procedure FetchChained(uid:TGuid ; field_chain : TFRE_DB_StringArray ; depth : NativeInt);
-  //var obrefs   : TFRE_DB_ObjectReferences;
-  //    i,k      : NativeInt;
-  //begin
-  //  if depth<length(field_chain) then
-  //    begin
-  //      obrefs := GetReferences(uid,ObjectsRefers);
-  //      for i := 0 to  high(obrefs) do
-  //        begin
-  //          compare := uppercase(obrefs[i].fieldname);
-  //          if  pos(field_chain[depth],compare)>0 then
-  //            FetchChained(obrefs[i].linked_uid,field_chain,depth+1);
-  //            //for k := 0 to high(obrefs[i].linklist) do
-  //            //  FetchChained(obrefs[i].linklist[k],field_chain,depth+1);
-  //        end;
-  //    end
-  //  else
-  //    begin
-  //      if Length(expanded_refs) = count then
-  //        SetLength(expanded_refs,Length(expanded_refs)+256);
-  //      if not FREDB_GuidInArray(uid,expanded_refs) then
-  //        begin
-  //          expanded_refs[count] := uid;
-  //          inc(count);
-  //        end;
-  //    end;
-  //end;
+  procedure FetchChained(uid:TGuid ; field_chain : TFRE_DB_NameTypeRLArray ; depth : NativeInt);
+  var obrefs   : TFRE_DB_ObjectReferences;
+      i,k      : NativeInt;
+      scheme   : TFRE_DB_NameType;
+      field    : TFRE_DB_NameType;
+      spos     : NativeInt;
+  begin
+    if depth<length(field_chain) then
+      begin
+        spos := pos('>',field_chain[depth]);
+        if spos>0 then
+          begin
+            scheme := Copy(field_chain[depth],1,spos-1);
+            field  := Copy(field_chain[depth],spos+1,maxint);
+            obrefs := GetReferencesDetailed(uid,true,scheme,field);
+          end
+        else
+          begin
+            spos := pos('<',field_chain[depth]);
+            if spos>0 then
+              begin
+                scheme := Copy(field_chain[depth],1,spos-1);
+                field  := Copy(field_chain[depth],spos+1,maxint);
+                obrefs := GetReferencesDetailed(uid,false,scheme,field);
+              end
+            else
+              raise EFRE_DB_Exception.Create(edb_ERROR,'expand references fieldchain specifier bad at depth %d is [%s]',[depth,field_chain[depth]]);
+          end;
+        for i := 0 to  high(obrefs) do
+          begin
+            //comparef := uppercase(obrefs[i].fieldname);
+            //if  pos(field_chain[depth],comparef)>0 then
+              FetchChained(obrefs[i].linked_uid,field_chain,depth+1);
+          end;
+      end
+    else
+      begin
+        if Length(expanded_refs) = count then
+          SetLength(expanded_refs,Length(expanded_refs)+256);
+        if not FREDB_GuidInArray(uid,expanded_refs) then
+          begin
+            expanded_refs[count] := uid;
+            inc(count);
+          end;
+      end;
+  end;
 
 begin
   AcquireBig;
   try
-    abort;
-    //SetLength(expanded_refs,0);
-    //count := 0;
-    //for i := 0 to High(ObjectList) do
-    //  FetchChained(ObjectList[i],ref_constraints,0);
-    //SetLength(expanded_refs,count);
+    SetLength(expanded_refs,0);
+    count := 0;
+    for i := 0 to High(ObjectList) do
+      FetchChained(ObjectList[i],ref_constraints,0);
+    SetLength(expanded_refs,count);
   finally
     ReleaseBig;
   end;

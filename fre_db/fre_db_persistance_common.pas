@@ -333,7 +333,11 @@ type
     FLayer                     : IFRE_DB_PERSISTANCE_LAYER;
 
     function     GetOutBoundRefLinks        (const from_obj : TGUID): TFRE_DB_ObjectReferences;
-    function     GetInboundLinks            (const to_obj   : TGUID): TFRE_DB_ObjectReferences;
+    function     GetInboundRefLinks         (const to_obj   : TGUID): TFRE_DB_ObjectReferences;
+
+    procedure    __RemoveInboundReflink     (const from_uid,to_uid : TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL);
+    procedure    __RemoveOutboundReflink    (const from_uid,to_uid : TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL);
+    procedure    __RemoveRefLink            (const from_uid,to_uid:TGUID;const upper_from_schemename,upper_fieldname,upper_to_schemename : TFRE_DB_NameType);
 
     procedure    __SetupOutboundLinkKey     (const from_uid,to_uid: TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; var refoutkey : RFRE_DB_GUID_RefLink_InOut_Key); //inline;
     procedure    __SetupInboundLinkKey      (const from_uid,to_uid: TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; var refinkey  : RFRE_DB_GUID_RefLink_InOut_Key); //inline;
@@ -342,14 +346,11 @@ type
     procedure    _RemoveAllRefLinks         (const from_key : TFRE_DB_Object);
     function     __RefLinkOutboundExists    (const from_uid: TFRE_DB_GUID;const  fieldname: TFRE_DB_NameType; to_object: TFRE_DB_GUID; const scheme_link: TFRE_DB_NameTypeRL):boolean;
     function     __RefLinkInboundExists     (const from_uid: TFRE_DB_GUID;const  fieldname: TFRE_DB_NameType; to_object: TFRE_DB_GUID; const scheme_link: TFRE_DB_NameTypeRL):boolean;
-    procedure    __CheckReferenceLink       (const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; link: TFRE_DB_GUID ; var scheme_link : TFRE_DB_NameTypeRL);
-    procedure    _ChangeRefLink             (const from_obj : TFRE_DB_Object ; const fieldname: TFRE_DB_NameType ; const references_to_list : TFRE_DB_GUIDArray);
+    procedure    __CheckReferenceLink       (const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; link: TFRE_DB_GUID ; var scheme_link : TFRE_DB_NameTypeRL;const allow_existing_links : boolean=false);
+    procedure    _ChangeRefLink             (const from_obj: TFRE_DB_Object; const upper_schemename: TFRE_DB_NameType; const upper_fieldname: TFRE_DB_NameType; const old_links, new_links: TFRE_DB_GUIDArray);
 
     // Check full referential integrity, check if to objects exist
     procedure    _CheckRefIntegrityForObject (const obj:TFRE_DB_Object ; var ref_array : TFRE_DB_ObjectReferences ; var schemelink_arr : TFRE_DB_NameTypeRLArray);
-
-    // Remove a reflinkfield, delete refence to and from indexes
-    function     _RemoveRefLinkFieldDelRefs (const obj:TFRE_DB_Object ; field : TFRE_DB_FIELD ; const check_only : boolean):TFRE_DB_Errortype;
 
   public
     function     FetchNewTransactionID (const transid:string):String;
@@ -1359,7 +1360,7 @@ var i,j       : NativeInt;
                 begin
                   writeln('MASTERSTORE ABORT 2');
                   abort;
-                  master._RemoveRefLinkFieldDelRefs(to_upd_obj,newfield,check);
+          //        master._RemoveRefLinkFieldDelRefs(to_upd_obj,newfield,check);
                 end;
               else begin
                 if not check then
@@ -1403,16 +1404,18 @@ var i,j       : NativeInt;
               try
                 if check then
                   begin
+                    if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
+                      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
                     for j:=0 to high(newfield.AsObjectLinkArray) do
                       master.__CheckReferenceLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
                   end
                 else
                   begin
-                    fn := uppercase(newfield.FieldName)+'>'+uppercase(to_upd_obj.SchemeClass);
+                    fn := uppercase(to_upd_obj.SchemeClass)+'<'+ uppercase(newfield.FieldName);
                     for j:=0 to high(newfield.AsObjectLinkArray) do
                       begin
                         master.__CheckReferenceLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
-                        master.__SetupInitialRefLink(to_upd_obj,fn,sc,newfield.AsObjectLinkArray[j]);
+                        master.__SetupInitialRefLink(to_upd_obj,sc,fn,newfield.AsObjectLinkArray[j]);
                       end;
                     to_upd_obj.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
@@ -1459,12 +1462,14 @@ var i,j       : NativeInt;
               try
                 if check then
                   begin
+                    if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
+                      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
                     for j:=0 to high(newfield.AsObjectLinkArray) do
-                      master.__CheckReferenceLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray[i],sc);
+                      master.__CheckReferenceLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray[i],sc,true);
                   end
                 else
                   begin
-                    master._ChangeRefLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray);
+                    master._ChangeRefLink(to_upd_obj,uppercase(to_upd_obj.SchemeClass),uppercase(newfield.FieldName),oldfield.AsObjectLinkArray,newfield.AsObjectLinkArray);
                     to_upd_obj.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
               finally
@@ -2314,7 +2319,7 @@ begin
   SetLength(result,cnt);
 end;
 
-function TFRE_DB_Master_Data.GetInboundLinks(const to_obj: TGUID): TFRE_DB_ObjectReferences;
+function TFRE_DB_Master_Data.GetInboundRefLinks(const to_obj: TGUID): TFRE_DB_ObjectReferences;
 var key : RFRE_DB_GUID_RefLink_InOut_Key;
     cnt : NativeInt;
 
@@ -2341,6 +2346,46 @@ begin
   key.RefTyp:=$AA;
   FMasterRefLinks.PrefixScan(@key,17,@Iterate);
   SetLength(result,cnt);
+end;
+
+procedure TFRE_DB_Master_Data.__RemoveInboundReflink(const from_uid, to_uid: TFRE_DB_GUID; const scheme_link_key: TFRE_DB_NameTypeRL);
+var
+  refinkey : RFRE_DB_GUID_RefLink_InOut_Key;
+  exists   : boolean;
+  value    : PtrUInt;
+begin
+  __SetupInboundLinkKey(from_uid,to_uid,scheme_link_key,refinkey);
+  exists := FMasterRefLinks.RemoveBinaryKey(@refinkey,refinkey.KeyLength,value);
+  if not exists then
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal inbound reflink structure bad, inbound link not found for outbound from,to,schemelink [%s, %s, %s]',[FREDB_G2H(from_uid),FREDB_G2H(to_uid),scheme_link_key]);
+  if value<>$BEEF0BAD then
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal inbound reflink structure bad, value invalid [%d]',[value]);
+  FLayer.GetNotificationStreamCallback.InboundReflinkDropped(Flayer,to_uid,from_uid,scheme_link_key);
+end;
+
+procedure TFRE_DB_Master_Data.__RemoveOutboundReflink(const from_uid, to_uid: TFRE_DB_GUID; const scheme_link_key: TFRE_DB_NameTypeRL);
+var
+  refoutkey : RFRE_DB_GUID_RefLink_InOut_Key;
+  exists   : boolean;
+  value    : PtrUInt;
+begin
+  __SetupOutboundLinkKey(from_uid,to_uid,scheme_link_key,refoutkey);
+  exists := FMasterRefLinks.RemoveBinaryKey(@refoutkey,refoutkey.KeyLength,value);
+  if not exists then
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, inbound link not found for outbound from,to,schemelink [%s, %s, %s]',[FREDB_G2H(from_uid),FREDB_G2H(to_uid),scheme_link_key]);
+  if value<>$BAD0BEEF then
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, value invalid [%d]',[value]);
+  FLayer.GetNotificationStreamCallback.OutboundReflinkDropped(Flayer,from_uid,to_uid,scheme_link_key);
+end;
+
+procedure TFRE_DB_Master_Data.__RemoveRefLink(const from_uid, to_uid: TGUID; const upper_from_schemename, upper_fieldname, upper_to_schemename: TFRE_DB_NameType);
+var
+   scheme_link_key    : TFRE_DB_NameTypeRL;
+begin
+  scheme_link_key := upper_from_schemename+'<'+upper_fieldname;
+  __RemoveInboundRefLink(from_uid,to_uid,scheme_link_key);
+  scheme_link_key := upper_fieldname+'>'+upper_to_schemename;
+  __RemoveOutboundReflink(from_uid,to_uid,scheme_link_key);
 end;
 
 procedure TFRE_DB_Master_Data.__SetupOutboundLinkKey(const from_uid, to_uid: TFRE_DB_GUID; const scheme_link_key: TFRE_DB_NameTypeRL; var refoutkey: RFRE_DB_GUID_RefLink_InOut_Key);
@@ -2383,7 +2428,7 @@ begin
        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal inbound reflink structure bad, value invalid [%d]',[value]);
 end;
 
-procedure TFRE_DB_Master_Data.__CheckReferenceLink(const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; link: TFRE_DB_GUID; var scheme_link: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_Master_Data.__CheckReferenceLink(const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; link: TFRE_DB_GUID; var scheme_link: TFRE_DB_NameTypeRL;const allow_existing_links : boolean);
 var j       : NativeInt;
     ref_obj : TFRE_DB_Object;
 
@@ -2394,10 +2439,12 @@ begin
   if obj.IsVolatile or obj.IsSystem then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the linking object is volatile or system!',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link)]);
   scheme_link := uppercase(fieldname+'>'+ref_obj.SchemeClass);
-   if __RefLinkOutboundExists(obj.UID,fieldname,link,scheme_link) then
-     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
-   if __RefLinkInboundExists(obj.UID,fieldname,link,uppercase(obj.SchemeClass+'<'+fieldname)) then
-     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
+  if (not allow_existing_links) and
+     __RefLinkOutboundExists(obj.UID,fieldname,link,scheme_link) then
+       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
+  if (not allow_existing_links) and
+     __RefLinkInboundExists(obj.UID,fieldname,link,uppercase(obj.SchemeClass+'<'+fieldname)) then
+       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
 end;
 
 // Setup the "to_list" for KEY-UID,Field,(Subkeys)
@@ -2408,94 +2455,93 @@ var refoutkey : RFRE_DB_GUID_RefLink_InOut_Key;
     refinkey  : RFRE_DB_GUID_RefLink_InOut_Key;
 
 begin
+  assert(pos('>',FromFieldToSchemename)>0,'internal reflink failure 1');
   __SetupOutboundLinkKey(from_key.UID,references_to,FromFieldToSchemename,refoutkey);
   if not FMasterRefLinks.InsertBinaryKey(@refoutkey,refoutkey.KeyLength,$BAD0BEEF) then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink fromkey exists. :-(');
   FLayer.GetNotificationStreamCallback.SetupOutboundRefLink(FLayer,from_key.UID,references_to,FromFieldToSchemename);
 
+  assert(pos('<',LinkFromSchemenameField)>0,'internal reflink failure 2');
   __SetupInboundLinkKey(from_key.UID,references_to,LinkFromSchemenameField,refinkey);
   if not FMasterRefLinks.InsertBinaryKey(@refinkey,refinkey.KeyLength,$BEEF0BAD) then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink tokey exists. :-(');
   FLayer.GetNotificationStreamCallback.SetupInboundRefLink(FLayer,from_key.UID,references_to,LinkFromSchemenameField);
 end;
 
-procedure TFRE_DB_Master_Data._ChangeRefLink(const from_obj: TFRE_DB_Object; const fieldname: TFRE_DB_NameType; const references_to_list: TFRE_DB_GUIDArray);
-//var refkey    : RFRE_DB_GUID_RefLink_Out_Key;
-//    refinkey  : RFRE_DB_GUID_RefLink_In_Key;
-//    reenc     : TREF_LinkEncapsulation;
-//    i         : NativeInt;
-//    dummy     : NativeUint;
-//    refin_fn  : TFRE_DB_NameTypeRL;
+procedure TFRE_DB_Master_Data._ChangeRefLink(const from_obj: TFRE_DB_Object; const upper_schemename: TFRE_DB_NameType; const upper_fieldname: TFRE_DB_NameType; const old_links, new_links: TFRE_DB_GUIDArray);
+var
+    inserted_list     : TFRE_DB_GUIDArray;
+    removed_list      : TFRE_DB_GUIDArray;
+    i,idx             : NativeInt;
+    dbg               : Nativeint;
+    outlist           : TFRE_DB_ObjectReferences;
+    object_references : TFRE_DB_ObjectReferences;
+    to_scheme_name    : TFRE_DB_NameType;
+    schemelink        : TFRE_DB_NameTypeRL;
 
-    //j,k       : NativeInt;
-    //dumlist   : TFRE_DB_ObjectReferences;
-    //duminlist : TFRE_DB_ObjectReferences;
-    //dummyold  : TFRE_DB_GUIDArray;
+    function FREDB_GetToUidSchemeclassfromReferences(const from_obr : TFRE_DB_ObjectReferences; const upper_from_fieldname : TFRE_DB_NameType; const to_uid:TFRE_DB_GUID; var tolink_schemename:TFRE_DB_NameType) : boolean;
+    var i:integer;
+    begin
+      result:=false;
+      for i:=0 to high(object_references) do
+        begin
+          if (from_obr[i].fieldname=upper_fieldname)
+             and (from_obr[i].linked_uid=to_uid) then
+               begin
+                 tolink_schemename := from_obr[i].schemename;
+                 exit(true);
+               end;
+        end;
+    end;
 
 begin
-  abort;
-  //move(from_obj.UID,refkey.GUID,16);
-  //move(fieldname[1],refkey.FieldName,Length(fieldname));
-  //refkey.RefTyp := $99;
-  //if not FMasterRefLinks.ExistsBinaryKey(@refkey,17+Length(fieldname),dummy) then
-  //  raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink key to change does not exists. :-(');
-  //reenc := FREDB_PtrUIntToObject(dummy) as TREF_LinkEncapsulation;
-  //
-  ////dummyold := reenc.Links;
-  //
-  ////writeln(FREDB_GuidArray2String (reenc.Links));
-  //// RemoveOldLinks
-  //refin_fn        := from_obj.SchemeClass+'|'+fieldname;
-  //refinkey.RefTyp := $AA;
-  //move(from_obj.UID,refinkey.FromGuid,16);
-  //move(refin_fn[1],refinkey.FromFieldScheme,length(refin_fn));
-  //for i := 0 to high(reenc.FLinks) do begin
-  //  move(reenc.FLinks[i],refinkey.GUID,16);
-  //  if not FMasterRefLinks.RemoveBinaryKey(@refinkey,33+Length(refin_fn),dummy) then
-  //    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the to delete reflink key does not exists. :-(');
-  //end;
-  //// RemoveOldLinks
-  //
-  //reenc.FLinks := Copy(references_to_list); // new links
-  ////Update Inbound links
-  //for i := 0 to high(references_to_list) do begin
-  //  move(references_to_list[i],refinkey.GUID,16);
-  //  if not FMasterRefLinks.InsertBinaryKey(@refinkey,33+Length(refin_fn),$BEEF0BAD) then
-  //    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the inbound reflink key exists. :-(');
-  //end;
+  dbg := Length(old_links);
+  dbg := Length(new_links);
+  SetLength(inserted_list,Length(new_links));
+  SetLength(removed_list,Length(old_links));
 
+  idx := 0;
+  for i:=0 to high(old_links) do
+    if not FREDB_GuidInArray(old_links[i],new_links) then
+      begin
+        removed_list[idx] := old_links[i];
+        inc(idx);
+      end;
+  SetLength(removed_list,idx);
 
-  //Update Inbound links
+  idx := 0;
+  for i:=0 to high(new_links) do
+    if not FREDB_GuidInArray(new_links[i],old_links) then
+      begin
+        inserted_list[idx] := new_links[i];
+        inc(idx);
+      end;
+  SetLength(inserted_list,idx);
 
-  //writeln('------------------------');
-  //writeln('UPDATED_REF_LINK');
-  //writeln('------------------------');
-  //dumlist := GetOutBoundRefLinks(from_obj.UID);
-  //for i:=0 to high(dumlist) do
-  //  begin
-  //    writeln(GFRE_BT.GUID_2_HexString(from_obj.UID),' ',dumlist[i].fieldname,' -> ',FREDB_GuidArray2String(dumlist[i].linklist));
-  //    for j:=0 to high(dumlist[i].linklist) do
-  //      begin;
-  //        duminlist := GetInboundLinks(dumlist[i].linklist[j]);
-  //        for k := 0 to high(duminlist) do
-  //          writeln('  Pointed to obj ',GFRE_BT.GUID_2_HexString(dumlist[i].linklist[j]),' <- by ',duminlist[k].fieldname,' ',FREDB_GuidArray2String(duminlist[k].linklist));
-  //      end;
-  //  end;
-  //writeln('------------------------OLD_______');
-  //for j:=0 to high(dummyold) do
-  //  begin;
-  //    duminlist := GetInboundLinks(dummyold[j]);
-  //    for k := 0 to high(duminlist) do
-  //      writeln('  Pointed to obj ',GFRE_BT.GUID_2_HexString(dummyold[j]),' <- by ',duminlist[k].fieldname,' ',FREDB_GuidArray2String(duminlist[k].linklist));
-  //  end;
-  //writeln('------------------------');
+  object_references := GetOutBoundRefLinks(from_obj.UID);
+
+  for i:= 0 to high(removed_list) do
+    begin
+      FREDB_GetToUidSchemeclassfromReferences(object_references,upper_fieldname,removed_list[i],to_scheme_name);
+      __RemoveRefLink(from_obj.UID,removed_list[i],upper_schemename,upper_fieldname,to_scheme_name);
+    end;
+
+  for i:= 0 to high(inserted_list) do
+    begin
+      __CheckReferenceLink(from_obj,upper_fieldname,inserted_list[i],schemelink,false);
+      __SetupInitialRefLink(from_obj,schemelink,upper_schemename+'<'+upper_fieldname,inserted_list[i]);
+    end;
 end;
 
 procedure TFRE_DB_Master_Data._SetupInitialRefLinks(const from_key: TFRE_DB_Object; const references_to_list: TFRE_DB_ObjectReferences; const schemelink_arr: TFRE_DB_NameTypeRLArray);
 var
-  i: NativeInt;
+  i,j: NativeInt;
+
 begin
   assert(Length(references_to_list)=Length(schemelink_arr),'internal error');
+  j := Length(references_to_list);
+  if j=2 then
+    j:=2;
   for i:=0 to high(references_to_list) do
     __SetupInitialRefLink(from_key,schemelink_arr[i],uppercase(from_key.SchemeClass+'<'+references_to_list[i].fieldname),references_to_list[i].linked_uid);
 end;
@@ -2505,33 +2551,24 @@ var object_references  : TFRE_DB_ObjectReferences;
     refoutkey          : RFRE_DB_GUID_RefLink_InOut_Key;
     refinkey           : RFRE_DB_GUID_RefLink_InOut_Key;
     i                  : NativeInt;
-    value              : PtrUInt;
     from_uid,to_object : TFRE_DB_GUID;
-    exists             : boolean;
     sc_from            : TFRE_DB_NameType;
     scheme_link_key    : TFRE_DB_NameTypeRL;
+
+  //begin
+  //  scheme_link_key := sc_from+'<'+object_references[i].fieldname;
+  //  __RemoveInboundRefLink(from_uid,object_references[i].linked_uid,scheme_link_key);
+  //  scheme_link_key := object_references[i].fieldname+'>'+object_references[i].schemename;
+  //  __RemoveOutboundReflink(from_uid,object_references[i].linked_uid,scheme_link_key);
+  //end;
+
+
 begin
   from_uid := from_key.UID;
   sc_from  := uppercase(from_key.SchemeClass);
   object_references := GetOutBoundRefLinks(from_key.UID);
   for i:=0 to high(object_references) do
-    begin
-      scheme_link_key := sc_from+'<'+object_references[i].fieldname;
-      __SetupInboundLinkKey(from_uid,object_references[i].linked_uid,scheme_link_key,refinkey);
-      exists := FMasterRefLinks.RemoveBinaryKey(@refinkey,refinkey.KeyLength,value);
-      if not exists then
-        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal inbound reflink structure bad, inbound link not found for outbound field,uid,scheme[%s,%s,%s]',[object_references[i].fieldname,FREDB_G2H(object_references[i].linked_uid),object_references[i].schemename]);
-      if value<>$BEEF0BAD then
-        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal inbound reflink structure bad, value invalid [%d]',[value]);
-      FLayer.GetNotificationStreamCallback.InboundReflinkDropped(Flayer,object_references[i].linked_uid,from_uid,scheme_link_key);
-      scheme_link_key := object_references[i].fieldname+'>'+object_references[i].schemename;
-      __SetupOutboundLinkKey(from_uid,object_references[i].linked_uid,scheme_link_key,refinkey);
-      if not exists then
-        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, outbound link not found for outbound field,uid,scheme[%s,%s,%s]',[object_references[i].fieldname,FREDB_G2H(object_references[i].linked_uid),object_references[i].schemename]);
-      if value<>$BEEF0BAD then
-        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, value invalid [%d]',[value]);
-      FLayer.GetNotificationStreamCallback.OutboundReflinkDropped(Flayer,from_uid,object_references[i].linked_uid,scheme_link_key);
-    end;
+    __RemoveRefLink(from_uid,object_references[i].linked_uid,sc_from,object_references[i].fieldname,object_references[i].schemename);
 end;
 
 procedure TFRE_DB_Master_Data._CheckRefIntegrityForObject(const obj: TFRE_DB_Object; var ref_array: TFRE_DB_ObjectReferences; var schemelink_arr: TFRE_DB_NameTypeRLArray);
@@ -2541,13 +2578,6 @@ begin
   SetLength(schemelink_arr,Length(ref_array));
   for i:=0 to high(ref_array) do
     __CheckReferenceLink(obj,ref_array[i].fieldname,ref_array[i].linked_uid,schemelink_arr[i]);
-end;
-
-function TFRE_DB_Master_Data._RemoveRefLinkFieldDelRefs(const obj: TFRE_DB_Object; field: TFRE_DB_FIELD; const check_only: boolean): TFRE_DB_Errortype;
-begin
-  writeln('_RemoveRefLinFieldefs FULL STOP');
-  halt;
-  result := edb_OK;
 end;
 
 function TFRE_DB_Master_Data.FetchNewTransactionID(const transid: string): String;
@@ -2750,7 +2780,7 @@ begin
   if from then
     obr := GetOutBoundRefLinks(obj_uid)
   else
-    obr := GetInboundLinks(obj_uid);
+    obr := GetInboundRefLinks(obj_uid);
   SetLength(result,length(obr));
 
   spf := uppercase(scheme_prefix_filter);
@@ -2776,7 +2806,7 @@ begin
   if from then
     obr := GetOutBoundRefLinks(obj_uid)
   else
-    obr := GetInboundLinks(obj_uid);
+    obr := GetInboundRefLinks(obj_uid);
 
   spf := uppercase(scheme_prefix_filter);
   fef := uppercase(field_exact_filter);
@@ -2797,7 +2827,7 @@ begin
   if from then
     obr := GetOutBoundRefLinks(obj_uid)
   else
-    obr := GetInboundLinks(obj_uid);
+    obr := GetInboundRefLinks(obj_uid);
   SetLength(result,length(obr));
 
   spf := uppercase(scheme_prefix_filter);
@@ -3809,10 +3839,22 @@ procedure TFRE_DB_Persistance_Collection.UpdateInThisColl(const new_ifld, old_if
 var old_fld,new_fld : TFRE_DB_FIELD;
     old_obj,new_obj : TFRE_DB_Object;
 begin
-  old_obj := old_iobj.Implementor as TFRE_DB_Object;
-  new_obj := new_iobj.Implementor as TFRE_DB_Object;
-  old_fld := old_ifld.Implementor as TFRE_DB_FIELD;
-  new_fld := new_ifld.Implementor as TFRE_DB_FIELD;
+  if Assigned(old_iobj) then
+    old_obj := old_iobj.Implementor as TFRE_DB_Object
+  else
+    old_obj := nil;
+  if assigned(new_iobj) then
+    new_obj := new_iobj.Implementor as TFRE_DB_Object
+  else
+    new_obj := nil;
+  if assigned(old_ifld) then
+    old_fld := old_ifld.Implementor as TFRE_DB_FIELD
+  else
+    old_fld := nil;
+  if assigned(new_ifld) then
+    new_fld := new_ifld.Implementor as TFRE_DB_FIELD
+  else
+    new_fld := nil;
   CheckFieldChangeAgainstIndex(old_fld,new_fld,update_typ,checkphase,old_obj,new_obj);
 end;
 

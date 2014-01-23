@@ -184,7 +184,6 @@ type
   TFRE_DB_TransStepId      = String[80]; // Nametype+/+number
   TFRE_DB_NameTypeArray    = Array of TFRE_DB_NameType;
   TFRE_DB_NameTypeRLArray  = Array of TFRE_DB_NameTypeRL;
-  TFRE_DB_NameTypeRLArrArr = Array of TFRE_DB_NameTypeRLArray;
   TFRE_DB_MimeTypeStr   = string[100];
 
   TFRE_DB_CountedGuid=record
@@ -818,10 +817,14 @@ type
     procedure  SetDeriveParent               (const coll:IFRE_DB_COLLECTION;  const idField: String='uid');
     procedure  SetDeriveTransformation       (const tob:IFRE_DB_TRANSFORMOBJECT);
 
-    //Deliver all Objects which are pointed to by the input "Dependency" object (dependency_object_refers=true),
-    //     or all Objects which point to the the input "Dependency" object (dependency_object_refers=false)
-    procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : TFRE_DB_String ; const dependency_object_refers : boolean ; const dependency_reference : string = 'uids');
-    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : TFRE_DB_String ; const dependency_object_refers : boolean ; const negate : boolean ; const dependency_reference : string = 'uids');
+    {
+      This Type is only usefull as a Detail/Dependend Grid, as it needs a input Dependency Object
+      Deliver all Objects which are pointed to by the input "Dependency" object,
+      or all Objects which point to the the input "Dependency" object,
+      via a schemelinkdefinition chain : Outbound ['TFRE_DB_SCHEME>DOMAINDILINK', ... ] or Inbound (common) ['TFRE_DB_USER<DOMAINIDLINK']
+    }
+    procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids');
+    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_object_refers : boolean ; const negate : boolean ; const dependency_reference : string = 'uids');
     //procedure  AddVirtualChildEntry            (const caption:TFRE_DB_String; const FuncClass: String; const uidPath: TFRE_DB_StringArray; const ChildrenFunc:String='ChildrenData'; const ContentFunc:String='Content';const MenuFunc:String='Menu');
     function   Derive                          : TFRE_DB_Errortype;
 
@@ -1052,6 +1055,7 @@ type
   IFRE_DB_GROUP=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBUSERGRP']
     function  GetDomain                    (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
+    function  DomainID                     : TGUID;
   end;
 
 
@@ -1269,7 +1273,8 @@ type
     function    WorkFlowSchemeExists         (const WF_SchemeName:TFRE_DB_NameType):boolean;
     procedure   ForAllWorkFlowSchemes        (const iterator:IFRE_DB_Workflow_Iterator);
 
-    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ObjectsRefers : Boolean ; ref_constraints : TFRE_DB_StringArray ;  var expanded_refs : TFRE_DB_GUIDArray);
+    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
+
 
     function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
     function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
@@ -1327,7 +1332,7 @@ type
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TGUID):TFRE_DB_Errortype;
     function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
+    function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype; //TODO: Remove Ignorenotset
     function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;

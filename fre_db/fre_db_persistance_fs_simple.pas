@@ -915,8 +915,15 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
       //end;
 
   begin
-    old_fld := old_ifield.Implementor as TFRE_DB_FIELD;
-    new_fld := new_ifield.Implementor as TFRE_DB_FIELD;
+    if assigned(old_ifield) then
+      old_fld := old_ifield.Implementor as TFRE_DB_FIELD
+    else
+      old_fld := nil;
+    if assigned(new_ifield) then
+      new_fld := new_ifield.Implementor as TFRE_DB_FIELD
+    else
+      new_fld := nil;
+
     case update_type of
       cev_FieldDeleted:
           updatestep.addsubstep(cev_FieldDeleted,nil,old_fld);
