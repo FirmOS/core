@@ -173,13 +173,13 @@ begin
           exit;
         end;
       end;
-    sta_ReUseNotFound:
-      begin
-        // Inform about non found session
-        //result := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION SUSPENDED','You can not resume your session ['+ses.GetSessionID+'], because it is suspended, please relogin.',fdbmt_error,CWSF(@WEB_SendPageReload));
-        // Silently discard and send reload
-        result := WEB_SendPageReload(input,ses,app,conn);
-      end;
+    //sta_ReUseNotFound:
+    //  begin
+    //    // Inform about non found session
+    //    //result := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION SUSPENDED','You can not resume your session ['+ses.GetSessionID+'], because it is suspended, please relogin.',fdbmt_error,CWSF(@WEB_SendPageReload));
+    //    // Silently discard and send reload
+    //    result := WEB_SendPageReload(input,ses,app,conn);
+    //  end;
   end;
 end;
 

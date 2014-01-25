@@ -5991,8 +5991,11 @@ var cnt  : NativeInt;
 
   procedure LocalInsert(const item:IFRE_DB_Object);
   begin
-     _AddToTransformedCollection(item,false,false,childcall);
-     item.Finalize;
+     try
+       _AddToTransformedCollection(item,false,false,childcall);
+     finally
+       item.Finalize;
+     end;
   end;
 
   procedure LocalInsertFromParentDerived(const item : TFRE_DB_Object;const id : boolean);
@@ -6034,16 +6037,9 @@ var cnt  : NativeInt;
   procedure LocalInsertExpanded;
   var i   : NativeInt;
   begin
-   for i:=0 to high(FExpandedRefs) do
-     begin
-       //FExpandedRefs[i].Assert_CheckStoreLocked;
-       //try
-         //FExpandedRefs[i].Set_Store_Locked(false);
-         LocalInsert(FExpandedRefs[i]);
-       //finally
-       //  FExpandedRefs[i].Set_Store_Locked(true);
-       //end;
-     end;
+    for i:=0 to high(FExpandedRefs) do
+      LocalInsert(FExpandedRefs[i]);
+    SetLength(FExpandedRefs,0);
   end;
 
 begin
@@ -7316,6 +7312,7 @@ begin
   //writeln(input.DumpToString());
   AcquireBigColl;
   try
+    try
     _CheckObserverAdded(true);
     FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
     FDepObjectList :=  _GET_DC_ReferenceList(input);
@@ -7326,6 +7323,7 @@ begin
       dc_ReferentialLinkCollection:
           begin
             FInitialDerived := false; // force it
+            assert(length(FExpandedRefs)=0);
             if Length(FDepObjectList)>0 then
               FConnection.UpcastDBC.ExpandReferences(FDepObjectList,FDepRefConstraint,FExpandedRefs);
           end;
@@ -7354,6 +7352,10 @@ begin
     QueryID        := _Get_DC_QueryID(input);
     childcall      := length(FParentIds)>0;
     result := GetGridDataDescription;
+    except
+      writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
+      raise;
+    end;
   finally
     ReleaseBigColl;
   end;
@@ -7544,7 +7546,7 @@ begin
   AcquireBigColl;
   try
     writeln('DESTROY STORE ',input.DumpToString());
-    _CheckObserverAdded(false);
+   // _CheckObserverAdded(false);
     result := GFRE_DB_NIL_DESC;
   finally
     ReleaseBigColl;

@@ -155,7 +155,7 @@ type
     FCurrentHexTile_Mask     : Byte;
     FCurrentHexTile_AnyCount : Byte;
     FNo_Base64               : boolean;
-    //FuserAgent               : String;
+    FForceIgnoreFurtherInput : boolean;
 
     FCurrentSession          : TFRE_DB_UserSession;
     TransFormFunc            : TFRE_DB_TRANSFORM_FUNCTION;
@@ -230,6 +230,7 @@ var
     GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) WEBSOCK REQUESTED CLOSE '+FChannel.GetVerboseDesc);
     DeactivateSessionBinding;
     FChannel.Finalize;
+    FChannel:=nil;
     exit;
   end;
 
@@ -256,10 +257,16 @@ var
     finally
       in_params.Finalize;
     end;
-    FCurrentSession.Input_FRE_DB_Command(cmd);
+    if assigned(FCurrentSession) then
+      FCurrentSession.Input_FRE_DB_Command(cmd)
+    else
+      begin
+        FForceIgnoreFurtherInput := true;
+        TFRE_DB_UserSession.CLS_ForceInvalidSessionReload(self,cmd);
+      end;
   end;
 
-  procedure _ProcessBinaryFrame; //TODO:HH - Test and Fix 13.01.2014
+  procedure _ProcessBinaryFrame;
   var len_binary,len_json : Integer;
       jsontext            : RawByteString;
       binary_text         : RawByteString;
@@ -296,6 +303,19 @@ var
   end;
 
 begin
+  if FForceIgnoreFurtherInput then
+    begin
+      if FOpcode<>8 then
+        begin
+         _SendCloseFrame;
+        end
+      else
+        begin
+          FChannel.Finalize;
+          FChannel:=nil;
+        end;
+      exit;
+    end;
   try
     case FWebsocketMode of
       wsm_INVALID: inherited ReceivedFromClient(opcode,dataframe);
@@ -802,9 +822,16 @@ end;
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Setup_FirmOS_FREDB(const sessionkey: string);
 begin
   FWebsocketMode := wsm_FREDB;
-  FOnBindDefaultSession(self,FCurrentSession,sessionkey,true);
-  TransFormFunc := @FRE_WAPP_DOJO.TransformInvocation;
-  FChannel.SetVerboseDesc('FREDB WS ['+inttostr(FChannel.GetHandleKey)+'] ('+sessionkey+') '+FChannel.GetConnSocketAddr);
+  if FOnBindDefaultSession(self,FCurrentSession,sessionkey,true) then
+    begin
+      TransFormFunc := @FRE_WAPP_DOJO.TransformInvocation;
+      FChannel.SetVerboseDesc('FREDB WS ['+inttostr(FChannel.GetHandleKey)+'] ('+sessionkey+') '+FChannel.GetConnSocketAddr);
+    end
+  else
+    begin
+      TransFormFunc := @FRE_WAPP_DOJO.TransformInvocation;
+      FCurrentSession:= nil;
+    end;
 end;
 
 destructor TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Destroy;
@@ -813,9 +840,15 @@ begin
     wsm_INVALID: ;
     wsm_VNCPROXY: begin
       if assigned(FVNCProxyChannel) then
-        FVNCProxyChannel.Finalize;
+        begin
+          FVNCProxyChannel.Finalize;
+          FVNCProxyChannel:=nil;
+        end;
       if assigned(FChannel) then
-        FChannel.Finalize;
+        begin
+          FChannel.Finalize;
+          FChannel:=nil;
+        end;
     end;
     wsm_FREDB: begin
                  writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.GetVerboseDesc,' HANDLER DISCONNECTED/FREED -> Clearing Session/Channel Binding');
@@ -880,6 +913,7 @@ begin
     else begin
       GFRE_DBI.LogError(dblc_WEBSOCK,'WEBSOCKET - PROTOCOL NOT SUPPORTED!',[]);
       FChannel.Finalize;
+      FChannel:=nil;
     end;
   end;
 end;
@@ -941,14 +975,17 @@ begin
   FCurrentSession := nil;
   FWebsocketMode  := wsm_FREDB_DEACTIVATED;
   //GFRE_DBI.LogDebug(dblc_LOCKING,'(!)> '+loc.GetSessionID+ );
-  loc.LockSession;
-  try
-    sid:=loc.GetSessionID;
-    loc.ClearServerClientInterface;
-  finally
-    loc.UnlockSession;
-  end;
-  GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) CLEARED THE Session Channel Interface / Binding '+FChannel.GetVerboseDesc+ ' <-> '+sid);
+  if assigned(loc) then
+    begin
+      loc.LockSession;
+      try
+        sid:=loc.GetSessionID;
+        loc.ClearServerClientInterface;
+      finally
+        loc.UnlockSession;
+      end;
+      GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) CLEARED THE Session Channel Interface / Binding '+FChannel.GetVerboseDesc+ ' <-> '+sid);
+    end;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.UpdateSessionBinding(const new_session: TObject);

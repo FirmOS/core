@@ -572,7 +572,7 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry);    // DROP : Websock / JSON / IN / OUT
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);    // DROP : JSON
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Debug,'*',flra_DropEntry);    // DROP SESSION  DEBUG
-    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
+  //  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
   end;
 
   procedure Setup_APS_COMM_Logging;
@@ -584,7 +584,15 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
 
   procedure Setup_Persistance_Layer_Logging;
   begin
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry); // DROP : Persistance Layer Debugging
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Info,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
+  end;
+
+  procedure Setup_FlexcomLogging;
+  begin
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_FLEXCOM],fll_Debug,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_FLEX_IO],fll_Debug,'*',flra_DropEntry);
   end;
 
 begin
@@ -594,6 +602,7 @@ begin
   Setup_WS_Session_Logging;
   Setup_APS_COMM_Logging;
   Setup_Persistance_Layer_Logging;
+  Setup_FlexcomLogging;
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
   GFRE_LOG.DisableSyslog;

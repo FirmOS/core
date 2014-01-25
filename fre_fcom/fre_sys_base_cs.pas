@@ -479,33 +479,39 @@ var myDataCount : NativeInt;
           if (CMD.InvokeClass='FIRMOS') and (CMD.InvokeMethod='INIT') and (CMD.Answer=false) then begin
             try
               sessid := CMD.Data.Field('SESSION_ID').AsString;
-              FOnBindDefaultSession(self,FUserSession,sessid,false);
-              if cmd.Data.Field('USER').AsString<>'' then begin
-                prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',true);
-                writeln('PROMOTION RESULT ',prom_res);
-              end;
-              if (prom_res=pr_OK) or (prom_res=pr_Takeover) then
+              if not FOnBindDefaultSession(self,FUserSession,sessid,false) then
                 begin
-                  apps := FUserSession.GetSessionAppArray;
-                  CMD.Data.ClearAllFields;
-                  writeln('ANSWERING FOR ',Length(apps),' APPS');
-                  for i:=0 to high(apps) do begin
-                    app                         := GFRE_DBI.NewObject;
-                    app.Field('CLASS').AsString := apps[i].AsObject.SchemeClass;
-                    app.Field('UID').AsGUID     := apps[i].UID;
-                    CMD.Data.Field('APPS').AsObject.Field(apps[i].AppClassName).AsObject:=app;
-                    CMD.Data.Field('LOGIN_OK').AsBoolean:=true;
-                    CMD.Data.Field('LOGIN_TXT').AsString:='SESSION : '+FUserSession.GetSessionID;
-                    CMD.ChangeSession := FUserSession.GetSessionID;
-                    writeln('  ',apps[i].AppClassName);
-                  end;
+                  CMD.Data.ClearAllFields;   {Try a new session}
+                  CMD.Data.Field('LOGIN_OK').AsBoolean := false;
+                  CMD.Data.Field('LOGIN_TXT').AsString := 'Session ID '+sessid+' is not existing';
+                  CMD.ChangeSession := 'NEW';
                 end
               else
                 begin
-                  CMD.Data.ClearAllFields;
-                  CMD.Data.Field('LOGIN_OK').AsBoolean := false;
-                  CMD.Data.Field('LOGIN_TXT').AsString := prom_err;
-                  CMD.ChangeSession := 'NEW';
+                  if cmd.Data.Field('USER').AsString<>'' then begin
+                    prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',true);
+                  end;
+                  if (prom_res=pr_OK) or (prom_res=pr_Takeover) then
+                    begin
+                      apps := FUserSession.GetSessionAppArray;
+                      CMD.Data.ClearAllFields;
+                      for i:=0 to high(apps) do begin
+                        app                         := GFRE_DBI.NewObject;
+                        app.Field('CLASS').AsString := apps[i].AsObject.SchemeClass;
+                        app.Field('UID').AsGUID     := apps[i].UID;
+                        CMD.Data.Field('APPS').AsObject.Field(apps[i].AppClassName).AsObject:=app;
+                        CMD.Data.Field('LOGIN_OK').AsBoolean:=true;
+                        CMD.Data.Field('LOGIN_TXT').AsString:='SESSION : '+FUserSession.GetSessionID;
+                        CMD.ChangeSession := FUserSession.GetSessionID;
+                      end;
+                    end
+                  else
+                    begin
+                      CMD.Data.ClearAllFields;
+                      CMD.Data.Field('LOGIN_OK').AsBoolean := false;
+                      CMD.Data.Field('LOGIN_TXT').AsString := prom_err;
+                      CMD.ChangeSession := 'NEW';
+                    end;
                 end;
               CMD.Answer        := true;
               CMD.CommandType   := fct_SyncReply;
@@ -590,7 +596,6 @@ end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.DisconnectChannel(const channel: IFRE_APSC_CHANNEL);
 begin
-  writeln('FREE CHANNEL '+channel.GetVerboseDesc);
   Free;
 end;
 

@@ -145,7 +145,7 @@ begin
   MyRunMethod;
   Teardown_APS_Comm;
   FBaseClient.Free;
-  GFRE_DB_DEFAULT_PS_LAYER.Finalize;
+  GFRE_DB_PS_LAYER.Finalize;
   Terminate;
 end;
 

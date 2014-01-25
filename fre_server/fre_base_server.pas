@@ -89,7 +89,7 @@ type
     FTerminating         : boolean;
 
     procedure      _SetupHttpBaseServer                      ;
-    procedure      BindInitialSession                        (const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean);
+    function       BindInitialSession                        (const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean):boolean;
     function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       GetDBWithServerRights                     (const dbname:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       RestoreDefaultConnection                  (out  username : TFRE_DB_String ; out conn : IFRE_DB_CONNECTION):TFRE_DB_Errortype;
@@ -1071,45 +1071,48 @@ begin
   FStaticHTTPMeta := TFRE_ART_TREE.Create;
 end;
 
-procedure TFRE_BASE_SERVER.BindInitialSession(const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; out  session: TFRE_DB_UserSession; const old_session_id: string;  const interactive_session: boolean);
+function  TFRE_BASE_SERVER.BindInitialSession(const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; out  session: TFRE_DB_UserSession; const old_session_id: string;  const interactive_session: boolean):boolean;
 var ws         : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
     SessionKey : String;
     found      : boolean;
     reuse_ses  : boolean;
 begin
+  session   := nil;
   found     := false;
   reuse_ses := (old_session_id<>'NEW') and (old_session_id<>'');
   GFRE_DBI.LogInfo(dblc_SESSION,'BindInitialSession ['+old_session_id+'] ');
-  if reuse_ses then begin
-    if FetchSessionByIdLocked(old_session_id,session) then
-      begin
-        GFRE_DBI.LogDebug(dblc_SESSION,'REUSING SESSION [%s]',[old_session_id]);
-        found:=true;
-        session.SetSessionState(sta_REUSED);
-        session.SetServerClientInterface(back_channel,interactive_session);
-        session.UnlockSession;
-        GFRE_DBI.LogDebug(dblc_SESSION,'REUSING SESSION [%s]',[old_session_id]);
-      end
-    else
-      begin
-        GFRE_DBI.LogDebug(dblc_SESSION,'OLD REQUESTED SESSION NOT FOUND [%s]',[old_session_id]);
-      end;
-  end;
-  if not found then begin
-    session                     := FDefaultSession.CloneSession(back_channel.GetInfoForSessionDesc); //  (sender as TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY).GetSocketDesc
-    if reuse_ses then
-      session.SetSessionState(sta_ReUseNotFound)
-    else
+  if reuse_ses then
+    begin
+      if FetchSessionByIdLocked(old_session_id,session) then
+        begin
+          GFRE_DBI.LogDebug(dblc_SESSION,'REUSING SESSION [%s]',[old_session_id]);
+          found:=true;
+          session.SetSessionState(sta_REUSED);
+          session.SetServerClientInterface(back_channel,interactive_session);
+          session.UnlockSession;
+          GFRE_DBI.LogDebug(dblc_SESSION,'REUSING SESSION [%s]',[old_session_id]);
+          exit(true);
+        end
+      else
+        begin
+          GFRE_DBI.LogDebug(dblc_SESSION,'OLD REQUESTED SESSION NOT FOUND [%s]',[old_session_id]);
+          exit(false);
+        end;
+    end
+  else
+    begin
+      session := FDefaultSession.CloneSession(back_channel.GetInfoForSessionDesc); //  (sender as TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY).GetSocketDesc
       session.SetSessionState(sta_ActiveNew);
-    FSessionTreeLock.Acquire;
-    try
-      FUserSessionsTree.Add(session.GetSessionID,session);
-      session.SetServerClientInterface(back_channel,interactive_session);
-    finally
-      FSessionTreeLock.Release;
+      FSessionTreeLock.Acquire;
+      try
+        FUserSessionsTree.Add(session.GetSessionID,session);
+        session.SetServerClientInterface(back_channel,interactive_session);
+      finally
+        FSessionTreeLock.Release;
+      end;
+      GFRE_DBI.LogDebug(dblc_SESSION,'STARTING NEW SESSION [%s]',[session.GetSessionID]);
+      exit(true);
     end;
-    GFRE_DBI.LogDebug(dblc_SESSION,'STARTING NEW SESSION [%s]',[session.GetSessionID]);
-  end;
 end;
 
 

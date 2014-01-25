@@ -556,7 +556,7 @@ type
 
   TFRE_InputGroupDefType=(igd_Bad,igd_Field,igd_UsedGroup,igd_UsedSubGroup);
 
-  TFRE_DB_SESSIONSTATE  =(sta_BAD,sta_ActiveNew,sta_ReUsed,sta_ReUseNotFound);
+  TFRE_DB_SESSIONSTATE  =(sta_BAD,sta_ActiveNew,sta_ReUsed);
 
   OFRE_InputFieldDef4Group = record
     typ            : TFRE_InputGroupDefType;
@@ -2267,12 +2267,15 @@ type
     procedure   RemoveAllAppsAndFinalize ;
     procedure   SetCurrentApp            (const app_key:TFRE_DB_String);
     procedure   Input_FRE_DB_Command     (const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
+    class
+     procedure  CLS_ForceInvalidSessionReload (rac :IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
     function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
     procedure   COR_FinalizeTakeOver     (const data : Pointer); // In new session binding
+    procedure   AutoPromote              (const NEW_RASC:IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const conn_desc:String);
     procedure   Demote                   ;
     procedure   Logout                   ;
     function    LoggedIn                 : Boolean;
@@ -2339,7 +2342,7 @@ type
   end;
 
 
-  TFRE_DB_FetchSessionCB = procedure(const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean) of object;
+  TFRE_DB_FetchSessionCB = function(const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean):boolean of object;
   TFRE_DB_SessionCB      = procedure(const sender : TObject; const session : TFRE_DB_UserSession) of object;
 
   TGUID_Access = packed record
@@ -3544,7 +3547,7 @@ begin
   _InitApps;
   if not assigned(FContinuationLock) then
      GFRE_TF.Get_Lock(TFRE_DB_UserSession.FContinuationLock);
-  GFRE_DBI.LogInfo(dblc_SESSION,'SESSION CREATE User:'+user_name+' App:'+default_app);
+  GFRE_DBI.LogInfo(dblc_SESSION,'SESSION CREATE User:'+user_name+' App:'+default_app+' '+FSessionID);
 end;
 
 procedure TFRE_DB_UserSession.StoreSessionData;
@@ -3738,7 +3741,10 @@ begin
     begin
       dec(FSessionTerminationTO);
       result := FSessionTerminationTO<1;
-      GFRE_DBI.LogInfo(dblc_SESSION,'SESSION ['+fsessionid+'] KO in '+inttostr(FSessionTerminationTO));
+      if ((FSessionTerminationTO) mod 60)=0 then
+        begin
+          GFRE_DBI.LogInfo(dblc_SESSION,'SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+'] KO in '+inttostr(FSessionTerminationTO));
+        end;
     end;
 end;
 
@@ -4102,6 +4108,24 @@ begin
   GFRE_DBI.LogInfo(dblc_SESSION,'<<[%s/%s]-(%d/%s) %s[%s].%s [%d ms]',[FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,et-st]);
 end;
 
+class procedure TFRE_DB_UserSession.CLS_ForceInvalidSessionReload(rac: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; const cmd: IFRE_DB_COMMAND);
+var input : IFRE_DB_Object;
+begin
+  input := cmd.CheckoutData;
+  try
+    input.Finalize;
+  except
+  end;
+  // Send an async Reoad in every Case
+  cmd.CommandType   := fct_AsyncRequest;
+  cmd.Answer        := false;
+  cmd.ClientCommand := false;
+  cmd.ChangeSession := 'NEW';
+  cmd.Data          := TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false);
+  GFRE_DBI.LogNotice(dblc_SESSION,'>FORCE INVALID SESSION RELOAD');
+  rac.Send_ServerClient(cmd);
+end;
+
 
 function TFRE_DB_UserSession.InternalSessInvokeMethod(const class_name, method_name: string; const uid_path: TFRE_DB_GUIDArray; var input: IFRE_DB_Object): IFRE_DB_Object;
 var st,et : QWord;
@@ -4193,7 +4217,7 @@ var err                : TFRE_DB_Errortype;
     function TakeOver : TFRE_DB_PromoteResult;
     var tod : TCOR_TakeOverData;
     begin
-      writeln('*********** >>>  TAKEOVER CALLED');
+      GFRE_DBI.LogInfo(dblc_SERVER,'>TAKEOVERSESSION SESSION [%s] USER [%s]',[FSessionID,FUserName]);
       if FonExistsSesForTkKeyL(FConnDesc,existing_session) then
         begin
           try
@@ -4205,6 +4229,7 @@ var err                : TFRE_DB_Errortype;
             result:=pr_Takeover;
           finally
             existing_session.UnlockSession;
+            GFRE_DBI.LogInfo(dblc_SERVER,'<OK : TAKEOVERSESSION FOR SESSION [%s] USER [%s]',[existing_session.FSessionID,existing_session.FUserName]);
           end;
           exit;
         end
@@ -4212,6 +4237,7 @@ var err                : TFRE_DB_Errortype;
         begin
           promotion_error := 'Takeover Failed : OLD SESSION NOT FOUND';
           result          := pr_Failed;
+          GFRE_DBI.LogWarning(dblc_SERVER,'<FAIL : TAKEOVERSESSION FOR SESSION [%s]',[FSessionID]);
           exit;
         end;
     end;
@@ -4232,7 +4258,10 @@ begin
             existing_session.FTakeoverPrepared := FConnDesc;
             result := pr_TakeoverPrepared;
             if auto_promote then
-              exit(TakeOver);
+              begin
+                existing_session.AutoPromote(FBoundSession_RA_SC,FConnDesc);
+                exit(pr_TakeOver);
+              end;
           end;
           else begin
             promotion_error := 'Takeover Failed : '+CFRE_DB_Errortype[err];
@@ -4302,7 +4331,7 @@ var tod : TCOR_TakeOverData;
       end else begin
         MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER','This session will be continued on another browser instance.',fdbmt_wait,nil);
         sId := FSessionID;
-        SendServerClientRequest(msg,'OLD-REVOKED');
+        SendServerClientRequest(msg,'NEW');
         FBoundSession_RA_SC.DeactivateSessionBinding;
         //---
         FConnDesc := connection_desc;
@@ -4336,6 +4365,22 @@ begin
   //  MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER FAILED','Sorry - found no default app',fdbmt_error);
   //  SendServerClientRequest(msg,'BAD-ERROR');
   //end;
+end;
+
+procedure TFRE_DB_UserSession.AutoPromote(const NEW_RASC: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; const conn_desc: String);
+begin
+  if not FIsInteractive  then
+    begin
+      if assigned(FBoundSession_RA_SC) then begin
+        FBoundSession_RA_SC.DeactivateSessionBinding;
+      end;
+      FBoundSession_RA_SC := NEW_RASC;
+      NEW_RASC.UpdateSessionBinding(self);
+    end
+  else
+    begin
+      abort;
+    end;
 end;
 
 procedure TFRE_DB_UserSession.Demote;
@@ -4456,6 +4501,7 @@ begin
     raise EFRE_DB_Exception.Create(edb_INTERNAL,' REUSE SESSION FAILED, ALREADY BOUND INTERFACE FOUND');
   FBoundSession_RA_SC := sc_interface;
   FIsInteractive      := interactive_session;
+  GFRE_DBI.LogNotice(dblc_SESSION,'SET SESSION INTERFACE (RESUE) -> SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+']');
 end;
 
 procedure TFRE_DB_UserSession.ClearServerClientInterface;
@@ -4463,6 +4509,7 @@ begin
   RemoveAllTimers;
   FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO;
   FBoundSession_RA_SC   := nil;
+  GFRE_DBI.LogNotice(dblc_SESSION,'CLEARED SESSION INTERFACE -> SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+'] KO in '+inttostr(FSessionTerminationTO));
 end;
 
 function TFRE_DB_UserSession.GetClientServerInterface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
