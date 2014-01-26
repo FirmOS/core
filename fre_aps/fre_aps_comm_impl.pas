@@ -2070,14 +2070,11 @@ procedure TFRE_APS_COMM.TEST_ListenerCB(const listener: IFRE_APSC_LISTENER; cons
 var err :string;
 begin
   err := listener.GetErrorString;
-  writeln('LISTENER STATE ',listener.Getstate,' ',listener.GetListeningAddress,' ',state,' ',err);
   if state =als_EVENT_NEW_LISTENER then
     begin
       TEST_Listener := listener;
       TEST_Listener.Start;
     end;
-  //writeln('LISTENER STATE ',listener.Getstate,' ',listener.GetListeningAddress);
-  //listener.finalize;
 end;
 
 procedure TFRE_APS_COMM.TEST_ListenerCB_SSL(const listener: IFRE_APSC_LISTENER; const state: TAPSC_ListenerState);

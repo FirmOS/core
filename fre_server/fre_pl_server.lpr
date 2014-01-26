@@ -1,4 +1,4 @@
-unit fre_samplesubfeed_client;
+program fre_pl_server;
 
 {
 (§LIC)
@@ -8,7 +8,7 @@ unit fre_samplesubfeed_client;
       www.openfirmos.org
       New Style BSD Licence (OSI)
 
-  Copyright (c) 2001-2013, FirmOS Business Solutions GmbH
+  Copyright (c) 2001-2009, FirmOS Business Solutions GmbH
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without modification,
@@ -38,53 +38,25 @@ unit fre_samplesubfeed_client;
 }
 
 {$mode objfpc}{$H+}
-
-interface
+{$LIBRARYPATH ../../lib}
 
 uses
-  Classes, SysUtils,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_basesubfeed_server,fre_system;
+  //cmem,
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
+  Classes, SysUtils,
+  fre_pl_dbo_server,
+  fre_plserver_app, fre_basedbo_server;
 
-type
+{$I fos_version_helper.inc}
 
+var
+  Application : TFRE_PLSERVER_APP;
 
-  { TFRE_SAMPLE_FEED_SERVER }
-
-  TFRE_SAMPLE_FEED_SERVER=class(TFRE_DBO_SERVER)
-  private
-    FDataTimer : IFRE_APSC_TIMER;
-  protected
-    procedure Setup            ; override;
-    procedure DataParsed       (const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
-  public
-  end;
-
-
-implementation
-
-{ TFRE_SAMPLE_FEED_SERVER }
-
-
-procedure TFRE_SAMPLE_FEED_SERVER.Setup;
 begin
-  FDBO_Srv_Cfg.SpecialFile := cFRE_UX_SOCKS_DIR+'samplesub';
-  FDBO_Srv_Cfg.Id          := 'SampleSub';
-  FDBO_Srv_Cfg.Port        := '44100';
-  FDBO_Srv_Cfg.IP          := '0.0.0.0';
-  inherited Setup;
-  GFRE_SC.AddTimer('FAKEPARSE',1000,@DataParsed);
-end;
-
-procedure TFRE_SAMPLE_FEED_SERVER.DataParsed(const timer: IFRE_APSC_TIMER; const flag1, flag2: boolean);
-var obj : IFRE_DB_Object;
-begin
-   obj := GFRE_DBI.NewObject;
-   obj.Field('MyData_TS').AsDateTimeUTC := GFRE_DT.Now_UTC;
-   obj.Field('MyData_Dta').AsUInt32 := random(10000);
-   PushDataToClients(obj);
-end;
-
-
-
-initialization
-
+  Application:=TFRE_PLSERVER_APP.Create(nil,TFRE_PL_DBO_SERVER.Create);
+  Application.Run;
+  Application.Free;
 end.
+

@@ -1,4 +1,4 @@
-unit fre_samplesubfeed_client;
+unit fre_pl_dbo_server;
 
 {
 (§LIC)
@@ -42,45 +42,51 @@ unit fre_samplesubfeed_client;
 interface
 
 uses
-  Classes, SysUtils,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_basesubfeed_server,fre_system;
+  Classes, SysUtils,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_basedbo_server,fre_system;
 
 type
 
 
-  { TFRE_SAMPLE_FEED_SERVER }
+  { TFRE_PL_DBO_SERVER }
 
-  TFRE_SAMPLE_FEED_SERVER=class(TFRE_DBO_SERVER)
+  TFRE_PL_DBO_SERVER=class(TFRE_DBO_SERVER)
   private
     FDataTimer : IFRE_APSC_TIMER;
   protected
+    procedure SetupPersistanceLayer;
     procedure Setup            ; override;
-    procedure DataParsed       (const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
+    procedure WatchDog         (const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
   public
   end;
 
 
 implementation
 
-{ TFRE_SAMPLE_FEED_SERVER }
+{ TFRE_PL_DBO_SERVER }
 
-
-procedure TFRE_SAMPLE_FEED_SERVER.Setup;
+procedure TFRE_PL_DBO_SERVER.SetupPersistanceLayer;
 begin
-  FDBO_Srv_Cfg.SpecialFile := cFRE_UX_SOCKS_DIR+'samplesub';
-  FDBO_Srv_Cfg.Id          := 'SampleSub';
-  FDBO_Srv_Cfg.Port        := '44100';
-  FDBO_Srv_Cfg.IP          := '0.0.0.0';
-  inherited Setup;
-  GFRE_SC.AddTimer('FAKEPARSE',1000,@DataParsed);
+
 end;
 
-procedure TFRE_SAMPLE_FEED_SERVER.DataParsed(const timer: IFRE_APSC_TIMER; const flag1, flag2: boolean);
-var obj : IFRE_DB_Object;
+procedure TFRE_PL_DBO_SERVER.Setup;
 begin
-   obj := GFRE_DBI.NewObject;
-   obj.Field('MyData_TS').AsDateTimeUTC := GFRE_DT.Now_UTC;
-   obj.Field('MyData_Dta').AsUInt32 := random(10000);
-   PushDataToClients(obj);
+  SetupPersistanceLayer;
+  FDBO_Srv_Cfg.SpecialFile := cFRE_UX_SOCKS_DIR+'plsrv';
+  FDBO_Srv_Cfg.Id          := 'FRE:PLServer';
+  FDBO_Srv_Cfg.Port        := '44010';
+  FDBO_Srv_Cfg.IP          := '0.0.0.0';
+  inherited Setup;
+  GFRE_SC.AddTimer('WD',1000,@WatchDog);
+end;
+
+procedure TFRE_PL_DBO_SERVER.WatchDog(const timer: IFRE_APSC_TIMER; const flag1, flag2: boolean);
+//var obj : IFRE_DB_Object;
+begin
+   //obj := GFRE_DBI.NewObject;
+   //obj.Field('MyData_TS').AsDateTimeUTC := GFRE_DT.Now_UTC;
+   //obj.Field('MyData_Dta').AsUInt32 := random(10000);
+   //PushDataToClients(obj);
 end;
 
 

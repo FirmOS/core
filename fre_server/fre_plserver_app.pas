@@ -1,4 +1,4 @@
-unit fre_basesubfeed_app;
+unit fre_plserver_app;
 
 {
 (§LIC)
@@ -54,9 +54,9 @@ uses
 type
 
 
-  { TFRE_BASESUBDATA_FEED }
+  { TFRE_PLSERVER_APP }
 
-  TFRE_BASESUBDATA_FEED = class(TCustomApplication)
+  TFRE_PLSERVER_APP = class(TCustomApplication)
   protected
     FSFServer : TFRE_DBO_SERVER;
     procedure   DoRun; override;
@@ -74,9 +74,9 @@ type
 implementation
 
 
-{ TFRE_BASESUBDATA_FEED }
+{ TFRE_PLSERVER_APP }
 
-procedure TFRE_BASESUBDATA_FEED.DoRun;
+procedure TFRE_PLSERVER_APP.DoRun;
 var
   ErrorMsg   : String;
 begin
@@ -137,26 +137,26 @@ begin
   Terminate;
 end;
 
-procedure TFRE_BASESUBDATA_FEED.MyRunMethod;
+procedure TFRE_PLSERVER_APP.MyRunMethod;
 begin
   GFRE_SC.RunUntilTerminate;
 end;
 
 
-constructor TFRE_BASESUBDATA_FEED.Create(TheOwner: TComponent; const Server: TFRE_DBO_SERVER);
+constructor TFRE_PLSERVER_APP.Create(TheOwner: TComponent; const Server: TFRE_DBO_SERVER);
 begin
   inherited Create(TheOwner);
   StopOnException := True;
   FSFServer       := Server;
 end;
 
-destructor TFRE_BASESUBDATA_FEED.Destroy;
+destructor TFRE_PLSERVER_APP.Destroy;
 begin
   inherited Destroy;
 end;
 
 
-procedure TFRE_BASESUBDATA_FEED.WriteHelp;
+procedure TFRE_PLSERVER_APP.WriteHelp;
 begin
    { add your help code here }
   writeln('Usage: ',ExeName,' -h');
@@ -169,16 +169,16 @@ begin
   writeln('                  --test-log             : enable console test-log');
 end;
 
-procedure TFRE_BASESUBDATA_FEED.WriteVersion;
+procedure TFRE_PLSERVER_APP.WriteVersion;
 begin
 end;
 
-procedure TFRE_BASESUBDATA_FEED.TestMethod;
+procedure TFRE_PLSERVER_APP.TestMethod;
 begin
 
 end;
 
-procedure TFRE_BASESUBDATA_FEED.CfgTestLog;
+procedure TFRE_PLSERVER_APP.CfgTestLog;
 begin
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry);  // Server / Connection Start/Close
   //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Info,'*',flra_DropEntry); // Http/Header / Content

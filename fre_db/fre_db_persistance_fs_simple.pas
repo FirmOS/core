@@ -659,7 +659,10 @@ begin
   if FGlobalLayer then
     begin
       for i:=0 to high(FConnectedLayers) do
-         FConnectedLayers[i].Free;
+        begin
+          FConnectedLayers[i].Free;
+        end;
+      GNOTIF_LOG.Free;
     end
   else
     begin
