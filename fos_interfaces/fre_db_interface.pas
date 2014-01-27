@@ -1565,7 +1565,7 @@ type
     function        FormattedDisplayAvailable          : boolean;
     function        SubFormattedDisplayAvailable       : boolean;
     function        GetSubFormattedDisplay             (indent:integer=4):TFRE_DB_String;
-    function        SchemeClass                        : TFRE_DB_NameType;
+    function        SchemeClass                        : TFRE_DB_NameType; virtual;
     function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
@@ -1615,6 +1615,17 @@ type
     function        WEB_NoteStartEdit                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
     function        WEB_NoteStopEdit                   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
     //Interface - Compatibility Block End
+  end;
+
+  { TFRE_DB_WeakObjectEx }
+
+  TFRE_DB_WeakObjectEx=class(TFRE_DB_ObjectEx)
+  private
+    FWeakClassname : ShortString;
+  public
+    constructor Create(const weakclname : Shortstring);
+    function SchemeClass: TFRE_DB_NameType; override;
+    procedure      FreeFromBackingDBO     ; override;
   end;
 
   { TFRE_DB_NOTE }
@@ -1731,7 +1742,7 @@ type
   // Describes a basic content Element
   // The content has an contentID and uses as Internal representation a (temporary/non saved) DBO
 
-  TFRE_DB_OBJECTCLASSEX   = class of TFRE_DB_ObjectEx;
+  TFRE_DB_OBJECTCLASSEX      = class of TFRE_DB_ObjectEx;
 
   { TFRE_DB_CONTENT_DESC }
 
@@ -2426,7 +2437,9 @@ type
   procedure FREDB_SiteMap_AddRadialEntry         (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : String; const newsCount:Integer=0; const enabled:Boolean=true);
   procedure FREDB_PositionSitemapEntry           (const angle : integer; const radius : integer; const origin_x, origin_y : integer; out x,y:integer);
   procedure FREDB_SiteMap_RadialAutoposition     (const SiteMapData : IFRE_DB_Object; const rootangle:integer=90);
-  function  FREDB_GuidArray2String               (const arr:TFRE_DB_GUIDArray):String;
+
+  function  FREDB_GuidArray2StringStream         (const arr:TFRE_DB_GUIDArray):String; { Caution ! - used in streaming}
+  function  FREDB_StreamString2GuidArray         (str:string):TFRE_DB_GUIDArray; { Caution ! - used in streaming, must be in format of FREDB_GuidArray2String}
 
   function  FREDB_Get_Rightname_UID              (const rightprefix: string; const id: TGUID): string;
   function  FREDB_Get_Rightname_UID_STR          (const rightprefix: string; const id_str: String): string;
@@ -2948,6 +2961,24 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_WeakObjectEx }
+
+constructor TFRE_DB_WeakObjectEx.Create(const weakclname: Shortstring);
+begin
+  FWeakClassname := weakclname;
+end;
+
+function TFRE_DB_WeakObjectEx.SchemeClass: TFRE_DB_NameType;
+begin
+  Result := FWeakClassname;
+end;
+
+procedure TFRE_DB_WeakObjectEx.FreeFromBackingDBO;
+begin
+  // don't free, is used by multiple raw dbos
+  //writeln('TODO : - CLEANUP WEAK SCHEMES LEAK : ',SchemeClass);
+end;
 
 { TFRE_DB_OPEN_NEW_LOCATION_DESC }
 
@@ -5495,7 +5526,6 @@ end;
 
 function TFRE_DB_ObjectEx.SchemeClass: TFRE_DB_NameType;
 begin
-//  result := FImplementor.SchemeClass;
   result := Classname;
 end;
 
@@ -6676,22 +6706,6 @@ begin
   end;
 end;
 
-function FREDB_GuidArray2String(const arr: TFRE_DB_GUIDArray): String;
-var i : NativeInt;
-begin
-  result := '[';
-  for i:=0 to high(arr) do
-    result:=result+GFRE_BT.GUID_2_HexString(arr[i])+',';
-  if Length(arr)>0 then
-    result[Length(result)] :=']'
-  else
-    result:=result+']';
-end;
-
-function FREDB_CombineString(const strings: TFRE_DB_StringArray; const sep: string): TFRE_DB_String;
-begin
-
-end;
 
 procedure FREDB_PositionSitemapEntry(const angle: integer; const radius: integer; const origin_x, origin_y: integer; out x, y: integer);
 var xr : double;
@@ -6706,6 +6720,32 @@ begin
   x   := origin_x + round (xr * correct);
   y   := origin_y - round (yr);
 //  writeln ('Angle: ',angle, 'Phi:',phi, 'X: ',x, 'Y:',y);
+end;
+
+function FREDB_GuidArray2StringStream(const arr: TFRE_DB_GUIDArray): String;
+var i : NativeInt;
+begin
+  result := '[';
+  for i:=0 to high(arr) do
+    result:=result+GFRE_BT.GUID_2_HexString(arr[i])+',';
+  if Length(arr)>0 then
+    result[Length(result)] :=']'
+  else
+    result:=result+']';
+end;
+
+
+function FREDB_StreamString2GuidArray(str: string): TFRE_DB_GUIDArray;
+var sa : TFOSStringArray;
+     i : NativeInt;
+     s : string;
+begin
+  str:=trim(str);
+  s := copy(str,2,Length(str)-2);
+  GFRE_BT.SeperateString(s,',',sa);
+  SetLength(result,length(sa));
+  for i:= 0 to high(sa) do
+    result[i] := GFRE_BT.HexString_2_GUID(sa[i]);
 end;
 
 function FREDB_Get_Rightname_UID(const rightprefix: string; const id: TGUID): string;

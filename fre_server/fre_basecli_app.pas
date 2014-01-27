@@ -80,6 +80,7 @@ type
     procedure  _CheckPassSupplied;
 
     function    ListFromString     (const str :string) : IFOS_STRINGS;
+    procedure   ConvertDbo         (const file_name:string ; const to_json:boolean);
     procedure   DoRun              ; override ;
     procedure   PrintTimeZones     ;
     procedure   WriteHelp          ;
@@ -117,6 +118,47 @@ function TFRE_CLISRV_APP.ListFromString(const str: string): IFOS_STRINGS;
 begin
   result := GFRE_TF.Get_FOS_Strings;
   result.SetCommatext(str);
+end;
+
+procedure TFRE_CLISRV_APP.ConvertDbo(const file_name: string; const to_json: boolean);
+var dbo   : TFRE_DB_Object;
+    fp,fn : string;
+    res   : string;
+begin
+  if not FileExists(file_name) then
+    begin
+      writeln('the given file [',file_name,'] does not exist!');
+      terminate;
+      halt(1);
+    end;
+   if to_json then
+     begin
+       fp  := ExtractFilePath(file_name);
+       fn  := ExtractFileName(file_name);
+       fn  := copy(fn,1,Length(fn)-Length(ExtractFileExt(fn)));
+       fn  := fp+DirectorySeparator+fn+'.frejson';
+       if FileExists(fn) and
+          not DeleteFile(fn) then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not delete convert file : '+fn);
+       dbo := TFRE_DB_Object.CreateFromFile(file_name);
+       res := dbo.GetAsJSONString(false,true,nil);
+       GFRE_BT.StringToFile(fn,res);
+       dbo.Finalize;
+     end
+   else
+     begin
+         fp  := ExtractFilePath(file_name);
+         fn  := ExtractFileName(file_name);
+         fn  := copy(fn,1,Length(fn)-Length(ExtractFileExt(fn)));
+         fn  := fp+DirectorySeparator+fn+'.dbo';
+         if FileExists(fn) and
+            not DeleteFile(fn) then
+              raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not delete convert file : '+fn);
+         res := GFRE_BT.StringFromFile(filename);
+         dbo := TFRE_DB_Object.CreateFromJSONString(res);
+         dbo.SaveToFile(fn);
+         dbo.Finalize;
+     end;
 end;
 
 procedure TFRE_CLISRV_APP.SetDefaultExtensions(AValue: String);
@@ -162,7 +204,7 @@ begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
   ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',
                           ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','dumpdb','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz','cleanzip','nozip','nocache','jsdebug']);
+                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -270,6 +312,19 @@ begin
 
   FinishStartup;
 
+  if HasOption('*','dbo2json') then begin
+    filename := GetOptionValue('*','dbo2json');
+    ConvertDbo(filename,true);
+    Terminate;
+    halt(0);
+  end;
+
+  if HasOption('*','json2dbo') then begin
+    filename := GetOptionValue('*','json2dbo');
+    ConvertDbo(filename,false);
+    Terminate;
+    halt(0);
+  end;
 
   if HasOption('x','forcedb') then begin
     FOnlyInitDB:=true;

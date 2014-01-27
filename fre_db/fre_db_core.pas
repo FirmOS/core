@@ -74,11 +74,13 @@ type
   end;
 
 const
+  cFRE_DB_STREAM_VERSION = 3;
   {$IFDEF ENDIAN_LITTLE}
-  CFRE_DB_ObjectHdr  : TFRE_DB_ObjectHdr                       = ( Signature : 'FREDBO' ; Version : 3 ; EndianMarker : 0);
+    cFRE_DB_ENDIAN_MARKER = 0;
   {$ELSE}
-  CFRE_DB_ObjectHdr  : TFRE_DB_ObjectHdr                       = ( Signature : 'FREDBO' ; Version : 3 ; EndianMarker : 1);
+    cFRE_DB_ENDIAN_MARKER = 1;
   {$ENDIF}
+  CFRE_DB_ObjectHdr  : TFRE_DB_ObjectHdr  = ( Signature : 'FREDBO' ; Version : cFRE_DB_STREAM_VERSION ; EndianMarker : cFRE_DB_ENDIAN_MARKER);
 
 type
   TFRE_DB_Object                = class;
@@ -306,7 +308,7 @@ type
     function    GetStreamingSize  : TFRE_DB_SIZE_TYPE;
     function    CopyFieldToMem    (var mempointer:Pointer):TFRE_DB_SIZE_TYPE;
     class procedure __ReadHeader  (var memory:pointer;out fieldname:TFRE_DB_NameType);
-    procedure CopyFieldFromMem    (var mempointer:Pointer;const generate_new_uids:boolean);
+    procedure   CopyFieldFromMem  (var mempointer:Pointer;const generate_new_uids:boolean ; const version: byte; const endianmarker: byte);
 
     property  AsGUID                        : TGuid read GetAsGUID write SetAsGUID;
     property  AsByte                        : Byte  read GetAsByte write SetAsByte;
@@ -480,7 +482,6 @@ type
     function       _FieldOnlyExisting                  (name:TFRE_DB_NameType):TFRE_DB_FIELD;
     procedure      _ParentCheck                        (const newdbo : TFRE_DB_Object);
     function       _ReadOnlyCheck                      : boolean;
-    procedure      CheckMediatorSetup                  ;
     procedure      _InAccessibleCheck                  ; inline ;
     function       _ReservedFieldName                 (const upper_name:TFRE_DB_NameType):boolean;
     procedure      _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
@@ -494,10 +495,10 @@ type
     procedure       InternalSetup                      ; virtual;
     procedure       InternalFinalize                   ; virtual;
     procedure       CopyToMem                          (var mempointer:Pointer);
-    procedure       CopyFromMem                        (var mempointer:Pointer;const field_count:TFRE_DB_SIZE_TYPE;const generate_new_uids:boolean=false);
+    procedure       CopyFromMem                        (var mempointer:Pointer;const field_count:TFRE_DB_SIZE_TYPE;const generate_new_uids:boolean=false ; const version: byte=cFRE_DB_STREAM_VERSION ; const endianmarker: byte=cFRE_DB_ENDIAN_MARKER);
     procedure       CopyFromJSON                       (const JSON:TJSONArray;const field_count:TFRE_DB_SIZE_TYPE;const stream_cb:TFRE_DB_StreamingCallback=nil);
     function        CopyToJSON                         : TFRE_DB_String; // without streams // - only stream keys
-    class function  CreateInternalStreaming            (const parent:TFRE_DB_FIELD;var mempointer:Pointer;const generate_new_uids:boolean=false):TFRE_DB_Object;
+    class function  CreateInternalStreaming            (const parent:TFRE_DB_FIELD;var mempointer:Pointer;const generate_new_uids:boolean=false;const version : byte=3;const endianmarker : byte=0):TFRE_DB_Object;
     class function  CreateInternalStreamingJSON        (const parent:TFRE_DB_FIELD;const JSON:TJSONArray;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_Object;
     function        _StreamingSize                     :TFRE_DB_SIZE_TYPE; // gets calculated before streaming
     procedure       BeforeSave                         ;virtual;
@@ -566,7 +567,8 @@ type
     function        ParentField                        : TFRE_DB_FIELD;
     function        ParentFieldI                       : IFRE_DB_FIELD;
     constructor     Create                             ;//;virtual;
-    constructor     CreateStreaming                    (const ExtensionObjectMediatorClass:TFRE_DB_OBJECTCLASSEX=nil);virtual;
+    constructor     CreateStreaming                    (const ExtensionObjectMediatorClass:TFRE_DB_OBJECTCLASSEX=nil);
+    constructor     CreateStreaming                    (const WeakExObject:TFRE_DB_WeakObjectEx);
     destructor      Destroy                            ;override;
     procedure       CopyToMemory                       (memory : Pointer);
     class function  CreateFromMemory                   (memory : Pointer;const generate_new_uids:boolean=false):TFRE_DB_Object;
@@ -2063,10 +2065,12 @@ type
   TFRE_DB=class(TObject,IFRE_DB)
   private
     FBigLock                                : IFOS_Lock;
+    FWeakMediatorLock                       : IFOS_Lock;
     FLocalZone                              : TFRE_DB_String;
     FFormatSettings                         : TFormatSettings;
     FClassArray                             : Array of  TFRE_DB_OBJECTCLASS;
     FExClassArray                           : Array of  TFRE_RExtensionClass;
+    FWeakExClassArray                       : Array of  TFRE_DB_WeakObjectEx;
     FKnownInterfaces                        : Array of  TFRE_RInterfaceImplementor;
     FSysSchemes                             : Array of  TFRE_DB_SchemeObject;
     FSysEnums                               : Array of TFRE_DB_Enum;
@@ -2079,6 +2083,8 @@ type
     procedure       SetLocalZone            (const AValue: TFRE_DB_String);
     function        NewObjectStreaming      (const ClName: ShortString) : TFRE_DB_Object;
   protected
+    procedure   AcquireWeakMediatorLock     ;
+    procedure   ReleaseWeakMediatorLock     ;
     function    NewScheme                   (const Scheme_Name: TFRE_DB_String;const typ : TFRE_DB_SchemeType) : TFRE_DB_SchemeObject;
     procedure   SafeFinalize                (intf : IFRE_DB_BASE);
     function    NewDBCommand                : IFRE_DB_COMMAND;
@@ -2156,6 +2162,7 @@ type
 
     procedure   RegisterObjectClass        (const ObClass  : TFRE_DB_OBJECTCLASS);
     procedure   RegisterObjectClassEx      (const ObClass  : TFRE_DB_OBJECTCLASSEX);
+    function    RegisterWeakObjectExClass  (const clname   : ShortString) : TFRE_DB_WeakObjectEx;
     procedure   RegisterPrimaryImplementor (const ObClass  : TClass ; const InterfaceSpec : ShortString); //register the primary implementor of an interface;
     function    GetInterfaceClass          (const InterfaceSpec : ShortString ; out ObClass:TClass) : boolean;
 
@@ -2176,6 +2183,7 @@ type
 
     function    GetObjectClass         (const ClName:ShortString) : TFRE_DB_OBJECTCLASS;
     function    GetObjectClassEx       (const ClName:ShortString) : TFRE_DB_OBJECTCLASSEX;
+    function    GetWeakObjectClassEx   (const ClName:ShortString) : TFRE_DB_WeakObjectEx;
     function    ExistsObjectClass      (const ClName:ShortString) :boolean;
     function    ExistsObjectClassEx    (const ClName:ShortString) :boolean;
 
@@ -10530,21 +10538,44 @@ begin
 end;
 
 function TFRE_DB.NewObjectStreaming(const ClName:ShortString): TFRE_DB_Object;
-var ex_obj    : TFRE_DB_ObjectEx;
-    obj_cl    : TFRE_DB_OBJECTCLASS;
-    ex_obj_cl : TFRE_DB_OBJECTCLASSEX;
+var ex_obj     : TFRE_DB_ObjectEx;
+    obj_cl     : TFRE_DB_OBJECTCLASS;
+    ex_obj_cl  : TFRE_DB_OBJECTCLASSEX;
+    weako      : TFRE_DB_WeakObjectEx;
+
 begin
   obj_cl := GetObjectClass(ClName);
   if assigned(obj_cl) then begin
     result := obj_cl.CreateStreaming;
   end else begin
     ex_obj_cl := GetObjectClassEx(ClName);
-    if assigned(ex_obj_cl) then begin
-      result    := TFRE_DB_NAMED_OBJECT.CreateStreaming(ex_obj_cl);
-    end else begin
-       raise EFRE_DB_Exception.Create(edb_ERROR,'STREAMING FAILURE OBJECT CLASS ['+ClName+'] IS UNKNOWN, YOU MAY NEED TO REGISTER IT');
-    end;
+    if assigned(ex_obj_cl) then
+      begin
+        result := TFRE_DB_NAMED_OBJECT.CreateStreaming(ex_obj_cl);
+      end
+    else
+      begin
+        weako := GetWeakObjectClassEx(ClName);
+        if not assigned(weako) then
+          begin
+            if cFRE_DB_ALLOW_WEAKMEDIATORS then
+              weako := RegisterWeakObjectExClass(ClName)
+            else
+              raise EFRE_DB_Exception.Create(edb_ERROR,'STREAMING FAILURE OBJECT CLASS ['+ClName+'] IS UNKNOWN, YOU MAY NEED TO REGISTER IT');
+          end;
+        result := TFRE_DB_NAMED_OBJECT.CreateStreaming(weako);
+      end;
   end;
+end;
+
+procedure TFRE_DB.AcquireWeakMediatorLock;
+begin
+  FWeakMediatorLock.Acquire;
+end;
+
+procedure TFRE_DB.ReleaseWeakMediatorLock;
+begin
+  FWeakMediatorLock.Release;
 end;
 
 function TFRE_DB.NewScheme(const Scheme_Name: TFRE_DB_String; const typ: TFRE_DB_SchemeType): TFRE_DB_SchemeObject;
@@ -11127,6 +11158,7 @@ constructor TFRE_DB.create;
 begin
   FFormatSettings := DefaultFormatSettings;
   GFRE_TF.Get_Lock(FBigLock);
+  GFRE_TF.Get_Lock(FWeakMediatorLock);
 end;
 
 destructor TFRE_DB.Destroy;
@@ -11141,6 +11173,7 @@ begin
   for i:=0 to High(FSysObjectList) do
     FSysObjectList[i].obj.free;
   FBigLock.Finalize;
+  FWeakMediatorLock.Finalize;
   inherited Destroy;
 end;
 
@@ -11239,6 +11272,27 @@ begin
   setlength(FExClassArray,length(FExClassArray)+1);
   FExClassArray[high(FExClassArray)].exclass     := ObClass;
   FExClassArray[high(FExClassArray)].initialized := false;
+end;
+
+function TFRE_DB.RegisterWeakObjectExClass(const clname: ShortString): TFRE_DB_WeakObjectEx;
+var
+  i: NativeInt;
+  upclname : ShortString;
+begin
+  upclname := UpperCase(clname);
+  AcquireWeakMediatorLock;
+  try
+    for i:=0 to high(FWeakExClassArray) do
+      begin
+        if uppercase(FWeakExClassArray[i].SchemeClass)=upclname then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'double RegisterWeakObjectclass '+clname);
+      end;
+    setlength(FWeakExClassArray,length(FWeakExClassArray)+1);
+    result := TFRE_DB_WeakObjectEx.Create(clname);
+    FWeakExClassArray[high(FWeakExClassArray)] := result;
+  finally
+    ReleaseWeakMediatorLock;
+  end;
 end;
 
 procedure TFRE_DB.RegisterPrimaryImplementor(const ObClass: TClass; const InterfaceSpec: ShortString);
@@ -11424,6 +11478,27 @@ begin
       result := FExClassArray[i].exclass;
       exit;
     end;
+  end;
+end;
+
+function TFRE_DB.GetWeakObjectClassEx(const ClName: ShortString): TFRE_DB_WeakObjectEx;
+var i:integer;
+    ccn:ShortString;
+    acn:ShortString;
+begin
+  result := nil;
+  AcquireWeakMediatorLock;
+  try
+    ccn := UpperCase(ClName);
+    for i:=0 to high(FWeakExClassArray) do begin
+      acn := uppercase(FWeakExClassArray[i].SchemeClass);
+      if acn=ccn then begin
+        result := FWeakExClassArray[i];
+        exit;
+      end;
+    end;
+  finally
+    ReleaseWeakMediatorLock;
   end;
 end;
 
@@ -11790,9 +11865,9 @@ var size   : NativeInt;
 begin
   size := 0;
   ForAll(@CountFieldStreamingSize);
-  clname := ClassName;
-  if assigned(FMediatorExtention) then
-    clname := FMediatorExtention.ClassName;
+  clname := SchemeClass;
+  //if assigned(FMediatorExtention) then
+  //  clname := FMediatorExtention.SchemeClass;
   result := CFRE_DB_SIZE_ENCODING_SIZE+length(clname)+size;
 end;
 
@@ -12147,6 +12222,12 @@ begin
   end;
 end;
 
+constructor TFRE_DB_Object.CreateStreaming(const WeakExObject: TFRE_DB_WeakObjectEx);
+begin
+  CreateStreaming;
+  FMediatorExtention := WeakExObject;
+end;
+
 destructor TFRE_DB_Object.Destroy;
 
   procedure DoAllFinalizeFields(const field:TFRE_DB_FIELD);
@@ -12240,10 +12321,12 @@ class function TFRE_DB_Object.CreateFromMemory(memory: Pointer ; const generate_
 var hdr:TFRE_DB_ObjectHdr;
 begin
   Move(Memory^,hdr,Sizeof(CFRE_DB_ObjectHdr));
-  if CompareByte(hdr,CFRE_DB_ObjectHdr,SizeOf(CFRE_DB_ObjectHdr))<>0
-     then raise EFRE_DB_Exception.Create(edb_INTERNAL,'HEADER SIGNATURE BAD');
-  Inc(PByte(memory),Sizeof(CFRE_DB_ObjectHdr)); //TODO: Implement Headercheck in persistence layer
-  result := CreateInternalStreaming(nil,memory,generate_new_uids);
+  if (hdr.Signature<>CFRE_DB_ObjectHdr.Signature) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'HEADER SIGNATURE BAD');
+  Inc(PByte(memory),Sizeof(CFRE_DB_ObjectHdr));
+  if hdr.Version<2 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'BINARY FORMAT TOO OLD, UNSUPPORTED');
+  result := CreateInternalStreaming(nil,memory,generate_new_uids,hdr.Version,hdr.EndianMarker);
 end;
 
 function TFRE_DB_Object.FieldI(const name: TFRE_DB_NameType): IFRE_DB_FIELD;
@@ -12401,16 +12484,6 @@ begin
   result := false;
 end;
 
-procedure TFRE_DB_Object.CheckMediatorSetup;
-var lScheme:TFRE_DB_SchemeObject;
-begin
-  abort ; // Check codepath against internal setup overwrite bug
-  lScheme := GetScheme;
-  if not assigned(lScheme) then exit;
-  if lScheme.HasHardCodeClass and (SchemeClass<>ClassName) then begin
-    lScheme.SetupMediator(self);
-  end;
-end;
 
 procedure TFRE_DB_Object._InAccessibleCheck;
 begin
@@ -12694,7 +12767,7 @@ begin
   //end;
 end;
 
-procedure TFRE_DB_Object.CopyFromMem(var mempointer: Pointer; const field_count: TFRE_DB_SIZE_TYPE ; const generate_new_uids: boolean);
+procedure TFRE_DB_Object.CopyFromMem(var mempointer: Pointer; const field_count: TFRE_DB_SIZE_TYPE; const generate_new_uids: boolean; const version: byte; const endianmarker: byte);
 var i:Integer;
     F:TFRE_DB_FIELD;
     field_type  : TFRE_DB_FIELDTYPE;
@@ -12704,7 +12777,7 @@ begin
   if field_count>0 then begin
     for i := 0 to field_count-1 do begin
       TFRE_DB_FIELD.__ReadHeader(mempointer,field_name);
-      _Field(field_name).CopyFieldFromMem(mempointer,generate_new_uids);
+      _Field(field_name).CopyFieldFromMem(mempointer,generate_new_uids,version,endianmarker);
       if field_name='UID' then
         begin
           if generate_new_uids then
@@ -12728,8 +12801,10 @@ var i:Integer;
 begin
   if field_count>0 then begin
     for i := 0 to field_count-1 do begin
-      jo         := JSON.Items[i+2] as TJSONObject;
+      jo         := JSON.Items[i+1] as TJSONObject;
       field_name := jo.Elements['N'].AsString;
+      if field_name='SPACE' then
+        field_name:=field_name;
       field_type := FieldtypeShortString2Fieldtype(jo.Elements['T'].AsString);
       _Field(field_name).SetFromJSON(field_type,jo.Elements['D'] as TJSONArray,stream_cb);
     end;
@@ -12741,11 +12816,13 @@ begin
   GetAsJSONString(false,true,nil);
 end;
 
-class function TFRE_DB_Object.CreateInternalStreaming(const parent: TFRE_DB_FIELD; var mempointer: Pointer; const generate_new_uids: boolean): TFRE_DB_Object;
+class function TFRE_DB_Object.CreateInternalStreaming(const parent: TFRE_DB_FIELD; var mempointer: Pointer; const generate_new_uids: boolean; const version: byte; const endianmarker: byte): TFRE_DB_Object;
 var   lClassnameLen,lFieldcount : TFRE_DB_SIZE_TYPE;
       lStreamingSize            : TFRE_DB_SIZE_TYPE;
       lClassname                : ShortString;
       test                      : pointer;
+      lschemenamelen            : TFRE_DB_SIZE_TYPE;
+      lschemename               : ShortString;
 begin
   test := mempointer;
   Move (mempointer^,lFieldcount,CFRE_DB_SIZE_ENCODING_SIZE);inc(mempointer,CFRE_DB_SIZE_ENCODING_SIZE);
@@ -12756,32 +12833,25 @@ begin
   SetLength (lClassname,lClassnameLen);
   Move (mempointer^,lClassname[1],lClassnameLen);inc(mempointer,lClassnameLen);
 
-  //Move (mempointer^,lschemenamelen,CFRE_DB_SIZE_ENCODING_SIZE);inc(mempointer,CFRE_DB_SIZE_ENCODING_SIZE);
-  //if lschemenamelen>=0 then begin
-  //  SetLength (lschemename,lschemenamelen);
-  //  Move (mempointer^,lschemename[1],lschemenamelen);inc(mempointer,lschemenamelen);
-  //end else begin
-  //  if not recreate_weak_schemes then begin
-  //    inc(mempointer, -1 * lschemenamelen);
-  //    lschemename:='';
-  //  end else begin
-  //    lschemenamelen := -1 * lschemenamelen;
-  //    SetLength (lschemename,lschemenamelen);
-  //    Move (mempointer^,lschemename[1],lschemenamelen);inc(mempointer,lschemenamelen);
-  //  end;
-  //end;
+  if version=2 then
+    begin
+      Move (mempointer^,lschemenamelen,CFRE_DB_SIZE_ENCODING_SIZE);inc(mempointer,CFRE_DB_SIZE_ENCODING_SIZE);
+      if lschemenamelen>=0 then begin
+        SetLength (lschemename,lschemenamelen);
+        Move (mempointer^,lschemename[1],lschemenamelen);inc(mempointer,lschemenamelen);
+      end else begin
+        lschemenamelen := -1 * lschemenamelen;
+        SetLength (lschemename,lschemenamelen);
+        Move (mempointer^,lschemename[1],lschemenamelen);inc(mempointer,lschemenamelen);
+      end;
+      if (uppercase(lClassname)<>uppercase(lschemename))
+         and (lschemename<>'') then
+           raise EFRE_DB_Exception.Create(edb_INTERNAL,'look here : '+lClassname+' # '+lschemename);
+    end;
   result := GFRE_DB.NewObjectStreaming(lClassname);
   result.FParentDBO := parent;
-  //if result.FSchemeName='' then
-  //  begin
-  //    if lschemename='' then
-  //      begin
-  //        //writeln('********** WARNING SCHEMENAME NOT IN STREAMED OBJECT ',lClassname); //TODO:CRIT
-  //      end;
-  //    result.FSchemeName:=lschemename;
-  //  end;
   result.InternalSetup;
-  result.CopyFromMem(mempointer,lFieldcount,generate_new_uids);
+  result.CopyFromMem(mempointer,lFieldcount,generate_new_uids,version,endianmarker);
   //result.InternalSetup;
   result.AfterLoad;
   //result.FStreamingSize:=lStreamingSize;
@@ -12792,15 +12862,12 @@ end;
 
 class function TFRE_DB_Object.CreateInternalStreamingJSON(const parent: TFRE_DB_FIELD; const JSON: TJSONArray;const stream_cb:TFRE_DB_StreamingCallback=nil): TFRE_DB_Object;
 var   lClassname                : ShortString;
-      lschemename               : TFRE_DB_String;
       lFieldCount               : Integer;
 begin
   lClassname  := (JSON.Items[0] as TJSONString).AsString;
-  lschemename := (JSON.Items[1] as TJSONString).AsString;
-  lFieldCount := JSON.Count-2;
+  lFieldCount := JSON.Count-1;
   result      := GFRE_DB.NewObjectStreaming(lClassname);
   result.FParentDBO := parent;
-  result.CheckMediatorSetup;
   result.CopyFromJSON(JSON,lFieldCount,stream_cb);
   result.InternalSetup;
   result.AfterLoad;
@@ -13118,7 +13185,7 @@ end;
 function TFRE_DB_Object.SchemeClass: TFRE_DB_NameType;
 begin
   if assigned(FMediatorExtention) then
-    result := uppercase(FMediatorExtention.ClassName)
+    result := uppercase(FMediatorExtention.SchemeClass)
   else
     result := UpperCase(ClassName);
 end;
@@ -14724,11 +14791,7 @@ begin
     fdbft_DateTimeUTC: result := GFRE_DT.ToStrUTC(GFRE_DB.UTCToLocalTimeDB64(FFieldData.date^[idx]));
     fdbft_Stream:      result := _StreamToStringAsUrlAccess;
     fdbft_Object:      result := FFieldData.obj^[idx].DumpToString;
-    fdbft_ObjLink:
-      begin
-        result := FREDB_GuidArray2String(FFieldData.obl^);
-        //result :=  GFRE_BT.GUID_2_HexString(FFieldData.obl^[idx]);
-      end
+    fdbft_ObjLink:     result := FREDB_GuidArray2StringStream(FFieldData.obl^);
     else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled %s',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
   end;
 end;
@@ -14901,7 +14964,7 @@ begin
   result := startp-oldp;
 end;
 
-procedure TFRE_DB_FIELD.CopyFieldFromMem(var mempointer: Pointer; const generate_new_uids: boolean);
+procedure TFRE_DB_FIELD.CopyFieldFromMem(var mempointer: Pointer; const generate_new_uids: boolean; const version: byte; const endianmarker: byte);
 var value_count : SizeInt;
     sz_field    : TFRE_DB_SIZE_TYPE;
     i           : SizeInt;
@@ -14941,7 +15004,7 @@ var value_count : SizeInt;
    begin
      l:=Length(FFieldData.obj^)-1;
      for i := 0 to l do begin
-       FFieldData.obj^[i] := TFRE_DB_Object.CreateInternalStreaming(self,startp,generate_new_uids);
+       FFieldData.obj^[i] := TFRE_DB_Object.CreateInternalStreaming(self,startp,generate_new_uids,version,endianmarker);
      end;
    end;
 
@@ -15916,7 +15979,7 @@ begin
     l := Length(a);
     SetLength(A,l+1);
     A[l] := Value;
-    AsGUIDArr := A;
+    SetAsGUIDArray(A);
   end;
 end;
 
@@ -16716,13 +16779,20 @@ procedure TFRE_DB_FIELD.SetFromJSON(const field_type: TFRE_DB_FIELDTYPE; const j
   begin
     case Field_Type of
       fdbft_NotFound:      raise EFRE_DB_Exception.Create(edb_INTERNAL,'cannot json/stream create a undefined field');
-      fdbft_GUID:          AddGuid(GFRE_BT.HexString_2_GUID(JAsString));
+      fdbft_GUID:
+        if (uppercase(FieldName)='UID') or
+           (uppercase(FieldName)='DOMAINID') then
+             begin
+               SetAsGUID(GFRE_BT.HexString_2_GUID(JAsString));
+             end
+           else
+             AddGuid(GFRE_BT.HexString_2_GUID(JAsString));
       fdbft_Byte:          AddByte(StrToInt(JAsString));
       fdbft_Int16:         AddInt16(StrToInt(JAsString));
       fdbft_UInt16:        AddUInt16(StrToInt(JAsString));
       fdbft_Int32:         AddInt32(StrToInt(JAsString));
       fdbft_UInt32:        AddUInt32(StrToInt(JAsString));
-      fdbft_Int64:         AddUInt32(StrToInt64(JAsString));
+      fdbft_Int64:         AddInt64(StrToInt64(JAsString));
       fdbft_UInt64:        AddUInt64(StrToInt64(JAsString));
       fdbft_Real32:        AddReal32(StrToFloat(JAsString));
       fdbft_Real64:        AddReal64(StrToFloat(JAsString));
@@ -16766,7 +16836,9 @@ procedure TFRE_DB_FIELD.SetFromJSON(const field_type: TFRE_DB_FIELDTYPE; const j
       fdbft_Object:        begin
                              AddObject(TFRE_DB_Object.CreateInternalStreamingJSON(self,jo as TJSONArray,stream_cb));
                            end;
-      fdbft_ObjLink:       AddObjectLink(GFRE_BT.HexString_2_GUID(JAsString));
+      fdbft_ObjLink:       begin
+                             AsObjectLinkArray := FREDB_StreamString2GuidArray(JAsString);
+                           end;
       else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]);
     end;
   end;

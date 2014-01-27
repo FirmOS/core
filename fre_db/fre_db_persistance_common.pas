@@ -1289,7 +1289,7 @@ var i         : NativeInt;
           ws.ReadBuffer(lMem^,size);
           TFRE_DB_FIELD.__ReadHeader(lMem,fieldname);
           field := TFRE_DB_FIELD.Create(nil,fdbft_NotFound,fieldname);
-          field.CopyFieldFromMem(lMem,false);
+          field.CopyFieldFromMem(lMem,false,cFRE_DB_STREAM_VERSION,cFRE_DB_ENDIAN_MARKER);
         finally
           if size>=cG_Tuneable_LocalStackBuffer then
             Freemem(lMem);
