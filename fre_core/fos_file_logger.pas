@@ -580,11 +580,12 @@ begin
   finally
     sysutils.FindClose(DSR);
   end;
-  cnt:=maxcnt;
+  setlength(srecs,maxcnt);
+  cnt:=length(srecs);
   while cnt>gens do begin
     min:=MAXINT;
     mindex:=0;
-    for i:=0 to maxcnt-1 do
+    for i:=0 to high(srecs) do
       begin
         act:=srecs[i].Time;
         if min>act then
@@ -597,7 +598,6 @@ begin
     srecs[mindex].Time:=MaxInt;
     dec(cnt);
   end;
-  setlength(srecs,0);
 end;
 
 
