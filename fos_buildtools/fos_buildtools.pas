@@ -25,7 +25,6 @@ type
     function User        : string; static;
     function Host        : string; static;
     function Time        : string; static;
-    function Revision    : string; static;
     function Date        : string; static;
     function BuildString : string; static;
     function FOS_Suffix  : string; static;
@@ -76,35 +75,6 @@ begin
   result := {$I %TIME%};
 end;
 
-function FOSBuild.Revision: string;
-var tp  : TProcess;
-    ssm : TStringStream;
-    br  : string;
-    rev : string;
-begin
-  try
-    try
-      tp := TProcess.Create(nil);
-      tp.CommandLine:='git rev-parse --abbrev-ref HEAD';
-      tp.Options := tp.Options + [poWaitOnExit, poUsePipes];
-      tp.Execute;
-      ssm := TStringStream.Create('');
-      ssm.CopyFrom(tp.Output,0);
-      br:=trim(ssm.DataString);
-      tp.CommandLine:='git log -1 --format="%H) [%ci]"';
-      tp.Execute;
-      ssm.Size:=0;
-      ssm.CopyFrom(tp.Output,0);
-      rev:=AnsiDequotedStr(ssm.DataString,'"');
-      result:=format('(%s/%s',[br,rev]);
-      ssm.free;
-    finally
-      tp.free;
-    end;
-  except
-    result :='(NO REVISION)';
-  end;
-end;
 
 function FOSBuild.Date: string;
 begin
@@ -113,7 +83,7 @@ end;
 
 function FOSBuild.BuildString: string;
 begin
-  result := Format('FOSBUILD: %s/%s using (fpc %s) user (%s) rev %s',[CPU,OS,FPC_Version,User,Revision])
+  result := Format('FOSBUILD: %s/%s using (fpc %s) user (%s)',[CPU,OS,FPC_Version,User])
 end;
 
 function FOSBuild.FOS_Suffix: string;
@@ -165,7 +135,7 @@ begin
   Defaults.Options.Add('-Sh'); // ANSI Strings
   Defaults.Options.Add('-Sc'); // C Style Operators
   Defaults.Options.Add('-Mobjfpc');
-  Defaults.Options.Add('-Fi../fos_include');
+  Defaults.Options.Add('-Fi../../core/fos_include');
   Defaults.Options.Add('-P'+CPUToString(Defaults.CPU));
   if cFOS_STATIC_BUILD then
     begin

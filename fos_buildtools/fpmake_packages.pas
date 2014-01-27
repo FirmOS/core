@@ -221,7 +221,7 @@ program fpmake_packages;
          AddUnit('../fre_server/fre_feed_client.pas');
          AddUnit('../fre_server/fre_basecli_app.pas');
          AddUnit('../fre_server/fre_basefeed_app.pas');
-         AddUnit('../fre_server/fre_basesubfeed_server.pas');
+         AddUnit('../fre_server/fre_basedbo_server.pas');
          AddUnit('../fre_server/fre_basesubfeed_app.pas');
          AddUnit('../fre_server/fre_openssl_cmd.pas');
          AddUnit('fre_accesscontrol_common.pas');

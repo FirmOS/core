@@ -547,15 +547,19 @@ end;
 procedure TFileLoggerThread.GenCheck(gens: integer; fullpathfilename: string);
 var st,i:integer;
     DSR: TSearchRec;
-    sps:IFOS_NPS;
-    ps:IFOS_NPS;
-    min,act,cnt,mindex:integer;
-   dir, mname,SNAME,deldir:ansistring;
+    min,act,cnt,mindex,maxcnt:LongInt;
+    dir, SNAME,deldir:ansistring;
+
+    srecs : Array of TSearchRec;
+
+
 begin
-  GFRE_TF.Get_NPS(PS);
   dir:=fullpathfilename;
   SNAME:=ExtractFileName(dir);
   deldir:=ExtractFilePath(fullpathfilename);
+
+  setlength(srecs,100);
+  maxcnt   := 0;
   {$IFDEF UNIX}
   st :=FindFirst(dir+'*', faAnyFile, DSR);
   {$ELSE}
@@ -565,11 +569,10 @@ begin
     while St = 0 do begin
      if (DSR.Name <> '.') and (DSR.Name <> '..') then begin
       if pos(SNAME,DSR.name)=1 then begin
-       GFRE_TF.Get_NPS(sps);
-       PS.AddPropListPS('F',sps);
-       sps.setprop('N',dsr.name);
-       sps.setProp('S',dsr.Size);
-       sps.setprop('T',dsr.Time);
+        if maxcnt>length(srecs) then
+          setlength(srecs,length(srecs)+100);
+        srecs[maxcnt]:=dsr;
+        inc(maxcnt);
       end;
      end;
      St := FindNext(DSR);
@@ -577,23 +580,24 @@ begin
   finally
     sysutils.FindClose(DSR);
   end;
-  cnt:=ps.PropListCount('F');
+  cnt:=maxcnt;
   while cnt>gens do begin
     min:=MAXINT;
     mindex:=0;
-    for i:=0 to ps.PropListCount('F')-1 do begin
-     PS.GetPropListEntryPL('F',i,SPS);
-     sps.GetProp('T',act);
-     if min>act then begin
-      min:=act;
-      SPS.GetProp('N',mname);
-      mindex:=i;
-     end;
-    end;
-    PS.RemoveProplistEntry('F',mindex);
-    Sysutils.DeleteFile(deldir+mname);
-    cnt:=ps.PropListCount('F');
+    for i:=0 to maxcnt-1 do
+      begin
+        act:=srecs[i].Time;
+        if min>act then
+          begin
+            min:=act;
+            mindex:=i;
+         end;
+       end;
+    Sysutils.DeleteFile(deldir+srecs[mindex].Name);
+    srecs[mindex].Time:=MaxInt;
+    dec(cnt);
   end;
+  setlength(srecs,0);
 end;
 
 

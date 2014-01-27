@@ -1,18 +1,16 @@
 var
-      cFOS_PRODUCT_NAME               :string = {$I %FOS_PRODUCT_NAME%};
+      cFOS_PRODUCT_NAME               :string = '*';
       cFOS_PRODUCT_MAJOR_VERSION      :string = {$I %FOS_PRODUCT_MAJOR_VERSION%};
       cFOS_PRODUCT_MINOR_VERSION      :string = {$I %FOS_PRODUCT_MINOR_VERSION%};
       cFOS_PRODUCT_BUILD_NUMBER       :string = {$I %FOS_PRODUCT_BUILD_NUMBER%};
       cFOS_PRODUCT_BUILD_HASH         :string = {$I %FOS_PRODUCT_BUILD_HASH%};
       cFOS_PRODUCT_BUILD_TIME         :string = {$I %TIME%};
       cFOS_PRODUCT_BUILD_DATE         :string = {$I %DATE%};
-      //cFOS_PRODUCT_FPC_VERSION        :string = {$I %FPCVERSION%};
-      //cFOS_PRODUCT_FPC_TARGET         :string = {$I %FPCTARGET%};
 
 
 procedure GFOS_VHELP_INIT;
 begin
-  if cFOS_PRODUCT_NAME           = ''  then cFOS_PRODUCT_NAME          := 'UNKNOWN SOLDIER';
+  cFOS_PRODUCT_NAME := uppercase(ExtractFileName(ParamStr(0)));
   if cFOS_PRODUCT_MAJOR_VERSION  = ''  then cFOS_PRODUCT_MAJOR_VERSION := '0';
   if cFOS_PRODUCT_MINOR_VERSION  = ''  then cFOS_PRODUCT_MINOR_VERSION := '0';
   if cFOS_PRODUCT_BUILD_NUMBER   = ''  then cFOS_PRODUCT_BUILD_NUMBER  := '0';

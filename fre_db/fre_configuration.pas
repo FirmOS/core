@@ -48,6 +48,8 @@ procedure Initialize_Read_FRE_CFG_Parameter;
 
 implementation
 
+{$I fos_version_helper.inc}
+
 // Read config file order:
 // (1) .fre_ini in current dir
 // (2) .fre_ini in global dir
@@ -78,43 +80,46 @@ var cfgfile  : string;
          stoprule       : boolean;
          defaultdir     : string;
          fullfilename   : string;
+         section        : string;
 
     begin
       GFRE_Log.ClearLogRules;
-      if ini.SectionExists('LOGGER') then begin
-        if ini.ReadBool('LOGGER','SYSLOG',false) then begin
+      section := 'LOGGER_'+cFOS_PRODUCT_NAME;
+
+      if ini.SectionExists(section) then begin
+        if ini.ReadBool(section,'SYSLOG',false) then begin
           GFRE_LOG.EnableSyslog;
         end;
         sl:=TStringList.Create;
         try
-          defaultdir   := ini.ReadString ('LOGGER','DEFAULT_DIR',cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'log');
-          turnaround   := ini.ReadInteger('LOGGER','DEFAULT_TURNAROUND',1000000);
-          generations  := ini.ReadInteger('LOGGER','DEFAULT_GENERATIONS',10);
-          filename     := ini.ReadString ('LOGGER','DEFAULT_FILENAME','main.log');
-          fullfilename := ini.ReadString ('LOGGER','DEFAULT_FULLFILENAME','full.log');
-          loglevel     := FOSTI_StringToLogLevel    (ini.ReadString('LOGGER','DEFAULT_LOGLEVEL','DEBUG'));
-          facility     := FOSTI_StringToLogFacility (ini.ReadString('LOGGER','DEFAULT_FACILITY','KERNEL'));
+          defaultdir   := ini.ReadString (section,'DEFAULT_DIR',cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'log'+DirectorySeparator+cFOS_PRODUCT_NAME);
+          turnaround   := ini.ReadInteger(section,'DEFAULT_TURNAROUND',1000000);
+          generations  := ini.ReadInteger(section,'DEFAULT_GENERATIONS',10);
+          filename     := ini.ReadString (section,'DEFAULT_FILENAME','main.log');
+          fullfilename := ini.ReadString (section,'DEFAULT_FULLFILENAME','full.log');
+          loglevel     := FOSTI_StringToLogLevel    (ini.ReadString(section,'DEFAULT_LOGLEVEL','DEBUG'));
+          facility     := FOSTI_StringToLogFacility (ini.ReadString(section,'DEFAULT_FACILITY','KERNEL'));
           GFRE_LOG.SetDefaults(filename,fullfilename,defaultdir,turnaround,generations,loglevel,facility);
 
-          sl.CommaText := ini.ReadString('LOGGER','TARGETS','');
+          sl.CommaText := ini.ReadString(section,'TARGETS','');
           for i:=0 to sl.Count-1 do begin
             target      := Uppercase(trim(sl[i]));
-            targetdir   := ini.ReadString ('LOGGER','TARGET_DIR_'+target,'');
-            turnaround  := ini.ReadInteger('LOGGER','TARGET_TURNAROUND_'+target,-1);
-            generations := ini.ReadInteger('LOGGER','TARGET_GENERATIONS_'+target,-1);
-            loglevel    := FOSTI_StringToLogLevel    (ini.ReadString('LOGGER','TARGET_LOGLEVEL_'+target,'DEBUG'));
-            facility    := FOSTI_StringToLogFacility (ini.ReadString('LOGGER','TARGET_FACILITY_'+target,'USER'));
+            targetdir   := ini.ReadString (section,'TARGET_DIR_'+target,'');
+            turnaround  := ini.ReadInteger(section,'TARGET_TURNAROUND_'+target,-1);
+            generations := ini.ReadInteger(section,'TARGET_GENERATIONS_'+target,-1);
+            loglevel    := FOSTI_StringToLogLevel    (ini.ReadString(section,'TARGET_LOGLEVEL_'+target,'DEBUG'));
+            facility    := FOSTI_StringToLogFacility (ini.ReadString(section,'TARGET_FACILITY_'+target,'USER'));
             GFRE_LOG.RegisterTarget(target,targetdir,turnaround,generations,loglevel,facility);
           end;
-          sl.CommaText := ini.ReadString('LOGGER','CATEGORIES','');
+          sl.CommaText := ini.ReadString(section,'CATEGORIES','');
           for i:=0 to sl.Count-1 do begin
             category    := Uppercase(trim(sl[i]));
-            filename    := ini.ReadString ('LOGGER','CATEGORY_FILENAME_'+category,'');
-            turnaround  := ini.ReadInteger('LOGGER','CATEGORY_TURNAROUND_'+category,-1);
-            generations := ini.ReadInteger('LOGGER','CATEGORY_GENERATIONS_'+category,-1);
-            loglevel    := FOSTI_StringToLogLevel    (ini.ReadString('LOGGER','CATEGORY_LOGLEVEL_'+category,'DEBUG'));
-            if ini.ValueExists('LOGGER','CATEGORY_NOLOG_'+category) then begin
-              if ini.ReadBool ('LOGGER','CATEGORY_NOLOG_'+category,false) then begin
+            filename    := ini.ReadString (section,'CATEGORY_FILENAME_'+category,'');
+            turnaround  := ini.ReadInteger(section,'CATEGORY_TURNAROUND_'+category,-1);
+            generations := ini.ReadInteger(section,'CATEGORY_GENERATIONS_'+category,-1);
+            loglevel    := FOSTI_StringToLogLevel    (ini.ReadString(section,'CATEGORY_LOGLEVEL_'+category,'DEBUG'));
+            if ini.ValueExists(section,'CATEGORY_NOLOG_'+category) then begin
+              if ini.ReadBool (section,'CATEGORY_NOLOG_'+category,false) then begin
                no_log:=fbtTrue;
               end else begin
                no_log:=fbtFalse;
@@ -122,8 +127,8 @@ var cfgfile  : string;
             end else begin
               no_log      := fbtNotSet;
             end;
-            if ini.ValueExists('LOGGER','CATEGORY_NOTINFULLLOG_'+category) then begin
-              if ini.ReadBool ('LOGGER','CATEGORY_NOTINFULLLOG_'+category,false) then begin
+            if ini.ValueExists(section,'CATEGORY_NOTINFULLLOG_'+category) then begin
+              if ini.ReadBool (section,'CATEGORY_NOTINFULLLOG_'+category,false) then begin
                not_in_fulllog:=fbtTrue;
               end else begin
                not_in_fulllog:=fbtFalse;
@@ -133,14 +138,14 @@ var cfgfile  : string;
             end;
             GFRE_LOG.RegisterCategory(category,filename,turnaround,generations,loglevel,no_log,not_in_fulllog);
           end;
-          sl.CommaText := ini.ReadString('LOGGER','RULES','');
+          sl.CommaText := ini.ReadString(section,'RULES','');
           for i:=0 to sl.Count-1 do begin
             rule        := Uppercase(trim(sl[i]));
-            category    := ini.ReadString ('LOGGER','RULE_CATEGORY_'+rule,'*');
-            loglevel    := FOSTI_StringToLogLevel    (ini.ReadString('LOGGER','RULE_LOGLEVEL_'+rule,'INVALID'));
-            target      := ini.ReadString ('LOGGER','RULE_TARGET_'+rule,'*');
-            logaction   := FOSTI_StringToLogRuleAction   (ini.ReadString ('LOGGER','RULE_ACTION_'+rule,'DROPENTRY'));
-            stoprule    := ini.ReadBool   ('LOGGER','RULE_STOPRULE_'+rule,true);
+            category    := ini.ReadString (section,'RULE_CATEGORY_'+rule,'*');
+            loglevel    := FOSTI_StringToLogLevel    (ini.ReadString(section,'RULE_LOGLEVEL_'+rule,'INVALID'));
+            target      := ini.ReadString (section,'RULE_TARGET_'+rule,'*');
+            logaction   := FOSTI_StringToLogRuleAction   (ini.ReadString (section,'RULE_ACTION_'+rule,'DROPENTRY'));
+            stoprule    := ini.ReadBool   (section,'RULE_STOPRULE_'+rule,true);
             GFRE_LOG.AddRule(category,loglevel,target,logaction,stoprule);
           end;
         finally
@@ -197,6 +202,7 @@ var cfgfile  : string;
   end;
 
 begin
+  GFOS_VHELP_INIT;
   if FileExists('.fre_ini') then begin
     cfgfile:='.fre_ini';
   end else if FileExists(cFRE_GLOBAL_DIRECTORY+DirectorySeparator+'.fre_ini') then begin

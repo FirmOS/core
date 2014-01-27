@@ -44,10 +44,7 @@ interface
 
 uses sysutils;
 
-const cFRE_SERVER_VERSION   = 'v0.1 Embedded';
-      cFRE_SERVER_COPYRIGHT = '(c) FirmOS Business Solutions Gmbh (www.openfirmos.at)'+LineEnding+
-                              '    Helmut Hartl, Franz Schober, Christian Koch'+LineEnding;
-      cFRE_GLOBAL_DIRECTORY = '/opt/local/fre';
+const cFRE_GLOBAL_DIRECTORY = '/opt/local/fre';
 
 var
       cFRE_WEB_STYLE                  :string = 'firmos';
@@ -87,8 +84,8 @@ var
       cFRE_FORCE_CLEAN_ZIP_HTTP_FILES :boolean=false;
       cFRE_BUILD_ZIP_HTTP_FILES       :boolean=true;
       cFRE_USE_STATIC_CACHE           :boolean=true;
-      cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml'; // comma seperated,lowecase (!!)
-      cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowecase (!!)
+      cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml'; // comma seperated,lowercase (!!)
+      cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowercase (!!)
       cFRE_MACHINE_NAME               :string = '';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
