@@ -583,6 +583,8 @@ initialization
 {$ENDIF}
 finalization
  {$IFDEF CPU64}
+   if assigned(lock) then
+     lock.Finalize;
  {$ENDIF}
 
 
