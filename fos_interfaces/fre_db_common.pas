@@ -209,7 +209,7 @@ type
     //@ Describes a number input within a form.
     //@ minMax Array has to be of length 2 (min and max definition)
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false;  const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String='';
-                        const digits: Integer=0; const minMax: TFRE_DB_Real64Array=nil) : TFRE_DB_INPUT_NUMBER_DESC;
+                        const digits: Integer=-1; const minMax: TFRE_DB_Real64Array=nil) : TFRE_DB_INPUT_NUMBER_DESC;
     //@ Describes a number slider within a form.
     function  DescribeSlider (const caption,field_reference : String; const min,max: Real; const showValueField: Boolean=true; const defaultValue:String=''; const digits: Integer=0; const steps: Integer=-1) : TFRE_DB_INPUT_NUMBER_DESC;
   end;
@@ -2119,12 +2119,11 @@ implementation
         end else begin
           obj^.fieldschemdef.getValidator(validator);
           case obj^.fieldschemdef.FieldType of
-            fdbft_UInt16,
-            fdbft_UInt32,
-            fdbft_Int16  : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                           obj^.disabled,obj^.hidden,'',0);
+            fdbft_UInt16,fdbft_UInt32,fdbft_UInt64,
+            fdbft_Int16,fdbft_Int32,fdbft_Int64     : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                                                obj^.disabled,obj^.hidden,'',0);
             fdbft_Real64 : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                            obj^.disabled,obj^.hidden);
+                                                    obj^.disabled,obj^.hidden);
             fdbft_ObjLink,
             fdbft_String : begin
                              group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
