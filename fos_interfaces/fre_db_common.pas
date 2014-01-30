@@ -382,7 +382,7 @@ type
     procedure AddDBO               (const id: String; const session: IFRE_DB_UserSession);virtual;
     function  GetStore             (const id:String): TFRE_DB_STORE_DESC;virtual;
     function  Describe             (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
-    procedure _FillWithObjectValues(const obj: IFRE_DB_Object);
+    procedure _FillWithObjectValues(const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession);
   public
     //@ Sets the value of the input element with the given id.
     procedure SetElementValue      (const elementId, value:String);
@@ -1965,17 +1965,21 @@ implementation
     Result:=Self;
   end;
 
-  procedure TFRE_DB_FORM_DESC._FillWithObjectValues(const obj: IFRE_DB_Object);
+    procedure TFRE_DB_FORM_DESC._FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
   var
-    i,j      : Integer;
-    val      : String;
-    objField : IFRE_DB_FIELD;
-    store    : TFRE_DB_STORE_DESC;
+    i,j       : Integer;
+    val       : String;
+    objField  : IFRE_DB_FIELD;
+    objFieldN : TFRE_DB_NameType;
+    store     : TFRE_DB_STORE_DESC;
+    scheme    : IFRE_DB_SCHEMEOBJECT;
+    fielddef  : IFRE_DB_FieldSchemeDefinition;
 
   begin
+    scheme := obj.GetScheme(true);
     for i := 0 to Field('elements').ValueCount - 1 do begin
       if (Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_BLOCK_DESC) or (Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_GROUP_DESC) then begin
-        (Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_FORM_DESC)._FillWithObjectValues(obj);
+        (Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_FORM_DESC)._FillWithObjectValues(obj,session);
       end else begin
         if Field('elements').AsObjectItem[i].Field('confirms').AsString<>'' then begin
           objField:=obj.FieldPath(Field('elements').AsObjectItem[i].Field('confirms').AsString,true);
@@ -1983,6 +1987,7 @@ implementation
           objField:=obj.FieldPath(Field('elements').AsObjectItem[i].Field('field').AsString,true);
         end;
         if Assigned(objField) then begin
+          objFieldN := objField.FieldName;
           if (Field('elements').AsObjectItem[i].Implementor_HC  is TFRE_DB_INPUT_CHOOSER_DESC) and Field('elements').AsObjectItem[i].Field('cce').AsBoolean and (objField.FieldType=fdbft_Object) then begin
             val  := Field('elements').AsObjectItem[i].Field('store').AsObject.field('id').AsString;
            // val  := Field('elements').AsObjectItem[i].Field('store').AsString;
@@ -2006,9 +2011,28 @@ implementation
             end else begin
               if Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_DATE_DESC then begin
                 val:=IntToStr(objField.AsInt64);
-              end else begin
-                val:=objField.AsString;
-              end;
+              end else
+                begin
+                  if assigned(scheme)
+                     and (scheme.GetSchemeField(objFieldN,fielddef)) then
+                       begin
+                         if fielddef.isPass then
+                           begin
+                             val := '*BAD*';
+                           end
+                         else
+                         if fielddef.FieldType = fdbft_Stream then
+                           begin {Session Url Encode the Stream field, automagically,  FIXXME: If Field is empty no URL should be generated ...}
+                             val := session.GetDownLoadLink4StreamField(obj.UID,objFieldN,false,obj.Field(objFieldN+cFRE_DB_STKEY).AsString,'');
+                           end
+                         else
+                           val:=objField.AsString; { Fallback }
+                       end
+                  else
+                    begin
+                      val:=objField.AsString;
+                    end
+                end;
             end;
             Field('elements').AsObjectItem[i].Field('defaultValue').AsString:=val;
           end;
@@ -2221,7 +2245,7 @@ implementation
   procedure TFRE_DB_FORM_DESC.FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
   begin
     AddDBO(obj.UID_String, session);
-    _FillWithObjectValues(obj);
+    _FillWithObjectValues(obj,session);
   end;
 
   function TFRE_DB_FORM_DESC.AddInput: TFRE_DB_INPUT_DESC;

@@ -119,6 +119,7 @@ const
   CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
   CFRE_DB_SUBSEC_DISPLAY_TYPE    : array [TFRE_DB_SUBSEC_DISPLAY_TYPE]    of string = ('sec_dt_tab','sec_dt_vertical','sec_dt_hiddentab');
   CFRE_DB_SYS_DOMAIN_NAME        = 'SYSTEM';
+  cFRE_DB_STKEY                  = '#ST#';
 
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
@@ -629,9 +630,11 @@ type
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       SetReference                       (const obj : TObject);
     function        GetReference                       : TObject;
-    function        GetScheme                          : IFRE_DB_SchemeObject;
-    function        GetSystemSchemeByName              (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
-    function        GetSystemScheme                    (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
+    function        GetScheme                          (const raise_non_existing:boolean=false): IFRE_DB_SchemeObject;
+    {<Think about obsolete removal}
+    //function        GetSystemSchemeByName              (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
+    //function        GetSystemScheme                    (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
+    {>Think about obsolete removal}
     function        GetAsJSON                          (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
     function        GetAsJSONString                    (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_String;
     function        CloneToNewObject                   (const create_new_uids:boolean=false): IFRE_DB_Object;
@@ -969,11 +972,13 @@ type
 
   IFRE_DB_COMMAND=interface(IFRE_DB_BASE)
     ['IFDBCMD']
+    function     GetBinDataKey: string;
     function     GetCommandID     : UInt64;
     function     GetCType         : TFRE_DB_COMMANDTYPE;
     function     GetEText         : TFRE_DB_String;
     function     GetFatalClose    : Boolean;
     function     GetChangeSessionKey    : String;
+    procedure    SetBinDataKey          (AValue: string);
     procedure    SetChangeSessionKey    (AValue: String);
     procedure    SetFatalClose    (AValue: Boolean);
     procedure    SetEText         (AValue: TFRE_DB_String);
@@ -1013,6 +1018,7 @@ type
     property     ErrorText     : TFRE_DB_String      read GetEText        write SetEText;
     property     FatalClose    : Boolean             read GetFatalClose   write SetFatalClose;
     property     ChangeSession : String              read GetChangeSessionKey   write SetChangeSessionKey;
+    property     BinaryDataKey : string              read GetBinDataKey   write SetBinDataKey;
   end;
 
   IFRE_DB_ROLE = interface(IFRE_DB_NAMED_OBJECT_PLAIN)
@@ -1336,7 +1342,7 @@ type
     function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
-    function    ModifyUserImage             (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
+    //function    ModifyUserImage             (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
     function    RoleExists                  (const role: TFRE_DB_String):boolean;
     function    GroupExists                 (const groupatdomain:TFRE_DB_String):boolean;
     function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
@@ -1585,7 +1591,7 @@ type
     function        Supports                           (const InterfaceSpec:ShortString)            : boolean;
     procedure       IntfCast                           (const InterfaceSpec:ShortString ; out Intf) ; // IntfCast throws an Exception if not succesful
     function        IntfCast                           (const InterfaceSpec:ShortString) : Pointer  ; // IntfCast throws an Exception if not succesful
-    function        GetScheme                          : IFRE_DB_SchemeObject;
+    function        GetScheme                          (const raise_non_existing:boolean=false): IFRE_DB_SchemeObject;
     procedure       Finalize                           ;
     function        GetAsJSON                          (const without_uid: boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
     function        GetAsJSONString                    (const without_uid: boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TFRE_DB_String;
@@ -2147,7 +2153,7 @@ type
     procedure   registerUpdatableDBO         (const id: String);
     procedure   unregisterUpdatableDBO       (const id: String);
     function    isUpdatableContentVisible    (const contentId: String): Boolean;
-    function    GetDownLoadLink4StreamField  (const obj_uid:TGUID ; const fieldname : TFRE_DB_NameType;const is_attachment : boolean ; const mime_type : string ; const file_name : string):String;
+    function    GetDownLoadLink4StreamField  (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string): String;
   end;
 
   TFRE_DB_RemoteReqSpec      = record
@@ -2220,6 +2226,7 @@ type
     FPassMD5              : TFRE_DB_String;
     FDefaultApp           : TFRE_DB_String;
     FSessionData          : IFRE_DB_Object;
+    FBinaryInputs         : IFRE_DB_Object; { per key requestable of Binary Input which get's sent seperated from the data }
     FTimers               : TList;
 
     FRemoteRequestSet     : TFRE_DB_RemoteReqSpecArray;
@@ -2341,7 +2348,7 @@ type
     function    GetDomain                :TFRE_DB_String;
 
     function    GetPublishedRemoteMeths  : TFRE_DB_RemoteReqSpecArray;
-    function    GetDownLoadLink4StreamField  (const obj_uid:TGUID ; const fieldname : TFRE_DB_NameType;const is_attachment : boolean ; const mime_type : string ; const file_name : string):String;
+    function    GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string): String;
 
     property    OnGetImpersonatedDBC     :TFRE_DB_OnGetImpersonatedConnection read FOnGetImpersonatedDBC write SetOnGetImpersonatedDBC;
     property    OnRestoreDefaultDBC      :TFRE_DB_OnRestoreDefaultConnection read FOnRestoreDefaultDBC write SetOnRestoreDefaultDBC;
@@ -3574,6 +3581,7 @@ begin
   FSessionID            := 'S'+GFRE_DBI.Get_A_Guid_HEX;
   FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO;
   FTimers               := TList.Create;
+  FBinaryInputs         := GFRE_DBI.NewObject;
   _FetchAppsFromDB;
   _InitApps;
   if not assigned(FContinuationLock) then
@@ -3616,6 +3624,7 @@ begin
   end;
   FDBConnection.Finalize;
   FTimers.Free;
+  FBinaryInputs.Finalize;
   FSessionLock.Finalize;
   if assigned(FSessionData) then
     FSessionData.Finalize;
@@ -3838,6 +3847,7 @@ procedure TFRE_DB_UserSession.Input_FRE_DB_Command(const cmd: IFRE_DB_COMMAND);
 var x           : TObject;
     class_name  : TFRE_DB_String;
     method_name : TFRE_DB_String;
+    bdk         : TFRE_DB_String;
     request_id  : int64;
     request_typ : TFRE_DB_COMMANDTYPE;
     input       : IFRE_DB_Object;
@@ -4051,10 +4061,91 @@ var x           : TObject;
     end;
 
     procedure _ProcessBinaryBulkTransfer;
+    {Upload Chunks of Data for later reference by key, }
+    var bd   : IFRE_DB_Object;
+        sz   : NativeInt;
+        cs   : NativeInt;
+        name : string;
+        typ  : string;
+        fld  : string;
+        fidx : NativeInt;
+        fcnt : NativeInt;
+        cidx : NativeInt;
+        data : IFRE_DB_Object;
+
+        {
+          DATA (OBJECT) :
+          { [0]
+            NAME (STRING) : [ 'SuperSchramml.png' ]
+            SIZE (STRING) : [ '776241' ]
+            TYPE (STRING) : [ 'image/png' ]
+            FIELD (STRING) : [ 'picture' ]
+            CHUNKIDX (STRING) : [ '0' ]
+            FIELDIDX (STRING) : [ '0' ]
+            CHUNKSIZE (STRING) : [ '776241' ]
+          }
+          BINCHUNK (STREAM)
+        }
     begin
+      writeln('BDK ',' ['+bdk+']');
+      if FBinaryInputs.FieldExists(bdk) then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'chunking, array etc. not implemented');
+      data := input.Field('data').AsObject;
+      name := data.Field('name').AsString;
+      typ  := data.Field('type').AsString;
+      fld  := data.Field('field').AsString;
+      sz   := StrTointDef(data.Field('size').AsString,-1);
+      fcnt := StrToIntDef(data.Field('FIELDCOUNT').AsString,-1);
+      fidx := StrTointDef(data.Field('FIELDIDX').AsString,-1);
+      cidx := StrTointDef(data.Field('CHUNKIDX').AsString,-1);
+      cs   := StrToIntDef(data.Field('chunksize').AsString,-1);
+      if (cs=-1)
+         or (sz=1) then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'size [%s] or chunksize not parseable [%s]',[input.Field('size').AsString,input.Field('chunksize').AsString]);
+      if cs<>sz then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'size [%d] <> chunksize [%d], chunking not implemented',[sz,cs]);
+      if (fidx<>0) or
+         (cidx<>0) then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'fieldindex must be 0, cidx must be 0',[]);
+
+      bd := FBinaryInputs.Field(bdk).AsObject;
+      bd.Field('n').AsString   := name;
+      bd.Field('f').AsString   := fld;
+      bd.Field('size').AsInt32 := sz; { overall size of binary data}
+      bd.Field('typ').AsString := typ;
+      bd.Field('fc').AsInt32   := fcnt;
+      bd.Field('fi').AsInt32   := fidx;
+      bd.Field('bin').AsStream := input.Field('binchunk').AsStream;
+      input.Field('binchunk').Clear(true);
       CMD.Data        := GFRE_DB_NIL_DESC;
       _SendSyncServerClientAnswer;
     end;
+
+   procedure  _TryBinaryBulkReplacement;
+   var   bd : IFRE_DB_Object;
+       fld  : IFRE_DB_Field;
+       fn   : TFRE_DB_NameType;
+   begin
+     if FBinaryInputs.FieldOnlyExisting(bdk,fld) then
+       begin
+         bd := fld.AsObject;
+         fn := bd.Field('f').AsString;
+         input.Field('data').AsObject.Field(fn).Clear;
+         input.Field('data').AsObject.Field(fn+cFRE_DB_STKEY).Clear;
+         input.Field('data').AsObject.Field(fn).AsStream:=bd.Field('bin').AsStream;
+         input.Field('data').AsObject.Field(fn+cFRE_DB_STKEY).AsString:=bd.Field('typ').AsString;
+         bd.Field('bin').Clear(true);
+         FBinaryInputs.Field(bdk).Clear;
+         writeln('-----');
+         writeln(input.DumpToString());
+         writeln('-----HERE');
+        end
+     else
+       begin
+         //FIXME: THIS MUST BE AN ERROR -> RAISE ignore for 0815 TEST
+       end;
+   end;
+
 
     procedure _ProcessUnregisterDBO;
     var i : NativeInt;
@@ -4066,6 +4157,7 @@ var x           : TObject;
       _SendSyncServerClientAnswer;
     end;
 
+
 begin
   with cmd do
     begin
@@ -4074,7 +4166,11 @@ begin
       request_id  := CommandID;
       request_typ := CommandType;
       uidp        := UidPath;
+      bdk         := BinaryDataKey;
       input       := CMD.CheckoutData; // Think about Finalization
+      if (bdk<>'') and
+         (method_name<>'BINARYBULKTRANSFER') then
+           _TryBinaryBulkReplacement;
     end;
   st := GFRE_BT.Get_Ticks_ms;
   GFRE_DBI.LogInfo(dblc_SESSION,'>>[%s/%s]-(%d/%s) %s[%s].%s ',[FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name]);
@@ -4797,8 +4893,12 @@ begin
   result := FRemoteRequestSet;
 end;
 
-function TFRE_DB_UserSession.GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; const mime_type: string; const file_name: string): String;
+function TFRE_DB_UserSession.GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string): String;
 begin
+  if mime_type='' then
+    mime_type:='application/binary';
+  if file_name='' then
+    file_name:='-';
   result := '/FDBOSF/'+FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'+BoolToStr(is_attachment,'A','N')+'/'+ GFRE_BT.Str2HexStr(mime_type)+'/'+ GFRE_BT.Str2HexStr(file_name)+'/'+ GFRE_BT.Str2HexStr(fieldname);
 end;
 
@@ -5619,9 +5719,9 @@ begin
   IntfCast(InterfaceSpec,result);
 end;
 
-function TFRE_DB_ObjectEx.GetScheme: IFRE_DB_SchemeObject;
+function TFRE_DB_ObjectEx.GetScheme(const raise_non_existing: boolean): IFRE_DB_SchemeObject;
 begin
-  result := FImplementor.GetScheme;
+  result := FImplementor.GetScheme(raise_non_existing);
 end;
 
 procedure TFRE_DB_ObjectEx.Finalize;
@@ -5827,7 +5927,7 @@ function TFRE_DB_ObjectEx.WEB_NoteLoad(const input:IFRE_DB_Object ; const ses: I
 var noteobj: IFRE_DB_Object;
 begin
   if input.FieldExists('linkid') then begin
-    if conn.Collection('note').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
+    if conn.Collection('SysNoteCollection').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(noteobj.Field('note').asstring));
     end else begin
       exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(''));
@@ -5843,7 +5943,7 @@ var
   res    : TFRE_DB_Errortype;
 begin
   if input.FieldExists('linkid') then begin
-    if conn.Collection('note').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
+    if conn.Collection('SysNoteCollection').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       noteobj.Field('note').asstring := input.Field('content').asstring;
       res := conn.Update(noteobj);
       if res<>edb_OK then
@@ -5852,7 +5952,7 @@ begin
       noteobj := GFRE_DBI.NewObjectScheme(TFRE_DB_NOTE);
       noteobj.Field('link').asstring:=input.Field('linkid').asstring;
       noteobj.Field('note').asstring  := input.Field('content').asstring;
-      res := conn.Collection('note').Store(noteobj);
+      res := conn.Collection('SysNoteCollection').Store(noteobj);
       if res<>edb_OK then
         raise EFRE_DB_Exception.Create(res,'error storing note');
     end;

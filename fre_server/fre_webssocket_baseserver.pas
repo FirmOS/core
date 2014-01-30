@@ -222,6 +222,7 @@ var
   uidp                          : TFRE_DB_GUIDArray;
   session                       : TFRE_DB_String;
   sw                            : integer;
+  binary_text                   : RawByteString;
 
   procedure _ProcessCloseFrame;
   begin
@@ -234,10 +235,8 @@ var
     exit;
   end;
 
-  procedure _ProcessTextFrame;
+  procedure _SetupInput;
   begin
-    GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
-    in_params  := GFRE_DBI.JSONObject2Object(dataframe);
     try
       cmd        := GFRE_DBI.NewDBCommand;
       request_typ := in_params.Field('RTYPE').AsString;
@@ -252,11 +251,22 @@ var
         CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
         UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
         Data         := in_params.Field('PARAMS').AsObject.CloneToNewObject;
+        if binary_text<>'' then
+          Data.Field('BINCHUNK').AsStream.SetFromRawByteString(binary_text);
+        BinaryDataKey:= in_params.Field('bdk').AsString;
         ChangeSession:= '';
       end;
     finally
       in_params.Finalize;
     end;
+  end;
+
+
+  procedure _ProcessTextFrame;
+  begin
+    GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
+    in_params  := GFRE_DBI.JSONObject2Object(dataframe);
+    _SetupInput;
     if assigned(FCurrentSession) then
       FCurrentSession.Input_FRE_DB_Command(cmd)
     else
@@ -269,7 +279,6 @@ var
   procedure _ProcessBinaryFrame;
   var len_binary,len_json : Integer;
       jsontext            : RawByteString;
-      binary_text         : RawByteString;
   begin
     len_json    := PInteger(@dataframe[1])^; // Hostbyte order ?
     SetLength(jsontext,len_json);
@@ -279,26 +288,7 @@ var
     Move(dataframe[1+4+len_json],binary_text[1],len_binary);
     GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
     in_params  := GFRE_DBI.JSONObject2Object(jsontext);
-    try
-      cmd        := GFRE_DBI.NewDBCommand;
-      request_typ := in_params.Field('RTYPE').AsString;
-      with cmd do begin
-        case request_typ of
-          'S'  : begin CommandType := fct_SyncRequest  ; cmd.SetIsClient(true); end;
-          'SR' : begin CommandType := fct_SyncReply    ; end; // Answer to a Server Command
-          'E'  : begin CommandType := fct_Error        ; end; // Answer to a Server Command
-        end;
-        InvokeClass  := uppercase(in_params.Field('CN').AsString);
-        InvokeMethod := uppercase(in_params.Field('FN').AsString);
-        CommandID    := StrToInt64Def(in_params.Field('RID').AsString,-1);
-        UidPath      := in_params.Field('UIDPATH').AsGUIDArr;
-        Data         := in_params.Field('PARAMS').AsObject.CloneToNewObject;
-        Data.Field('BINARY_DATA').AsStream.SetFromRawByteString(binary_text);
-        ChangeSession:= '';
-      end;
-    finally
-      in_params.Finalize;
-    end;
+    _SetupInput;
     FCurrentSession.Input_FRE_DB_Command(cmd);
   end;
 

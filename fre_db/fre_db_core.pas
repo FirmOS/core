@@ -548,7 +548,7 @@ type
 
     function        ForAllObjectsBreakHierarchic       (const iter:TFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
     function        GetScheme                          (const raise_non_existing:boolean=false): TFRE_DB_SchemeObject;
-    function        GetSchemeI                         : IFRE_DB_SchemeObject;
+    function        GetSchemeI                         (const raise_non_existing:boolean=false): IFRE_DB_SchemeObject;
     function        UID                                : TGUID;
     function        DomainID                           : TGUID;
     function        DomainID_String                    : TGUID_String;
@@ -638,6 +638,7 @@ type
     FErrorText    : TFRE_DB_FIELD;
     FChangeSession: TFRE_DB_FIELD;
     FIUidPath     : TFRE_DB_FIELD;
+    FBinDataKey   : TFRE_DB_FIELD;
     function     _ObjectsNeedsNoSubfieldSchemeCheck: boolean; override;
     function     _ObjectIsCodeclassOnlyAndHasNoScheme: boolean;override;
   protected
@@ -663,6 +664,8 @@ type
     procedure    SetChangeSessionKey  (AValue: String);
     procedure    SetFatalClose    (AValue: Boolean);
     procedure    SetEText         (AValue: TFRE_DB_String);
+    procedure    SetBinDataKey    (AValue: string);
+    function     GetBinDataKey    : string;
 
     function     GetUidPath       : TFRE_DB_GUIDArray;
     procedure    SetUidPath       (AValue: TFRE_DB_GUIDArray);
@@ -1143,11 +1146,10 @@ type
     procedure SetDomainIDLink        (AValue: TGUID);
     procedure _UpdateDomainLoginKey;
   protected
-    procedure InternalSetup; override;
   public
     function  SubFormattedDisplayAvailable: boolean; override;
     function  GetSubFormattedDisplay(indent: integer=4): TFRE_DB_String; override;
-    procedure SetImage           (const image_stream : TFRE_DB_Stream);
+    procedure SetImage           (const image_stream: TFRE_DB_Stream; const streamtype: string);
     procedure InitData           (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String;const userdomainid:TGuid);
     property  Login              :TFRE_DB_String read GetLogin write Setlogin;
     property  Firstname          :TFRE_DB_String read GetFirstName write SetFirstName;
@@ -1159,7 +1161,7 @@ type
     class function  GetDomainLoginKey        (const loginpart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
   published
     class     function  IMC_NewUserOperation (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function  IMI_SAVEOPERATION              (const input:IFRE_DB_Object): IFRE_DB_Object;
+    function  WEB_SaveOperation              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   end;
 
   { TFRE_DB_DOMAIN }
@@ -1707,6 +1709,7 @@ type
     FApps                 : ARRAY of TFRE_DB_APPLICATION;
     FSysWorkflowSchemes   : TFRE_DB_COLLECTION;
     FSysWorkflowInstances : TFRE_DB_COLLECTION;
+    FSysNotes             : TFRE_DB_COLLECTION;
 
     function            BackupDatabaseReadable      (const to_stream: TStream; const stream_cb: TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype; virtual;
     function            RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;virtual;
@@ -1913,7 +1916,7 @@ type
     function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray;const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
-    function    ModifyUserImage             (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
+    //function    ModifyUserImage             (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
     function    RoleExists                  (const rolename:TFRE_DB_String):boolean;
     function    GroupExists                 (const groupatdomain:TFRE_DB_String):boolean;
     function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
@@ -3077,6 +3080,7 @@ begin
   FErrorText    := Field('E');
   //FIsInterfaceC := Field('IIC');
   FChangesession:= Field('S');
+  FBinDataKey   := Field('BDK');
   FIUidPath     := Field('UIP');
   SetFatalClose(false);
 end;
@@ -3154,6 +3158,16 @@ end;
 procedure TFRE_DB_COMMAND.SetEText(AValue: TFRE_DB_String);
 begin
   FErrorText.AsString := AValue;
+end;
+
+procedure TFRE_DB_COMMAND.SetBinDataKey(AValue: string);
+begin
+  FBinDataKey.asstring := AValue;
+end;
+
+function TFRE_DB_COMMAND.GetBinDataKey: string;
+begin
+  result := FBinDataKey.AsString;
 end;
 
 function TFRE_DB_COMMAND.GetUidPath: TFRE_DB_GUIDArray;
@@ -3681,6 +3695,16 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_
     FSysGroups := Collection('SysUserGroup');
   end;
 
+  procedure SetupNoteCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysNoteCollection') then begin
+      coll := Collection('SysNoteCollection'); // Instance (new) Collections here with false parameter
+      coll.DefineIndexOnField('link',fdbft_String,True,True);
+    end;
+    FSysNotes := Collection('SysNoteCollection');
+  end;
+
   procedure SetupSingletonCollection;
   var coll : TFRE_DB_COLLECTION;
   begin
@@ -3731,6 +3755,7 @@ begin
     SetupTransTextCollection;
     SetupUserGroupCollection;
     SetupSystemDomain;
+    SetupNoteCollection;
     CheckStandardUsers;
     FApps := GFRE_DB.GetApps;
   finally
@@ -4521,19 +4546,20 @@ begin
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.ModifyUserImage(const loginatdomain: TFRE_DB_String; const imagestream: TFRE_DB_Stream): TFRE_DB_Errortype;
-var l_User:TFRE_DB_USER;
-begin
-  AcquireBig;
-  try
-    result := FetchUser(loginatdomain,l_User);
-    if result<>edb_OK then exit;
-    l_User.SetImage(imagestream);
-    Update(l_User);
-  finally
-    ReleaseBig;
-  end;
-end;
+//function TFRE_DB_SYSTEM_CONNECTION.ModifyUserImage(const loginatdomain: TFRE_DB_String; const imagestream: TFRE_DB_Stream): TFRE_DB_Errortype;
+//var l_User:TFRE_DB_USER;
+//begin
+//  AcquireBig;
+//  try
+//    result := FetchUser(loginatdomain,l_User);
+//    if result<>edb_OK then exit;
+//    l_User.SetImage(imagestream,'');
+//    Update(l_User);
+//  finally
+//    ReleaseBig;
+//  end;
+//end;
+
 
 function TFRE_DB_SYSTEM_CONNECTION.RoleExists(const rolename: TFRE_DB_String): boolean;
 begin
@@ -7945,6 +7971,18 @@ begin
   lFieldSchemeDefinition.FmultiValues          := false;
   lFieldSchemeDefinition.FScheme               := self;
   result                                       := lFieldSchemeDefinition;
+  if newfieldtype=fdbft_Stream then { automagically add a stream type field (text) for a stream field definition}
+    begin
+      lFieldSchemeDefinition                       := TFRE_DB_FieldSchemeDefinition.Create;
+      FFieldDefs.Add(lFieldSchemeDefinition);
+      lFieldSchemeDefinition.FFieldName            := upnewfieldname+cFRE_DB_STKEY;
+      lFieldSchemeDefinition.FFieldType            := fdbft_String;
+      lFieldSchemeDefinition.Frequired             := false;
+      lFieldSchemeDefinition.FisPass               := false;
+      lFieldSchemeDefinition.FaddConfirm           := false;
+      lFieldSchemeDefinition.FmultiValues          := false;
+      lFieldSchemeDefinition.FScheme               := self;
+    end;
 end;
 
 function TFRE_DB_SchemeObject.AddSchemeFieldSubscheme(const newfieldname:TFRE_DB_NameType ; const sub_scheme:TFRE_DB_NameType):TFRE_DB_FieldSchemeDefinition;
@@ -9618,10 +9656,21 @@ procedure TFRE_DB_CONNECTION.InternalSetupConnection(const is_system, is_db_rest
     FSysWorkflowInstances := Collection('SysWorkflowInstances');
   end;
 
+  procedure SetupNoteCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysNoteCollection') then begin
+      coll := Collection('SysNoteCollection'); // Instance (new) Collections here with false parameter
+      coll.DefineIndexOnField('link',fdbft_String,True,True);
+    end;
+    FSysNotes := Collection('SysNoteCollection');
+  end;
+
 begin
   SetupApps;
   SetupWorkFlowSchemeCollection;
   SetupWorkFlowInstanceCollection;
+  SetupNoteCollection;
   inherited InternalSetupConnection(is_system, is_db_restore);
 end;
 
@@ -12129,9 +12178,9 @@ begin
   result := FCacheSchemeObj;
 end;
 
-function TFRE_DB_Object.GetSchemeI: IFRE_DB_SchemeObject;
+function TFRE_DB_Object.GetSchemeI(const raise_non_existing: boolean): IFRE_DB_SchemeObject;
 begin
-  result := GetScheme;
+  result := GetScheme(raise_non_existing);
 end;
 
 function TFRE_DB_Object.GetFormattedDisplay: TFRE_DB_String;
@@ -12437,9 +12486,6 @@ var lfield : TFRE_DB_Field;
 begin
   result:=nil;
   name := UpperCase(name);
-  //if CalcFieldExists(name,result) then begin
-  //  exit;
-  //end else
   if FFieldStore.Find(name,lfield) then begin
     if lfield._FieldType<>fdbft_NotFound then begin
       result := lfield;
@@ -17142,13 +17188,6 @@ begin
   field('domainloginkey').AsString := GetDomainLoginKey(login,GetDomainIDLink);
 end;
 
-procedure TFRE_DB_USER.InternalSetup;
-var
-  scheme: IFRE_DB_SCHEMEOBJECT;
-begin
-  inherited InternalSetup;
-end;
-
 function TFRE_DB_USER.SubFormattedDisplayAvailable: boolean;
 begin
   result := true;
@@ -17160,9 +17199,10 @@ begin
  // Result := StringOfChar(' ',indent)+GFRE_DB.StringArray2String(UserGroupNames);
 end;
 
-procedure TFRE_DB_USER.SetImage(const image_stream: TFRE_DB_Stream);
+procedure TFRE_DB_USER.SetImage(const image_stream: TFRE_DB_Stream;const streamtype:string);
 begin
   Field('picture').AsStream := image_stream;
+  Field('picture'+cFRE_DB_STKEY).AsString := streamtype;
 end;
 
 procedure TFRE_DB_USER.InitData(const nlogin, nfirst, nlast, npasswd: TFRE_DB_String; const userdomainid: TGuid);
@@ -17211,7 +17251,7 @@ begin
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('login','firstname','lastname'),'%s - (%s %s)');
 
   input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_USER_user_group');
-  input_group.AddInput('login','$scheme_TFRE_DB_USER_login');
+  input_group.AddInput('login','$scheme_TFRE_DB_USER_login',true);
   input_group.AddInput('firstname','$scheme_TFRE_DB_USER_firstname');
   input_group.AddInput('lastname','$scheme_TFRE_DB_USER_lastname');
   input_group.AddInput('passwordMD5','$scheme_TFRE_DB_USER_passwordMD5');
@@ -17238,7 +17278,7 @@ var dbo              : IFRE_DB_Object;
     dn               : TFRE_DB_NameType;
     obj              : IFRE_DB_DOMAIN;
 begin
- writeln('------NEW USER');
+ //writeln('------NEW USER');
  writeln(input.DumpToString);
  data    := input.Field('DATA').asobject;
  dbc     := input.GetReference as TFRE_DB_CONNECTION;
@@ -17251,8 +17291,8 @@ begin
 
  dbc.sys.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainidlink').AsString),obj);
  dn := obj.Domainname(true);
- writeln('dn:',dn);
- if pw<>pwc then
+
+  if pw<>pwc then
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Password confirm mismatch',fdbmt_error,nil));
  res := dbc.sys.AddUser(loginf+'@'+dn,pw,fn,ln);
  if res=edb_OK then
@@ -17261,23 +17301,76 @@ begin
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERRORK','TRANSLATE: Creation failed '+CFRE_DB_Errortype[res],fdbmt_error,nil));
 end;
 
-function TFRE_DB_USER.IMI_SAVEOPERATION(const input: IFRE_DB_Object): IFRE_DB_Object;
-var res    : TFRE_DB_Errortype;
+
+function TFRE_DB_USER.WEB_SaveOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var res              : TFRE_DB_Errortype;
+    //dbo              : IFRE_DB_Object;
+    data             : IFRE_DB_Object;
+    loginf,pw,pwc,
+    fn,ln            : String;
+    dn               : TFRE_DB_NameType;
+    obj              : IFRE_DB_DOMAIN;
+    modify           : boolean;
+    txt              : TFRE_DB_String;
+    fld              : IFRE_DB_FIELD;
+
+    l_User  : IFRE_DB_USER;
+    l_UserO : TFRE_DB_User;
+
 begin
-  res    := edb_INTERNAL;
-  result := TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERROR','TRANSLATE: Modify failed '+CFRE_DB_Errortype[res],fdbmt_error,nil)
+  writeln(input.DumpToString);
+  data    := input.Field('DATA').asobject;
+  loginf  := data.Field('login').AsString;
+  pw      := data.Field('PASSWORDMD5').AsString;
+  pwc     := data.Field('PASSWORDMD5_CONFIRM').AsString;
+  fn      := data.Field('firstname').AsString;
+  ln      := data.field('lastname').AsString;
+
+  modify := data.FieldExists('firstname') or
+            data.FieldExists('lastname') or
+            data.FieldExists('PASSWORDMD5') or
+            data.FieldExists('desc') or
+            data.FieldExists('picture');
+
+  if modify then
+    begin
+      GFRE_DB.AcquireBig;
+      try
+        loginf := Login+'@'+GetDomain(conn);
+        res := conn.sys.FetchUser(loginf,l_User);
+        l_UserO := l_User.Implementor as TFRE_DB_USER;
+        if res<>edb_OK then
+          exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Fetch Failed',fdbmt_error,nil));
+        if data.FieldOnlyExisting('firstname',fld) then
+          l_UserO.Firstname:=fld.AsString;
+        if data.FieldOnlyExisting('lastname',fld) then
+          l_UserO.Lastname:=fld.AsString;
+       if data.FieldOnlyExisting('picture',fld) then
+         begin
+            l_UserO.SetImage(fld.AsStream,data.Field('picture'+cFRE_DB_STKEY).AsString);
+            fld.Clear(true);
+         end;
+        if data.FieldOnlyExisting('desc',fld) then
+          begin
+            data := data.Field('desc').AsObject;
+            if data.FieldOnlyExisting('txt',fld) then
+              l_UserO.Field('desc').AsDBText.Setlong(fld.AsString);
+            if data.FieldOnlyExisting('txt_s',fld) then
+              l_UserO.Field('desc').AsDBText.SetShort(fld.AsString);
+          end;
+        if data.FieldOnlyExisting('PASSWORDMD5',fld) then {FIXXME !!!! Password policies, check .... validator ...}
+          l_UserO.SetPassword(fld.AsString);
+        CheckDbResult((conn.sys.Implementor as TFRE_DB_SYSTEM_CONNECTION).Update(l_UserO),'TRANSLATE: UPDATE FAILED');
+        //writeln('----REFETCHED---');
+        //res := conn.sys.FetchUser(loginf,l_User);
+        //writeln((l_User.Implementor as TFRE_DB_Object).DumpToString,' STREAMSIZE :::: ',(l_User.Implementor as TFRE_DB_Object).field('picture').AsStream.Size);
+      finally
+        GFRE_DB.ReleaseBig;
+      end;
+    end;
+   exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe());
 end;
 
-
-//function TFRE_DB_USER.IMI_CalcALot(const input: TFRE_DB_Object): TFRE_DB_Object;
-//begin
-//  writeln('*********** IN CALCALOT ***********');
-//  result := _DBConnectionBC.NewObject();
-//  result.field('SuperData').AsInt32 := random(100000);
-//  result.Field(CalcFieldResultKey(fdbft_GUID)).AsGUID := CFRE_DB_NullGUID;
-//  result.Field(CalcFieldResultKey(fdbft_Byte)).AsByte := 123;
-//  result.Field(CalcFieldResultKey(fdbft_String)).AsString :=  'Calc '+field('login').AsString+'  ; '+inttostr(result.field('SuperData').AsInt32);
-//end;
 
 procedure InitMinimal(const nosys:boolean);
 begin
