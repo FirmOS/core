@@ -2023,7 +2023,10 @@ implementation
                          else
                          if fielddef.FieldType = fdbft_Stream then
                            begin {Session Url Encode the Stream field, automagically,  FIXXME: If Field is empty no URL should be generated ...}
-                             val := session.GetDownLoadLink4StreamField(obj.UID,objFieldN,false,obj.Field(objFieldN+cFRE_DB_STKEY).AsString,'');
+                             if obj.FieldExists(objFieldN) then
+                               val := session.GetDownLoadLink4StreamField(obj.UID,objFieldN,false,obj.Field(objFieldN+cFRE_DB_STKEY).AsString,'')
+                             else
+                               val := '';
                            end
                          else
                            val:=objField.AsString; { Fallback }

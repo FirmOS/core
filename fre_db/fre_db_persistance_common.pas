@@ -687,7 +687,10 @@ begin
     end
   else
     begin
-      abort;
+      { This is a subobject update request, embedded in an rootobject update request, because a plain subobject store would have been rejected earlier }
+      { A nonexisting subobject will be inserted here}
+      { ignore the step here but store it in the master collection, to allow a direct subobject per guid fetch, and enforce guid uniqueness over subobjects}
+      G_DEBUG_TRIGGER_1 := true;
     end;
 end;
 
@@ -1396,7 +1399,12 @@ var i,j       : NativeInt;
             begin
               if check then
                 exit;
-              to_upd_obj.Field(newfield.FieldName).AsObject := newfield.AsObject;
+              to_upd_obj.Set_Store_Locked(false);  { subobject insert}
+              try
+                to_upd_obj.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject();
+              finally
+                to_upd_obj.Set_Store_Locked(true);
+              end;
             end;
           fdbft_ObjLink:
             begin

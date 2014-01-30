@@ -17361,9 +17361,6 @@ begin
         if data.FieldOnlyExisting('PASSWORDMD5',fld) then {FIXXME !!!! Password policies, check .... validator ...}
           l_UserO.SetPassword(fld.AsString);
         CheckDbResult((conn.sys.Implementor as TFRE_DB_SYSTEM_CONNECTION).Update(l_UserO),'TRANSLATE: UPDATE FAILED');
-        //writeln('----REFETCHED---');
-        //res := conn.sys.FetchUser(loginf,l_User);
-        //writeln((l_User.Implementor as TFRE_DB_Object).DumpToString,' STREAMSIZE :::: ',(l_User.Implementor as TFRE_DB_Object).field('picture').AsStream.Size);
       finally
         GFRE_DB.ReleaseBig;
       end;
