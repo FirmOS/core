@@ -10934,7 +10934,7 @@ begin
  _storeText('$scheme_TFRE_DB_USER_firstname','Firstname');
  _storeText('$scheme_TFRE_DB_USER_lastname','Lastname');
  _storeText('$scheme_TFRE_DB_USER_passwordMD5','Password');
- _storeText('$scheme_TFRE_DB_USER_picture','Picture');
+ _storeText('$scheme_TFRE_DB_USER_picture','');
  _storeText('$scheme_TFRE_DB_USER_domain_group','Domain');
  _storeText('$scheme_TFRE_DB_USER_domainidlink','Domain');
 

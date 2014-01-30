@@ -581,7 +581,7 @@ type
   public
     //@ Describes a layout.
     //@ If useSizedSections is switched off each section except the center section has to have a fixed size e.g. a html header section.
-    function  Describe          (const title:String=''; const useSizedSections:Boolean=true): TFRE_DB_LAYOUT_DESC;
+    function  Describe          (const useSizedSections:Boolean=true): TFRE_DB_LAYOUT_DESC;
     //@ Adds the given section at the position 'pos'. With the size parameter the relative size of the content can be configured.
     //@ Default values for size are: 3 for center section and 1 otherwise.
     //@ Parameter resizeable will be ignored for the center section because it is resizeable if any other section is resizeable.
@@ -607,7 +607,8 @@ type
   TFRE_DB_EDITOR_DESC    = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes an editor.
-    function Describe        (const loadFunc,saveFunc,startEditFunc,stopEditFunc: TFRE_DB_SERVER_FUNC_DESC; const contentType: TFRE_DB_CONTENT_TYPE=ct_html; const toolbarBottom: Boolean=true): TFRE_DB_EDITOR_DESC;
+    //@ If no save function is defined the editor is read only. In this case starEditFunc and stopEditFunc are not needed either.
+    function Describe        (const loadFunc:TFRE_DB_SERVER_FUNC_DESC; const saveFunc,startEditFunc,stopEditFunc: TFRE_DB_SERVER_FUNC_DESC; const contentType: TFRE_DB_CONTENT_TYPE=ct_html; const toolbarBottom: Boolean=true): TFRE_DB_EDITOR_DESC;
   end;
 
   { TFRE_DB_VNC_DESC }
@@ -2519,9 +2520,8 @@ implementation
 
   { TFRE_DB_LAYOUT_DESC }
 
-  function TFRE_DB_LAYOUT_DESC.Describe(const title:String; const useSizedSections:Boolean): TFRE_DB_LAYOUT_DESC;
+  function TFRE_DB_LAYOUT_DESC.Describe(const useSizedSections:Boolean): TFRE_DB_LAYOUT_DESC;
   begin
-    Field('title').AsString:=title;
     Field('useSizedSections').AsBoolean:=useSizedSections;
     Field('contentSize').AsInt16:=3;
     Field('sizeH').AsInt16:=3;
@@ -2607,9 +2607,15 @@ implementation
       Field('id').AsString:='id'+UID_String;
     end;
     Field('loadFunc').AsObject:=loadFunc;
-    Field('saveFunc').AsObject:=saveFunc;
-    Field('startEditFunc').AsObject:=startEditFunc;
-    Field('stopEditFunc').AsObject:=stopEditFunc;
+    if Assigned(saveFunc) then begin
+      Field('saveFunc').AsObject:=saveFunc;
+    end;
+    if Assigned(startEditFunc) then begin
+      Field('startEditFunc').AsObject:=startEditFunc;
+    end;
+    if Assigned(stopEditFunc) then begin
+      Field('stopEditFunc').AsObject:=stopEditFunc;
+    end;
     Field('contentType').AsString:=CFRE_DB_CONTENT_TYPE[contentType];
     Field('tbBottom').AsBoolean:=toolbarBottom;
     Result:=Self;

@@ -1749,7 +1749,6 @@ implementation
     end;
 
     jsContentAdd('var '+ co.Field('id').AsString +' = new dijit.layout.BorderContainer({');
-//      jsContentAdd('                 title: "'+co.Field('title').AsString+'",');
     jsContentAdd('                 id: "' + co.Field('id').AsString + '"');
     if co.FieldExists('destroyNotify') then begin
       jsContentAdd('                ,destroyNotify: true');
@@ -1852,7 +1851,7 @@ implementation
           jsContentAdd(co.Field('id').AsString + '_content.set("style",style_str);');
         end;
       jsContentAdd(co.Field('id').AsString +'.addChild('+co.Field('id').AsString + '_content);');
-      jsContentAdd(co.Field('id').AsString +'._contentId = "'+ co.Field('id').AsString + '_content"');
+      jsContentAdd(co.Field('id').AsString +'._contentId = "'+ co.Field('id').AsString + '_content";');
     end;
 
     if not isInnerContent then begin
@@ -2654,18 +2653,24 @@ implementation
     jsContentAdd(' ,loadFunc: "'+co.FieldPath('loadFunc.func').AsString+'"');
     jsContentAdd(' ,loadUidPath: '+_BuildJSArray(co.FieldPath('loadFunc.uidPath').AsStringArr));
     jsContentAdd(' ,loadParams: '+_BuildParamsObject(co.Field('loadFunc').AsObject.Field('params').AsObjectArr));
-    jsContentAdd(' ,saveClass: "'+co.FieldPath('saveFunc.class').AsString+'"');
-    jsContentAdd(' ,saveFunc: "'+co.FieldPath('saveFunc.func').AsString+'"');
-    jsContentAdd(' ,saveUidPath: '+_BuildJSArray(co.FieldPath('saveFunc.uidPath').AsStringArr));
-    jsContentAdd(' ,saveParams: '+_BuildParamsObject(co.Field('saveFunc').AsObject.Field('params').AsObjectArr));
-    jsContentAdd(' ,startEditClass: "'+co.FieldPath('startEditFunc.class').AsString+'"');
-    jsContentAdd(' ,startEditFunc: "'+co.FieldPath('startEditFunc.func').AsString+'"');
-    jsContentAdd(' ,startEditUidPath: '+_BuildJSArray(co.FieldPath('startEditFunc.uidPath').AsStringArr));
-    jsContentAdd(' ,startEditParams: '+_BuildParamsObject(co.Field('startEditFunc').AsObject.Field('params').AsObjectArr));
-    jsContentAdd(' ,stopEditClass: "'+co.FieldPath('stopEditFunc.class').AsString+'"');
-    jsContentAdd(' ,stopEditFunc: "'+co.FieldPath('stopEditFunc.func').AsString+'"');
-    jsContentAdd(' ,stopEditUidPath: '+_BuildJSArray(co.FieldPath('stopEditFunc.uidPath').AsStringArr));
-    jsContentAdd(' ,stopEditParams: '+_BuildParamsObject(co.Field('stopEditFunc').AsObject.Field('params').AsObjectArr));
+    if co.FieldExists('saveFunc') then begin
+      jsContentAdd(' ,saveClass: "'+co.FieldPath('saveFunc.class').AsString+'"');
+      jsContentAdd(' ,saveFunc: "'+co.FieldPath('saveFunc.func').AsString+'"');
+      jsContentAdd(' ,saveUidPath: '+_BuildJSArray(co.FieldPath('saveFunc.uidPath').AsStringArr));
+      jsContentAdd(' ,saveParams: '+_BuildParamsObject(co.Field('saveFunc').AsObject.Field('params').AsObjectArr));
+    end;
+    if co.FieldExists('startEditFunc') then begin
+      jsContentAdd(' ,startEditClass: "'+co.FieldPath('startEditFunc.class').AsString+'"');
+      jsContentAdd(' ,startEditFunc: "'+co.FieldPath('startEditFunc.func').AsString+'"');
+      jsContentAdd(' ,startEditUidPath: '+_BuildJSArray(co.FieldPath('startEditFunc.uidPath').AsStringArr));
+      jsContentAdd(' ,startEditParams: '+_BuildParamsObject(co.Field('startEditFunc').AsObject.Field('params').AsObjectArr));
+    end;
+    if co.FieldExists('stopEditFunc') then begin
+      jsContentAdd(' ,stopEditClass: "'+co.FieldPath('stopEditFunc.class').AsString+'"');
+      jsContentAdd(' ,stopEditFunc: "'+co.FieldPath('stopEditFunc.func').AsString+'"');
+      jsContentAdd(' ,stopEditUidPath: '+_BuildJSArray(co.FieldPath('stopEditFunc.uidPath').AsStringArr));
+      jsContentAdd(' ,stopEditParams: '+_BuildParamsObject(co.Field('stopEditFunc').AsObject.Field('params').AsObjectArr));
+    end;
     jsContentAdd(' ,tbBottom: '+BoolToStr(co.Field('tbBottom').AsBoolean,'true','false'));
     jsContentAdd('});');
 

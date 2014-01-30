@@ -106,7 +106,7 @@ var dlg         : TFRE_DB_LAYOUT_DESC;
     end;
 
 begin
-  dlg        := TFRE_DB_LAYOUT_DESC.create.Describe('Public Area');
+  dlg        := TFRE_DB_LAYOUT_DESC.create.Describe();
   dialog     := WEB_LoginDlg(input,ses,app,conn).Implementor_HC as TFRE_DB_DIALOG_DESC;
   //dialog     := TFRE_DB_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
   //serverFunc := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'doLogin');
