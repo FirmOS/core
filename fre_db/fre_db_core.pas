@@ -11987,12 +11987,20 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
 
     procedure GenerateUpdates(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     var child      : TFRE_DB_Object;
+
         procedure CompareEvent (const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD);
+        var to_up_o : TFRE_DB_Object;
+            childup : boolean;
         begin
+          childup := assigned(child);
+          if childup then
+            to_up_o := child
+          else
+            to_up_o := second_obj;
           case compare_event of
-            cev_FieldDeleted:  UpdateCB(assigned(child),second_obj,cev_FieldDeleted,new_fld,nil);
-            cev_FieldAdded:    UpdateCB(assigned(child),second_obj,cev_FieldAdded,new_fld,Nil);
-            cev_FieldChanged : UpdateCB(assigned(child),second_obj,cev_FieldChanged,new_fld,old_field);
+            cev_FieldDeleted:  UpdateCB(childup,to_up_o,cev_FieldDeleted,new_fld,nil);
+            cev_FieldAdded:    UpdateCB(childup,to_up_o,cev_FieldAdded,new_fld,Nil);
+            cev_FieldChanged : UpdateCB(childup,to_up_o,cev_FieldChanged,new_fld,old_field);
           end;
         end;
 
@@ -12308,7 +12316,6 @@ end;
 
 function TFRE_DB_Object.ObjectRoot: TFRE_DB_Object;
 begin
-   _InAccessibleCheck;
    Result := _ObjectRoot;
 end;
 
@@ -12673,6 +12680,8 @@ end;
 
 procedure TFRE_DB_Object.Set_Store_Locked(const locked: boolean);
 begin
+  if Assigned(FParentDBO) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'trying to store lock/unlock a sub object -> logic failure');
   if locked then
     Include(FObjectProps,fop_STORED_IMMUTABLE)
   else

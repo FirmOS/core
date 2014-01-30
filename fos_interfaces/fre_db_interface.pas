@@ -1134,7 +1134,7 @@ type
 
   IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER=interface
     procedure     StoreInThisColl     (const new_obj         : IFRE_DB_Object ; const checkphase : boolean);
-    procedure     UpdateInThisColl    (const new_fld,old_fld : IFRE_DB_FIELD  ; const old_obj,new_obj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const checkphase : boolean);
+    procedure     UpdateInThisColl    (const new_fld,old_fld : IFRE_DB_FIELD  ; const old_obj,new_obj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const in_child_obj : boolean ; const checkphase : boolean);
 
     procedure     DeleteFromThisColl  (const del_obj         : IFRE_DB_Object ; const checkphase : boolean);
     procedure     StreamToThis        (const stream          : TStream);

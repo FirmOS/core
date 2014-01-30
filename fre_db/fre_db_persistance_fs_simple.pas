@@ -899,65 +899,37 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     FTransaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(self,del_obj.Implementor as TFRE_DB_Object,collection_name,store));
   end;
 
-  procedure GenUpdate(const is_child_update : boolean ; const to_update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_ifield, old_ifield: IFRE_DB_Field);
+  procedure GenUpdate(const is_child_update : boolean ; const up_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_ifield, old_ifield: IFRE_DB_Field);
   var child      : TFRE_DB_Object;
       new_object : TFRE_DB_Object;
       old_fld,
       new_fld    : TFRE_DB_FIELD;
-
-      //procedure CompareEvent (const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD);
-      //begin
-      //  case compare_event of
-      //    cev_FieldDeleted:
-      //        updatestep.addsubstep(cev_FieldDeleted,nil,old_field);
-      //    cev_FieldAdded:
-      //        updatestep.addsubstep(cev_FieldAdded,new_fld,nil);
-      //    cev_FieldChanged :
-      //        updatestep.addsubstep(cev_FieldChanged,new_fld,old_field);
-      //  end;
-      //end;
+      s          : string;
 
   begin
     if assigned(old_ifield) then
-      old_fld := old_ifield.Implementor as TFRE_DB_FIELD
+      begin
+        old_fld := old_ifield.Implementor as TFRE_DB_FIELD;
+        s:=old_fld.FieldName;
+      end
     else
       old_fld := nil;
     if assigned(new_ifield) then
-      new_fld := new_ifield.Implementor as TFRE_DB_FIELD
+      begin
+        new_fld := new_ifield.Implementor as TFRE_DB_FIELD;
+        s:=new_fld.FieldName;
+      end
     else
       new_fld := nil;
 
     case update_type of
       cev_FieldDeleted:
-          updatestep.addsubstep(cev_FieldDeleted,nil,old_fld);
+          updatestep.addsubstep(cev_FieldDeleted,nil,old_fld,is_child_update,nil);
       cev_FieldAdded:
-          updatestep.addsubstep(cev_FieldAdded,new_fld,nil);
+          updatestep.addsubstep(cev_FieldAdded,new_fld,nil,is_child_update,up_obj.Implementor as TFRE_DB_Object);
       cev_FieldChanged :
-          updatestep.addsubstep(cev_FieldChanged,new_fld,old_fld);
+          updatestep.addsubstep(cev_FieldChanged,new_fld,old_fld,is_child_update,up_obj.Implementor as TFRE_DB_Object);
     end;
-
-
-    // OLD CODE
-    //if new_object.IsObjectRoot then
-    //  begin
-    //    updatestep := TFRE_DB_UpdateStep.Create(new_object,to_update_obj,store);
-    //    new_object.__InternalCompareToObj(to_update_obj,@CompareEvent);
-    //  end
-    //else
-    //  begin
-    //    child      := to_update_obj.FetchObjByUID(new_object.UID);
-    //    assert(assigned(child));
-    //    updatestep := TFRE_DB_UpdateStep.Create(new_object,child,store);
-    //    new_object.__InternalCompareToObj(child,@CompareEvent);
-    //  end;
-    //if updatestep.HasNoChanges then
-    //  updatestep.Free
-    //else
-    //  begin
-    //    self.AddChangeStep(updatestep);
-    //    //writeln(updatestep.DescribeText);
-    //  end;
-       //FTransaction.PostProcessUpdateStep(updatestep);
   end;
 
 

@@ -216,7 +216,7 @@ type
     procedure     IndexDelCheck    (const del_obj          : TFRE_DB_Object;const check_only : boolean);
 
     procedure     StoreInThisColl     (const new_iobj        : IFRE_DB_Object ; const checkphase : boolean);
-    procedure     UpdateInThisColl    (const new_ifld, old_ifld: IFRE_DB_FIELD; const old_iobj, new_iobj: IFRE_DB_Object; const update_typ: TFRE_DB_ObjCompareEventType; const checkphase: boolean);
+    procedure     UpdateInThisColl    (const new_ifld,old_ifld : IFRE_DB_FIELD  ; const old_iobj,new_iobj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const in_child_obj : boolean ; const checkphase : boolean);
 
 
     procedure     DeleteFromThisColl  (const del_iobj: IFRE_DB_Object ; const checkphase : boolean);
@@ -267,7 +267,7 @@ type
     procedure   ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
 
 
-    procedure   CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean ; const old_obj,new_obj : TFRE_DB_Object);
+    procedure   CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean ; old_obj,new_obj : TFRE_DB_Object);
   end;
 
   { TFRE_DB_CollectionTree }
@@ -505,9 +505,11 @@ type
   { TFRE_DB_UpdateStep }
 
   RFRE_DB_UpdateSubStep=record
-    updtyp   : TFRE_DB_ObjCompareEventType;
-    newfield : TFRE_DB_FIELD;
-    oldfield : TFRE_DB_FIELD;
+    updtyp       : TFRE_DB_ObjCompareEventType;
+    newfield     : TFRE_DB_FIELD;
+    oldfield     : TFRE_DB_FIELD;
+    up_obj       : TFRE_DB_Object;
+    in_child_obj : Boolean;
   end;
 
   TFRE_DB_UpdateStep=class(TFRE_DB_ChangeStep)
@@ -520,7 +522,7 @@ type
     procedure   InternalWriteWalHeader        (const m:TMemoryStream); virtual ;
     procedure   InternalWriteWAL              (const m:TMemoryStream);
   public
-    procedure   AddSubStep                    (const uptyp : TFRE_DB_ObjCompareEventType ; const new,old : TFRE_DB_FIELD);
+    procedure   AddSubStep                    (const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD; const is_a_child_field: boolean;const update_obj: TFRE_DB_Object); { update_obj = to_update_obj or child}
     constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;obj,to_update_obj : TFRE_DB_Object ; const is_insert : boolean);
     constructor CreateAsWalReadBack           (new_obj : TGuid ; const is_store : boolean ; const ws:TStream);
     function    HasNoChanges                  : Boolean;
@@ -529,18 +531,6 @@ type
     procedure   ChangeInCollectionCheckOrDo   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
     procedure   MasterStore                   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
   end;
-
-  { TFRE_DB_UpdateSubobjectStep }
-
-  TFRE_DB_UpdateSubobjectStep=class(TFRE_DB_UpdateStep)
-  protected
-    procedure   InternalWriteWalHeader        (const m:TMemoryStream); override ;
-  public
-    procedure   WriteToWAL                    (const m:TMemoryStream);override;
-    procedure   MasterStore                   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
-  end;
-
-
 
   OFRE_SL_TFRE_DB_ChangeStep  = specialize OFOS_SpareList<TFRE_DB_ChangeStep>;
 
@@ -556,14 +546,13 @@ type
     FMaster      : TFRE_DB_Master_Data;
     FWalMem      : TMemoryStream;
     FNeedsWAL    : Boolean;
+    FLastStepId  : TFRE_DB_TransStepId;
     procedure    ProcessCheck            (const WAL_RepairMode: boolean);
     function     Write_WAL_Or_DCC        (const Layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
   public
     constructor  Create                  (const TransID : TFRE_DB_NameType ; const master_data : TFRE_DB_Master_Data ; const notify_if : IFRE_DB_DBChangedNotification);
     procedure    ReadFromBackWalStream   (const walstream : TStream);
     function     AddChangeStep           (const step:TFRE_DB_ChangeStep):NativeInt;
-
-    //procedure    GenerateAnObjChangeList (const store : boolean ; const obj : TFRE_DB_Object ; const collection_name : TFRE_DB_NameType);
 
     function     GetTransActionId        : TFRE_DB_NameType;
     function     GetTransLastStepTransId : TFRE_DB_TransStepId;
@@ -627,24 +616,6 @@ begin
   GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> DROPPED OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
-{ TFRE_DB_UpdateSubobjectStep }
-
-procedure TFRE_DB_UpdateSubobjectStep.InternalWriteWalHeader(const m: TMemoryStream);
-begin
-  m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_UPDATE]+BoolToStr(FIsStore,'1','0')+upobj.UID_String);
-  InternalWriteObject(m,upobj);
-end;
-
-procedure TFRE_DB_UpdateSubobjectStep.WriteToWAL(const m: TMemoryStream);
-begin
-  InternalWriteWalHeader(m);
-  InternalWriteWAL(m);
-end;
-
-procedure TFRE_DB_UpdateSubobjectStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
-begin
-  InternallApplyChanges(master,check);
-end;
 
 { TFRE_DB_InsertSubStep }
 
@@ -1328,23 +1299,25 @@ begin
 
 end;
 
-procedure TFRE_DB_UpdateStep.AddSubStep(const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD);
+procedure TFRE_DB_UpdateStep.AddSubStep(const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD; const is_a_child_field: boolean; const update_obj: TFRE_DB_Object);
 begin
   if FCnt>=Length(FSublist) then
    SetLength(FSublist,Length(FSublist)+25);
   with FSublist[fcnt] do
     begin
-      updtyp   := uptyp;
-      newfield := new;
-      oldfield := old;
-      //Step     := self;
+      updtyp       := uptyp;
+      newfield     := new;
+      oldfield     := old;
+      up_obj       := update_obj;
+      in_child_obj := is_a_child_field;
     end;
   inc(fcnt);
 end;
 
 procedure TFRE_DB_UpdateStep.InternallApplyChanges(const master: TFRE_DB_Master_Data; const check: boolean);
-var i,j       : NativeInt;
-    collarray : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+var i,j         : NativeInt;
+    collarray   : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+    inmemobject : TFRE_DB_Object;
 
     procedure _DeletedField;
     begin
@@ -1363,11 +1336,11 @@ var i,j       : NativeInt;
                 begin
                   writeln('MASTERSTORE ABORT 2');
                   abort;
-          //        master._RemoveRefLinkFieldDelRefs(to_upd_obj,newfield,check);
+          //        master._RemoveRefLinkFieldDelRefs(inmemobject,newfield,check);
                 end;
               else begin
                 if not check then
-                  to_upd_obj.DeleteField(oldfield.FieldName);
+                  inmemobject.DeleteField(oldfield.FieldName);
               end; // ok
             end;
           finally
@@ -1390,7 +1363,7 @@ var i,j       : NativeInt;
                 exit;
               to_upd_obj.Set_Store_Locked(false);
               try
-                to_upd_obj.Field(newfield.FieldName).CloneFromField(newfield);
+                inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
               finally
                 to_upd_obj.Set_Store_Locked(true);
               end;
@@ -1401,34 +1374,34 @@ var i,j       : NativeInt;
                 exit;
               to_upd_obj.Set_Store_Locked(false);  { subobject insert}
               try
-                to_upd_obj.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject();
+                inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject();
               finally
                 to_upd_obj.Set_Store_Locked(true);
               end;
             end;
           fdbft_ObjLink:
             begin
-              to_upd_obj.Set_Store_Locked(false);
+              inmemobject.Set_Store_Locked(false);
               try
                 if check then
                   begin
                     if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
                       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
                     for j:=0 to high(newfield.AsObjectLinkArray) do
-                      master.__CheckReferenceLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
+                      master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
                   end
                 else
                   begin
-                    fn := uppercase(to_upd_obj.SchemeClass)+'<'+ uppercase(newfield.FieldName);
+                    fn := uppercase(inmemobject.SchemeClass)+'<'+ uppercase(newfield.FieldName);
                     for j:=0 to high(newfield.AsObjectLinkArray) do
                       begin
-                        master.__CheckReferenceLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
-                        master.__SetupInitialRefLink(to_upd_obj,sc,fn,newfield.AsObjectLinkArray[j]);
+                        master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
+                        master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j]);
                       end;
-                    to_upd_obj.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                    inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
               finally
-                to_upd_obj.Set_Store_Locked(true);
+                inmemobject.Set_Store_Locked(true);
               end;
             end;
         end;
@@ -1445,11 +1418,11 @@ var i,j       : NativeInt;
             begin
               if check then
                 exit;
-              to_upd_obj.Set_Store_Locked(false);
+              to_upd_obj.Set_Store_Locked(false); { Parent }
               try
-                to_upd_obj.Field(newfield.FieldName).CloneFromField(newfield);
+                inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
               finally
-                to_upd_obj.Set_Store_Locked(true);
+                to_upd_obj.Set_Store_Locked(true); { Parent }
               end;
             end;
           fdbft_Object:
@@ -1457,11 +1430,11 @@ var i,j       : NativeInt;
               if check then
                 exit;
               writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
-              to_upd_obj.Set_Store_Locked(false);
+              to_upd_obj.Set_Store_Locked(false); { Parent }
               try
-                to_upd_obj.Field(newfield.FieldName).AsObjectArr := newfield.AsObjectArr;
+                inmemobject.Field(newfield.FieldName).AsObjectArr := newfield.AsObjectArr;
               finally
-                to_upd_obj.Set_Store_Locked(true);
+                to_upd_obj.Set_Store_Locked(true); { Parent }
               end;
             end;
           fdbft_ObjLink:
@@ -1473,12 +1446,12 @@ var i,j       : NativeInt;
                     if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
                       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
                     for j:=0 to high(newfield.AsObjectLinkArray) do
-                      master.__CheckReferenceLink(to_upd_obj,newfield.FieldName,newfield.AsObjectLinkArray[i],sc,true);
+                      master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[i],sc,true);
                   end
                 else
                   begin
-                    master._ChangeRefLink(to_upd_obj,uppercase(to_upd_obj.SchemeClass),uppercase(newfield.FieldName),oldfield.AsObjectLinkArray,newfield.AsObjectLinkArray);
-                    to_upd_obj.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldfield.AsObjectLinkArray,newfield.AsObjectLinkArray);
+                    inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
               finally
                 to_upd_obj.Set_Store_Locked(true);
@@ -1490,13 +1463,29 @@ begin
   for i:=0 to FCnt-1 do
     begin
       with FSublist[i] do
-        case updtyp of
-          cev_FieldDeleted:
-            _DeletedField;
-          cev_FieldAdded:
-            _AddedField;
-          cev_FieldChanged:
-            _ChangedField;
+        begin
+          case updtyp of
+            cev_FieldDeleted:
+              begin
+                if in_child_obj then
+                  inmemobject := to_upd_obj
+                else
+                  inmemobject := oldfield.ParentObject;
+               _DeletedField;
+             end;
+            cev_FieldAdded:
+              begin
+                 inmemobject := up_obj;
+                 assert(assigned(inmemobject),'inernal, logic');
+                _AddedField;
+              end;
+            cev_FieldChanged:
+              begin
+                inmemobject := up_obj;
+                assert(up_obj.ObjectRoot = to_upd_obj,'internal, logic');
+                _ChangedField;
+              end;
+          end;
         end;
     end;
 end;
@@ -1606,7 +1595,7 @@ begin
       begin
         collarray := to_upd_obj.__InternalGetCollectionList;
         for j := 0 to high(collarray) do
-          collarray[j].GetPersLayerIntf.UpdateInThisColl(newfield,oldfield,to_upd_obj,upobj,updtyp,check);
+          collarray[j].GetPersLayerIntf.UpdateInThisColl(newfield,oldfield,to_upd_obj,upobj,updtyp,in_child_obj,check);
       end
 end;
 
@@ -1713,6 +1702,7 @@ begin
   step.FTransList := self;
   result          := FChangeList.Add(step);
   step.SetStepID(result);
+  FLastStepId := step.GetTransActionStepID;
 end;
 
 
@@ -1726,182 +1716,6 @@ begin
   result := not assigned(obj^);
 end;
 
-//procedure TFRE_DB_TransactionalUpdateList.GenerateAnObjChangeList(const store: boolean; const obj: TFRE_DB_Object; const collection_name: TFRE_DB_NameType);
-//var deleted_obj   : OFRE_SL_TFRE_DB_Object;
-//    inserted_obj  : OFRE_SL_TFRE_DB_Object;
-//    updated_obj   : OFRE_SL_TFRE_DB_Object;
-//    coll          : IFRE_DB_PERSISTANCE_COLLECTION;
-//    to_update_obj : TFRE_DB_Object;
-//    i             : NativeInt;
-//
-//    procedure WriteGuid(var o : TFRE_DB_Object ; const idx : NativeInt; var halt:boolean);
-//    begin
-//      write(idx,' ',o.UID_String,',');
-//    end;
-//
-//    //function ObjectGuidCompare(const o1,o2:TFRE_DB_Object):boolean;
-//    //begin
-//    //  result := FREDB_Guids_Same(o1.UID,o2.UID);
-//    //end;
-//
-//    procedure SearchInOldAndRemoveExistingInNew(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-//    begin
-//      if deleted_obj.Exists(o)<>-1 then
-//        begin
-//          updated_obj.Add(o);
-//          inserted_obj.ClearIndex(idx);
-//        end
-//    end;
-//
-//    procedure SearchInUpdatesAndRemoveExistingFromOld(var o : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-//    var ex : NativeInt;
-//    begin
-//      if updated_obj.Exists(o)<>-1 then
-//        deleted_obj.ClearIndex(idx);
-//    end;
-//
-//    procedure GenerateUpdates(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-//    var child      : TFRE_DB_Object;
-//        updatestep : TFRE_DB_UpdateStep;
-//
-//        procedure CompareEvent (const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD);
-//        begin
-//          case compare_event of
-//            cev_FieldDeleted:
-//                updatestep.addsubstep(cev_FieldDeleted,nil,old_field);
-//            cev_FieldAdded:
-//                updatestep.addsubstep(cev_FieldAdded,new_fld,nil);
-//            cev_FieldChanged :
-//                updatestep.addsubstep(cev_FieldChanged,new_fld,old_field);
-//          end;
-//        end;
-//
-//    begin
-//      if not FMaster.ExistsObject(new_object.UID) then
-//        begin
-//          writeln('DEBUG EXISTS CHECK UPDATE FAILED ',new_object.UID_String,' ',store);
-//          system.halt();
-//        end;
-//      if new_object.IsObjectRoot then
-//        begin
-//          updatestep := TFRE_DB_UpdateStep.Create(new_object,to_update_obj,store);
-//          new_object.__InternalCompareToObj(to_update_obj,@CompareEvent);
-//        end
-//      else
-//        begin
-//          child      := to_update_obj.FetchObjByUID(new_object.UID);
-//          assert(assigned(child));
-//          updatestep := TFRE_DB_UpdateStep.Create(new_object,child,store);
-//          new_object.__InternalCompareToObj(child,@CompareEvent);
-//        end;
-//      if updatestep.HasNoChanges then
-//        updatestep.Free
-//      else
-//        begin
-//          self.AddChangeStep(updatestep);
-//          //writeln(updatestep.DescribeText);
-//        end;
-//         //FTransaction.PostProcessUpdateStep(updatestep);
-//    end;
-//
-//    procedure GenerateInserts(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-//    begin
-//      if new_object.IsObjectRoot then
-//        self.AddChangeStep(TFRE_DB_InsertStep.Create(self,new_object,coll,store))
-//      else
-//        self.AddChangeStep(TFRE_DB_InsertSubStep.Create(new_object,coll,store));
-//      if store then
-//        halt := true; // In insert case only generate an insert for the root object
-//    end;
-//
-//    procedure GenerateDeletes(var del_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
-//    begin
-//      if not FMaster.ExistsObject(del_object.UID) then
-//        begin
-//          writeln('EXISTS CHECK DELETE FAILED ');
-//          system.halt;
-//        end;
-//      assert(not del_object.IsObjectRoot);
-//      self.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(del_object,collection_name,store));
-//    end;
-//begin
-//  if store then
-//    begin
-//      to_update_obj := nil;
-//      if collection_name='' then
-//        raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
-//      if not FMaster.MasterColls.GetCollection(collection_name,coll) then
-//        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
-//    end
-//  else
-//    begin
-//       if not FMaster.FetchObject(obj.UID,to_update_obj,true) then
-//         raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
-//       coll := nil;
-//       //SetLength(notify_collections,Length(to_update_obj.__InternalGetCollectionList));
-//       //for i := 0 to high(notify_collections) do
-//       //  notify_collections[i] := to_update_obj.__InternalGetCollectionList[i].CollectionName();
-//       //if Length(notify_collections)=0 then
-//       //  raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'lenght of internalcollections for object [%s] is empty, on update case !',[to_update_obj.UID_String]);
-//       if collection_name<>'' then
-//         begin
-//           if not FMaster.MasterColls.GetCollection(collection_name,coll) then
-//             raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the collectionname [%s] specified for an update request, does not exist',[collection_name]);
-//           //TODO Check if update object has Collection
-//           //TODO Check if collection has updateobject
-//         end;
-//       to_update_obj.Set_Store_Locked(false);
-//    end;
-//  try
-//    deleted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
-//    inserted_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
-//    updated_obj.InitSparseList(nil,@DBObjIsNull,@ObjectGuidCompare,25);
-//    //if assigneD(to_update_obj) then
-//      //to_update_obj.Field('pemper').AsString:='faker';
-//    //to_update_obj.Field('TEST').AsString:='fuuker';
-//    //to_update_obj.FieldPath('desc.txt').AsString:='ChangedChanged';
-//    //to_update_obj.DeleteField('desc');
-//    //obj.DeleteField('desc');
-//
-//    //writeln('--- OLD OBJECT ----');
-//    //if assigned(to_update_obj) then
-//    //  writeln(to_update_obj.DumpToString());
-//    //writeln('--- NEW OBJECT -----');
-//    //writeln(obj.DumpToString());
-//    //writeln('------------');
-//
-//    if assigned(to_update_obj) then // update case
-//      to_update_obj.__InternalGetFullObjectList(deleted_obj);
-//    obj.__InternalGetFullObjectList(inserted_obj);
-//  //
-//  //      writeln('------------------------');
-//  //      writeln(' STEP A');
-//  //      write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
-//  //      write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
-//  //      writeln('STEP B');
-//  //      writeln('------------------------');
-//
-//    // Yields the updated_obj in the updatelist and the inserts in the newlist, all objects come from the "new non persitent object copy"
-//    inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);
-//    // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
-//    deleted_obj.ForAllBreak(@SearchInUpdatesAndRemoveExistingFromOld);
-//
-//    //write('DELETED  LIST [');deleted_obj.ForAllBreak(@WriteGuid);writeln('] ',deleted_obj.Count);
-//    //write('INSERTED LIST [');inserted_obj.ForAllBreak(@WriteGuid);writeln('] ',inserted_obj.Count);
-//    //write('UPDATED  LIST [');updated_obj.ForAllBreak(@WriteGuid);writeln('] ',updated_obj.Count);
-//
-//    if deleted_obj.Count>0 then
-//      deleted_obj.ForAllBreak(@GenerateDeletes);
-//    if inserted_obj.Count>0 then
-//      inserted_obj.ForAllBreak(@GenerateInserts);
-//    if updated_obj.Count>0 then
-//      updated_obj.ForAllBreak(@GenerateUpdates);
-//  finally
-//    if assigned(to_update_obj) then
-//      to_update_obj.Set_Store_Locked(true);
-//  end;
-//end;
-
 function TFRE_DB_TransactionalUpdateList.GetTransActionId: TFRE_DB_NameType;
 begin
   result := FTransId;
@@ -1909,7 +1723,7 @@ end;
 
 function TFRE_DB_TransactionalUpdateList.GetTransLastStepTransId: TFRE_DB_TransStepId;
 begin
-  //result := FChangeList.;
+  result := FLastStepId;
 end;
 
 function TFRE_DB_TransactionalUpdateList.GetNotifyIF: IFRE_DB_DBChangedNotification;
@@ -3843,7 +3657,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_Persistance_Collection.UpdateInThisColl(const new_ifld, old_ifld: IFRE_DB_FIELD; const old_iobj, new_iobj: IFRE_DB_Object; const update_typ: TFRE_DB_ObjCompareEventType; const checkphase: boolean);
+procedure TFRE_DB_Persistance_Collection.UpdateInThisColl(const new_ifld, old_ifld: IFRE_DB_FIELD; const old_iobj, new_iobj: IFRE_DB_Object; const update_typ: TFRE_DB_ObjCompareEventType; const in_child_obj: boolean; const checkphase: boolean);
 var old_fld,new_fld : TFRE_DB_FIELD;
     old_obj,new_obj : TFRE_DB_Object;
 begin
@@ -3863,7 +3677,10 @@ begin
     new_fld := new_ifld.Implementor as TFRE_DB_FIELD
   else
     new_fld := nil;
-  CheckFieldChangeAgainstIndex(old_fld,new_fld,update_typ,checkphase,old_obj,new_obj);
+  if not in_child_obj then
+    CheckFieldChangeAgainstIndex(old_fld,new_fld,update_typ,checkphase,old_obj,new_obj)
+  else
+   { indices must not be defined on child objects}
 end;
 
 procedure TFRE_DB_Persistance_Collection.DeleteFromThisColl(const del_iobj: IFRE_DB_Object; const checkphase: boolean);
@@ -4088,30 +3905,30 @@ end;
 
 // Check if a field can be removed safely from an object stored in this collection, or if an index exists on that field
 //TODO -> handle indexed field change
-procedure TFRE_DB_Persistance_Collection.CheckFieldChangeAgainstIndex(const oldfield, newfield: TFRE_DB_FIELD; const change_type: TFRE_DB_ObjCompareEventType; const check: boolean; const old_obj, new_obj: TFRE_DB_Object);
+procedure TFRE_DB_Persistance_Collection.CheckFieldChangeAgainstIndex(const oldfield, newfield: TFRE_DB_FIELD; const change_type: TFRE_DB_ObjCompareEventType; const check: boolean; old_obj, new_obj: TFRE_DB_Object);
 var i             : NativeInt;
     nullValExists : boolean;
-    oldobj        : TFRE_DB_Object;
-    newobj        : TFRE_DB_Object;
+    //oldobj        : TFRE_DB_Object;
+    //newobj        : TFRE_DB_Object;
     fieldname     : TFRE_DB_NameType;
     idummy        : IFRE_DB_Object;
 begin
-  newobj := nil;
-  oldobj := nil;
+  //newobj := nil;      {TODO - Think about child object index check ? ->user desc}
+  //oldobj := nil;
   if assigned(newfield) then
     begin
-      newobj    := newfield.ParentObject;
+      //newobj    := newfield.ParentObject;
       fieldname := uppercase(newfield.FieldName);
     end;
   if assigned(oldfield) then
     begin
-      oldobj  := oldfield.ParentObject;
-      oldobj.Assert_CheckStoreLocked;
-      oldobj.Set_Store_Locked(false);
+      //oldobj  := oldfield.ParentObject;
+      old_obj.Assert_CheckStoreLocked;
+      old_obj.Set_Store_Locked(false);
       try
         fieldname := uppercase(oldfield.FieldName);
       finally
-        oldobj.Set_Store_Locked(true);
+        old_obj.Set_Store_Locked(true);
       end;
     end;
   for i := 0 to high(FIndexStore) do
@@ -4120,41 +3937,41 @@ begin
         case change_type of
           cev_FieldDeleted:
             begin
-              oldobj.Assert_CheckStoreLocked;
+              old_obj.Assert_CheckStoreLocked;
               try
-                oldobj.Set_Store_Locked(false);
-                FIndexStore[i].IndexDelCheck(oldobj,new_obj,check);
+                old_obj.Set_Store_Locked(false);
+                FIndexStore[i].IndexDelCheck(old_obj,new_obj,check);
               finally
-                oldobj.Set_Store_Locked(true);
+                old_obj.Set_Store_Locked(true);
               end;
             end;
           cev_FieldAdded:
             begin
-              nullValExists := FIndexStore[i].NullvalueExistsForObject(newobj);
+              nullValExists := FIndexStore[i].NullvalueExistsForObject(new_obj);
               if nullValExists then // We need to to an index update if a nullvalue for this object is already indexed
                 begin
-                  if not FetchIntFromColl(newobj.UID,idummy) then
-                    raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'FIELDCHANGE Internal an object should be updated but was not found [%s]',[newobj.UID_String]);
-                  oldobj := idummy.Implementor as TFRE_DB_Object;
-                  oldobj.Assert_CheckStoreLocked;
+                  if not FetchIntFromColl(new_obj.UID,idummy) then
+                    raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'FIELDCHANGE Internal an object should be updated but was not found [%s]',[new_obj.UID_String]);
+                  old_obj := idummy.Implementor as TFRE_DB_Object;
+                  old_obj.Assert_CheckStoreLocked;
                   try
-                    oldobj.Set_Store_Locked(false);
-                    FIndexStore[i].IndexUpdCheck(newobj,oldobj,check);
+                    old_obj.Set_Store_Locked(false);
+                    FIndexStore[i].IndexUpdCheck(new_obj,old_obj,check);
                   finally
-                    oldobj.Set_Store_Locked(true);
+                    old_obj.Set_Store_Locked(true);
                   end;
                 end
               else
-                FIndexStore[i].IndexAddCheck(newobj,check);
+                FIndexStore[i].IndexAddCheck(new_obj,check);
             end;
           cev_FieldChanged:
             begin
-              oldobj.Assert_CheckStoreLocked;
+              old_obj.Assert_CheckStoreLocked;
               try
-                oldobj.Set_Store_Locked(false);
-                FIndexStore[i].IndexUpdCheck(newobj,oldobj,check);
+                old_obj.Set_Store_Locked(false);
+                FIndexStore[i].IndexUpdCheck(new_obj,old_obj,check);
               finally
-                oldobj.Set_Store_Locked(true);
+                old_obj.Set_Store_Locked(true);
               end;
             end;
         end;
