@@ -8353,9 +8353,11 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
       if (scheme_field_type<>fdbft_Object) or ((scheme_field_type=fdbft_Object) and (raw_field_type=fdbft_String)) then begin
         field_val   := field.AsStringArr;       //TODO -> EXTEND TO FIELD ARRAYS !!
       end;
-      if (raw_field_type<>fdbft_String) and (scheme_field_type<>fdbft_Object) then begin
-        raise EFRE_DB_Exception.Create(edb_INTERNAL,'the raw object has a field which is not a raw TFRE_DB_String field [%s], but the fielddef [%s] from the scheme object [%s] is not a sub object!',[CFRE_DB_FIELDTYPE[raw_field_type],CFRE_DB_FIELDTYPE[scheme_field_type],DefinedSchemeName]);
-      end;
+      if (raw_field_type<>fdbft_String) and
+         ((scheme_field_type<>fdbft_Object) and (scheme_field_type<>fdbft_Stream)) then
+        begin
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'the raw object has a field which is not a raw TFRE_DB_String field [%s], but the fielddef [%s] from the scheme object [%s] is not a sub object or a stream !',[CFRE_DB_FIELDTYPE[raw_field_type],CFRE_DB_FIELDTYPE[scheme_field_type],DefinedSchemeName]);
+        end;
       if raw_empty_array and (not scheme_multi_vals) then begin
         exit; //Don't set empty arrays to non arrays
       end;
@@ -8385,7 +8387,10 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
                                   raise EFRE_DB_Exception.Create(edb_INTERNAL,'error updating field [%s], but the fielddef [%s] from the scheme object [%s] : [%s] value [%s]',[field.FieldName,CFRE_DB_FIELDTYPE[scheme_field_type],DefinedSchemeName,e.message,GFRE_DB.StringArray2String(field_val)]);
                                 end;end;
                               end;
-          fdbft_Stream      : raise EFRE_DB_Exception.Create(edb_INTERNAL,'implement raw -> stream');
+          fdbft_Stream      : begin
+                                Update_Object.Field(field_name).AsStream := field.AsStream;
+                                Field.Clear(true);
+                              end;
           fdbft_Object      : begin
                                if raw_field_type=fdbft_String then begin
                                  _ObjectUpdate;
