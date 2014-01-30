@@ -60,6 +60,7 @@ type
   EFOS_PROCESS_DOUBLESTART_Exception=class(EFOS_PROCESS_Exception);
 
   TFOS_PROCESS_DataStreamCallback = procedure (const stream:TStream) of object;
+  TFOS_PROCESS_ProgressCallback   = procedure (const intotal, outtotal, errortotal: Int64) of object;
 
   TProcessBuffer = record
     position    : integer;
@@ -105,6 +106,7 @@ type
 
     foutstreamcallback          :  TFOS_PROCESS_DataStreamCallback;
     ferrorstreamcallback        :  TFOS_PROCESS_DataStreamCallback;
+    fprogresscallback           :  TFOS_PROCESS_ProgressCallback;
 
     fwait_before_loop_ms        :  Cardinal;
 
@@ -136,6 +138,7 @@ type
     function                    ExecutePipedStream         (const cmd: string;    const params: TFRE_DB_StringArray;  const inputstream, outputstream, stderrstream:TStream): integer;
     procedure                   StartPipedStreamAsync      (const cmd: string;    const params: TFRE_DB_StringArray;  const inputstream, outputstream, stderrstream:TStream);
     procedure                   RegisterCallBacks          (const outstreamcallback: TFOS_PROCESS_DataStreamCallback; const errorstreamcallback: TFOS_PROCESS_DataStreamCallback);
+    procedure                   RegisterProgressCallback   (const progresscallback: TFOS_PROCESS_ProgressCallback);
     procedure                   EnableLoop                 (const wait_before_loop_ms: Cardinal);
     procedure                   DisableLoop                ;
     function                    EndThreadOrLoop            :boolean;
@@ -490,6 +493,11 @@ begin
   ferrorstreamcallback := errorstreamcallback;
 end;
 
+procedure TFRE_Process.RegisterProgressCallback(const progresscallback: TFOS_PROCESS_ProgressCallback);
+begin
+  fprogresscallback  := progresscallback;
+end;
+
 procedure TFRE_Process.EnableLoop(const wait_before_loop_ms: Cardinal);
 begin
   fwait_before_loop_ms:= wait_before_loop_ms;
@@ -579,6 +587,8 @@ var
 //      writeln('EMPTY');
     end;
 //    writeln('TID:',cardinal(GetCurrentThreadId),' BTYPE:',b.btype,' POS:',b.position,' EMPTY:',Booltostr(b.empty,true));
+    if Assigned(fprogresscallback) then
+      fprogresscallback(inb.totalwritten,outb.totalwritten,errb.totalwritten);
   end;
 
   procedure _Read(var b:TProcessBuffer;const stream:TStream;const readsize:integer);
