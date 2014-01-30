@@ -959,7 +959,7 @@ var lGrid   : TFRE_DB_VIEW_LIST_DESC;
     lGrid2  : TFRE_DB_VIEW_LIST_DESC;
     layout  : TFRE_DB_LAYOUT_DESC;
 begin
-  layout := TFRE_DB_LAYOUT_DESC.create.Describe('MyLayout');
+  layout := TFRE_DB_LAYOUT_DESC.create.Describe();
 
   lGrid  := ses.FetchDerivedCollection('DC_ALLTYPES').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   lGrid2 := ses.FetchDerivedCollection('DC_AT_EX').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;

@@ -1905,7 +1905,7 @@ begin
     panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(app.FetchAppTextShort(ses,'$user_content_header'));
     block:=panel.AddBlock.Describe();
     block.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses,false,false,2);
-    block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
+    block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,false,false);
     panel.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
     panel.FillWithObjectValues(user.Implementor_HC as IFRE_DB_Object,ses);
     if conn.sys.CheckClassRight4Domain(sr_FETCH,TFRE_DB_USER,user.GetDomain(conn)) then begin
