@@ -964,7 +964,7 @@ type
   IFRE_DB_COMMAND_REQUEST_ANSWER_SC = interface(IFRE_DB_BASE)
    ['IFDBCRASC']
     procedure Send_ServerClient         (const dbc : IFRE_DB_COMMAND);
-    procedure DeactivateSessionBinding  ;
+    procedure DeactivateSessionBinding  (const from_session : boolean=false);
     procedure UpdateSessionBinding      (const new_session : TObject);
     function  GetInfoForSessionDesc     : String;
     function  GetChannel                : IFRE_APSC_CHANNEL;
@@ -2294,7 +2294,7 @@ type
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
     procedure   COR_FinalizeTakeOver     (const data : Pointer); // In new session binding
     procedure   AutoPromote              (const NEW_RASC:IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const conn_desc:String);
-    procedure   Demote                   ;
+    //procedure   Demote                   ;
     procedure   Logout                   ;
     function    LoggedIn                 : Boolean;
     function    QuerySessionDestroy      : Boolean;
@@ -4352,7 +4352,10 @@ var err                : TFRE_DB_Errortype;
             tod := TCOR_TakeOverData.Create;
             tod.New_RA_SC          := FBoundSession_RA_SC;
             tod.FClientDescription := FConnDesc;
-            existing_session.DispatchCoroutine(@existing_session.COR_InitiateTakeOver,tod);
+            if not existing_session.DispatchCoroutine(@existing_session.COR_InitiateTakeOver,tod) then
+              begin {Old session binding dead (dangling unbound session, do in this thread/socket context)}
+                existing_session.COR_InitiateTakeOver(tod);
+              end;
             result:=pr_Takeover;
           finally
             existing_session.UnlockSession;
@@ -4381,24 +4384,33 @@ begin
         err := FOnCheckUserNamePW(user_name,password);
         case err of
           edb_OK : begin
-            promotion_error := 'You are already logged in on '+existing_session.GetClientDetails+' would you like to takeover this existing session ?';
-            existing_session.FTakeoverPrepared := FConnDesc;
-            result := pr_TakeoverPrepared;
-            if auto_promote then
+            if assigned(existing_session.FBoundSession_RA_SC) then
               begin
-                existing_session.AutoPromote(FBoundSession_RA_SC,FConnDesc);
-                exit(pr_TakeOver);
-              end;
-          end;
+                promotion_error := 'You are already logged in on '+existing_session.GetClientDetails+', would you like to takeover this existing session ?';
+                existing_session.FTakeoverPrepared := FConnDesc;
+                exit(pr_TakeoverPrepared);
+                if auto_promote then
+                  begin
+                    existing_session.AutoPromote(FBoundSession_RA_SC,FConnDesc);
+                    exit(pr_TakeOver);
+                  end;
+              end
+            else
+             begin
+               existing_session.FTakeoverPrepared := FConnDesc; { prepare for auto takeover, after lock release}
+             end;
+          end
           else begin
             promotion_error := 'Takeover Failed : '+CFRE_DB_Errortype[err];
             result          := pr_Failed;
+            exit;
           end;
         end;
       finally
         existing_session.UnlockSession;
       end;
-      exit;
+      promres := TakeOver; { Auto Takeover dead web session }
+      exit(promres);
     end else begin
       err := FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
       //assert(assigned(FSessionData));
@@ -4456,11 +4468,13 @@ var tod : TCOR_TakeOverData;
         FBoundSession_RA_SC := NEW_RASC;
         NEW_RASC.UpdateSessionBinding(self);
       end else begin
-        MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER','This session will be continued on another browser instance.',fdbmt_wait,nil);
-        sId := FSessionID;
-        SendServerClientRequest(msg,'NEW');
-        FBoundSession_RA_SC.DeactivateSessionBinding;
-        //---
+        if Assigned(FBoundSession_RA_SC) then
+          begin
+            MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER','This session will be continued on another browser instance.',fdbmt_wait,nil);
+            sId := FSessionID;
+            SendServerClientRequest(msg,'NEW');
+            FBoundSession_RA_SC.DeactivateSessionBinding;
+          end;
         FConnDesc := connection_desc;
         NEW_RASC.UpdateSessionBinding(self);
         FBoundSession_RA_SC := NEW_RASC;
@@ -4510,25 +4524,30 @@ begin
     end;
 end;
 
-procedure TFRE_DB_UserSession.Demote;
-var user_name:string;
-begin
-  if FPromoted then begin
-     RemoveAllAppsAndFinalize;
-     FinishDerivedCollections;
-     user_name := FUserName;
-     FPromoted:=false;
-     FDBConnection.Finalize; // Only a promoted Connection is Diversified, The "guest" default account should only use one DBC
-     FOnRestoreDefaultDBC(FUserName,FDBConnection);  // after restoration of username, the session wont be found
-     GFRE_DBI.LogInfo(dblc_SERVER,'DEMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,user_name,FUserName]);
-  end else begin
-     raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT DEMOTE A UNPROMOTED SESSION FOR SID [%s] and USER [%s]',[FSessionID,FUserName]);
-  end;
-end;
+//procedure TFRE_DB_UserSession.Demote;
+//var user_name:string;
+//begin
+//  if FPromoted then begin
+//     RemoveAllAppsAndFinalize;
+//     FinishDerivedCollections;
+//     user_name := FUserName;
+//     FPromoted:=false;
+//     FDBConnection.Finalize; // Only a promoted Connection is Diversified, The "guest" default account should only use one DBC
+//     FOnRestoreDefaultDBC(FUserName,FDBConnection);  // after restoration of username, the session wont be found
+//     GFRE_DBI.LogInfo(dblc_SERVER,'DEMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,user_name,FUserName]);
+//  end else begin
+//     raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT DEMOTE A UNPROMOTED SESSION FOR SID [%s] and USER [%s]',[FSessionID,FUserName]);
+//  end;
+//end;
 
 procedure TFRE_DB_UserSession.Logout;
 begin
-  Demote;
+  SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Logged out.','You have been logged out',fdbmt_wait),'NEW');
+  FBoundSession_RA_SC.DeactivateSessionBinding;
+  FBoundSession_RA_SC := nil;
+  FTakeoverPrepared:='';
+  FConnDesc:='LOGGEDPUT';
+  FSessionTerminationTO := 1;
 end;
 
 function TFRE_DB_UserSession.LoggedIn: Boolean;

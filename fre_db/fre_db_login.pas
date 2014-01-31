@@ -228,6 +228,11 @@ begin
         ses.SendServerClientRequest(TFRE_DB_CLOSE_DIALOG_DESC.create);
         Result := TFRE_DB_MESSAGE_DESC.Create.Describe('Already logged in.',promotion_error,fdbmt_confirm,CWSF(@WEB_TakeOverSession));
       end;
+    pr_Takeover:
+      begin
+        ; // Silently ignore {dead session case, reload will come}
+        result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+      end
     else
       GFRE_BT.CriticalAbort('unhandled takeover case');
   end;
@@ -236,7 +241,7 @@ end;
 function TFRE_DB_LOGIN.WEB_doLogout(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   ses.Logout;
-  result := WEB_Content(input,ses,nil,ses.GetDBConnection);
+  result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
 end;
 
 
@@ -307,7 +312,7 @@ begin
             //result := WEB_Content(input,ex_session,nil,ex_session.GetDBConnection);
           end;
         else
-          GFRE_BT.CriticalAbort('unhandled takeover case 2');
+          ;//GFRE_BT.CriticalAbort('unhandled takeover case 2');
       end;
     end
   else

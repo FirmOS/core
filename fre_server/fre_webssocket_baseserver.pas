@@ -187,7 +187,7 @@ type
 
     procedure   ReceivedFromClient       (const opcode:byte;const dataframe :  string);override; // Receive a CMD Frame from WEB Browser !
     procedure   Send_ServerClient        (const CMD_Answer: IFRE_DB_COMMAND);
-    procedure   DeactivateSessionBinding ;
+    procedure   DeactivateSessionBinding (const from_session : boolean=false);
     procedure   UpdateSessionBinding     (const new_session : TObject);
 
     procedure   Default_Provider           (const uri:TFRE_HTTP_URI); // default WWW Provider (not WS)
@@ -957,24 +957,34 @@ begin
   GFRE_DBI.LogDebug(dblc_WS_JSON,'<- '+FChannel.GetVerboseDesc+LineEnding+lContent);
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DeactivateSessionBinding;
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DeactivateSessionBinding(const from_session: boolean);
 var loc : TFRE_DB_UserSession;
     sid : String;
 begin
-  loc             := FCurrentSession;
-  FCurrentSession := nil;
-  FWebsocketMode  := wsm_FREDB_DEACTIVATED;
-  //GFRE_DBI.LogDebug(dblc_LOCKING,'(!)> '+loc.GetSessionID+ );
-  if assigned(loc) then
+  if from_session then
     begin
-      loc.LockSession;
-      try
-        sid:=loc.GetSessionID;
-        loc.ClearServerClientInterface;
-      finally
-        loc.UnlockSession;
-      end;
-      GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) CLEARED THE Session Channel Interface / Binding '+FChannel.GetVerboseDesc+ ' <-> '+sid);
+      FCurrentSession := nil;
+      FWebsocketMode  := wsm_FREDB_DEACTIVATED;
+      FChannel.Finalize;
+      FChannel:=nil;
+    end
+  else
+    begin
+      loc             := FCurrentSession;
+      FCurrentSession := nil;
+      FWebsocketMode  := wsm_FREDB_DEACTIVATED;
+      //GFRE_DBI.LogDebug(dblc_LOCKING,'(!)> '+loc.GetSessionID+ );
+      if assigned(loc) then
+        begin
+          loc.LockSession;
+          try
+            sid:=loc.GetSessionID;
+            loc.ClearServerClientInterface;
+          finally
+            loc.UnlockSession;
+          end;
+          GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) CLEARED THE Session Channel Interface / Binding '+FChannel.GetVerboseDesc+ ' <-> '+sid);
+        end;
     end;
 end;
 

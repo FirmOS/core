@@ -136,7 +136,7 @@ type TFRE_FCOM_PROTO            = (cfp_TLS); //UDP,TLS,SSH,CLUSTER ...
     procedure   Send_ServerClient         (const ECN:IFRE_DB_COMMAND);
     property    OnBindInitialSession      : TFRE_DB_FetchSessionCB read FOnBindDefaultSession write SetOnBindDefaultSession;
     property    OnUnbindSession           : TFRE_DB_SessionCB read FOnUnbindSession write SetOnUnbindSession;
-    procedure   DeactivateSessionBinding  ;
+    procedure   DeactivateSessionBinding  (const from_session : boolean=false);
     procedure   UpdateSessionBinding      (const new_session : TObject);
     function    GetChannel                : IFRE_APSC_CHANNEL;
   end;
@@ -635,7 +635,7 @@ begin
   end;
 end;
 
-procedure TFRE_SERVED_BASE_CONNECTION.DeactivateSessionBinding;
+procedure TFRE_SERVED_BASE_CONNECTION.DeactivateSessionBinding(const from_session: boolean);
 begin
   GFRE_DBI.LogInfo(dblc_SESSION,' DEACTIVATE SESSION BINDING FOR '+FCHANNEL.GetVerboseDesc+' '+FUserSession.GetSessionID);
   FUserSession := nil;
