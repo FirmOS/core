@@ -1643,7 +1643,7 @@ type
     // Creates a virtual Parent Collection In Memory, which acts as derive Parent
     //procedure  SetVirtualMode                  (const StringIndexKey : String='');
     procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids');
-    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_object_refers : boolean ; const negate : boolean ; const dependency_reference : string = 'uids');
+    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
 
 
     procedure  SetDeriveParentI        (const coll:IFRE_DB_COLLECTION; const idField: String='uid');
@@ -6866,7 +6866,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetUseDependencyAsRefLinkFilter(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const dependency_object_refers: boolean; const negate: boolean; const dependency_reference: string);
+procedure TFRE_DB_DERIVED_COLLECTION.SetUseDependencyAsRefLinkFilter(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const negate: boolean; const dependency_reference: string);
 var
   i: NativeInt;
 begin

@@ -827,7 +827,7 @@ type
       via a schemelinkdefinition chain : Outbound ['TFRE_DB_SCHEME>DOMAINDILINK', ... ] or Inbound (common) ['TFRE_DB_USER<DOMAINIDLINK']
     }
     procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids');
-    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_object_refers : boolean ; const negate : boolean ; const dependency_reference : string = 'uids');
+    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
     //procedure  AddVirtualChildEntry            (const caption:TFRE_DB_String; const FuncClass: String; const uidPath: TFRE_DB_StringArray; const ChildrenFunc:String='ChildrenData'; const ContentFunc:String='Content';const MenuFunc:String='Menu');
     function   Derive                          : TFRE_DB_Errortype;
 
