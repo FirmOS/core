@@ -17278,10 +17278,17 @@ begin
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('login','firstname','lastname'),'%s - (%s %s)');
 
   input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_USER_user_group');
+  input_group.AddInput('login','$scheme_TFRE_DB_USER_login');
+  input_group.AddInput('firstname','$scheme_TFRE_DB_USER_firstname');
+  input_group.AddInput('lastname','$scheme_TFRE_DB_USER_lastname');
+  input_group.AddInput('passwordMD5','$scheme_TFRE_DB_USER_passwordMD5');
+
+  input_group:=scheme.AddInputGroup('main_edit').Setup('$scheme_TFRE_DB_USER_user_group');
   input_group.AddInput('login','$scheme_TFRE_DB_USER_login',true);
   input_group.AddInput('firstname','$scheme_TFRE_DB_USER_firstname');
   input_group.AddInput('lastname','$scheme_TFRE_DB_USER_lastname');
   input_group.AddInput('passwordMD5','$scheme_TFRE_DB_USER_passwordMD5');
+
   input_group:=scheme.AddInputGroup('domain').Setup('$scheme_TFRE_DB_USER_domain_group');
   input_group.AddInput('domainidlink','$scheme_TFRE_DB_USER_domainidlink',false,false,'$SDC:USERMOD_DOMAINS'); // HACK: Fix Domain Name with session prefix
   input_group:=scheme.AddInputGroup('descr').Setup('$scheme_TFRE_DB_USER_descr_group');
