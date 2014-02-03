@@ -201,6 +201,7 @@ type
   private
     FName         : TFRE_DB_NameType;
     FUpperName    : TFRE_DB_NameType;
+    FCClassname   : Shortstring;
     FLayer        : IFRE_DB_PERSISTANCE_LAYER;
     FVolatile     : Boolean;
     FGuidObjStore : TFRE_ART_TREE;
@@ -235,7 +236,7 @@ type
     function    CollectionName     (const unique:boolean):TFRE_DB_NameType;
     function    GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
     function    UniqueName         : PFRE_DB_NameType;
-    constructor Create             (const coll_name: TFRE_DB_NameType; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
+    constructor Create             (const coll_name: TFRE_DB_NameType;const CollectionClassname: Shortstring; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
     destructor  Destroy            ; override;
     function    Count              : int64;
     function    Exists             (const ouid: TGUID): boolean;
@@ -285,7 +286,7 @@ type
     constructor Create;
     destructor  Destroy; override;
     procedure   Clear;
-    function    NewCollection     (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION ; const volatile_in_memory:boolean ; const pers_layer:IFRE_DB_PERSISTANCE_LAYER) : TFRE_DB_Errortype;
+    function    NewCollection     (const coll_name : TFRE_DB_NameType ; const CollectionClassname: Shortstring ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION ; const volatile_in_memory:boolean ; const pers_layer:IFRE_DB_PERSISTANCE_LAYER) : TFRE_DB_Errortype;
     function    DeleteCollection  (const coll_name : TFRE_DB_NameType):TFRE_DB_Errortype;
     function    GetCollection     (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION) : boolean;
     procedure   ForAllCollections (const iter : TFRE_DB_PersColl_Iterator);
@@ -411,8 +412,9 @@ type
     FCollname       : TFRE_DB_NameType;
     FVolatile       : Boolean;
     FNewCollection  : IFRE_DB_PERSISTANCE_COLLECTION;
+    FCClassname     : Shortstring;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const coll_name: TFRE_DB_NameType;const volatile_in_memory: boolean);
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const coll_name: TFRE_DB_NameType;const CollectionClassname: Shortstring;const volatile_in_memory: boolean);
     constructor CreateAsWALReadBack          (const coll_name: TFRE_DB_NameType);
     procedure   CheckExistence               (const master : TFRE_DB_Master_Data); override;
     procedure   ChangeInCollectionCheckOrDo  (const master: TFRE_DB_Master_Data; const check: boolean); override;
@@ -568,22 +570,147 @@ type
   TFRE_DB_DBChangedNotificationBase = class(TObject,IFRE_DB_DBChangedNotification)
   protected
   public
-    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ; const volatile : Boolean) ; virtual;
+    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ; virtual;
     procedure  CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ; virtual ;
     procedure  ObjectStored           (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object) ; virtual;
+    procedure  ObjectDeleted          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object)  ; virtual;
+    procedure  ObjectRemoved          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
+    procedure  FieldDelete            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field : IFRE_DB_Field); virtual;
+    procedure  FieldAdd               (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const new_field : IFRE_DB_Field); virtual;
+    procedure  FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field); virtual;
+    procedure  SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
+    procedure  SubObjectDeleted       (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object); virtual;
     procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
     procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
     procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID ; const key_description : TFRE_DB_NameTypeRL); virtual;
-    procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID ; const key_description : TFRE_DB_NameTypeRL); virtual;
   end;
+
+  { TFRE_DB_DBChangedNotificationProxy }
+
+  { All objects reported by the Notification Subsystem must be freed, and must not have side effects on persistance data, thus copy in embedded case}
+
+  TFRE_DB_DBChangedNotificationProxy=class(TFRE_DB_DBChangedNotificationBase,IFRE_DB_DBChangedNotification)
+  private
+    FRealIF : IFRE_DB_DBChangedNotification;
+  public
+    constructor Create                 (const real_interface : IFRE_DB_DBChangedNotification);
+    procedure   CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ; virtual;
+    procedure   CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ; virtual ;
+    procedure   ObjectStored           (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object) ; virtual;
+    procedure   ObjectDeleted          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object)  ; virtual;
+    procedure   ObjectRemoved          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
+    procedure   FieldDelete            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field : IFRE_DB_Field); virtual;
+    procedure   FieldAdd               (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const new_field : IFRE_DB_Field); virtual;
+    procedure   FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field); virtual;
+    procedure   SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
+    procedure   SubObjectDeleted       (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object); virtual;
+    procedure   SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure   SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure   InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure   OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID ; const key_description : TFRE_DB_NameTypeRL); virtual;
+  end;
+
+  var GStartupRebuilding : boolean = false;
 
 implementation
 
+{ TFRE_DB_DBChangedNotificationProxy }
+
+constructor TFRE_DB_DBChangedNotificationProxy.Create(const real_interface: IFRE_DB_DBChangedNotification);
+begin
+  FRealIF := real_interface;
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
+begin
+  Inherited;
+  FRealIF.CollectionCreated(Layer,coll_name,ccn,persColl,volatile);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.CollectionDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
+begin
+  Inherited;
+  FRealIF.CollectionDeleted(Layer,coll_name);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+  Inherited;
+  FRealIF.ObjectStored(Layer,coll_name,obj.CloneToNewObject);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
+begin
+  Inherited;
+  FRealIF.ObjectDeleted(Layer,obj.CloneToNewObject);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectRemoved(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+  Inherited;
+  FRealIF.ObjectRemoved(Layer,coll_name,obj.CloneToNewObject);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.FieldDelete(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field: IFRE_DB_Field);
+begin
+  Inherited;
+  FRealIF.FieldDelete(Layer,old_field.CloneToNewStreamable);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.FieldAdd(const Layer: IFRE_DB_PERSISTANCE_LAYER; const new_field: IFRE_DB_Field);
+begin
+  Inherited;
+  FRealIF.FieldAdd(Layer,new_field.CloneToNewStreamable);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.FieldChange(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field, new_field: IFRE_DB_Field);
+begin
+  Inherited;
+  FRealIF.FieldChange(Layer,old_field.CloneToNewStreamable,new_field.CloneToNewStreamable);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.SubObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+  Inherited;
+  FRealIF.SubObjectStored(Layer,coll_name,obj.CloneToNewObject);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.SubObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
+begin
+  Inherited;
+  FRealIF.SubObjectDeleted(layer,obj.CloneToNewObject());
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+  Inherited;
+  FRealIF.SetupOutboundRefLink(layer,from_obj,to_obj,key_description);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+  Inherited;
+  FRealIF.SetupInboundRefLink(layer,from_obj,to_obj,key_description);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj, from_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+  Inherited;
+  FRealIF.InboundReflinkDropped(Layer,to_obj,from_obj,key_description);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+  Inherited;
+  FRealIF.OutboundReflinkDropped(Layer,from_obj,to_obj,key_description);
+end;
+
 { TFRE_DB_DBChangedNotificationBase }
 
-procedure TFRE_DB_DBChangedNotificationBase.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const volatile: Boolean);
+procedure TFRE_DB_DBChangedNotificationBase.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> COLLECTION CREATED : [%s] (%s)',[Layer.GetConnectedDB,coll_name,BoolToStr(volatile,'VOLATILE','PERSITENT')]));
+  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> COLLECTION (%S) CREATED : [%s] (%s)',[Layer.GetConnectedDB,ccn,coll_name,BoolToStr(volatile,'VOLATILE','PERSITENT')]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.CollectionDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
@@ -596,19 +723,56 @@ begin
   GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> OBJECT STORE IN [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
 end;
 
+procedure TFRE_DB_DBChangedNotificationBase.ObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> OBJECT FINAL DELETE -> %s',[Layer.GetConnectedDB,obj.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.ObjectRemoved(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> OBJECT REMOVED FROM [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.FieldDelete(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field: IFRE_DB_Field);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] DELETED FROM OBJECT -> %s',[Layer.GetConnectedDB,old_field.FieldName,old_field.FieldTypeAsString,old_field.ParentObject.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.FieldAdd(const Layer: IFRE_DB_PERSISTANCE_LAYER; const new_field: IFRE_DB_Field);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] ADDED TO OBJECT -> %s',[Layer.GetConnectedDB,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.FieldChange(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field, new_field: IFRE_DB_Field);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] CHANGED IN OBJECT -> %s',[Layer.GetConnectedDB,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.SubObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> SUB OBJECT STORE IN [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.SubObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> SUB OBJECT FINAL DELETE -> %s',[Layer.GetConnectedDB,obj.GetDescriptionID]));
+end;
+
 procedure TFRE_DB_DBChangedNotificationBase.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+  if not GStartupRebuilding then
+    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+  if not GStartupRebuilding then
+    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj, from_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> DROPPED INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> DROPPED INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
@@ -668,6 +832,8 @@ end;
 procedure TFRE_DB_InsertSubStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
   master.StoreObject(FNewObj,check);
+  if not check then
+    FTransList.GetNotifyIF.SubObjectStored(FLayer,FColl.CollectionName, FNewObj);
 end;
 
 procedure TFRE_DB_InsertSubStep.WriteToWAL(const m: TMemoryStream);
@@ -774,6 +940,8 @@ begin
       for i := 0 to high(arr) do
         begin
           arr[i].GetPersLayerIntf.DeleteFromThisColl(FDelObj,check);
+          if not check then
+            FTransList.GetNotifyIF.ObjectRemoved(FLayer,arr[i].CollectionName(false), FDelObj);
         end;
     end
   else
@@ -784,12 +952,13 @@ begin
       if check
          and (Length(FDelObj.__InternalGetCollectionList)=1) then
            FWouldNeedMasterDelete:=true;
+      if not check then
+        FTransList.GetNotifyIF.ObjectRemoved(FLayer,CollName, FDelObj);
     end;
 end;
 
 procedure TFRE_DB_DeleteObjectStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
-  writeln('*****DELETE STEP .... REMOVING : ',FDelObj.UID_String);
   assert(IsInsert=false);
   if check
      and FWouldNeedMasterDelete then
@@ -801,6 +970,8 @@ begin
       if length(FDelObj.__InternalGetCollectionList)=0 then
         begin
           try
+            if not check then
+              FTransList.GetNotifyIF.ObjectDeleted(FLayer, FDelObj); { Notify before delete }
             master.DeleteObject(FDelObj.UID,check);
           except
             FDelObj.Set_Store_Locked(true);
@@ -813,11 +984,12 @@ end;
 { TFRE_DB_NewCollectionStep }
 
 
-constructor TFRE_DB_NewCollectionStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean);
+constructor TFRE_DB_NewCollectionStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const volatile_in_memory: boolean);
 begin
   inherited Create(layer);
   FCollname      := coll_name;
   FVolatile      := volatile_in_memory;
+  FCClassname    := CollectionClassname;
 end;
 
 constructor TFRE_DB_NewCollectionStep.CreateAsWALReadBack(const coll_name: TFRE_DB_NameType);
@@ -843,10 +1015,10 @@ var res:TFRE_DB_Errortype;
 begin
   if not check then
     begin
-      res := Master.MasterColls.NewCollection(FCollname,FNewCollection,FVolatile,Master.FLayer);
+      res := Master.MasterColls.NewCollection(FCollname,FCClassname,FNewCollection,FVolatile,Master.FLayer);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
-      FTransList.GetNotifyIF.CollectionCreated(FLayer,FCollname,FVolatile);
+      FTransList.GetNotifyIF.CollectionCreated(FLayer,FCollname,FCClassname,FNewCollection,FVolatile);
     end;
 end;
 
@@ -1325,6 +1497,8 @@ var i,j         : NativeInt;
         begin
           to_upd_obj.Set_Store_Locked(false);
           try
+            if not check then
+              FTransList.GetNotifyIF.FieldDelete(FLayer, oldfield); { Notify before delete }
             case oldfield.FieldType of
               fdbft_Object:
                 begin
@@ -1358,35 +1532,26 @@ var i,j         : NativeInt;
         j     : nativeint;
     begin
       with FSublist[i] do
-        case newfield.FieldType of
-          fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
-          fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
-            begin
-             // Just add the Field
-              if check then
-                exit;
-              to_upd_obj.Set_Store_Locked(false);
-              try
-                inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
-              finally
-                to_upd_obj.Set_Store_Locked(true);
-              end;
-            end;
-          fdbft_Object:
-            begin
-              if check then
-                exit;
-              to_upd_obj.Set_Store_Locked(false);  { subobject insert}
-              try
-                inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject();
-              finally
-                to_upd_obj.Set_Store_Locked(true);
-              end;
-            end;
-          fdbft_ObjLink:
-            begin
-              inmemobject.Set_Store_Locked(false);
-              try
+        begin
+          to_upd_obj.Set_Store_Locked(false);
+          try
+            if not check then
+              FTransList.GetNotifyIF.FieldAdd(FLayer, newfield);
+            case newfield.FieldType of
+              fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
+              fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
+                begin
+                  if check then
+                    exit;
+                  inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
+                end;
+              fdbft_Object:
+                begin
+                  if check then
+                    exit;
+                  inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject(); { subobject insert}
+                end;
+              fdbft_ObjLink:
                 if check then
                   begin
                     if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
@@ -1404,11 +1569,11 @@ var i,j         : NativeInt;
                       end;
                     inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
-              finally
-                inmemobject.Set_Store_Locked(true);
-              end;
             end;
+        finally
+          to_upd_obj.Set_Store_Locked(true);
         end;
+      end;
     end;
 
     procedure _ChangedField;
@@ -1416,35 +1581,27 @@ var i,j         : NativeInt;
         j     : nativeint;
     begin
       with FSublist[i] do
-        case newfield.FieldType of
-          fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
-          fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
-            begin
-              if check then
-                exit;
-              to_upd_obj.Set_Store_Locked(false); { Parent }
-              try
-                inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
-              finally
-                to_upd_obj.Set_Store_Locked(true); { Parent }
-              end;
-            end;
-          fdbft_Object:
-            begin
-              if check then
-                exit;
-              writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
-              to_upd_obj.Set_Store_Locked(false); { Parent }
-              try
-                inmemobject.Field(newfield.FieldName).AsObjectArr := newfield.AsObjectArr;
-              finally
-                to_upd_obj.Set_Store_Locked(true); { Parent }
-              end;
-            end;
-          fdbft_ObjLink:
-            begin
-              to_upd_obj.Set_Store_Locked(false);
-              try
+        begin
+          to_upd_obj.Set_Store_Locked(false); { Parent }
+          try
+            if not check then
+              FTransList.GetNotifyIF.FieldChange(FLayer, oldfield, newfield);
+            case newfield.FieldType of
+              fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
+              fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
+                begin
+                  if check then
+                    exit;
+                    inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
+                end;
+              fdbft_Object:
+                begin
+                  if check then
+                    exit;
+                  writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
+                  inmemobject.Field(newfield.FieldName).AsObjectArr := newfield.AsObjectArr;
+                end;
+              fdbft_ObjLink:
                 if check then
                   begin
                     if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
@@ -1457,10 +1614,10 @@ var i,j         : NativeInt;
                     master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldfield.AsObjectLinkArray,newfield.AsObjectLinkArray);
                     inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
-              finally
-                to_upd_obj.Set_Store_Locked(true);
-              end;
             end;
+          finally
+            to_upd_obj.Set_Store_Locked(true); { Parent }
+          end;
         end;
     end;
 begin
@@ -1653,6 +1810,8 @@ begin
   writeln('*****DELETE SUBOBJECT STEP .... ReMOVINg : ',FDelObj.UID_String);
   assert(IsInsert=false);
   try
+   if not check then
+     FTransList.GetNotifyIF.SubObjectDeleted(FLayer, FDelObj); { Notify before delete }
     master.DeleteObject(FDelObj.UID,check);
   except
     FDelObj.Set_Store_Locked(true);
@@ -2442,7 +2601,9 @@ function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
   end;
 
 begin
+  GStartupRebuilding := true;
   ForAllObjectsInternal(true,false,@BuildRef);
+  GStartupRebuilding := false;
   result := edb_OK;
 end;
 
@@ -3438,7 +3599,7 @@ begin
   FCollTree.Clear;
 end;
 
-function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
+function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
 var coll     : TFRE_DB_Persistance_Collection;
     safename : TFRE_DB_NameType;
 begin
@@ -3450,7 +3611,7 @@ begin
     end
   else
     begin
-      coll := TFRE_DB_Persistance_Collection.Create(coll_name,volatile_in_memory,pers_layer);
+      coll := TFRE_DB_Persistance_Collection.Create(coll_name,CollectionClassname,volatile_in_memory,pers_layer);
       if FCollTree.InsertBinaryKey(@coll.UniqueName^[1],length(coll.UniqueName^),FREDB_ObjectToPtrUInt(coll)) then
         begin
           Collection := coll;
@@ -3557,13 +3718,14 @@ begin
     FIndexStore[i].IndexDelCheck(del_obj,nil,check_only);
 end;
 
-constructor TFRE_DB_Persistance_Collection.Create(const coll_name: TFRE_DB_NameType; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
+constructor TFRE_DB_Persistance_Collection.Create(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
 begin
  FGuidObjStore := TFRE_ART_TREE.Create;
  FName         := coll_name;
  FVolatile     := Volatile;
  FLayer        := pers_layer;
  FUpperName    := UpperCase(FName);
+ FCClassname   := CollectionClassname;
 end;
 
 destructor TFRE_DB_Persistance_Collection.Destroy;
@@ -3763,6 +3925,7 @@ begin
   stream.Position:=0;
   stream.WriteAnsiString('FDBC');
   stream.WriteAnsiString(FName);
+  stream.WriteAnsiString(FCClassname);
   cnt  := FGuidObjStore.GetValueCount;
   vcnt := 0;
   stream.WriteQWord(cnt);
@@ -3786,6 +3949,8 @@ begin
   in_txt := stream.ReadAnsiString;
   if in_txt<>FName then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID NAME DIFFERS: [%s <> %s]',[in_txt,FName]);
+  FCClassname := stream.ReadAnsiString;
+
   cnt := stream.ReadQWord;
   //writeln('RELOADING COLLECTION ',in_txt,' / ',cnt);
   for i := 1 to cnt do

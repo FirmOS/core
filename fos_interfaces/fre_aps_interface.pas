@@ -147,6 +147,8 @@ type
     function   CH_IsClientChannel  : Boolean;
     function   CH_GetState         : TAPSC_ChannelState;
     function   CH_GetID            : ShortString;
+    procedure  CH_AssociateData    (const data : PtrUInt);
+    function   CH_GetAssociateData : PtrUInt;
 
     procedure CH_Enable_Reading    ;
     procedure CH_Enable_Writing    ;

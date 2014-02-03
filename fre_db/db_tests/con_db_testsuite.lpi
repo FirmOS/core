@@ -33,7 +33,7 @@
         <CommandLineParams Value="-a"/>
       </local>
     </RunParams>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="con_db_testsuite.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -54,6 +54,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="fos_sparelistgen"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="../../fre_server/fre_net_pl_client.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_net_pl_client"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -62,8 +67,8 @@
       <Filename Value="../../../bin/con_db_testsuite"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;../../fre_core;../../fre_external;../../fre_aps;../../fre_fcom;../../fos_interfaces;../../fre_apps"/>
+      <IncludeFiles Value="../../../core/fos_include;$(ProjOutDir)"/>
+      <OtherUnitFiles Value="..;../../fre_core;../../fre_external;../../fre_aps;../../fre_fcom;../../fos_interfaces;../../fre_apps;../../fre_server"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

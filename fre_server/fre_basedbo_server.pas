@@ -13,6 +13,7 @@ type
     Id          : Shortstring; // Hello ID OF Subfeeder;
     SpecialFile : Shortstring; // if set open an unix socket
     IP,Port     : String; //IF set open an TCP Listener;
+    FDontSendId : Boolean;
   end;
 
   { TFRE_DBO_SERVER }
@@ -23,13 +24,12 @@ type
     FChannelList : TList;
     FListenerUX  : IFRE_APSC_LISTENER;
     FListenerTCP : IFRE_APSC_LISTENER;
-    procedure NewListener  (const new_listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
-    procedure NewChannel   (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
-    procedure DiscoChannel (const channel      : IFRE_APSC_CHANNEL);
-    procedure ReadChannel  (const channel      : IFRE_APSC_CHANNEL);
-    function  GetDboAsBufferLen(const dbo: IFRE_DB_Object; var mem: Pointer): UInt32;
+    procedure   NewListener  (const new_listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
   protected
-    FDBO_Srv_Cfg         : RDBO_SRV_CFG;
+    FDBO_Srv_Cfg  : RDBO_SRV_CFG;
+    procedure   NewChannel   (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState); virtual;
+    procedure   DiscoChannel (const channel      : IFRE_APSC_CHANNEL); virtual;
+    procedure   ReadChannel  (const channel      : IFRE_APSC_CHANNEL); virtual;
   public
     constructor Create;
     destructor  Destroy  ; override ;
@@ -74,14 +74,16 @@ begin
     end
   else
     begin
-      writeln('CHANNEL CONNECT ON MGR ',channel.GetChannelManager.GetID,' via LISTENR ',channel.GetListener.GetListeningAddress,' PARTNER=',channel.GetConnSocketAddr);
-      dbo := GFRE_DBI.NewObject;
-      dbo.Field('SUBFEEDER_ID').AsString:=FDBO_Srv_Cfg.Id;
-      siz := GetDboAsBufferLen(dbo,mem);
-      dbo.Finalize;
-      channel.CH_WriteBuffer(mem,siz);
-      Freemem(mem);
-      channel.CH_Enable_Reading;
+      //writeln('CHANNEL CONNECT ON MGR ',channel.GetChannelManager.GetID,' via LISTENR ',channel.GetListener.GetListeningAddress,' PARTNER=',channel.GetConnSocketAddr);
+      if not FDBO_Srv_Cfg.FDontSendId then
+        begin
+          dbo := GFRE_DBI.NewObject;
+          dbo.Field('PLID').AsString:=FDBO_Srv_Cfg.Id;
+          siz :=  FREDB_GetDboAsBufferLen(dbo,mem);
+          dbo.Finalize;
+          channel.CH_WriteBuffer(mem,siz);
+          Freemem(mem);
+        end;
       channel.SetOnDisconnnect(@DiscoChannel);
       channel.SetOnReadData(@ReadChannel);
       FLock.Acquire;
@@ -89,6 +91,7 @@ begin
         if FChannelList.IndexOf(channel)<>-1 then
           GFRE_BT.CriticalAbort('channel double add?');
         FChannelList.Add(channel);
+        channel.CH_Enable_Reading;
       finally
         FLock.Release;
       end;
@@ -99,7 +102,6 @@ procedure TFRE_DBO_SERVER.DiscoChannel(const channel: IFRE_APSC_CHANNEL);
 begin
   FLock.Acquire;
   try
-    writeln('CHANNEL DISCO ',channel.GetVerboseDesc);
     if FChannelList.Remove(channel)=-1 then
       GFRE_BT.CriticalAbort('unexpected : channel not found');
   finally
@@ -111,17 +113,6 @@ procedure TFRE_DBO_SERVER.ReadChannel(const channel: IFRE_APSC_CHANNEL);
 begin
   writeln('!!READ UNSUPPORTED');
   GFRE_BT.CriticalAbort('DONT WRITE SOMETHING TO ME');
-end;
-
-function TFRE_DBO_SERVER.GetDboAsBufferLen(const dbo: IFRE_DB_Object ; var mem : Pointer):UInt32;
-var len : UInt32;
-    ns  : UInt32;
-begin
-  ns := dbo.NeededSize;
-  Getmem(mem,ns+4);
-  dbo.CopyToMemory(mem+4);
-  PCardinal(mem)^:=ns;
-  result := ns+4;
 end;
 
 constructor TFRE_DBO_SERVER.Create;
@@ -157,7 +148,7 @@ var mem : pointer;
 begin
 //  GFRE_DBI.LogDebug(dblc_APPLICATION,'PushDataToClients[%s]',[data_object.DumpToString()]);
 
-  siz := GetDboAsBufferLen(data_object,mem);
+  siz := FREDB_GetDboAsBufferLen(data_object,mem);
   data_object.Finalize;
   FLock.Acquire;
   try

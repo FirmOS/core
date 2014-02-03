@@ -127,13 +127,14 @@ type
   protected
     FFieldData         : TFRE_DB_FieldData;
     FFieldName         : PFRE_DB_NameType;
-    FManualFieldName   : TFRE_DB_String; // used for fields without object, (WAL Repair) (TODO: check  FFieldName^ cornercases!)
-    Fobj               : TFRE_DB_Object;
+    Fobj               : TFRE_DB_Object; // = nil in Stream only fields
+    FManualFieldName   : TFRE_DB_String; // used for fields without object, (WAL Repair and Streamable Fields) (TODO: check  FFieldName^ cornercases!)
+    FObjUidPath        : TFRE_DB_GUIDArray; { used in stream only fields to know which object the field belongs to}
     FIsUidField        : Boolean;
     FIsDomainIDField   : Boolean;
     FCalcMethod        : IFRE_DB_CalcMethod;
   private
-    procedure Finalize;
+    procedure  Finalize;
     procedure _InAccessibleFieldCheck  ; inline;
     procedure _CheckEmptyArray         ; inline;
 
@@ -292,6 +293,8 @@ type
     procedure IFRE_DB_Field.CloneFromField = CloneFromFieldI;
     procedure IFRE_DB_Field.CheckOutObject = CheckOutObjectI;
   public
+    function    CloneToNewStreamable : IFRE_DB_Field; { This creates a lightweight "streamable field" copy with only certain supported function (fieldvalues,type, but no parentobject etc support }
+
     constructor Create           (const obj:TFRE_DB_Object; const FieldType:TFRE_DB_FIELDTYPE ; const ManualFieldName : string='' ; const calcmethod : IFRE_DB_CalcMethod=nil);
     destructor  Destroy          ;override;
     function    FieldType         : TFRE_DB_FIELDTYPE;
@@ -433,6 +436,8 @@ type
     procedure AddObjectI                    (const obj : IFRE_DB_Object);
 
     function  ParentObject                  : TFRE_DB_Object; // The object the field belongs to
+    function  ParentObjectI                 : IFRE_DB_Object;
+
 
     function  IFRE_DB_Field.GetAsObject             = GetAsObjectI;
     procedure IFRE_DB_Field.SetAsObject             = SetAsObjectI;
@@ -443,6 +448,7 @@ type
     function  IFRE_DB_Field.GetAsObjectList         = GetAsObjectListI;
     function  IFRE_DB_Field.SetAsObjectList         = SetAsObjectListI;
     function  IFRE_DB_Field.AddObject               = AddObjectI;
+    function  IFRE_DB_Field.ParentObject            = ParentObjectI;
     function  IFRE_DB_CALCFIELD_SETTER.SetAsObject  = SetAsObjectI;
 
     property  AsObjectI                     : IFRE_DB_Object read GetAsObjectI write SetAsObjectI;
@@ -1698,7 +1704,7 @@ type
 
   { TFRE_DB_BASE_CONNECTION }
 
-  TFRE_DB_BASE_CONNECTION=class(TFOS_BASE)
+  TFRE_DB_BASE_CONNECTION=class(TFOS_BASE,IFRE_DB_DBChangedNotification)
   private
     FSysDomainUID         : TGuid;
     FDBName               : TFRE_DB_String;
@@ -1723,6 +1729,24 @@ type
     procedure           _CloneCheck                  ;
     function            Implementor                  : TObject;
   protected
+
+    { Notification Interface }
+    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ; virtual;
+    procedure  CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ; virtual;
+    procedure  ObjectStored           (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
+    procedure  SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
+    procedure  ObjectDeleted          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object); virtual;
+    procedure  SubObjectDeleted       (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object); virtual;
+    procedure  FieldDelete            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field : IFRE_DB_Field); virtual;
+    procedure  FieldAdd               (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const new_field : IFRE_DB_Field); virtual;
+    procedure  FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field); virtual;
+    procedure  ObjectRemoved          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
+    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    { Notification Interface - End }
+
     procedure           AcquireBig                  ;
     procedure           ReleaseBig                  ;
 
@@ -5584,13 +5608,13 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ICO_CollectionNotify(const notify_type: TFRE_DB_NotifyObserverType; const obj: IFRE_DB_Object; const obj_uid: TGUID);
 var not_object : IFRE_DB_Object;
+
   procedure DeleteRecord;
   var res    : TFRE_DB_UPDATE_STORE_DESC;
-      entry  : IFRE_DB_Object;
   begin
-   res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
-   res.addDeletedEntry(GFRE_BT.GUID_2_HexString(obj_uid));
-   Fsession.SendServerClientRequest(res);
+    res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
+    res.addDeletedEntry(GFRE_BT.GUID_2_HexString(obj_uid));
+    Fsession.SendServerClientRequest(res);
   end;
 
 begin //nl
@@ -5623,14 +5647,10 @@ begin //nl
     end;
     fdbntf_DELETE: begin
       if _CheckUIDExists(obj_uid) then begin
-        //writeln('---');
-        //writeln('DELETE NOTIFY ',CollectionName);
-        //writeln('OUID : ',GFRE_BT.GUID_2_HexString(obj_uid));
         if assigned(FSession) then begin
-          //writeln('FOUND -> ALERTING SESSION [',FSession.GetSessionID,']');
           DeleteRecord;
         end;
-        //writeln('---');
+        FInitialDerived := false; // Force rebuild
       end;
     end;
     fdbntf_COLLECTION_RELOAD: begin
@@ -9001,8 +9021,6 @@ begin //nl
   except
     result := edb_PERSISTANCE_ERROR;
   end;
-  if Result=edb_OK then
-    _NotifyObserversOrRecord(fdbntf_INSERT,nil,suid);
 end;
 
 procedure TFRE_DB_COLLECTION._IterateOverGUIDArray(const guids: TFRE_DB_GUIDArray; const iter: IFRE_DB_ObjectIteratorBrk; var halt:boolean);
@@ -9507,10 +9525,12 @@ begin
   AcquireBig;
   try
     _CloneCheck;
-    if FConnected then exit(edb_ALREADY_CONNECTED);
+    if FConnected then
+      exit(edb_ALREADY_CONNECTED);
     result :=   GFRE_DB_PS_LAYER.Connect(db,FPersistance_Layer);
     if result=edb_OK then begin
       FConnected         := true;
+      FPersistance_Layer.SetNotificationStreamCallback(self);
       InternalSetupConnection(is_system,false);
       FDBName            := db;
     end else begin
@@ -9577,6 +9597,112 @@ end;
 function TFRE_DB_BASE_CONNECTION.Implementor: TObject;
 begin
   result := self;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
+var
+    lcollection      : TFRE_DB_Collection;
+    lCollectionClass : TFRE_DB_COLLECTIONCLASS;
+begin
+  AcquireBig;
+  try
+    lCollectionClass := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(ccn));
+    lcollection      := lCollectionClass.Create(self,coll_name,persColl);
+    if not FCollectionStore.Add(uppercase(coll_name),lcollection) then
+      raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
+  finally
+   ReleaseBig;
+  end;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.CollectionDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
+begin
+
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.ObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+var
+    lcollection      : TFRE_DB_Collection;
+begin
+  AcquireBig;
+  try
+    try
+      if FCollectionStore.Find(uppercase(coll_name),lcollection) then
+        lcollection._NotifyObserversOrRecord(fdbntf_INSERT,obj.Implementor as TFRE_DB_Object,obj.UID);
+    finally
+      obj.Finalize;
+    end;
+  finally
+    ReleaseBig;
+  end;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.SubObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+  obj.Finalize;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.ObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
+begin
+  obj.Finalize;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.SubObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
+begin
+  obj.Finalize;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.FieldDelete(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field: IFRE_DB_Field);
+begin
+  old_field.Finalize;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.FieldAdd(const Layer: IFRE_DB_PERSISTANCE_LAYER; const new_field: IFRE_DB_Field);
+begin
+  new_field.Finalize;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.FieldChange(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field, new_field: IFRE_DB_Field);
+begin
+  old_field.Finalize;
+  new_field.Finalize;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.ObjectRemoved(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+var
+    lcollection      : TFRE_DB_Collection;
+begin
+  AcquireBig;
+  try
+    try
+      if FCollectionStore.Find(uppercase(coll_name),lcollection) then
+        lcollection._NotifyObserversOrRecord(fdbntf_DELETE,nil,obj.UID);
+    finally
+      obj.Finalize;
+    end;
+  finally
+    ReleaseBig;
+  end;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj, from_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.AcquireBig;
@@ -10025,10 +10151,9 @@ begin
         end;
       if create_non_existing then begin
         if not FPersistance_Layer.GetCollection(collection_name,persColl) then
-          FPersistance_Layer.NewCollection(collection_name,persColl,in_memory_only);
-        lcollection := NewCollectionClass.Create(self,collection_name,persColl);
-        if not FCollectionStore.Add(FUPcoll_name,lcollection) then
-          raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
+          FPersistance_Layer.NewCollection(collection_name,NewCollectionClass.ClassName,persColl,in_memory_only);  { collection is added via notification callback as side effect }
+        if not FCollectionStore.Find(FUPcoll_name,lcollection) then
+          raise EFRE_DB_Exception.Create(edb_ERROR,'cannot fetch created collection / fail');
         exit(lcollection);
       end;
       result := nil;
@@ -10120,19 +10245,6 @@ end;
 
 function TFRE_DB_BASE_CONNECTION.Delete(const ouid: TGUID): TFRE_DB_Errortype;
 var dbo     : TFRE_DB_Object;
-    ncolls  : TFRE_DB_StringArray;
-
-  //procedure CollIterator(const coll:TFRE_DB_COLLECTION);
-  //begin
-  //  if coll.Remove(ouid) then begin
-  //    try
-  //      coll._NotifyObserversOrRecord(fdbntf_DELETE,nil,ouid);
-  //    except on e:Exception do begin
-  //      GFRE_DB.LogError(dblc_DB,'COULD NOT FIRE DELETE OBSERVER COLL [%s] UID[%s] ERR[%s] ',[coll.ClassName,GFRE_BT.GUID_2_HexString(ouid),e.Message]);
-  //    end;end;
-  //  end;
-  //end;
-
 begin
   AcquireBig;
   try
@@ -10140,7 +10252,6 @@ begin
     try
       FPersistance_Layer.DeleteObject(ouid,'');
       result:=edb_OK;
-      _NotifyCollectionObservers(fdbntf_DELETE,nil,ouid,ncolls);
     except on
       E:EFRE_DB_Exception do
         begin
@@ -10643,7 +10754,7 @@ begin
             else
               raise EFRE_DB_Exception.Create(edb_ERROR,'STREAMING FAILURE OBJECT CLASS ['+ClName+'] IS UNKNOWN, YOU MAY NEED TO REGISTER IT');
           end;
-        result := TFRE_DB_NAMED_OBJECT.CreateStreaming(weako);
+        result := TFRE_DB_NAMED_OBJECT.CreateStreaming(weako.CloneInstance);
       end;
   end;
 end;
@@ -11252,6 +11363,8 @@ begin
     FSysClientFieldValidators[i].free;
   for i:=0 to High(FSysObjectList) do
     FSysObjectList[i].obj.free;
+  for i:=0 to High(FWeakExClassArray) do
+    FWeakExClassArray[i].Destroy;
   FBigLock.Finalize;
   FWeakMediatorLock.Finalize;
   inherited Destroy;
@@ -11335,9 +11448,12 @@ end;
 
 procedure TFRE_DB.RegisterObjectClass(const ObClass: TFRE_DB_OBJECTCLASS);
 var i:integer;
+    cn : shortstring;
 begin
+  cn := uppercase(ObClass.ClassName);
   for i:=0 to high(FClassArray) do begin
-    if uppercase(FClassArray[i].ClassName)=uppercase(ObClass.ClassName) then exit; // already registerd;
+    if uppercase(FClassArray[i].ClassName)=cn then
+      exit; // already registerd;
   end;
   setlength(FClassArray,length(FClassArray)+1);
   FClassArray[high(FClassArray)] :=ObClass;
@@ -11368,6 +11484,7 @@ begin
           raise EFRE_DB_Exception.Create(edb_INTERNAL,'double RegisterWeakObjectclass '+clname);
       end;
     setlength(FWeakExClassArray,length(FWeakExClassArray)+1);
+    GFRE_DB.LogDebug(dblc_STREAMING,'Registering Weak Scheme [%s], no code methods availlable.',[clname]);
     result := TFRE_DB_WeakObjectEx.Create(clname);
     FWeakExClassArray[high(FWeakExClassArray)] := result;
   finally
@@ -11615,7 +11732,6 @@ function TFRE_DB.NewDirectSysConnection: TFRE_DB_SYSTEM_CONNECTION;
 begin
  GFRE_DB_Init_Check;
  result := TFRE_DB_SYSTEM_CONNECTION.Create;
- //result.FPersistance_Layer  := GFRE_DB_PS_LAYER.Clone('SYSTEM'); // Layer per instance
 end;
 
 
@@ -12090,7 +12206,7 @@ end;
 
 function TFRE_DB_Object.GetDescriptionID: String;
 begin
-  result := BoolToStr(assigned(Parent),'C','R')+UID_String+':'+DomainID_String+'('+SchemeClass+')';
+  result := BoolToStr(assigned(Parent),'C','R')+':'+SchemeClass+'('+FREDB_CombineString(GetUIDPath,'/')+')';
 end;
 
 
@@ -14474,6 +14590,15 @@ begin
   result := FFieldData.FieldType;
 end;
 
+function TFRE_DB_FIELD.CloneToNewStreamable: IFRE_DB_Field;
+var new_fld : TFRE_DB_FIELD;
+begin
+  new_fld := TFRE_DB_FIELD.Create(nil,fdbft_NotFound,FieldName,nil);
+  new_fld.CloneFromField(self);
+  new_fld.FObjUidPath := ParentObject.GetUIDPathUA;
+  result := new_fld;
+end;
+
 
 procedure TFRE_DB_FIELD._IllegalTypeError(const ill_type: TFRE_DB_FIELDTYPE);
 begin
@@ -14900,7 +15025,9 @@ end;
 
 function TFRE_DB_FIELD._CheckStoreType(const expected: TFRE_DB_FIELDTYPE):boolean;
 begin
-  if Fobj._ReadOnlyCheck then raise EFRE_DB_Exception.Create(edb_ACCESS,' access to read only object  fieldname ['+FFieldName^+'] type ['+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+']');
+  if assigned(Fobj) and
+     Fobj._ReadOnlyCheck then
+    raise EFRE_DB_Exception.Create(edb_ACCESS,' access to read only object  fieldname ['+FFieldName^+'] type ['+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+']');
   if (FFieldData.FieldType=fdbft_NotFound) then begin
     exit(false);
   end else
@@ -14938,7 +15065,8 @@ end;
 
 procedure TFRE_DB_FIELD._InAccessibleFieldCheck;
 begin
-  Fobj._InaccessibleCheck;
+  if assigned(FObj) then {else cloned stream only}
+    Fobj._InaccessibleCheck;
 end;
 
 procedure TFRE_DB_FIELD._CheckEmptyArray;
@@ -14959,6 +15087,11 @@ end;
 
 procedure TFRE_DB_FIELD.Finalize;
 begin
+  if Fobj=nil then { streamable only}
+    begin
+      Free;
+      exit;
+    end;
   gfre_bt.CriticalAbort('never, ever finalize fields!');
 end;
 
@@ -17149,6 +17282,11 @@ end;
 function TFRE_DB_FIELD.ParentObject: TFRE_DB_Object;
 begin
   result := Fobj;
+end;
+
+function TFRE_DB_FIELD.ParentObjectI: IFRE_DB_Object;
+begin
+  result := ParentObject;
 end;
 
 

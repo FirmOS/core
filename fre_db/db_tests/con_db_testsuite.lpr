@@ -3,7 +3,7 @@ program con_db_testsuite;
 {$mode objfpc}
 {$H+}
 {$codepage utf8}
-{$LIBRARYPATH ../../fre_external/fre_ext_libs}
+{$LIBRARYPATH ../../../lib}
 
 
 uses
@@ -18,13 +18,19 @@ uses
   FRE_DB_CORE,FRE_DB_INTERFACE,FRE_dbbase,
   FOS_TOOL_INTERFACES,
   sysutils,
-  fre_db_testsuite;
+  fre_db_testsuite, fre_net_pl_client,fre_aps_comm_impl;
 
 var App: TTestRunner;
 
+    //tst  : TFRE_DB_PL_NET_CLIENT;
+    //name : String;
+
 begin
   Initialize_Read_FRE_CFG_Parameter;
-  GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db');
+  Setup_APS_Comm;
+
+  GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Net('','');
+  //GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db');
 
   DefaultFormat      := fPlain;
   DefaultRunAllTests := true;

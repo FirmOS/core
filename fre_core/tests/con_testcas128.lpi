@@ -5,10 +5,11 @@
     <General>
       <Flags>
         <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
       </Flags>
-      <SessionStorage Value="InIDEConfig"/>
+      <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="fre_pl_server"/>
+      <Title Value="con_testcas128"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -31,47 +32,22 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="6">
+    <Units Count="1">
       <Unit0>
-        <Filename Value="fre_pl_server.lpr"/>
+        <Filename Value="con_testcas128.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_pl_server"/>
+        <UnitName Value="con_testcas128"/>
       </Unit0>
-      <Unit1>
-        <Filename Value="fre_base_client.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_base_client"/>
-      </Unit1>
-      <Unit2>
-        <Filename Value="fre_pl_dbo_server.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_pl_dbo_server"/>
-      </Unit2>
-      <Unit3>
-        <Filename Value="../fre_core/fos_stats_control_interface.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="fos_stats_control_interface"/>
-      </Unit3>
-      <Unit4>
-        <Filename Value="fre_plserver_app.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_plserver_app"/>
-      </Unit4>
-      <Unit5>
-        <Filename Value="fre_basedbo_server.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_basedbo_server"/>
-      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="../../bin/fre_pl_server"/>
+      <Filename Value="con_testcas128"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../fos_include;$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;../fre_hal;../fre_db/create_cc_db;../fre_aps;../fre_core;../fre_fcom;../fre_blockcom;../fre_db;../fre_bullet;../fre_external;../fre_monsys;../fos_interfaces;../fre_apps;../fre_external/synapse;../fos_corebox;../fos_corebox/common"/>
+      <OtherUnitFiles Value="../../fos_interfaces"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Conditionals Value="if TargetOS = 'darwin' then
@@ -79,12 +55,6 @@
     <CodeGeneration>
       <TargetCPU Value="x86_64"/>
     </CodeGeneration>
-    <Linking>
-      <Debugging>
-        <DebugInfoType Value="dsDwarf2Set"/>
-        <UseHeaptrc Value="True"/>
-      </Debugging>
-    </Linking>
     <Other>
       <CompilerMessages>
         <MsgFileName Value=""/>

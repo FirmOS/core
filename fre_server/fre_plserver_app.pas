@@ -80,7 +80,7 @@ procedure TFRE_PLSERVER_APP.DoRun;
 var
   ErrorMsg   : String;
 begin
-  ErrorMsg:=CheckOptions('thvDU:H:T:',['test','help','version','debugger','remoteuser:','remotehost:','toolpath:','test-log']);
+  ErrorMsg:=CheckOptions('hv',['help','version','test-log']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -97,23 +97,6 @@ begin
     WriteVersion;
     Terminate;
     Exit;
-  end;
-
-  if HasOption('D','debugger') then
-    G_NO_INTERRUPT_FLAG:=true;
-
-  if HasOption('U','remoteuser') then begin
-    cFRE_REMOTE_USER := GetOptionValue('U','remoteuser');
-  end;
-
-  if HasOption('H','remotehost') then begin
-    cFRE_REMOTE_HOST:= GetOptionValue('H','remotehost');
-  end else begin
-    cFRE_REMOTE_HOST:= '';
-  end;
-
-  if HasOption('T','toolpath') then begin
-    cFRE_ToolsPath:= GetOptionValue('T','toolpath');
   end;
 
   Initialize_Read_FRE_CFG_Parameter;
@@ -133,6 +116,7 @@ begin
   MyRunMethod;
   Teardown_APS_Comm;
   FSFServer.Free;
+  GFRE_DB_PS_LAYER.SyncSnapshot(true);
   GFRE_DB_PS_LAYER.Finalize;
   Terminate;
 end;
@@ -160,12 +144,8 @@ procedure TFRE_PLSERVER_APP.WriteHelp;
 begin
    { add your help code here }
   writeln('Usage: ',ExeName,' -h');
-  writeln('  -U            | --remoteuser           : user for remote commands');
-  writeln('  -H            | --remotehost           : host for remote commands');
   writeln('  -h            | --help                 : print this help');
   writeln('  -v            | --version              : print version info');
-  writeln('  -T            | --toolpath             : base path for tools e.g. sg3utils');
-  writeln('                  --debugger             : set debug flag');
   writeln('                  --test-log             : enable console test-log');
 end;
 

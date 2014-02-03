@@ -66,7 +66,7 @@ implementation
 
 type
   TAPSC_CMD  = (cb_NEW_LISTENER=1,cb_START_LISTENER=2,cb_STOP_LISTENER=3,cb_FINALIZE_LISTENER=4,cb_NEW_SOCK_ACCEPTED=5,cb_FINALIZE_MAIN=6,cb_FINALIZE_CHANNEL_MGR=7,cb_FINALIZE_CHANNEL=8,
-                cb_NEW_CLIENT_SOCK=9,cb_ADD_GLOBAL_TIMER=10,cb_SCHED_COROUTINE=11,cb_NEW_LISTENER_UX=12);
+                cb_NEW_CLIENT_SOCK=9,cb_ADD_GLOBAL_TIMER=10,cb_SCHED_COROUTINE=11,cb_NEW_LISTENER_UX=12,cb_FIRE_GLOBAL_TIMER=13);
 
 function  APSC_CheckResultSetError (const res : cInt ; var error : string ; var os_ecode : NativeInt ; const prefix : string='' ; const postfix : string =''):boolean;forward;
 procedure APSC_WriteCommpacket     (const cmd : TAPSC_CMD ; data:ShortString ; const fd : cint);forward;
@@ -211,6 +211,7 @@ type
     FNewTimerCB        : TOnNew_APSC_Timer;
     procedure   TimerCallback(const what : cshort);
     procedure   ThreadCheck;
+    procedure   InternalFireTimer(const flag1,flag2:boolean);
    public
     constructor Create          (man : TFRE_APSC_CHANNEL_MANAGER ; const base :PEvent_base ; const interval : NativeUint);
     constructor CreateGlobal    (const id : ShortString ; const interval : NativeUint ; const timernewcb : TOnNew_APSC_Timer ; const timercb: TFRE_APSC_TIMER_CALLBACK);
@@ -224,7 +225,7 @@ type
     function    TIM_GetID       : string;
     procedure   TIM_SetMethod   (const m : TMethod);
     function    TIM_GetMethod   :TMethod;
-    procedure   TIM_Trigger     (const flag1:boolean=false ; const flag2:boolean=false); // Must be called in same MANAGER CONTEXT (THREAD)
+    procedure   TIM_Trigger     (const flag1:boolean=false ; const flag2:boolean=false); // Must be called in same MANAGER CONTEXT (THREAD) or on GLOBAL TIMER !!
     procedure   Finalize        ; // only in SYNC !!!
     destructor  Destroy        ; override;
   end;
@@ -267,6 +268,7 @@ type
     FConnectHost      : String; // do it via DNS or unix socket
     FConnectPort      : Cardinal;
     FConnectFam       : cInt;
+    FDataTag          : PtrUInt;
 
     FonRead       : TFRE_APSC_CHANNEL_EVENT;
     FOnDisco      : TFRE_APSC_CHANNEL_EVENT;
@@ -306,13 +308,13 @@ type
     procedure   SetOnReadData     (on_read  : TFRE_APSC_CHANNEL_EVENT);
     procedure   SetOnDisconnnect  (on_disco : TFRE_APSC_CHANNEL_EVENT);
 
-    function    GetVerboseDesc    : String;
-    procedure   SetVerboseDesc    (const desc:string);
+    function    GetVerboseDesc      : String;
+    procedure   SetVerboseDesc      (const desc:string);
 
-    procedure   CH_WriteString    (const str : String);
-    procedure   CH_WriteBuffer    (const data : Pointer ; const len : NativeInt);
+    procedure   CH_WriteString      (const str : String);
+    procedure   CH_WriteBuffer      (const data : Pointer ; const len : NativeInt);
     procedure   CH_SAFE_WriteBuffer (const data : Pointer ; const len : NativeInt); // data gets copied ...
-    procedure   CH_WriteOpenedFile(const fd : cInt ; const offset,len : NativeInt);
+    procedure   CH_WriteOpenedFile  (const fd : cInt ; const offset,len : NativeInt);
     procedure   CH_Enable_Reading ;
     procedure   CH_Enable_Writing ;
     function    CH_GetDataCount   : NativeInt;
@@ -323,7 +325,8 @@ type
     function    CH_IsClientChannel: Boolean;
     function    CH_GetState       : TAPSC_ChannelState;
     function    CH_GetID          : ShortString;
-
+    procedure   CH_AssociateData    (const data : PtrUInt);
+    function    CH_GetAssociateData : PtrUInt;
 
     constructor Create  (manager : TFRE_APSC_CHANNEL_MANAGER ; listener : TFRE_APSC_LISTENER);
     destructor  Destroy;override;
@@ -374,6 +377,7 @@ type
     procedure _StopListener          (const listener : TFRE_APSC_Listener);
     procedure _FinalizeMain          ;
     procedure _FinalizeListener      (const listener : TFRE_APSC_Listener);
+    procedure _FireGlobalTimer       (const timer    : TFRE_APSC_Timer ; const flag1,flag2:boolean);
   protected
 
     procedure   TEST_ListenerCB         (const listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
@@ -674,6 +678,17 @@ begin
     GFRE_BT.CriticalAbort('timer [%s] thread context violation [%s] vs [%s] ',[FId,inttostr(NativeUint(GetThreadID)),inttostr(NativeUint(FCreateThreadID))]);
 end;
 
+procedure TFRE_APSC_TIMER.InternalFireTimer(const flag1, flag2: boolean);
+var what : cshort;
+begin
+  ThreadCheck;
+  if flag1 then
+    what := what or EV_READ;
+  if flag2 then
+    what := what or EV_WRITE;
+  event_active(FEvent,what,1);
+end;
+
 constructor TFRE_APSC_TIMER.Create(man: TFRE_APSC_CHANNEL_MANAGER; const base: PEvent_base; const interval: NativeUint);
 begin
   FManager := man;
@@ -756,14 +771,11 @@ begin
 end;
 
 procedure TFRE_APSC_TIMER.TIM_Trigger(const flag1: boolean; const flag2: boolean);
-var what : cshort;
 begin
-  ThreadCheck;
-  if flag1 then
-    what := what or EV_READ;
-  if flag2 then
-    what := what or EV_WRITE;
-  event_active(FEvent,what,1);
+  if FGlobal then
+    GAPSC._FireGlobalTimer(self,flag1,flag2)
+  else
+    InternalFireTimer(flag1,flag2);
 end;
 
 destructor TFRE_APSC_TIMER.Destroy;
@@ -1228,8 +1240,18 @@ begin
   result := FId;
 end;
 
+procedure TFRE_APSC_CHANNEL.CH_AssociateData(const data: PtrUInt);
+begin
+  FDataTag := data;
+end;
 
-constructor TFRE_APSC_CHANNEL.Create(manager: TFRE_APSC_CHANNEL_MANAGER; listener: TFRE_APSC_LISTENER);
+function TFRE_APSC_CHANNEL.CH_GetAssociateData: PtrUInt;
+begin
+  result := FDataTag;
+end;
+
+
+constructor TFRE_APSC_CHANNEL.Create(manager: TFRE_APSC_CHANNEL_MANAGER ; listener: TFRE_APSC_LISTENER);
 begin
   FState    := ch_BAD;
   FManager  := manager;
@@ -1857,6 +1879,7 @@ begin
     cb_FINALIZE_LISTENER : _FinalizeListener(TFRE_APSC_Listener(PPtrUInt(@data^[1])^));
     cb_ADD_GLOBAL_TIMER  : _AddTimer(TFRE_APSC_TIMER(PPtrUInt(@data^[1])^));
     cb_FINALIZE_MAIN     : _InSync_FinalizeMain;
+    cb_FIRE_GLOBAL_TIMER : TFRE_APSC_TIMER(PPtrUInt(@data^[3])^).InternalFireTimer(PChar(@data^[1])^='T',Pchar(@data^[2])^='T');
     else
       GFRE_BT.CriticalAbort('unknown listener control command byte ' + inttostr(ord(cmd)));
   end;
@@ -2066,6 +2089,22 @@ begin
   APSC_WriteCommpacket(cb_FINALIZE_LISTENER,pack,FMainThread.FCB.SourceFD);
 end;
 
+procedure TFRE_APS_COMM._FireGlobalTimer(const timer: TFRE_APSC_Timer; const flag1, flag2: boolean);
+var pack:ShortString;
+begin
+  SetLength(pack,sizeof(NativeUint)+2);
+  if flag1 then
+    pack[1] := 'T'
+  else
+    pack[1] := 'F';
+  if flag2 then
+    pack[2] := 'T'
+  else
+    pack[2] := 'F';
+  PPtrUInt(@pack[3])^ := PtrUint(timer);
+  APSC_WriteCommpacket(cb_FIRE_GLOBAL_TIMER,pack,FMainThread.FCB.SourceFD);
+end;
+
 procedure TFRE_APS_COMM.TEST_ListenerCB(const listener: IFRE_APSC_LISTENER; const state: TAPSC_ListenerState);
 var err :string;
 begin
@@ -2256,6 +2295,7 @@ begin
   SetLength(pack,sizeof(NativeUint));
   PPtrUInt(@pack[1])^ := PtrUint(tim);
   APSC_WriteCommpacket(cb_ADD_GLOBAL_TIMER,pack,FMainThread.FCB.SourceFD);
+  result := tim;
 end;
 
 

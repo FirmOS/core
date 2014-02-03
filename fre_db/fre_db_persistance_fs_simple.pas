@@ -79,6 +79,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FLastError            : TFRE_DB_String;
      FLastErrorCode        : TFRE_DB_Errortype;
      FChangeNotificationIF : IFRE_DB_DBChangedNotification;
+     FChangeNotificationProxy : TFRE_DB_DBChangedNotificationProxy;
 
      procedure    _ConnectCheck             ;
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
@@ -129,7 +130,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
      { Transactional Operations / These operations report the last transaction step id generated, there may be more then one generated }
 
-     function    NewCollection       (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+     function    NewCollection       (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+
      function    DeleteCollection    (const coll_name : TFRE_DB_NameType) : TFRE_DB_TransStepId; // todo transaction context
 
      function    StoreOrUpdateObject (const   iobj:IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
@@ -144,7 +146,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   SyncWriteWAL        (const WALMem : TMemoryStream);
      procedure   SyncSnapshot        (const final : boolean=false);
      function    GetLastError        : TFRE_DB_String;
-     procedure   SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification);
+     procedure   SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
      function    GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
    end;
 
@@ -402,7 +404,7 @@ begin
   GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>LOAD COLLECTION [%s]',[name]);
   f :=  TFileStream.Create(FCollectionsDir+file_name,fmOpenRead);
   try
-    res := FMaster.MasterColls.NewCollection(name,coll,false,self);
+    res := FMaster.MasterColls.NewCollection(name,'*',coll,false,self);
     if res <> edb_OK then
       raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
     coll.GetPersLayerIntf.LoadFromThis(f);
@@ -524,7 +526,7 @@ begin
   result := FConnectedDB;
 end;
 
-function TFRE_DB_PS_FILE.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+function TFRE_DB_PS_FILE.NewCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
 var coll                : TFRE_DB_Persistance_Collection;
     ImplicitTransaction : Boolean;
     CleanApply          : Boolean;
@@ -540,7 +542,7 @@ begin
           FTransaction        := TFRE_DB_TransactionalUpdateList.Create('C',Fmaster,FChangeNotificationIF);
           ImplicitTransaction := True;
         end;
-      step := TFRE_DB_NewCollectionStep.Create(self,coll_name,volatile_in_memory);
+      step := TFRE_DB_NewCollectionStep.Create(self,coll_name,CollectionClassname,volatile_in_memory);
       FTransaction.AddChangeStep(step);
       if ImplicitTransaction then
         FTransaction.Commit(self);
@@ -1174,9 +1176,15 @@ begin
   result := FLastError;
 end;
 
-procedure TFRE_DB_PS_FILE.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_PS_FILE.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification; const create_proxy: boolean);
 begin
-  FChangeNotificationIF := change_if;
+  if create_proxy then
+    begin
+      FChangeNotificationProxy := TFRE_DB_DBChangedNotificationProxy.Create(change_if);
+      FChangeNotificationIF    := FChangeNotificationProxy;
+    end
+  else
+    FChangeNotificationIF := change_if;
 end;
 
 function TFRE_DB_PS_FILE.GetNotificationStreamCallback: IFRE_DB_DBChangedNotification;
@@ -1199,7 +1207,7 @@ begin
       SetLength(FConnectedLayers,Length(FConnectedLayers)+1);
       FConnectedLayers[high(FConnectedLayers)] := TFRE_DB_PS_FILE.InternalCreate(FBasedirectory,up_dbname,result);
       db_layer := FConnectedLayers[high(FConnectedLayers)];
-      db_layer.SetNotificationStreamCallback(GetNotificationStreamCallback);
+      db_layer.SetNotificationStreamCallback(GetNotificationStreamCallback,false);
     end
   else
     begin
@@ -1237,7 +1245,10 @@ end;
 
 function TFRE_DB_PS_FILE.CreateDatabase(const dbname: TFRE_DB_String): TFRE_DB_Errortype;
 begin
-  if dbname = '' then exit(edb_NOT_FOUND);
+  if dbname = '' then
+    exit(edb_NOT_FOUND);
+  if UpperCase(dbname)='GLOBAL' then
+    exit(edb_RESERVED);
   _SetupDirs(dbname);
   if DirectoryExists(FLocalConnDir)   then exit(edb_EXISTS);
   if not ForceDirectories(FLocalConnDir) then exit(edb_ERROR);
@@ -1251,7 +1262,10 @@ end;
 function TFRE_DB_PS_FILE.DeleteDatabase(const dbname: TFRE_DB_String): TFRE_DB_Errortype;
 var dir:TFRE_DB_String;
 begin
-  if dbname='' then exit(edb_NOT_FOUND);
+  if dbname='' then
+    exit(edb_NOT_FOUND);
+  if UpperCase(dbname)='GLOBAL' then
+    exit(edb_RESERVED);
   dir := SetDirSeparators(FBasedirectory+'/'+EscapeDBName(dbname));
   if not DirectoryExists(dir) then exit(edb_NOT_FOUND);
   if GFRE_BT.Delete_Directory(dir) then begin

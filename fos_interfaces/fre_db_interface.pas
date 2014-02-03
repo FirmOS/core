@@ -79,7 +79,7 @@ type
   PFRE_DB_String              = ^TFRE_DB_String;
   TFRE_DB_RawByteString       = RawByteString;
 
-  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_PERSITANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE);
+  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_PERSITANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
@@ -113,7 +113,7 @@ const
   CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','FIELDMISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
-  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE');
+  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM');
   CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');
   CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','ICO','BOO');
   CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
@@ -269,6 +269,7 @@ type
   IFRE_DB_Field  = interface(IFRE_DB_BASE)
   //private // ? - only for info, as interfaces dont support private methods
     {utility functions}
+    function  CloneToNewStreamable  : IFRE_DB_Field; { This creates a lightweight "streamable field" copy with only certain supported function (fieldvalues,type, but no parentobject etc support }
     function  RemoveObjectLinkByUID(const to_remove_uid : TFRE_DB_GUID):boolean;
     function  GetAsGUID          : TGuid;
     function  GetAsByte          : Byte;
@@ -500,6 +501,7 @@ type
     procedure IntfCast                      (const InterfaceSpec:ShortString ; out Intf) ; // Interpret as Object and then -> IntfCast throws an Exception if not succesful
     function  AsDBText                      :IFRE_DB_TEXT;
     function  IsEmptyArray                  : boolean;
+    function  ParentObject                  : IFRE_DB_Object;
   end;
 
 
@@ -1201,7 +1203,7 @@ type
     function  GetLastError                  : TFRE_DB_String;
     function  ExistCollection               (const coll_name : TFRE_DB_NameType) : Boolean;
     function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
-    function  NewCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+    function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
     function  DeleteCollection              (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
 
     function  Connect                       (const db_name:TFRE_DB_String ; out database_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
@@ -1225,18 +1227,25 @@ type
     function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
     procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
     procedure SyncSnapshot                  (const final : boolean=false);
-    procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification);
+    procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
     function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
   end;
 
   IFRE_DB_DBChangedNotification = interface
-    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ; const volatile : Boolean) ;
+    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ;
     procedure  CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ;
-    procedure  ObjectStored           (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
-    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  ObjectStored           (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
+    procedure  SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
+    procedure  ObjectDeleted          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object);
+    procedure  SubObjectDeleted       (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object);
+    procedure  FieldDelete            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field : IFRE_DB_Field);
+    procedure  FieldAdd               (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const new_field : IFRE_DB_Field);
+    procedure  FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field);
+    procedure  ObjectRemoved          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
+    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID     ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID     ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL);
   end;
 
   TFRE_DB_APPLICATION       = Class;
@@ -1630,9 +1639,9 @@ type
   private
     FWeakClassname : ShortString;
   public
-    constructor Create(const weakclname : Shortstring);
-    function SchemeClass: TFRE_DB_NameType; override;
-    procedure      FreeFromBackingDBO     ; override;
+    constructor    Create(const weakclname : Shortstring);
+    function       CloneInstance : TFRE_DB_WeakObjectEx;
+    function       SchemeClass: TFRE_DB_NameType; override;
   end;
 
   { TFRE_DB_NOTE }
@@ -2388,8 +2397,8 @@ type
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
 
-  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const append_detail_errorcode : boolean = true ; const tolerate_no_change : boolean=true);
-  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const ; const append_detail_errorcode : boolean = true ; const tolerate_no_change : boolean=true);
+  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const append_detail_errorcode : boolean = true ; const tolerate_no_change : boolean=true ; const layer:IFRE_DB_PERSISTANCE_LAYER=nil);
+  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const ; const append_detail_errorcode : boolean = true ; const tolerate_no_change : boolean=true ; const layer:IFRE_DB_PERSISTANCE_LAYER=nil);
   function  RB_Guid_Compare                      (const d1, d2: TGuid): NativeInt; inline;
 
   procedure FREDB_LoadMimetypes                  (const filename:string);
@@ -2452,6 +2461,8 @@ type
   function  FREDB_Get_Rightname_UID              (const rightprefix: string; const id: TGUID): string;
   function  FREDB_Get_Rightname_UID_STR          (const rightprefix: string; const id_str: String): string;
   procedure FREDB_SplitLocalatDomain             (const localatdomain: TFRE_DB_String; var localpart, domainpart: TFRE_DB_String);
+  function  FREDB_GetDboAsBufferLen              (const dbo: IFRE_DB_Object; var mem: Pointer): UInt32;
+
 
 
   // This function should replace all character which should not a ppear in an ECMA Script (JS) string type to an escaped version,
@@ -2939,12 +2950,12 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'invalid short fieldtype specifier : ['+fts+']');
 end;
 
-procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_detail_errorcode : boolean ; const tolerate_no_change : boolean);
+procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_detail_errorcode : boolean ; const tolerate_no_change : boolean; const layer:IFRE_DB_PERSISTANCE_LAYER);
 begin
-  CheckDbResultFmt(res,error_string,[],append_detail_errorcode,tolerate_no_change);
+  CheckDbResultFmt(res,error_string,[],append_detail_errorcode,tolerate_no_change,layer);
 end;
 
-procedure CheckDbResultFmt(const res: TFRE_DB_Errortype; const error_string: TFRE_DB_String; const params: array of const; const append_detail_errorcode: boolean; const tolerate_no_change: boolean);
+procedure CheckDbResultFmt(const res: TFRE_DB_Errortype; const error_string: TFRE_DB_String; const params: array of const; const append_detail_errorcode: boolean; const tolerate_no_change: boolean; const layer:IFRE_DB_PERSISTANCE_LAYER);
 var str : string;
 begin
  if (res=edb_OK) or
@@ -2952,7 +2963,13 @@ begin
       exit;
  str := Format(error_string,params);
  if append_detail_errorcode then
-   str:=str+LineEnding+GFRE_DBI.GetLastPLayerError;
+   if not assigned(layer) then
+     begin
+      if assigned(GFRE_DBI) then
+        str:=str+LineEnding+GFRE_DBI.GetLastPLayerError;
+     end
+   else
+     str:=str+LineEnding+layer.GetLastError;
  raise EFRE_DB_Exception.Create(res,str);
 end;
 
@@ -2977,16 +2994,16 @@ begin
   FWeakClassname := weakclname;
 end;
 
+function TFRE_DB_WeakObjectEx.CloneInstance: TFRE_DB_WeakObjectEx;
+begin
+  result := TFRE_DB_WeakObjectEx.Create(FWeakClassname);
+end;
+
 function TFRE_DB_WeakObjectEx.SchemeClass: TFRE_DB_NameType;
 begin
   Result := FWeakClassname;
 end;
 
-procedure TFRE_DB_WeakObjectEx.FreeFromBackingDBO;
-begin
-  // don't free, is used by multiple raw dbos
-  //writeln('TODO : - CLEANUP WEAK SCHEMES LEAK : ',SchemeClass);
-end;
 
 { TFRE_DB_OPEN_NEW_LOCATION_DESC }
 
@@ -6883,6 +6900,17 @@ begin
  if Pos('@',localatdomain)=0 then raise EFRE_DB_Exception.Create('No @ in the full domain name '+localatdomain);
  localpart  := GFRE_BT.SepLeft(localatdomain,'@');
  domainpart := GFRE_BT.SepRight(localatdomain,'@');
+end;
+
+function FREDB_GetDboAsBufferLen(const dbo: IFRE_DB_Object; var mem: Pointer): UInt32;
+var len : UInt32;
+    ns  : UInt32;
+begin
+  ns := dbo.NeededSize;
+  Getmem(mem,ns+4);
+  dbo.CopyToMemory(mem+4);
+  PCardinal(mem)^:=ns;
+  result := ns+4;
 end;
 
 function FREDB_String2EscapedJSString(const input_string: TFRE_DB_String; const replace_cr_with_br: boolean): TFRE_DB_String;
