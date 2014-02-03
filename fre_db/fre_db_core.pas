@@ -1515,8 +1515,13 @@ type
     FDepObjectList     : TFRE_DB_GUIDArray; // Must be extended to an array of ... (FDependencyRef ..)
     FUseDepAsLinkFilt  : Boolean;
     FUseDepFiltInvert  : Boolean;
-    FChildParentMode   : Boolean;
-    FParentChldLinkFld : TFRE_DB_NameType;
+
+    FParentChldLinkFldSpec : TFRE_DB_NameType;
+
+    FParentChildScheme : TFRE_DB_NameType;
+    FParentChildField  : TFRE_DB_NameType;
+    FParentLinksChild  : Boolean ;
+
     FObserverAdded     : Boolean;
 
     FExpandedRefs      : TFRE_DB_ObjectArray;
@@ -1668,7 +1673,6 @@ type
     procedure  SetDisplayType             (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';
                                            const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil); //TODO: Make Callable Once
     procedure  SetDisplayTypeChart        (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean;const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
-    procedure  SetChildToParentLinkField  (const fieldname : TFRE_DB_NameType);
     procedure  SetParentToChildLinkField  (const fieldname : TFRE_DB_NameType);
 
     function   GetDisplayDescription   : TFRE_DB_CONTENT_DESC;
@@ -5938,7 +5942,7 @@ begin
     if (cdgf_Children in FGridDisplayFlags)
       and (not child_call) then
         begin
-          if item.FieldOnlyExisting(FParentChldLinkFld,fld) then
+          if item.FieldOnlyExisting(FParentChildField,fld) then
             begin
               if fld.ValueCount>0 then
                 exit;
@@ -5962,9 +5966,9 @@ begin
       if add then begin
         if cdgf_Children in FGridDisplayFlags then
           begin
-            if FChildParentMode then
+            if FParentChildField<>'' then
               begin
-                if (FConnection.GetReferencesCount(iob.UID,false,FParentChldLinkFld,'')>0) then
+                if (FConnection.GetReferencesCount(iob.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
                   begin
                     tr_obj.Field('children').AsString        := 'UNCHECKED';
                   end;
@@ -7162,23 +7166,39 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetChildToParentLinkField(const fieldname: TFRE_DB_NameType);
-begin
-  AcquireBigColl;
-  try
-    FChildParentMode   := true;
-    FParentChldLinkFld := uppercase(fieldname);
-  finally
-    ReleaseBigColl;
-  end;
-end;
+{
+  Outbound Reflinks are stored FIELD>TARGETSCHEME
+  Inbound Reflinks are stored  FROMSCHEME<FIELD
+}
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameType);
+var fpos,tpos : NativeInt;
 begin
   AcquireBigColl;
   try
-    FChildParentMode   := false;
-    FParentChldLinkFld := uppercase(fieldname);
+    FParentChldLinkFldSpec := uppercase(fieldname);
+    fpos := pos('>',fieldname);
+    tpos := pos('<',fieldname);
+    if (fpos=0) and
+       (tpos=0) then
+         raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly one "<" or ">" ');
+    if (fpos>0) and
+       (tpos>0) then
+         raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly "<" or ">"');
+    if fpos>0 then
+      FParentLinksChild := true;
+    if FParentLinksChild then
+      begin
+        FParentChildField  := Copy(fieldname,1,fpos-1);
+        FParentChildScheme := Copy(fieldname,fpos+1,maxint);
+      end
+    else
+      begin
+        FParentChildScheme := Copy(fieldname,1,tpos-1);
+        FParentChildField  := Copy(fieldname,tpos+1,maxint);
+      end;
+    if FParentChildField='' then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
   finally
     ReleaseBigColl;
   end;
@@ -7372,8 +7392,7 @@ begin
             FParentIds[0] := FParentIds[high(FParentIds)];
             SetLength(FParentIds,1);
           end;
-        abort;
-        //FConnection.UpcastDBC.ExpandReferences(FParentIds,not FChildParentMode,TFRE_DB_StringArray.create(FParentChldLinkFld),FExpandedRefs);
+        FConnection.UpcastDBC.ExpandReferences(FParentIds,TFRE_DB_NameTypeRLArray.create(FParentChldLinkFldSpec),FExpandedRefs);
       end
     else
       SetLength(FParentIds,0);
@@ -10450,7 +10469,7 @@ begin //nl
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'FAILED TO FETCH EXPANDED REFERENCED;CHAINED OBJECT');
 end;
 
-procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ; var expanded_refs: TFRE_DB_GUIDArray);
+procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints: TFRE_DB_NameTypeRLArray; var expanded_refs: TFRE_DB_GUIDArray);
 var i        : NativeInt;
     obj      : TFRE_DB_Object;
     comparef : TFRE_DB_NameType;
