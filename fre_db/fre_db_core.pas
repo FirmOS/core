@@ -8086,7 +8086,12 @@ begin
     if simple_df<>'' then begin
       result := obj.FieldPathListFormat(TFRE_DB_NameTypeArray.Create(simple_df),'%s','{}');
     end else begin
-      result := DefinedSchemeName+' : '+obj.UID_String;
+      if obj.FieldExists('_simpleformat') then
+        begin
+          result:=obj.field('_simpleformat').AsString;
+        end
+      else
+        result := DefinedSchemeName+' : '+obj.UID_String;
     end;
 end;
 
