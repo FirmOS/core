@@ -268,6 +268,8 @@ type
 
   IFRE_DB_Field  = interface(IFRE_DB_BASE)
   //private // ? - only for info, as interfaces dont support private methods
+    {utility functions}
+    function  RemoveObjectLinkByUID(const to_remove_uid : TFRE_DB_GUID):boolean;
     function  GetAsGUID          : TGuid;
     function  GetAsByte          : Byte;
     function  GetAsInt16         : Smallint;
@@ -2433,7 +2435,7 @@ type
   function  FREDB_PrefixStringInArray               (const pfx:string;const arr:TFRE_DB_StringArray):boolean;
   procedure FREDB_ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
   procedure FREDB_ConcatGuidArrays                  (var TargetArr:TFRE_DB_GuidArray;const add_array:TFRE_DB_GuidArray);
-  function  FREDB_GuidInArray                       (const check:TGuid;const arr:TFRE_DB_GUIDArray):boolean;
+  function  FREDB_GuidInArray                       (const check:TGuid;const arr:TFRE_DB_GUIDArray):NativeInt;
   function  FREDB_FindNthGuidIdx                    (n:integer;const guid:TGuid;const arr:TFRE_DB_GUIDArray):integer;inline;
   function  FREDB_CheckAllStringFieldsEmptyInObject (const obj:IFRE_DB_Object):boolean;
 
@@ -2862,7 +2864,7 @@ begin
    high_add_array := high(add_array);
    cnt := 0;
    for i:= 0 to high_add_array do
-     if not FREDB_GuidInArray(add_array[i],TargetArr) then
+     if FREDB_GuidInArray(add_array[i],TargetArr)=-1 then
        begin
          TargetArr[len_target+cnt] := add_array[i];
          inc(cnt);
@@ -2870,13 +2872,13 @@ begin
    SetLength(TargetArr,len_target+cnt);
 end;
 
-function FREDB_GuidInArray(const check: TGuid; const arr: TFRE_DB_GUIDArray): boolean;
-var  i: Integer;
+function FREDB_GuidInArray(const check: TGuid; const arr: TFRE_DB_GUIDArray): NativeInt;
+var  i: NativeInt;
 begin
-  result := false;
+  result := -1;
   for i:=0 to High(arr) do
     if FREDB_Guids_Same(check,arr[i]) then
-      exit(true);
+      exit(i);
 end;
 
 function FREDB_FindNthGuidIdx(n: integer; const guid: TGuid; const arr: TFRE_DB_GUIDArray): integer;

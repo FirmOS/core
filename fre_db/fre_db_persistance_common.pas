@@ -1334,9 +1334,13 @@ var i,j         : NativeInt;
                 end;
               fdbft_ObjLink:
                 begin
-                  writeln('MASTERSTORE ABORT 2');
-                  abort;
-          //        master._RemoveRefLinkFieldDelRefs(inmemobject,newfield,check);
+                  if check then
+                     // new links are nil
+                  else
+                    begin
+                      master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(oldfield.FieldName),oldfield.AsObjectLinkArray,nil);
+                      inmemobject.Field(oldfield.FieldName).Clear;
+                    end;
                 end;
               else begin
                 if not check then
@@ -1467,10 +1471,7 @@ begin
           case updtyp of
             cev_FieldDeleted:
               begin
-                if in_child_obj then
-                  inmemobject := to_upd_obj
-                else
-                  inmemobject := oldfield.ParentObject;
+                inmemobject := up_obj;
                _DeletedField;
              end;
             cev_FieldAdded:
@@ -2324,7 +2325,7 @@ begin
 
   idx := 0;
   for i:=0 to high(old_links) do
-    if not FREDB_GuidInArray(old_links[i],new_links) then
+    if FREDB_GuidInArray(old_links[i],new_links)=-1 then
       begin
         removed_list[idx] := old_links[i];
         inc(idx);
@@ -2333,7 +2334,7 @@ begin
 
   idx := 0;
   for i:=0 to high(new_links) do
-    if not FREDB_GuidInArray(new_links[i],old_links) then
+    if FREDB_GuidInArray(new_links[i],old_links)=-1 then
       begin
         inserted_list[idx] := new_links[i];
         inc(idx);

@@ -924,7 +924,7 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
 
     case update_type of
       cev_FieldDeleted:
-          updatestep.addsubstep(cev_FieldDeleted,nil,old_fld,is_child_update,nil);
+          updatestep.addsubstep(cev_FieldDeleted,nil,old_fld,is_child_update,up_obj.Implementor as TFRE_DB_Object);
       cev_FieldAdded:
           updatestep.addsubstep(cev_FieldAdded,new_fld,nil,is_child_update,up_obj.Implementor as TFRE_DB_Object);
       cev_FieldChanged :

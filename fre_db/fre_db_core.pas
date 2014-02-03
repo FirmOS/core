@@ -403,6 +403,8 @@ type
     procedure RemoveStream                  (const idx   : integer);
     procedure RemoveObject                  (const idx   : integer);
     procedure RemoveObjectLink              (const idx   : integer);
+    function  RemoveObjectLinkByUID         (const to_remove_uid : TFRE_DB_GUID):boolean;
+
 
     procedure SetAsEmptyStringArray         ;
     function  IsEmptyArray                  : boolean;
@@ -10096,16 +10098,16 @@ function TFRE_DB_BASE_CONNECTION.Delete(const ouid: TGUID): TFRE_DB_Errortype;
 var dbo     : TFRE_DB_Object;
     ncolls  : TFRE_DB_StringArray;
 
-  procedure CollIterator(const coll:TFRE_DB_COLLECTION);
-  begin
-    if coll.Remove(ouid) then begin
-      try
-        coll._NotifyObserversOrRecord(fdbntf_DELETE,nil,ouid);
-      except on e:Exception do begin
-        GFRE_DB.LogError(dblc_DB,'COULD NOT FIRE DELETE OBSERVER COLL [%s] UID[%s] ERR[%s] ',[coll.ClassName,GFRE_BT.GUID_2_HexString(ouid),e.Message]);
-      end;end;
-    end;
-  end;
+  //procedure CollIterator(const coll:TFRE_DB_COLLECTION);
+  //begin
+  //  if coll.Remove(ouid) then begin
+  //    try
+  //      coll._NotifyObserversOrRecord(fdbntf_DELETE,nil,ouid);
+  //    except on e:Exception do begin
+  //      GFRE_DB.LogError(dblc_DB,'COULD NOT FIRE DELETE OBSERVER COLL [%s] UID[%s] ERR[%s] ',[coll.ClassName,GFRE_BT.GUID_2_HexString(ouid),e.Message]);
+  //    end;end;
+  //  end;
+  //end;
 
 begin
   AcquireBig;
@@ -10114,7 +10116,7 @@ begin
     try
       FPersistance_Layer.DeleteObject(ouid,'');
       result:=edb_OK;
-      //_NotifyCollectionObservers(fdbntf_DELETE,nil,ouid,ncolls);
+      _NotifyCollectionObservers(fdbntf_DELETE,nil,ouid,ncolls);
     except on
       E:EFRE_DB_Exception do
         begin
@@ -10488,7 +10490,7 @@ var i        : NativeInt;
       begin
         if Length(expanded_refs) = count then
           SetLength(expanded_refs,Length(expanded_refs)+256);
-        if not FREDB_GuidInArray(uid,expanded_refs) then
+        if FREDB_GuidInArray(uid,expanded_refs)=-1 then
           begin
             expanded_refs[count] := uid;
             inc(count);
@@ -12003,7 +12005,7 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
           else
             to_up_o := second_obj;
           case compare_event of
-            cev_FieldDeleted:  UpdateCB(childup,to_up_o,cev_FieldDeleted,new_fld,nil);
+            cev_FieldDeleted:  UpdateCB(childup,to_up_o,cev_FieldDeleted,nil,old_field);
             cev_FieldAdded:    UpdateCB(childup,to_up_o,cev_FieldAdded,new_fld,Nil);
             cev_FieldChanged : UpdateCB(childup,to_up_o,cev_FieldChanged,new_fld,old_field);
           end;
@@ -16676,6 +16678,17 @@ begin
    end;
   end;
   AsObjectLinkArray:=a;
+end;
+
+function TFRE_DB_FIELD.RemoveObjectLinkByUID(const to_remove_uid: TFRE_DB_GUID): boolean;
+var idx : NativeInt;
+begin
+  if FieldType<>fdbft_ObjLink then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'must be a objectlinkfield for RemoveObjectLinkByUId');
+ idx := FREDB_GuidInArray(to_remove_uid,AsObjectLinkArray);
+ if idx=-1 then
+   exit(false);
+ RemoveObjectLink(idx);
 end;
 
 procedure TFRE_DB_FIELD.StripObject;
