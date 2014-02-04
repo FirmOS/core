@@ -2030,11 +2030,20 @@ implementation
                                val := '';
                            end
                          else
-                           val:=objField.AsString; { Fallback }
+                           { Fallback }
+                           if fielddef.FieldType = fdbft_ObjLink then begin
+                             val:=FREDB_G2H(objField.AsObjectLink);
+                           end else begin
+                             val:=objField.AsString;
+                           end;
                        end
                   else
                     begin
-                      val:=objField.AsString;
+                      if objField.FieldType = fdbft_ObjLink then begin
+                        val:=FREDB_G2H(objField.AsObjectLink);
+                      end else begin
+                        val:=objField.AsString;
+                      end;
                     end
                 end;
             end;
