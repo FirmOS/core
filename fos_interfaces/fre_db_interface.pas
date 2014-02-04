@@ -1138,6 +1138,7 @@ type
   IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER=interface
     procedure     StoreInThisColl     (const new_obj         : IFRE_DB_Object ; const checkphase : boolean);
     procedure     UpdateInThisColl    (const new_fld,old_fld : IFRE_DB_FIELD  ; const old_obj,new_obj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const in_child_obj : boolean ; const checkphase : boolean);
+    function      DefineIndexOnFieldReal (const checkonly : boolean;const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
 
     procedure     DeleteFromThisColl  (const del_obj         : IFRE_DB_Object ; const checkphase : boolean);
     procedure     StreamToThis        (const stream          : TStream);
@@ -1176,6 +1177,7 @@ type
     function        Last                       : IFRE_DB_Object;
     function        GetItem                    (const num:uint64) : IFRE_DB_Object;
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
+    function        IndexExists                (const idx_name : TFRE_DB_NameType):NativeInt;
     // Fetches Snapshot copies of the objects, you need to finalize them
     function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean;
@@ -1197,7 +1199,12 @@ type
    IFRE_DB_DBChangedNotification = interface;
 
   IFRE_DB_PERSISTANCE_LAYER=interface
-    procedure DEBUG_DisconnectLayer (const db:TFRE_DB_String;const clean_master_data :boolean = false);
+    procedure  DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
+
+    procedure  WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+    procedure  WT_StoreObjectPersistent      (const obj:IFRE_DB_Object);
+    procedure  WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+    procedure  WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
     function  GetConnectedDB                : TFRE_DB_NameType;
     function  GetLastError                  : TFRE_DB_String;
@@ -1223,8 +1230,10 @@ type
 
     function  ObjectExists                  (const obj_uid : TGUID) : boolean;
     function  DeleteObject                  (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
-    function  Fetch                         (const ouid   :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false): boolean;
-    function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
+    function  Fetch                         (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false): boolean;
+    function  StoreOrUpdateObject           (const obj     : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
+    function  DefineIndexOnField            (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
+
     procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
     procedure SyncSnapshot                  (const final : boolean=false);
     procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
@@ -1234,6 +1243,8 @@ type
   IFRE_DB_DBChangedNotification = interface
     procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ;
     procedure  CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ;
+    procedure  IndexDefinedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+    procedure  IndexDroppedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
     procedure  ObjectStored           (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
     procedure  SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
     procedure  ObjectDeleted          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object);
@@ -1329,7 +1340,7 @@ type
     function    Connect                     (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                  (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
-    function    AddUser                     (const loginatdomain,password,first_name,last_name:TFRE_DB_String):TFRE_DB_Errortype;
+    function    AddUser                     (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype;
     function    UserExists                  (const loginatdomain:TFRE_DB_String):boolean;
     function    DeleteUser                  (const loginatdomain:TFRE_DB_String):TFRE_DB_Errortype;
     function    DeleteUserById              (const user_id:TGUID):TFRE_DB_Errortype;
@@ -2080,11 +2091,13 @@ type
 
     procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
+    procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
+    procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
@@ -4105,7 +4118,6 @@ var x           : TObject;
           BINCHUNK (STREAM)
         }
     begin
-      writeln('BDK ',' ['+bdk+']');
       if FBinaryInputs.FieldExists(bdk) then
         raise EFRE_DB_Exception.Create(edb_ERROR,'chunking, array etc. not implemented');
       data := input.Field('data').AsObject;
@@ -4154,12 +4166,10 @@ var x           : TObject;
          input.Field('data').AsObject.Field(fn+cFRE_DB_STKEY).AsString:=bd.Field('typ').AsString;
          bd.Field('bin').Clear(true);
          FBinaryInputs.Field(bdk).Clear;
-         writeln('-----');
-         writeln(input.DumpToString());
-         writeln('-----HERE');
         end
      else
        begin
+         raise EFRE_DB_Exception.Create(edb_ERROR,'binary key replacement failed, not found bdk='+bdk);
          //FIXME: THIS MUST BE AN ERROR -> RAISE ignore for 0815 TEST
        end;
    end;

@@ -94,9 +94,15 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   _OpenWAL                   ;
      procedure   _CloseWAL                  ;
      procedure   _ClearWAL                  ;
-     procedure   _StoreCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+     procedure   _StoreCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const no_storelocking : boolean=false);
+     procedure   _StoreObjectPersistent     (const obj:TFRE_DB_Object ; const no_storelocking : boolean=false);
+
+     procedure   WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+     procedure   WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+     procedure   WT_StoreObjectPersistent      (const obj:IFRE_DB_Object);
+     procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
+
      procedure   _LoadCollectionPersistent  (const file_name : string);
-     procedure   _StoreObjectPersistent     (const obj:TFRE_DB_Object);
      procedure   _LoadObjectPersistent      (const UID: TGuid; var obj: TFRE_DB_Object);
      procedure   _SyncDBInternal            (const final:boolean=false);
 
@@ -131,10 +137,10 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      { Transactional Operations / These operations report the last transaction step id generated, there may be more then one generated }
 
      function    NewCollection       (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
-
      function    DeleteCollection    (const coll_name : TFRE_DB_NameType) : TFRE_DB_TransStepId; // todo transaction context
-
      function    StoreOrUpdateObject (const   iobj:IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
+     function    DefineIndexOnField  (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
+
 
      { Delete Operation :  collection_name = '' delete from all ->  collectionname<>'' only remove from collection }
      function    DeleteObject        (const obj_uid : TGUID    ;  const collection_name: TFRE_DB_NameType = '') : TFRE_DB_TransStepId;
@@ -378,7 +384,7 @@ begin
       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'WAL DELETE FAILED ['+FConnectedDB+']');
 end;
 
-procedure TFRE_DB_PS_FILE._StoreCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+procedure TFRE_DB_PS_FILE._StoreCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION; const no_storelocking: boolean);
 var f : TFileStream;
 begin
   if not coll.IsVolatile then
@@ -413,15 +419,18 @@ begin
   end;
 end;
 
-procedure TFRE_DB_PS_FILE._StoreObjectPersistent(const obj: TFRE_DB_Object);
+procedure TFRE_DB_PS_FILE._StoreObjectPersistent(const obj: TFRE_DB_Object; const no_storelocking: boolean);
 var  FileName : string[60];
      m        : TMemoryStream;
 
 begin
   if obj.IsObjectRoot then
     begin
-      obj.Assert_CheckStoreLocked;
-      obj.Set_Store_Locked(false);
+      if not no_storelocking then
+        begin
+          obj.Assert_CheckStoreLocked;
+          obj.Set_Store_Locked(false);
+        end;
       try
         //GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>STORE OBJECT : '+obj.UID_String);
         //writeln(' >> Syncing ',obj.UID_String,' ',obj.ClassName);
@@ -436,8 +445,47 @@ begin
         end;
         GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
       finally
-        obj.Set_Store_Locked(true);
+        if not no_storelocking then
+          begin
+            obj.Set_Store_Locked(true);
+          end;
       end;
+    end;
+end;
+
+procedure TFRE_DB_PS_FILE.WT_StoreCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+begin
+  _StoreCollectionPersistent(coll);
+end;
+
+procedure TFRE_DB_PS_FILE.WT_DeleteCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+begin
+  if not coll.IsVolatile then
+    begin
+      GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>DELETE COLLECTION [%s]',[coll.CollectionName]);
+      if not DeleteFile(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col') then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+coll.CollectionName());
+    end;
+end;
+
+procedure TFRE_DB_PS_FILE.WT_StoreObjectPersistent(const obj: IFRE_DB_Object);
+begin
+  _StoreObjectPersistent(obj.Implementor as TFRE_DB_Object,true);
+end;
+
+procedure TFRE_DB_PS_FILE.WT_DeleteObjectPersistent(const iobj: IFRE_DB_Object);
+var  FileName : string[60];
+     m        : TMemoryStream;
+     obj      : TFRE_DB_Object;
+
+begin
+  if iobj.IsObjectRoot then
+    begin
+      obj := iobj.Implementor as TFRE_DB_Object;
+      filename    := GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
+      if not DeleteFile(FMasterCollDir+FileName) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete file '+FMasterCollDir+FileName);
+      GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<FINAL DELETE  OBJECT : '+obj.UID_String+' DONE');
     end;
 end;
 
@@ -1027,6 +1075,61 @@ begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    if ImplicitTransaction then
+      begin
+        FTransaction.Free;
+        FTransaction := nil;
+        if CleanApply then
+          result := '';
+      end;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.DefineIndexOnField(const coll_name: TFRE_DB_NameType ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_TransStepId;
+var ImplicitTransaction : Boolean;
+    CleanApply          : Boolean;
+    ex_message          : string;
+    step                : TFRE_DB_DefineIndexOnFieldStep;
+
+begin
+  CleanApply := false;
+  try
+    try
+      if not assigned(FTransaction) then
+        begin
+          FTransaction        := TFRE_DB_TransactionalUpdateList.Create('DIOF',Fmaster,FChangeNotificationIF);
+          ImplicitTransaction := True;
+        end;
+      step := TFRE_DB_DefineIndexOnFieldStep.Create(self,coll_name,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
+      FTransaction.AddChangeStep(step);
+      if ImplicitTransaction then
+        FTransaction.Commit(self);
+      CleanApply := true;
+      result     := step.GetTransActionStepID;
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
           raise;
         end;
     end;

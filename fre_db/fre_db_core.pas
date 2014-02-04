@@ -1168,7 +1168,7 @@ type
     class procedure RegisterSystemScheme     (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainLoginKey        (const loginpart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
   published
-    class     function  IMC_NewUserOperation (const input:IFRE_DB_Object): IFRE_DB_Object;
+    class     function  WBC_NewUserOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function  WEB_SaveOperation              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   end;
 
@@ -1733,6 +1733,8 @@ type
     { Notification Interface }
     procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ; virtual;
     procedure  CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ; virtual;
+    procedure  IndexDefinedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);virtual;
+    procedure  IndexDroppedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);virtual;
     procedure  ObjectStored           (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
     procedure  SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
     procedure  ObjectDeleted          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object); virtual;
@@ -1852,7 +1854,7 @@ type
 
     function    _DomainIDasString           (const name :TFRE_DB_NameType):TFRE_DB_NameType;
 
-    function    _AddUser                    (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const system_start_up : boolean=false):TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
+    function    _AddUser                    (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const system_start_up : boolean=false;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
     function    _CheckLogin                 (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
     function    IFRE_DB_SYS_CONNECTION.CheckLogin                  = _CheckLogin;
@@ -1905,7 +1907,7 @@ type
 
     function    Connect                     (const loginatdomain:TFRE_DB_String='';const password:TFRE_DB_String='') : TFRE_DB_Errortype;
 
-    function    AddUser                     (const loginatdomain,password,first_name,last_name:TFRE_DB_String):TFRE_DB_Errortype;
+    function    AddUser                     (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype;
     function    UserExists                  (const loginatdomain:TFRE_DB_String):boolean;
     function    DeleteUser                  (const loginatdomain:TFRE_DB_String):TFRE_DB_Errortype;
     function    DeleteUserById              (const user_id:TGUID):TFRE_DB_Errortype;
@@ -2263,11 +2265,14 @@ type
     procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
+    procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
+    procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
+
 
     procedure   ClearGUID              (var uid:TGUID);
     function    Get_A_Guid             : TGUID;
@@ -2292,6 +2297,7 @@ var
   GDROP_WAL                : boolean;
   GDISABLE_WAL             : boolean;
   GDISABLE_SYNC            : boolean;
+  GDBPS_TRANS_WRITE_THROUGH : boolean;
 
   procedure GFRE_DB_Init_Check;
 
@@ -3985,9 +3991,9 @@ begin
   ForAllColls(@DumpAllCollections);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const image: TFRE_DB_Stream; const imagetype: String): TFRE_DB_Errortype;
 begin //nl
-  result := _AddUser(loginatdomain,password,first_name,last_name);
+  result := _AddUser(loginatdomain,password,first_name,last_name,false,image,imagetype);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.UserExists(const loginatdomain: TFRE_DB_String): boolean;
@@ -5154,7 +5160,7 @@ begin
 end;
 
 
-function TFRE_DB_SYSTEM_CONNECTION._AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype: String): TFRE_DB_Errortype;
 var user       : TFRE_DB_USER;
     login      : TFRE_DB_String;
     domain     : TFRE_DB_String;
@@ -5166,6 +5172,8 @@ begin
     user := GFRE_DB.NewObject(TFRE_DB_USER) as TFRE_DB_USER;
     FREDB_SplitLocalatDomain(loginatdomain,login,domain);
     user.InitData(login,first_name,last_name,password,DomainID(domain));
+    if assigned(image) then
+      user.SetImage(image,imagetype);
     if system_start_up then
       begin
         user.SetDomainID(FSysDomainUID);
@@ -9620,6 +9628,16 @@ begin
 
 end;
 
+procedure TFRE_DB_BASE_CONNECTION.IndexDefinedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+begin
+
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.IndexDroppedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
+begin
+
+end;
+
 procedure TFRE_DB_BASE_CONNECTION.ObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 var
     lcollection      : TFRE_DB_Collection;
@@ -12015,6 +12033,11 @@ begin
  LogNotice(category,'%s',[msg]);
 end;
 
+procedure TFRE_DB.LogEmergency(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String);
+begin
+  LogEmergency(category,'%s',[msg]);
+end;
+
 procedure TFRE_DB.LogInfo(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Info,CFOS_LL_Target[fll_Info],false);
@@ -12038,6 +12061,11 @@ end;
 procedure TFRE_DB.LogNotice(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Notice,CFOS_LL_Target[fll_Notice],false);
+end;
+
+procedure TFRE_DB.LogEmergency(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
+begin
+  GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Info,CFOS_LL_Target[fll_Emergency],false);
 end;
 
 
@@ -14975,10 +15003,11 @@ function TFRE_DB_FIELD._ConvertToString(const idx:integer=0): TFRE_DB_String;
   var s:TFRE_DB_String;
       i:integer;
   begin
-    i:=FFieldData.strm^[idx].Size;
-    SetLength(s,i);
-    Move(FFieldData.strm^[idx].Memory^,s[1],i);
-    result:=GFRE_BT.Base64Encode(s);
+    result := '[STREAM]'
+    //i:=FFieldData.strm^[idx].Size;
+    //SetLength(s,i);
+    //Move(FFieldData.strm^[idx].Memory^,s[1],i);
+    //result:=GFRE_BT.Base64Encode(s);
   end;
 
 
@@ -17464,7 +17493,7 @@ begin
   result := GFRE_BT.GUID_2_HexString(domain_id)+'@'+lowercase(loginpart);
 end;
 
-class function TFRE_DB_USER.IMC_NewUserOperation(const input: IFRE_DB_Object): IFRE_DB_Object;
+class function TFRE_DB_USER.WBC_NewUserOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var dbo              : IFRE_DB_Object;
     data             : IFRE_DB_Object;
     res              : TFRE_DB_Errortype;
@@ -17473,9 +17502,12 @@ var dbo              : IFRE_DB_Object;
     fn,ln            : String;
     dn               : TFRE_DB_NameType;
     obj              : IFRE_DB_DOMAIN;
+    fld              : IFRE_DB_Field;
+    image            : TFRE_DB_Stream;
+    imagetype        : String;
+
 begin
  //writeln('------NEW USER');
- writeln(input.DumpToString);
  data    := input.Field('DATA').asobject;
  dbc     := input.GetReference as TFRE_DB_CONNECTION;
 
@@ -17490,11 +17522,20 @@ begin
 
   if pw<>pwc then
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Password confirm mismatch',fdbmt_error,nil));
- res := dbc.sys.AddUser(loginf+'@'+dn,pw,fn,ln);
+
+  if data.FieldOnlyExisting('picture',fld) then
+    begin
+       image     := fld.AsStream;
+       imagetype := data.Field('picture'+cFRE_DB_STKEY).AsString;
+       fld.Clear(true);
+     end;
+ res := dbc.sys.AddUser(loginf+'@'+dn,pw,fn,ln,image,imagetype);
  if res=edb_OK then
-   exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
+   begin
+     exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe());
+   end
  else
-   exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERRORK','TRANSLATE: Creation failed '+CFRE_DB_Errortype[res],fdbmt_error,nil));
+   exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERROR','TRANSLATE: Creation failed '+CFRE_DB_Errortype[res],fdbmt_error,nil));
 end;
 
 

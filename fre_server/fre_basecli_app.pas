@@ -290,6 +290,15 @@ begin
   end;
 
 
+  // Diasable WAL MODE - DEBUG SETUP - FORCE SIMPLE DEPLOYMENT MODE
+
+  GDISABLE_WAL              := TRUE;
+  GDBPS_TRANS_WRITE_THROUGH := TRUE;
+  GDISABLE_SYNC             := TRUE;
+  GDROP_WAL                 := TRUE;
+  //
+
+
   // NOW The initial startup is done (connections can be made, but no extensions initialized)
   PrepareStartup;
 
