@@ -1554,6 +1554,7 @@ type
     procedure      InternalSetup       ; virtual;
     procedure      InternalFinalize    ; virtual;
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
+    class procedure VersionInstallCheck                (const currentVersionId,newVersionId: TFRE_DB_NameType);
   public
     function       GetDescriptionID                   : String;
     class procedure RegisterSystemScheme               (const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -5417,6 +5418,12 @@ end;
 procedure TFRE_DB_ObjectEx._InternalSetMediatorScheme(const mediator: TFRE_DB_ObjectEx; const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'dont call this');
+end;
+
+class procedure TFRE_DB_ObjectEx.VersionInstallCheck(const currentVersionId, newVersionId: TFRE_DB_NameType);
+begin
+  if currentVersionId<>newVersionId then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'%s> install failed, not all versions handled properly old=[%s] new=[%s]',[classname,currentVersionId,newVersionId]);
 end;
 
 function TFRE_DB_ObjectEx.GetDescriptionID: String;

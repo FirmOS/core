@@ -178,9 +178,14 @@ end;
 class procedure TFRE_DB_COUNTRY.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
-  StoreTranslateableText(conn,'scheme_country_group','Country');
-  StoreTranslateableText(conn,'scheme_name','Country Name');
-  StoreTranslateableText(conn,'scheme_tld','Country TLD');
+  if currentVersionId='' then
+    begin
+      currentVersionId:='1.0';
+      CheckDbResult(StoreTranslateableText(conn,'scheme_country_group','Country'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_name','Country Name'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_tld','Country TLD'));
+    end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 class procedure TFRE_DB_ADDRESS.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -212,15 +217,20 @@ end;
 class procedure TFRE_DB_ADDRESS.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
-  StoreTranslateableText(conn,'scheme_street','Street');
-  StoreTranslateableText(conn,'scheme_nr','Nr');
-  StoreTranslateableText(conn,'scheme_stair','Stair');
-  StoreTranslateableText(conn,'scheme_floor','Floor');
-  StoreTranslateableText(conn,'scheme_door','Door');
-  StoreTranslateableText(conn,'scheme_co','Care off');
-  StoreTranslateableText(conn,'scheme_city','City');
-  StoreTranslateableText(conn,'scheme_zip','ZIP');
-  StoreTranslateableText(conn,'scheme_country','Country');
+  if currentVersionId='' then
+    begin
+      currentVersionId:='1.0';
+      StoreTranslateableText(conn,'scheme_street','Street');
+      StoreTranslateableText(conn,'scheme_nr','Nr');
+      StoreTranslateableText(conn,'scheme_stair','Stair');
+      StoreTranslateableText(conn,'scheme_floor','Floor');
+      StoreTranslateableText(conn,'scheme_door','Door');
+      StoreTranslateableText(conn,'scheme_co','Care off');
+      StoreTranslateableText(conn,'scheme_city','City');
+      StoreTranslateableText(conn,'scheme_zip','ZIP');
+      StoreTranslateableText(conn,'scheme_country','Country');
+    end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 class procedure TFRE_DB_GEOPOSITION.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -237,9 +247,14 @@ end;
 class procedure TFRE_DB_GEOPOSITION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
-  StoreTranslateableText(conn,'scheme_main_group','Geoposition');
-  StoreTranslateableText(conn,'scheme_longitude','Longitude');
-  StoreTranslateableText(conn,'scheme_latitude','Latitude');
+  if currentVersionId='' then
+    begin
+      currentVersionId:='1.0';
+      CheckDbResult(StoreTranslateableText(conn,'scheme_main_group','Geoposition'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_longitude','Longitude'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_latitude','Latitude'));
+    end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 class procedure TFRE_DB_Phone.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -288,19 +303,24 @@ end;
 class procedure TFRE_DB_Contact.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
-  StoreTranslateableText(conn,'scheme_main_group','General Information');
-  StoreTranslateableText(conn,'scheme_address_group','Mainaddress');
-  StoreTranslateableText(conn,'scheme_delivery_group','Deliveryaddress');
-  StoreTranslateableText(conn,'scheme_number_group','Phone Numbers');
-  StoreTranslateableText(conn,'scheme_eaddress_group','EContact');
-  StoreTranslateableText(conn,'scheme_company','Company');
-  StoreTranslateableText(conn,'scheme_firstname','Firstname');
-  StoreTranslateableText(conn,'scheme_lastname','Lastname');
-  StoreTranslateableText(conn,'scheme_bnumber','Business');
-  StoreTranslateableText(conn,'scheme_mnumber','Mobile');
-  StoreTranslateableText(conn,'scheme_pnumber','Private');
-  StoreTranslateableText(conn,'scheme_mail','EMail');
-  StoreTranslateableText(conn,'scheme_web','Web');
+  if currentVersionId='' then
+    begin
+      currentVersionId:='1.0';
+      CheckDbResult(StoreTranslateableText(conn,'scheme_main_group','General Information'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_address_group','Mainaddress'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_delivery_group','Deliveryaddress'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_number_group','Phone Numbers'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_eaddress_group','EContact'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_company','Company'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_firstname','Firstname'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_lastname','Lastname'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_bnumber','Business'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_mnumber','Mobile'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_pnumber','Private'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_mail','EMail'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_web','Web'));
+    end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 { TFRE_DB_Customer }
@@ -322,8 +342,13 @@ end;
 class procedure TFRE_DB_Customer.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
-  StoreTranslateableText(conn,'scheme_main_group','Customer Information');
-  StoreTranslateableText(conn,'scheme_number','Number');
+  if currentVersionId='' then
+    begin
+      currentVersionId:='1.0';
+      StoreTranslateableText(conn,'scheme_main_group','Customer Information');
+      StoreTranslateableText(conn,'scheme_number','Number');
+    end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 function TFRE_DB_Customer.IMI_Menu(const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -413,6 +438,12 @@ end;
 class procedure TFRE_DB_Tenant.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId:='1.0';
+      { Franz weiß warum, einfach nachfragen}
+    end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 
@@ -441,10 +472,15 @@ end;
 class procedure TFRE_DB_Site.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
-  StoreTranslateableText(conn,'scheme_main_group','General Information');
-  StoreTranslateableText(conn,'scheme_address_group','Site Address');
-  StoreTranslateableText(conn,'scheme_name','Name');
-  StoreTranslateableText(conn,'scheme_key','Key');
+  if currentVersionId='' then
+    begin
+      currentVersionId:='1.0';
+      StoreTranslateableText(conn,'scheme_main_group','General Information');
+      StoreTranslateableText(conn,'scheme_address_group','Site Address');
+      StoreTranslateableText(conn,'scheme_name','Name');
+      StoreTranslateableText(conn,'scheme_key','Key');
+    end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 function TFRE_DB_Site.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;

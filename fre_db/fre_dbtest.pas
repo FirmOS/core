@@ -369,9 +369,12 @@ begin
     if res<>edb_OK then
       gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
 
-    if conn.DomainExists('firmos') then CheckDbResult(conn.DeleteDomain('firmos'),'cannot delete domain firmos');
-    if conn.DomainExists('fpc') then CheckDbResult(conn.DeleteDomain('fpc'),'cannot delete domain fpc');
-    if conn.DomainExists('demo') then CheckDbResult(conn.DeleteDomain('demo'),'cannot delete domain demo');
+    if conn.DomainExists('firmos') then
+      CheckDbResult(conn.DeleteDomain('firmos'),'cannot delete domain firmos');
+    if conn.DomainExists('fpc') then
+      CheckDbResult(conn.DeleteDomain('fpc'),'cannot delete domain fpc');
+    if conn.DomainExists('demo') then
+      CheckDbResult(conn.DeleteDomain('demo'),'cannot delete domain demo');
 
     CheckDbResult(conn.AddDomain('firmos','FirmOS Domain','FirmOS Domain'),'cannot add domain firmos');
     CheckDbResult(conn.AddDomain('fpc','FPC Domain','FPC Domain'),'cannot add domain fpc');
@@ -2152,8 +2155,10 @@ end;
 
 class procedure TFRE_DB_TEST_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
+  newVersionId:='1.0';
   if currentVersionId='' then
     begin
+      currentVersionId := '1.0';
       CreateAppText(conn,'$caption','Test App','Test App','Test App');
       CreateAppText(conn,'$vnc_description','VNC Test','VNC Test','VNC Test');
       CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
@@ -2166,16 +2171,9 @@ begin
       CreateAppText(conn,'$formtest_description','Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
       CreateAppText(conn,'$allgrid_description','Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
       CreateAppText(conn,'$feedbrowsetree_description','Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
-      newVersionId     := '1.0.0';
-      currentVersionId := newVersionId;
    end;
-  if currentVersionId='1.0.0' then
-    begin
-     //actual vesion
-     newVersionId := currentVersionId;
-     exit;
-    end;
-  raise EFRE_DB_Exception.Create(edb_ERROR,'could not install application db objects for unknown version '+currentVersionId);
+  if currentVersionId<>newVersionId then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'upgrade failed for '+currentVersionId+' : '+newVersionId);
 end;
 
 
@@ -2183,12 +2181,15 @@ class procedure TFRE_DB_TEST_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS
 var group : IFRE_DB_GROUP;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
+  if currentVersionId='' then
+    begin
+      currentVersionId:='1.0';
+      CheckDbResult(conn.AddGroup('TESTFEEDER','Group for Test Data Feeder','Test Feeder',domainUID),'could not create Test feeder group');
 
-  CheckDbResult(conn.AddGroup('TESTFEEDER','Group for Test Data Feeder','Test Feeder',domainUID),'could not create Test feeder group');
-
-  CheckDbResult(conn.AddRolesToGroup('TESTFEEDER',domainUID,TFRE_DB_StringArray.Create(
-    TFRE_DB_TEST_APP.GetClassRoleNameFetch
-    )),'could not add roles for group TESTFEEDER');
+      CheckDbResult(conn.AddRolesToGroup('TESTFEEDER',domainUID,TFRE_DB_StringArray.Create(
+        TFRE_DB_TEST_APP.GetClassRoleNameFetch
+        )),'could not add roles for group TESTFEEDER');
+    end;
 
 
   //admin_app_role  := _CreateAppRole('ADMIN','TESTAPP ADMIN','Test App Administration Rights');
