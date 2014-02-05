@@ -395,7 +395,7 @@ type
   protected
     procedure      CheckWriteThroughColl       (Coll : IFRE_DB_PERSISTANCE_COLLECTION);
     procedure      CheckWriteThroughDeleteColl (Coll : IFRE_DB_PERSISTANCE_COLLECTION);
-    procedure      CheckWriteThroughObj        (obj  : IFRE_DB_Object);
+    procedure      CheckWriteThroughObj        (obj: IFRE_DB_Object; const no_store_locking: boolean=true);
     procedure      CheckWriteThroughDeleteObj  (obj  : IFRE_DB_Object);
   public
     constructor    Create                      (const layer : IFRE_DB_PERSISTANCE_LAYER);
@@ -1427,12 +1427,12 @@ begin
    if GDBPS_TRANS_WRITE_THROUGH then
      begin
        FLayer.WT_StoreCollectionPersistent(coll);
-       GFRE_DBI.LogDebug(dblc_PERSITANCE_NOTIFY,Format('[%s]> WRITE THROUGH STORE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
+       GFRE_DBI.LogDebug(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH STORE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
      end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSITANCE_NOTIFY,Format('[%s]> WRITE THROUGH ERROR STORE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH ERROR STORE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
       end;
   end;
 end;
@@ -1443,28 +1443,28 @@ begin
    if GDBPS_TRANS_WRITE_THROUGH then
      begin
        FLayer.WT_DeleteCollectionPersistent(coll);
-       GFRE_DBI.LogDebug(dblc_PERSITANCE_NOTIFY,Format('[%s]> WRITE THROUGH DELETE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
+       GFRE_DBI.LogDebug(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH DELETE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
      end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSITANCE_NOTIFY,Format('[%s]> WRITE THROUGH ERROR DELETE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH ERROR DELETE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
       end;
   end;
 end;
 
-procedure TFRE_DB_ChangeStep.CheckWriteThroughObj(obj: IFRE_DB_Object);
+procedure TFRE_DB_ChangeStep.CheckWriteThroughObj(obj: IFRE_DB_Object ; const no_store_locking: boolean=true);
 begin
   try
     if GDBPS_TRANS_WRITE_THROUGH then
       begin
-        FLayer.WT_StoreObjectPersistent(obj);
-        GFRE_DBI.LogDebug(dblc_PERSITANCE_NOTIFY,Format('[%s]> WRITE THROUGH OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
+        FLayer.WT_StoreObjectPersistent(obj,no_store_locking);
+        GFRE_DBI.LogDebug(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
       end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSITANCE_NOTIFY,Format('[%s]> WRITE THROUGH ERROR OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH ERROR OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
       end;
   end;
 end;
@@ -1475,12 +1475,12 @@ begin
    if GDBPS_TRANS_WRITE_THROUGH then
      begin
        FLayer.WT_DeleteObjectPersistent(obj);
-       GFRE_DBI.LogDebug(dblc_PERSITANCE_NOTIFY,Format('[%s]> WRITE THROUGH DELETE OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
+       GFRE_DBI.LogDebug(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH DELETE OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
      end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSITANCE_NOTIFY,Format('[%s]> WRITE THROUGH ERROR DELETE OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH ERROR DELETE OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
       end;
   end;
 end;
@@ -1799,6 +1799,17 @@ var i,j         : NativeInt;
           end;
         end;
     end;
+
+    procedure CheckWriteThrough;
+    var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+          i : NAtiveInt;
+    begin
+      CheckWriteThroughObj(to_upd_obj,false);
+      arr := to_upd_obj.__InternalGetCollectionList;
+      for i:=0 to high(arr) do
+        CheckWriteThroughColl(arr[i]);
+    end;
+
 begin
   for i:=0 to FCnt-1 do
     begin
@@ -1825,6 +1836,8 @@ begin
           end;
         end;
     end;
+  if not check then
+    CheckWriteThrough;
 end;
 
 procedure TFRE_DB_UpdateStep.InternalWriteWalHeader(const m: TMemoryStream);

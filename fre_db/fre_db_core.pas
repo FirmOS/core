@@ -2118,6 +2118,9 @@ type
     procedure       SetFormatSettings       (const AValue: TFormatSettings);
     procedure       SetLocalZone            (const AValue: TFRE_DB_String);
     function        NewObjectStreaming      (const ClName: ShortString) : TFRE_DB_Object;
+
+    procedure   _IntDBInitializeAllExClasses (const conn: IFRE_DB_SYS_CONNECTION; const installforonedomain: boolean; const onedomainUID:TGUID);
+
   protected
     procedure   AcquireWeakMediatorLock     ;
     procedure   ReleaseWeakMediatorLock     ;
@@ -5117,7 +5120,9 @@ begin
         result := FSysSingletons.StoreI(version_dbo);
       end
     else
-      result := FSysSingletons.UpdateI(version_dbo);
+      begin
+        result := FSysSingletons.UpdateI(version_dbo);
+      end;
   finally
     ReleaseBig;
   end;
@@ -11148,39 +11153,88 @@ begin
   result := false;
 end;
 
-procedure TFRE_DB.DBAddDomainInstAllExClasses(const conn: IFRE_DB_SYS_CONNECTION; const domainUID: TGUID);
+procedure TFRE_DB._IntDBInitializeAllExClasses(const conn: IFRE_DB_SYS_CONNECTION; const installforonedomain: boolean; const onedomainUID: TGUID);
 var
-  i           : integer;
-  oldVersion  : TFRE_DB_NameType;
-  version_dbo : IFRE_DB_Object;
-  exclassname : ShortString;
+  i              : integer;
+  newVersion     : TFRE_DB_NameType;
+  oldVersion     : TFRE_DB_NameType;
+  version_dbo    : IFRE_DB_Object;
+  exclassname    : ShortString;
 
-  procedure Install4Domain(const domain:IFRE_DB_DOMAIN);
+
+  procedure _Install4Domain(const domainUID:TGUID;const newDomVersion:TFRE_DB_NameType);
+  var exsikey        : String;
+      oldDomVersion  : TFRE_DB_NameType;
   begin
-//    writeln('DOMAIN:',domain.Domainname(true),' ',domain.Domainkey, ' ',GFRE_BT.GUID_2_HexString(domain.UID));
-    FExClassArray[i].exclass.InstallDBObjects4Domain(conn,oldVersion,domain.UID);
+    assert(newDomVersion<>'','logic');
+    exsikey := exclassname+'_'+FREDB_G2H(domainUID);
+    oldDomversion := version_dbo.Field(exsikey).AsString;
+    try
+      FExClassArray[i].exclass.InstallDBObjects4Domain(conn,oldDomVersion,domainUID);
+    except on
+      e:exception do
+        begin
+          raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL FOR DOMAIN FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[olddomversion,exclassname+'_'+FREDB_G2H(domainUID),e.Message]);
+        end;
+    end;
+    version_dbo.Field(exsikey).AsString := newDomVersion;
+    assert(version_dbo.Field(exsikey).AsString=newDomVersion,'fail');
+    //CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
+    //version_dbo := conn.GetClassesVersionDirectory;
+  end;
+
+  procedure _Install4DomainDBO(const domain:IFRE_DB_DOMAIN);
+  begin
+    _Install4Domain(domain.UID,newVersion);
   end;
 
 begin
   version_dbo := conn.GetClassesVersionDirectory;
-//  conn.Starttransaction('INITALLEX');
   for i:=0 to high(FExClassArray) do begin
     try
       exclassname := FExClassArray[i].exclass.ClassName;
+      oldversion  := version_dbo.Field(exclassname).AsString;
+      newVersion  := '';
       if not (FExClassArray[i].exclass.InheritsFrom(TFRE_DB_CONTENT_DESC)) then
         begin
-          oldversion  := version_dbo.Field(exclassname).AsString;
-          if oldversion='' then
-            raise EFRE_DB_Exception.create(edb_ERROR,'The class [%s] has no installed version, installation for a domain is not possible!',[exclassname,oldVersion]);
-          if oldversion<>'UNUSED' then
-            FExClassArray[i].exclass.InstallDBObjects4Domain(conn,oldVersion,domainUID);
+          if installforonedomain=false then
+            begin
+              try
+                FExClassArray[i].exclass.InstallDBObjects(conn,oldVersion,newVersion);  // The base class sets the version to "UNUSED", so you need to override and set a version<>'' to call Install4Domain and be able to install dbos
+              except on
+                e:exception do
+                  begin
+                    raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL DBO FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[oldVersion,exclassname,e.Message]);
+                  end;
+              end;
+              if newVersion='' then
+                raise EFRE_DB_Exception.create(edb_ERROR,'The class [%s] for oldversion [%s] is not installable, the new version is unset. That is not allowed',[exclassname,oldVersion,newVersion]);
+              if (newVersion='BASE') and (FExClassArray[i].exclass<>TFRE_DB_ObjectEx) then
+                abort;
+              if newVersion<>'UNUSED' then
+                begin
+                  conn.ForAllDomains(@_Install4DomainDBO);
+                end;
+              version_dbo.Field(exclassname).AsString := newVersion;
+            end
+          else
+            begin
+              if oldversion='' then
+                raise EFRE_DB_Exception.create(edb_ERROR,'The class [%s] has no installed version, installation for a domain is not possible!',[exclassname,oldVersion]);
+              if oldversion<>'UNUSED' then
+                _Install4Domain(onedomainUID,oldVersion);
+            end
         end;
     except on e:exception do begin
-      GFRE_BT.CriticalAbort('DB INITIALIZATION OF EXCLASS SCHEME: [%s] FOR DOMAIN FAILED DUE TO [%s]',[FExClassArray[i].exclass.ClassName,e.Message]);
+       GFRE_BT.CriticalAbort('DB INITIALIZATION OF EXCLASS SCHEME: [%s] FAILED DUE TO [%s]',[FExClassArray[i].exclass.ClassName,e.Message]);
     end;end;
-  end;
-  CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
- // conn.commit;
+   end;
+   CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
+end;
+
+procedure TFRE_DB.DBAddDomainInstAllExClasses(const conn: IFRE_DB_SYS_CONNECTION; const domainUID: TGUID);
+begin
+  _IntDBInitializeAllExClasses(conn,true,domainUID);
 end;
 
 
@@ -11555,69 +11609,8 @@ end;
 
 
 procedure TFRE_DB.DBInitializeAllExClasses(const conn: IFRE_DB_SYS_CONNECTION);
-var
-  i              : integer;
-  newVersion     : TFRE_DB_NameType;
-  newDomVersion  : TFRE_DB_NameType;
-  oldVersion     : TFRE_DB_NameType;
-  oldDomVersion  : TFRE_DB_NameType;
-  version_dbo    : IFRE_DB_Object;
-  exclassname    : ShortString;
-
-  procedure Install4Domain(const domain:IFRE_DB_DOMAIN);
-  var exsikey : String;
-  begin
-    assert(newVersion<>'','logic');
-    exsikey := exclassname+'_'+FREDB_G2H(domain.UID);
-    oldDomversion := version_dbo.Field(exsikey).AsString;
-    try
-      FExClassArray[i].exclass.InstallDBObjects4Domain(conn,oldDomVersion,domain.UID);
-    except on
-      e:exception do
-        begin
-          writeln(version_dbo.DumpToString());
-          halt(1);
-          raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL FOR DOMAIN FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[olddomversion,exclassname+'_'+FREDB_G2H(domain.UID),e.Message]);
-        end;
-    end;
-    version_dbo.Field(exsikey).AsString := newVersion;
-    assert(version_dbo.Field(exsikey).AsString=newVersion,'fail');
-    //CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
-    //version_dbo := conn.GetClassesVersionDirectory;
-  end;
-
 begin
-  version_dbo := conn.GetClassesVersionDirectory;
-  for i:=0 to high(FExClassArray) do begin
-    try
-      exclassname := FExClassArray[i].exclass.ClassName;
-      oldversion  := version_dbo.Field(exclassname).AsString;
-      newVersion  := '';
-      if not (FExClassArray[i].exclass.InheritsFrom(TFRE_DB_CONTENT_DESC)) then
-        begin
-          try
-            FExClassArray[i].exclass.InstallDBObjects(conn,oldVersion,newVersion);  // The base class sets the version to "UNUSED", so you need to override and set a version<>'' to call Install4Domain and be able to install dbos
-          except on
-            e:exception do
-              begin
-                raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL DBO FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[oldVersion,exclassname,e.Message]);
-              end;
-          end;
-          if newVersion='' then
-            raise EFRE_DB_Exception.create(edb_ERROR,'The class [%s] for oldversion [%s] is not installable, the new version is unset. That is not allowed',[exclassname,oldVersion,newVersion]);
-          if (newVersion='BASE') and (FExClassArray[i].exclass<>TFRE_DB_ObjectEx) then
-            abort;
-          if newVersion<>'UNUSED' then
-            begin
-              conn.ForAllDomains(@Install4Domain);
-            end;
-          version_dbo.Field(exclassname).AsString := newVersion;
-        end;
-    except on e:exception do begin
-       GFRE_BT.CriticalAbort('DB INITIALIZATION OF EXCLASS SCHEME: [%s] FAILED DUE TO [%s]',[FExClassArray[i].exclass.ClassName,e.Message]);
-    end;end;
-   end;
-   CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
+  _IntDBInitializeAllExClasses(conn,false,CFRE_DB_NullGUID);
 end;
 
 procedure TFRE_DB.DBInitializeAllSystemClasses(const conn: IFRE_DB_SYS_CONNECTION);
@@ -13639,7 +13632,6 @@ end;
 
 function TFRE_DB_Object.GetUIDPath: TFRE_DB_StringArray;
 begin
-  _InAccessibleCheck;
   if Length(fuidPath)=0 then begin
     if Assigned(Parent) then begin
       Result:=Parent.GetUIDPath;

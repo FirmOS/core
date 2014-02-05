@@ -99,7 +99,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
      procedure   WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
      procedure   WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
-     procedure   WT_StoreObjectPersistent      (const obj:IFRE_DB_Object);
+     procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
      procedure   _LoadCollectionPersistent  (const file_name : string);
@@ -468,9 +468,9 @@ begin
     end;
 end;
 
-procedure TFRE_DB_PS_FILE.WT_StoreObjectPersistent(const obj: IFRE_DB_Object);
+procedure TFRE_DB_PS_FILE.WT_StoreObjectPersistent(const obj: IFRE_DB_Object ; const no_store_locking : boolean=true);
 begin
-  _StoreObjectPersistent(obj.Implementor as TFRE_DB_Object,true);
+  _StoreObjectPersistent(obj.Implementor as TFRE_DB_Object,no_store_locking);
 end;
 
 procedure TFRE_DB_PS_FILE.WT_DeleteObjectPersistent(const iobj: IFRE_DB_Object);
@@ -523,18 +523,14 @@ procedure TFRE_DB_PS_FILE._SyncDBInternal(const final:boolean=false);
 begin
   if GDISABLE_SYNC then
     begin
-      writeln('ABORT/IGNORE - SYNC FOR DB : ',FConnectedDB);
+      GFRE_DBI.LogNotice(dblc_PERSITANCE,'<<SKIPPING SYNC OF DB [%s] / WRITE THROUGH MODE',[FConnectedDB]);
       exit;
     end;
 
-  //writeln('>WRITEING MEMORY TO DISK FOR DB : ',FConnectedDB);
   FMaster.MasterColls.ForAllCollections(@WriteColls);
-  //writeln('-Syncing Objects');
   FMaster.ForAllObjectsInternal(true,false,@StoreObjects);
-  //writeln('<WRITEING MEMORY TO DISK DONE   : ',FConnectedDB);
   if assigned(FWalStream) then
     begin
-      //writeln('DROPPING WAL');
       _CloseWAL;
       _ClearWAL;
       if not final then

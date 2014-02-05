@@ -1203,7 +1203,7 @@ type
     procedure  DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
 
     procedure  WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
-    procedure  WT_StoreObjectPersistent      (const obj:IFRE_DB_Object);
+   procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
     procedure  WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
     procedure  WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 

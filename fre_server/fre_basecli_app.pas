@@ -91,6 +91,7 @@ type
     procedure   DoUnitTest         ;
     procedure   ShowUserRoles      ;
     procedure   InitExtensions     ;
+    procedure   ShowVersions       ;
     procedure   RemoveExtensions   ;
     procedure   RegisterExtensions ;
     procedure   VerifyExtensions   ;
@@ -204,7 +205,7 @@ begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
   ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',
                           ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','dumpdb','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:']);
+                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:','showinstalled']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -351,6 +352,13 @@ begin
     GFRE_DB_PS_LAYER.SyncSnapshot(true);
   end;
 
+  if HasOption('*','showinstalled') then
+    begin
+      ShowVersions;
+      Terminate;
+      Exit;
+    end;
+
   if HasOption('r','remove') then begin
     FOnlyInitDB:=true;
     RemoveExtensions;
@@ -492,7 +500,6 @@ begin
 end;
 
 procedure TFRE_CLISRV_APP.GenerateTestdata;
-var conn : IFRE_DB_SYS_CONNECTION;
 begin
   _CheckDBNameSupplied;
   //_CheckUserSupplied;
@@ -539,6 +546,18 @@ begin
   GFRE_DBI.DBInitializeAllExClasses(conn);
   conn.Finalize;
   GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,FUser,FPass);
+end;
+
+procedure TFRE_CLISRV_APP.ShowVersions;
+var conn : IFRE_DB_SYS_CONNECTION;
+begin
+  _CheckDBNameSupplied;
+  _CheckUserSupplied;
+  _CheckPassSupplied;
+  CONN := GFRE_DBI.NewSysOnlyConnection;
+  CheckDbResult(CONN.Connect(FUser,FPass),'cannot connect system db');
+  writeln(conn.GetClassesVersionDirectory.DumpToString);
+  conn.Finalize;
 end;
 
 
@@ -648,9 +667,10 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
 
   procedure Setup_Persistance_Layer_Logging;
   begin
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Info,'*',flra_DropEntry);
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry);
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Info,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Debug,'*',flra_DropEntry);
   end;
 
   procedure Setup_FlexcomLogging;
