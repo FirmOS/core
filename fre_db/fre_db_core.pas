@@ -17570,7 +17570,12 @@ begin
        image     := fld.AsStream;
        imagetype := data.Field('picture'+cFRE_DB_STKEY).AsString;
        fld.Clear(true);
-     end;
+     end
+  else
+    begin
+      image:=nil;
+      imagetype:='';
+    end;
  res := dbc.sys.AddUser(loginf+'@'+dn,pw,fn,ln,image,imagetype);
  if res=edb_OK then
    begin
