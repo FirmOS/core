@@ -528,6 +528,7 @@ type
 
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
   public
+    procedure       _InternalGuidNullCheck;
     procedure       Finalize                           ;
     class procedure  GenerateAnObjChangeList(const first_obj, second_obj: TFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator);
 
@@ -12764,6 +12765,18 @@ begin
     SetScheme(scheme.Implementor as TFRE_DB_SchemeObject);
 end;
 
+procedure TFRE_DB_Object._InternalGuidNullCheck;
+var  refs : TFRE_DB_ObjectReferences;
+     i    : NativeInt;
+begin
+  refs := ReferencesFromData;
+  for i := 0 to high(refs) do
+    begin
+      if refs[i].linked_uid=CFRE_DB_NullGUID then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'NULL GUID STORED IN FIELD [%s]:[%s]',[refs[i].fieldname,GetDescriptionID]);
+    end;
+end;
+
 procedure TFRE_DB_Object.__InternalCollectionAdd(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
 begin
   if __InternalCollectionExists(coll)<>-1 then
@@ -13574,18 +13587,19 @@ end;
 function TFRE_DB_Object.ReferencesFromData: TFRE_DB_ObjectReferences;
 var cnt  : NativeInt;
     mysn : TFRE_DB_NameType;
+    i    : NAtiveInt;
 
   procedure SearchObjectLinkField(const fld:TFRE_DB_FIELD);
   var i    : NativeInt;
       myfn : TFRE_DB_NameType;
   begin
-    if cnt=Length(result) then
-      SetLength(result,Length(result)+25);
     if fld.FieldType = fdbft_ObjLink then
       begin
         myfn := uppercase(fld.FieldName);
         for i:=0 to fld.ValueCount-1 do
           begin
+            if cnt=Length(result) then
+              SetLength(result,Length(result)+25);
             result[cnt].fieldname  := myfn;
             result[cnt].schemename := '?';
             result[cnt].linked_uid := fld.AsObjectLinkArray[i];
@@ -13600,6 +13614,9 @@ begin
   mysn := SchemeClass;
   ForAll(@SearchObjectLinkField);
   SetLength(result,cnt);
+  for i:=0 to high(Result) do
+    if Result[i].linked_uid=CFRE_DB_NullGUID then
+      GFRE_BT.CriticalAbort('TODO: fail remove');
 end;
 
 

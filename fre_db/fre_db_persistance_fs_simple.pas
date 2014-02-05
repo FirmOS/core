@@ -432,8 +432,7 @@ begin
           obj.Set_Store_Locked(false);
         end;
       try
-        //GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>STORE OBJECT : '+obj.UID_String);
-        //writeln(' >> Syncing ',obj.UID_String,' ',obj.ClassName);
+        obj._InternalGuidNullCheck;
         filename    := GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
         m:=TMemoryStream.Create;
         try
@@ -929,6 +928,7 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
   begin
     if obj.DomainID=CFRE_DB_NullGUID then
       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'persistance failure, an object without a domainid cannot be stored');
+    obj._InternalGuidNullCheck;
   end;
 
   procedure GenInsert(const insert_obj : IFRE_DB_Object);
