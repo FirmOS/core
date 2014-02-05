@@ -1786,7 +1786,7 @@ var i,j         : NativeInt;
                     if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
                       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
                     for j:=0 to high(newfield.AsObjectLinkArray) do
-                      master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[i],sc,true);
+                      master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc,true);
                   end
                 else
                   begin
