@@ -745,6 +745,7 @@ type
     function        RemoveObserver      (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     //Define a basic index according to fieldtype
     function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
+    function        IndexExists         (const index_name:TFRE_DB_NameType):boolean;
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
     function        GetIndexedObj       (const query_value : TFRE_DB_String; out obj     : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObjs      (const query_value : TFRE_DB_String; out   obj   : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def'):boolean;
@@ -5462,21 +5463,24 @@ var
 begin
   if not (self.ClassType=TFRE_DB_ObjectEx) then
     begin
-      role := CreateClassRole('store','Store ' + ClassName,'Allowed to store new ' + ClassName + ' objects');
-      role.AddRight(GetRight4Domain(GetClassRightNameStore,domainUID));
-      CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.store role');
+      if currentVersionId='' then // Initial Install
+        begin
+          role := CreateClassRole('store','Store ' + ClassName,'Allowed to store new ' + ClassName + ' objects');
+          role.AddRight(GetRight4Domain(GetClassRightNameStore,domainUID));
+          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.store role');
 
-      role := CreateClassRole('delete','Delete ' + ClassName,'Allowed to delete ' + ClassName + ' objects');
-      role.AddRight(GetRight4Domain(GetClassRightNameDelete,domainUID));
-      CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.delete role');
+          role := CreateClassRole('delete','Delete ' + ClassName,'Allowed to delete ' + ClassName + ' objects');
+          role.AddRight(GetRight4Domain(GetClassRightNameDelete,domainUID));
+          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.delete role');
 
-      role := CreateClassRole('update','Update ' + ClassName,'Allowed to edit ' + ClassName + ' objects');
-      role.AddRight(GetRight4Domain(GetClassRightNameUpdate,domainUID));
-      CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.update role');
+          role := CreateClassRole('update','Update ' + ClassName,'Allowed to edit ' + ClassName + ' objects');
+          role.AddRight(GetRight4Domain(GetClassRightNameUpdate,domainUID));
+          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.update role');
 
-      role := CreateClassRole('fetch','Fetch ' + ClassName,'Allowed to fetch ' + ClassName + ' objects');
-      role.AddRight(GetRight4Domain(GetClassRightNameFetch,domainUID));
-      CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.fetch role');
+          role := CreateClassRole('fetch','Fetch ' + ClassName,'Allowed to fetch ' + ClassName + ' objects');
+          role.AddRight(GetRight4Domain(GetClassRightNameFetch,domainUID));
+          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.fetch role');
+        end;
     end;
 end;
 
