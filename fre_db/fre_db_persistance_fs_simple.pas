@@ -152,6 +152,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   SyncWriteWAL        (const WALMem : TMemoryStream);
      procedure   SyncSnapshot        (const final : boolean=false);
      function    GetLastError        : TFRE_DB_String;
+     function    GetLastErrorCode    : TFRE_DB_Errortype;
      procedure   SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
      function    GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
    end;
@@ -1273,6 +1274,11 @@ end;
 function TFRE_DB_PS_FILE.GetLastError: TFRE_DB_String;
 begin
   result := FLastError;
+end;
+
+function TFRE_DB_PS_FILE.GetLastErrorCode: TFRE_DB_Errortype;
+begin
+  result := FLastErrorCode;
 end;
 
 procedure TFRE_DB_PS_FILE.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification; const create_proxy: boolean);

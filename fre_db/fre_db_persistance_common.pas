@@ -1059,14 +1059,14 @@ begin
     begin
       idx := FDelObj.__InternalCollectionExistsName(CollName); // Delete from this collection
       assert(idx<>-1);
-      FDelObj.__InternalGetCollectionList[idx].GetPersLayerIntf.DeleteFromThisColl(FDelObj,check);
+      arr[idx].GetPersLayerIntf.DeleteFromThisColl(FDelObj,check);
       if check
          and (Length(FDelObj.__InternalGetCollectionList)=1) then
            FWouldNeedMasterDelete:=true;
       if not check then
         begin
           FTransList.GetNotifyIF.ObjectRemoved(FLayer,CollName, FDelObj);
-          CheckWriteThroughColl(FDelObj.__InternalGetCollectionList[idx]);
+          CheckWriteThroughColl(arr[idx]);
         end;
     end;
 end;
@@ -1074,25 +1074,25 @@ end;
 procedure TFRE_DB_DeleteObjectStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
   assert(IsInsert=false);
-  if check
-     and FWouldNeedMasterDelete then
-       begin
-         master.DeleteObject(FDelObj.UID,check);
-       end;
-  if not check then
-    begin
-      if length(FDelObj.__InternalGetCollectionList)=0 then
-        begin
-          try
+  try
+    if check
+       and FWouldNeedMasterDelete then
+         begin
+             master.DeleteObject(FDelObj.UID,check);
+         end;
+    if not check then
+      begin
+        if length(FDelObj.__InternalGetCollectionList)=0 then
+          begin
             FTransList.GetNotifyIF.ObjectDeleted(FLayer, FDelObj); { Notify before delete }
             CheckWriteThroughDeleteObj(FDelObj);
             master.DeleteObject(FDelObj.UID,check);
-          except
-            FDelObj.Set_Store_Locked(true);
-            raise;
           end;
-        end;
-    end;
+      end;
+  except { Only in Exception case, lock the object and raise}
+    FDelObj.Set_Store_Locked(true);
+    raise;
+  end;
 end;
 
 { TFRE_DB_NewCollectionStep }
@@ -2003,12 +2003,12 @@ end;
 procedure TFRE_DB_DeleteSubObjectStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
   writeln('*****DELETE SUBOBJECT STEP .... ReMOVINg : ',FDelObj.UID_String);
-  assert(IsInsert=false);
   try
-   if not check then
-     FTransList.GetNotifyIF.SubObjectDeleted(FLayer, FDelObj); { Notify before delete }
+    assert(IsInsert=false);
+    if not check then
+      FTransList.GetNotifyIF.SubObjectDeleted(FLayer, FDelObj); { Notify before delete }
     master.DeleteObject(FDelObj.UID,check);
-  except
+  except { Only in Exception case, lock the object and raise}
     FDelObj.Set_Store_Locked(true);
     raise;
   end;

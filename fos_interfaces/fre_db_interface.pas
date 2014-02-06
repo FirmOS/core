@@ -1209,6 +1209,7 @@ type
 
     function  GetConnectedDB                : TFRE_DB_NameType;
     function  GetLastError                  : TFRE_DB_String;
+    function  GetLastErrorCode              : TFRE_DB_Errortype;
     function  ExistCollection               (const coll_name : TFRE_DB_NameType) : Boolean;
     function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
     function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
@@ -1270,6 +1271,7 @@ type
 
   IFRE_DB_CONNECTION=interface(IFRE_DB_BASE)
   ['IFDB_CONN']
+    function    GetlastError              : TFRE_DB_String;
     function    GetDatabaseName           : TFRE_DB_String;
     function    Connect                   (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
@@ -2107,7 +2109,6 @@ type
     procedure   ClearGUID              (var uid:TGUID);
     function    Get_A_Guid             : TGUID;
     function    Get_A_Guid_HEX         : Ansistring;
-    function    GetLastPLayerError     : AnsiString;
     property    LocalZone              : TFRE_DB_String read GetLocalZone write SetLocalZone;
     property    StringFormatSettings   : TFormatSettings read GetFormatSettings write SetFormatSettings;
   end;
@@ -2412,8 +2413,8 @@ type
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
 
-  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const append_detail_errorcode : boolean = true ; const tolerate_no_change : boolean=true ; const layer:IFRE_DB_PERSISTANCE_LAYER=nil);
-  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const ; const append_detail_errorcode : boolean = true ; const tolerate_no_change : boolean=true ; const layer:IFRE_DB_PERSISTANCE_LAYER=nil);
+  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const conn:IFRE_DB_CONNECTION=nil ; const tolerate_no_change : boolean=true);
+  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const ; const conn:IFRE_DB_CONNECTION=nil ; const tolerate_no_change : boolean=true );
   function  RB_Guid_Compare                      (const d1, d2: TGuid): NativeInt; inline;
 
   procedure FREDB_LoadMimetypes                  (const filename:string);
@@ -2501,6 +2502,7 @@ var
   //G_ADD_2_SITEMAP_CALLBACK          : TAddAppToSiteMap_Callback;
 
 implementation
+
 
 function RB_Guid_Compare(const d1, d2: TGuid): NativeInt;
 begin
@@ -2965,26 +2967,20 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'invalid short fieldtype specifier : ['+fts+']');
 end;
 
-procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const append_detail_errorcode : boolean ; const tolerate_no_change : boolean; const layer:IFRE_DB_PERSISTANCE_LAYER);
+procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const conn:IFRE_DB_CONNECTION=nil ; const tolerate_no_change : boolean=true);
 begin
-  CheckDbResultFmt(res,error_string,[],append_detail_errorcode,tolerate_no_change,layer);
+  CheckDbResultFmt(res,error_string,[],conn,tolerate_no_change);
 end;
 
-procedure CheckDbResultFmt(const res: TFRE_DB_Errortype; const error_string: TFRE_DB_String; const params: array of const; const append_detail_errorcode: boolean; const tolerate_no_change: boolean; const layer:IFRE_DB_PERSISTANCE_LAYER);
+procedure CheckDbResultFmt(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const params:array of const ; const conn:IFRE_DB_CONNECTION ; const tolerate_no_change : boolean );
 var str : string;
 begin
  if (res=edb_OK) or
     ((res=edb_NO_CHANGE) and tolerate_no_change) then
       exit;
  str := Format(error_string,params);
- if append_detail_errorcode then
-   if not assigned(layer) then
-     begin
-      if assigned(GFRE_DBI) then
-        str:=str+LineEnding+GFRE_DBI.GetLastPLayerError;
-     end
-   else
-     str:=str+LineEnding+layer.GetLastError;
+ if assigned(conn) then
+   str:=str+LineEnding+conn.GetLastError;
  raise EFRE_DB_Exception.Create(res,str);
 end;
 

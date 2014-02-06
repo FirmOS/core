@@ -1710,7 +1710,6 @@ type
   private
     FSysDomainUID         : TGuid;
     FDBName               : TFRE_DB_String;
-    FLasterror            : String;
     FCloned               : boolean;
     FConnected            : Boolean;
     FAuthenticated        : Boolean;
@@ -1813,6 +1812,9 @@ type
 
 
     function           UpcastDBC                    : TFRE_DB_Connection;
+
+    function           GetLastError                 : TFRE_DB_String;
+    function           GetLastErrorcode             : TFRE_DB_Errortype;
 
     function           GetMyDomainID                : TGUID;
     function           GetMyDomainID_String         : TGUID_String;
@@ -2282,7 +2284,6 @@ type
     procedure   ClearGUID              (var uid:TGUID);
     function    Get_A_Guid             : TGUID;
     function    Get_A_Guid_HEX         : Ansistring;
-    function    GetLastPLayerError     : AnsiString;
 
     function    InstallDBDefaults      (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
   end;
@@ -10209,7 +10210,6 @@ begin
     try
       FPersistance_Layer.DeleteCollection(c_name);
     except
-      FLasterror:=FPersistance_Layer.GetLastError;
       exit(edb_PERSISTANCE_ERROR);
     end;
     FCollectionStore.Delete(c_name,lcollection);
@@ -10283,17 +10283,8 @@ begin
     try
       FPersistance_Layer.DeleteObject(ouid,'');
       result:=edb_OK;
-    except on
-      E:EFRE_DB_Exception do
-        begin
-          result     := E.ErrorType;
-          FLasterror := E.Message;
-        end;
-      else
-        begin
-          FLasterror := FPersistance_Layer.GetLastError;
-          result     := edb_PERSISTANCE_ERROR;
-        end;
+    except
+      result     := edb_PERSISTANCE_ERROR;
     end;
   finally
     ReleaseBig;
@@ -10342,6 +10333,16 @@ begin
   if self is TFRE_DB_CONNECTION then
     exit(TFRE_DB_CONNECTION(self));
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'Upcast failed basecass : '+self.ClassName);
+end;
+
+function TFRE_DB_BASE_CONNECTION.GetLastError: TFRE_DB_String;
+begin
+  result := FPersistance_Layer.GetLastError;
+end;
+
+function TFRE_DB_BASE_CONNECTION.GetLastErrorcode: TFRE_DB_Errortype;
+begin
+ result := FPersistance_Layer.GetLastErrorCode;
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetMyDomainID: TGUID;
@@ -10451,7 +10452,6 @@ begin
       //    _NotifyCollectionObservers(fdbntf_UPDATE,nil,objuid,ncolls);
       //  end;
     except
-      FLasterror:=FPersistance_Layer.GetLastError;
       exit(edb_PERSISTANCE_ERROR);
     end;
   finally
@@ -11075,11 +11075,6 @@ var x:TGuid;
 begin
   x := Get_A_Guid;
   result := GFRE_BT.Mem2HexStr(PByte(@x),sizeof(TGuid));
-end;
-
-function TFRE_DB.GetLastPLayerError: AnsiString;
-begin
-  result := GFRE_DB_PS_LAYER.GetLastError;
 end;
 
 function TFRE_DB.InstallDBDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
