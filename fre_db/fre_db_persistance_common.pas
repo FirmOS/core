@@ -343,7 +343,7 @@ type
 
     procedure    __SetupOutboundLinkKey     (const from_uid,to_uid: TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; var refoutkey : RFRE_DB_GUID_RefLink_InOut_Key); //inline;
     procedure    __SetupInboundLinkKey      (const from_uid,to_uid: TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; var refinkey  : RFRE_DB_GUID_RefLink_InOut_Key); //inline;
-    procedure    __SetupInitialRefLink      (const from_key : TFRE_DB_Object ; const FromFieldToSchemename,LinkFromSchemenameField: TFRE_DB_NameTypeRL ; const references_to : TFRE_DB_GUID);
+    procedure    __SetupInitialRefLink      (const from_key : TFRE_DB_Object ; FromFieldToSchemename,LinkFromSchemenameField: TFRE_DB_NameTypeRL ; const references_to : TFRE_DB_GUID);
     procedure    _SetupInitialRefLinks      (const from_key : TFRE_DB_Object ; const references_to_list : TFRE_DB_ObjectReferences ; const schemelink_arr : TFRE_DB_NameTypeRLArray);
     procedure    _RemoveAllRefLinks         (const from_key : TFRE_DB_Object);
     function     __RefLinkOutboundExists    (const from_uid: TFRE_DB_GUID;const  fieldname: TFRE_DB_NameType; to_object: TFRE_DB_GUID; const scheme_link: TFRE_DB_NameTypeRL):boolean;
@@ -616,8 +616,8 @@ type
     procedure  FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field); virtual;
     procedure  SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
     procedure  SubObjectDeleted       (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object); virtual;
-    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
-    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID           ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : IFRE_DB_Object  ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
     procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID ; const key_description : TFRE_DB_NameTypeRL); virtual;
     procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID ; const key_description : TFRE_DB_NameTypeRL); virtual;
   end;
@@ -643,8 +643,8 @@ type
     procedure   FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field); override;
     procedure   SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); override;
     procedure   SubObjectDeleted       (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object); override;
-    procedure   SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); override;
-    procedure   SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); override;
+    procedure   SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID             ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);override;
+    procedure   SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : IFRE_DB_Object  ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); override;
     procedure   InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID ; const key_description : TFRE_DB_NameTypeRL); override;
     procedure   OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID ; const key_description : TFRE_DB_NameTypeRL); override;
   end;
@@ -780,13 +780,13 @@ begin
   FRealIF.SubObjectDeleted(layer,obj.CloneToNewObject());
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
   Inherited;
   FRealIF.SetupOutboundRefLink(layer,from_obj,to_obj,key_description);
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
   Inherited;
   FRealIF.SetupInboundRefLink(layer,from_obj,to_obj,key_description);
@@ -866,16 +866,16 @@ begin
   GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> SUB OBJECT FINAL DELETE -> %s',[Layer.GetConnectedDB,obj.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationBase.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
   if not GStartupRebuilding then
-    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationBase.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
   if not GStartupRebuilding then
-    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj, from_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
@@ -2631,22 +2631,33 @@ end;
 // Setup the "to_list" for KEY-UID,Field,(Subkeys)
 // For every in the "to_list" referenced object set an inbound link, from KEY-UID
 
-procedure TFRE_DB_Master_Data.__SetupInitialRefLink(const from_key: TFRE_DB_Object; const FromFieldToSchemename, LinkFromSchemenameField: TFRE_DB_NameTypeRL; const references_to: TFRE_DB_GUID);
-var refoutkey : RFRE_DB_GUID_RefLink_InOut_Key;
-    refinkey  : RFRE_DB_GUID_RefLink_InOut_Key;
+procedure TFRE_DB_Master_Data.__SetupInitialRefLink(const from_key: TFRE_DB_Object; FromFieldToSchemename, LinkFromSchemenameField: TFRE_DB_NameTypeRL; const references_to: TFRE_DB_GUID);
+var refoutkey     : RFRE_DB_GUID_RefLink_InOut_Key;
+    refinkey      : RFRE_DB_GUID_RefLink_InOut_Key;
+    ref_obj       : TFRE_DB_Object;
+    fieldname     : TFRE_DB_NameType;
+    schemename    : TFRE_DB_NameType;
 
 begin
   assert(pos('>',FromFieldToSchemename)>0,'internal reflink failure 1');
+  FREDB_SplitRefLinkDescription(FromFieldToSchemename,fieldname,schemename);
+
+  if not FetchObject(references_to,ref_obj,true) then
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,GFRE_BT.GUID_2_HexString(references_to)]);
+
+  FromFieldToSchemename   := uppercase(fieldname+'>'+ref_obj.SchemeClass);
+  LinkFromSchemenameField := uppercase(from_key.SchemeClass+'<'+fieldname);
+
   __SetupOutboundLinkKey(from_key.UID,references_to,FromFieldToSchemename,refoutkey);
   if not FMasterRefLinks.InsertBinaryKey(@refoutkey,refoutkey.KeyLength,$BAD0BEEF) then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink fromkey exists. :-(');
-  FLayer.GetNotificationStreamCallback.SetupOutboundRefLink(FLayer,from_key.UID,references_to,FromFieldToSchemename);
+  FLayer.GetNotificationStreamCallback.SetupOutboundRefLink(FLayer,from_key.UID,ref_obj,FromFieldToSchemename);
 
   assert(pos('<',LinkFromSchemenameField)>0,'internal reflink failure 2');
   __SetupInboundLinkKey(from_key.UID,references_to,LinkFromSchemenameField,refinkey);
   if not FMasterRefLinks.InsertBinaryKey(@refinkey,refinkey.KeyLength,$BEEF0BAD) then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink tokey exists. :-(');
-  FLayer.GetNotificationStreamCallback.SetupInboundRefLink(FLayer,from_key.UID,references_to,LinkFromSchemenameField);
+  FLayer.GetNotificationStreamCallback.SetupInboundRefLink(FLayer,from_key,references_to,LinkFromSchemenameField);
 end;
 
 procedure TFRE_DB_Master_Data._ChangeRefLink(const from_obj: TFRE_DB_Object; const upper_schemename: TFRE_DB_NameType; const upper_fieldname: TFRE_DB_NameType; const old_links, new_links: TFRE_DB_GUIDArray);

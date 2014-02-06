@@ -85,7 +85,7 @@ type
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
   TFRE_DB_SchemeType          = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
   TFRE_DB_COMMANDTYPE         = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
-  TFRE_DB_NotifyObserverType  = (fdbntf_INSERT,fdbntf_UPDATE,fdbntf_DELETE,fdbntf_START_UPDATING,fdbntf_ENDUPDATE_APPLY,fdbntf_COLLECTION_RELOAD);
+  TFRE_DB_NotifyObserverType  = (fdbntf_INSERT,fdbntf_UPDATE,fdbntf_DELETE,fdbntf_START_UPDATING,fdbntf_ENDUPDATE_APPLY,fdbntf_COLLECTION_RELOAD,fdbntf_OutboundRL_ADD,fdbntf_OutboundRL_DEL,fdbntf_InboundRL_ADD,fdbntf_InboundRL_DEL);
   TFRE_DB_SUBSEC_DISPLAY_TYPE = (sec_dt_tab,sec_dt_vertical,sec_dt_hiddentab);
 
 
@@ -717,7 +717,7 @@ type
   { IFRE_DB_COLLECTION_OBSERVER }
 
   IFRE_DB_COLLECTION_OBSERVER = interface
-    procedure ICO_CollectionNotify (const notify_type : TFRE_DB_NotifyObserverType ; const obj : IFRE_DB_Object ; const obj_uid: TGUID);
+    procedure ICO_CollectionNotify (const notify_type : TFRE_DB_NotifyObserverType ; const obj : IFRE_DB_Object ; const obj_uid: TGUID ; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL);
     function  ICO_ObserverID       : String;
   end;
 
@@ -1255,8 +1255,8 @@ type
     procedure  FieldAdd               (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const new_field : IFRE_DB_Field);
     procedure  FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field);
     procedure  ObjectRemoved          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
-    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID     ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj: TGUID     ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID             ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : IFRE_DB_Object    ; const  to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
     procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL);
     procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL);
   end;
@@ -2435,6 +2435,7 @@ type
   function  FREDB_String2GuidArray               (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Guid                    (const str:string):TGUID;
   function  FREDB_String2Bool                    (const str:string):boolean;
+  function  FREDB_SplitRefLinkDescription        (key_description : TFRE_DB_NameTypeRL ; var rl_field,rl_scheme : TFRE_DB_NameTypeRL):boolean; { True if outbound RL}
 
   function  FREDB_String2NativeInt               (const str:String):NativeInt;
   function  FREDB_String2NativeUInt              (const str:String):NativeUint;
@@ -2690,6 +2691,34 @@ begin
   if (str='0') or (UpperCase(str)='FALSE') then begin
     result := false;
   end else raise EFRE_DB_Exception.Create(edb_ERROR,'invalid string to bool conversion : value=['+str+']');
+end;
+
+function FREDB_SplitRefLinkDescription(key_description: TFRE_DB_NameTypeRL; var rl_field, rl_scheme: TFRE_DB_NameTypeRL): boolean;
+var fpos,tpos : NativeInt;
+begin
+   key_description:=uppercase(key_description);
+   fpos := pos('>',key_description);
+   tpos := pos('<',key_description);
+   if (fpos=0) and
+      (tpos=0) then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly one "<" or ">" ');
+   if (fpos>0) and
+      (tpos>0) then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly "<" or ">"');
+   if fpos>0 then
+     result := true
+   else
+     result := false;
+   if result then
+     begin
+       rl_field  := Copy(key_description,1,fpos-1);
+       rl_scheme := Copy(key_description,fpos+1,maxint);
+     end
+   else
+     begin
+       rl_scheme := Copy(key_description,1,tpos-1);
+       rl_field  := Copy(key_description,tpos+1,maxint);
+     end;
 end;
 
 

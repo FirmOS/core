@@ -655,7 +655,7 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry);    // DROP : Websock / JSON / IN / OUT
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);    // DROP : JSON
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Debug,'*',flra_DropEntry);    // DROP SESSION  DEBUG
-  //  GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
   end;
 
   procedure Setup_APS_COMM_Logging;
@@ -669,8 +669,8 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
   begin
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Info,'*',flra_DropEntry);
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry);
-    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
-    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Debug,'*',flra_DropEntry);
+    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
+    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Debug,'*',flra_DropEntry);
   end;
 
   procedure Setup_FlexcomLogging;

@@ -1244,9 +1244,11 @@ type
   TFRE_DB_COLLECTIONCLASS  = class of TFRE_DB_COLLECTION;
 
   RFRE_DB_UPDATE_ENTRY = record
-                           update_type : TFRE_DB_NotifyObserverType;
-                           update_obj  : TFRE_DB_Object;
-                           update_uid  : TGuid;
+                           update_type     : TFRE_DB_NotifyObserverType;
+                           update_obj      : TFRE_DB_Object;
+                           update_uid      : TGuid;
+                           to_uid          : TGUID;
+                           key_description : TFRE_DB_NameTypeRL
                          end;
 
   OFRE_DB_ObserverList = specialize OGFOS_Array<IFRE_DB_COLLECTION_OBSERVER>;
@@ -1264,8 +1266,8 @@ type
     FObserverUpdates       : Array of RFRE_DB_UPDATE_ENTRY;
     FObserverBlockupdating : Boolean;
 
-    procedure        __NotifyCollectionObservers   (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID);
-    procedure        _NotifyObserversOrRecord      (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID);
+    procedure        __NotifyCollectionObservers   (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID ; const to_uid : TGUID ; const key_description: TFRE_DB_NameTypeRL );
+    procedure        _NotifyObserversOrRecord      (const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID ; const key_description: TFRE_DB_NameTypeRL);
   protected
     class function  Forced_In_Memory               : Boolean;virtual;
 
@@ -1294,8 +1296,9 @@ type
 
     procedure       AcquireBigColl;
     procedure       ReleaseBigColl;
+
   public
-    constructor     Create         (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);
+    constructor     Create         (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);virtual;
     destructor      Destroy        ;override;
     function        Count          : QWord; virtual;
     function        Exists         (const ouid:TGUID):boolean;
@@ -1566,15 +1569,21 @@ type
 
     FInitialDerived    : Boolean;
     FSession           : TFRE_DB_UserSession;
+
+    function        HasParentChildRefRelationDefined : boolean;
+    function        IsReferentialLinkMode            : boolean;
+    function        IsDependencyFilteredCollection   : boolean;
+
+    function        ParentchildRelationIsOutbound    : boolean;
     procedure       _CheckSetDisplayType (const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
     procedure       _ClearMode;
 
-    procedure       ICO_CollectionNotify (const notify_type : TFRE_DB_NotifyObserverType ; const obj : IFRE_DB_Object ; const obj_uid: TGUID);
+    procedure       ICO_CollectionNotify (const notify_type : TFRE_DB_NotifyObserverType ; const obj : IFRE_DB_Object ; const obj_uid: TGUID ; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL);
     function        ICO_ObserverID       : String;
 
     procedure       BeginUpdateGathering       ;
     procedure       FinishUpdateGathering      (const sendupdates : Boolean);
-    procedure       _AddToTransformedCollection (item:IFRE_DB_Object;const send_client_notify:boolean=false;const update_data:boolean=false;const child_call : boolean=false);
+    procedure       _AddToTransformedCollection (item:IFRE_DB_Object;const send_client_notify:boolean=false;const update_data:boolean=false;const child_call : boolean=false ; const parentid:string='');
 
     function        _CheckUIDExists(obj_uid : TGuid) : Boolean;
 
@@ -1616,6 +1625,8 @@ type
     function IFRE_DB_DERIVED_COLLECTION.GetIndexedObj            = GetIndexedObjI;
 
   public
+    constructor     Create         (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);override;
+
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     destructor Destroy;override;
 
@@ -1655,8 +1666,6 @@ type
     function   Update                          (const dbo:TFRE_DB_Object)    :TFRE_DB_Errortype; override;
 
     procedure  SetDeriveParent                 (const coll:TFRE_DB_COLLECTION; const idField: String='uid');
-    // Creates a virtual Parent Collection In Memory, which acts as derive Parent
-    //procedure  SetVirtualMode                  (const StringIndexKey : String='');
     procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids');
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
 
@@ -1744,8 +1753,8 @@ type
     procedure  FieldAdd               (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const new_field : IFRE_DB_Field); virtual;
     procedure  FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field); virtual;
     procedure  ObjectRemoved          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
-    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
-    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID             ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);virtual;
+    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : IFRE_DB_Object    ; const to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
     procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
     procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
     { Notification Interface - End }
@@ -5585,6 +5594,26 @@ begin
   AddMatchingReferencedField(TFRE_DB_NameTypeArray.Create(ref_field),target_field,output_field,output_title,gui_display_type,sortable,filterable,fieldSize);
 end;
 
+function TFRE_DB_DERIVED_COLLECTION.HasParentChildRefRelationDefined: boolean;
+begin
+  result := (FParentChldLinkFldSpec<>'');
+end;
+
+function TFRE_DB_DERIVED_COLLECTION.IsReferentialLinkMode: boolean;
+begin
+  result := FDCMode=dc_ReferentialLinkCollection;
+end;
+
+function TFRE_DB_DERIVED_COLLECTION.IsDependencyFilteredCollection: boolean;
+begin
+  result := FUseDepAsLinkFilt;
+end;
+
+function TFRE_DB_DERIVED_COLLECTION.ParentchildRelationIsOutbound: boolean;
+begin
+  result := FParentLinksChild;
+end;
+
 procedure TFRE_DB_DERIVED_COLLECTION._CheckSetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
 begin
   AcquireBigColl;
@@ -5623,8 +5652,14 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.ICO_CollectionNotify(const notify_type: TFRE_DB_NotifyObserverType; const obj: IFRE_DB_Object; const obj_uid: TGUID);
+procedure TFRE_DB_DERIVED_COLLECTION.ICO_CollectionNotify(const notify_type: TFRE_DB_NotifyObserverType; const obj: IFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL);
 var not_object : IFRE_DB_Object;
+    rl_field   : TFRE_DB_NameType;
+    rl_scheme  : TFRE_DB_NameType;
+    cmp_field  : TFRE_DB_NameType;
+    cmp_scheme : TFRE_DB_NameType;
+    cmp_dir    : boolean;
+    dbg_collname:string;
 
   procedure DeleteRecord;
   var res    : TFRE_DB_UPDATE_STORE_DESC;
@@ -5635,6 +5670,7 @@ var not_object : IFRE_DB_Object;
   end;
 
 begin //nl
+  dbg_collname := CollectionName();
   case notify_type of
     fdbntf_START_UPDATING : begin
       BeginUpdateGathering;
@@ -5674,6 +5710,107 @@ begin //nl
       FInitialDerived := false;
       Fsession.SendServerClientRequest(TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
     end;
+    fdbntf_InboundRL_ADD:
+      begin
+        if HasParentChildRefRelationDefined
+           and not ParentchildRelationIsOutbound then
+          begin
+             if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+               raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+             if (rl_field=FParentChildField) and
+                ((FParentChildScheme='') or (FParentChildScheme=rl_scheme)) and { notification is relevant}
+                    assigned(obj) then
+                      _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,true,FREDB_G2H(to_uid)); { Add Object }
+          end;
+        if IsReferentialLinkMode then
+          begin
+             if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+               raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+             if not FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme) then
+               begin
+                 if (rl_field=cmp_field) and
+                     ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
+                         assigned(obj) then
+                           begin
+                             _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,''); { Add Object }
+                           end;
+               end;
+          end;
+        if IsDependencyFilteredCollection then
+          begin
+            if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+              raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+            cmp_dir := FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme);
+            if FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme) then
+              begin
+                if (rl_field=cmp_field) and
+                    ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
+                        assigned(obj) then
+                          begin
+                            FInitialDerived:=false;
+                            Fsession.SendServerClientRequest(TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
+                          end;
+              end;
+          end;
+      end;
+    fdbntf_InboundRL_DEL:
+      begin
+        if HasParentChildRefRelationDefined
+          and not ParentchildRelationIsOutbound then
+         begin
+            if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+              raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+            if (rl_field=FParentChildField) and
+               ((FParentChildScheme='') or (FParentChildScheme=rl_scheme)) { notification is relevant}
+                   then
+                    begin
+                       if _CheckUIDExists(obj_uid) then begin
+                         if assigned(FSession) then begin
+                           DeleteRecord;
+                         end;
+                         FInitialDerived := false; // Force rebuild
+                       end;
+                    end;
+         end;
+      end;
+    fdbntf_OutboundRL_ADD:
+      begin
+        if HasParentChildRefRelationDefined
+           and ParentchildRelationIsOutbound then
+          begin
+             if not FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+               raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+             if (rl_field=FParentChildField) and
+                ((FParentChildScheme='') or (FParentChildScheme=rl_scheme)) then { notification is relevant}
+                  begin
+                    FParentChildField:=FParentChildField;
+                  end;
+          end;
+        if IsDependencyFilteredCollection then
+          begin
+            if not FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+              raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+            //cmp_dir := FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme);
+            if FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme) then
+              begin
+                if (rl_field=cmp_field) and
+                    ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
+                        assigned(obj) then
+                          begin
+                            FInitialDerived:=false;
+                            Fsession.SendServerClientRequest(TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
+                            dbg_collname := CollectionName();
+                          end;
+              end;
+          end;
+      end;
+    fdbntf_OutboundRL_DEL:
+      begin
+        if HasParentChildRefRelationDefined then
+          begin
+
+          end;
+      end;
   end;
 end;
 
@@ -5709,7 +5846,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION._AddToTransformedCollection(item: IFRE_DB_Object; const send_client_notify: boolean; const update_data: boolean; const child_call: boolean);
+procedure TFRE_DB_DERIVED_COLLECTION._AddToTransformedCollection(item: IFRE_DB_Object; const send_client_notify: boolean; const update_data: boolean; const child_call: boolean; const parentid: string);
 var i                 : Integer;
     iob               : IFRE_DB_Object;
     tmp_ob            : IFRE_DB_Object;
@@ -5719,7 +5856,7 @@ var i                 : Integer;
     tr_obj            : TFRE_DB_Object;
     target_field_type : TFRE_DB_FIELDTYPE;
     use_filter_fields : boolean;
-    isFirst           : Boolean;
+    revItemIsPrevious : Boolean;
 
     function Filter(const fob_f:TFRE_DB_FIELD):boolean;
     var fob             : TFRE_DB_Object;
@@ -5925,11 +6062,13 @@ var i                 : Integer;
      end;
     end;
 
-    procedure SendClientUpdate(const tr_obj:TFRE_DB_Object);
+    procedure SendClientUpdate(const tr_obj:TFRE_DB_Object;const parentid:string='');
     var
         tr2 : TFRE_DB_Object;
         dum : boolean;
         ups : String;
+        tr_parent : TFRE_DB_Object;
+
 
         procedure  Chartupdate;
         var fct   : TFRE_DB_CHART_TRANSFORM;
@@ -5945,6 +6084,17 @@ var i                 : Integer;
           end;
         end;
 
+        function  FindParent(const Item : TFRE_DB_Object ; const bool:boolean):boolean;
+        begin
+          if item.UID_String=parentid then
+            begin
+              result := true;
+              tr_parent := item;
+            end
+          else
+            result := false;
+        end;
+
     begin
       if update_data then begin
         case FDisplaytype of
@@ -5955,17 +6105,29 @@ var i                 : Integer;
         end;
       end else begin
                 //TODO Check if in any PAGESET / CURSOR / OPEN RESULTSET
-                ups := First.UID_String;
-                tr2 := tr_obj;
-                if FDBOList.FindPrev(tr2,dum) then begin  // TODO: Check if update is before/after ..
-                  ups := tr2.UID_String;
-                end;
-        if (isFirst) then begin
-          FGatherUpdateList.addNewEntry(tr_obj,'');
-        end else begin
-          FGatherUpdateList.addNewEntry(tr_obj,ups);
-        end;
-        isFirst:=false;
+        ups := First.UID_String;
+        tr2 := tr_obj;
+        if FDBOList.FindPrev(tr2,dum) then begin
+          ups    := tr2.UID_String;
+          revItemIsPrevious := true;
+        end else
+        if FDBOList.FindNext(tr2,dum) then begin
+          ups    := tr2.UID_String;
+          revItemIsPrevious := False;
+        end else
+          begin
+            ups := '';
+          end;
+        ups := ''; { FIXXME }
+        FGatherUpdateList.addNewEntry(tr_obj,ups,parentid,revItemIsPrevious);
+        tr_parent := nil;
+        if (parentid<>'') then
+          if FDBOList.ForAllNodesBrk(@FindParent) then
+              if assigned(tr_parent) then
+                begin
+                  tr_parent.Field('children').AsString := 'UNCHECKED';
+                  FGatherUpdateList.addUpdatedEntry(tr_parent);
+               end;
       end;
     end;
 
@@ -5986,7 +6148,6 @@ begin
             end;
         end;
 
-    isFirst:=true;
     use_filter_fields:=false;
     FFilters.ForAllBrk(@Filter);
     if add then begin
@@ -6025,7 +6186,7 @@ begin
           FDBOList.Add(tr_obj,false); // Sort;
         end;
         if send_client_notify and assigned(FGatherUpdateList) then begin
-          SendClientUpdate(tr_obj);
+          SendClientUpdate(tr_obj,parentid);
         end;
       end else begin
         //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL REJECT [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
@@ -6402,6 +6563,11 @@ begin
   finally
     ReleaseBigColl;
   end;
+end;
+
+constructor TFRE_DB_DERIVED_COLLECTION.Create(const connection: TFRE_DB_BASE_CONNECTION; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
+begin
+  inherited;
 end;
 
 //procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPageI(const page_info: TFRE_DB_DC_PAGING_INFO; const iterator: IFRE_DB_Obj_Iterator);
@@ -7058,7 +7224,7 @@ procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllEntries;
 
   procedure Clear(const o:TFRE_DB_Object;const no:boolean);
   begin
-    _NotifyObserversOrRecord(fdbntf_DELETE,o,o.UID);
+    _NotifyObserversOrRecord(fdbntf_DELETE,o,o.UID,CFRE_DB_NullGUID,'');
     o.free;
   end;
 
@@ -7209,31 +7375,11 @@ end;
 }
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameType);
-var fpos,tpos : NativeInt;
 begin
   AcquireBigColl;
   try
     FParentChldLinkFldSpec := uppercase(fieldname);
-    fpos := pos('>',fieldname);
-    tpos := pos('<',fieldname);
-    if (fpos=0) and
-       (tpos=0) then
-         raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly one "<" or ">" ');
-    if (fpos>0) and
-       (tpos>0) then
-         raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly "<" or ">"');
-    if fpos>0 then
-      FParentLinksChild := true;
-    if FParentLinksChild then
-      begin
-        FParentChildField  := Copy(fieldname,1,fpos-1);
-        FParentChildScheme := Copy(fieldname,fpos+1,maxint);
-      end
-    else
-      begin
-        FParentChildScheme := Copy(fieldname,1,tpos-1);
-        FParentChildField  := Copy(fieldname,tpos+1,maxint);
-      end;
+    FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
     if FParentChildField='' then
       raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
   finally
@@ -7637,7 +7783,7 @@ function TFRE_DB_DERIVED_COLLECTION.IMI_DESTROY_STORE(const input: IFRE_DB_Objec
 begin
   AcquireBigColl;
   try
-    writeln('DESTROY STORE ',input.DumpToString());
+    //writeln('DESTROY STORE ',input.DumpToString());
    // _CheckObserverAdded(false);
     result := GFRE_DB_NIL_DESC;
   finally
@@ -8929,11 +9075,11 @@ end;
 
 { TFRE_DB_COLLECTION }
 
-procedure TFRE_DB_COLLECTION.__NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID);
+procedure TFRE_DB_COLLECTION.__NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL);
   procedure Notify(const obs : IFRE_DB_COLLECTION_OBSERVER);
   begin
     try
-      obs.ICO_CollectionNotify(notify_type,obj,obj_uid);
+      obs.ICO_CollectionNotify(notify_type,obj,obj_uid,to_uid,key_description);
     except on e:exception do
       writeln('**>> ERROR -- COLLECTION NOTIFY WENT WRONG ',e.Message);
     end;
@@ -8942,21 +9088,22 @@ begin
   FObservers.ForAll(@Notify);
 end;
 
-procedure TFRE_DB_COLLECTION._NotifyObserversOrRecord(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID);
+procedure TFRE_DB_COLLECTION._NotifyObserversOrRecord(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID ; const to_uid : TGUID ; const key_description: TFRE_DB_NameTypeRL);
 begin
   if FObservers.Count>0 then
     if not FObserverBlockUpdating then begin
-      __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID);
-      __NotifyCollectionObservers(notify_type,obj,obj_uid); // Store = Add l Notify all direct observers
-      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID);
+      __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
+      __NotifyCollectionObservers(notify_type,obj,obj_uid,to_uid,key_description); // Store = Add l Notify all direct observers
+      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
     end else begin
       SetLength(FObserverUpdates,Length(FObserverUpdates)+1);
-      FObserverUpdates[high(FObserverUpdates)].update_type := notify_type;
-      FObserverUpdates[high(FObserverUpdates)].update_obj  := obj;
-      FObserverUpdates[high(FObserverUpdates)].update_uid  := obj_uid;
+      FObserverUpdates[high(FObserverUpdates)].update_type     := notify_type;
+      FObserverUpdates[high(FObserverUpdates)].update_obj      := obj;
+      FObserverUpdates[high(FObserverUpdates)].update_uid      := obj_uid;
+      FObserverUpdates[high(FObserverUpdates)].to_uid          := to_uid;
+      FObserverUpdates[high(FObserverUpdates)].key_description := key_description;
     end;
 end;
-
 
 class function TFRE_DB_COLLECTION.Forced_In_Memory: Boolean;
 begin
@@ -9236,12 +9383,12 @@ var i : integer;
 begin
   AcquireBigColl;
   try
-    __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID);
+    __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
     try
-      for i:=0 to High(FObserverUpdates) do begin
-        __NotifyCollectionObservers(FObserverUpdates[i].update_type,FObserverUpdates[i].update_obj,FObserverUpdates[i].update_uid);
-      end;
-      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID);
+      for i:=0 to High(FObserverUpdates) do
+        with FObserverUpdates[i] do
+          __NotifyCollectionObservers(update_type,update_obj,update_uid,to_uid,key_description);
+      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
     finally
       SetLength(FObserverUpdates,0);
       FObserverBlockupdating := false;
@@ -9392,7 +9539,7 @@ procedure TFRE_DB_COLLECTION.ForceFullUpdateForObservers;
 begin
   AcquireBigColl;
   try
-    _NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID);
+    _NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
   finally
     ReleaseBigColl;
   end;
@@ -9629,6 +9776,8 @@ begin
   AcquireBig;
   try
     lCollectionClass := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(ccn));
+    if lCollectionClass=TFRE_DB_DERIVED_COLLECTION then
+      inc(G_DEBUG_COUNTER);
     lcollection      := lCollectionClass.Create(self,coll_name,persColl);
     if not FCollectionStore.Add(uppercase(coll_name),lcollection) then
       raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
@@ -9660,7 +9809,7 @@ begin
   try
     try
       if FCollectionStore.Find(uppercase(coll_name),lcollection) then
-        lcollection._NotifyObserversOrRecord(fdbntf_INSERT,obj.Implementor as TFRE_DB_Object,obj.UID);
+        lcollection._NotifyObserversOrRecord(fdbntf_INSERT,obj.Implementor as TFRE_DB_Object,obj.UID,CFRE_DB_NullGUID,'');
     finally
       obj.Finalize;
     end;
@@ -9708,7 +9857,7 @@ begin
   try
     try
       if FCollectionStore.Find(uppercase(coll_name),lcollection) then
-        lcollection._NotifyObserversOrRecord(fdbntf_DELETE,nil,obj.UID);
+        lcollection._NotifyObserversOrRecord(fdbntf_DELETE,nil,obj.UID,CFRE_DB_NullGUID,'');
     finally
       obj.Finalize;
     end;
@@ -9717,24 +9866,81 @@ begin
   end;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
-begin
+procedure TFRE_DB_BASE_CONNECTION.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 
+  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+  begin
+    coll._NotifyObserversOrRecord(fdbntf_OutboundRL_ADD,to_obj.Implementor as TFRE_DB_Object,to_obj.UID, from_obj,key_description);
+  end;
+
+begin
+  try
+    ForAllColls(@NotifyCollectionRefLinkchange);
+  except
+    on E:Exception do
+      begin
+         GFRE_DB.LogError(dblc_DB,'Setup OL Reflink Notification failed due to %s %s %s',[e.Message,key_description,FREDB_G2H(from_obj),FREDB_G2H(to_obj.UID)]);
+      end;
+  end;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
-begin
+procedure TFRE_DB_BASE_CONNECTION.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 
+  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+  begin
+   if coll is TFRE_DB_DERIVED_COLLECTION then
+     begin
+       coll._NotifyObserversOrRecord(fdbntf_InboundRL_ADD,from_obj.Implementor as TFRE_DB_Object,from_obj.UID, to_obj,key_description);
+     end
+   else
+     coll._NotifyObserversOrRecord(fdbntf_InboundRL_ADD,from_obj.Implementor as TFRE_DB_Object,from_obj.UID, to_obj,key_description);
+  end;
+
+begin
+  try
+    ForAllColls(@NotifyCollectionRefLinkchange);
+  except
+    on E:Exception do
+      begin
+         GFRE_DB.LogError(dblc_DB,'Setup IL Reflink Notification failed due to %s %s %s',[e.Message,key_description,from_obj.UID_String,FREDB_G2H(to_obj)]);
+      end;
+  end;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj, from_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
-begin
 
+  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+  begin
+    coll._NotifyObserversOrRecord(fdbntf_InboundRL_DEL,nil,from_obj, to_obj,key_description);
+  end;
+
+begin
+  try
+    ForAllColls(@NotifyCollectionRefLinkchange);
+  except
+    on E:Exception do
+      begin
+         GFRE_DB.LogError(dblc_DB,'Drop IL Reflink Notification failed due to %s',[e.Message,key_description,FREDB_G2H(from_obj),FREDB_G2H(to_obj)]);
+      end;
+  end;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
-begin
 
+  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+  begin
+    coll._NotifyObserversOrRecord(fdbntf_OutboundRL_DEL,nil,from_obj, to_obj,key_description);
+  end;
+
+begin
+  try
+    ForAllColls(@NotifyCollectionRefLinkchange);
+  except
+    on E:Exception do
+      begin
+         GFRE_DB.LogError(dblc_DB,'Drop OL Reflink Notification failed due to %s',[e.Message,key_description,FREDB_G2H(from_obj),FREDB_G2H(to_obj)]);
+      end;
+  end;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.AcquireBig;
@@ -9785,7 +9991,7 @@ procedure TFRE_DB_BASE_CONNECTION._NotifyCollectionObservers(const notify_type: 
   begin
     try
       if FREDB_StringInArray(uppercase(coll.CollectionName),ncolls) then
-        coll._NotifyObserversOrRecord(notify_type,obj,obj_uid);
+        coll._NotifyObserversOrRecord(notify_type,obj,obj_uid,CFRE_DB_NullGUID,'');
     except on e:Exception do begin
       WriteStr(obs_typ,notify_type);
       GFRE_DB.LogError(dblc_DB,'COULD NOT FIRE [%s] OBSERVER COLL [%s] UID[%s] ERR[%s] ',[obs_typ,coll.ClassName,GFRE_BT.GUID_2_HexString(obj_UID),e.Message]);
@@ -10177,6 +10383,8 @@ begin
     end else begin
       if FPersistance_Layer.GetCollection(collection_name,persColl) then
         begin
+          if NewCollectionClass=TFRE_DB_DERIVED_COLLECTION then
+            inc(G_DEBUG_COUNTER);
           lcollection := NewCollectionClass.Create(self,collection_name,persColl);
           if not FCollectionStore.Add(FUPcoll_name,lcollection) then raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
           exit(lcollection);
@@ -10622,29 +10830,13 @@ var i        : NativeInt;
       i,k      : NativeInt;
       scheme   : TFRE_DB_NameType;
       field    : TFRE_DB_NameType;
+      outbound : Boolean;
       spos     : NativeInt;
   begin
     if depth<length(field_chain) then
       begin
-        spos := pos('>',field_chain[depth]);
-        if spos>0 then
-          begin
-            scheme := Copy(field_chain[depth],1,spos-1);
-            field  := Copy(field_chain[depth],spos+1,maxint);
-            obrefs := GetReferencesDetailed(uid,true,scheme,field);
-          end
-        else
-          begin
-            spos := pos('<',field_chain[depth]);
-            if spos>0 then
-              begin
-                scheme := Copy(field_chain[depth],1,spos-1);
-                field  := Copy(field_chain[depth],spos+1,maxint);
-                obrefs := GetReferencesDetailed(uid,false,scheme,field);
-              end
-            else
-              raise EFRE_DB_Exception.Create(edb_ERROR,'expand references fieldchain specifier bad at depth %d is [%s]',[depth,field_chain[depth]]);
-          end;
+        outbound := FREDB_SplitRefLinkDescription(field_chain[depth],field,scheme);
+        obrefs   := GetReferencesDetailed(uid,outbound,scheme,field);
         for i := 0 to  high(obrefs) do
           begin
             //comparef := uppercase(obrefs[i].fieldname);
