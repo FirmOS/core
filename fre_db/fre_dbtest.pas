@@ -334,7 +334,7 @@ procedure GenerateTestData(const dbname: string; const user, pass: string);
 
 type _tusertype = (utguest,utuser,utadmin,utdemo);
 
-var conn  : IFRE_DB_SYS_CONNECTION;
+var conn  : IFRE_DB_CONNECTION;
     res   : TFRE_DB_Errortype;
     i     : integer;
     login : string;
@@ -354,8 +354,8 @@ var conn  : IFRE_DB_SYS_CONNECTION;
     if lastname='' then lastname:='Lastname '+user;
     if firstname='' then firstname:='Firstname '+user;
 
-    if conn.UserExists(login) then CheckDbResult(conn.DeleteUser(login),'cannot delete user '+login);
-    CheckDbResult(conn.AddUser(login,passwd,firstname,lastname),'cannot add user '+login);
+    if conn.sys.UserExists(login) then CheckDbResult(conn.sys.DeleteUser(login),'cannot delete user '+login);
+    CheckDbResult(conn.sys.AddUser(login,passwd,firstname,lastname),'cannot add user '+login);
 
     //ims := TFRE_DB_Stream.Create;
     //ims.LoadFromFile(cFRE_SERVER_WWW_ROOT_DIR+'/fre_css/'+ cFRE_WEB_STYLE + '/images/LOGIN.png');
@@ -363,18 +363,18 @@ var conn  : IFRE_DB_SYS_CONNECTION;
   end;
 
 begin
-  CONN := GFRE_DBI.NewSysOnlyConnection;
+  CONN := GFRE_DBI.NewConnection;
   try
-    res  := CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
+    res  := CONN.Connect(dbname,user,pass);
     if res<>edb_OK then
       gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
 
-    if conn.DomainExists('firmos') then
-      CheckDbResult(conn.DeleteDomain('firmos'),'cannot delete domain firmos');
-    if conn.DomainExists('fpc') then
-      CheckDbResult(conn.DeleteDomain('fpc'),'cannot delete domain fpc');
-    if conn.DomainExists('demo') then
-      CheckDbResult(conn.DeleteDomain('demo'),'cannot delete domain demo');
+    if conn.sys.DomainExists('firmos') then
+      CheckDbResult(conn.sys.DeleteDomain('firmos'),'cannot delete domain firmos');
+    if conn.sys.DomainExists('fpc') then
+      CheckDbResult(conn.sys.DeleteDomain('fpc'),'cannot delete domain fpc');
+    if conn.sys.DomainExists('demo') then
+      CheckDbResult(conn.sys.DeleteDomain('demo'),'cannot delete domain demo');
 
     CheckDbResult(conn.AddDomain('firmos','FirmOS Domain','FirmOS Domain'),'cannot add domain firmos');
     CheckDbResult(conn.AddDomain('fpc','FPC Domain','FPC Domain'),'cannot add domain fpc');
@@ -409,8 +409,8 @@ begin
 
     login :='testfeeder@'+CFRE_DB_SYS_DOMAIN_NAME;
 
-    CheckDbResult(conn.AddUser(login,'x','testfeeder','testfeeder'),'cannot add user '+login);
-    CheckDbResult(conn.ModifyUserGroups(login,TFRE_DB_StringArray.Create('TESTFEEDER'+'@'+CFRE_DB_SYS_DOMAIN_NAME),true),'cannot set user groups '+login);
+    CheckDbResult(conn.sys.AddUser(login,'x','testfeeder','testfeeder'),'cannot add user '+login);
+    CheckDbResult(conn.sys.ModifyUserGroups(login,TFRE_DB_StringArray.Create('TESTFEEDER'+'@'+CFRE_DB_SYS_DOMAIN_NAME),true),'cannot set user groups '+login);
 
 
 

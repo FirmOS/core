@@ -535,14 +535,14 @@ begin
 end;
 
 procedure TFRE_CLISRV_APP.InitExtensions;
-var conn : IFRE_DB_SYS_CONNECTION;
+var conn : IFRE_DB_CONNECTION;
 begin
   _CheckDBNameSupplied;
-  //_CheckUserSupplied;
-  //_CheckPassSupplied;
+  _CheckUserSupplied;
+  _CheckPassSupplied;
   //writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
-  CONN := GFRE_DBI.NewSysOnlyConnection;
-  CheckDbResult(CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin'),'cannot connect system db');
+  CONN := GFRE_DBI.NewConnection;
+  CheckDbResult(CONN.Connect(FDBName,fuser,fPass),'cannot connect system db');
   GFRE_DBI.DBInitializeAllExClasses(conn);
   conn.Finalize;
   GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,FUser,FPass);

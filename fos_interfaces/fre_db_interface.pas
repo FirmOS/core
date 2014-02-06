@@ -692,6 +692,7 @@ type
     function        FetchObjByUID                      (const childuid:TGuid ; var obj : IFRE_DB_Object):boolean;
     function        FetchObjWithStringFieldValue       (const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString): boolean;
     procedure       SetAllSimpleObjectFieldsFromObject (const source_object : IFRE_DB_Object); // only first level, no uid, domid, obj, objlink fields
+    procedure       SetDomainID                        (const domid:TGUID);
   end;
 
   TFRE_DB_TEXT_SUBTYPE=(tst_Short,tst_Long,tst_Hint,tst_Key);
@@ -1330,6 +1331,9 @@ type
     function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
     function    AdmGetGroupCollection       :IFRE_DB_COLLECTION;
     function    AdmGetDomainCollection      :IFRE_DB_COLLECTION;
+    function    GetSysDomainUID             :TGUID;
+
+    function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
 
   end;
 
@@ -1374,7 +1378,6 @@ type
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
     function    DomainID                    (const domainname:TFRE_DB_NameType):TGUID;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
-    function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     procedure   ForAllDomains               (const func:IFRE_DB_Domain_Iterator);
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainname: TFRE_DB_NameType=''):TFRE_DB_Errortype;
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID ):TFRE_DB_Errortype;
@@ -1415,8 +1418,10 @@ type
     function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
     function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
 
-    function    IsCurrentUserSystemAdmin    : boolean;
-    function    DumpUserRights               :TFRE_DB_String;
+    function    IsCurrentUserSystemAdmin    :boolean;
+    function    DumpUserRights              :TFRE_DB_String;
+    function    GetSysDomainUID             :TGUID;
+    procedure   ReloadUserandRights         ;
   end;
 
 
@@ -1480,6 +1485,7 @@ type
     class procedure  RegisterSystemScheme       (const scheme:IFRE_DB_SCHEMEOBJECT); virtual;
     class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); virtual;
     class procedure  InstallDBObjects4Domain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
+    class procedure  InstallUserDBObjects4Domain(const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
     class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
     class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
 
@@ -1576,6 +1582,7 @@ type
     function        UID                                : TGUID;
     function        UID_String                         : TGUID_String;
     function        DomainID                           : TGUID;
+    procedure       SetDomainID                        (const domid:TGUID);
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
     function        AsString                           : TFRE_DB_String;
@@ -2076,7 +2083,7 @@ type
     function    NewSysOnlyConnection   : IFRE_DB_SYS_CONNECTION; // always direct=embedded
     function    DatabaseList           (const user:TFRE_DB_String='';const pass:TFRE_DB_String=''): IFOS_STRINGS;
 
-    procedure   DBInitializeAllExClasses     (const conn:IFRE_DB_SYS_CONNECTION);
+    procedure   DBInitializeAllExClasses     (const conn:IFRE_DB_CONNECTION);
     procedure   DBInitializeAllSystemClasses (const conn:IFRE_DB_SYS_CONNECTION); // not impemented by now (no initializable sys classes, keep count low)
 
     function    StringArray2String     (const A:TFRE_DB_StringArray):TFRE_DB_String;
@@ -5516,6 +5523,11 @@ begin
     end;
 end;
 
+class procedure TFRE_DB_Base.InstallUserDBObjects4Domain(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+begin
+
+end;
+
 class procedure TFRE_DB_Base.RemoveDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType);
 begin
 end;
@@ -5604,6 +5616,11 @@ end;
 function TFRE_DB_ObjectEx.DomainID: TGUID;
 begin
   result := FImplementor.DomainID;
+end;
+
+procedure TFRE_DB_ObjectEx.SetDomainID(const domid: TGUID);
+begin
+  FImplementor.SetDomainID(domid);
 end;
 
 

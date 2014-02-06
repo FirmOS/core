@@ -306,7 +306,7 @@ begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_DOMAIN)) then   //class right without domain
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
   //FIXXME - please handle input and error
-  CheckDbResult(conn.SYS.AddDomain(input.Field('data').AsObject.Field('objname').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt_s').AsString));
+  CheckDbResult(conn.AddDomain(input.Field('data').AsObject.Field('objname').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt_s').AsString));
   Result:=TFRE_DB_CLOSE_DIALOG_DESC.create.Describe();
 end;
 

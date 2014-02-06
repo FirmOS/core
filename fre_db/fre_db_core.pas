@@ -1717,7 +1717,6 @@ type
 
   TFRE_DB_BASE_CONNECTION=class(TFOS_BASE,IFRE_DB_DBChangedNotification)
   private
-    FSysDomainUID         : TGuid;
     FDBName               : TFRE_DB_String;
     FCloned               : boolean;
     FConnected            : Boolean;
@@ -1825,9 +1824,10 @@ type
     function           GetLastError                 : TFRE_DB_String;
     function           GetLastErrorcode             : TFRE_DB_Errortype;
 
-    function           GetMyDomainID                : TGUID;
+    function           GetMyDomainID                : TGUID; virtual;
     function           GetMyDomainID_String         : TGUID_String;
     function           GetSystemDomainID_String     : TGUID_String;
+    function           GetSysDomainUID              : TGUID; virtual;
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object;const without_right_check:boolean=false) : TFRE_DB_Errortype; virtual;
     function           Update                       (const dbo:TFRE_DB_Object)                                               : TFRE_DB_Errortype;
@@ -1841,6 +1841,7 @@ type
   { TFRE_DB_SYSTEM_CONNECTION }
   TFRE_DB_SYSTEM_CONNECTION = class(TFRE_DB_BASE_CONNECTION,IFRE_DB_SYS_CONNECTION)
   private
+    FSysDomainUID         : TGuid;
     FSysTransText        : TFRE_DB_COLLECTION;
     FSysUsers            : TFRE_DB_COLLECTION;
     FSysRoles            : TFRE_DB_COLLECTION;
@@ -1856,7 +1857,6 @@ type
     procedure   InternalSetupConnection     (const is_system,is_db_restore:boolean); override;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass ; const domainguid : TGuid): TFRE_DB_String;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_String;
-    procedure   _ReloadUserAndRights        ;
     function    _getFullRolename            (const rolename:TFRE_DB_String):TFRE_DB_String;
     function    _RoleID                     (const rolename:TFRE_DB_String;const domainUID:TGUID;var role_id:TGUID):boolean;
     function    _FetchGroup                 (const group: TFRE_DB_String; const domain_id:TGUID; var ug: TFRE_DB_GROUP):boolean;
@@ -1942,7 +1942,6 @@ type
     function    FetchDomainByIdI            (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    ModifyDomainById            (const domain_id:TGUID;const domainname: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
-    function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype; // TODO: Do all in a Transaction
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
     function    DomainID                    (const domainname:TFRE_DB_NameType):TGUID;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
@@ -2004,6 +2003,8 @@ type
     procedure   StartTransaction             (const trans_id     : TFRE_DB_NameType);
     procedure   Commit                       ;
     procedure   Rollback                     ;
+    function    GetSysDomainUID              :TGUID; override;
+    procedure   ReloadUserandRights          ;
   end;
 
 
@@ -2093,6 +2094,10 @@ type
     function    StartNewWorkFlowRecurring    (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String;const sec_interval:integer):UInt64;
 
     function    SYS                          : IFRE_DB_SYS_CONNECTION;
+    function    GetSysDomainUID              :TGUID; override;
+    function    AddDomain                    (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
+
+
   end;
 
   TFRE_RInterfaceImplementor =record
@@ -2131,7 +2136,7 @@ type
     procedure       SetLocalZone            (const AValue: TFRE_DB_String);
     function        NewObjectStreaming      (const ClName: ShortString) : TFRE_DB_Object;
 
-    procedure   _IntDBInitializeAllExClasses (const conn: IFRE_DB_SYS_CONNECTION; const installforonedomain: boolean; const onedomainUID:TGUID);
+    procedure   _IntDBInitializeAllExClasses (const conn: IFRE_DB_CONNECTION; const installforonedomain: boolean; const onedomainUID:TGUID);
 
   protected
     procedure   AcquireWeakMediatorLock     ;
@@ -2184,8 +2189,8 @@ type
     procedure   AddSystemObjectToSysList     (const obj:TFRE_DB_Object);
     function    FetchSysObject               (const uid:TGUID;var obj:TFRE_DB_Object):boolean;
 
-    procedure   DBAddDomainInstAllExClasses  (const conn:IFRE_DB_SYS_CONNECTION; const domainUID:TGUID);
-    procedure   DBInitializeAllExClasses     (const conn:IFRE_DB_SYS_CONNECTION);
+    procedure   DBAddDomainInstAllExClasses  (const conn:IFRE_DB_CONNECTION; const domainUID:TGUID);
+    procedure   DBInitializeAllExClasses     (const conn:IFRE_DB_CONNECTION);
     procedure   DBInitializeAllSystemClasses (const conn:IFRE_DB_SYS_CONNECTION); // not impemented by now (no initializable sys classes, keep count low)
 
     procedure   Initialize_System_Objects    ;
@@ -3834,25 +3839,6 @@ begin //nln
 end;
 
 
-
-procedure TFRE_DB_SYSTEM_CONNECTION._ReloadUserAndRights;
-var  useruid     : TGUID;
-begin
-  AcquireBig;
-  try
-    if assigned(FConnectedUser) then // Startup Case
-     begin
-       useruid  := FConnectedUser.UID;
-       FConnectedUser.Finalize;
-       if FetchUserById(useruid,FConnectedUser)<>edb_OK then
-         raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not fetch userid on reload of user');
-       FConnectionRights := _GetRightsArrayForUser(FConnectedUser);
-     end;
-  finally
-    ReleaseBig;
-  end;
-end;
-
 procedure TFRE_DB_BASE_CONNECTION._ConnectCheck;
 begin
   AcquireBig;
@@ -4220,28 +4206,6 @@ begin
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.AddDomain(const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
- var domain      : TFRE_DB_DOMAIN;
-     domainUID   : TGUID;
-begin
-  AcquireBig;
-  try
-    if DomainExists(domainname) then
-      exit(edb_EXISTS);
-    if domainname=CFRE_DB_SYS_DOMAIN_NAME then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'it is not allowed to add a domain called SYSTEM');
-    domain    := GFRE_DB._NewDomain(domainname,txt,txt_short);
-    domain.SetDomainID(domain.UID);
-    domainUID := domain.UID;
-    result := FSysDomains.Store(TFRE_DB_Object(domain));
-
-    GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
-    _ReloadUserAndRights;
-    FSysDomains.ForceFullUpdateForObservers;
-  finally
-    ReleaseBig;
-  end;
-end;
 
 function TFRE_DB_SYSTEM_CONNECTION.DomainExists(const domainname: TFRE_DB_NameType): boolean;
 begin
@@ -5177,6 +5141,29 @@ begin
   //  raise EFRE_DB_Exception.Create(edb_ERROR,'Could not rollback transaction');
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.GetSysDomainUID: TGUID;
+begin
+  result := FSysDomainUID;
+end;
+
+procedure TFRE_DB_SYSTEM_CONNECTION.ReloadUserandRights;
+var  useruid     : TGUID;
+begin
+  AcquireBig;
+  try
+   if assigned(FConnectedUser) then // Startup Case
+     begin
+       useruid  := FConnectedUser.UID;
+       FConnectedUser.Finalize;
+       if FetchUserById(useruid,FConnectedUser)<>edb_OK then
+         raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not fetch userid on reload of user');
+       FConnectionRights := _GetRightsArrayForUser(FConnectedUser);
+     end;
+  finally
+    ReleaseBig;
+  end;
+end;
+
 
 function TFRE_DB_SYSTEM_CONNECTION._AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype: String): TFRE_DB_Errortype;
 var user       : TFRE_DB_USER;
@@ -5194,11 +5181,18 @@ begin
       user.SetImage(image,imagetype);
     if system_start_up then
       begin
-        user.SetDomainID(FSysDomainUID);
+        user.SetDomainID(FSysDomainUID);  // create admin user on startup without checks
+        if user.GetDomainIDLink<>user.DomainID then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'add user failed, domainid [%s] and domainidlink [%s] are different.',[GFRE_BT.GUID_2_HexString(user.DomainID),GFRE_BT.GUID_2_HexString(user.GetDomainIDLink)]);
         result := FSysUsers._InternalStore(TFRE_DB_Object(user))
       end
     else
-      result := FSysUsers.Store(TFRE_DB_Object(user));
+      begin
+        user.SetDomainID(DomainID(domain)); // create user in the domain it belongs, not in the domain of the creator
+        if user.GetDomainIDLink<>user.DomainID then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'add user failed, domainid [%s] and domainidlink [%s] are different.',[GFRE_BT.GUID_2_HexString(user.DomainID),GFRE_BT.GUID_2_HexString(user.GetDomainIDLink)]);
+        result := FSysUsers.Store(TFRE_DB_Object(user));
+      end;
   finally
     ReleaseBig;
   end;
@@ -5393,6 +5387,8 @@ begin
     FSysUserSessionsData := from.FSysUserSessionsData;
     FSysTransText        := from.FSysTransText;
     FSysDomainUID        := from.FSysDomainUID;
+    FSysSingletons       := from.FSysSingletons;
+    FSysNotes            := from.FSysNotes;
   finally
     ReleaseBig;
   end;
@@ -9277,9 +9273,6 @@ begin //nl
     res := edb_PERSISTANCE_ERROR;
   end;
   result := (res=edb_OK);
-  if Result then begin
-    FConnection._NotifyCollectionObservers(fdbntf_DELETE,nil,ouid,ncolls);
-  end;
 end;
 
 function TFRE_DB_COLLECTION.Store(var new_obj: TFRE_DB_Object):TFRE_DB_Errortype;
@@ -9290,7 +9283,7 @@ begin //nl
     new_obj.SetDomainID(FConnection.GetMyDomainID);
   if not
      ((FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,new_obj.DomainID))
-       or FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,FConnection.FSysDomainUID)
+       or FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,FConnection.GetSysDomainUID) // if user has right in system domain, access is granted for all domains
        or FConnection.IsCurrentUserSystemAdmin) then
          exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+new_obj.DomainID_String);
   result := _InternalStore(new_obj);
@@ -9306,7 +9299,7 @@ begin //nl
    dbo.SetDomainID(FConnection.GetMyDomainID);
  if not
     ((FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,dbo.DomainID))
-      or FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,FConnection.FSysDomainUID)
+      or FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,FConnection.GetSysDomainUID)
       or FConnection.IsCurrentUserSystemAdmin) then
         exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+dbo.DomainID_String);
   result := FConnection.Update(dbo);
@@ -9778,6 +9771,7 @@ begin
     lCollectionClass := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(ccn));
     if lCollectionClass=TFRE_DB_DERIVED_COLLECTION then
       inc(G_DEBUG_COUNTER);
+    assert(self.Fcloned=false,'kacka');
     lcollection      := lCollectionClass.Create(self,coll_name,persColl);
     if not FCollectionStore.Add(uppercase(coll_name),lcollection) then
       raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
@@ -10380,18 +10374,20 @@ begin
       raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'you must supply a collectionname when creating a collection');
     if FCollectionStore.Find(FUPcoll_name,lcollection) then begin
       result := lcollection;
+   //   writeln('SWL :: HERE !"§ ',lcollection.FName,' ',lcollection.FConnection.ClassName);
     end else begin
       if FPersistance_Layer.GetCollection(collection_name,persColl) then
         begin
           if NewCollectionClass=TFRE_DB_DERIVED_COLLECTION then
             inc(G_DEBUG_COUNTER);
           lcollection := NewCollectionClass.Create(self,collection_name,persColl);
-          if not FCollectionStore.Add(FUPcoll_name,lcollection) then raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
+          if not FCollectionStore.Add(FUPcoll_name,lcollection) then
+            raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
           exit(lcollection);
         end;
       if create_non_existing then begin
-        if not FPersistance_Layer.GetCollection(collection_name,persColl) then
-          FPersistance_Layer.NewCollection(collection_name,NewCollectionClass.ClassName,persColl,in_memory_only);  { collection is added via notification callback as side effect }
+        //if not FPersistance_Layer.GetCollection(collection_name,persColl) then
+        FPersistance_Layer.NewCollection(collection_name,NewCollectionClass.ClassName,persColl,in_memory_only);  { collection is added via notification callback as side effect }
         if not FCollectionStore.Find(FUPcoll_name,lcollection) then
           raise EFRE_DB_Exception.Create(edb_ERROR,'cannot fetch created collection / fail');
         exit(lcollection);
@@ -10592,10 +10588,17 @@ function TFRE_DB_BASE_CONNECTION.GetSystemDomainID_String: TGUID_String;
 begin
   AcquireBig;
   try
-   result := uppercase(GFRE_BT.GUID_2_HexString(FSysDomainUID)); // GetSystemDomainID_String has to be uppercase
+   if GetSysDomainUID=CFRE_DB_NullGUID then
+     raise EFRE_DB_Exception.Create(edb_INTERNAL,'GetSystemDomainID_String FSysDomainID is NULL');
+   result := uppercase(GFRE_BT.GUID_2_HexString(GetSysDomainUID)); // GetSystemDomainID_String has to be uppercase
   finally
     ReleaseBig;
   end;
+end;
+
+function TFRE_DB_BASE_CONNECTION.GetSysDomainUID: TGUID;
+begin
+  raise EFRE_DB_Exception.Create(edb_INTERNAL,'GetSysDomainID on base connection no allowed!');
 end;
 
 function TFRE_DB_BASE_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object; const without_right_check: boolean): TFRE_DB_Errortype;
@@ -10607,12 +10610,15 @@ var dbi : IFRE_DB_Object;
       if not assigned(dbo) then
         dbo    := dbi.Implementor as TFRE_DB_Object;
       classt := dbo.Implementor_HC.ClassType;
+      GFRE_DB.LogDebug(dblc_APPLICATION,'Check Right for FETCH of class [%s] mydomain [%s]',[classt.ClassName,GetMyDomainID_String]);   // add user info
+      writeln('SWL: FETCHED ',dbo.DumpToString);
       if not
        ((IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
-         or IntCheckClassRight4Domain(sr_FETCH,classt,FSysDomainUID)
+         or IntCheckClassRight4Domain(sr_FETCH,classt,GetSysDomainUID)
          or IsCurrentUserSystemAdmin
          or without_right_check) then
            begin
+             GFRE_DB.LogInfo(dblc_APPLICATION,'Access denied for FETCH of class [%s] domain [%s]',[classt.ClassName,FREDB_G2H(dbo.DomainID)]); // add user info
              if not dbo.IsSystem then
                dbo.Finalize;
              dbo := nil;
@@ -10647,7 +10653,7 @@ begin
     objclass := dbo.Implementor_HC.ClassType;
     if not
      ((IntCheckClassRight4Domain(sr_UPDATE,objclass,dbo.DomainID))
-       or IntCheckClassRight4Domain(sr_UPDATE,objclass,FSysDomainUID)
+       or IntCheckClassRight4Domain(sr_UPDATE,objclass,GetSysDomainUID)
        or IsCurrentUserSystemAdmin) then
          exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to update objects in the specified domain : '+new_obj.DomainID_String);
     dboo   := dbo;
@@ -10940,6 +10946,34 @@ end;
 function TFRE_DB_CONNECTION.SYS: IFRE_DB_SYS_CONNECTION;
 begin
   result := FSysConnection;
+end;
+
+function TFRE_DB_CONNECTION.GetSysDomainUID: TGUID;
+begin
+  result := FSysConnection.GetSysDomainUID;
+end;
+
+function TFRE_DB_CONNECTION.AddDomain(const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+ var domain      : TFRE_DB_DOMAIN;
+     domainUID   : TGUID;
+begin
+  AcquireBig;
+  try
+    if Sys.DomainExists(domainname) then
+      exit(edb_EXISTS);
+    if domainname=CFRE_DB_SYS_DOMAIN_NAME then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'it is not allowed to add a domain called SYSTEM');
+    domain    := GFRE_DB._NewDomain(domainname,txt,txt_short);
+    domain.SetDomainID(domain.UID);
+    domainUID := domain.UID;
+    result := AdmGetDomainCollection.Store(TFRE_DB_Object(domain));
+
+    GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
+    Sys.ReloadUserAndRights;
+    AdmGetDomainCollection.ForceFullUpdateForObservers;
+  finally
+    ReleaseBig;
+  end;
 end;
 
 
@@ -11341,7 +11375,7 @@ begin
   result := false;
 end;
 
-procedure TFRE_DB._IntDBInitializeAllExClasses(const conn: IFRE_DB_SYS_CONNECTION; const installforonedomain: boolean; const onedomainUID: TGUID);
+procedure TFRE_DB._IntDBInitializeAllExClasses(const conn: IFRE_DB_CONNECTION; const installforonedomain: boolean; const onedomainUID: TGUID);
 var
   i              : integer;
   newVersion     : TFRE_DB_NameType;
@@ -11358,11 +11392,19 @@ var
     exsikey := exclassname+'_'+FREDB_G2H(domainUID);
     oldDomversion := version_dbo.Field(exsikey).AsString;
     try
-      FExClassArray[i].exclass.InstallDBObjects4Domain(conn,oldDomVersion,domainUID);
+      FExClassArray[i].exclass.InstallDBObjects4Domain(conn.sys,oldDomVersion,domainUID);
     except on
       e:exception do
         begin
           raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL FOR DOMAIN FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[olddomversion,exclassname+'_'+FREDB_G2H(domainUID),e.Message]);
+        end;
+    end;
+    try
+      FExClassArray[i].exclass.InstallUserDBObjects4Domain(conn,oldDomVersion,domainUID);
+    except on
+      e:exception do
+        begin
+          raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL USERDB FOR DOMAIN FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[olddomversion,exclassname+'_'+FREDB_G2H(domainUID),e.Message]);
         end;
     end;
     version_dbo.Field(exsikey).AsString := newDomVersion;
@@ -11377,7 +11419,7 @@ var
   end;
 
 begin
-  version_dbo := conn.GetClassesVersionDirectory;
+  version_dbo := conn.sys.GetClassesVersionDirectory;
   for i:=0 to high(FExClassArray) do begin
     try
       exclassname := FExClassArray[i].exclass.ClassName;
@@ -11388,7 +11430,7 @@ begin
           if installforonedomain=false then
             begin
               try
-                FExClassArray[i].exclass.InstallDBObjects(conn,oldVersion,newVersion);  // The base class sets the version to "UNUSED", so you need to override and set a version<>'' to call Install4Domain and be able to install dbos
+                FExClassArray[i].exclass.InstallDBObjects(conn.sys,oldVersion,newVersion);  // The base class sets the version to "UNUSED", so you need to override and set a version<>'' to call Install4Domain and be able to install dbos
               except on
                 e:exception do
                   begin
@@ -11401,7 +11443,7 @@ begin
                 abort;
               if newVersion<>'UNUSED' then
                 begin
-                  conn.ForAllDomains(@_Install4DomainDBO);
+                  conn.sys.ForAllDomains(@_Install4DomainDBO);
                 end;
               version_dbo.Field(exclassname).AsString := newVersion;
             end
@@ -11417,10 +11459,10 @@ begin
        GFRE_BT.CriticalAbort('DB INITIALIZATION OF EXCLASS SCHEME: [%s] FAILED DUE TO [%s]',[FExClassArray[i].exclass.ClassName,e.Message]);
     end;end;
    end;
-   CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
+   CheckDbResult(conn.sys.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
 end;
 
-procedure TFRE_DB.DBAddDomainInstAllExClasses(const conn: IFRE_DB_SYS_CONNECTION; const domainUID: TGUID);
+procedure TFRE_DB.DBAddDomainInstAllExClasses(const conn: IFRE_DB_CONNECTION; const domainUID: TGUID);
 begin
   _IntDBInitializeAllExClasses(conn,true,domainUID);
 end;
@@ -11796,7 +11838,7 @@ begin
 end;
 
 
-procedure TFRE_DB.DBInitializeAllExClasses(const conn: IFRE_DB_SYS_CONNECTION);
+procedure TFRE_DB.DBInitializeAllExClasses(const conn: IFRE_DB_CONNECTION);
 begin
   _IntDBInitializeAllExClasses(conn,false,CFRE_DB_NullGUID);
 end;
