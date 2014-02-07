@@ -960,11 +960,13 @@ begin
     FVerboseID  := FSocketAddr;
     if FSSL_Enabled then
       begin
-        FBufEvent := bufferevent_openssl_socket_new(base, Fsocket, FClientSSL_CTX,BUFFEREVENT_SSL_ACCEPTING,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+        //FBufEvent := bufferevent_openssl_socket_new(base, Fsocket, FClientSSL_CTX,BUFFEREVENT_SSL_ACCEPTING,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+        FBufEvent := bufferevent_openssl_socket_new(base, Fsocket, FClientSSL_CTX,BUFFEREVENT_SSL_ACCEPTING,BEV_OPT_CLOSE_ON_FREE);
       end
     else
       begin
-        FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+        //FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+        FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE);
       end;
     if not assigned(FBufEvent) then
       begin
@@ -1018,7 +1020,8 @@ begin
     Fsocket := -1;
     FManager:= manager;
     FCreateThreadID := GetThreadID;
-    FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+    //FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+    FBufEvent := bufferevent_socket_new(base,Fsocket,BEV_OPT_CLOSE_ON_FREE);
     if not assigned(FBufEvent) then
       begin
         FChanError:='did not get a bufferevent';
@@ -1771,7 +1774,7 @@ var res     : cInt;
 begin
   FId := id;
   APSC_CheckRaise(evutil_socketpair(PF_UNIX,SOCK_STREAM,0, FCommPair),true);
-  //APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[0]),true,FCommPair[0]);
+  APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[0]),true,FCommPair[0]);
   APSC_CheckRaise(evutil_make_socket_nonblocking(FCommPair[1]),true,FCommPair[1]);
   APSC_CheckRaise(evutil_make_socket_closeonexec(FCommPair[0]),true,FCommPair[0]);
   APSC_CheckRaise(evutil_make_socket_closeonexec(FCommPair[1]),true,FCommPair[1]);
@@ -2304,6 +2307,7 @@ var pack : ShortString;
     len  : integer;
     plen : NativeInt;
     err  : cint;
+    i    : NativeInt;
 begin
   plen:= Length(data);
   if plen=0 then
@@ -2313,15 +2317,23 @@ begin
     end;
   pack                 := Char(cmd)+#0#0#0#0+data;
   PCardinal(@pack[2])^ := plen;
-  len := FpWrite(fd,pack[1],Length(pack));
-  if len=-1 then
+  for i:=0 to 10 do
     begin
-      err := fpgeterrno;
-      writeln('ERR: '+APSC_TranslateOsError(err,'',''));
-    end
-  else
-    if len<>Length(pack) then
-      raise exception.Create('failed to send comm packet '+inttostr(len)+'/'+inttostr(length(pack)));
+      len := FpWrite(fd,pack[1],Length(pack));
+      if len=-1 then
+        begin
+          err := fpgeterrno;
+          if err=35 then
+            begin
+              sleep(100);
+              continue
+            end;
+        end
+      else
+        break;
+    end;
+  if len<>Length(pack) then
+    raise exception.Create('failed to send comm packet '+inttostr(len)+'/'+inttostr(length(pack))+' '+APSC_TranslateOsError(err,'',''));
 end;
 
 procedure TFRE_APS_COMM.AddListener_TCP(Bind_IP, Bind_Port: String; const ID: ShortString);

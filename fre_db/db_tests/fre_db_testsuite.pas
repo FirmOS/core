@@ -447,10 +447,16 @@ end;
 
 procedure TFRE_DB_PersistanceTests.SetupTestCollections;
 var coll_v,coll_p : IFRE_DB_COLLECTION;
+    name          : TFRE_DB_NameType;
 begin
   GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
   GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
   ConnectDB('test1@system','test1');
+  coll_v := FWorkConn.DomainCollection('TeSsT',true);
+  assert(FWorkConn.DomainCollectionExists('tesst'),'cannot find domaincoll');
+  name := coll_v.CollectionName(false);
+  name := coll_v.DomainCollName(true);
+
   coll_v := FWorkConn.Collection('TEST_1_VOL',true,true);
   coll_p := FWorkConn.Collection('TEST_1_PERS',true,false);
   coll_v := FWorkConn.Collection('TEST_1_VOL_U',true,true);   // unique
@@ -1087,6 +1093,8 @@ procedure TFRE_DB_PersistanceTests.SystemWrongUser;
 var result_code : TFRE_DB_Errortype;
 begin
   FSysconn    := GFRE_DBI.NewSysOnlyConnection;
+  result_code := FSysconn.Connect('admin@system','admin');
+
   result_code := FSysconn.Connect('wrong@system','wrong');
   AssertTrue('SYS CONNECT FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_NOT_FOUND);
   result_code := FSysconn.Connect('admin@system','wrong');

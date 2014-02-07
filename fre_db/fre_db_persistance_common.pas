@@ -783,13 +783,13 @@ end;
 procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
   Inherited;
-  FRealIF.SetupOutboundRefLink(layer,from_obj,to_obj,key_description);
+  FRealIF.SetupOutboundRefLink(layer,from_obj,to_obj.CloneToNewObject(),key_description);
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
   Inherited;
-  FRealIF.SetupInboundRefLink(layer,from_obj,to_obj,key_description);
+  FRealIF.SetupInboundRefLink(layer,from_obj.CloneToNewObject(),to_obj,key_description);
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj, from_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
@@ -2637,6 +2637,7 @@ var refoutkey     : RFRE_DB_GUID_RefLink_InOut_Key;
     ref_obj       : TFRE_DB_Object;
     fieldname     : TFRE_DB_NameType;
     schemename    : TFRE_DB_NameType;
+    was_locked    : boolean;
 
 begin
   assert(pos('>',FromFieldToSchemename)>0,'internal reflink failure 1');
@@ -2651,7 +2652,13 @@ begin
   __SetupOutboundLinkKey(from_key.UID,references_to,FromFieldToSchemename,refoutkey);
   if not FMasterRefLinks.InsertBinaryKey(@refoutkey,refoutkey.KeyLength,$BAD0BEEF) then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink fromkey exists. :-(');
-  FLayer.GetNotificationStreamCallback.SetupOutboundRefLink(FLayer,from_key.UID,ref_obj,FromFieldToSchemename);
+
+  ref_obj.Set_Store_LockedUnLockedIf(false,was_locked);
+  try
+    FLayer.GetNotificationStreamCallback.SetupOutboundRefLink(FLayer,from_key.UID,ref_obj,FromFieldToSchemename);
+  finally
+    ref_obj.Set_Store_LockedUnLockedIf(true,was_locked);
+  end;
 
   assert(pos('<',LinkFromSchemenameField)>0,'internal reflink failure 2');
   __SetupInboundLinkKey(from_key.UID,references_to,LinkFromSchemenameField,refinkey);
@@ -2727,13 +2734,10 @@ end;
 
 procedure TFRE_DB_Master_Data._SetupInitialRefLinks(const from_key: TFRE_DB_Object; const references_to_list: TFRE_DB_ObjectReferences; const schemelink_arr: TFRE_DB_NameTypeRLArray);
 var
-  i,j: NativeInt;
+  i: NativeInt;
 
 begin
   assert(Length(references_to_list)=Length(schemelink_arr),'internal error');
-  j := Length(references_to_list);
-  if j=2 then
-    j:=2;
   for i:=0 to high(references_to_list) do
     __SetupInitialRefLink(from_key,schemelink_arr[i],uppercase(from_key.SchemeClass+'<'+references_to_list[i].fieldname),references_to_list[i].linked_uid);
 end;

@@ -547,6 +547,7 @@ type
     procedure       Set_Volatile                       ;
     procedure       Set_System                         ;
     procedure       Set_Store_Locked                   (const locked:boolean=true); // Obj is as original in Persistent/MemoryStore Do not read or write it!
+    procedure       Set_Store_LockedUnLockedIf         (const locked:boolean ; var lock_state : boolean);
     procedure       Assert_CheckStoreLocked            ;
     procedure       Free                               ;
     procedure       ForAllFields                       (const iter:TFRE_DB_FieldIterator);
@@ -740,60 +741,6 @@ type
     property  ObjectName      : TFRE_DB_String       read GetName write SetName;
     property  Description     : TFRE_DB_TEXT read GetDesc write SetDesc;
   end;
-
-  TFRE_DB_WORKFLOW_STEP= class(TFRE_DB_NAMED_OBJECT,IFRE_DB_WORKFLOWSTEP)
-  private
-    FStepname : TFRE_DB_FIELD;
-    function   GetStepName: TFRE_DB_NameType;
-    procedure  SetStepName(AValue: TFRE_DB_NameType);
-    function     _ObjectsNeedsNoSubfieldSchemeCheck    : boolean; override;
-    function     _ObjectIsCodeclassOnlyAndHasNoScheme  : boolean; override;
-    function  IFRE_DB_WORKFLOWSTEP.GetDesc          = GetDescI;
-    function  IFRE_DB_WORKFLOWSTEP.SetDesc          = SetDescI;
-  public
-    procedure  SetStepMethod (const SchemeName,WFM_MethodName:TFRE_DB_String);
-    property   StepName : TFRE_DB_NameType read GetStepName write SetStepName;
-  end;
-
-  TFRE_DB_WORKFLOW = class(TFRE_DB_NAMED_OBJECT,IFRE_DB_WORKFLOW)
-  private
-    FWorkflowData    : TFRE_DB_FIELD;
-    FWorkflowProg    : TFRE_DB_FIELD;
-    FIsInstance      : TFRE_DB_FIELD;
-    FInstanceNumber  : TFRE_DB_FIELD;
-    function      GetCurrentStep: TFRE_DB_NameType;
-    function      GetEndTime: TFRE_DB_DateTime64;
-    function      GetNextScheduledInvocation: TFRE_DB_DateTime64;
-    function      GetRecurring: Boolean;
-    function      GetStartTime: TFRE_DB_DateTime64;
-    function      GetUserLogin: TFRE_DB_NameType;
-    procedure     SetRecurring(AValue: Boolean);
-    procedure     SetStartTime(AValue: TFRE_DB_DateTime64);
-    function     _ObjectsNeedsNoSubfieldSchemeCheck    : boolean; override;
-    function     _ObjectIsCodeclassOnlyAndHasNoScheme  : boolean; override;
-    procedure    InternalSetup     ; override;
-    function     IFRE_DB_WORKFLOW.GetDesc          = GetDescI;
-    function     IFRE_DB_WORKFLOW.SetDesc          = SetDescI;
-  public
-    procedure    ClearWorkFlow    ;
-
-    //procedure    DefineWorkFlowProperties (const Recurring:Boolean;const StartTime,Endtime: TFRE_DB_DateTime64;const Interval_Seconds : );
-    procedure    AddWorkFlowStep  (const STEP_NAME:TFRE_DB_NameType;const STEP   : TFRE_DB_WORKFLOW_STEP);
-    procedure    AddSubWorkAsStep (const STEP_NAME:TFRE_DB_NameType;const WFNAME : TFRE_DB_NameType);
-    procedure    DumpWorkFlow     ;
-
-    //Instance Properties
-    property     UserLogin               : TFRE_DB_NameType read GetUserLogin;
-    property     Recurring               : Boolean read GetRecurring write SetRecurring;
-    property     StartTime               : TFRE_DB_DateTime64 read GetStartTime;
-    property     EndTime                 : TFRE_DB_DateTime64 read GetEndTime;
-    property     NextScheduledInvocation : TFRE_DB_DateTime64 read GetNextScheduledInvocation;
-    property     CurrentStep             : TFRE_DB_NameType read GetCurrentStep;
-    function     WorkFlowData            : IFRE_DB_Object;
-    procedure    StopWorkFlow            (const reason : TFRE_DB_String);
-    function     WorkFlowState           : TFRE_DB_WORKFLOW_STATE;
-  end;
-
 
   { TFRE_DB_Enum }
 
@@ -1312,6 +1259,8 @@ type
     procedure       ClearCollection;
 
     function        CollectionName (const unique:boolean=false):TFRE_DB_NameType;
+    function        DomainCollName (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
+
 
     function        AddObserver                (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     function        RemoveObserver             (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
@@ -1709,6 +1658,8 @@ type
 
   _TFRE_DB_CollectionTree   = specialize TGFOS_RBTree<TFRE_DB_String,TFRE_DB_COLLECTION>; // TODO -> make a sparse array
 
+  OFRE_SL_TFRE_DB_BASE_CONNECTION = specialize OFOS_SpareList<TFRE_DB_BASE_CONNECTION>;
+
   { TFRE_DB_CONNECTION }
   TFRE_DB           =class;
 
@@ -1718,25 +1669,26 @@ type
   TFRE_DB_BASE_CONNECTION=class(TFOS_BASE,IFRE_DB_DBChangedNotification)
   private
     FDBName               : TFRE_DB_String;
+    FBlockNotifications   : Boolean;
+
+    FConnectionClones     : OFRE_SL_TFRE_DB_BASE_CONNECTION; { Only in Master, not in clones }
     FCloned               : boolean;
+
     FConnected            : Boolean;
     FAuthenticated        : Boolean;
-    FIntegrityInfoLog     : boolean;
-    FIntegrityRebuild     : boolean;
 
     FPersistance_Layer    : IFRE_DB_PERSISTANCE_LAYER;
+
     FCollectionStore      : _TFRE_DB_CollectionTree;
 
-    FApps                 : ARRAY of TFRE_DB_APPLICATION;
-    FSysWorkflowSchemes   : TFRE_DB_COLLECTION;
-    FSysWorkflowInstances : TFRE_DB_COLLECTION;
-    FSysNotes             : TFRE_DB_COLLECTION;
+    FSysNotes             : TFRE_DB_COLLECTION; {needed in SYSTEM and USER DB's}
 
     function            BackupDatabaseReadable      (const to_stream: TStream; const stream_cb: TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype; virtual;
     function            RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;virtual;
     procedure           _ConnectCheck                ;
     procedure           _CloneCheck                  ;
     function            Implementor                  : TObject;
+    procedure           _AddCollectionToStore        (const ccn : Shortstring ;  const coll_name: TFRE_DB_NameType ; const persColl: IFRE_DB_PERSISTANCE_COLLECTION); {from notfif or CollectionCC}
   protected
 
     { Notification Interface }
@@ -1767,10 +1719,9 @@ type
 
     procedure          _NotifyCollectionObservers   (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID ; const ncolls:TFRE_DB_StringArray);
     procedure          _CheckSchemeDefinitions      (const obj:TFRE_DB_Object);
-    function           _AppExists                   (const name:TFRE_DB_String):boolean;
     function           _FetchApp                    (const name:TFRE_DB_String;var app:TFRE_DB_APPLICATION):boolean;
-    function           _Connect                     (const db:TFRE_DB_String;const is_system:boolean):TFRE_DB_Errortype;virtual;
-    procedure          InternalSetupConnection      (const is_system,is_db_restore:boolean); virtual;
+    function           _Connect                     (const db:TFRE_DB_String ; const is_clone_connect : boolean):TFRE_DB_Errortype;virtual;
+    procedure          InternalSetupConnection      ;virtual;
     function           CollectionExists             (const name:TFRE_DB_NameType):boolean;virtual;
     function           CollectionCN                 (const collection_name:TFRE_DB_NameType;const NewCollectionClassName:ShortString):TFRE_DB_COLLECTION;virtual;
     function           DeleteCollection             (const name:TFRE_DB_NameType):TFRE_DB_Errortype;virtual;
@@ -1796,9 +1747,15 @@ type
     function           ConnectedName                : TFRE_DB_String;
     function           CollectionList               (const with_classes:boolean=false):IFOS_STRINGS                          ; virtual;
 
+    function           DomainCollection             (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false): IFRE_DB_COLLECTION;virtual;
+    function           DomainCollectionExists       (const name:TFRE_DB_NameType):boolean;
+    function           DeleteDomainCollection       (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
+
+
     function           Collection                   (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : TFRE_DB_COLLECTION;virtual;
     function           CollectionI                  (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;virtual;
     function           CollectionAsIntf             (const collection_name:TFRE_DB_NameType;const CollectionInterfaceSpec:ShortString;out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean; // creates/fetches a Specific Collection
+
     procedure          ForAllColls                  (const iterator:TFRE_DB_Coll_Iterator)                                   ;virtual;
     procedure          ForAllSchemes                (const iterator:TFRE_DB_Scheme_Iterator)                                 ;
     procedure          ForAllEnums                  (const iterator:TFRE_DB_Enum_Iterator)                                   ;
@@ -1807,9 +1764,9 @@ type
     procedure          ForAllSchemesI               (const iterator:IFRE_DB_Scheme_Iterator)                                 ;
     procedure          ForAllEnumsI                 (const iterator:IFRE_DB_Enum_Iterator)                                   ;
     procedure          ForAllClientFieldValidatorsI (const iterator:IFRE_DB_ClientFieldValidator_Iterator)                   ;
+
     function           OverviewDump                 :TFRE_DB_String; virtual;
-    constructor        Create                       ;
-    constructor        CreateCloned                 (const from:TFRE_DB_BASE_CONNECTION)                                     ; virtual;
+    constructor        Create                       (const clone : boolean)                                                  ;
     destructor         Destroy                                                                                               ; override;
     function           Exists                       (const ouid:TGUID)                                                       : boolean;
     function           Delete                       (const ouid:TGUID)                                                       : TFRE_DB_Errortype;virtual;
@@ -1841,7 +1798,8 @@ type
   { TFRE_DB_SYSTEM_CONNECTION }
   TFRE_DB_SYSTEM_CONNECTION = class(TFRE_DB_BASE_CONNECTION,IFRE_DB_SYS_CONNECTION)
   private
-    FSysDomainUID         : TGuid;
+    FClonedFrom          : TFRE_DB_SYSTEM_CONNECTION;
+    FSysDomainUID        : TGuid;
     FSysTransText        : TFRE_DB_COLLECTION;
     FSysUsers            : TFRE_DB_COLLECTION;
     FSysRoles            : TFRE_DB_COLLECTION;
@@ -1854,7 +1812,7 @@ type
     FConnectedUser       : TFRE_DB_User;        // specialized on clone
 
     function    ImpersonateTheClone         (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
-    procedure   InternalSetupConnection     (const is_system,is_db_restore:boolean); override;
+    procedure   InternalSetupConnection     ; override;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass ; const domainguid : TGuid): TFRE_DB_String;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_String;
     function    _getFullRolename            (const rolename:TFRE_DB_String):TFRE_DB_String;
@@ -1862,7 +1820,6 @@ type
     function    _FetchGroup                 (const group: TFRE_DB_String; const domain_id:TGUID; var ug: TFRE_DB_GROUP):boolean;
     function    _GroupID                    (const groupatdomain:TFRE_DB_String;var group_id:TGUID):boolean;
     function    _FetchGroupbyID             (const group_id:TGUID;var ug: TFRE_DB_GROUP;const without_right_check:boolean=false):TFRE_DB_Errortype;
-
 
 
     function    _DomainIDasString           (const name :TFRE_DB_NameType):TFRE_DB_NameType;
@@ -1914,7 +1871,6 @@ type
     function    _GetRightsArrayForUser        (const user         : IFRE_DB_USER)      : TFRE_DB_StringArray;
     function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
   public
-    constructor CreateCloned                (const from:TFRE_DB_SYSTEM_CONNECTION);
     destructor  Destroy                     ; override;
     procedure   DumpSystem                  ;override;
 
@@ -2010,8 +1966,10 @@ type
 
   TFRE_DB_CONNECTION=class(TFRE_DB_BASE_CONNECTION,IFRE_DB_CONNECTION)
   private
+    FClonedFrom         : TFRE_DB_CONNECTION;
     FSysConnection      : TFRE_DB_SYSTEM_CONNECTION;
-    FProxySysconnection : boolean;
+    FProxySysconnection : boolean;                             { This Sysconnection is a seperate connection not belonging to the connection,
+                                                                 must not be a clone, }
     function    IFRE_DB_CONNECTION.GetScheme                   = GetSchemeI;
     function    IFRE_DB_CONNECTION.Collection                  = CollectionI;
     function    IFRE_DB_CONNECTION.StoreScheme                 = StoreSchemeI;
@@ -2029,11 +1987,11 @@ type
     function    IFRE_DB_CONNECTION.GetSchemeCollection         = GetSchemeCollectionI;
     function    IFRE_DB_CONNECTION.AssociateObject             = AssociateObjectI;
     function    IFRE_DB_CONNECTION.DerivedCollection           = DerivedCollectionI;
+    function    CreateAClone                                   : TFRE_DB_CONNECTION;
   protected
-    procedure   InternalSetupConnection     (const is_system,is_db_restore:boolean); override;
+    procedure   InternalSetupConnection   ;override;
   public
     function    GetDatabaseName           : TFRE_DB_String;
-    constructor CreateCloned              (const from:TFRE_DB_CONNECTION);
     function    ImpersonateClone          (const user,pass:TFRE_DB_String;out conn:TFRE_DB_CONNECTION): TFRE_DB_Errortype;
 
     function    Connect                   (const db,user,pass:TFRE_DB_String;const ProxySysConnection:TFRE_DB_SYSTEM_CONNECTION):TFRE_DB_Errortype;
@@ -2082,16 +2040,6 @@ type
 
     function    DerivedCollection            (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): TFRE_DB_DERIVED_COLLECTION;
     function    DerivedCollectionI           (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
-
-    function    NewWorkFlowScheme            (const WF_SchemeName:TFRE_DB_NameType):IFRE_DB_WORKFLOW;
-    function    StoreWorkFlowScheme          (const WFS : IFRE_DB_WORKFLOW):TFRE_DB_Errortype;
-    function    FetchWorkFlowScheme          (const WF_SchemeName:TFRE_DB_NameType;var WFS:IFRE_DB_WORKFLOW):Boolean;
-    function    WorkFlowSchemeExists         (const WF_SchemeName:TFRE_DB_NameType):boolean;
-    procedure   ForAllWorkFlowSchemes        (const iterator:IFRE_DB_Workflow_Iterator);
-    function    DeleteWorkFlowScheme         (const WF_SchemeName:TFRE_DB_NameType):TFRE_DB_Errortype;
-
-    function    StartNewWorkFlow             (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String):UInt64;
-    function    StartNewWorkFlowRecurring    (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String;const sec_interval:integer):UInt64;
 
     function    SYS                          : IFRE_DB_SYS_CONNECTION;
     function    GetSysDomainUID              :TGUID; override;
@@ -2670,129 +2618,6 @@ end;
 function TFRE_DB_TREE_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
 begin
   Result := input.CloneToNewObject.Implementor as TFRE_DB_Object;
-end;
-
-{ TFRE_DB_WORKFLOW_STEP }
-
-function TFRE_DB_WORKFLOW_STEP.GetStepName: TFRE_DB_NameType;
-begin
-  result := FStepname.AsString;
-end;
-
-procedure TFRE_DB_WORKFLOW_STEP.SetStepName(AValue: TFRE_DB_NameType);
-begin
-  FStepname.AsString := AValue;
-end;
-
-function TFRE_DB_WORKFLOW_STEP._ObjectsNeedsNoSubfieldSchemeCheck: boolean;
-begin
-  Result := true;
-end;
-
-function TFRE_DB_WORKFLOW_STEP._ObjectIsCodeclassOnlyAndHasNoScheme: boolean;
-begin
-  Result := true;
-end;
-
-procedure TFRE_DB_WORKFLOW_STEP.SetStepMethod(const SchemeName, WFM_MethodName: TFRE_DB_String);
-begin
-
-end;
-
-{ TFRE_DB_WORKFLOW }
-
-function TFRE_DB_WORKFLOW._ObjectsNeedsNoSubfieldSchemeCheck: boolean;
-begin
-  Result := true;
-end;
-
-function TFRE_DB_WORKFLOW.GetRecurring: Boolean;
-begin
-
-end;
-
-function TFRE_DB_WORKFLOW.GetCurrentStep: TFRE_DB_NameType;
-begin
-
-end;
-
-function TFRE_DB_WORKFLOW.GetEndTime: TFRE_DB_DateTime64;
-begin
-
-end;
-
-function TFRE_DB_WORKFLOW.GetNextScheduledInvocation: TFRE_DB_DateTime64;
-begin
-
-end;
-
-function TFRE_DB_WORKFLOW.GetStartTime: TFRE_DB_DateTime64;
-begin
-
-end;
-
-function TFRE_DB_WORKFLOW.GetUserLogin: TFRE_DB_NameType;
-begin
-
-end;
-
-procedure TFRE_DB_WORKFLOW.SetRecurring(AValue: Boolean);
-begin
-
-end;
-
-procedure TFRE_DB_WORKFLOW.SetStartTime(AValue: TFRE_DB_DateTime64);
-begin
-
-end;
-
-function TFRE_DB_WORKFLOW._ObjectIsCodeclassOnlyAndHasNoScheme: boolean;
-begin
-  Result := true;
-end;
-
-procedure TFRE_DB_WORKFLOW.InternalSetup;
-begin
-  inherited InternalSetup;
-  FWorkflowData   := _Field('WD');
-  FWorkflowProg   := _Field('WP');
-  FIsInstance     := _Field('II');
-  FInstanceNumber := _Field('IN');
-end;
-
-procedure TFRE_DB_WORKFLOW.ClearWorkFlow;
-begin
-
-end;
-
-procedure TFRE_DB_WORKFLOW.AddWorkFlowStep(const STEP_NAME: TFRE_DB_NameType; const STEP: TFRE_DB_WORKFLOW_STEP);
-begin
-
-end;
-
-procedure TFRE_DB_WORKFLOW.AddSubWorkAsStep(const STEP_NAME: TFRE_DB_NameType; const WFNAME: TFRE_DB_NameType);
-begin
-
-end;
-
-procedure TFRE_DB_WORKFLOW.DumpWorkFlow;
-begin
-
-end;
-
-function TFRE_DB_WORKFLOW.WorkFlowData: IFRE_DB_Object;
-begin
-
-end;
-
-procedure TFRE_DB_WORKFLOW.StopWorkFlow(const reason: TFRE_DB_String);
-begin
-
-end;
-
-function TFRE_DB_WORKFLOW.WorkFlowState: TFRE_DB_WORKFLOW_STATE;
-begin
-
 end;
 
 { TFRE_DB_Enum }
@@ -3684,7 +3509,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection(const is_system, is_db_restore: boolean);
+procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
 
   procedure SetupTransTextCollection;
   var coll : TFRE_DB_COLLECTION;
@@ -3813,7 +3638,6 @@ begin
     SetupSystemDomain;
     SetupNoteCollection;
     CheckStandardUsers;
-    FApps := GFRE_DB.GetApps;
   finally
     ReleaseBig;
   end;
@@ -3883,25 +3707,13 @@ begin
 end;
 
 
-function TFRE_DB_BASE_CONNECTION._AppExists(const name: TFRE_DB_String): boolean;
-var i:integer;
-begin
-  AcquireBig;
-  try
-    for i:=0 to high(FApps) do begin
-      if FApps[i].AppClassName=uppercase(name) then exit(true);
-    end;
-    result := false;
-  finally
-    ReleaseBig;
-  end;
-end;
-
 function TFRE_DB_BASE_CONNECTION._FetchApp(const name: TFRE_DB_String; var app: TFRE_DB_APPLICATION): boolean;
-var i:integer;
+var i     : integer;
+    Fapps : TFRE_DB_APPLICATION_ARRAY;
 begin
   AcquireBig;
   try
+    FApps := GFRE_DB.GetApps;
     for i:=0 to high(FApps) do begin
       if FApps[i].AppClassName=uppercase(name) then begin
         app := FApps[i];
@@ -5375,37 +5187,12 @@ begin // nl
 end;
 
 
-constructor TFRE_DB_SYSTEM_CONNECTION.CreateCloned(const from: TFRE_DB_SYSTEM_CONNECTION);
-begin
-  AcquireBig;
-  try
-    inherited CreateCloned(from);
-    FSysUsers            := from.FSysUsers;
-    FSysRoles            := from.FSysRoles;
-    FSysGroups           := from.FSysGroups;
-    FSysDomains          := from.FSysDomains;
-    FSysUserSessionsData := from.FSysUserSessionsData;
-    FSysTransText        := from.FSysTransText;
-    FSysDomainUID        := from.FSysDomainUID;
-    FSysSingletons       := from.FSysSingletons;
-    FSysNotes            := from.FSysNotes;
-  finally
-    ReleaseBig;
-  end;
-end;
 
 destructor TFRE_DB_SYSTEM_CONNECTION.Destroy;
 begin
-  //if not FCloned then
-  //  begin
-  //    FSysTransText.Free;
-  //    FSysUsers.Free;
-  //    FSysRoles.Free;
-  //    FSysGroups.Free;
-  //    FSysDomains.Free;
-  //    FSysUserSessionsData.Free;
-  //    FSysSingletons.Free;
-  //  end;
+  if FCloned and
+     not FClonedFrom.FConnectionClones.Delete(self) then
+       raise EFRE_DB_Exception.Create(edb_INTERNAL,'something is rotten in the state of denmark');
   FConnectedUser.Free;
   inherited Destroy;
 end;
@@ -5487,10 +5274,9 @@ begin
   AcquireBig;
   try
     _CloneCheck;
-    //FRecreateSysObjects:=rebuild_sys_management;
     if not FConnected then
       begin
-        result := _Connect('SYSTEM',true);
+        result := _Connect('SYSTEM',false);
         if Result<>edb_OK then
           exit;
       end;
@@ -9334,8 +9120,15 @@ end;
 function TFRE_DB_COLLECTION.CollectionName(const unique: boolean): TFRE_DB_NameType;
 begin
   if unique then
+    result := FUniqueName
+  else
     result := FName;
-  result := FName;
+end;
+
+function TFRE_DB_COLLECTION.DomainCollName(const unique: boolean): TFRE_DB_NameType;
+begin
+  result := CollectionName(unique);
+  result := Copy(result,33,maxint);
 end;
 
 function TFRE_DB_COLLECTION.AddObserver(const obs: IFRE_DB_COLLECTION_OBSERVER): boolean;
@@ -9682,23 +9475,35 @@ begin
   GFRE_DB.ForAllClientFieldValidators(@DumpCLF);
 end;
 
-function TFRE_DB_BASE_CONNECTION._Connect(const db: TFRE_DB_String;const is_system:boolean): TFRE_DB_Errortype;
+function TFRE_DB_BASE_CONNECTION._Connect(const db: TFRE_DB_String; const is_clone_connect: boolean): TFRE_DB_Errortype;
 begin
   AcquireBig;
   try
-    _CloneCheck;
-    if FConnected then
-      exit(edb_ALREADY_CONNECTED);
+    if is_clone_connect then
+      begin
+        if not FCloned then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'must be cloned');
+      end
+    else
+      begin
+        _CloneCheck;
+        if FConnected then
+          exit(edb_ALREADY_CONNECTED);
+      end;
     result :=   GFRE_DB_PS_LAYER.Connect(db,FPersistance_Layer);
-    if result=edb_OK then begin
-      FConnected         := true;
-      FPersistance_Layer.SetNotificationStreamCallback(self);
-      InternalSetupConnection(is_system,false);
-      FDBName            := db;
-    end else begin
-      FConnected         :=false;
-      FDBName            :='';
-    end;
+    if result=edb_OK then
+      begin
+        FConnected         := true;
+        if not FCloned then
+          FPersistance_Layer.SetNotificationStreamCallback(self);
+        InternalSetupConnection;
+        FDBName            := db;
+      end
+    else
+     begin
+       FConnected         :=false;
+       FDBName            :='';
+     end;
   finally
     ReleaseBig;
   end;
@@ -9715,45 +9520,21 @@ begin
   end;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.InternalSetupConnection(const is_system,is_db_restore: boolean);
-
-  //procedure SetupApps;
-  //begin
-  //  Fapps := GFRE_DB.GetApps;
-  //end;
-  //
-  //procedure SetupWorkFlowSchemeCollection;
-  //var coll : TFRE_DB_COLLECTION;
-  //begin
-  //  if not CollectionExists('SysWorkflowSchemes') then begin
-  //    coll := Collection('SysWorkflowSchemes');
-  //    coll.DefineIndexOnField('objname',fdbft_String,True,True);
-  //  end;
-  //  FSysWorkflowSchemes := Collection('SysWorkflowSchemes');
-  //end;
-  //
-  //procedure SetupWorkFlowInstanceCollection;
-  //var coll : TFRE_DB_COLLECTION;
-  //begin
-  //  if not CollectionExists('SysWorkflowInstances') then begin
-  //    coll := Collection('SysWorkflowInstances');
-  //  end;
-  //  FSysWorkflowInstances := Collection('SysWorkflowInstances');
-  //end;
-
+procedure TFRE_DB_BASE_CONNECTION.InternalSetupConnection;
 begin
-  _CloneCheck;
-  //if not is_system then begin
-  //  SetupApps;
-  //  SetupWorkFlowSchemeCollection;
-  //  SetupWorkFlowInstanceCollection;
-  //end;
+
 end;
 
-constructor TFRE_DB_BASE_CONNECTION.Create;
+constructor TFRE_DB_BASE_CONNECTION.Create(const clone: boolean);
 begin
- FCollectionStore  := _TFRE_DB_CollectionTree.create(@FREDB_DBString_Compare);
- FConnected        := false;
+  FCollectionStore  := _TFRE_DB_CollectionTree.create(@FREDB_DBString_Compare);
+  FConnected        := false;
+  if clone then
+    FCloned      := true
+  else
+    begin
+      FConnectionClones.InitSparseListPtrCmp(5);
+    end;
 end;
 
 function TFRE_DB_BASE_CONNECTION.Implementor: TObject;
@@ -9761,33 +9542,45 @@ begin
   result := self;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
+procedure TFRE_DB_BASE_CONNECTION._AddCollectionToStore(const ccn: Shortstring; const coll_name: TFRE_DB_NameType; const persColl: IFRE_DB_PERSISTANCE_COLLECTION);
 var
     lcollection      : TFRE_DB_Collection;
     lCollectionClass : TFRE_DB_COLLECTIONCLASS;
 begin
+ lCollectionClass := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(ccn));
+ lcollection      := lCollectionClass.Create(self,coll_name,persColl);
+ if not FCollectionStore.Add(uppercase(coll_name),lcollection) then
+   raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
+
+  procedure AddCollection2Clone(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+  begin
+    if conn.FBlockNotifications then
+      exit;
+    conn._AddCollectionToStore(ccn,coll_name,persColl);
+  end;
+
+begin
   AcquireBig;
   try
-    lCollectionClass := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(ccn));
-    if lCollectionClass=TFRE_DB_DERIVED_COLLECTION then
-      inc(G_DEBUG_COUNTER);
-    assert(self.Fcloned=false,'kacka');
-    lcollection      := lCollectionClass.Create(self,coll_name,persColl);
-    if not FCollectionStore.Add(uppercase(coll_name),lcollection) then
-      raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
+    _CloneCheck;
+    _AddCollectionToStore(ccn,coll_name,persColl); { Master }
+    FConnectionClones.ForAllBreak(@AddCollection2Clone);
   finally
-   ReleaseBig;
+    ReleaseBig;
   end;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.CollectionDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
 begin
-
+  //abort;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.IndexDefinedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
 begin
-
+  //abort;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.IndexDroppedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
@@ -9796,14 +9589,27 @@ begin
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
-var
-    lcollection      : TFRE_DB_Collection;
+var dummy:boolean;
+
+  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+  var
+      lcollection      : TFRE_DB_Collection;
+  begin
+     if conn.FBlockNotifications then
+       exit;
+    if conn.FCollectionStore.Find(uppercase(coll_name),lcollection) then
+      lcollection._NotifyObserversOrRecord(fdbntf_INSERT,obj.Implementor as TFRE_DB_Object,obj.UID,CFRE_DB_NullGUID,'');
+  end;
+
 begin
+ if FBlockNotifications then
+   exit;
   AcquireBig;
   try
     try
-      if FCollectionStore.Find(uppercase(coll_name),lcollection) then
-        lcollection._NotifyObserversOrRecord(fdbntf_INSERT,obj.Implementor as TFRE_DB_Object,obj.UID,CFRE_DB_NullGUID,'');
+      _CloneCheck;
+      DoForClones(self,0,dummy);
+      FConnectionClones.ForAllBreak(@DoForClones);
     finally
       obj.Finalize;
     end;
@@ -9844,14 +9650,27 @@ begin
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ObjectRemoved(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
-var
-    lcollection      : TFRE_DB_Collection;
+var dummy:boolean;
+
+  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+  var
+      lcollection      : TFRE_DB_Collection;
+  begin
+   if conn.FBlockNotifications then
+     exit;
+   if conn.FCollectionStore.Find(uppercase(coll_name),lcollection) then
+     lcollection._NotifyObserversOrRecord(fdbntf_DELETE,nil,obj.UID,CFRE_DB_NullGUID,'');
+  end;
+
 begin
+ if FBlockNotifications then
+   exit;
   AcquireBig;
   try
     try
-      if FCollectionStore.Find(uppercase(coll_name),lcollection) then
-        lcollection._NotifyObserversOrRecord(fdbntf_DELETE,nil,obj.UID,CFRE_DB_NullGUID,'');
+      _CloneCheck;
+      DoForClones(self,0,dummy);
+      FConnectionClones.ForAllBreak(@DoForClones);
     finally
       obj.Finalize;
     end;
@@ -9861,79 +9680,131 @@ begin
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+var dummy:boolean;
 
-  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+
+    procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+    begin
+      if conn.FBlockNotifications then
+       exit;
+     coll._NotifyObserversOrRecord(fdbntf_OutboundRL_ADD,to_obj.Implementor as TFRE_DB_Object,to_obj.UID, from_obj,key_description);
+    end;
+
   begin
-    coll._NotifyObserversOrRecord(fdbntf_OutboundRL_ADD,to_obj.Implementor as TFRE_DB_Object,to_obj.UID, from_obj,key_description);
+    conn.ForAllColls(@NotifyCollectionRefLinkchange);
   end;
 
 begin
+ if FBlockNotifications then
+   exit;
+  AcquireBig;
   try
-    ForAllColls(@NotifyCollectionRefLinkchange);
-  except
-    on E:Exception do
-      begin
-         GFRE_DB.LogError(dblc_DB,'Setup OL Reflink Notification failed due to %s %s %s',[e.Message,key_description,FREDB_G2H(from_obj),FREDB_G2H(to_obj.UID)]);
-      end;
+    try
+      _CloneCheck;
+      DoForClones(self,0,dummy);
+      FConnectionClones.ForAllBreak(@DoForClones);
+    finally
+      to_obj.Finalize;
+    end;
+  finally
+    ReleaseBig;
   end;
 end;
+
+
 
 procedure TFRE_DB_BASE_CONNECTION.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+var dummy:boolean;
 
-  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+
+    procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+    begin
+      coll._NotifyObserversOrRecord(fdbntf_InboundRL_ADD,from_obj.Implementor as TFRE_DB_Object,from_obj.UID, to_obj,key_description);
+    end;
+
   begin
-   if coll is TFRE_DB_DERIVED_COLLECTION then
-     begin
-       coll._NotifyObserversOrRecord(fdbntf_InboundRL_ADD,from_obj.Implementor as TFRE_DB_Object,from_obj.UID, to_obj,key_description);
-     end
-   else
-     coll._NotifyObserversOrRecord(fdbntf_InboundRL_ADD,from_obj.Implementor as TFRE_DB_Object,from_obj.UID, to_obj,key_description);
+     if conn.FBlockNotifications then
+      exit;
+     conn.ForAllColls(@NotifyCollectionRefLinkchange);
   end;
 
 begin
+ if FBlockNotifications then
+   exit;
+  AcquireBig;
   try
-    ForAllColls(@NotifyCollectionRefLinkchange);
-  except
-    on E:Exception do
-      begin
-         GFRE_DB.LogError(dblc_DB,'Setup IL Reflink Notification failed due to %s %s %s',[e.Message,key_description,from_obj.UID_String,FREDB_G2H(to_obj)]);
-      end;
+    try
+      _CloneCheck;
+      DoForClones(self,0,dummy);
+      FConnectionClones.ForAllBreak(@DoForClones);
+    finally
+      from_obj.Finalize;
+    end;
+  finally
+    ReleaseBig;
   end;
 end;
+
 
 procedure TFRE_DB_BASE_CONNECTION.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj, from_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+var dummy:boolean;
 
-  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+
+    procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+    begin
+       coll._NotifyObserversOrRecord(fdbntf_InboundRL_DEL,nil,from_obj, to_obj,key_description);
+    end;
+
   begin
-    coll._NotifyObserversOrRecord(fdbntf_InboundRL_DEL,nil,from_obj, to_obj,key_description);
+    if conn.FBlockNotifications then
+      exit;
+    conn.ForAllColls(@NotifyCollectionRefLinkchange);
   end;
 
 begin
+  if FBlockNotifications then
+    exit;
+  AcquireBig;
   try
-    ForAllColls(@NotifyCollectionRefLinkchange);
-  except
-    on E:Exception do
-      begin
-         GFRE_DB.LogError(dblc_DB,'Drop IL Reflink Notification failed due to %s',[e.Message,key_description,FREDB_G2H(from_obj),FREDB_G2H(to_obj)]);
-      end;
+    _CloneCheck;
+    DoForClones(self,0,dummy);
+    FConnectionClones.ForAllBreak(@DoForClones);
+  finally
+    ReleaseBig;
   end;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 
-  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+
+procedure TFRE_DB_BASE_CONNECTION.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+var dummy:boolean;
+
+  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+
+    procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
+    begin
+      coll._NotifyObserversOrRecord(fdbntf_OutboundRL_DEL,nil,from_obj, to_obj,key_description);
+    end;
+
   begin
-    coll._NotifyObserversOrRecord(fdbntf_OutboundRL_DEL,nil,from_obj, to_obj,key_description);
+    if conn.FBlockNotifications then
+      exit;
+    conn.ForAllColls(@NotifyCollectionRefLinkchange);
   end;
 
 begin
+  if FBlockNotifications then
+    exit;
+  AcquireBig;
   try
-    ForAllColls(@NotifyCollectionRefLinkchange);
-  except
-    on E:Exception do
-      begin
-         GFRE_DB.LogError(dblc_DB,'Drop OL Reflink Notification failed due to %s',[e.Message,key_description,FREDB_G2H(from_obj),FREDB_G2H(to_obj)]);
-      end;
+    _CloneCheck;
+    DoForClones(self,0,dummy);
+    FConnectionClones.ForAllBreak(@DoForClones);
+  finally
+    ReleaseBig;
   end;
 end;
 
@@ -10012,38 +9883,28 @@ destructor TFRE_DB_BASE_CONNECTION.Destroy;
   end;
 
 begin
-  if FCloned then
-    exit;
   FCollectionStore.ForAllItems(@FinalizeCollection);
   FCollectionStore.Free;
   FCollectionStore:=nil;
 end;
 
-procedure TFRE_DB_CONNECTION.InternalSetupConnection(const is_system, is_db_restore: boolean);
+function TFRE_DB_CONNECTION.CreateAClone: TFRE_DB_CONNECTION;
+begin
+  if not FProxySysconnection then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the system connection is only tested in proxy mode');
 
-  procedure SetupApps;
-  begin
-    Fapps := GFRE_DB.GetApps;
-  end;
+  Result := TFRE_DB_CONNECTION.Create(true);
+  result._Connect(FDBName,true);
+  Result.FClonedFrom := self;
+  FConnectionClones.Add(result);
 
-  procedure SetupWorkFlowSchemeCollection;
-  var coll : TFRE_DB_COLLECTION;
-  begin
-    if not CollectionExists('SysWorkflowSchemes') then begin
-      coll := Collection('SysWorkflowSchemes');
-      coll.DefineIndexOnField('objname',fdbft_String,True,True);
-    end;
-    FSysWorkflowSchemes := Collection('SysWorkflowSchemes');
-  end;
+  Result.FSysConnection := TFRE_DB_SYSTEM_CONNECTION.Create(true);
+  result.FSysConnection._Connect('SYSTEM',true);
+  Result.FSysConnection.FClonedFrom := self.FSysConnection;
+  FSysConnection.FConnectionClones.Add(result.FSysConnection);
+end;
 
-  procedure SetupWorkFlowInstanceCollection;
-  var coll : TFRE_DB_COLLECTION;
-  begin
-    if not CollectionExists('SysWorkflowInstances') then begin
-      coll := Collection('SysWorkflowInstances');
-    end;
-    FSysWorkflowInstances := Collection('SysWorkflowInstances');
-  end;
+procedure TFRE_DB_CONNECTION.InternalSetupConnection;
 
   procedure SetupNoteCollection;
   var coll : TFRE_DB_COLLECTION;
@@ -10056,11 +9917,8 @@ procedure TFRE_DB_CONNECTION.InternalSetupConnection(const is_system, is_db_rest
   end;
 
 begin
-  SetupApps;
-  SetupWorkFlowSchemeCollection;
-  SetupWorkFlowInstanceCollection;
   SetupNoteCollection;
-  inherited InternalSetupConnection(is_system, is_db_restore);
+  inherited InternalSetupConnection;
 end;
 
 function TFRE_DB_CONNECTION.GetDatabaseName: TFRE_DB_String;
@@ -10068,26 +9926,15 @@ begin
   result := FDBName;
 end;
 
-constructor TFRE_DB_CONNECTION.CreateCloned(const from: TFRE_DB_CONNECTION);
-var coll : TFRE_DB_COLLECTION;
-    ob   : TFRE_DB_Object;
-begin
-  AcquireBig;
-  try
-    inherited      CreateCloned(from);
-    FSysConnection := TFRE_DB_SYSTEM_CONNECTION.CreateCloned(from.FSysConnection);
-  finally
-    ReleaseBig;
-  end;
-end;
 
 function TFRE_DB_CONNECTION.ImpersonateClone(const user, pass: TFRE_DB_String;out conn:TFRE_DB_CONNECTION): TFRE_DB_Errortype;
 begin
   AcquireBig;
   try
     result := CheckLogin(user,pass);
-    if result<>edb_OK then exit;
-    conn := TFRE_DB_CONNECTION.CreateCloned(self);
+    if result<>edb_OK then
+      exit;
+    conn := CreateAClone;
     conn.FSysConnection.ImpersonateTheClone(user,pass);
   finally
     ReleaseBig;
@@ -10162,6 +10009,29 @@ begin
   finally
     ReleaseBig;
   end;
+end;
+
+function TFRE_DB_BASE_CONNECTION.DomainCollection(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean; const in_memory: boolean): IFRE_DB_COLLECTION;
+var dom_cname : string;
+begin
+  dom_cname := GetMyDomainID_String+collection_name;
+  if length(dom_cname)>=SizeOf(TFRE_DB_NameType) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'name for collection too long : [%s] maxlen=',[dom_cname,SizeOf(TFRE_DB_NameType)]);
+  result    := Collection(dom_cname,create_non_existing,in_memory);
+end;
+
+function TFRE_DB_BASE_CONNECTION.DomainCollectionExists(const name: TFRE_DB_NameType): boolean;
+var dom_cname : TFRE_DB_NameType;
+begin
+  dom_cname := GetMyDomainID_String+name;
+  result    := CollectionExists(dom_cname);
+end;
+
+function TFRE_DB_BASE_CONNECTION.DeleteDomainCollection(const name: TFRE_DB_NameType): TFRE_DB_Errortype;
+var dom_cname : TFRE_DB_NameType;
+begin
+  dom_cname := GetMyDomainID_String+name;
+  result    := DeleteDomainCollection(name);
 end;
 
 
@@ -10243,24 +10113,6 @@ begin // Nolock /  fetch locks
     ldbo.IntfCast(IntfSpec,intf);
 end;
 
-
-constructor TFRE_DB_BASE_CONNECTION.CreateCloned(const from: TFRE_DB_BASE_CONNECTION);
-begin
-  inherited Create;
-  AcquireBig;
-  try
-    FCloned              := true;
-    FDBName              := from.FDBName;
-    FConnected           := from.FConnected;
-    FPersistance_Layer   := from.FPersistance_Layer;
-    FCollectionStore     := from.FCollectionStore;
-    FApps                := from.FApps;
-  finally
-    ReleaseBig;
-  end;
-end;
-
-
 function TFRE_DB_CONNECTION.Delete(const ouid: TGUID): TFRE_DB_Errortype;
 begin  //nl
   Result:=inherited Delete(ouid);
@@ -10270,6 +10122,9 @@ destructor TFRE_DB_CONNECTION.Destroy;
 begin
   if not FProxySysconnection then
     FSysConnection.Free;
+   if FCloned and
+      not FClonedFrom.FConnectionClones.Delete(self) then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'something is rotten in the state of denmark');
   inherited Destroy;
 end;
 
@@ -10374,20 +10229,17 @@ begin
       raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'you must supply a collectionname when creating a collection');
     if FCollectionStore.Find(FUPcoll_name,lcollection) then begin
       result := lcollection;
-   //   writeln('SWL :: HERE !"§ ',lcollection.FName,' ',lcollection.FConnection.ClassName);
     end else begin
       if FPersistance_Layer.GetCollection(collection_name,persColl) then
-        begin
-          if NewCollectionClass=TFRE_DB_DERIVED_COLLECTION then
-            inc(G_DEBUG_COUNTER);
+        begin { The Layer has the Collection but it's not in my store -> add it}
           lcollection := NewCollectionClass.Create(self,collection_name,persColl);
           if not FCollectionStore.Add(FUPcoll_name,lcollection) then
             raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
           exit(lcollection);
         end;
       if create_non_existing then begin
-        //if not FPersistance_Layer.GetCollection(collection_name,persColl) then
         FPersistance_Layer.NewCollection(collection_name,NewCollectionClass.ClassName,persColl,in_memory_only);  { collection is added via notification callback as side effect }
+        {Magic in here: Collectionstore gets updated in sync from persistance layer}
         if not FCollectionStore.Find(FUPcoll_name,lcollection) then
           raise EFRE_DB_Exception.Create(edb_ERROR,'cannot fetch created collection / fail');
         exit(lcollection);
@@ -10887,62 +10739,6 @@ begin //nl
 end;
 
 
-function TFRE_DB_CONNECTION.NewWorkFlowScheme(const WF_SchemeName: TFRE_DB_NameType): IFRE_DB_WORKFLOW;
-var wfo : TFRE_DB_WORKFLOW;
-begin
-  wfo := TFRE_DB_WORKFLOW.Create;
-  wfo.ObjectName := WF_SchemeName;
-  result := wfo;
-end;
-
-function TFRE_DB_CONNECTION.StoreWorkFlowScheme(const WFS: IFRE_DB_WORKFLOW): TFRE_DB_Errortype;
-var obj:TFRE_DB_Object;
-begin
-  obj    := WFS.Implementor as TFRE_DB_Object;
-  result := FSysWorkflowSchemes.Store(obj);
-end;
-
-function TFRE_DB_CONNECTION.FetchWorkFlowScheme(const WF_SchemeName: TFRE_DB_NameType; var WFS: IFRE_DB_WORKFLOW): Boolean;
-var obj : TFRE_DB_Object;
-begin
-  if FSysWorkflowSchemes.GetIndexedObj(WF_SchemeName,obj) then begin
-    obj.IntfCast(IFRE_DB_WORKFLOW,WFS);
-    result := true;
-  end else begin
-    result := false;
-  end;
-end;
-
-function TFRE_DB_CONNECTION.WorkFlowSchemeExists(const WF_SchemeName: TFRE_DB_NameType): boolean;
-var wfs:IFRE_DB_WORKFLOW;
-begin
-  result := FetchWorkFlowScheme(WF_SchemeName,wfs);
-end;
-
-procedure TFRE_DB_CONNECTION.ForAllWorkFlowSchemes(const iterator: IFRE_DB_Workflow_Iterator);
-  procedure Iterate(const obj:TFRE_DB_Object);
-  begin
-    Iterator(obj as TFRE_DB_WORKFLOW);
-  end;
-begin
-  FSysWorkflowSchemes.ForAll(@Iterate);
-end;
-
-function TFRE_DB_CONNECTION.DeleteWorkFlowScheme(const WF_SchemeName: TFRE_DB_NameType): TFRE_DB_Errortype;
-begin
-  FSysWorkflowSchemes.RemoveIndexed(WF_SchemeName);
-end;
-
-function TFRE_DB_CONNECTION.StartNewWorkFlow(const WF_SchemeName: TFRE_DB_NameType; const WF_UniqueKey: TFRE_DB_String): UInt64;
-begin
-
-end;
-
-function TFRE_DB_CONNECTION.StartNewWorkFlowRecurring(const WF_SchemeName: TFRE_DB_NameType; const WF_UniqueKey: TFRE_DB_String; const sec_interval: integer): UInt64;
-begin
-
-end;
-
 function TFRE_DB_CONNECTION.SYS: IFRE_DB_SYS_CONNECTION;
 begin
   result := FSysConnection;
@@ -10968,7 +10764,15 @@ begin
     domainUID := domain.UID;
     result := AdmGetDomainCollection.Store(TFRE_DB_Object(domain));
 
-    GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
+    FBlockNotifications:=true;
+    FSysConnection.FBlockNotifications:=true;
+    try
+      GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
+    finally
+      FSysConnection.FBlockNotifications:=false;
+      FBlockNotifications:=false;
+    end;
+
     Sys.ReloadUserAndRights;
     AdmGetDomainCollection.ForceFullUpdateForObservers;
   finally
@@ -11456,6 +11260,9 @@ begin
             end
         end;
     except on e:exception do begin
+      if installforonedomain then
+        raise
+      else
        GFRE_BT.CriticalAbort('DB INITIALIZATION OF EXCLASS SCHEME: [%s] FAILED DUE TO [%s]',[FExClassArray[i].exclass.ClassName,e.Message]);
     end;end;
    end;
@@ -11999,13 +11806,13 @@ end;
 function TFRE_DB.NewConnection(const direct: boolean): TFRE_DB_CONNECTION;
 begin
   GFRE_DB_Init_Check;
-  result := TFRE_DB_CONNECTION.Create;
+  result := TFRE_DB_CONNECTION.Create(false);
 end;
 
 function TFRE_DB.NewDirectSysConnection: TFRE_DB_SYSTEM_CONNECTION;
 begin
  GFRE_DB_Init_Check;
- result := TFRE_DB_SYSTEM_CONNECTION.Create;
+ result := TFRE_DB_SYSTEM_CONNECTION.Create(false);
 end;
 
 
@@ -13129,6 +12936,23 @@ begin
     Include(FObjectProps,fop_STORED_IMMUTABLE)
   else
     Exclude(FObjectProps,fop_STORED_IMMUTABLE);
+end;
+
+procedure TFRE_DB_Object.Set_Store_LockedUnLockedIf(const locked: boolean; var lock_state: boolean);
+begin
+  if Assigned(FParentDBO) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'trying to store lock/unlock a sub object -> logic failure');
+  if locked then
+    begin
+      if lock_state then
+        Include(FObjectProps,fop_STORED_IMMUTABLE);
+    end
+  else
+    begin
+      lock_state:= fop_STORED_IMMUTABLE in FObjectProps;
+      if lock_state then
+        Exclude(FObjectProps,fop_STORED_IMMUTABLE);
+    end;
 end;
 
 procedure TFRE_DB_Object.Assert_CheckStoreLocked;
@@ -17922,8 +17746,6 @@ begin
  InitMinimal(true);
  GFRE_DB.RegisterObjectClass(TFRE_DB_COLLECTION);
  GFRE_DB.RegisterObjectClass(TFRE_DB_DERIVED_COLLECTION);
- GFRE_DB.RegisterObjectClass(TFRE_DB_WORKFLOW);
- GFRE_DB.RegisterObjectClass(TFRE_DB_WORKFLOW_STEP);
  GFRE_DB.RegisterObjectClass(TFRE_DB_RIGHT);
  GFRE_DB.RegisterObjectClass(TFRE_DB_DOMAIN);
  GFRE_DB.RegisterObjectClass(TFRE_DB_GROUP);

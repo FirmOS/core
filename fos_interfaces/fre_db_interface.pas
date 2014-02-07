@@ -735,6 +735,8 @@ type
     function        Update              (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
     function        Fetch               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
     function        CollectionName      (const unique:boolean=false): TFRE_DB_NameType;
+    function        DomainCollName      (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
+
     function        ItemCount           : Int64;
     function        First               : IFRE_DB_Object;
     function        Last                : IFRE_DB_Object;
@@ -1276,7 +1278,10 @@ type
     function    GetDatabaseName           : TFRE_DB_String;
     function    Connect                   (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
+
     function    CollectionExists          (const name:TFRE_DB_NameType):boolean;
+    function    DomainCollectionExists    (const name:TFRE_DB_NameType):boolean;
+    function    DeleteDomainCollection    (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
     function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
     function    Delete                    (const ouid: TGUID): TFRE_DB_Errortype;
@@ -1287,6 +1292,7 @@ type
 
 
     function    Collection                (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
+    function    DomainCollection          (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
     function    CollectionAsIntf          (const collection_name: TFRE_DB_NameType;const CollectionInterfaceSpec:ShortString;out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean; // creates/fetches a Specific Collection / true if new
     function    DerivedCollection         (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
 
@@ -1297,23 +1303,12 @@ type
     procedure   ForAllClientFieldValidators  (const iterator:IFRE_DB_ClientFieldValidator_Iterator)                   ;
     function    InvokeMethod                 (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
-    function    NewWorkFlowScheme            (const WF_SchemeName:TFRE_DB_NameType):IFRE_DB_WORKFLOW;
-    function    DeleteWorkFlowScheme         (const WF_SchemeName:TFRE_DB_NameType):TFRE_DB_Errortype;
-    function    StoreWorkFlowScheme          (const WFS : IFRE_DB_WORKFLOW):TFRE_DB_Errortype;
-    function    FetchWorkFlowScheme          (const WF_SchemeName:TFRE_DB_NameType;var WFS:IFRE_DB_WORKFLOW):Boolean;
-    function    WorkFlowSchemeExists         (const WF_SchemeName:TFRE_DB_NameType):boolean;
-    procedure   ForAllWorkFlowSchemes        (const iterator:IFRE_DB_Workflow_Iterator);
-
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
 
 
     function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
     function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
     function    GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
-
-
-    function    StartNewWorkFlow             (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String):UInt64;
-    function    StartNewWorkFlowRecurring    (const WF_SchemeName:TFRE_DB_NameType;const WF_UniqueKey:TFRE_DB_String;const sec_interval:integer):UInt64;
 
     function    FetchUserSessionData        (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData        (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
