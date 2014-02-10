@@ -1476,6 +1476,8 @@ type
     FUseDepAsLinkFilt  : Boolean;
     FUseDepFiltInvert  : Boolean;
 
+    FSubscribeReflinkModeObserverTo : IFRE_DB_COLLECTION;
+
     FParentChldLinkFldSpec : TFRE_DB_NameType;
 
     FParentChildScheme : TFRE_DB_NameType;
@@ -1532,7 +1534,7 @@ type
 
     procedure       BeginUpdateGathering       ;
     procedure       FinishUpdateGathering      (const sendupdates : Boolean);
-    procedure       _AddToTransformedCollection (item:IFRE_DB_Object;const send_client_notify:boolean=false;const update_data:boolean=false;const child_call : boolean=false ; const parentid:string='');
+    procedure       _AddToTransformedCollection (item:IFRE_DB_Object;const send_client_notify:boolean=false;const update_data:boolean=false;const child_call : boolean=false ; const parentid:string='' ; const disable_filter : boolean =false);
 
     function        _CheckUIDExists(obj_uid : TGuid) : Boolean;
 
@@ -1615,7 +1617,8 @@ type
     function   Update                          (const dbo:TFRE_DB_Object)    :TFRE_DB_Errortype; override;
 
     procedure  SetDeriveParent                 (const coll:TFRE_DB_COLLECTION; const idField: String='uid');
-    procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids');
+    procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids'; const subscribe_observer_to : IFRE_DB_COLLECTION=nil);
+
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
 
 
@@ -1706,8 +1709,9 @@ type
     procedure  ObjectRemoved          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
     procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID             ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);virtual;
     procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : IFRE_DB_Object    ; const to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
-    procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   , from_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
-    procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj , to_obj  : TGUID   ; const key_description : TFRE_DB_NameTypeRL); virtual;
+    procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   : TGUID            ; const from_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID             ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);virtual;
+
     { Notification Interface - End }
 
     procedure           AcquireBig                  ;
@@ -5438,10 +5442,13 @@ procedure TFRE_DB_DERIVED_COLLECTION.ICO_CollectionNotify(const notify_type: TFR
 var not_object : IFRE_DB_Object;
     rl_field   : TFRE_DB_NameType;
     rl_scheme  : TFRE_DB_NameType;
+    rl_Add     : boolean;
+    rl_outbound: Boolean;
     cmp_field  : TFRE_DB_NameType;
     cmp_scheme : TFRE_DB_NameType;
     cmp_dir    : boolean;
     dbg_collname:string;
+    rc          : string;
 
   procedure DeleteRecord;
   var res    : TFRE_DB_UPDATE_STORE_DESC;
@@ -5451,8 +5458,131 @@ var not_object : IFRE_DB_Object;
     Fsession.SendServerClientRequest(res);
   end;
 
+  procedure DeleteRecordUid(const uid:TFRE_DB_GUID);
+  var res    : TFRE_DB_UPDATE_STORE_DESC;
+  begin
+    res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
+    res.addDeletedEntry(GFRE_BT.GUID_2_HexString(uid));
+    Fsession.SendServerClientRequest(res);
+  end;
+
+  procedure RefLinksChanged;
+    procedure ParentChildDefined ; {Grid or Tree}
+    begin
+      cmp_dir := ParentchildRelationIsOutbound;
+      if (rl_outbound = cmp_dir) and
+        (rl_field=FParentChildField) and
+        ((FParentChildScheme='') or (FParentChildScheme=rl_scheme)) and
+            assigned(obj) then
+              begin
+                if rl_Add then
+                  begin
+                    _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,true,FREDB_G2H(to_uid),true); { Add Object }
+                    FInitialDerived := False;
+                  end
+                else
+                  begin
+                    //if _CheckUIDExists(obj_uid) then begin
+                    //  if assigned(FSession) then begin
+                      DeleteRecordUid(obj_uid);
+                      //end;
+                      FInitialDerived := false; // Force rebuild
+                    //end;
+                  end
+              end;
+    end;
+
+    procedure ReferentialLinkMode;
+    begin
+     cmp_dir :=FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme);
+     if (rl_field=cmp_field) and
+          ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and
+            (cmp_dir=rl_outbound) then { notification is relevant}
+              begin
+                if rl_Add then
+                  begin
+                    _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
+                    FInitialDerived := False;
+                  end
+                else
+                  begin
+                    if cmp_dir then
+                      begin
+                        DeleteRecordUid(to_uid);
+                        FInitialDerived := False;
+                      end
+                    else
+                      begin
+                        DeleteRecordUid(obj_uid);
+                        FInitialDerived := False;
+                      end;
+                  end;
+              end;
+    end;
+
+    procedure DependencyFilteredCollection;
+    begin
+      cmp_dir := FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme);
+      if (rl_field=cmp_field) and
+          ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
+            (cmp_dir=rl_outbound) then
+                begin
+                  if rl_Add then
+                    begin
+                      if FDepObjectsRefNeg then
+                        begin
+                          DeleteRecordUid(obj_uid);
+                        end
+                      else
+                        begin
+                          if FParentChildField<>'' then
+                            begin
+                              _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,FREDB_G2H(to_uid),true);
+                            end
+                          else
+                            begin
+                             _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
+                            end;
+                          FInitialDerived := False;
+                        end;
+                    end
+                  else
+                    begin
+                      if FDepObjectsRefNeg then
+                        begin
+                          _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true);
+                          FInitialDerived := False;
+                        end
+                      else
+                        begin
+                          DeleteRecordUid(to_uid);
+                          FInitialDerived := False;
+                        end;
+                    end
+                end;
+    end;
+
+  begin
+    //if pos('PRODUCT_MODULESIN_GRID',dbg_collname)>0 then { DEBUG A SPECIFIC GRID }
+    //  dbg_collname:=dbg_collname
+    //else
+    //  exit;
+    if HasParentChildRefRelationDefined then
+      ParentChildDefined
+    else
+    if IsReferentialLinkMode then
+      ReferentialLinkMode
+    else
+    if IsDependencyFilteredCollection then
+      DependencyFilteredCollection;
+  end;
+
 begin //nl
   dbg_collname := CollectionName();
+  if pos('GROUPMOD_USEROUT_GRID',dbg_collname)>0 then
+    begin
+      dbg_collname := CollectionName();
+    end;
   case notify_type of
     fdbntf_START_UPDATING : begin
       BeginUpdateGathering;
@@ -5494,104 +5624,35 @@ begin //nl
     end;
     fdbntf_InboundRL_ADD:
       begin
-        if HasParentChildRefRelationDefined
-           and not ParentchildRelationIsOutbound then
-          begin
-             if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-               raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-             if (rl_field=FParentChildField) and
-                ((FParentChildScheme='') or (FParentChildScheme=rl_scheme)) and { notification is relevant}
-                    assigned(obj) then
-                      _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,true,FREDB_G2H(to_uid)); { Add Object }
-          end;
-        if IsReferentialLinkMode then
-          begin
-             if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-               raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-             if not FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme) then
-               begin
-                 if (rl_field=cmp_field) and
-                     ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
-                         assigned(obj) then
-                           begin
-                             _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,''); { Add Object }
-                           end;
-               end;
-          end;
-        if IsDependencyFilteredCollection then
-          begin
-            if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-              raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-            cmp_dir := FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme);
-            if FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme) then
-              begin
-                if (rl_field=cmp_field) and
-                    ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
-                        assigned(obj) then
-                          begin
-                            FInitialDerived:=false;
-                            Fsession.SendServerClientRequest(TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
-                          end;
-              end;
-          end;
+        if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+        rl_outbound := false;
+        rl_Add      := true;
+        RefLinksChanged;
       end;
     fdbntf_InboundRL_DEL:
       begin
-        if HasParentChildRefRelationDefined
-          and not ParentchildRelationIsOutbound then
-         begin
-            if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-              raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-            if (rl_field=FParentChildField) and
-               ((FParentChildScheme='') or (FParentChildScheme=rl_scheme)) { notification is relevant}
-                   then
-                    begin
-                       if _CheckUIDExists(obj_uid) then begin
-                         if assigned(FSession) then begin
-                           DeleteRecord;
-                         end;
-                         FInitialDerived := false; // Force rebuild
-                       end;
-                    end;
-         end;
+        if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+        rl_outbound := false;
+        rl_Add      := false;
+        RefLinksChanged;
       end;
     fdbntf_OutboundRL_ADD:
       begin
-        if HasParentChildRefRelationDefined
-           and ParentchildRelationIsOutbound then
-          begin
-             if not FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-               raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-             if (rl_field=FParentChildField) and
-                ((FParentChildScheme='') or (FParentChildScheme=rl_scheme)) then { notification is relevant}
-                  begin
-                    FParentChildField:=FParentChildField;
-                  end;
-          end;
-        if IsDependencyFilteredCollection then
-          begin
-            if not FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-              raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-            //cmp_dir := FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme);
-            if FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme) then
-              begin
-                if (rl_field=cmp_field) and
-                    ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
-                        assigned(obj) then
-                          begin
-                            FInitialDerived:=false;
-                            Fsession.SendServerClientRequest(TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
-                            dbg_collname := CollectionName();
-                          end;
-              end;
-          end;
+        if not FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+        rl_outbound := true;
+        rl_Add      := true;
+        RefLinksChanged;
       end;
     fdbntf_OutboundRL_DEL:
       begin
-        if HasParentChildRefRelationDefined then
-          begin
-
-          end;
+        if not FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
+          raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
+        rl_outbound := true;
+        rl_Add      := false;
+        RefLinksChanged;
       end;
   end;
 end;
@@ -5628,7 +5689,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION._AddToTransformedCollection(item: IFRE_DB_Object; const send_client_notify: boolean; const update_data: boolean; const child_call: boolean; const parentid: string);
+procedure TFRE_DB_DERIVED_COLLECTION._AddToTransformedCollection(item: IFRE_DB_Object; const send_client_notify: boolean; const update_data: boolean; const child_call: boolean; const parentid: string; const disable_filter: boolean);
 var i                 : Integer;
     iob               : IFRE_DB_Object;
     tmp_ob            : IFRE_DB_Object;
@@ -5931,12 +5992,14 @@ begin
         end;
 
     use_filter_fields:=false;
-    FFilters.ForAllBrk(@Filter);
+    if not disable_filter then
+      FFilters.ForAllBrk(@Filter);
     if add then begin
       tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
       iob    := tr_obj;
       use_filter_fields:=false;
-      FFiltersTrans.ForAllBrk(@Filter);
+      if not disable_filter then
+        FFiltersTrans.ForAllBrk(@Filter);
       //if FTransform.HasFilterFields then begin
       //  use_filter_fields:=true;
       //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
@@ -6830,7 +6893,7 @@ begin
 end;
 
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetReferentialLinkMode(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const dependency_reference: string);
+procedure TFRE_DB_DERIVED_COLLECTION.SetReferentialLinkMode(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const dependency_reference: string; const subscribe_observer_to: IFRE_DB_COLLECTION);
 var collif : IFRE_DB_COLLECTION;
     i      : NativeInt;
 begin
@@ -6842,14 +6905,12 @@ begin
     FIdField          := 'uid';
     SetLength(FDependencyRef,1);
     FDependencyRef[0] := dependency_reference;
-    //if dependency_object_refers then
-    //  FREDB_SeperateString(uppercase(scheme_and_field_constraint),'>',FDepRefConstraint)
-    //else
-    //  FREDB_SeperateString(uppercase(scheme_and_field_constraint),'<',FDepRefConstraint);
     SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
     for i := 0 to high(scheme_and_field_constraint) do
       FDepRefConstraint[i] := scheme_and_field_constraint[i];
     _CheckDepRefConstraint;
+
+    FSubscribeReflinkModeObserverTo := subscribe_observer_to;
 
     FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
   finally
@@ -7232,16 +7293,28 @@ begin
                  FObserverAdded    := true;
                  FParentCollection.AddObserver(self);
                end;
+        if (not FObserverAdded) and
+           assigned(FSubscribeReflinkModeObserverTo) then
+             begin
+               FObserverAdded    := true;
+               FSubscribeReflinkModeObserverTo.AddObserver(self);
+             end;
       end
     else
       begin
-       if (FObserverAdded) and
+        if (FObserverAdded) and
           ( (FDCMode=dc_Map2RealCollection)
             or (FDCMode=dc_Map2DerivedCollection)) then
               begin
                 FObserverAdded    := False;
                 FParentCollection.RemoveObserver(self);
               end;
+        if (FObserverAdded) and
+           assigned(FSubscribeReflinkModeObserverTo) then
+             begin
+               FObserverAdded    := False;
+               FSubscribeReflinkModeObserverTo.RemoveObserver(self);
+             end;
       end;
   finally
     ReleaseBigColl;
@@ -9687,8 +9760,8 @@ var dummy:boolean;
     procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
     begin
       if conn.FBlockNotifications then
-       exit;
-     coll._NotifyObserversOrRecord(fdbntf_OutboundRL_ADD,to_obj.Implementor as TFRE_DB_Object,to_obj.UID, from_obj,key_description);
+        exit;
+      coll._NotifyObserversOrRecord(fdbntf_OutboundRL_ADD,to_obj.Implementor as TFRE_DB_Object,to_obj.UID, from_obj,key_description);
     end;
 
   begin
@@ -9748,14 +9821,14 @@ begin
 end;
 
 
-procedure TFRE_DB_BASE_CONNECTION.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj, from_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_BASE_CONNECTION.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj: TGUID; const from_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 var dummy:boolean;
 
   procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
 
     procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
     begin
-       coll._NotifyObserversOrRecord(fdbntf_InboundRL_DEL,nil,from_obj, to_obj,key_description);
+       coll._NotifyObserversOrRecord(fdbntf_InboundRL_DEL,from_obj.Implementor as TFRE_DB_Object,from_obj.UID, to_obj,key_description);
     end;
 
   begin
@@ -9779,14 +9852,14 @@ end;
 
 
 
-procedure TFRE_DB_BASE_CONNECTION.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj, to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_BASE_CONNECTION.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 var dummy:boolean;
 
   procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
 
     procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
     begin
-      coll._NotifyObserversOrRecord(fdbntf_OutboundRL_DEL,nil,from_obj, to_obj,key_description);
+      coll._NotifyObserversOrRecord(fdbntf_OutboundRL_DEL,to_obj.Implementor as TFRE_DB_Object,from_obj, to_obj.UID,key_description);
     end;
 
   begin
@@ -10462,8 +10535,7 @@ var dbi : IFRE_DB_Object;
       if not assigned(dbo) then
         dbo    := dbi.Implementor as TFRE_DB_Object;
       classt := dbo.Implementor_HC.ClassType;
-      GFRE_DB.LogDebug(dblc_APPLICATION,'Check Right for FETCH of class [%s] mydomain [%s]',[classt.ClassName,GetMyDomainID_String]);   // add user info
-      writeln('SWL: FETCHED ',dbo.DumpToString);
+      //GFRE_DB.LogDebug(dblc_APPLICATION,'Check Right for FETCH of class [%s] mydomain [%s]',[classt.ClassName,GetMyDomainID_String]);   // add user info
       if not
        ((IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
          or IntCheckClassRight4Domain(sr_FETCH,classt,GetSysDomainUID)

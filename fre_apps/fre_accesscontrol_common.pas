@@ -587,7 +587,7 @@ begin
     end;
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
     with groupin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_GROUP<ROLEIDS']);
+      SetReferentialLinkMode(['TFRE_DB_GROUP<ROLEIDS'],'uids',session.GetDBConnection.AdmGetGroupCollection);
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
     end;
@@ -908,7 +908,7 @@ begin
     end;
     userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_GRID');
     with userin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_USER<USERGROUPIDS']);
+      SetReferentialLinkMode(['TFRE_DB_USER<USERGROUPIDS'],'uids',session.GetDBConnection.AdmGetUserCollection);
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UinG'),nil,'',CWSF(@WEB_UIGMenu),nil,nil,nil,CWSF(@WEB_AddToUser));
     end;
@@ -1491,7 +1491,7 @@ begin
 
     groupin_Grid := session.NewDerivedCollection('USERMOD_GROUPIN_GRID');
     with groupin_Grid do begin
-      SetReferentialLinkMode(['USERGROUPIDS>TFRE_DB_GROUP']); // Gather all objects that the USERGROUPIDS Field points to
+      SetReferentialLinkMode(['USERGROUPIDS>TFRE_DB_GROUP'],'uids',session.GetDBConnection.AdmGetGroupCollection); // Gather all objects that the USERGROUPIDS Field points to
       SetDeriveTransformation(tr_GridIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UinG'),nil,'',CWSF(@WEB_GIGMenu),nil,nil,nil,CWSF(@WEB_AddToGroup));
     end;
@@ -1516,7 +1516,7 @@ begin
 
     rolein_Grid := session.NewDerivedCollection('USERMOD_ROLEIN_GRID');
     with rolein_Grid do begin
-      SetReferentialLinkMode(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE']); // Gather all objects that the USERGROUPIDS and then ROLEIDS Field points to
+      SetReferentialLinkMode(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],'uids',session.GetDBConnection.AdmGetRoleCollection); // Gather all objects that the USERGROUPIDS and then ROLEIDS Field points to
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UhasR'));
     end;
