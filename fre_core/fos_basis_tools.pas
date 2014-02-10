@@ -665,30 +665,30 @@ end;
 
 function TFOS_DEFAULT_BASISTOOLS.ByteToString(const byte: QWord): String;
 var
-  unity: String;
+  sz_unit: String;
   amount: Double;
 begin
   amount:=byte;
   if amount>1000 then begin
     amount:=amount/1024;
-    unity:='kB';
+    sz_unit:='kB';
     if amount>1000 then begin
       amount:=amount/1024;
-      unity:='MB';
+      sz_unit:='MB';
       if amount>1000 then begin
         amount:=amount/1024;
-        unity:='GB';
+        sz_unit:='GB';
         if amount>1000 then begin
           amount:=amount/1024;
-          unity:='TB';
+          sz_unit:='TB';
           if amount>1000 then begin
             amount:=amount/1024;
-            unity:='PB';
+            sz_unit:='PB';
           end;
         end;
       end;
     end;
-    Result:=FloatToStrF(amount,ffFixed,1,2)+' '+unity;
+    Result:=FloatToStrF(amount,ffFixed,1,2)+' '+sz_unit;
   end else begin
     Result:=IntToStr(byte) + ' Byte';
   end;

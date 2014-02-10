@@ -193,7 +193,7 @@ begin
     dialog.AddButton.Describe('Abort',nil,fdbbt_close);
   end else begin
     dialog.AddButton.Describe('Login',CWSF(@WEB_doLogin),fdbbt_submit);
-    dialog.AddButton.Describe('Abort',nil,fdbbt_close);
+    //dialog.AddButton.Describe('Abort',nil,fdbbt_close);
     dialog.AddInput.Describe('Username','uname',true);
     dialog.AddInput.Describe('Password','pass',true,true,false,false,'',nil,false,true);
   end;

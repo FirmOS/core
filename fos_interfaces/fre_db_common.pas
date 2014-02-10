@@ -2116,6 +2116,7 @@ implementation
       boolField          : TFRE_DB_INPUT_BOOL_DESC;
       itext              : IFRE_DB_TEXT;
       dataCollectionName : TFRE_DB_NameType;
+      dataCollIsDomain   : Boolean;
 
     procedure addObjects(const obj: IFRE_DB_Object);
     begin
@@ -2130,11 +2131,22 @@ implementation
     begin
       required           := requiredParent and obj^.required;
       dataCollectionName := obj^.datacollection;
+      dataCollIsDomain   := obj^.dc_isdomainc;
       if dataCollectionName<>'' then begin
-        if pos('$SDC:',dataCollectionName)=1 then
-          coll := session.FetchDerivedCollection(Copy(dataCollectionName,6,MaxInt))
+        if dataCollIsDomain then
+          begin
+            if pos('$SDC:',dataCollectionName)=1 then
+              coll := session.FetchDerivedCollection(session.GetDBConnection.DomainCollectionName(Copy(dataCollectionName,6,MaxInt)))
+            else
+              coll := session.GetDBConnection.Collection(session.GetDBConnection.DomainCollectionName(dataCollectionName),false);
+          end
         else
-          coll := session.GetDBConnection.Collection(dataCollectionName,false);
+          begin
+            if pos('$SDC:',dataCollectionName)=1 then
+              coll := session.FetchDerivedCollection(Copy(dataCollectionName,6,MaxInt))
+            else
+              coll := session.GetDBConnection.Collection(dataCollectionName,false);
+          end;
         if assigned(coll) then
           begin
             store:=TFRE_DB_STORE_DESC.create.Describe();

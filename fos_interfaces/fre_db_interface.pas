@@ -575,6 +575,7 @@ type
     group          : TFRE_DB_NameType;
     prefix         : TFRE_DB_NameType;
     datacollection : TFRE_DB_NameType;
+    dc_isdomainc   : Boolean;
     caption_key    : TFRE_DB_NameType;
     fieldschemdef  : IFRE_DB_FieldSchemeDefinition; // points to
   end;
@@ -1292,7 +1293,8 @@ type
 
 
     function    Collection                (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
-    function    DomainCollection          (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
+    function    DomainCollection          (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false;const ForDomainID : TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
+    function    DomainCollectionName      (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='') : TFRE_DB_NameType;
     function    CollectionAsIntf          (const collection_name: TFRE_DB_NameType;const CollectionInterfaceSpec:ShortString;out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean; // creates/fetches a Specific Collection / true if new
     function    DerivedCollection         (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
 
@@ -2115,6 +2117,8 @@ type
     property    StringFormatSettings   : TFormatSettings read GetFormatSettings write SetFormatSettings;
   end;
 
+  { IFRE_DB_InputGroupSchemeDefinition }
+
   IFRE_DB_InputGroupSchemeDefinition=interface
     function  GetCaptionKey      : TFRE_DB_NameType;
     //function  GetInputGroupID    : TFRE_DB_String;
@@ -2123,7 +2127,7 @@ type
     //procedure SetInputGroupID    (AValue: TFRE_DB_String);
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
-    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='');
+    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false);
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
     function  GroupFields        : PFRE_InputFieldDef4GroupArr;
@@ -4599,12 +4603,15 @@ end;
 
 procedure TFRE_DB_UserSession.Logout;
 begin
-  SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Logged out.','You have been logged out',fdbmt_wait),'NEW');
+  //SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Logged out.','You have been logged out',fdbmt_wait),'NEW');
+  SendServerClientRequest(GFRE_DB_NIL_DESC,'NEW');
+  SendServerClientRequest(TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false));
   FBoundSession_RA_SC.DeactivateSessionBinding;
   FBoundSession_RA_SC := nil;
   FTakeoverPrepared:='';
-  FConnDesc:='LOGGEDPUT';
+  FConnDesc:='LOGGEDOUT';
   FSessionTerminationTO := 1;
+  SendServerClientRequest(TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false));
 end;
 
 function TFRE_DB_UserSession.LoggedIn: Boolean;

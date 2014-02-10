@@ -906,7 +906,7 @@ type
     constructor Create             (const gid : TFRE_DB_NameType ; scheme : TFRE_DB_SchemeObject);
     destructor  Destroy            ; override;
     function    Setup              (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
-    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean=false;const hidden:Boolean=false; const dataCollection: TFRE_DB_String='');
+    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false);
     procedure   UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     function    GroupFields        : PFRE_InputFieldDef4GroupArr;
   end;
@@ -1751,7 +1751,9 @@ type
     function           ConnectedName                : TFRE_DB_String;
     function           CollectionList               (const with_classes:boolean=false):IFOS_STRINGS                          ; virtual;
 
-    function           DomainCollection             (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false): IFRE_DB_COLLECTION;virtual;
+    function           DomainCollection             (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false;const ForDomainID : TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;virtual;
+    function           DomainCollectionName         (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='') : TFRE_DB_NameType;
+
     function           DomainCollectionExists       (const name:TFRE_DB_NameType):boolean;
     function           DeleteDomainCollection       (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
@@ -2778,7 +2780,7 @@ end;
 
 
 
-procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const dataCollection: TFRE_DB_String);
+procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDomainCollection: boolean);
 var
   obj      : OFRE_InputFieldDef4Group;
   path     : TFRE_DB_StringArray;
@@ -2818,7 +2820,8 @@ begin
     obj.caption_key    := cap_trans_key
   else
     obj.caption_key    := '$scheme_'+fieldDef.FScheme.DefinedSchemeName+'_'+schemefield;
-  obj.datacollection := dataCollection;
+  obj.datacollection := field_backing_collection;
+  obj.dc_isdomainc   := fbCollectionIsDomainCollection;
   obj.fieldschemdef  := fieldDef;
   Fields.Add(obj);
 end;
@@ -3867,7 +3870,11 @@ begin
   AcquireBig;
   try
     FREDB_SplitLocalatDomain(loginatdomain,login,domain);
-    domain_Id := DomainID(domain);
+    try
+      domain_Id := DomainID(domain);
+    except
+      exit(edb_NOT_FOUND);
+    end;
     user:=nil;
     if not FSysUsers.GetIndexedObj(TFRE_DB_USER.GetDomainLoginKey(login,domain_id),TFRE_DB_Object(user)) then
       exit(edb_NOT_FOUND);
@@ -9620,14 +9627,16 @@ var
     lcollection      : TFRE_DB_Collection;
     lCollectionClass : TFRE_DB_COLLECTIONCLASS;
 begin
- lCollectionClass := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(ccn));
- lcollection      := lCollectionClass.Create(self,coll_name,persColl);
- if not FCollectionStore.Add(uppercase(coll_name),lcollection) then
-   raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
+ if not FCollectionStore.Exists(uppercase(coll_name)) then
+   begin
+     lCollectionClass := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(ccn));
+     lcollection      := lCollectionClass.Create(self,coll_name,persColl);
+     if not FCollectionStore.Add(uppercase(coll_name),lcollection) then
+         raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore/internal _AddCollectionTStore');
+   end;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
-
   procedure AddCollection2Clone(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
   begin
     if conn.FBlockNotifications then
@@ -10084,13 +10093,21 @@ begin
   end;
 end;
 
-function TFRE_DB_BASE_CONNECTION.DomainCollection(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean; const in_memory: boolean): IFRE_DB_COLLECTION;
+function TFRE_DB_BASE_CONNECTION.DomainCollection(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean; const in_memory: boolean; const ForDomainID: TFRE_DB_NameType): IFRE_DB_COLLECTION;
+begin
+  result    := Collection(DomainCollectionName(collection_name,ForDomainID),create_non_existing,in_memory);
+end;
+
+function TFRE_DB_BASE_CONNECTION.DomainCollectionName(const collection_name: TFRE_DB_NameType; const ForDomainID: TFRE_DB_NameType): TFRE_DB_NameType;
 var dom_cname : string;
 begin
-  dom_cname := GetMyDomainID_String+collection_name;
+  if ForDomainID='' then
+    dom_cname := GetMyDomainID_String+collection_name
+  else
+    dom_cname := ForDomainID+collection_name;
+  result := dom_cname;
   if length(dom_cname)>=SizeOf(TFRE_DB_NameType) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'name for collection too long : [%s] maxlen=',[dom_cname,SizeOf(TFRE_DB_NameType)]);
-  result    := Collection(dom_cname,create_non_existing,in_memory);
 end;
 
 function TFRE_DB_BASE_CONNECTION.DomainCollectionExists(const name: TFRE_DB_NameType): boolean;
@@ -10312,7 +10329,8 @@ begin
         end;
       if create_non_existing then begin
         FPersistance_Layer.NewCollection(collection_name,NewCollectionClass.ClassName,persColl,in_memory_only);  { collection is added via notification callback as side effect }
-        {Magic in here: Collectionstore gets updated in sync from persistance layer}
+        _AddCollectionToStore(NewCollectionClass.ClassName,collection_name,persColl);
+        // -> forget the magic {Magic in here: Collectionstore gets updated in sync from persistance layer}
         if not FCollectionStore.Find(FUPcoll_name,lcollection) then
           raise EFRE_DB_Exception.Create(edb_ERROR,'cannot fetch created collection / fail');
         exit(lcollection);
