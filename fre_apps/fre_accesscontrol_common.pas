@@ -73,7 +73,9 @@ type
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentRoles          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_AddGroup              (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_CreateGroup           (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ModifyGroup           (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_SaveGroup             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_DeleteGroup           (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_DeleteGroupConfirmed  (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GGMenu                (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1069,8 +1071,16 @@ begin
   res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_group_diag_cap'),600,0,true,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.AddSchemeFormGroup(scheme.GetInputGroup('domain'),ses);
-  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CSCF('TFRE_DB_GROUP','NewGroupOperation'),fdbbt_submit);
+  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CWSF(@WEB_CreateGroup),fdbbt_submit);
   Result:=res;
+end;
+
+function TFRE_COMMON_GROUP_MOD.WEB_CreateGroup(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP)) then
+    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+  CheckDbResult(conn.sys.AddGroup(input.Field('data').AsObject.Field('objname').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt_s').AsString,GFRE_BT.HexString_2_GUID(input.Field('data').AsObject.Field('DOMAINIDLINK').AsString)));
+  Result:=TFRE_DB_CLOSE_DIALOG_DESC.create.Describe();
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_ModifyGroup(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1078,6 +1088,8 @@ var
   scheme: IFRE_DB_SchemeObject;
   res   : TFRE_DB_DIALOG_DESC;
   group : IFRE_DB_GROUP;
+  sf     : TFRE_DB_SERVER_FUNC_DESC;
+
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
@@ -1089,12 +1101,44 @@ begin
     exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$modify_group_diag_cap'),app.FetchAppTextShort(ses,'$modify_group_diag_no_system_group_msg'),fdbmt_warning,nil));
   end;
 
-
   res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$modify_group_diag_cap'));
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
-  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CSFT('saveOperation',group.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
+
+  sf:=CWSF(@WEB_SaveGroup);
+  sf.AddParam.Describe('selected',input.Field('selected').AsString);
+  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),sf,fdbbt_submit);
+
   res.FillWithObjectValues(group.Implementor_HC as IFRE_DB_Object,ses);
   Result:=res;
+end;
+
+function TFRE_COMMON_GROUP_MOD.WEB_SaveGroup(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var dbo              : IFRE_DB_Object;
+    data             : IFRE_DB_Object;
+    res              : TFRE_DB_Errortype;
+    dbo_uid          : TGUID;
+    gn               : TFRE_DB_NameType;
+    txt              : TFRE_DB_String;
+    txt_s            : TFRE_DB_String;
+
+begin
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then
+   raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+ data    := input.Field('DATA').asobject;
+
+ gn      := data.Field('objname').AsString;
+ if data.FieldExists('desc') then begin
+   txt     := data.FieldPath('desc.txt').AsString;
+   txt_s   := data.FieldPath('desc.txt_s').AsString;
+ end;
+
+ dbo_uid := GFRE_BT.HexString_2_GUID(input.Field('selected').Asstring);
+
+ res := conn.sys.ModifyGroupById(dbo_uid,gn,txt,txt_s);
+ if res=edb_OK then
+   exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
+ else
+   exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$group_modify_error_cap'),StringReplace(app.FetchAppTextShort(ses,'$group_modify_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_DeleteGroup(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -2058,6 +2102,9 @@ begin
     CreateAppText(conn,'$groups_deleted_diag_cap','Groups deleted');
     CreateAppText(conn,'$group_deleted_diag_msg','Group %group_str% successfully deleted.');
     CreateAppText(conn,'$groups_deleted_diag_msg','Groups %group_str% successfully deleted.');
+
+    CreateAppText(conn,'$group_modify_error_cap','Error');
+    CreateAppText(conn,'$group_modify_error_msg','Modify failed %error_msg%');
 
     CreateAppText(conn,'$users_info','Overview of all users and assigned groups.');
     CreateAppText(conn,'$groups_info','Overview of all groups and members.');

@@ -1352,6 +1352,7 @@ type
     function    FetchUserById               (const user_id:TGUID;var user: IFRE_DB_USER):TFRE_DB_Errortype;
     function    FetchGroup                  (const groupatdomain:TFRE_DB_String;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupById              (const group_id:TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    ModifyGroupById             (const group_id:TGUID; const groupname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     function    FetchRole                   (const roleatdomain:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchDomainById             (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;

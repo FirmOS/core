@@ -1158,9 +1158,6 @@ type
     function  SubFormattedDisplayAvailable : boolean; override;
     function  GetSubFormattedDisplay       (indent: integer=4): TFRE_DB_String; override;
     property  RoleIDs                      :TFRE_DB_ObjLinkArray read GetRoleIDs write SetRoleIDs;
-  published
-    class     function  IMC_NewGroupOperation (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function  IMI_SAVEOPERATION               (const input:IFRE_DB_Object): IFRE_DB_Object;
   end;
 
   { TFRE_DB_ROLE }
@@ -1894,6 +1891,7 @@ type
     function    FetchGroupI                 (const groupatdomain:TFRE_DB_String;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupById              (const group_id:TGUID;var ug: TFRE_DB_GROUP ; without_right_check : boolean = false):TFRE_DB_Errortype;
     function    FetchGroupByIdI             (const group_id:TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    ModifyGroupById             (const group_id:TGUID;const groupname: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     function    FetchRole                   (const rolename:TFRE_DB_NameType;var role: TFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleI                  (const rolename:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id: TGUID; var role: TFRE_DB_ROLE; const without_right_check: boolean=false): TFRE_DB_Errortype;
@@ -3280,61 +3278,6 @@ begin
 
 end;
 
-class function TFRE_DB_GROUP.IMC_NewGroupOperation(const input: IFRE_DB_Object): IFRE_DB_Object;
-var data             : IFRE_DB_Object;
-    res              : TFRE_DB_Errortype;
-    dbc              : TFRE_DB_CONNECTION;
-    domain_id        : TGUID;
-    groupname        : TFRE_DB_NameType;
-    txt              : TFRE_DB_String;
-    txt_s            : TFRE_DB_String;
-    group            : IFRE_DB_GROUP;
-
-begin
- abort;  //FIXME MOVE TO ACCESS CONTROL
-
- data    := input.Field('DATA').asobject;
- dbc     := input.GetReference as TFRE_DB_CONNECTION;
-
- groupname := data.Field('objname').AsString;
- txt       := data.FieldPath('desc.txt').AsString;
- txt_s     := data.FieldPath('desc.txt_s').AsString;
-
- if txt_s='' then txt_s:=groupname;
- if txt='' then txt:=groupname;
-
- domain_id := GFRE_BT.HexString_2_GUID(data.Field('DOMAINIDLINK').AsString);
-// res := dbc.NewGroup(groupname,txt,txt_s,domain_id,group);
- if res <> edb_OK then
-   exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERROR','TRANSLATE: Creation of group failed '+CFRE_DB_Errortype[res],fdbmt_error,nil));
-
- res := dbc.sys.StoreGroup(group,domain_id);
- if res=edb_OK then
-   exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
- else
-   exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERROR','TRANSLATE: Storing failed '+CFRE_DB_Errortype[res],fdbmt_error,nil));
-end;
-
-function TFRE_DB_GROUP.IMI_SAVEOPERATION(const input: IFRE_DB_Object): IFRE_DB_Object;
-var data             : IFRE_DB_Object;
-    res              : TFRE_DB_Errortype;
-    dbc              : IFRE_DB_CONNECTION;
-    domain_id        : TGUID;
-
-begin
- dbc := GetSession(input).GetDBConnection;
- data    := input.Field('DATA').asobject;
-
- ObjectName:= data.Field('objname').AsString;
- Description.ShortText:= data.FieldPath('desc.txt_s').AsString;
- Description.LongText:= data.FieldPath('desc.txt').AsString;
-
- res       := dbc.Update(self);
- if res <> edb_OK then
-   exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: ERROR','TRANSLATE: Modification of group failed '+CFRE_DB_Errortype[res],fdbmt_error,nil))
- else
-   exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
-end;
 
 function TFRE_DB_TEXT.GetHint: TFRE_DB_String;
 begin
@@ -3939,6 +3882,25 @@ var  // nolock req
 begin
   Result:=FetchGroupById(group_id,tug);
   ug:=tug;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.ModifyGroupById(const group_id: TGUID; const groupname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+var
+  tgroup: TFRE_DB_GROUP;
+begin
+  AcquireBig;
+  try
+    Result:=FetchGroupById(group_id,tgroup);
+    if Result=edb_OK then
+      begin
+        tgroup.ObjectName            := groupname;
+        tgroup.Description.ShortText := txt_short;
+        tgroup.Description.LongText  := txt;
+        result := Update(tgroup);
+      end;
+  finally
+    ReleaseBig;
+  end;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.FetchRole(const rolename: TFRE_DB_NameType; var role: TFRE_DB_ROLE): TFRE_DB_Errortype;
