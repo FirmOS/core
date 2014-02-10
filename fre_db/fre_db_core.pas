@@ -10826,7 +10826,6 @@ begin
     end;
 
     Sys.ReloadUserAndRights;
-    AdmGetDomainCollection.ForceFullUpdateForObservers;
   finally
     ReleaseBig;
   end;
