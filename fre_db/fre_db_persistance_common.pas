@@ -3105,6 +3105,8 @@ begin
   if result and
      not internal_obj then
        begin
+         if not obj.IsObjectRoot then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'the object [%s] is a subobject, root fetch is not allowed',[FREDB_G2H(obj_uid)]);
          obj.Assert_CheckStoreLocked;
          obj.Set_Store_Locked(false);
          try
@@ -3150,7 +3152,16 @@ begin
       if check_only then
         begin
           if FMasterPersistentObjStore.ExistsBinaryKey(@key,SizeOf(TGuid),dummy) then
-            raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store persistent object');
+            begin
+              if obj.IsObjectRoot then
+                begin
+                  raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store persistent rootobject, an object [%s] is already stored as root or subobject',[obj.UID_String]);
+                end
+              else
+                begin
+                  raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store persistent subobject, an object [%s] is already stored as root or subobject',[obj.UID_String]);
+                end;
+            end;
         end
       else
         begin
