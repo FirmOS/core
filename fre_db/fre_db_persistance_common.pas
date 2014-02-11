@@ -942,9 +942,10 @@ begin
   master.StoreObject(FNewObj,check);
   if not check then
     begin
-      FTransList.GetNotifyIF.SubObjectStored(FLayer,FColl.CollectionName, FNewObj);
+      FTransList.GetNotifyIF.SubObjectStored(FLayer,'', FNewObj);
       CheckWriteThroughObj(FNewObj.ObjectRoot);
-      CheckWriteThroughColl(FColl);
+      if assigned(Fcoll) then
+        CheckWriteThroughColl(FColl);
   end;
 end;
 

@@ -4978,7 +4978,7 @@ end;
 
 function TFRE_DB_UserSession.GetLoginUser: IFRE_DB_USER;
 begin
-  GetDBConnection.SYS.GetLoginUser;
+  result := GetDBConnection.SYS.GetLoginUser;
 end;
 
 function TFRE_DB_UserSession.GetPublishedRemoteMeths: TFRE_DB_RemoteReqSpecArray;

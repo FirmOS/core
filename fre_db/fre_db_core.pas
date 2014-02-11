@@ -1900,6 +1900,7 @@ type
     function    FetchDomain                 (const name :TFRE_DB_NameType; var domain:TFRE_DB_DOMAIN):boolean;
     function    FetchDomainById             (const domain_id:TGUID;var domain: TFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    FetchDomainByIdI            (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
+    function    FetchDomainNameById         (const domain_id:TGUID):TFRE_DB_NameType;
     function    ModifyDomainById            (const domain_id:TGUID;const domainname: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
@@ -3958,6 +3959,14 @@ begin
   domain:=tdomain;
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.FetchDomainNameById(const domain_id: TGUID): TFRE_DB_NameType;
+var dom : TFRE_DB_DOMAIN;
+begin
+   CheckDbResult(FetchDomainById(domain_id,dom));
+   result := dom.Domainname(false);
+   dom.Finalize;
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.ModifyDomainById(const domain_id: TGUID; const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
 var
   tdomain: TFRE_DB_DOMAIN;
@@ -4951,8 +4960,10 @@ begin
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetLoginUser: IFRE_DB_USER;
+var loginat :string;
 begin
-  result := FConnectedUser.CloneToNewObject.Implementor as TFRE_DB_USER;
+  loginat := FConnectedUser.Login+'@'+FetchDomainNameById(FConnectedUser.DomainID);
+  FetchUserI(loginat,result);
 end;
 
 
@@ -17712,7 +17723,6 @@ var res              : TFRE_DB_Errortype;
     l_UserO : TFRE_DB_User;
 
 begin
-  writeln(input.DumpToString);
   data    := input.Field('DATA').asobject;
   loginf  := data.Field('login').AsString;
   pw      := data.Field('PASSWORDMD5').AsString;
@@ -17741,8 +17751,15 @@ begin
           l_UserO.Lastname:=fld.AsString;
        if data.FieldOnlyExisting('picture',fld) then
          begin
-            l_UserO.SetImage(fld.AsStream,data.Field('picture'+cFRE_DB_STKEY).AsString);
-            fld.Clear(true);
+           if fld.FieldType=fdbft_Stream then
+             begin
+                l_UserO.SetImage(fld.AsStream,data.Field('picture'+cFRE_DB_STKEY).AsString);
+                fld.Clear(true);
+             end
+           else
+             begin
+               //raise EFRE_DB_Exception.Create(edb_ERROR,'the picture field must be a stream field, not [%s] val=[%s]',[fld.FieldTypeAsString,fld.AsString]);
+             end;
          end;
         if data.FieldOnlyExisting('desc',fld) then
           begin
