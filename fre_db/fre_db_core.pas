@@ -8693,6 +8693,10 @@ begin
   app_if     := nil;
   finalizeob := false;
   if Length(instance)>0 then begin
+    if assigned(session) and (instance[0]=cFRE_DB_LOGIN_APP_UID) then begin
+      obj := (cFRE_DB_LOGIN_APP as TFRE_DB_APPLICATION).Implementor as TFRE_DB_Object;
+      app_if := cFRE_DB_LOGIN_APP as TFRE_DB_APPLICATION;
+    end else
     if assigned(session) and session.SearchSessionAppUID(instance[0],iobj) then begin
       obj := iobj.Implementor as TFRE_DB_Object;
       app_if := iobj.Implementor_HC as IFRE_DB_APPLICATION;

@@ -451,6 +451,8 @@ procedure TFRE_BASE_SERVER.Setup;
          GFRE_BT.CriticalAbort('cannot fetch login app');
        FDefaultAPP_UID   := app.UID;
        FDefaultAPP_Class := app.ClassName;
+       cFRE_DB_LOGIN_APP_UID := FDefaultAPP_UID;
+       cFRE_DB_LOGIN_APP := app;
        for i := 0 to dblist.Count-1 do begin
          dbname := Uppercase(dblist[i]);
          if dbname='SYSTEM' then begin

@@ -89,6 +89,8 @@ var
       cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowercase (!!)
       cFRE_MACHINE_NAME               :string = '';
       cFRE_DB_ALLOW_WEAKMEDIATORS     :boolean=true;
+      cFRE_DB_LOGIN_APP_UID           :TGuid;
+      cFRE_DB_LOGIN_APP               :TObject;
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;
