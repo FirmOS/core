@@ -1778,6 +1778,7 @@ type
     function           CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid)                :boolean; //Hack
     function           CheckClassRight4Domain       (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
     function           IntCheckClassRight4Domain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainuid:TGuid):boolean;
+    function           IntCheckObjectRight          (const std_right:TFRE_DB_STANDARD_RIGHT;const objuid:TGuid):boolean;
 
 
     function           UpcastDBC                    : TFRE_DB_Connection;
@@ -1948,7 +1949,7 @@ type
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
 
     function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
-    function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
+    function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is senseless
 
 
     function    FetchTranslateableText      (const trans_key:TFRE_DB_String;var ttext:TFRE_DB_TEXT):TFRE_DB_Errortype;
@@ -3172,13 +3173,9 @@ end;
 
 function TFRE_DB_GROUP.GetDomain(const conn: IFRE_DB_CONNECTION): TFRE_DB_NameType;
 var syscon       : TFRE_DB_SYSTEM_CONNECTION;
-    lDomain      : TFRE_DB_DOMAIN;
 begin
   syscon := (conn.Implementor_HC as TFRE_DB_CONNECTION).FSysConnection;
-  if syscon.FetchDomainbyID(DomainID,lDomain) <> edb_OK then
-    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(DomainID))
-  else
-    result := lDomain.GetName;
+  result := syscon.FetchDomainNameById(DomainID);
 end;
 
 
@@ -3371,15 +3368,10 @@ end;
 
 function TFRE_DB_ROLE.GetDomain(const conn: IFRE_DB_CONNECTION): TFRE_DB_NameType;
 var syscon       : TFRE_DB_SYSTEM_CONNECTION;
-    lDomain      : TFRE_DB_DOMAIN;
 begin
-  syscon   := (conn.Implementor_HC as TFRE_DB_CONNECTION).FSysConnection as TFRE_DB_SYSTEM_CONNECTION;
-  if syscon.FetchDomainbyID(GetDomainIDLink,lDomain)<>edb_OK then
-    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(GetDomainIDLink))
-  else
-    result := lDomain.GetName;
+  syscon := (conn.Implementor_HC as TFRE_DB_CONNECTION).FSysConnection;
+  result := syscon.FetchDomainNameById(GetDomainIDLink);
 end;
-
 
 function TFRE_DB_ROLE.GetDomainIDLink: TGUID;
 begin
@@ -3967,7 +3959,7 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.FetchDomainNameById(const domain_id: TGUID): TFRE_DB_NameType;
 var dom : TFRE_DB_DOMAIN;
 begin
-   CheckDbResult(FetchDomainById(domain_id,dom));
+   CheckDbResult(Fetch(domain_id,TFRE_DB_Object(dom),true));
    result := dom.Domainname(false);
    dom.Finalize;
 end;
@@ -5182,14 +5174,27 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION._GetRightsArrayForUser(const user: IFRE_DB_USER): TFRE_DB_StringArray;
 
-function FakeLogin:String;
+  function FakeLogin:String;
   begin
     result := '$O_R_'+uppercase('TFRE_DB_LOGIN_fetch'+'@'+GetSystemDomainID_String);
   end;
+
+  function OwnUserRights : TFRE_DB_StringArray;
+  var uid:TFRE_DB_GUID;
+  begin
+    uid := (user.Implementor as TFRE_DB_Object).UID;
+    SetLength(result,3);
+    result[0] := 'OBR_S:'+uppercase(FREDB_G2H(uid));
+    result[1] := 'OBR_U:'+uppercase(FREDB_G2H(uid));
+    result[2] := 'OBR_F:'+uppercase(FREDB_G2H(uid));
+    //result[3] := 'OBR_D:'+uppercase(GFRE_BT.GUID_2_HexString(uid);
+  end;
+
 //nl
 begin
   result := _GetRightsArrayForGroups(user.GetUserGroupIDs);
   FREDB_ConcatStringArrays(result,TFRE_DB_StringArray.Create(FakeLogin));
+  FREDB_ConcatStringArrays(result,OwnUserRights);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckRightForGroup(const right_name: TFRE_DB_String; const group_uid: TGuid): boolean;
@@ -10485,6 +10490,15 @@ begin //NoLOCK
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'IntCheckClassRight4Domain basecass : '+self.ClassName);
 end;
 
+function TFRE_DB_BASE_CONNECTION.IntCheckObjectRight(const std_right: TFRE_DB_STANDARD_RIGHT; const objuid: TGuid): boolean;
+begin
+  if self is TFRE_DB_CONNECTION then
+    exit(TFRE_DB_CONNECTION(self).FSysConnection.CheckObjectRight(std_right,objuid));
+  if self is TFRE_DB_SYSTEM_CONNECTION then
+    exit(TFRE_DB_SYSTEM_CONNECTION(self).CheckObjectRight(std_right,objuid));
+  raise EFRE_DB_Exception.Create(edb_INTERNAL,'IntCheckObjectRight basecass : '+self.ClassName);
+end;
+
 function TFRE_DB_BASE_CONNECTION.UpcastDBC: TFRE_DB_Connection;
 begin
   if self is TFRE_DB_CONNECTION then
@@ -10567,6 +10581,7 @@ var dbi : IFRE_DB_Object;
       if not
        ((IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
          or IntCheckClassRight4Domain(sr_FETCH,classt,GetSysDomainUID)
+         or IntCheckObjectRight(sr_FETCH,dbo.UID)
          or IsCurrentUserSystemAdmin
          or without_right_check) then
            begin
@@ -10606,6 +10621,7 @@ begin
     if not
      ((IntCheckClassRight4Domain(sr_UPDATE,objclass,dbo.DomainID))
        or IntCheckClassRight4Domain(sr_UPDATE,objclass,GetSysDomainUID)
+       or IntCheckObjectRight(sr_UPDATE,dbo.UID)
        or IsCurrentUserSystemAdmin) then
          exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to update objects in the specified domain : '+new_obj.DomainID_String);
     dboo   := dbo;
@@ -17521,34 +17537,12 @@ begin
   result := Field('login').AsString;
 end;
 
-//function TFRE_DB_USER.GetUGA: TFRE_DB_StringArray;
-//var syscon       : TFRE_DB_SYSTEM_CONNECTION;
-//    i            : integer;
-//    lGroupIDs    : TFRE_DB_ObjLinkArray;
-//    lGroup       : TFRE_DB_GROUP;
-// begin
-//   syscon   := _DBConnectionBC as TFRE_DB_SYSTEM_CONNECTION;
-//   lGroupIDs := UserGroupIDs;
-//   SetLength(result,Length(lGroupIDs));
-//   for i  := 0 to high(lGroupIDs) do begin
-//     if not syscon._FetchGroupbyID(lGroupIDs[i],lGroup) then begin
-//       raise EFRE_DB_Exception.Create('Could not fetch group by id '+GFRE_BT.GUID_2_HexString(lGroupIDs[i]));
-//     end else begin
-//       result[i] := lGroup.Fullname;
-//     end;
-//   end;
-//end;
-
 function TFRE_DB_USER.GetDomain(const conn: IFRE_DB_CONNECTION): TFRE_DB_NameType;
-var lDomain      : IFRE_DB_DOMAIN;
+var syscon       : TFRE_DB_SYSTEM_CONNECTION;
 begin
-  if conn.sys.FetchDomainById(GetDomainIDLink,lDomain)<>edb_OK then begin
-    raise EFRE_DB_Exception.Create('Could not fetch domain by id '+GFRE_BT.GUID_2_HexString(GetDomainIDLink));
-  end else begin
-    result := lDomain.Domainname(true);
-  end;
+  syscon := (conn.Implementor_HC as TFRE_DB_CONNECTION).FSysConnection;
+  result := syscon.FetchDomainNameById(GetDomainIDLink);
 end;
-
 
 function TFRE_DB_USER.GetDomainIDLink: TGUID;
 begin
@@ -17697,13 +17691,12 @@ var dbo              : IFRE_DB_Object;
     loginf,pw,pwc,
     fn,ln            : String;
     dn               : TFRE_DB_NameType;
-    obj              : IFRE_DB_DOMAIN;
+    //obj              : IFRE_DB_DOMAIN;
     fld              : IFRE_DB_Field;
     image            : TFRE_DB_Stream;
     imagetype        : String;
 
 begin
- //writeln('------NEW USER');
  data    := input.Field('DATA').asobject;
  dbc     := input.GetReference as TFRE_DB_CONNECTION;
 
@@ -17713,8 +17706,10 @@ begin
  fn      := data.Field('firstname').AsString;
  ln      := data.field('lastname').AsString;
 
- dbc.sys.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainidlink').AsString),obj);
- dn := obj.Domainname(true);
+ dn := dbc.sys.FetchDomainNameById(data.field('domainidlink').AsGUID);
+
+ //dbc.sys.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainidlink').AsString),obj);
+ //dn := obj.Domainname(true);
 
   if pw<>pwc then
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Password confirm mismatch',fdbmt_error,nil));
