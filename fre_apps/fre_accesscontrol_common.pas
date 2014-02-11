@@ -1957,7 +1957,7 @@ begin
     panel.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
     panel.FillWithObjectValues(user.Implementor_HC as IFRE_DB_Object,ses);
     if conn.sys.CheckClassRight4Domain(sr_FETCH,TFRE_DB_USER,user.GetDomain(conn)) then begin
-      panel.AddButton.Describe('Save',CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
+      panel.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
     end;
     Result:=panel;
   end else begin

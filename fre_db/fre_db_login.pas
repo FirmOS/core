@@ -186,9 +186,20 @@ end;
 function TFRE_DB_LOGIN.WEB_LoginDlg(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var dialog     : TFRE_DB_DIALOG_DESC;
     session    : TFRE_DB_UserSession;
+    scheme     : IFRE_DB_SchemeObject;
+    block      : TFRE_DB_INPUT_BLOCK_DESC;
+    user       : IFRE_DB_USER;
 begin
-  dialog     := TFRE_DB_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
+  dialog     := TFRE_DB_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,600,false,false,false);
   if ses.LoggedIn then begin
+    GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
+    block:=dialog.AddBlock.Describe();
+    block.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses,false,false,2);
+    block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
+    dialog.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
+    user:=ses.GetLoginUser;
+    dialog.FillWithObjectValues(user.Implementor_HC as IFRE_DB_Object,ses);
+    dialog.AddButton.Describe('Save',CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
     dialog.AddButton.Describe('Logout',CWSF(@WEB_doLogout),fdbbt_submit);
     dialog.AddButton.Describe('Abort',nil,fdbbt_close);
   end else begin
