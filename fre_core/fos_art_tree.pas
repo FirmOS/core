@@ -139,7 +139,7 @@ type
        TFRE_ART_NODE_PROC          = procedure (const node : PFRE_ART_Node) is nested;
      public type
        TFRE_ART_NodeValueProc      = procedure (var value : NativeUint) is nested;
-       TFRE_ART_NodeValueBreakProc = function  (var value : NativeUint):boolean is nested; // result = true = break scan
+       TFRE_ART_NodeValueBreakProc = procedure (var value : NativeUint ; var break : boolean) is nested;
        TFRE_ART_NodeCallback       = procedure (var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint) is nested;
        TFRE_ART_NodeBreakCallback  = procedure (var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean) is nested;
      private var
@@ -200,7 +200,7 @@ type
        function    InsertUInt64Key         (const key: Uint64 ; var value : PtrUInt):boolean;
 
        procedure   LinearScan              (const nested_node_proc : TFRE_ART_NodeValueProc;const desc : boolean=false);
-       function    LinearScanBreak         (const nested_node_proc : TFRE_ART_NodeValueBreakProc):Boolean;
+       function    LinearScanBreak         (const nested_node_proc: TFRE_ART_NodeValueBreakProc; var break: boolean): Boolean;
        procedure   LinearScanKeyVals       (const nested_node_proc : TFRE_ART_NodeCallback);
        function    FirstKeyVal             (const callback : TFRE_ART_NodeCallback):boolean;
        function    LastKeyVal              (const callback : TFRE_ART_NodeCallback):boolean;
@@ -790,11 +790,11 @@ begin
                             if break then exit;
                           end;
     artNodeTypeLeaf:
-        if node_proc(PFRE_ART_LeafNode(node)^.GetStoredValue^) then
-          begin
-            break := true;
+        begin
+          node_proc(PFRE_ART_LeafNode(node)^.GetStoredValue^,break);
+          if break then
             exit;
-          end;
+        end;
   end;
 end;
 
@@ -1979,12 +1979,9 @@ end;
 
 
 
-function TFRE_ART_TREE.LinearScanBreak(const nested_node_proc: TFRE_ART_NodeValueBreakProc): Boolean;
-var break : boolean;
+function TFRE_ART_TREE.LinearScanBreak(const nested_node_proc: TFRE_ART_NodeValueBreakProc ; var break : boolean): Boolean;
 begin
-  break  := false;
   ForAllValueBreak(FArtTree,nested_node_proc,break);
-  result := break;
 end;
 
 procedure TFRE_ART_TREE.LinearScanKeyVals(const nested_node_proc: TFRE_ART_NodeCallback);

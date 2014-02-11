@@ -50,10 +50,6 @@ uses  classes, sysutils,fre_aps_interface,fos_fcom_types,fos_tool_interfaces,bas
       fre_http_tools,fos_redblacktree_gen,fre_sys_base_cs,zstream,fos_art_tree,
       fre_wapp_dojo;
 
-var cAdminUser:string='admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME;
-    cAdminPass:string='admin';
-    cVersion  :string='0.1 alpha';
-
 procedure RegisterLogin;
 
 type
@@ -439,7 +435,7 @@ procedure TFRE_BASE_SERVER.Setup;
        dblist := GFRE_DB_PS_LAYER.DatabaseList;
        GFRE_DB.LogInfo(dblc_SERVER,'START SERVING DATABASES [%s]',[dblist.Commatext]);
        FSystemConnection := GFRE_DB.NewDirectSysConnection;
-       res := FSystemConnection.Connect(cAdminUser,cAdminPass);  // direct admin connect
+       res := FSystemConnection.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);  // direct admin connect
        if res<>edb_OK then begin
          FSystemConnection.Free;
          FSystemConnection := nil;
@@ -460,7 +456,7 @@ procedure TFRE_BASE_SERVER.Setup;
          end else begin
            //InfoLog(5,'CONNECTING [%s]',[dbname]);
            ndbc := GFRE_DB.NewConnection(true);
-           res  := ndbc.Connect(dbname,cAdminUser,cAdminPass,FSystemConnection); // direct admin connect
+           res  := ndbc.Connect(dbname,cFRE_ADMIN_USER,cFRE_ADMIN_PASS,FSystemConnection); // direct admin connect
            if res<>edb_OK then begin
              GFRE_DB.LogError(dblc_EXCEPTION,'SERVING DATABASE [%s] failed due to [%s]',[dbname,CFRE_DB_Errortype[res]]);
            end else begin
@@ -517,7 +513,7 @@ begin
   TransFormFunc     := @FRE_WAPP_DOJO.TransformInvocation;
   FOpenDatabaseList.init;
 
-  GFRE_DB.LogNotice(dblc_SERVER,'FirmOS System Base Server Node Startup Vesion (%s)',[cVersion]);
+  GFRE_DB.LogNotice(dblc_SERVER,'FirmOS System Base Server Node Startup');
 
   FUserSessionsTree  := TFRE_UserSession_Tree.Create(@Default_RB_String_Compare);
   GFRE_TF.Get_Lock(FSessionTreeLock);

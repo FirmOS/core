@@ -66,8 +66,10 @@ var
       cFRE_SSL_CERT_FILE              :string = 'server_cert.pem';
       cFRE_SSL_PRIVATE_KEY_FILE       :string = 'server_key.pem';
       cFRE_SSL_ROOT_CA_FILE           :string = 'ca_cert.pem';
-      cG_OVERRIDE_USER                :string = '';
+      cG_OVERRIDE_USER                :string = ''; { used for web autologin }
       cG_OVERRIDE_PASS                :string = '';
+      cFRE_ADMIN_USER                 :string = 'admin@system';
+      cFRE_ADMIN_PASS                 :string = 'admin';
       cFRE_MONITORING_HOST            :string = '';
       cFRE_MONITORING_USER            :string = '';
       cFRE_MONITORING_KEY_FILE        :string = 'monitoring_id';

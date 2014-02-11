@@ -87,8 +87,7 @@ type
     procedure GenericChangelistTest;
     procedure TestStreamFieldClone;
     procedure ForAllHierarchicTest;
-
-
+    procedure JSONObject2Object;
   end;
 
   { TFRE_DB_PersistanceTests }
@@ -1488,6 +1487,15 @@ begin
   writeln('--');
 end;
 
+procedure TFRE_DB_ObjectTests.JSONObject2Object;
+var s  : String;
+    ob : IFRE_DB_Object;
+begin
+  s:= '{"Nödel":5,"0":"N", "Knödel" : { "s":"öä€€", "Hello" : [1,4,3]}}';
+  ob := GFRE_DBI.JSONObject2Object(s);
+  s := ob.DumpToString();
+end;
+
 procedure RegisterTestCodeClasses;
 begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_CODE_CLASS);
@@ -1502,7 +1510,7 @@ begin
 end;
 
 initialization
-  //RegisterTest(TFRE_DB_ObjectTests);
+  RegisterTest(TFRE_DB_ObjectTests);
   RegisterTest(TFRE_DB_PersistanceTests);
 
 end.

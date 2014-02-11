@@ -1683,8 +1683,9 @@ type
 
     FSysNotes             : TFRE_DB_COLLECTION; {needed in SYSTEM and USER DB's}
 
-    function            BackupDatabaseReadable      (const to_stream: TStream; const stream_cb: TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype; virtual;
-    function            RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;virtual;
+    function            BackupDatabaseReadable      (const str : TStream;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;virtual;
+
+    function            RestoreDatabaseReadable     (const from_stream:TStream;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;virtual;
     procedure           _ConnectCheck                ;
     procedure           _CloneCheck                  ;
     function            Implementor                  : TObject;
@@ -1802,6 +1803,8 @@ type
   TFRE_DB_SYSTEM_CONNECTION = class(TFRE_DB_BASE_CONNECTION,IFRE_DB_SYS_CONNECTION)
   private
     FClonedFrom          : TFRE_DB_SYSTEM_CONNECTION;
+    FPairedAppDBConn     : TFRE_DB_CONNECTION;
+
     FSysDomainUID        : TGuid;
     FSysTransText        : TFRE_DB_COLLECTION;
     FSysUsers            : TFRE_DB_COLLECTION;
@@ -1953,8 +1956,9 @@ type
     function    GetUserGroupnamesArray      (const user : IFRE_DB_User): TFRE_DB_StringArray;
 
 
-    function    BackupDatabaseReadable      (const to_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;override;
-    function    RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;override;
+    function    BackupDatabaseReadable      (const sys,adb : TStream;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;
+    function    RestoreDatabaseReadable     (const sys,adb : TStream;const db_name:string;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;
+
 
     function    GetClassesVersionDirectory  : IFRE_DB_Object;
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
@@ -1996,6 +2000,7 @@ type
     function    CreateAClone                                   : TFRE_DB_CONNECTION;
   protected
     procedure   InternalSetupConnection   ;override;
+
   public
     function    GetDatabaseName           : TFRE_DB_String;
     function    ImpersonateClone          (const user,pass:TFRE_DB_String;out conn:TFRE_DB_CONNECTION): TFRE_DB_Errortype;
@@ -4700,17 +4705,22 @@ var i            : integer;
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.BackupDatabaseReadable(const to_stream: TStream; const stream_cb: TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.BackupDatabaseReadable(const sys, adb: TStream; const progress: TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype;
 begin
-  result := inherited BackupDatabaseReadable(to_stream,stream_cb,progress);
+  if not Assigned(FPairedAppDBConn) and assigned(adb) then
+    exit(edb_ERROR);
+  if assigned(sys) then
+    inherited BackupDatabaseReadable(sys,progress);
+  if assigned(adb) then
+    FPairedAppDBConn.BackupDatabaseReadable(adb,progress);
+  result := edb_OK;
 end;
 
-function TFRE_DB_BASE_CONNECTION.BackupDatabaseReadable(const to_stream: TStream;const stream_cb:TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype;
+function TFRE_DB_BASE_CONNECTION.BackupDatabaseReadable(const str: TStream; const progress: TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype;
 var CTRL_OBJ:TFRE_DB_Object;
-    phase   : integer;
-    cnt     : integer;
-    max     : integer;
-    final   : boolean;
+    cnt          : integer;
+    max          : integer;
+    final        : boolean;
     obj_progress : boolean;
 
   procedure DWriteln(const msg:TFRE_DB_String);
@@ -4721,17 +4731,28 @@ var CTRL_OBJ:TFRE_DB_Object;
      line := msg+#13#10;
      len  := Length(line);
      lens := IntToStr(len)+'C';
-     to_stream.Write(Pointer(@lens[1])^,Length(lens));
-     to_stream.Write(Pointer(@line[1])^,Length(line));
+     str.Write(Pointer(@lens[1])^,Length(lens));
+     str.Write(Pointer(@line[1])^,Length(line));
    end;
 
-   procedure DumpObj(const obj:TFRE_DB_Object);
+   procedure DumpObj(const obj:IFRE_DB_Object);
    begin
-     if obj_progress then inc(cnt);
-     DWriteln(obj.GetAsJSONString(false,true,stream_cb));
-     abort;
-     if Assigned(progress) and obj_progress then progress(phase,cnt,max);
+     if obj_progress then
+       inc(cnt);
+     DWriteln(obj.GetAsJSONString(false,true));
+     if Assigned(progress) and obj_progress then
+       progress('Object Backup',obj.GetDescriptionID,'',cnt,max);
    end;
+
+   procedure DumpColl(const obj:IFRE_DB_Object);
+   begin
+     if obj_progress then
+       inc(cnt);
+     DWriteln(obj.GetAsJSONString(true,true));
+     if Assigned(progress) and obj_progress then
+       progress('Collection Backup',obj.Field('CollectionName').AsString,'',cnt,max);
+   end;
+
 
    procedure SetNewSection(const section_name:TFRE_DB_String;element_count:qword);
    begin
@@ -4760,36 +4781,37 @@ var CTRL_OBJ:TFRE_DB_Object;
      //DumpObj(co);
      inc(cnt);
      //writeln('P ',phase,'  ',cnt,'  ',max);
-     if Assigned(progress) then progress(phase,cnt,max);
+     if Assigned(progress) then
+       progress('Collection Backup','','',cnt,max);
    end;
 
 begin
-  abort;
-  //final := true;
-  //CTRL_OBJ := GFRE_DB.NewObject;
-  //SetHeader;
-  //obj_progress := true;
-  //phase := 1 ; max   := FObjectStore.Count; cnt   := 0;
-  //if Assigned(progress) then progress(1,0,max);
-  //SetNewSection('DBOS',FObjectStore.Count);
-  //FObjectStore.ForAllItems(@DumpObj);
-  //phase := 2; cnt   := 0; max   := 1;
-  //if Assigned(progress) then progress(2,0,1);
-  //SetNewSection('REFLINKS',1);
-  //final := false;
-  //DumpObj(FReferentialLinks);
-  //final := true;
-  //phase := 3;
-  //max   := FCollectionStore.Count-1;
-  //cnt   := 0;
-  //obj_progress := false;
-  //if Assigned(progress) then progress(3,0,max);
-  //SetNewSection('COLLECTIONS',FCollectionStore.Count-1); // - 1 x Mastercollection
-  //ForAllColls(@DumpCollection);
-  //CTRL_OBJ.Free;
+  if FCloned then
+    exit(edb_UNSUPPORTED);
+  final := true;
+  CTRL_OBJ := GFRE_DB.NewObject;
+  SetHeader;
+  obj_progress := true;
+  max   := FPersistance_Layer.FDB_GetObjectCount(false); cnt   := 0;
+
+  if Assigned(progress) then
+    progress('','','>STARTING OBJECT BACKUP OF ['+FDBName+']',0,0);
+  SetNewSection('DBOS',max);
+  FPersistance_Layer.FDB_ForAllObjects(@DumpObj);
+  if Assigned(progress) then
+    progress('','','<DONE OBJECT BACKUP OF ['+FDBName+']',0,0);
+
+  if Assigned(progress) then
+    progress('','','>STARTING COLLECTION BACKUP OF ['+FDBName+']',0,0);
+  max := FPersistance_Layer.FDB_GetObjectCount(true); cnt := 0;
+  SetNewSection('COLLECTIONS',max);
+  FPersistance_Layer.FDB_ForAllColls(@DumpColl);
+  if Assigned(progress) then
+    progress('','','<DONE COLLECTION BACKUP OF ['+FDBName+']',0,0);
+  CTRL_OBJ.Free;
 end;
 
-function TFRE_DB_BASE_CONNECTION.RestoreDatabaseReadable(const from_stream: TStream; const stream_cb: TFRE_DB_StreamingCallback): TFRE_DB_Errortype; //Unicode Awareness
+function TFRE_DB_BASE_CONNECTION.RestoreDatabaseReadable(const from_stream: TStream; const progress: TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype; //Unicode Awareness
 var jp           : TJSONParser;
     obj          : TFRE_DB_Object;
     section_name : TFRE_DB_String;
@@ -4816,7 +4838,7 @@ var jp           : TJSONParser;
     from_stream.ReadBuffer(line[1],count-2);
     from_stream.ReadByte;from_stream.ReadByte;
     //writeln(line);
-    result := TFRE_DB_Object.CreateFromJSONString(line,stream_cb);
+    result := TFRE_DB_Object.CreateFromJSONString(line);
   end;
 
   procedure GetSection(const obj:TFRE_DB_Object;var name : TFRE_DB_String;var cnt : integer);
@@ -4835,38 +4857,39 @@ var jp           : TJSONParser;
   end;
 
 begin
-  abort;
-  //obj := ReadElement;
-  //writeln(format('BACKUP ID [%s] VERSION %s.%s(%s) for Database [%s]',[obj.Field('ID').AsString,obj.Field('VMAJ').AsString,obj.Field('VMIN').AsString,obj.Field('VBUILD').AsString,obj.Field('DBNAME').AsString]));
-  //GetSection(ReadElement,section_name,count);
-  //if section_name<>'DBOS' then GFRE_BT.CriticalAbort('UNEXPECTED SECTION [%s] WANTED "DBOS"',[section_name]);
-  //writeln('READING DBOS [',count,']');
-  //InternalClearAll(true);
-  //for i:=0 to count-1 do begin
-  //  obj := ReadElement;
-  //  abort; //Add object to Persistent Master Obj Store
-  //  //FMasterCollection._InternalAdd(obj.UID,obj).SetObjManInfDirty;
-  //end;
-  //writeln('MASTER COUNT : ',FObjectStore.Count);
-  //GetSection(ReadElement,section_name,count);
-  //if section_name<>'REFLINKS' then GFRE_BT.CriticalAbort('UNEXPECTED SECTION [%s] WANTED "REFLINKS"',[section_name]);
-  //FReferentialLinks.Free;
-  //FReferentialLinks := ReadElement;
-  //writeln('READ REFLINKS');
-  //GetSection(ReadElement,section_name,count);
-  //if section_name<>'COLLECTIONS' then GFRE_BT.CriticalAbort('UNEXPECTED SECTION [%s] WANTED "REFLINKS"',[section_name]);
-  //for i:=0 to count-1 do begin
-  //  abort;
-  //  //obj:=ReadElement;
-  //  //AddCollection(obj as TFRE_DB_COLLECTION);
-  //end;
-  //writeln('READ COLLECTIONS COUNT : ',FCollectionStore.Count);
-  //InternalSetupConnection(FDBName='SYSTEM',true);
+  FPersistance_Layer.FDB_PrepareDBRestore(0);
+  obj := ReadElement;
+  progress('START','',format('BACKUP ID [%s] VERSION %s.%s(%s) for Database [%s]',[obj.Field('ID').AsString,obj.Field('VMAJ').AsString,obj.Field('VMIN').AsString,obj.Field('VBUILD').AsString,obj.Field('DBNAME').AsString]),0,0);
+  GetSection(ReadElement,section_name,count);
+  if section_name<>'DBOS' then GFRE_BT.CriticalAbort('UNEXPECTED SECTION [%s] WANTED "DBOS"',[section_name]);
+  for i:=0 to count-1 do begin
+    obj := ReadElement;
+    progress('READ DBO ',obj.GetDescriptionID,'',i+1,count);
+    FPersistance_Layer.FDB_SendObject(obj);
+  end;
+  FPersistance_Layer.FDB_PrepareDBRestore(1);
+  GetSection(ReadElement,section_name,count);
+  if section_name<>'COLLECTIONS' then GFRE_BT.CriticalAbort('UNEXPECTED SECTION [%s] WANTED "COLLECTIONS"',[section_name]);
+  for i:=0 to count-1 do begin
+    obj:=ReadElement;
+    progress('READ COLLECTIONS ',obj.Field('CollectionName').AsString,'',i+1,count);
+    FPersistance_Layer.FDB_SendCollection(obj);
+  end;
+  FPersistance_Layer.FDB_PrepareDBRestore(100);
+  progress('','','DONE',0,0);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.RestoreDatabaseReadable(const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.RestoreDatabaseReadable(const sys, adb: TStream; const db_name: string; const progress: TFRE_DB_PhaseProgressCallback): TFRE_DB_Errortype;
 begin
-  result := inherited RestoreDatabaseReadable(from_stream,stream_cb);
+  if not Assigned(FPairedAppDBConn) then
+    exit(edb_ERROR);
+  if assigned(sys) then
+    begin
+      inherited RestoreDatabaseReadable(sys,progress);
+    end;
+  if assigned(adb) then
+    FPairedAppDBConn.RestoreDatabaseReadable(adb,progress);
+  result := edb_OK;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetClassesVersionDirectory: IFRE_DB_Object;
@@ -10018,12 +10041,16 @@ begin
       begin
         FSysConnection := GFRE_DB.NewDirectSysConnection;
         result := FSysConnection.Connect(user,pass);
+        if result=edb_NOT_FOUND then
+          exit(edb_DB_NO_SYSTEM)
+        else
         if result<>edb_OK then
-          exit(edb_DB_NO_SYSTEM);
+          exit(Result);
       end
     else
       FProxySysconnection := true;
     result := _Connect(db,false);
+    FSysConnection.FPairedAppDBConn := self;
   finally
     ReleaseBig;
   end;
@@ -11488,8 +11515,9 @@ var  l_JSONParser : TJSONParser;
 
 begin
   result := nil;
-  l_JSONParser := TJSONParser.Create(json_string);
+  l_JSONParser := TJSONParser.Create(json_string,true);
   try
+    jd           := nil;
     jd           := l_JSONParser.Parse;
     if jd is TJSONObject then begin
       l_JSONObject := jd as TJSONObject;
@@ -11508,7 +11536,8 @@ begin
       end;
     end;
   finally
-    jd.free;
+    if assigned(jd) then
+      jd.free;
     l_JSONParser.free;
   end;
 end;
@@ -12757,7 +12786,7 @@ var jd : TJSONData;
     jp : TJSONParser;
 begin
   try
-    jp     := TJSONParser.Create(AValue);
+    jp     := TJSONParser.Create(AValue,true);
     jd     := jp.Parse;
     result := CreateInternalStreamingJSON(nil,jd as TJSONArray, stream_cb);
   finally

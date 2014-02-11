@@ -102,6 +102,17 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
+
+     {< Backup Functionality}
+     function    FDB_GetObjectCount            (const coll:boolean): Integer;
+     procedure   FDB_ForAllObjects             (const cb:IFRE_DB_Obj_Iterator);
+     procedure   FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
+     procedure   FDB_PrepareDBRestore          (const phase:integer);
+     procedure   FDB_SendObject                (const obj:IFRE_DB_Object);
+     procedure   FDB_SendCollection            (const obj:IFRE_DB_Object);
+     { Backup Functionality >}
+
+
      procedure   _LoadCollectionPersistent  (const file_name : string);
      procedure   _LoadObjectPersistent      (const UID: TGuid; var obj: TFRE_DB_Object);
      procedure   _SyncDBInternal            (const final:boolean=false);
@@ -214,9 +225,9 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
     begin
       GFRE_BT.List_Files(FMasterCollDir,@add_guid);
       result := FMaster.InternalRebuildRefindex;
-      FMaster.InternalStoreLock;
       if result<>edb_OK then
         raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RECREATE REFERENTIAL INTEGRITY FROM STABLE');
+      FMaster.InternalStoreLock;
     end;
 
     procedure _BuildCollections;
@@ -489,6 +500,99 @@ begin
     end;
 end;
 
+function TFRE_DB_PS_FILE.FDB_GetObjectCount(const coll: boolean): Integer;
+begin
+  if coll then
+    result := FMaster.MasterColls.GetCollectionCount
+  else
+    result := FMaster.GetPersistantRootObjectCount;
+end;
+
+procedure TFRE_DB_PS_FILE.FDB_ForAllObjects(const cb: IFRE_DB_Obj_Iterator);
+
+  procedure ForAll(const obj : TFRE_DB_Object);
+  var lock : boolean;
+  begin
+    if obj.IsObjectRoot then
+      begin
+        obj.Set_Store_LockedUnLockedIf(false,lock);
+        try
+          cb(obj);
+        finally
+          obj.Set_Store_LockedUnLockedIf(true,lock);
+        end;
+      end;
+  end;
+
+begin
+  FMaster.ForAllObjectsInternal(true,false,@ForAll);
+end;
+
+procedure TFRE_DB_PS_FILE.FDB_ForAllColls(const cb: IFRE_DB_Obj_Iterator);
+
+  procedure CollCB(const pcoll : TFRE_DB_Persistance_Collection);
+  var obj : IFRE_DB_Object;
+  begin
+    obj := pcoll.BackupToObject;
+    try
+      cb(obj);
+    finally
+      obj.Finalize;
+    end;
+  end;
+
+begin
+  FMaster.MasterColls.ForAllCollections(@CollCB);
+end;
+
+procedure TFRE_DB_PS_FILE.FDB_PrepareDBRestore(const phase: integer);
+var result : TFRE_DB_Errortype;
+begin
+  case phase of
+    0 :
+      begin
+        DeleteDatabase(FConnectedDB);
+        CreateDatabase(FConnectedDB);
+        FMaster.FDB_CleanUpMasterData;
+      end;
+    1 :
+      begin { Objects transferred, rebuild refindex}
+        result := FMaster.InternalRebuildRefindex;
+        if result<>edb_OK then
+          raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RECREATE REFERENTIAL INTEGRITY FROM STABLE');
+        FMaster.InternalStoreLock;
+      end;
+    100 :
+      begin
+
+      end;
+    else
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected restore db phase %d',[phase]);
+  end;
+end;
+
+procedure TFRE_DB_PS_FILE.FDB_SendObject(const obj: IFRE_DB_Object);
+var result : TFRE_DB_Errortype;
+begin
+  result := FMaster.InternalStoreObjectFromStable(obj.Implementor as TFRE_DB_Object);
+  WT_StoreObjectPersistent(obj,true);
+  if result<>edb_OK then
+    raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RESTORE OBJECT FROM BACKUP at [%s]',[obj.GetDescriptionID]);
+end;
+
+procedure TFRE_DB_PS_FILE.FDB_SendCollection(const obj: IFRE_DB_Object);
+var res  : TFRE_DB_Errortype;
+    coll : IFRE_DB_PERSISTANCE_COLLECTION;
+    name : TFRE_DB_NameType;
+begin
+  name := obj.Field('CollectionName').AsString;
+  res := FMaster.MasterColls.NewCollection(name,'*',coll,false,self);
+  if res <> edb_OK then
+    raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM BACKUP FAILED FOR [%s]',[name]);
+  coll.GetPersLayerIntf.RestoreFromObject(obj);
+  WT_StoreCollectionPersistent(coll);
+end;
+
 procedure TFRE_DB_PS_FILE._LoadObjectPersistent(const UID: TGuid; var obj: TFRE_DB_Object);
 var m          : TMemorystream;
     filename   : TFRE_DB_String;
@@ -509,10 +613,9 @@ end;
 
 procedure TFRE_DB_PS_FILE._SyncDBInternal(const final:boolean=false);
 
-   function WriteColls(const coll:IFRE_DB_PERSISTANCE_COLLECTION):boolean;
+   procedure WriteColls(const coll:TFRE_DB_PERSISTANCE_COLLECTION);
    begin
-      _StoreCollectionPersistent(coll);
-      result := false;
+     _StoreCollectionPersistent(coll);
    end;
 
    procedure StoreObjects(const obj : TFRE_DB_Object);
@@ -559,7 +662,7 @@ begin
   if not FGlobalLayer then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fail');
   if clean_master_data then
-    FMaster.DEBUG_CleanUpMasterData;
+    FMaster.FDB_CleanUpMasterData;
   l := _InternalFetchConnectedLayer(db,idx);
   l.Free;
   FConnectedLayers[idx] := nil;

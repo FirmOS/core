@@ -69,11 +69,10 @@ type
   protected
     fapplication                   : string;
     filename                       : string;
-    FUser                          : string;
-    FPass                          : string;
     FDBName                        : string;
     FOnlyInitDB                    : boolean;
     FBaseServer                    : TFRE_BASE_SERVER;
+    FLimittransfer                 : integer;
 
     procedure  _CheckDBNameSupplied;
     procedure  _CheckUserSupplied;
@@ -87,9 +86,10 @@ type
     procedure   WriteVersion       ;
     procedure   ReCreateDB         ;
     procedure   ReCreateSysDB      ;
+    procedure   BackupDB           (const adb, sdb: boolean; const dir: string);
+    procedure   RestoreDB          (const adb, sdb: boolean; const dir: string);
     procedure   GenerateTestdata   ;
     procedure   DoUnitTest         ;
-    procedure   ShowUserRoles      ;
     procedure   InitExtensions     ;
     procedure   ShowVersions       ;
     procedure   RemoveExtensions   ;
@@ -98,7 +98,6 @@ type
     procedure   ListExtensions     ;
     procedure   PrepareStartup     ;
     procedure   FinishStartup      ;
-    procedure   DumpDB             ;
     procedure   CfgTestLog         ;
     procedure   SchemeDump         ;
   public
@@ -183,8 +182,8 @@ end;
 
 procedure TFRE_CLISRV_APP._CheckUserSupplied;
 begin
-  if (FUser='') then begin
-    writeln('no username supplied for extension initialization');
+  if (cFRE_ADMIN_USER='') then begin
+    writeln('no admin username supplied');
     Terminate;
     halt(1);
   end;
@@ -192,8 +191,8 @@ end;
 
 procedure TFRE_CLISRV_APP._CheckPassSupplied;
 begin
-  if (FPass='') then begin
-    writeln('no password supplied for extension initialization');
+  if (cFRE_ADMIN_PASS='') then begin
+    writeln('no admin password supplied');
     Terminate;
     halt(1);
   end;
@@ -203,9 +202,11 @@ procedure TFRE_CLISRV_APP.DoRun;
 var ErrorMsg : String;
 begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
-  ErrorMsg:=CheckOptions('hvirlgxytqDf:e:u:p:d:s:U:H:',
-                          ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','dumpdb','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','drop-wal','show-users','test-log','disable-wal','disable-sync','dont-start','unittests','printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:','showinstalled']);
+  ErrorMsg:=CheckOptions('hvirlgxytDf:e:u:p:d:s:U:H:',
+                          ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','debugger','file:','extensions:','user:','pass:',
+                           'database:','style:','remoteuser:','remotehost:','drop-wal','test-log','disable-wal','disable-sync','dont-start','unittests',
+                           'printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:','showinstalled',
+                           'backupdb:','restoredb:','backupsys:','restoresys','backupapp:','restoreapp:','adminuser:','adminpass:','limittransfer:']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -213,6 +214,13 @@ begin
     Terminate;
     Exit;
   end;
+
+  FLimittransfer := 15;
+
+  if HasOption('*','limittransfer') then
+    begin
+      FLimittransfer:=StrToIntDef(GetOptionValue('*','limittransfer'),25);
+    end;
 
   if HasOption('*','printtz') then
     PrintTimeZones;
@@ -269,13 +277,19 @@ begin
   end;
 
   if HasOption('u','user') then begin
-    FUser := GetOptionValue('u','user');
-    cG_OVERRIDE_USER := FUser;
+    cG_OVERRIDE_USER := GetOptionValue('u','user');
   end;
 
   if HasOption('p','pass') then begin
-    FPass := GetOptionValue('p','pass');
-    cG_OVERRIDE_PASS := FPass;
+    cG_OVERRIDE_PASS := GetOptionValue('p','pass');
+  end;
+
+  if HasOption('*','adminuser') then begin
+    cFRE_ADMIN_USER := GetOptionValue('*','adminuser');
+  end;
+
+  if HasOption('*','adminpass') then begin
+    cFRE_ADMIN_PASS := GetOptionValue('*','adminpass');
   end;
 
   if HasOption('d','database') then begin
@@ -336,6 +350,38 @@ begin
     halt(0);
   end;
 
+  if HasOption('*','backupdb') then begin
+    FOnlyInitDB:=true;
+    filename := GetOptionValue('*','backupdb');
+    BackupDB(true,true,filename);
+    Terminate;
+    exit;
+  end;
+
+  if HasOption('*','backupsys') then begin
+    FOnlyInitDB:=true;
+    filename := GetOptionValue('*','backupsys');
+    BackupDB(false,true,filename);
+    Terminate;
+    exit;
+  end;
+
+  if HasOption('*','backupapp') then begin
+    FOnlyInitDB:=true;
+    filename := GetOptionValue('*','backupapp');
+    BackupDB(true,false,filename);
+    Terminate;
+    exit;
+  end;
+
+  if HasOption('*','restoredb') then begin
+    FOnlyInitDB:=true;
+    filename := GetOptionValue('*','restoredb');
+    RestoreDB(true,true,filename);
+    Terminate;
+    exit;
+  end;
+
   if HasOption('x','forcedb') then begin
     FOnlyInitDB:=true;
     ReCreateDB;
@@ -390,16 +436,6 @@ begin
     cFRE_JS_DEBUG := false;
   end;
 
-  if HasOption('*','show-users') then
-    begin
-      ShowUserRoles;
-      Terminate;
-      Exit;
-    end;
-
-
-  if HasOption('q','dumpdb') then
-    DumpDB;
 
   if HasOption('*','dont-start') then
     begin
@@ -463,7 +499,6 @@ begin
   writeln('  -u <user>     | --user <user>          : specify user');
   writeln('  -p <password> | --pass <password>      : specify password');
   writeln('  -d <database> | --database <database>  : specify database');
-  writeln('  -q            | --dumpdb               : dump systemdb and (specified) db');
   writeln('  -x            | --forcedb              : recreates specified database (CAUTION)');
   writeln('  -y            | --forcesysdb           : recreates system database (CAUTION)');
   writeln('  -t            | --testuser             : creates test user');
@@ -499,39 +534,239 @@ begin
   gFRE_InstallServerDefaults;
 end;
 
+procedure TFRE_CLISRV_APP.BackupDB(const adb,sdb:boolean ; const dir: string);
+var s     : string;
+    conn  : IFRE_DB_CONNECTION;
+    scon  : IFRE_DB_SYS_CONNECTION;
+    res   : TFRE_DB_Errortype;
+    sfs   : TFileStream;
+    dbfs  : TFileStream;
+    sysfn : String;
+    dbfn  : String;
+
+  procedure ProgressCB(const phase,detail,header : ShortString ; const cnt,max: integer);
+  var outs :string;
+  begin
+    if header<>'' then
+      begin
+        writeln(header);
+        exit;
+      end;
+    WriteStr(outs,'  > ',phase,' [',detail,'] : ',cnt,'/',max,' Items','                                                                                                          ');
+    write(outs);
+    if cnt<>max then
+      begin
+        write(StringOfChar(#8,length(outs)));
+      end
+    else
+      begin
+        writeln;
+      end;
+    if FLimittransfer>0 then
+      sleep(FLimittransfer);
+  end;
+
+begin
+  _CheckDBNameSupplied;
+  _CheckUserSupplied;
+  _CheckPassSupplied;
+  ForceDirectories(dir);
+  if not DirectoryExists(dir) then
+    begin
+      writeln('cannot backup / could not create directory ['+dir+'] !');
+      abort;
+    end;
+  if adb and not sdb then
+    writeln('Backup of Database ['+FDBName+'] into ['+dir+'] (y/N)');
+  if sdb and not adb then
+    writeln('Backup of SYSTEM DB into ['+dir+'] (y/N)');
+  if adb and sdb then
+    writeln('Backup of Database ['+FDBName+'] + [SYSTEM DB] into ['+dir+'] (y/N)');
+  ReadLn(s);
+  if s='y' then
+    begin
+      write('CONNECTING ['+FDBName+'] ');
+      if adb then
+        begin
+          conn := GFRE_DBI.NewConnection;
+          res  := conn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+        end
+      else
+        begin
+          scon := GFRE_DBI.NewSysOnlyConnection;
+          res  := scon.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+        end;
+      if res<>edb_OK then
+        begin
+          writeln(CFRE_DB_Errortype[res]);
+          abort;
+        end;
+      writeln('OK');
+      if sdb then
+        begin
+          sysfn := dir+DirectorySeparator+'sys.fdbb';
+          write('Opening file :'+sysfn);
+          try
+            sfs := TFileStream.Create(sysfn,fmCreate+fmShareExclusive);
+          except
+            writeln('FAILED');
+            abort;
+          end;
+          writeln(' OK');
+        end
+      else
+        sfs := nil;
+      if adb then
+        begin
+          dbfn  := dir+DirectorySeparator+'usr.fdbb';
+          write('Opening file :'+dbfn);
+          try
+            dbfs := TFileStream.Create(dbfn,fmCreate+fmShareExclusive);
+          except
+            writeln('FAILED');
+            abort;
+          end;
+          writeln(' OK');
+        end
+      else
+       dbfs := nil;
+      if adb then
+        conn.SYS.BackupDatabaseReadable(sfs,dbfs,@ProgressCB)
+      else
+        scon.BackupDatabaseReadable(sfs,nil,@ProgressCB);
+    end
+  else
+    begin
+     writeln('ABORTED');
+    end;
+end;
+
+procedure TFRE_CLISRV_APP.RestoreDB(const adb, sdb: boolean; const dir: string);
+var s     : string;
+    conn  : IFRE_DB_CONNECTION;
+    scon  : IFRE_DB_SYS_CONNECTION;
+    res   : TFRE_DB_Errortype;
+    sfs   : TFileStream;
+    dbfs  : TFileStream;
+    sysfn : String;
+    dbfn  : String;
+
+  procedure ProgressCB(const phase,detail,header : ShortString ; const cnt,max: integer);
+  var outs :string;
+  begin
+    if header<>'' then
+      begin
+        writeln(header);
+        exit;
+      end;
+    WriteStr(outs,'  > ',phase,' [',detail,'] : ',cnt,'/',max,' Items','                                                                                                          ');
+    write(outs);
+    if cnt<>max then
+      begin
+        write(StringOfChar(#8,length(outs)));
+      end
+    else
+      begin
+        writeln;
+      end;
+    if FLimittransfer>0 then
+      sleep(FLimittransfer);
+  end;
+
+begin
+  _CheckDBNameSupplied;
+  _CheckUserSupplied;
+  _CheckPassSupplied;
+  if not DirectoryExists(dir) then
+    begin
+      writeln('the backup directory does not exist['+dir+'] !');
+      abort;
+    end;
+  if adb and not sdb then
+    writeln('Restore of database ['+FDBName+'] (y/N)');
+  if sdb and not adb then
+    writeln('Restore of SYSTEM DB (y/N)');
+  if adb and sdb then
+    writeln('Restore backup as database ['+FDBName+'] + [SYSTEM DB]  (y/N)');
+  ReadLn(s);
+  //s:='y'; // ignore force lazarusdebug
+  if s='y' then
+    begin
+      write('RECREATING / CONNECTING ['+FDBName+'] ');
+      if adb then
+        begin
+          GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM');
+          CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM'));
+          GFRE_DB_PS_LAYER.DeleteDatabase(FDBName);
+          CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase(FDBName));
+          conn := GFRE_DBI.NewConnection;
+          res  := conn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+        end
+      else
+        begin
+          scon := GFRE_DBI.NewSysOnlyConnection;
+          res  := scon.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+        end;
+      if res<>edb_OK then
+        begin
+          writeln(CFRE_DB_Errortype[res]);
+          abort;
+        end;
+      writeln('OK');
+      if sdb then
+        begin
+          sysfn := dir+DirectorySeparator+'sys.fdbb';
+          write('Opening file :'+sysfn);
+          try
+            sfs := TFileStream.Create(sysfn,fmOpenRead+fmShareExclusive);
+          except
+            writeln('FAILED');
+            abort;
+          end;
+          writeln(' OK');
+        end
+      else
+        sfs := nil;
+      if adb then
+        begin
+          dbfn  := dir+DirectorySeparator+'usr.fdbb';
+          write('Opening file :'+dbfn);
+          try
+            dbfs := TFileStream.Create(dbfn,fmOpenRead+fmShareExclusive);
+          except
+            writeln('FAILED');
+            abort;
+          end;
+          writeln(' OK');
+        end
+      else
+       dbfs := nil;
+      if adb then
+        conn.SYS.RestoreDatabaseReadable(sfs,dbfs,FDBName,@ProgressCB)
+      else
+        scon.RestoreDatabaseReadable(sfs,nil,'',@ProgressCB);
+    end
+  else
+    begin
+     writeln('ABORTED');
+    end;
+end;
+
 procedure TFRE_CLISRV_APP.GenerateTestdata;
 begin
   _CheckDBNameSupplied;
-  //_CheckUserSupplied;
-  //_CheckPassSupplied;
-  GFRE_DBI_REG_EXTMGR.GenerateTestData4Exts(FChosenExtensionList,FDBName,FUser,FPass);
+  _CheckUserSupplied;
+  _CheckPassSupplied;
+  GFRE_DBI_REG_EXTMGR.GenerateTestData4Exts(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
 end;
 
 procedure TFRE_CLISRV_APP.DoUnitTest;
 var conn : IFRE_DB_SYS_CONNECTION;
 begin
   _CheckDBNameSupplied;
-  //_CheckUserSupplied;
-  //_CheckPassSupplied;
-  GFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(FChosenExtensionList,FDBName,FUser,FPass);
-end;
-
-procedure TFRE_CLISRV_APP.ShowUserRoles;
-var conn  : IFRE_DB_SYS_CONNECTION;
-    res   : TFRE_DB_Errortype;
-
-begin
-  CONN := GFRE_DBI.NewSysOnlyConnection;
-  try
-    res  := CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
-    if res<>edb_OK then gfre_bt.CriticalAbort('cannot connect system : %s',[CFRE_DB_Errortype[res]]);
-    abort;
-
-    // implement generic for all users
-
-  finally
-    conn.Finalize;
-  end;
+  _CheckUserSupplied;
+  _CheckPassSupplied;
+  GFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
 end;
 
 procedure TFRE_CLISRV_APP.InitExtensions;
@@ -542,10 +777,10 @@ begin
   _CheckPassSupplied;
   //writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
   CONN := GFRE_DBI.NewConnection;
-  CheckDbResult(CONN.Connect(FDBName,fuser,fPass),'cannot connect system db');
+  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
   GFRE_DBI.DBInitializeAllExClasses(conn);
   conn.Finalize;
-  GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,FUser,FPass);
+  GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
 end;
 
 procedure TFRE_CLISRV_APP.ShowVersions;
@@ -555,7 +790,7 @@ begin
   _CheckUserSupplied;
   _CheckPassSupplied;
   CONN := GFRE_DBI.NewSysOnlyConnection;
-  CheckDbResult(CONN.Connect(FUser,FPass),'cannot connect system db');
+  CheckDbResult(CONN.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
   writeln(conn.GetClassesVersionDirectory.DumpToString);
   conn.Finalize;
 end;
@@ -564,10 +799,10 @@ end;
 procedure TFRE_CLISRV_APP.RemoveExtensions;
 begin
   _CheckDBNameSupplied;
-  //_CheckUserSupplied;
-  //_CheckPassSupplied;
+  _CheckUserSupplied;
+  _CheckPassSupplied;
   writeln('Remove apps for extensions :'+uppercase(FChosenExtensionList.Commatext));
-  GFRE_DBI_REG_EXTMGR.Remove4Extensions(FChosenExtensionList,FDBName,FUser,FPass);
+  GFRE_DBI_REG_EXTMGR.Remove4Extensions(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
 end;
 
 
@@ -614,16 +849,6 @@ begin
   FRE_BASE_SERVER.RegisterLogin;
 end;
 
-procedure TFRE_CLISRV_APP.DumpDB;
-var
-  CONN: IFRE_DB_SYS_CONNECTION;
-begin
-  CONN := GFRE_DBI.NewSysOnlyConnection;
-  CheckDbResult(CONN.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin'),'cannot connect system db');
-  CONN.DumpSystem;
-  CONN.Finalize;
-end;
-
 procedure TFRE_CLISRV_APP.CfgTestLog;
 
   procedure Setup_HTTP_Request_Logging;
@@ -667,8 +892,8 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
 
   procedure Setup_Persistance_Layer_Logging;
   begin
-    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Info,'*',flra_DropEntry);
-    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry);
+    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Info,'*',flra_DropEntry);
+    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE],fll_Debug,'*',flra_DropEntry);
     //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
     //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSITANCE_NOTIFY],fll_Debug,'*',flra_DropEntry);
   end;
@@ -718,11 +943,11 @@ begin
   try
     if system then begin
       sconn := GFRE_DBI.NewSysOnlyConnection();
-      sconn.Connect('admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
+      sconn.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
       sconn.DrawScheme(mems);
     end else begin
       lconn := GFRE_DBI.NewConnection;
-      res   := lconn.Connect(FDBName,'admin@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
+      res   := lconn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
       if res<>edb_OK then begin
         WriteLn('SCHDUMP CHECK CONNECT FAILED : ',CFRE_DB_Errortype[res]);
       end;

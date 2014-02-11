@@ -145,6 +145,7 @@ type
   end;
 
   TFRE_DB_GUID          = TGuid;
+  PFRE_DB_GUID          = ^TFRE_DB_GUID;
   TFRE_DB_GUIDArray     = Array of TGuid;
   PFRE_DB_GUIDArray     = ^TFRE_DB_GUIDArray;
   TFRE_DB_ByteArray     = Array of Byte;
@@ -530,7 +531,7 @@ type
   IFRE_DB_Domain_Iterator               = procedure (const obj : IFRE_DB_Domain) is nested;
 
   TFRE_DB_StreamingCallback             = procedure (const uid,fieldname: TFRE_DB_String ; const stream:TFRE_DB_Stream) is nested;
-  TFRE_DB_PhaseProgressCallback         = procedure (const phase,cnt,max: integer) is nested;
+  TFRE_DB_PhaseProgressCallback         = procedure (const phase,detail,header : shortstring ; const cnt,max: integer) is nested;
 
 
   TFRE_DB_Guid_Iterator                 = procedure (const obj:TGUID) is nested;
@@ -1148,6 +1149,7 @@ type
     procedure     DeleteFromThisColl  (const del_obj         : IFRE_DB_Object ; const checkphase : boolean);
     procedure     StreamToThis        (const stream          : TStream);
     procedure     LoadFromThis        (const stream          : TStream);
+    procedure     RestoreFromObject   (const obj:IFRE_DB_Object);
     function      FetchIntFromColl    (const uid:TGuid ; var obj : IFRE_DB_Object):boolean;
   end;
 
@@ -1207,9 +1209,16 @@ type
     procedure  DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
 
     procedure  WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
-   procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
+    procedure  WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
     procedure  WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
     procedure  WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
+
+    function   FDB_GetObjectCount            (const coll:boolean): Integer;
+    procedure  FDB_ForAllObjects             (const cb:IFRE_DB_Obj_Iterator);
+    procedure  FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
+    procedure  FDB_PrepareDBRestore          (const phase:integer);
+    procedure  FDB_SendObject                (const obj:IFRE_DB_Object);
+    procedure  FDB_SendCollection            (const obj:IFRE_DB_Object);
 
     function  GetConnectedDB                : TFRE_DB_NameType;
     function  GetLastError                  : TFRE_DB_String;
@@ -1388,8 +1397,8 @@ type
     function    DatabaseExists              (const dbname:TFRE_DB_String):Boolean;
     function    CreateDatabase              (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
     function    DeleteDatabase              (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-    function    BackupDatabaseReadable      (const to_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;
-    function    RestoreDatabaseReadable     (const from_stream:TStream;const stream_cb:TFRE_DB_StreamingCallback):TFRE_DB_Errortype;
+    function    BackupDatabaseReadable      (const sys,adb : TStream;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;
+    function    RestoreDatabaseReadable     (const sys,adb : TStream;const db_name:string;const progress : TFRE_DB_PhaseProgressCallback):TFRE_DB_Errortype;
     function    OverviewDump                :TFRE_DB_String;
     procedure   DumpSystem                  ;
 
