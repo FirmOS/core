@@ -1420,7 +1420,9 @@ type
     function    DumpUserRights              :TFRE_DB_String;
     function    GetSysDomainUID             :TGUID;
     procedure   ReloadUserandRights         ;
+    function    GetLoginUser                : IFRE_DB_USER;
   end;
+
 
 
   TFRE_DB_CONTENT_DESC_ARRAY = array of TFRE_DB_CONTENT_DESC;
@@ -2187,6 +2189,7 @@ type
     procedure   unregisterUpdatableDBO       (const id: String);
     function    isUpdatableContentVisible    (const contentId: String): Boolean;
     function    GetDownLoadLink4StreamField  (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string): String;
+    function    GetLoginUser                 : IFRE_DB_USER;
   end;
 
   TFRE_DB_RemoteReqSpec      = record
@@ -2379,6 +2382,7 @@ type
 
     function    GetDBConnection          :IFRE_DB_CONNECTION;
     function    GetDomain                :TFRE_DB_String;
+    function    GetLoginUser             : IFRE_DB_USER;
 
     function    GetPublishedRemoteMeths  : TFRE_DB_RemoteReqSpecArray;
     function    GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string): String;
@@ -4970,6 +4974,11 @@ var
   loc: TFRE_DB_String;
 begin
   FREDB_SplitLocalatDomain(FUserName,loc,Result);
+end;
+
+function TFRE_DB_UserSession.GetLoginUser: IFRE_DB_USER;
+begin
+  GetDBConnection.SYS.GetLoginUser;
 end;
 
 function TFRE_DB_UserSession.GetPublishedRemoteMeths: TFRE_DB_RemoteReqSpecArray;

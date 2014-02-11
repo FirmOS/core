@@ -1965,6 +1965,7 @@ type
     procedure   Rollback                     ;
     function    GetSysDomainUID              :TGUID; override;
     procedure   ReloadUserandRights          ;
+    function    GetLoginUser                 : IFRE_DB_USER;
   end;
 
 
@@ -4947,6 +4948,11 @@ begin
   finally
     ReleaseBig;
   end;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.GetLoginUser: IFRE_DB_USER;
+begin
+  result := FConnectedUser.CloneToNewObject.Implementor as TFRE_DB_USER;
 end;
 
 
