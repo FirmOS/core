@@ -732,7 +732,7 @@ type
     function        Exists              (const ouid:TGUID):boolean;
     procedure       ForAll              (const func:IFRE_DB_Obj_Iterator);
     procedure       ForAllBreak         (const func:IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
-    function        Remove              (const ouid:TGUID):boolean;
+    function        Remove              (const ouid:TGUID):TFRE_DB_Errortype;
     function        Store               (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
     function        Update              (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
     function        Fetch               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
@@ -763,10 +763,10 @@ type
     function        RemoveIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
 
     // skip_first = number of different index values to skip, max_count = number of different index values to deliver
-    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_idx_vals : boolean=false);
-    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_idx_vals : boolean=false);
-    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_idx_vals : boolean=false);
-    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
+    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
     procedure       ForceFullUpdateForObservers;
     function        IsVolatile          : Boolean;
@@ -1193,10 +1193,10 @@ type
 
     procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
 
-    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
+    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
   end;
 
   IFRE_DB_PERSISTANCE_COLLECTION_ARRAY = array of IFRE_DB_PERSISTANCE_COLLECTION;
@@ -1206,19 +1206,19 @@ type
    IFRE_DB_DBChangedNotification = interface;
 
   IFRE_DB_PERSISTANCE_LAYER=interface
-    procedure  DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
+    procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
 
-    procedure  WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
-    procedure  WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
-    procedure  WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
-    procedure  WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
+    procedure WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+    procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
+    procedure WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+    procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
-    function   FDB_GetObjectCount            (const coll:boolean): Integer;
-    procedure  FDB_ForAllObjects             (const cb:IFRE_DB_Obj_Iterator);
-    procedure  FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
-    procedure  FDB_PrepareDBRestore          (const phase:integer);
-    procedure  FDB_SendObject                (const obj:IFRE_DB_Object);
-    procedure  FDB_SendCollection            (const obj:IFRE_DB_Object);
+    function  FDB_GetObjectCount            (const coll:boolean): Integer;
+    procedure FDB_ForAllObjects             (const cb:IFRE_DB_Obj_Iterator);
+    procedure FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
+    procedure FDB_PrepareDBRestore          (const phase:integer);
+    procedure FDB_SendObject                (const obj:IFRE_DB_Object);
+    procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
 
     function  GetConnectedDB                : TFRE_DB_NameType;
     function  GetLastError                  : TFRE_DB_String;
@@ -1245,7 +1245,7 @@ type
 
     function  ObjectExists                  (const obj_uid : TGUID) : boolean;
     function  DeleteObject                  (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
-    function  Fetch                         (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false): boolean;
+    function  Fetch                         (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false):TFRE_DB_Errortype;
     function  StoreOrUpdateObject           (const obj     : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
     function  DefineIndexOnField            (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
 

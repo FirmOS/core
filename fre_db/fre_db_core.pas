@@ -1248,7 +1248,7 @@ type
     function        Exists         (const ouid:TGUID):boolean;
     procedure       ForAll         (const func:TFRE_DB_Obj_Iterator);
     procedure       ForAllBreak    (const func:TFRE_DB_ObjectIteratorBrk ; var halt : boolean);
-    function        Remove         (const ouid:TGUID):boolean; virtual;
+    function        Remove         (const ouid:TGUID):TFRE_DB_Errortype; virtual;
     function        Store          (var   new_obj:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
     function        Update         (const dbo:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
     function        Fetch          (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;virtual;
@@ -1278,10 +1278,10 @@ type
 
     procedure       ForAllIndexed              (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
 
-    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
+    procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
     function        RemoveIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        IsVolatile          : Boolean;
@@ -1610,7 +1610,7 @@ type
     procedure  RemoveAllFiltersPrefix  (const prefix:string);
 
     function   Store                           (var obj: TFRE_DB_Object)     :TFRE_DB_Errortype; override;
-    function   Remove                          (const ouid:TGUID)            :boolean; override;
+    function   Remove                          (const ouid:TGUID)            :TFRE_DB_Errortype; override;
     function   Update                          (const dbo:TFRE_DB_Object)    :TFRE_DB_Errortype; override;
 
     procedure  SetDeriveParent                 (const coll:TFRE_DB_COLLECTION; const idField: String='uid');
@@ -3795,10 +3795,7 @@ function TFRE_DB_SYSTEM_CONNECTION.DeleteUserById(const user_id: TGUID): TFRE_DB
 begin
   AcquireBig;
   try
-    if FSysUsers.Remove(user_id) then
-      result := edb_OK
-    else
-      result := edb_ERROR;
+    result := FSysUsers.Remove(user_id);
   finally
     ReleaseBig;
   end;
@@ -3989,10 +3986,7 @@ begin
   try
     if DomainID(CFRE_DB_SYS_DOMAIN_NAME)=domain_id then
       raise EFRE_DB_Exception.Create('Deletion of the system domain is not allowed !');
-    if FSysDomains.Remove(domain_id) then
-      result := edb_OK
-    else
-      result := edb_ERROR;
+    result := FSysDomains.Remove(domain_id);
   finally
     ReleaseBig;
   end;
@@ -6857,7 +6851,7 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'NO STORES IN DCs ARE ALLOWED');
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.Remove(const ouid: TGUID): boolean;
+function TFRE_DB_DERIVED_COLLECTION.Remove(const ouid: TGUID): TFRE_DB_Errortype;
 begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'NO REMOVES IN DCs ARE ALLOWED');
 end;
@@ -9056,7 +9050,7 @@ begin //nl
   try
     FConnection.FPersistance_Layer.StoreOrUpdateObject(new_obj,FName,true);
   except
-    result := edb_PERSISTANCE_ERROR;
+    result := FConnection.FPersistance_Layer.GetLastErrorCode;
   end;
 end;
 
@@ -9139,7 +9133,7 @@ end;
 
 
 
-function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): boolean;
+function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): TFRE_DB_Errortype;
 var ncolls : TFRE_DB_StringArray;
     res    : TFRE_DB_Errortype;
 begin //nl
@@ -9147,9 +9141,8 @@ begin //nl
     FConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
     res := edb_OK;
   except
-    res := edb_PERSISTANCE_ERROR;
+    result := FConnection.FPersistance_Layer.GetLastErrorCode;
   end;
-  result := (res=edb_OK);
 end;
 
 function TFRE_DB_COLLECTION.Store(var new_obj: TFRE_DB_Object):TFRE_DB_Errortype;
@@ -9335,31 +9328,31 @@ begin //nl
   _IterateOverGUIDArray(guids,func,halt);
 end;
 
-procedure TFRE_DB_COLLECTION.ForAllIndexedSignedRange(const min_value, max_value: int64; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
+procedure TFRE_DB_COLLECTION.ForAllIndexedSignedRange(const min_value, max_value: int64; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
 begin //nl
-  FObjectLinkStore.ForAllIndexedSignedRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst,only_count_unique_vals);
+  FObjectLinkStore.ForAllIndexedSignedRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
   _IterateOverGUIDArray(guids,iterator,halt);
 end;
 
-procedure TFRE_DB_COLLECTION.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
+procedure TFRE_DB_COLLECTION.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
 begin //nl
-  FObjectLinkStore.ForAllIndexedUnsignedRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst,only_count_unique_vals);
+  FObjectLinkStore.ForAllIndexedUnsignedRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
   _IterateOverGUIDArray(guids,iterator,halt);
 end;
 
-procedure TFRE_DB_COLLECTION.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
+procedure TFRE_DB_COLLECTION.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
 begin //nl
-  FObjectLinkStore.ForAllIndexedStringRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst,only_count_unique_vals);
+  FObjectLinkStore.ForAllIndexedStringRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
   _IterateOverGUIDArray(guids,iterator,halt);
 end;
 
-procedure TFRE_DB_COLLECTION.ForAllIndexPrefixString(const prefix: TFRE_DB_String; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
+procedure TFRE_DB_COLLECTION.ForAllIndexPrefixString(const prefix: TFRE_DB_String; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
 begin //nl
-  FObjectLinkStore.ForAllIndexPrefixString(prefix,guids,index_name,ascending,max_count,skipfirst,only_count_unique_vals);
+  FObjectLinkStore.ForAllIndexPrefixString(prefix,guids,index_name,ascending,max_count,skipfirst);
   _IterateOverGUIDArray(guids,iterator,halt);
 end;
 
@@ -10372,7 +10365,7 @@ begin
     try
       FPersistance_Layer.DeleteCollection(c_name);
     except
-      exit(edb_PERSISTANCE_ERROR);
+      exit(FPersistance_Layer.GetLastErrorCode);
     end;
     FCollectionStore.Delete(c_name,lcollection);
     lcollection.Free;
@@ -10446,7 +10439,7 @@ begin
       FPersistance_Layer.DeleteObject(ouid,'');
       result:=edb_OK;
     except
-      result     := edb_PERSISTANCE_ERROR;
+      result     := FPersistance_Layer.GetLastErrorCode;
     end;
   finally
     ReleaseBig;
@@ -10599,11 +10592,21 @@ begin
   AcquireBig;
   try
     dbo    := nil;
-    result := edb_NOT_FOUND;
-    if FPersistance_Layer.Fetch(ouid,dbi,false) then
-      exit(_Check);
-    if GFRE_DB.FetchSysObject(ouid,dbo) then
-      exit(_Check);
+    try
+      result := FPersistance_Layer.Fetch(ouid,dbi,false);
+      if result <> edb_OK then
+        exit(Result)
+      else
+        begin
+          if assigned(dbi) then
+            exit(_Check);
+        end;
+      if GFRE_DB.FetchSysObject(ouid,dbo) then
+        exit(_Check);
+      exit(edb_NOT_FOUND);
+    except
+      result := FPersistance_Layer.GetLastErrorCode;
+    end;
   finally
     ReleaseBig;
   end;
@@ -10629,12 +10632,8 @@ begin
     try
       FPersistance_Layer.StoreOrUpdateObject(dboo,'',false);
       result := edb_OK;
-      //if result=edb_OK then
-      //  begin
-      //    _NotifyCollectionObservers(fdbntf_UPDATE,nil,objuid,ncolls);
-      //  end;
     except
-      exit(edb_PERSISTANCE_ERROR);
+      exit(FPersistance_Layer.GetLastErrorCode);
     end;
   finally
     ReleaseBig;
@@ -13786,7 +13785,7 @@ begin
   SetLength(result,cnt);
   for i:=0 to high(Result) do
     if Result[i].linked_uid=CFRE_DB_NullGUID then
-      GFRE_BT.CriticalAbort('TODO: fail remove');
+      raise EFRE_DB_Exception.Create(edb_ERROR,'the object contains NULL GUIDS in objectlink fields this is not allowed');
 end;
 
 

@@ -35,7 +35,7 @@ begin
   DefaultFormat      := fPlain;
   DefaultRunAllTests := true;
 
-  CfgTestLog;
+  //CfgTestLog;
   Init4Server;
   Register_DB_Extensions;
   RegisterTestCodeClasses;

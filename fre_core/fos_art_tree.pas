@@ -135,13 +135,14 @@ type
      { TFRE_ART_TREE }
      TFRE_ART_TREE=class
      private type
-       TFRE_ART_NODE_DUMP_PROC     = procedure (const node : PFRE_ART_Node ; const level : NativeUint) is nested;
-       TFRE_ART_NODE_PROC          = procedure (const node : PFRE_ART_Node) is nested;
+       TFRE_ART_NODE_DUMP_PROC              = procedure (const node : PFRE_ART_Node ; const level : NativeUint) is nested;
+       TFRE_ART_NODE_PROC                   = procedure (const node : PFRE_ART_Node) is nested;
      public type
-       TFRE_ART_NodeValueProc      = procedure (var value : NativeUint) is nested;
-       TFRE_ART_NodeValueBreakProc = procedure (var value : NativeUint ; var break : boolean) is nested;
-       TFRE_ART_NodeCallback       = procedure (var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint) is nested;
-       TFRE_ART_NodeBreakCallback  = procedure (var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean) is nested;
+       TFRE_ART_NodeValueProc               = procedure (var value : NativeUint) is nested;
+       TFRE_ART_NodeValueBreakProc          = procedure (var value : NativeUint ; var break : boolean) is nested;
+       TFRE_ART_NodeCallback                = procedure (var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint) is nested;
+       TFRE_ART_NodeBreakCallback           = procedure (var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean) is nested;
+       TFRE_ART_NodeBreakCallbackCountDown  = procedure (var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean ; var downcounter,upcounter : NativeInt ; const abscntr : NativeInt) is nested;
      private var
        FArtTree    : PFRE_ART_Node;
        FValueCount : NativeUint;
@@ -210,7 +211,7 @@ type
 
        function    PrefixScan              (const prefix_key : PByte ; key_len : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback):boolean;
 
-       function    RangeScan               (const lo_key,hi_key: PByte; const lo_keylen,hi_keylen : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback ; const max_count : NativeInt=0 ; skip : NativeInt=0 ; const asc : boolean=true):boolean;
+       function    RangeScan               (const lo_key,hi_key: PByte; const lo_keylen,hi_keylen : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallbackCountDown ; const max_count : NativeInt=0 ; skip : NativeInt=0 ; const asc : boolean=true):boolean;
        function    GetValueCount           : NativeUint;
      end;
 
@@ -355,7 +356,7 @@ var i,j     : integer;
       keyh : string;
       val  : integer;
 
-    procedure NodeBreak(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean);
+    procedure NodeBreak(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean ; var dcounter,upcounter : NativeInt ; const abscntr : NativeInt);
     begin
       writeln('Val ',value,' ',Copy(Pchar(key),1,KeyLen));
     end;
@@ -2072,7 +2073,7 @@ begin
     end;
 end;
 
-function TFRE_ART_TREE.RangeScan(const lo_key, hi_key: PByte; const lo_keylen, hi_keylen: NativeUint; const nested_node_proc: TFRE_ART_NodeBreakCallback; const max_count: NativeInt; skip: NativeInt; const asc: boolean): boolean;
+function TFRE_ART_TREE.RangeScan(const lo_key, hi_key: PByte; const lo_keylen, hi_keylen: NativeUint; const nested_node_proc: TFRE_ART_NodeBreakCallbackCountDown; const max_count: NativeInt; skip: NativeInt; const asc: boolean): boolean;
 var
     halt      : boolean;
     abscnt    : NativeInt;
@@ -2119,13 +2120,12 @@ var
   begin
     if not CheckKeyInRange then
       exit;
-    if skip>0 then
-      dec(skip)
-    else
+    //if skip>0 then
+    //  dec(skip)
+    //else
       with PFRE_ART_LeafNode(node)^ do
         begin
-          inc(abscnt);
-          nested_node_proc(GetStoredValue^,GetStoredKey,GetStoredKeyLen,halt);
+          nested_node_proc(GetStoredValue^,GetStoredKey,GetStoredKeyLen,halt,skip,abscnt,abshalt);
           last_node := node;
         end;
     if (abshalt>0) and (abscnt>=abshalt) then

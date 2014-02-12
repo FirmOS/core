@@ -7,9 +7,13 @@ unit fre_db_testsuite;
 
 interface
 
+
 uses
   Classes, SysUtils,fpcunit,testregistry,testdecorator,
   FRE_DB_CORE,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE;
+
+  var cFFG_SKIP_EXCEPTION_TEST : boolean = false;
+
 
   var TEST_GUID_1,TEST_GUID_2,TEST_GUID_3 : TGUID;
 
@@ -116,6 +120,7 @@ type
     procedure SetupTestWorkDB;
     procedure SetupTestCollections;
     procedure FetchTestColletion;
+    procedure StoreVolatileAndPersistent;
     procedure SubobjectTwiceTest;
     procedure DoReflinkTests;
     procedure ReftestCodeClassesStore;
@@ -486,21 +491,46 @@ begin
 end;
 
 procedure TFRE_DB_PersistanceTests.SubobjectTwiceTest;
-var coll_v,coll_p     : IFRE_DB_COLLECTION;
-    o1,o2,osub,osub2  : IFRE_DB_Object;
+var coll_v,coll_p    : IFRE_DB_COLLECTION;
+    o1,o2,osub,osub2 : IFRE_DB_Object;
+    res              : TFRE_DB_Errortype;
 begin
+  if cFFG_SKIP_EXCEPTION_TEST then
+    exit;
   ConnectDB('admin@system','admin');
-  coll_p := FWorkConn.Collection('TEST_1_TESTTEST',true,false);
+  coll_p := FWorkConn.Collection('TEST_1_SUBTWICE',true,false);
+
   o1   := GFRE_DBI.NewObject;
   o2   := GFRE_DBI.NewObject;
   osub := GFRE_DBI.NewObject;
+
   o1.Field('sub1').AddObject(osub.CloneToNewObject());
   o2.Field('sub1').AddObject(osub.CloneToNewObject());
-  CheckDbResult(coll_p.Store(o1),'',FWorkConn);
-//  CheckDbResult(coll_v.Store(o2),'',FWorkConn);
-  if FWorkConn.Fetch(osub.UID,osub2)=edb_OK then
-    abort;
-  CheckDbResult(coll_p.Store(osub),'',FWorkConn);
+
+  res := coll_p.Store(o1);
+  AssertTrue('store failed, bad',res=edb_OK);
+  res := coll_p.store(o2.Field('sub1').AsObject);
+
+  AssertTrue('must return exists 1',coll_p.Store(o2)=edb_EXISTS);
+  AssertTrue('must return exists 2',coll_p.Store(osub)=edb_EXISTS);
+  AssertTrue(FWorkConn.Fetch(osub.UID,osub2)=edb_ERROR);
+
+  coll_v := FWorkConn.Collection('TEST_1_SUBTWICE_V',true,true);
+
+  o1   := GFRE_DBI.NewObject;
+  o2   := GFRE_DBI.NewObject;
+  osub := GFRE_DBI.NewObject;
+
+  o1.Field('sub1').AddObject(osub.CloneToNewObject());
+  o2.Field('sub1').AddObject(osub.CloneToNewObject());
+
+  res := coll_v.Store(o1);
+  AssertTrue('store failed, bad',res=edb_OK);
+  res := coll_v.Store(o2);
+  AssertTrue('must return exists 3',res=edb_EXISTS);
+  res := coll_v.Store(osub);
+  AssertTrue('must return exists 4',res=edb_EXISTS);
+  AssertTrue(FWorkConn.Fetch(osub.UID,osub2)=edb_ERROR);
 end;
 
 procedure TFRE_DB_PersistanceTests.DoReflinkTests;
@@ -593,6 +623,24 @@ begin
   CheckDbResult(cp.Store(U10));
 end;
 
+procedure TFRE_DB_PersistanceTests.StoreVolatileAndPersistent;
+var coll_v,coll_p    : IFRE_DB_COLLECTION;
+    o1,o2            : IFRE_DB_Object;
+    res              : TFRE_DB_Errortype;
+begin
+  if cFFG_SKIP_EXCEPTION_TEST then
+    exit;
+  ConnectDB('admin@system','admin');
+  coll_p := FWorkConn.Collection('TEST_1_VOLPERS1',true,false);
+  coll_v := FWorkConn.Collection('TEST_1_VOLPERS2',true,true);
+
+  o1   := GFRE_DBI.NewObject;
+  o2   := o1.CloneToNewObject();
+
+  AssertTrue('must be ok',coll_p.Store(o1)=edb_OK);
+  AssertTrue('must be exists',coll_v.store(o2)=edb_EXISTS);
+end;
+
 
 // Reflink Example
 // Outbound Links: U1 (SC_A10):LINK1 -> U2(SC_A1),U3(SC_B1),U4(SC_C1)
@@ -671,17 +719,19 @@ end;
 procedure TFRE_DB_PersistanceTests.ChangeRefTestCodeClasses;
 var res : TFRE_DB_Errortype;
 begin
-  //ConnectDB('admin@system','admin');
-  //res := FWorkConn.Delete(u2u);
-  //AssertTrue(res=edb_OBJECT_REFERENCED);
-  //res := FWorkConn.Delete(u3u);
-  //AssertTrue(res=edb_OBJECT_REFERENCED);
-  //res := FWorkConn.Delete(u4u);
-  //AssertTrue(res=edb_OBJECT_REFERENCED);
-  //res := FWorkConn.Delete(u1u);
-  //CheckDbResult(res);
-  //res := FWorkConn.Delete(u1u);
-  //AssertTrue(res=edb_NOT_FOUND);
+  if cFFG_SKIP_EXCEPTION_TEST then
+    exit;
+  ConnectDB('admin@system','admin');
+  res := FWorkConn.Delete(u2u);
+  AssertTrue(res=edb_OBJECT_REFERENCED);
+  res := FWorkConn.Delete(u3u);
+  AssertTrue(res=edb_OBJECT_REFERENCED);
+  res := FWorkConn.Delete(u4u);
+  AssertTrue(res=edb_OBJECT_REFERENCED);
+  res := FWorkConn.Delete(u1u);
+  CheckDbResult(res);
+  res := FWorkConn.Delete(u1u);
+  AssertTrue(res=edb_NOT_FOUND);
 end;
 
 procedure TFRE_DB_PersistanceTests.DefineIndices;
@@ -795,8 +845,8 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
     obj.Field('fdbft_Boolean').AsBoolean   := false;
     obj.Field('fdbft_GUID').AsGUID         := CFRE_DB_NullGUID;
     obj.Field('fdbft_DateTimeUTC').AsDateTimeUTC := -1;
-    if not coll.IsVolatile then
-      obj.Field('fdbft_ObjLink').AsObjectLink := CFRE_DB_NullGUID;
+    //if not coll.IsVolatile then
+    //  obj.Field('fdbft_ObjLink').AsObjectLink := CFRE_DB_NullGUID;
     coll.Store(obj);
     for i := high(inserts) downto 0 do
       begin
@@ -814,10 +864,9 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
         obj.Field('fdbft_Int16').AsInt16     := i64inserts[i];
         obj.Field('fdbft_Currency').AsCurrency  := curinserts[i];
         obj.Field('fdbft_GUID').AsGUID       := guid;
-        sleep(1);
         obj.Field('fdbft_DateTimeUTC').AsDateTimeUTC := GFRE_DT.Now_UTC;
-        if not coll.IsVolatile then
-          obj.Field('fdbft_ObjLink').AsObjectLink := guid;
+        //if not coll.IsVolatile then
+        //  obj.Field('fdbft_ObjLink').AsObjectLink := guid;
         coll.Store(obj);
       end;
   end;
@@ -837,7 +886,6 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
   end;
 
 begin
-  exit;
    //ConnectDB('test1@system','test1');
    ConnectDB('admin@system','admin'); //TODO: Setup Rights so that testuser can create index test data
    coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
@@ -849,19 +897,19 @@ begin
    GendataforColl(coll_v,false);
    //GendataforColl(coll_pu,false);
    //GendataforColl(coll_vu,false);
-   //DumpColl(coll_p,'ixs');
-   //DumpColl(coll_p,'ixui64');
-   //DumpColl(coll_p,'ixui32');
-   //DumpColl(coll_p,'ixui16');
+   DumpColl(coll_p,'ixs');
+   DumpColl(coll_p,'ixui64');
+   DumpColl(coll_p,'ixui32');
+   DumpColl(coll_p,'ixui16');
    DumpColl(coll_p,'ixb');
-   //DumpColl(coll_p,'ixbo');
-   //DumpColl(coll_p,'ixu');
-   //DumpColl(coll_p,'ixol');
-   //DumpColl(coll_p,'ixi64');
-   //DumpColl(coll_p,'ixi32');
-   //DumpColl(coll_p,'ixi16');
-   //DumpColl(coll_p,'ixdt');
-   //DumpColl(coll_p,'ixc');
+   DumpColl(coll_p,'ixbo');
+   DumpColl(coll_p,'ixu');
+   DumpColl(coll_p,'ixol');
+   DumpColl(coll_p,'ixi64');
+   DumpColl(coll_p,'ixi32');
+   DumpColl(coll_p,'ixi16');
+   DumpColl(coll_p,'ixdt');
+   DumpColl(coll_p,'ixc');
 end;
 
 procedure TFRE_DB_PersistanceTests.TestIdxRangeQueries;
@@ -877,8 +925,7 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
   end;
 
 begin
-  exit;
-  ConnectDB('test1@system','test1');
+  ConnectDB('admin@system','admin');
   coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
   coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
   coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
@@ -902,22 +949,21 @@ begin
   writeln('NULL -> 30');
   hlt := false;
   coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',true,true,false);
-  writeln('UNSIGNED 1->1300');
+  writeln('UNSIGNED 1->1300 SKIP 3 MAX 4');
   hlt := false;
   coll_p.ForAllIndexedUnsignedRange(1,1300,@WriteObjectIdx,hlt,'ixui64',true,false,false,4,3);
   writeln('--RANGE QUERY TEST--- END');
 
   writeln('--REVERSE RANGE QUERY TEST---');
   writeln('-30 -> 30');
-
   hlt := false;
   coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',false);
   writeln('-30 -> MAX');
   hlt := false;
   coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',false,false,true);
-  writeln('NULL -> 30');
+  writeln('-30 -> 30 SKIP 1 MAX 6');
   hlt := false;
-  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',false,true,false,4,3);
+  coll_p.ForAllIndexedSignedRange(-30,30,@WriteObjectIdx,hlt,'ixi64',false,true,false,6,1);
   writeln('--REVERSE RANGE QUERY TEST--- END');
 
   writeln('--STRING RANGE QUERY--');
@@ -975,9 +1021,9 @@ begin
 
   writeln('--- INDEX UPDATE TEST UNSIGNED ---');
   hlt := false;
-  coll_p.ForAllIndexedUnsignedRange(0,30,@UpdateObjectIdx,hlt,'ixb',false,true,true,1,0,true);
+  coll_p.ForAllIndexedUnsignedRange(0,30,@UpdateObjectIdx,hlt,'ixb',false,true,true,1,0);
   hlt := false;
-  coll_p.ForAllIndexedUnsignedRange(0,30,@WriteObjectIdx,hlt,'ixb',true,true,true,1,0,true);
+  coll_p.ForAllIndexedUnsignedRange(0,30,@WriteObjectIdx,hlt,'ixb',true,true,true,1,0);
   writeln('--- INDEX UPDATE TEST UNSIGNED --- END');
   hlt:=false;
   writeln('--ALLL---');
@@ -1163,6 +1209,8 @@ end;
 
 procedure TFRE_DB_ObjectTests.UID_Delete;
 begin
+  if cFFG_SKIP_EXCEPTION_TEST then
+    exit;
   try
     TestObject.DeleteField('UID');
   except
@@ -1203,6 +1251,8 @@ end;
 
 procedure TFRE_DB_ObjectTests.DOMAIND_Delete;
 begin
+  if cFFG_SKIP_EXCEPTION_TEST then
+    exit;
   try
     TestObject.DeleteField('DomaiNid');
   except

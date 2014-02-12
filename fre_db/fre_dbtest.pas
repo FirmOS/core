@@ -1774,7 +1774,7 @@ begin
   col       := GetDBConnection(input).Collection('COLL_TEST_A2');
   del_guids :=  GFRE_DBI.StringArray2GuidArray(input.Field('SELECTED').AsStringArr);
   for i:=0 to high(del_guids) do begin
-    if not col.Remove(del_guids[i]) then begin
+    if col.Remove(del_guids[i])<>edb_OK then begin
       writeln('Could not delete Obj uid : '+GFRE_BT.GUID_2_HexString(del_guids[i]));
     end else begin
       writeln('Deleted Obj uid : '+GFRE_BT.GUID_2_HexString(del_guids[i]));

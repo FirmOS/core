@@ -142,8 +142,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
      function    Connect             (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
      function    ObjectExists        (const obj_uid : TGUID) : boolean;
-     function    Fetch               (const ouid:TGUID;out dbo:IFRE_DB_Object;const internal_object:boolean): boolean;
-     function    FetchO              (const ouid:TGUID;out dbo:TFRE_DB_Object;const internal_object:boolean): boolean;
+     function    Fetch               (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false):TFRE_DB_Errortype;
+     function    _FetchO             (const ouid:TGUID;out dbo:TFRE_DB_Object;const internal_object:boolean): boolean;
 
      { Transactional Operations / These operations report the last transaction step id generated, there may be more then one generated }
 
@@ -930,17 +930,49 @@ end;
 //begin
 //end;
 
-function TFRE_DB_PS_FILE.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object; const internal_object: boolean): boolean;
+function TFRE_DB_PS_FILE.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object; const internal_object: boolean): TFRE_DB_Errortype;
 var dboo : TFRE_DB_Object;
 begin
-  result := FMaster.FetchObject(ouid,dboo,internal_object);
-  if result then
-    dbo := dboo
-  else
-    dbo := nil;
+  try
+    if FMaster.FetchObject(ouid,dboo,internal_object) then
+      begin
+        dbo := dboo;
+        exit(edb_OK);
+      end
+    else
+      begin
+        dbo := nil;
+        exit(edb_NOT_FOUND);
+      end;
+  except
+    on e:EFRE_DB_PL_Exception do
+      begin
+        dbo := nil;
+        FLastErrorCode := E.ErrorType;
+        FLastError     := E.Message;
+        GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
+        raise;
+      end;
+    on e:EFRE_DB_Exception do
+      begin
+        dbo := nil;
+        FLastErrorCode := E.ErrorType;
+        FLastError     := E.Message;
+        GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
+        raise;
+      end;
+    on e:Exception do
+      begin
+        dbo := nil;
+        FLastErrorCode := edb_INTERNAL;
+        FLastError     := E.Message;
+        GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
+        raise;
+      end;
+  end;
 end;
 
-function TFRE_DB_PS_FILE.FetchO(const ouid: TGUID; out dbo: TFRE_DB_Object; const internal_object: boolean): boolean;
+function TFRE_DB_PS_FILE._FetchO(const ouid: TGUID; out dbo: TFRE_DB_Object; const internal_object: boolean): boolean;
 begin
   result := FMaster.FetchObject(ouid,dbo,internal_object);
 end;
@@ -964,7 +996,7 @@ begin
           ImplicitTransaction := True;
         end;
         //if collection_name='' then
-        if not FetchO(obj_uid,delete_object,true) then
+        if not _FetchO(obj_uid,delete_object,true) then
           raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[GFRE_BT.GUID_2_HexString(obj_uid)]);
 
         //SetLength(notify_collections,Length(delete_object.__InternalGetCollectionList));
@@ -1093,7 +1125,7 @@ begin
       if store then
         begin
           if not obj.IsObjectRoot then
-            raise EFRE_DB_PL_Exception.Create(edb_UNSUPPORTED,'store of non root objects in a collection is not allowed');
+            raise EFRE_DB_PL_Exception.Create(edb_UNSUPPORTED,'store of non root objects is not allowed');
           if collection_name='' then
             raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
           if not GetCollection(collection_name,coll) then
@@ -1108,12 +1140,6 @@ begin
             obj.Set_Volatile;
           TFRE_DB_Object.GenerateAnObjChangeList(obj,nil,@GenInsert,@GenDelete,@GenUpdate);
           result := FTransaction.GetTransLastStepTransId;
-          //writeln('>TRANSACTION INSERT LOG');
-          //FTransaction.PrintTextLog;
-          //writeln('<TRANSACTION INSERT LOG');
-          //result := FTransaction.ProcessCheck(raise_ex);
-          //if result <>edb_OK then
-          //  exit(result);
           if ImplicitTransaction then
             FTransaction.Commit(self);
           obj.Set_Store_Locked(true);
@@ -1123,7 +1149,7 @@ begin
         begin
           if not obj.IsObjectRoot then
             raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the object [%s] is a child object, only root objects updates are allowed',[obj.UID_String]);
-          if not FetchO(obj.UID,to_update_obj,true) then
+          if not _FetchO(obj.UID,to_update_obj,true) then
             raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
           if collection_name<>'' then
             if not GetCollection(collection_name,coll) then
@@ -1407,7 +1433,8 @@ function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IF
 var up_dbname : TFRE_DB_String;
     idx       : NativeInt;
 begin
-  if db_name='' then exit(edb_INVALID_PARAMS);
+  if db_name='' then
+    exit(edb_INVALID_PARAMS);
   up_dbname := uppercase(db_name);
   db_layer  := _InternalFetchConnectedLayer(db_name,idx);
   if not assigned(db_layer) then
