@@ -192,7 +192,7 @@ begin
     end;
     userin_Grid := session.NewDerivedCollection('DOMAINMOD_USERIN_GRID');
     with userin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_USER<DOMAINIDLINK']);
+      SetReferentialLinkMode(['TFRE_DB_USER<DOMAINIDLINK'],'uids',session.GetDBConnection.AdmGetUserCollection);
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UinD'));
     end;
@@ -203,7 +203,7 @@ begin
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
     with groupin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_GROUP<DOMAINIDLINK']);
+      SetReferentialLinkMode(['TFRE_DB_GROUP<DOMAINIDLINK'],'uids',session.GetDBConnection.AdmGetDomainCollection);
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_GinD'));
     end;
@@ -564,7 +564,7 @@ begin
     end;
     userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_GRID');
     with userin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS']);
+      SetReferentialLinkMode(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],'uids',conn.AdmGetUserCollection);
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UhasR'));
     end;
@@ -935,7 +935,7 @@ begin
     end;
     rolein_Grid := session.NewDerivedCollection('GROUPMOD_ROLEIN_GRID');
     with rolein_Grid do begin
-      SetReferentialLinkMode(['ROLEIDS>TFRE_DB_ROLE']); //TODO: LOOK AT THIS (was ROLEIDS only)
+      SetReferentialLinkMode(['ROLEIDS>TFRE_DB_ROLE'],'uids',session.GetDBConnection.AdmGetRoleCollection);
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
     end;

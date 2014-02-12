@@ -69,7 +69,7 @@ type
                 cb_NEW_CLIENT_SOCK=9,cb_ADD_GLOBAL_TIMER=10,cb_SCHED_COROUTINE=11,cb_NEW_LISTENER_UX=12,cb_FIRE_GLOBAL_TIMER=13);
 
 function  APSC_CheckResultSetError (const res : cInt ; var error : string ; var os_ecode : NativeInt ; const prefix : string='' ; const postfix : string =''):boolean;forward;
-procedure APSC_WriteCommpacket     (const cmd : TAPSC_CMD ; data:ShortString ; const fd : cint);forward;
+function  APSC_WriteCommpacket     (const cmd : TAPSC_CMD ; data:ShortString ; const fd : cint):boolean;forward;
 function  APSC_SetNoDelay          (const socket:fcom_int;const bOn: Boolean):fcom_int; forward;
 
 
@@ -96,6 +96,10 @@ type
   private
   type
     TCommreadstate = (cr_BAD,cr_WAIT_LEN,cr_WAITDATA,cr_DISPATCH);
+    TOverloadEncap=class
+      cmd  : TAPSC_CMD;
+      pack : shortstring;
+    end;
   var
     FGoDown        : Boolean; // FLah when the llop was requested to stop
     FCommPair      : tevutil_socket_t_pair;
@@ -113,12 +117,16 @@ type
     FCreateDNS     : Boolean;
     FId            : String;
     Ftimeout       : TFCOM_TimeVal;
+    FOverloadQ     : IFOS_LFQ;
+    procedure  ScheduleOverload   ;
     procedure  _CommEventfired    (what : TAPSC_EV_TYP);
     procedure  _TimeoutEventfired (what : TAPSC_EV_TYP);
   public
     function    SourceFD : cInt;
     function    SinkFD   : cInt;
+    procedure   OverloadEnque(const ocmd : TAPSC_CMD ; var pack : Shortstring);
     constructor Create (const mydispatch : TAPSC_CtrCMD ; const create_dns_base : boolean ; const id : string);
+    destructor  Destroy;override;
     procedure   Loop;
     procedure   FinalizeLoop;
   end;
@@ -1431,7 +1439,10 @@ begin
   PPtrUInt(@pack[1])^                      := PtrUint(m.Code);
   PPtrUInt(@pack[1+SizeOf(NativeUint)])^   := PtrUint(m.Data);
   PPtrUInt(@pack[1+2*SizeOf(NativeUint)])^ := PtrUint(Data);
-  APSC_WriteCommpacket(cb_SCHED_COROUTINE,pack,FChanBaseCtrl.SourceFD); // send to myself
+  if not APSC_WriteCommpacket(cb_SCHED_COROUTINE,pack,FChanBaseCtrl.SourceFD) then { overload / would block record and schedule in the next timeout round }
+    begin
+      FChanBaseCtrl.OverloadEnque(cb_SCHED_COROUTINE,pack);
+    end;
 end;
 
 constructor TFRE_APSC_CHANNEL_MANAGER.Create(const ID: Nativeint);
@@ -1705,11 +1716,26 @@ end;
 
 { TFRE_APS_LL_EvBaseController }
 
+procedure TFRE_APS_LL_EvBaseController.ScheduleOverload;
+var oe :TOverloadEncap;
+begin
+  repeat
+    oe := TOverloadencap(FOverloadQ.Pop);
+    if assigned(oe) then
+      try
+        FOnDispatch(oe.cmd,@oe.pack);
+      finally
+        oe.free;
+      end;
+  until oe=nil;
+end;
+
 procedure TFRE_APS_LL_EvBaseController._CommEventfired(what: TAPSC_EV_TYP);
 var rb        : NativeInt;
     size_read : NativeInt;
     lcmd      : array [0..4] of byte;
 begin
+  ScheduleOverload;
   case state of
     cr_BAD: GFRE_BT.CriticalAbort('invalid state APSC basecontroller');
     cr_WAIT_LEN:
@@ -1738,11 +1764,12 @@ begin
          state := cr_WAIT_LEN;
       end;
   end;
-  //event_add(FControlEvent,nil);
+  ScheduleOverload;
 end;
 
 procedure TFRE_APS_LL_EvBaseController._TimeoutEventfired(what: TAPSC_EV_TYP);
 begin
+  ScheduleOverload;
   //writeln('TIMEOUT FIRED '+fid+' ',APSC_typ2string(what));
 end;
 
@@ -1754,6 +1781,15 @@ end;
 function TFRE_APS_LL_EvBaseController.SinkFD: cInt;
 begin
   result := FCommPair[1];
+end;
+
+procedure TFRE_APS_LL_EvBaseController.OverloadEnque(const ocmd: TAPSC_CMD; var pack: Shortstring);
+var oe : TOverloadEncap;
+begin
+  oe := TOverloadEncap.Create;
+  oe.pack := pack;
+  oe.cmd  := ocmd;
+  FOverloadQ.Push(oe);
 end;
 
 var g_cnt : qword = 0;
@@ -1796,6 +1832,13 @@ begin
   if not assigned(FTimeoutE) then
     GFRE_BT.CriticalAbort('APSCL - cannot init timeout event');
   state := cr_WAIT_LEN;
+  GFRE_TF.Get_LFQ(FOverloadQ);
+end;
+
+destructor TFRE_APS_LL_EvBaseController.Destroy;
+begin
+  FOverloadQ.Finalize;
+  inherited Destroy;
 end;
 
 
@@ -2302,7 +2345,7 @@ begin
 end;
 
 
-procedure APSC_WriteCommpacket(const cmd : TAPSC_CMD ; data:ShortString ; const fd : cint);
+function APSC_WriteCommpacket(const cmd : TAPSC_CMD ; data:ShortString ; const fd : cint):boolean;
 var pack : ShortString;
     len  : integer;
     plen : NativeInt;
@@ -2317,23 +2360,18 @@ begin
     end;
   pack                 := Char(cmd)+#0#0#0#0+data;
   PCardinal(@pack[2])^ := plen;
-  for i:=0 to 10 do
+  len := FpWrite(fd,pack[1],Length(pack));
+  if len=-1 then
     begin
-      len := FpWrite(fd,pack[1],Length(pack));
-      if len=-1 then
-        begin
-          err := fpgeterrno;
-          if err=35 then
-            begin
-              sleep(100);
-              continue
-            end;
-        end
-      else
-        break;
+      err := fpgeterrno;
+      if err=35 then
+        begin {TODO CHECK OTHER OS}
+          exit(false);
+        end;
     end;
   if len<>Length(pack) then
     raise exception.Create('failed to send comm packet '+inttostr(len)+'/'+inttostr(length(pack))+' '+APSC_TranslateOsError(err,'',''));
+  exit(true);
 end;
 
 procedure TFRE_APS_COMM.AddListener_TCP(Bind_IP, Bind_Port: String; const ID: ShortString);

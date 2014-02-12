@@ -4514,8 +4514,16 @@ begin
           FPromoted := true;
           result    := pr_OK;
           _FetchAppsFromDB;
-          _InitApps;
-          ReinitializeApps;
+          try
+            _InitApps;
+          except
+            GFRE_DBI.LogEmergency(dblc_SERVER,'LOGIN APPLICATION INITIALIZATION FAILED [%s]',[FSessionData.UID_String]);
+          end;
+          try
+            ReinitializeApps;
+          except
+            GFRE_DBI.LogEmergency(dblc_SERVER,'LOGIN APPLICATION INITIALIZATION FAILED [%s]',[FSessionData.UID_String]);
+          end;
        end;
        else begin
          FPromoted       := false;

@@ -1669,7 +1669,6 @@ type
   TFRE_DB_BASE_CONNECTION=class(TFOS_BASE,IFRE_DB_DBChangedNotification)
   private
     FDBName               : TFRE_DB_String;
-    FBlockNotifications   : Boolean;
 
     FConnectionClones     : OFRE_SL_TFRE_DB_BASE_CONNECTION; { Only in Master, not in clones }
     FCloned               : boolean;
@@ -9643,8 +9642,6 @@ end;
 procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
   procedure AddCollection2Clone(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
   begin
-    if conn.FBlockNotifications then
-      exit;
     conn._AddCollectionToStore(ccn,coll_name,persColl);
   end;
 
@@ -9681,15 +9678,11 @@ var dummy:boolean;
   var
       lcollection      : TFRE_DB_Collection;
   begin
-     if conn.FBlockNotifications then
-       exit;
     if conn.FCollectionStore.Find(uppercase(coll_name),lcollection) then
       lcollection._NotifyObserversOrRecord(fdbntf_INSERT,obj.Implementor as TFRE_DB_Object,obj.UID,CFRE_DB_NullGUID,'');
   end;
 
 begin
- if FBlockNotifications then
-   exit;
   AcquireBig;
   try
     try
@@ -9742,15 +9735,11 @@ var dummy:boolean;
   var
       lcollection      : TFRE_DB_Collection;
   begin
-   if conn.FBlockNotifications then
-     exit;
    if conn.FCollectionStore.Find(uppercase(coll_name),lcollection) then
      lcollection._NotifyObserversOrRecord(fdbntf_DELETE,nil,obj.UID,CFRE_DB_NullGUID,'');
   end;
 
 begin
- if FBlockNotifications then
-   exit;
   AcquireBig;
   try
     try
@@ -9772,8 +9761,6 @@ var dummy:boolean;
 
     procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
     begin
-      if conn.FBlockNotifications then
-        exit;
       coll._NotifyObserversOrRecord(fdbntf_OutboundRL_ADD,to_obj.Implementor as TFRE_DB_Object,to_obj.UID, from_obj,key_description);
     end;
 
@@ -9782,8 +9769,6 @@ var dummy:boolean;
   end;
 
 begin
- if FBlockNotifications then
-   exit;
   AcquireBig;
   try
     try
@@ -9811,14 +9796,10 @@ var dummy:boolean;
     end;
 
   begin
-     if conn.FBlockNotifications then
-      exit;
      conn.ForAllColls(@NotifyCollectionRefLinkchange);
   end;
 
 begin
- if FBlockNotifications then
-   exit;
   AcquireBig;
   try
     try
@@ -9845,14 +9826,10 @@ var dummy:boolean;
     end;
 
   begin
-    if conn.FBlockNotifications then
-      exit;
     conn.ForAllColls(@NotifyCollectionRefLinkchange);
   end;
 
 begin
-  if FBlockNotifications then
-    exit;
   AcquireBig;
   try
     _CloneCheck;
@@ -9876,14 +9853,10 @@ var dummy:boolean;
     end;
 
   begin
-    if conn.FBlockNotifications then
-      exit;
     conn.ForAllColls(@NotifyCollectionRefLinkchange);
   end;
 
 begin
-  if FBlockNotifications then
-    exit;
   AcquireBig;
   try
     _CloneCheck;
@@ -10878,16 +10851,7 @@ begin
     domain.SetDomainID(domain.UID);
     domainUID := domain.UID;
     result := AdmGetDomainCollection.Store(TFRE_DB_Object(domain));
-
-    FBlockNotifications:=true;
-    FSysConnection.FBlockNotifications:=true;
-    try
-      GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
-    finally
-      FSysConnection.FBlockNotifications:=false;
-      FBlockNotifications:=false;
-    end;
-
+    GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
     Sys.ReloadUserAndRights;
   finally
     ReleaseBig;
