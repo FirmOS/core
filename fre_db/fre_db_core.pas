@@ -5462,7 +5462,7 @@ var not_object : IFRE_DB_Object;
   begin
     res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
     res.addDeletedEntry(GFRE_BT.GUID_2_HexString(obj_uid));
-    Fsession.SendServerClientRequest(res);
+    FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,res);
   end;
 
   procedure DeleteRecordUid(const uid:TFRE_DB_GUID);
@@ -5470,7 +5470,7 @@ var not_object : IFRE_DB_Object;
   begin
     res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
     res.addDeletedEntry(GFRE_BT.GUID_2_HexString(uid));
-    Fsession.SendServerClientRequest(res);
+    FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,res);
   end;
 
   procedure RefLinksChanged;
@@ -5627,7 +5627,7 @@ begin //nl
     end;
     fdbntf_COLLECTION_RELOAD: begin
       FInitialDerived := false;
-      Fsession.SendServerClientRequest(TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
+      FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
     end;
     fdbntf_InboundRL_ADD:
       begin
