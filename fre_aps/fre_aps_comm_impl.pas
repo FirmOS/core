@@ -2364,10 +2364,8 @@ begin
   if len=-1 then
     begin
       err := fpgeterrno;
-      if err=35 then
-        begin {TODO CHECK OTHER OS}
+      if err=ESysEAGAIN then
           exit(false);
-        end;
     end;
   if len<>Length(pack) then
     raise exception.Create('failed to send comm packet '+inttostr(len)+'/'+inttostr(length(pack))+' '+APSC_TranslateOsError(err,'',''));
