@@ -1115,6 +1115,7 @@ type
     function  Checkpassword      (const pw:TFRE_DB_String):boolean;
     class procedure RegisterSystemScheme     (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainLoginKey        (const loginpart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
+    class procedure InstallDBObjects         (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     class     function  WBC_NewUserOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function  WEB_SaveOperation              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -1127,6 +1128,7 @@ type
     function  IFRE_DB_DOMAIN.GetDesc          = GetDescI;
     function  IFRE_DB_DOMAIN.SetDesc          = SetDescI;
   public
+    class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     function        Domainname(const unique:boolean=false) : TFRE_DB_NameType;
     function        Domainkey                              : TGUID_String;
@@ -1148,6 +1150,7 @@ type
   public
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainGroupKey       (const grouppart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
+    class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure InstallDBObjects4Domain (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
 
     function  GetDomain                    (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
@@ -1171,6 +1174,7 @@ type
     function  GetDomainIDLink               : TGUID;
     procedure SetDomainIDLink               (AValue: TGUID);
   public
+    class procedure InstallDBObjects        (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainRoleKey        (const rolepart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
     procedure AddRightI                     (const right:IFRE_DB_RIGHT);
@@ -2069,6 +2073,11 @@ type
     initialized    : boolean;
   end;
 
+  TFRE_RsysClass = record
+    sysclass       : TFRE_DB_OBJECTCLASS;
+    initialized    : boolean;
+  end;
+
   TFRE_RSysObjects = record
     SysGuid : TGuid;
     Obj     : TFRE_DB_Object;
@@ -2080,7 +2089,7 @@ type
     FWeakMediatorLock                       : IFOS_Lock;
     FLocalZone                              : TFRE_DB_String;
     FFormatSettings                         : TFormatSettings;
-    FClassArray                             : Array of  TFRE_DB_OBJECTCLASS;
+    FClassArray                             : Array of  TFRE_RsysClass;
     FExClassArray                           : Array of  TFRE_RExtensionClass;
     FWeakExClassArray                       : Array of  TFRE_DB_WeakObjectEx;
     FKnownInterfaces                        : Array of  TFRE_RInterfaceImplementor;
@@ -2096,6 +2105,7 @@ type
     function        NewObjectStreaming      (const ClName: ShortString) : TFRE_DB_Object;
 
     procedure   _IntDBInitializeAllExClasses (const conn: IFRE_DB_CONNECTION; const installforonedomain: boolean; const onedomainUID:TGUID);
+    procedure   _IntDBInitializeAllSysClasses(const conn: IFRE_DB_CONNECTION; const installforonedomain: boolean; const onedomainUID:TGUID);
 
   protected
     procedure   AcquireWeakMediatorLock     ;
@@ -2148,9 +2158,10 @@ type
     procedure   AddSystemObjectToSysList     (const obj:TFRE_DB_Object);
     function    FetchSysObject               (const uid:TGUID;var obj:TFRE_DB_Object):boolean;
 
-    procedure   DBAddDomainInstAllExClasses  (const conn:IFRE_DB_CONNECTION; const domainUID:TGUID);
+    procedure   DBAddDomainInstAllExClasses      (const conn:IFRE_DB_CONNECTION; const domainUID:TGUID);
+    procedure   DBAddDomainInstAllSystemClasses  (const conn:IFRE_DB_CONNECTION; const domainUID:TGUID);
     procedure   DBInitializeAllExClasses     (const conn:IFRE_DB_CONNECTION);
-    procedure   DBInitializeAllSystemClasses (const conn:IFRE_DB_SYS_CONNECTION); // not impemented by now (no initializable sys classes, keep count low)
+    procedure   DBInitializeAllSystemClasses (const conn:IFRE_DB_CONNECTION); // not impemented by now (no initializable sys classes, keep count low)
 
     procedure   Initialize_System_Objects    ;
     procedure   Initialize_Extension_Objects ;
@@ -2567,6 +2578,15 @@ begin
 end;
 
 { TFRE_DB_DOMAIN }
+
+class procedure TFRE_DB_DOMAIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
+  VersionInstallCheck(currentVersionId,newVersionId);
+end;
 
 class procedure TFRE_DB_DOMAIN.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 var input_group : IFRE_DB_InputGroupSchemeDefinition;
@@ -3269,6 +3289,15 @@ begin
   result := lowercase(GFRE_BT.GUID_2_HexString(domain_id)+'@'+grouppart);
 end;
 
+class procedure TFRE_DB_GROUP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
+  VersionInstallCheck(currentVersionId,newVersionId);
+end;
+
 class procedure TFRE_DB_GROUP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
 var
   role: IFRE_DB_ROLE;
@@ -3381,6 +3410,15 @@ procedure TFRE_DB_ROLE.SetDomainIDlink(AValue: TGUID);
 begin
  Field('domainidlink').AsObjectLink := AValue;
  Field('domainrolekey').AsString := GetDomainRoleKey(ObjectName,AValue);
+end;
+
+class procedure TFRE_DB_ROLE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 procedure TFRE_DB_ROLE.AddRightI(const right: IFRE_DB_RIGHT);
@@ -10851,6 +10889,7 @@ begin
     domain.SetDomainID(domain.UID);
     domainUID := domain.UID;
     result := AdmGetDomainCollection.Store(TFRE_DB_Object(domain));
+    GFRE_DB.DBAddDomainInstAllSystemClasses(self,domainUID);
     GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
     Sys.ReloadUserAndRights;
   finally
@@ -11347,9 +11386,104 @@ begin
    CheckDbResult(conn.sys.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
 end;
 
+procedure TFRE_DB._IntDBInitializeAllSysClasses(const conn: IFRE_DB_CONNECTION; const installforonedomain: boolean; const onedomainUID: TGUID);
+var
+  i              : integer;
+  newVersion     : TFRE_DB_NameType;
+  oldVersion     : TFRE_DB_NameType;
+  version_dbo    : IFRE_DB_Object;
+  exclassname    : ShortString;
+
+
+  procedure _Install4Domain(const domainUID:TGUID;const newDomVersion:TFRE_DB_NameType);
+  var exsikey        : String;
+      oldDomVersion  : TFRE_DB_NameType;
+  begin
+    assert(newDomVersion<>'','logic');
+    exsikey := exclassname+'_'+FREDB_G2H(domainUID);
+    oldDomversion := version_dbo.Field(exsikey).AsString;
+    try
+      FClassArray[i].sysclass.InstallDBObjects4Domain(conn.sys,oldDomVersion,domainUID);
+    except on
+      e:exception do
+        begin
+          raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL FOR DOMAIN FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[olddomversion,exclassname+'_'+FREDB_G2H(domainUID),e.Message]);
+        end;
+    end;
+    try
+      FClassArray[i].sysclass.InstallUserDBObjects4Domain(conn,oldDomVersion,domainUID);
+    except on
+      e:exception do
+        begin
+          raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL USERDB FOR DOMAIN FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[olddomversion,exclassname+'_'+FREDB_G2H(domainUID),e.Message]);
+        end;
+    end;
+    version_dbo.Field(exsikey).AsString := newDomVersion;
+    assert(version_dbo.Field(exsikey).AsString=newDomVersion,'fail');
+    //CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
+    //version_dbo := conn.GetClassesVersionDirectory;
+  end;
+
+  procedure _Install4DomainDBO(const domain:IFRE_DB_DOMAIN);
+  begin
+    _Install4Domain(domain.UID,newVersion);
+  end;
+
+begin
+  version_dbo := conn.sys.GetClassesVersionDirectory;
+  for i:=0 to high(FClassArray) do begin
+    try
+      exclassname := FClassArray[i].sysclass.ClassName;
+      oldversion  := version_dbo.Field(exclassname).AsString;
+      newVersion  := '';
+      if not (FClassArray[i].sysclass.InheritsFrom(TFRE_DB_CONTENT_DESC)) then
+        begin
+          if installforonedomain=false then
+            begin
+              try
+                FClassArray[i].sysclass.InstallDBObjects(conn.sys,oldVersion,newVersion);  // The base class sets the version to "UNUSED", so you need to override and set a version<>'' to call Install4Domain and be able to install dbos
+              except on
+                e:exception do
+                  begin
+                    raise EFRE_DB_Exception.Create(edb_ERROR,'INSTALL DBO FAILED OLDVERSION = [%s] CLASSSINGLETONKEY = [%s] DETAIL : [%s]',[oldVersion,exclassname,e.Message]);
+                  end;
+              end;
+              if newVersion='' then
+                raise EFRE_DB_Exception.create(edb_ERROR,'The class [%s] for oldversion [%s] is not installable, the new version is unset. That is not allowed',[exclassname,oldVersion,newVersion]);
+              if (newVersion='BASE') and (FClassArray[i].sysclass<>TFRE_DB_Object) then
+                abort;
+              if newVersion<>'UNUSED' then
+                begin
+                  conn.sys.ForAllDomains(@_Install4DomainDBO);
+                end;
+              version_dbo.Field(exclassname).AsString := newVersion;
+            end
+          else
+            begin
+              if oldversion='' then
+                raise EFRE_DB_Exception.create(edb_ERROR,'The class [%s] has no installed version, installation for a domain is not possible!',[exclassname,oldVersion]);
+              if oldversion<>'UNUSED' then
+                _Install4Domain(onedomainUID,oldVersion);
+            end
+        end;
+    except on e:exception do begin
+      if installforonedomain then
+        raise
+      else
+       GFRE_BT.CriticalAbort('DB INITIALIZATION OF sysCLASS SCHEME: [%s] FAILED DUE TO [%s]',[FClassArray[i].sysclass.ClassName,e.Message]);
+    end;end;
+   end;
+   CheckDbResult(conn.sys.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
+end;
+
 procedure TFRE_DB.DBAddDomainInstAllExClasses(const conn: IFRE_DB_CONNECTION; const domainUID: TGUID);
 begin
   _IntDBInitializeAllExClasses(conn,true,domainUID);
+end;
+
+procedure TFRE_DB.DBAddDomainInstAllSystemClasses(const conn: IFRE_DB_CONNECTION; const domainUID: TGUID);
+begin
+  _IntDBInitializeAllSysClasses(conn,true,domainUID);
 end;
 
 
@@ -11648,11 +11782,12 @@ var i:integer;
 begin
   cn := uppercase(ObClass.ClassName);
   for i:=0 to high(FClassArray) do begin
-    if uppercase(FClassArray[i].ClassName)=cn then
+    if uppercase(FClassArray[i].sysclass.ClassName)=cn then
       exit; // already registerd;
   end;
   setlength(FClassArray,length(FClassArray)+1);
-  FClassArray[high(FClassArray)] :=ObClass;
+  FClassArray[high(FClassArray)].sysclass    :=ObClass;
+  FClassArray[high(FClassArray)].initialized :=false;
 end;
 
 procedure TFRE_DB.RegisterObjectClassEx(const ObClass: TFRE_DB_OBJECTCLASSEX);
@@ -11730,9 +11865,9 @@ begin
   _IntDBInitializeAllExClasses(conn,false,CFRE_DB_NullGUID);
 end;
 
-procedure TFRE_DB.DBInitializeAllSystemClasses(const conn: IFRE_DB_SYS_CONNECTION);
+procedure TFRE_DB.DBInitializeAllSystemClasses(const conn: IFRE_DB_CONNECTION);
 begin
-  abort;
+  _IntDBInitializeAllSysClasses(conn,false,CFRE_DB_NullGUID);
 end;
 
 procedure TFRE_DB.Initialize_System_Objects;
@@ -11742,18 +11877,18 @@ var i       : integer;
 begin
   for i:=0 to high(FClassArray) do begin
     try
-      cn      := FClassArray[i].ClassName;
+      cn      := FClassArray[i].sysclass.ClassName;
       lscheme := NewScheme(cn,dbst_System);
       if cn='TFRE_DB_USER' then
         cn := cn;
-      FClassArray[i].RegisterSystemScheme(lscheme);
+      FClassArray[i].sysclass.RegisterSystemScheme(lscheme);
       //AddSystemObjectToSysList(lscheme);
       //writeln('>>>>>  SCHEME STORE ',cn);
       //CheckDbResultFmt(FSystemSchemes.StoreScheme(lscheme),'error storing extension lscheme %s',[cn]);
       CheckDbResultFmt(RegisterSysScheme(lscheme),'error adding sysscheme lscheme %s',[cn]);
       //writeln('<<<<< SCHEME STORE ',cn,' DONE');
     except on e:exception do begin
-      GFRE_BT.CriticalAbort('INITIALIZATION OF SYSCLASS: [%s] FAILED DUE TO [%s]',[FClassArray[i].ClassName,e.Message]);
+      GFRE_BT.CriticalAbort('INITIALIZATION OF SYSCLASS: [%s] FAILED DUE TO [%s]',[FClassArray[i].sysclass.ClassName,e.Message]);
     end;end;
   end;
 end;
@@ -11816,8 +11951,8 @@ begin
  result := nil;
  ccn := UpperCase(ClName);
  for i:=0 to high(FClassArray) do begin
-   if uppercase(FClassArray[i].ClassName)=ccn then begin
-     result := FClassArray[i];
+   if uppercase(FClassArray[i].sysclass.ClassName)=ccn then begin
+     result := FClassArray[i].sysclass;
      exit;
    end;
  end;
@@ -11864,7 +11999,7 @@ function TFRE_DB.ExistsObjectClass(const ClName: ShortString): boolean;
 var i:integer;
 begin
  for i:=0 to high(FClassArray) do begin
-   if uppercase(FClassArray[i].ClassName)=uppercase(ClName) then begin
+   if uppercase(FClassArray[i].sysclass.ClassName)=uppercase(ClName) then begin
      result := true;
      exit;
    end;
@@ -17644,6 +17779,15 @@ end;
 class function TFRE_DB_USER.GetDomainLoginKey(const loginpart: TFRE_DB_String; const domain_id: TGUID): TFRE_DB_String;
 begin
   result := GFRE_BT.GUID_2_HexString(domain_id)+'@'+lowercase(loginpart);
+end;
+
+class procedure TFRE_DB_USER.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+ newVersionId:='1.0';
+ if currentVersionId='' then begin
+   currentVersionId := '1.0';
+ end;
+ VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 class function TFRE_DB_USER.WBC_NewUserOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;

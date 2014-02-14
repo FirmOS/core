@@ -1491,6 +1491,7 @@ type
     FMediatorExtention        : TFRE_DB_ObjectEx;
     function  Implementor_HC  : TObject;override;
     function  Debug_ID        : TFRE_DB_String;virtual;
+    class procedure VersionInstallCheck         (const currentVersionId,newVersionId: TFRE_DB_NameType);
   public
     class procedure  RegisterSystemScheme       (const scheme:IFRE_DB_SCHEMEOBJECT); virtual;
     class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); virtual;
@@ -1545,16 +1546,16 @@ type
 
   TFRE_DB_BaseClass=class of TFRE_DB_Base;
 
-  TFRE_DB_DOMAIN   = class
+  TFRE_DB_DOMAIN   = class(TFRE_DB_BASE) { Fake Class - only user Classname and Classfunction }
   end;
 
-  TFRE_DB_ROLE     = class
+  TFRE_DB_ROLE     = class(TFRE_DB_BASE) { Fake Class - only user Classname and Classfunction }
   end;
 
-  TFRE_DB_GROUP    = class
+  TFRE_DB_GROUP    = class(TFRE_DB_BASE) { Fake Class - only user Classname and Classfunction }
   end;
 
-  TFRE_DB_USER    = class
+  TFRE_DB_USER    = class(TFRE_DB_BASE)  { Fake Class - only user Classname and Classfunction }
   end;
 
 
@@ -1572,7 +1573,6 @@ type
     procedure      InternalSetup       ; virtual;
     procedure      InternalFinalize    ; virtual;
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
-    class procedure VersionInstallCheck                (const currentVersionId,newVersionId: TFRE_DB_NameType);
   public
     function       GetDescriptionID                   : String;
     class procedure RegisterSystemScheme               (const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -2094,7 +2094,7 @@ type
     function    DatabaseList           (const user:TFRE_DB_String='';const pass:TFRE_DB_String=''): IFOS_STRINGS;
 
     procedure   DBInitializeAllExClasses     (const conn:IFRE_DB_CONNECTION);
-    procedure   DBInitializeAllSystemClasses (const conn:IFRE_DB_SYS_CONNECTION); // not impemented by now (no initializable sys classes, keep count low)
+    procedure   DBInitializeAllSystemClasses (const conn:IFRE_DB_CONNECTION); // not impemented by now (no initializable sys classes, keep count low)
 
     function    StringArray2String     (const A:TFRE_DB_StringArray):TFRE_DB_String;
     function    GuidArray2SString      (const A:TFRE_DB_GUIDArray):TFRE_DB_String;
@@ -5070,6 +5070,12 @@ begin
   result := 'LOGIC: NO DEBUG ID SET';
 end;
 
+class procedure TFRE_DB_Base.VersionInstallCheck(const currentVersionId, newVersionId: TFRE_DB_NameType);
+begin
+  if currentVersionId<>newVersionId then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'%s> install failed, not all versions handled properly old=[%s] new=[%s]',[classname,currentVersionId,newVersionId]);
+end;
+
 function TFRE_DB_Base.GetSystemSchemeByName(const schemename: TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
 begin
   result := GFRE_DBI.GetSystemSchemeByName(schemename,scheme);
@@ -5480,12 +5486,6 @@ end;
 procedure TFRE_DB_ObjectEx._InternalSetMediatorScheme(const mediator: TFRE_DB_ObjectEx; const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'dont call this');
-end;
-
-class procedure TFRE_DB_ObjectEx.VersionInstallCheck(const currentVersionId, newVersionId: TFRE_DB_NameType);
-begin
-  if currentVersionId<>newVersionId then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'%s> install failed, not all versions handled properly old=[%s] new=[%s]',[classname,currentVersionId,newVersionId]);
 end;
 
 function TFRE_DB_ObjectEx.GetDescriptionID: String;

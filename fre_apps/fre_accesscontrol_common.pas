@@ -38,6 +38,7 @@ type
   protected
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
@@ -66,6 +67,7 @@ type
   protected
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
@@ -98,6 +100,7 @@ type
   protected
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
@@ -118,6 +121,7 @@ type
   protected
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
@@ -151,6 +155,15 @@ procedure TFRE_COMMON_DOMAIN_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
   InitModuleDesc('$domain_description')
+end;
+
+class procedure TFRE_COMMON_DOMAIN_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 procedure TFRE_COMMON_DOMAIN_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -519,6 +532,15 @@ begin
   InitModuleDesc('$role_description');
 end;
 
+class procedure TFRE_COMMON_ROLE_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
+  VersionInstallCheck(currentVersionId,newVersionId);
+end;
+
 procedure TFRE_COMMON_ROLE_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
 var role_Grid     : IFRE_DB_DERIVED_COLLECTION;
     tr_role       : IFRE_DB_SIMPLE_TRANSFORM;
@@ -848,6 +870,15 @@ procedure TFRE_COMMON_GROUP_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
   InitModuleDesc('$group_description')
+end;
+
+class procedure TFRE_COMMON_GROUP_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 procedure TFRE_COMMON_GROUP_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1471,6 +1502,15 @@ procedure TFRE_COMMON_USER_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
   InitModuleDesc('$user_description')
+end;
+
+class procedure TFRE_COMMON_USER_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
+  VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
 procedure TFRE_COMMON_USER_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -2162,6 +2202,26 @@ end;
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
+
+  if currentVersionId='' then
+    begin
+      //ADMINS
+      CheckDbResult(conn.AddGroup('ACADMINS','Access Control Admins','Access Control Admins',domainUID),'could not create admins group');
+
+      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create(
+        TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
+        //TFRE_COMMON_DOMAIN_MOD.GetClassRoleNameFetch,
+        TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch,
+        TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch,
+        TFRE_COMMON_USER_MOD.GetClassRoleNameFetch
+      )),'could not add roles for group Admins');
+
+      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_USER.GetClassStdRoles),'could not add roles TFRE_DB_USER for group Admins');
+      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_GROUP.GetClassStdRoles),'could not add roles TFRE_DB_GROUP for group Admins');
+      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)),'could not add roles TFRE_DB_ROLE for group Admins');
+      //CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_DOMAIN.GetClassStdRoles),'could not add roles TFRE_DB_DOMAIN for group Admins');
+
+    end;
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.RegisterSystemScheme( const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -2176,6 +2236,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_USER_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_GROUP_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_ROLE_MOD);
+
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_ACCESSCONTROL_APP);
   GFRE_DBI.Initialize_Extension_Objects;
 end;
