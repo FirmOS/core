@@ -718,97 +718,177 @@ end;
 procedure TFRE_DB_DBChangedNotificationProxy.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
 begin
   Inherited;
-  FRealIF.CollectionCreated(Layer,coll_name,ccn,persColl,volatile);
+  try
+    FRealIF.CollectionCreated(Layer,coll_name,ccn,persColl,volatile);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: CollectionCreated '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.CollectionDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
 begin
   Inherited;
-  FRealIF.CollectionDeleted(Layer,coll_name);
+  try
+    FRealIF.CollectionDeleted(Layer,coll_name);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: CollectionDeleted '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.IndexDefinedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
 begin
   inherited IndexDefinedOnField(Layer, coll_name, FieldName, FieldType, unique, ignore_content_case, index_name, allow_null_value, unique_null_values);
-  FRealIF.IndexDefinedOnField(Layer, coll_name, FieldName, FieldType, unique, ignore_content_case, index_name, allow_null_value, unique_null_values);
+  try
+    FRealIF.IndexDefinedOnField(Layer, coll_name, FieldName, FieldType, unique, ignore_content_case, index_name, allow_null_value, unique_null_values);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: IndexDefinedOnField '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.IndexDroppedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
 begin
   inherited IndexDroppedOnField(Layer, coll_name, index_name);
-  FRealIF.IndexDroppedOnField(Layer, coll_name, index_name);
+  try
+    FRealIF.IndexDroppedOnField(Layer, coll_name, index_name);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: IndexDroppedOnField '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.ObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
   Inherited;
-  FRealIF.ObjectStored(Layer,coll_name,obj.CloneToNewObject);
+  try
+    FRealIF.ObjectStored(Layer,coll_name,obj.CloneToNewObject);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: ObjectStored '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.ObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
 begin
   Inherited;
-  FRealIF.ObjectDeleted(Layer,obj.CloneToNewObject);
+  try
+    FRealIF.ObjectDeleted(Layer,obj.CloneToNewObject);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: ObjectDeleted '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.ObjectRemoved(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
   Inherited;
-  FRealIF.ObjectRemoved(Layer,coll_name,obj.CloneToNewObject);
+  try
+    FRealIF.ObjectRemoved(Layer,coll_name,obj.CloneToNewObject);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: ObjectRemoved '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.FieldDelete(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field: IFRE_DB_Field);
 begin
   Inherited;
-  FRealIF.FieldDelete(Layer,old_field.CloneToNewStreamable);
+  try
+    FRealIF.FieldDelete(Layer,old_field.CloneToNewStreamable);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: FieldDelete '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.FieldAdd(const Layer: IFRE_DB_PERSISTANCE_LAYER; const new_field: IFRE_DB_Field);
 begin
   Inherited;
-  FRealIF.FieldAdd(Layer,new_field.CloneToNewStreamable);
+  try
+    FRealIF.FieldAdd(Layer,new_field.CloneToNewStreamable);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: FieldAdd '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.FieldChange(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field, new_field: IFRE_DB_Field);
 begin
   Inherited;
-  FRealIF.FieldChange(Layer,old_field.CloneToNewStreamable,new_field.CloneToNewStreamable);
+  try
+    FRealIF.FieldChange(Layer,old_field.CloneToNewStreamable,new_field.CloneToNewStreamable);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: FieldChange '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.SubObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
   Inherited;
-  FRealIF.SubObjectStored(Layer,coll_name,obj.CloneToNewObject);
+  try
+    FRealIF.SubObjectStored(Layer,coll_name,obj.CloneToNewObject);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: SubObjectStored '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.SubObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
 begin
   Inherited;
-  FRealIF.SubObjectDeleted(layer,obj.CloneToNewObject());
+  try
+    FRealIF.SubObjectDeleted(layer,obj.CloneToNewObject());
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: SubObjectDeleted '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
   Inherited;
-  FRealIF.SetupOutboundRefLink(layer,from_obj,to_obj.CloneToNewObject(),key_description);
+  try
+    FRealIF.SetupOutboundRefLink(layer,from_obj,to_obj.CloneToNewObject(),key_description);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: SetupOutboundRefLink '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
   Inherited;
-  FRealIF.SetupInboundRefLink(layer,from_obj.CloneToNewObject(),to_obj,key_description);
+  try
+    FRealIF.SetupInboundRefLink(layer,from_obj.CloneToNewObject(),to_obj,key_description);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: SetupInboundRefLink '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj: TGUID; const from_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
   Inherited;
-  FRealIF.InboundReflinkDropped(Layer,to_obj,from_obj,key_description);
+  try
+    FRealIF.InboundReflinkDropped(Layer,to_obj,from_obj,key_description);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: InboundReflinkDropped '+e.Message);
+  end;
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj : TGUID ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
   Inherited;
-  FRealIF.OutboundReflinkDropped(Layer,from_obj,to_obj,key_description);
+  try
+    FRealIF.OutboundReflinkDropped(Layer,from_obj,to_obj,key_description);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: OutboundReflinkDropped '+e.Message);
+  end;
 end;
 
 { TFRE_DB_DBChangedNotificationBase }

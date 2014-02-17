@@ -936,7 +936,7 @@ begin
       AddCollectorscheme         ('Value=%s%%',TFRE_DB_NameTypeArray.create('fdbft_Byte'),'prg_txt','CollectorPrg',false);
       AddProgressTransform       ('fdbft_Byte','ptb','Progress','prg_txt','txt',100);
       AddMatchingReferencedField ('LINK','data','data','Link to Obj1');
-      AddMatchingReferencedField (TFRE_DB_NameTypeArray.Create('LINK','LINK2'),'data','data2','Link to Obj2 via Obj1');
+      AddMatchingReferencedField (TFRE_DB_NameTypeRLArray.Create('LINK','LINK2'),'data','data2','Link to Obj2 via Obj1');
     end;
 
 
