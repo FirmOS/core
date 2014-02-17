@@ -1826,12 +1826,13 @@ var i,j         : NativeInt;
                 else
                   begin
                     fn := uppercase(inmemobject.SchemeClass)+'<'+ uppercase(newfield.FieldName);
+                    inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                     for j:=0 to high(newfield.AsObjectLinkArray) do
                       begin
                         master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
                         master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j]);
                       end;
-                    inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                    //inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
             end;
         finally
@@ -1841,8 +1842,9 @@ var i,j         : NativeInt;
     end;
 
     procedure _ChangedField;
-    var sc,fn : TFRE_DB_NameType;
-        j     : nativeint;
+    var sc,fn    : TFRE_DB_NameType;
+        j        : nativeint;
+        oldlinks : TFRE_DB_GUIDArray;
     begin
       with FSublist[i] do
         begin
@@ -1875,8 +1877,9 @@ var i,j         : NativeInt;
                   end
                 else
                   begin
-                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldfield.AsObjectLinkArray,newfield.AsObjectLinkArray);
+                    oldlinks := oldfield.AsObjectLinkArray;
                     inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldlinks,newfield.AsObjectLinkArray);
                   end;
             end;
           finally
@@ -2774,17 +2777,18 @@ begin
   if not FMasterRefLinks.InsertBinaryKey(@refoutkey,refoutkey.KeyLength,$BAD0BEEF) then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink fromkey exists. :-(');
 
+  assert(pos('<',LinkFromSchemenameField)>0,'internal reflink failure 2');
+  __SetupInboundLinkKey(from_key.UID,references_to,LinkFromSchemenameField,refinkey);
+  if not FMasterRefLinks.InsertBinaryKey(@refinkey,refinkey.KeyLength,$BEEF0BAD) then
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink tokey exists. :-(');
+
+  { Notify after link setup }
   ref_obj.Set_Store_LockedUnLockedIf(false,was_locked);
   try
     FLayer.GetNotificationStreamCallback.SetupOutboundRefLink(FLayer,from_key.UID,ref_obj,FromFieldToSchemename);
   finally
     ref_obj.Set_Store_LockedUnLockedIf(true,was_locked);
   end;
-
-  assert(pos('<',LinkFromSchemenameField)>0,'internal reflink failure 2');
-  __SetupInboundLinkKey(from_key.UID,references_to,LinkFromSchemenameField,refinkey);
-  if not FMasterRefLinks.InsertBinaryKey(@refinkey,refinkey.KeyLength,$BEEF0BAD) then
-    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'although prechecked the reflink tokey exists. :-(');
   FLayer.GetNotificationStreamCallback.SetupInboundRefLink(FLayer,from_key,references_to,LinkFromSchemenameField);
 end;
 

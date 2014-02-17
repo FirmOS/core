@@ -1317,6 +1317,7 @@ type
     FIconIdField     : TFRE_DB_String;       // The name of the field holding the resource descriptor url of the through this transform defined column for the normal state
     FOpenIconIDField : TFRE_DB_String;       // The name of the field holding the resource descriptor url of the through this transform defined column for the open state
   public
+    function  RefLinkSpec         : TFRE_DB_NameTypeRLArray;virtual;
     procedure AddToViewCollection (const vcd   : TFRE_DB_VIEW_LIST_LAYOUT_DESC); virtual;
     procedure TransformField      (const conn  : IFRE_DB_CONNECTION ; const input,output : IFRE_DB_Object ; const dependency_object : IFRE_DB_Object); virtual; // A transformed object has the same UID, but not the same Schemeclass as the source, and a subset/transformation of the input object
   end;
@@ -1380,6 +1381,7 @@ type
   protected
     FRefFieldChain : TFRE_DB_NameTypeRLArray;
   public
+    function    RefLinkSpec         : TFRE_DB_NameTypeRLArray;override;
     constructor Create         (const ref_field_chain: TFRE_DB_NameTypeRLArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false; const fieldSize: Integer=1);
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
   end;
@@ -1393,12 +1395,14 @@ type
 
   TFRE_DB_TRANSFORMOBJECT=class(TFOS_BASE,IFRE_DB_TRANSFORMOBJECT)
   private
-    FTransformList : OFRE_SL_TFRE_DB_FIELD_TRANSFORM;
+    FTransformList        : OFRE_SL_TFRE_DB_FIELD_TRANSFORM;
+    FHasReflinkTransforms : Boolean; { we need to consider reflink updates for this transform }
   protected
     procedure  Finalize;
     function   Implementor    : TObject;
     function   Implementor_HC : TObject;
     function   GetFirstFieldname : TFRE_DB_NameType;
+    function   IsReflinkSpecRelevant(const rlspec : TFRE_DB_NameTypeRL):boolean;
   public
     constructor Create; override;
     destructor  Destroy; override;
@@ -1411,6 +1415,7 @@ type
   private
     FCustTransform  : IFRE_DB_CUSTOMTRANSFORM;
   public
+
     constructor Create                       ; override;
     function  TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; override;
     procedure SetCustomTransformFunction     (const func : IFRE_DB_CUSTOMTRANSFORM);
@@ -1525,6 +1530,7 @@ type
     function        HasParentChildRefRelationDefined : boolean;
     function        IsReferentialLinkMode            : boolean;
     function        IsDependencyFilteredCollection   : boolean;
+    function        HasReflinksInTransformation      : boolean; { a potentila reflink dependency is in the transforms }
 
     function        ParentchildRelationIsOutbound    : boolean;
     procedure       _CheckSetDisplayType (const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
@@ -2345,7 +2351,12 @@ implementation
 
 { TFRE_DB_REFERERENCE_CHAIN_FT }
 
-constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeRLArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display,sortable,filterable: Boolean; const fieldSize: Integer);
+function TFRE_DB_REFERERENCE_CHAIN_FT.RefLinkSpec:TFRE_DB_NameTypeRLArray;
+begin
+  Result:=FRefFieldChain;
+end;
+
+constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeRLArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer);
 begin
   FRefFieldChain  := ref_field_chain;
   FInFieldName    := target_field;
@@ -2372,6 +2383,7 @@ begin
   conn.ExpandReferences(TFRE_DB_GUIDArray.create(input.UID),FRefFieldChain,expanded);
   if Length(expanded)=0 then
     begin
+      GFRE_DB.LogError(dblc_DB,'<> <> TRANSFORM OUTFILEDNAME '+FOutFieldName+' UNRESOLVED LINK '+inttostr(Length(FRefFieldChain))+' '+FRefFieldChain[0]+' '+input.UID_String);
       output.field(uppercase(FOutFieldName)).asstring := '?*UNRESOLVED LINK*';
       exit;
     end;
@@ -2466,6 +2478,11 @@ begin
 end;
 
 { TFRE_DB_FIELD_TRANSFORM }
+
+function TFRE_DB_FIELD_TRANSFORM.RefLinkSpec: TFRE_DB_NameTypeRLArray;
+begin
+  result := nil;
+end;
 
 procedure TFRE_DB_FIELD_TRANSFORM.AddToViewCollection(const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC);
 begin
@@ -5455,6 +5472,7 @@ begin
   for i:=0 to high(ref_field_chain) do
     rfc[i] := ref_field_chain[i];
   FTransformList.Add(TFRE_DB_REFERERENCE_CHAIN_FT.Create(rfc,target_field,output_field,output_title,gui_display_type,true,sortable,filterable,fieldSize));
+  FHasReflinkTransforms:=true;
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field: TFRE_DB_NameTypeRL; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer);
@@ -5480,6 +5498,11 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.IsDependencyFilteredCollection: boolean;
 begin
   result := FUseDepAsLinkFilt;
+end;
+
+function TFRE_DB_DERIVED_COLLECTION.HasReflinksInTransformation: boolean;
+begin
+  result := FTransform.FHasReflinkTransforms;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.ParentchildRelationIsOutbound: boolean;
@@ -5649,6 +5672,16 @@ var not_object : IFRE_DB_Object;
                 end;
     end;
 
+    procedure ProcessTransforms;
+    begin
+      if FTransform.IsReflinkSpecRelevant(key_description) then
+        begin
+          //GFRE_DBI.LogError(dblc_DB,'----------------FULL UPDATE 4 OBSERVERS '+key_description+' '+FREDB_G2H(obj_uid));
+          FInitialDerived := false;
+          FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
+        end;
+    end;
+
   begin
     //if pos('PRODUCT_MODULESIN_GRID',dbg_collname)>0 then { DEBUG A SPECIFIC GRID }
     //  dbg_collname:=dbg_collname
@@ -5662,14 +5695,16 @@ var not_object : IFRE_DB_Object;
     else
     if IsDependencyFilteredCollection then
       DependencyFilteredCollection;
+    if HasReflinksInTransformation then
+      ProcessTransforms;
   end;
 
 begin //nl
-  dbg_collname := CollectionName();
-  if pos('GROUPMOD_USEROUT_GRID',dbg_collname)>0 then
-    begin
-      dbg_collname := CollectionName();
-    end;
+  //dbg_collname := CollectionName();
+  //if pos('GROUPMOD_USEROUT_GRID',dbg_collname)>0 then
+  //  begin
+  //    dbg_collname := CollectionName();
+  //  end;
   case notify_type of
     fdbntf_START_UPDATING : begin
       BeginUpdateGathering;
@@ -5711,6 +5746,9 @@ begin //nl
     end;
     fdbntf_InboundRL_ADD:
       begin
+        //if (key_description='TFOS_DB_CITYCOM_PRODUCT<MODULES') and
+        //(pos('MODULE_PRODUCTSIN_GRID',FName)>0)then
+        //  rl_field:='MODULE_PRODUCTSIN_GRID';
         if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
           raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
         rl_outbound := false;
@@ -7772,6 +7810,28 @@ function TFRE_DB_TRANSFORMOBJECT.GetFirstFieldname: TFRE_DB_NameType;
 
 begin
   FTransformList.ForAllBreak(@GetFirst);
+end;
+
+function TFRE_DB_TRANSFORMOBJECT.IsReflinkSpecRelevant(const rlspec: TFRE_DB_NameTypeRL): boolean;
+
+  procedure Check(var ft : TFRE_DB_FIELD_TRANSFORM ; const idx : NativeInt ; var halt_flag:boolean);
+  var rls : TFRE_DB_NameTypeRLArray;
+         i: NativeInt;
+  begin
+     rls := ft.RefLinkSpec;
+     for i:=0 to high(rls) do
+       begin
+         if rls[i]=rlspec then
+           begin
+             result    := true;
+             halt_flag := true;
+           end;
+       end;
+  end;
+
+begin
+  result := false;
+  FTransformList.ForAllBreak(@Check);
 end;
 
 
