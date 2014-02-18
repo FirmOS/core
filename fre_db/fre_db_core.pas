@@ -1151,7 +1151,6 @@ type
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainGroupKey       (const grouppart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
     class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-    class procedure InstallDBObjects4Domain (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
 
     function  GetDomain                    (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
     //function  AddUserToGroupI              (const user :IFRE_DB_USER):TFRE_DB_Errortype;
@@ -3346,19 +3345,6 @@ begin
   end;
   VersionInstallCheck(currentVersionId,newVersionId);
 end;
-
-class procedure TFRE_DB_GROUP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
-var
-  role: IFRE_DB_ROLE;
-begin
-  inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
-
-  role := CreateClassRole('changeuser','Change Users ' + ClassName,'Change users of group');
-  role.AddRight(GetRight4Domain(GetClassRightName('changeuser'),domainUID));
-  CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.changeuser role');
-
-end;
-
 
 function TFRE_DB_TEXT.GetHint: TFRE_DB_String;
 begin
