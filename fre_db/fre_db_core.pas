@@ -1933,7 +1933,6 @@ type
     function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray;const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
-    //function    ModifyUserImage             (const loginatdomain:TFRE_DB_String;const imagestream : TFRE_DB_Stream):TFRE_DB_Errortype;
     function    RoleExists                  (const rolename:TFRE_DB_String):boolean;
     function    GroupExists                 (const groupatdomain:TFRE_DB_String):boolean;
     function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
@@ -3961,9 +3960,12 @@ begin
     Result:=FetchGroupById(group_id,tgroup);
     if Result=edb_OK then
       begin
-        tgroup.ObjectName            := groupname;
-        tgroup.Description.ShortText := txt_short;
-        tgroup.Description.LongText  := txt;
+        if groupname<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+          tgroup.ObjectName            := groupname;
+        if txt_short<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+          tgroup.Description.ShortText := txt_short;
+        if txt<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+          tgroup.Description.LongText  := txt;
         result := Update(tgroup);
       end;
   finally
@@ -4042,9 +4044,12 @@ begin
     Result:=FetchDomainById(domain_id,tdomain);
     if Result=edb_OK then
       begin
-        tdomain.ObjectName            := domainname;
-        tdomain.Description.ShortText := txt_short;
-        tdomain.Description.LongText  := txt;
+        if domainname<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+          tdomain.ObjectName            := domainname;
+        if txt_short<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+          tdomain.Description.ShortText := txt_short;
+        if txt<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+          tdomain.Description.LongText  := txt;
         result := Update(tdomain);
       end;
   finally
@@ -4412,7 +4417,8 @@ begin
   try
     result := FetchUser(loginatdomain,l_User);
     if result<>edb_OK then exit;
-    if not l_User.Checkpassword(oldpassword) then exit(edb_ACCESS);
+    if not l_User.Checkpassword(oldpassword) then
+      exit(edb_ACCESS);
     l_User.SetPassword(newpassword);
     Update(l_User);
   finally

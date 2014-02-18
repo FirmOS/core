@@ -120,6 +120,7 @@ const
   CFRE_DB_SUBSEC_DISPLAY_TYPE    : array [TFRE_DB_SUBSEC_DISPLAY_TYPE]    of string = ('sec_dt_tab','sec_dt_vertical','sec_dt_hiddentab');
   CFRE_DB_SYS_DOMAIN_NAME        = 'SYSTEM';
   cFRE_DB_STKEY                  = '#ST#';
+  cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*';
 
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
@@ -1366,7 +1367,7 @@ type
     function    FetchRoleById               (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchDomainById             (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    FetchDomainNameById         (const domain_id:TGUID):TFRE_DB_NameType;
-    function    ModifyDomainById            (const domain_id:TGUID; const domainname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    function    ModifyDomainById            (const domain_id:TGUID; const domainname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype; { use special value "*$NOCHANGE$*" for unchanged webfields }
     function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
     function    NewRight                    (const rightname:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
@@ -2485,8 +2486,6 @@ type
   function  FREDB_FindNthGuidIdx                    (n:integer;const guid:TGuid;const arr:TFRE_DB_GUIDArray):integer;inline;
   function  FREDB_CheckAllStringFieldsEmptyInObject (const obj:IFRE_DB_Object):boolean;
 
-
-
   function  FREDB_String2DBDisplayType           (const fts: string): TFRE_DB_DISPLAY_TYPE;
   procedure FREDB_SiteMap_AddEntry               (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : TFRE_DB_StringArray ;const x,y : integer;  const newsCount:Integer=0; const scale:Single=1; const enabled:Boolean=true);    //obsolete
   procedure FREDB_SiteMap_AddRadialEntry         (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : String; const newsCount:Integer=0; const enabled:Boolean=true);
@@ -2501,7 +2500,7 @@ type
   procedure FREDB_SplitLocalatDomain             (const localatdomain: TFRE_DB_String; var localpart, domainpart: TFRE_DB_String);
   function  FREDB_GetDboAsBufferLen              (const dbo: IFRE_DB_Object; var mem: Pointer): UInt32;
 
-
+  procedure FREDB_SetStringFromExistingFieldPathOrNoChange(const obj:IFRE_DB_Object ; const fieldpath:string ; var string_fld : TFRE_DB_String);
 
   // This function should replace all character which should not a ppear in an ECMA Script (JS) string type to an escaped version,
   // as additional feature it replaces CR with a <br> tag, which is useful in formatting HTML
@@ -7004,6 +7003,14 @@ begin
   dbo.CopyToMemory(mem+4);
   PCardinal(mem)^:=ns;
   result := ns+4;
+end;
+
+procedure FREDB_SetStringFromExistingFieldPathOrNoChange(const obj: IFRE_DB_Object; const fieldpath: string; var string_fld: TFRE_DB_String);
+begin
+  if obj.FieldPathExists(fieldpath) then
+    string_fld := obj.FieldPath(fieldpath).AsString
+  else
+    string_fld := cFRE_DB_SYS_NOCHANGE_VAL_STR;
 end;
 
 function FREDB_String2EscapedJSString(const input_string: TFRE_DB_String; const replace_cr_with_br: boolean): TFRE_DB_String;

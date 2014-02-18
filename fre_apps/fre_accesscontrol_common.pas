@@ -336,7 +336,7 @@ begin
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
-  res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$modify_domain_diag_cap'),600,0,true,true,false);
+  res:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$modify_domain_diag_cap'),600,0);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
 
   CheckDbResult(conn.sys.FetchDomainById(GFRE_BT.HexString_2_GUID(input.Field('selected').AsString),domain),'ModifyDomain');
@@ -400,21 +400,18 @@ var dbo              : IFRE_DB_Object;
     data             : IFRE_DB_Object;
     res              : TFRE_DB_Errortype;
     dbo_uid          : TGUID;
-    dn               : TFRE_DB_NameType;
+    dn               : TFRE_DB_String;
     txt              : TFRE_DB_String;
     txt_s            : TFRE_DB_String;
-
 begin
  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN)) then
    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
  data    := input.Field('DATA').asobject;
 
- dn      := data.Field('objname').AsString;
- if data.FieldExists('desc') then begin
-   txt     := data.FieldPath('desc.txt').AsString;
-   txt_s   := data.FieldPath('desc.txt_s').AsString;
- end;
+ FREDB_SetStringFromExistingFieldPathOrNoChange(data,'objname',dn);
+ FREDB_SetStringFromExistingFieldPathOrNoChange(data,'desc.txt',txt);
+ FREDB_SetStringFromExistingFieldPathOrNoChange(data,'desc.txt_s',txt_s);
 
  dbo_uid := GFRE_BT.HexString_2_GUID(input.Field('selected').Asstring);
 
@@ -1143,28 +1140,27 @@ var dbo              : IFRE_DB_Object;
     data             : IFRE_DB_Object;
     res              : TFRE_DB_Errortype;
     dbo_uid          : TGUID;
-    gn               : TFRE_DB_NameType;
+    gn               : TFRE_DB_String;
     txt              : TFRE_DB_String;
     txt_s            : TFRE_DB_String;
 
 begin
-  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then
-   raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
- data    := input.Field('DATA').asobject;
+   if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then
+    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
- gn      := data.Field('objname').AsString;
- if data.FieldExists('desc') then begin
-   txt     := data.FieldPath('desc.txt').AsString;
-   txt_s   := data.FieldPath('desc.txt_s').AsString;
- end;
+  data    := input.Field('DATA').asobject;
 
- dbo_uid := GFRE_BT.HexString_2_GUID(input.Field('selected').Asstring);
+  FREDB_SetStringFromExistingFieldPathOrNoChange(data,'objname',gn);
+  FREDB_SetStringFromExistingFieldPathOrNoChange(data,'desc.txt',txt);
+  FREDB_SetStringFromExistingFieldPathOrNoChange(data,'desc.txt_s',txt_s);
 
- res := conn.sys.ModifyGroupById(dbo_uid,gn,txt,txt_s);
- if res=edb_OK then
-   exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
- else
-   exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$group_modify_error_cap'),StringReplace(app.FetchAppTextShort(ses,'$group_modify_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
+  dbo_uid := GFRE_BT.HexString_2_GUID(input.Field('selected').Asstring);
+
+  res := conn.sys.ModifyGroupById(dbo_uid,gn,txt,txt_s);
+  if res=edb_OK then
+    exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
+  else
+    exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$group_modify_error_cap'),StringReplace(app.FetchAppTextShort(ses,'$group_modify_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_DeleteGroup(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
