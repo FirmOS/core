@@ -728,7 +728,7 @@ var layr  : TPLNet_Layer;
                         NewDBOFromServer_Locked(layr,dbo);
                       except on e:exception do
                         begin
-                          GFRE_DBI.LogError(dblc_PERSITANCE,'FAILURE INBOUND EVENT PROCESSING [%s]',[e.Message]);
+                          GFRE_DBI.LogError(dblc_PERSISTANCE,'FAILURE INBOUND EVENT PROCESSING [%s]',[e.Message]);
                         end;
                       end;
                     finally

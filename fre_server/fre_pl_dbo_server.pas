@@ -129,7 +129,7 @@ var lLayerID : TFRE_DB_NameType;
                       NewDBOFromClient_Locked(dbo);
                     except on e:exception do
                       begin
-                        GFRE_DBI.LogError(dblc_PERSITANCE,'FAILURE INBOUND EVENT PROCESSING [%s]',[e.Message]);
+                        GFRE_DBI.LogError(dblc_PERSISTANCE,'FAILURE INBOUND EVENT PROCESSING [%s]',[e.Message]);
                       end;
                     end;
                   finally
@@ -344,7 +344,7 @@ procedure TFRE_PL_DBO_SERVER.SetupPersistanceLayer;
         dbname := dblist[i];
         CheckDbResult(GFRE_DB_PS_LAYER.Connect(dbname,layer,false),'FAIL STARTUP PLDB : '+dbname);
         FLayers[i] := layer;
-        GFRE_DB.LogNotice(dblc_PERSITANCE,'STARTUP CONNECT [%s]',[FLayers[i].GetConnectedDB]);
+        GFRE_DB.LogNotice(dblc_PERSISTANCE,'STARTUP CONNECT [%s]',[FLayers[i].GetConnectedDB]);
       end;
   end;
 begin

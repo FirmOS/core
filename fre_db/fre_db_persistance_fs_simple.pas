@@ -402,7 +402,7 @@ begin
   if not coll.IsVolatile then
     begin
       //writeln('  ->> SYNCING COLL ',coll.CollectionName(false));
-      GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
       f :=  TFileStream.Create(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col',fmCreate+fmOpenReadWrite);
       try
         coll.GetPersLayerIntf.StreamToThis(f);
@@ -419,7 +419,7 @@ var f    : TFileStream;
     name : TFRE_DB_NameType;
 begin
   name := GFRE_BT.HexStr2Str(Copy(file_name,1,Length(file_name)-4));
-  GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>LOAD COLLECTION [%s]',[name]);
+  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD COLLECTION [%s]',[name]);
   f :=  TFileStream.Create(FCollectionsDir+file_name,fmOpenRead);
   try
     res := FMaster.MasterColls.NewCollection(name,'*',coll,false,self);
@@ -454,7 +454,7 @@ begin
         finally
           m.free;
         end;
-        GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
+        GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
       finally
         if not no_storelocking then
           begin
@@ -473,7 +473,7 @@ procedure TFRE_DB_PS_FILE.WT_DeleteCollectionPersistent(const coll: IFRE_DB_PERS
 begin
   if not coll.IsVolatile then
     begin
-      GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>DELETE COLLECTION [%s]',[coll.CollectionName]);
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[coll.CollectionName]);
       if not DeleteFile(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col') then
         raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+coll.CollectionName());
     end;
@@ -496,7 +496,7 @@ begin
       filename    := GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
       if not DeleteFile(FMasterCollDir+FileName) then
         raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete file '+FMasterCollDir+FileName);
-      GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<FINAL DELETE  OBJECT : '+obj.UID_String+' DONE');
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<FINAL DELETE  OBJECT : '+obj.UID_String+' DONE');
     end;
 end;
 
@@ -599,7 +599,7 @@ var m          : TMemorystream;
     uid_string : TFRE_DB_String;
 begin
   uid_string:=GFRE_BT.GUID_2_HexString(uid);
-  //GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>RETRIEVE OBJECT [%s]',[uid_string]);
+  //GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>RETRIEVE OBJECT [%s]',[uid_string]);
   filename   := uid_string+'.fdbo';
   m:=TMemoryStream.Create;
   try
@@ -608,7 +608,7 @@ begin
   finally
     m.free;
   end;
-  //GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<RETRIEVE OBJECT [%s] DONE',[uid_string]);
+  //GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<RETRIEVE OBJECT [%s] DONE',[uid_string]);
 end;
 
 procedure TFRE_DB_PS_FILE._SyncDBInternal(const final:boolean=false);
@@ -626,7 +626,7 @@ procedure TFRE_DB_PS_FILE._SyncDBInternal(const final:boolean=false);
 begin
   if GDISABLE_SYNC then
     begin
-      GFRE_DBI.LogNotice(dblc_PERSITANCE,'<<SKIPPING SYNC OF DB [%s] / WRITE THROUGH MODE',[FConnectedDB]);
+      GFRE_DBI.LogNotice(dblc_PERSISTANCE,'<<SKIPPING SYNC OF DB [%s] / WRITE THROUGH MODE',[FConnectedDB]);
       exit;
     end;
 
@@ -701,21 +701,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
           raise;
         end;
     end;
@@ -755,21 +755,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
           raise;
         end;
     end;
@@ -835,7 +835,7 @@ end;
 //    m           : TMemorystream;
 //begin
 //  _ConnectCheck;
-//  GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>STORE REFERENCE LINKS');
+//  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE REFERENCE LINKS');
 //  result:=edb_OK;
 //  needed_size := obj.NeededSize;
 //  filename    := 'reflinks.fdbo';
@@ -852,14 +852,14 @@ end;
 //  finally
 //    m.free;
 //  end;
-//  GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<STORE REFERENCE LINKS DONE');
+//  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE REFERENCE LINKS DONE');
 //end;
 //
 //function TFRE_DB_PS_FILE.StoreCollection(const coll: TFRE_DB_COLLECTION): TFRE_DB_Errortype;
 //var m:TMemoryStream;
 //begin
 //  _ConnectCheck;
-//  GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
+//  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
 //  result:=edb_OK;
 //  m:=TMemoryStream.Create;
 //  try
@@ -875,14 +875,14 @@ end;
 //    m.free;
 //  end;
 //  inc(FLayerStats.StoreColls);
-//  GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<STORE COLLECTION [%s] DONE',[coll.CollectionName]);
+//  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE COLLECTION [%s] DONE',[coll.CollectionName]);
 //end;
 
 //function TFRE_DB_PS_FILE.RetrieveCollection(const collname: TFRE_DB_NameType; var coll: TFRE_DB_COLLECTION; const manage_info: TFRE_DB_Collection_ManageInfo): TFRE_DB_Errortype;
 //var m        : TMemorystream;
 //    filename : TFRE_DB_String;
 //begin
-//  GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>RETRIEVE COLLECTION [%s]',[collname]);
+//  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>RETRIEVE COLLECTION [%s]',[collname]);
 //  filename := GFRE_BT.Str2HexStr(collname)+'.fdbo';
 //  m:=TMemoryStream.Create;
 //  try
@@ -893,14 +893,14 @@ end;
 //  end;
 //  result := edb_OK;
 //  inc(FLayerStats.Retrieve);
-//  GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<RETRIEVE COLLECTION [%s] DONE',[collname]);
+//  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<RETRIEVE COLLECTION [%s] DONE',[collname]);
 //end;
 
 //function TFRE_DB_PS_FILE.DeleteCollection(const coll: TFRE_DB_COLLECTION): TFRE_DB_Errortype;
 //var cname:TFRE_DB_String;
 //begin
 //  _ConnectCheck;
-//  GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>DELETE COLLECTION [%s]',[coll.CollectionName]);
+//  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[coll.CollectionName]);
 //  cname:=FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName)+'.fdbo';
 //  if not FileExists(cname) then exit(edb_NOT_FOUND);
 //  try
@@ -910,7 +910,7 @@ end;
 //  end;
 //  result:=edb_OK;
 //  inc(FLayerStats.DeleteColls);
-//  GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<DELETE COLLECTION [%s] DONE',[coll.CollectionName]);
+//  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<DELETE COLLECTION [%s] DONE',[coll.CollectionName]);
 //end;
 
 
@@ -919,14 +919,14 @@ end;
 //    uid_string:TFRE_DB_String;
 //_ConnectCheck;
 //uid_string := GFRE_BT.GUID_2_HexString(uid);
-//GFRE_DBI.LogDebug(dblc_PERSITANCE,'>>DELETE OBJECT [%s]',[uid_string]);
+//GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE OBJECT [%s]',[uid_string]);
 //result := edb_OK;
 //filename := uid_string+'.fdbo';
 //if not DeleteFile(FMasterCollDir+filename) then begin
 //  result := edb_ERROR;
 //  exit;
 //end;
-//GFRE_DBI.LogDebug(dblc_PERSITANCE,'<<DELETE OBJECT [%s]',[uid_string]);
+//GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<DELETE OBJECT [%s]',[uid_string]);
 //begin
 //end;
 
@@ -950,7 +950,7 @@ begin
         dbo := nil;
         FLastErrorCode := E.ErrorType;
         FLastError     := E.Message;
-        GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
+        GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
         raise;
       end;
     on e:EFRE_DB_Exception do
@@ -958,7 +958,7 @@ begin
         dbo := nil;
         FLastErrorCode := E.ErrorType;
         FLastError     := E.Message;
-        GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
+        GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
         raise;
       end;
     on e:Exception do
@@ -966,7 +966,7 @@ begin
         dbo := nil;
         FLastErrorCode := edb_INTERNAL;
         FLastError     := E.Message;
-        GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
+        GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
         raise;
       end;
   end;
@@ -1018,21 +1018,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
           raise;
         end;
     end;
@@ -1186,21 +1186,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
           raise;
         end;
     end;
@@ -1241,21 +1241,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
           raise;
         end;
     end;
@@ -1282,21 +1282,21 @@ begin
       begin
         FLastErrorCode := E.ErrorType;
         FLastError     := E.Message;
-        GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
+        GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
         raise;
       end;
     on e:EFRE_DB_Exception do
       begin
         FLastErrorCode := E.ErrorType;
         FLastError     := E.Message;
-        GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
+        GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
         raise;
       end;
     on e:Exception do
       begin
         FLastErrorCode := edb_INTERNAL;
         FLastError     := E.Message;
-        GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
+        GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
         raise;
       end;
   end;
@@ -1312,21 +1312,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
           raise;
         end;
     end;
@@ -1346,21 +1346,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSITANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSITANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSITANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
           raise;
         end;
     end;

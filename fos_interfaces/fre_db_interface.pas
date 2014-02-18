@@ -79,7 +79,7 @@ type
   PFRE_DB_String              = ^TFRE_DB_String;
   TFRE_DB_RawByteString       = RawByteString;
 
-  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSITANCE,dblc_PERSITANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING);
+  TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART);
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
@@ -114,6 +114,7 @@ const
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','NEX','LE','LEQ','GT','GEQ','REXB','RWIB','NREXB','NRWIB','AVFF','OVFV','NVFV');
   CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM');
+  CFRE_DB_LOGCATEGORY_INI_IDENT  : Array[TFRE_DB_LOGCATEGORY]             of String = ('NONE','PERSISTANCE','PERSISTANCE_NOTIFY','DB','MEMORY','REFERENCES','EXCEPTION','SERVER','HTTP_REQ','HTTP_RES','WEBSOCK','APPLICATION','SESSION','FLEXCOM','SERVER_DATA','WS_JSON','FLEX_IO','APSCOMM','HTTP_ZIP','HTTP_CACHE','STREAMING');
   CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');
   CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','ICO','BOO');
   CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
@@ -2501,6 +2502,7 @@ type
   function  FREDB_GetDboAsBufferLen              (const dbo: IFRE_DB_Object; var mem: Pointer): UInt32;
 
   procedure FREDB_SetStringFromExistingFieldPathOrNoChange(const obj:IFRE_DB_Object ; const fieldpath:string ; var string_fld : TFRE_DB_String);
+  function  FREDB_IniLogCategory2LogCategory     (const ini_logcategory: string) : TFRE_DB_LOGCATEGORY;
 
   // This function should replace all character which should not a ppear in an ECMA Script (JS) string type to an escaped version,
   // as additional feature it replaces CR with a <br> tag, which is useful in formatting HTML
@@ -7011,6 +7013,14 @@ begin
     string_fld := obj.FieldPath(fieldpath).AsString
   else
     string_fld := cFRE_DB_SYS_NOCHANGE_VAL_STR;
+end;
+
+function FREDB_IniLogCategory2LogCategory(const ini_logcategory: string): TFRE_DB_LOGCATEGORY;
+begin
+  for result in TFRE_DB_LOGCATEGORY do begin
+    if CFRE_DB_LOGCATEGORY_INI_IDENT[result]=ini_logcategory then exit;
+  end;
+  raise EFRE_DB_Exception.Create('invalid db logcategory specifier : ['+ini_logcategory+']');
 end;
 
 function FREDB_String2EscapedJSString(const input_string: TFRE_DB_String; const replace_cr_with_br: boolean): TFRE_DB_String;

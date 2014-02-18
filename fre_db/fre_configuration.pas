@@ -42,7 +42,7 @@ unit fre_configuration;
 interface
 
 uses
-  Classes, SysUtils,IniFiles,FRE_SYSTEM,FOS_TOOL_INTERFACES;
+  Classes, SysUtils,IniFiles,FRE_SYSTEM,FOS_TOOL_INTERFACES,fre_db_interface;
 
 procedure Initialize_Read_FRE_CFG_Parameter;
 
@@ -63,7 +63,7 @@ var cfgfile  : string;
   var ini          : TMemIniFile;
 
     procedure ConfigureLogging;
-    var sl              : TStringList;
+    var  sl             : TStringList;
          i              : integer;
          target         : string;
          targetdir      : string;
@@ -81,7 +81,9 @@ var cfgfile  : string;
          defaultdir     : string;
          fullfilename   : string;
          section        : string;
-
+         logcat         : TFRE_DB_LOGCATEGORY;
+         rl             : TStringList;
+         stopstring     : string;
     begin
       GFRE_Log.ClearLogRules;
       section := 'LOGGER_'+cFOS_PRODUCT_NAME;
@@ -91,12 +93,13 @@ var cfgfile  : string;
           GFRE_LOG.EnableSyslog;
         end;
         sl:=TStringList.Create;
+        rl:=TStringList.Create;
         try
           defaultdir   := ini.ReadString (section,'DEFAULT_DIR',cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'log'+DirectorySeparator+cFOS_PRODUCT_NAME);
           turnaround   := ini.ReadInteger(section,'DEFAULT_TURNAROUND',1000000);
           generations  := ini.ReadInteger(section,'DEFAULT_GENERATIONS',10);
           filename     := ini.ReadString (section,'DEFAULT_FILENAME','main.log');
-          fullfilename := ini.ReadString (section,'DEFAULT_FULLFILENAME','full.log');
+          fullfilename := ini.ReadString (section,'DEFAULT_FULLFILENAME','');
           loglevel     := FOSTI_StringToLogLevel    (ini.ReadString(section,'DEFAULT_LOGLEVEL','DEBUG'));
           facility     := FOSTI_StringToLogFacility (ini.ReadString(section,'DEFAULT_FACILITY','KERNEL'));
           GFRE_LOG.SetDefaults(filename,fullfilename,defaultdir,turnaround,generations,loglevel,facility);
@@ -114,6 +117,7 @@ var cfgfile  : string;
           sl.CommaText := ini.ReadString(section,'CATEGORIES','');
           for i:=0 to sl.Count-1 do begin
             category    := Uppercase(trim(sl[i]));
+            logcat      := FREDB_IniLogCategory2LogCategory(category);
             filename    := ini.ReadString (section,'CATEGORY_FILENAME_'+category,'');
             turnaround  := ini.ReadInteger(section,'CATEGORY_TURNAROUND_'+category,-1);
             generations := ini.ReadInteger(section,'CATEGORY_GENERATIONS_'+category,-1);
@@ -136,19 +140,40 @@ var cfgfile  : string;
             end else begin
               not_in_fulllog :=fbtNotSet;
             end;
-            GFRE_LOG.RegisterCategory(category,filename,turnaround,generations,loglevel,no_log,not_in_fulllog);
+            GFRE_LOG.RegisterCategory(CFRE_DB_LOGCATEGORY[logcat],filename,turnaround,generations,loglevel,no_log,not_in_fulllog);
           end;
-          sl.CommaText := ini.ReadString(section,'RULES','');
-          for i:=0 to sl.Count-1 do begin
-            rule        := Uppercase(trim(sl[i]));
-            category    := ini.ReadString (section,'RULE_CATEGORY_'+rule,'*');
-            loglevel    := FOSTI_StringToLogLevel    (ini.ReadString(section,'RULE_LOGLEVEL_'+rule,'INVALID'));
-            target      := ini.ReadString (section,'RULE_TARGET_'+rule,'*');
-            logaction   := FOSTI_StringToLogRuleAction   (ini.ReadString (section,'RULE_ACTION_'+rule,'DROPENTRY'));
-            stoprule    := ini.ReadBool   (section,'RULE_STOPRULE_'+rule,true);
-            GFRE_LOG.AddRule(category,loglevel,target,logaction,stoprule);
-          end;
+          ini.ReadSectionValues(section+'_RULES',sl);       // read all values in rules section for product, key is irrelevant
+          rl.Delimiter:=',';
+          for i:=0 to sl.count-1 do
+            begin
+              if Pos(';',trim(sl[i]))=1 then    // ignor commented lines
+                continue;
+              rl.DelimitedText:=GFRE_BT.SepRight(sl[i],'=');
+              if (rl.count<4) or (rl.count>5) then
+                raise EFRE_Exception.CreateFmt('Error parsing ini file, rule [%s] does not match the rule format with 4 or 5 parametes',[sl[i]]); //PERSISTANCE,DEBUG,*,DROPENTRY,FALSE
+              category    := Uppercase(trim(rl[0]));
+              if category <>'*' then
+                logcat      := FREDB_IniLogCategory2LogCategory(category);
+              loglevel    := FOSTI_StringToLogLevel    (uppercase(rl[1]));
+              target      := rl[2];
+              logaction   := FOSTI_StringToLogRuleAction   (uppercase(rl[3]));
+              if rl.count=5 then
+                if uppercase(rl[4])='TRUE' then
+                  stoprule := true
+                else
+                  if uppercase(rl[4])='FALSE' then
+                    stoprule :=false
+                  else
+                    raise EFRE_Exception.CreateFmt('Error parsing ini file, rule [%s] has an invalid stoprule configuration [TRUE|FALSE].',[sl[i]]) //PERSISTANCE,DEBUG,*,DROPENTRY,TRUE
+              else
+                stoprule := true;
+
+              if category<>'*' then
+                category := CFRE_DB_LOGCATEGORY[logcat];
+              GFRE_LOG.AddRule(category,loglevel,target,logaction,stoprule);
+            end;
         finally
+          rl.free;
           sl.Free;
         end;
       end else begin
@@ -233,11 +258,11 @@ begin
   cFRE_TMP_DIR         := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'tmp'+DirectorySeparator;
   cFRE_UX_SOCKS_DIR    := cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'sockets'+DirectorySeparator;
 
-  //GFRE_DBI.LogInfo(dblc_PERSITANCE,'DB BASE DIR : '+cFRE_SERVER_DEFAULT_DIR);
-  //GFRE_DBI.LogInfo(dblc_PERSITANCE,'DB WWW  DIR : '+cFRE_SERVER_WWW_ROOT_DIR);
-  //GFRE_DBI.LogInfo(dblc_PERSITANCE,'DB TIMEZONE : '+cFRE_SERVER_DEFAULT_TIMEZONE);
-  //GFRE_DBI.LogInfo(dblc_PERSITANCE,'DB HIXIE WS : '+cFRE_WebServerLocation_HixiedWS);
-  //GFRE_DBI.LogInfo(dblc_PERSITANCE,'DB SSL FILES [Key=%s Cert=%s CA=%s] : ',[cFRE_SSL_PRIVATE_KEY_FILE,cFRE_SSL_CERT_FILE,cFRE_SSL_ROOT_CA_FILE]);
+  //GFRE_DBI.LogInfo(dblc_PERSISTANCE,'DB BASE DIR : '+cFRE_SERVER_DEFAULT_DIR);
+  //GFRE_DBI.LogInfo(dblc_PERSISTANCE,'DB WWW  DIR : '+cFRE_SERVER_WWW_ROOT_DIR);
+  //GFRE_DBI.LogInfo(dblc_PERSISTANCE,'DB TIMEZONE : '+cFRE_SERVER_DEFAULT_TIMEZONE);
+  //GFRE_DBI.LogInfo(dblc_PERSISTANCE,'DB HIXIE WS : '+cFRE_WebServerLocation_HixiedWS);
+  //GFRE_DBI.LogInfo(dblc_PERSISTANCE,'DB SSL FILES [Key=%s Cert=%s CA=%s] : ',[cFRE_SSL_PRIVATE_KEY_FILE,cFRE_SSL_CERT_FILE,cFRE_SSL_ROOT_CA_FILE]);
   ForceDirectories(cFRE_HAL_CFG_DIR);
   ForceDirectories(cFRE_PID_LOCK_DIR);
   ForceDirectories(cFRE_JOB_RESULT_DIR);

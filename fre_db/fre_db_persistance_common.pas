@@ -722,7 +722,7 @@ begin
     FRealIF.CollectionCreated(Layer,coll_name,ccn,persColl,volatile);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: CollectionCreated '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: CollectionCreated '+e.Message);
   end;
 end;
 
@@ -733,7 +733,7 @@ begin
     FRealIF.CollectionDeleted(Layer,coll_name);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: CollectionDeleted '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: CollectionDeleted '+e.Message);
   end;
 end;
 
@@ -744,7 +744,7 @@ begin
     FRealIF.IndexDefinedOnField(Layer, coll_name, FieldName, FieldType, unique, ignore_content_case, index_name, allow_null_value, unique_null_values);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: IndexDefinedOnField '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: IndexDefinedOnField '+e.Message);
   end;
 end;
 
@@ -755,7 +755,7 @@ begin
     FRealIF.IndexDroppedOnField(Layer, coll_name, index_name);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: IndexDroppedOnField '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: IndexDroppedOnField '+e.Message);
   end;
 end;
 
@@ -766,7 +766,7 @@ begin
     FRealIF.ObjectStored(Layer,coll_name,obj.CloneToNewObject);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: ObjectStored '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: ObjectStored '+e.Message);
   end;
 end;
 
@@ -777,7 +777,7 @@ begin
     FRealIF.ObjectDeleted(Layer,obj.CloneToNewObject);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: ObjectDeleted '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: ObjectDeleted '+e.Message);
   end;
 end;
 
@@ -788,7 +788,7 @@ begin
     FRealIF.ObjectRemoved(Layer,coll_name,obj.CloneToNewObject);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: ObjectRemoved '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: ObjectRemoved '+e.Message);
   end;
 end;
 
@@ -799,7 +799,7 @@ begin
     FRealIF.FieldDelete(Layer,old_field.CloneToNewStreamable);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: FieldDelete '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: FieldDelete '+e.Message);
   end;
 end;
 
@@ -810,7 +810,7 @@ begin
     FRealIF.FieldAdd(Layer,new_field.CloneToNewStreamable);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: FieldAdd '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: FieldAdd '+e.Message);
   end;
 end;
 
@@ -821,7 +821,7 @@ begin
     FRealIF.FieldChange(Layer,old_field.CloneToNewStreamable,new_field.CloneToNewStreamable);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: FieldChange '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: FieldChange '+e.Message);
   end;
 end;
 
@@ -832,7 +832,7 @@ begin
     FRealIF.SubObjectStored(Layer,coll_name,obj.CloneToNewObject);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: SubObjectStored '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: SubObjectStored '+e.Message);
   end;
 end;
 
@@ -843,7 +843,7 @@ begin
     FRealIF.SubObjectDeleted(layer,obj.CloneToNewObject());
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: SubObjectDeleted '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: SubObjectDeleted '+e.Message);
   end;
 end;
 
@@ -854,7 +854,7 @@ begin
     FRealIF.SetupOutboundRefLink(layer,from_obj,to_obj.CloneToNewObject(),key_description);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: SetupOutboundRefLink '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: SetupOutboundRefLink '+e.Message);
   end;
 end;
 
@@ -865,7 +865,7 @@ begin
     FRealIF.SetupInboundRefLink(layer,from_obj.CloneToNewObject(),to_obj,key_description);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: SetupInboundRefLink '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: SetupInboundRefLink '+e.Message);
   end;
 end;
 
@@ -876,7 +876,7 @@ begin
     FRealIF.InboundReflinkDropped(Layer,to_obj,from_obj,key_description);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: InboundReflinkDropped '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: InboundReflinkDropped '+e.Message);
   end;
 end;
 
@@ -887,7 +887,7 @@ begin
     FRealIF.OutboundReflinkDropped(Layer,from_obj,to_obj,key_description);
   except on
     e:Exception do
-      GFRE_DBI.LogError(dblc_PERSITANCE_NOTIFY,'notification error: OutboundReflinkDropped '+e.Message);
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: OutboundReflinkDropped '+e.Message);
   end;
 end;
 
@@ -895,84 +895,84 @@ end;
 
 procedure TFRE_DB_DBChangedNotificationBase.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> COLLECTION (%s) CREATED : [%s] (%s)',[Layer.GetConnectedDB,ccn,coll_name,BoolToStr(volatile,'VOLATILE','PERSITENT')]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> COLLECTION (%s) CREATED : [%s] (%s)',[Layer.GetConnectedDB,ccn,coll_name,BoolToStr(volatile,'VOLATILE','PERSITENT')]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.CollectionDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> COLLECTION DELETED : [%s]',[Layer.GetConnectedDB,coll_name]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> COLLECTION DELETED : [%s]',[Layer.GetConnectedDB,coll_name]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.IndexDefinedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> INDEX [%s] ON COLLECTION CREATED : [%s] (%s)',[Layer.GetConnectedDB,index_name,coll_name,FieldName+'/'+CFRE_DB_FIELDTYPE[FieldType]]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> INDEX [%s] ON COLLECTION CREATED : [%s] (%s)',[Layer.GetConnectedDB,index_name,coll_name,FieldName+'/'+CFRE_DB_FIELDTYPE[FieldType]]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.IndexDroppedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> INDEX [%s] ON COLLECTION DROPPED : [%s]',[Layer.GetConnectedDB,index_name,coll_name]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> INDEX [%s] ON COLLECTION DROPPED : [%s]',[Layer.GetConnectedDB,index_name,coll_name]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.ObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> OBJECT STORE IN [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT STORE IN [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.ObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> OBJECT FINAL DELETE -> %s',[Layer.GetConnectedDB,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT FINAL DELETE -> %s',[Layer.GetConnectedDB,obj.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.ObjectRemoved(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> OBJECT REMOVED FROM [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT REMOVED FROM [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.FieldDelete(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field: IFRE_DB_Field);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] DELETED FROM OBJECT -> %s',[Layer.GetConnectedDB,old_field.FieldName,old_field.FieldTypeAsString,old_field.ParentObject.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] DELETED FROM OBJECT -> %s',[Layer.GetConnectedDB,old_field.FieldName,old_field.FieldTypeAsString,old_field.ParentObject.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.FieldAdd(const Layer: IFRE_DB_PERSISTANCE_LAYER; const new_field: IFRE_DB_Field);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] ADDED TO OBJECT -> %s',[Layer.GetConnectedDB,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] ADDED TO OBJECT -> %s',[Layer.GetConnectedDB,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.FieldChange(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field, new_field: IFRE_DB_Field);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] CHANGED IN OBJECT -> %s',[Layer.GetConnectedDB,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] CHANGED IN OBJECT -> %s',[Layer.GetConnectedDB,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.SubObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> SUB OBJECT STORE IN [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> SUB OBJECT STORE IN [%s] -> %s',[Layer.GetConnectedDB,coll_name,obj.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.SubObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> SUB OBJECT FINAL DELETE -> %s',[Layer.GetConnectedDB,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> SUB OBJECT FINAL DELETE -> %s',[Layer.GetConnectedDB,obj.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.SetupOutboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
   if not GStartupRebuilding then
-    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.SetupInboundRefLink(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
   if not GStartupRebuilding then
-    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.InboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const to_obj: TGUID; const from_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
-    GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> DROPPED INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> DROPPED INBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.OutboundReflinkDropped(const Layer: IFRE_DB_PERSISTANCE_LAYER; const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSITANCE_NOTIFY,Format('[%s]> DROPPED OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> DROPPED OUTBOUND REFLINK  [%s] -> [%s] (%s)',[Layer.GetConnectedDB,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
 end;
 
 
@@ -1512,12 +1512,12 @@ begin
    if GDBPS_TRANS_WRITE_THROUGH then
      begin
        FLayer.WT_StoreCollectionPersistent(coll);
-       GFRE_DBI.LogDebug(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH STORE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
+       GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH STORE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
      end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH ERROR STORE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH ERROR STORE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
       end;
   end;
 end;
@@ -1528,12 +1528,12 @@ begin
    if GDBPS_TRANS_WRITE_THROUGH then
      begin
        FLayer.WT_DeleteCollectionPersistent(coll);
-       GFRE_DBI.LogDebug(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH DELETE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
+       GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH DELETE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
      end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH ERROR DELETE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH ERROR DELETE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
       end;
   end;
 end;
@@ -1544,12 +1544,12 @@ begin
     if GDBPS_TRANS_WRITE_THROUGH then
       begin
         FLayer.WT_StoreObjectPersistent(obj,no_store_locking);
-        GFRE_DBI.LogDebug(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
+        GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
       end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH ERROR OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH ERROR OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
       end;
   end;
 end;
@@ -1560,12 +1560,12 @@ begin
    if GDBPS_TRANS_WRITE_THROUGH then
      begin
        FLayer.WT_DeleteObjectPersistent(obj);
-       GFRE_DBI.LogDebug(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH DELETE OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
+       GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH DELETE OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
      end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSITANCE,Format('[%s]> WRITE THROUGH ERROR DELETE OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH ERROR DELETE OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
       end;
   end;
 end;
