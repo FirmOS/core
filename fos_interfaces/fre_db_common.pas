@@ -653,6 +653,7 @@ type
     procedure addNewEntry     (const entry: IFRE_DB_Object; const reverenceItemId: String; const parentId: String='';  const revItemIsPrevious: Boolean=true);
     //@ Sets the new total count.
     procedure setTotalCount   (const count: Integer);
+    function  hasChanges      : Boolean;
   end;
 
   { TFRE_DB_INVALIDATE_SESSION_DATA_DESC }
@@ -1301,6 +1302,11 @@ implementation
   procedure TFRE_DB_UPDATE_STORE_DESC.setTotalCount(const count: Integer);
   begin
     Field('total').AsInt32:=count;
+  end;
+
+  function TFRE_DB_UPDATE_STORE_DESC.hasChanges: Boolean;
+  begin
+    Result:=(Field('new').ValueCount + Field('deleted').ValueCount + Field('updated').ValueCount)>0;
   end;
 
   { TFRE_DB_INPUT_NUMBER_DESC }

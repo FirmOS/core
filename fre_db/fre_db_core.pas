@@ -5670,7 +5670,7 @@ var not_object : IFRE_DB_Object;
         begin
           //GFRE_DBI.LogError(dblc_DB,'----------------FULL UPDATE 4 OBSERVERS '+key_description+' '+FREDB_G2H(obj_uid));
           FInitialDerived := false;
-          FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
+          //FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
         end;
     end;
 
@@ -5796,7 +5796,11 @@ begin
   AcquireBigColl;
   try
     if sendupdates then begin
-      FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,FGatherUpdateList);
+      if FGatherUpdateList.hasChanges then begin
+        FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,FGatherUpdateList);
+      end else begin
+        FGatherUpdateList.Free;
+      end;
     end else begin
       FGatherUpdateList.Free;
     end;
