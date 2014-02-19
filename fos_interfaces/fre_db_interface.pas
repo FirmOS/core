@@ -696,7 +696,7 @@ type
     function        FetchObjByUID                      (const childuid:TGuid ; var obj : IFRE_DB_Object):boolean;
     function        FetchObjWithStringFieldValue       (const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString): boolean;
     procedure       SetAllSimpleObjectFieldsFromObject (const source_object : IFRE_DB_Object); // only first level, no uid, domid, obj, objlink fields
-    procedure       SetDomainID                        (const domid:TGUID);
+    procedure       SetDomainID                        (const domid:TGUID); { faster }
   end;
 
   TFRE_DB_TEXT_SUBTYPE=(tst_Short,tst_Long,tst_Hint,tst_Key);
@@ -1304,8 +1304,8 @@ type
 
 
     function    Collection                (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
-    function    DomainCollection          (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false;const ForDomainID : TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
-    function    DomainCollectionName      (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='') : TFRE_DB_NameType;
+    function    DomainCollection          (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
+    function    DomainCollectionName      (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
     function    CollectionAsIntf          (const collection_name: TFRE_DB_NameType;const CollectionInterfaceSpec:ShortString;out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean; // creates/fetches a Specific Collection / true if new
     function    DerivedCollection         (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
 
@@ -1368,6 +1368,7 @@ type
     function    FetchRoleById               (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchDomainById             (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    FetchDomainNameById         (const domain_id:TGUID):TFRE_DB_NameType;
+    function    FetchDomainUIDbyName        (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean;
     function    ModifyDomainById            (const domain_id:TGUID; const domainname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype; { use special value "*$NOCHANGE$*" for unchanged webfields }
     function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object

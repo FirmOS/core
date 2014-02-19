@@ -753,10 +753,31 @@ begin
 end;
 
 procedure TFRE_CLISRV_APP.GenerateTestdata;
+var conn : IFRE_DB_CONNECTION;
 begin
   _CheckDBNameSupplied;
   _CheckUserSupplied;
   _CheckPassSupplied;
+
+  { a testdomain is created globally for all extensiosn}
+  conn := GFRE_DBI.NewConnection;
+  try
+    CheckDbResult(conn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),' could not login into '+FDBName+' for testdomain creation');
+    if not conn.SYS.DomainExists('test') then begin
+      CheckDbResult(conn.AddDomain('test','This domain is for testing only','Test Domain'));
+    end;
+    if not conn.SYS.UserExists('admin@test') then begin
+      CheckDbResult(conn.SYS.AddUser('admin@test','test','admin','test'));
+    end;
+    if not conn.SYS.UserExists('manager@test') then begin
+      CheckDbResult(conn.SYS.AddUser('manager@test','test','manager','test'));
+    end;
+    if not conn.SYS.UserExists('viewer@test') then begin
+      CheckDbResult(conn.SYS.AddUser('viewer@test','test','viewer','test'));
+    end;
+  finally
+    conn.Finalize;
+  end;
   GFRE_DBI_REG_EXTMGR.GenerateTestData4Exts(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
 end;
 

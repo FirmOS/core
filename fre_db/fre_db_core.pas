@@ -1757,8 +1757,9 @@ type
     function           ConnectedName                : TFRE_DB_String;
     function           CollectionList               (const with_classes:boolean=false):IFOS_STRINGS                          ; virtual;
 
-    function           DomainCollection             (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false;const ForDomainID : TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;virtual;
-    function           DomainCollectionName         (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='') : TFRE_DB_NameType;
+    function           DomainCollection             (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
+    function           DomainCollectionName         (const collection_name: TFRE_DB_NameType;const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
+    function           FetchDomainUIDbyName         (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; virtual;
 
     function           DomainCollectionExists       (const name:TFRE_DB_NameType):boolean;
     function           DeleteDomainCollection       (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
@@ -1910,6 +1911,7 @@ type
     function    FetchRoleByIdI              (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     procedure   ForAllColls                 (const iterator:TFRE_DB_Coll_Iterator) ;override;
     function    FetchDomain                 (const name :TFRE_DB_NameType; var domain:TFRE_DB_DOMAIN):boolean;
+    function    FetchDomainUIDbyName        (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
     function    FetchDomainById             (const domain_id:TGUID;var domain: TFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    FetchDomainByIdI            (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    FetchDomainNameById         (const domain_id:TGUID):TFRE_DB_NameType;
@@ -1979,6 +1981,7 @@ type
     function    GetSysDomainUID              :TGUID; override;
     procedure   ReloadUserandRights          ;
     function    GetLoginUser                 : IFRE_DB_USER;
+    function    APP                          : IFRE_DB_CONNECTION;
   end;
 
 
@@ -2051,6 +2054,7 @@ type
     function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;override;
     function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;override;
     function    GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;override;
+    function    FetchDomainUIDbyName         (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
 
 
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_ObjectArray);
@@ -3800,6 +3804,21 @@ begin
   end;
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.FetchDomainUIDbyName(const name: TFRE_DB_NameType; var domain_uid: TFRE_DB_GUID): boolean;
+var domain : TFRE_DB_DOMAIN;
+begin
+  AcquireBig;
+  try
+    result := FSysDomains.GetIndexedObj(name,TFRE_DB_Object(domain));
+    if result then
+      domain_uid := domain.DomainID
+    else
+      domain_uid := CFRE_DB_NullGUID;
+    domain.Finalize;
+  finally
+    ReleaseBig;
+  end;
+end;
 
 
 procedure TFRE_DB_SYSTEM_CONNECTION.DumpSystem;
@@ -5051,6 +5070,14 @@ var loginat :string;
 begin
   loginat := FConnectedUser.Login+'@'+FetchDomainNameById(FConnectedUser.DomainID);
   FetchUserI(loginat,result);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.APP: IFRE_DB_CONNECTION;
+begin
+  if assigned(FPairedAppDBConn) then
+    exit(FPairedAppDBConn)
+  else
+    raise EFRE_DB_Exception.Create(edb_ERROR,'operation not valid on a system only connection');
 end;
 
 
@@ -10215,21 +10242,40 @@ begin
   end;
 end;
 
-function TFRE_DB_BASE_CONNECTION.DomainCollection(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean; const in_memory: boolean; const ForDomainID: TFRE_DB_NameType): IFRE_DB_COLLECTION;
+function TFRE_DB_BASE_CONNECTION.DomainCollection(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean; const in_memory: boolean; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): IFRE_DB_COLLECTION;
 begin
-  result    := Collection(DomainCollectionName(collection_name,ForDomainID),create_non_existing,in_memory);
+  result    := Collection(DomainCollectionName(collection_name,ForDomainName,ForDomainUIDString),create_non_existing,in_memory);
 end;
 
-function TFRE_DB_BASE_CONNECTION.DomainCollectionName(const collection_name: TFRE_DB_NameType; const ForDomainID: TFRE_DB_NameType): TFRE_DB_NameType;
+function TFRE_DB_BASE_CONNECTION.DomainCollectionName(const collection_name: TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): TFRE_DB_NameType;
 var dom_cname : string;
+    dom_uid   : TFRE_DB_GUID;
 begin
-  if ForDomainID='' then
-    dom_cname := GetMyDomainID_String+collection_name
+  if (ForDomainUIDString<>'') and
+     (ForDomainName<>'') then
+       raise EFRE_DB_Exception.Create(edb_ERROR,'use only one fordomain variant');
+  if (ForDomainUIDString='') and
+     (ForDomainName='') then
+       dom_cname := GetMyDomainID_String+collection_name
   else
-    dom_cname := ForDomainID+collection_name;
+    begin
+      if ForDomainUIDString<>'' then
+        dom_cname := ForDomainUIDString+collection_name
+      else
+        begin
+          if not FetchDomainUIDbyName(ForDomainName,dom_uid) then
+            raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find a domain named [%s]',[ForDomainName]);
+           dom_cname := FREDB_G2H(dom_uid)+collection_name;
+        end;
+    end;
   result := dom_cname;
   if length(dom_cname)>=SizeOf(TFRE_DB_NameType) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'name for collection too long : [%s] maxlen=',[dom_cname,SizeOf(TFRE_DB_NameType)]);
+end;
+
+function TFRE_DB_BASE_CONNECTION.FetchDomainUIDbyName(const name: TFRE_DB_NameType; var domain_uid: TFRE_DB_GUID): boolean;
+begin
+  abort;
 end;
 
 function TFRE_DB_BASE_CONNECTION.DomainCollectionExists(const name: TFRE_DB_NameType): boolean;
@@ -10893,6 +10939,11 @@ begin
  Result:=inherited GetReferencesDetailed(obj_uid, from,scheme_prefix_filter,field_exact_filter);
  if not assigned(Result) then
    result := FSysConnection.GetReferencesDetailed(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+end;
+
+function TFRE_DB_CONNECTION.FetchDomainUIDbyName(const name: TFRE_DB_NameType; var domain_uid: TFRE_DB_GUID): boolean;
+begin
+  result := FSysConnection.FetchDomainUIDbyName(name,domain_uid);
 end;
 
 procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints : TFRE_DB_NameTypeRLArray ; var expanded_refs: TFRE_DB_ObjectArray);
