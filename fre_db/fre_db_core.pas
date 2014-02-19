@@ -5657,7 +5657,11 @@ var not_object : IFRE_DB_Object;
                         end
                       else
                         begin
-                          DeleteRecordUid(to_uid);
+                          if cmp_dir then begin;
+                            DeleteRecordUid(to_uid);
+                          end else begin
+                            DeleteRecordUid(obj_uid);
+                          end;
                           FInitialDerived := False;
                         end;
                     end
@@ -5675,7 +5679,8 @@ var not_object : IFRE_DB_Object;
     end;
 
   begin
-    //if pos('PRODUCT_MODULESIN_GRID',dbg_collname)>0 then { DEBUG A SPECIFIC GRID }
+    //dbg_collname:=FName;
+    //if pos('MODULE_ADDONSIN_GRID',dbg_collname)>0 then { DEBUG A SPECIFIC GRID }
     //  dbg_collname:=dbg_collname
     //else
     //  exit;
