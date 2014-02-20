@@ -85,7 +85,8 @@ type
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_NOT_IN_RANGE_EX_BOUNDS,dbnf_NOT_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
   TFRE_DB_SchemeType          = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
   TFRE_DB_COMMANDTYPE         = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
-  TFRE_DB_NotifyObserverType  = (fdbntf_INSERT,fdbntf_UPDATE,fdbntf_DELETE,fdbntf_START_UPDATING,fdbntf_ENDUPDATE_APPLY,fdbntf_COLLECTION_RELOAD,fdbntf_OutboundRL_ADD,fdbntf_OutboundRL_DEL,fdbntf_InboundRL_ADD,fdbntf_InboundRL_DEL);
+  TFRE_DB_NotifyObserverType  = (fdbntf_INSERT,fdbntf_UPDATE,fdbntf_DELETE,fdbntf_START_UPDATING,fdbntf_ENDUPDATE_APPLY,fdbntf_COLLECTION_RELOAD,fdbntf_OutboundRL_ADD,fdbntf_OutboundRL_DEL,fdbntf_InboundRL_ADD,fdbntf_InboundRL_DEL,
+                                 fdbntf_FIELDCHANGE,fdbntf_FIELDADD,fdbntf_FIELDDEL);
   TFRE_DB_SUBSEC_DISPLAY_TYPE = (sec_dt_tab,sec_dt_vertical,sec_dt_hiddentab);
 
 
@@ -272,7 +273,8 @@ type
   IFRE_DB_Field  = interface(IFRE_DB_BASE)
   //private // ? - only for info, as interfaces dont support private methods
     {utility functions}
-    function  CloneToNewStreamable  : IFRE_DB_Field; { This creates a lightweight "streamable field" copy with only certain supported function (fieldvalues,type, but no parentobject etc support }
+    function  CloneToNewStreamable    : IFRE_DB_Field; { This creates a lightweight "streamable field" copy with only certain supported function (fieldvalues,type, but no parentobject etc support }
+    function  CloneToNewStreamableObj : IFRE_DB_Object; { encode the data as object }
     function  RemoveObjectLinkByUID(const to_remove_uid : TFRE_DB_GUID):boolean;
     function  GetAsGUID          : TGuid;
     function  GetAsByte          : Byte;
@@ -505,6 +507,8 @@ type
     function  AsDBText                      :IFRE_DB_TEXT;
     function  IsEmptyArray                  : boolean;
     function  ParentObject                  : IFRE_DB_Object;
+    function  GetUpdateObjectUIDPath        : TFRE_DB_GUIDArray; { This is only set in case of a "clone" stream field (standalone field only) }
+    function  GetInCollectionArrayUSL       : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
   end;
 
 
@@ -722,7 +726,7 @@ type
   { IFRE_DB_COLLECTION_OBSERVER }
 
   IFRE_DB_COLLECTION_OBSERVER = interface
-    procedure ICO_CollectionNotify (const notify_type : TFRE_DB_NotifyObserverType ; const obj : IFRE_DB_Object ; const obj_uid: TGUID ; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL);
+    procedure ICO_CollectionNotify (const notify_type : TFRE_DB_NotifyObserverType ; const obj : IFRE_DB_Object ; const obj_uid: TGUID ; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL ; const upfield: IFRE_DB_Field);
     function  ICO_ObserverID       : String;
   end;
 
@@ -854,26 +858,28 @@ type
     function   GetDisplayDescriptionFunction (const FilterEventKey:TFRE_DB_String=''): TFRE_DB_SERVER_FUNC_DESC;
     //@ Set a String Filter, which can be used before or after the transformation
     //@ filterkey = ID of the Filter / field_name : on which field the filter works / filtertype: how the filter works / on_transform : true = work after transformation / on_filter_field : true = filter works on a transform filter field which is not in the output
-    function   AddStringFieldFilter    (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_StringArray;const filtertype:TFRE_DB_STR_FILTERTYPE;const on_transform:boolean=true;const on_filter_field:boolean=false):TFRE_DB_Errortype;
+
+    function   AddStringFieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_StringArray;const filtertype:TFRE_DB_STR_FILTERTYPE;const on_transform:boolean=true;const on_filter_field:boolean=false):TFRE_DB_Errortype;
     //function   RemoveStringFieldFilter (const filter_key:TFRE_DB_String;const on_transform:boolean):TFRE_DB_Errortype; //deprecated
-    function   AddBooleanFieldFilter   (const filter_key,field_name:TFRE_DB_String;const value :Boolean;const on_transform:boolean=true;const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    function   AddBooleanFieldFilter         (const filter_key,field_name:TFRE_DB_String;const value :Boolean;const on_transform:boolean=true;const on_filter_field:boolean=false):TFRE_DB_Errortype;
     // Add a UID Field Filter | Match types : dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter
     // dbnf_EXACT,dbnf_EXACT_NEGATED : the filter values array must match the target object field array in order or negated
+    //function   AddByteFieldFilter            (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_ByteArray     ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddInt16FieldFilter           (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Int16Array    ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddUInt16FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_UInt16Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddInt32FieldFilter           (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Int32Array    ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddUInt32FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_UInt32Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddInt64FieldFilter           (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Int64Array    ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddUInt64FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_UInt64Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddReal32FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Real32Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddReal64FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Real64Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddCurrencyFieldFilter        (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_CurrencyArray ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddDateTimeFieldFilter        (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_DateTimeArray ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
+    //function   AddRefLinkFilter        (const filter_key,field_link_description : TFRE_DB_String ; const the_object_refers : boolean);
+
     function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_GUIDArray     ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddByteFieldFilter            (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_ByteArray     ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddInt16FieldFilter           (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Int16Array    ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddUInt16FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_UInt16Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddInt32FieldFilter           (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Int32Array    ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddUInt32FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_UInt32Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddInt64FieldFilter           (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Int64Array    ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddUInt64FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_UInt64Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddReal32FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Real32Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddReal64FieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_Real64Array   ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddCurrencyFieldFilter        (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_CurrencyArray ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
-    function   AddDateTimeFieldFilter        (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_DateTimeArray ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
     function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:TFRE_DB_StringArray   ;const negate:boolean=false):TFRE_DB_Errortype;
     function   AddRightFilterForEntryAndUser (const filter_key           :TFRE_DB_String;const right_prefix:TFRE_DB_NameType;const fieldname_for_uid : TFRE_DB_NameType=''):TFRE_DB_Errortype;
-    //function   AddRefLinkFilter        (const filter_key,field_link_description : TFRE_DB_String ; const the_object_refers : boolean);
     function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
@@ -1175,6 +1181,7 @@ type
     function        GetPersLayerIntf           : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
     function        GetPersLayer               : IFRE_DB_PERSISTANCE_LAYER;
 
+    function        GetCollectionClassName     : ShortString;
     function        IsVolatile                 : boolean;
     function        CollectionName             (const unique:boolean=true):TFRE_DB_NameType;
     function        Count                      : int64;
@@ -1258,7 +1265,9 @@ type
   end;
 
   IFRE_DB_DBChangedNotification = interface
-    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ;
+    procedure  StartNotificationBlock (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const key : TFRE_DB_TransStepId);
+    procedure  FinishNotificationBlock(const Layer: IFRE_DB_PERSISTANCE_LAYER; const key: TFRE_DB_TransStepId ; out block : IFRE_DB_Object);
+    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION) ;
     procedure  CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ;
     procedure  IndexDefinedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
     procedure  IndexDroppedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);

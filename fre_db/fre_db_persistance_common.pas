@@ -216,6 +216,7 @@ type
 
     procedure     StoreInThisColl     (const new_iobj        : IFRE_DB_Object ; const checkphase : boolean);
     procedure     UpdateInThisColl    (const new_ifld,old_ifld : IFRE_DB_FIELD  ; const old_iobj,new_iobj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const in_child_obj : boolean ; const checkphase : boolean);
+    function      GetCollectionClassName     : ShortString;
 
 
     procedure     DeleteFromThisColl  (const del_iobj: IFRE_DB_Object ; const checkphase : boolean);
@@ -611,7 +612,9 @@ type
   TFRE_DB_DBChangedNotificationBase = class(TObject,IFRE_DB_DBChangedNotification)
   protected
   public
-    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ; virtual;
+    procedure  StartNotificationBlock (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const key : TFRE_DB_TransStepId);
+    procedure  FinishNotificationBlock(const Layer: IFRE_DB_PERSISTANCE_LAYER; const key: TFRE_DB_TransStepId ; out block : IFRE_DB_Object);
+    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION) ; virtual;
     procedure  CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ; virtual ;
     procedure  IndexDefinedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);virtual;
     procedure  IndexDroppedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);virtual;
@@ -635,10 +638,18 @@ type
 
   TFRE_DB_DBChangedNotificationProxy=class(TFRE_DB_DBChangedNotificationBase,IFRE_DB_DBChangedNotification)
   private
-    FRealIF : IFRE_DB_DBChangedNotification;
+    FRealIF    : IFRE_DB_DBChangedNotification;
+    FBlockList : IFRE_DB_Object;
+  protected
+    procedure   CheckBlockStarted      ;
+    procedure   CheckBlockNotStarted   ;
+    procedure   AddNotificationEntry   (const entry:IFRE_DB_Object);
   public
+    procedure   LocalInvokeBlockupdate (const Block : IFRE_DB_Object);
     constructor Create                 (const real_interface : IFRE_DB_DBChangedNotification);
-    procedure   CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name : TFRE_DB_NameType ;const ccn : ShortString ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION ; const volatile : Boolean) ; override;
+    procedure   StartNotificationBlock (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const key : TFRE_DB_TransStepId);
+    procedure   FinishNotificationBlock(const Layer: IFRE_DB_PERSISTANCE_LAYER; const key: TFRE_DB_TransStepId ; out block : IFRE_DB_Object);
+    procedure   CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION) ; override;
     procedure   CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ; override ;
     procedure   IndexDefinedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);override;
     procedure   IndexDroppedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);override;
@@ -650,10 +661,10 @@ type
     procedure   FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field); override;
     procedure   SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); override;
     procedure   SubObjectDeleted       (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object); override;
-    procedure   SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID           ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);override;
-    procedure   SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : IFRE_DB_Object  ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); override;
-    procedure   InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   : TGUID           ; const from_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
-    procedure   OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID           ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);override;
+    procedure   SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID          ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);override;
+    procedure   SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : IFRE_DB_Object ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); override;
+    procedure   InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   : TGUID          ; const from_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
+    procedure   OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID          ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);override;
   end;
 
   var GStartupRebuilding : boolean = false;
@@ -710,16 +721,65 @@ end;
 
 { TFRE_DB_DBChangedNotificationProxy }
 
+procedure TFRE_DB_DBChangedNotificationProxy.CheckBlockStarted;
+begin
+  if not assigned(FBlockList) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'BLOCK LIST NOT STARTED');
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.CheckBlockNotStarted;
+begin
+  if assigned(FBlockList) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'BLOCK LIST ALREADY STARTED');
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.AddNotificationEntry(const entry: IFRE_DB_Object);
+begin
+  FBlockList.Field('N').AddObject(entry);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.LocalInvokeBlockupdate(const Block: IFRE_DB_Object);
+var
+  i: NativeInt;
+begin
+  for i:=0 to high(FBlockList.Field('N').AsObjectArr) do
+    begin
+
+    end;
+   //CC : FRealIF.CollectionCreated(Layer,coll_name,ccn,persColl,volatile);
+   //CD : FRealIF.CollectionDeleted(Layer,coll_name);
+   //ID : FRealIF.IndexDefinedOnField(Layer, coll_name, FieldName, FieldType, unique, ignore_content_case, index_name, allow_null_value, unique_null_values);
+end;
+
 constructor TFRE_DB_DBChangedNotificationProxy.Create(const real_interface: IFRE_DB_DBChangedNotification);
 begin
   FRealIF := real_interface;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
+procedure TFRE_DB_DBChangedNotificationProxy.StartNotificationBlock(const Layer: IFRE_DB_PERSISTANCE_LAYER; const key: TFRE_DB_TransStepId);
+begin
+  CheckBlockNotStarted;
+  FBlockList := GFRE_DBI.NewObject;
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.FinishNotificationBlock(const Layer: IFRE_DB_PERSISTANCE_LAYER; const key: TFRE_DB_TransStepId ; out block : IFRE_DB_Object);
+begin
+  CheckBlockStarted;
+  block      := FBlockList;
+  FBlockList := nil;
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const persColl: IFRE_DB_PERSISTANCE_COLLECTION);
+var newe : IFRE_DB_Object;
 begin
   Inherited;
   try
-    FRealIF.CollectionCreated(Layer,coll_name,ccn,persColl,volatile);
+    CheckBlockStarted;
+    newe := GFRE_DBI.NewObject;
+    newe.Field('L').AsString  := layer.GetConnectedDB;
+    newe.Field('C').AsString  := 'CC';
+    newe.Field('CC').AsString := persColl.CollectionName(false);
+    AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: CollectionCreated '+e.Message);
@@ -727,10 +787,16 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.CollectionDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
+var newe : IFRE_DB_Object;
 begin
   Inherited;
   try
-    FRealIF.CollectionDeleted(Layer,coll_name);
+   CheckBlockStarted;
+   newe := GFRE_DBI.NewObject;
+   newe.Field('L').AsString  := layer.GetConnectedDB;
+   newe.Field('C').AsString  := 'CD';
+   newe.Field('CC').AsString := coll_name;
+   AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: CollectionDeleted '+e.Message);
@@ -738,10 +804,23 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.IndexDefinedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+var newe : IFRE_DB_Object;
 begin
   inherited IndexDefinedOnField(Layer, coll_name, FieldName, FieldType, unique, ignore_content_case, index_name, allow_null_value, unique_null_values);
   try
-    FRealIF.IndexDefinedOnField(Layer, coll_name, FieldName, FieldType, unique, ignore_content_case, index_name, allow_null_value, unique_null_values);
+   CheckBlockStarted;
+   newe := GFRE_DBI.NewObject;
+   newe.Field('L').AsString   := layer.GetConnectedDB;
+   newe.Field('C').AsString   := 'IC';
+   newe.Field('CC').AsString  := coll_name;
+   newe.Field('IN').AsString  := index_name;
+   newe.Field('FN').AsString  := FieldName;
+   newe.Field('FT').AsString  := CFRE_DB_FIELDTYPE_SHORT[FieldType];
+   newe.Field('UI').AsBoolean := unique;
+   newe.Field('AN').AsBoolean := allow_null_value;
+   newe.Field('UN').AsBoolean := unique_null_values;
+   newe.Field('IC').AsBoolean := ignore_content_case;
+   AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: IndexDefinedOnField '+e.Message);
@@ -749,10 +828,16 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.IndexDroppedOnField(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
+var newe : IFRE_DB_Object;
 begin
   inherited IndexDroppedOnField(Layer, coll_name, index_name);
   try
-    FRealIF.IndexDroppedOnField(Layer, coll_name, index_name);
+     newe := GFRE_DBI.NewObject;
+     newe.Field('L').AsString   := layer.GetConnectedDB;
+     newe.Field('C').AsString   := 'ID';
+     newe.Field('CC').AsString  := coll_name;
+     newe.Field('IN').AsString  := index_name;
+     AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: IndexDroppedOnField '+e.Message);
@@ -760,10 +845,16 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.ObjectStored(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+var newe : IFRE_DB_Object;
 begin
   Inherited;
   try
-    FRealIF.ObjectStored(Layer,coll_name,obj.CloneToNewObject);
+   newe := GFRE_DBI.NewObject;
+   newe.Field('L').AsString    := layer.GetConnectedDB;
+   newe.Field('C').AsString    := 'OS';
+   newe.Field('CC').AsString   := coll_name;
+   newe.Field('OBJ').AsObject  := obj.CloneToNewObject;
+   AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: ObjectStored '+e.Message);
@@ -771,10 +862,15 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.ObjectDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const obj: IFRE_DB_Object);
+var newe : IFRE_DB_Object;
 begin
   Inherited;
   try
-    FRealIF.ObjectDeleted(Layer,obj.CloneToNewObject);
+   newe := GFRE_DBI.NewObject;
+   newe.Field('L').AsString   := layer.GetConnectedDB;
+   newe.Field('C').AsString   := 'OD';
+   newe.Field('OBJ').AsObject := obj.CloneToNewObject;
+   AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: ObjectDeleted '+e.Message);
@@ -782,10 +878,16 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.ObjectRemoved(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+var newe : IFRE_DB_Object;
 begin
   Inherited;
   try
-    FRealIF.ObjectRemoved(Layer,coll_name,obj.CloneToNewObject);
+   newe := GFRE_DBI.NewObject;
+   newe.Field('L').AsString   := layer.GetConnectedDB;
+   newe.Field('C').AsString   := 'OR';
+   newe.Field('CC').AsString   := coll_name;
+   newe.Field('OBJ').AsObject := obj.CloneToNewObject;
+   AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: ObjectRemoved '+e.Message);
@@ -793,10 +895,15 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.FieldDelete(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field: IFRE_DB_Field);
+var newe : IFRE_DB_Object;
 begin
   Inherited;
   try
-    FRealIF.FieldDelete(Layer,old_field.CloneToNewStreamable);
+    newe := GFRE_DBI.NewObject;
+    newe.Field('L').AsString   := layer.GetConnectedDB;
+    newe.Field('C').AsString   := 'FD';
+    newe.Field('FLD').AsObject := old_field.CloneToNewStreamableObj;
+    AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: FieldDelete '+e.Message);
@@ -804,10 +911,15 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.FieldAdd(const Layer: IFRE_DB_PERSISTANCE_LAYER; const new_field: IFRE_DB_Field);
+var newe : IFRE_DB_Object;
 begin
   Inherited;
   try
-    FRealIF.FieldAdd(Layer,new_field.CloneToNewStreamable);
+    newe := GFRE_DBI.NewObject;
+    newe.Field('L').AsString   := layer.GetConnectedDB;
+    newe.Field('C').AsString   := 'FA';
+    newe.Field('FLD').AsObject := new_field.CloneToNewStreamableObj;
+    AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: FieldAdd '+e.Message);
@@ -815,10 +927,16 @@ begin
 end;
 
 procedure TFRE_DB_DBChangedNotificationProxy.FieldChange(const Layer: IFRE_DB_PERSISTANCE_LAYER; const old_field, new_field: IFRE_DB_Field);
+var newe : IFRE_DB_Object;
 begin
   Inherited;
   try
-    FRealIF.FieldChange(Layer,old_field.CloneToNewStreamable,new_field.CloneToNewStreamable);
+    newe := GFRE_DBI.NewObject;
+    newe.Field('L').AsString   := layer.GetConnectedDB;
+    newe.Field('C').AsString   := 'FC';
+    newe.Field('FLDO').AsObject := old_field.CloneToNewStreamableObj;
+    newe.Field('FLDN').AsObject := new_field.CloneToNewStreamableObj;
+    AddNotificationEntry(newe);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: FieldChange '+e.Message);
@@ -893,9 +1011,20 @@ end;
 
 { TFRE_DB_DBChangedNotificationBase }
 
-procedure TFRE_DB_DBChangedNotificationBase.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const ccn: ShortString; const persColl: IFRE_DB_PERSISTANCE_COLLECTION; const volatile: Boolean);
+procedure TFRE_DB_DBChangedNotificationBase.StartNotificationBlock(const Layer: IFRE_DB_PERSISTANCE_LAYER; const key: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> COLLECTION (%s) CREATED : [%s] (%s)',[Layer.GetConnectedDB,ccn,coll_name,BoolToStr(volatile,'VOLATILE','PERSITENT')]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> NOTIFICATION BLOCK START [%s] (%s) ',[Layer.GetConnectedDB,key]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.FinishNotificationBlock(const Layer: IFRE_DB_PERSISTANCE_LAYER; const key: TFRE_DB_TransStepId; out block: IFRE_DB_Object);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> NOTIFICATION BLOCK FINISH [%s] (%s) ',[Layer.GetConnectedDB,key]));
+  block.Finalize;
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.CollectionCreated(const Layer: IFRE_DB_PERSISTANCE_LAYER; const persColl: IFRE_DB_PERSISTANCE_COLLECTION);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> COLLECTION (%s) CREATED : [%s] (%s)',[Layer.GetConnectedDB,persColl.GetCollectionClassName,persColl.GetCollectionClassName,BoolToStr(persColl.IsVolatile,'VOLATILE','PERSITENT')]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.CollectionDeleted(const Layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
@@ -1221,7 +1350,7 @@ begin
       res := Master.MasterColls.NewCollection(FCollname,FCClassname,FNewCollection,FVolatile,Master.FLayer);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
-      FTransList.GetNotifyIF.CollectionCreated(FLayer,FCollname,FCClassname,FNewCollection,FVolatile);
+      FTransList.GetNotifyIF.CollectionCreated(FLayer,FNewCollection);
       CheckWriteThroughColl(FNewCollection);
     end;
 end;
@@ -4235,6 +4364,11 @@ begin
     CheckFieldChangeAgainstIndex(old_fld,new_fld,update_typ,checkphase,old_obj,new_obj)
   else
    { indices must not be defined on child objects}
+end;
+
+function TFRE_DB_Persistance_Collection.GetCollectionClassName: ShortString;
+begin
+  result := FCClassname;
 end;
 
 procedure TFRE_DB_Persistance_Collection.DeleteFromThisColl(const del_iobj: IFRE_DB_Object; const checkphase: boolean);

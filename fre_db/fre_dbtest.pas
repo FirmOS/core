@@ -2436,7 +2436,7 @@ begin
   CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
 
   COLL := CONN.GetCollection('COLL_TEST_A');
-  for i := 0 to 2 - 1 do begin
+  for i := 0 to 2000 - 1 do begin
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i;
     lobj.Field('number_pb').AsUInt32:=i * 10;
@@ -2452,7 +2452,7 @@ begin
     COLL.Store(lobj);
   end;
   COLL := CONN.GetCollection('COLL_TEST_A2');
-  for i := 0 to 2 - 1 do begin
+  for i := 0 to 2000 - 1 do begin
     //if i mod 100=0 then writeln('ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i*10;
@@ -2470,7 +2470,7 @@ begin
   end;
 
   COLL := CONN.GetCollection('COLL_TEST_B');
-  for i := 0 to 100 - 1 do begin
+  for i := 0 to 2000 - 1 do begin
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_B);
     lobj.Field('firstname').AsString:='FN_' + IntToStr(i);
     lobj.Field('lastname').AsString:='LN_' + IntToStr(i);
