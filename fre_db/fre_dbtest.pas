@@ -128,17 +128,21 @@ type
   private
     procedure       SetupApplicationStructure     ; override;
 
-    class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-    class procedure  InstallDBObjects4Domain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
+    class procedure  InstallDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;  { system specific data inits go here}
+    class procedure  InstallDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;                   { system domain specific data inits go here}
+    class procedure  InstallUserDBObjects        (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); override;                                         { app db specific data inits goes here }
+    class procedure  InstallUserDBObjects4Domain (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID); override;                       { app db domain specific data inits goes here }
+
     class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); override;
     class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
 
     procedure       _UpdateSitemap            (const session: TFRE_DB_UserSession);
   protected
+    procedure       MyServerInitialize        (const admin_dbc: IFRE_DB_CONNECTION); override; { initialize in memory collections here }
     procedure       MySessionInitialize       (const session: TFRE_DB_UserSession); override;
     procedure       MySessionPromotion        (const session: TFRE_DB_UserSession); override;
   public
-    class procedure RegisterSystemScheme      (const scheme:IFRE_DB_SCHEMEOBJECT); override;
+    class procedure RegisterSystemScheme        (const scheme:IFRE_DB_SCHEMEOBJECT); override;
   published
     function        WEB_Messages         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_News             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -688,7 +692,7 @@ var
   myuid          : TGuid;
 
 begin
-  test  := ses.GetDBConnection.Collection('COLL_TEST_AT').First;
+  test  := ses.GetDBConnection.GetCollection('COLL_TEST_AT').First;
   if assigned(test) then
     begin
       myuid := test.UID;
@@ -734,7 +738,7 @@ begin
       AddConstString('_funcclassname_','TFRE_DB_TEST_FILEDIR',false);
     end;
     with DC_Grid do begin
-      SetDeriveParent(session.GetDBConnection.Collection('COLL_FILEBROWSER'),'mypath');
+      SetDeriveParent(session.GetDBConnection.GetCollection('COLL_FILEBROWSER'),'mypath');
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil,nil,CWSF(@WEB_DropAction));
     end;
@@ -745,7 +749,7 @@ procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.MyServerInitializeModule(const adm
 var filedir : TFRE_DB_TEST_FILEDIR;
     coll    : IFRE_DB_COLLECTION;
 begin
-  coll := admin_dbc.Collection('COLL_FILEBROWSER',true,true);
+  coll := admin_dbc.GetCollection('COLL_FILEBROWSER');
   filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
   filedir.SetProperties('Virtual Rooot',false,0,0,0);
   CheckDbResult(coll.Store(filedir),'Error creating root entry');
@@ -936,20 +940,20 @@ begin
       AddCollectorscheme         ('Value=%s%%',TFRE_DB_NameTypeArray.create('fdbft_Byte'),'prg_txt','CollectorPrg',false);
       AddProgressTransform       ('fdbft_Byte','ptb','Progress','prg_txt','txt',100);
       AddMatchingReferencedField ('LINK','data','data','Link to Obj1');
-      AddMatchingReferencedField (TFRE_DB_NameTypeRLArray.Create('LINK','LINK2'),'data','data2','Link to Obj2 via Obj1');
+      AddMatchingReferencedField (['LINK>','LINK2>'],'data','data2','Link to Obj2 via Obj1');
     end;
 
 
     DC_Grid := session.NewDerivedCollection('DC_ALLTYPES');
     with DC_Grid do begin
-      SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_AT'));
+      SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_AT'));
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'This grid test all fieldtypes, beside stream and object');
     end;
 
     DC_Grid2 := session.NewDerivedCollection('DC_AT_EX');
     with DC_Grid2 do begin
-      SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_AT'));
+      SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_AT'));
       SetDeriveTransformation(tr_Grid2);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'This grid shows different extended transformation types');
     end;
@@ -981,7 +985,6 @@ end;
 procedure TFRE_DB_TEST_APP_FORMTEST_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
 var coll : IFRE_DB_COLLECTION;
 begin
-   coll := admin_dbc.Collection('COLL_TEST_AT');
    //G_UNSAFE_MODUL_GLOBAL_DATA := coll.First;
 end;
 
@@ -994,7 +997,7 @@ end;
 function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var test : IFRE_DB_Object;
 begin
-  test := conn.Collection('COLL_TEST_AT').First;
+  test := conn.GetCollection('COLL_TEST_AT').First;
   if assigned(test) then
     begin
       result := test.Invoke('Content',input,ses,app,conn);
@@ -1354,14 +1357,14 @@ begin
 
     DC_Grid_Long := session.NewDerivedCollection('COLL_TEST_B_DERIVED');
     with DC_Grid_Long do begin
-      SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_B'));
+      SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_B'));
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Children],'GRID');
     end;
 
     DC_Tree := session.NewDerivedCollection('COLL_TEST_B_DERIVED_TREE');
     with DC_Tree do begin
-      SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_B'));
+      SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_B'));
       SetDisplayType(cdt_Treeview,[cdgf_ShowSearchbox],'Tree',TFRE_DB_StringArray.create('firstname'),'icon',nil,nil,nil);//CSF('TreeMenu'));
     end;
   end;
@@ -1531,7 +1534,7 @@ var vmo       : IFRE_DB_Object;
     i,max     : Integer;
     CHARTDATA : IFRE_DB_COLLECTION;
 begin
-  CHARTDATA := admin_dbc.Collection('CHART_MOD_LINE',true,true);
+  CHARTDATA := admin_dbc.GetCollection('CHART_MOD_LINE');
   max := 60;
   for i := 0 to max - 1 do begin
     data_obj := GFRE_DBI.NewObject;
@@ -1548,7 +1551,7 @@ begin
     data_obj.Field('yval1_uid').AsGUID    := GFRE_DBI.Get_A_Guid;
     CHARTDATA.Store(data_obj);
   end;
-  CHARTDATA := admin_dbc.Collection('CHART_MOD_PIE',true,true);
+  CHARTDATA := admin_dbc.GetCollection('CHART_MOD_PIE');
   max:=9;
   for i := 0 to max - 1 do begin
     data_obj := GFRE_DBI.NewObject;
@@ -1558,7 +1561,7 @@ begin
     data_obj.Field('val1_txt').AsString  := 'PIE:' + IntToStr(i+1);
     CHARTDATA.Store(data_obj);
   end;
-  CHARTDATA := admin_dbc.Collection('CHART_MOD_COLUMNS',true,true);
+  CHARTDATA := admin_dbc.GetCollection('CHART_MOD_COLUMNS');
   max:=15;
   for i := 0 to max - 1 do begin
     data_obj := GFRE_DBI.NewObject;
@@ -1581,7 +1584,7 @@ var
 begin
   inherited MySessionInitializeModule(session);
   if session.IsInteractiveSession then begin
-    CHARTDATA := session.GetDBConnection.Collection('CHART_MOD_PIE');
+    CHARTDATA := session.GetDBConnection.GetCollection('CHART_MOD_PIE');
     DC_CHARTDATA_P := session.NewDerivedCollection('CHART_P');
     with DC_CHARTDATA_P do begin
       SetDeriveParent(CHARTDATA);
@@ -1638,7 +1641,7 @@ begin
 
     DC_Grid_Long := session.NewDerivedCollection('COLL_TEST_A_DERIVED2');
     with DC_Grid_Long do begin
-      SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_A2'));
+      SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_A2'));
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',CWSF(@WEB_Menu));
     end;
@@ -1725,7 +1728,7 @@ begin
   writeln('ADD BEFORE');
   writeln(input.Field('SELECTED').AsString);
   selg := GFRE_BT.HexString_2_GUID(input.Field('SELECTED').AsString);
-  col    := GetDBConnection(input).Collection('COLL_TEST_A2');
+  col    := GetDBConnection(input).GetCollection('COLL_TEST_A2');
   if col.Fetch(selg,new) then begin
     num := new.Field('number').AsUint32-1;
     new.Finalize;
@@ -1750,7 +1753,7 @@ begin
   Result := GFRE_DB_NIL_DESC;
   writeln(input.Field('SELECTED').AsString);
   selg := GFRE_BT.HexString_2_GUID(input.Field('SELECTED').AsString);
-  col    := GetDBConnection(input).Collection('COLL_TEST_A2');
+  col    := GetDBConnection(input).GetCollection('COLL_TEST_A2');
   if col.Fetch(selg,new) then begin
     num := new.Field('number').AsUint32+1;
     new.Finalize;
@@ -1771,7 +1774,7 @@ var col       : IFRE_DB_COLLECTION;
     del_guids : TFRE_DB_GUIDArray;
     i         : integer;
 begin
-  col       := GetDBConnection(input).Collection('COLL_TEST_A2');
+  col       := GetDBConnection(input).GetCollection('COLL_TEST_A2');
   del_guids :=  GFRE_DBI.StringArray2GuidArray(input.Field('SELECTED').AsStringArr);
   for i:=0 to high(del_guids) do begin
     if col.Remove(del_guids[i])<>edb_OK then begin
@@ -1789,7 +1792,7 @@ var col       : IFRE_DB_COLLECTION;
     i         : integer;
     obj       : IFRE_DB_Object;
 begin
-  col       := GetDBConnection(input).Collection('COLL_TEST_A2');
+  col       := GetDBConnection(input).GetCollection('COLL_TEST_A2');
   upd_guids :=  GFRE_DBI.StringArray2GuidArray(input.Field('SELECTED').AsStringArr);
   for i:=0 to high(upd_guids) do begin
     if col.Fetch(upd_guids[i],obj) then begin
@@ -1923,7 +1926,7 @@ begin
 
     DC_Grid_Long := session.NewDerivedCollection('COLL_TEST_A_DERIVED');
     with DC_Grid_Long do begin
-      SetDeriveParent(session.GetDBConnection.Collection('COLL_TEST_A'));
+      SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_A'));
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
       SetDefaultOrderField('number',false);
@@ -2231,6 +2234,25 @@ begin
 
 end;
 
+class procedure TFRE_DB_TEST_APP.InstallUserDBobjects(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType);
+begin
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      conn.CreateCollection('COLL_TEST_AT');
+      conn.CreateCollection('COLL_TEST_A');
+      conn.CreateCollection('COLL_TEST_A2');
+      conn.CreateCollection('COLL_TEST_B');
+      conn.CreateCollection('LINKTARGET');
+      conn.CreateCollection('COLL_FILEBROWSER');
+    end;
+end;
+
+class procedure TFRE_DB_TEST_APP.InstallUserDBObjects4Domain(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+begin
+
+end;
+
 class procedure TFRE_DB_TEST_APP.RemoveDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType);
 begin
   inherited RemoveDBObjects(conn, currentVersionId);
@@ -2261,6 +2283,13 @@ begin
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_EDITORS_MOD.Classname,0,conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
   session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
+end;
+
+procedure TFRE_DB_TEST_APP.MyServerInitialize(const admin_dbc: IFRE_DB_CONNECTION);
+begin
+  admin_dbc.CreateCollection('CHART_MOD_LINE',true);
+  admin_dbc.CreateCollection('CHART_MOD_PIE',true);
+  admin_dbc.CreateCollection('CHART_MOD_COLUMNS',true);
 end;
 
 procedure TFRE_DB_TEST_APP.MySessionInitialize(const session: TFRE_DB_UserSession);
@@ -2406,7 +2435,7 @@ begin
   CONN := GFRE_DBI.NewConnection;
   CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
 
-  COLL := CONN.Collection('COLL_TEST_A');
+  COLL := CONN.GetCollection('COLL_TEST_A');
   for i := 0 to 2 - 1 do begin
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i;
@@ -2422,7 +2451,7 @@ begin
     end;
     COLL.Store(lobj);
   end;
-  COLL := CONN.Collection('COLL_TEST_A2');
+  COLL := CONN.GetCollection('COLL_TEST_A2');
   for i := 0 to 2 - 1 do begin
     //if i mod 100=0 then writeln('ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
@@ -2440,7 +2469,7 @@ begin
     COLL.Store(lobj);
   end;
 
-  COLL := CONN.Collection('COLL_TEST_B');
+  COLL := CONN.GetCollection('COLL_TEST_B');
   for i := 0 to 100 - 1 do begin
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_B);
     lobj.Field('firstname').AsString:='FN_' + IntToStr(i);
@@ -2450,7 +2479,7 @@ begin
     COLL.Store(lobj);
   end;
 
-  COLL := Conn.Collection('LINKTARGET');
+  COLL := Conn.GetCollection('LINKTARGET');
   lo2  := GFRE_DBI.NewObject;
   lo1  := GFRE_DBI.NewObject;
   lo2.Field('ID').AsString:='LINKOBJ2';
@@ -2462,7 +2491,7 @@ begin
   COLL.Store(lo2);
   COLL.Store(lo1);
 
-  COLL := CONN.Collection('COLL_TEST_AT');
+  COLL := CONN.GetCollection('COLL_TEST_AT');
   CheckDbResult(COLL.DefineIndexOnField('fdbft_GUID',fdbft_GUID,true,true,'ix_uid'),'failed uid index creation ix_uid');
   for i := 0 to 10 - 1 do begin
     //if i mod 100=0 then writeln('AT ENDLESS ',i);

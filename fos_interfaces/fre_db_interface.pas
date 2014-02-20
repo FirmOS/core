@@ -1286,63 +1286,67 @@ type
 
   IFRE_DB_CONNECTION=interface(IFRE_DB_BASE)
   ['IFDB_CONN']
-    function    GetlastError              : TFRE_DB_String;
-    function    GetDatabaseName           : TFRE_DB_String;
-    function    Connect                   (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
-    function    CheckLogin                (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
+    function    GetlastError                  : TFRE_DB_String;
+    function    GetDatabaseName               : TFRE_DB_String;
+    function    Connect                       (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
+    function    CheckLogin                    (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
-    function    CollectionExists          (const name:TFRE_DB_NameType):boolean;
-    function    DomainCollectionExists    (const name:TFRE_DB_NameType):boolean;
-    function    DeleteDomainCollection    (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
+    function    CollectionExists              (const name:TFRE_DB_NameType):boolean;
+    function    DomainCollectionExists        (const name:TFRE_DB_NameType):boolean;
+    function    DeleteDomainCollection        (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
-    function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
-    function    Delete                    (const ouid: TGUID): TFRE_DB_Errortype;
+    function    DeleteCollection              (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
+    function    Delete                        (const ouid: TGUID): TFRE_DB_Errortype;
 
-    function    Fetch                     (const ouid:TGUID;out dbo:IFRE_DB_Object)          : TFRE_DB_Errortype;
-    function    FetchAsIntf               (const ouid:TGUID;const IntfSpec:ShortString; out Intf) : TFRE_DB_Errortype;
-    function    Update                    (const dbo:IFRE_DB_OBJECT)                          : TFRE_DB_Errortype;
-
-
-    function    Collection                (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
-    function    DomainCollection          (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
-    function    DomainCollectionName      (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
-    function    CollectionAsIntf          (const collection_name: TFRE_DB_NameType;const CollectionInterfaceSpec:ShortString;out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean; // creates/fetches a Specific Collection / true if new
-    function    DerivedCollection         (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
-
-    //procedure   ForAllObjects                (const iterator:IFRE_DB_Obj_Iterator)                                    ;
-    procedure   ForAllColls                  (const iterator:IFRE_DB_Coll_Iterator)                                   ;
-    procedure   ForAllSchemes                (const iterator:IFRE_DB_Scheme_Iterator)                                 ;
-    procedure   ForAllEnums                  (const iterator:IFRE_DB_Enum_Iterator)                                   ;
-    procedure   ForAllClientFieldValidators  (const iterator:IFRE_DB_ClientFieldValidator_Iterator)                   ;
-    function    InvokeMethod                 (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
-
-    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
+    function    Fetch                         (const ouid:TGUID;out dbo:IFRE_DB_Object)          : TFRE_DB_Errortype;
+    function    FetchAsIntf                   (const ouid:TGUID;const IntfSpec:ShortString; out Intf) : TFRE_DB_Errortype;
+    function    Update                        (const dbo:IFRE_DB_OBJECT)                          : TFRE_DB_Errortype;
 
 
-    function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
-    function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
-    function    GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
+    function    Collection                    (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
+    function    GetCollection                 (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
+    function    CreateCollection              (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false) : IFRE_DB_COLLECTION;
 
-    function    FetchUserSessionData        (var SessionData: IFRE_DB_OBJECT):boolean;
-    function    StoreUserSessionData        (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
-    function    OverviewDump                :TFRE_DB_String;
+    function    DomainCollection              (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
+    function    GetDomainCollection           (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
+    function    CreateDomainCollection        (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
+    function    DomainCollectionName          (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
 
-    function    SYS                          : IFRE_DB_SYS_CONNECTION;
+    function    GetDerivedCollection          (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
+    function    CreateDerivedCollection       (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 
-    function    FetchApplications           (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
-    function    FetchTranslateableTextOBJ   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean; // Warning: finalize the TEXTOBJ!
-    function    FetchTranslateableTextShort (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
-    function    FetchTranslateableTextLong  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
-    function    FetchTranslateableTextHint  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    procedure   ForAllColls                   (const iterator:IFRE_DB_Coll_Iterator)                                   ;
+    procedure   ForAllSchemes                 (const iterator:IFRE_DB_Scheme_Iterator)                                 ;
+    procedure   ForAllEnums                   (const iterator:IFRE_DB_Enum_Iterator)                                   ;
+    procedure   ForAllClientFieldValidators   (const iterator:IFRE_DB_ClientFieldValidator_Iterator)                   ;
+    function    InvokeMethod                  (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
-    function    AdmGetUserCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetGroupCollection       :IFRE_DB_COLLECTION;
-    function    AdmGetDomainCollection      :IFRE_DB_COLLECTION;
-    function    GetSysDomainUID             :TGUID;
+    procedure   ExpandReferences              (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
 
-    function    AddDomain                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
 
+    function    GetReferences                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
+    function    GetReferencesCount            (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
+    function    GetReferencesDetailed         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
+
+    function    FetchUserSessionData          (var SessionData: IFRE_DB_OBJECT):boolean;
+    function    StoreUserSessionData          (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
+    function    OverviewDump                  : TFRE_DB_String;
+
+    function    SYS                           : IFRE_DB_SYS_CONNECTION;
+
+    function    FetchApplications             (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
+    function    FetchTranslateableTextOBJ     (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean; // Warning: finalize the TEXTOBJ!
+    function    FetchTranslateableTextShort   (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextHint    (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+
+    function    AdmGetUserCollection          :IFRE_DB_COLLECTION;
+    function    AdmGetRoleCollection          :IFRE_DB_COLLECTION;
+    function    AdmGetGroupCollection         :IFRE_DB_COLLECTION;
+    function    AdmGetDomainCollection        :IFRE_DB_COLLECTION;
+    function    GetSysDomainUID               :TGUID;
+
+    function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
   end;
 
 
@@ -1497,9 +1501,13 @@ type
     class procedure VersionInstallCheck         (const currentVersionId,newVersionId: TFRE_DB_NameType);
   public
     class procedure  RegisterSystemScheme       (const scheme:IFRE_DB_SCHEMEOBJECT); virtual;
+
     class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); virtual;
     class procedure  InstallDBObjects4Domain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
+
+    class procedure  InstallUserDBObjects       (const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
     class procedure  InstallUserDBObjects4Domain(const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
+
     class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
     class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
 
@@ -4675,12 +4683,14 @@ function TFRE_DB_UserSession.NewDerivedCollection(dcname: TFRE_DB_NameType): IFR
 begin
   _FixupDCName(dcname);
   if not SearchSessionDC(dcname,result) then begin
-    GetDBConnection.CollectionAsIntf(dcname,IFRE_DB_DERIVED_COLLECTION,result);
+    result := GetDBConnection.CreateDerivedCollection(dcname);
     result.BindSession(self);
     if dcname<>Result.CollectionName then
       raise EFRE_DB_Exception.Create(edb_ERROR,'PARANOIA '+dcname+' <> '+result.CollectionName);
     SetLength(FDC_Array,Length(FDC_Array)+1);
     FDC_Array[high(FDC_Array)] := result;
+  end else begin
+    raise EFRE_DB_Exception.create(edb_ERROR,'THE SESSION [%s] ALREADY HAS A DERIVED COLLECTION NAMED [%s]',[FSessionID,dcname]);
   end;
 end;
 
@@ -4700,7 +4710,7 @@ begin
       cn := FDC_Array[i].CollectionName;
       GetDBConnection.DeleteCollection(cn);
     except on e:EXception do begin
-      writeln('*** --- MAKE A GOD LOG ENTRY ',e.Message);   //TODO: LOOK LEFT
+      writeln('*** --- DC Clean failed -> ',e.Message);
     end;end;
   end;
   SetLength(FDC_Array,0);
@@ -5555,6 +5565,11 @@ begin
     end;
 end;
 
+class procedure TFRE_DB_Base.InstallUserDBObjects(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType);
+begin
+
+end;
+
 class procedure TFRE_DB_Base.InstallUserDBObjects4Domain(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
 begin
 
@@ -5925,7 +5940,7 @@ begin
   if lCollectionName='' then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'standard new operation requires a collection!');
   end else begin
-    CheckDbResult(dbc.Collection(lCollectionName).Store(dbo),'failure on store/new collection='+lCollectionName);
+    CheckDbResult(dbc.GetCollection(lCollectionName).Store(dbo),'failure on store/new collection='+lCollectionName);
   end;
   result := dbo_uid;
 end;
@@ -6059,7 +6074,7 @@ function TFRE_DB_ObjectEx.WEB_NoteLoad(const input:IFRE_DB_Object ; const ses: I
 var noteobj: IFRE_DB_Object;
 begin
   if input.FieldExists('linkid') then begin
-    if conn.Collection('SysNoteCollection').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
+    if conn.GetCollection('SysNoteCollection').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(noteobj.Field('note').asstring));
     end else begin
       exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(''));
@@ -6075,7 +6090,7 @@ var
   res    : TFRE_DB_Errortype;
 begin
   if input.FieldExists('linkid') then begin
-    if conn.Collection('SysNoteCollection').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
+    if conn.GetCollection('SysNoteCollection').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       noteobj.Field('note').asstring := input.Field('content').asstring;
       res := conn.Update(noteobj);
       if res<>edb_OK then
@@ -6084,7 +6099,7 @@ begin
       noteobj := GFRE_DBI.NewObjectScheme(TFRE_DB_NOTE);
       noteobj.Field('link').asstring:=input.Field('linkid').asstring;
       noteobj.Field('note').asstring  := input.Field('content').asstring;
-      res := conn.Collection('SysNoteCollection').Store(noteobj);
+      res := conn.GetCollection('SysNoteCollection').Store(noteobj);
       if res<>edb_OK then
         raise EFRE_DB_Exception.Create(res,'error storing note');
     end;

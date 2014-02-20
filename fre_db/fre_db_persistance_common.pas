@@ -4454,6 +4454,7 @@ var obj : TFRE_DB_Object;
   end;
 begin
  result := nil;
+ obj    := nil;
  FGuidObjStore.FirstKeyVal(@SetIt);
  if assigned(obj) then
    result := CloneOutObject(obj)

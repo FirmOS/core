@@ -1758,16 +1758,21 @@ type
     function           CollectionList               (const with_classes:boolean=false):IFOS_STRINGS                          ; virtual;
 
     function           DomainCollection             (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
+    function           GetDomainCollection          (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
+    function           CreateDomainCollection       (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
+
     function           DomainCollectionName         (const collection_name: TFRE_DB_NameType;const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
     function           FetchDomainUIDbyName         (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; virtual;
 
     function           DomainCollectionExists       (const name:TFRE_DB_NameType):boolean;
     function           DeleteDomainCollection       (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
+    function           GetCollection                (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
+    function           CreateCollection             (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false) : IFRE_DB_COLLECTION;
 
     function           Collection                   (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : TFRE_DB_COLLECTION;virtual;
     function           CollectionI                  (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;virtual;
-    function           CollectionAsIntf             (const collection_name:TFRE_DB_NameType;const CollectionInterfaceSpec:ShortString;out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean; // creates/fetches a Specific Collection
+    //function           CollectionAsIntf             (const collection_name:TFRE_DB_NameType;const CollectionInterfaceSpec:ShortString;out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean; // creates/fetches a Specific Collection
 
     procedure          ForAllColls                  (const iterator:TFRE_DB_Coll_Iterator)                                   ;virtual;
     procedure          ForAllSchemes                (const iterator:TFRE_DB_Scheme_Iterator)                                 ;
@@ -2060,6 +2065,8 @@ type
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_ObjectArray);
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
 
+    function    GetDerivedCollection          (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
+    function    CreateDerivedCollection       (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 
     function    DerivedCollection            (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): TFRE_DB_DERIVED_COLLECTION;
     function    DerivedCollectionI           (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
@@ -10247,6 +10254,20 @@ begin
   result    := Collection(DomainCollectionName(collection_name,ForDomainName,ForDomainUIDString),create_non_existing,in_memory);
 end;
 
+function TFRE_DB_BASE_CONNECTION.GetDomainCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_COLLECTION;
+begin
+  result := DomainCollection(collection_name,false);
+  if not assigned(Result) then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'there is no domain uid prefixed collection named [%s]',[collection_name]);
+end;
+
+function TFRE_DB_BASE_CONNECTION.CreateDomainCollection(const collection_name: TFRE_DB_NameType; const in_memory: boolean; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): IFRE_DB_COLLECTION;
+begin
+ if DomainCollectionExists(collection_name) then
+   raise EFRE_DB_Exception.Create(edb_ERROR,'there is already a domain uid prefixed collection named [%s]',[collection_name]);
+ result := DomainCollection(collection_name,true,in_memory,ForDomainName,ForDomainUIDString);
+end;
+
 function TFRE_DB_BASE_CONNECTION.DomainCollectionName(const collection_name: TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): TFRE_DB_NameType;
 var dom_cname : string;
     dom_uid   : TFRE_DB_GUID;
@@ -10290,6 +10311,20 @@ var dom_cname : TFRE_DB_NameType;
 begin
   dom_cname := GetMyDomainID_String+name;
   result    := DeleteDomainCollection(name);
+end;
+
+function TFRE_DB_BASE_CONNECTION.GetCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_COLLECTION;
+begin
+  result := Collection(collection_name,false);
+  if not assigned(result) then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the collection [%s] does not exist',[collection_name]);
+end;
+
+function TFRE_DB_BASE_CONNECTION.CreateCollection(const collection_name: TFRE_DB_NameType; const in_memory: boolean): IFRE_DB_COLLECTION;
+begin
+  if CollectionExists(collection_name) then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the collection [%s] already exists',[collection_name]);
+ result :=  Collection(collection_name,true,in_memory);
 end;
 
 
@@ -10557,25 +10592,25 @@ begin // Nolock IF
   result := Collection(collection_name,create_non_existing,in_memory);
 end;
 
-function TFRE_DB_BASE_CONNECTION.CollectionAsIntf(const collection_name: TFRE_DB_NameType; const CollectionInterfaceSpec: ShortString; out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean;
-var coll      : TFRE_DB_COLLECTION;
-    implclass : TClass;
-    Fexisted  : Boolean;
-begin
-  if not GFRE_DB.GetInterfaceClass(CollectionInterfaceSpec,implclass) then
-    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'interface spec for existing collectiontype %s not found',[CollectionInterfaceSpec]);
-  if not (implclass.InheritsFrom(TFRE_DB_COLLECTION)) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'interface spec for existing collectiontype %s is not a Collectionclass',[CollectionInterfaceSpec,implclass.ClassName]);
-  AcquireBig;
-  try
-    Fexisted := CollectionExists(collection_name);
-    coll := CollectionCC(collection_name,TFRE_DB_COLLECTIONCLASS(implclass),create_non_existing,in_memory or TFRE_DB_COLLECTIONCLASS(implclass).Forced_In_Memory);
-    coll.IntfCast(CollectionInterfaceSpec,intf);
-    result := assigned(coll) and (Fexisted=false);
-  finally
-    ReleaseBig;
-  end;
-end;
+//function TFRE_DB_BASE_CONNECTION.CollectionAsIntf(const collection_name: TFRE_DB_NameType; const CollectionInterfaceSpec: ShortString; out Intf;const create_non_existing:boolean=true;const in_memory:boolean=false):boolean;
+//var coll      : TFRE_DB_COLLECTION;
+//    implclass : TClass;
+//    Fexisted  : Boolean;
+//begin
+//  if not GFRE_DB.GetInterfaceClass(CollectionInterfaceSpec,implclass) then
+//    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'interface spec for existing collectiontype %s not found',[CollectionInterfaceSpec]);
+//  if not (implclass.InheritsFrom(TFRE_DB_COLLECTION)) then
+//    raise EFRE_DB_Exception.Create(edb_ERROR,'interface spec for existing collectiontype %s is not a Collectionclass',[CollectionInterfaceSpec,implclass.ClassName]);
+//  AcquireBig;
+//  try
+//    Fexisted := CollectionExists(collection_name);
+//    coll := CollectionCC(collection_name,TFRE_DB_COLLECTIONCLASS(implclass),create_non_existing,in_memory or TFRE_DB_COLLECTIONCLASS(implclass).Forced_In_Memory);
+//    coll.IntfCast(CollectionInterfaceSpec,intf);
+//    result := assigned(coll) and (Fexisted=false);
+//  finally
+//    ReleaseBig;
+//  end;
+//end;
 
 
 function TFRE_DB_BASE_CONNECTION.Exists(const ouid: TGUID): boolean;
@@ -11005,6 +11040,24 @@ begin
   finally
     ReleaseBig;
   end;
+end;
+
+function TFRE_DB_CONNECTION.GetDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
+var coll : TFRE_DB_COLLECTION;
+begin
+  coll := Collection(collection_name,false);
+  if not assigned(coll) then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the derived collection [%s] does not exist',[collection_name]);
+  if not (coll is TFRE_DB_DERIVED_COLLECTION) then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the collection [%s] is not a derived collection but a [%s]',[collection_name,coll.ClassName]);
+  result := coll as TFRE_DB_DERIVED_COLLECTION;
+end;
+
+function TFRE_DB_CONNECTION.CreateDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
+begin
+  if CollectionExists(collection_name) then
+    raise EFRE_DB_Exception.Create(edb_EXISTS,'a collection named [%s] already exists',[collection_name]);
+  result := DerivedCollection(collection_name,true);
 end;
 
 function TFRE_DB_CONNECTION.DerivedCollection(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean): TFRE_DB_DERIVED_COLLECTION;
@@ -11484,8 +11537,6 @@ var
     end;
     version_dbo.Field(exsikey).AsString := newDomVersion;
     assert(version_dbo.Field(exsikey).AsString=newDomVersion,'fail');
-    //CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
-    //version_dbo := conn.GetClassesVersionDirectory;
   end;
 
   procedure _Install4DomainDBO(const domain:IFRE_DB_DOMAIN);
@@ -11518,6 +11569,7 @@ begin
                 abort;
               if newVersion<>'UNUSED' then
                 begin
+                  FExClassArray[i].exclass.InstallUserDBObjects(conn,oldVersion); { only exclasses go into the app database }
                   conn.sys.ForAllDomains(@_Install4DomainDBO);
                 end;
               version_dbo.Field(exclassname).AsString := newVersion;
@@ -11548,7 +11600,6 @@ var
   version_dbo    : IFRE_DB_Object;
   exclassname    : ShortString;
 
-
   procedure _Install4Domain(const domainUID:TGUID;const newDomVersion:TFRE_DB_NameType);
   var exsikey        : String;
       oldDomVersion  : TFRE_DB_NameType;
@@ -11574,8 +11625,6 @@ var
     end;
     version_dbo.Field(exsikey).AsString := newDomVersion;
     assert(version_dbo.Field(exsikey).AsString=newDomVersion,'fail');
-    //CheckDbResult(conn.StoreClassesVersionDirectory(version_dbo),'internal error on storing classversion directory');
-    //version_dbo := conn.GetClassesVersionDirectory;
   end;
 
   procedure _Install4DomainDBO(const domain:IFRE_DB_DOMAIN);
@@ -11900,7 +11949,8 @@ end;
 function TFRE_DB.GetSysScheme(name: TFRE_DB_NameType; out scheme: TFRE_DB_SchemeObject): boolean;
 var i: Integer;
 begin
-  name := uppercase(name);
+  name   := uppercase(name);
+  scheme := nil;
   for i:=0 to high(FSysSchemes) do begin
     if (FSysSchemes[i].DefinedSchemeName)=name then begin
       scheme := FSysSchemes[i];
@@ -13356,6 +13406,8 @@ function TFRE_DB_Object.CalcFieldExists(const name: TFRE_DB_NameType; var calcul
 var scheme:TFRE_DB_SchemeObject;
 begin
   result:=false;
+  calcmethod            := nil;
+  calculated_field_type := fdbft_NotFound;
   if not _ReservedFieldName(uppercase(name)) then
     begin
       scheme:=GetScheme;

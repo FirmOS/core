@@ -2144,14 +2144,14 @@ implementation
             if pos('$SDC:',dataCollectionName)=1 then
               coll := session.FetchDerivedCollection(session.GetDBConnection.DomainCollectionName(Copy(dataCollectionName,6,MaxInt)))
             else
-              coll := session.GetDBConnection.Collection(session.GetDBConnection.DomainCollectionName(dataCollectionName),false);
+              coll := session.GetDBConnection.GetCollection(session.GetDBConnection.DomainCollectionName(dataCollectionName));
           end
         else
           begin
             if pos('$SDC:',dataCollectionName)=1 then
               coll := session.FetchDerivedCollection(Copy(dataCollectionName,6,MaxInt))
             else
-              coll := session.GetDBConnection.Collection(dataCollectionName,false);
+              coll := session.GetDBConnection.GetCollection(dataCollectionName);
           end;
         if assigned(coll) then
           begin
