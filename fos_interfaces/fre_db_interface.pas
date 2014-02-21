@@ -1292,7 +1292,7 @@ type
     function    CheckLogin                    (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
     function    CollectionExists              (const name:TFRE_DB_NameType):boolean;
-    function    DomainCollectionExists        (const name:TFRE_DB_NameType):boolean;
+    function    DomainCollectionExists        (const name:TFRE_DB_NameType; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType=''):boolean;
     function    DeleteDomainCollection        (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
     function    DeleteCollection              (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
@@ -1303,12 +1303,12 @@ type
     function    Update                        (const dbo:IFRE_DB_OBJECT)                          : TFRE_DB_Errortype;
 
 
-    function    Collection                    (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
+    //function    Collection                    (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false)  : IFRE_DB_COLLECTION;
     function    GetCollection                 (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
     function    CreateCollection              (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false) : IFRE_DB_COLLECTION;
 
-    function    DomainCollection              (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
-    function    GetDomainCollection           (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
+    //function    DomainCollection              (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
+    function    GetDomainCollection           (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : IFRE_DB_COLLECTION;
     function    CreateDomainCollection        (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
     function    DomainCollectionName          (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
 
