@@ -9309,11 +9309,10 @@ end;
 
 function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): TFRE_DB_Errortype;
 var ncolls : TFRE_DB_StringArray;
-    res    : TFRE_DB_Errortype;
 begin //nl
   try
     FConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
-    res := edb_OK;
+    result := edb_OK;
   except
     result := FConnection.FPersistance_Layer.GetLastErrorCode;
   end;
