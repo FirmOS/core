@@ -72,8 +72,8 @@ type
 
   end;
 
-  procedure Setup_SSL_Interface;
-  procedure Cleanup_SSL_Interface;
+  procedure Setup_SSL_CMD_CA_Interface;
+  procedure Cleanup_SSL_CMD_CA_Interface;
 
 implementation
 
@@ -96,7 +96,7 @@ begin
   end;
 end;
 
-procedure Setup_SSL_Interface;
+procedure Setup_SSL_CMD_CA_Interface;
 begin
   if not assigned(FSSL)  then
     begin
@@ -105,7 +105,7 @@ begin
     end;
 end;
 
-procedure Cleanup_SSL_Interface;
+procedure Cleanup_SSL_CMD_CA_Interface;
 begin
  if Assigned(FSSL) then
    begin

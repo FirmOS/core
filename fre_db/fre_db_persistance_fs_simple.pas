@@ -78,8 +78,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FConnectedDB          : TFRE_DB_String;
      FLastError            : TFRE_DB_String;
      FLastErrorCode        : TFRE_DB_Errortype;
-     FChangeNotificationIF : IFRE_DB_DBChangedNotification;
-     FChangeNotificationProxy : TFRE_DB_DBChangedNotificationProxy;
+     FChangeNotificationIF : TFRE_DB_DBChangedNotificationBase;
 
      procedure    _ConnectCheck             ;
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
@@ -140,7 +139,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    GetReferencesDetailed (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
 
 
-     function    Connect             (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
+     function    Connect             (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotification=nil) : TFRE_DB_Errortype;
+     function    Disconnect          : TFRE_DB_Errortype;
      function    ObjectExists        (const obj_uid : TGUID) : boolean;
      function    Fetch               (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false):TFRE_DB_Errortype;
      function    _FetchO             (const ouid:TGUID;out dbo:TFRE_DB_Object;const internal_object:boolean): boolean;
@@ -149,7 +149,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
      function    NewCollection       (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
      function    DeleteCollection    (const coll_name : TFRE_DB_NameType) : TFRE_DB_TransStepId; // todo transaction context
-     function    StoreOrUpdateObject (const   iobj:IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
+     function    StoreOrUpdateObject (const   iobj:IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId; { must free the iobj in every case !}
      function    DefineIndexOnField  (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
 
 
@@ -164,19 +164,15 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   SyncSnapshot        (const final : boolean=false);
      function    GetLastError        : TFRE_DB_String;
      function    GetLastErrorCode    : TFRE_DB_Errortype;
-     procedure   SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
+     //procedure   SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
      function    GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
    end;
 
 implementation
 
-var GNOTIF_LOG : TFRE_DB_DBChangedNotificationBase;
-
 function Get_PersistanceLayer_PS_Simple(const basedir: TFRE_DB_String): IFRE_DB_PERSISTANCE_LAYER;
 var l_Persistance_Layer : TFRE_DB_PS_FILE;
 begin
-  if not assigned(GNOTIF_LOG) then
-    GNOTIF_LOG := TFRE_DB_DBChangedNotificationBase.Create;
   l_Persistance_Layer := TFRE_DB_PS_FILE.Create(basedir,'BASE');
   result              := l_Persistance_Layer;
 end;
@@ -693,9 +689,11 @@ begin
       FTransaction.AddChangeStep(step);
       if ImplicitTransaction then
         FTransaction.Commit(self);
-      CleanApply := true;
-      Collection := step.GetNewCollection;
-      result     := step.GetTransActionStepID;
+      CleanApply     := true;
+      Collection     := step.GetNewCollection;
+      result         := step.GetTransActionStepID;
+      FLastErrorCode := edb_OK;
+      FLastError     := '';
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -724,8 +722,6 @@ begin
       begin
         FTransaction.Free;
         FTransaction := nil;
-        if CleanApply then
-          result := '';
       end;
   end;
 end;
@@ -748,8 +744,10 @@ begin
       FTransaction.AddChangeStep(step);
       if ImplicitTransaction then
         FTransaction.Commit(self);
-      CleanApply := true;
-      result     := step.GetTransActionStepID;
+      CleanApply     := true;
+      result         := step.GetTransActionStepID;
+      FLastErrorCode := edb_OK;
+      FLastError     := '';
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -778,8 +776,6 @@ begin
       begin
         FTransaction.Free;
         FTransaction := nil;
-        if CleanApply then
-          result := '';
       end;
   end;
 end;
@@ -798,6 +794,7 @@ begin
   FMaster       := TFRE_DB_Master_Data.Create('GLOBAL',self);
   FConnectedDB  := 'GLOBAL';
   FGlobalLayer  := True;
+  FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(FConnectedDB);
 end;
 
 
@@ -811,7 +808,6 @@ begin
         begin
           FConnectedLayers[i].Free;
         end;
-      GNOTIF_LOG.Free;
     end
   else
     begin
@@ -819,6 +815,8 @@ begin
         raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'Connected Layer in non global layer is non empty!');
     end;
   FMaster.Free;
+  FChangeNotificationIF.Free;
+  FChangeNotificationIF:=nil;
 
   inherited destroy;
 end;
@@ -937,11 +935,15 @@ begin
     if FMaster.FetchObject(ouid,dboo,internal_object) then
       begin
         dbo := dboo;
+        FLastErrorCode := edb_OK;
+        FLastError     := '';
         exit(edb_OK);
       end
     else
       begin
-        dbo := nil;
+        dbo            := nil;
+        FLastErrorCode := edb_NOT_FOUND;
+        FLastError     := '';
         exit(edb_NOT_FOUND);
       end;
   except
@@ -1013,6 +1015,8 @@ begin
         if ImplicitTransaction then
           Commit;
         CleanApply := true;
+        FLastErrorCode := edb_OK;
+        FLastError     := '';
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -1041,8 +1045,6 @@ begin
       begin
         FTransaction.Free;
         FTransaction := nil;
-        if CleanApply then
-          result := '';
       end;
   end;
 end;
@@ -1143,7 +1145,10 @@ begin
           if ImplicitTransaction then
             FTransaction.Commit(self);
           obj.Set_Store_Locked(true);
-          CleanApply := true;
+          obj:=nil;
+          CleanApply     := true;
+          FLastErrorCode := edb_OK;
+          FLastError     := '';
         end
       else
         begin
@@ -1154,32 +1159,29 @@ begin
           if collection_name<>'' then
             if not GetCollection(collection_name,coll) then
               raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
-          try
-            if not assigned(FTransaction) then
-              begin
-                FTransaction        := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster,FChangeNotificationIF);
-                ImplicitTransaction := True;
-              end else
-                ImplicitTransaction := false;
-              try
-                 to_update_obj.Set_Store_Locked(false);
-                 updatestep := TFRE_DB_UpdateStep.Create(self,obj,to_update_obj,false);
-                 FTransaction.AddChangeStep(updatestep);
-                 TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,@GenInsert,@GenDelete,@GenUpdate);
-                 result := FTransaction.GetTransLastStepTransId;
-              finally
-                to_update_obj.Set_Store_Locked(true);
-              end;
-              result := FTransaction.GetTransLastStepTransId;
-              if ImplicitTransaction then
-                changes := Commit;
-            CleanApply := true;
-            if not changes then
-              result := '';
-          finally
-            obj.Finalize;
-            obj:=nil;
-          end;
+          if not assigned(FTransaction) then
+            begin
+              FTransaction        := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster,FChangeNotificationIF);
+              ImplicitTransaction := True;
+            end else
+              ImplicitTransaction := false;
+            try
+               to_update_obj.Set_Store_Locked(false);
+               updatestep := TFRE_DB_UpdateStep.Create(self,obj,to_update_obj,false);
+               FTransaction.AddChangeStep(updatestep);
+               TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,@GenInsert,@GenDelete,@GenUpdate);
+               result := FTransaction.GetTransLastStepTransId;
+            finally
+              to_update_obj.Set_Store_Locked(true);
+            end;
+            result := FTransaction.GetTransLastStepTransId;
+            if ImplicitTransaction then
+              changes := Commit;
+          CleanApply := true;
+          if not changes then
+            result := '';
+          FLastErrorCode := edb_OK;
+          FLastError     := '';
         end;
     except
       on e:EFRE_DB_PL_Exception do
@@ -1205,12 +1207,20 @@ begin
         end;
     end;
   finally
+    try
+      if assigned(obj) then
+        begin
+          obj.Finalize;
+          //PInt64(Pointer(@obj))^ := 0;
+        end;
+    except
+      on E:Exception do
+        GFRE_DBI.LogError(dblc_PERSISTANCE,'cannot finalize dbo on StoreOrUpdate, invalid instance [%s]',[e.Message]);
+    end;
     if ImplicitTransaction then
       begin
         FTransaction.Free;
         FTransaction := nil;
-        if CleanApply then
-          result := '';
       end;
   end;
 end;
@@ -1236,6 +1246,8 @@ begin
         FTransaction.Commit(self);
       CleanApply := true;
       result     := step.GetTransActionStepID;
+      FLastErrorCode := edb_OK;
+      FLastError     := '';
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -1264,8 +1276,6 @@ begin
       begin
         FTransaction.Free;
         FTransaction := nil;
-        if CleanApply then
-          result := '';
       end;
   end;
 end;
@@ -1277,6 +1287,8 @@ begin
      exit(edb_EXISTS);
     FTransaction := TFRE_DB_TransactionalUpdateList.Create(id,FMaster,FChangeNotificationIF);
     result := edb_OK;
+    FLastErrorCode := edb_OK;
+    FLastError     := '';
   except
     on e:EFRE_DB_PL_Exception do
       begin
@@ -1307,6 +1319,11 @@ begin
   try
     try
       result := FTransaction.Commit(self);
+      if result then
+       begin
+         FLastErrorCode := edb_OK;
+         FLastError     := '';
+       end;
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -1341,6 +1358,8 @@ begin
   try
     try
       FTransaction.Rollback;
+      FLastErrorCode := edb_OK;
+      FLastError     := '';
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -1410,43 +1429,85 @@ begin
   result := FLastErrorCode;
 end;
 
-procedure TFRE_DB_PS_FILE.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification; const create_proxy: boolean);
-begin
-  if create_proxy then
-    begin
-      FChangeNotificationProxy := TFRE_DB_DBChangedNotificationProxy.Create(change_if);
-      FChangeNotificationIF    := FChangeNotificationProxy;
-    end
-  else
-    FChangeNotificationIF := change_if;
-end;
+//procedure TFRE_DB_PS_FILE.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification; const create_proxy: boolean);
+//begin
+//  if create_proxy then
+//    begin
+//      FChangeNotificationProxy := TFRE_DB_DBChangedNotificationProxy.Create(change_if);
+//      FChangeNotificationIF    := FChangeNotificationProxy;
+//    end
+//  else
+//    FChangeNotificationIF := change_if;
+//end;
 
 function TFRE_DB_PS_FILE.GetNotificationStreamCallback: IFRE_DB_DBChangedNotification;
 begin
-  if assigned(FChangeNotificationIF) then
-    result := FChangeNotificationIF
-  else
-    result := GNOTIF_LOG;
+  result := FChangeNotificationIF;
 end;
 
-function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotification): TFRE_DB_Errortype;
 var up_dbname : TFRE_DB_String;
     idx       : NativeInt;
+    dblayer_o : TFRE_DB_PS_FILE;
 begin
   if db_name='' then
-    exit(edb_INVALID_PARAMS);
+    begin
+      FLastErrorCode :=edb_INVALID_PARAMS;
+      exit(FLastErrorCode);
+    end;
   up_dbname := uppercase(db_name);
-  db_layer  := _InternalFetchConnectedLayer(db_name,idx);
-  if not assigned(db_layer) then
+  dblayer_o  := _InternalFetchConnectedLayer(db_name,idx);
+  if not assigned(dblayer_o) then
     begin
       SetLength(FConnectedLayers,Length(FConnectedLayers)+1);
       FConnectedLayers[high(FConnectedLayers)] := TFRE_DB_PS_FILE.InternalCreate(FBasedirectory,up_dbname,result);
-      db_layer := FConnectedLayers[high(FConnectedLayers)];
-      db_layer.SetNotificationStreamCallback(GetNotificationStreamCallback,false);
+      dblayer_o := FConnectedLayers[high(FConnectedLayers)];
+      db_layer  := dblayer_o;
+      if assigned(NotifIF) then
+        dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name)
+      else
+        dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(db_name);
+      result         := edb_OK;
+      FLastErrorCode := edb_OK;
+      FLastError     := '';
     end
   else
     begin
-      result := edb_OK;
+      if assigned(NotifIF) and assigned(dblayer_o.FChangeNotificationIF) then
+        begin
+          if dblayer_o.FChangeNotificationIF is TFRE_DB_DBChangedNotificationProxy then
+            begin
+              dblayer_o.FChangeNotificationIF.FinalizeNotif;
+              dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name);
+            end
+          else
+            begin
+              dblayer_o.FChangeNotificationIF.FinalizeNotif;
+              dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name);
+              //raise EFRE_DB_Exception.Create(edb_INTERNAL,'currently layers are shared, only one assigned unique notif if allowed!');
+            end;
+        end;
+      if assigned(NotifIF) then
+        dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name);
+      //else
+      //  dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(db_name);
+      if not assigned(dblayer_o.FChangeNotificationIF) then
+        abort;
+      db_layer       := dblayer_o;
+      result         := edb_OK;
+      FLastErrorCode := edb_OK;
+      FLastError     := '';
+    end;
+end;
+
+function TFRE_DB_PS_FILE.Disconnect: TFRE_DB_Errortype;
+begin
+  if FGlobalLayer then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'you must not disconnect the GLOBAL layer')
+  else
+    begin
+      //FChangeNotificationIF.FinalizeNotif; { Let the "cloned" Layer exists but finalize the bound notif - currently only one conn layer per db is allowed }
+      //FChangeNotificationIF:=nil;
     end;
 end;
 
@@ -1458,6 +1519,8 @@ begin
   for i:=0 to result.Count-1 do begin
     result[i] := UnEsacpeDBName(result[i]);
   end;
+  FLastErrorCode := edb_OK;
+  FLastError     := '';
 end;
 
 //function TFRE_DB_PS_FILE.FlushObjects: TFRE_DB_Errortype;
@@ -1476,58 +1539,123 @@ function TFRE_DB_PS_FILE.DatabaseExists(const dbname: TFRE_DB_String): Boolean;
 begin
   _SetupDirs(dbname);
   result :=DirectoryExists(FLocalConnDir);
+  FLastErrorCode := edb_OK;
+  FLastError     := '';
 end;
 
 function TFRE_DB_PS_FILE.CreateDatabase(const dbname: TFRE_DB_String): TFRE_DB_Errortype;
 begin
   if dbname = '' then
-    exit(edb_NOT_FOUND);
+    begin
+      FLastErrorCode := edb_NOT_FOUND;
+      exit(FLastErrorCode);
+    end;
   if UpperCase(dbname)='GLOBAL' then
-    exit(edb_RESERVED);
+    begin
+      FLastErrorCode := edb_RESERVED;
+      exit(FLastErrorCode);
+    end;
   _SetupDirs(dbname);
-  if DirectoryExists(FLocalConnDir)   then exit(edb_EXISTS);
-  if not ForceDirectories(FLocalConnDir) then exit(edb_ERROR);
-  if not ForceDirectories(FMasterCollDir) then exit(edb_ERROR);
-  if not ForceDirectories(FCollectionsDir) then exit(edb_ERROR);
-  if not ForceDirectories(FMetaDir) then exit(edb_ERROR);
-  if not ForceDirectories(FWalDir) then exit(edb_ERROR);
-  result := edb_OK;
+  FLastError := 'database '+dbname+'already exists';
+  if DirectoryExists(FLocalConnDir)   then
+    begin
+      FLastErrorCode:=edb_EXISTS;
+      exit(FLastErrorCode);
+    end;
+  if not ForceDirectories(FLocalConnDir) then
+    begin
+      FLastErrorCode:=edb_EXISTS;
+      exit(FLastErrorCode);
+    end;
+  if not ForceDirectories(FMasterCollDir) then
+    begin
+      FLastErrorCode:=edb_EXISTS;
+      exit(FLastErrorCode);
+    end;
+  if not ForceDirectories(FCollectionsDir) then
+    begin
+      FLastErrorCode:=edb_EXISTS;
+      exit(FLastErrorCode);
+    end;
+  if not ForceDirectories(FMetaDir) then
+    begin
+      FLastErrorCode:=edb_EXISTS;
+      exit(FLastErrorCode);
+    end;
+  if not ForceDirectories(FWalDir) then
+    begin
+      FLastErrorCode:=edb_EXISTS;
+      exit(FLastErrorCode);
+    end;
+  result     := edb_OK;
+  FLastErrorCode := edb_OK;
+  FLastError     := '';
 end;
 
 function TFRE_DB_PS_FILE.DeleteDatabase(const dbname: TFRE_DB_String): TFRE_DB_Errortype;
-var dir:TFRE_DB_String;
+var dir: TFRE_DB_String;
+      i: Integer;
 begin
+  FLastError:='';
   if dbname='' then
-    exit(edb_NOT_FOUND);
+    begin
+      FLastErrorCode:=edb_INVALID_PARAMS;
+      exit(FLastErrorCode);
+    end;
   if UpperCase(dbname)='GLOBAL' then
-    exit(edb_RESERVED);
+    begin
+      FLastErrorCode:=edb_RESERVED;
+      exit(FLastErrorCode);
+    end;
   dir := SetDirSeparators(FBasedirectory+'/'+EscapeDBName(dbname));
-  if not DirectoryExists(dir) then exit(edb_NOT_FOUND);
+  if not DirectoryExists(dir) then
+    begin
+      FLastErrorCode:=edb_NOT_FOUND;
+      exit(FLastErrorCode);
+    end;
   if GFRE_BT.Delete_Directory(dir) then begin
-    result := edb_OK;
+    begin
+      result         := edb_OK;
+      FLastErrorCode := edb_OK;
+      FLastError     := '';
+      for i:=0 to high(FConnectedLayers) do
+        begin
+          if uppercase(FConnectedLayers[i].FConnectedDB)=uppercase(dbname) then;
+            FConnectedLayers[i].FMaster.FDB_CleanUpMasterData;
+        end;
+    end;
   end else begin
-    Result := edb_ERROR;
+    FLastErrorCode:=edb_ERROR;
+    exit(FLastErrorCode);
   end;
 end;
 
 function TFRE_DB_PS_FILE.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
 begin
   result := FMaster.GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+  FLastErrorCode := edb_OK;
+  FLastError     := '';
 end;
 
 function TFRE_DB_PS_FILE.GetReferencesCount(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
 begin
   result := FMaster.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+  FLastErrorCode := edb_OK;
+  FLastError     := '';
 end;
 
 function TFRE_DB_PS_FILE.GetReferencesDetailed(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_ObjectReferences;
 begin
   result := FMaster.GetReferencesDetailed(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+  FLastErrorCode := edb_OK;
+  FLastError     := '';
 end;
 
 function TFRE_DB_PS_FILE.ObjectExists(const obj_uid: TGUID): boolean;
 begin
   result := FMaster.ExistsObject(obj_uid);
+  FLastErrorCode := edb_OK;
+  FLastError     := '';
 end;
 
 

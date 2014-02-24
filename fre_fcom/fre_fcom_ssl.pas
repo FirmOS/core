@@ -389,7 +389,8 @@ begin
     ERR_clear_error;
     ERR_error_string_n(error_code,@ErrBuf[1],255);
     err:=err+trim( PChar(@ErrBuf[1]));
-    if raiseex then raise EFRE_Exception.Create('FRE SLL ERROR> '+err);
+    if raiseex then
+      raise EFRE_Exception.Create('FRE SLL ERROR> '+err);
   end;
 end;
 

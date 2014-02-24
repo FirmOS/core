@@ -11,6 +11,7 @@ uses
 
   {TODO : Disallow Databases named "GLOBAL"}
 type
+  TFRE_DB_PL_NET_CLIENT=class;
   { TFRE_DB_PL_NET_CLIENT }
 
   TFRE_DB_PL_NET_CLIENT=class(TObject)
@@ -20,14 +21,19 @@ type
     TPL_CMD_STATE    = (cs_READ_LEN,cs_READ_DATA);
 
     { TPLNet_PersistanceCollection }
+    TPLNet_Layer = class;
     TPLNet_PersistanceCollection=class(IFRE_DB_PERSISTANCE_COLLECTION)
     private
-      FName      : TFRE_DB_NameType;
-      FUppername : TFRE_DB_NameType;
+      FName       : TFRE_DB_NameType;
+      FUppername  : TFRE_DB_NameType;
+      FIsVolatile : Boolean;
+      Flayer      : TPLNet_Layer;
     public
-      constructor     Create                     (const collname : TFRE_DB_NameType ; const isVolatile : Boolean);
+      constructor     Create                     (const collname : TFRE_DB_NameType ; const isVolatile : Boolean ; const layer : TPLNet_Layer);
+      function        SendCycleColl              (const cmd : IFRE_DB_Object ; out answer : IFRE_DB_Object) : boolean;
       function        GetPersLayerIntf           : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
       function        GetPersLayer               : IFRE_DB_PERSISTANCE_LAYER;
+      function        GetCollectionClassName     : ShortString;
 
       function        IsVolatile                 : boolean;
       function        CollectionName             (const unique:boolean=true):TFRE_DB_NameType;
@@ -46,12 +52,14 @@ type
       function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
       function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
 
-      procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
+      procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+      function        IndexExists                (const idx_name : TFRE_DB_NameType):NativeInt;
 
-      procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-      procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-      procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
-      procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
+      procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+      procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+      procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+      procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+
     end;
 
     { TPLNet_Layer }
@@ -66,6 +74,7 @@ type
       FLayername      : TFRE_DB_NameType;
       FIp             : Shortstring;
       FPort           : Shortstring;
+      FHost           : ShortString;
       FChannel        : IFRE_APSC_CHANNEL;
       FConnLock       : IFOS_Lock;
       FLayerWait      : IFOS_E;
@@ -74,8 +83,9 @@ type
       FCommandPending : boolean;
       FGlobal         : boolean;
       FAnswer         : IFRE_DB_Object;
+      FNotificationIF : IFRE_DB_DBChangedNotification;
       FCollections    : TList;
-      constructor Create                     (nclient:TFRE_DB_PL_NET_CLIENT ; id:NativeInt ; ip,port,specfile,layername : Shortstring);
+      constructor Create                     (nclient:TFRE_DB_PL_NET_CLIENT ; id:NativeInt ; host,ip,port,specfile,layername : Shortstring);
       destructor  Destroy                    ;override;
       procedure   LockLayer                  ;
       procedure   UnLockLayer                ;
@@ -89,7 +99,8 @@ type
       procedure   CheckRaiseAnswerError      (const answer : IFRE_DB_Object;const dont_raise : boolean=false);
 
       function    _CollectionExists          (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION):Boolean;
-      procedure   _AddCollection(const coll_name: TFRE_DB_NameType; const isVolatile: boolean);
+      function    _AddCollection             (const coll_name: TFRE_DB_NameType; const isVolatile: boolean): IFRE_DB_PERSISTANCE_COLLECTION;
+      function    _RemoveCollection          (const coll_name: TFRE_DB_NameType):boolean;
 
       {PS Layer Interface }
 
@@ -99,10 +110,11 @@ type
       function  GetLastError                  : TFRE_DB_String;
       function  ExistCollection               (const coll_name : TFRE_DB_NameType) : Boolean;
       function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
-      function  NewCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
       function  DeleteCollection              (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
 
-      function  Connect                       (const db_name:TFRE_DB_String ; out database_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
+      function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotification=nil) : TFRE_DB_Errortype;
+      function  Disconnect                    : TFRE_DB_Errortype;
+
       function  DatabaseList                  : IFOS_STRINGS;
       function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
       function  CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
@@ -119,18 +131,37 @@ type
 
       function  ObjectExists                  (const obj_uid : TGUID) : boolean;
       function  DeleteObject                  (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
-      function  Fetch                         (const ouid   :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false): boolean;
+      function  Fetch                         (const ouid   :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false): TFRE_DB_Errortype;
       function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
       procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
       procedure SyncSnapshot                  (const final : boolean=false);
-      procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification);
+      procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
+
       function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
+
+      function  DefineIndexOnField            (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
+      function  GetLastErrorCode              : TFRE_DB_Errortype;
+      function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+
+      procedure WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+      procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
+      procedure WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+      procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
+
+      function  FDB_GetObjectCount            (const coll:boolean): Integer;
+      procedure FDB_ForAllObjects             (const cb:IFRE_DB_Obj_Iterator);
+      procedure FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
+      procedure FDB_PrepareDBRestore          (const phase:integer);
+      procedure FDB_SendObject                (const obj:IFRE_DB_Object);
+      procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
+
     end;
   var
     FLayers            : TList;
     FLayerLock         : IFOS_LOCK;
     FStateTimer        : IFRE_APSC_TIMER;
     FGlobalConnectIP   : string;
+    FGlobalConnectHost : string;
     FGlobalConnectPort : string;
     FGlobalUnixSocket  : string;
 
@@ -142,32 +173,44 @@ type
   public
     constructor Create;
     destructor  Destroy;override;
-    procedure   SetConnectionDetails (const ip,port:string;const uxs:string);
+    procedure   SetConnectionDetails (const host,ip,port:string;const uxs:string);
     function    ConnectPLServer      (const name:TFRE_DB_NameType ; out conn_layer : IFRE_DB_PERSISTANCE_LAYER):TFRE_DB_Errortype;
     function    SearchForLayer       (const db_name : TFRE_DB_NameType ; out database_layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
   end;
 
-  function Get_PersistanceLayer_PS_Net(const ip,port:string) : IFRE_DB_PERSISTANCE_LAYER;
+  function Get_PersistanceLayer_PS_Net(const host,ip,port:string) : IFRE_DB_PERSISTANCE_LAYER;
 
 implementation
 
 var GNET : TFRE_DB_PL_NET_CLIENT;
     GLAY : IFRE_DB_PERSISTANCE_LAYER;
 
-function Get_PersistanceLayer_PS_Net(const ip, port: string): IFRE_DB_PERSISTANCE_LAYER;
+function Get_PersistanceLayer_PS_Net(const host, ip, port: string): IFRE_DB_PERSISTANCE_LAYER;
+var res : TFRE_DB_Errortype;
 begin
   GNET := TFRE_DB_PL_NET_CLIENT.Create;
-  GNET.SetConnectionDetails(ip,port,'plsrv');
-  CheckDbResult(GNET.ConnectPLServer('GLOBAL',GLAY),'',true,false,GLAY);
+  GNET.SetConnectionDetails(host,ip,port,cFRE_PS_LAYER_UXSOCK_NAME);
+  res := GNET.ConnectPLServer('GLOBAL',GLAY);
+  if res<>edb_OK then
+    raise EFRE_DB_Exception.Create(edb_ERROR,GLAY.GetLastError);
   result := GLAY;
 end;
 
+
 { TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection }
 
-constructor TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(const collname: TFRE_DB_NameType; const isVolatile: Boolean);
+constructor TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(const collname: TFRE_DB_NameType; const isVolatile: Boolean; const layer: TPLNet_Layer);
 begin
-  FName      := collname;
-  FUppername := uppercase(FName);
+  FName       := collname;
+  FUppername  := uppercase(FName);
+  FIsVolatile := isVolatile;
+  Flayer      := layer;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.SendCycleColl(const cmd: IFRE_DB_Object; out answer: IFRE_DB_Object): boolean;
+begin
+  cmd.Field('CN').AsString:=FName;
+  result := Flayer.SendCycle(cmd,answer);
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetPersLayerIntf: IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
@@ -180,14 +223,22 @@ begin
   abort;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.IsVolatile: boolean;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetCollectionClassName: ShortString;
 begin
   abort;
 end;
 
+function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.IsVolatile: boolean;
+begin
+  result := FIsVolatile;
+end;
+
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.CollectionName(const unique: boolean): TFRE_DB_NameType;
 begin
-  abort;
+  if unique then
+    result := FUppername
+  else
+    result := FName;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Count: int64;
@@ -201,13 +252,40 @@ begin
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetAllUIDS(var uids: TFRE_DB_GUIDArray);
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CGAU');
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    uids := answer.Field('G').AsGUIDArr;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Fetch(const uid: TGUID; var obj: IFRE_DB_Object): boolean;
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CF');
+  cmd.Field('G').AsGUID:=uid;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    result := answer.Field('A').AsBoolean;
+    if result then
+      obj := answer.Field('O').CheckOutObject
+    else
+      obj := nil;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.First: IFRE_DB_Object;
@@ -227,59 +305,213 @@ end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_Errortype;
 begin
-  abort;
+  FLayer.DefineIndexOnField(self.CollectionName(false),FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
+  result := edb_OK;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): boolean;
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CGIO');
+  cmd.Field('Q').AsString  := query_value;
+  cmd.Field('IN').AsString := index_name;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    result         := answer.Field('A').AsBoolean;
+    if result then
+      obj  := answer.Field('O').CheckOutObject;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean): boolean;
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CGIOS');
+  cmd.Field('Q').AsString  := query_value;
+  cmd.Field('IN').AsString := index_name;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    result         := answer.Field('A').AsBoolean;
+    obj            := answer.Field('O').CheckOutObjectArray;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType): boolean;
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CGIU');
+  cmd.Field('Q').AsString  := query_value;
+  cmd.Field('IN').AsString := index_name;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    result         := answer.Field('A').AsBoolean;
+    obj_uid        := answer.Field('G').AsGUID;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean): boolean;
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
+begin
+  cmd :=  Flayer.NewPersistenceLayerCommand('CGIUS');
+  cmd.Field('Q').AsString    := query_value;
+  cmd.Field('IN').AsString   := index_name;
+  cmd.Field('CIU').AsBoolean := check_is_unique;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    result         := answer.Field('A').AsBoolean;
+    obj_uid        := answer.Field('G').AsGUIDArr;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexed(var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
+begin
+  cmd :=  Flayer.NewPersistenceLayerCommand('CFAI');
+  cmd.Field('IN').AsString := index_name;
+  cmd.Field('A').AsBoolean := ascending;
+  cmd.Field('M').AsInt64   := max_count;
+  cmd.Field('S').AsInt64   := skipfirst;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    guids := answer.Field('G').AsGUIDArr;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
+end;
+
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.IndexExists(const idx_name: TFRE_DB_NameType): NativeInt;
 begin
   abort;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexed(var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedSignedRange(const min_value, max_value: int64; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CFAISR');
+  cmd.Field('IN').AsString  := index_name;
+  cmd.Field('MIV').AsInt64  := min_value;
+  cmd.Field('MAV').AsInt64  := max_value;
+  cmd.Field('A').AsBoolean  := ascending;
+  cmd.Field('MN').AsBoolean := min_is_null;
+  cmd.Field('MM').AsBoolean := max_is_max;
+  cmd.Field('M').AsInt64    := max_count;
+  cmd.Field('S').AsInt64    := skipfirst;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    guids := answer.Field('G').AsGUIDArr;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedSignedRange(const min_value, max_value: int64; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CFAIUR');
+  cmd.Field('IN').AsString  := index_name;
+  cmd.Field('MIV').AsUInt64 := min_value;
+  cmd.Field('MAV').AsUInt64 := max_value;
+  cmd.Field('A').AsBoolean  := ascending;
+  cmd.Field('MN').AsBoolean := min_is_null;
+  cmd.Field('MM').AsBoolean := max_is_max;
+  cmd.Field('M').AsInt64    := max_count;
+  cmd.Field('S').AsInt64    := skipfirst;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    guids := answer.Field('G').AsGUIDArr;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CFAISS');
+  cmd.Field('IN').AsString  := index_name;
+  cmd.Field('MIV').AsString := min_value;
+  cmd.Field('MAV').AsString := max_value;
+  cmd.Field('A').AsBoolean  := ascending;
+  cmd.Field('MN').AsBoolean := min_is_null;
+  cmd.Field('MM').AsBoolean := max_is_max;
+  cmd.Field('M').AsInt64    := max_count;
+  cmd.Field('S').AsInt64    := skipfirst;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    guids := answer.Field('G').AsGUIDArr;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexPrefixString(const prefix: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CFAIPS');
+  cmd.Field('IN').AsString  := index_name;
+  cmd.Field('MIV').AsString := prefix;
+  cmd.Field('A').AsBoolean  := ascending;
+  cmd.Field('M').AsInt64    := max_count;
+  cmd.Field('S').AsInt64    := skipfirst;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    guids := answer.Field('G').AsGUIDArr;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexPrefixString(const prefix: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean);
-begin
-  abort;
-end;
-
-constructor TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Create(nclient: TFRE_DB_PL_NET_CLIENT; id: NativeInt; ip, port, specfile, layername: Shortstring);
+constructor TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Create(nclient: TFRE_DB_PL_NET_CLIENT; id: NativeInt; host, ip, port, specfile, layername: Shortstring);
 begin
   Fid          := id;
   FIp          := ip;
   FPort        := port;
+  FHost        := host;
   FSpecfile    := specfile;
   FLayername   := uppercase(layername);
   FGlobal      := FLayername='GLOBAL';
@@ -385,27 +617,56 @@ end;
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._CollectionExists(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION): Boolean;
 var i   : NativeInt;
     cnu : TFRE_DB_NameType;
+    cns : TFRE_DB_NameType;
 begin
   cnu := UpperCase(coll_name);
   for i := 0 to FCollections.Count-1 do
-    if  TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]).CollectionName(true)=cnu then
-      begin
-        Collection := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]);
-        exit(true);
-      end;
+    begin
+      cns := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]).CollectionName(true);
+      if  cns=cnu then
+        begin
+          Collection := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]);
+          exit(true);
+        end;
+    end;
   exit(false);
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._AddCollection(const coll_name: TFRE_DB_NameType;const isVolatile : boolean);
-var ci : IFRE_DB_PERSISTANCE_COLLECTION;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._AddCollection(const coll_name: TFRE_DB_NameType;const isVolatile : boolean): IFRE_DB_PERSISTANCE_COLLECTION;
+var x : TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection;
 begin
- if not _CollectionExists(coll_name,ci) then
-   FCollections.Add(TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(coll_name,isVolatile));
+ if not _CollectionExists(coll_name,result) then
+   begin
+     x := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(coll_name,isVolatile,self);
+     FCollections.Add(x);
+     result := x;
+   end;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._RemoveCollection(const coll_name: TFRE_DB_NameType): boolean;
+var i   : NativeInt;
+    cnu : TFRE_DB_NameType;
+    cns : TFRE_DB_NameType;
+      x : TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection;
+begin
+  cnu := UpperCase(coll_name);
+  for i := FCollections.Count-1 downto 0 do
+    begin
+      cns := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]).CollectionName(true);
+      if  cns=cnu then
+        begin
+          x := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]);
+          x.Free;
+          FCollections.Delete(i);
+          exit(true);
+        end;
+    end;
+  exit(false);
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DEBUG_DisconnectLayer(const db: TFRE_DB_String; const clean_master_data: boolean);
 begin
-  abort;
+  ; // abort;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetConnectedDB: TFRE_DB_NameType;
@@ -442,6 +703,10 @@ begin
       try
         CheckRaiseAnswerError(answer);
         result := answer.Field('A').AsBoolean;
+        if result then
+          begin
+            _AddCollection(coll_name,answer.Field('V').AsBoolean);
+          end;
         FLasterror     := '';
         FLastErrorCode := edb_OK;
       finally
@@ -455,10 +720,16 @@ begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer')
   else
-    result := _CollectionExists(coll_name,Collection);
+    begin
+      result := ExistCollection(coll_name);
+      if result then
+        _CollectionExists(coll_name,Collection)
+      else
+        Collection:=nil;
+    end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.NewCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
@@ -466,6 +737,7 @@ begin
   begin
     cmd := NewPersistenceLayerCommand('NC');
     cmd.Field('cn').AsString:=coll_name;
+    cmd.Field('ccn').AsString:=CollectionClassname;
     cmd.Field('v').AsBoolean:=volatile_in_memory;
     SendCycle(cmd,answer);
     try
@@ -473,7 +745,7 @@ begin
       result := answer.Field('TSID').AsString;
       FLasterror     := '';
       FLastErrorCode := edb_OK;
-      _AddCollection(coll_name,volatile_in_memory);
+      Collection := _AddCollection(coll_name,volatile_in_memory);
     finally
       answer.Finalize;
     end;
@@ -481,19 +753,44 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeleteCollection(const coll_name: TFRE_DB_NameType): TFRE_DB_TransStepId;
+var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  begin
+    cmd := NewPersistenceLayerCommand('DC');
+    cmd.Field('cn').AsString:=coll_name;
+    SendCycle(cmd,answer);
+    try
+      CheckRaiseAnswerError(answer);
+      result := answer.Field('TSID').AsString;
+      FLasterror     := '';
+      FLastErrorCode := edb_OK;
+      _RemoveCollection(coll_name);
+    finally
+      answer.Finalize;
+    end;
+  end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Connect(const db_name: TFRE_DB_String; out database_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotification): TFRE_DB_Errortype;
 begin
   if not FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is only allowed in then global layer');
-  if FNETPL.SearchForLayer(db_name,database_layer) then
+  if FNETPL.SearchForLayer(db_name,db_layer) then
     exit(edb_OK);
-  result := FNETPL.ConnectPLServer(db_name,database_layer);
+  result := FNETPL.ConnectPLServer(db_name,db_layer);
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Disconnect: TFRE_DB_Errortype;
+begin
+  if FGlobal then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the global layer cannot be disconnected')
+  else
+    begin
+      FNotificationIF.FinalizeNotif;
+      FNotificationIF:=nil;
+    end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DatabaseList: IFOS_STRINGS;
@@ -568,24 +865,70 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
+var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  cmd := NewPersistenceLayerCommand('GR');
+  cmd.Field('G').AsGUID    := obj_uid;
+  cmd.Field('F').AsBoolean := from;
+  cmd.Field('SP').AsString := scheme_prefix_filter;
+  cmd.Field('FE').AsString := field_exact_filter;
+  SendCycle(cmd,answer);
+  try
+    result := nil;
+    CheckRaiseAnswerError(answer);
+    result := answer.Field('G').AsGUIDArr;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferencesCount(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
+var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  cmd := NewPersistenceLayerCommand('GRC');
+  cmd.Field('G').AsGUID    := obj_uid;
+  cmd.Field('F').AsBoolean := from;
+  cmd.Field('SP').AsString := scheme_prefix_filter;
+  cmd.Field('FE').AsString := field_exact_filter;
+  SendCycle(cmd,answer);
+  try
+    CheckRaiseAnswerError(answer);
+    result := answer.Field('C').AsInt64;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferencesDetailed(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_ObjectReferences;
+var cmd,answer : IFRE_DB_Object;
+    i          : NativeInt;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  cmd := NewPersistenceLayerCommand('GRD');
+  cmd.Field('G').AsGUID    := obj_uid;
+  cmd.Field('F').AsBoolean := from;
+  cmd.Field('SP').AsString := scheme_prefix_filter;
+  cmd.Field('FE').AsString := field_exact_filter;
+  SendCycle(cmd,answer);
+  try
+    result := nil;
+    CheckRaiseAnswerError(answer);
+    SetLength(result,length(answer.Field('FN').AsStringArr));
+    for i:=0 to high(result) do
+      with Result[i] do
+        begin
+          fieldname  := answer.Field('FN').AsStringArr[i];
+          schemename := answer.Field('SN').AsStringArr[i];
+          linked_uid := answer.Field('LU').AsGUIDArr[i];
+        end;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.StartTransaction(const typ: TFRE_DB_TRANSACTION_TYPE; const ID: TFRE_DB_NameType): TFRE_DB_Errortype;
@@ -617,24 +960,62 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeleteObject(const obj_uid: TGUID; const collection_name: TFRE_DB_NameType): TFRE_DB_TransStepId;
+var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  cmd := NewPersistenceLayerCommand('D');
+  cmd.Field('G').AsGUID    := obj_uid;
+  cmd.Field('CN').AsString := collection_name;
+  SendCycle(cmd,answer);
+  try
+    CheckRaiseAnswerError(answer,false);
+    result := answer.Field('TSID').AsString;
+  finally
+    answer.Finalize;
+  end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object; const internal_object: boolean): boolean;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object; const internal_object: boolean): TFRE_DB_Errortype;
+var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  if internal_object then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal fetch obviously unsupported on net layer!');
+  cmd := NewPersistenceLayerCommand('F');
+  cmd.Field('G').AsGUID    := ouid;
+  SendCycle(cmd,answer);
+  try
+    CheckRaiseAnswerError(answer,true);
+    result         := FLastErrorCode;
+    if result=edb_OK then
+      dbo := answer.Field('O').CheckOutObject
+    else
+      dbo := nil;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.StoreOrUpdateObject(const obj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean): TFRE_DB_TransStepId;
+var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  cmd := NewPersistenceLayerCommand('SOU');
+  cmd.Field('CN').AsString := collection_name;
+  cmd.Field('O').AsObject  := obj;
+  cmd.Field('S').AsBoolean := store;
+  SendCycle(cmd,answer);
+  try
+    CheckRaiseAnswerError(answer);
+    result         := answer.Field('TSID').AsString;
+    FLasterror     := '';
+    FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.SyncWriteWAL(const WALMem: TMemoryStream);
@@ -646,23 +1027,107 @@ end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.SyncSnapshot(const final: boolean);
 begin
-  if FGlobal then
-    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  ; { Silent ignore, until WAL Mode is implemented }
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification; const create_proxy: boolean);
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  { ignore proxy request, decoupled by the net }
+  FNotificationIF := change_if;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetNotificationStreamCallback: IFRE_DB_DBChangedNotification;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
+  result := FNotificationIF;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DefineIndexOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_TransStepId;
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
+begin
+  if FGlobal then
+    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
+  cmd := NewPersistenceLayerCommand('DIF');
+  cmd.Field('CN').AsString:=coll_name;
+  cmd.Field('FN').AsString:=FieldName;
+  cmd.Field('FT').AsString:=CFRE_DB_FIELDTYPE_SHORT[FieldType];
+  cmd.Field('U').AsBoolean:=unique;
+  cmd.Field('CC').AsBoolean:=ignore_content_case;
+  cmd.Field('IN').AsString:=index_name;
+  cmd.Field('AN').AsBoolean:=allow_null_value;
+  cmd.Field('UN').AsBoolean:=unique_null_values;
+  SendCycle(cmd,answer);
+  try
+    CheckRaiseAnswerError(answer);
+    result         := answer.Field('TSID').AsString;
+    FLasterror     := '';
+    FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetLastErrorCode: TFRE_DB_Errortype;
+begin
+  if FGlobal then
+    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
+  result := FLastErrorCode;
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_StoreCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+begin
+  if FGlobal then
+    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
   abort;
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_StoreObjectPersistent(const obj: IFRE_DB_Object; const no_store_locking: boolean);
+begin
+
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_DeleteCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+begin
+
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_DeleteObjectPersistent(const iobj: IFRE_DB_Object);
+begin
+
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_GetObjectCount(const coll: boolean): Integer;
+begin
+
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_ForAllObjects(const cb: IFRE_DB_Obj_Iterator);
+begin
+
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_ForAllColls(const cb: IFRE_DB_Obj_Iterator);
+begin
+
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_PrepareDBRestore(const phase: integer);
+begin
+
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendObject(const obj: IFRE_DB_Object);
+begin
+
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendCollection(const obj: IFRE_DB_Object);
+begin
+
 end;
 
 { TFRE_DB_PL_NET_CLIENT.TPLNet_Layer }
@@ -842,7 +1307,10 @@ begin
                 if FSpecfile<>'' then
                   GFRE_SC.AddClient_UX(FSpecfile,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
                 else
-                  GFRE_SC.AddClient_TCP(FIp,FPort,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel);
+                  if FHost<>'' then
+                    GFRE_SC.AddClient_TCP_DNS(FHost,FPort,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
+                  else
+                    GFRE_SC.AddClient_TCP(FIp,FPort,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
               end;
               sfc_TRYING: ; // do nothing
               sfc_OK: ; // do nothing
@@ -866,8 +1334,9 @@ begin
   inherited Destroy;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.SetConnectionDetails(const ip, port: string; const uxs: string);
+procedure TFRE_DB_PL_NET_CLIENT.SetConnectionDetails(const host, ip, port: string; const uxs: string);
 begin
+  FGlobalConnectHost := host;
   FGlobalConnectIP   := Ip;
   FGlobalConnectPort := port;
   FGlobalUnixSocket  := cFRE_UX_SOCKS_DIR+uxs;
@@ -878,7 +1347,7 @@ var lay : TPLNet_Layer;
 begin
   FLayerLock.Acquire;
   try
-    lay := TPLNet_Layer.Create(self,FLayers.Count,FGlobalConnectIP,FGlobalConnectPort,FGlobalUnixSocket,name);
+    lay := TPLNet_Layer.Create(self,FLayers.Count,FGlobalConnectHost,FGlobalConnectIP,FGlobalConnectPort,FGlobalUnixSocket,name);
     FLayers.Add(lay);
   finally
     FLayerLock.Release;

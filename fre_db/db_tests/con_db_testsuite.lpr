@@ -18,7 +18,7 @@ uses
   FRE_DB_CORE,FRE_DB_INTERFACE,FRE_dbbase,
   FOS_TOOL_INTERFACES,
   sysutils,
-  fre_db_testsuite;//, fre_net_pl_client,fre_aps_comm_impl;
+  fre_db_testsuite, fre_net_pl_client,fre_aps_comm_impl;
 
 var App: TTestRunner;
 
@@ -27,9 +27,9 @@ var App: TTestRunner;
 
 begin
   Initialize_Read_FRE_CFG_Parameter;
-  //Setup_APS_Comm;
+  Setup_APS_Comm;
 
-  //GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Net('','');
+  //GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Net('','','');
   GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db');
 
   DefaultFormat      := fPlain;

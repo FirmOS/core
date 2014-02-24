@@ -457,35 +457,68 @@ begin
   GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
   GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
   ConnectDB('test1@system','test1');
-  coll_v := FWorkConn.DomainCollection('TeSsT',true);
+  coll_v := FWorkConn.CreateDomainCollection('TeSsT');
   assert(FWorkConn.DomainCollectionExists('tesst'),'cannot find domaincoll');
   name := coll_v.CollectionName(false);
   name := coll_v.DomainCollName(true);
 
-  coll_v := FWorkConn.Collection('TEST_1_VOL',true,true);
-  coll_p := FWorkConn.Collection('TEST_1_PERS',true,false);
-  coll_v := FWorkConn.Collection('TEST_1_VOL_U',true,true);   // unique
-  coll_p := FWorkConn.Collection('TEST_1_PERS_U',true,false); // unique
-  coll_p := FWorkConn.Collection('REFTEST',true,false); // unique
-  coll_p := FWorkConn.Collection('REFTEST_CC',true,false);
+  coll_v := FWorkConn.CreateCollection('TEST_1_VOL',true);
+  coll_p := FWorkConn.CreateCollection('TEST_1_PERS',false);
+  coll_v := FWorkConn.CreateCollection('TEST_1_VOL_U',true);   // unique
+  coll_p := FWorkConn.CreateCollection('TEST_1_PERS_U',false); // unique
+  coll_p := FWorkConn.CreateCollection('REFTEST',false); // unique
+  coll_p := FWorkConn.CreateCollection('REFTEST_CC',false);
 end;
 
 procedure TFRE_DB_PersistanceTests.FetchTestColletion;
 var coll_v,coll_p : IFRE_DB_COLLECTION;
+    res           : TFRE_DB_Errortype;
 begin
   ConnectDB('test1@system','test1');
-  coll_v := FWorkConn.Collection('TEST_1_VOL',false,true);
-  coll_p := FWorkConn.Collection('TEST_1_PERS',false,false);
+  coll_v := FWorkConn.GetCollection('TEST_1_VOL');
+  coll_p := FWorkConn.GetCollection('TEST_1_PERS');
   AssertNotNull(coll_v);
   AssertNotNull(coll_p);
   FWorkConn.DeleteCollection('TEST_1_PERS');
   FWorkConn.DeleteCollection('TEST_1_VOL');
-  coll_v := FWorkConn.Collection('TEST_1_VOL',false,true);
-  AssertNull(coll_v);
-  coll_p := FWorkConn.Collection('TEST_1_PERS',false,false);
-  AssertNull(coll_p);
-  coll_v := FWorkConn.Collection('TEST_1_VOL',true,true);
-  coll_p := FWorkConn.Collection('TEST_1_PERS',true,false);
+  res := edb_OK;
+  try
+    coll_v := FWorkConn.GetCollection('TEST_1_VOL');
+  except
+    on e:EFRE_DB_Exception do
+      res := e.ErrorType;
+  end;
+  Assert(res = edb_NOT_FOUND,'fail');
+
+  res := edb_OK;
+  try
+    coll_v := FWorkConn.GetCollection('TEST_1_VOL');
+  except
+    on e:EFRE_DB_Exception do
+      res := e.ErrorType;
+  end;
+  Assert(res = edb_NOT_FOUND,'fail');
+
+  res := edb_OK;
+  try
+    coll_p := FWorkConn.GetCollection('TEST_1_PERS');
+  except
+    on e:EFRE_DB_Exception do
+      res := e.ErrorType;
+  end;
+  Assert(res = edb_NOT_FOUND,'fail');
+
+  res := edb_OK;
+  try
+    coll_v := FWorkConn.GetCollection('TEST_1_VOL');
+  except
+    on e:EFRE_DB_Exception do
+      res := e.ErrorType;
+  end;
+  Assert(res = edb_NOT_FOUND,'fail');
+
+  coll_v := FWorkConn.CreateCollection('TEST_1_VOL');
+  coll_p := FWorkConn.CreateCollection('TEST_1_PERS');
   AssertNotNull(coll_v);
   AssertNotNull(coll_p);
 end;
@@ -493,12 +526,13 @@ end;
 procedure TFRE_DB_PersistanceTests.SubobjectTwiceTest;
 var coll_v,coll_p    : IFRE_DB_COLLECTION;
     o1,o2,osub,osub2 : IFRE_DB_Object;
+    osub_uid         : TFRE_DB_GUID;
     res              : TFRE_DB_Errortype;
 begin
   if cFFG_SKIP_EXCEPTION_TEST then
     exit;
   ConnectDB('admin@system','admin');
-  coll_p := FWorkConn.Collection('TEST_1_SUBTWICE',true,false);
+  coll_p := FWorkConn.CreateCollection('TEST_1_SUBTWICE');
 
   o1   := GFRE_DBI.NewObject;
   o2   := GFRE_DBI.NewObject;
@@ -509,13 +543,14 @@ begin
 
   res := coll_p.Store(o1);
   AssertTrue('store failed, bad',res=edb_OK);
-  res := coll_p.store(o2.Field('sub1').AsObject);
+  res := coll_p.store(o2.Field('sub1').AsObject.CloneToNewObject());
 
   AssertTrue('must return exists 1',coll_p.Store(o2)=edb_EXISTS);
-  AssertTrue('must return exists 2',coll_p.Store(osub)=edb_EXISTS);
-  AssertTrue(FWorkConn.Fetch(osub.UID,osub2)=edb_ERROR);
+  osub_uid := osub.UID;
+  AssertTrue('must return exists 2',coll_p.Store(osub)=edb_EXISTS); { osub is freed on store in every case! }
+  AssertTrue(FWorkConn.Fetch(osub_UID,osub2)=edb_ERROR); { don't use the osub reference here, its possibly bad}
 
-  coll_v := FWorkConn.Collection('TEST_1_SUBTWICE_V',true,true);
+  coll_v := FWorkConn.CreateCollection('TEST_1_SUBTWICE_V',true);
 
   o1   := GFRE_DBI.NewObject;
   o2   := GFRE_DBI.NewObject;
@@ -528,9 +563,10 @@ begin
   AssertTrue('store failed, bad',res=edb_OK);
   res := coll_v.Store(o2);
   AssertTrue('must return exists 3',res=edb_EXISTS);
+  osub_uid := osub.UID;
   res := coll_v.Store(osub);
   AssertTrue('must return exists 4',res=edb_EXISTS);
-  AssertTrue(FWorkConn.Fetch(osub.UID,osub2)=edb_ERROR);
+  AssertTrue(FWorkConn.Fetch(osub_UID,osub2)=edb_ERROR);
 end;
 
 procedure TFRE_DB_PersistanceTests.DoReflinkTests;
@@ -542,7 +578,7 @@ var coll_p    : IFRE_DB_COLLECTION;
 
 begin
   ConnectDB('admin@system','admin');
-  coll_p := FWorkConn.Collection('REFTEST',false,true);
+  coll_p := FWorkConn.GetCollection('REFTEST');
   AssertTrue(assigned(coll_p));
 
   n1 := GFRE_DBI.NewObject;
@@ -570,18 +606,18 @@ begin
   AssertTrue(length(ra)=1);
   AssertTrue('got bad uid',ra[0]=u2);
   obr := FWorkConn.GetReferencesDetailed(u1,false);
-  AssertTrue(length(obr)=1);
+  AssertTrue('ok',length(obr)=1);
 
   ra := FWorkConn.GetReferences(u2,true,'','');
-  AssertTrue(length(ra)=1);
-  AssertTrue(ra[0]=u1);
+  AssertTrue('ok',length(ra)=1);
+  AssertTrue('ok',ra[0]=u1);
   obr := FWorkConn.GetReferencesDetailed(u2,true);
-  AssertTrue(length(obr)=1);
+  AssertTrue('ok',length(obr)=1);
 
 
   ra := FWorkConn.GetReferences(u2,false,'','');
-  AssertTrue(length(ra)=1);
-  AssertTrue(ra[0]=u3);
+  AssertTrue('ok',length(ra)=1);
+  AssertTrue('ok',ra[0]=u3);
 
 end;
 
@@ -607,7 +643,7 @@ begin
   U10  := SC_A11.CreateForDB;
   u10u := u10.UID;
   ConnectDB('admin@system','admin');
-  cp  := FWorkConn.Collection('REFTEST_CC',false,true);
+  cp  := FWorkConn.GetCollection('REFTEST_CC');
 
   U1.Field('LINK1').AddObjectLink(U2.UID);
   U1.Field('LINK1').AddObjectLink(U3.UID);
@@ -631,8 +667,8 @@ begin
   if cFFG_SKIP_EXCEPTION_TEST then
     exit;
   ConnectDB('admin@system','admin');
-  coll_p := FWorkConn.Collection('TEST_1_VOLPERS1',true,false);
-  coll_v := FWorkConn.Collection('TEST_1_VOLPERS2',true,true);
+  coll_p := FWorkConn.CreateCollection('TEST_1_VOLPERS1',false);
+  coll_v := FWorkConn.CreateCollection('TEST_1_VOLPERS2',true);
 
   o1   := GFRE_DBI.NewObject;
   o2   := o1.CloneToNewObject();
@@ -723,15 +759,15 @@ begin
     exit;
   ConnectDB('admin@system','admin');
   res := FWorkConn.Delete(u2u);
-  AssertTrue(res=edb_OBJECT_REFERENCED);
+  AssertTrue('ok',res=edb_OBJECT_REFERENCED);
   res := FWorkConn.Delete(u3u);
-  AssertTrue(res=edb_OBJECT_REFERENCED);
+  AssertTrue('ok',res=edb_OBJECT_REFERENCED);
   res := FWorkConn.Delete(u4u);
-  AssertTrue(res=edb_OBJECT_REFERENCED);
+  AssertTrue('ok',res=edb_OBJECT_REFERENCED);
   res := FWorkConn.Delete(u1u);
   CheckDbResult(res);
   res := FWorkConn.Delete(u1u);
-  AssertTrue(res=edb_NOT_FOUND);
+  AssertTrue('ok',res=edb_NOT_FOUND);
 end;
 
 procedure TFRE_DB_PersistanceTests.DefineIndices;
@@ -761,10 +797,10 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
 
 begin
   ConnectDB('test1@system','test1');
-  coll_v  := FWorkConn.Collection('TEST_1_VOL',false,true);
-  coll_p  := FWorkConn.Collection('TEST_1_PERS',false,false);
-  coll_vu := FWorkConn.Collection('TEST_1_VOL_U',false,true);
-  coll_pu := FWorkConn.Collection('TEST_1_PERS_U',false,false);
+  coll_v  := FWorkConn.GetCollection('TEST_1_VOL');
+  coll_p  := FWorkConn.GetCollection('TEST_1_PERS');
+  coll_vu := FWorkConn.GetCollection('TEST_1_VOL_U');
+  coll_pu := FWorkConn.GetCollection('TEST_1_PERS_U');
   DefineTestIndices(coll_v,false);
   DefineTestIndices(coll_p,false);
   DefineTestIndices(coll_vu,True);
@@ -888,11 +924,11 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
 begin
    //ConnectDB('test1@system','test1');
    ConnectDB('admin@system','admin'); //TODO: Setup Rights so that testuser can create index test data
-   coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
-   coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
-   coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
-   coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
-   coll_link := FWorkConn.Collection('TEST_1_LINKO',true,false);
+   coll_v    := FWorkConn.GetCollection('TEST_1_VOL');
+   coll_p    := FWorkConn.GetCollection('TEST_1_PERS');
+   coll_vu   := FWorkConn.GetCollection('TEST_1_VOL_U');
+   coll_pu   := FWorkConn.GetCollection('TEST_1_PERS_U');
+   coll_link := FWorkConn.CreateCollection('TEST_1_LINKO');
    GendataforColl(coll_p,true);
    GendataforColl(coll_v,false);
    //GendataforColl(coll_pu,false);
@@ -926,10 +962,10 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
 
 begin
   ConnectDB('admin@system','admin');
-  coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
-  coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
-  coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
-  coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
+  coll_v    := FWorkConn.GetCollection('TEST_1_VOL');
+  coll_p    := FWorkConn.GetCollection('TEST_1_PERS');
+  coll_vu   := FWorkConn.GetCollection('TEST_1_VOL_U');
+  coll_pu   := FWorkConn.GetCollection('TEST_1_PERS_U');
 
   assert(assigned(coll_v));
   assert(assigned(coll_p));
@@ -975,7 +1011,6 @@ begin
   hlt := false;
   coll_p.ForAllIndexPrefixString('ba',@WriteObjectIdx,hlt,'ixs');
   writeln('--STRING PREFIX QUERY-- END');
-
 end;
 
 procedure TFRE_DB_PersistanceTests.TestIdxUpdate;
@@ -1014,10 +1049,10 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
 begin
   //exit;
   ConnectDB('admin@system','admin');
-  coll_v    := FWorkConn.Collection('TEST_1_VOL',false,true);
-  coll_p    := FWorkConn.Collection('TEST_1_PERS',false,false);
-  coll_vu   := FWorkConn.Collection('TEST_1_VOL_U',false,true);
-  coll_pu   := FWorkConn.Collection('TEST_1_PERS_U',false,false);
+  coll_v    := FWorkConn.GetCollection('TEST_1_VOL');
+  coll_p    := FWorkConn.GetCollection('TEST_1_PERS');
+  coll_vu   := FWorkConn.GetCollection('TEST_1_VOL_U');
+  coll_pu   := FWorkConn.GetCollection('TEST_1_PERS_U');
 
   writeln('--- INDEX UPDATE TEST UNSIGNED ---');
   hlt := false;
@@ -1560,7 +1595,7 @@ begin
 end;
 
 initialization
-  RegisterTest(TFRE_DB_ObjectTests);
+  //RegisterTest(TFRE_DB_ObjectTests);
   RegisterTest(TFRE_DB_PersistanceTests);
 
 end.

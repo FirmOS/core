@@ -184,6 +184,7 @@ type
        procedure   ForAllValue             (node: PFRE_ART_Node; const node_proc : TFRE_ART_NodeValueProc);
        procedure   ForAllValueReverse      (node: PFRE_ART_Node; const node_proc : TFRE_ART_NodeValueProc);
        procedure   ForAllValueBreak        (node: PFRE_ART_Node; const node_proc : TFRE_ART_NodeValueBreakProc;var break:boolean);
+       procedure   ForAllValueBreakReverse (node: PFRE_ART_Node; const node_proc : TFRE_ART_NodeValueBreakProc;var break:boolean);
        procedure   _InnerCheck             ;
      public
        destructor  Destroy                 ; override;
@@ -200,8 +201,8 @@ type
 
        function    InsertUInt64Key         (const key: Uint64 ; var value : PtrUInt):boolean;
 
-       procedure   LinearScan              (const nested_node_proc : TFRE_ART_NodeValueProc;const desc : boolean=false);
-       function    LinearScanBreak         (const nested_node_proc: TFRE_ART_NodeValueBreakProc; var break: boolean): Boolean;
+       procedure   LinearScan              (const nested_node_proc : TFRE_ART_NodeValueProc    ; const desc : boolean=false);
+       function    LinearScanBreak         (const nested_node_proc: TFRE_ART_NodeValueBreakProc; var break: boolean ; const desc : boolean=false): Boolean;
        procedure   LinearScanKeyVals       (const nested_node_proc : TFRE_ART_NodeCallback);
        function    FirstKeyVal             (const callback : TFRE_ART_NodeCallback):boolean;
        function    LastKeyVal              (const callback : TFRE_ART_NodeCallback):boolean;
@@ -738,7 +739,8 @@ end;
 procedure TFRE_ART_TREE.ForAllValueReverse(node: PFRE_ART_Node; const node_proc: TFRE_ART_NodeValueProc);
 var i:NativeInt;
 begin
-  if node=nil then exit;
+  if node=nil then
+    exit;
   case node^.typ of
     artNodeType4:   with PFRE_ART_Node4(node)^ do
                       for i:=node^.count-1 downto 0 do
@@ -760,7 +762,7 @@ begin
 end;
 
 procedure TFRE_ART_TREE.ForAllValueBreak(node: PFRE_ART_Node; const node_proc: TFRE_ART_NodeValueBreakProc; var break: boolean);
-var i:NativeInt;
+var i : NativeInt;
 begin
   if node=nil then exit;
   case node^.typ of
@@ -788,6 +790,47 @@ begin
                         if assigned(child[i]) then
                           begin
                             ForAllValueBreak(PFRE_ART_Node256(node)^.child[i],node_proc,break);
+                            if break then exit;
+                          end;
+    artNodeTypeLeaf:
+        begin
+          node_proc(PFRE_ART_LeafNode(node)^.GetStoredValue^,break);
+          if break then
+            exit;
+        end;
+  end;
+end;
+
+procedure TFRE_ART_TREE.ForAllValueBreakReverse(node: PFRE_ART_Node; const node_proc: TFRE_ART_NodeValueBreakProc; var break: boolean);
+var i:NativeInt;
+begin
+  if node=nil then
+    exit;
+  case node^.typ of
+    artNodeType4:   with PFRE_ART_Node4(node)^ do
+                      for i:=node^.count-1 downto 0 do
+                        begin
+                          ForAllValueBreakReverse(child[i],node_proc,break);
+                          if break then exit;
+                        end;
+    artNodeType16:  with PFRE_ART_Node16(node)^ do
+                      for i:=node^.count-1 downto 0 do
+                        begin
+                          ForAllValueBreakReverse(child[i],node_proc,break);
+                          if break then exit;
+                        end;
+    artNodeType48:  with PFRE_ART_Node48(node)^ do
+                      for i:=255 downto 0 do
+                        if childIndex[i]<>CFREA_slot_is_empty then
+                          begin
+                            ForAllValueBreakReverse(child[childIndex[i]],node_proc,break);
+                            if break then exit;
+                          end;
+    artNodeType256: with PFRE_ART_Node256(node)^ do
+                      for i:=255 downto 0 do
+                        if assigned(child[i]) then
+                          begin
+                            ForAllValueBreakReverse(PFRE_ART_Node256(node)^.child[i],node_proc,break);
                             if break then exit;
                           end;
     artNodeTypeLeaf:
@@ -1980,9 +2023,12 @@ end;
 
 
 
-function TFRE_ART_TREE.LinearScanBreak(const nested_node_proc: TFRE_ART_NodeValueBreakProc ; var break : boolean): Boolean;
+function TFRE_ART_TREE.LinearScanBreak(const nested_node_proc: TFRE_ART_NodeValueBreakProc; var break: boolean; const desc: boolean): Boolean;
 begin
-  ForAllValueBreak(FArtTree,nested_node_proc,break);
+  if not desc then
+    ForAllValueBreak(FArtTree,nested_node_proc,break)
+  else
+    ForAllValueBreakReverse(FArtTree,nested_node_proc,break);
 end;
 
 procedure TFRE_ART_TREE.LinearScanKeyVals(const nested_node_proc: TFRE_ART_NodeCallback);

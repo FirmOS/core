@@ -50,7 +50,8 @@ uses
   fre_dbbase,fre_openssl_cmd,
 
   fre_aps_comm_impl,
-  FRE_DB_EMBEDDED_IMPL,
+  fre_net_pl_client, { network ps layer}
+  fre_db_persistance_fs_simple, { filesystem ps layer}
   FRE_CONFIGURATION,FRE_BASE_SERVER
   ;
 
@@ -200,13 +201,60 @@ end;
 
 procedure TFRE_CLISRV_APP.DoRun;
 var ErrorMsg : String;
+
+    procedure ParsePLParams;
+    begin
+      if HasOption('*','plhost') then begin
+        cFRE_PS_LAYER_HOST := GetOptionValue('*','plhost');
+      end;
+      if HasOption('*','plip') then begin
+        cFRE_PS_LAYER_IP := GetOptionValue('*','plip');
+      end;
+      if HasOption('*','plport') then begin
+        cFRE_PS_LAYER_PORT := GetOptionValue('*','plport');
+      end;
+      if HasOption('*','ple') then begin
+        cFRE_PS_LAYER_USE_EMBEDDED := true;
+      end;
+    end;
+
+    procedure ParseUserPass;
+    begin
+      if HasOption('u','user') then begin
+        cG_OVERRIDE_USER := GetOptionValue('u','user');
+      end;
+
+      if HasOption('p','pass') then begin
+        cG_OVERRIDE_PASS := GetOptionValue('p','pass');
+      end;
+
+      if HasOption('*','adminuser') then begin
+        cFRE_ADMIN_USER := GetOptionValue('*','adminuser');
+      end;
+
+      if HasOption('*','adminpass') then begin
+        cFRE_ADMIN_PASS := GetOptionValue('*','adminpass');
+      end;
+
+      if HasOption('U','remoteuser') then begin
+        cFRE_REMOTE_USER := GetOptionValue('U','remoteuser');
+      end;
+
+      if HasOption('H','remotehost') then begin
+        cFRE_REMOTE_HOST:= GetOptionValue('H','remotehost');
+      end else begin
+        cFRE_REMOTE_HOST:= '127.0.0.1';
+      end;
+    end;
+
 begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
-  ErrorMsg:=CheckOptions('hvirlgxytDf:e:u:p:d:s:U:H:',
+  ErrorMsg:=CheckOptions('hvirlgxytf:e:u:p:d:s:U:H:',
                           ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','drop-wal','test-log','disable-wal','disable-sync','dont-start','unittests',
+                           'database:','style:','remoteuser:','remotehost:','dropwal','testlog','disablewal','disablesync','dontstart','unittests',
                            'printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:','showinstalled',
-                           'backupdb:','restoredb:','backupsys:','restoresys','backupapp:','restoreapp:','adminuser:','adminpass:','limittransfer:']);
+                           'backupdb:','restoredb:','backupsys:','restoresys','backupapp:','restoreapp:','adminuser:','adminpass:','limittransfer:',
+                           'plhost:','plip:','plport:','ple']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -215,31 +263,35 @@ begin
     Exit;
   end;
 
-  FLimittransfer := 15;
+  ParsePLParams;
 
+  FLimittransfer := 0;
   if HasOption('*','limittransfer') then
     begin
-      FLimittransfer:=StrToIntDef(GetOptionValue('*','limittransfer'),25);
+      FLimittransfer:=StrToIntDef(GetOptionValue('*','limittransfer'),-1);
+      if FLimittransfer=-1 then
+        begin
+          writeln('TRANSFER LIMITING FAILED, SYNTAX');
+          FLimittransfer:=0;
+        end;
     end;
 
   if HasOption('*','printtz') then
     PrintTimeZones;
-  if HasOption('D','debugger') then
-    G_NO_INTERRUPT_FLAG:=true;
 
-  if HasOption('*','drop-wal') then
+  if HasOption('*','dropwal') then
     begin
       writeln('REQUESTED TO FORCE DROP WAL');
       GDROP_WAL := true;
     end;
 
-  if HasOption('*','disable-wal') then
+  if HasOption('*','disablewal') then
   begin
     writeln('GLOBALLY DISABLING WAL WRITES');
     GDISABLE_WAL := true;
   end;
 
-  if HasOption('*','disable-sync') then
+  if HasOption('*','disablesync') then
   begin
     writeln('GLOBALLY DISABLING SYNC WRITES');
     GDISABLE_SYNC := true;
@@ -276,21 +328,7 @@ begin
     VerifyExtensions;
   end;
 
-  if HasOption('u','user') then begin
-    cG_OVERRIDE_USER := GetOptionValue('u','user');
-  end;
-
-  if HasOption('p','pass') then begin
-    cG_OVERRIDE_PASS := GetOptionValue('p','pass');
-  end;
-
-  if HasOption('*','adminuser') then begin
-    cFRE_ADMIN_USER := GetOptionValue('*','adminuser');
-  end;
-
-  if HasOption('*','adminpass') then begin
-    cFRE_ADMIN_PASS := GetOptionValue('*','adminpass');
-  end;
+  ParseUserPass;
 
   if HasOption('d','database') then begin
     FDBName := GetOptionValue('d','database');
@@ -311,28 +349,16 @@ begin
   GDBPS_TRANS_WRITE_THROUGH := TRUE;
   GDISABLE_SYNC             := TRUE;
   GDROP_WAL                 := TRUE;
-  //
-
 
   // NOW The initial startup is done (connections can be made, but no extensions initialized)
   PrepareStartup;
 
-  if HasOption('*','test-log') then
+  if HasOption('*','testlog') then
     begin
       CfgTestLog;
     end;
 
   RegisterExtensions;
-
-  if HasOption('U','remoteuser') then begin
-    cFRE_REMOTE_USER := GetOptionValue('U','remoteuser');
-  end;
-
-  if HasOption('H','remotehost') then begin
-    cFRE_REMOTE_HOST:= GetOptionValue('H','remotehost');
-  end else begin
-    cFRE_REMOTE_HOST:= '127.0.0.1';
-  end;
 
   FinishStartup;
 
@@ -437,7 +463,7 @@ begin
   end;
 
 
-  if HasOption('*','dont-start') then
+  if HasOption('*','dontstart') then
     begin
       Terminate;
       exit;
@@ -449,8 +475,6 @@ begin
     Exit;
   end;
 
-  Setup_SSL_Interface;
-  Setup_APS_Comm;
   FBaseServer := TFRE_BASE_SERVER.create(FDBName);
   FBaseServer.Setup;
   GFRE_SC.RunUntilTerminate;
@@ -460,7 +484,7 @@ begin
   Terminate;
   FBaseServer.Free;
   GFRE_DB_PS_LAYER.Finalize;
-  Cleanup_SSL_Interface;
+  Cleanup_SSL_CMD_CA_Interface;
   GFRE_BT.DeactivateJack;
   exit;
 end;
@@ -492,30 +516,58 @@ begin
   WriteVersion;
   writeln('Usage: ',ExtractFileName(ExeName),' [OPTIONS]');
   writeln(' OPTIONS');
-  writeln('  -h            | --help                 : print this help');
-  writeln('  -e <ext,..>   | --extensions <ext,..>  : load database extensions');
-  writeln('  -g            | --graph                : graphical dump (system without extensions)');
-  writeln('  -f <filename> | --file <filename>      : filename for dump');
-  writeln('  -u <user>     | --user <user>          : specify user');
-  writeln('  -p <password> | --pass <password>      : specify password');
-  writeln('  -d <database> | --database <database>  : specify database');
-  writeln('  -x            | --forcedb              : recreates specified database (CAUTION)');
-  writeln('  -y            | --forcesysdb           : recreates system database (CAUTION)');
-  writeln('  -t            | --testuser             : creates test user');
-  writeln('  -i            | --init                 : init a new database with extensions');
-  writeln('  -r            | --remove               : remove extensions from system database (CAUTION)');
-  writeln('  -l            | --list                 : list available applications');
-  writeln('  -s            | --style                : use the given style (default: firmos)');
-  writeln('  -U            | --remoteuser           : user for remote commands');
-  writeln('  -H            | --remotehost           : host for remote commands');
-  writeln('  -v            | --version              : print version info');
-  writeln('  -D            | --debugger             : debugger (NOINT)');
+  writeln('  -v            | --version                 : print version information');
+  writeln('  -h            | --help                    : print this help');
+  writeln('  -e <ext,..>   | --extensions=<ext,..>     : load database extensions');
+  writeln('  -l            | --list                    : list available extensions');
+  writeln('  -s            | --style                   : use the given style (default: firmos)');
+  writeln('  -d <database> | --database=<database>     : specify database, default is "ADMIN_DB"');
+  writeln('  -x            | --forcedb                 : recreates specified database (CAUTION)');
+  writeln('  -y            | --forcesysdb              : recreates system database (CAUTION)');
+  writeln('  -t            | --testdata                : creates test data for extensions');
+  writeln('  -i            | --init                    : init a new database with the chosen extensions');
+  writeln('  -r            | --remove                  : remove extensions from system database (CAUTION)');
+  writeln('  -U            | --remoteuser=<user>       : user for remote commands');
+  writeln('  -H            | --remotehost=<pass>       : host for remote commands');
+  writeln('  -u <user>     | --user=<user>             : specify autologin (debug) user');
+  writeln('  -p <password> | --pass=<password>         : specify autologin (debug) password');
+  writeln('  -g            | --graph                   : graphical dump (system without extensions)');
+  writeln('');
+  writeln('                | --ple                     : use embedded persistence layer');
+  writeln('                | --plhost                  : use dns host for pl net connection');
+  writeln('                | --plip                    : use ip  host for pl net connection');
+  writeln('                | --plport                  : use port for pl net connection');
+  writeln('');
+  writeln('                | --unittest                : perform the unit test function for extensions');
+  writeln('                | --printtz                 : print debug timezone information / known timezones');
+  writeln('                | --cleanzip                : force delete all prezipped webroot files');
+  writeln('                | --nozip                   : don''t zip webroot files, the server still uses files that are availlable');
+  writeln('                | --nocache                 : disable memory caching of whole webroot on startup');
+  writeln('                | --jsdebug                 : enable javascript debug/develop mode');
+  writeln('                | --dbo2json=/path2/dbo     : convert a dbo to json represantation');
+  writeln('                | --json2dbo=/path2/json    : convert a json to dbo represantation');
+  writeln('                | --showinstalled           : show installed versions of all database objects');
+  writeln('                | --backupdb=</path2/dir>   : backup database interactive');
+  writeln('                | --restoredb=</path2/dir>  : restore database interactive');
+  writeln('                | --backupsys=</path2/dir>  : backup only sys database interactive');
+  writeln('                | --restoresys=</path2/dir> : restore only sys database interactive');
+  writeln('                | --backupapp=</path2/dir>  : backup only app database interactive');
+  writeln('                | --restoreapp=</path2/dir> : restore only app database interactive');
+  writeln('                | --adminuser=<user>        : specify user for admin options');
+  writeln('                | --adminpass=<password>    : specify password for admin options');
   writeln;
 end;
 
 procedure TFRE_CLISRV_APP.WriteVersion;
 begin
+  writeln('');
+  writeln('---');
   writeln(GFOS_VHELP_GET_VERSION_STRING);
+  writeln('---');
+  writeln('Default extension : ',FDefaultExtensions);
+  writeln('Default style     : ',FDefaultStyle);
+  writeln('---');
+  writeln('');
 end;
 
 procedure TFRE_CLISRV_APP.ReCreateDB;
@@ -860,7 +912,14 @@ end;
 procedure TFRE_CLISRV_APP.PrepareStartup;
 begin
   Initialize_Read_FRE_CFG_Parameter;
-  InitEmbedded;
+  Setup_SSL_CMD_CA_Interface;
+  Setup_APS_Comm;
+
+  if cFRE_PS_LAYER_USE_EMBEDDED then
+    GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db')
+  else
+    GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Net(cFRE_PS_LAYER_HOST,cFRE_PS_LAYER_IP,cFRE_PS_LAYER_PORT);
+
   Init4Server;
   GFRE_DBI.LocalZone := cFRE_SERVER_DEFAULT_TIMEZONE;
   //writeln('STARTUP @LOCAL TIME :',GFRE_DT.ToStrFOS(GFRE_DT.UTCToLocalTime(GFRE_DT.Now_UTC,GFRE_DBI.LocalZone)),'  UTC TIME :',GFRE_DT.ToStrFOS(GFRE_DT.Now_UTC));

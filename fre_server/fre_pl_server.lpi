@@ -93,7 +93,7 @@
     </Other>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="3">
+    <Exceptions Count="5">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
@@ -103,6 +103,12 @@
       <Item3>
         <Name Value="EFOpenError"/>
       </Item3>
+      <Item4>
+        <Name Value="EFRE_DB_PL_Exception"/>
+      </Item4>
+      <Item5>
+        <Name Value="EFRE_DB_Exception"/>
+      </Item5>
     </Exceptions>
   </Debugging>
 </CONFIG>

@@ -78,6 +78,8 @@ type
   TFRE_DB_String              = type AnsiString(CP_UTF8);
   PFRE_DB_String              = ^TFRE_DB_String;
   TFRE_DB_RawByteString       = RawByteString;
+  PNativeUint                 = ^NativeUint;
+  PNativeInt                  = ^NativeInt;
 
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
@@ -456,6 +458,7 @@ type
 
     procedure  CloneFromField              (const Field:IFRE_DB_FIELD);
     function   CheckOutObject              : IFRE_DB_Object;
+    function   CheckOutObjectArray         : IFRE_DB_ObjectArray;
 
     procedure AddGuid                       (const value : TGuid);
     procedure AddByte                       (const value : Byte);
@@ -638,6 +641,7 @@ type
 
   IFRE_DB_Object = interface(IFRE_DB_INVOKEABLE)
    ['IFREDBO']
+    function        _InternalDecodeAsField             : IFRE_DB_Field; { create a streaming only lightweight field from the encoding object }
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       SetReference                       (const obj : TObject);
@@ -1200,7 +1204,7 @@ type
     function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
     function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
 
-    procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0 ; const only_count_unique_vals : boolean=false);
+    procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
     procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
@@ -1212,7 +1216,7 @@ type
 
   { IFRE_DB_PERSISTANCE_LAYER }
 
-   IFRE_DB_DBChangedNotification = interface;
+  IFRE_DB_DBChangedNotification = interface;
 
   IFRE_DB_PERSISTANCE_LAYER=interface
     procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
@@ -1237,7 +1241,8 @@ type
     function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
     function  DeleteCollection              (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
 
-    function  Connect                       (const db_name:TFRE_DB_String ; out database_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false) : TFRE_DB_Errortype;
+    function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotification=nil) : TFRE_DB_Errortype;
+    function  Disconnect                    : TFRE_DB_Errortype;
     function  DatabaseList                  : IFOS_STRINGS;
     function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
     function  CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
@@ -1260,29 +1265,31 @@ type
 
     procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
     procedure SyncSnapshot                  (const final : boolean=false);
-    procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
+    //procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
     function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
   end;
 
   IFRE_DB_DBChangedNotification = interface
-    procedure  StartNotificationBlock (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const key : TFRE_DB_TransStepId);
-    procedure  FinishNotificationBlock(const Layer: IFRE_DB_PERSISTANCE_LAYER; const key: TFRE_DB_TransStepId ; out block : IFRE_DB_Object);
-    procedure  CollectionCreated      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const persColl : IFRE_DB_PERSISTANCE_COLLECTION) ;
-    procedure  CollectionDeleted      (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType) ;
-    procedure  IndexDefinedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
-    procedure  IndexDroppedOnField    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
-    procedure  ObjectStored           (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
-    procedure  SubObjectStored        (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
-    procedure  ObjectDeleted          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object);
-    procedure  SubObjectDeleted       (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const obj : IFRE_DB_Object);
-    procedure  FieldDelete            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field : IFRE_DB_Field);
-    procedure  FieldAdd               (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const new_field : IFRE_DB_Field);
-    procedure  FieldChange            (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const old_field,new_field : IFRE_DB_Field);
-    procedure  ObjectRemoved          (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
-    procedure  SetupOutboundRefLink   (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID            ; const to_obj: IFRE_DB_Object   ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  SetupInboundRefLink    (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : IFRE_DB_Object   ; const to_obj: TGUID            ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  InboundReflinkDropped  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const to_obj   : TGUID            ; const from_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  OutboundReflinkDropped (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const from_obj : TGUID            ; const to_obj: IFRE_DB_Object   ; const key_description: TFRE_DB_NameTypeRL);
+    procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
+    procedure  FinishNotificationBlock(out block : IFRE_DB_Object);
+    procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
+    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
+    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
+    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
+    procedure  ObjectDeleted          (const obj : IFRE_DB_Object);
+    procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
+    procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
+    procedure  FieldDelete            (const old_field : IFRE_DB_Field);
+    procedure  FieldAdd               (const new_field : IFRE_DB_Field);
+    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field);
+    procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
+    procedure  SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  InboundReflinkDropped  (const from_obj: IFRE_DB_Object    ; const to_obj   : TGUID       ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  OutboundReflinkDropped (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description: TFRE_DB_NameTypeRL);
+    procedure  FinalizeNotif          ;
   end;
 
   TFRE_DB_APPLICATION       = Class;
@@ -1593,6 +1600,7 @@ type
     procedure      InternalSetup       ; virtual;
     procedure      InternalFinalize    ; virtual;
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
+    function        _InternalDecodeAsField             : IFRE_DB_Field; { create a streaming only lightweight field from the encoding object }
   public
     function       GetDescriptionID                   : String;
     class procedure RegisterSystemScheme               (const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -2525,6 +2533,8 @@ type
   // This function should replace all character which should not a ppear in an ECMA Script (JS) string type to an escaped version,
   // as additional feature it replaces CR with a <br> tag, which is useful in formatting HTML
   function  FREDB_String2EscapedJSString         (const input_string:TFRE_DB_String;const replace_cr_with_br:boolean=false) : TFRE_DB_String;
+
+  procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification);
 
   operator< (g1, g2: TGUID) b : boolean;
   operator> (g1, g2: TGUID) b : boolean;
@@ -5509,6 +5519,11 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'dont call this');
 end;
 
+function TFRE_DB_ObjectEx._InternalDecodeAsField: IFRE_DB_Field;
+begin
+  abort;
+end;
+
 function TFRE_DB_ObjectEx.GetDescriptionID: String;
 begin
   result := FImplementor.GetDescriptionID;
@@ -7065,6 +7080,42 @@ begin
   end;
   result := StringReplace(Result            ,'"'    , '\u0022', [rfReplaceAll]);   // Double Qoute
   result := StringReplace(Result            ,''''   , '\u0027', [rfReplaceAll]);   // Single Quote
+end;
+
+procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification);
+var cmd   : ShortString;
+    objs  : IFRE_DB_ObjectArray;
+    i     : NativeInt;
+    layer : TFRE_DB_NameType;
+
+begin
+  objs := block.Field('N').AsObjectArr;
+  for i:=0 to High(objs) do
+    with objs[i] do
+      begin
+        cmd   := Field('C').AsString;
+        layer := Field('L').AsString;
+        case cmd of
+          'CC'  : deploy_if.CollectionCreated(Field('CC').AsString);
+          'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
+          'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
+          'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
+          'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').AsObject);
+          'OD'  : deploy_if.ObjectDeleted(Field('obj').AsObject);
+          'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').AsObject);
+          'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField);
+          'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);
+          'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField);
+          'SOS' : deploy_if.SubObjectStored(Field('SO').AsObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
+          'SOD' : deploy_if.SubObjectDeleted(Field('SO').AsObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
+          'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
+          'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
+          'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
+          'DIL' : deploy_if.InboundReflinkDropped (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
+          else
+            raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
+        end;
+      end;
 end;
 
 operator<(g1, g2: TGUID)b: boolean;

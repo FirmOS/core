@@ -51,9 +51,14 @@ var
       cFRE_JS_DEBUG                   :Boolean= false;
       cFRE_SERVER_DEFAULT_DIR         :string = '~/.firmos/fre';
       cFRE_SERVER_DEFAULT_SSL_DIR     :string = '~/.firmos/fre/ssl/server_files/';
+      cFRE_PS_LAYER_IP                :string = '';
+      cFRE_PS_LAYER_PORT              :string = '';
+      cFRE_PS_LAYER_HOST              :string = '';
+      cFRE_PS_LAYER_USE_EMBEDDED      :boolean= false;
+      cFRE_PS_LAYER_UXSOCK_NAME       :string = 'plsrv';
+      cFRE_UX_SOCKS_DIR               :string = '';      { override for standard server path/sockets/file}
       cFRE_HAL_CFG_DIR                :string = '';
       cFRE_TMP_DIR                    :string = '';
-      cFRE_UX_SOCKS_DIR               :string = '';
       cFRE_JOB_RESULT_DIR             :string = '';
       cFRE_JOB_PROGRESS_DIR           :string = '';
       cFRE_JOB_ARCHIVE_DIR            :string = '';
