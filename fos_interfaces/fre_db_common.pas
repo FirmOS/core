@@ -2168,7 +2168,7 @@ implementation
           store:=TFRE_DB_STORE_DESC.create.Describe();
           enumVals:=enum.getEntries;
           for i := 0 to Length(enumVals) - 1 do begin
-            store.AddEntry.Describe(enumVals[i].Field('c').AsDBText.ShortText,enumVals[i].Field('v').AsString);
+            store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
           end;
           group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,dh_chooser_radio,required,obj^.required);
         end else begin

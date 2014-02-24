@@ -771,8 +771,8 @@ type
   public
     function  Setup       (const infoText: TFRE_DB_TEXT): TFRE_DB_Enum;
     function  SetupI      (const infoText: IFRE_DB_TEXT): IFRE_DB_Enum;
-    procedure addEntry    (const value:TFRE_DB_String;const caption: TFRE_DB_TEXT);
-    procedure addEntryI   (const value:TFRE_DB_String;const caption: IFRE_DB_TEXT);
+    procedure addEntry    (const value:TFRE_DB_String;const cap_trans_key: TFRE_DB_String);
+    procedure addEntryI   (const value:TFRE_DB_String;const cap_trans_key: TFRE_DB_String);
     function  getEntries  :TFRE_DB_ObjectArray;
     function  getEntriesI :IFRE_DB_ObjectArray;
     function  CheckField  (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean):boolean; virtual;
@@ -2741,18 +2741,18 @@ begin
   Setup(infoText.Implementor as TFRE_DB_TEXT);
 end;
 
-procedure TFRE_DB_Enum.addEntry(const value: TFRE_DB_String; const caption: TFRE_DB_TEXT);
+procedure TFRE_DB_Enum.addEntry(const value: TFRE_DB_String;const cap_trans_key: TFRE_DB_String);
 var obj: TFRE_DB_Object;
 begin
   obj:=GFRE_DB.NewObject;
   obj._Field('v').AsString:=uppercase(value);
-  obj._Field('c').AsObject:=caption.Implementor as TFRE_DB_Object;
+  obj._Field('c').AsString:=cap_trans_key;
   _Field('e').AddObject(obj);
 end;
 
-procedure TFRE_DB_Enum.addEntryI(const value: TFRE_DB_String; const caption: IFRE_DB_TEXT);
+procedure TFRE_DB_Enum.addEntryI(const value: TFRE_DB_String;const cap_trans_key: TFRE_DB_String);
 begin
-  addEntry(value,caption.Implementor as TFRE_DB_TEXT);
+  addEntry(value,cap_trans_key);
 end;
 
 function TFRE_DB_Enum.CheckField(const field_to_check: TFRE_DB_FIELD; const raise_exception: boolean): boolean;
@@ -2885,8 +2885,6 @@ var
   i        : Integer;
   fieldDef : TFRE_DB_FieldSchemeDefinition;
   required : Boolean;
-  validator: TFRE_DB_ClientFieldValidator;
-  enum     : TFRE_DB_Enum;
 
 begin
   if Length(schemefield)>=255 then

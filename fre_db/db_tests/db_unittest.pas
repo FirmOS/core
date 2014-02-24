@@ -216,7 +216,6 @@ var l_Connection : TFRE_DB_SYSTEM_CONNECTION;
     l_result     : TFRE_DB_Errortype;
     apps         : TFRE_DB_APPLICATION_ARRAY;
     val          : TFRE_DB_ClientFieldValidator;
-    enum         : TFRE_DB_Enum;
 begin
   l_Connection := GFRE_DB.NewDirectSysConnection();
   l_result     := l_Connection.Connect('admin','admin');
@@ -242,7 +241,6 @@ var l_Connection : TFRE_DB_SYSTEM_CONNECTION;
     l_result     : TFRE_DB_Errortype;
     apps         : TFRE_DB_APPLICATION_ARRAY;
     val          : TFRE_DB_ClientFieldValidator;
-    enum         : TFRE_DB_Enum;
     colllist     : IFOS_STRINGS;
     i            : Integer;
     master       : TFRE_DB_COLLECTION;

@@ -965,7 +965,7 @@ type
   IFRE_DB_Enum=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBE']
     function  Setup      (const infoText: IFRE_DB_TEXT): IFRE_DB_Enum;
-    procedure addEntry   (const value:TFRE_DB_String;const caption: IFRE_DB_TEXT);
+    procedure addEntry   (const value:TFRE_DB_String;const cap_trans_key: TFRE_DB_String);
     function  getEntries :IFRE_DB_ObjectArray;
     function  CheckField (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean):boolean;
   end;
