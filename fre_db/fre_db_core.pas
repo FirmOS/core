@@ -2871,8 +2871,6 @@ var
   i        : Integer;
   fieldDef : TFRE_DB_FieldSchemeDefinition;
   required : Boolean;
-  validator: TFRE_DB_ClientFieldValidator;
-  enum     : TFRE_DB_Enum;
 
 begin
   if Length(schemefield)>=255 then
