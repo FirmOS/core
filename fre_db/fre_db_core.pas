@@ -1766,13 +1766,13 @@ type
     function           CollectionList               (const with_classes:boolean=false):IFOS_STRINGS                          ; virtual;
 
     function           DomainCollection             (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
-    function           GetDomainCollection          (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
+    function           GetDomainCollection          (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : IFRE_DB_COLLECTION;
     function           CreateDomainCollection       (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
 
     function           DomainCollectionName         (const collection_name: TFRE_DB_NameType;const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
     function           FetchDomainUIDbyName         (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; virtual;
 
-    function           DomainCollectionExists       (const name:TFRE_DB_NameType):boolean;
+    function           DomainCollectionExists       (const name:TFRE_DB_NameType; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType=''):boolean;
     function           DeleteDomainCollection       (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
     function           GetCollection                (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
@@ -9333,11 +9333,10 @@ end;
 
 function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): TFRE_DB_Errortype;
 var ncolls : TFRE_DB_StringArray;
-    res    : TFRE_DB_Errortype;
 begin //nl
   try
     FConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
-    res := edb_OK;
+    result := edb_OK;
   except
     result := FConnection.FPersistance_Layer.GetLastErrorCode;
   end;
@@ -10315,16 +10314,16 @@ begin
   result    := Collection(DomainCollectionName(collection_name,ForDomainName,ForDomainUIDString),create_non_existing,in_memory);
 end;
 
-function TFRE_DB_BASE_CONNECTION.GetDomainCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_COLLECTION;
+function TFRE_DB_BASE_CONNECTION.GetDomainCollection(const collection_name: TFRE_DB_NameType; const ForDomainID: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): IFRE_DB_COLLECTION;
 begin
-  result := DomainCollection(collection_name,false);
+  result := DomainCollection(collection_name,false,false,ForDomainID,ForDomainUIDString);
   if not assigned(Result) then
     raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'there is no domain uid prefixed collection named [%s]',[collection_name]);
 end;
 
 function TFRE_DB_BASE_CONNECTION.CreateDomainCollection(const collection_name: TFRE_DB_NameType; const in_memory: boolean; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): IFRE_DB_COLLECTION;
 begin
- if DomainCollectionExists(collection_name) then
+ if DomainCollectionExists(collection_name,ForDomainName,ForDomainUIDString) then
    raise EFRE_DB_Exception.Create(edb_ERROR,'there is already a domain uid prefixed collection named [%s]',[collection_name]);
  result := DomainCollection(collection_name,true,in_memory,ForDomainName,ForDomainUIDString);
 end;
@@ -10360,11 +10359,9 @@ begin
   abort;
 end;
 
-function TFRE_DB_BASE_CONNECTION.DomainCollectionExists(const name: TFRE_DB_NameType): boolean;
-var dom_cname : TFRE_DB_NameType;
+function TFRE_DB_BASE_CONNECTION.DomainCollectionExists(const name: TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): boolean;
 begin
-  dom_cname := GetMyDomainID_String+name;
-  result    := CollectionExists(dom_cname);
+  result    := CollectionExists(DomainCollectionName(name,ForDomainName,ForDomainUIDString));
 end;
 
 function TFRE_DB_BASE_CONNECTION.DeleteDomainCollection(const name: TFRE_DB_NameType): TFRE_DB_Errortype;
