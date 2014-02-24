@@ -625,6 +625,7 @@ type
     procedure  ObjectStored           (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object) ; virtual;
     procedure  ObjectDeleted          (const obj : IFRE_DB_Object)  ; virtual;
     procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object); virtual ;
     procedure  FieldDelete            (const old_field : IFRE_DB_Field); virtual;
     procedure  FieldAdd               (const new_field : IFRE_DB_Field); virtual;
     procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field); virtual;
@@ -662,6 +663,7 @@ type
     procedure   ObjectStored           (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object) ; override;
     procedure   ObjectDeleted          (const obj : IFRE_DB_Object)  ; override;
     procedure   ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); override;
+    procedure   ObjectUpdated          (const obj : IFRE_DB_Object); override ;
     procedure   FieldDelete            (const old_field : IFRE_DB_Field); override;
     procedure   FieldAdd               (const new_field : IFRE_DB_Field); override;
     procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field); override;
@@ -922,6 +924,23 @@ begin
   end;
 end;
 
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectUpdated(const obj: IFRE_DB_Object);
+var newe : IFRE_DB_Object;
+begin
+  try
+    Inherited; { log }
+    CheckBlockStarted;
+    newe := GFRE_DBI.NewObject;
+    newe.Field('C').AsString    := 'OU';
+    //newe.Field('CC').AsString   := coll_name;
+    newe.Field('OBJ').AsObject  := obj.CloneToNewObject;
+    AddNotificationEntry(newe);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: ObjectUpdated '+e.Message);
+  end;
+end;
+
 procedure TFRE_DB_DBChangedNotificationProxy.FieldDelete(const old_field: IFRE_DB_Field);
 var newe : IFRE_DB_Object;
 begin
@@ -1140,6 +1159,11 @@ end;
 procedure TFRE_DB_DBChangedNotificationBase.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
   GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT REMOVED FROM [%s] -> %s',[FLayerDB,coll_name,obj.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.ObjectUpdated(const obj: IFRE_DB_Object);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT UPDATED -> %s',[FLayerDB,obj.GetDescriptionID]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.FieldDelete(const old_field: IFRE_DB_Field);
@@ -2084,7 +2108,7 @@ var i,j         : NativeInt;
                 begin
                   if check then
                     exit;
-                  writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
+                  //writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
                   inmemobject.Field(newfield.FieldName).AsObjectArr := newfield.AsObjectArr;
                 end;
               fdbft_ObjLink:
@@ -2145,7 +2169,15 @@ begin
         end;
     end;
   if not check then
-    CheckWriteThrough;
+    begin
+      to_upd_obj.Set_Store_Locked(false);
+      try
+        FTransList.GetNotifyIF.ObjectUpdated(to_upd_obj);
+      finally
+        to_upd_obj.Set_Store_Locked(true);
+      end;
+      CheckWriteThrough;
+    end;
 end;
 
 procedure TFRE_DB_UpdateStep.InternalWriteWalHeader(const m: TMemoryStream);

@@ -848,8 +848,6 @@ type
     }
     procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids'; const subscribe_observer_to : IFRE_DB_COLLECTION=nil);
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
-    //procedure  AddVirtualChildEntry            (const caption:TFRE_DB_String; const FuncClass: String; const uidPath: TFRE_DB_StringArray; const ChildrenFunc:String='ChildrenData'; const ContentFunc:String='Content';const MenuFunc:String='Menu');
-    function   Derive                          : TFRE_DB_Errortype;
 
     procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
     procedure  SetDisplayTypeChart           (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean; const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
@@ -1279,6 +1277,7 @@ type
     procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
     procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
     procedure  ObjectDeleted          (const obj : IFRE_DB_Object);
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object);
     procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  FieldDelete            (const old_field : IFRE_DB_Field);
@@ -7101,6 +7100,7 @@ begin
           'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
           'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
           'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').AsObject);
+          'OU'  : deploy_if.ObjectUpdated(Field('obj').AsObject);
           'OD'  : deploy_if.ObjectDeleted(Field('obj').AsObject);
           'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').AsObject);
           'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField);

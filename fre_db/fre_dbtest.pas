@@ -750,9 +750,12 @@ var filedir : TFRE_DB_TEST_FILEDIR;
     coll    : IFRE_DB_COLLECTION;
 begin
   coll := admin_dbc.GetCollection('COLL_FILEBROWSER');
-  filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
-  filedir.SetProperties('Virtual Rooot',false,0,0,0);
-  CheckDbResult(coll.Store(filedir),'Error creating root entry');
+  if coll.Count=0 then
+    begin
+      filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
+      filedir.SetProperties('Virtual Rooot',false,0,0,0);
+      CheckDbResult(coll.Store(filedir),'Error creating root entry');
+    end;
 end;
 
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -2436,7 +2439,7 @@ begin
   CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
 
   COLL := CONN.GetCollection('COLL_TEST_A');
-  for i := 0 to 2000 - 1 do begin
+  for i := 0 to 20 - 1 do begin
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i;
     lobj.Field('number_pb').AsUInt32:=i * 10;
@@ -2452,8 +2455,8 @@ begin
     COLL.Store(lobj);
   end;
   COLL := CONN.GetCollection('COLL_TEST_A2');
-  for i := 0 to 2000 - 1 do begin
-    //if i mod 100=0 then writeln('ENDLESS ',i);
+  for i := 0 to 20 - 1 do begin
+    if i mod 1000=0 then writeln('ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i*10;
     lobj.Field('number_pb').AsUInt32:=i*10;
@@ -2470,7 +2473,7 @@ begin
   end;
 
   COLL := CONN.GetCollection('COLL_TEST_B');
-  for i := 0 to 2000 - 1 do begin
+  for i := 0 to 200 - 1 do begin
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_B);
     lobj.Field('firstname').AsString:='FN_' + IntToStr(i);
     lobj.Field('lastname').AsString:='LN_' + IntToStr(i);

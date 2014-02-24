@@ -1502,6 +1502,7 @@ type
     FObserverAdded     : Boolean;
 
     FExpandedRefs      : TFRE_DB_ObjectArray;
+
     FDBOList           : TFRE_DB_SortTree;  // Link to
 
     FParentCollection  : IFRE_DB_COLLECTION;
@@ -1720,8 +1721,10 @@ type
     procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);virtual;
     procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
     procedure  ObjectDeleted          (const obj : IFRE_DB_Object); virtual;
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object); virtual;
     procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
+
     procedure  FieldDelete            (const old_field : IFRE_DB_Field); virtual;
     procedure  FieldAdd               (const new_field : IFRE_DB_Field); virtual;
     procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field); virtual;
@@ -5577,6 +5580,8 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ICO_CollectionNotify(const notify_type: TFRE_DB_NotifyObserverType; const obj: IFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
 var not_object : IFRE_DB_Object;
+    hack_up_obj: IFRE_DB_Object;
+    hack_fld   : IFRE_DB_Field;
     rl_field   : TFRE_DB_NameType;
     rl_scheme  : TFRE_DB_NameType;
     rl_Add     : boolean;
@@ -5779,15 +5784,36 @@ begin //nl
           end;
     end;
     fdbntf_UPDATE: begin
-        if _CheckUIDExists(obj_uid) then begin
+        //if _CheckUIDExists(obj_uid) then begin {hack}
           not_object := obj;
           if not assigned(not_object) then
             FConnection.FetchI(obj_uid,not_object);
           if assigned(not_object) then
             begin
-              _AddToTransformedCollection(not_object.Implementor as TFRE_DB_Object,true,true);
+              hack_up_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,not_object);
+              if cdgf_Children in FGridDisplayFlags then
+                begin
+                  if FParentChildField<>'' then
+                    begin
+                      if (FConnection.GetReferencesCount(hack_up_obj.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
+                        begin
+                          hack_up_obj.Field('children').AsString        := 'UNCHECKED';
+                        end;
+                      hack_up_obj.Field('_menufunc_').AsString      := 'Menu';
+                      hack_up_obj.Field('_contentfunc_').AsString   := 'Content';
+                      if hack_up_obj.FieldOnlyExisting('icon',hack_fld) then // icon in source
+                          hack_up_obj.Field('icon').AsString:= FREDB_getThemedResource(hack_fld.AsString); // icon in transformed
+                    end
+                  else
+                    begin
+                      // Non Reflink Child Parent Mode
+                    end;
+                end;
+
+              FGatherUpdateList.addUpdatedEntry(hack_up_obj);
+              //_AddToTransformedCollection(not_object.Implementor as TFRE_DB_Object,true,true,false,'',true);
             end;
-        end;
+        //end;
     end;
     fdbntf_DELETE: begin
       if _CheckUIDExists(obj_uid) then begin
@@ -6317,7 +6343,7 @@ begin
     if not assigned(FTransform) then
       raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
     if childcall then
-      cnt:=0;;
+      cnt:=0;
     case FDCMode of
       dc_None: ;
       dc_Map2DerivedCollection: begin
@@ -7307,16 +7333,16 @@ begin
   try
     case FDisplaytype of
       cdt_Listview:   begin
-  //                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
                       end;
       cdt_Treeview:   begin;
-  //                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
                       end;
        cdt_Chartview: begin
-  //                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
                       end;
       else begin
         raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
@@ -7722,7 +7748,7 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-//  writeln('CLEAR GRID DATA '+input.DumpToString);
+  writeln('CLEAR GRID DATA '+input.DumpToString);
   AcquireBigColl;
   try
     RemoveQueryIDWatch(_Get_DC_QueryID(input));
@@ -7824,7 +7850,7 @@ function TFRE_DB_DERIVED_COLLECTION.IMI_DESTROY_STORE(const input: IFRE_DB_Objec
 begin
   AcquireBigColl;
   try
-    //writeln('DESTROY STORE ',input.DumpToString());
+    writeln('DESTROY STORE ',input.DumpToString());
    // _CheckObserverAdded(false);
     result := GFRE_DB_NIL_DESC;
   finally
@@ -9957,6 +9983,35 @@ begin
   obj.Finalize;
 end;
 
+procedure TFRE_DB_BASE_CONNECTION.ObjectUpdated(const obj: IFRE_DB_Object);
+var dummy:boolean;
+
+  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+
+    procedure NotifyObjUpdate(const coll : TFRE_DB_COLLECTION);
+    begin
+      coll._NotifyObserversOrRecord(fdbntf_UPDATE,obj.Implementor as TFRE_DB_Object,obj.UID,CFRE_DB_NullGUID,'');
+    end;
+
+  begin
+     conn.ForAllColls(@NotifyObjUpdate);
+  end;
+
+begin
+  AcquireBig;
+  try
+    try
+      _CloneCheck;
+      DoForClones(self,0,dummy);
+      FConnectionClones.ForAllBreak(@DoForClones);
+    finally
+      obj.Finalize;
+    end;
+  finally
+    ReleaseBig;
+  end;
+end;
+
 procedure TFRE_DB_BASE_CONNECTION.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
 begin
   obj.Finalize;
@@ -9973,35 +10028,33 @@ begin
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.FieldChange(const old_field, new_field: IFRE_DB_Field);
-var dummy:boolean;
-
-  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
-  var
-      lcollection      : TFRE_DB_Collection;
-      sa               : TFRE_DB_StringArray;
-      i                : NativeInt;
-  begin
-    sa := old_field.GetInCollectionArrayUSL;
-    for i:=0 to high(sa) do
-      if conn.FCollectionStore.Find(sa[i],lcollection) then
-        lcollection._NotifyObserversOrRecord(fdbntf_FIELDCHANGE,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'',new_field);
-  end;
-
+//var dummy:boolean;
+//
+//  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+//  var
+//      lcollection      : TFRE_DB_Collection;
+//      sa               : TFRE_DB_StringArray;
+//      i                : NativeInt;
+//  begin
+//    sa := old_field.GetInCollectionArrayUSL;
+//    for i:=0 to high(sa) do
+//      if conn.FCollectionStore.Find(sa[i],lcollection) then
+//        lcollection._NotifyObserversOrRecord(fdbntf_FIELDCHANGE,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'',new_field);
+//  end;
+//
 begin
-  AcquireBig;
-  try
-    try
-      _CloneCheck;
-      DoForClones(self,0,dummy);
-      FConnectionClones.ForAllBreak(@DoForClones);
-    finally
-      //obj.Finalize;
-    end;
-  finally
-    old_field.Finalize;
-    new_field.Finalize;
-    ReleaseBig;
-  end;
+ old_field.Finalize;
+ new_field.Finalize;
+ //AcquireBig;
+ // try
+ //   _CloneCheck;
+ //   DoForClones(self,0,dummy);
+ //   FConnectionClones.ForAllBreak(@DoForClones);
+ // finally
+ //   old_field.Finalize;
+ //   new_field.Finalize;
+ //   ReleaseBig;
+ // end;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
