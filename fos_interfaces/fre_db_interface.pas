@@ -1337,7 +1337,7 @@ type
     function    InvokeMethod                  (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
     procedure   ExpandReferences              (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
-
+    procedure   ExpandReferences              (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray);
 
     function    GetReferences                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
     function    GetReferencesCount            (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;

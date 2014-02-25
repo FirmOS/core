@@ -21,12 +21,12 @@ type
   TFRE_DBO_SERVER=class(TFRE_DB_Base)
   private
     FLock        : IFOS_LOCK;
-    FChannelList : TList;
     FListenerUX  : IFRE_APSC_LISTENER;
     FListenerTCP : IFRE_APSC_LISTENER;
     procedure   NewListener  (const new_listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
   protected
-    FDBO_Srv_Cfg  : RDBO_SRV_CFG;
+    FChannelList : TList;
+    FDBO_Srv_Cfg : RDBO_SRV_CFG;
     procedure   NewChannel   (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState); virtual;
     procedure   DiscoChannel (const channel      : IFRE_APSC_CHANNEL); virtual;
     procedure   ReadChannel  (const channel      : IFRE_APSC_CHANNEL); virtual;

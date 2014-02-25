@@ -1823,6 +1823,7 @@ type
     function           GetSysDomainUID              : TGUID; virtual;
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object;const without_right_check:boolean=false) : TFRE_DB_Errortype; virtual;
+    function           FetchAccessRightTest         (const ouid: TGUID): boolean; { fetch the object, check rights and free }
     function           Update                       (const dbo:TFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
@@ -1967,15 +1968,19 @@ type
     function    StoreTranslateableText      (var   txt    :TFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    DeleteTranslateableText     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
 
-    function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
-    function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
+    { Safe case, use for single domain use cases }
+    function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean; { and systemuser and systemdomain}
 
+    { Many domain case, add additional checks for the specific domain }
     function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
     function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
     function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
 
+    { Stdrights Many domain case, add additional checks for the specific domain }
+    function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
     function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
-    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+
+    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean; { specific domain }
     function    IntCheckClassRight4Domain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainuid:TGuid):boolean;
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
 
@@ -2081,6 +2086,7 @@ type
 
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_ObjectArray);
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
+    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray);
 
     function    GetDerivedCollection          (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
     function    CreateDerivedCollection       (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
@@ -10924,11 +10930,13 @@ var dbi : IFRE_DB_Object;
       classt := dbo.Implementor_HC.ClassType;
       //GFRE_DB.LogDebug(dblc_APPLICATION,'Check Right for FETCH of class [%s] mydomain [%s]',[classt.ClassName,GetMyDomainID_String]);   // add user info
       if not
-       ((IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
+       ((without_right_check
+         or IsCurrentUserSystemAdmin
+         or (classt=TFRE_DB_Object)
+         or IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
          or IntCheckClassRight4Domain(sr_FETCH,classt,GetSysDomainUID)
          or IntCheckObjectRight(sr_FETCH,dbo.UID)
-         or IsCurrentUserSystemAdmin
-         or without_right_check) then
+        ) then
            begin
              GFRE_DB.LogInfo(dblc_APPLICATION,'Access denied for FETCH of class [%s] domain [%s]',[classt.ClassName,FREDB_G2H(dbo.DomainID)]); // add user info
              if not dbo.IsSystem then
@@ -10962,6 +10970,22 @@ begin
   finally
     ReleaseBig;
   end;
+end;
+
+function TFRE_DB_BASE_CONNECTION.FetchAccessRightTest(const ouid: TGUID): boolean;
+var dbo : TFRE_DB_Object;
+    res : TFRE_DB_Errortype;
+begin
+  Res := Fetch(ouid,dbo);
+  if Res = edb_OK then
+    begin
+      result := true;
+      dbo.Finalize;
+    end
+  else
+    begin
+      result := false;
+    end;
 end;
 
 function TFRE_DB_BASE_CONNECTION.Update(const dbo: TFRE_DB_Object): TFRE_DB_Errortype;
@@ -11121,24 +11145,50 @@ begin //nl
 end;
 
 function TFRE_DB_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
+var result_with_rights : TFRE_DB_GUIDArray;
+    i,cnt              : NativeInt;
 begin
  Result:=inherited GetReferences(obj_uid, from,scheme_prefix_filter,field_exact_filter);
  if not assigned(Result) then
    result := FSysConnection.GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+ SetLength(result_with_rights,Length(result));
+ cnt := 0;
+ for i:=0 to high(Result) do
+   if FetchAccessRightTest(result[i]) then
+     begin
+       result_with_rights[cnt] := result[i];
+       inc(cnt);
+     end;
+  SetLength(result_with_rights,cnt);
+  result := result_with_rights;
 end;
 
 function TFRE_DB_CONNECTION.GetReferencesCount(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
 begin
- Result:=inherited GetReferencesCount(obj_uid, from,scheme_prefix_filter,field_exact_filter);
- if Result=0 then
-   result := FSysConnection.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+  //Result:=inherited GetReferencesCount(obj_uid, from,scheme_prefix_filter,field_exact_filter);
+  //if Result=0 then
+  //  result := FSysConnection.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+  result := Length(GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter)); { with respect to rights }
 end;
 
+{ Todo add right check}
 function TFRE_DB_CONNECTION.GetReferencesDetailed(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_ObjectReferences;
+var i,cnt           : NativeInt;
+    res_with_rights : TFRE_DB_ObjectReferences;
 begin
- Result:=inherited GetReferencesDetailed(obj_uid, from,scheme_prefix_filter,field_exact_filter);
- if not assigned(Result) then
-   result := FSysConnection.GetReferencesDetailed(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+  Result:=inherited GetReferencesDetailed(obj_uid, from,scheme_prefix_filter,field_exact_filter);
+  if not assigned(Result) then
+    result := FSysConnection.GetReferencesDetailed(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+  SetLength(res_with_rights,Length(Result));
+  cnt := 0;
+  for i:=0 to High(Result) do
+    if FetchAccessRightTest(Result[i].linked_uid) then
+      begin
+        res_with_rights[cnt] := Result[i];
+        inc(Cnt);
+      end;
+  SetLength(res_with_rights,cnt);
+  Result := res_with_rights;
 end;
 
 function TFRE_DB_CONNECTION.FetchDomainUIDbyName(const name: TFRE_DB_NameType; var domain_uid: TFRE_DB_GUID): boolean;
@@ -11147,21 +11197,30 @@ begin
 end;
 
 procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints : TFRE_DB_NameTypeRLArray ; var expanded_refs: TFRE_DB_ObjectArray);
-var i        : NativeInt;
-    FReflist : TFRE_DB_GUIDArray;
-begin //nl
-  ExpandReferences(ObjectList,ref_constraints,FReflist);
-  SetLength(expanded_refs,Length(FReflist));
-  for i := 0 to high(expanded_refs) do
-    if Fetch(FReflist[i],expanded_refs[i])<>edb_OK then
-      raise EFRE_DB_Exception.Create(edb_INTERNAL,'FAILED TO FETCH EXPANDED REFERENCED;CHAINED OBJECT');
-end;
-
-procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints: TFRE_DB_NameTypeRLArray; var expanded_refs: TFRE_DB_GUIDArray);
+//var i        : NativeInt;
+//    FReflist : TFRE_DB_GUIDArray;
+//    cnt      : NativeInt;
+//    res      : TFRE_DB_Errortype;
+//begin //nl
+//  ExpandReferences(ObjectList,ref_constraints,FReflist);
+//  SetLength(expanded_refs,Length(FReflist));
+//  cnt := 0;
+//  for i := 0 to high(expanded_refs) do
+//    begin
+//      res := Fetch(FReflist[i],expanded_refs[cnt]);
+//      if res=edb_ACCESS then
+//        continue; { skip object with no access rights }
+//      if res<>edb_OK then
+//        raise EFRE_DB_Exception.Create(edb_INTERNAL,'FAILED TO FETCH EXPANDED REFERENCED;CHAINED OBJECT');
+//      inc(cnt);
+//    end;
+//  SetLength(expanded_refs,cnt);
+//end;
 var i        : NativeInt;
     obj      : TFRE_DB_Object;
     comparef : TFRE_DB_NameType;
     count    : NativeInt;
+    res      : TFRE_DB_Errortype;
 
   procedure FetchChained(uid:TGuid ; field_chain : TFRE_DB_NameTypeRLArray ; depth : NativeInt);
   var obrefs   : TFRE_DB_ObjectReferences;
@@ -11170,6 +11229,20 @@ var i        : NativeInt;
       field    : TFRE_DB_NameType;
       outbound : Boolean;
       spos     : NativeInt;
+
+      function  _GuidInObjArray (const check:TGuid;const arr : TFRE_DB_ObjectArray):NativeInt;
+      var  i: NativeInt;
+      begin
+        result := -1;
+        for i:=0 to High(arr) do
+          begin
+            if not assigned(arr[i]) then
+              exit;
+            if FREDB_Guids_Same(check,arr[i].UID) then
+              exit(i);
+          end;
+      end;
+
   begin
     if depth<length(field_chain) then
       begin
@@ -11186,9 +11259,14 @@ var i        : NativeInt;
       begin
         if Length(expanded_refs) = count then
           SetLength(expanded_refs,Length(expanded_refs)+256);
-        if FREDB_GuidInArray(uid,expanded_refs)=-1 then
+        if _GuidInObjArray(uid,expanded_refs)=-1 then
           begin
-            expanded_refs[count] := uid;
+            res := Fetch(uid,expanded_refs[count]);
+            if res=edb_ACCESS then
+              exit; { skip object with no access rights }
+            if res<>edb_OK then
+              raise EFRE_DB_Exception.Create(edb_INTERNAL,'FAILED TO FETCH EXPANDED REFERENCED ; CHAINED OBJECT');
+            //expanded_refs[count] := uid;
             inc(count);
           end;
       end;
@@ -11205,6 +11283,76 @@ begin
   finally
     ReleaseBig;
   end;
+end;
+
+
+
+procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints: TFRE_DB_NameTypeRLArray; var expanded_refs: TFRE_DB_GUIDArray);
+//var i        : NativeInt;
+//    obj      : TFRE_DB_Object;
+//    comparef : TFRE_DB_NameType;
+//    count    : NativeInt;
+//
+//  procedure FetchChained(uid:TGuid ; field_chain : TFRE_DB_NameTypeRLArray ; depth : NativeInt);
+//  var obrefs   : TFRE_DB_ObjectReferences;
+//      i,k      : NativeInt;
+//      scheme   : TFRE_DB_NameType;
+//      field    : TFRE_DB_NameType;
+//      outbound : Boolean;
+//      spos     : NativeInt;
+//  begin
+//    if depth<length(field_chain) then
+//      begin
+//        outbound := FREDB_SplitRefLinkDescription(field_chain[depth],field,scheme);
+//        obrefs   := GetReferencesDetailed(uid,outbound,scheme,field);
+//        for i := 0 to  high(obrefs) do
+//          begin
+//            //comparef := uppercase(obrefs[i].fieldname);
+//            //if  pos(field_chain[depth],comparef)>0 then
+//              FetchChained(obrefs[i].linked_uid,field_chain,depth+1);
+//          end;
+//      end
+//    else
+//      begin
+//        if Length(expanded_refs) = count then
+//          SetLength(expanded_refs,Length(expanded_refs)+256);
+//        if FREDB_GuidInArray(uid,expanded_refs)=-1 then
+//          begin
+//            expanded_refs[count] := uid;
+//            inc(count);
+//          end;
+//      end;
+//  end;
+  var exrefs : TFRE_DB_ObjectArray;
+           i : NativeInt;
+begin
+ ExpandReferences(ObjectList,ref_constraints,exrefs);
+ SetLength(expanded_refs,Length(exrefs));
+ for i:=0 to high(exrefs) do
+   begin
+     expanded_refs[i] := exrefs[i].UID;
+     exrefs[i].Finalize;
+   end;
+  //AcquireBig;
+  //try
+  //  SetLength(expanded_refs,0);
+  //  count := 0;
+  //  for i := 0 to High(ObjectList) do
+  //    FetchChained(ObjectList[i],ref_constraints,0);
+  //  SetLength(expanded_refs,count);
+  //finally
+  //  ReleaseBig;
+  //end;
+end;
+
+procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints: TFRE_DB_NameTypeRLArray; var expanded_refs: IFRE_DB_ObjectArray);
+var exrefs : TFRE_DB_ObjectArray;
+         i : NativeInt;
+begin
+  ExpandReferences(ObjectList,ref_constraints,exrefs);
+  SetLength(expanded_refs,length(exrefs));
+  for i:=0 to high(exrefs) do
+    expanded_refs[i] := exrefs[i];
 end;
 
 function TFRE_DB_CONNECTION.GetDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;

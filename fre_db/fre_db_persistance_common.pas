@@ -4061,7 +4061,7 @@ begin
   values   := TFRE_DB_IndexValueStore.Create;
   dummy    := FREDB_ObjectToPtrUInt(values);
   if FIndex.InsertBinaryKeyOrFetch(key,keylen,dummy) then
-    begin //new
+   begin //new
       if not FIndex.ExistsBinaryKey(key,keylen,dummy) then
         begin
           FIndex.InsertBinaryKey(key,keylen,dummy); // debug line
@@ -4105,8 +4105,8 @@ begin
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old obj uid [%s] value in indexvaluestore?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
   if values.ObjectCount=0 then
     begin
-    if not FIndex.RemoveBinaryKey(key,keylen,dummy) then
-      raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot remove the index node entry for old obj uid [%s] in indextree?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
+      if not FIndex.RemoveBinaryKey(key,keylen,dummy) then
+        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot remove the index node entry for old obj uid [%s] in indextree?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
       values.free;
     end;
 end;
@@ -4785,7 +4785,7 @@ begin
     fdbft_UInt64 :
       begin
         if not checkonly then
-        index := TFRE_DB_UnsignedIndex.Create(index_name,fieldname,fieldtype,unique,self,allow_null_value,unique_null_values);
+          index := TFRE_DB_UnsignedIndex.Create(index_name,fieldname,fieldtype,unique,self,allow_null_value,unique_null_values);
       end;
     fdbft_Int16,    // invert Sign bit by xor (1 shl (bits-1)), then swap endian
     fdbft_Int32,
@@ -4794,14 +4794,14 @@ begin
     fdbft_DateTimeUTC:
       begin
         if not checkonly then
-        index := TFRE_DB_SignedIndex.Create(index_name,fieldname,fieldtype,unique,self,allow_null_value,unique_null_values);
+         index := TFRE_DB_SignedIndex.Create(index_name,fieldname,fieldtype,unique,self,allow_null_value,unique_null_values);
       end;
     //fdbft_Real32: ;
     //fdbft_Real64: ;
     fdbft_String:
       begin
         if not checkonly then
-        index := TFRE_DB_TextIndex.Create(index_name,FieldName,FieldType,unique,ignore_content_case,self,allow_null_value,unique_null_values);
+          index := TFRE_DB_TextIndex.Create(index_name,FieldName,FieldType,unique,ignore_content_case,self,allow_null_value,unique_null_values);
       end;
     //fdbft_Stream: ;
     //fdbft_Object: ;

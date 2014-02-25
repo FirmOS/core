@@ -80,7 +80,7 @@ procedure TFRE_PLSERVER_APP.DoRun;
 var
   ErrorMsg   : String;
 begin
-  ErrorMsg:=CheckOptions('hv',['help','version','test-log']);
+  ErrorMsg:=CheckOptions('hv',['help','version','testlog']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -100,11 +100,17 @@ begin
   end;
 
   Initialize_Read_FRE_CFG_Parameter;
-  if HasOption('*','test-log') then
+  if HasOption('*','testlog') then
     begin
       writeln('configuring testlogging');
       CfgTestLog;
     end;
+
+  GDISABLE_WAL              := TRUE;
+  GDBPS_TRANS_WRITE_THROUGH := TRUE;
+  GDISABLE_SYNC             := TRUE;
+  GDROP_WAL                 := TRUE;
+
   InitEmbedded;
   Init4Server;
   GFRE_DBI.SetLocalZone('Europe/Vienna');
@@ -146,7 +152,7 @@ begin
   writeln('Usage: ',ExeName,' -h');
   writeln('  -h            | --help                 : print this help');
   writeln('  -v            | --version              : print version info');
-  writeln('                  --test-log             : enable console test-log');
+  writeln('                  --testlog              : enable console test-log');
 end;
 
 procedure TFRE_PLSERVER_APP.WriteVersion;

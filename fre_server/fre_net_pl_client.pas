@@ -26,10 +26,11 @@ type
     private
       FName       : TFRE_DB_NameType;
       FUppername  : TFRE_DB_NameType;
+      FCollClassn : Shortstring;
       FIsVolatile : Boolean;
       Flayer      : TPLNet_Layer;
     public
-      constructor     Create                     (const collname : TFRE_DB_NameType ; const isVolatile : Boolean ; const layer : TPLNet_Layer);
+      constructor     Create                     (const collname : TFRE_DB_NameType ; const CollectionClassname: Shortstring; const isVolatile : Boolean ; const layer : TPLNet_Layer);
       function        SendCycleColl              (const cmd : IFRE_DB_Object ; out answer : IFRE_DB_Object) : boolean;
       function        GetPersLayerIntf           : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
       function        GetPersLayer               : IFRE_DB_PERSISTANCE_LAYER;
@@ -99,7 +100,7 @@ type
       procedure   CheckRaiseAnswerError      (const answer : IFRE_DB_Object;const dont_raise : boolean=false);
 
       function    _CollectionExists          (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION):Boolean;
-      function    _AddCollection             (const coll_name: TFRE_DB_NameType; const isVolatile: boolean): IFRE_DB_PERSISTANCE_COLLECTION;
+      function    _AddCollection             (const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: boolean): IFRE_DB_PERSISTANCE_COLLECTION;
       function    _RemoveCollection          (const coll_name: TFRE_DB_NameType):boolean;
 
       {PS Layer Interface }
@@ -199,11 +200,12 @@ end;
 
 { TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection }
 
-constructor TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(const collname: TFRE_DB_NameType; const isVolatile: Boolean; const layer: TPLNet_Layer);
+constructor TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(const collname: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: Boolean; const layer: TPLNet_Layer);
 begin
   FName       := collname;
   FUppername  := uppercase(FName);
   FIsVolatile := isVolatile;
+  FCollClassn := CollectionClassname;
   Flayer      := layer;
 end;
 
@@ -225,7 +227,7 @@ end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetCollectionClassName: ShortString;
 begin
-  abort;
+  result := FCollClassn;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.IsVolatile: boolean;
@@ -632,12 +634,12 @@ begin
   exit(false);
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._AddCollection(const coll_name: TFRE_DB_NameType;const isVolatile : boolean): IFRE_DB_PERSISTANCE_COLLECTION;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._AddCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: boolean): IFRE_DB_PERSISTANCE_COLLECTION;
 var x : TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection;
 begin
  if not _CollectionExists(coll_name,result) then
    begin
-     x := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(coll_name,isVolatile,self);
+     x := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(coll_name,CollectionClassname,isVolatile,self);
      FCollections.Add(x);
      result := x;
    end;
@@ -704,9 +706,7 @@ begin
         CheckRaiseAnswerError(answer);
         result := answer.Field('A').AsBoolean;
         if result then
-          begin
-            _AddCollection(coll_name,answer.Field('V').AsBoolean);
-          end;
+          _AddCollection(coll_name,answer.Field('CCN').AsString,answer.Field('V').AsBoolean);
         FLasterror     := '';
         FLastErrorCode := edb_OK;
       finally
@@ -745,7 +745,7 @@ begin
       result := answer.Field('TSID').AsString;
       FLasterror     := '';
       FLastErrorCode := edb_OK;
-      Collection := _AddCollection(coll_name,volatile_in_memory);
+      Collection := _AddCollection(coll_name,CollectionClassname,volatile_in_memory);
     finally
       answer.Finalize;
     end;
@@ -788,8 +788,11 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'the global layer cannot be disconnected')
   else
     begin
-      FNotificationIF.FinalizeNotif;
-      FNotificationIF:=nil;
+      if assigned(FNotificationIF) then
+        begin
+          FNotificationIF.FinalizeNotif;
+          FNotificationIF:=nil;
+        end;
     end;
 end;
 

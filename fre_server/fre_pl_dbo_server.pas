@@ -49,6 +49,20 @@ type
 
   { TFRE_PL_DBO_SERVER }
 
+  TFRE_PL_DBO_SERVER = class;
+
+  { TFRE_DB_Connected_Layer }
+
+  TFRE_DB_Connected_Layer=class
+  private
+    FLayer   : IFRE_DB_PERSISTANCE_LAYER;
+    FNotifIf : IFRE_DB_DBChangedNotification;
+    FServer  : TFRE_PL_DBO_SERVER;
+  public
+    procedure   SendNotificationBlock(const block : IFRE_DB_Object);
+    constructor Create;
+  end;
+
   TFRE_PL_DBO_SERVER=class(TFRE_DBO_SERVER)
   private
     FDataTimer : IFRE_APSC_TIMER;
@@ -91,6 +105,18 @@ type
 
 
 implementation
+
+{ TFRE_DB_Connected_Layer }
+
+procedure TFRE_DB_Connected_Layer.SendNotificationBlock(const block: IFRE_DB_Object);
+begin
+
+end;
+
+constructor TFRE_DB_Connected_Layer.Create;
+begin
+
+end;
 
 { TFRE_DB_SERVER_NET_LAYER }
 
@@ -280,7 +306,10 @@ var CID : ShortString;
       dbo.ClearAllFields;
       dbo.Field('A').AsBoolean := myLayer.GetCollection(collname,pcoll);
       if assigned(pcoll) then
-        dbo.Field('V').AsBoolean := pcoll.IsVolatile;
+        begin
+          dbo.Field('V').AsBoolean  := pcoll.IsVolatile;
+          dbo.Field('CCN').AsString := pcoll.GetCollectionClassName;
+        end;
       __SendOK;
     end;
 

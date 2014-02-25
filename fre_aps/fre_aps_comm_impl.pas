@@ -924,9 +924,9 @@ end;
 function TFRE_APSC_CHANNEL._GetDebugID: String;
 begin
   if FClient then
-    result := 'CS'+inttostr(Fsocket)+'#'+FSocketAddr+' '+FVerboseID
+    result := 'CS'+inttostr(Fsocket)+'#'+FSocketAddr+' '+FVerboseID+'@'+inttostr(NativeUint(self))
   else
-    result := 'SS'+inttostr(Fsocket)+'#'+FSocketAddr+' '+FVerboseID;
+    result := 'SS'+inttostr(Fsocket)+'#'+FSocketAddr+' '+FVerboseID+'@'+inttostr(NativeUint(self));
 end;
 
 procedure loc_buffer_cb_in(buffer : PEvbuffer ; info : Pevbuffer_cb_info ; arg : Pointer); cdecl;
