@@ -3873,7 +3873,6 @@ begin
   else
     begin
       _InternalAddGuidToValstore(@key,keylen,isNullVal,obj.UID);
-      //FCollection.GetPersLayerIntf.;
     end;
 end;
 
@@ -4105,8 +4104,11 @@ begin
   if not values.RemoveUID(uid) then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old obj uid [%s] value in indexvaluestore?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
   if values.ObjectCount=0 then
+    begin
     if not FIndex.RemoveBinaryKey(key,keylen,dummy) then
       raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot remove the index node entry for old obj uid [%s] in indextree?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
+      values.free;
+    end;
 end;
 
 function TFRE_DB_MM_Index.GetStringRepresentationOfTransientKey(const isnullvalue: boolean; const key: PByte; const keylen: Nativeint): String;
@@ -4782,6 +4784,7 @@ begin
     fdbft_UInt32,
     fdbft_UInt64 :
       begin
+        if not checkonly then
         index := TFRE_DB_UnsignedIndex.Create(index_name,fieldname,fieldtype,unique,self,allow_null_value,unique_null_values);
       end;
     fdbft_Int16,    // invert Sign bit by xor (1 shl (bits-1)), then swap endian
@@ -4790,12 +4793,14 @@ begin
     fdbft_Currency, // = int64*10000;
     fdbft_DateTimeUTC:
       begin
+        if not checkonly then
         index := TFRE_DB_SignedIndex.Create(index_name,fieldname,fieldtype,unique,self,allow_null_value,unique_null_values);
       end;
     //fdbft_Real32: ;
     //fdbft_Real64: ;
     fdbft_String:
       begin
+        if not checkonly then
         index := TFRE_DB_TextIndex.Create(index_name,FieldName,FieldType,unique,ignore_content_case,self,allow_null_value,unique_null_values);
       end;
     //fdbft_Stream: ;
