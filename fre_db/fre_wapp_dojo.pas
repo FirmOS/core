@@ -1335,7 +1335,7 @@ implementation
           jsContentAdd('                                                       })');
         end else begin
           if chCol then begin
-            jsContentAdd('     '+elem.Field('id').AsString+': dgrid.tree({unhidable: true, reorderable: false, ');
+            jsContentAdd('     '+elem.Field('id').AsString+': dgrid.tree({allowDuplicates:true, unhidable: true, reorderable: false, ');
           end else begin
             jsContentAdd('     '+elem.Field('id').AsString+': {');
           end;
