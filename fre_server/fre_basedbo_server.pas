@@ -35,6 +35,7 @@ type
     destructor  Destroy  ; override ;
     procedure   Setup; virtual;
     procedure   PushDataToClients(const data_object : IFRE_DB_Object);virtual;
+    procedure   ForAllChannels   (const chan_iter : TFRE_APSC_CHANNEL_CB);virtual;
   end;
 
 implementation
@@ -158,6 +159,19 @@ begin
     FLock.Release;
   end;
   Freemem(mem);
+end;
+
+procedure TFRE_DBO_SERVER.ForAllChannels(const chan_iter: TFRE_APSC_CHANNEL_CB);
+var
+  i: NativeInt;
+begin
+  FLock.Acquire;
+  try
+    for i:=0 to FChannelList.Count-1 do
+      chan_iter(IFRE_APSC_CHANNEL(FChannelList[i]));
+  finally
+    FLock.Release;
+  end;
 end;
 
 end.

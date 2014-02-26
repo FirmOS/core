@@ -1251,9 +1251,6 @@ type
     procedure       _IterateOverGUIDArray    (const guids: TFRE_DB_GUIDArray; const iter: IFRE_DB_ObjectIteratorBrk; var halt: boolean);
     procedure       _IterateOverGUIDArrayT   (const guids: TFRE_DB_GUIDArray; const iter: TFRE_DB_ObjectIteratorBrk; var halt: boolean);
 
-    procedure       AcquireBigColl;
-    procedure       ReleaseBigColl;
-
   public
     constructor     Create         (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);virtual;
     destructor      Destroy        ;override;
@@ -1712,6 +1709,7 @@ type
   protected
 
     { Notification Interface }
+    function   InterfaceNeedsAProxy   : Boolean;
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId); virtual;
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object); virtual ;
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object); virtual;
@@ -1864,9 +1862,7 @@ type
     function    _DomainIDasString           (const name :TFRE_DB_NameType):TFRE_DB_NameType;
 
     function    _AddUser                    (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const system_start_up : boolean=false;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
-    function    _CheckLogin                 (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
-    function    IFRE_DB_SYS_CONNECTION.CheckLogin                  = _CheckLogin;
     function    IFRE_DB_SYS_CONNECTION.FetchUser                   = FetchUserI;
     function    IFRE_DB_SYS_CONNECTION.FetchUserById               = FetchUserByIdI;
     function    IFRE_DB_SYS_CONNECTION.FetchGroup                  = FetchGroupI;
@@ -1913,6 +1909,7 @@ type
     destructor  Destroy                     ; override;
     procedure   DumpSystem                  ;override;
 
+    function    CheckLogin                  (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    Connect                     (const loginatdomain:TFRE_DB_String='';const password:TFRE_DB_String='') : TFRE_DB_Errortype;
 
     function    AddUser                     (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype;
@@ -3545,6 +3542,7 @@ begin
     if not FConnectedUser.Checkpassword(pass) then
       exit(edb_ACCESS);
     FConnectionRights := _GetRightsArrayForUser(FConnectedUser);
+    result := edb_OK;
   finally
     ReleaseBig;
   end;
@@ -5131,7 +5129,7 @@ begin
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._CheckLogin(const loginatdomain, pass: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.CheckLogin(const loginatdomain, pass: TFRE_DB_String): TFRE_DB_Errortype;
 var FUser : TFRE_DB_USER;
 begin //nln
   result := FetchUser(loginatdomain,FUser);
@@ -5548,40 +5546,30 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckSetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
 begin
-  AcquireBigColl;
-  try
-    if CollectionDisplayType=FDisplaytype then
-      exit;
-    if FDisplaytype<>cdt_Invalid then raise EFRE_DB_Exception.Create(edb_ERROR,'Collectiondisplaytype is already set');
-    FDisplaytype := CollectionDisplayType;
-  finally
-    ReleaseBigColl;
-  end;
+  if CollectionDisplayType=FDisplaytype then
+    exit;
+  if FDisplaytype<>cdt_Invalid then raise EFRE_DB_Exception.Create(edb_ERROR,'Collectiondisplaytype is already set');
+  FDisplaytype := CollectionDisplayType;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._ClearMode;
 begin
-  AcquireBigColl;
-  try
-    FGridDisplayFlags      := [];
-    FitemMenuFunc.Free     ;
-    FitemMenuFunc          := nil;
-    FitemDetailsFunc.Free  ;
-    FitemDetailsFunc       := nil;
-    FselectionDepFunc.Free ;
-    FselectionDepFunc      := nil;
-    FtreeMenuFunc.Free     ;
-    FtreeMenuFunc          := nil;
-    FdropFunc.Free         ;
-    FdropFunc              := nil;
-    FdragFunc.Free         ;
-    FdragFunc              := nil;
-    FTransform.Free        ;
-    FlabelFields           := nil;
-    FTreeNodeIconField     := '';
-  finally
-    ReleaseBigColl;
-  end;
+  FGridDisplayFlags      := [];
+  FitemMenuFunc.Free     ;
+  FitemMenuFunc          := nil;
+  FitemDetailsFunc.Free  ;
+  FitemDetailsFunc       := nil;
+  FselectionDepFunc.Free ;
+  FselectionDepFunc      := nil;
+  FtreeMenuFunc.Free     ;
+  FtreeMenuFunc          := nil;
+  FdropFunc.Free         ;
+  FdropFunc              := nil;
+  FdragFunc.Free         ;
+  FdragFunc              := nil;
+  FTransform.Free        ;
+  FlabelFields           := nil;
+  FTreeNodeIconField     := '';
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ICO_CollectionNotify(const notify_type: TFRE_DB_NotifyObserverType; const obj: IFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
@@ -5878,33 +5866,23 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.BeginUpdateGathering;
 begin
-  AcquireBigColl;
-  try
-    if assigned(FGatherUpdateList) then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'UPDATE GATHERING ALREADY STARTED');
-    FGatherUpdateList := TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
-  finally
-    ReleaseBigColl;
-  end;
+  if assigned(FGatherUpdateList) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'UPDATE GATHERING ALREADY STARTED');
+  FGatherUpdateList := TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.FinishUpdateGathering(const sendupdates: Boolean);
 begin
-  AcquireBigColl;
-  try
-    if sendupdates then begin
-      if FGatherUpdateList.hasChanges then begin
-        FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,FGatherUpdateList);
-      end else begin
-        FGatherUpdateList.Free;
-      end;
+  if sendupdates then begin
+    if FGatherUpdateList.hasChanges then begin
+      FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,FGatherUpdateList);
     end else begin
       FGatherUpdateList.Free;
     end;
-    FGatherUpdateList:=nil;
-  finally
-    ReleaseBigColl;
+  end else begin
+    FGatherUpdateList.Free;
   end;
+  FGatherUpdateList:=nil;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._AddToTransformedCollection(item: IFRE_DB_Object; const send_client_notify: boolean; const update_data: boolean; const child_call: boolean; const parentid: string; const disable_filter: boolean);
@@ -6195,68 +6173,63 @@ var i                 : Integer;
     var fld : IFRE_DB_FIELD;
 
 begin
-  AcquireBigColl;
-  try
-    iob := item;
-    add := true;
-    if (cdgf_Children in FGridDisplayFlags)
-      and (not child_call) then
-        begin
-          if item.FieldOnlyExisting(FParentChildField,fld) then
-            begin
-              if fld.ValueCount>0 then
-                exit;
-            end;
-        end;
+  iob := item;
+  add := true;
+  if (cdgf_Children in FGridDisplayFlags)
+    and (not child_call) then
+      begin
+        if item.FieldOnlyExisting(FParentChildField,fld) then
+          begin
+            if fld.ValueCount>0 then
+              exit;
+          end;
+      end;
 
+  use_filter_fields:=false;
+  if not disable_filter then
+    FFilters.ForAllBrk(@Filter);
+  if add then begin
+    tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
+    iob    := tr_obj;
     use_filter_fields:=false;
     if not disable_filter then
-      FFilters.ForAllBrk(@Filter);
+      FFiltersTrans.ForAllBrk(@Filter);
+    //if FTransform.HasFilterFields then begin
+    //  use_filter_fields:=true;
+    //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
+    //  FFilters.ForAllBrk(@Filter);
+    //  iob.Finalize;
+    //end;
     if add then begin
-      tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
-      iob    := tr_obj;
-      use_filter_fields:=false;
-      if not disable_filter then
-        FFiltersTrans.ForAllBrk(@Filter);
-      //if FTransform.HasFilterFields then begin
-      //  use_filter_fields:=true;
-      //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
-      //  FFilters.ForAllBrk(@Filter);
-      //  iob.Finalize;
-      //end;
-      if add then begin
-        if cdgf_Children in FGridDisplayFlags then
-          begin
-            if FParentChildField<>'' then
-              begin
-                if (FConnection.GetReferencesCount(iob.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
-                  begin
-                    tr_obj.Field('children').AsString        := 'UNCHECKED';
-                  end;
-                tr_obj.Field('_menufunc_').AsString      := 'Menu';
-                tr_obj.Field('_contentfunc_').AsString   := 'Content';
-                if item.FieldOnlyExisting('icon',fld) then // icon in source
-                    tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
-              end
-            else
-              begin
-                // Non Reflink Child Parent Mode
-              end;
-          end;
-        if update_data then begin
-          FDBOList.Update(tr_obj,false);
-        end else begin
-          FDBOList.Add(tr_obj,false); // Sort;
+      if cdgf_Children in FGridDisplayFlags then
+        begin
+          if FParentChildField<>'' then
+            begin
+              if (FConnection.GetReferencesCount(iob.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
+                begin
+                  tr_obj.Field('children').AsString        := 'UNCHECKED';
+                end;
+              tr_obj.Field('_menufunc_').AsString      := 'Menu';
+              tr_obj.Field('_contentfunc_').AsString   := 'Content';
+              if item.FieldOnlyExisting('icon',fld) then // icon in source
+                  tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
+            end
+          else
+            begin
+              // Non Reflink Child Parent Mode
+            end;
         end;
-        if send_client_notify and assigned(FGatherUpdateList) then begin
-          SendClientUpdate(tr_obj,parentid);
-        end;
+      if update_data then begin
+        FDBOList.Update(tr_obj,false);
       end else begin
-        //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL REJECT [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
+        FDBOList.Add(tr_obj,false); // Sort;
       end;
+      if send_client_notify and assigned(FGatherUpdateList) then begin
+        SendClientUpdate(tr_obj,parentid);
+      end;
+    end else begin
+      //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL REJECT [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
     end;
-  finally
-    ReleaseBigColl;
   end;
 end;
 
@@ -6268,12 +6241,7 @@ function TFRE_DB_DERIVED_COLLECTION._CheckUIDExists(obj_uid: TGuid): Boolean;
   end;
 
 begin
-  AcquireBigColl;
-  try
-    result := FDBOList.ForAllNodesBrk(@CheckUID);
-  finally
-    ReleaseBigColl;
-  end;
+  result := FDBOList.ForAllNodesBrk(@CheckUID);
 end;
 
 
@@ -6344,39 +6312,34 @@ var cnt  : NativeInt;
   end;
 
 begin
-  AcquireBigColl;
-  try
-    if not assigned(FTransform) then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
-    if childcall then
-      cnt:=0;
-    case FDCMode of
-      dc_None: ;
-      dc_Map2DerivedCollection: begin
-                                  abort;
-                                  //ClearLocal;
-                                  //FOrders.ForAllFields(@Order); // Get order definition
-                                  //(FParentCollection as TFRE_DB_DERIVED_COLLECTION).FDBOList.ForAllNodes(@LocalInsertFromParentDerived);
-                                end;
-      dc_Map2RealCollection:    begin
-                                  GFRE_DB.LogDebug(dblc_DB,'* START FILTERING [%s]',[CollectionName]);
-                                  ClearLocal;
-                                  FOrders.ForAllFields(@Order); // Get order definition
-                                  if not childcall then
-                                    FParentCollection.ForAll(@LocalInsert)
-                                  else
-                                    LocalInsertExpanded;
-                                  GFRE_DB.LogDebug(dblc_DB,'* FINAL FILTERED COUNT [%d]',[FDBOList.Count]);
-                                end;
-      dc_ReferentialLinkCollection:
-                                begin
-                                   ClearLocal;
-                                   FOrders.ForAllFields(@Order); // Get order definition
-                                   LocalInsertExpanded;
-                                end;
-    end;
-  finally
-    ReleaseBigColl;
+  if not assigned(FTransform) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
+  if childcall then
+    cnt:=0;
+  case FDCMode of
+    dc_None: ;
+    dc_Map2DerivedCollection: begin
+                                abort;
+                                //ClearLocal;
+                                //FOrders.ForAllFields(@Order); // Get order definition
+                                //(FParentCollection as TFRE_DB_DERIVED_COLLECTION).FDBOList.ForAllNodes(@LocalInsertFromParentDerived);
+                              end;
+    dc_Map2RealCollection:    begin
+                                GFRE_DB.LogDebug(dblc_DB,'* START FILTERING [%s]',[CollectionName]);
+                                ClearLocal;
+                                FOrders.ForAllFields(@Order); // Get order definition
+                                if not childcall then
+                                  FParentCollection.ForAll(@LocalInsert)
+                                else
+                                  LocalInsertExpanded;
+                                GFRE_DB.LogDebug(dblc_DB,'* FINAL FILTERED COUNT [%d]',[FDBOList.Count]);
+                              end;
+    dc_ReferentialLinkCollection:
+                              begin
+                                 ClearLocal;
+                                 FOrders.ForAllFields(@Order); // Get order definition
+                                 LocalInsertExpanded;
+                              end;
   end;
 end;
 
@@ -6618,14 +6581,9 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.BindSession(const session: TFRE_DB_UserSession);
 begin
-  AcquireBigColl;
-  try
-    if assigned(FSession) then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'double session bind / logic');
-    FSession := session;
-  finally
-    ReleaseBigColl;
-  end;
+  if assigned(FSession) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'double session bind / logic');
+  FSession := session;
 end;
 
 constructor TFRE_DB_DERIVED_COLLECTION.Create(const connection: TFRE_DB_BASE_CONNECTION; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
@@ -6660,25 +6618,32 @@ var
   end;
 
 begin
-  if assigned(FParentCollection) then begin
-    (FParentCollection.Implementor as TFRE_DB_COLLECTION).RemoveObserver(self);
+  write('DESTROY DC : ',FName);
+  try
+    if assigned(FParentCollection) then begin
+      (FParentCollection.Implementor as TFRE_DB_COLLECTION).RemoveObserver(self);
+    end;
+
+    //if assigned(FDependencyObject) then
+      //FDependencyObject.Finalize;
+    for i := 0 to high(FExpandedRefs) do
+      FExpandedRefs[i].Finalize;
+
+    FDBOList.ForAllNodes(@MyFinalize);
+    FDBOList.Free;
+    if assigned(FTransform) then
+      FTransform.free;
+    FitemMenuFunc.Free;
+    FitemDetailsFunc.free;
+    FselectionDepFunc.free;
+    FtreeMenuFunc.free;
+    FdropFunc.free;
+    FdragFunc.free;
+    FGatherUpdateList.free;
+    writeln(' OK');
+  except on e:exception do
+    writeln('FAILED ',e.Message);
   end;
-
-  if assigned(FDependencyObject) then
-    //FDependencyObject.Finalize;
-  for i := 0 to high(FExpandedRefs) do
-    FExpandedRefs[i].Finalize;
-
-  FDBOList.ForAllNodes(@MyFinalize);
-  FDBOList.Free;
-  FTransform.free;
-  FitemMenuFunc.Free;
-  FitemDetailsFunc.free;
-  FselectionDepFunc.free;
-  FtreeMenuFunc.free;
-  FdropFunc.free;
-  FdragFunc.free;
-  FGatherUpdateList.free;
 
   inherited Destroy;
 end;
@@ -6969,58 +6934,33 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.RemoveFieldFilter(const filter_key: TFRE_DB_String; const on_transform: boolean): TFRE_DB_Errortype;
 begin
-  AcquireBigColl;
-  try
-    result := _DeleteFilterKey(filter_key,on_transform);
-  finally
-    ReleaseBigColl;
-  end;
+  result := _DeleteFilterKey(filter_key,on_transform);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.AddOrderField(const order_key, field_name: TFRE_DB_String; const ascending: boolean): TFRE_DB_Errortype;
 var order:TFRE_DB_Object;
 begin
-  AcquireBigColl;
-  try
-    order := GFRE_DB.NewObject;
-    order.Field('N').AsString  := field_name;
-    order.Field('A').AsBoolean := ascending;
-    FOrders.Field(order_key).AsObject := order;
-  finally
-    ReleaseBigColl;
-  end;
+  order := GFRE_DB.NewObject;
+  order.Field('N').AsString  := field_name;
+  order.Field('A').AsBoolean := ascending;
+  FOrders.Field(order_key).AsObject := order;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDefaultOrderField(const field_name: TFRE_DB_String; const ascending: boolean);
 begin
-  AcquireBigColl;
-  try
-    FDefaultOrderField := field_name;
-    FDefaultOrderAsc   := ascending;
-  finally
-    ReleaseBigColl;
-  end;
+  FDefaultOrderField := field_name;
+  FDefaultOrderAsc   := ascending;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllOrderFields;
 begin
-  AcquireBigColl;
-  try
-    FOrders.ClearAllFields;
-  finally
-    ReleaseBigColl;
-  end;
+  FOrders.ClearAllFields;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFilterFields;
 begin
-  AcquireBigColl;
-  try
-    FFilters.ClearAllFields;
-    FFiltersTrans.ClearAllFields;
-  finally
-    ReleaseBigColl;
-  end;
+  FFilters.ClearAllFields;
+  FFiltersTrans.ClearAllFields;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFiltersPrefix(const prefix: string);
@@ -7035,24 +6975,19 @@ var sl : TStringlist;
     end;
 
 begin
-  AcquireBigColl;
+  sl :=TStringList.Create;
   try
-    sl :=TStringList.Create;
-    try
-      FFilters.ForAllFields(@GetRemoveList);
-      for i:=0 to sl.count-1 do begin
-        FFilters.DeleteField(sl[i]);
-      end;
-      sl.clear;
-      FFiltersTrans.ForAllFields(@GetRemoveList);
-      for i:=0 to sl.count-1 do begin
-        FFiltersTrans.DeleteField(sl[i]);
-      end;
-    finally
-      sl.free;
+    FFilters.ForAllFields(@GetRemoveList);
+    for i:=0 to sl.count-1 do begin
+      FFilters.DeleteField(sl[i]);
+    end;
+    sl.clear;
+    FFiltersTrans.ForAllFields(@GetRemoveList);
+    for i:=0 to sl.count-1 do begin
+      FFiltersTrans.DeleteField(sl[i]);
     end;
   finally
-    ReleaseBigColl;
+    sl.free;
   end;
 end;
 
@@ -7090,24 +7025,19 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParent(const coll: TFRE_DB_COLLECT
   end;
 
 begin
-  AcquireBigColl;
-  try
-    if not Assigned(coll) then raise EFRE_DB_Exception.Create(edb_ERROR,'PLEASE PROVIDE A ASSIGNED DERIVE PARENT');
-    if FDCMode<>dc_None then raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
-    FIdField:=idField;
-    if coll is TFRE_DB_DERIVED_COLLECTION then begin
-      abort;
-      //FDCMode := dc_Map2DerivedCollection;
-      //FParentCollection := coll;
-      //SetFunctionsFromParent(FParentCollection as TFRE_DB_DERIVED_COLLECTION);
-    end else begin
-      FDCMode := dc_Map2RealCollection;
-      FParentCollection := coll;
-    end;
-    FInitialDerived := False;
-  finally
-    ReleaseBigColl;
+  if not Assigned(coll) then raise EFRE_DB_Exception.Create(edb_ERROR,'PLEASE PROVIDE A ASSIGNED DERIVE PARENT');
+  if FDCMode<>dc_None then raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
+  FIdField:=idField;
+  if coll is TFRE_DB_DERIVED_COLLECTION then begin
+    abort;
+    //FDCMode := dc_Map2DerivedCollection;
+    //FParentCollection := coll;
+    //SetFunctionsFromParent(FParentCollection as TFRE_DB_DERIVED_COLLECTION);
+  end else begin
+    FDCMode := dc_Map2RealCollection;
+    FParentCollection := coll;
   end;
+  FInitialDerived := False;
 end;
 
 
@@ -7115,45 +7045,35 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetReferentialLinkMode(const scheme_and_fie
 var collif : IFRE_DB_COLLECTION;
     i      : NativeInt;
 begin
-  AcquireBigColl;
-  try
-    if FDCMode<>dc_None then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
-    FDCMode           := dc_ReferentialLinkCollection;
-    FIdField          := 'uid';
-    SetLength(FDependencyRef,1);
-    FDependencyRef[0] := dependency_reference;
-    SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
-    for i := 0 to high(scheme_and_field_constraint) do
-      FDepRefConstraint[i] := scheme_and_field_constraint[i];
-    _CheckDepRefConstraint;
+  if FDCMode<>dc_None then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
+  FDCMode           := dc_ReferentialLinkCollection;
+  FIdField          := 'uid';
+  SetLength(FDependencyRef,1);
+  FDependencyRef[0] := dependency_reference;
+  SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
+  for i := 0 to high(scheme_and_field_constraint) do
+    FDepRefConstraint[i] := scheme_and_field_constraint[i];
+  _CheckDepRefConstraint;
 
-    FSubscribeReflinkModeObserverTo := subscribe_observer_to;
+  FSubscribeReflinkModeObserverTo := subscribe_observer_to;
 
-    FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
-  finally
-    ReleaseBigColl;
-  end;
+  FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetUseDependencyAsRefLinkFilter(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const negate: boolean; const dependency_reference: string);
 var
   i: NativeInt;
 begin
-  AcquireBigColl;
-  try
-    FUseDepAsLinkFilt := true;
-    SetLength(FDependencyRef,1);
-    FDependencyRef[0] := dependency_reference;
-    FDepObjectsRefNeg := negate;
-    SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
-    for i := 0 to high(scheme_and_field_constraint) do
-      FDepRefConstraint[i] := scheme_and_field_constraint[i];
-    //SetLength(FDepRefConstraint,1);
-    //FDepRefConstraint[0] := scheme_and_field_constraint;
-  finally
-    ReleaseBigColl;
-  end;
+  FUseDepAsLinkFilt := true;
+  SetLength(FDependencyRef,1);
+  FDependencyRef[0] := dependency_reference;
+  FDepObjectsRefNeg := negate;
+  SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
+  for i := 0 to high(scheme_and_field_constraint) do
+    FDepRefConstraint[i] := scheme_and_field_constraint[i];
+  //SetLength(FDepRefConstraint,1);
+  //FDepRefConstraint[0] := scheme_and_field_constraint;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParentI(const coll: IFRE_DB_COLLECTION; const idField: String);
@@ -7164,21 +7084,16 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformation(const tob: TFRE_DB_TRANSFORMOBJECT);
 begin
-  AcquireBigColl;
-  try
-    if FDisplaytype=cdt_Treeview then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'a treeview must not have a transformation set');
-    FTransform.Free;
-    FTransform := tob;
-    //Set default order as first field
-    if FDefaultOrderField='' then
-      begin
-        FDefaultOrderField := tob.GetFirstFieldname;
-        FDefaultOrderAsc   := true;
-      end;
-  finally
-    ReleaseBigColl;
-  end;
+  if FDisplaytype=cdt_Treeview then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'a treeview must not have a transformation set');
+  FTransform.Free;
+  FTransform := tob;
+  //Set default order as first field
+  if FDefaultOrderField='' then
+    begin
+      FDefaultOrderField := tob.GetFirstFieldname;
+      FDefaultOrderAsc   := true;
+    end;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformationI(const tob: IFRE_DB_TRANSFORMOBJECT);
@@ -7194,12 +7109,7 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.ItemCount: Int64;
 begin
-  AcquireBigColl;
-  try
-    result := FDBOList.Count;
-  finally
-    ReleaseBigColl;
-  end;
+  result := FDBOList.Count;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Count: QWord;
@@ -7211,73 +7121,53 @@ function TFRE_DB_DERIVED_COLLECTION.First: TFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  AcquireBigColl;
-  try
-    if ItemCount=0 then exit(nil);
-    FDBOList.FirstNode(obj,item);
-    result := obj;
-  finally
-    ReleaseBigColl;
-  end;
+  if ItemCount=0 then exit(nil);
+  FDBOList.FirstNode(obj,item);
+  result := obj;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Last: TFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  AcquireBigColl;
-  try
-    if ItemCount=0 then exit(nil);
-    FDBOList.LastNode(obj,item);
-    result := obj;
-  finally
-    ReleaseBigColl;
-  end;
+  if ItemCount=0 then exit(nil);
+  FDBOList.LastNode(obj,item);
+  result := obj;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetItem(const num: uint64): IFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  AcquireBigColl;
-  try
-    if ItemCount=0 then exit(nil);
-    if FDBOList.GetDirect(num,obj,item) then begin
-      result := obj;
-    end else begin
-      result := nil;
-    end;
-  finally
-    ReleaseBigColl;
+  if ItemCount=0 then exit(nil);
+  if FDBOList.GetDirect(num,obj,item) then begin
+    result := obj;
+  end else begin
+    result := nil;
   end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
 var idbo : IFRE_DB_Object;
 begin
-  AcquireBigColl;
-  try
-    case FDCMode of
-      dc_Map2RealCollection,
-      dc_Map2DerivedCollection:
-        begin
-         if not assigned(FParentCollection) then
-           raise EFRE_DB_Exception.Create(edb_ERROR,'DC FETCH, BUT NO PARENT DC ASSIGNED');
-         Result := FParentCollection.Fetch(ouid, idbo);
-         if result then
-           dbo := idbo.Implementor as TFRE_DB_Object
-         else
-           dbo := nil;
-        end;
-      dc_ReferentialLinkCollection:
-        begin
-            result := FConnection.Fetch(ouid,dbo)=edb_OK;
-        end;
-      else
-        raise EFRE_DB_Exception.Create(edb_ERROR,'Unsuported fetch for derived collection '+FName);
-    end;
-  finally
-    ReleaseBigColl;
+  case FDCMode of
+    dc_Map2RealCollection,
+    dc_Map2DerivedCollection:
+      begin
+       if not assigned(FParentCollection) then
+         raise EFRE_DB_Exception.Create(edb_ERROR,'DC FETCH, BUT NO PARENT DC ASSIGNED');
+       Result := FParentCollection.Fetch(ouid, idbo);
+       if result then
+         dbo := idbo.Implementor as TFRE_DB_Object
+       else
+         dbo := nil;
+      end;
+    dc_ReferentialLinkCollection:
+      begin
+          result := FConnection.Fetch(ouid,dbo)=edb_OK;
+      end;
+    else
+      raise EFRE_DB_Exception.Create(edb_ERROR,'Unsuported fetch for derived collection '+FName);
   end;
 end;
 
@@ -7290,15 +7180,10 @@ procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllEntries;
   end;
 
 begin
-  AcquireBigColl;
-  try
-    if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
-    if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
-    FDBOList.ForallNodes(@Clear);
-    FDBOList.Clear;
-  finally
-    ReleaseBigColl;
-  end;
+  if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
+  if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
+  FDBOList.ForallNodes(@Clear);
+  FDBOList.Clear;
 end;
 
 
@@ -7310,13 +7195,8 @@ procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPage(const QueryID:String ; const pa
    end;
 
 begin
-  AcquireBigColl;
-  try
-    AddQueryIDWatch(QueryID,page_info);
-    FDBOList.ForAllNodesRange(page_info.start,page_info.count,@DoIt);
-  finally
-    ReleaseBigColl;
-  end;
+  AddQueryIDWatch(QueryID,page_info);
+  FDBOList.ForAllNodesRange(page_info.start,page_info.count,@DoIt);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ApplyToData(const iterator: TFRE_DB_Obj_Iterator);
@@ -7325,82 +7205,62 @@ procedure TFRE_DB_DERIVED_COLLECTION.ApplyToData(const iterator: TFRE_DB_Obj_Ite
      iterator(key);
    end;
 begin
-  AcquireBigColl;
-  try
-    FDBOList.ForAllNodes(@PrepareData);
-  finally
-    ReleaseBigColl;
-  end;
+  FDBOList.ForAllNodes(@PrepareData);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
-  AcquireBigColl;
-  try
-    case FDisplaytype of
-      cdt_Listview:   begin
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
-                      end;
-      cdt_Treeview:   begin;
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
-                      end;
-       cdt_Chartview: begin
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
-                      end;
-      else begin
-        raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
-      end;
+  case FDisplaytype of
+    cdt_Listview:   begin
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                    end;
+    cdt_Treeview:   begin;
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                    end;
+     cdt_Chartview: begin
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                    end;
+    else begin
+      raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
     end;
-  finally
-    ReleaseBigColl;
   end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.getDescriptionStoreId: String;
 begin
-  AcquireBigColl;
-  try
-    Result:=CollectionName;
-  finally
-    ReleaseBigColl;
-  end;
+  Result:=CollectionName;
 end;
 
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE; const Flags: TFRE_COLLECTION_GRID_DISPLAY_FLAGS; const title: TFRE_DB_String; const CaptionFields: TFRE_DB_StringArray; const TreeNodeIconField: TFRE_DB_String; const item_menu_func: TFRE_DB_SERVER_FUNC_DESC; const item_details_func: TFRE_DB_SERVER_FUNC_DESC; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC; const drop_func: TFRE_DB_SERVER_FUNC_DESC; const drag_func: TFRE_DB_SERVER_FUNC_DESC);
 begin
-  AcquireBigColl;
-  try
-    _CheckSetDisplayType (CollectionDisplayType);
-    FGridDisplayFlags := Flags;
-    FTitle        := title;
-    FitemMenuFunc.Free;
-    FitemMenuFunc := item_menu_func;
-    FitemDetailsFunc.Free;
-    FitemDetailsFunc := item_details_func;
-    FselectionDepFunc.Free;
-    FselectionDepFunc := selection_dep_func;
-    FtreeMenuFunc.Free;
-    FtreeMenuFunc := tree_menu_func;
-    FdropFunc.Free;
-    FdropFunc := drop_func;
-    FdragFunc.Free;
-    FdragFunc := drag_func;
-    if Assigned(CaptionFields) then begin
-      FlabelFields     := CaptionFields;
-    end else begin
-      SetLength(FlabelFields,1); FlabelFields[0]:='objname';
-    end;
-    if CollectionDisplayType=cdt_Treeview then begin
-      FTransform.Free;
-      FTransform         := TFRE_DB_TREE_TRANSFORM.Create;
-      FTreeNodeIconField := TreeNodeIconField;
-    end;
-  finally
-    ReleaseBigColl;
+  _CheckSetDisplayType (CollectionDisplayType);
+  FGridDisplayFlags := Flags;
+  FTitle        := title;
+  FitemMenuFunc.Free;
+  FitemMenuFunc := item_menu_func;
+  FitemDetailsFunc.Free;
+  FitemDetailsFunc := item_details_func;
+  FselectionDepFunc.Free;
+  FselectionDepFunc := selection_dep_func;
+  FtreeMenuFunc.Free;
+  FtreeMenuFunc := tree_menu_func;
+  FdropFunc.Free;
+  FdropFunc := drop_func;
+  FdragFunc.Free;
+  FdragFunc := drag_func;
+  if Assigned(CaptionFields) then begin
+    FlabelFields     := CaptionFields;
+  end else begin
+    SetLength(FlabelFields,1); FlabelFields[0]:='objname';
+  end;
+  if CollectionDisplayType=cdt_Treeview then begin
+    FTransform.Free;
+    FTransform         := TFRE_DB_TREE_TRANSFORM.Create;
+    FTreeNodeIconField := TreeNodeIconField;
   end;
 end;
 
@@ -7408,26 +7268,21 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayTypeChart(const title: TFRE_DB_St
 var value_count : QWord;
     i           : integer;
 begin
-  AcquireBigColl;
-  try
-    _CheckSetDisplayType (cdt_Chartview);
-    _ClearMode;
-    FTitle            := title;
-    FTransform            := TFRE_DB_CHART_TRANSFORM.Create;
-    with FTransform as TFRE_DB_CHART_TRANSFORM do begin
-      FseriesFieldNames   := series_field_names;
-      FUseSeriesColors    := use_series_colors;
-      FUseSeriesLabels    := use_series_labels;
-      FSeriesLabels       := series_labels;
-      FShowLegend         := showLegend;
-      FChartType          := chart_type;
-      FMaxValue           := maxValue;
-    end;
-    _FilterIt(false);
-    value_count := FDBOList.Count;
-  finally
-    ReleaseBigColl;
+  _CheckSetDisplayType (cdt_Chartview);
+  _ClearMode;
+  FTitle            := title;
+  FTransform            := TFRE_DB_CHART_TRANSFORM.Create;
+  with FTransform as TFRE_DB_CHART_TRANSFORM do begin
+    FseriesFieldNames   := series_field_names;
+    FUseSeriesColors    := use_series_colors;
+    FUseSeriesLabels    := use_series_labels;
+    FSeriesLabels       := series_labels;
+    FShowLegend         := showLegend;
+    FChartType          := chart_type;
+    FMaxValue           := maxValue;
   end;
+  _FilterIt(false);
+  value_count := FDBOList.Count;
 end;
 
 {
@@ -7437,15 +7292,10 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameType);
 begin
-  AcquireBigColl;
-  try
-    FParentChldLinkFldSpec := uppercase(fieldname);
-    FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
-    if FParentChildField='' then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
-  finally
-    ReleaseBigColl;
-  end;
+  FParentChldLinkFldSpec := uppercase(fieldname);
+  FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
+  if FParentChildField='' then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
@@ -7472,71 +7322,56 @@ function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
   end;
 
 begin
- AcquireBigColl;
- try
-   case FDisplaytype of
-     cdt_Listview:  result := GetListviewDescription;
-     cdt_Treeview:  result := GetTreeViewDescription;
-     cdt_Chartview: result := GetChartDescription;
-     else raise EFRE_DB_Exception.Create(edb_ERROR,'DERIVED COLLECTION [%s] HAS AN INVALID DISPLAYTYPE SET [%d]',[CollectionName,ord(FDisplaytype)]);
-   end;
- finally
-   ReleaseBigColl;
- end;
+  case FDisplaytype of
+    cdt_Listview:  result := GetListviewDescription;
+    cdt_Treeview:  result := GetTreeViewDescription;
+    cdt_Chartview: result := GetChartDescription;
+    else raise EFRE_DB_Exception.Create(edb_ERROR,'DERIVED COLLECTION [%s] HAS AN INVALID DISPLAYTYPE SET [%d]',[CollectionName,ord(FDisplaytype)]);
+  end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescriptionFunction(const FilterEventKey: TFRE_DB_String): TFRE_DB_SERVER_FUNC_DESC;
 begin
-  AcquireBigColl;
-  try
-    result := CSF(@IMI_GET_DISPLAY_DESC);
-    if FilterEventKey<>'' then begin
-      result.AddParam.Describe('FILTER_EVENT',uppercase(FilterEventKey));
-    end;
-  finally
-    ReleaseBigColl;
+  result := CSF(@IMI_GET_DISPLAY_DESC);
+  if FilterEventKey<>'' then begin
+    result.AddParam.Describe('FILTER_EVENT',uppercase(FilterEventKey));
   end;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckObserverAdded(const add: boolean);
 begin
-  AcquireBigColl;
-  try
-    if add then
-      begin
-        if (not FObserverAdded) and
-           ( (FDCMode=dc_Map2RealCollection)
-             or (FDCMode=dc_Map2DerivedCollection)) then
-               begin
-                 FObserverAdded    := true;
-                 FParentCollection.AddObserver(self);
-               end;
-        if (not FObserverAdded) and
-           assigned(FSubscribeReflinkModeObserverTo) then
+  if add then
+    begin
+      if (not FObserverAdded) and
+         ( (FDCMode=dc_Map2RealCollection)
+           or (FDCMode=dc_Map2DerivedCollection)) then
              begin
                FObserverAdded    := true;
-               FSubscribeReflinkModeObserverTo.AddObserver(self);
+               FParentCollection.AddObserver(self);
              end;
-      end
-    else
-      begin
-        if (FObserverAdded) and
-          ( (FDCMode=dc_Map2RealCollection)
-            or (FDCMode=dc_Map2DerivedCollection)) then
-              begin
-                FObserverAdded    := False;
-                FParentCollection.RemoveObserver(self);
-              end;
-        if (FObserverAdded) and
-           assigned(FSubscribeReflinkModeObserverTo) then
-             begin
-               FObserverAdded    := False;
-               FSubscribeReflinkModeObserverTo.RemoveObserver(self);
-             end;
-      end;
-  finally
-    ReleaseBigColl;
-  end;
+      if (not FObserverAdded) and
+         assigned(FSubscribeReflinkModeObserverTo) then
+           begin
+             FObserverAdded    := true;
+             FSubscribeReflinkModeObserverTo.AddObserver(self);
+           end;
+    end
+  else
+    begin
+      if (FObserverAdded) and
+        ( (FDCMode=dc_Map2RealCollection)
+          or (FDCMode=dc_Map2DerivedCollection)) then
+            begin
+              FObserverAdded    := False;
+              FParentCollection.RemoveObserver(self);
+            end;
+      if (FObserverAdded) and
+         assigned(FSubscribeReflinkModeObserverTo) then
+           begin
+             FObserverAdded    := False;
+             FSubscribeReflinkModeObserverTo.RemoveObserver(self);
+           end;
+    end;
 end;
 
 
@@ -7621,10 +7456,7 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
     end;
 
 begin
-  //writeln(input.DumpToString());
-  AcquireBigColl;
   try
-    try
     _CheckObserverAdded(true);
     FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
     FDepObjectList :=  _GET_DC_ReferenceList(input);
@@ -7663,12 +7495,9 @@ begin
     QueryID        := _Get_DC_QueryID(input);
     childcall      := length(FParentIds)>0;
     result := GetGridDataDescription;
-    except
-      writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
-      raise;
-    end;
-  finally
-    ReleaseBigColl;
+  except
+    writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
+    raise;
   end;
 end;
 
@@ -7743,25 +7572,14 @@ var
   end;
 
 begin
-  AcquireBigColl;
-  try
-     _CheckObserverAdded(true);
-    result := GetChartDataDescription;
-  finally
-    ReleaseBigColl;
-  end;
+   _CheckObserverAdded(true);
+  result := GetChartDataDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  writeln('CLEAR GRID DATA '+input.DumpToString);
-  AcquireBigColl;
-  try
-    RemoveQueryIDWatch(_Get_DC_QueryID(input));
-    Result:=GFRE_DB_NIL_DESC;
-  finally
-    ReleaseBigColl;
-  end;
+  RemoveQueryIDWatch(_Get_DC_QueryID(input));
+  Result:=GFRE_DB_NIL_DESC;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_GET_CHILDREN_DATA(const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -7830,38 +7648,22 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
   end;
 
 begin
-  AcquireBigColl;
-  try
-    _CheckObserverAdded(true);
-    result := GetChildrenDataDescription;
-  finally
-    ReleaseBigColl;
-  end;
+  _CheckObserverAdded(true);
+  result := GetChildrenDataDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_GET_DISPLAY_DESC(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  AcquireBigColl;
-  try
-    if Assigned(input) then begin
-      writeln('GRID GET DISPLAY KEY ',input.DumpToString);
-    end;
-    result := GetDisplayDescription;
-  finally
-    ReleaseBigColl;
+  if Assigned(input) then begin
+    writeln('GRID GET DISPLAY KEY ',input.DumpToString);
   end;
+  result := GetDisplayDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_DESTROY_STORE(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  AcquireBigColl;
-  try
-    writeln('DESTROY STORE ',input.DumpToString());
    // _CheckObserverAdded(false);
     result := GFRE_DB_NIL_DESC;
-  finally
-    ReleaseBigColl;
-  end;
 end;
 
 
@@ -9313,16 +9115,6 @@ begin
    end;
 end;
 
-procedure TFRE_DB_COLLECTION.AcquireBigColl;
-begin
-  GFRE_DB.AcquireBig;
-end;
-
-procedure TFRE_DB_COLLECTION.ReleaseBigColl;
-begin
-  GFRE_DB.ReleaseBig;
-end;
-
 destructor TFRE_DB_COLLECTION.Destroy;
 begin
   FDBO_State := fdbos_Destroying;
@@ -9434,12 +9226,7 @@ procedure TFRE_DB_COLLECTION.ClearCollection;
   end;
 
 begin //nl
-  AcquireBigColl;
-  try
-    ForAll(@RemoveIt);
-  finally
-    ReleaseBigColl;
-  end;
+  ForAll(@RemoveIt);
 end;
 
 function TFRE_DB_COLLECTION.CollectionName(const unique: boolean): TFRE_DB_NameType;
@@ -9458,54 +9245,34 @@ end;
 
 function TFRE_DB_COLLECTION.AddObserver(const obs: IFRE_DB_COLLECTION_OBSERVER): boolean;
 begin
-  AcquireBigColl;
-  try
     result := FObservers.Add2ArrayChk(obs);
     //writeln('ADD OBSERVER [',ClassName,'] in ',CollectionName,' for ',obs.ICO_ObserverID,' : ',FObservers.HighArray,' ',FObservers.Count);
-  finally
-    ReleaseBigColl;
-  end;
 end;
 
 function TFRE_DB_COLLECTION.RemoveObserver(const obs: IFRE_DB_COLLECTION_OBSERVER): boolean;
 begin
-  AcquireBigColl;
-  try
-    result := FObservers.Remove(obs);
+  result := FObservers.Remove(obs);
     //  writeln('REMOVE OBSERVER [',ClassName,'] in ',CollectionName,' for ',obs.ICO_ObserverID,' : ',FObservers.HighArray,' ',FObservers.Count);
-  finally
-    ReleaseBigColl;
-  end;
 end;
 
 procedure TFRE_DB_COLLECTION.StartBlockUpdating;
 begin
-  AcquireBigColl;
-  try
-    if length(FObserverUpdates)<>0 then raise EFRE_DB_Exception.Create(edb_ERROR,'BLOCK UPDATING LOGIC ERROR UPLEN=[%d]',[Length(FObserverUpdates)]);
-    FObserverBlockupdating := true;
-  finally
-    ReleaseBigColl;
-  end;
+  if length(FObserverUpdates)<>0 then raise EFRE_DB_Exception.Create(edb_ERROR,'BLOCK UPDATING LOGIC ERROR UPLEN=[%d]',[Length(FObserverUpdates)]);
+  FObserverBlockupdating := true;
 end;
 
 procedure TFRE_DB_COLLECTION.FinishBlockUpdating;
 var i : integer;
 begin
-  AcquireBigColl;
+  __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
   try
-    __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-    try
-      for i:=0 to High(FObserverUpdates) do
-        with FObserverUpdates[i] do
-          __NotifyCollectionObservers(update_type,update_obj,update_uid,to_uid,key_description);
-      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-    finally
-      SetLength(FObserverUpdates,0);
-      FObserverBlockupdating := false;
-    end;
+    for i:=0 to High(FObserverUpdates) do
+      with FObserverUpdates[i] do
+        __NotifyCollectionObservers(update_type,update_obj,update_uid,to_uid,key_description);
+    __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
   finally
-    ReleaseBigColl;
+    SetLength(FObserverUpdates,0);
+    FObserverBlockupdating := false;
   end;
 end;
 
@@ -9648,12 +9415,7 @@ end;
 
 procedure TFRE_DB_COLLECTION.ForceFullUpdateForObservers;
 begin
-  AcquireBigColl;
-  try
-    _NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-  finally
-    ReleaseBigColl;
-  end;
+  _NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllColls(const iterator: TFRE_DB_Coll_Iterator);
@@ -9823,7 +9585,7 @@ begin
       begin
         FConnected         := true;
         try
-          InternalSetupConnection;
+            InternalSetupConnection;
         except
           on e:Exception do
             begin
@@ -9888,6 +9650,11 @@ begin
      if not FCollectionStore.Add(persColl.CollectionName(true),lcollection) then
          raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore/internal _AddCollectionTStore');
    end;
+end;
+
+function TFRE_DB_BASE_CONNECTION.InterfaceNeedsAProxy: Boolean;
+begin
+  result := true;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.StartNotificationBlock(const key: TFRE_DB_TransStepId);
@@ -10295,11 +10062,11 @@ begin
 
   Result := TFRE_DB_CONNECTION.Create(true);
   Result.FClonedFrom := self;
-  result._Connect(FDBName,true);
+  CheckDbResult(result._Connect(FDBName,true));
   FConnectionClones.Add(result);
 
   Result.FSysConnection := TFRE_DB_SYSTEM_CONNECTION.Create(true);
-  result.FSysConnection._Connect('SYSTEM',true);
+  CheckDbResult(result.FSysConnection._Connect('SYSTEM',true));
   Result.FSysConnection.FClonedFrom := self.FSysConnection;
   FSysConnection.FConnectionClones.Add(result.FSysConnection);
 end;
@@ -10335,7 +10102,7 @@ begin
     if result<>edb_OK then
       exit;
     conn := CreateAClone;
-    conn.FSysConnection.ImpersonateTheClone(user,pass);
+    CheckDbResult(conn.FSysConnection.ImpersonateTheClone(user,pass));
   finally
     ReleaseBig;
   end;
@@ -10377,7 +10144,7 @@ function TFRE_DB_CONNECTION.CheckLogin(const user, pass: TFRE_DB_String): TFRE_D
 begin //nl
   if not FConnected then
     exit(edb_NOT_CONNECTED);
-  result := FSysConnection._CheckLogin(user,pass);
+  result := FSysConnection.CheckLogin(user,pass);
 end;
 
 

@@ -613,6 +613,7 @@ type
   protected
     FLayerDB : Shortstring;
   public
+    function    InterfaceNeedsAProxy  : Boolean;
     constructor Create                (const conn_db : TFRE_DB_NameType);
     destructor  Destroy               ;override;
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId); virtual;
@@ -644,14 +645,15 @@ type
 
   TFRE_DB_DBChangedNotificationProxy=class(TFRE_DB_DBChangedNotificationBase,IFRE_DB_DBChangedNotification)
   private
-    FRealIF    : IFRE_DB_DBChangedNotification;
-    FBlockList : IFRE_DB_Object;
+    FRealIF          : IFRE_DB_DBChangedNotification;
+    FBlockList       : IFRE_DB_Object;
+    FBlocksendMethod : IFRE_DB_InvokeProcedure;
   protected
     procedure   CheckBlockStarted      ;
     procedure   CheckBlockNotStarted   ;
     procedure   AddNotificationEntry   (const entry:IFRE_DB_Object);
   public
-    constructor Create                 (const real_interface : IFRE_DB_DBChangedNotification ; const db_name : TFRE_DB_NameType);
+    constructor Create                 (const real_interface : IFRE_DB_DBChangedNotification ; const db_name : TFRE_DB_NameType ; const BlocksendMethod : IFRE_DB_InvokeProcedure=nil);
     destructor  Destroy                ;override;
     procedure   StartNotificationBlock (const key      : TFRE_DB_TransStepId); override;
     procedure   FinishNotificationBlock(out   block    : IFRE_DB_Object); override;
@@ -744,10 +746,11 @@ begin
   FBlockList.Field('N').AddObject(entry);
 end;
 
-constructor TFRE_DB_DBChangedNotificationProxy.Create(const real_interface: IFRE_DB_DBChangedNotification; const db_name: TFRE_DB_NameType);
+constructor TFRE_DB_DBChangedNotificationProxy.Create(const real_interface: IFRE_DB_DBChangedNotification; const db_name: TFRE_DB_NameType; const BlocksendMethod: IFRE_DB_InvokeProcedure);
 begin
-  FRealIF  := real_interface;
-  FLayerDB := db_name;
+  FRealIF          := real_interface;
+  FLayerDB         := db_name;
+  FBlocksendMethod := BlocksendMethod;
 end;
 
 destructor TFRE_DB_DBChangedNotificationProxy.Destroy;
@@ -793,7 +796,10 @@ begin
     if assigned(FRealIF) then
       FRealIF.SendNotificationBlock(block)
     else
-      s:='?'; { Notifications dropped }
+    if assigned(FBlocksendMethod) then
+      FBlocksendMethod(block)
+    else
+      block.Finalize;
   except
     on e:Exception do
     begin
@@ -1099,6 +1105,11 @@ begin
 end;
 
 { TFRE_DB_DBChangedNotificationBase }
+
+function TFRE_DB_DBChangedNotificationBase.InterfaceNeedsAProxy: Boolean;
+begin
+  result := false;
+end;
 
 constructor TFRE_DB_DBChangedNotificationBase.Create(const conn_db: TFRE_DB_NameType);
 begin

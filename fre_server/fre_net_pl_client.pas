@@ -175,7 +175,7 @@ type
     constructor Create;
     destructor  Destroy;override;
     procedure   SetConnectionDetails (const host,ip,port:string;const uxs:string);
-    function    ConnectPLServer      (const name:TFRE_DB_NameType ; out conn_layer : IFRE_DB_PERSISTANCE_LAYER):TFRE_DB_Errortype;
+    function    ConnectPLServer      (const name:TFRE_DB_NameType ; out conn_layer : IFRE_DB_PERSISTANCE_LAYER ; const NotifIF: IFRE_DB_DBChangedNotification):TFRE_DB_Errortype;
     function    SearchForLayer       (const db_name : TFRE_DB_NameType ; out database_layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
   end;
 
@@ -191,7 +191,7 @@ var res : TFRE_DB_Errortype;
 begin
   GNET := TFRE_DB_PL_NET_CLIENT.Create;
   GNET.SetConnectionDetails(host,ip,port,cFRE_PS_LAYER_UXSOCK_NAME);
-  res := GNET.ConnectPLServer('GLOBAL',GLAY);
+  res := GNET.ConnectPLServer('GLOBAL',GLAY,nil);
   if res<>edb_OK then
     raise EFRE_DB_Exception.Create(edb_ERROR,GLAY.GetLastError);
   result := GLAY;
@@ -779,7 +779,7 @@ begin
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is only allowed in then global layer');
   if FNETPL.SearchForLayer(db_name,db_layer) then
     exit(edb_OK);
-  result := FNETPL.ConnectPLServer(db_name,db_layer);
+  result := FNETPL.ConnectPLServer(db_name,db_layer,NotifIF);
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Disconnect: TFRE_DB_Errortype;
@@ -1283,7 +1283,12 @@ procedure TFRE_DB_PL_NET_CLIENT.NewDBOFromServer_Locked(const pls: TPLNet_Layer;
 begin
   if dbo.Field('CID').AsString='EVENT' then {Process Event}
     begin
-
+      if assigned(pls.FNotificationIF) then
+        try
+          FREDB_ApplyNotificationBlockToNotifIF(dbo.Field('BLOCK').AsObject,pls.FNotificationIF);
+        except on e:exception do
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'FAILURE INBOUND EVENT PROCESSING NOTIFY [%s]',[e.Message]);
+        end;
     end
   else
     begin {It's an answer}
@@ -1345,13 +1350,14 @@ begin
   FGlobalUnixSocket  := cFRE_UX_SOCKS_DIR+uxs;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.ConnectPLServer(const name: TFRE_DB_NameType; out conn_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.ConnectPLServer(const name: TFRE_DB_NameType; out conn_layer: IFRE_DB_PERSISTANCE_LAYER; const NotifIF: IFRE_DB_DBChangedNotification): TFRE_DB_Errortype;
 var lay : TPLNet_Layer;
 begin
   FLayerLock.Acquire;
   try
     lay := TPLNet_Layer.Create(self,FLayers.Count,FGlobalConnectHost,FGlobalConnectIP,FGlobalConnectPort,FGlobalUnixSocket,name);
     FLayers.Add(lay);
+    lay.FNotificationIF := NotifIF;
   finally
     FLayerLock.Release;
   end;

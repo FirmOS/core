@@ -38,11 +38,13 @@ unit fre_pl_dbo_server;
 }
 
 {$mode objfpc}{$H+}
+{$modeswitch nestedprocvars}
 
 interface
 
 uses
-  Classes, SysUtils,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_db_core,fre_basedbo_server,fre_system;
+  Classes, SysUtils,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_db_core,fre_basedbo_server,fre_system,
+  fre_db_persistance_common;
 
 type
 
@@ -59,17 +61,18 @@ type
     FNotifIf : IFRE_DB_DBChangedNotification;
     FServer  : TFRE_PL_DBO_SERVER;
   public
-    procedure   SendNotificationBlock(const block : IFRE_DB_Object);
-    constructor Create;
+    procedure   SendNotificationBlock (const block : IFRE_DB_Object);
+    constructor Create(const server: TFRE_PL_DBO_SERVER; const layerdbname: TFRE_DB_NameType);
+    destructor  Destroy;override;
   end;
 
   TFRE_PL_DBO_SERVER=class(TFRE_DBO_SERVER)
   private
     FDataTimer : IFRE_APSC_TIMER;
-    FLayers    : Array of IFRE_DB_PERSISTANCE_LAYER;
+    FLayers    : Array of TFRE_DB_Connected_Layer;
     FLayerLock : IFOS_LOCK;
   protected
-    procedure   SetupPersistanceLayer ;
+    procedure   SetupPersistanceLayers;
     procedure   WatchDog              (const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
     procedure   NewChannel            (const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState); override;
     procedure   RemoveChannelFromList (const channel: IFRE_APSC_CHANNEL);
@@ -77,6 +80,7 @@ type
     procedure   Setup                 ; override;
     destructor  Destroy               ; override;
     function    SearchLayer           (layerID:TFRE_DB_NameType ; out layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
+    procedure   NotifyAllConnectedLayers(layerID:TFRE_DB_NameType ; const block : IFRE_DB_Object);
   end;
 
   { TFRE_DB_SERVER_NET_LAYER }
@@ -97,8 +101,9 @@ type
     procedure   ChannelRead       (const channel      : IFRE_APSC_CHANNEL);
     procedure   ChannelDisconnect (const channel      : IFRE_APSC_CHANNEL);
   public
-    procedure   SendAnswer              (const dbo : IFRE_DB_Object);
-    procedure   NewDBOFromClient_Locked (const dbo : IFRE_DB_Object);
+    procedure   SendAnswer              (const dbo   : IFRE_DB_Object);
+    procedure   COR_SendNotifyBlock     (const data : Pointer);
+    procedure   NewDBOFromClient_Locked (const dbo   : IFRE_DB_Object);
     constructor Create(server : TFRE_PL_DBO_SERVER);
     destructor  Destroy;override;
   end;
@@ -110,12 +115,21 @@ implementation
 
 procedure TFRE_DB_Connected_Layer.SendNotificationBlock(const block: IFRE_DB_Object);
 begin
-
+  //writeln('BLOCK>> ',block.DumpToString());
+  FServer.NotifyAllConnectedLayers(FLayer.GetConnectedDB,block);
+  block.Finalize;
 end;
 
-constructor TFRE_DB_Connected_Layer.Create;
+constructor TFRE_DB_Connected_Layer.Create(const server: TFRE_PL_DBO_SERVER ; const layerdbname : TFRE_DB_NameType);
 begin
+  FServer  := server;
+  FNotifIf := TFRE_DB_DBChangedNotificationProxy.Create(nil,layerdbname,@SendNotificationBlock);
+end;
 
+destructor TFRE_DB_Connected_Layer.Destroy;
+begin
+  FNotifIf.FinalizeNotif;
+  inherited Destroy;
 end;
 
 { TFRE_DB_SERVER_NET_LAYER }
@@ -208,6 +222,27 @@ var mem : pointer;
     siz : Cardinal;
 begin
   mem := nil;
+  siz := FREDB_GetDboAsBufferLen(dbo,mem);
+  try
+    dbo.Finalize;
+    FChannel.CH_WriteBuffer(mem,siz);
+  finally
+    Freemem(mem);
+  end;
+end;
+
+procedure TFRE_DB_SERVER_NET_LAYER.COR_SendNotifyBlock(const data: Pointer);
+var mem   : pointer;
+    siz   : Cardinal;
+    dbo   : IFRE_DB_Object;
+    block : IFRE_DB_Object;
+begin
+  mem := nil;
+  block := TFRE_DB_Object(data);
+  dbo := GFRE_DBI.NewObject;
+  dbo.Field('CID').AsString    := 'EVENT';
+  dbo.Field('LAYER').AsString  := FlayerID;
+  dbo.Field('BLOCK').AsObject  := block;
   siz := FREDB_GetDboAsBufferLen(dbo,mem);
   try
     dbo.Finalize;
@@ -697,24 +732,25 @@ end;
 
 { TFRE_PL_DBO_SERVER }
 
-procedure TFRE_PL_DBO_SERVER.SetupPersistanceLayer;
+procedure TFRE_PL_DBO_SERVER.SetupPersistanceLayers;
 
   procedure _ConnectAllDatabases;
   var i       : Integer;
       dblist  : IFOS_STRINGS;
       dbname  : string;
       layer   : IFRE_DB_PERSISTANCE_LAYER;
+      clayer  : TFRE_DB_Connected_Layer;
   begin
     dblist := GFRE_DB_PS_LAYER.DatabaseList;
-    dblist.Add('SYSTEM');
     SetLength(FLayers,dblist.Count);
     GFRE_DB.LogInfo(dblc_SERVER,'START SERVING DATABASES [%s]',[dblist.Commatext]);
     for i:= 0 to dblist.Count-1 do
       begin
         dbname := dblist[i];
-        CheckDbResult(GFRE_DB_PS_LAYER.Connect(dbname,layer,false),'FAIL STARTUP PLDB : '+dbname);
-        FLayers[i] := layer;
-        GFRE_DB.LogNotice(dblc_PERSISTANCE,'STARTUP CONNECT [%s]',[FLayers[i].GetConnectedDB]);
+        clayer := TFRE_DB_Connected_Layer.Create(self,dbname);
+        CheckDbResult(GFRE_DB_PS_LAYER.Connect(dbname,clayer.FLayer,false,clayer.FNotifIf),'FAIL STARTUP PLDB : '+dbname);
+        FLayers[i] := clayer;
+        GFRE_DB.LogNotice(dblc_PERSISTANCE,'STARTUP CONNECT [%s]',[clayer.FLayer.GetConnectedDB]);
       end;
   end;
 begin
@@ -724,7 +760,7 @@ end;
 procedure TFRE_PL_DBO_SERVER.Setup;
 begin
   GFRE_TF.Get_Lock(FLayerLock);
-  SetupPersistanceLayer;
+  SetupPersistanceLayers;
   FDBO_Srv_Cfg.SpecialFile := cFRE_UX_SOCKS_DIR+cFRE_PS_LAYER_UXSOCK_NAME;
   FDBO_Srv_Cfg.Id          := 'FRE:PLServer';
   FDBO_Srv_Cfg.Port        := '44010';
@@ -735,7 +771,12 @@ begin
 end;
 
 destructor TFRE_PL_DBO_SERVER.Destroy;
+var layer : TFRE_DB_Connected_Layer;
 begin
+  for layer in FLayers do
+    begin
+      layer.free;
+    end;
   FLayerLock.Finalize;
   inherited Destroy;
 end;
@@ -779,9 +820,9 @@ begin
       FLayerLock.Acquire;
       try
         for i := 0 to High(FLayers) do
-          if uppercase(FLayers[i].GetConnectedDB)=layerID then
+          if uppercase(FLayers[i].FLayer.GetConnectedDB)=layerID then
             begin
-              layer := FLayers[i];
+              layer := FLayers[i].FLayer;
               exit(true);
             end;
       finally
@@ -789,6 +830,28 @@ begin
       end;
     end;
   result := false;
+end;
+
+procedure TFRE_PL_DBO_SERVER.NotifyAllConnectedLayers(layerID: TFRE_DB_NameType; const block: IFRE_DB_Object);
+var blocko : TFRE_DB_Object;
+  procedure Search(const channel : IFRE_APSC_CHANNEL);
+  var pl_handler : TFRE_DB_SERVER_NET_LAYER;
+  begin
+    pl_handler :=  TFRE_DB_SERVER_NET_LAYER(channel.CH_GetAssociateData);
+    if pl_handler.FlayerID=layerID then
+      begin
+        blocko := block.CloneToNewObject.Implementor as TFRE_DB_Object;
+        pl_handler.FChannel.GetChannelManager.ScheduleCoRoutine(@pl_handler.COR_SendNotifyBlock,blocko);
+      end;
+  end;
+
+begin
+  FLayerLock.Acquire;
+  try
+     ForAllChannels(@Search);
+  finally
+    FLayerLock.Release;
+  end;
 end;
 
 

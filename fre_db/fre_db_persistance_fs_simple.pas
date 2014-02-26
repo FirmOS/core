@@ -74,11 +74,12 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FConnected            : Boolean;
      FGlobalLayer          : Boolean;
      FBlockWALWrites       : Boolean;
+     FDontFinalizeNotif    : Boolean;
      FConnectedLayers      : Array of TFRE_DB_PS_FILE;
      FConnectedDB          : TFRE_DB_String;
      FLastError            : TFRE_DB_String;
      FLastErrorCode        : TFRE_DB_Errortype;
-     FChangeNotificationIF : TFRE_DB_DBChangedNotificationBase;
+     FChangeNotificationIF : IFRE_DB_DBChangedNotification;
 
      procedure    _ConnectCheck             ;
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
@@ -795,6 +796,7 @@ begin
   FConnectedDB  := 'GLOBAL';
   FGlobalLayer  := True;
   FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(FConnectedDB);
+  FDontFinalizeNotif    := false;
 end;
 
 
@@ -815,7 +817,10 @@ begin
         raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'Connected Layer in non global layer is non empty!');
     end;
   FMaster.Free;
-  FChangeNotificationIF.Free;
+
+  if not FDontFinalizeNotif then
+    FChangeNotificationIF.FinalizeNotif;
+
   FChangeNotificationIF:=nil;
 
   inherited destroy;
@@ -1449,6 +1454,30 @@ function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IF
 var up_dbname : TFRE_DB_String;
     idx       : NativeInt;
     dblayer_o : TFRE_DB_PS_FILE;
+
+  procedure UpdateNotifyIF;
+  begin
+    if assigned(NotifIF) then
+      begin
+        if assigned(dblayer_o.FChangeNotificationIF)
+           and (not dblayer_o.FDontFinalizeNotif) then
+             dblayer_o.FChangeNotificationIF.FinalizeNotif;
+        if NotifIF.InterfaceNeedsAProxy then
+          begin
+            dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name);
+            dblayer_o.FDontFinalizeNotif := false;
+          end
+        else
+          begin
+            dblayer_o.FChangeNotificationIF := NotifIF;
+            dblayer_o.FDontFinalizeNotif := true;
+          end;
+      end
+    else
+      if not assigned(dblayer_o.FChangeNotificationIF) then
+        dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(db_name);
+  end;
+
 begin
   if db_name='' then
     begin
@@ -1463,40 +1492,16 @@ begin
       FConnectedLayers[high(FConnectedLayers)] := TFRE_DB_PS_FILE.InternalCreate(FBasedirectory,up_dbname,result);
       dblayer_o := FConnectedLayers[high(FConnectedLayers)];
       db_layer  := dblayer_o;
-      if assigned(NotifIF) then
-        dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name)
-      else
-        dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(db_name);
+      UpdateNotifyIF;
       result         := edb_OK;
       FLastErrorCode := edb_OK;
       FLastError     := '';
     end
   else
     begin
-      if assigned(NotifIF) and assigned(dblayer_o.FChangeNotificationIF) then
-        begin
-          if dblayer_o.FChangeNotificationIF is TFRE_DB_DBChangedNotificationProxy then
-            begin
-              dblayer_o.FChangeNotificationIF.FinalizeNotif;
-              dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name);
-            end
-          else
-            begin
-              dblayer_o.FChangeNotificationIF.FinalizeNotif;
-              dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name);
-              //raise EFRE_DB_Exception.Create(edb_INTERNAL,'currently layers are shared, only one assigned unique notif if allowed!');
-            end;
-        end;
-      if assigned(NotifIF) then
-        dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name);
-      //else
-      //  dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(db_name);
-      if not assigned(dblayer_o.FChangeNotificationIF) then
-        abort;
-      db_layer       := dblayer_o;
-      result         := edb_OK;
-      FLastErrorCode := edb_OK;
-      FLastError     := '';
+      result  := edb_OK;
+      db_layer:= dblayer_o;
+      UpdateNotifyIF;
     end;
 end;
 

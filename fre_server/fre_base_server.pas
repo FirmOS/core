@@ -81,15 +81,14 @@ type
     FSystemConnection  : TFRE_DB_SYSTEM_CONNECTION;
 
     FSSL_CTX             : PSSL_CTX;
-    FDefaultSession      : TFRE_DB_UserSession;
+    //FDefaultSession      : TFRE_DB_UserSession;
     FTerminating         : boolean;
 
     procedure      _SetupHttpBaseServer                      ;
     function       BindInitialSession                        (const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; out   session : TFRE_DB_UserSession;const old_session_id:string;const interactive_session:boolean):boolean;
     function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       GetDBWithServerRights                     (const dbname:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
-    function       RestoreDefaultConnection                  (out  username : TFRE_DB_String ; out conn : IFRE_DB_CONNECTION):TFRE_DB_Errortype;
-    function       GetImpersonatedDatabaseConnectionSession  (const dbname,username,pass,default_app : string;const default_uid_path : TFRE_DB_GUIDArray ; out dbs:TFRE_DB_UserSession):TFRE_DB_Errortype;
+    function       GetImpersonatedDatabaseConnectionSession  (const dbname,username,pass,default_app : string;const default_uid_path : TFRE_DB_GUIDArray ; const session_net_desc : String ; out dbs:TFRE_DB_UserSession):TFRE_DB_Errortype;
     function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
     procedure      TIM_SessionHandler                        (const timer : IFRE_APSC_TIMER;const flaf1,flag2:boolean);
     function       ExistsUserSessionForUserLocked            (const username:string;out other_session:TFRE_DB_UserSession):boolean;
@@ -339,14 +338,17 @@ var dummy:TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
   end;
 
   procedure InitHullHTML;
-  var res_main   : TFRE_DB_MAIN_DESC;
-      FHull_HTML : string;
-      FHull_CT   : string;
+  var res_main        :  TFRE_DB_MAIN_DESC;
+      FHull_HTML      : string;
+      FHull_CT        : string;
+      FDefaultsession : TFRE_DB_UserSession;
 
   begin
 //       res_main  := TFRE_DB_MAIN_DESC.create.Describe(cFRE_WEB_STYLE,'https://tracker.firmos.at/s/en_UK-wu9k4g-1988229788/6097/12/1.4.0-m2/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector-embededjs/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector-embededjs.js?collectorId=5e38a693');
     res_main  := TFRE_DB_MAIN_DESC.create.Describe(cFRE_WEB_STYLE);
+    CheckDbResult(GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'',FDefaultAPP_Class,TFRE_DB_GUIDArray.Create(FDefaultAPP_UID),'NONET',FDefaultSession));
     TransFormFunc(FDefaultSession,fct_SyncReply,res_main,FHull_HTML,FHull_CT,false,fdbtt_get2html);
+    FDefaultsession.Free;
     GFRE_BT.StringToFile(cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+cFRE_SERVER_WWW_ROOT_FILENAME,FHull_HTML);
   end;
 
@@ -396,7 +398,7 @@ begin
   FDispatcher.Free;
   FUserSessionsTree.Free;
   FSessionTreeLock.Finalize;
-  FDefaultSession.Free;
+  //FDefaultSession.Free;
 
   FSystemConnection.Free;
   FSystemConnection:=nil;
@@ -465,8 +467,8 @@ procedure TFRE_BASE_SERVER.Setup;
            end;
          end;
        end;
-       res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'',FDefaultAPP_Class,TFRE_DB_GUIDArray.Create(FDefaultAPP_UID),FDefaultSession);
-       CheckDbResult(res,'COULD NOT CONNECT DEFAULT DB / APP / WITH GUEST ACCESS');
+       //res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'',FDefaultAPP_Class,TFRE_DB_GUIDArray.Create(FDefaultAPP_UID),FDefaultSession);
+       //CheckDbResult(res,'COULD NOT CONNECT DEFAULT DB / APP / WITH GUEST ACCESS');
      end;
 
      procedure _ServerInitializeApps;
@@ -800,7 +802,7 @@ end;
 
 
 
-function TFRE_BASE_SERVER.GetImpersonatedDatabaseConnectionSession(const dbname, username, pass,default_app: string;const default_uid_path : TFRE_DB_GUIDArray; out dbs: TFRE_DB_UserSession): TFRE_DB_Errortype;
+function TFRE_BASE_SERVER.GetImpersonatedDatabaseConnectionSession(const dbname, username, pass, default_app: string; const default_uid_path: TFRE_DB_GUIDArray; const session_net_desc: String; out dbs: TFRE_DB_UserSession): TFRE_DB_Errortype;
 var found : boolean;
     res   : TFRE_DB_Errortype;
     dbc   : IFRE_DB_CONNECTION;
@@ -809,12 +811,12 @@ begin
   if result=edb_OK then begin
     dbs := TFRE_DB_UserSession.Create(username,'',default_app,default_uid_path,dbc);
     dbs.OnGetImpersonatedDBC    := @GetImpersonatedDatabaseConnection;
-    dbs.OnRestoreDefaultDBC     := @RestoreDefaultConnection;
     dbs.OnExistsUserSession     := @ExistsUserSessionForUserLocked;
     dbs.OnExistsUserSession4Key := @ExistsUserSessionForKeyLocked;
     dbs.OnCheckUserNamePW       := @CheckUserNamePW;
     dbs.OnFetchSessionById      := @FetchSessionByIdLocked;
     dbs.OnFetchPublisherRAC     := @FetchPublisherSessionLocked;
+    dbs.SetClientDetails(session_net_desc);
   end;
 end;
 
@@ -882,7 +884,7 @@ end;
 
 function TFRE_BASE_SERVER.CheckUserNamePW(username, pass: TFRE_DB_String): TFRE_DB_Errortype;
 begin
-  result := FDefaultSession.GetDBConnection.CheckLogin(username,pass);
+  result := FSystemConnection.CheckLogin(username,pass);
 end;
 
 function TFRE_BASE_SERVER.FetchPublisherSessionLocked(const rcall, rmeth: TFRE_DB_NameType; out ses: TFRE_DB_UserSession ; out right:TFRE_DB_String): boolean;
@@ -1074,6 +1076,7 @@ var ws         : TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
     SessionKey : String;
     found      : boolean;
     reuse_ses  : boolean;
+    res        : TFRE_DB_Errortype;
 begin
   session   := nil;
   found     := false;
@@ -1099,7 +1102,9 @@ begin
     end
   else
     begin
-      session := FDefaultSession.CloneSession(back_channel.GetInfoForSessionDesc); //  (sender as TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY).GetSocketDesc
+      res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'',FDefaultAPP_Class,TFRE_DB_GUIDArray.Create(FDefaultAPP_UID),back_channel.GetInfoForSessionDesc,session);
+      CheckDbResult(res,'COULD NOT CONNECT DEFAULT DB / APP / WITH GUEST ACCESS');
+
       session.SetSessionState(sta_ActiveNew);
       FSessionTreeLock.Acquire;
       try
@@ -1162,12 +1167,6 @@ begin
   end;
 end;
 
-function TFRE_BASE_SERVER.RestoreDefaultConnection(out username: TFRE_DB_String; out conn: IFRE_DB_CONNECTION): TFRE_DB_Errortype;
-begin
-  conn     := FDefaultSession.GetDBConnection;
-  username := FDefaultSession.GetUsername;
-  result   := edb_OK;
-end;
 
 procedure RegisterLogin;
 begin

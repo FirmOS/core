@@ -1268,6 +1268,7 @@ type
   end;
 
   IFRE_DB_DBChangedNotification = interface
+    function   InterfaceNeedsAProxy   : Boolean;
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object);
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
@@ -2364,7 +2365,7 @@ type
      procedure  CLS_ForceInvalidSessionReload (rac :IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
-    function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
+    //function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
     procedure   COR_FinalizeTakeOver     (const data : Pointer); // In new session binding
@@ -2382,6 +2383,7 @@ type
     procedure   FinishDerivedCollections ;
     function    GetUsername              : String;
     function    GetClientDetails         : String;
+    procedure   SetClientDetails         (const net_conn_desc:String);
     function    GetTakeOverKey           : String;
     function    GetSessionAppArray       : IFRE_DB_APPLICATION_ARRAY;
 
@@ -3724,8 +3726,7 @@ destructor TFRE_DB_UserSession.Destroy;
 begin
   RemoveAllTimers;
   if FPromoted then
-     writeln('TODO: FIX STORE/RETRIEVE SESSIONDATA');
-    //StoreSessionData;
+    StoreSessionData;
   try
     FinishDerivedCollections;
   except on e:exception do
@@ -4409,22 +4410,22 @@ begin
   end;
 end;
 
-function TFRE_DB_UserSession.CloneSession(const connectiond_desc: string): TFRE_DB_UserSession;
-var dbc : IFRE_DB_CONNECTION;
-begin
-  if FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,FUserName,FPassMD5,dbc)<>edb_OK then
-    GFRE_BT.CriticalAbort('UNEXPECTED, HANDLE');
-  result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,dbc);
-  result.OnGetImpersonatedDBC    := FOnGetImpersonatedDBC;
-  result.OnExistsUserSession     := FOnExistsUserSessionL;
-  result.OnExistsUserSession4Key := FonExistsSesForTkKeyL;
-  result.OnRestoreDefaultDBC     := FOnRestoreDefaultDBC;
-  result.OnCheckUserNamePW       := FOnCheckUserNamePW;
-  result.OnFetchPublisherRAC     := FOnFetchPublisherSesL;
-  result.OnFetchSessionById      := FOnFetchSessionByIdL;
-  result.FSessionData            := GFRE_DBI.NewObject;
-  result.FConnDesc               := connectiond_desc;
-end;
+//function TFRE_DB_UserSession.CloneSession(const connectiond_desc: string): TFRE_DB_UserSession;
+//var dbc : IFRE_DB_CONNECTION;
+//begin
+//  if FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,FUserName,FPassMD5,dbc)<>edb_OK then
+//    GFRE_BT.CriticalAbort('UNEXPECTED, HANDLE');
+//  result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,dbc);
+//  result.OnGetImpersonatedDBC    := FOnGetImpersonatedDBC;
+//  result.OnExistsUserSession     := FOnExistsUserSessionL;
+//  result.OnExistsUserSession4Key := FonExistsSesForTkKeyL;
+//  result.OnRestoreDefaultDBC     := FOnRestoreDefaultDBC;
+//  result.OnCheckUserNamePW       := FOnCheckUserNamePW;
+//  result.OnFetchPublisherRAC     := FOnFetchPublisherSesL;
+//  result.OnFetchSessionById      := FOnFetchSessionByIdL;
+//  result.FSessionData            := GFRE_DBI.NewObject;
+//  result.FConnDesc               := connectiond_desc;
+//end;
 
 type
    TCOR_TakeOverData=class
@@ -4519,23 +4520,21 @@ begin
       exit(promres);
     end else begin
       err := FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
-      //assert(assigned(FSessionData));
       case err of
        edb_OK: begin
           FDBConnection.Finalize;
           FDBConnection:=l_NDBC;
           GFRE_DBI.LogInfo(dblc_SERVER,'PROMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,FUserName,user_name]);
-          force_new_session_data := true; //TODO: HACK RZNORD -> (9.10.2013) Session data save/retrieve is buggy
           if not force_new_session_data then begin
             if not l_NDBC.FetchUserSessionData(lStoredSessionData) then begin
+              FSessionData := GFRE_DBI.NewObject;
               GFRE_DBI.LogDebug(dblc_SERVER,'USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
             end else begin
-              GFRE_DBI.LogDebug(dblc_SERVER,'USING PERSISTENT SESSION DATA [%s]',[FSessionData.UID_String]);
-              FSessionData.Finalize;
+              GFRE_DBI.LogDebug(dblc_SERVER,'USING PERSISTENT SESSION DATA [%s]',[lStoredSessionData.UID_String]);
               FSessionData:=lStoredSessionData;
-              writeln('STORED SESSION DATA: ');
-              writeln('    ',lStoredSessionData.DumpToString());
-              writeln('STORED SESSION DATA: ');
+              //writeln('STORED SESSION DATA: ');
+              //writeln('    ',lStoredSessionData.DumpToString());
+              //writeln('STORED SESSION DATA: ');
             end;
           end else begin
             GFRE_DBI.LogDebug(dblc_SERVER,'FORCED USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
@@ -4744,6 +4743,11 @@ end;
 function TFRE_DB_UserSession.GetClientDetails: String;
 begin
   result := FConnDesc;
+end;
+
+procedure TFRE_DB_UserSession.SetClientDetails(const net_conn_desc: String);
+begin
+  FConnDesc := net_conn_desc;
 end;
 
 function TFRE_DB_UserSession.GetTakeOverKey: String;
