@@ -27,7 +27,7 @@ type
     class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
   public
     class procedure RegisterSystemScheme          (const scheme:IFRE_DB_SCHEMEOBJECT); override;
-    function        isMultiDamainApp             : Boolean; override;
+    function        isMultiDomainApp             : Boolean; override;
   published
   end;
 
@@ -2222,7 +2222,7 @@ begin
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION');
 end;
 
-function TFRE_COMMON_ACCESSCONTROL_APP.isMultiDamainApp: Boolean;
+function TFRE_COMMON_ACCESSCONTROL_APP.isMultiDomainApp: Boolean;
 begin
   Result:=true;
 end;

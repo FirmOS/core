@@ -1753,7 +1753,7 @@ type
 
     function   AsObject                     : IFRE_DB_Object;
     function   AppClassName                 : ShortString;
-    function   isMultiDamainApp             : Boolean; virtual;
+    function   isMultiDomainApp             : Boolean; virtual;
     function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
 
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
@@ -6325,7 +6325,7 @@ begin
  result := ClassName;
 end;
 
-function TFRE_DB_APPLICATION.isMultiDamainApp: Boolean;
+function TFRE_DB_APPLICATION.isMultiDomainApp: Boolean;
 begin
   Result:=false;
 end;
@@ -6527,7 +6527,7 @@ var ActiveSection : String;
       id      : String;
     begin
       if conn.sys.CheckClassRight4MyDomain(sr_FETCH,module.GetImplementorsClass) or
-         (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,module.GetImplementorsClass) and isMultiDamainApp) then
+         (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,module.GetImplementorsClass) and isMultiDomainApp) then
         begin
           csf   := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(module.AsObject,'content');
           title := module.GetModuleTitle(ses);

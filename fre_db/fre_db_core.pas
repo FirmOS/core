@@ -10602,7 +10602,7 @@ begin
       if l_apps[i].AppClassName='TFRE_DB_LOGIN' then
         continue;
       if FSysConnection.CheckClassRight4MyDomain(sr_FETCH,l_apps[i].ClassType)
-         or (FSysConnection.CheckClassRight4AnyDomain(sr_FETCH,l_apps[i].ClassType) and l_apps[i].isMultiDamainApp) then
+         or (FSysConnection.CheckClassRight4AnyDomain(sr_FETCH,l_apps[i].ClassType) and l_apps[i].isMultiDomainApp) then
            begin
             apps[cnt] := l_apps[i];
             inc(cnt);
