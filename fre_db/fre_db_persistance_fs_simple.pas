@@ -1076,6 +1076,12 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
 
   procedure GenInsert(const insert_obj : IFRE_DB_Object);
   begin
+    if not store then
+      begin
+        exit;
+        writeln('THIS IS NOT ALLOWED 1');
+        halt;
+      end;
     if insert_obj.IsObjectRoot then
       FTransaction.AddChangeStep(TFRE_DB_InsertStep.Create(self,insert_obj.Implementor as TFRE_DB_Object,coll,store))
     else
@@ -1084,6 +1090,11 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
 
   procedure GenDelete(const del_obj : IFRE_DB_Object);
   begin
+    if not store then
+      begin
+        writeln('THIS IS NOT ALLOWED 2');
+        halt;
+      end;
     assert(not del_obj.IsObjectRoot); { this must be a subobject delete }
     FTransaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(self,del_obj.Implementor as TFRE_DB_Object,collection_name,store));
   end;
@@ -1145,7 +1156,7 @@ begin
           to_update_obj := nil;
           if coll.IsVolatile then
             obj.Set_Volatile;
-          TFRE_DB_Object.GenerateAnObjChangeList(obj,nil,@GenInsert,@GenDelete,@GenUpdate);
+          TFRE_DB_Object.GenerateAnObjChangeList(obj,nil,@GenInsert,nil,nil); { there must not be updates or delets in STORE case}
           result := FTransaction.GetTransLastStepTransId;
           if ImplicitTransaction then
             FTransaction.Commit(self);
@@ -1172,9 +1183,18 @@ begin
               ImplicitTransaction := false;
             try
                to_update_obj.Set_Store_Locked(false);
+               if G_DEBUG_TRIGGER_1 then
+                 begin
+                   G_DEBUG_TRIGGER_1:=true;
+                   writeln('------ TO UPDATE OBJ ',to_update_obj.DumpToString());
+                   writeln('------- IN Object    ',iobj.DumpToString());
+                   //halt;
+                 end;
                updatestep := TFRE_DB_UpdateStep.Create(self,obj,to_update_obj,false);
                FTransaction.AddChangeStep(updatestep);
-               TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,@GenInsert,@GenDelete,@GenUpdate);
+               //TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,@GenInsert,@GenDelete,@GenUpdate);
+               TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,nil,nil,@GenUpdate);
+
                result := FTransaction.GetTransLastStepTransId;
             finally
               to_update_obj.Set_Store_Locked(true);

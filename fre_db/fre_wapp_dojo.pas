@@ -75,7 +75,7 @@ type
    procedure _BuildSubSecVertContainer (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC);
    procedure _BuildMenu                (const co:TFRE_DB_MENU_DESC);
    procedure _BuildMenuDef             (const co:TFRE_DB_MENU_DESC);
-   function  _BuildDataArray           (const co:IFRE_DB_ObjectArray):String;
+   //function  _BuildDataArray           (const co:IFRE_DB_ObjectArray):String;
   public
    function  InstallTransformDefaults  (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
    procedure BuildContextMenu          (const co:TFRE_DB_MENU_DESC; var contentString,contentType:String);
@@ -997,24 +997,6 @@ implementation
     jsContentAdd('];');
   end;
 
-  function TFRE_DB_WAPP_DOJO._BuildDataArray(const co: IFRE_DB_ObjectArray): String;
-  var
-    ljdresult : TJSONArray;
-    ljd2      : TJSONObject;
-    i         : integer;
-  begin
-    ljdresult:=TJSONArray.Create;
-    try
-     for i:=0 to high(co) do begin
-       ljd2 := TJSONObject(co[i].GetAsJSON);
-       ljdresult.Add(ljd2);
-     end;
-       Result:=ljdresult.AsJSON;
-    finally
-      ljdresult.Free;
-    end;
-  end;
-
   function TFRE_DB_WAPP_DOJO.InstallTransformDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
   begin
     _storeText(conn,'search_label','Search:');
@@ -1251,11 +1233,11 @@ implementation
       separator:=',';
     end;
     if co.FieldExists('updated') then begin
-      data:=data+separator+'updated:'+_BuildDataArray(co.Field('updated').AsObjectArr);
+      data:=data+separator+'updated:'+co.Field('updated').AsObjectArrayJSONString;
       separator:=',';
     end;
     if co.FieldExists('new') then begin
-      data:=data+separator+'new:'+_BuildDataArray(co.Field('new').AsObjectArr);
+      data:=data+separator+'new:'+co.Field('new').AsObjectArrayJSONString;
       separator:=',';
     end;
     if co.FieldExists('deleted') then begin
@@ -2064,7 +2046,7 @@ implementation
         end else begin
           count:=inttostr(co.Field('data').ValueCount);
         end;
-        contentString := '{total:'+count+', data:'+  _BuildDataArray(co.Field('data').AsObjectArr) + '}';
+        contentString := '{total:'+count+', data:'+ co.Field('data').AsObjectArrayJSONString + '}';
         contentType   := 'application/json';
       end else begin
         contentString := '{total: 0, data: [] }';
@@ -2226,7 +2208,7 @@ implementation
     ljdresult:=TJSONArray.Create;
     try
       if co.FieldExists('series') then begin
-        contentString := '{total:'+inttostr(co.Field('series').ValueCount)+', data:'+  _BuildDataArray(co.Field('series').AsObjectArr) + '}';
+        contentString := '{total:'+inttostr(co.Field('series').ValueCount)+', data:'+  co.Field('series').AsObjectArrayJSONString + '}';
         contentType   := 'application/json';
       end else begin
         contentString := '{total: 0, data: [] }';
@@ -2409,6 +2391,7 @@ implementation
     subsecs        : TFRE_DB_SUBSECTIONS_DESC;
     subsubsecs     : TFRE_DB_SUBSECTIONS_DESC;
     entries        : String;
+    serverfuncs    : IFRE_DB_ObjectArray;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -2433,8 +2416,11 @@ implementation
             entry.Field('serverFuncs').Clear(true);
           end else begin
             subsubsecs:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
-            for j := 0 to entry.Field('serverFuncs').ValueCount - 1 do begin
-              subsubsecs.AddSection.Describe(entry.Field('serverFuncs').AsObjectArr[j].Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',j,entry.Field('subIds').AsStringArr[j]);
+            serverfuncs := entry.Field('serverFuncs').CheckOutObjectArray;
+            //for j := 0 to entry.Field('serverFuncs').ValueCount - 1 do begin
+            for j := 0 to high(serverfuncs) do begin
+//              subsubsecs.AddSection.Describe(entry.Field('serverFuncs').AsObjectArr[j].CloneToNewObject().Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',j,entry.Field('subIds').AsStringArr[j]);
+              subsubsecs.AddSection.Describe(serverfuncs[j].Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',j,entry.Field('subIds').AsStringArr[j]);
             end;
             subsecs.AddSection._internalDescribe(subsubsecs,'',i,entry.contentId);
             entry.Field('serverFuncs').Clear(true);
@@ -2498,7 +2484,7 @@ implementation
   begin
     ljdresult:=TJSONArray.Create;
     try
-      contentString := 'G_UI_COM.invalidateSessionData('+  _BuildDataArray(co.Field('stores').AsObjectArr) + ');';
+      contentString := 'G_UI_COM.invalidateSessionData('+  co.Field('stores').AsObjectArrayJSONString + ');';
       contentType   := 'application/json';
     finally
       ljdresult.Free;
@@ -2522,8 +2508,8 @@ implementation
       jsContentAdd('  ,destroyNotify: true');
       session.registerUpdatableContent(co.Field('id').AsString);
     end;
-    jsContentAdd(' ,entries: '+_BuildDataArray(co.Field('entries').AsObjectArr));
-    jsContentAdd(' ,defs: ' +_BuildDataArray(co.Field('svgDefs').AsObjectArr));
+    jsContentAdd(' ,entries: '+co.Field('entries').AsObjectArrayJSONString);
+    jsContentAdd(' ,defs: ' +co.Field('svgDefs').AsObjectArrayJSONString);
     jsContentAdd(' ,class: "firmosTransparent"');
     jsContentAdd('});');
 

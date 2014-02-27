@@ -345,8 +345,8 @@ begin
 
   // Diasable WAL MODE - DEBUG SETUP - FORCE SIMPLE DEPLOYMENT MODE
 
-  GDISABLE_WAL              := TRUE;
   GDBPS_TRANS_WRITE_THROUGH := TRUE;
+  GDISABLE_WAL              := TRUE;
   GDISABLE_SYNC             := TRUE;
   GDROP_WAL                 := TRUE;
 
@@ -635,6 +635,7 @@ begin
   if adb and sdb then
     writeln('Backup of Database ['+FDBName+'] + [SYSTEM DB] into ['+dir+'] (y/N)');
   ReadLn(s);
+  s:='y';
   if s='y' then
     begin
       write('CONNECTING ['+FDBName+'] ');
@@ -741,7 +742,7 @@ begin
   if adb and sdb then
     writeln('Restore backup as database ['+FDBName+'] + [SYSTEM DB]  (y/N)');
   ReadLn(s);
-  //s:='y'; // ignore force lazarusdebug
+  s:='y'; // ignore force lazarusdebug
   if s='y' then
     begin
       write('RECREATING / CONNECTING ['+FDBName+'] ');
@@ -975,8 +976,8 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
   begin
     //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Info,'*',flra_DropEntry);
     //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Debug,'*',flra_DropEntry);
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE_NOTIFY],fll_Debug,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE_NOTIFY],fll_Debug,'*',flra_DropEntry);
   end;
 
   procedure Setup_FlexcomLogging;
