@@ -27,6 +27,7 @@ type
     class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
   public
     class procedure RegisterSystemScheme          (const scheme:IFRE_DB_SCHEMEOBJECT); override;
+    function        isMultiDamainApp             : Boolean; override;
   published
   end;
 
@@ -234,7 +235,7 @@ var
   txt           : IFRE_DB_TEXT;
 
 begin
-  CheckClassVisibility(ses);
+  CheckClassVisibility4AnyDomain(ses);
 
   dc_domain     := ses.FetchDerivedCollection('DOMAINMOD_DOMAIN_GRID');
   domaingrid    := dc_domain.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -279,7 +280,7 @@ var
   dc_userin     : IFRE_DB_DERIVED_COLLECTION;
   useringrid    : TFRE_DB_VIEW_LIST_DESC;
 begin
-  CheckClassVisibility(ses);
+  CheckClassVisibility4AnyDomain(ses);
 
   dc_userin   := ses.FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
   useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -293,7 +294,7 @@ var
   groupingrid   : TFRE_DB_VIEW_LIST_DESC;
 
 begin
-  CheckClassVisibility(ses);
+  CheckClassVisibility4AnyDomain(ses);
 
   dc_groupin  := ses.FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
   groupingrid := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -638,7 +639,7 @@ var
   dc_groupin  : IFRE_DB_DERIVED_COLLECTION;
   dc_groupout : IFRE_DB_DERIVED_COLLECTION;
 begin
-  CheckClassVisibility(ses);
+  CheckClassVisibility4AnyDomain(ses);
 
   dc_role     := ses.FetchDerivedCollection('ROLEMOD_ROLE_GRID');
   rolegrid    := dc_role.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -994,7 +995,7 @@ var
   dc_roleout  : IFRE_DB_DERIVED_COLLECTION;
   txt         : IFRE_DB_TEXT;
 begin
-  CheckClassVisibility(ses);
+  CheckClassVisibility4AnyDomain(ses);
 
   dc_group := ses.FetchDerivedCollection('GROUPMOD_GROUP_GRID');
   groupgrid := dc_group.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -1624,7 +1625,7 @@ var
   txt         : IFRE_DB_TEXT;
   user_count  : String;
 begin
-  CheckClassVisibility(ses);
+  CheckClassVisibility4AnyDomain(ses);
 
   dc_user := ses.FetchDerivedCollection('USERMOD_USER_GRID');
   usergrid := dc_user.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -2219,6 +2220,11 @@ class procedure TFRE_COMMON_ACCESSCONTROL_APP.RegisterSystemScheme( const scheme
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION');
+end;
+
+function TFRE_COMMON_ACCESSCONTROL_APP.isMultiDamainApp: Boolean;
+begin
+  Result:=true;
 end;
 
 procedure Register_DB_Extensions;

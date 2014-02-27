@@ -10601,8 +10601,8 @@ begin
     for i := 0 to high(l_apps) do begin
       if l_apps[i].AppClassName='TFRE_DB_LOGIN' then
         continue;
-      if FSysConnection.IsCurrentUserSystemAdmin
-         or FSysConnection.CheckClassRight4AnyDomain(sr_FETCH,l_apps[i].ClassType) then
+      if FSysConnection.CheckClassRight4MyDomain(sr_FETCH,l_apps[i].ClassType)
+         or (FSysConnection.CheckClassRight4AnyDomain(sr_FETCH,l_apps[i].ClassType) and l_apps[i].isMultiDamainApp) then
            begin
             apps[cnt] := l_apps[i];
             inc(cnt);

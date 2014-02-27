@@ -1753,6 +1753,7 @@ type
 
     function   AsObject                     : IFRE_DB_Object;
     function   AppClassName                 : ShortString;
+    function   isMultiDamainApp             : Boolean; virtual;
     function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
 
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
@@ -1786,30 +1787,31 @@ type
 
     function   IFRE_DB_APPLICATION_MODULE.ObjectName  = GetName;
     function   IFRE_DB_APPLICATION_MODULE.DEscription = GetDesc;
-    procedure  MyServerInitializeModule     (const admin_dbc : IFRE_DB_CONNECTION); virtual;
-    procedure  CheckClassVisibility         (const session : IFRE_DB_UserSession);virtual;
-    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    procedure  MyServerInitializeModule      (const admin_dbc : IFRE_DB_CONNECTION); virtual;
+    procedure  CheckClassVisibility4AnyDomain(const session : IFRE_DB_UserSession);virtual;
+    procedure  CheckClassVisibility4MyDomain (const session : IFRE_DB_UserSession);virtual;
+    class procedure  InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure  ForAllAppModules              (const module_iterator:TFRE_DB_APPLICATION_MODULE_ITERATOR);
-    procedure  MySessionInitializeModule    (const session : TFRE_DB_UserSession);virtual;
-    procedure  MySessionPromotionModule     (const session: TFRE_DB_UserSession); virtual;
-    procedure  MySessionFinalizeModule      (const session : TFRE_DB_UserSession);virtual;
+    procedure  MySessionInitializeModule     (const session : TFRE_DB_UserSession);virtual;
+    procedure  MySessionPromotionModule      (const session: TFRE_DB_UserSession); virtual;
+    procedure  MySessionFinalizeModule       (const session : TFRE_DB_UserSession);virtual;
 
-    function   GetEmbeddingApp              : TFRE_DB_APPLICATION;
-    function   _FetchAppText                (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;
+    function   GetEmbeddingApp               : TFRE_DB_APPLICATION;
+    function   _FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;
 
-    function   GetToolbarMenu               (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; virtual;
-    function   GetDBConnection              (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
-    function   GetDBSessionData             (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function   GetDBModuleSessionData       (const input:IFRE_DB_Object): IFRE_DB_Object;
-    function   GetDependencyFiltervalues    (const input:IFRE_DB_Object; const dependencyfield:string): TFRE_DB_StringArray;
+    function   GetToolbarMenu                (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; virtual;
+    function   GetDBConnection               (const input:IFRE_DB_Object): IFRE_DB_CONNECTION;
+    function   GetDBSessionData              (const input:IFRE_DB_Object): IFRE_DB_Object;
+    function   GetDBModuleSessionData        (const input:IFRE_DB_Object): IFRE_DB_Object;
+    function   GetDependencyFiltervalues     (const input:IFRE_DB_Object; const dependencyfield:string): TFRE_DB_StringArray;
 
-    procedure  SetDescrTranslationKey       (const val:TFRE_DB_String);
-    function   GetDescrTranslationKey       :TFRE_DB_String;
-    function   GetModuleTitle               (const ses : IFRE_DB_Usersession): TFRE_DB_String;
-    function   GetModuleClassName           : Shortstring;
-    function   AsObject                     : IFRE_DB_Object;
-    function   IsContentUpdateVisible       (const session: IFRE_DB_UserSession; const update_content_id:string):Boolean;
+    procedure  SetDescrTranslationKey        (const val:TFRE_DB_String);
+    function   GetDescrTranslationKey        :TFRE_DB_String;
+    function   GetModuleTitle                (const ses : IFRE_DB_Usersession): TFRE_DB_String;
+    function   GetModuleClassName            : Shortstring;
+    function   AsObject                      : IFRE_DB_Object;
+    function   IsContentUpdateVisible        (const session: IFRE_DB_UserSession; const update_content_id:string):Boolean;
   published
     function   IMI_OnUIChange                (const input:IFRE_DB_Object):IFRE_DB_Object; virtual;
   end;
@@ -6323,6 +6325,11 @@ begin
  result := ClassName;
 end;
 
+function TFRE_DB_APPLICATION.isMultiDamainApp: Boolean;
+begin
+  Result:=false;
+end;
+
 function TFRE_DB_APPLICATION.GetCaption(const ses: IFRE_DB_Usersession): TFRE_DB_String;
 begin
   result := FetchAppTextShort(ses,'$caption');
@@ -6519,7 +6526,8 @@ var ActiveSection : String;
       title   : TFRE_DB_String;
       id      : String;
     begin
-      if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,module.GetImplementorsClass) then
+      if conn.sys.CheckClassRight4MyDomain(sr_FETCH,module.GetImplementorsClass) or
+         (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,module.GetImplementorsClass) and isMultiDamainApp) then
         begin
           csf   := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(module.AsObject,'content');
           title := module.GetModuleTitle(ses);
@@ -6685,9 +6693,15 @@ begin
 
 end;
 
-procedure TFRE_DB_APPLICATION_MODULE.CheckClassVisibility(const session: IFRE_DB_UserSession);
+procedure TFRE_DB_APPLICATION_MODULE.CheckClassVisibility4AnyDomain(const session: IFRE_DB_UserSession);
 begin
   if not session.GetDBConnection.sys.CheckClassRight4AnyDomain(sr_FETCH,ClassType) then
+    raise EFRE_DB_Exception.Create(GetEmbeddingApp.FetchAppTextShort(session,'$error_no_access'));
+end;
+
+procedure TFRE_DB_APPLICATION_MODULE.CheckClassVisibility4MyDomain(const session: IFRE_DB_UserSession);
+begin
+  if not session.GetDBConnection.sys.CheckClassRight4MyDomain(sr_FETCH,ClassType) then
     raise EFRE_DB_Exception.Create(GetEmbeddingApp.FetchAppTextShort(session,'$error_no_access'));
 end;
 
