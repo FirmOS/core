@@ -2061,7 +2061,6 @@ type
   end;
   TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY = array of TFRE_DB_SVG_DEF_ELEM_DESC;
 
-
   { TFRE_DB_SITEMAP_DESC }
 
   TFRE_DB_SITEMAP_DESC    = class(TFRE_DB_CONTENT_DESC)
@@ -2070,6 +2069,14 @@ type
     function  Describe  (const svgDefs: TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY=nil): TFRE_DB_SITEMAP_DESC;
     //@ Creates a new sitemap entry description and adds it.
     function  AddEntry  : TFRE_DB_SITEMAP_ENTRY_DESC;
+  end;
+
+  { TFRE_DB_SVG_DESC }
+
+  TFRE_DB_SVG_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a svg panel.
+    function  Describe  (const svg: String; const id:String=''): TFRE_DB_SVG_DESC;
   end;
 
 
@@ -3073,6 +3080,21 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_SVG_DESC }
+
+function TFRE_DB_SVG_DESC.Describe(const svg: String; const id: String): TFRE_DB_SVG_DESC;
+begin
+ if id='' then begin
+   if not FieldExists('id') then begin
+      Field('id').AsString:='id'+UID_String;
+    end;
+  end else begin
+    Field('id').AsString:=id;
+  end;
+  Field('svg').AsString:=svg;
+  Result:=Self;
+end;
 
 { TFRE_DB_WeakObjectEx }
 
