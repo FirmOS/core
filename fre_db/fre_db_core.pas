@@ -1127,7 +1127,7 @@ type
   public
     function  SubFormattedDisplayAvailable: boolean; override;
     function  GetSubFormattedDisplay(indent: integer=4): TFRE_DB_String; override;
-    procedure SetImage           (const image_stream: TFRE_DB_Stream; const streamtype: string);
+    procedure SetImage           (const image_stream: TFRE_DB_Stream; const streamtype: string ; const etag : string);
     procedure InitData           (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String;const userdomainid:TGuid);
     property  Login              :TFRE_DB_String read GetLogin write Setlogin;
     property  Firstname          :TFRE_DB_String read GetFirstName write SetFirstName;
@@ -1872,7 +1872,7 @@ type
 
     function    _DomainIDasString           (const name :TFRE_DB_NameType):TFRE_DB_NameType;
 
-    function    _AddUser                    (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const system_start_up : boolean=false;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
+    function    _AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream=nil; const imagetype:string='' ; const etag: String=''): TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
 
     function    IFRE_DB_SYS_CONNECTION.FetchUser                   = FetchUserI;
     function    IFRE_DB_SYS_CONNECTION.FetchUserById               = FetchUserByIdI;
@@ -5184,7 +5184,7 @@ begin
 end;
 
 
-function TFRE_DB_SYSTEM_CONNECTION._AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype: String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype,etag: String): TFRE_DB_Errortype;
 var user       : TFRE_DB_USER;
     login      : TFRE_DB_String;
     domain     : TFRE_DB_String;
@@ -5197,7 +5197,7 @@ begin
     FREDB_SplitLocalatDomain(loginatdomain,login,domain);
     user.InitData(login,first_name,last_name,password,DomainID(domain));
     if assigned(image) then
-      user.SetImage(image,imagetype);
+      user.SetImage(image,imagetype,etag);
     if system_start_up then
       begin
         user.SetDomainID(FSysDomainUID);  // create admin user on startup without checks
@@ -8150,6 +8150,18 @@ begin
       lFieldSchemeDefinition.FmultiValues          := false;
       lFieldSchemeDefinition.FScheme               := self;
     end;
+  if newfieldtype=fdbft_Stream then { automagically add a stream etag type field (text) for a stream field definition}
+    begin
+      lFieldSchemeDefinition                       := TFRE_DB_FieldSchemeDefinition.Create;
+      FFieldDefs.Add(lFieldSchemeDefinition);
+      lFieldSchemeDefinition.FFieldName            := upnewfieldname+cFRE_DB_ST_ETAG;
+      lFieldSchemeDefinition.FFieldType            := fdbft_String;
+      lFieldSchemeDefinition.Frequired             := false;
+      lFieldSchemeDefinition.FisPass               := false;
+      lFieldSchemeDefinition.FaddConfirm           := false;
+      lFieldSchemeDefinition.FmultiValues          := false;
+      lFieldSchemeDefinition.FScheme               := self;
+    end;
 end;
 
 function TFRE_DB_SchemeObject.AddSchemeFieldSubscheme(const newfieldname:TFRE_DB_NameType ; const sub_scheme:TFRE_DB_NameType):TFRE_DB_FieldSchemeDefinition;
@@ -8426,6 +8438,7 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
       raw_multi_vals    : boolean;
       raw_empty_array   : boolean;
       scheme_multi_vals : boolean;
+      work_fld          : TFRE_DB_FIELD;
 
       procedure _ObjectUpdate;
       begin
@@ -18134,10 +18147,11 @@ begin
  // Result := StringOfChar(' ',indent)+GFRE_DB.StringArray2String(UserGroupNames);
 end;
 
-procedure TFRE_DB_USER.SetImage(const image_stream: TFRE_DB_Stream;const streamtype:string);
+procedure TFRE_DB_USER.SetImage(const image_stream: TFRE_DB_Stream; const streamtype: string; const etag: string);
 begin
-  Field('picture').AsStream := image_stream;
-  Field('picture'+cFRE_DB_STKEY).AsString := streamtype;
+  Field('picture').AsStream                 := image_stream;
+  Field('picture'+cFRE_DB_STKEY).AsString   := streamtype;
+  Field('picture'+cFRE_DB_ST_ETAG).AsString := etag;
 end;
 
 procedure TFRE_DB_USER.InitData(const nlogin, nfirst, nlast, npasswd: TFRE_DB_String; const userdomainid: TGuid);
@@ -18318,7 +18332,7 @@ begin
          begin
            if fld.FieldType=fdbft_Stream then
              begin
-                l_UserO.SetImage(fld.AsStream,data.Field('picture'+cFRE_DB_STKEY).AsString);
+                l_UserO.SetImage(fld.AsStream,data.Field('picture'+cFRE_DB_STKEY).AsString,data.Field('picture'+cFRE_DB_ST_ETAG).AsString);
                 fld.Clear(true);
              end
            else

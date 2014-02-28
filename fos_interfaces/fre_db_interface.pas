@@ -125,6 +125,7 @@ const
   CFRE_DB_SUBSEC_DISPLAY_TYPE    : array [TFRE_DB_SUBSEC_DISPLAY_TYPE]    of string = ('sec_dt_tab','sec_dt_vertical','sec_dt_hiddentab');
   CFRE_DB_SYS_DOMAIN_NAME        = 'SYSTEM';
   cFRE_DB_STKEY                  = '#ST#';
+  cFRE_DB_ST_ETAG                = '#ETG#';
   cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*';
 
 
@@ -148,6 +149,7 @@ type
     destructor Destroy;override;
     function   AsRawByteString      : TFRE_DB_RawByteString;
     procedure  SetFromRawByteString (const rb_string : TFRE_DB_RawByteString);
+    function   CalcETag             : ShortString;
   end;
 
   TFRE_DB_GUID          = TGuid;
@@ -2331,7 +2333,7 @@ type
 
 
   public
-    function      FetchStreamDBO_OTCU    (const uid:TGUID ; var end_field : TFRE_DB_NameTypeRL ; var lcontent : TFRE_DB_RawByteString) : Boolean; // Other Thread Context Unsafe
+    function      FetchStreamDBO_OTCU    (const uid:TGUID ; var end_field : TFRE_DB_NameTypeRL ; var lcontent : TFRE_DB_RawByteString ; var content_type : TFRE_DB_String ; var etag : TFRE_DB_String) : Boolean; // Other Thread Context Unsafe
     class procedure HandleContinuationTimeouts(const onfetch: TFRE_DB_OnFetchSessionByID);
     procedure     LockSession            ;
     procedure     UnlockSession          ;
@@ -3236,6 +3238,11 @@ begin
     Move(rb_string[1],Memory^,Size);
 end;
 
+function TFRE_DB_Stream.CalcETag: ShortString;
+begin
+  result := GFRE_BT.HashString_MD5_HEX(AsRawByteString);
+end;
+
 { TFRE_DB_CLOSE_DIALOG_DESC }
 
 function TFRE_DB_CLOSE_DIALOG_DESC.Describe: TFRE_DB_CLOSE_DIALOG_DESC;
@@ -3834,7 +3841,7 @@ begin
   FTimers.Clear;
 end;
 
-function TFRE_DB_UserSession.FetchStreamDBO_OTCU(const uid: TGUID; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString): Boolean;
+function TFRE_DB_UserSession.FetchStreamDBO_OTCU(const uid: TGUID; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString; var content_type: TFRE_DB_String; var etag: TFRE_DB_String): Boolean;
 var dbo: IFRE_DB_Object;
     fld: IFRE_DB_Field;
 begin
@@ -3848,6 +3855,14 @@ begin
         if not (fld.FieldType=fdbft_Stream) then
           exit(false);
         lcontent := fld.AsStream.AsRawByteString;
+        if dbo.FieldOnlyExisting(end_field+cFRE_DB_STKEY,fld) then
+          content_type := fld.AsString
+        else
+          content_type := '';
+        if dbo.FieldOnlyExisting(end_field+cFRE_DB_ST_ETAG,fld) then
+          etag := fld.AsString
+        else
+          etag := '';
       finally
         dbo.Finalize;
       end;
@@ -4234,8 +4249,10 @@ var x           : TObject;
          fn := bd.Field('f').AsString;
          input.Field('data').AsObject.Field(fn).Clear;
          input.Field('data').AsObject.Field(fn+cFRE_DB_STKEY).Clear;
+         input.Field('data').AsObject.Field(fn+cFRE_DB_ST_ETAG).Clear;
          input.Field('data').AsObject.Field(fn).AsStream:=bd.Field('bin').AsStream;
          input.Field('data').AsObject.Field(fn+cFRE_DB_STKEY).AsString:=bd.Field('typ').AsString;
+         input.Field('data').AsObject.Field(fn+cFRE_DB_ST_ETAG).AsString := input.Field('data').AsObject.Field(fn).AsStream.CalcETag;
          bd.Field('bin').Clear(true);
          FBinaryInputs.Field(bdk).Clear;
         end

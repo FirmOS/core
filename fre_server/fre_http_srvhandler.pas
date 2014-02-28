@@ -77,7 +77,7 @@ type
   IFRE_HTTP_BASESERVER=interface
     procedure  DispatchHttpRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
     function   FetchMetaEntry        (file_path:String;var metae : TFRE_HTTP_METAENTRY):boolean;
-    function   FetchStreamDBO        (const enc_sessionid,enc_uid : string ; var end_field : TFRE_DB_NameTypeRL ; var lcontent:TFRE_DB_RawByteString):boolean;
+    function   FetchStreamDBO        (const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString; var stored_ct: TFRE_DB_String; var stored_etag: TFRE_DB_String): boolean;
     function   GetETag               (const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64):String;
   end;
 

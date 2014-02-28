@@ -97,7 +97,7 @@ type
     function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
 
-    function       FetchStreamDBO                            (const enc_sessionid,enc_uid : string ; var end_field : TFRE_DB_NameTypeRL ; var lcontent:TFRE_DB_RawByteString):boolean;
+    function       FetchStreamDBO                            (const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString; var stored_ct: TFRE_DB_String; var stored_etag: TFRE_DB_String): boolean;
     function       GetETag                                   (const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64):String;
   public
     DefaultDatabase              : String;
@@ -1042,7 +1042,7 @@ begin
   end;
 end;
 
-function TFRE_BASE_SERVER.FetchStreamDBO(const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString): boolean;
+function TFRE_BASE_SERVER.FetchStreamDBO(const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString ; var stored_ct : TFRE_DB_String; var stored_etag : TFRE_DB_String): boolean;
 var fetch_uid : TGuid;
     ses       : TFRE_DB_UserSession;
 begin
@@ -1054,7 +1054,7 @@ begin
   result := FetchSessionByIdLocked(enc_sessionid,ses);
   if assigned(ses) then
     try
-      result := ses.FetchStreamDBO_OTCU(fetch_uid,end_field,lcontent);
+      result := ses.FetchStreamDBO_OTCU(fetch_uid,end_field,lcontent,stored_ct,stored_etag);
     finally
       ses.UnlockSession;
     end;
