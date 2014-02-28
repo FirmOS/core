@@ -2324,12 +2324,13 @@ type
   procedure InitMinimal(const nosys:boolean=false);
 
 var
-  GFRE_DB                  : TFRE_DB;
-  GFRE_DB_PS_LAYER         : IFRE_DB_PERSISTANCE_LAYER;
-  GDROP_WAL                : boolean;
-  GDISABLE_WAL             : boolean;
-  GDISABLE_SYNC            : boolean;
+  GFRE_DB                   : TFRE_DB;
+  GFRE_DB_PS_LAYER          : IFRE_DB_PERSISTANCE_LAYER;
+  GDROP_WAL                 : boolean;
+  GDISABLE_WAL              : boolean;
+  GDISABLE_SYNC             : boolean;
   GDBPS_TRANS_WRITE_THROUGH : boolean;
+  GDBPS_TRANS_WRITE_ASYNC   : boolean;
 
   procedure GFRE_DB_Init_Check;
 

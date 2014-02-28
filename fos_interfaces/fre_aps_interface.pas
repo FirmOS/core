@@ -95,7 +95,7 @@ type
     procedure   SetNewTimerCB     (const timercb : TOnNew_APSC_Timer);
     procedure   SetSingnalCB      (const signalcb : TOnNew_APSC_Signal);
     procedure   RunUntilTerminate ;
-    procedure   RequestTerminate  ;
+    procedure   RequestTerminate  (const no_jack:boolean=false);
   end;
 
 

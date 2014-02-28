@@ -401,7 +401,7 @@ type
     constructor create            ;
     destructor  Destroy           ; override;
     procedure   RunUntilTerminate ;
-    procedure   RequestTerminate  ;
+    procedure   RequestTerminate  (const no_jack:boolean=false);
     function    AddTimer          (const timer_id: ShortString ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; local_new_timercb : TOnNew_APSC_Timer=nil) : IFRE_APSC_TIMER; // Must be used in sync with MAIN EVENT LOOP
 
 
@@ -421,7 +421,14 @@ var GAPSC : TFRE_APS_COMM;
 
 Procedure DoSig(sig : cint);cdecl;
 begin
-  GAPSC._CallbackSignal(sig);
+  if assigned(GAPSC) then
+    GAPSC._CallbackSignal(sig)
+  else
+    begin
+      writeln('------');
+      writeln('> GOT SIGNAL ',sig,' BUT IN SHUTDOWN MODE !');
+      writeln('------');
+    end;
 end;
 
 
@@ -2326,11 +2333,12 @@ begin
   FMainThread.WaitFor;
 end;
 
-procedure TFRE_APS_COMM.RequestTerminate;
+procedure TFRE_APS_COMM.RequestTerminate(const no_jack: boolean);
 begin
    LogInfo('TERMINATE REQUESTED',[]);
   _FinalizeMain;
-  GFRE_BT.ActivateJack(cAPSC_JACK_TIMEOUT);
+  if not no_jack then
+    GFRE_BT.ActivateJack(cAPSC_JACK_TIMEOUT);
 end;
 
 function TFRE_APS_COMM.AddTimer(const timer_id: ShortString; interval_ms: NativeUint; timer_callback: TFRE_APSC_TIMER_CALLBACK; local_new_timercb: TOnNew_APSC_Timer): IFRE_APSC_TIMER;

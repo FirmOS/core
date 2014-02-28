@@ -251,7 +251,7 @@ begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
   ErrorMsg:=CheckOptions('hvirlgxytf:e:u:p:d:s:U:H:',
                           ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','debugger','file:','extensions:','user:','pass:',
-                           'database:','style:','remoteuser:','remotehost:','dropwal','testlog','disablewal','disablesync','dontstart','unittests',
+                           'database:','style:','remoteuser:','remotehost:','dropwal','testlog','unittests',
                            'printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:','showinstalled',
                            'backupdb:','restoredb:','backupsys:','restoresys','backupapp:','restoreapp:','adminuser:','adminpass:','limittransfer:',
                            'plhost:','plip:','plport:','ple']);
@@ -262,6 +262,12 @@ begin
     Terminate;
     Exit;
   end;
+
+  GDBPS_TRANS_WRITE_THROUGH := TRUE;
+  GDBPS_TRANS_WRITE_ASYNC   := TRUE;
+  GDISABLE_WAL              := TRUE;
+  GDISABLE_SYNC             := TRUE;
+  GDROP_WAL                 := TRUE;
 
   ParsePLParams;
 
@@ -284,18 +290,6 @@ begin
       writeln('REQUESTED TO FORCE DROP WAL');
       GDROP_WAL := true;
     end;
-
-  if HasOption('*','disablewal') then
-  begin
-    writeln('GLOBALLY DISABLING WAL WRITES');
-    GDISABLE_WAL := true;
-  end;
-
-  if HasOption('*','disablesync') then
-  begin
-    writeln('GLOBALLY DISABLING SYNC WRITES');
-    GDISABLE_SYNC := true;
-  end;
 
   if HasOption('f','file') then begin
     filename := GetOptionValue('f','filename');
@@ -342,13 +336,6 @@ begin
     Exit;
   end;
 
-
-  // Diasable WAL MODE - DEBUG SETUP - FORCE SIMPLE DEPLOYMENT MODE
-
-  GDBPS_TRANS_WRITE_THROUGH := TRUE;
-  GDISABLE_WAL              := TRUE;
-  GDISABLE_SYNC             := TRUE;
-  GDROP_WAL                 := TRUE;
 
   // NOW The initial startup is done (connections can be made, but no extensions initialized)
   PrepareStartup;
@@ -463,11 +450,11 @@ begin
   end;
 
 
-  if HasOption('*','dontstart') then
-    begin
-      Terminate;
-      exit;
-    end;
+  if HasOption('*','dontstart')
+     or FOnlyInitDB then
+      begin
+        Terminate;
+      end;
 
   if HasOption('g','graph') then begin
     SchemeDump;
@@ -477,7 +464,8 @@ begin
 
   FBaseServer := TFRE_BASE_SERVER.create(FDBName);
   FBaseServer.Setup;
-  GFRE_SC.RunUntilTerminate;
+  if not Terminated then
+    GFRE_SC.RunUntilTerminate;
 
 
   Teardown_APS_Comm;
@@ -635,7 +623,7 @@ begin
   if adb and sdb then
     writeln('Backup of Database ['+FDBName+'] + [SYSTEM DB] into ['+dir+'] (y/N)');
   ReadLn(s);
-  s:='y';
+  //s:='y';
   if s='y' then
     begin
       write('CONNECTING ['+FDBName+'] ');
@@ -742,7 +730,7 @@ begin
   if adb and sdb then
     writeln('Restore backup as database ['+FDBName+'] + [SYSTEM DB]  (y/N)');
   ReadLn(s);
-  s:='y'; // ignore force lazarusdebug
+  //s:='y'; // ignore force lazarusdebug
   if s='y' then
     begin
       write('RECREATING / CONNECTING ['+FDBName+'] ');
@@ -974,8 +962,8 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
 
   procedure Setup_Persistance_Layer_Logging;
   begin
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Info,'*',flra_DropEntry);
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Debug,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Info,'*',flra_DropEntry);
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Debug,'*',flra_DropEntry);
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE_NOTIFY],fll_Debug,'*',flra_DropEntry);
   end;

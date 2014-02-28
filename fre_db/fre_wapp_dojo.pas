@@ -2417,9 +2417,7 @@ implementation
           end else begin
             subsubsecs:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
             serverfuncs := entry.Field('serverFuncs').CheckOutObjectArray;
-            //for j := 0 to entry.Field('serverFuncs').ValueCount - 1 do begin
             for j := 0 to high(serverfuncs) do begin
-//              subsubsecs.AddSection.Describe(entry.Field('serverFuncs').AsObjectArr[j].CloneToNewObject().Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',j,entry.Field('subIds').AsStringArr[j]);
               subsubsecs.AddSection.Describe(serverfuncs[j].Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',j,entry.Field('subIds').AsStringArr[j]);
             end;
             subsecs.AddSection._internalDescribe(subsubsecs,'',i,entry.contentId);

@@ -42,7 +42,7 @@ unit fre_db_persistance_fs_simple;
 
 interface
 
-uses  Classes, SysUtils,FRE_DB_CORE,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE,fre_db_persistance_common,fos_sparelistgen,baseunix,FRE_SYSTEM;
+uses  Classes, SysUtils,FRE_DB_CORE,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE,fre_db_persistance_common,fos_sparelistgen,baseunix,fos_interlocked,FRE_SYSTEM;
 
 function Get_PersistanceLayer_PS_Simple(const basedir:TFRE_DB_String):IFRE_DB_PERSISTANCE_LAYER;
 
@@ -56,9 +56,56 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
    // there exists one system database, and n user databases
    // masterdata is global volatile shared, system persistent shared, and per db shared
 
-  var  FTransaction         : TFRE_DB_TransactionalUpdateList;
+  type TFRE_DB_ASYNC_WT_THREAD=class;
+
+  var  FTransaction : TFRE_DB_TransactionalUpdateList;
+       GAsyncWT     : TFRE_DB_ASYNC_WT_THREAD;
 
   type
+
+   { TFRE_DB_ASYNC_WRITE_BLOCK }
+   TFRE_DB_ASYNC_CMD=class
+     procedure DoOperation ;virtual;abstract;
+   end;
+
+   { TFRE_DB_ASYNC_DEL_CMD }
+
+   TFRE_DB_ASYNC_DEL_CMD=class(TFRE_DB_ASYNC_CMD)
+   private
+     FFilename :  String;
+   public
+     constructor Create(const filename : String);
+     procedure   DoOperation; override;
+   end;
+
+   TFRE_DB_ASYNC_WRITE_BLOCK=class(TFRE_DB_ASYNC_CMD)
+   private
+     FFilename :  String;
+     m         : TMemoryStream;
+   public
+     constructor Create(const filename : String);
+     function    Stream : TMemoryStream;
+     procedure   DoOperation; override;
+     destructor  Destroy;override;
+   end;
+
+   { TFRE_DB_ASYNC_WT_THREAD }
+
+   TFRE_DB_ASYNC_WT_THREAD=class(TThread)
+   private
+     Flfq : IFOS_LFQ;
+     FWte : IFOS_TE;
+     QC   : NativeUInt;
+     procedure EmptyTheQ;
+   public
+     constructor Create;
+     destructor  Destroy;override;
+     procedure   Execute;override;
+     procedure   PushWrite(const wb : TFRE_DB_ASYNC_CMD);
+     procedure   Terminate;
+   end;
+
+
 
    TFRE_DB_PS_FILE = class(TObject,IFRE_DB_PERSISTANCE_LAYER)
    private
@@ -176,6 +223,103 @@ var l_Persistance_Layer : TFRE_DB_PS_FILE;
 begin
   l_Persistance_Layer := TFRE_DB_PS_FILE.Create(basedir,'BASE');
   result              := l_Persistance_Layer;
+end;
+
+{ TFRE_DB_ASYNC_DEL_CMD }
+
+constructor TFRE_DB_ASYNC_DEL_CMD.Create(const filename: String);
+begin
+  FFilename := filename;
+end;
+
+procedure TFRE_DB_ASYNC_DEL_CMD.DoOperation;
+begin
+  DeleteFile(FFileName);
+  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE ASYNC [%s]',[FFilename]);
+end;
+
+{ TFRE_DB_ASYNC_WT_THREAD }
+
+procedure TFRE_DB_ASYNC_WT_THREAD.EmptyTheQ;
+var WB : TFRE_DB_ASYNC_CMD;
+begin
+  repeat
+    WB :=TFRE_DB_ASYNC_CMD(Flfq.Pop);
+    if assigned(wb) then
+      begin
+        FOS_IL_DEC_NATIVE(QC);
+        wb.DoOperation;
+        wb.free;
+        Sleep(0);
+      end;
+  until WB=nil;
+end;
+
+constructor TFRE_DB_ASYNC_WT_THREAD.Create;
+begin
+  GFRE_TF.Get_LFQ(Flfq);
+  GFRE_TF.Get_TimedEvent(FWte);
+  Inherited Create(False);
+end;
+
+destructor TFRE_DB_ASYNC_WT_THREAD.Destroy;
+begin
+  EmptyTheQ;
+  Flfq.Finalize;
+  FwTe.Finalize;
+  inherited Destroy;
+end;
+
+procedure TFRE_DB_ASYNC_WT_THREAD.Execute;
+begin
+  try
+    while not Terminated do
+      begin
+        FWte.WaitFor(1000);
+        EmptyTheQ;
+      end;
+  except
+    on e:exception do
+    begin
+    end;
+  end;
+end;
+
+procedure TFRE_DB_ASYNC_WT_THREAD.PushWrite(const wb: TFRE_DB_ASYNC_CMD);
+begin
+  FOS_IL_INC_NATIVE(QC);
+  Flfq.Push(wb);
+  FWte.SetEvent;
+end;
+
+procedure TFRE_DB_ASYNC_WT_THREAD.Terminate;
+begin
+  inherited Terminate;
+end;
+
+{ TFRE_DB_ASYNC_WRITE_BLOCK }
+
+constructor TFRE_DB_ASYNC_WRITE_BLOCK.Create(const filename: String);
+begin
+  FFilename := filename;
+  m         := TMemoryStream.Create;
+end;
+
+function TFRE_DB_ASYNC_WRITE_BLOCK.Stream: TMemoryStream;
+begin
+  result := m;
+end;
+
+procedure TFRE_DB_ASYNC_WRITE_BLOCK.DoOperation;
+begin
+   m.SaveToFile(FFilename);
+   GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE ASYNC : '+FFilename+' DONE');
+end;
+
+destructor TFRE_DB_ASYNC_WRITE_BLOCK.Destroy;
+begin
+  m.Free;
+  inherited Destroy;
 end;
 
 
@@ -394,18 +538,29 @@ begin
 end;
 
 procedure TFRE_DB_PS_FILE._StoreCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION; const no_storelocking: boolean);
-var f : TFileStream;
+var f  : TFileStream;
+    m  : TFRE_DB_ASYNC_WRITE_BLOCK;
+    fn : string;
 begin
   if not coll.IsVolatile then
     begin
-      //writeln('  ->> SYNCING COLL ',coll.CollectionName(false));
-      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
-      f :=  TFileStream.Create(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col',fmCreate+fmOpenReadWrite);
-      try
-        coll.GetPersLayerIntf.StreamToThis(f);
-      finally
-        f.free;
-      end;
+      fn := FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col';
+      if GDBPS_TRANS_WRITE_ASYNC then
+        begin
+          m :=  TFRE_DB_ASYNC_WRITE_BLOCK.Create(fn);
+          coll.GetPersLayerIntf.StreamToThis(m.Stream);
+          GAsyncWT.PushWrite(m);
+        end
+      else
+        begin
+          GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
+          f :=  TFileStream.Create(fn,fmCreate+fmOpenReadWrite);
+          try
+            coll.GetPersLayerIntf.StreamToThis(f);
+          finally
+            f.free;
+          end;
+        end;
     end;
 end;
 
@@ -429,8 +584,9 @@ begin
 end;
 
 procedure TFRE_DB_PS_FILE._StoreObjectPersistent(const obj: TFRE_DB_Object; const no_storelocking: boolean);
-var  FileName : string[60];
+var  FileName : string;
      m        : TMemoryStream;
+     w        : TFRE_DB_ASYNC_WRITE_BLOCK;
 
 begin
   if obj.IsObjectRoot then
@@ -442,16 +598,26 @@ begin
         end;
       try
         obj._InternalGuidNullCheck;
-        filename    := GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
-        m:=TMemoryStream.Create;
-        try
-          m.Size:=obj.NeededSize;
-          obj.CopyToMemory(m.Memory);
-          m.SaveToFile(FMasterCollDir+filename);
-        finally
-          m.free;
-        end;
-        GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
+        filename    := FMasterCollDir+GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
+        if GDBPS_TRANS_WRITE_ASYNC then
+          begin
+            w := TFRE_DB_ASYNC_WRITE_BLOCK.Create(FileName);
+            w.Stream.Size:=obj.NeededSize;
+            obj.CopyToMemory(w.Stream.Memory);
+            GAsyncWT.PushWrite(w);
+          end
+        else
+          begin
+            m:=TMemoryStream.Create;
+            try
+              m.Size:=obj.NeededSize;
+              obj.CopyToMemory(m.Memory);
+              m.SaveToFile(filename);
+            finally
+              m.free;
+            end;
+            GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
+          end;
       finally
         if not no_storelocking then
           begin
@@ -467,12 +633,23 @@ begin
 end;
 
 procedure TFRE_DB_PS_FILE.WT_DeleteCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+var wd : TFRE_DB_ASYNC_DEL_CMD;
+    fn : String;
 begin
   if not coll.IsVolatile then
     begin
-      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[coll.CollectionName]);
-      if not DeleteFile(FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col') then
-        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+coll.CollectionName());
+      fn := FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col';
+      if GDBPS_TRANS_WRITE_ASYNC then
+        begin
+          wd := TFRE_DB_ASYNC_DEL_CMD.Create(fn);
+          GAsyncWT.PushWrite(wd);
+        end
+      else
+        begin
+          GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[coll.CollectionName]);
+          if not DeleteFile(fn) then
+            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+coll.CollectionName());
+        end;
     end;
 end;
 
@@ -482,18 +659,27 @@ begin
 end;
 
 procedure TFRE_DB_PS_FILE.WT_DeleteObjectPersistent(const iobj: IFRE_DB_Object);
-var  FileName : string[60];
+var  FileName : shortstring;
      m        : TMemoryStream;
      obj      : TFRE_DB_Object;
+     wd       : TFRE_DB_ASYNC_DEL_CMD;
 
 begin
   if iobj.IsObjectRoot then
     begin
       obj := iobj.Implementor as TFRE_DB_Object;
-      filename    := GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
-      if not DeleteFile(FMasterCollDir+FileName) then
-        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete file '+FMasterCollDir+FileName);
-      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<FINAL DELETE  OBJECT : '+obj.UID_String+' DONE');
+      filename    := FMasterCollDir+GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
+      if GDBPS_TRANS_WRITE_ASYNC then
+        begin
+          wd := TFRE_DB_ASYNC_DEL_CMD.Create(FileName);
+          GAsyncWT.PushWrite(wd);
+        end
+      else
+        begin
+          if not DeleteFile(FileName) then
+            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete file '+FileName);
+          GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<FINAL DELETE  OBJECT : '+obj.UID_String+' DONE');
+        end;
     end;
 end;
 
@@ -797,6 +983,8 @@ begin
   FGlobalLayer  := True;
   FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(FConnectedDB);
   FDontFinalizeNotif    := false;
+  if GDBPS_TRANS_WRITE_ASYNC then
+    GAsyncWT := TFRE_DB_ASYNC_WT_THREAD.Create;
 end;
 
 
@@ -806,6 +994,14 @@ var
 begin
   if FGlobalLayer then
     begin
+      if GDBPS_TRANS_WRITE_ASYNC then
+        begin
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'>> TERMINATING ASYNC WT WAIT');
+          GAsyncWT.Terminate;
+          GAsyncWT.WaitFor;
+          GAsyncWT.Free;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'>> TERMINATING ASYNC WT DONE');
+        end;
       for i:=0 to high(FConnectedLayers) do
         begin
           FConnectedLayers[i].Free;
@@ -1186,8 +1382,8 @@ begin
                if G_DEBUG_TRIGGER_1 then
                  begin
                    G_DEBUG_TRIGGER_1:=true;
-                   writeln('------ TO UPDATE OBJ ',to_update_obj.DumpToString());
-                   writeln('------- IN Object    ',iobj.DumpToString());
+                   //writeln('------ TO UPDATE OBJ ',to_update_obj.DumpToString());
+                   //writeln('------- IN Object    ',iobj.DumpToString());
                    //halt;
                  end;
                updatestep := TFRE_DB_UpdateStep.Create(self,obj,to_update_obj,false);
