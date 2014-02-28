@@ -78,6 +78,7 @@ type
   TOnNew_APSC_Signal       = procedure (const signal       : NativeUint) of object;
   TFRE_APSC_TIMER_CALLBACK = procedure (const timer        : IFRE_APSC_TIMER ; const flag1,flag2 : boolean) of object;
   TFRE_APSC_CHANNEL_EVENT  = procedure (const channel      : IFRE_APSC_CHANNEL) of object;
+  TFRE_APSC_CHANNEL_CB     = procedure (const channel      : IFRE_APSC_CHANNEL) is nested;
   TFRE_APSC_CoRoutine      = procedure (const Data         : Pointer) of Object;
 
   { IFRE_APSC }
@@ -94,7 +95,7 @@ type
     procedure   SetNewTimerCB     (const timercb : TOnNew_APSC_Timer);
     procedure   SetSingnalCB      (const signalcb : TOnNew_APSC_Signal);
     procedure   RunUntilTerminate ;
-    procedure   RequestTerminate  ;
+    procedure   RequestTerminate  (const no_jack:boolean=false);
   end;
 
 

@@ -80,6 +80,7 @@ type
   TFRE_DB_RawByteString       = RawByteString;
   PNativeUint                 = ^NativeUint;
   PNativeInt                  = ^NativeInt;
+  IFRE_DB_RIGHT               = TFRE_DB_String; {a right is a string key}
 
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
@@ -391,10 +392,12 @@ type
     procedure SetAsStringList        (idx: Integer; const AValue: TFRE_DB_String);
     procedure SetAsBooleanList       (idx: Integer; const AValue: Boolean);
     procedure SetAsObjectLinkList    (idx: Integer; const AValue: TGUID);
+    function  AsObjectArrayJSONString: TFRE_DB_String; { Deliver an Object Field, or a TFRE_DB_OBJECTLIST as plain JSON Array}
   //public info
     function  FieldType                     : TFRE_DB_FIELDTYPE;
     function  FieldTypeAsString             : TFRE_DB_String;
-    function  ValueCount                    : Integer;
+    function  ValueCount                    : NativeInt; { delivers the count or if fake object list as subobject the faked count}
+    function  ValueCountReal                : NativeInt; { delivers 1 if object }
     function  IsUIDField                    : boolean;
     function  IsDomainIDField               : boolean;
     function  IsObjectField                 : boolean;
@@ -459,6 +462,7 @@ type
     procedure  CloneFromField              (const Field:IFRE_DB_FIELD);
     function   CheckOutObject              : IFRE_DB_Object;
     function   CheckOutObjectArray         : IFRE_DB_ObjectArray;
+    function   CheckOutObjectArrayItem     (const idx : NAtiveInt): IFRE_DB_Object;
 
     procedure AddGuid                       (const value : TGuid);
     procedure AddByte                       (const value : Byte);
@@ -497,7 +501,6 @@ type
     procedure RemoveObject                  (const idx   : integer);
     procedure RemoveObjectLink              (const idx   : integer);
 
-    procedure StripObject                   ;
     procedure SetAsEmptyStringArray         ;
 
     procedure Stream2String                 (var raw_string:TFRE_DB_RawByteString);
@@ -677,7 +680,6 @@ type
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
     function        FieldExists                        (const name:TFRE_DB_String):boolean;
-    procedure       StripOwnedObjects                  ;
     procedure       DumpToStrings                      (const strings:TStrings;indent:integer=0);
     function        DumpToString                       (indent:integer=0;const dump_length_max:Integer=0):TFRE_DB_String;
     function        GetFormattedDisplay                : TFRE_DB_String;
@@ -968,10 +970,6 @@ type
     function  CheckField (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean):boolean;
   end;
 
-  IFRE_DB_RIGHT = interface(IFRE_DB_NAMED_OBJECT_PLAIN)
-    ['IFDBRI']
-  end;
-
   { IFRE_DB_COMMAND }
 
   IFRE_DB_COMMAND        = interface;
@@ -1021,7 +1019,6 @@ type
     procedure    SetIsClient      (const AValue: Boolean);
     function     NeededSize       : TFRE_DB_SIZE_TYPE;
     procedure    CopyToMemory     (memory : Pointer);
-    procedure    StripOwnedObjects;
     property     Answer        : Boolean read   GetIsAnswer     write SetIsAnswer;
     property     ClientCommand : Boolean read   GetIsClient     write SetIsClient;
     function     CheckoutData  : IFRE_DB_Object;
@@ -1042,8 +1039,8 @@ type
 
   IFRE_DB_ROLE = interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBRIGR']
-    function  GetDomain                    (const conn:IFRE_DB_CONNECTION): TFRE_DB_NameType;
-    procedure AddRight                     (const right:IFRE_DB_RIGHT);
+    function  GetDomain                    (const conn  : IFRE_DB_CONNECTION): TFRE_DB_NameType;
+    procedure AddRight                     (const right : IFRE_DB_RIGHT);
     function  GetRightNames                : TFRE_DB_StringArray;
   end;
 
@@ -1268,6 +1265,7 @@ type
   end;
 
   IFRE_DB_DBChangedNotification = interface
+    function   InterfaceNeedsAProxy   : Boolean;
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object);
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
@@ -1391,7 +1389,6 @@ type
     function    ModifyDomainById            (const domain_id:TGUID; const domainname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype; { use special value "*$NOCHANGE$*" for unchanged webfields }
     function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
-    function    NewRight                    (const rightname:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role  :IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TGUID):TFRE_DB_Errortype;
@@ -1531,7 +1528,6 @@ type
     procedure        GetSession                 (const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean); deprecated; //DEPRECATED DONT USE
     function         GetSession                 (const input: IFRE_DB_Object):TFRE_DB_UserSession; deprecated; //DEPRECATED DONT USE
     class function   _GetClassRight             (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
-    class function   _GetRight                  (const right: TFRE_DB_String): IFRE_DB_RIGHT;
     class function   GetRight4Domain            (const right: TFRE_DB_NameType; const domainUID:TGUID): IFRE_DB_RIGHT;
     class function   GetClassRightName          (const right: TFRE_DB_NameType): TFRE_DB_String;
     class function   GetClassRightNameUpdate    : TFRE_DB_String;
@@ -1633,7 +1629,6 @@ type
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
     function        FieldExists                        (const name:TFRE_DB_String):boolean;
-    procedure       StripOwnedObjects                  ;
     procedure       DumpToStrings                      (const strings:TStrings;indent:integer=0);
     function        DumpToString                       (indent:integer=0;const dump_length_max:Integer=0):TFRE_DB_String;
     function        GetFormattedDisplay                : TFRE_DB_String;
@@ -1672,7 +1667,6 @@ type
     class function  NewOperation                       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): TGUID;
     constructor     CreateForDB                        ;
     procedure       CopyToMemory                       (memory : Pointer);
-    function        GetInstanceRightName               (const right: TFRE_DB_NameType): TFRE_DB_String;
     function        GetInstanceRight                   (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
     class function  StoreTranslateableText             (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):TFRE_DB_Errortype;
     class function  DeleteTranslateableText            (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_Errortype;
@@ -2093,7 +2087,6 @@ type
     function    UTCToLocalTimeDB64              (const ADateTime64: TFRE_DB_DateTime64) : TFRE_DB_DateTime64;
 
     function    NewText                         (const key,txt,txt_short:TFRE_DB_String;const hint:TFRE_DB_String=''):IFRE_DB_TEXT;
-    function    NewRight                        (const rightname:TFRE_DB_String):IFRE_DB_RIGHT;
     function    NewRole                         (const rolename,txt,txt_short:TFRE_DB_String):IFRE_DB_ROLE;
     function    NewGroup                        (const groupname,txt,txt_short:TFRE_DB_String):IFRE_DB_GROUP;
     function    NewClientFieldValidator         (const name: TFRE_DB_String) : IFRE_DB_ClientFieldValidator;
@@ -2364,7 +2357,7 @@ type
      procedure  CLS_ForceInvalidSessionReload (rac :IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
-    function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
+    //function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
     procedure   COR_FinalizeTakeOver     (const data : Pointer); // In new session binding
@@ -2382,6 +2375,7 @@ type
     procedure   FinishDerivedCollections ;
     function    GetUsername              : String;
     function    GetClientDetails         : String;
+    procedure   SetClientDetails         (const net_conn_desc:String);
     function    GetTakeOverKey           : String;
     function    GetSessionAppArray       : IFRE_DB_APPLICATION_ARRAY;
 
@@ -3377,6 +3371,7 @@ end;
 { TFRE_DB_SECTION_DESC }
 
 function TFRE_DB_SECTION_DESC._Describe(const title: String; const ord: Int16; const sectionId: String; const size: Integer): TFRE_DB_SECTION_DESC;
+var s:string;
 begin
   Field('title').AsString:=title;
   Field('ord').AsInt16:=ord;
@@ -3392,7 +3387,7 @@ begin
   end else begin
     Field('size').AsInt16:=size;
   end;
-  (Parent.Implementor_HC as TFRE_DB_SUBSECTIONS_DESC).SectionDescribed(UID_String,ord,Field('size').AsInt16);
+  (Parent.Parent.Implementor_HC as TFRE_DB_SUBSECTIONS_DESC).SectionDescribed(UID_String,ord,Field('size').AsInt16);
 end;
 
 function TFRE_DB_SECTION_DESC.Describe(const contentFunc: TFRE_DB_SERVER_FUNC_DESC; const title: String; const ord: Int16; const sectionId: String; const size:Integer): TFRE_DB_SECTION_DESC;
@@ -3411,7 +3406,7 @@ end;
 
 procedure TFRE_DB_SECTION_DESC.SetActive(const active: Boolean);
 begin
-  (Parent.Implementor_HC as TFRE_DB_SUBSECTIONS_DESC).SetActiveSectionUID(UID_String);
+  (Parent.Parent.Implementor_HC as TFRE_DB_SUBSECTIONS_DESC).SetActiveSectionUID(UID_String);
 end;
 
 procedure TFRE_DB_SECTION_DESC.SetMenu(const menu: TFRE_DB_MENU_DESC);
@@ -3700,23 +3695,22 @@ end;
 
 procedure TFRE_DB_UserSession.StoreSessionData;
 var res : TFRE_DB_Errortype;
+    sd  : IFRE_DB_Object;
 begin
   if not FPromoted then
     begin
       writeln('YOU COULD NOT STORE SEESION DATA FOR A UNPROMOTED (GUEST) SESSION');
       exit;
     end;
-  GFRE_DBI.LogDebug(dblc_SESSION,'STORING SESSIONDATA FOR ['+FUserName+'] : '+FSessionID);
   if assigned(FSessionData) then begin
-    res := GetDBConnection.StoreUserSessionData(FSessionData);
+    GFRE_DBI.LogDebug(dblc_SESSION,'STORING SESSIONDATA FOR ['+FUserName+'] : '+FSessionID);
+    sd := FSessionData.CloneToNewObject;
+    res := GetDBConnection.StoreUserSessionData(sd);
     if res=edb_OK then begin
       GFRE_DBI.LogInfo(dblc_SESSION,'STORING SESSIONDATA FOR ['+FUserName+'] DONE ');
     end else begin
       GFRE_DBI.LogInfo(dblc_SESSION,'STORING SESSIONDATA FOR ['+FUserName+'] FAILED --> '+CFRE_DB_Errortype[res]);
     end;
-    FSessionData := nil;
-  end else begin
-    GFRE_DBI.LogWarning(dblc_SESSION,'NO SESSIONDATA FOR ['+FUserName+']');
   end;
 end;
 
@@ -3724,8 +3718,7 @@ destructor TFRE_DB_UserSession.Destroy;
 begin
   RemoveAllTimers;
   if FPromoted then
-     writeln('TODO: FIX STORE/RETRIEVE SESSIONDATA');
-    //StoreSessionData;
+    StoreSessionData;
   try
     FinishDerivedCollections;
   except on e:exception do
@@ -3737,6 +3730,7 @@ begin
   FSessionLock.Finalize;
   if assigned(FSessionData) then
     FSessionData.Finalize;
+  FSessionData:=nil;
   GFRE_DBI.LogInfo(dblc_SESSION,'FINALIZED USERSESSION [%s] USER [%s]',[FSessionID,FUserName]);
   inherited Destroy;
 end;
@@ -4409,22 +4403,22 @@ begin
   end;
 end;
 
-function TFRE_DB_UserSession.CloneSession(const connectiond_desc: string): TFRE_DB_UserSession;
-var dbc : IFRE_DB_CONNECTION;
-begin
-  if FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,FUserName,FPassMD5,dbc)<>edb_OK then
-    GFRE_BT.CriticalAbort('UNEXPECTED, HANDLE');
-  result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,dbc);
-  result.OnGetImpersonatedDBC    := FOnGetImpersonatedDBC;
-  result.OnExistsUserSession     := FOnExistsUserSessionL;
-  result.OnExistsUserSession4Key := FonExistsSesForTkKeyL;
-  result.OnRestoreDefaultDBC     := FOnRestoreDefaultDBC;
-  result.OnCheckUserNamePW       := FOnCheckUserNamePW;
-  result.OnFetchPublisherRAC     := FOnFetchPublisherSesL;
-  result.OnFetchSessionById      := FOnFetchSessionByIdL;
-  result.FSessionData            := GFRE_DBI.NewObject;
-  result.FConnDesc               := connectiond_desc;
-end;
+//function TFRE_DB_UserSession.CloneSession(const connectiond_desc: string): TFRE_DB_UserSession;
+//var dbc : IFRE_DB_CONNECTION;
+//begin
+//  if FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,FUserName,FPassMD5,dbc)<>edb_OK then
+//    GFRE_BT.CriticalAbort('UNEXPECTED, HANDLE');
+//  result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,dbc);
+//  result.OnGetImpersonatedDBC    := FOnGetImpersonatedDBC;
+//  result.OnExistsUserSession     := FOnExistsUserSessionL;
+//  result.OnExistsUserSession4Key := FonExistsSesForTkKeyL;
+//  result.OnRestoreDefaultDBC     := FOnRestoreDefaultDBC;
+//  result.OnCheckUserNamePW       := FOnCheckUserNamePW;
+//  result.OnFetchPublisherRAC     := FOnFetchPublisherSesL;
+//  result.OnFetchSessionById      := FOnFetchSessionByIdL;
+//  result.FSessionData            := GFRE_DBI.NewObject;
+//  result.FConnDesc               := connectiond_desc;
+//end;
 
 type
    TCOR_TakeOverData=class
@@ -4519,25 +4513,21 @@ begin
       exit(promres);
     end else begin
       err := FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
-      //assert(assigned(FSessionData));
       case err of
        edb_OK: begin
           FDBConnection.Finalize;
           FDBConnection:=l_NDBC;
           GFRE_DBI.LogInfo(dblc_SERVER,'PROMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,FUserName,user_name]);
-          force_new_session_data := true; //TODO: HACK RZNORD -> (9.10.2013) Session data save/retrieve is buggy
           if not force_new_session_data then begin
             if not l_NDBC.FetchUserSessionData(lStoredSessionData) then begin
+              FSessionData := GFRE_DBI.NewObject;
               GFRE_DBI.LogDebug(dblc_SERVER,'USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
             end else begin
-              GFRE_DBI.LogDebug(dblc_SERVER,'USING PERSISTENT SESSION DATA [%s]',[FSessionData.UID_String]);
-              FSessionData.Finalize;
+              GFRE_DBI.LogDebug(dblc_SERVER,'USING PERSISTENT SESSION DATA [%s]',[lStoredSessionData.UID_String]);
               FSessionData:=lStoredSessionData;
-              writeln('STORED SESSION DATA: ');
-              writeln('    ',lStoredSessionData.DumpToString());
-              writeln('STORED SESSION DATA: ');
             end;
           end else begin
+            FSessionData := GFRE_DBI.NewObject;
             GFRE_DBI.LogDebug(dblc_SERVER,'FORCED USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
           end;
           FUserName := user_name;
@@ -4657,6 +4647,7 @@ end;
 procedure TFRE_DB_UserSession.Logout;
 begin
   //SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Logged out.','You have been logged out',fdbmt_wait),'NEW');
+  StoreSessionData;
   SendServerClientRequest(GFRE_DB_NIL_DESC,'NEW');
   SendServerClientRequest(TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false));
   FBoundSession_RA_SC.DeactivateSessionBinding;
@@ -4744,6 +4735,11 @@ end;
 function TFRE_DB_UserSession.GetClientDetails: String;
 begin
   result := FConnDesc;
+end;
+
+procedure TFRE_DB_UserSession.SetClientDetails(const net_conn_desc: String);
+begin
+  FConnDesc := net_conn_desc;
 end;
 
 function TFRE_DB_UserSession.GetTakeOverKey: String;
@@ -5133,17 +5129,12 @@ end;
 
 class function TFRE_DB_Base._GetClassRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
 begin
-  Result:=_GetRight(GetClassRightName(right));
-end;
-
-class function TFRE_DB_Base._GetRight(const right: TFRE_DB_String): IFRE_DB_RIGHT;
-begin
-  Result:=GFRE_DBI.NewRight(right);
+  Result:= GetClassRightName(right);
 end;
 
 class function TFRE_DB_Base.GetRight4Domain(const right: TFRE_DB_NameType; const domainUID: TGUID): IFRE_DB_RIGHT;
 begin
- result:=_GetRight(uppercase(right+'@'+GFRE_BT.GUID_2_HexString(domainUID)));
+ result := uppercase(right+'@'+GFRE_BT.GUID_2_HexString(domainUID));
 end;
 
 class function TFRE_DB_Base.CreateClassRole(const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
@@ -5198,7 +5189,7 @@ end;
 
 class function TFRE_DB_Base.GetClassRightName(const right: TFRE_DB_NameType): TFRE_DB_String;
 begin
-  Result:=uppercase('$O_R_'+ClassName+'_'+right);
+  Result := uppercase('$O_R_'+ClassName+'_'+right);
 end;
 
 class function TFRE_DB_Base.GetClassRightNameUpdate: TFRE_DB_String;
@@ -5761,11 +5752,6 @@ begin
   result := FImplementor.FieldExists(name);
 end;
 
-procedure TFRE_DB_ObjectEx.StripOwnedObjects;
-begin
-  FImplementor.StripOwnedObjects;
-end;
-
 procedure TFRE_DB_ObjectEx.DumpToStrings(const strings: TStrings; indent: integer);
 begin
   FImplementor.DumpToStrings(strings,indent);
@@ -6027,14 +6013,9 @@ begin
   conn.FetchTranslateableTextHint(GetTranslateableTextKey(key),result);
 end;
 
-function TFRE_DB_ObjectEx.GetInstanceRightName(const right: TFRE_DB_NameType): TFRE_DB_String;
-begin
- Result:='$'+uppercase(UID_String+'_'+right);
-end;
-
 function TFRE_DB_ObjectEx.GetInstanceRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
 begin
-  Result:=GFRE_DBI.NewRight(GetInstanceRightName(right));
+  Result := '$'+uppercase(UID_String+'_'+right);
 end;
 
 

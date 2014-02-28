@@ -2455,8 +2455,8 @@ begin
     COLL.Store(lobj);
   end;
   COLL := CONN.GetCollection('COLL_TEST_A2');
-  for i := 0 to 20 - 1 do begin
-    if i mod 1000=0 then writeln('ENDLESS ',i);
+  for i := 0 to 1000 - 1 do begin
+    if i mod 100=0 then writeln('ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i*10;
     lobj.Field('number_pb').AsUInt32:=i*10;

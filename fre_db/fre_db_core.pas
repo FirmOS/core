@@ -95,7 +95,7 @@ type
   TFRE_DB_Connection            = class;
 
   TFRE_DB_ObjectArray          = Array of TFRE_DB_Object;
-  PFRE_DB_ObjectArray           = ^TFRE_DB_ObjectArray;
+  //PFRE_DB_ObjectArray           = ^TFRE_DB_ObjectArray;
 
   TFRE_DB_ObjLinkArray  = Array of TGuid;
   PFRE_DB_ObjLinkArray  = ^TFRE_DB_ObjLinkArray;
@@ -118,7 +118,7 @@ type
     13 : (bool : PFRE_DB_BoolArray);
     14 : (date : PFRE_DB_DateTimeArray);
     15 : (strm : PFRE_DB_StreamArray);
-    16 : (obj  : PFRE_DB_ObjectArray);
+    16 : (obj  : TFRE_DB_Object);     { object arrays are internally stored as subobject, because a differential update is easier to do }
     17 : (obl  : PFRE_DB_ObjLinkArray);
   end;
   PFRE_DB_FieldData = ^TFRE_DB_FieldData;
@@ -146,7 +146,6 @@ type
     procedure _ResultTypeUnset    (const ill_type:TFRE_DB_FIELDTYPE);
     procedure _StringToConvError  (const conv2_type:TFRE_DB_FIELDTYPE);
     procedure _GetHigh            (var hi:integer);
-    procedure _StripObject        ;
 
     function  _ConvertToGUID      : TGuid;
     function  _ConvertToByte      : Byte;
@@ -189,6 +188,7 @@ type
     function  GetAsObject        : TFRE_DB_Object;
     function  CheckOutObject     : TFRE_DB_Object;
     function  CheckOutObjectArray: IFRE_DB_ObjectArray;
+    function  CheckOutObjectArrayItem     (const idx : NAtiveInt): IFRE_DB_Object;
     function  CheckOutObjectI    : IFRE_DB_Object;
     function  GetAsStream        : TFRE_DB_Stream;
     function  GetAsObjectLink    : TGuid;
@@ -291,7 +291,6 @@ type
     procedure CalculateValue         ; // (re)calculate the value of the field
 
     procedure IntfCast                      (const InterfaceSpec:ShortString ; out Intf) ; // Interpret as Object and then -> IntfCast throws an Exception if not succesful
-    function  AsDBText                      :IFRE_DB_TEXT;
     function    _FieldType        : TFRE_DB_FIELDTYPE;
     procedure IFRE_DB_Field.CloneFromField = CloneFromFieldI;
     procedure IFRE_DB_Field.CheckOutObject = CheckOutObjectI;
@@ -306,10 +305,12 @@ type
     destructor  Destroy          ;override;
     function    FieldType         : TFRE_DB_FIELDTYPE;
     function    FieldTypeAsString : TFRE_DB_String;
-    function    ValueCount        : Integer;
+    function    ValueCount        : NativeInt;
+    function    ValueCountReal    : NativeInt; { without respect to fake object lists e.g 1 if is object list}
     function    IsUIDField        : boolean;
     function    IsDomainIDField   : boolean;
     function    IsObjectField     : boolean;
+    function    IsObjectArray     : boolean;
     function    IsFieldCalculated : boolean;
 
     procedure   CloneFromField    (const Field:TFRE_DB_FIELD); // Value 0 = Fieldclone
@@ -418,14 +419,14 @@ type
 
     procedure SetAsEmptyStringArray         ;
     function  IsEmptyArray                  : boolean;
-    // Compare to Fields, Valuecount must be same, For Subobjects the only the UID's must be same!
-    function  CompareToFieldShallow         (const cmp_fld : TFRE_DB_FIELD):boolean;
 
-    procedure StripObject                   ;
+    function  CompareToFieldShallow         (const cmp_fld : TFRE_DB_FIELD):boolean; // Compare to Fields, Valuecount must be same, For Subobjects the the UID's must be same!
 
-    function  GetAsJSON                     (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
+    function  GetAsJSON                     (const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil;const plain_objects_as_array:boolean=false): TJSONData;
     procedure SetFromJSON                   (const field_type:TFRE_DB_FIELDTYPE;const json_object:TJSONArray;const stream_cb:TFRE_DB_StreamingCallback);
     procedure Stream2String                 (var raw_string:TFRE_DB_RawByteString);
+    function  AsObjectArrayJSONString       : TFRE_DB_String; { Deliver an Object Field, or a TFRE_DB_OBJECTLIST as plain JSON Array}
+
 
     function  AsStringDump                  : TFRE_DB_String;
     function  FieldName                     : TFRE_DB_NameType;
@@ -444,6 +445,7 @@ type
 
     function  ParentObject                  : TFRE_DB_Object; // The object the field belongs to
     function  ParentObjectI                 : IFRE_DB_Object;
+    function  AsDBText                      :IFRE_DB_TEXT;
 
 
     function  IFRE_DB_Field.GetAsObject             = GetAsObjectI;
@@ -608,7 +610,7 @@ type
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
     function        FieldExists                        (const name:TFRE_DB_String):boolean;
-    procedure       StripOwnedObjects                  ;
+    //procedure       StripOwnedObjects                  ;
     procedure       DumpToStrings                      (const strings:TStrings;indent:integer=0);
     function        DumpToString                       (indent:integer=0;const dump_length_max:Integer=0):TFRE_DB_String;
     function        GetFormattedDisplay                : TFRE_DB_String;
@@ -706,17 +708,37 @@ type
     property     Answer        : Boolean read GetIsAnswer  write SetIsAnswer;
     property     ClientCommand : Boolean read GetIsClient  write SetIsClient;
 
-    property     CommandID     : UInt64              read GetCommandID    write SetCommandID;
-    property     InvokeClass   : String              read GetInvokeClass  write SetInvokeClass;
-    property     InvokeMethod  : String              read GetInvokeMethod write SetInvokeMethod;
-    property     Data          : IFRE_DB_Object      read GetDataI        write SetDataI;
-    property     UidPath       : TFRE_DB_GUIDArray   read GetUidPath      write SetUidPath;
-    property     CommandType   : TFRE_DB_COMMANDTYPE read GetCType        write SetCType;
-    property     ErrorText     : TFRE_DB_String      read GetEText        write SetEText;
-    property     FatalClose    : Boolean             read GetFatalClose   write SetFatalClose;
-    property     ChangeSessionKey : String              read GetChangeSessionKey   write SetChangeSessionKey; // Should be only set in Answer to Force the Client to update his SessionID
+    property     CommandID     : UInt64              read GetCommandID        write SetCommandID;
+    property     InvokeClass   : String              read GetInvokeClass      write SetInvokeClass;
+    property     InvokeMethod  : String              read GetInvokeMethod     write SetInvokeMethod;
+    property     Data          : IFRE_DB_Object      read GetDataI            write SetDataI;
+    property     UidPath       : TFRE_DB_GUIDArray   read GetUidPath          write SetUidPath;
+    property     CommandType   : TFRE_DB_COMMANDTYPE read GetCType            write SetCType;
+    property     ErrorText     : TFRE_DB_String      read GetEText            write SetEText;
+    property     FatalClose    : Boolean             read GetFatalClose       write SetFatalClose;
+    property     ChangeSessionKey : String           read GetChangeSessionKey write SetChangeSessionKey; // Should be only set in Answer to Force the Client to update his SessionID
   end;
 
+  { TFRE_DB_OBJECTLIST }
+
+  TFRE_DB_OBJECTLIST=class(TFRE_DB_OBJECT) {}
+  private
+    function  GetAsArray   (const idx : NativeInt): TFRE_DB_Object;
+    procedure SetAsArray   (const idx : NativeInt; AValue: TFRE_DB_Object);
+    procedure _SetCount    (const val : NativeInt);
+    function  _Checkindex  (const idx:Nativeint):NativeInt;
+  protected
+  public
+    function  GetCount          : NativeInt;
+    procedure ClearArray        (const free_objs : boolean=true);
+    procedure AddObject         (const obj : TFRE_DB_Object);
+    procedure RemoveObject      (const idx : Nativeint);
+    function  CheckoutObject    (const idx : Nativeint) : TFRE_DB_Object;
+    function  GetAsObjectArray  : TFRE_DB_ObjectArray;
+    function  CheckOutAsArray   : TFRE_DB_ObjectArray;
+    procedure SetAsObjectArray  (const arr : TFRE_DB_ObjectArray);
+    property  AsArray           [const idx : NativeInt] : TFRE_DB_Object read GetAsArray write SetAsArray; default;
+  end;
 
 
   { TFRE_DB_NAMED_OBJECT }
@@ -1084,15 +1106,6 @@ type
     function SetIconFromFile(const resource_id,filename,mimetype:TFRE_DB_String):TFRE_DB_Errortype;
   end;
 
-  { TFRE_DB_RIGHT }
-
-  TFRE_DB_RIGHT=class(TFRE_DB_NAMED_OBJECT,IFRE_DB_RIGHT)
-    function  IFRE_DB_RIGHT.GetDesc        = GetDescI;
-    function  IFRE_DB_RIGHT.SetDesc        = SetDescI;
-  public
-    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-  end;
-
   { TFRE_DB_USER }
 
   TFRE_DB_USER=class(TFRE_DB_Object,IFRE_DB_USER)
@@ -1177,7 +1190,6 @@ type
   private
     function  IFRE_DB_ROLE.GetDesc          = GetDescI;
     function  IFRE_DB_ROLE.SetDesc          = SetDescI;
-    function  IFRE_DB_ROLE.Addright         = AddRightI;
     function  GetDomain                     (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
     function  GetDomainIDLink               : TGUID;
     procedure SetDomainIDLink               (AValue: TGUID);
@@ -1185,8 +1197,7 @@ type
     class procedure InstallDBObjects        (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainRoleKey        (const rolepart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
-    procedure AddRightI                     (const right:IFRE_DB_RIGHT);
-    procedure AddRight                      (const right:TFRE_DB_RIGHT);
+    procedure AddRight                      (const right : IFRE_DB_RIGHT);
     function  SubFormattedDisplayAvailable  : boolean; override;
     function  GetSubFormattedDisplay        (indent: integer=4): TFRE_DB_String; override;
     function  GetRightNames                 :TFRE_DB_StringArray;
@@ -1250,9 +1261,6 @@ type
     function        _InternalStore           (var   new_obj:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
     procedure       _IterateOverGUIDArray    (const guids: TFRE_DB_GUIDArray; const iter: IFRE_DB_ObjectIteratorBrk; var halt: boolean);
     procedure       _IterateOverGUIDArrayT   (const guids: TFRE_DB_GUIDArray; const iter: TFRE_DB_ObjectIteratorBrk; var halt: boolean);
-
-    procedure       AcquireBigColl;
-    procedure       ReleaseBigColl;
 
   public
     constructor     Create         (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);virtual;
@@ -1712,6 +1720,7 @@ type
   protected
 
     { Notification Interface }
+    function   InterfaceNeedsAProxy   : Boolean;
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId); virtual;
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object); virtual ;
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object); virtual;
@@ -1864,9 +1873,7 @@ type
     function    _DomainIDasString           (const name :TFRE_DB_NameType):TFRE_DB_NameType;
 
     function    _AddUser                    (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const system_start_up : boolean=false;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
-    function    _CheckLogin                 (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
-    function    IFRE_DB_SYS_CONNECTION.CheckLogin                  = _CheckLogin;
     function    IFRE_DB_SYS_CONNECTION.FetchUser                   = FetchUserI;
     function    IFRE_DB_SYS_CONNECTION.FetchUserById               = FetchUserByIdI;
     function    IFRE_DB_SYS_CONNECTION.FetchGroup                  = FetchGroupI;
@@ -1892,7 +1899,6 @@ type
     function    IFRE_DB_SYS_CONNECTION.FetchRole                   = FetchRoleI;
     function    IFRE_DB_SYS_CONNECTION.ForAllDomains               = ForAllDomainsI;
 
-    function    NewRightI                    (const rightname:TFRE_DB_String;var right : IFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRoleI                     (const rolename,txt,txt_short:TFRE_DB_String;var right_group:IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewGroupI                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
 
@@ -1913,6 +1919,7 @@ type
     destructor  Destroy                     ; override;
     procedure   DumpSystem                  ;override;
 
+    function    CheckLogin                  (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    Connect                     (const loginatdomain:TFRE_DB_String='';const password:TFRE_DB_String='') : TFRE_DB_Errortype;
 
     function    AddUser                     (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype;
@@ -1949,7 +1956,6 @@ type
     function    FetchUserSessionData        (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData        (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
 
-    function    NewRight                    (const rightname:TFRE_DB_String;var right : TFRE_DB_RIGHT):TFRE_DB_Errortype;
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role:TFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:TFRE_DB_GROUP):TFRE_DB_Errortype;
     function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
@@ -2167,13 +2173,11 @@ type
     function    _NewObject                  (const Scheme: TFRE_DB_String;const fail_on_no_cc:boolean): TFRE_DB_Object;
 
     function    _NewText                    (const key,txt,txt_short:TFRE_DB_String;const hint:TFRE_DB_String=''):TFRE_DB_TEXT;
-    function    _NewRight                   (const rightname:TFRE_DB_String):TFRE_DB_RIGHT;
     function    _NewRole                    (const rolename,txt,txt_short:TFRE_DB_String):TFRE_DB_ROLE;
     function    _NewGroup                   (const groupname,txt,txt_short:TFRE_DB_String):TFRE_DB_GROUP;
     function    _NewDomain                  (const domainname,txt,txt_short:TFRE_DB_String):TFRE_DB_DOMAIN;
 
     function    NewText                     (const key,txt,txt_short:TFRE_DB_String;const hint:TFRE_DB_String=''):IFRE_DB_TEXT;
-    function    NewRight                    (const rightname:TFRE_DB_String):IFRE_DB_RIGHT;
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String):IFRE_DB_ROLE;
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String):IFRE_DB_GROUP;
     function    NewEnum                         (const name: TFRE_DB_String) : IFRE_DB_Enum;
@@ -2320,12 +2324,13 @@ type
   procedure InitMinimal(const nosys:boolean=false);
 
 var
-  GFRE_DB                  : TFRE_DB;
-  GFRE_DB_PS_LAYER         : IFRE_DB_PERSISTANCE_LAYER;
-  GDROP_WAL                : boolean;
-  GDISABLE_WAL             : boolean;
-  GDISABLE_SYNC            : boolean;
+  GFRE_DB                   : TFRE_DB;
+  GFRE_DB_PS_LAYER          : IFRE_DB_PERSISTANCE_LAYER;
+  GDROP_WAL                 : boolean;
+  GDISABLE_WAL              : boolean;
+  GDISABLE_SYNC             : boolean;
   GDBPS_TRANS_WRITE_THROUGH : boolean;
+  GDBPS_TRANS_WRITE_ASYNC   : boolean;
 
   procedure GFRE_DB_Init_Check;
 
@@ -2380,6 +2385,116 @@ implementation
       result:=result+_ToChar(s[i]);
     end;
   end;
+
+{ TFRE_DB_OBJECTLIST }
+
+function TFRE_DB_OBJECTLIST.GetAsArray(const idx : NativeInt): TFRE_DB_Object;
+begin
+  _Checkindex(idx);
+  result := Field(inttostr(idx)).AsObject;
+end;
+
+procedure TFRE_DB_OBJECTLIST.SetAsArray(const idx : NativeInt; AValue: TFRE_DB_Object);
+begin
+  _Checkindex(idx);
+  Field(inttostr(idx)).AsObject := AValue;
+end;
+
+procedure TFRE_DB_OBJECTLIST._SetCount(const val: NativeInt);
+begin
+  Field('C').AsInt64:=val;
+end;
+
+function TFRE_DB_OBJECTLIST._Checkindex(const idx: Nativeint): NativeInt;
+begin
+  result := GetCount;
+  if (idx<0) or (idx>=result) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'index out of range %d is not between 0 and %d',[idx,0,result-1]);
+end;
+
+function TFRE_DB_OBJECTLIST.GetCount: NativeInt;
+var fld : TFRE_DB_FIELD;
+begin
+  if FieldOnlyExisting('C',fld) then
+    result := fld.AsInt64
+  else
+    result := 0;
+end;
+
+procedure TFRE_DB_OBJECTLIST.ClearArray(const free_objs: boolean);
+var obj : TFRE_DB_Object;
+      i : NativeInt;
+      c : NativeInt;
+begin
+  c := GetCount;
+  for i := 0 to c-1 do
+    begin
+      if free_objs then
+        begin
+          obj := Field(inttostr(i)).CheckOutObject;
+          obj.Finalize;
+        end
+      else
+        Field(inttostr(i)).Clear(true);
+    end;
+  _SetCount(0);
+end;
+
+
+procedure TFRE_DB_OBJECTLIST.AddObject(const obj: TFRE_DB_Object);
+var oldcount : NativeInt;
+begin
+  oldcount := GetCount;
+  Field(inttostr(oldcount)).AsObject := obj;
+  _SetCount(oldcount+1);
+end;
+
+procedure TFRE_DB_OBJECTLIST.RemoveObject(const idx: Nativeint);
+var obj : TFRE_DB_Object;
+begin
+  obj := CheckoutObject(idx);
+  obj.Free;
+end;
+
+
+function TFRE_DB_OBJECTLIST.CheckoutObject(const idx: Nativeint): TFRE_DB_Object;
+var oldcount : NativeInt;
+           i : NativeInt;
+begin
+  oldcount := _CheckIndex(idx);
+  result := Field(inttostr(idx)).CheckOutObject;
+  for i :=  (oldcount-1) downto (idx+1) do
+    begin
+      Field(inttostr(i-1)).AsObject := Field(inttostr(i)).CheckOutObject;
+    end;
+  _SetCount(oldcount-1);
+end;
+
+function TFRE_DB_OBJECTLIST.GetAsObjectArray: TFRE_DB_ObjectArray;
+var i : NativeInt;
+begin
+  SetLength(result,GetCount);
+  for i:= 0 to high(Result) do
+    result[i] := Field(inttostr(i)).AsObject;
+end;
+
+function TFRE_DB_OBJECTLIST.CheckOutAsArray: TFRE_DB_ObjectArray;
+var i:integer;
+begin
+  result := GetAsObjectArray;
+  for i:=0 to high(Result) do
+    result[i].FParentDBO := nil;
+  ClearArray(false);
+end;
+
+procedure TFRE_DB_OBJECTLIST.SetAsObjectArray(const arr: TFRE_DB_ObjectArray);
+var i : NativeInt;
+begin
+  ClearArray;
+  for i:=0 to high(arr) do
+    Field(inttostr(i)).AsObject := arr[i];
+  _SetCount(Length(arr));
+end;
 
 { TFRE_DB_REFERERENCE_CHAIN_FT }
 
@@ -2697,20 +2812,6 @@ begin
   result := uppercase(UID_String);
 end;
 
-
-
-
-
-{ TFRE_DB_RIGHT }
-
-class procedure TFRE_DB_RIGHT.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
-begin
-  inherited RegisterSystemScheme(scheme);
-  Scheme.Strict(true);
-  Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
-  //Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
-  Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname'),'%s');
-end;
 
 
 { TFRE_DB_CHART_TRANSFORM }
@@ -3476,14 +3577,9 @@ begin
   VersionInstallCheck(currentVersionId,newVersionId);
 end;
 
-procedure TFRE_DB_ROLE.AddRightI(const right: IFRE_DB_RIGHT);
+procedure TFRE_DB_ROLE.AddRight(const right: IFRE_DB_RIGHT);
 begin
-  AddRight(right.Implementor as TFRE_DB_RIGHT);
-end;
-
-procedure TFRE_DB_ROLE.AddRight(const right: TFRE_DB_RIGHT);
-begin
-  Field('rights').AddObject(right);
+  Field('rights').AddString(right);
 end;
 
 function TFRE_DB_ROLE.SubFormattedDisplayAvailable: boolean;
@@ -3505,15 +3601,8 @@ begin
 end;
 
 function TFRE_DB_ROLE.GetRightNames: TFRE_DB_StringArray;
-var l_right : TFRE_DB_ObjectArray;
-     i       : Integer;
 begin
-  l_right := Field('rights').AsObjectArr;
-  SetLength(result,Length(l_right));
-  for i:=0 to high(l_right) do begin
-    result[i] := TFRE_DB_NAMED_OBJECT(l_right[i]).ObjectName;
- end;
-
+  result := Field('rights').AsStringArr;
 end;
 
 class procedure TFRE_DB_ROLE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -3545,6 +3634,7 @@ begin
     if not FConnectedUser.Checkpassword(pass) then
       exit(edb_ACCESS);
     FConnectionRights := _GetRightsArrayForUser(FConnectedUser);
+    result := edb_OK;
   finally
     ReleaseBig;
   end;
@@ -4196,20 +4286,16 @@ begin
     if FSysUserSessionsData.ExistsIndexed(key) then
       begin
       //writeln('TRY UPDATETE SESSIONDATA : ',userid ,'  ',session_data.DumpToString());
+        G_DEBUG_TRIGGER_1:=true;
         result := FSysUserSessionsData.UpdateI(session_data);
        //writeln('TRYUPDATE OK');
     end else begin
        result := FSysUserSessionsData.StoreI(session_data);
     end;
   finally
+    session_data := nil;
     ReleaseBig;
   end;
-end;
-
-function TFRE_DB_SYSTEM_CONNECTION.NewRight(const rightname: TFRE_DB_String; var right: TFRE_DB_RIGHT): TFRE_DB_Errortype;
-begin  // NoLock necessary
-  right := GFRE_DB._NewRight(rightname);
-  result:=edb_OK;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.NewRole(const rolename, txt, txt_short: TFRE_DB_String; var role: TFRE_DB_ROLE): TFRE_DB_Errortype;
@@ -5131,7 +5217,7 @@ begin
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._CheckLogin(const loginatdomain, pass: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.CheckLogin(const loginatdomain, pass: TFRE_DB_String): TFRE_DB_Errortype;
 var FUser : TFRE_DB_USER;
 begin //nln
   result := FetchUser(loginatdomain,FUser);
@@ -5143,18 +5229,6 @@ begin //nln
     result := edb_OK;
   finally
     Fuser.Finalize;
-  end;
-end;
-
-
-function TFRE_DB_SYSTEM_CONNECTION.NewRightI(const rightname: TFRE_DB_String; var right: IFRE_DB_RIGHT): TFRE_DB_Errortype;
-var lRight : TFRE_DB_RIGHT;
-begin //nln
-  result := NewRight(rightname,lRight);
-  if result = edb_OK then begin
-    right := lRight;
-  end else begin
-    right := nil;
   end;
 end;
 
@@ -5548,40 +5622,30 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckSetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
 begin
-  AcquireBigColl;
-  try
-    if CollectionDisplayType=FDisplaytype then
-      exit;
-    if FDisplaytype<>cdt_Invalid then raise EFRE_DB_Exception.Create(edb_ERROR,'Collectiondisplaytype is already set');
-    FDisplaytype := CollectionDisplayType;
-  finally
-    ReleaseBigColl;
-  end;
+  if CollectionDisplayType=FDisplaytype then
+    exit;
+  if FDisplaytype<>cdt_Invalid then raise EFRE_DB_Exception.Create(edb_ERROR,'Collectiondisplaytype is already set');
+  FDisplaytype := CollectionDisplayType;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._ClearMode;
 begin
-  AcquireBigColl;
-  try
-    FGridDisplayFlags      := [];
-    FitemMenuFunc.Free     ;
-    FitemMenuFunc          := nil;
-    FitemDetailsFunc.Free  ;
-    FitemDetailsFunc       := nil;
-    FselectionDepFunc.Free ;
-    FselectionDepFunc      := nil;
-    FtreeMenuFunc.Free     ;
-    FtreeMenuFunc          := nil;
-    FdropFunc.Free         ;
-    FdropFunc              := nil;
-    FdragFunc.Free         ;
-    FdragFunc              := nil;
-    FTransform.Free        ;
-    FlabelFields           := nil;
-    FTreeNodeIconField     := '';
-  finally
-    ReleaseBigColl;
-  end;
+  FGridDisplayFlags      := [];
+  FitemMenuFunc.Free     ;
+  FitemMenuFunc          := nil;
+  FitemDetailsFunc.Free  ;
+  FitemDetailsFunc       := nil;
+  FselectionDepFunc.Free ;
+  FselectionDepFunc      := nil;
+  FtreeMenuFunc.Free     ;
+  FtreeMenuFunc          := nil;
+  FdropFunc.Free         ;
+  FdropFunc              := nil;
+  FdragFunc.Free         ;
+  FdragFunc              := nil;
+  FTransform.Free        ;
+  FlabelFields           := nil;
+  FTreeNodeIconField     := '';
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ICO_CollectionNotify(const notify_type: TFRE_DB_NotifyObserverType; const obj: IFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
@@ -5878,33 +5942,23 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.BeginUpdateGathering;
 begin
-  AcquireBigColl;
-  try
-    if assigned(FGatherUpdateList) then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'UPDATE GATHERING ALREADY STARTED');
-    FGatherUpdateList := TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
-  finally
-    ReleaseBigColl;
-  end;
+  if assigned(FGatherUpdateList) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'UPDATE GATHERING ALREADY STARTED');
+  FGatherUpdateList := TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.FinishUpdateGathering(const sendupdates: Boolean);
 begin
-  AcquireBigColl;
-  try
-    if sendupdates then begin
-      if FGatherUpdateList.hasChanges then begin
-        FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,FGatherUpdateList);
-      end else begin
-        FGatherUpdateList.Free;
-      end;
+  if sendupdates then begin
+    if FGatherUpdateList.hasChanges then begin
+      FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,FGatherUpdateList);
     end else begin
       FGatherUpdateList.Free;
     end;
-    FGatherUpdateList:=nil;
-  finally
-    ReleaseBigColl;
+  end else begin
+    FGatherUpdateList.Free;
   end;
+  FGatherUpdateList:=nil;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._AddToTransformedCollection(item: IFRE_DB_Object; const send_client_notify: boolean; const update_data: boolean; const child_call: boolean; const parentid: string; const disable_filter: boolean);
@@ -6195,68 +6249,63 @@ var i                 : Integer;
     var fld : IFRE_DB_FIELD;
 
 begin
-  AcquireBigColl;
-  try
-    iob := item;
-    add := true;
-    if (cdgf_Children in FGridDisplayFlags)
-      and (not child_call) then
-        begin
-          if item.FieldOnlyExisting(FParentChildField,fld) then
-            begin
-              if fld.ValueCount>0 then
-                exit;
-            end;
-        end;
+  iob := item;
+  add := true;
+  if (cdgf_Children in FGridDisplayFlags)
+    and (not child_call) then
+      begin
+        if item.FieldOnlyExisting(FParentChildField,fld) then
+          begin
+            if fld.ValueCount>0 then
+              exit;
+          end;
+      end;
 
+  use_filter_fields:=false;
+  if not disable_filter then
+    FFilters.ForAllBrk(@Filter);
+  if add then begin
+    tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
+    iob    := tr_obj;
     use_filter_fields:=false;
     if not disable_filter then
-      FFilters.ForAllBrk(@Filter);
+      FFiltersTrans.ForAllBrk(@Filter);
+    //if FTransform.HasFilterFields then begin
+    //  use_filter_fields:=true;
+    //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
+    //  FFilters.ForAllBrk(@Filter);
+    //  iob.Finalize;
+    //end;
     if add then begin
-      tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
-      iob    := tr_obj;
-      use_filter_fields:=false;
-      if not disable_filter then
-        FFiltersTrans.ForAllBrk(@Filter);
-      //if FTransform.HasFilterFields then begin
-      //  use_filter_fields:=true;
-      //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
-      //  FFilters.ForAllBrk(@Filter);
-      //  iob.Finalize;
-      //end;
-      if add then begin
-        if cdgf_Children in FGridDisplayFlags then
-          begin
-            if FParentChildField<>'' then
-              begin
-                if (FConnection.GetReferencesCount(iob.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
-                  begin
-                    tr_obj.Field('children').AsString        := 'UNCHECKED';
-                  end;
-                tr_obj.Field('_menufunc_').AsString      := 'Menu';
-                tr_obj.Field('_contentfunc_').AsString   := 'Content';
-                if item.FieldOnlyExisting('icon',fld) then // icon in source
-                    tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
-              end
-            else
-              begin
-                // Non Reflink Child Parent Mode
-              end;
-          end;
-        if update_data then begin
-          FDBOList.Update(tr_obj,false);
-        end else begin
-          FDBOList.Add(tr_obj,false); // Sort;
+      if cdgf_Children in FGridDisplayFlags then
+        begin
+          if FParentChildField<>'' then
+            begin
+              if (FConnection.GetReferencesCount(iob.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
+                begin
+                  tr_obj.Field('children').AsString        := 'UNCHECKED';
+                end;
+              tr_obj.Field('_menufunc_').AsString      := 'Menu';
+              tr_obj.Field('_contentfunc_').AsString   := 'Content';
+              if item.FieldOnlyExisting('icon',fld) then // icon in source
+                  tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
+            end
+          else
+            begin
+              // Non Reflink Child Parent Mode
+            end;
         end;
-        if send_client_notify and assigned(FGatherUpdateList) then begin
-          SendClientUpdate(tr_obj,parentid);
-        end;
+      if update_data then begin
+        FDBOList.Update(tr_obj,false);
       end else begin
-        //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL REJECT [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
+        FDBOList.Add(tr_obj,false); // Sort;
       end;
+      if send_client_notify and assigned(FGatherUpdateList) then begin
+        SendClientUpdate(tr_obj,parentid);
+      end;
+    end else begin
+      //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL REJECT [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
     end;
-  finally
-    ReleaseBigColl;
   end;
 end;
 
@@ -6268,12 +6317,7 @@ function TFRE_DB_DERIVED_COLLECTION._CheckUIDExists(obj_uid: TGuid): Boolean;
   end;
 
 begin
-  AcquireBigColl;
-  try
-    result := FDBOList.ForAllNodesBrk(@CheckUID);
-  finally
-    ReleaseBigColl;
-  end;
+  result := FDBOList.ForAllNodesBrk(@CheckUID);
 end;
 
 
@@ -6344,39 +6388,34 @@ var cnt  : NativeInt;
   end;
 
 begin
-  AcquireBigColl;
-  try
-    if not assigned(FTransform) then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
-    if childcall then
-      cnt:=0;
-    case FDCMode of
-      dc_None: ;
-      dc_Map2DerivedCollection: begin
-                                  abort;
-                                  //ClearLocal;
-                                  //FOrders.ForAllFields(@Order); // Get order definition
-                                  //(FParentCollection as TFRE_DB_DERIVED_COLLECTION).FDBOList.ForAllNodes(@LocalInsertFromParentDerived);
-                                end;
-      dc_Map2RealCollection:    begin
-                                  GFRE_DB.LogDebug(dblc_DB,'* START FILTERING [%s]',[CollectionName]);
-                                  ClearLocal;
-                                  FOrders.ForAllFields(@Order); // Get order definition
-                                  if not childcall then
-                                    FParentCollection.ForAll(@LocalInsert)
-                                  else
-                                    LocalInsertExpanded;
-                                  GFRE_DB.LogDebug(dblc_DB,'* FINAL FILTERED COUNT [%d]',[FDBOList.Count]);
-                                end;
-      dc_ReferentialLinkCollection:
-                                begin
-                                   ClearLocal;
-                                   FOrders.ForAllFields(@Order); // Get order definition
-                                   LocalInsertExpanded;
-                                end;
-    end;
-  finally
-    ReleaseBigColl;
+  if not assigned(FTransform) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
+  if childcall then
+    cnt:=0;
+  case FDCMode of
+    dc_None: ;
+    dc_Map2DerivedCollection: begin
+                                abort;
+                                //ClearLocal;
+                                //FOrders.ForAllFields(@Order); // Get order definition
+                                //(FParentCollection as TFRE_DB_DERIVED_COLLECTION).FDBOList.ForAllNodes(@LocalInsertFromParentDerived);
+                              end;
+    dc_Map2RealCollection:    begin
+                                GFRE_DB.LogDebug(dblc_DB,'* START FILTERING [%s]',[CollectionName]);
+                                ClearLocal;
+                                FOrders.ForAllFields(@Order); // Get order definition
+                                if not childcall then
+                                  FParentCollection.ForAll(@LocalInsert)
+                                else
+                                  LocalInsertExpanded;
+                                GFRE_DB.LogDebug(dblc_DB,'* FINAL FILTERED COUNT [%d]',[FDBOList.Count]);
+                              end;
+    dc_ReferentialLinkCollection:
+                              begin
+                                 ClearLocal;
+                                 FOrders.ForAllFields(@Order); // Get order definition
+                                 LocalInsertExpanded;
+                              end;
   end;
 end;
 
@@ -6618,14 +6657,9 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.BindSession(const session: TFRE_DB_UserSession);
 begin
-  AcquireBigColl;
-  try
-    if assigned(FSession) then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'double session bind / logic');
-    FSession := session;
-  finally
-    ReleaseBigColl;
-  end;
+  if assigned(FSession) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'double session bind / logic');
+  FSession := session;
 end;
 
 constructor TFRE_DB_DERIVED_COLLECTION.Create(const connection: TFRE_DB_BASE_CONNECTION; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
@@ -6660,25 +6694,32 @@ var
   end;
 
 begin
-  if assigned(FParentCollection) then begin
-    (FParentCollection.Implementor as TFRE_DB_COLLECTION).RemoveObserver(self);
-  end;
+  //write('DESTROY DC : ',FName);
+  //try
+    if assigned(FParentCollection) then begin
+      (FParentCollection.Implementor as TFRE_DB_COLLECTION).RemoveObserver(self);
+    end;
 
-  if assigned(FDependencyObject) then
-    //FDependencyObject.Finalize;
-  for i := 0 to high(FExpandedRefs) do
-    FExpandedRefs[i].Finalize;
+    //if assigned(FDependencyObject) then
+      //FDependencyObject.Finalize;
+    for i := 0 to high(FExpandedRefs) do
+      FExpandedRefs[i].Finalize;
 
-  FDBOList.ForAllNodes(@MyFinalize);
-  FDBOList.Free;
-  FTransform.free;
-  FitemMenuFunc.Free;
-  FitemDetailsFunc.free;
-  FselectionDepFunc.free;
-  FtreeMenuFunc.free;
-  FdropFunc.free;
-  FdragFunc.free;
-  FGatherUpdateList.free;
+    FDBOList.ForAllNodes(@MyFinalize);
+    FDBOList.Free;
+    if assigned(FTransform) then
+      FTransform.free;
+    FitemMenuFunc.Free;
+    FitemDetailsFunc.free;
+    FselectionDepFunc.free;
+    FtreeMenuFunc.free;
+    FdropFunc.free;
+    FdragFunc.free;
+    FGatherUpdateList.free;
+  //  writeln(' OK');
+  //except on e:exception do
+  //  writeln('FAILED ',e.Message);
+  //end;
 
   inherited Destroy;
 end;
@@ -6969,58 +7010,33 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.RemoveFieldFilter(const filter_key: TFRE_DB_String; const on_transform: boolean): TFRE_DB_Errortype;
 begin
-  AcquireBigColl;
-  try
-    result := _DeleteFilterKey(filter_key,on_transform);
-  finally
-    ReleaseBigColl;
-  end;
+  result := _DeleteFilterKey(filter_key,on_transform);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.AddOrderField(const order_key, field_name: TFRE_DB_String; const ascending: boolean): TFRE_DB_Errortype;
 var order:TFRE_DB_Object;
 begin
-  AcquireBigColl;
-  try
-    order := GFRE_DB.NewObject;
-    order.Field('N').AsString  := field_name;
-    order.Field('A').AsBoolean := ascending;
-    FOrders.Field(order_key).AsObject := order;
-  finally
-    ReleaseBigColl;
-  end;
+  order := GFRE_DB.NewObject;
+  order.Field('N').AsString  := field_name;
+  order.Field('A').AsBoolean := ascending;
+  FOrders.Field(order_key).AsObject := order;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDefaultOrderField(const field_name: TFRE_DB_String; const ascending: boolean);
 begin
-  AcquireBigColl;
-  try
-    FDefaultOrderField := field_name;
-    FDefaultOrderAsc   := ascending;
-  finally
-    ReleaseBigColl;
-  end;
+  FDefaultOrderField := field_name;
+  FDefaultOrderAsc   := ascending;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllOrderFields;
 begin
-  AcquireBigColl;
-  try
-    FOrders.ClearAllFields;
-  finally
-    ReleaseBigColl;
-  end;
+  FOrders.ClearAllFields;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFilterFields;
 begin
-  AcquireBigColl;
-  try
-    FFilters.ClearAllFields;
-    FFiltersTrans.ClearAllFields;
-  finally
-    ReleaseBigColl;
-  end;
+  FFilters.ClearAllFields;
+  FFiltersTrans.ClearAllFields;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFiltersPrefix(const prefix: string);
@@ -7035,24 +7051,19 @@ var sl : TStringlist;
     end;
 
 begin
-  AcquireBigColl;
+  sl :=TStringList.Create;
   try
-    sl :=TStringList.Create;
-    try
-      FFilters.ForAllFields(@GetRemoveList);
-      for i:=0 to sl.count-1 do begin
-        FFilters.DeleteField(sl[i]);
-      end;
-      sl.clear;
-      FFiltersTrans.ForAllFields(@GetRemoveList);
-      for i:=0 to sl.count-1 do begin
-        FFiltersTrans.DeleteField(sl[i]);
-      end;
-    finally
-      sl.free;
+    FFilters.ForAllFields(@GetRemoveList);
+    for i:=0 to sl.count-1 do begin
+      FFilters.DeleteField(sl[i]);
+    end;
+    sl.clear;
+    FFiltersTrans.ForAllFields(@GetRemoveList);
+    for i:=0 to sl.count-1 do begin
+      FFiltersTrans.DeleteField(sl[i]);
     end;
   finally
-    ReleaseBigColl;
+    sl.free;
   end;
 end;
 
@@ -7090,24 +7101,19 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParent(const coll: TFRE_DB_COLLECT
   end;
 
 begin
-  AcquireBigColl;
-  try
-    if not Assigned(coll) then raise EFRE_DB_Exception.Create(edb_ERROR,'PLEASE PROVIDE A ASSIGNED DERIVE PARENT');
-    if FDCMode<>dc_None then raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
-    FIdField:=idField;
-    if coll is TFRE_DB_DERIVED_COLLECTION then begin
-      abort;
-      //FDCMode := dc_Map2DerivedCollection;
-      //FParentCollection := coll;
-      //SetFunctionsFromParent(FParentCollection as TFRE_DB_DERIVED_COLLECTION);
-    end else begin
-      FDCMode := dc_Map2RealCollection;
-      FParentCollection := coll;
-    end;
-    FInitialDerived := False;
-  finally
-    ReleaseBigColl;
+  if not Assigned(coll) then raise EFRE_DB_Exception.Create(edb_ERROR,'PLEASE PROVIDE A ASSIGNED DERIVE PARENT');
+  if FDCMode<>dc_None then raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
+  FIdField:=idField;
+  if coll is TFRE_DB_DERIVED_COLLECTION then begin
+    abort;
+    //FDCMode := dc_Map2DerivedCollection;
+    //FParentCollection := coll;
+    //SetFunctionsFromParent(FParentCollection as TFRE_DB_DERIVED_COLLECTION);
+  end else begin
+    FDCMode := dc_Map2RealCollection;
+    FParentCollection := coll;
   end;
+  FInitialDerived := False;
 end;
 
 
@@ -7115,45 +7121,35 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetReferentialLinkMode(const scheme_and_fie
 var collif : IFRE_DB_COLLECTION;
     i      : NativeInt;
 begin
-  AcquireBigColl;
-  try
-    if FDCMode<>dc_None then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
-    FDCMode           := dc_ReferentialLinkCollection;
-    FIdField          := 'uid';
-    SetLength(FDependencyRef,1);
-    FDependencyRef[0] := dependency_reference;
-    SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
-    for i := 0 to high(scheme_and_field_constraint) do
-      FDepRefConstraint[i] := scheme_and_field_constraint[i];
-    _CheckDepRefConstraint;
+  if FDCMode<>dc_None then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
+  FDCMode           := dc_ReferentialLinkCollection;
+  FIdField          := 'uid';
+  SetLength(FDependencyRef,1);
+  FDependencyRef[0] := dependency_reference;
+  SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
+  for i := 0 to high(scheme_and_field_constraint) do
+    FDepRefConstraint[i] := scheme_and_field_constraint[i];
+  _CheckDepRefConstraint;
 
-    FSubscribeReflinkModeObserverTo := subscribe_observer_to;
+  FSubscribeReflinkModeObserverTo := subscribe_observer_to;
 
-    FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
-  finally
-    ReleaseBigColl;
-  end;
+  FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetUseDependencyAsRefLinkFilter(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const negate: boolean; const dependency_reference: string);
 var
   i: NativeInt;
 begin
-  AcquireBigColl;
-  try
-    FUseDepAsLinkFilt := true;
-    SetLength(FDependencyRef,1);
-    FDependencyRef[0] := dependency_reference;
-    FDepObjectsRefNeg := negate;
-    SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
-    for i := 0 to high(scheme_and_field_constraint) do
-      FDepRefConstraint[i] := scheme_and_field_constraint[i];
-    //SetLength(FDepRefConstraint,1);
-    //FDepRefConstraint[0] := scheme_and_field_constraint;
-  finally
-    ReleaseBigColl;
-  end;
+  FUseDepAsLinkFilt := true;
+  SetLength(FDependencyRef,1);
+  FDependencyRef[0] := dependency_reference;
+  FDepObjectsRefNeg := negate;
+  SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
+  for i := 0 to high(scheme_and_field_constraint) do
+    FDepRefConstraint[i] := scheme_and_field_constraint[i];
+  //SetLength(FDepRefConstraint,1);
+  //FDepRefConstraint[0] := scheme_and_field_constraint;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParentI(const coll: IFRE_DB_COLLECTION; const idField: String);
@@ -7164,21 +7160,16 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformation(const tob: TFRE_DB_TRANSFORMOBJECT);
 begin
-  AcquireBigColl;
-  try
-    if FDisplaytype=cdt_Treeview then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'a treeview must not have a transformation set');
-    FTransform.Free;
-    FTransform := tob;
-    //Set default order as first field
-    if FDefaultOrderField='' then
-      begin
-        FDefaultOrderField := tob.GetFirstFieldname;
-        FDefaultOrderAsc   := true;
-      end;
-  finally
-    ReleaseBigColl;
-  end;
+  if FDisplaytype=cdt_Treeview then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'a treeview must not have a transformation set');
+  FTransform.Free;
+  FTransform := tob;
+  //Set default order as first field
+  if FDefaultOrderField='' then
+    begin
+      FDefaultOrderField := tob.GetFirstFieldname;
+      FDefaultOrderAsc   := true;
+    end;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformationI(const tob: IFRE_DB_TRANSFORMOBJECT);
@@ -7194,12 +7185,7 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.ItemCount: Int64;
 begin
-  AcquireBigColl;
-  try
-    result := FDBOList.Count;
-  finally
-    ReleaseBigColl;
-  end;
+  result := FDBOList.Count;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Count: QWord;
@@ -7211,73 +7197,53 @@ function TFRE_DB_DERIVED_COLLECTION.First: TFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  AcquireBigColl;
-  try
-    if ItemCount=0 then exit(nil);
-    FDBOList.FirstNode(obj,item);
-    result := obj;
-  finally
-    ReleaseBigColl;
-  end;
+  if ItemCount=0 then exit(nil);
+  FDBOList.FirstNode(obj,item);
+  result := obj;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Last: TFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  AcquireBigColl;
-  try
-    if ItemCount=0 then exit(nil);
-    FDBOList.LastNode(obj,item);
-    result := obj;
-  finally
-    ReleaseBigColl;
-  end;
+  if ItemCount=0 then exit(nil);
+  FDBOList.LastNode(obj,item);
+  result := obj;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetItem(const num: uint64): IFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  AcquireBigColl;
-  try
-    if ItemCount=0 then exit(nil);
-    if FDBOList.GetDirect(num,obj,item) then begin
-      result := obj;
-    end else begin
-      result := nil;
-    end;
-  finally
-    ReleaseBigColl;
+  if ItemCount=0 then exit(nil);
+  if FDBOList.GetDirect(num,obj,item) then begin
+    result := obj;
+  end else begin
+    result := nil;
   end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
 var idbo : IFRE_DB_Object;
 begin
-  AcquireBigColl;
-  try
-    case FDCMode of
-      dc_Map2RealCollection,
-      dc_Map2DerivedCollection:
-        begin
-         if not assigned(FParentCollection) then
-           raise EFRE_DB_Exception.Create(edb_ERROR,'DC FETCH, BUT NO PARENT DC ASSIGNED');
-         Result := FParentCollection.Fetch(ouid, idbo);
-         if result then
-           dbo := idbo.Implementor as TFRE_DB_Object
-         else
-           dbo := nil;
-        end;
-      dc_ReferentialLinkCollection:
-        begin
-            result := FConnection.Fetch(ouid,dbo)=edb_OK;
-        end;
-      else
-        raise EFRE_DB_Exception.Create(edb_ERROR,'Unsuported fetch for derived collection '+FName);
-    end;
-  finally
-    ReleaseBigColl;
+  case FDCMode of
+    dc_Map2RealCollection,
+    dc_Map2DerivedCollection:
+      begin
+       if not assigned(FParentCollection) then
+         raise EFRE_DB_Exception.Create(edb_ERROR,'DC FETCH, BUT NO PARENT DC ASSIGNED');
+       Result := FParentCollection.Fetch(ouid, idbo);
+       if result then
+         dbo := idbo.Implementor as TFRE_DB_Object
+       else
+         dbo := nil;
+      end;
+    dc_ReferentialLinkCollection:
+      begin
+          result := FConnection.Fetch(ouid,dbo)=edb_OK;
+      end;
+    else
+      raise EFRE_DB_Exception.Create(edb_ERROR,'Unsuported fetch for derived collection '+FName);
   end;
 end;
 
@@ -7290,15 +7256,10 @@ procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllEntries;
   end;
 
 begin
-  AcquireBigColl;
-  try
-    if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
-    if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
-    FDBOList.ForallNodes(@Clear);
-    FDBOList.Clear;
-  finally
-    ReleaseBigColl;
-  end;
+  if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
+  if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
+  FDBOList.ForallNodes(@Clear);
+  FDBOList.Clear;
 end;
 
 
@@ -7310,13 +7271,8 @@ procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPage(const QueryID:String ; const pa
    end;
 
 begin
-  AcquireBigColl;
-  try
-    AddQueryIDWatch(QueryID,page_info);
-    FDBOList.ForAllNodesRange(page_info.start,page_info.count,@DoIt);
-  finally
-    ReleaseBigColl;
-  end;
+  AddQueryIDWatch(QueryID,page_info);
+  FDBOList.ForAllNodesRange(page_info.start,page_info.count,@DoIt);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ApplyToData(const iterator: TFRE_DB_Obj_Iterator);
@@ -7325,82 +7281,62 @@ procedure TFRE_DB_DERIVED_COLLECTION.ApplyToData(const iterator: TFRE_DB_Obj_Ite
      iterator(key);
    end;
 begin
-  AcquireBigColl;
-  try
-    FDBOList.ForAllNodes(@PrepareData);
-  finally
-    ReleaseBigColl;
-  end;
+  FDBOList.ForAllNodes(@PrepareData);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
-  AcquireBigColl;
-  try
-    case FDisplaytype of
-      cdt_Listview:   begin
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
-                      end;
-      cdt_Treeview:   begin;
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
-                      end;
-       cdt_Chartview: begin
-                        result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
-                        //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
-                      end;
-      else begin
-        raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
-      end;
+  case FDisplaytype of
+    cdt_Listview:   begin
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                    end;
+    cdt_Treeview:   begin;
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                    end;
+     cdt_Chartview: begin
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
+                    end;
+    else begin
+      raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
     end;
-  finally
-    ReleaseBigColl;
   end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.getDescriptionStoreId: String;
 begin
-  AcquireBigColl;
-  try
-    Result:=CollectionName;
-  finally
-    ReleaseBigColl;
-  end;
+  Result:=CollectionName;
 end;
 
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE; const Flags: TFRE_COLLECTION_GRID_DISPLAY_FLAGS; const title: TFRE_DB_String; const CaptionFields: TFRE_DB_StringArray; const TreeNodeIconField: TFRE_DB_String; const item_menu_func: TFRE_DB_SERVER_FUNC_DESC; const item_details_func: TFRE_DB_SERVER_FUNC_DESC; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC; const drop_func: TFRE_DB_SERVER_FUNC_DESC; const drag_func: TFRE_DB_SERVER_FUNC_DESC);
 begin
-  AcquireBigColl;
-  try
-    _CheckSetDisplayType (CollectionDisplayType);
-    FGridDisplayFlags := Flags;
-    FTitle        := title;
-    FitemMenuFunc.Free;
-    FitemMenuFunc := item_menu_func;
-    FitemDetailsFunc.Free;
-    FitemDetailsFunc := item_details_func;
-    FselectionDepFunc.Free;
-    FselectionDepFunc := selection_dep_func;
-    FtreeMenuFunc.Free;
-    FtreeMenuFunc := tree_menu_func;
-    FdropFunc.Free;
-    FdropFunc := drop_func;
-    FdragFunc.Free;
-    FdragFunc := drag_func;
-    if Assigned(CaptionFields) then begin
-      FlabelFields     := CaptionFields;
-    end else begin
-      SetLength(FlabelFields,1); FlabelFields[0]:='objname';
-    end;
-    if CollectionDisplayType=cdt_Treeview then begin
-      FTransform.Free;
-      FTransform         := TFRE_DB_TREE_TRANSFORM.Create;
-      FTreeNodeIconField := TreeNodeIconField;
-    end;
-  finally
-    ReleaseBigColl;
+  _CheckSetDisplayType (CollectionDisplayType);
+  FGridDisplayFlags := Flags;
+  FTitle        := title;
+  FitemMenuFunc.Free;
+  FitemMenuFunc := item_menu_func;
+  FitemDetailsFunc.Free;
+  FitemDetailsFunc := item_details_func;
+  FselectionDepFunc.Free;
+  FselectionDepFunc := selection_dep_func;
+  FtreeMenuFunc.Free;
+  FtreeMenuFunc := tree_menu_func;
+  FdropFunc.Free;
+  FdropFunc := drop_func;
+  FdragFunc.Free;
+  FdragFunc := drag_func;
+  if Assigned(CaptionFields) then begin
+    FlabelFields     := CaptionFields;
+  end else begin
+    SetLength(FlabelFields,1); FlabelFields[0]:='objname';
+  end;
+  if CollectionDisplayType=cdt_Treeview then begin
+    FTransform.Free;
+    FTransform         := TFRE_DB_TREE_TRANSFORM.Create;
+    FTreeNodeIconField := TreeNodeIconField;
   end;
 end;
 
@@ -7408,26 +7344,21 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayTypeChart(const title: TFRE_DB_St
 var value_count : QWord;
     i           : integer;
 begin
-  AcquireBigColl;
-  try
-    _CheckSetDisplayType (cdt_Chartview);
-    _ClearMode;
-    FTitle            := title;
-    FTransform            := TFRE_DB_CHART_TRANSFORM.Create;
-    with FTransform as TFRE_DB_CHART_TRANSFORM do begin
-      FseriesFieldNames   := series_field_names;
-      FUseSeriesColors    := use_series_colors;
-      FUseSeriesLabels    := use_series_labels;
-      FSeriesLabels       := series_labels;
-      FShowLegend         := showLegend;
-      FChartType          := chart_type;
-      FMaxValue           := maxValue;
-    end;
-    _FilterIt(false);
-    value_count := FDBOList.Count;
-  finally
-    ReleaseBigColl;
+  _CheckSetDisplayType (cdt_Chartview);
+  _ClearMode;
+  FTitle            := title;
+  FTransform            := TFRE_DB_CHART_TRANSFORM.Create;
+  with FTransform as TFRE_DB_CHART_TRANSFORM do begin
+    FseriesFieldNames   := series_field_names;
+    FUseSeriesColors    := use_series_colors;
+    FUseSeriesLabels    := use_series_labels;
+    FSeriesLabels       := series_labels;
+    FShowLegend         := showLegend;
+    FChartType          := chart_type;
+    FMaxValue           := maxValue;
   end;
+  _FilterIt(false);
+  value_count := FDBOList.Count;
 end;
 
 {
@@ -7437,15 +7368,10 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameType);
 begin
-  AcquireBigColl;
-  try
-    FParentChldLinkFldSpec := uppercase(fieldname);
-    FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
-    if FParentChildField='' then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
-  finally
-    ReleaseBigColl;
-  end;
+  FParentChldLinkFldSpec := uppercase(fieldname);
+  FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
+  if FParentChildField='' then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
@@ -7472,71 +7398,56 @@ function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
   end;
 
 begin
- AcquireBigColl;
- try
-   case FDisplaytype of
-     cdt_Listview:  result := GetListviewDescription;
-     cdt_Treeview:  result := GetTreeViewDescription;
-     cdt_Chartview: result := GetChartDescription;
-     else raise EFRE_DB_Exception.Create(edb_ERROR,'DERIVED COLLECTION [%s] HAS AN INVALID DISPLAYTYPE SET [%d]',[CollectionName,ord(FDisplaytype)]);
-   end;
- finally
-   ReleaseBigColl;
- end;
+  case FDisplaytype of
+    cdt_Listview:  result := GetListviewDescription;
+    cdt_Treeview:  result := GetTreeViewDescription;
+    cdt_Chartview: result := GetChartDescription;
+    else raise EFRE_DB_Exception.Create(edb_ERROR,'DERIVED COLLECTION [%s] HAS AN INVALID DISPLAYTYPE SET [%d]',[CollectionName,ord(FDisplaytype)]);
+  end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescriptionFunction(const FilterEventKey: TFRE_DB_String): TFRE_DB_SERVER_FUNC_DESC;
 begin
-  AcquireBigColl;
-  try
-    result := CSF(@IMI_GET_DISPLAY_DESC);
-    if FilterEventKey<>'' then begin
-      result.AddParam.Describe('FILTER_EVENT',uppercase(FilterEventKey));
-    end;
-  finally
-    ReleaseBigColl;
+  result := CSF(@IMI_GET_DISPLAY_DESC);
+  if FilterEventKey<>'' then begin
+    result.AddParam.Describe('FILTER_EVENT',uppercase(FilterEventKey));
   end;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckObserverAdded(const add: boolean);
 begin
-  AcquireBigColl;
-  try
-    if add then
-      begin
-        if (not FObserverAdded) and
-           ( (FDCMode=dc_Map2RealCollection)
-             or (FDCMode=dc_Map2DerivedCollection)) then
-               begin
-                 FObserverAdded    := true;
-                 FParentCollection.AddObserver(self);
-               end;
-        if (not FObserverAdded) and
-           assigned(FSubscribeReflinkModeObserverTo) then
+  if add then
+    begin
+      if (not FObserverAdded) and
+         ( (FDCMode=dc_Map2RealCollection)
+           or (FDCMode=dc_Map2DerivedCollection)) then
              begin
                FObserverAdded    := true;
-               FSubscribeReflinkModeObserverTo.AddObserver(self);
+               FParentCollection.AddObserver(self);
              end;
-      end
-    else
-      begin
-        if (FObserverAdded) and
-          ( (FDCMode=dc_Map2RealCollection)
-            or (FDCMode=dc_Map2DerivedCollection)) then
-              begin
-                FObserverAdded    := False;
-                FParentCollection.RemoveObserver(self);
-              end;
-        if (FObserverAdded) and
-           assigned(FSubscribeReflinkModeObserverTo) then
-             begin
-               FObserverAdded    := False;
-               FSubscribeReflinkModeObserverTo.RemoveObserver(self);
-             end;
-      end;
-  finally
-    ReleaseBigColl;
-  end;
+      if (not FObserverAdded) and
+         assigned(FSubscribeReflinkModeObserverTo) then
+           begin
+             FObserverAdded    := true;
+             FSubscribeReflinkModeObserverTo.AddObserver(self);
+           end;
+    end
+  else
+    begin
+      if (FObserverAdded) and
+        ( (FDCMode=dc_Map2RealCollection)
+          or (FDCMode=dc_Map2DerivedCollection)) then
+            begin
+              FObserverAdded    := False;
+              FParentCollection.RemoveObserver(self);
+            end;
+      if (FObserverAdded) and
+         assigned(FSubscribeReflinkModeObserverTo) then
+           begin
+             FObserverAdded    := False;
+             FSubscribeReflinkModeObserverTo.RemoveObserver(self);
+           end;
+    end;
 end;
 
 
@@ -7621,10 +7532,7 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
     end;
 
 begin
-  //writeln(input.DumpToString());
-  AcquireBigColl;
   try
-    try
     _CheckObserverAdded(true);
     FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
     FDepObjectList :=  _GET_DC_ReferenceList(input);
@@ -7663,12 +7571,9 @@ begin
     QueryID        := _Get_DC_QueryID(input);
     childcall      := length(FParentIds)>0;
     result := GetGridDataDescription;
-    except
-      writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
-      raise;
-    end;
-  finally
-    ReleaseBigColl;
+  except
+    writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
+    raise;
   end;
 end;
 
@@ -7743,25 +7648,14 @@ var
   end;
 
 begin
-  AcquireBigColl;
-  try
-     _CheckObserverAdded(true);
-    result := GetChartDataDescription;
-  finally
-    ReleaseBigColl;
-  end;
+   _CheckObserverAdded(true);
+  result := GetChartDataDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  writeln('CLEAR GRID DATA '+input.DumpToString);
-  AcquireBigColl;
-  try
-    RemoveQueryIDWatch(_Get_DC_QueryID(input));
-    Result:=GFRE_DB_NIL_DESC;
-  finally
-    ReleaseBigColl;
-  end;
+  RemoveQueryIDWatch(_Get_DC_QueryID(input));
+  Result:=GFRE_DB_NIL_DESC;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_GET_CHILDREN_DATA(const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -7830,38 +7724,22 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
   end;
 
 begin
-  AcquireBigColl;
-  try
-    _CheckObserverAdded(true);
-    result := GetChildrenDataDescription;
-  finally
-    ReleaseBigColl;
-  end;
+  _CheckObserverAdded(true);
+  result := GetChildrenDataDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_GET_DISPLAY_DESC(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  AcquireBigColl;
-  try
-    if Assigned(input) then begin
-      writeln('GRID GET DISPLAY KEY ',input.DumpToString);
-    end;
-    result := GetDisplayDescription;
-  finally
-    ReleaseBigColl;
+  if Assigned(input) then begin
+    writeln('GRID GET DISPLAY KEY ',input.DumpToString);
   end;
+  result := GetDisplayDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_DESTROY_STORE(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  AcquireBigColl;
-  try
-    writeln('DESTROY STORE ',input.DumpToString());
    // _CheckObserverAdded(false);
     result := GFRE_DB_NIL_DESC;
-  finally
-    ReleaseBigColl;
-  end;
 end;
 
 
@@ -9313,16 +9191,6 @@ begin
    end;
 end;
 
-procedure TFRE_DB_COLLECTION.AcquireBigColl;
-begin
-  GFRE_DB.AcquireBig;
-end;
-
-procedure TFRE_DB_COLLECTION.ReleaseBigColl;
-begin
-  GFRE_DB.ReleaseBig;
-end;
-
 destructor TFRE_DB_COLLECTION.Destroy;
 begin
   FDBO_State := fdbos_Destroying;
@@ -9434,12 +9302,7 @@ procedure TFRE_DB_COLLECTION.ClearCollection;
   end;
 
 begin //nl
-  AcquireBigColl;
-  try
-    ForAll(@RemoveIt);
-  finally
-    ReleaseBigColl;
-  end;
+  ForAll(@RemoveIt);
 end;
 
 function TFRE_DB_COLLECTION.CollectionName(const unique: boolean): TFRE_DB_NameType;
@@ -9458,54 +9321,34 @@ end;
 
 function TFRE_DB_COLLECTION.AddObserver(const obs: IFRE_DB_COLLECTION_OBSERVER): boolean;
 begin
-  AcquireBigColl;
-  try
     result := FObservers.Add2ArrayChk(obs);
     //writeln('ADD OBSERVER [',ClassName,'] in ',CollectionName,' for ',obs.ICO_ObserverID,' : ',FObservers.HighArray,' ',FObservers.Count);
-  finally
-    ReleaseBigColl;
-  end;
 end;
 
 function TFRE_DB_COLLECTION.RemoveObserver(const obs: IFRE_DB_COLLECTION_OBSERVER): boolean;
 begin
-  AcquireBigColl;
-  try
-    result := FObservers.Remove(obs);
+  result := FObservers.Remove(obs);
     //  writeln('REMOVE OBSERVER [',ClassName,'] in ',CollectionName,' for ',obs.ICO_ObserverID,' : ',FObservers.HighArray,' ',FObservers.Count);
-  finally
-    ReleaseBigColl;
-  end;
 end;
 
 procedure TFRE_DB_COLLECTION.StartBlockUpdating;
 begin
-  AcquireBigColl;
-  try
-    if length(FObserverUpdates)<>0 then raise EFRE_DB_Exception.Create(edb_ERROR,'BLOCK UPDATING LOGIC ERROR UPLEN=[%d]',[Length(FObserverUpdates)]);
-    FObserverBlockupdating := true;
-  finally
-    ReleaseBigColl;
-  end;
+  if length(FObserverUpdates)<>0 then raise EFRE_DB_Exception.Create(edb_ERROR,'BLOCK UPDATING LOGIC ERROR UPLEN=[%d]',[Length(FObserverUpdates)]);
+  FObserverBlockupdating := true;
 end;
 
 procedure TFRE_DB_COLLECTION.FinishBlockUpdating;
 var i : integer;
 begin
-  AcquireBigColl;
+  __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
   try
-    __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-    try
-      for i:=0 to High(FObserverUpdates) do
-        with FObserverUpdates[i] do
-          __NotifyCollectionObservers(update_type,update_obj,update_uid,to_uid,key_description);
-      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-    finally
-      SetLength(FObserverUpdates,0);
-      FObserverBlockupdating := false;
-    end;
+    for i:=0 to High(FObserverUpdates) do
+      with FObserverUpdates[i] do
+        __NotifyCollectionObservers(update_type,update_obj,update_uid,to_uid,key_description);
+    __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
   finally
-    ReleaseBigColl;
+    SetLength(FObserverUpdates,0);
+    FObserverBlockupdating := false;
   end;
 end;
 
@@ -9648,12 +9491,7 @@ end;
 
 procedure TFRE_DB_COLLECTION.ForceFullUpdateForObservers;
 begin
-  AcquireBigColl;
-  try
-    _NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-  finally
-    ReleaseBigColl;
-  end;
+  _NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllColls(const iterator: TFRE_DB_Coll_Iterator);
@@ -9823,7 +9661,7 @@ begin
       begin
         FConnected         := true;
         try
-          InternalSetupConnection;
+            InternalSetupConnection;
         except
           on e:Exception do
             begin
@@ -9888,6 +9726,11 @@ begin
      if not FCollectionStore.Add(persColl.CollectionName(true),lcollection) then
          raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore/internal _AddCollectionTStore');
    end;
+end;
+
+function TFRE_DB_BASE_CONNECTION.InterfaceNeedsAProxy: Boolean;
+begin
+  result := true;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.StartNotificationBlock(const key: TFRE_DB_TransStepId);
@@ -10295,11 +10138,11 @@ begin
 
   Result := TFRE_DB_CONNECTION.Create(true);
   Result.FClonedFrom := self;
-  result._Connect(FDBName,true);
+  CheckDbResult(result._Connect(FDBName,true));
   FConnectionClones.Add(result);
 
   Result.FSysConnection := TFRE_DB_SYSTEM_CONNECTION.Create(true);
-  result.FSysConnection._Connect('SYSTEM',true);
+  CheckDbResult(result.FSysConnection._Connect('SYSTEM',true));
   Result.FSysConnection.FClonedFrom := self.FSysConnection;
   FSysConnection.FConnectionClones.Add(result.FSysConnection);
 end;
@@ -10335,7 +10178,7 @@ begin
     if result<>edb_OK then
       exit;
     conn := CreateAClone;
-    conn.FSysConnection.ImpersonateTheClone(user,pass);
+    CheckDbResult(conn.FSysConnection.ImpersonateTheClone(user,pass));
   finally
     ReleaseBig;
   end;
@@ -10377,7 +10220,7 @@ function TFRE_DB_CONNECTION.CheckLogin(const user, pass: TFRE_DB_String): TFRE_D
 begin //nl
   if not FConnected then
     exit(edb_NOT_CONNECTED);
-  result := FSysConnection._CheckLogin(user,pass);
+  result := FSysConnection.CheckLogin(user,pass);
 end;
 
 
@@ -11086,10 +10929,8 @@ begin //nl
 end;
 
 function TFRE_DB_CONNECTION.StoreUserSessionData(var session_data: IFRE_DB_Object):TFRE_DB_Errortype;
-var sd :IFRE_DB_Object;
 begin //nl
-  sd := session_data.CloneToNewObject();
-  result := FSysConnection.StoreUserSessionData(sd);
+  result := FSysConnection.StoreUserSessionData(session_data);
   session_data := nil;
 end;
 
@@ -11640,14 +11481,6 @@ begin
  result := TFRE_DB_TEXT.CreateText(key,txt_short,txt,hint);
 end;
 
-function TFRE_DB._NewRight(const rightname:TFRE_DB_String): TFRE_DB_RIGHT;
-var l_rname:TFRE_DB_String;
-begin
-  result   := _NewObject(TFRE_DB_RIGHT.ClassName,true) as TFRE_DB_RIGHT;
-  l_rname  := uppercase(rightname);
-  result.ObjectName  := l_rname;
-end;
-
 function TFRE_DB._NewRole(const rolename, txt, txt_short: TFRE_DB_String): TFRE_DB_ROLE;
 var l_gname:TFRE_DB_String;
 begin
@@ -11678,11 +11511,6 @@ end;
 function TFRE_DB.NewText(const key, txt, txt_short: TFRE_DB_String; const hint: TFRE_DB_String): IFRE_DB_TEXT;
 begin
   result := _NewText(key,txt,txt_short,hint);
-end;
-
-function TFRE_DB.NewRight(const rightname:TFRE_DB_String): IFRE_DB_RIGHT;
-begin
-  result := _NewRight(rightname);
 end;
 
 function TFRE_DB.NewRole(const rolename, txt, txt_short: TFRE_DB_String): IFRE_DB_ROLE;
@@ -12968,9 +12796,12 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
           else
             to_up_o := second_obj;
           case compare_event of
-            cev_FieldDeleted:  UpdateCB(childup,to_up_o,cev_FieldDeleted,nil,old_field);
-            cev_FieldAdded:    UpdateCB(childup,to_up_o,cev_FieldAdded,new_fld,Nil);
-            cev_FieldChanged : UpdateCB(childup,to_up_o,cev_FieldChanged,new_fld,old_field);
+            cev_FieldDeleted:  if assigned(UpdateCB) then
+                                 UpdateCB(childup,to_up_o,cev_FieldDeleted,nil,old_field);
+            cev_FieldAdded:    if assigned(UpdateCB) then
+                                 UpdateCB(childup,to_up_o,cev_FieldAdded,new_fld,Nil);
+            cev_FieldChanged : if assigned(UpdateCB) then
+                                 UpdateCB(childup,to_up_o,cev_FieldChanged,new_fld,old_field);
           end;
         end;
 
@@ -12990,12 +12821,14 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
 
     procedure GenerateInserts(var new_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
-      InsertCB(new_object);
+      if assigned(InsertCB) then
+        InsertCB(new_object);
     end;
 
     procedure GenerateDeletes(var del_object : TFRE_DB_Object ; const idx : NativeInt ; var halt: boolean);
     begin
-      DeleteCB(del_object);
+      if assigned(DeleteCB) then
+        DeleteCB(del_object);
     end;
 begin
   if (not assigned(first_obj)) then
@@ -13126,8 +12959,7 @@ var halt : boolean;
       if halt then
         exit(true);
       if fld.IsObjectField then
-        for i:=0 to fld.ValueCount-1 do
-          IterateWithSub(Fld.AsObjectArr[i]);
+        IterateWithSub(Fld.AsObject);
       result := false;
     end;
   begin
@@ -13315,7 +13147,6 @@ end;
 
 function TFRE_DB_Object.ParentField: TFRE_DB_FIELD;
 begin
-  _InAccessibleCheck;
   result := FParentDBO;
 end;
 
@@ -13954,7 +13785,7 @@ begin
   lClassname  := (JSON.Items[0] as TJSONString).AsString;
   lFieldCount := JSON.Count-1;
   result      := GFRE_DB.NewObjectStreaming(lClassname);
-  result.FParentDBO := parent;
+//  result.FParentDBO := parent;
   result.CopyFromJSON(JSON,lFieldCount,stream_cb);
   result.InternalSetup;
   result.AfterLoad;
@@ -14169,23 +14000,8 @@ begin
   end;
 end;
 
-procedure TFRE_DB_Object.StripOwnedObjects;
-
-  procedure StripAll(const F:TFRE_DB_FIELD);
-  begin
-    if F.FieldType =fdbft_Object then begin
-      F.AsObject.StripOwnedObjects;
-      F._StripObject;
-    end;
-  end;
-
-begin
-  _InAccessibleCheck;
-  ForAllFields(@StripAll);
-end;
-
 procedure TFRE_DB_Object.DumpToStrings(const strings: TStrings;indent:integer=0);
-var idents,idents2:TFRE_DB_String;
+var idents : TFRE_DB_String;
 
    procedure DumpFieldToString(const Field:TFRE_DB_FIELD);
    var oa : TFRE_DB_ObjectArray;
@@ -14210,30 +14026,20 @@ var idents,idents2:TFRE_DB_String;
            end
          else
            begin
-             oa := Field.AsObjectArr;
-             if length(oa)=1 then begin
-               strings.Add(Format('%s%s (%s) : ',[idents,Field.FieldName,CFRE_DB_FIELDTYPE[Field.FieldType]]));
-             end else begin
-               strings.Add(Format('%s%s (%s)[%d] : ',[idents,Field.FieldName,CFRE_DB_FIELDTYPE[Field.FieldType],length(oa)]));
-             end;
-             idents2:=StringOfChar(' ',indent+2);
-             for i:=0 to high(oa) do begin
-               strings.Add(idents+'{ ['+inttostr(i)+']');
-               oa[i].DumpToStrings(strings,indent+2);
-               strings.Add(idents+'}');
-             end;
+             strings.Add(Format('%s%s (%s) : ',[idents,Field.FieldName,CFRE_DB_FIELDTYPE[Field.FieldType]]));
+             strings.Add(idents+'{ ');
+               Field.AsObject.DumpToStrings(strings,indent+2);
+             strings.Add(idents+'}');
            end;
        end;
      end;
 
 begin
   idents := StringOfChar(' ',indent);
-  //if Assigned(FMediatorExtention) then begin
-  //  strings.Add(idents+'CLASSEX  ['+FMediatorExtention.ClassName+'] ');//+inttostr(NeededSize)+' '+IntToStr(FStreamingSize));
-  //end else begin
-  //  strings.Add(idents+'CLASS    ['+self.ClassName+'] ');//+inttostr(NeededSize)+' '+IntToStr(FStreamingSize));
-  //end;
-  strings.Add(idents+'SCHEME ['+SchemeClass+'] '+BoolToStr(assigned(FParentDBO),'CHILD DBO','ROOT DBO'));
+  if not assigned(FParentDBO) then
+    strings.Add(idents+'['+SchemeClass+']')
+  else
+    strings.Add(idents+'('+SchemeClass+')');
   ForAll(@DumpFieldToString);
 end;
 
@@ -14483,7 +14289,6 @@ end;
 
 function TFRE_DB_Object.GetUIDPathUA: TFRE_DB_GUIDArray;
 begin
-  _InAccessibleCheck;
   if Length(fuidPathUA)=0 then begin
     if Assigned(Parent) then begin
       Result:=Parent.GetUIDPathUA;
@@ -14679,15 +14484,14 @@ procedure TFRE_DB_FIELD.SetAsObject(const AValue: TFRE_DB_Object);
 begin
   _InAccessibleFieldCheck;
   Fobj._ParentCheck(Avalue);
+  if not Avalue.IsObjectRoot then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'its not allowed to set child objects as subobject');
   if not _CheckStoreType(fdbft_Object) then begin
     FFieldData.FieldType := fdbft_Object;
-    New(FFieldData.obj);
-    SetLength(FFieldData.obj^,1);
   end else begin
-    //writeln('*********** WARNING OVERWRITE OF OBJECT!!!!!!! in Field ',FFieldName^,' ',Fobj.UID_String);
-    FFieldData.obj^[0].Free; // NO AUTO FREE ON OVERWRITE
+    FFieldData.obj.Free;
   end;
-  FFieldData.obj^[0]:=AValue;
+  FFieldData.obj:=AValue;
   AValue.FParentDBO := self;
 end;
 
@@ -15214,10 +15018,8 @@ function TFRE_DB_FIELD._StreamingSize: TFRE_DB_SIZE_TYPE; //Streamed as FieldTyp
  function __CalcObjectLengths: TFRE_DB_SIZE_TYPE;
  var i: Integer;
  begin
-   result := 2 * CFRE_DB_SIZE_ENCODING_SIZE * Length(FFieldData.obj^); // Fieldcount per Object + Streamsize per object
-   for i :=  0 to Length(FFieldData.obj^)-1 do begin
-     result := result + FFieldData.obj^[i]._StreamingSize;
-   end;
+   result := 2 * CFRE_DB_SIZE_ENCODING_SIZE * 1; // Fieldcount per Object + Streamsize per object
+   result := result + FFieldData.obj._StreamingSize;
  end;
 
  function __HeaderSize: TFRE_DB_SIZE_TYPE;
@@ -15450,7 +15252,7 @@ begin
               exit(false);
           end;
         fdbft_Object:
-          if not FREDB_Guids_Same(FFieldData.obj^[i].UID,cmp_fld.FFieldData.obj^[i].UID) then
+          if not FREDB_Guids_Same(FFieldData.obj.UID,cmp_fld.FFieldData.obj.UID) then
             exit(false);
         fdbft_ObjLink:
           if not FREDB_Guids_Same(FFieldData.obl^[i],cmp_fld.FFieldData.obl^[i]) then
@@ -15544,17 +15346,9 @@ begin
     fdbft_Boolean :    hi := high(FFieldData.bool^);
     fdbft_DateTimeUTC: hi := high(FFieldData.date^);
     fdbft_Stream  :    hi := high(FFieldData.strm^);
-    fdbft_Object  :    hi := high(FFieldData.obj^) ;
+    fdbft_Object  :    hi := 0 ;
     fdbft_ObjLink :    hi := high(FFieldData.obl^) ;
   end;
-end;
-
-procedure TFRE_DB_FIELD._StripObject;
-begin
-  GFRE_BT.CriticalAbort('---FUNCTION BAD - STRIP');
-  setlength(FFieldData.obj^,0);
-  FFieldData.FieldType := fdbft_NotFound;
-  //FFieldStreamSize     := -1;
 end;
 
 
@@ -15912,7 +15706,7 @@ begin
     fdbft_Boolean:     result := BoolToStr(FFieldData.bool^[idx],'1','0');
     fdbft_DateTimeUTC: result := GFRE_DT.ToStrUTC(GFRE_DB.UTCToLocalTimeDB64(FFieldData.date^[idx]));
     fdbft_Stream:      result := _StreamToStringAsUrlAccess;
-    fdbft_Object:      result := FFieldData.obj^[idx].DumpToString;
+    fdbft_Object:      result := '[$O:'+FFieldData.obj.SchemeClass+']'; // FFieldData.obj^[idx].DumpToString;
     fdbft_ObjLink:     result := FREDB_GuidArray2StringStream(FFieldData.obl^);
     else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled %s',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
   end;
@@ -15931,7 +15725,8 @@ var lo,hi:integer;
 begin
   hi:=0;
   _GetHigh(hi);
-  if not ((idx>=0) and (idx<=hi)) then EFRE_DB_Exception.Create(edb_INDEXOUTOFBOUNDS,format(' fieldlist index out of bounds. idx is <%d>, but should be >= %d and <= %d ',[idx,lo,hi]));
+  if not ((idx>=0) and (idx<=hi)) then
+    EFRE_DB_Exception.Create(edb_INDEXOUTOFBOUNDS,format(' fieldlist index out of bounds. idx is <%d>, but should be >= %d and <= %d ',[idx,lo,hi]));
 end;
 
 function TFRE_DB_FIELD._CheckStoreType(const expected: TFRE_DB_FIELDTYPE):boolean;
@@ -16049,16 +15844,9 @@ var check_size  : TFRE_DB_SIZE_TYPE;
       end;
     end;
     procedure _StoreObjects;
-    var i,l:integer;
-        oldsp:pointer;
-        state:TFRE_DB_String;
     begin
-      l:=Length(FFieldData.obj^)-1;
-      for i := 0 to l do begin
-        sz_field := TFRE_DB_SIZE_TYPE(FFieldData.obj^[i].FieldCount(true));_StoreSzField;
-        oldsp := startp;
-        FFieldData.obj^[i].CopyToMem(startp);
-      end;
+      sz_field := TFRE_DB_SIZE_TYPE(FFieldData.obj.FieldCount(true));_StoreSzField;
+      FFieldData.obj.CopyToMem(startp);
     end;
 
 begin
@@ -16070,7 +15858,7 @@ begin
   oldp       := startp;
   sz_field   := Length(FFieldName^);       _StoreSzField; _StoreName;
   sz_field   := Ord(FFieldData.FieldType); _StoreSzField;
-  sz_field   := ValueCount;                _StoreSzField;
+  sz_field   := ValueCountReal;            _StoreSzField;
   case FFieldData.FieldType of
     fdbft_GUID:        _StoreArray(SizeOf(FFieldData.guid^[0]) * length(FFieldData.guid^) , @FFieldData.guid^[0]);
     fdbft_Byte:        _StoreArray(SizeOf(FFieldData.byte^[0]) * length(FFieldData.byte^) , @FFieldData.byte^[0]);
@@ -16130,12 +15918,8 @@ var value_count : SizeInt;
    end;
 
    procedure _ReadObjects;
-   var i,l:integer;
    begin
-     l:=Length(FFieldData.obj^)-1;
-     for i := 0 to l do begin
-       FFieldData.obj^[i] := TFRE_DB_Object.CreateInternalStreaming(self,startp,generate_new_uids,version,endianmarker);
-     end;
+     FFieldData.obj := TFRE_DB_Object.CreateInternalStreaming(self,startp,generate_new_uids,version,endianmarker);
    end;
 
 begin
@@ -16161,7 +15945,7 @@ begin
     fdbft_DateTimeUTC: begin New(FFieldData.date);SetLength(FFieldData.date^,value_count);_ReadArray(SizeOf(FFieldData.date^[0]) * length(FFieldData.date^),@FFieldData.date^[0]) end;
     fdbft_String:      begin New(FFieldData.strg);SetLength(FFieldData.strg^,value_count);_ReadStrings; end;
     fdbft_Stream:      begin New(FFieldData.strm);SetLength(FFieldData.strm^,value_count);_ReadStreams; end;
-    fdbft_Object:      begin New(FFieldData.obj) ;SetLength(FFieldData.obj^ ,value_count);_ReadObjects; end;
+    fdbft_Object:      begin _ReadObjects; end;
     fdbft_ObjLink:     begin New(FFieldData.obl);SetLength(FFieldData.obl^,value_count);_ReadArray(SizeOf(FFieldData.obl^[0]) * length(FFieldData.obl^),@FFieldData.obl^[0]) end;
     else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled '+inttostr(ord(FFieldData.FieldType)));
   end;
@@ -16335,7 +16119,7 @@ end;
 function TFRE_DB_FIELD.GetAsObject: TFRE_DB_Object;
 var field_type :TFRE_DB_FIELDTYPE;
 
-  function _PCheck:boolean;
+  function _CheckIfSchemeAvailable:boolean;
   var sc               : TFRE_DB_String;
       scheme_object    : TFRE_DB_SchemeObject;
       scheme_field_def : TFRE_DB_FieldSchemeDefinition;
@@ -16350,14 +16134,12 @@ var field_type :TFRE_DB_FIELDTYPE;
         raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object wants to get accessed, a scheme is defined but cannot be checked. Scheme=%s Fieldname=%s',[sc,FieldName]);
       end;
       if scheme_object.GetSchemeField(FieldName,scheme_field_def) then begin
-        //scheme_object.ConstructNewInstance(scheme_field_def.SubschemeName);
         sfc := scheme_field_def.SubschemeName;
         if not GFRE_DB.GetSystemScheme(sfc,scheme_object) then begin
           raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object wants to get accessed, a scheme is defined but cannot be checked. Scheme=%s Fieldname=%s SubfieldSchemc=%s',[sc,FieldName,sfc]);
         end;
         new_object := scheme_object.ConstructNewInstance;
-        //new_object := _DBConnectionBC.NewObject(sfc);
-        AddObject(new_object);
+        SetAsObject(new_object);
         result:=true;
       end;
     end;
@@ -16368,14 +16150,12 @@ begin
   field_type := FFieldData.FieldType;
   if field_type = fdbft_Object then begin
     _CheckEmptyArray;
-    result := FFieldData.obj^[0];
+    result := FFieldData.obj;
   end else begin
     if field_type=fdbft_NotFound then begin
-       //Schema Check
-       if not _Pcheck then begin
-         AddObject(TFRE_DB_Object.Create);
-       end;
-       result            := FFieldData.obj^[0];
+       if not _CheckIfSchemeAvailable then
+         SetAsObject(TFRE_DB_Object.Create); { create a plain object }
+       result            := FFieldData.obj;
        result.FParentDBO := self;
     end else begin
       _IllegalTypeError(fdbft_Object);
@@ -16394,22 +16174,29 @@ begin
 end;
 
 function TFRE_DB_FIELD.CheckOutObjectArray: IFRE_DB_ObjectArray;
-var oa : TFRE_DB_ObjectArray;
-    i  : NativeInt;
 begin
-  if FFieldData.FieldType = fdbft_Object then
-    begin
-      oa := AsObjectArr;
-      SetLength(result,length(oa));
-      for i:=0 to high(oa) do
-        begin
-          oa[i].FParentDBO := nil;
-          result[i] := oa[i];
-        end;
-    end
+  _InAccessibleFieldCheck;
+  if FieldType=fdbft_NotFound then begin
+    SetLength(Result,0);
+    exit;
+  end;
+  _CheckFieldType(fdbft_Object);
+  if FFieldData.obj is TFRE_DB_OBJECTLIST then
+    result := GFRE_DB.ConstructObjectArrayOI(TFRE_DB_OBJECTLIST(FFieldData.obj).CheckOutAsArray)
   else
-    _IllegalTypeError(fdbft_Object);
-  Clear(true);
+    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+  Clear;
+end;
+
+function TFRE_DB_FIELD.CheckOutObjectArrayItem(const idx: NAtiveInt): IFRE_DB_Object;
+begin
+  result := nil;
+  _InAccessibleFieldCheck;
+  _CheckFieldType(fdbft_Object);
+  if FFieldData.obj is TFRE_DB_OBJECTLIST then
+    result := TFRE_DB_OBJECTLIST(FFieldData.obj).CheckoutObject(idx)
+  else
+    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 function TFRE_DB_FIELD.CheckOutObjectI: IFRE_DB_Object;
@@ -16425,7 +16212,10 @@ begin
     exit;
   end;
   _CheckFieldType(fdbft_Object);
-  result := FFieldData.obj^;
+  if FFieldData.obj is TFRE_DB_OBJECTLIST then
+    result := TFRE_DB_OBJECTLIST(FFieldData.obj).GetAsObjectArray
+  else
+    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 function TFRE_DB_FIELD.GetAsObjectLinkArray: TFRE_DB_ObjLinkArray;
@@ -16443,8 +16233,11 @@ function TFRE_DB_FIELD.GetAsObjectList(idx: Integer): TFRE_DB_Object;
 begin
   _InAccessibleFieldCheck;
   _CheckFieldType(fdbft_Object);
-  _CheckIndex(idx,fdbft_Object);
-  result := FFieldData.obj^[idx];
+  //_CheckIndex(idx,fdbft_Object);
+  if FFieldData.obj is TFRE_DB_OBJECTLIST then
+    result := TFRE_DB_OBJECTLIST(FFieldData.obj).GetAsArray(idx)
+  else
+    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 function TFRE_DB_FIELD.GetAsObjectLinkList(idx: Integer): TGUID;
@@ -16699,35 +16492,36 @@ var  i: Integer;
 begin
   _InAccessibleFieldCheck;
   for i:=0 to high(AValue) do begin
+    if not Avalue[i].IsObjectRoot then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'its not allowed to set child objects as object array');
+  end;
+  for i:=0 to high(AValue) do begin
     Fobj._ParentCheck(Avalue[i]);
   end;
   if not _CheckStoreType(fdbft_Object) then begin
     FFieldData.FieldType := fdbft_Object;
-    New(FFieldData.obj);
-  end else begin
-    //for i:=0 to high(FFieldData.obj^) do begin
-    //  FFieldData.obj^[i].Free;
-    //end;
+    FFieldData.obj:=TFRE_DB_OBJECTLIST.Create;
   end;
-  FFieldData.obj^ := AValue;
-  for i:=0 to high(FFieldData.obj^) do begin
-    FFieldData.obj^[i].FParentDBO := self;
-  end;
+  if FFieldData.obj is TFRE_DB_OBJECTLIST then
+    TFRE_DB_OBJECTLIST(FFieldData.obj).SetAsObjectArray(Avalue)
+  else
+    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 procedure TFRE_DB_FIELD.SetAsObjectList(idx: Integer; const AValue: TFRE_DB_Object);
 begin
   _InAccessibleFieldCheck;
   Fobj._ParentCheck(Avalue);
+  if not AValue.IsObjectRoot then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'its not allowed to set child objects as object array');
   if not _CheckStoreType(fdbft_Object) then begin
-    New(FFieldData.obj);
-    _CheckIndex(idx,fdbft_Object);
-  end else begin
-    _CheckIndex(idx,fdbft_Object);
-    //FFieldData.obj^[idx].Free;
+    FFieldData.FieldType := fdbft_Object;
+    FFieldData.obj:=TFRE_DB_OBJECTLIST.Create;
   end;
-  FFieldData.obj^[idx] := AValue;
-  AValue.FParentDBO := self;
+  if FFieldData.obj is TFRE_DB_OBJECTLIST then
+    TFRE_DB_OBJECTLIST(FFieldData.obj)[idx]:=Avalue
+  else
+    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 procedure TFRE_DB_FIELD.SetAsStream(const AValue: TFRE_DB_Stream);
@@ -16882,8 +16676,7 @@ begin
           end;
         fdbft_Object:
           begin
-            New(FFieldData.obj);
-            SetLength(FFieldData.obj^,1);
+            FFieldData.obj:=nil;
           end;
         fdbft_ObjLink:
         begin
@@ -16921,7 +16714,7 @@ begin
   result := CFRE_DB_FIELDTYPE[FieldType];
 end;
 
-function TFRE_DB_FIELD.ValueCount: Integer;
+function TFRE_DB_FIELD.ValueCount: NativeInt;
 begin
   case FFieldData.FieldType of
     fdbft_NotFound:     result := 0;
@@ -16940,10 +16733,23 @@ begin
     fdbft_Boolean:      result := Length(FFieldData.bool^);
     fdbft_DateTimeUTC:  result := Length(FFieldData.date^);
     fdbft_Stream:       result := Length(FFieldData.strm^);
-    fdbft_Object:       result := Length(FFieldData.obj^);
+    fdbft_Object:       begin
+                          if not IsObjectArray then
+                            exit(1); // raise EFRE_DB_Exception.Create(edb_ERROR,'only special object array object fields can be accessed by ValueCountObjArray');
+                          if FFieldData.obj is TFRE_DB_OBJECTLIST then
+                            result := TFRE_DB_OBJECTLIST(FFieldData.obj).GetCount;
+                        end;
     fdbft_ObjLink:      result := Length(FFieldData.obl^);
     else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled %s',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
   end;
+end;
+
+function TFRE_DB_FIELD.ValueCountReal: NativeInt;
+begin
+   if IsObjectField then
+     result := 1
+   else
+     result := ValueCount;
 end;
 
 function TFRE_DB_FIELD.IsUIDField: boolean;
@@ -16962,6 +16768,12 @@ function TFRE_DB_FIELD.IsObjectField: boolean;
 begin
  _InAccessibleFieldCheck;
  result := FieldType=fdbft_Object;
+end;
+
+function TFRE_DB_FIELD.IsObjectArray: boolean;
+begin
+  result := (FieldType=fdbft_Object) and
+     (FFieldData.obj is TFRE_DB_OBJECTLIST);
 end;
 
 function TFRE_DB_FIELD.IsFieldCalculated: boolean;
@@ -17074,10 +16886,10 @@ begin
                         end;
                     end;
       fdbft_Object: begin
-                      New(FFieldData.obj);
-                      SetLength(FFieldData.obj^,Field.ValueCount);
-                      for i := 0 to Field.ValueCount-1 do
-                        FFieldData.obj^[i]  := Field.AsObjectItem[i].CloneToNewObject;
+                      //New(FFieldData.obj);
+                      //SetLength(FFieldData.obj^,Field.ValueCount);
+                      //for i := 0 to Field.ValueCount-1 do
+                      FFieldData.obj  := Field.AsObject.CloneToNewObject;
                     end;
       fdbft_ObjLink: begin
                        New(FFieldData.obl);
@@ -17426,16 +17238,12 @@ var A:TFRE_DB_ObjectArray;
 begin
   _InAccessibleFieldCheck;
   if not _CheckStoreType(fdbft_Object) then begin
-    FFieldData.FieldType := fdbft_Object;
-    New(FFieldData.obj);
-    SetLength(FFieldData.obj^,1);
-    FFieldData.obj^[0] := value;
-  end else begin
-    l := Length(FFieldData.obj^);
-    SetLength(FFieldData.obj^,l+1);
-    FFieldData.obj^[l] := Value;
+    SetAsObject(TFRE_DB_OBJECTLIST.Create);
   end;
-  Value.FParentDBO := self;
+  if FFieldData.obj is TFRE_DB_OBJECTLIST then
+    TFRE_DB_OBJECTLIST(FFieldData.obj).AddObject(value)
+  else
+    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 procedure TFRE_DB_FIELD.AddObjectLink(const value: TGUID);
@@ -17736,17 +17544,15 @@ var A:TFRE_DB_ObjectArray;
     hi:integer;
     i,k:Integer;
 begin
- _InAccessibleFieldCheck;
- _GetHigh(hi);
- SetLength(A,hi);
- k:=0;
- for i:=0 to hi do begin
-  if i<>idx then begin
-   a[k]:=AsObjectArr[i];
-   inc(k);
+  _InAccessibleFieldCheck;
+  if not _CheckStoreType(fdbft_Object) then begin
+    FFieldData.FieldType := fdbft_Object;
+    FFieldData.obj:=TFRE_DB_OBJECTLIST.Create;
   end;
- end;
- AsObjectArr:=a;
+  if FFieldData.obj is TFRE_DB_OBJECTLIST then
+    TFRE_DB_OBJECTLIST(FFieldData.obj).RemoveObject(idx)
+  else
+    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 procedure TFRE_DB_FIELD.RemoveObjectLink(const idx: integer);
@@ -17778,14 +17584,8 @@ begin
  RemoveObjectLink(idx);
 end;
 
-procedure TFRE_DB_FIELD.StripObject;
-begin
-  _InAccessibleFieldCheck;
-  _StripObject;
-end;
 
-
-function TFRE_DB_FIELD.GetAsJSON(const without_uid:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
+function TFRE_DB_FIELD.GetAsJSON(const without_uid: boolean; const full_dump: boolean; const stream_cb: TFRE_DB_StreamingCallback; const plain_objects_as_array: boolean): TJSONData;
 var i:integer;
     ti:int64;
 
@@ -17840,8 +17640,20 @@ var i:integer;
                             result := HandleStream(FFieldData.strm^[index].Memory,FFieldData.strm^[index].Size,FFieldName^,FFieldData.strm^[index]);
                           end;
      fdbft_Object:        begin
-                            oa:=GetAsObjectList(index);
-                            result:=oa.GetAsJSON(without_uid,full_dump,stream_cb);
+                            if not IsObjectArray then
+                              result:= GetAsObject.GetAsJSON(without_uid,full_dump,stream_cb)
+                            else
+                              result:= AsObjectArr[index].GetAsJSON(without_uid,full_dump,stream_cb);
+//                            AsObject.GetAsJSON(without_uid,full_dump,stream_cb);
+                            //if not IsObjectArray then
+                            //  begin
+                            //    result := AsObject.GetAsJSON(without_uid,full_dump,stream_cb);
+                            //  end
+                            //else
+                            //  begin
+                            //    oa     := GetAsObjectList(index);
+                            //    result := oa.GetAsJSON(without_uid,full_dump,stream_cb);
+                            //  end;
                           end;
      fdbft_ObjLink:     result:=TJSONString.Create(_ConvertToString(index));
      else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]);
@@ -17849,7 +17661,6 @@ var i:integer;
  end;
 
  function GetJSON_String(const index:integer):TJSONData;
- var oa          : TFRE_DB_Object;
  begin
    case FFieldData.FieldType of
      fdbft_NotFound:      result:=TJSONNull.Create;
@@ -17871,8 +17682,8 @@ var i:integer;
                             result := HandleStream(FFieldData.strm^[index].Memory,FFieldData.strm^[index].Size,FFieldName^,FFieldData.strm^[index]);
                           end;
      fdbft_Object:        begin
-                            oa:=GetAsObjectList(index);
-                            result:=oa.GetAsJSON(without_uid,full_dump,stream_cb);
+                            assert(index=0,'internal fail');
+                            result:= GetAsObject.GetAsJSON(without_uid,full_dump,stream_cb);
                           end;
      fdbft_ObjLink:     result:=TJSONString.Create(_ConvertToString(index));
      else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]);
@@ -17880,27 +17691,47 @@ var i:integer;
  end;
 
  function EncodeField: TJSONData;
- var i:integer;
+ var i                   : integer;
+     valuecount_w_arrays : NativeInt;
+     oarr                : TFRE_DB_ObjectArray;
  begin
-   if ValueCount=0 then begin
-     result:=TJSONArray.Create;
-   end else if ValueCount=1 then begin
-     if not full_dump then begin
-       result:=GetJSON(0);
-     end else begin
-       result:=TJSONArray.Create;
-       TJSONArray(result).Add(GetJSON_String(0));
-     end;
-   end else begin
-     result:=TJSONArray.Create;
-     for i:=0 to ValueCount-1 do begin
-       if not full_dump then begin
-         TJSONArray(result).Add(GetJSON(i));
+   if not full_dump then
+     begin  { "Web" Dump }
+       valuecount_w_arrays := ValueCount;
+       if valuecount_w_arrays=0 then begin
+         result:=TJSONArray.Create;
+       end else
+       if (valuecount_w_arrays=1) and (not plain_objects_as_array) then
+         begin
+           result := GetJSON(0);
+         end
+       else
+         begin
+           result:=TJSONArray.Create;
+           if IsObjectArray then
+             begin
+               oarr := AsObjectArr;
+               for i:=0 to high(oarr) do begin
+                 TJSONArray(result).Add(oarr[i].GetAsJSON(without_uid,full_dump,stream_cb));
+               end;
+             end
+           else
+             begin
+               for i:=0 to valuecount_w_arrays-1 do
+                 TJSONArray(result).Add(GetJSON(i));
+             end;
+         end;
+     end
+   else
+     begin  { Full Dump}
+       if ValueCountReal=0 then begin
+         result:=TJSONArray.Create;
        end else begin
-         TJSONArray(result).Add(GetJSON_String(i));
+         result:=TJSONArray.Create;
+         for i:=0 to ValueCountReal-1 do
+           TJSONArray(result).Add(GetJSON_String(i));
        end;
      end;
-   end;
  end;
 
 begin
@@ -17994,7 +17825,7 @@ procedure TFRE_DB_FIELD.SetFromJSON(const field_type: TFRE_DB_FIELDTYPE; const j
                              end;
                            end;
       fdbft_Object:        begin
-                             AddObject(TFRE_DB_Object.CreateInternalStreamingJSON(self,jo as TJSONArray,stream_cb));
+                             SetAsObject(TFRE_DB_Object.CreateInternalStreamingJSON(self,jo as TJSONArray,stream_cb));
                            end;
       fdbft_ObjLink:       begin
                              AsObjectLinkArray := FREDB_StreamString2GuidArray(JAsString);
@@ -18018,10 +17849,20 @@ begin
   Move(FFieldData.strm^[0].Memory^,raw_string[1],FFieldData.strm^[0].Size);
 end;
 
+function TFRE_DB_FIELD.AsObjectArrayJSONString: TFRE_DB_String;
+var jsond : TJSONData;
+begin
+  jsond := GetAsJSON(false,false,nil,true);
+  try
+    result := jsond.AsJSON;
+  finally
+    jsond.Free;
+  end;
+end;
+
 
 function TFRE_DB_FIELD.FieldName: TFRE_DB_NameType;
 begin
-  _InAccessibleFieldCheck;
   if assigned(FFieldName) then
     result := FFieldName^
   else
@@ -18038,14 +17879,11 @@ procedure TFRE_DB_FIELD.Clear(const dont_free_streams_and_objects: boolean);
         end;
       Dispose(FFieldData.strm);
     end;
+
     procedure DisposeObject;
-    var  i: Integer;
     begin
       if not dont_free_streams_and_objects then
-        for i:=0 to high(FFieldData.obj^) do begin
-          FFieldData.obj^[i].Free;
-        end;
-      Dispose(FFieldData.obj);
+        FFieldData.obj.Free;
     end;
 begin
   _InAccessibleFieldCheck;
@@ -18067,7 +17905,7 @@ begin
     fdbft_DateTimeUTC:  Dispose(FFieldData.date);
     fdbft_Stream:       DisposeStream;
     fdbft_Object:       DisposeObject;
-    fdbft_ObjLink:      Dispose(FFieldData.obj);
+    fdbft_ObjLink:      Dispose(FFieldData.obl);
   end;
   FFieldData.FieldType := fdbft_NotFound;
   FFieldData.bool      := nil;
@@ -18469,6 +18307,7 @@ begin
         loginf := Login+'@'+GetDomain(conn);
         res := conn.sys.FetchUser(loginf,l_User);
         l_UserO := l_User.Implementor as TFRE_DB_USER;
+        writeln(l_UserO.DumpToString());
         if res<>edb_OK then
           exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Fetch Failed',fdbmt_error,nil));
         if data.FieldOnlyExisting('firstname',fld) then
@@ -18513,6 +18352,7 @@ begin
  GFRE_DBI := GFRE_DB;
  GFRE_DB.RegisterObjectClass(TFRE_DB_Object);
  GFRE_DB.RegisterObjectClass(TFRE_DB_TEXT);
+ GFRE_DB.RegisterObjectClass(TFRE_DB_OBJECTLIST);
  GFRE_DB.RegisterObjectClass(TFRE_DB_NAMED_OBJECT);
  GFRE_DB.RegisterObjectClass(TFRE_DB_USER);   // Needed because of Calculated Field (GetRoles)
  GFRE_DB.RegisterPrimaryImplementor(TFRE_DB_NAMED_OBJECT,IFRE_DB_NAMED_OBJECT);
@@ -18546,7 +18386,6 @@ begin
  InitMinimal(true);
  GFRE_DB.RegisterObjectClass(TFRE_DB_COLLECTION);
  GFRE_DB.RegisterObjectClass(TFRE_DB_DERIVED_COLLECTION);
- GFRE_DB.RegisterObjectClass(TFRE_DB_RIGHT);
  GFRE_DB.RegisterObjectClass(TFRE_DB_DOMAIN);
  GFRE_DB.RegisterObjectClass(TFRE_DB_GROUP);
  GFRE_DB.RegisterObjectClass(TFRE_DB_ROLE);

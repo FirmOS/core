@@ -592,7 +592,7 @@ type
     FNeedsWAL    : Boolean;
     FLastStepId  : TFRE_DB_TransStepId;
     procedure    ProcessCheck            (const WAL_RepairMode: boolean);
-    function     Write_WAL_Or_DCC        (const Layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
+    procedure    Write_WAL_Or_DCC        (const Layer : IFRE_DB_PERSISTANCE_LAYER);
   public
     constructor  Create                  (const TransID : TFRE_DB_NameType ; const master_data : TFRE_DB_Master_Data ; const notify_if : IFRE_DB_DBChangedNotification);
     procedure    ReadFromBackWalStream   (const walstream : TStream);
@@ -613,6 +613,7 @@ type
   protected
     FLayerDB : Shortstring;
   public
+    function    InterfaceNeedsAProxy  : Boolean;
     constructor Create                (const conn_db : TFRE_DB_NameType);
     destructor  Destroy               ;override;
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId); virtual;
@@ -644,14 +645,15 @@ type
 
   TFRE_DB_DBChangedNotificationProxy=class(TFRE_DB_DBChangedNotificationBase,IFRE_DB_DBChangedNotification)
   private
-    FRealIF    : IFRE_DB_DBChangedNotification;
-    FBlockList : IFRE_DB_Object;
+    FRealIF          : IFRE_DB_DBChangedNotification;
+    FBlockList       : IFRE_DB_Object;
+    FBlocksendMethod : IFRE_DB_InvokeProcedure;
   protected
     procedure   CheckBlockStarted      ;
     procedure   CheckBlockNotStarted   ;
     procedure   AddNotificationEntry   (const entry:IFRE_DB_Object);
   public
-    constructor Create                 (const real_interface : IFRE_DB_DBChangedNotification ; const db_name : TFRE_DB_NameType);
+    constructor Create                 (const real_interface : IFRE_DB_DBChangedNotification ; const db_name : TFRE_DB_NameType ; const BlocksendMethod : IFRE_DB_InvokeProcedure=nil);
     destructor  Destroy                ;override;
     procedure   StartNotificationBlock (const key      : TFRE_DB_TransStepId); override;
     procedure   FinishNotificationBlock(out   block    : IFRE_DB_Object); override;
@@ -744,10 +746,11 @@ begin
   FBlockList.Field('N').AddObject(entry);
 end;
 
-constructor TFRE_DB_DBChangedNotificationProxy.Create(const real_interface: IFRE_DB_DBChangedNotification; const db_name: TFRE_DB_NameType);
+constructor TFRE_DB_DBChangedNotificationProxy.Create(const real_interface: IFRE_DB_DBChangedNotification; const db_name: TFRE_DB_NameType; const BlocksendMethod: IFRE_DB_InvokeProcedure);
 begin
-  FRealIF  := real_interface;
-  FLayerDB := db_name;
+  FRealIF          := real_interface;
+  FLayerDB         := db_name;
+  FBlocksendMethod := BlocksendMethod;
 end;
 
 destructor TFRE_DB_DBChangedNotificationProxy.Destroy;
@@ -793,7 +796,10 @@ begin
     if assigned(FRealIF) then
       FRealIF.SendNotificationBlock(block)
     else
-      s:='?'; { Notifications dropped }
+    if assigned(FBlocksendMethod) then
+      FBlocksendMethod(block)
+    else
+      block.Finalize;
   except
     on e:Exception do
     begin
@@ -1099,6 +1105,11 @@ begin
 end;
 
 { TFRE_DB_DBChangedNotificationBase }
+
+function TFRE_DB_DBChangedNotificationBase.InterfaceNeedsAProxy: Boolean;
+begin
+  result := false;
+end;
 
 constructor TFRE_DB_DBChangedNotificationBase.Create(const conn_db: TFRE_DB_NameType);
 begin
@@ -1406,11 +1417,11 @@ begin
   assert(IsInsert=false);
   try
     if check
-       and FWouldNeedMasterDelete then
+       and FWouldNeedMasterDelete then { this is the check phase, the internalcount is >1}
          begin
-             master.DeleteObject(FDelObj.UID,check,FTransList.GetNotifyIF);
-         end;
-    if not check then
+           master.DeleteObject(FDelObj.UID,check,FTransList.GetNotifyIF);
+         end
+    else
       begin
         if length(FDelObj.__InternalGetCollectionList)=0 then
           begin
@@ -2007,7 +2018,7 @@ var i,j         : NativeInt;
             case oldfield.FieldType of
               fdbft_Object:
                 begin
-                  writeln('MASTERSTORE ABORT 1');
+                  writeln('MASTERSTORE ABORT 1'); {TODOD: Make a testcase }
                   abort;
                   master.DeleteObject(newfield.AsObject.UID,check,FTransList.GetNotifyIF);
                 end;
@@ -2054,7 +2065,7 @@ var i,j         : NativeInt;
                 begin
                   if check then
                     exit;
-                  inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject(); { subobject insert}
+                  inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject(); { subobject insert}  { TODO - GENERATE SUBOBJECT INSERTS !!!! Try to fetch a new subobject by UID}
                 end;
               fdbft_ObjLink:
                 if check then
@@ -2109,7 +2120,7 @@ var i,j         : NativeInt;
                   if check then
                     exit;
                   //writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
-                  inmemobject.Field(newfield.FieldName).AsObjectArr := newfield.AsObjectArr;
+                  //inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject;
                 end;
               fdbft_ObjLink:
                 if check then
@@ -2156,7 +2167,7 @@ begin
             cev_FieldAdded:
               begin
                  inmemobject := up_obj;
-                 assert(assigned(inmemobject),'inernal, logic');
+                 assert(assigned(inmemobject),'internal, logic');
                 _AddedField;
               end;
             cev_FieldChanged:
@@ -2301,7 +2312,6 @@ end;
 
 constructor TFRE_DB_DeleteSubObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const del_obj: TFRE_DB_Object; const from_coll: TFRE_DB_NameType; const is_store: boolean);
 begin
-  abort;
   inherited Create(layer,del_obj,from_coll,is_store);
   FDelObj   := del_obj;
   FIsStore  := is_store;
@@ -2345,7 +2355,14 @@ begin
   try
     assert(IsInsert=false);
     if not check then
-      FTransList.GetNotifyIF.SubObjectDeleted(FDelObj,FDelObj.ParentField.FieldName,FDelObj.Parent.GetUIDPathUA); { Notify before delete }
+      begin
+        //FDelObj.Pa Assert_CheckStoreLocked;
+        try
+          FTransList.GetNotifyIF.SubObjectDeleted(FDelObj,FDelObj.ParentField.FieldName,FDelObj.Parent.GetUIDPathUA); { Notify before delete }
+
+        finally
+        end;
+      end;
     master.DeleteObject(FDelObj.UID,check,FTransList.GetNotifyIF);
   except { Only in Exception case, lock the object and raise}
     FDelObj.Set_Store_Locked(true);
@@ -2474,7 +2491,7 @@ begin
 end;
 
 
-function TFRE_DB_TransactionalUpdateList.Write_WAL_Or_DCC(const Layer: IFRE_DB_PERSISTANCE_LAYER): boolean;
+procedure TFRE_DB_TransactionalUpdateList.Write_WAL_Or_DCC(const Layer: IFRE_DB_PERSISTANCE_LAYER);
 //var TransID:String;
 
   procedure WriteWAL(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
@@ -2483,9 +2500,8 @@ function TFRE_DB_TransactionalUpdateList.Write_WAL_Or_DCC(const Layer: IFRE_DB_P
   end;
 
 begin
-  result := true;
   if FChangeList.Count=0 then
-    exit(false);
+    exit;
     //raise EFRE_DB_PL_Exception.Create(edb_NO_CHANGE,'TRANSACTIONAL COMMIT FAILED, CHANGELIST EMPTY');
   if FNeedsWAL then
     begin
@@ -2520,9 +2536,14 @@ begin
   { Perform all necessary prechecks before changing the Database }
   ProcessCheck(WAL_RepairMode);
 
+  changes := FChangeList.Count>0;
+
   { Write the WAL Log }
-  if not WAL_RepairMode then
-    changes := Write_WAL_Or_DCC(Layer);
+
+  if (not WAL_RepairMode) and (not GDISABLE_WAL) then
+    begin
+       Write_WAL_Or_DCC(Layer);
+    end;
 
   { Apply the changes, and record the Notifications }
 

@@ -1759,7 +1759,7 @@ implementation
     obj.Field('serverFuncExists').AsBoolean:=store.FieldExists('serverFunc');
     Field('store').AsObject:=obj;
     Field('cce').AsBoolean:=false;
-    (Parent.Implementor_HC as TFRE_DB_FORM_DESC).AddStore(store);
+    (Parent.Parent.Implementor_HC as TFRE_DB_FORM_DESC).AddStore(store);
     result :=  self;
   end;
 

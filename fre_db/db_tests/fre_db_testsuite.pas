@@ -89,6 +89,7 @@ type
     procedure SetNullArray;
     procedure CloneToNewChangeGUIDS;
     procedure GenericChangelistTest;
+    procedure GenericChangeList2;
     procedure TestStreamFieldClone;
     procedure ForAllHierarchicTest;
     procedure JSONObject2Object;
@@ -676,7 +677,6 @@ begin
   AssertTrue('must be ok',coll_p.Store(o1)=edb_OK);
   AssertTrue('must be exists',coll_v.store(o2)=edb_EXISTS);
 end;
-
 
 // Reflink Example
 // Outbound Links: U1 (SC_A10):LINK1 -> U2(SC_A1),U3(SC_B1),U4(SC_C1)
@@ -1473,6 +1473,7 @@ var obj1,obj2 : TFRE_DB_Object;
   procedure Update(const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field);
   var nfn,nft,ofn,oft,updt,ofv,nfv : TFRE_DB_NameType;
   begin
+    nft := '';
     if assigned(new_field) then
       begin
         nfn := new_field.FieldName;
@@ -1514,6 +1515,121 @@ begin
   writeln('COMPARE - chang-chung');
   GFRE_DBI.GenerateAnObjChangeList(obj1,obj2,@Insert,@Delete,@Update);
   writeln('------');
+end;
+
+procedure TFRE_DB_ObjectTests.GenericChangeList2;
+  procedure Insert(const o : IFRE_DB_Object);
+  begin
+    writeln('INSERT STEP : ',o.UID_String,' ',o.SchemeClass,' ',BoolToStr(o.IsObjectRoot,' ROOT OBJECT ',' CHILD OBJECT '));
+    writeln(o.DumpToString(2));
+  end;
+
+  procedure Delete(const o : IFRE_DB_Object);
+    function  _ParentFieldnameIfExists:String;
+    begin
+      if not o.IsObjectRoot then
+        result := o.ParentField.FieldName
+      else
+        result := '';
+    end;
+
+  begin
+    writeln('DELETE STEP : ',FREDB_GuidArray2StringStream(o.GetUIDPathUA),' ',o.SchemeClass,BoolToStr(o.IsObjectRoot,' ROOT OBJECT ',' CHILD OBJECT '),_ParentFieldnameIfExists);
+    writeln(o.DumpToString(2));
+  end;
+
+  procedure Update(const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field);
+  var nfn,nft,ofn,oft,updt,ofv,nfv : string;
+  begin
+    nft := '';
+    if assigned(new_field) then
+      begin
+        nfn := new_field.FieldName;
+        nft := new_field.FieldTypeAsString;
+        if new_field.IsEmptyArray then
+          nfv := '(empty array)'
+        else
+          if new_field.FieldType=fdbft_Object then
+            nfv := 'OB/'+inttostr(new_field.ValueCount)
+          else
+            nfv := new_field.AsString;
+      end;
+    if assigned(old_field) then
+      begin
+        ofn := old_field.FieldName;
+        oft := old_field.FieldTypeAsString;
+        if old_field.IsEmptyArray then
+          ofv := '(empty array)'
+        else
+          if old_field.FieldType=fdbft_Object then
+            ofv := 'OB/'+inttostr(old_field.ValueCount)
+          else
+            ofv := old_field.AsString;
+      end;
+    case update_type of
+      cev_FieldDeleted: updt := 'DELETE FIELD '+ofn+'('+oft+')';
+      cev_FieldAdded:   updt := 'ADD FIELD '+nfn+'('+nft+')';
+      cev_FieldChanged: updt := 'CHANGE FIELD : '+nfn+' FROM ('+ofv+':'+oft+') TO ('+nfv+':'+nft+')';
+    end;
+    writeln('UPDATE STEP : ',BoolToStr(is_child_update,' CHILD UPDATE ',' ROOT UPDATE '), update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
+  end;
+
+var o1,o2 : IFRE_DB_Object;
+
+begin
+  o1   := GFRE_DBI.NewObject;
+  o1.Field('O').AsObject.Field('O').AsString := 'SUB';
+  o1.Field('O').AsObject.Field('OBS').AddObject(GFRE_DBI.NewObject);
+  o1.Field('O').AsObject.Field('OBS').AddObject(GFRE_DBI.NewObject);
+  o1.Field('O').AsObject.Field('OBS').AddObject(GFRE_DBI.NewObject);
+  o1.Field('O').AsObject.Field('OBS').AsObjectArr[2].Field('SUBSUB3').AsObject.Field('ID').AsString:='JOHN DOE';
+  o1.Field('O').AsObject.Field('OBS').AsObjectArr[0].Field('SO').AddObject(GFRE_DBI.NewObject);
+  o1.Field('O').AsObject.Field('OBS').AsObjectArr[0].Field('SO').AddObject(GFRE_DBI.NewObject);
+  o1.Field('O').AsObject.Field('OBS').AsObjectArr[0].Field('SO').AddObject(GFRE_DBI.NewObject);
+  o1.Field('O').AsObject.Field('OBS').AsObjectArr[0].Field('SO').AddObject(GFRE_DBI.NewObject);
+  o1.Field('O').AsObject.Field('OBS').AsObjectArr[0].Field('SO').AddObject(GFRE_DBI.NewObject);
+  o1.Field('O').AsObject.Field('OBS').AsObjectArr[0].Field('SO').AsObjectArr[4].Field('IDD').AsString:='SUE DOE';
+  writeln('<---------- O1 --------');
+  writeln(o1.DumpToString);
+  writeln('---------- O1 --------->');
+  writeln('COMPARE - Test 1, Rename a String in an Subobject');
+  o2 := o1.CloneToNewObject;
+  o2.Field('O').AsObject.Field('OBS').AsObjectArr[2].Field('SUBSUB3').AsObject.Field('ID').AsString:='JOHNDOE';
+  GFRE_DBI.GenerateAnObjChangeList(o2,o1,@Insert,@Delete,@Update);
+  writeln('------');
+  writeln('COMPARE - Test 2, Add a new Subobject');
+  o2 := o1.CloneToNewObject();
+  o2.Field('O').AsObject.Field('OBS').AsObjectArr[2].Field('SUBSUB2').AsObject.Field('ID').AsString:='JOHNDOE';
+  GFRE_DBI.GenerateAnObjChangeList(o2,o1,@Insert,@Delete,@Update);
+  writeln('------');
+  writeln('COMPARE - Test 3, Direction changed');
+  o2 := o1.CloneToNewObject();
+  o2.Field('O').AsObject.Field('OBS').AsObjectArr[2].Field('SUBSUB2').AsObject.Field('ID').AsString:='JOHNDOE';
+  GFRE_DBI.GenerateAnObjChangeList(o1,o2,@Insert,@Delete,@Update); {first = new , toupdate = second}
+  writeln('------');
+
+  writeln('COMPARE - Test 4, Delete Last Object');
+  o2 := o1.CloneToNewObject();
+  o2.Field('O').AsObject.Field('OBS').RemoveObject(2);
+  GFRE_DBI.GenerateAnObjChangeList(o2,o1,@Insert,@Delete,@Update);
+  writeln('------');
+
+  writeln('COMPARE - Test 4, Delete middle Object');
+  o2 := o1.CloneToNewObject();
+  o2.Field('O').AsObject.Field('OBS').RemoveObject(1);
+  GFRE_DBI.GenerateAnObjChangeList(o2,o1,@Insert,@Delete,@Update);
+  writeln('------');
+  //writeln(o2.DumpToString);
+
+  writeln('COMPARE - Test 5 add 2 objects');
+  o2 := o1.CloneToNewObject();
+  o2.Field('O').AsObject.Field('OBS').AddObject(GFRE_DBI.NewObject);
+  o2.Field('O').AsObject.Field('OBS').AddObject(GFRE_DBI.NewObject);
+  GFRE_DBI.GenerateAnObjChangeList(o2,o1,@Insert,@Delete,@Update);
+  writeln('------');
+
+//  halt;
+//  writeln(o1.DumpToString);
 end;
 
 procedure TFRE_DB_ObjectTests.TestStreamFieldClone;
@@ -1595,7 +1711,7 @@ begin
 end;
 
 initialization
-  //RegisterTest(TFRE_DB_ObjectTests);
+  RegisterTest(TFRE_DB_ObjectTests);
   RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
