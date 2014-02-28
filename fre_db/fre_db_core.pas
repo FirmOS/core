@@ -12945,7 +12945,6 @@ procedure TFRE_DB_Object.ForAllObjects(const iter: IFRE_DB_Obj_Iterator);
   end;
 
 begin
-  abort;
   ForAllFields(@Iterate);
 end;
 
@@ -17245,17 +17244,6 @@ begin
     TFRE_DB_OBJECTLIST(FFieldData.obj).AddObject(value)
   else
     raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
-  //if not _CheckStoreType(fdbft_Object) then begin
-  //  FFieldData.FieldType := fdbft_Object;
-  //  New(FFieldData.obj);
-  //  SetLength(FFieldData.obj^,1);
-  //  FFieldData.obj^[0] := value;
-  //end else begin
-  //  l := Length(FFieldData.obj^);
-  //  SetLength(FFieldData.obj^,l+1);
-  //  FFieldData.obj^[l] := Value;
-  //end;
-  //Value.FParentDBO := self;
 end;
 
 procedure TFRE_DB_FIELD.AddObjectLink(const value: TGUID);

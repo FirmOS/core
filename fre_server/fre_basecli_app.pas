@@ -254,7 +254,7 @@ begin
                            'database:','style:','remoteuser:','remotehost:','dropwal','testlog','unittests',
                            'printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:','showinstalled',
                            'backupdb:','restoredb:','backupsys:','restoresys','backupapp:','restoreapp:','adminuser:','adminpass:','limittransfer:',
-                           'plhost:','plip:','plport:','ple']);
+                           'plhost:','plip:','plport:','ple','setasyncwt:']);
 
   if ErrorMsg<>'' then begin
     writeln(ErrorMsg);
@@ -270,6 +270,13 @@ begin
   GDROP_WAL                 := TRUE;
 
   ParsePLParams;
+
+  if HasOption('*','setasyncwt') then
+    begin
+      GDBPS_TRANS_WRITE_ASYNC := GetOptionValue('*','setasyncwt')='on';
+      writeln('SETTING GDBPS_TRANS_WRITE_ASYNC TO : ',GDBPS_TRANS_WRITE_ASYNC);
+    end;
+
 
   FLimittransfer := 0;
   if HasOption('*','limittransfer') then
@@ -543,6 +550,8 @@ begin
   writeln('                | --restoreapp=</path2/dir> : restore only app database interactive');
   writeln('                | --adminuser=<user>        : specify user for admin options');
   writeln('                | --adminpass=<password>    : specify password for admin options');
+  writeln('');
+  writeln('                | --setasyncwt=<on/off>     : in write through mode do the writes sync or async');
   writeln;
 end;
 

@@ -4525,11 +4525,9 @@ begin
             end else begin
               GFRE_DBI.LogDebug(dblc_SERVER,'USING PERSISTENT SESSION DATA [%s]',[lStoredSessionData.UID_String]);
               FSessionData:=lStoredSessionData;
-              //writeln('STORED SESSION DATA: ');
-              //writeln('    ',lStoredSessionData.DumpToString());
-              //writeln('STORED SESSION DATA: ');
             end;
           end else begin
+            FSessionData := GFRE_DBI.NewObject;
             GFRE_DBI.LogDebug(dblc_SERVER,'FORCED USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
           end;
           FUserName := user_name;
