@@ -94,7 +94,7 @@ type
    procedure BuildHtml                 (const session:TFRE_DB_UserSession; const co:TFRE_DB_HTML_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildStoreData            (const co:TFRE_DB_STORE_DATA_DESC; var contentString,contentType:String);
    procedure BuildMessage              (const session:TFRE_DB_UserSession; const co:TFRE_DB_MESSAGE_DESC;var contentString,contentType:String);
-   procedure BuildUpdateMessageProgress(const session:TFRE_DB_UserSession; const co:TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC;var contentString,contentType:String);
+   procedure BuildUpdateMessageProgress(const co:TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC;var contentString,contentType:String);
    procedure BuildChart                (const session:TFRE_DB_UserSession; const co:TFRE_DB_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildChartData            (const co:TFRE_DB_CHART_DATA_DESC;var contentString,contentType:String);
    procedure BuildLiveChart            (const session:TFRE_DB_UserSession; const co:TFRE_DB_LIVE_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
@@ -106,7 +106,8 @@ type
    procedure BuildInvalidSessionData   (const co:TFRE_DB_INVALIDATE_SESSION_DATA_DESC;var contentString,contentType:String);
    procedure BuildSitemap              (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SITEMAP_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildSitemapEntryUpdate   (const co:TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC;var contentString,contentType:String);
-   procedure BuildSVG                  (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SVG_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
+   procedure BuildSVG                  (const session:TFRE_DB_UserSession;const co:TFRE_DB_SVG_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
+   procedure BuildUpdateSVG            (const co:TFRE_DB_UPDATE_SVG_DESC;var contentString,contentType:String);
    procedure BuildVNC                  (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_VNC_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildShell                (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SHELL_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildEditor               (const session:TFRE_DB_UserSession;const co:TFRE_DB_EDITOR_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
@@ -182,7 +183,7 @@ implementation
       gWAC_DOJO.BuildMessage(session,TFRE_DB_MESSAGE_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC then begin
-      gWAC_DOJO.BuildUpdateMessageProgress(session,TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC(result_object),lContent,lContentType);
+      gWAC_DOJO.BuildUpdateMessageProgress(TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_CHART_DESC then begin
       gWAC_DOJO.BuildChart(session,TFRE_DB_CHART_DESC(result_object),lContent,lContentType,isInnerContent);
@@ -218,7 +219,10 @@ implementation
       gWAC_DOJO.BuildSitemapEntryUpdate(TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_SVG_DESC then begin
-      gWAC_DOJO.BuildSVG(session,command_type,TFRE_DB_SVG_DESC(result_object),lContent,lContentType,isInnerContent);
+      gWAC_DOJO.BuildSVG(session,TFRE_DB_SVG_DESC(result_object),lContent,lContentType,isInnerContent);
+    end else
+    if result_object is TFRE_DB_UPDATE_SVG_DESC then begin
+      gWAC_DOJO.BuildUpdateSVG(TFRE_DB_UPDATE_SVG_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_VNC_DESC then begin
       gWAC_DOJO.BuildVNC(session,command_type,TFRE_DB_VNC_DESC(result_object),lContent,lContentType,isInnerContent);
@@ -2095,7 +2099,7 @@ implementation
     JsonAction.Free;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO.BuildUpdateMessageProgress(const session: TFRE_DB_UserSession; const co: TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC; var contentString, contentType: String);
+  procedure TFRE_DB_WAPP_DOJO.BuildUpdateMessageProgress(const co: TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC; var contentString, contentType: String);
   var
     JSonAction  : TFRE_JSON_ACTION;
   begin
@@ -2543,7 +2547,7 @@ implementation
     JsonAction.Free;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO.BuildSVG(const session: TFRE_DB_UserSession; const command_type: TFRE_DB_COMMANDTYPE; const co: TFRE_DB_SVG_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
+  procedure TFRE_DB_WAPP_DOJO.BuildSVG(const session: TFRE_DB_UserSession; const co: TFRE_DB_SVG_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
     JSonAction : TFRE_JSON_ACTION;
     i          : Integer;
@@ -2576,6 +2580,22 @@ implementation
 
       JsonAction.Free;
     end;
+  end;
+
+  procedure TFRE_DB_WAPP_DOJO.BuildUpdateSVG(const co: TFRE_DB_UPDATE_SVG_DESC; var contentString, contentType: String);
+  var
+    JSonAction  : TFRE_JSON_ACTION;
+  begin
+    JsonAction := TFRE_JSON_ACTION.Create;
+
+    JsonAction.ActionType := jat_jsexecute;
+    JsonAction.Action     := 'G_UI_COM.updateSVG("'+co.Field('svgId').AsString+'","'+co.Field('elementId').AsString+'","'+co.Field('attrName').AsString+'","'+co.Field('attrValue').AsString+'");';
+    JSonAction.ID         := co.Field('id').AsString;
+
+    contentString := JsonAction.AsString;
+    contentType:='application/json';
+
+    JsonAction.Free;
   end;
 
   procedure TFRE_DB_WAPP_DOJO.BuildVNC(const session: TFRE_DB_UserSession; const command_type: TFRE_DB_COMMANDTYPE; const co: TFRE_DB_VNC_DESC; var contentString, contentType: String; const isInnerContent: Boolean);

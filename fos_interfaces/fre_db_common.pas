@@ -786,6 +786,22 @@ type
     function  Describe                (const style: String; const jiraIntegrationJSURL: String=''): TFRE_DB_MAIN_DESC;
   end;
 
+  { TFRE_DB_SVG_DESC }
+
+  TFRE_DB_SVG_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a svg panel.
+    function  Describe  (const svg: String; const id:String=''): TFRE_DB_SVG_DESC;
+  end;
+
+  { TFRE_DB_UPDATE_SVG_DESC }
+
+  TFRE_DB_UPDATE_SVG_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes an update of an existing svg panel.
+    function  Describe  (const svgId,elementId,attrName,attrValue:String): TFRE_DB_UPDATE_SVG_DESC;
+  end;
+
   function String2DBChooserDH(const fts: string): TFRE_DB_CHOOSER_DH;
   function String2DBLayoutPos(const fts: string): TFRE_DB_LAYOUT_POS;
   function String2DBSubSecDisplayType(const fts: string): TFRE_DB_SUBSEC_DISPLAY_TYPE;
@@ -851,6 +867,32 @@ implementation
        if CFRE_DB_CONTENT_TYPE[result]=fts then exit;
     end;
     raise Exception.Create('invalid short DBContentType specifier : ['+fts+']');
+  end;
+
+  { TFRE_DB_UPDATE_SVG_DESC }
+
+  function TFRE_DB_UPDATE_SVG_DESC.Describe(const svgId, elementId, attrName, attrValue: String): TFRE_DB_UPDATE_SVG_DESC;
+  begin
+    Field('svgId').AsString:=svgId;
+    Field('elementId').AsString:=elementId;
+    Field('attrName').AsString:=attrName;
+    Field('attrValue').AsString:=attrValue;
+    Result:=Self;
+  end;
+
+  { TFRE_DB_SVG_DESC }
+
+  function TFRE_DB_SVG_DESC.Describe(const svg: String; const id: String): TFRE_DB_SVG_DESC;
+  begin
+   if id='' then begin
+     if not FieldExists('id') then begin
+        Field('id').AsString:='id'+UID_String;
+      end;
+    end else begin
+      Field('id').AsString:=id;
+    end;
+    Field('svg').AsString:=svg;
+    Result:=Self;
   end;
 
   { TFRE_DB_REDEFINE_LIVE_CHART_DESC }
