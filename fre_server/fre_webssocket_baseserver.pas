@@ -1003,6 +1003,7 @@ var lContent        : TFRE_DB_RawByteString;
     lObject         : String;
     lContentType    : TFRE_DB_String;
     lEtag           : TFRE_DB_String;
+    urlEtag         : TFRE_DB_String;
     res_obj         : IFRE_DB_Object;
     in_params       : IFRE_DB_Object;
     rcode           : integer;
@@ -1043,21 +1044,29 @@ begin
           if (uri.SplitPath[0]='FDBOSF') then
             begin
               enc_field := uri.Document;
-              if (Length(uri.SplitPath)=6)   // FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'//0|1/filename+GFRE_BT.Str2HexStr(fieldname);
+              if (Length(uri.SplitPath)=7)  { /FDBOSF/FSessionID/obj_uid/is_attachment(A|N)/mime_type/file_name/force_url_etag/fieldname }
                   and HttpBaseServer.FetchStreamDBO(uri.SplitPath[1],uri.SplitPath[2],enc_field,lContent,lContentType,lEtag) then
                    begin
                      is_attachment       := uri.SplitPath[3]='A';
                      lContentType        := GFRE_BT.HexStr2Str(uri.SplitPath[4]);
                      attachment_filename := GFRE_BT.HexStr2Str(uri.SplitPath[5]);
-                     if lEtag<>'' then
-                       ResponseHeader[rh_ETag] := lEtag;
+                     urlEtag             := GFRE_BT.HexStr2Str(uri.SplitPath[6]);
                      if_none_match       := GetHeaderField('If-None-Match');
-                     if (if_none_match=lEtag) and (lEtag<>'') then
+                     if (lEtag<>'') and (if_none_match=lEtag) then { for "proper" Etag processing the etag force etag must be '-' from generation side (Firefox fix=set the etag) }
                        begin
-                         _SendHttpResponse(304,'NOT CHANGED',[]);
+                         ResponseHeader[rh_ETag] := lEtag;
+                         if (if_none_match=lEtag) and (lEtag<>'') then
+                           begin
+                             _SendHttpResponse(304,'NOT CHANGED',[]);
+                           end
+                         else
+                           begin
+                             _SendHttpResponse(200,'OK',[],lContent,lContentType,is_attachment,attachment_filename);
+                           end;
                        end
                      else
                        begin
+                         ResponseHeader[rh_ETag] := lEtag;
                          _SendHttpResponse(200,'OK',[],lContent,lContentType,is_attachment,attachment_filename);
                        end;
                    end

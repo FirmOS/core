@@ -2229,7 +2229,7 @@ type
     procedure   registerUpdatableDBO         (const id: String);
     procedure   unregisterUpdatableDBO       (const id: String);
     function    isUpdatableContentVisible    (const contentId: String): Boolean;
-    function    GetDownLoadLink4StreamField  (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string): String;
+    function    GetDownLoadLink4StreamField  (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
     function    GetLoginUser                 : IFRE_DB_USER;
   end;
 
@@ -2427,7 +2427,7 @@ type
     function    GetLoginUser             : IFRE_DB_USER;
 
     function    GetPublishedRemoteMeths  : TFRE_DB_RemoteReqSpecArray;
-    function    GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string): String;
+    function    GetDownLoadLink4StreamField (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
 
     property    OnGetImpersonatedDBC     :TFRE_DB_OnGetImpersonatedConnection read FOnGetImpersonatedDBC write SetOnGetImpersonatedDBC;
     property    OnRestoreDefaultDBC      :TFRE_DB_OnRestoreDefaultConnection read FOnRestoreDefaultDBC write SetOnRestoreDefaultDBC;
@@ -5071,13 +5071,15 @@ begin
   result := FRemoteRequestSet;
 end;
 
-function TFRE_DB_UserSession.GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string): String;
+function TFRE_DB_UserSession.GetDownLoadLink4StreamField(const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string; force_url_etag: string): String;
 begin
   if mime_type='' then
     mime_type:='application/binary';
   if file_name='' then
     file_name:='-';
-  result := '/FDBOSF/'+FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'+BoolToStr(is_attachment,'A','N')+'/'+ GFRE_BT.Str2HexStr(mime_type)+'/'+ GFRE_BT.Str2HexStr(file_name)+'/'+ GFRE_BT.Str2HexStr(fieldname);
+  if force_url_etag='' then
+    force_url_etag:='-';
+  result := '/FDBOSF/'+FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'+BoolToStr(is_attachment,'A','N')+'/'+ GFRE_BT.Str2HexStr(mime_type)+'/'+ GFRE_BT.Str2HexStr(file_name)+'/'+GFRE_BT.Str2HexStr(force_url_etag)+'/'+GFRE_BT.Str2HexStr(fieldname);
 end;
 
 constructor TFOS_BASE.Create;
