@@ -421,16 +421,6 @@ type
     //function  GetGroup             (const id:String): TFRE_DB_INPUT_GROUP_DESC;
   end;
 
-  { TFRE_DB_UPDATE_FORM_DESC }
-
-  TFRE_DB_UPDATE_FORM_DESC = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes an update of a form dbo. All Forms including the given updateObj will be updated.
-    function  DescribeDBO      (const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
-    //@ Describes an update of a form. The form with the given id will be updated be the given object.
-    function  Describe         (const formId: String; const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
-  end;
-
   { TFRE_DB_INPUT_GROUP_DESC }
 
   TFRE_DB_INPUT_GROUP_DESC  = class(TFRE_DB_FORM_DESC)
@@ -963,21 +953,6 @@ implementation
     for i := 0 to Length(data) - 1 do begin
       Field('data'+IntToStr(i)).AsReal32Arr:=data[i];
     end;
-    Result:=Self;
-  end;
-
-  { TFRE_DB_UPDATE_FORM_DESC }
-
-  function TFRE_DB_UPDATE_FORM_DESC.DescribeDBO(const updateObj: IFRE_DB_Object): TFRE_DB_UPDATE_FORM_DESC;
-  begin
-    Field('obj').AsObject:=updateObj;
-    Result:=Self;
-  end;
-
-  function TFRE_DB_UPDATE_FORM_DESC.Describe(const formId: String; const updateObj: IFRE_DB_Object): TFRE_DB_UPDATE_FORM_DESC;
-  begin
-    Field('formId').AsString:=formId;
-    Field('obj').AsObject:=updateObj;
     Result:=Self;
   end;
 
@@ -1697,7 +1672,8 @@ implementation
   function TFRE_DB_FORM_INPUT_DESC.Describe(const caption, field_reference: string; const required: boolean; const groupRequired: Boolean; const disabled: boolean; const hidden:Boolean; const defaultValue:String; const validator: IFRE_DB_ClientFieldValidator ; const validatorConfigParams : IFRE_DB_Object) : TFRE_DB_FORM_INPUT_DESC;
   begin
     Field('caption').AsString        := caption;
-    Field('field').AsString          := field_reference;
+    Field('field').AsString          := lowercase(field_reference);
+    //Field('field').AsString          := field_reference;
     Field('defaultValue').AsString   := defaultValue;
     Field('required').AsBoolean      := required;
     Field('groupRequired').AsBoolean := groupRequired;
@@ -2120,7 +2096,7 @@ implementation
       if Field('dbos').AsStringArr[i]=id then exit;
     end;
     Field('dbos').AddString(id);
-    session.registerUpdatableDBO(id);
+    session.registerUpdatableDBO(FREDB_H2G(id));
   end;
 
   function TFRE_DB_FORM_DESC.GetStore(const id: String): TFRE_DB_STORE_DESC;

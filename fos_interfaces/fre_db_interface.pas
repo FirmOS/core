@@ -551,6 +551,7 @@ type
   TFRE_DB_Guid_Iterator                 = procedure (const obj:TGUID) is nested;
 
   TFRE_DB_ObjectEx                      = class;
+  TFRE_DB_OBJECTCLASSEX                 = class of TFRE_DB_ObjectEx;
 
   TFRE_DB_FIELD_EXPRESSION              = function(const field:IFRE_DB_Field):boolean is nested;
 
@@ -605,8 +606,6 @@ type
   P_Depfieldfield = ^R_Depfieldfield;
 
   TFRE_DB_Depfielditerator = procedure (const depfield : R_Depfieldfield) is nested;
-
-
 
    //IFRE_DB_EXTENSION_GRP loosely groups the necessary
    //DB Apps Registery Functions and extension functions, plus dependencies
@@ -689,7 +688,8 @@ type
     function        SubFormattedDisplayAvailable       : boolean;
     function        GetSubFormattedDisplay             (indent:integer=4):TFRE_DB_String;
     function        SchemeClass                        : TFRE_DB_NameType;
-    function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
+    function        IsA                                (const schemename    : TFRE_DB_NameType):Boolean;
+    function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
 
@@ -1301,6 +1301,9 @@ type
 
   IFRE_DB_CONNECTION=interface(IFRE_DB_BASE)
   ['IFDB_CONN']
+    procedure   BindUserSession               (const session : IFRE_DB_Usersession);
+    procedure   ClearUserSessionBinding       ;
+
     function    GetlastError                  : TFRE_DB_String;
     function    GetDatabaseName               : TFRE_DB_String;
     function    Connect                       (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
@@ -1639,6 +1642,7 @@ type
     function        GetSubFormattedDisplay             (indent:integer=4):TFRE_DB_String;
     function        SchemeClass                        : TFRE_DB_NameType; virtual;
     function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
+    function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
     function        ReferencesObjectsFromData          : Boolean;
@@ -1814,8 +1818,6 @@ type
 
   // Describes a basic content Element
   // The content has an contentID and uses as Internal representation a (temporary/non saved) DBO
-
-  TFRE_DB_OBJECTCLASSEX      = class of TFRE_DB_ObjectEx;
 
   { TFRE_DB_CONTENT_DESC }
 
@@ -2030,6 +2032,15 @@ type
     function  Describe       (const baseContainerId: String; const sectionIds: TFRE_DB_StringArray): TFRE_DB_RESTORE_UI_DESC;
   end;
 
+  { TFRE_DB_UPDATE_FORM_DESC }
+
+  TFRE_DB_UPDATE_FORM_DESC = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes an update of a form dbo. All Forms including the given updateObj will be updated.
+    function  DescribeDBO      (const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
+    //@ Describes an update of a form. The form with the given id will be updated be the given object.
+    function  Describe         (const formId: String; const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
+  end;
 
   { TFRE_DB_SITEMAP_ENTRY_DESC }
 
@@ -2105,6 +2116,7 @@ type
     function    NewNamedObject         : IFRE_DB_NAMED_OBJECT;
     function    NewObjectScheme        (const Scheme : TClass): IFRE_DB_Object;
     function    NewObjectSchemeByName  (const Scheme : TFRE_DB_NameType): IFRE_DB_Object;
+    function    AnonObject2Interface   (const Data   : Pointer):IFRE_DB_Object;
 
 
     function    CreateFromFile         (const filename:TFRE_DB_String):IFRE_DB_Object;
@@ -2214,14 +2226,15 @@ type
     function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
     function    RemoveTaskMethod         (const id:string='TIMER'):boolean;
 
-    procedure   registerUpdatableContent     (const contentId: String);
-    procedure   unregisterUpdatableContent   (const contentId: String);
-    function    IsContentUpdateVisible       (const contentId: String):Boolean;
-    procedure   registerUpdatableDBO         (const id: String);
-    procedure   unregisterUpdatableDBO       (const id: String);
-    function    isUpdatableContentVisible    (const contentId: String): Boolean;
+    procedure   RegisterUpdatableContent     (const contentId: String);
+    procedure   UnregisterUpdatableContent   (const contentId: String);
+    procedure   RegisterUpdatableDBO         (const UID_id: TFRE_DB_GUID);
+    procedure   UnregisterUpdatableDBO       (const UID_id: TFRE_DB_GUID);
+    function    IsUpdatableContentVisible    (const contentId: String): Boolean;
+    function    IsDBOUpdatable               (const UID_id: TFRE_DB_GUID):boolean;
     function    GetDownLoadLink4StreamField  (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
     function    GetLoginUser                 : IFRE_DB_USER;
+    procedure   InboundNotificationBlock     (const block: IFRE_DB_Object); { Here comes an Inbound Notification block from the network/pl layer}
   end;
 
   TFRE_DB_RemoteReqSpec      = record
@@ -2262,7 +2275,7 @@ type
     procedure   DispatchAnswer (const ses : IFRE_DB_UserSession);
   end;
 
-  TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession)
+  TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession,IFRE_DB_DBChangedNotification)
   private type
     TDispatch_Continuation = record
       CID        : Qword;
@@ -2295,6 +2308,8 @@ type
     FDefaultApp           : TFRE_DB_String;
     FSessionData          : IFRE_DB_Object;
     FBinaryInputs         : IFRE_DB_Object; { per key requestable of Binary Input which get's sent seperated from the data }
+    FUpdateableDBOS       : IFRE_DB_Object;
+    FUpdateableContent    : IFRE_DB_Object;
     FTimers               : TList;
 
     FRemoteRequestSet     : TFRE_DB_RemoteReqSpecArray;
@@ -2346,6 +2361,8 @@ type
     function    SearchSessionApp         (const app_key:TFRE_DB_String ; out app:TFRE_DB_APPLICATION ; out idx:integer):boolean;
     function    SendDelegatedContentToClient (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
 
+    procedure   InboundNotificationBlock (const block: IFRE_DB_Object); { Here comes an Inbound Notification block from the network/pl layer}
+    procedure   COR_InboundNotifyBlock   (const data : Pointer);
 
     function    SearchSessionAppUID      (const app_uid:TGUID;out app:IFRE_DB_Object):boolean;
     function    SearchSessionDCUID       (const  dc_uid:TGUID;out dc:IFRE_DB_DERIVED_COLLECTION):boolean;
@@ -2382,12 +2399,15 @@ type
     procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const interactive_session:boolean);
     procedure   ClearServerClientInterface ;
     function    GetClientServerInterface   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
-    procedure   registerUpdatableContent   (const contentId: String);
-    procedure   unregisterUpdatableContent (const contentId: String);
-    function    IsContentUpdateVisible     (const contentId: String):Boolean;
-    procedure   registerUpdatableDBO       (const id: String);
-    procedure   unregisterUpdatableDBO     (const id: String);
-    function    isUpdatableContentVisible  (const contentId: String): Boolean;
+
+    procedure   RegisterUpdatableContent   (const contentId: String);
+    procedure   UnregisterUpdatableContent (const contentId: String);
+    function    IsUpdatableContentVisible  (const contentId: String): Boolean;
+
+    procedure   RegisterUpdatableDBO       (const UID_id: TFRE_DB_GUID);
+    procedure   UnregisterUpdatableDBO     (const UID_id: TFRE_DB_GUID);
+    function    IsDBOUpdatable             (const UID_id: TFRE_DB_GUID):boolean;
+
 
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String=''); // Currently no continuation, and answer processing is implemented, is an Async request
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
@@ -2413,9 +2433,10 @@ type
 
     //function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;
 
-    function    GetDBConnection          :IFRE_DB_CONNECTION;
-    function    GetDomain                :TFRE_DB_String;
+    function    GetDBConnection          : IFRE_DB_CONNECTION;
+    function    GetDomain                : TFRE_DB_String;
     function    GetLoginUser             : IFRE_DB_USER;
+    function    GetLoginUserAsCollKey    : TFRE_DB_NameType; { use this if you need per user(session) distinct collections }
 
     function    GetPublishedRemoteMeths  : TFRE_DB_RemoteReqSpecArray;
     function    GetDownLoadLink4StreamField (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
@@ -2427,6 +2448,30 @@ type
     property    OnCheckUserNamePW        :TFRE_DB_OnCheckUserNamePassword read FOnCheckUserNamePW write SetOnCheckUserNamePW;
     property    OnFetchPublisherRAC      :TFRE_DB_OnFetchPublisherSession read FOnFetchPublisherSesL write SetOnFetchPublisherRAC;
     property    OnFetchSessionById       :TFRE_DB_OnFetchSessionByID read FOnFetchSessionByIdL write SetOnFetchSessionById;
+
+    { Notification interface function, the notification interface gets an update block pushed from the net/pl layer }
+    function    InterfaceNeedsAProxy   : Boolean;
+    procedure   StartNotificationBlock (const key : TFRE_DB_TransStepId);
+    procedure   FinishNotificationBlock(out block : IFRE_DB_Object);
+    procedure   SendNotificationBlock  (const block : IFRE_DB_Object);
+    procedure   CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
+    procedure   CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
+    procedure   IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+    procedure   IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
+    procedure   ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
+    procedure   ObjectDeleted          (const obj : IFRE_DB_Object);
+    procedure   ObjectUpdated          (const obj : IFRE_DB_Object);
+    procedure   SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
+    procedure   SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
+    procedure   FieldDelete            (const old_field : IFRE_DB_Field);
+    procedure   FieldAdd               (const new_field : IFRE_DB_Field);
+    procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field);
+    procedure   ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
+    procedure   SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
+    procedure   SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
+    procedure   InboundReflinkDropped  (const from_obj: IFRE_DB_Object    ; const to_obj   : TGUID       ; const key_description : TFRE_DB_NameTypeRL);
+    procedure   OutboundReflinkDropped (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description: TFRE_DB_NameTypeRL);
+    procedure   FinalizeNotif          ;
   end;
 
 
@@ -2475,7 +2520,8 @@ type
 
   function  FREDB_FieldtypeShortString2Fieldtype (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
   function  FREDB_Bool2String                    (const bool:boolean):String;
-  function  FREDB_G2H                            (const uid : TFRE_DB_GUID):string;
+  function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString;
+  function  FREDB_H2G                            (const uidstr : shortstring):TFRE_DB_GUID;
   function  FREDB_String2GuidArray               (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Guid                    (const str:string):TGUID;
   function  FREDB_String2Bool                    (const str:string):boolean;
@@ -2708,9 +2754,14 @@ begin
   result := BoolToStr(bool,'1','0');
 end;
 
-function FREDB_G2H(const uid: TFRE_DB_GUID): string;
+function FREDB_G2H(const uid: TFRE_DB_GUID): ShortString;
 begin
   result := GFRE_BT.GUID_2_HexString(uid);
+end;
+
+function FREDB_H2G(const uidstr: shortstring): TFRE_DB_GUID;
+begin
+  result := GFRE_BT.HexString_2_GUID(uidstr);
 end;
 
 function FREDB_String2GuidArray(const str: string): TFRE_DB_GUIDArray;
@@ -3071,6 +3122,21 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_UPDATE_FORM_DESC }
+
+function TFRE_DB_UPDATE_FORM_DESC.DescribeDBO(const updateObj: IFRE_DB_Object): TFRE_DB_UPDATE_FORM_DESC;
+begin
+  Field('obj').AsObject:=updateObj;
+  Result:=Self;
+end;
+
+function TFRE_DB_UPDATE_FORM_DESC.Describe(const formId: String; const updateObj: IFRE_DB_Object): TFRE_DB_UPDATE_FORM_DESC;
+begin
+  Field('formId').AsString:=formId;
+  Field('obj').AsObject:=updateObj;
+  Result:=Self;
+end;
 
 { TFRE_DB_WeakObjectEx }
 
@@ -3691,6 +3757,9 @@ begin
   FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO;
   FTimers               := TList.Create;
   FBinaryInputs         := GFRE_DBI.NewObject;
+  FUpdateableDBOS       := GFRE_DBI.NewObject;
+  FUpdateableContent    := GFRE_DBI.NewObject;
+
   _FetchAppsFromDB;
   _InitApps;
   if not assigned(FContinuationLock) then
@@ -3729,9 +3798,12 @@ begin
   except on e:exception do
     writeln('***>>  ERROR : FAILED TO FINISH DERIVED COLLECTIONS : '+e.Message);
   end;
+  FDBConnection.ClearUserSessionBinding;
   FDBConnection.Finalize;
   FTimers.Free;
   FBinaryInputs.Finalize;
+  FUpdateableContent.Finalize;
+  FUpdateableDBOS.Finalize;
   FSessionLock.Finalize;
   if assigned(FSessionData) then
     FSessionData.Finalize;
@@ -3768,6 +3840,18 @@ begin
         session.UnlockSession;
       end;
     end;
+end;
+
+procedure TFRE_DB_UserSession.InboundNotificationBlock(const block: IFRE_DB_Object);
+begin
+  DispatchCoroutine(@self.COR_InboundNotifyBlock,block.Implementor_HC);
+end;
+
+procedure TFRE_DB_UserSession.COR_InboundNotifyBlock(const data: Pointer);
+var block : IFRE_DB_Object;
+begin
+  block := GFRE_DBI.AnonObject2Interface(data);
+  FREDB_ApplyNotificationBlockToNotifIF(block,self);
 end;
 
 function TFRE_DB_UserSession.SearchSessionDC(dc_name: TFRE_DB_String; out dc: IFRE_DB_DERIVED_COLLECTION): boolean;
@@ -4266,7 +4350,7 @@ var x           : TObject;
     var i : NativeInt;
     begin
       for i := 0 to input.Field('ids').ValueCount - 1 do begin
-        unregisterUpdatableDBO(input.Field('ids').AsStringItem[i]);
+        unregisterUpdatableDBO(FREDB_H2G(input.Field('ids').AsStringItem[i]));
       end;
       CMD.Data        := GFRE_DB_NIL_DESC;
       _SendSyncServerClientAnswer;
@@ -4468,10 +4552,11 @@ var err                : TFRE_DB_Errortype;
             tod.New_RA_SC          := FBoundSession_RA_SC;
             tod.FClientDescription := FConnDesc;
             if not existing_session.DispatchCoroutine(@existing_session.COR_InitiateTakeOver,tod) then
-              begin {Old session binding dead (dangling unbound session, do in this thread/socket context)}
+              begin {cOld session binding dead (dangling unbound session, do in this thread/socket context) }
                 existing_session.COR_InitiateTakeOver(tod);
               end;
             result:=pr_Takeover;
+            FBoundSession_RA_SC := nil; { clear my (guest) bound sesison RAC };
           finally
             existing_session.UnlockSession;
             GFRE_DBI.LogInfo(dblc_SERVER,'<OK : TAKEOVERSESSION FOR SESSION [%s] USER [%s]',[existing_session.FSessionID,existing_session.FUserName]);
@@ -4507,6 +4592,7 @@ begin
                 if auto_promote then
                   begin
                     existing_session.AutoPromote(FBoundSession_RA_SC,FConnDesc);
+                    FBoundSession_RA_SC := nil; { clear my (guest) bound sesison RAC };
                     exit(pr_TakeOver);
                   end;
               end
@@ -4530,8 +4616,10 @@ begin
       err := FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
       case err of
        edb_OK: begin
+          FDBConnection.ClearUserSessionBinding;
           FDBConnection.Finalize;
           FDBConnection:=l_NDBC;
+          FDBConnection.BindUserSession(self);
           GFRE_DBI.LogInfo(dblc_SERVER,'PROMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,FUserName,user_name]);
           if not force_new_session_data then begin
             if not l_NDBC.FetchUserSessionData(lStoredSessionData) then begin
@@ -4611,20 +4699,9 @@ begin
 end;
 
 procedure TFRE_DB_UserSession.COR_FinalizeTakeOver(const data: Pointer);
-//var take_over_content : TFRE_DB_CONTENT_DESC;
-//    app               : TFRE_DB_APPLICATION;
-//    idx               : NativeInt;
-//    MSG               : TFRE_DB_MESSAGE_DESC;
 begin
   SendServerClientRequest(GFRE_DB_NIL_DESC,FSessionID);
   SendServerClientRequest(TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false)); // OR BETTER SEND THE FULL CONTENT ...
-  //if SearchSessionApp(FcurrentApp,app,idx) then begin
-  //  take_over_content := InternalSessInvokeMethod(App,'CONTENT',nil).Implementor_HC as TFRE_DB_CONTENT_DESC;
-  //  SendServerClientRequest(take_over_content);
-  //end else begin
-  //  MSG := TFRE_DB_MESSAGE_DESC.create.Describe('SESSION TAKEOVER FAILED','Sorry - found no default app',fdbmt_error);
-  //  SendServerClientRequest(msg,'BAD-ERROR');
-  //end;
 end;
 
 procedure TFRE_DB_UserSession.AutoPromote(const NEW_RASC: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; const conn_desc: String);
@@ -4642,22 +4719,6 @@ begin
       abort;
     end;
 end;
-
-//procedure TFRE_DB_UserSession.Demote;
-//var user_name:string;
-//begin
-//  if FPromoted then begin
-//     RemoveAllAppsAndFinalize;
-//     FinishDerivedCollections;
-//     user_name := FUserName;
-//     FPromoted:=false;
-//     FDBConnection.Finalize; // Only a promoted Connection is Diversified, The "guest" default account should only use one DBC
-//     FOnRestoreDefaultDBC(FUserName,FDBConnection);  // after restoration of username, the session wont be found
-//     GFRE_DBI.LogInfo(dblc_SERVER,'DEMOTED SESSION [%s] USER [%s] TO [%s]',[FSessionID,user_name,FUserName]);
-//  end else begin
-//     raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT DEMOTE A UNPROMOTED SESSION FOR SID [%s] and USER [%s]',[FSessionID,FUserName]);
-//  end;
-//end;
 
 procedure TFRE_DB_UserSession.Logout;
 begin
@@ -4795,40 +4856,58 @@ end;
 
 procedure TFRE_DB_UserSession.registerUpdatableContent(const contentId: String);
 begin
-  FSessionData.Field('contentIds').AsObject.Field(contentId).AsBoolean:=True;
+//  FSessionData.Field('contentIds').AsObject.Field(contentId).AsBoolean:=True;
+  FUpdateableContent.Field(contentId).AsBoolean:=True;
 end;
 
 procedure TFRE_DB_UserSession.unregisterUpdatableContent(const contentId: String);
 begin
-  FSessionData.Field('contentIds').AsObject.Field(contentId).Clear();
+  //  FSessionData.Field('contentIds').AsObject.Field(contentId).Clear();
+  FUpdateableContent.Field(contentId).Clear;
 end;
 
-function TFRE_DB_UserSession.IsContentUpdateVisible(const contentId: String): Boolean;
+procedure TFRE_DB_UserSession.RegisterUpdatableDBO(const UID_id: TFRE_DB_GUID);
+var id:ShortString;
 begin
-  Result:=FSessionData.Field('contentIds').AsObject.FieldExists(contentId);
-end;
-
-procedure TFRE_DB_UserSession.registerUpdatableDBO(const id: String);
-begin
-  if FSessionData.Field('dboIds').AsObject.FieldExists(id) then begin
-    FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=FSessionData.Field('dboIds').AsObject.Field(id).AsInt16+1;
+  //if FSessionData.Field('dboIds').AsObject.FieldExists(id) then begin
+  //  FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=FSessionData.Field('dboIds').AsObject.Field(id).AsInt16+1;
+  //end else begin
+  //  FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=1;
+  //end;
+  id := FREDB_G2H(UID_id);
+  if FUpdateableDBOS.FieldExists(id) then begin
+    FUpdateableDBOS.Field(id).AsInt64:=FUpdateableDBOS.Field(id).AsInt64+1;
   end else begin
-    FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=1;
+    FUpdateableDBOS.Field(id).AsInt64:=1;
   end;
 end;
 
-procedure TFRE_DB_UserSession.unregisterUpdatableDBO(const id: String);
+procedure TFRE_DB_UserSession.UnregisterUpdatableDBO(const UID_id: TFRE_DB_GUID);
+var id : ShortString;
 begin
-  if FSessionData.Field('dboIds').AsObject.Field(id).AsInt16=1 then begin
-    FSessionData.Field('dboIds').AsObject.Field(id).Clear();
+  //if FSessionData.Field('dboIds').AsObject.Field(id).AsInt16=1 then begin
+  //  FSessionData.Field('dboIds').AsObject.Field(id).Clear();
+  //end else begin
+  //  FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=FSessionData.Field('dboIds').AsObject.Field(id).AsInt16-1;
+  //end;
+  id := FREDB_G2H(UID_id);
+  if FUpdateableDBOS.Field(id).AsInt64=1 then begin
+    FUpdateableDBOS.Field(id).Clear();
   end else begin
-    FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=FSessionData.Field('dboIds').AsObject.Field(id).AsInt16-1;
+    FUpdateableDBOS.Field(id).AsInt64:=FUpdateableDBOS.Field(id).AsInt64-1;
   end;
+end;
+
+function TFRE_DB_UserSession.IsDBOUpdatable(const UID_id: TFRE_DB_GUID): boolean;
+var id : ShortString;
+begin
+  id := FREDB_G2H(UID_id);
+  result := FUpdateableDBOS.FieldExists(id);
 end;
 
 function TFRE_DB_UserSession.isUpdatableContentVisible(const contentId: String): Boolean;
 begin
-  Result:=FSessionData.Field('contentIds').AsObject.FieldExists(contentId);
+  Result:=FUpdateableContent.FieldExists(contentId);
 end;
 
 
@@ -4972,11 +5051,20 @@ end;
 
 function TFRE_DB_UserSession.DispatchCoroutine(const coroutine: TFRE_APSC_CoRoutine; const data: Pointer):boolean;
 begin
-  result := true;
-  if assigned(FBoundSession_RA_SC) then
-    FBoundSession_RA_SC.GetChannel.GetChannelManager.ScheduleCoRoutine(CoRoutine,data)
-  else
-    result:=false;
+  try
+    result := true;
+    if assigned(FBoundSession_RA_SC) then
+      FBoundSession_RA_SC.GetChannel.GetChannelManager.ScheduleCoRoutine(CoRoutine,data)
+    else
+      result:=false;
+  except
+    on E:Exception do
+      begin
+        result := false;
+        writeln('@Dispatchcoroutine Exception ',FSessionID,' ',FUserName);
+        raise;
+      end;
+  end;
 end;
 
 function TFRE_DB_UserSession.RegisterRemoteRequestSet(const requests: TFRE_DB_RemoteReqSpecArray): TFRE_DB_Errortype;
@@ -5042,6 +5130,11 @@ begin
   result := GetDBConnection.SYS.GetLoginUser;
 end;
 
+function TFRE_DB_UserSession.GetLoginUserAsCollKey: TFRE_DB_NameType;
+begin
+  result := GFRE_BT.HashString_MD5_HEX(FUserName);
+end;
+
 function TFRE_DB_UserSession.GetPublishedRemoteMeths: TFRE_DB_RemoteReqSpecArray;
 begin
   result := FRemoteRequestSet;
@@ -5056,6 +5149,139 @@ begin
   if force_url_etag='' then
     force_url_etag:='-';
   result := '/FDBOSF/'+FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'+BoolToStr(is_attachment,'A','N')+'/'+ GFRE_BT.Str2HexStr(mime_type)+'/'+ GFRE_BT.Str2HexStr(file_name)+'/'+GFRE_BT.Str2HexStr(force_url_etag)+'/'+GFRE_BT.Str2HexStr(fieldname);
+end;
+
+function TFRE_DB_UserSession.InterfaceNeedsAProxy: Boolean;
+begin
+  raise EFRE_DB_Exception.Create(edb_INTERNAL,'should not be called');
+end;
+
+procedure TFRE_DB_UserSession.StartNotificationBlock(const key: TFRE_DB_TransStepId);
+begin
+  //
+end;
+
+procedure TFRE_DB_UserSession.FinishNotificationBlock(out block: IFRE_DB_Object);
+begin
+  //
+end;
+
+procedure TFRE_DB_UserSession.SendNotificationBlock(const block: IFRE_DB_Object);
+begin
+  raise EFRE_DB_Exception.Create(edb_INTERNAL,'should not be called');
+end;
+
+procedure TFRE_DB_UserSession.CollectionCreated(const coll_name: TFRE_DB_NameType);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.CollectionDeleted(const coll_name: TFRE_DB_NameType);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+  if IsDBOUpdatable(obj.UID) then
+    begin
+
+    end
+  else
+    begin
+
+    end;
+end;
+
+procedure TFRE_DB_UserSession.ObjectDeleted(const obj: IFRE_DB_Object);
+begin
+  if IsDBOUpdatable(obj.UID) then
+    begin
+
+    end
+  else
+    begin
+
+    end;
+end;
+
+procedure TFRE_DB_UserSession.ObjectUpdated(const obj: IFRE_DB_Object);
+begin
+  if IsDBOUpdatable(obj.UID) then
+    begin
+      try
+        SendServerClientRequest(TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(obj.CloneToNewObject));
+      except on e:Exception do
+        begin
+          writeln('FAILURE ObjectUpdated in Session ',FSessionID,' ',FUserName);
+        end;
+      end;
+    end;
+end;
+
+procedure TFRE_DB_UserSession.SubObjectStored(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.FieldDelete(const old_field: IFRE_DB_Field);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.FieldAdd(const new_field: IFRE_DB_Field);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.FieldChange(const old_field, new_field: IFRE_DB_Field);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+begin
+
+end;
+
+procedure TFRE_DB_UserSession.FinalizeNotif;
+begin
+
 end;
 
 constructor TFOS_BASE.Create;
@@ -5809,6 +6035,11 @@ begin
   result := FImplementor.IsA(schemename);
 end;
 
+function TFRE_DB_ObjectEx.IsA(const IsSchemeclass: TFRE_DB_OBJECTCLASSEX; var obj): Boolean;
+begin
+  result := FImplementor.IsA(IsSchemeclass,obj);
+end;
+
 function TFRE_DB_ObjectEx.IsObjectRoot: Boolean;
 begin
   result := FImplementor.IsObjectRoot;
@@ -6387,7 +6618,7 @@ end;
 
 function TFRE_DB_APPLICATION.IsContentUpdateVisible(const session: IFRE_DB_UserSession; const update_content_id: string): Boolean;
 begin
-  Result:=session.IsContentUpdateVisible(update_content_id);
+  Result:=session.isUpdatableContentVisible(update_content_id);
 end;
 
 

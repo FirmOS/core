@@ -98,8 +98,8 @@ type
     function  CreateGUID                :TGUID;
     function  CreateGUID_String         :AnsiString;
     function  CreateGuid_HEX            :Ansistring;
-    function  GUID_2_HexString          (const g:TGUID):Ansistring;
-    function  HexString_2_GUID          (const hs:string):TGuid;
+    function  GUID_2_HexString          (const g:TGUID)  :ShortString;
+    function  HexString_2_GUID          (const hs:ShortString):TGuid;
 
     procedure List_Directorys           (basepath:string;const list:IFOS_STRINGS;const levels:cardinal=1;const with_basepath:boolean=true);
     procedure List_Files                (basepath:string;const list: IFOS_STRINGS; const levels: cardinal; const with_basepath: boolean);
@@ -959,17 +959,17 @@ begin
  result:=Str2HexStr(CreateGUID_String);
 end;
 
-function TFOS_DEFAULT_BASISTOOLS.GUID_2_HexString(const g: TGUID): Ansistring;
+function TFOS_DEFAULT_BASISTOOLS.GUID_2_HexString(const g: TGUID): ShortString;
 begin
  setlength(result,16);
  Move(g.D1,result[1],16);
  result:=Str2HexStr(result);
 end;
 
-function TFOS_DEFAULT_BASISTOOLS.HexString_2_Guid(const hs: string): TGuid;
+function TFOS_DEFAULT_BASISTOOLS.HexString_2_GUID(const hs: ShortString): TGuid;
 var gs:string;
 begin
- if Length(hs)<32 then raise Exception.Create('Hexstring2Guid / string too short');
+ if Length(hs)<>32 then raise Exception.Create('Hexstring2Guid / string too short or too long / <> 32 chars');
  gs := HexStr2Str(hs);
  Move(gs[1],result.D1,16);
 end;

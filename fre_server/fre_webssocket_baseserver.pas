@@ -842,9 +842,16 @@ begin
     end;
     wsm_FREDB: begin
                  writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.GetVerboseDesc,' HANDLER DISCONNECTED/FREED -> Clearing Session/Channel Binding');
-                 try
-                   if assigned(FCurrentSession) then
-                     FCurrentSession.ClearServerClientInterface;
+                   try
+                     if assigned(FCurrentSession) then
+                       begin
+                         FCurrentSession.LockSession;
+                         try
+                           FCurrentSession.ClearServerClientInterface;
+                         finally
+                           FCurrentSession.UnlockSession;
+                         end;
+                       end;
                  except on e:exception do
                    writeln('>> ERROR SENDING WEBSOCK_CLOSE TO CURRENT SESSION ',FCurrentSession.GetSessionID,' : ',e.Message);
                  end;

@@ -289,7 +289,7 @@ begin
       end;
     pr_Takeover:
       begin
-        ; // Silently ignore {dead session case, reload will come}
+        ; // Silently ignore { dead session case, reload will come }
         result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
       end
     else
@@ -366,9 +366,7 @@ begin
       case session.Promote('','',promotion_error,false,true) of
         pr_Takeover:
           begin
-            result := GFRE_DB_NIL_DESC; // answer with nil / the promotion will sent the content as new S-C request ...
-            //result := GFRE_DB_SUPPRESS_SYNC_ANSWER; // ANSWER WILL BE SENT AS PART OF PROMOTION
-            //result := WEB_Content(input,ex_session,nil,ex_session.GetDBConnection);
+            result := GFRE_DB_SUPPRESS_SYNC_ANSWER; { This (guest) session is taken over, the Bound RAC is cleared, no answer will be issued, the new session sends a reload/update on the Bound RAC) }
           end;
         else
           ;//GFRE_BT.CriticalAbort('unhandled takeover case 2');

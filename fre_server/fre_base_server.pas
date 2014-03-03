@@ -809,7 +809,7 @@ var found : boolean;
 begin
   result:= GetImpersonatedDatabaseConnection(dbname,username,pass,dbc);
   if result=edb_OK then begin
-    dbs := TFRE_DB_UserSession.Create(username,'',default_app,default_uid_path,dbc);
+    dbs := TFRE_DB_UserSession.Create(username,'',default_app,default_uid_path,dbc); { default logins, guest will not bind the session to the DBC, so no updates for this sessions by now}
     dbs.OnGetImpersonatedDBC    := @GetImpersonatedDatabaseConnection;
     dbs.OnExistsUserSession     := @ExistsUserSessionForUserLocked;
     dbs.OnExistsUserSession4Key := @ExistsUserSessionForKeyLocked;
@@ -1091,7 +1091,7 @@ begin
           session.SetSessionState(sta_REUSED);
           session.SetServerClientInterface(back_channel,interactive_session);
           session.UnlockSession;
-          GFRE_DBI.LogDebug(dblc_SESSION,'REUSING SESSION [%s]',[old_session_id]);
+          GFRE_DBI.LogDebug(dblc_SESSION,'REUSING SESSION SET [%s]',[old_session_id]);
           exit(true);
         end
       else

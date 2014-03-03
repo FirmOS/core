@@ -619,6 +619,7 @@ type
     function        GetSubFormattedDisplay             (indent:integer=4):TFRE_DB_String;virtual;
     function        SchemeClass                        : TFRE_DB_NameType;
     function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
+    function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
     class function  CreateFromFile                     (const filename:TFRE_DB_String):TFRE_DB_Object;
     function        CloneToNewObject                   (const generate_new_uids:boolean=false): TFRE_DB_Object;
@@ -1696,7 +1697,9 @@ type
 
   TFRE_DB_BASE_CONNECTION=class(TFOS_BASE,IFRE_DB_DBChangedNotification)
   private
+    FConnLock             : IFOS_LOCK;
     FDBName               : TFRE_DB_String;
+    FSession              : IFRE_DB_UserSession;
 
     FConnectionClones     : OFRE_SL_TFRE_DB_BASE_CONNECTION; { Only in Master, not in clones }
     FCloned               : boolean;
@@ -1718,6 +1721,12 @@ type
     function            Implementor                  : TObject;
     procedure           _AddCollectionToStore        (const persColl: IFRE_DB_PERSISTANCE_COLLECTION); {from notfif or CollectionCC}
   protected
+    procedure  AcquireConnLock;
+    procedure  ReleaseConnLock;
+    procedure  SendSessionNotificationBlock  (const block: IFRE_DB_Object);
+    procedure  BindUserSession               (const session : IFRE_DB_Usersession);virtual;
+    procedure  ClearUserSessionBinding       ;virtual;
+
 
     { Notification Interface }
     function   InterfaceNeedsAProxy   : Boolean;
@@ -1773,6 +1782,7 @@ type
     procedure          DumpSystem                    ;virtual;
     function           IsCurrentUserSystemAdmin     : boolean;
   public
+    function           AuthenticatedUserName        : String ; virtual;
     function           CollectionCC                 (const collection_name:TFRE_DB_NameType;const NewCollectionClass:TFRE_DB_COLLECTIONCLASS;const create_non_existing:boolean=true;const in_memory_only:boolean=false):TFRE_DB_COLLECTION;virtual;
 
     function           FetchI                       (const ouid:TGUID;out dbo:IFRE_DB_Object)                                : TFRE_DB_Errortype;
@@ -1916,6 +1926,7 @@ type
     function    _GetRightsArrayForUser        (const user         : IFRE_DB_USER)      : TFRE_DB_StringArray;
     function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
   public
+    function    AuthenticatedUserName        : String; override;
     destructor  Destroy                     ; override;
     procedure   DumpSystem                  ;override;
 
@@ -2046,6 +2057,10 @@ type
     procedure   InternalSetupConnection   ;override;
 
   public
+    function    AuthenticatedUserName        : String; override;
+    procedure   BindUserSession               (const session : IFRE_DB_Usersession);override;
+    procedure   ClearUserSessionBinding       ;override;
+
     function    GetDatabaseName           : TFRE_DB_String;
     function    ImpersonateClone          (const user,pass:TFRE_DB_String;out conn:TFRE_DB_CONNECTION): TFRE_DB_Errortype;
 
@@ -2184,6 +2199,7 @@ type
     function    RegisterSysClientFieldValidator (const val : IFRE_DB_ClientFieldValidator):TFRE_DB_Errortype;
     function    RegisterSysEnum                 (const enu : IFRE_DB_Enum):TFRE_DB_Errortype;
     function    RegisterSysScheme               (const sch : TFRE_DB_SchemeObject):TFRE_DB_Errortype;
+    function    AnonObject2Interface   (const Data   : Pointer):IFRE_DB_Object;
 
     function    IFRE_DB.NewObject               = NewObjectI;
     function    IFRE_DB.CreateFromFile          = CreateFromFileI;
@@ -5184,7 +5200,7 @@ begin
 end;
 
 
-function TFRE_DB_SYSTEM_CONNECTION._AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype,etag: String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._AddUser(const loginatdomain, password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype: string; const etag: String): TFRE_DB_Errortype;
 var user       : TFRE_DB_USER;
     login      : TFRE_DB_String;
     domain     : TFRE_DB_String;
@@ -5392,6 +5408,11 @@ var ra : TFRE_DB_StringArray;
 begin // nl
   ra     := _GetRightsArrayForGroups(TFRE_DB_GUIDArray.Create(group_uid));
   result := FREDB_StringInArray(uppercase(right_name),ra);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.AuthenticatedUserName: String;
+begin
+  Result :=  FConnectedUser.Login+'@'+FetchDomainNameById(FConnectedUser.DomainID);
 end;
 
 
@@ -9712,6 +9733,7 @@ end;
 
 constructor TFRE_DB_BASE_CONNECTION.Create(const clone: boolean);
 begin
+  GFRE_TF.Get_Lock(FConnLock);
   FCollectionStore  := _TFRE_DB_CollectionTree.create(@FREDB_DBString_Compare);
   FConnected        := false;
   if clone then
@@ -9741,6 +9763,50 @@ begin
    end;
 end;
 
+procedure TFRE_DB_BASE_CONNECTION.AcquireConnLock;
+begin
+  FConnLock.Acquire;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.ReleaseConnLock;
+begin
+  FConnLock.Release;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.SendSessionNotificationBlock(const block: IFRE_DB_Object);
+begin
+  if assigned(FSession) then
+    Fsession.InboundNotificationBlock(block)
+  else
+    block.Finalize;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.BindUserSession(const session: IFRE_DB_Usersession);
+begin
+  AcquireConnLock;
+  try
+    if not FCloned then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'only cloned sessions can be bound !');
+    if assigned(FSession) then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'connection already has a bound  session!');
+    FSession := session;
+  finally
+    ReleaseConnLock;
+  end;
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.ClearUserSessionBinding;
+begin
+  AcquireConnLock;
+  try
+    if not FCloned then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'only cloned sessions can be unbound !');
+    FSession := nil;
+  finally
+    ReleaseConnLock;
+  end;
+end;
+
 function TFRE_DB_BASE_CONNECTION.InterfaceNeedsAProxy: Boolean;
 begin
   result := true;
@@ -9760,8 +9826,32 @@ procedure TFRE_DB_BASE_CONNECTION.SendNotificationBlock(const block: IFRE_DB_Obj
 var s   : string;
     blk : IFRE_DB_Object;
 
+  procedure SendBlockToClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
+  var nblock : IFRE_DB_Object;
+  begin
+    nblock := block.CloneToNewObject;
+    conn.AcquireConnLock;
+    try
+      if conn.FCloned then
+        begin
+          try
+            conn.SendSessionNotificationBlock(nblock);
+          except
+            on E: Exception do
+              begin
+                GFRE_DBI.LogError(dblc_SERVER,'SENT NOTIFY BLOCK/PROXY TO %s %s',[conn.FDBName,conn.AuthenticatedUserName]);
+              end;
+          end;
+        end;
+    finally
+      conn.ReleaseConnLock;
+    end;
+  end;
+
+
 begin
   try
+    FConnectionClones.ForAllBreak(@SendBlockToClones);
     self.StartNotificationBlock(block.Field('KEY').AsString);
     FREDB_ApplyNotificationBlockToNotifIF(block,self);
     self.FinishNotificationBlock(blk);
@@ -9775,20 +9865,13 @@ end;
 
 procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const coll_name: TFRE_DB_NameType);
 var persColl : IFRE_DB_PERSISTANCE_COLLECTION;
-
-  procedure AddCollection2Clone(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
-  begin
-    conn._AddCollectionToStore(persColl);
-  end;
-
 begin
   AcquireBig;
   try
     _CloneCheck;
     if not FPersistance_Layer.GetCollection(coll_name,persColl) then
       raise EFRE_DB_Exception.Create(edb_ERROR,'notify inconsistency collection [%s] creation notification but collection not found ?',[coll_name]);
-    _AddCollectionToStore(persColl); { Master }
-    FConnectionClones.ForAllBreak(@AddCollection2Clone);
+     _AddCollectionToStore(persColl);
   finally
     ReleaseBig;
   end;
@@ -9826,7 +9909,7 @@ begin
     try
       _CloneCheck;
       DoForClones(self,0,dummy);
-      FConnectionClones.ForAllBreak(@DoForClones);
+      //FConnectionClones.ForAllBreak(@DoForClones);
     finally
       obj.Finalize;
     end;
@@ -9865,7 +9948,7 @@ begin
     try
       _CloneCheck;
       DoForClones(self,0,dummy);
-      FConnectionClones.ForAllBreak(@DoForClones);
+      //FConnectionClones.ForAllBreak(@DoForClones);
     finally
       obj.Finalize;
     end;
@@ -9936,7 +10019,7 @@ begin
     try
       _CloneCheck;
       DoForClones(self,0,dummy);
-      FConnectionClones.ForAllBreak(@DoForClones);
+      //FConnectionClones.ForAllBreak(@DoForClones);
     finally
       obj.Finalize;
     end;
@@ -9965,7 +10048,7 @@ begin
     try
       _CloneCheck;
       DoForClones(self,0,dummy);
-      FConnectionClones.ForAllBreak(@DoForClones);
+      //FConnectionClones.ForAllBreak(@DoForClones);
     finally
       to_obj.Finalize;
     end;
@@ -9996,7 +10079,7 @@ begin
     try
       _CloneCheck;
       DoForClones(self,0,dummy);
-      FConnectionClones.ForAllBreak(@DoForClones);
+      //FConnectionClones.ForAllBreak(@DoForClones);
     finally
       from_obj.Finalize;
     end;
@@ -10025,7 +10108,7 @@ begin
   try
     _CloneCheck;
     DoForClones(self,0,dummy);
-    FConnectionClones.ForAllBreak(@DoForClones);
+    //FConnectionClones.ForAllBreak(@DoForClones);
   finally
     ReleaseBig;
   end;
@@ -10052,7 +10135,7 @@ begin
   try
     _CloneCheck;
     DoForClones(self,0,dummy);
-    FConnectionClones.ForAllBreak(@DoForClones);
+    //FConnectionClones.ForAllBreak(@DoForClones);
   finally
     ReleaseBig;
   end;
@@ -10138,10 +10221,15 @@ destructor TFRE_DB_BASE_CONNECTION.Destroy;
   end;
 
 begin
+  AcquireConnLock;
+  if assigned(FSession) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'never, ever free a bound connection');
   FPersistance_Layer.Disconnect;
   FCollectionStore.ForAllItems(@FinalizeCollection);
   FCollectionStore.Free;
   FCollectionStore:=nil;
+  FConnLock.Finalize;
+  FConnLock:=nil;
 end;
 
 function TFRE_DB_CONNECTION.CreateAClone: TFRE_DB_CONNECTION;
@@ -10175,6 +10263,24 @@ procedure TFRE_DB_CONNECTION.InternalSetupConnection;
 begin
   SetupNoteCollection;
   inherited InternalSetupConnection;
+end;
+
+function TFRE_DB_CONNECTION.AuthenticatedUserName: String;
+begin
+  Result := FSysConnection.AuthenticatedUserName;
+end;
+
+procedure TFRE_DB_CONNECTION.BindUserSession(const session: IFRE_DB_Usersession);
+begin
+  FSysConnection.BindUserSession(session);
+  inherited BindUserSession(session);
+end;
+
+procedure TFRE_DB_CONNECTION.ClearUserSessionBinding;
+begin
+
+ FSysConnection.ClearUserSessionBinding;
+  inherited ClearUserSessionBinding;
 end;
 
 function TFRE_DB_CONNECTION.GetDatabaseName: TFRE_DB_String;
@@ -10405,6 +10511,11 @@ begin // NoLock Delegated
   if self is TFRE_DB_SYSTEM_CONNECTION then
     exit(TFRE_DB_SYSTEM_CONNECTION(self).IsCurrentUserSystemAdmin);
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'IsCurrentUserSystemAdmin basecass : '+self.ClassName);
+end;
+
+function TFRE_DB_BASE_CONNECTION.AuthenticatedUserName: String;
+begin
+  result := 'error/inheritance'
 end;
 
 
@@ -12572,6 +12683,11 @@ begin
   result := edb_OK;
 end;
 
+function TFRE_DB.AnonObject2Interface(const Data: Pointer): IFRE_DB_Object;
+begin
+  result := (TObject(data) as TFRE_DB_Object);
+end;
+
 function TFRE_DB.GetSystemScheme(const schemename: TFRE_DB_NameType; var scheme: TFRE_DB_SchemeObject): Boolean;
 begin
   result := GetSysScheme(schemename,scheme);
@@ -14108,6 +14224,17 @@ begin
   end;
 end;
 
+function TFRE_DB_Object.IsA(const IsSchemeclass: TFRE_DB_OBJECTCLASSEX; var obj): Boolean;
+begin
+  if assigned(FMediatorExtention) then
+    if FMediatorExtention is IsSchemeclass then
+      begin
+        Pointer(obj) := FMediatorExtention as IsSchemeclass;
+        exit(true);
+      end;
+  result := false;
+end;
+
 
 
 function file_lock(const  typ:cshort ; const whence:cshort):flock;
@@ -14452,6 +14579,7 @@ var ro:TJSONObject;
         exit;
     end;
     ro.Add(lowercase(Field.FieldName),Field.GetAsJSON(without_reserved_fields,false,stream_cb));
+    //ro.Add(Field.FieldName,Field.GetAsJSON(without_reserved_fields,false,stream_cb));
   end;
   procedure ExportFieldFD(const Field:TFRE_DB_FIELD);
   begin

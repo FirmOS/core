@@ -168,11 +168,13 @@ type
   TFRE_DB_TEST_APP_FORMTEST_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
     procedure       SetupAppModuleStructure ; override;
-    procedure       MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION); override;
+    function        GetToolbarMenu          (const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
   public
     class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
   published
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UPDATE_FORM_DBO       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UPDATE_FORM_BYTE_FIELD(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_ALLGRID_MOD }
@@ -194,9 +196,8 @@ type
     procedure       SetupAppModuleStructure ; override;
     function        GetToolbarMenu       (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
   public
-    class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
+    class procedure RegisterSystemScheme       (const scheme:IFRE_DB_SCHEMEOBJECT); override;
     procedure       MySessionInitializeModule  (const session: TFRE_DB_UserSession); override;
-    procedure       MyServerInitializeModule   (const admin_dbc: IFRE_DB_CONNECTION); override;
   published
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_SliderChanged          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -718,9 +719,28 @@ procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.MySessionInitializeModule(const se
 var
   DC_Grid      : IFRE_DB_DERIVED_COLLECTION;
   tr_Grid      : IFRE_DB_SIMPLE_TRANSFORM;
+  filedir      : TFRE_DB_TEST_FILEDIR;
+  coll         : IFRE_DB_COLLECTION;
+  conn         : IFRE_DB_CONNECTION;
+
 begin
   inherited;
   if session.IsInteractiveSession then begin
+    conn := session.GetDBConnection;
+    if not conn.CollectionExists('CFBROWSER:'+session.GetLoginUserAsCollKey) then
+      begin
+         coll := conn.CreateCollection('CFBROWSER:'+session.GetLoginUserAsCollKey,true);
+      end
+    else
+      begin
+        coll := conn.GetCollection('CFBROWSER:'+session.GetLoginUserAsCollKey);
+      end;
+    if coll.Count=0 then
+      begin
+        filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
+        filedir.SetProperties('Virtual Rooot',false,0,0,0);
+        CheckDbResult(coll.Store(filedir),'Error creating root entry');
+      end;
     DC_Grid := session.NewDerivedCollection('FILEBROWSER');
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
@@ -738,25 +758,13 @@ begin
       AddConstString('_funcclassname_','TFRE_DB_TEST_FILEDIR',false);
     end;
     with DC_Grid do begin
-      SetDeriveParent(session.GetDBConnection.GetCollection('COLL_FILEBROWSER'),'mypath');
+      SetDeriveParent(conn.GetCollection('CFBROWSER:'+session.GetLoginUserAsCollKey),'mypath');
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil,nil,CWSF(@WEB_DropAction));
     end;
   end;
 end;
 
-procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
-var filedir : TFRE_DB_TEST_FILEDIR;
-    coll    : IFRE_DB_COLLECTION;
-begin
-  coll := admin_dbc.GetCollection('COLL_FILEBROWSER');
-  if coll.Count=0 then
-    begin
-      filedir := TFRE_DB_TEST_FILEDIR.CreateForDB;
-      filedir.SetProperties('Virtual Rooot',false,0,0,0);
-      CheckDbResult(coll.Store(filedir),'Error creating root entry');
-    end;
-end;
 
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
@@ -985,10 +993,14 @@ begin
   InitModuleDesc('$formtest_description');
 end;
 
-procedure TFRE_DB_TEST_APP_FORMTEST_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
-var coll : IFRE_DB_COLLECTION;
+function TFRE_DB_TEST_APP_FORMTEST_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
+var
+  submenu,menu: TFRE_DB_MENU_DESC;
 begin
-   //G_UNSAFE_MODUL_GLOBAL_DATA := coll.First;
+  menu:=TFRE_DB_MENU_DESC.create.Describe;
+  menu.AddEntry.Describe('Update Form DBO','',CWSF(@WEB_UPDATE_FORM_DBO));
+  menu.AddEntry.Describe('Update Form DBO (Byte Fld)','',CWSF(@WEB_UPDATE_FORM_BYTE_FIELD));
+  Result:=menu;
 end;
 
 class procedure TFRE_DB_TEST_APP_FORMTEST_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -1005,6 +1017,42 @@ begin
     begin
       result := test.Invoke('Content',input,ses,app,conn);
       test.Finalize;
+    end
+  else
+    result := TFRE_DB_MESSAGE_DESC.create.Describe('ERROR','the COLL_TEST_A collection does not have any objects in it',fdbmt_error);
+end;
+
+function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_UPDATE_FORM_DBO(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var test : IFRE_DB_Object;
+    allt : TFRE_DB_TEST_ALL_TYPES;
+begin
+  test := conn.GetCollection('COLL_TEST_AT').First;
+  if assigned(test) then
+    begin
+      if test.IsA(TFRE_DB_TEST_ALL_TYPES,allt) then
+        begin
+          allt.Gamble(123);
+          conn.Update(allt);
+          result := GFRE_DB_NIL_DESC;
+        end;
+    end
+  else
+    result := TFRE_DB_MESSAGE_DESC.create.Describe('ERROR','the COLL_TEST_A collection does not have any objects in it',fdbmt_error);
+end;
+
+function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_UPDATE_FORM_BYTE_FIELD(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var test : IFRE_DB_Object;
+    allt : TFRE_DB_TEST_ALL_TYPES;
+begin
+  test := conn.GetCollection('COLL_TEST_AT').First;
+  if assigned(test) then
+    begin
+      if test.IsA(TFRE_DB_TEST_ALL_TYPES,allt) then
+        begin
+          allt.Field('fdbft_byte').AsByte := random(255);
+          conn.Update(allt);
+          result := GFRE_DB_NIL_DESC;
+        end;
     end
   else
     result := TFRE_DB_MESSAGE_DESC.create.Describe('ERROR','the COLL_TEST_A collection does not have any objects in it',fdbmt_error);
@@ -1300,7 +1348,7 @@ var
 begin
   scheme := GetScheme;
     res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
-    res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
+    res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
     res.FillWithObjectValues(Self,GetSession(input));
     res.AddButton.Describe('Save',CWSF(@WEB_saveOperation),fdbbt_submit);
   Result:=res;

@@ -351,8 +351,8 @@ type
     function  CreateGUID                :TGUID;
     function  CreateGUID_String         :AnsiString;
     function  CreateGuid_HEX            :Ansistring;
-    function  GUID_2_HexString          (const g:TGUID):Ansistring;
-    function  HexString_2_GUID          (const hs:string):TGuid;
+    function  GUID_2_HexString          (const g:TGUID)  :ShortString;
+    function  HexString_2_GUID          (const hs:ShortString):TGuid;
 
     function  SHA1String                (const input:string):ShortString;
     function  Base64Encode              (const input:string):String;
