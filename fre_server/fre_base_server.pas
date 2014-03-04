@@ -1007,7 +1007,7 @@ begin
   if myhalt then
     begin
       try
-        writeln('SUSPENDING SESSION ',purgesession.GetSessionID);
+        GFRE_DBI.LogInfo(dblc_SESSION,'SUSPENDING SESSION : [%s]',[purgesession.GetSessionID+'/'+purgesession.GetUsername]);
         FUserSessionsTree.Delete(purgesession.GetSessionID,ses);
         purgesession.Free;
       finally

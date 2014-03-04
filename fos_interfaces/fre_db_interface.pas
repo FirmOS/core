@@ -2294,6 +2294,7 @@ type
     FTakeoverPrepared     : String;
     FOnFetchSessionByIdL  : TFRE_DB_OnFetchSessionByID;
     FSessionTerminationTO : NativeInt;
+    FBoundThreadID        : TThreadID;
  var
     FOnCheckUserNamePW    : TFRE_DB_OnCheckUserNamePassword;
     FOnExistsUserSessionL : TFRE_DB_OnExistsUserSessionForKey;
@@ -2413,7 +2414,6 @@ type
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
     procedure   SendServerClientCMD      (const cmd : IFRE_DB_COMMAND);
 
-
     //Invoke a Method that another Session provides via Register
     function    InvokeRemoteRequest        (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
     procedure   InvokeRemReqCoRoutine      (const data : Pointer);
@@ -2424,14 +2424,9 @@ type
 
     //Enable a session to "Publish" Remote Methods, overrides previous set
     function    RegisterRemoteRequestSet  (const requests : TFRE_DB_RemoteReqSpecArray):TFRE_DB_Errortype;
-
     function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
-
     function    RemoveTaskMethod         (const id:string):boolean;
-
     function    IsInteractiveSession     : Boolean;
-
-    //function    FetchTranslateableText   (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;
 
     function    GetDBConnection          : IFRE_DB_CONNECTION;
     function    GetDomain                : TFRE_DB_String;
@@ -4556,7 +4551,7 @@ var err                : TFRE_DB_Errortype;
                 existing_session.COR_InitiateTakeOver(tod);
               end;
             result:=pr_Takeover;
-            FBoundSession_RA_SC := nil; { clear my (guest) bound sesison RAC };
+            ClearServerClientInterface; { clear my (guest) bound session RAC };
           finally
             existing_session.UnlockSession;
             GFRE_DBI.LogInfo(dblc_SERVER,'<OK : TAKEOVERSESSION FOR SESSION [%s] USER [%s]',[existing_session.FSessionID,existing_session.FUserName]);
@@ -4844,9 +4839,12 @@ end;
 procedure TFRE_DB_UserSession.ClearServerClientInterface;
 begin
   RemoveAllTimers;
-  FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO;
+  if FPromoted then
+    FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO
+  else
+    FSessionTerminationTO := 1; // Free unpromoted Sessions Quick
   FBoundSession_RA_SC   := nil;
-  GFRE_DBI.LogNotice(dblc_SESSION,'CLEARED SESSION INTERFACE -> SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+'] KO in '+inttostr(FSessionTerminationTO));
+  GFRE_DBI.LogNotice(dblc_SESSION,'CLEARED SESSION INTERFACE -> SESSION '+BoolToStr(FPromoted,'PROMOTED','GUEST') +' ['+fsessionid+'/'+FConnDesc+'/'+FUserName+'] KO in '+inttostr(FSessionTerminationTO));
 end;
 
 function TFRE_DB_UserSession.GetClientServerInterface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
