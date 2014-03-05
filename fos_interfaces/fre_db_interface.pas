@@ -127,7 +127,7 @@ const
   cFRE_DB_STKEY                  = '#ST#';
   cFRE_DB_ST_ETAG                = '#ETG#';
   cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*';
-
+  cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
   CFRE_DB_EPSILON_SGL                                               = 1.192092896e-07;         // Epsiolon for Single Compare (Zero / boolean)
