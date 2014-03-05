@@ -1280,12 +1280,13 @@ begin
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.NewDBOFromServer_Locked(const pls: TPLNet_Layer; const dbo: IFRE_DB_Object);
+var dummy : TFRE_DB_NameType;
 begin
   if dbo.Field('CID').AsString='EVENT' then {Process Event}
     begin
       if assigned(pls.FNotificationIF) then
         try
-          FREDB_ApplyNotificationBlockToNotifIF(dbo.Field('BLOCK').AsObject,pls.FNotificationIF);
+          FREDB_ApplyNotificationBlockToNotifIF(dbo.Field('BLOCK').AsObject,pls.FNotificationIF,dummy);
         except on e:exception do
           GFRE_DBI.LogError(dblc_PERSISTANCE,'FAILURE INBOUND EVENT PROCESSING NOTIFY [%s]',[e.Message]);
         end;

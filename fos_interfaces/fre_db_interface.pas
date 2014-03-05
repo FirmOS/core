@@ -1301,6 +1301,7 @@ type
 
   IFRE_DB_CONNECTION=interface(IFRE_DB_BASE)
   ['IFDB_CONN']
+    function    GetNotif                      : IFRE_DB_DBChangedNotification; { get the notif of an impersonated(clonde) connection}
     procedure   BindUserSession               (const session : IFRE_DB_Usersession);
     procedure   ClearUserSessionBinding       ;
 
@@ -2327,6 +2328,7 @@ type
     FBoundSession_RA_SC   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
     FIsInteractive        : Boolean;
     FBindState            : TFRE_DB_SESSIONSTATE;
+    FCurrentNotificationBlockLayer : TFRE_DB_NameType; { this sied effect variable is set while executing a notif block }
 
     procedure     SetOnCheckUserNamePW   (AValue: TFRE_DB_OnCheckUserNamePassword);
     procedure     SetOnExistsUserSession (AValue: TFRE_DB_OnExistsUserSessionForKey);
@@ -2570,7 +2572,7 @@ type
   // as additional feature it replaces CR with a <br> tag, which is useful in formatting HTML
   function  FREDB_String2EscapedJSString         (const input_string:TFRE_DB_String;const replace_cr_with_br:boolean=false) : TFRE_DB_String;
 
-  procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification);
+  procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification ; out layer : TFRE_DB_NameType);
 
   operator< (g1, g2: TGUID) b : boolean;
   operator> (g1, g2: TGUID) b : boolean;
@@ -3846,7 +3848,9 @@ procedure TFRE_DB_UserSession.COR_InboundNotifyBlock(const data: Pointer);
 var block : IFRE_DB_Object;
 begin
   block := GFRE_DBI.AnonObject2Interface(data);
-  FREDB_ApplyNotificationBlockToNotifIF(block,self);
+  FCurrentNotificationBlockLayer:='?';
+  FREDB_ApplyNotificationBlockToNotifIF(block,self,FCurrentNotificationBlockLayer);
+  FCurrentNotificationBlockLayer:='?';
 end;
 
 function TFRE_DB_UserSession.SearchSessionDC(dc_name: TFRE_DB_String; out dc: IFRE_DB_DERIVED_COLLECTION): boolean;
@@ -5171,7 +5175,7 @@ end;
 
 procedure TFRE_DB_UserSession.CollectionCreated(const coll_name: TFRE_DB_NameType);
 begin
-
+  //FDBConnection.;
 end;
 
 procedure TFRE_DB_UserSession.CollectionDeleted(const coll_name: TFRE_DB_NameType);
@@ -7322,11 +7326,10 @@ begin
   result := StringReplace(Result            ,''''   , '\u0027', [rfReplaceAll]);   // Single Quote
 end;
 
-procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification);
+procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification ; out layer : TFRE_DB_NameType);
 var cmd   : ShortString;
     objs  : IFRE_DB_ObjectArray;
     i     : NativeInt;
-    layer : TFRE_DB_NameType;
 
 begin
   objs := block.Field('N').AsObjectArr;

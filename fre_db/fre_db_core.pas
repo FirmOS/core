@@ -1726,6 +1726,7 @@ type
     procedure  SendSessionNotificationBlock  (const block: IFRE_DB_Object);
     procedure  BindUserSession               (const session : IFRE_DB_Usersession);virtual;
     procedure  ClearUserSessionBinding       ;virtual;
+    function   GetNotif                      : IFRE_DB_DBChangedNotification;
 
 
     { Notification Interface }
@@ -9807,6 +9808,14 @@ begin
   end;
 end;
 
+function TFRE_DB_BASE_CONNECTION.GetNotif: IFRE_DB_DBChangedNotification;
+begin
+  if FCloned then
+    result := self
+  else
+    raise EFRE_DB_Exception.Create(edb_Internal,'this function was intended to get the notif from the session bound,impersonated (cloned) connection.');
+end;
+
 function TFRE_DB_BASE_CONNECTION.InterfaceNeedsAProxy: Boolean;
 begin
   result := true;
@@ -9823,13 +9832,16 @@ begin
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.SendNotificationBlock(const block: IFRE_DB_Object);
-var s   : string;
-    blk : IFRE_DB_Object;
+var s     : string;
+    blk   : IFRE_DB_Object;
+    dummy : TFRE_DB_NameType;
 
   procedure SendBlockToClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
   var nblock : IFRE_DB_Object;
   begin
     nblock := block.CloneToNewObject;
+    here
+    nblock.Field('L').AsString:=FDBName;  { set layer for session processing }
     conn.AcquireConnLock;
     try
       if conn.FCloned then
@@ -9853,7 +9865,7 @@ begin
   try
     FConnectionClones.ForAllBreak(@SendBlockToClones);
     self.StartNotificationBlock(block.Field('KEY').AsString);
-    FREDB_ApplyNotificationBlockToNotifIF(block,self);
+    FREDB_ApplyNotificationBlockToNotifIF(block,self,dummy);
     self.FinishNotificationBlock(blk);
   except on e:exception do
     begin
