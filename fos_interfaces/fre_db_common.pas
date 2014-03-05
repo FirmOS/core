@@ -1475,7 +1475,7 @@ implementation
     inherited Describe(caption, field_reference, required, groupRequired, disabled, hidden, defaultValue, validator);
     Field('multiValues').AsBoolean := multiValues;
     Field('isPass').AsBoolean:=isPass;
-    Field('confirms').AsString:=confirms;
+    Field('confirms').AsString:=LowerCase(confirms);
     Result:=Self;
   end;
 
@@ -1697,7 +1697,7 @@ implementation
   function TFRE_DB_FORM_INPUT_DESC.Describe(const caption, field_reference: string; const required: boolean; const groupRequired: Boolean; const disabled: boolean; const hidden:Boolean; const defaultValue:String; const validator: IFRE_DB_ClientFieldValidator ; const validatorConfigParams : IFRE_DB_Object) : TFRE_DB_FORM_INPUT_DESC;
   begin
     Field('caption').AsString        := caption;
-    Field('field').AsString          := field_reference;
+    Field('field').AsString          := LowerCase(field_reference);
     Field('defaultValue').AsString   := defaultValue;
     Field('required').AsBoolean      := required;
     Field('groupRequired').AsBoolean := groupRequired;
