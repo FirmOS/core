@@ -8138,6 +8138,7 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
       fetch_up_object   : TFRE_DB_Object;
       raw_multi_vals    : boolean;
       raw_empty_array   : boolean;
+      raw_clear_marker  : boolean;
       scheme_multi_vals : boolean;
       work_fld          : TFRE_DB_FIELD;
 
@@ -8234,8 +8235,10 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
       scheme_field_type  := scheme_field_def.FieldType;
       raw_multi_vals     := field.ValueCount>1;
       raw_empty_array    := field.ValueCount=0;
+      raw_clear_marker   := (field.ValueCount=1) and (field.AsString=cFRE_DB_SYS_CLEAR_VAL_STR);
       scheme_multi_vals  := scheme_field_def.multiValues;
-      if raw_multi_vals and not scheme_multi_vals then raise EFRE_DB_Exception.Create(edb_INTERNAL,'error updating field [%s],raw object has multivalues but the scheme does not allow this',[field.FieldName]);
+      if raw_multi_vals and not scheme_multi_vals then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'error updating field [%s],raw object has multivalues but the scheme does not allow this',[field.FieldName]);
       if (scheme_field_type<>fdbft_Object) or ((scheme_field_type=fdbft_Object) and (raw_field_type=fdbft_String)) then begin
         field_val   := field.AsStringArr;       //TODO -> EXTEND TO FIELD ARRAYS !!
       end;
@@ -8247,7 +8250,7 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
       if raw_empty_array and (not scheme_multi_vals) then begin
         exit; //Don't set empty arrays to non arrays
       end;
-      if (scheme_field_type<>fdbft_Object) and (length(field_val)=0) then begin
+      if (scheme_field_type<>fdbft_Object) and ( raw_clear_marker or (length(field_val)=0) ) then begin
         Update_Object.Field(field_name).Clear;
       end else begin
         case scheme_field_type of
@@ -11476,7 +11479,7 @@ var  l_JSONParser : TJSONParser;
               end;
             end else
             if l_JSONItem is TJSONNull then begin
-              l_DataObj.Field(l_FieldName).Clear;  // Remove JSON Null Fields
+              l_DataObj.Field(l_FieldName).AsString := cFRE_DB_SYS_CLEAR_VAL_STR;  { A JSON Null Field is defined here to issue a CLEAR on the original Field }
             end
             else begin
               l_DataObj.Field(l_FieldName).AsString := l_JSONItem.AsString;
