@@ -48,7 +48,6 @@ uses
 type
 
   TFRE_DB_TRANSFORM_TYPE      = (fdbtt_post2json, fdbtt_get2html,fdbtt_WebSocket);
-  TFRE_DB_CHOOSER_DH          = (dh_chooser_radio,dh_chooser_check,dh_chooser_combo);
   TFRE_DB_LAYOUT_POS          = (lt_left,lt_center,lt_right,lt_top,lt_bottom);
   TFRE_DB_CLIENT_ACTION       = (fdbca_openContent);
   TFRE_DB_BUTTON_TYPE         = (fdbbt_submit,fdbbt_button,fdbbt_close,fdbbt_download);
@@ -377,46 +376,48 @@ type
   //@ Do NOT use! Use TFRE_DB_FORM_PANEL_DESC or TFRE_DB_DIALOG_DESC instead.
   TFRE_DB_FORM_DESC    = class(TFRE_DB_CONTENT_DESC)
   private
-    function  GetFormElement       (const elementId:String): TFRE_DB_CONTENT_DESC;
-    procedure AddStore             (const store: TFRE_DB_STORE_DESC);virtual;
-    procedure AddDBO               (const id: String; const session: IFRE_DB_UserSession);virtual;
-    function  GetStore             (const id:String): TFRE_DB_STORE_DESC;virtual;
-    function  Describe             (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
-    procedure _FillWithObjectValues(const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession);
+    function  GetFormElement          (const elementId:String): TFRE_DB_CONTENT_DESC;
+    procedure AddStore                (const store: TFRE_DB_STORE_DESC);virtual;
+    procedure AddDBO                  (const id: String; const session: IFRE_DB_UserSession);virtual;
+    function  GetStore                (const id:String): TFRE_DB_STORE_DESC;virtual;
+    function  Describe                (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
+    procedure _FillWithObjectValues   (const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession);
   public
     //@ Sets the value of the input element with the given id.
-    procedure SetElementValue      (const elementId, value:String);
+    procedure SetElementValue         (const elementId, value:String);
+    //@ Sets the value of the input element with the given id.
+    procedure SetElementValueDisabled (const elementId, value:String);
     //@ Fills the form with the values of the given object.
-    procedure FillWithObjectValues (const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
+    procedure FillWithObjectValues    (const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
     //@ See TFRE_DB_INPUT_GROUP_DESC.
-    function  AddSchemeFormGroup   (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const relSize: Integer=1): TFRE_DB_INPUT_GROUP_DESC;
+    function  AddSchemeFormGroup      (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const groupPreFix:String=''; const groupRequired:Boolean=true; const relSize: Integer=1): TFRE_DB_INPUT_GROUP_DESC;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
-    function  AddInput             : TFRE_DB_INPUT_DESC;
+    function  AddInput                : TFRE_DB_INPUT_DESC;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
-    function  AddDescription       : TFRE_DB_INPUT_DESCRIPTION_DESC;
+    function  AddDescription          : TFRE_DB_INPUT_DESCRIPTION_DESC;
     //@ Creates a new boolean field and adds it to the form. See also TFRE_DB_INPUT_BOOL_DESC.
-    function  AddBool              : TFRE_DB_INPUT_BOOL_DESC;
+    function  AddBool                 : TFRE_DB_INPUT_BOOL_DESC;
     //@ Creates a new boolean field and adds it to the form. See also TFRE_DB_INPUT_BOOL_DESC.
-    function  AddNumber            : TFRE_DB_INPUT_NUMBER_DESC;
+    function  AddNumber               : TFRE_DB_INPUT_NUMBER_DESC;
     //@ Creates a new chooser and adds it to the form. See also TFRE_DB_INPUT_CHOOSER_DESC.
-    function  AddChooser           : TFRE_DB_INPUT_CHOOSER_DESC;
+    function  AddChooser              : TFRE_DB_INPUT_CHOOSER_DESC;
     //@ Creates a new date field and adds it to the form. See also TFRE_DB_INPUT_DATE_DESC.
-    function  AddDate              : TFRE_DB_INPUT_DATE_DESC;
+    function  AddDate                 : TFRE_DB_INPUT_DATE_DESC;
     //@ Creates a new recurrence field and adds it to the form. See also TFRE_DB_INPUT_RECURRENCE_DESC.
-    function  AddRecurrence        : TFRE_DB_INPUT_RECURRENCE_DESC;
+    function  AddRecurrence           : TFRE_DB_INPUT_RECURRENCE_DESC;
     //@ Creates a new file field and adds it to the form. See also TFRE_DB_INPUT_FILE_DESC.
-    function  AddFile              : TFRE_DB_INPUT_FILE_DESC;
+    function  AddFile                 : TFRE_DB_INPUT_FILE_DESC;
     //@ Creates a new input group and adds it to the form. See also TFRE_DB_INPUT_GROUP_DESC.
-    function  AddGroup             : TFRE_DB_INPUT_GROUP_DESC;
+    function  AddGroup                : TFRE_DB_INPUT_GROUP_DESC;
     //@ Creates a new input proxy group and adds it to the form. See also TFRE_DB_INPUT_GROUP_PROXY_DESC.
-    function  AddGroupProxy        : TFRE_DB_INPUT_GROUP_PROXY_DESC;
+    function  AddGroupProxy           : TFRE_DB_INPUT_GROUP_PROXY_DESC;
     //@ Creates a new input block and adds it to the form. See also TFRE_DB_INPUT_BLOCK_DESC.
-    function  AddBlock             : TFRE_DB_INPUT_BLOCK_DESC;
+    function  AddBlock                : TFRE_DB_INPUT_BLOCK_DESC;
     //@ Creates a new grid and adds it to the form. See also TFRE_DB_VIEW_LIST_DESC.
-    function  AddList              : TFRE_DB_VIEW_LIST_DESC;
+    function  AddList                 : TFRE_DB_VIEW_LIST_DESC;
     //@ Creates a new button and adds it to the form. See also TFRE_DB_BUTTON_DESC.
-    function  AddButton            : TFRE_DB_BUTTON_DESC;
+    function  AddButton               : TFRE_DB_BUTTON_DESC;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
     //function  GetGroup             (const id:String): TFRE_DB_INPUT_GROUP_DESC;
   end;
@@ -433,6 +434,7 @@ type
     //@ Describes an input group within a form.
     //@ Collapsed will be ignored if collapsible is false.
     function  Describe         (const caption:String='';const collapsible:Boolean=false;const collapsed:Boolean=false):TFRE_DB_INPUT_GROUP_DESC;
+    procedure SetCaption       (const caption:String);
     //@ Sets the collapse state of the input group.
     //@ Useful in case the group was added with TFRE_DB_FORM_DESC.AddSchemeFormGroup.
     procedure SetCollapseState (const collapsed: Boolean=false; const collapsible: Boolean=true);
@@ -2111,7 +2113,7 @@ implementation
     end;
   end;
 
-  function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const relSize: Integer): TFRE_DB_INPUT_GROUP_DESC;
+  function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const groupPreFix:String; const groupRequired: Boolean; const relSize: Integer): TFRE_DB_INPUT_GROUP_DESC;
   var
     group         : TFRE_DB_INPUT_GROUP_DESC;
     obj           : IFRE_DB_Object;
@@ -2174,7 +2176,7 @@ implementation
           begin
             store:=TFRE_DB_STORE_DESC.create.Describe();
             coll.ForAll(@addObjects);
-            group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,dh_chooser_combo,required,obj^.required).captionCompareEnabled(true);
+            group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required).captionCompareEnabled(true);
           end
         else
           begin
@@ -2187,7 +2189,7 @@ implementation
           for i := 0 to Length(enumVals) - 1 do begin
             store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
           end;
-          group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,dh_chooser_radio,required,obj^.required);
+          group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
         end else begin
           obj^.fieldschemdef.getValidator(validator);
           case obj^.fieldschemdef.FieldType of
@@ -2224,19 +2226,20 @@ implementation
       end;
     end;
 
-  procedure _addFields(const fields: PFRE_InputFieldDef4GroupArr; const prefix:String);
+  procedure _addFields(const fields: PFRE_InputFieldDef4GroupArr; const prefix:String; const groupPreFix:String; const groupRequired: Boolean);
   var
-    i         : integer;
-    scheme    : IFRE_DB_SchemeObject;
-    newPrefix : String;
-    tmpGroup  : TFRE_DB_INPUT_GROUP_DESC;
-    inputGroup: IFRE_DB_InputGroupSchemeDefinition;
-    required  : Boolean;
-    path      : TFOSStringArray;
-    fieldDef  : IFRE_DB_FieldSchemeDefinition;
+    i          : integer;
+    scheme     : IFRE_DB_SchemeObject;
+    newPrefix  : String;
+    tmpGroup   : TFRE_DB_INPUT_GROUP_DESC;
+    inputGroup : IFRE_DB_InputGroupSchemeDefinition;
+    required   : Boolean;
+    path       : TFOSStringArray;
+    fieldDef   : IFRE_DB_FieldSchemeDefinition;
+    inputPrefix: String;
   begin
     GFRE_BT.SeperateString(prefix,'.',path);
-    required:=true;
+    required:=groupRequired;
 
     if Length(path)>0 then begin
       scheme:=schemeGroup.GetParentScheme;
@@ -2245,6 +2248,11 @@ implementation
         required:=required and fieldDef.required;
         if not GFRE_DBI.GetSystemSchemeByName(fieldDef.SubschemeName,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'(A) cannot get scheme '+fieldDef.SubschemeName);
       end;
+    end;
+
+    inputPrefix := prefix;
+    if groupPreFix<>'' then begin
+      inputPrefix:=groupPreFix + '.' + inputPrefix;
     end;
 
     for i := 0 to Length(fields) - 1 do
@@ -2261,24 +2269,24 @@ implementation
               tmpGroup   := group;
               inputGroup := scheme.GetInputGroup(fields[i]^.group);
               group:=tmpGroup.AddGroup.Describe(_getText(inputGroup.CaptionKey),fields[i]^.collapsible,fields[i]^.collapsed);
-              _addFields(inputGroup.GroupFields,newPrefix);
+              _addFields(inputGroup.GroupFields,newPrefix,groupPreFix,required);
               group:=tmpGroup;
             end
           else
             begin
               inputGroup:=scheme.GetInputGroup(fields[i]^.group);
-              _addFields(inputGroup.GroupFields,newPrefix);
+              _addFields(inputGroup.GroupFields,newPrefix,groupPreFix,required);
             end;
         end
       else
         begin
-          _addInput(fields[i],prefix,required);
+          _addInput(fields[i],inputPrefix,required);
         end;
   end;
 
   begin
     group:=AddGroup.Describe(_getText(schemeGroup.CaptionKey),collapsible,collapsed);
-   _addFields(schemeGroup.GroupFields,'');
+   _addFields(schemeGroup.GroupFields,'',groupPreFix,groupRequired);
     Result:=group;
   end;
 
@@ -2288,6 +2296,15 @@ implementation
   begin
     elem:=GetFormElement(elementId);
     elem.Field('defaultValue').AsString:=value;
+  end;
+
+  procedure TFRE_DB_FORM_DESC.SetElementValueDisabled(const elementId, value: String);
+  var
+    elem: TFRE_DB_CONTENT_DESC;
+  begin
+    elem:=GetFormElement(elementId);
+    elem.Field('defaultValue').AsString:=value;
+    elem.Field('disabled').AsBoolean:=true;
   end;
 
   procedure TFRE_DB_FORM_DESC.FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
@@ -2404,6 +2421,11 @@ implementation
   function TFRE_DB_INPUT_GROUP_DESC.Describe(const caption: String; const collapsible:Boolean=false;const collapsed:Boolean=false): TFRE_DB_INPUT_GROUP_DESC;
   begin
     Result:=_Describe(caption,collapsible,collapsed);
+  end;
+
+  procedure TFRE_DB_INPUT_GROUP_DESC.SetCaption(const caption: String);
+  begin
+    Field('caption').AsString:=caption;
   end;
 
   procedure TFRE_DB_INPUT_GROUP_DESC.AddStore(const store: TFRE_DB_STORE_DESC);

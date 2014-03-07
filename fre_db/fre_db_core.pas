@@ -938,7 +938,7 @@ type
     constructor Create             (const gid : TFRE_DB_NameType ; scheme : TFRE_DB_SchemeObject);
     destructor  Destroy            ; override;
     function    Setup              (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
-    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false);
+    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo);
     procedure   UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     function    GroupFields        : PFRE_InputFieldDef4GroupArr;
   end;
@@ -2999,7 +2999,7 @@ end;
 
 
 
-procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDomainCollection: boolean);
+procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDomainCollection: boolean;const chooser_type:TFRE_DB_CHOOSER_DH);
 var
   obj      : OFRE_InputFieldDef4Group;
   path     : TFRE_DB_StringArray;
@@ -3039,6 +3039,7 @@ begin
     obj.caption_key    := '$scheme_'+fieldDef.FScheme.DefinedSchemeName+'_'+schemefield;
   obj.datacollection := field_backing_collection;
   obj.dc_isdomainc   := fbCollectionIsDomainCollection;
+  obj.chooser_type   := chooser_type;
   obj.fieldschemdef  := fieldDef;
   Fields.Add(obj);
 end;

@@ -91,7 +91,7 @@ type
   TFRE_DB_NotifyObserverType  = (fdbntf_INSERT,fdbntf_UPDATE,fdbntf_DELETE,fdbntf_START_UPDATING,fdbntf_ENDUPDATE_APPLY,fdbntf_COLLECTION_RELOAD,fdbntf_OutboundRL_ADD,fdbntf_OutboundRL_DEL,fdbntf_InboundRL_ADD,fdbntf_InboundRL_DEL,
                                  fdbntf_FIELDCHANGE,fdbntf_FIELDADD,fdbntf_FIELDDEL);
   TFRE_DB_SUBSEC_DISPLAY_TYPE = (sec_dt_tab,sec_dt_vertical,sec_dt_hiddentab);
-
+  TFRE_DB_CHOOSER_DH          = (dh_chooser_radio,dh_chooser_check,dh_chooser_combo);
 
   TFRE_DB_STANDARD_RIGHT      = (sr_BAD,sr_STORE,sr_UPDATE,sr_DELETE,sr_FETCH);  //DB CORE RIGHTS
 
@@ -593,6 +593,7 @@ type
     datacollection : TFRE_DB_NameType;
     dc_isdomainc   : Boolean;
     caption_key    : TFRE_DB_NameType;
+    chooser_type   : TFRE_DB_CHOOSER_DH;
     fieldschemdef  : IFRE_DB_FieldSchemeDefinition; // points to
   end;
 
@@ -2169,7 +2170,7 @@ type
     //procedure SetInputGroupID    (AValue: TFRE_DB_String);
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
-    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false);
+    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo);
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
     function  GroupFields        : PFRE_InputFieldDef4GroupArr;
