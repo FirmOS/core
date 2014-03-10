@@ -2018,7 +2018,7 @@ type
 
     function    DumpUserRights               :TFRE_DB_String;
 
-    procedure   StartTransaction             (const trans_id     : TFRE_DB_NameType);
+    procedure   StartTransaction             (const trans_id: TFRE_DB_NameType ; const trans_type : TFRE_DB_TRANSACTION_TYPE);
     procedure   Commit                       ;
     procedure   Rollback                     ;
     function    GetSysDomainUID              :TGUID; override;
@@ -4859,9 +4859,9 @@ begin
   result := GFRE_DBI.StringArray2String(FConnectionRights);
 end;
 
-procedure TFRE_DB_SYSTEM_CONNECTION.StartTransaction(const trans_id: TFRE_DB_NameType);
+procedure TFRE_DB_SYSTEM_CONNECTION.StartTransaction(const trans_id: TFRE_DB_NameType; const trans_type: TFRE_DB_TRANSACTION_TYPE);
 begin
-  CheckDbResult(GFRE_DB_PS_LAYER.StartTransaction(dbt_OLTP,trans_id),'Could not start transaction '+trans_id);
+  CheckDbResult(GFRE_DB_PS_LAYER.StartTransaction(trans_type,trans_id),'Could not start transaction '+trans_id);
 end;
 
 procedure TFRE_DB_SYSTEM_CONNECTION.Commit;

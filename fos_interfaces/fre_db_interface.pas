@@ -1134,15 +1134,8 @@ type
     property  Explanation:TFRE_DB_String read GetExplanation write SetExplanation;
   end;
 
-  {
-    Transactions are executed fully serial in memory, A,C,I
-    durability is enhanced with a WAL File D
-    OLAP     = READ ONLY, long running, on consistent fork (Not implemented)
-    OLTP     = Read,Write Short Transactions
-    Implicit = No CT applied on a Perslayer Store,Update,Delete
-  }
 
-  TFRE_DB_TRANSACTION_TYPE=(dbt_Implicit,dbt_OLTP,dbt_OLAP);
+  TFRE_DB_TRANSACTION_TYPE=(dbt_Implicit_RD,dbt_Implicit_WR,dbt_OLTP_RD,dbt_OLTP_WR,dbt_OLAP_RD);
 
   IFRE_DB_TRANSACTION=interface
     function  GetType  : boolean;
@@ -1427,9 +1420,9 @@ type
     function    OverviewDump                :TFRE_DB_String;
     procedure   DumpSystem                  ;
 
-    function    CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
-    procedure   StartTransaction             (const trans_id     : TFRE_DB_NameType);
-    procedure   Commit                       ;
+    function    CheckRightForGroup          (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
+    procedure   StartTransaction            (const trans_id: TFRE_DB_NameType ; const trans_type : TFRE_DB_TRANSACTION_TYPE);
+    procedure   Commit                      ;
     procedure   DrawScheme                  (const datastream:TStream);
 
     function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;

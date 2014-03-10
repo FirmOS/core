@@ -65,7 +65,7 @@ type
     procedure    Get_Event(out E:IFOS_E);
     procedure    Get_TimedEvent(out TE:IFOS_TE);
     procedure    Get_TimedDataEvent(out TE:IFOS_DATA_TE);
-    procedure    Get_Lock(out LOCK:IFOS_LOCK);
+    procedure    Get_Lock(out LOCK:IFOS_LOCK;const with_timing : boolean=false);
     procedure    Get_RW_Lock(out RWL:IFOS_RW_LOCK);
     procedure    Get_LFQ(out LFQ:IFOS_LFQ);
     procedure    Get_NPS(out NPS:IFOS_NPS);
@@ -150,9 +150,12 @@ begin
  TE:=TFOS_DATA_TE.Create;
 end;
 
-procedure TFOS_TOOL_FACTORY.Get_Lock(out LOCK: IFOS_LOCK);
+procedure TFOS_TOOL_FACTORY.Get_Lock(out LOCK: IFOS_LOCK; const with_timing: boolean);
 begin
- LOCK:=TFOS_LOCK.Create;
+ if with_timing then
+   LOCK:=TFOS_TIMED_LOCK.Create
+ else
+   LOCK:=TFOS_LOCK.Create;
 end;
 
 procedure TFOS_TOOL_FACTORY.Get_RW_Lock(out RWL: IFOS_RW_LOCK);

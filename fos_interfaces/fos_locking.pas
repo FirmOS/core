@@ -57,9 +57,19 @@ type
    public
     constructor Create;
     destructor  Destroy;override;
-    procedure   Acquire;
-    procedure   Release;
+    procedure   Acquire;virtual;
+    function    Release:QWord;virtual;
     procedure   Finalize;
+  end;
+
+  { TFOS_TIMED_LOCK }
+
+  TFOS_TIMED_LOCK=class(TFOS_LOCK)
+  private
+    FStartTime : QWord;
+  public
+    procedure   Acquire;override;
+    function    Release:QWord;override;
   end;
 
   TFOS_RW_LOCK=class(TInterfacedObject,IFOS_RW_LOCK) // If you lock multiple -> you are Dead locked
@@ -129,6 +139,20 @@ type
 
 
 implementation
+
+{ TFOS_TIMED_LOCK }
+
+procedure TFOS_TIMED_LOCK.Acquire;
+begin
+  FStartTime := GFRE_BT.Get_Ticks_us;
+  inherited Acquire;
+end;
+
+function TFOS_TIMED_LOCK.Release: QWord;
+begin
+  inherited;
+  Result := GFRE_BT.Get_Ticks_us-FStartTime;
+end;
 
 { TFOS_TE }
 
@@ -321,7 +345,7 @@ begin
  inherited;
 end;
 
-procedure TFOS_LOCK.Release;
+function TFOS_LOCK.Release:QWord;
 begin
  if assigned(CS) then begin
   try
