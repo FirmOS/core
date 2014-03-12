@@ -4056,18 +4056,19 @@ var x           : TObject;
     procedure _SendSyncServerClienterror(const emessage:string); //TODO - Think about client Error Handling
     begin
       //ANSWER WIH ERROR is not implemented on client side
-      //CMD.CommandType   := fct_Error;
-      //CMD.Answer        := true;
-      //CMD.ClientCommand := false;
-      //CMD.ErrorText   := 'INVOKE OF ['+class_name+'.'+method_name+'] FAILED '+#13#10+'['+emessage+']';
-      //GFRE_DBI.LogError(dblc_SESSION,' SERROR:> %s',[cmd.ErrorText]);
-      //SendServerClientCMD(cmd);
-      cmd.CommandType   := fct_SyncReply;
-      cmd.Answer        := true;
-      cmd.Data          := TFRE_DB_MESSAGE_DESC.Create.Describe('EXCEPTION/UNHANDLED',emessage,fdbmt_error);
-      cmd.ClientCommand := false;
-      GFRE_DBI.LogDebug(dblc_SESSION,' SERROR:> %s',[cmd.Data.SchemeClass]);
+      CMD.CommandType   := fct_Error;
+      CMD.Answer        := true;
+      CMD.ClientCommand := false;
+      CMD.ErrorText   := 'INVOKE OF ['+class_name+'.'+method_name+'] FAILED '+#13#10+'['+emessage+']';
+      GFRE_DBI.LogError(dblc_SESSION,' SERROR:> %s',[cmd.ErrorText]);
       SendServerClientCMD(cmd);
+     { old code}
+      //cmd.CommandType   := fct_SyncReply;
+      //cmd.Answer        := true;
+      //cmd.Data          := TFRE_DB_MESSAGE_DESC.Create.Describe('EXCEPTION/UNHANDLED',emessage,fdbmt_error);
+      //cmd.ClientCommand := false;
+      //GFRE_DBI.LogDebug(dblc_SESSION,' SERROR:> %s',[cmd.Data.SchemeClass]);
+      //SendServerClientCMD(cmd);
     end;
 
 
@@ -4328,7 +4329,6 @@ var x           : TObject;
      else
        begin
          raise EFRE_DB_Exception.Create(edb_ERROR,'binary key replacement failed, not found bdk='+bdk);
-         //FIXME: THIS MUST BE AN ERROR -> RAISE ignore for 0815 TEST
        end;
    end;
 
