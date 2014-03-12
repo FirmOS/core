@@ -45,7 +45,7 @@ unit fre_dbtest;
 interface
 
 uses
-  Classes, SysUtils,FOS_TOOL_INTERFACES,unixutil,
+  Classes, SysUtils,FOS_TOOL_INTERFACES,unixutil,fre_system,
   FRE_DB_COMMON,
   FRE_DB_INTERFACE,
   FRE_DBBUSINESS,typinfo,
@@ -493,7 +493,7 @@ end;
 function TFRE_DB_TEST_APP_SVG_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   try
-    Result:=TFRE_DB_SVG_DESC.create.Describe(GFRE_BT.StringFromFile('test.svg'),'test_svg');
+    Result:=TFRE_DB_SVG_DESC.create.Describe(GFRE_BT.StringFromFile(cFRE_SERVER_WWW_ROOT_DIR+PathDelim+'testfiles/test.svg'),'test_svg');
   except
     on E:Exception do begin
       Result:=TFRE_DB_HTML_DESC.create.Describe('Error on reading the svg test file. Please place a valid test.svg file into the binary directoy.');
@@ -502,8 +502,14 @@ begin
 end;
 
 function TFRE_DB_TEST_APP_SVG_MOD.WEB_UpdateSVG(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var r,g,b : Byte;
+    style : string;
 begin
-  Result:=TFRE_DB_UPDATE_SVG_DESC.create.Describe('test_svg','rect5661','style','fill:red');
+  r := random(255);
+  g := random(255);
+  b := random(255);
+  style := 'fill:#'+hexStr(r,2)+hexStr(g,2)+hexStr(b,2);
+  Result:=TFRE_DB_UPDATE_SVG_DESC.create.Describe('test_svg','Alpha','style',style);
 end;
 
 { TFRE_DB_TEST_FILEDIR }
