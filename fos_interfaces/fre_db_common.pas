@@ -381,14 +381,16 @@ type
     procedure AddDBO                  (const id: String; const session: IFRE_DB_UserSession);virtual;
     function  GetStore                (const id:String): TFRE_DB_STORE_DESC;virtual;
     function  Describe                (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
-    procedure _FillWithObjectValues   (const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession);
+    procedure _FillWithObjectValues   (const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession; const prefix:String);
   public
     //@ Sets the value of the input element with the given id.
     procedure SetElementValue         (const elementId, value:String);
-    //@ Sets the value of the input element with the given id.
+    //@ Sets the value of the input element with the given id and disables it.
     procedure SetElementValueDisabled (const elementId, value:String);
+    //@ Disables the input element with the given id.
+    procedure SetElementDisabled      (const elementId:String);
     //@ Fills the form with the values of the given object.
-    procedure FillWithObjectValues    (const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
+    procedure FillWithObjectValues    (const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const groupPreFix:String='');
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
     //@ See TFRE_DB_INPUT_GROUP_DESC.
     function  AddSchemeFormGroup      (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const groupPreFix:String=''; const groupRequired:Boolean=true; const relSize: Integer=1): TFRE_DB_INPUT_GROUP_DESC;
@@ -1991,26 +1993,37 @@ implementation
     Result:=Self;
   end;
 
-    procedure TFRE_DB_FORM_DESC._FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
+    procedure TFRE_DB_FORM_DESC._FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const prefix:String);
   var
-    i,j       : Integer;
-    val       : String;
-    objField  : IFRE_DB_FIELD;
-    objFieldN : TFRE_DB_NameType;
-    store     : TFRE_DB_STORE_DESC;
-    scheme    : IFRE_DB_SCHEMEOBJECT;
-    fielddef  : IFRE_DB_FieldSchemeDefinition;
+    i,j         : Integer;
+    val         : String;
+    objField    : IFRE_DB_FIELD;
+    objFieldN   : TFRE_DB_NameType;
+    store       : TFRE_DB_STORE_DESC;
+    scheme      : IFRE_DB_SCHEMEOBJECT;
+    fielddef    : IFRE_DB_FieldSchemeDefinition;
+    FieldPathStr: String;
 
   begin
     scheme := obj.GetScheme(true);
     for i := 0 to Field('elements').ValueCount - 1 do begin
       if (Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_BLOCK_DESC) or (Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_GROUP_DESC) then begin
-        (Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_FORM_DESC)._FillWithObjectValues(obj,session);
+        (Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_FORM_DESC)._FillWithObjectValues(obj,session,prefix);
       end else begin
         if Field('elements').AsObjectItem[i].Field('confirms').AsString<>'' then begin
-          objField:=obj.FieldPath(Field('elements').AsObjectItem[i].Field('confirms').AsString,true);
+          FieldPathStr:=Field('elements').AsObjectItem[i].Field('confirms').AsString;
         end else begin
-          objField:=obj.FieldPath(Field('elements').AsObjectItem[i].Field('field').AsString,true);
+          FieldPathStr:=Field('elements').AsObjectItem[i].Field('field').AsString;
+        end;
+        if (prefix<>'') then begin
+          if (pos(prefix,FieldPathStr)=1) then begin
+            FieldPathStr:=Copy(FieldPathStr,Length(prefix)+1,MaxInt);
+            objField:=obj.FieldPath(fieldPathStr,true);
+          end else begin
+            objField:=nil;
+          end;
+        end else begin
+          objField:=obj.FieldPath(fieldPathStr,true);
         end;
         if Assigned(objField) then begin
           objFieldN := objField.FieldName;
@@ -2307,10 +2320,25 @@ implementation
     elem.Field('disabled').AsBoolean:=true;
   end;
 
-  procedure TFRE_DB_FORM_DESC.FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession);
+  procedure TFRE_DB_FORM_DESC.SetElementDisabled(const elementId: String);
+  var
+    elem: TFRE_DB_CONTENT_DESC;
+  begin
+    elem:=GetFormElement(elementId);
+    elem.Field('disabled').AsBoolean:=true;
+  end;
+
+  procedure TFRE_DB_FORM_DESC.FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const groupPreFix:String);
+  var
+    prefix: String;
   begin
     AddDBO(obj.UID_String, session);
-    _FillWithObjectValues(obj,session);
+    if groupPreFix<>'' then begin
+      prefix:=groupPreFix + '.';
+    end else begin
+      prefix:='';
+    end;
+    _FillWithObjectValues(obj,session,prefix);
   end;
 
   function TFRE_DB_FORM_DESC.AddInput: TFRE_DB_INPUT_DESC;
