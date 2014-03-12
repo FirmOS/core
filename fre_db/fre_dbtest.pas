@@ -333,6 +333,19 @@ type
     function  WEB_PascalEditorStop      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
+  { TFRE_DB_TEST_APP_SVG_MOD }
+
+  TFRE_DB_TEST_APP_SVG_MOD = class (TFRE_DB_APPLICATION_MODULE)
+  protected
+    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    procedure       SetupAppModuleStructure ; override;
+    function        GetToolbarMenu          (const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
+  published
+    procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
+    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdateSVG             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+  end;
+
 implementation
 
 procedure GenerateTestData(const dbname: string; const user, pass: string);
@@ -447,6 +460,50 @@ begin
   finally
     conn.Finalize;
   end;
+end;
+
+{ TFRE_DB_TEST_APP_SVG_MOD }
+
+class procedure TFRE_DB_TEST_APP_SVG_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
+end;
+
+procedure TFRE_DB_TEST_APP_SVG_MOD.SetupAppModuleStructure;
+begin
+  inherited SetupAppModuleStructure;
+  InitModuleDesc('$svg_description')
+end;
+
+function TFRE_DB_TEST_APP_SVG_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
+var
+  menu: TFRE_DB_MENU_DESC;
+begin
+  menu:=TFRE_DB_MENU_DESC.create.Describe;
+  menu.AddEntry.Describe('Update SVG','',CWSF(@WEB_UpdateSVG));
+  Result:=menu;
+end;
+
+procedure TFRE_DB_TEST_APP_SVG_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
+begin
+  inherited MySessionInitializeModule(session);
+end;
+
+function TFRE_DB_TEST_APP_SVG_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  try
+    Result:=TFRE_DB_SVG_DESC.create.Describe(GFRE_BT.StringFromFile('test.svg'),'test_svg');
+  except
+    on E:Exception do begin
+      Result:=TFRE_DB_HTML_DESC.create.Describe('Error on reading the svg test file. Please place a valid test.svg file into the binary directoy.');
+    end;
+  end;
+end;
+
+function TFRE_DB_TEST_APP_SVG_MOD.WEB_UpdateSVG(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=TFRE_DB_UPDATE_SVG_DESC.create.Describe('test_svg','rect5661','style','fill:red');
 end;
 
 { TFRE_DB_TEST_FILEDIR }
@@ -2202,6 +2259,7 @@ begin
   AddApplicationModule(TFRE_DB_TEST_APP_LIVE_CHART_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_EDITORS_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_SVG_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_FORMTEST_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_ALLGRID_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.create);
@@ -2218,6 +2276,7 @@ begin
       CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
       CreateAppText(conn,'$gtf_description','Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
       CreateAppText(conn,'$edit_description','Editors','Editors','Editors');
+      CreateAppText(conn,'$svg_description','SVG','SVG','SVG');
       CreateAppText(conn,'$chart_description','Chart Test','Chart Test','Chart Test');
       CreateAppText(conn,'$live_chart_description','Live Chart Test','Live Chart Test','Live Chart Test');
       CreateAppText(conn,'$grid_description','Grid Test','Grid Test','Grid Test');
@@ -2332,6 +2391,7 @@ begin
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.Classname,2,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_EDITORS_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/SVG','SVG','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_SVG_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_SVG_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
   session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
@@ -2364,12 +2424,6 @@ class procedure TFRE_DB_TEST_APP.RegisterSystemScheme(const scheme: IFRE_DB_SCHE
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION');
-  scheme.AddSchemeFieldSubscheme('gridmod'        , 'TFRE_DB_TEST_APP_GRID_MOD');
-  scheme.AddSchemeFieldSubscheme('grid2mod'       , 'TFRE_DB_TEST_APP_GRID2_MOD');
-  scheme.AddSchemeFieldSubscheme('chartmod'       , 'TFRE_DB_TEST_APP_CHART_MOD');
-  scheme.AddSchemeFieldSubscheme('livechartmod'   , 'TFRE_DB_TEST_APP_LIVE_CHART_MOD');
-  scheme.AddSchemeFieldSubscheme('gridtreeformmod', 'TFRE_DB_TEST_APP_GRIDTREEFORM_MOD');
-  scheme.AddSchemeFieldSubscheme('editors'        , 'TFRE_DB_TEST_APP_EDITORS_MOD');
 end;
 
 function TFRE_DB_TEST_APP.WEB_Messages(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -2572,6 +2626,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_LIVE_CHART_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_EDITORS_MOD);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_SVG_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_WELCOME_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
