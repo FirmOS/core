@@ -235,8 +235,15 @@ end;
 
 procedure TFRE_DB_ASYNC_DEL_CMD.DoOperation;
 begin
-  DeleteFile(FFileName);
-  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE ASYNC [%s]',[FFilename]);
+  if not DeleteFile(FFileName) then
+    begin
+      writeln('------------------------>>>>>>>>>>>>> DELETE EMERGENCY   ',FFilename);
+      GFRE_DBI.LogEmergency(dblc_PERSISTANCE,'>>DELETE ASYNC [%s] FAILED!',[FFilename]);
+    end
+  else
+    begin
+       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE ASYNC [%s]',[FFilename]);
+    end;
 end;
 
 { TFRE_DB_ASYNC_WT_THREAD }
@@ -249,7 +256,14 @@ begin
     if assigned(wb) then
       begin
         FOS_IL_DEC_NATIVE(QC);
-        wb.DoOperation;
+        try
+          wb.DoOperation;
+        except
+          on e:Exception do
+            begin
+              GFRE_DBI.LogEmergency(dblc_PERSISTANCE,'>>ASYNC WT OPERATION ASYNC FAILED / [%s]',[WB.ClassName]);
+            end;
+        end;
         wb.free;
         Sleep(0);
       end;
@@ -313,8 +327,15 @@ end;
 
 procedure TFRE_DB_ASYNC_WRITE_BLOCK.DoOperation;
 begin
-   m.SaveToFile(FFilename);
-   GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE ASYNC : '+FFilename+' DONE');
+     try
+       m.SaveToFile(FFilename);
+       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE ASYNC : '+FFilename+' DONE');
+     except on e:exception do
+       begin
+         writeln('----------------------------------------->>>>> EXC - ASYNC WRITE ',FFilename,' ',e.Message);
+         GFRE_DBI.LogEmergency(dblc_PERSISTANCE,'<<STORE ASYNC : '+FFilename+' FAILED DONE');
+       end;
+     end;
 end;
 
 destructor TFRE_DB_ASYNC_WRITE_BLOCK.Destroy;
@@ -1756,6 +1777,8 @@ begin
       begin
         SetLength(FConnectedLayers,Length(FConnectedLayers)+1);
         FConnectedLayers[high(FConnectedLayers)] := TFRE_DB_PS_FILE.InternalCreate(FBasedirectory,up_dbname,result);
+        if result<>edb_OK then
+          exit;
         dblayer_o := FConnectedLayers[high(FConnectedLayers)];
         db_layer  := dblayer_o;
         UpdateNotifyIF;

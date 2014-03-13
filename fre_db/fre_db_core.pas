@@ -4780,7 +4780,6 @@ var jp           : TJSONParser;
     SetLength(line,count-2);
     from_stream.ReadBuffer(line[1],count-2);
     from_stream.ReadByte;from_stream.ReadByte;
-    //writeln(line);
     result := TFRE_DB_Object.CreateFromJSONString(line);
   end;
 
@@ -4788,15 +4787,6 @@ var jp           : TJSONParser;
   begin
     name := obj.Field('SECTION').AsString;
     cnt  := obj.Field('COUNT').AsInt64;
-  end;
-
-  procedure AddCollection(const obj:TFRE_DB_COLLECTION);
-  //var l_ConnManage : TFRE_DB_Collection_ManageInfo;
-  begin
-    writeln('FIXXIT');
-    abort;
-    //l_ConnManage := TFRE_DB_Collection_ManageInfo.Create(obj,obj.CollectionName,self);
-    //if not FCollectionStore.add(l_ConnManage.Key,l_ConnManage) then raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not add "%s" collection',[obj.CollectionName]);
   end;
 
 begin
@@ -9770,7 +9760,8 @@ begin
   AcquireConnLock;
   if assigned(FSession) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'never, ever free a bound connection');
-  FPersistance_Layer.Disconnect;
+  if assigned(FPersistance_Layer) then
+    FPersistance_Layer.Disconnect;
   FCollectionStore.ForAllItems(@FinalizeCollection);
   FCollectionStore.Free;
   FCollectionStore:=nil;
@@ -13241,15 +13232,18 @@ var i:Integer;
     value_count : TFRE_DB_SIZE_TYPE;
     field_name  : TFRE_DB_NameType;
     jo          : TJSONObject;
+    cft         : TFRE_DB_FIELDTYPE;
+    cm          : IFRE_DB_CalcMethod;
 begin
   if field_count>0 then begin
     for i := 0 to field_count-1 do begin
       jo         := JSON.Items[i+1] as TJSONObject;
       field_name := jo.Elements['N'].AsString;
-      if field_name='SPACE' then
-        field_name:=field_name;
       field_type := FieldtypeShortString2Fieldtype(jo.Elements['T'].AsString);
-      _Field(field_name).SetFromJSON(field_type,jo.Elements['D'] as TJSONArray,stream_cb);
+      if not CalcFieldExists(field_name,cft,cm) then
+        _Field(field_name).SetFromJSON(field_type,jo.Elements['D'] as TJSONArray,stream_cb)
+      else
+        ; // skip calculated fields
     end;
   end;
 end;
@@ -15228,7 +15222,7 @@ begin
   if ValueCount=0 then exit('');
   case FFieldData.FieldType of
     fdbft_NotFound:    result := '';
-    fdbft_GUID:        result := GFRE_BT.GUID_2_HexString(FFieldData.guid^[idx]);
+    fdbft_GUID:        result := FREDB_G2H(FFieldData.guid^[idx]);
     fdbft_Byte:        result := IntToStr(FFieldData.byte^[idx]);
     fdbft_Int16:       result := IntToStr(FFieldData.in16^[idx]);
     fdbft_UInt16:      result := IntToStr(FFieldData.ui16^[idx]);
@@ -15244,7 +15238,7 @@ begin
     fdbft_DateTimeUTC: result := GFRE_DT.ToStrUTC(GFRE_DB.UTCToLocalTimeDB64(FFieldData.date^[idx]));
     fdbft_Stream:      result := _StreamToStringAsUrlAccess;
     fdbft_Object:      result := '[$O:'+FFieldData.obj.SchemeClass+']'; // FFieldData.obj^[idx].DumpToString;
-    fdbft_ObjLink:     result := FREDB_GuidArray2StringStream(FFieldData.obl^);
+    fdbft_ObjLink:     result := FREDB_G2H(FFieldData.obl^[idx]); //FREDB_GuidArray2StringStream(FFieldData.obl^);
     else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled %s',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
   end;
 end;
@@ -17201,18 +17195,18 @@ var i:integer;
  begin
    case FFieldData.FieldType of
      fdbft_NotFound:      result:=TJSONNull.Create;
-     fdbft_GUID:          result:=TJSONString.Create(GFRE_BT.GUID_2_HexString(GetAsGUIDList(index)));
+     fdbft_GUID:          result:=TJSONString.Create(FREDB_G2H(GetAsGUIDList(index)));
      fdbft_Byte:          result:=TJSONString.Create(IntTostr(GetAsByteList(index)));
      fdbft_Int16:         result:=TJSONString.Create(IntTostr(GetAsInt16List(index)));
      fdbft_UInt16:        result:=TJSONString.Create(IntTostr(GetAsUInt16List(index)));
      fdbft_Int32:         result:=TJSONString.Create(IntTostr(GetAsInt32List(index)));
      fdbft_UInt32:        result:=TJSONString.Create(IntTostr(GetAsUInt32List(index)));
      fdbft_Int64:         result:=TJSONString.Create(IntTostr(GetAsInt64List(index)));
-     fdbft_UInt64:        result:=TJSONString.Create(IntTostr(GetAsUInt64List(index)));                        // transfer of uint64 by JSON not possible
+     fdbft_UInt64:        result:=TJSONString.Create(IntTostr(GetAsUInt64List(index)));
      fdbft_Real32:        result:=TJSONString.Create(FloatToStr(GetAsSingleList(index)));
      fdbft_Real64:        result:=TJSONString.Create(FloatToStr(GetAsDoubleList(index)));
      fdbft_Currency:      result:=TJSONString.Create(CurrToStr(GetAsCurrencyList(index)));
-     fdbft_String:        result:=TJSONString.Create(GetAsStringList(index));     //TODO -> think about UTF8 / encoding / decoding
+     fdbft_String:        result:=TJSONString.Create(EncodeStringBase64(GetAsStringList(index)));
      fdbft_Boolean:       result:=TJSONString.Create(BoolToStr(GetAsBooleanList(index)));
      fdbft_DateTimeUTC:   result:=TJSONString.Create(IntTostr(GetAsDateTimeListUTC(index)));
      fdbft_Stream:        begin
@@ -17222,7 +17216,7 @@ var i:integer;
                             assert(index=0,'internal fail');
                             result:= GetAsObject.GetAsJSON(without_uid,full_dump,stream_cb);
                           end;
-     fdbft_ObjLink:     result:=TJSONString.Create(_ConvertToString(index));
+     fdbft_ObjLink:     result:=TJSONString.Create(FREDB_G2H(GetAsObjectLinkList(index)));
      else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]);
    end;
  end;
@@ -17297,7 +17291,7 @@ procedure TFRE_DB_FIELD.SetFromJSON(const field_type: TFRE_DB_FIELDTYPE; const j
       dmstream    : TBase64DecodingStream;
       ssm         : TStringStream;
       i           : integer;
-      tst         : string;
+      conv        : TFRE_DB_String;
 
     function JAsString:TFRE_DB_String;
     begin
@@ -17321,11 +17315,21 @@ procedure TFRE_DB_FIELD.SetFromJSON(const field_type: TFRE_DB_FIELDTYPE; const j
       fdbft_Int32:         AddInt32(StrToInt(JAsString));
       fdbft_UInt32:        AddUInt32(StrToInt(JAsString));
       fdbft_Int64:         AddInt64(StrToInt64(JAsString));
-      fdbft_UInt64:        AddUInt64(StrToInt64(JAsString));
+      fdbft_UInt64:        AddUInt64(StrToQWord(JAsString));
       fdbft_Real32:        AddReal32(StrToFloat(JAsString));
-      fdbft_Real64:        AddReal64(StrToFloat(JAsString));
+      fdbft_Real64:        AddReal64(Extended(StrToFloat(JAsString)));
       fdbft_Currency:      AddCurrency(StrToCurr(JAsString));
-      fdbft_String:        AddString(JAsString);
+      fdbft_String:
+        try
+          conv := JAsString;
+          if conv<>'' then
+            AddString(DecodeStringBase64(JAsString,true))
+          else
+            AddString('');
+        except
+          writeln('Base64 K',JAsString);
+          halt;
+        end;
       fdbft_Boolean:       AddBoolean(StrToBool(JAsString));
       fdbft_DateTimeUTC:   AddDateTimeUTC(StrToInt64(JAsString));
       fdbft_Stream:        begin
@@ -17365,14 +17369,15 @@ procedure TFRE_DB_FIELD.SetFromJSON(const field_type: TFRE_DB_FIELDTYPE; const j
                              SetAsObject(TFRE_DB_Object.CreateInternalStreamingJSON(self,jo as TJSONArray,stream_cb));
                            end;
       fdbft_ObjLink:       begin
-                             AsObjectLinkArray := FREDB_StreamString2GuidArray(JAsString);
+                             //AsObjectLinkArray := FREDB_StreamString2GuidArray(JAsString);
+                             AddObjectLink(FREDB_H2G(JAsString));
                            end;
       else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]);
     end;
   end;
 
 var  i: Integer;
-begin
+begin {used from fulldump, so strings are base64 encoded}
   for i:=0 to json_object.Count-1 do begin
     SetFrom(json_object.Items[i]);
   end;
