@@ -2542,8 +2542,7 @@ begin
   conn.ExpandReferences(TFRE_DB_GUIDArray.create(input.UID),FRefFieldChain,expanded);
   if Length(expanded)=0 then
     begin
-      GFRE_DB.LogError(dblc_DB,'<> <> TRANSFORM OUTFILEDNAME '+FOutFieldName+' UNRESOLVED LINK '+inttostr(Length(FRefFieldChain))+' '+FRefFieldChain[0]+' '+input.UID_String);
-      output.field(uppercase(FOutFieldName)).asstring := '?*UNRESOLVED LINK*';
+      output.field(uppercase(FOutFieldName)).asstring := ''; //unresoved links should return empty field for grid
       exit;
     end;
   if Length(expanded)>1 then
@@ -2567,38 +2566,6 @@ begin
     end;
   if assigned(objo) then
     objo.Finalize;
-
- { OLD }
-
-  //objo      := input.Implementor as TFRE_DB_Object;
-  //for i:=0 to high(FRefFieldChain) do begin
-  //  fld := objo._FieldOnlyExisting(FRefFieldChain[i]);
-  //  if not assigned(fld)
-  //     or (fld._FieldType<>fdbft_ObjLink) then
-  //       begin
-  //         output.field(uppercase(FOutFieldName)).asstring := '?*WRONG FIELDTYPE*';
-  //         exit;
-  //       end;
-  //  ref_uid := objo._Field(FRefFieldChain[i])._GetAsGUID;
-  //  if not ((conn.Implementor_HC as TFRE_DB_CONNECTION).Fetch(ref_uid,objo)=edb_OK) then
-  //    begin
-  //      output.field(uppercase(FOutFieldName)).asstring := '?*UNRESOLVED LINK*';
-  //      exit;
-  //    end;
-  //end;
-  ////objo.Assert_CheckStoreLocked;
-  //try
-  //  //objo.Set_Store_Locked(false);
-  //  if objo.FieldExists(FInFieldName) then begin
-  //    output.field(uppercase(FOutFieldName)).CloneFromField(objo.Field(FInFieldName));
-  //  end else begin
-  //    output.field(uppercase(FOutFieldName)).asstring := '?*TARGETFIELD NOT FOUND*';
-  //  end;
-  //finally
-  //  //objo.Set_Store_Locked(true);
-  //  if assigned(objo) then
-  //    objo.Finalize;
-  //end;
 end;
 
 { TFRE_DB_TEXT_FT }

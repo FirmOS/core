@@ -2026,6 +2026,7 @@ type
   TFRE_DB_UPDATE_FORM_DESC = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes an update of a form dbo. All Forms including the given updateObj will be updated.
+    //@ updateObj has to hold all changes (added, modified and deleted fields (delta object))
     function  DescribeDBO      (const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
     //@ Describes an update of a form. The form with the given id will be updated be the given object.
     function  Describe         (const formId: String; const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
