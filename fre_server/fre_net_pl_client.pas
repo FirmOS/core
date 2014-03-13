@@ -1312,18 +1312,27 @@ begin
           case FConnectState of
             sfc_NOT_CONNECTED:
               begin // Start a client
-                FConnectState:=sfc_TRYING;
-                if FSpecfile<>'' then
-                  GFRE_SC.AddClient_UX(FSpecfile,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
-                else
-                  if FHost<>'' then
-                    GFRE_SC.AddClient_TCP_DNS(FHost,FPort,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
+                try
+                  FConnectState:=sfc_TRYING;
+                  if FSpecfile<>'' then
+                    GFRE_SC.AddClient_UX(FSpecfile,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
                   else
-                    GFRE_SC.AddClient_TCP(FIp,FPort,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
+                    if FHost<>'' then
+                      GFRE_SC.AddClient_TCP_DNS(FHost,FPort,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
+                    else
+                      GFRE_SC.AddClient_TCP(FIp,FPort,inttostr(i),nil,@NewSocket,@ReadClientChannel,@DiscoClientChannel)
+                except
+                  on E:Exception do
+                  begin
+                    FLasterror    := 'CONNECTION CRITICAL:'+e.Message;
+                    FConnectState := sfc_Failed;
+                    FLayerWait.SetEvent;
+                  end;
+                end;
               end;
-              sfc_TRYING: ; // do nothing
-              sfc_OK: ; // do nothing
-            end;
+            sfc_TRYING: ; // do nothing
+            sfc_OK: ; // do nothing
+          end;
   finally
     FLayerLock.Release;
   end;

@@ -247,6 +247,16 @@ var ErrorMsg : String;
       end;
     end;
 
+    procedure OrderedShutDown;
+    begin
+      Teardown_APS_Comm;
+      Terminate;
+      FBaseServer.Free;
+      GFRE_DB_PS_LAYER.Finalize;
+      Cleanup_SSL_CMD_CA_Interface;
+      GFRE_BT.DeactivateJack;
+    end;
+
 begin
   // OPTIONS without args are first then OPTIONS with arguments are listed, same order for full and one letter options, watch the colon count
   ErrorMsg:=CheckOptions('hvirlgxytf:e:u:p:d:s:U:H:',
@@ -374,7 +384,7 @@ begin
     FOnlyInitDB:=true;
     filename := GetOptionValue('*','backupdb');
     BackupDB(true,true,filename);
-    Terminate;
+    OrderedShutDown;
     exit;
   end;
 
@@ -382,7 +392,7 @@ begin
     FOnlyInitDB:=true;
     filename := GetOptionValue('*','backupsys');
     BackupDB(false,true,filename);
-    Terminate;
+    OrderedShutDown;
     exit;
   end;
 
@@ -390,7 +400,7 @@ begin
     FOnlyInitDB:=true;
     filename := GetOptionValue('*','backupapp');
     BackupDB(true,false,filename);
-    Terminate;
+    OrderedShutDown;
     exit;
   end;
 
@@ -398,7 +408,7 @@ begin
     FOnlyInitDB:=true;
     filename := GetOptionValue('*','restoredb');
     RestoreDB(true,true,filename);
-    Terminate;
+    OrderedShutDown;
     exit;
   end;
 
@@ -473,15 +483,7 @@ begin
   FBaseServer.Setup;
   if not Terminated then
     GFRE_SC.RunUntilTerminate;
-
-
-  Teardown_APS_Comm;
-  Terminate;
-  FBaseServer.Free;
-  GFRE_DB_PS_LAYER.Finalize;
-  Cleanup_SSL_CMD_CA_Interface;
-  GFRE_BT.DeactivateJack;
-  exit;
+  OrderedShutDown;
 end;
 
 procedure TFRE_CLISRV_APP.PrintTimeZones;
@@ -746,8 +748,8 @@ begin
       if adb then
         begin
           GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM');
-          CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM'));
           GFRE_DB_PS_LAYER.DeleteDatabase(FDBName);
+          CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM'));
           CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase(FDBName));
           conn := GFRE_DBI.NewConnection;
           res  := conn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
