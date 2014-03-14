@@ -627,6 +627,8 @@ type
     procedure  ObjectDeleted          (const obj : IFRE_DB_Object)  ; virtual;
     procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
     procedure  ObjectUpdated          (const obj : IFRE_DB_Object); virtual ;
+    procedure  DifferentiallUpdStarts (const obj       : IFRE_DB_Object); virtual;            { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID); virtual;             { DIFFERENTIAL STATE}
     procedure  FieldDelete            (const old_field : IFRE_DB_Field); virtual;
     procedure  FieldAdd               (const new_field : IFRE_DB_Field); virtual;
     procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field); virtual;
@@ -666,6 +668,8 @@ type
     procedure   ObjectDeleted          (const obj : IFRE_DB_Object)  ; override;
     procedure   ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); override;
     procedure   ObjectUpdated          (const obj : IFRE_DB_Object); override ;
+    procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object); override;
+    procedure   DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID); override;
     procedure   FieldDelete            (const old_field : IFRE_DB_Field); override;
     procedure   FieldAdd               (const new_field : IFRE_DB_Field); override;
     procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field); override;
@@ -947,6 +951,38 @@ begin
   end;
 end;
 
+procedure TFRE_DB_DBChangedNotificationProxy.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
+var newe : IFRE_DB_Object;
+begin
+  try
+    Inherited; { log }
+    CheckBlockStarted;
+    newe := GFRE_DBI.NewObject;
+    newe.Field('C').AsString := 'DUS';
+    newe.Field('O').AsObject := obj;
+    AddNotificationEntry(newe);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: DiffUpstart '+e.Message);
+  end;
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
+var newe : IFRE_DB_Object;
+begin
+  try
+    Inherited; { log }
+    CheckBlockStarted;
+    newe := GFRE_DBI.NewObject;
+    newe.Field('C').AsString := 'DUE';
+    newe.Field('O').AsGUID   := obj_uid;
+    AddNotificationEntry(newe);
+  except on
+    e:Exception do
+      GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: DiffUpEnds '+e.Message);
+  end;
+end;
+
 procedure TFRE_DB_DBChangedNotificationProxy.FieldDelete(const old_field: IFRE_DB_Field);
 var newe : IFRE_DB_Object;
 begin
@@ -1175,6 +1211,16 @@ end;
 procedure TFRE_DB_DBChangedNotificationBase.ObjectUpdated(const obj: IFRE_DB_Object);
 begin
   GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT UPDATED -> %s',[FLayerDB,obj.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> DIFFERENTIAL UPDATE START -> %s',[FLayerDB,obj.GetDescriptionID]));
+end;
+
+procedure TFRE_DB_DBChangedNotificationBase.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
+begin
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> DIFFERENTIAL UPDATE END [UID: %s]',[FLayerDB,FREDB_G2H(obj_uid)]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.FieldDelete(const old_field: IFRE_DB_Field);
@@ -2102,8 +2148,7 @@ var i,j         : NativeInt;
         begin
           to_upd_obj.Set_Store_Locked(false); { Parent }
           try
-            if (not check) and
-               (newfield.FieldType<>fdbft_ObjLink) then { reflink notification is seperate }
+            if (not check) then
               begin
                 FTransList.GetNotifyIF.FieldChange(oldfield, newfield);
               end;
@@ -2145,7 +2190,7 @@ var i,j         : NativeInt;
 
     procedure CheckWriteThrough;
     var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
-          i : NAtiveInt;
+          i : NativeInt;
     begin
       CheckWriteThroughObj(to_upd_obj,false);
       arr := to_upd_obj.__InternalGetCollectionList;
@@ -2153,7 +2198,22 @@ var i,j         : NativeInt;
         CheckWriteThroughColl(arr[i]);
     end;
 
+    var diffupdo : TFRE_DB_Object;
+
 begin
+  if not check then
+    begin
+      to_upd_obj.Set_Store_Locked(false);
+      try
+        diffupdo := to_upd_obj.CloneToNewObject; { TODO: replace with a more efficient solution, new object (streaming/weak ...)}
+        diffupdo.ClearAllFields;
+        diffupdo.Field('uid').AsGUID      := to_upd_obj.UID;
+        diffupdo.Field('domainid').AsGUID := to_upd_obj.DomainID;
+        FTransList.GetNotifyIF.DifferentiallUpdStarts(diffupdo);
+      finally
+        to_upd_obj.Set_Store_Locked(true);
+      end;
+    end;
   for i:=0 to FCnt-1 do
     begin
       with FSublist[i] do
@@ -2179,6 +2239,9 @@ begin
           end;
         end;
     end;
+  if not check then
+    FTransList.GetNotifyIF.DifferentiallUpdEnds(to_upd_obj.UID); { Notifications will be transmitted on block level -> no special handling here, block get deleted on error }
+
   if not check then
     begin
       to_upd_obj.Set_Store_Locked(false);

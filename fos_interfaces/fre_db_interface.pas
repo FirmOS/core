@@ -126,8 +126,8 @@ const
   CFRE_DB_SYS_DOMAIN_NAME        = 'SYSTEM';
   cFRE_DB_STKEY                  = '#ST#';
   cFRE_DB_ST_ETAG                = '#ETG#';
-  cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*';
-  cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';
+  cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*'; { used to indicate a DONT CHANGE THE FIELD in translating from JSON <-> DBO }
+  cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';    { used to indicate a CLEAR FIELD in translating from JSON <-> DBO }
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
   CFRE_DB_EPSILON_SGL                                               = 1.192092896e-07;         // Epsiolon for Single Compare (Zero / boolean)
@@ -517,6 +517,9 @@ type
     function  ParentObject                  : IFRE_DB_Object;
     function  GetUpdateObjectUIDPath        : TFRE_DB_GUIDArray; { This is only set in case of a "clone" stream field (standalone field only) }
     function  GetInCollectionArrayUSL       : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
+    function  GetUpdateObjSchemePath        : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
+    function  GetUpdateObjFieldPath         : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
+    function  IsSpecialClearMarked          : Boolean; { if a string field and has special clear string mark set => true (usefull for json web interface) }
   end;
 
 
@@ -729,6 +732,9 @@ type
     function  GetTKey:  TFRE_DB_String;
     procedure SetHint(const AValue: TFRE_DB_String);
     procedure Setlong(const AValue: TFRE_DB_String);
+    procedure ClearLong;
+    procedure ClearShort;
+    procedure ClearHint;
     procedure SetShort(const AValue: TFRE_DB_String);
     procedure SetTKey(const AValue: TFRE_DB_String);
 
@@ -1278,14 +1284,16 @@ type
     procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
     procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
     procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
-    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
-    procedure  ObjectDeleted          (const obj : IFRE_DB_Object);
-    procedure  ObjectUpdated          (const obj : IFRE_DB_Object);
+    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); { FULL STATE }
+    procedure  ObjectDeleted          (const obj : IFRE_DB_Object); { FULL STATE }
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object); { FULL STATE }
     procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
-    procedure  FieldDelete            (const old_field : IFRE_DB_Field);
-    procedure  FieldAdd               (const new_field : IFRE_DB_Field);
-    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field);
+    procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object);           { DIFFERENTIAL STATE}
+    procedure  FieldDelete            (const old_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
+    procedure  FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
+    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field);  { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
     procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
     procedure  SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
     procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
@@ -2276,6 +2284,7 @@ type
 
   TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession,IFRE_DB_DBChangedNotification)
   private type
+    TDiffFieldUpdateMode=(mode_df_add,mode_df_del,mode_df_change);
     TDispatch_Continuation = record
       CID        : Qword;
       ORIG_CID   : Qword;
@@ -2309,7 +2318,9 @@ type
     FSessionData          : IFRE_DB_Object;
     FBinaryInputs         : IFRE_DB_Object; { per key requestable of Binary Input which get's sent seperated from the data }
     FUpdateableDBOS       : IFRE_DB_Object;
+    FDifferentialUpdates  : IFRE_DB_Object;
     FUpdateableContent    : IFRE_DB_Object;
+
     FTimers               : TList;
 
     FRemoteRequestSet     : TFRE_DB_RemoteReqSpecArray;
@@ -2458,15 +2469,19 @@ type
     procedure   ObjectUpdated          (const obj : IFRE_DB_Object);
     procedure   SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure   SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
-    procedure   FieldDelete            (const old_field : IFRE_DB_Field);
-    procedure   FieldAdd               (const new_field : IFRE_DB_Field);
-    procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field);
     procedure   ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
     procedure   SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
     procedure   SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
     procedure   InboundReflinkDropped  (const from_obj: IFRE_DB_Object    ; const to_obj   : TGUID       ; const key_description : TFRE_DB_NameTypeRL);
     procedure   OutboundReflinkDropped (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description: TFRE_DB_NameTypeRL);
+    procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object);             { DIFFERENTIAL STATE}
+    procedure   DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
+    procedure   FieldDelete            (const old_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
+    procedure   FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
+    procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field);  { DIFFERENTIAL STATE}
     procedure   FinalizeNotif          ;
+    {Helper}
+    procedure   HandleDiffField        (const mode : TDiffFieldUpdateMode ; const fld : IFRE_DB_Field);
   end;
 
 
@@ -3753,6 +3768,7 @@ begin
   FTimers               := TList.Create;
   FBinaryInputs         := GFRE_DBI.NewObject;
   FUpdateableDBOS       := GFRE_DBI.NewObject;
+  FDifferentialUpdates  := GFRE_DBI.NewObject;
   FUpdateableContent    := GFRE_DBI.NewObject;
 
   _FetchAppsFromDB;
@@ -3798,6 +3814,7 @@ begin
   FTimers.Free;
   FBinaryInputs.Finalize;
   FUpdateableContent.Finalize;
+  FDifferentialUpdates.Finalize;
   FUpdateableDBOS.Finalize;
   FSessionLock.Finalize;
   if assigned(FSessionData) then
@@ -4020,7 +4037,7 @@ begin
   app.SessionFinalize(self);
 end;
 
-procedure TFRE_DB_UserSession.RemoveAllAppsandFinalize;
+procedure TFRE_DB_UserSession.RemoveAllAppsAndFinalize;
 var  i       : Integer;
      applist : Array of String;
 begin
@@ -4854,13 +4871,13 @@ begin
   result := FBoundSession_RA_SC;
 end;
 
-procedure TFRE_DB_UserSession.registerUpdatableContent(const contentId: String);
+procedure TFRE_DB_UserSession.RegisterUpdatableContent(const contentId: String);
 begin
 //  FSessionData.Field('contentIds').AsObject.Field(contentId).AsBoolean:=True;
   FUpdateableContent.Field(contentId).AsBoolean:=True;
 end;
 
-procedure TFRE_DB_UserSession.unregisterUpdatableContent(const contentId: String);
+procedure TFRE_DB_UserSession.UnregisterUpdatableContent(const contentId: String);
 begin
   //  FSessionData.Field('contentIds').AsObject.Field(contentId).Clear();
   FUpdateableContent.Field(contentId).Clear;
@@ -4905,7 +4922,7 @@ begin
   result := FUpdateableDBOS.FieldExists(id);
 end;
 
-function TFRE_DB_UserSession.isUpdatableContentVisible(const contentId: String): Boolean;
+function TFRE_DB_UserSession.IsUpdatableContentVisible(const contentId: String): Boolean;
 begin
   Result:=FUpdateableContent.FieldExists(contentId);
 end;
@@ -5229,16 +5246,18 @@ end;
 
 procedure TFRE_DB_UserSession.ObjectUpdated(const obj: IFRE_DB_Object);
 begin
-  if IsDBOUpdatable(obj.UID) then
-    begin
-      try
-        SendServerClientRequest(TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(obj.CloneToNewObject));
-      except on e:Exception do
-        begin
-          writeln('FAILURE ObjectUpdated in Session ',FSessionID,' ',FUserName);
-        end;
-      end;
-    end;
+  //if IsDBOUpdatable(obj.UID) then
+  //  begin
+  //    try
+  //      //SendServerClientRequest(TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(obj.CloneToNewObject));
+  //      writeln('FULLSTATE UPDATE : ');
+  //      writeln(obj.DumpToString());
+  //    except on e:Exception do
+  //      begin
+  //        writeln('FAILURE ObjectUpdated in Session ',FSessionID,' ',FUserName);
+  //      end;
+  //    end;
+  //  end;
   if FCurrentNotificationBlockLayer='SYSTEM' then
     FDBConnection.SYS.GetNotif.ObjectUpdated(obj)
   else
@@ -5263,6 +5282,7 @@ end;
 
 procedure TFRE_DB_UserSession.FieldDelete(const old_field: IFRE_DB_Field);
 begin
+  HandleDiffField(mode_df_del,old_field);
   if FCurrentNotificationBlockLayer='SYSTEM' then
     FDBConnection.SYS.GetNotif.FieldDelete(old_field)
   else
@@ -5271,6 +5291,7 @@ end;
 
 procedure TFRE_DB_UserSession.FieldAdd(const new_field: IFRE_DB_Field);
 begin
+  HandleDiffField(mode_df_add,new_field);
   if FCurrentNotificationBlockLayer='SYSTEM' then
     FDBConnection.SYS.GetNotif.FieldAdd(new_field)
   else
@@ -5279,10 +5300,28 @@ end;
 
 procedure TFRE_DB_UserSession.FieldChange(const old_field, new_field: IFRE_DB_Field);
 begin
+  HandleDiffField(mode_df_change,new_field);
   if FCurrentNotificationBlockLayer='SYSTEM' then
     FDBConnection.SYS.GetNotif.FieldChange(old_field,new_field)
   else
     FDBConnection.GetNotif.FieldChange(old_field,new_field);
+end;
+
+procedure TFRE_DB_UserSession.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
+var upo : IFRE_DB_Object;
+    key : shortstring;
+    fld : IFRE_DB_Field;
+begin
+  key := FREDB_G2H(obj_uid);
+  if FDifferentialUpdates.FieldOnlyExisting(key,fld) then
+    begin
+      upo := fld.CheckOutObject;
+      //writeln('DIFF UPDATE O');
+      //writeln(upo.DumpToString);
+      SendServerClientRequest(TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(upo.CloneToNewObject));
+      //writeln('SENT');
+      upo.Finalize;
+    end;
 end;
 
 procedure TFRE_DB_UserSession.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
@@ -5325,9 +5364,51 @@ begin
     FDBConnection.GetNotif.OutboundReflinkDropped(from_obj,to_obj,key_description);
 end;
 
+procedure TFRE_DB_UserSession.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
+begin
+  FDifferentialUpdates.Field(obj.UID_String).AsObject := obj.CloneToNewObject;
+end;
+
 procedure TFRE_DB_UserSession.FinalizeNotif;
 begin
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'should not be called');
+end;
+
+procedure TFRE_DB_UserSession.HandleDiffField(const mode: TDiffFieldUpdateMode; const fld: IFRE_DB_Field);
+var upouidp : TFRE_DB_GUIDArray;
+    upofldp : TFRE_DB_StringArray;
+    uposchp : TFRE_DB_StringArray;
+    fldname : TFRE_DB_NameType;
+    fldsch  : TFRE_DB_NameType;
+    upo     : IFRE_DB_Object;
+    intero  : IFRE_DB_Object;
+    i       : NativeInt;
+begin
+  upouidp := fld.GetUpdateObjectUIDPath;
+  upofldp := fld.GetUpdateObjFieldPath;
+  uposchp := fld.GetUpdateObjSchemePath;
+  upo := FDifferentialUpdates.FieldOnlyExistingObj(FREDB_G2H(upouidp[0])); { get root object }
+  if assigned(upo) then
+    begin
+      for i:=1 to high(upouidp) do
+        begin
+          fldname := upofldp[i-1];
+          fldsch  := uposchp[i];
+          if not upo.FieldExists(fldname) then
+            begin
+              intero := GFRE_DBI.NewObjectSchemeByName(fldsch);
+              intero.Field('uid').AsGUID := upouidp[i];
+              upo.Field(fldname).AsObject := intero;
+              upo    := intero;
+            end;
+        end;
+      fldname := fld.FieldName;
+      case mode of
+        mode_df_add    : upo.Field(fldname).CloneFromField(fld);
+        mode_df_del    : upo.Field(fldname).AsString :=  cFRE_DB_SYS_CLEAR_VAL_STR;
+        mode_df_change : upo.Field(fldname).CloneFromField(fld);
+      end;
+    end;
 end;
 
 constructor TFOS_BASE.Create;
@@ -7400,6 +7481,8 @@ begin
           'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
           'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
           'DIL' : deploy_if.InboundReflinkDropped (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
+          'DUS' : deploy_if.DifferentiallUpdStarts(field('O').AsObject);
+          'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
           else
             raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
         end;

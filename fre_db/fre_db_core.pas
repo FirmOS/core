@@ -124,14 +124,16 @@ type
   PFRE_DB_FieldData = ^TFRE_DB_FieldData;
 
   { TFRE_DB_FIELD }
-  TFRE_DB_FIELD=class(TFOS_BASE,IFRE_DB_Field,IFRE_DB_CALCFIELD_SETTER)
+  TFRE_DB_FIELD=class(TFOS_BASE,IFRE_DB_Field,IFRE_DB_CALCFIELD_SETTER) {TODO:Idea / SPLIT IN FIELDTYPES / CLASSES streamfields realfields calcfields ...}
   protected
     FFieldData         : TFRE_DB_FieldData;
     FFieldName         : PFRE_DB_NameType;
-    Fobj               : TFRE_DB_Object; // = nil in Stream only fields
-    FManualFieldName   : TFRE_DB_String; // used for fields without object, (WAL Repair and Streamable Fields) (TODO: check  FFieldName^ cornercases!)
-    FObjUidPath        : TFRE_DB_GUIDArray; { used in stream only fields to know which object the field belongs to}
+    Fobj               : TFRE_DB_Object;      // = nil in Stream only fields
+    FManualFieldName   : TFRE_DB_String;      // used for fields without object, (WAL Repair and Streamable Fields) (TODO: check  FFieldName^ cornercases!)
+    FObjUidPath        : TFRE_DB_GUIDArray;   { used in stream only fields to know which object the field belongs to}
     FInCollectionArray : TFRE_DB_StringArray; { used in stream only fields to know which collections the field belongs to}
+    FSchemePath        : TFRE_DB_StringArray; { used in stream only fields to know which intermediate objects to create}
+    FUpObjFieldPath    : TFRE_DB_StringArray; { used in stream only fields to know which intermediate objects to create}
     FIsUidField        : Boolean;
     FIsDomainIDField   : Boolean;
     FCalcMethod        : IFRE_DB_CalcMethod;
@@ -290,16 +292,19 @@ type
     procedure SetAsObjectLinkList    (idx: Integer; const AValue: TGUID);
     procedure CalculateValue         ; // (re)calculate the value of the field
 
-    procedure IntfCast                      (const InterfaceSpec:ShortString ; out Intf) ; // Interpret as Object and then -> IntfCast throws an Exception if not succesful
+    procedure   IntfCast                      (const InterfaceSpec:ShortString ; out Intf) ; // Interpret as Object and then -> IntfCast throws an Exception if not succesful
     function    _FieldType        : TFRE_DB_FIELDTYPE;
-    procedure IFRE_DB_Field.CloneFromField = CloneFromFieldI;
-    procedure IFRE_DB_Field.CheckOutObject = CheckOutObjectI;
+    procedure   IFRE_DB_Field.CloneFromField = CloneFromFieldI;
+    procedure   IFRE_DB_Field.CheckOutObject = CheckOutObjectI;
   public
     function    CloneToNewStreamable    : IFRE_DB_Field;       { This creates a lightweight "streamable field" copy with only certain supported function (fieldvalues,type, but no parentobject etc support }
     function    CloneToNewStreamableObj : IFRE_DB_Object;      { encode the data as object }
 
     function    GetUpdateObjectUIDPath  : TFRE_DB_GUIDArray;   { This is only set in case of a "clone" stream field (standalone field only) }
     function    GetInCollectionArrayUSL : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
+    function    GetUpdateObjSchemePath  : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
+    function    GetUpdateObjFieldPath   : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
+    function    GetFieldPath            : TFRE_DB_StringArray;
 
     constructor Create           (const obj:TFRE_DB_Object; const FieldType:TFRE_DB_FIELDTYPE ; const ManualFieldName : string='' ; const calcmethod : IFRE_DB_CalcMethod=nil);
     destructor  Destroy          ;override;
@@ -315,6 +320,7 @@ type
 
     procedure   CloneFromField    (const Field:TFRE_DB_FIELD); // Value 0 = Fieldclone
     procedure   CloneFromFieldI   (const Field:IFRE_DB_FIELD);
+
 
     function    GetStreamingSize  : TFRE_DB_SIZE_TYPE;
     function    CopyFieldToMem    (var mempointer:Pointer):TFRE_DB_SIZE_TYPE;
@@ -461,6 +467,7 @@ type
     function  IFRE_DB_CALCFIELD_SETTER.SetAsObject  = SetAsObjectI;
 
     property  AsObjectI                     : IFRE_DB_Object read GetAsObjectI write SetAsObjectI;
+    function  IsSpecialClearMarked          : Boolean; { if a string field and has special clear string mark set => true (usefull for json web interface) }
   end;
   _TFRE_DB_FieldTree        = specialize TGFOS_RBTree<TFRE_DB_NameType,TFRE_DB_FIELD>;
 
@@ -632,6 +639,7 @@ type
     function        IsVolatile                         : Boolean;
     function        GetFieldListFilter                 (const field_type:TFRE_DB_FIELDTYPE):TFRE_DB_StringArray;
     function        GetUIDPath                         : TFRE_DB_StringArray;
+    function        GetSchemePath                      : TFRE_DB_StringArray;
     function        GetUIDPathUA                       : TFRE_DB_GUIDArray;
     function        Mediator                           : TFRE_DB_ObjectEx; // assigned if the Object uses Exended Functionality implemented by a Mediator Object
     function        Properties                         : TFRE_DB_Object_PropertySet;
@@ -1082,6 +1090,9 @@ type
     procedure SetTKey(const AValue: TFRE_DB_String);
   public
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    procedure ClearLong;
+    procedure ClearShort;
+    procedure ClearHint;
   published
     property  LongText         : TFRE_DB_String read GetLong write Setlong;
     property  ShortText        : TFRE_DB_String read Getshort write SetShort;
@@ -1749,6 +1760,8 @@ type
     procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
 
+    procedure  DifferentiallUpdStarts (const obj       : IFRE_DB_Object); virtual;            { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID); virtual;             { DIFFERENTIAL STATE}
     procedure  FieldDelete            (const old_field : IFRE_DB_Field); virtual;
     procedure  FieldAdd               (const new_field : IFRE_DB_Field); virtual;
     procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field); virtual;
@@ -3514,6 +3527,21 @@ begin
   input_group.AddInput('txt_s','$scheme_TFRE_DB_TEXT_txt_s');
   input_group.AddInput('hnt','$scheme_TFRE_DB_TEXT_txt_s');
   input_group.AddInput('t_key','$scheme_TFRE_DB_TEXT_key');
+end;
+
+procedure TFRE_DB_TEXT.ClearLong;
+begin
+  _Field('txt').Clear();
+end;
+
+procedure TFRE_DB_TEXT.ClearShort;
+begin
+  _Field('txt_s').Clear();
+end;
+
+procedure TFRE_DB_TEXT.ClearHint;
+begin
+  _Field('hnt').Clear();
 end;
 
 class function TFRE_DB_TEXT.CreateText(const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String): TFRE_DB_TEXT;
@@ -9611,6 +9639,16 @@ begin
   obj.Finalize;
 end;
 
+procedure TFRE_DB_BASE_CONNECTION.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
+begin
+
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
+begin
+
+end;
+
 procedure TFRE_DB_BASE_CONNECTION.FieldDelete(const old_field: IFRE_DB_Field);
 begin
   old_field.Finalize;
@@ -11639,7 +11677,7 @@ end;
 
 function TFRE_DB.NewObject(const ClName: TFRE_DB_String): TFRE_DB_Object;
 var oc : TFRE_DB_OBJECTCLASS;
-begin
+      begin
   oc := GetObjectClass(ClName);
   if not assigned(oc) then raise EFRE_DB_Exception.Create(edb_ERROR,'THE CODECLASS [%s] IS NOT REGISTERED',[ClName]);
   result := oc.Create;
@@ -12900,20 +12938,9 @@ begin
  new_fld.CloneFromField(Field('F'));
  new_fld.FObjUidPath         := Field('FUP').AsGUIDArr;
  new_fld.FInCollectionArray  := Field('FIC').AsStringArr;
+ new_fld.FSchemePath         := Field('OCP').AsStringArr;
+ new_fld.FUpObjFieldPath     := Field('OFP').AsStringArr;
  result := new_fld;
- //
- //new_fld.CloneFromField(self);
- //new_fld.FObjUidPath := ParentObject.GetUIDPathUA;
- //new_fld.FInCollectionArray := ParentObject.__InternalGetCollectionListUSL;
- //result := new_fld;
- //var obj : TFRE_DB_Object;
- //begin
- //  obj := GFRE_DB.NewObject();
- //  obj.Field('F').CloneFromField(self);
- //  obj.Field('FUP').ParentObject.GetUIDPathUA;
- //  obj.Field('FIC').AsStringArr := ParentObject.__InternalGetCollectionListUSL;
- //  result := obj;
- //end;
 end;
 
 procedure TFRE_DB_Object._InternalGuidNullCheck;
@@ -13005,7 +13032,7 @@ begin
   ForAllObjectsBreakHierarchic(@BuildList);
 end;
 
-procedure TFRE_DB_Object.__InternalCompareToobj(const compare_obj: TFRE_DB_Object; callback: TFRE_DB_ObjCompareCallback);
+procedure TFRE_DB_Object.__InternalCompareToObj(const compare_obj: TFRE_DB_Object; callback: TFRE_DB_ObjCompareCallback);
 
   procedure BaseFields(const fld : TFRE_DB_FIELD);
   var cmp_fld : TFRE_DB_FIELD;
@@ -13715,12 +13742,6 @@ var s:string;
 begin
   _InAccessibleCheck;
   result := TFRE_DB_Object.CreateFromString(self.AsString,generate_new_uids);
-  //if assigned(FMediatorExtention) then begin
-  //  if assigned(result.FMediatorExtention) then
-  //    abort;
-  //  result.FMediatorExtention := TFRE_DB_OBJECTCLASSEX(FMediatorExtention.ClassType).CreateBound(result,false);
-  //  result.SetScheme(GetScheme);
-  //end;
   if Assigned(FMediatorExtention) and
      not assigned(result.FMediatorExtention) then
        GFRE_BT.CriticalAbort('INTERNAL CLONE FAILURE');
@@ -13815,42 +13836,68 @@ begin
 end;
 
 function TFRE_DB_Object.GetUIDPath: TFRE_DB_StringArray;
+var i       : NativeInt;
+    cnt     : NativeInt;
+    lparent : TFRE_DB_Object;
 begin
-  if Length(fuidPath)=0 then begin
-    if Assigned(Parent) then begin
-      Result:=Parent.GetUIDPath;
-      SetLength(Result,Length(Result)+1);
-      Result[Length(Result)-1]:=UID_String;
-    end else begin
-      SetLength(Result,1);
-      Result[0]:=UID_String;
+  cnt:=0;
+  lparent := Parent;
+  while assigned(lparent) do
+    begin
+      inc(cnt);
+      lparent := lparent.Parent;
     end;
-  end else begin
-    Result:=fuidPath;
-  end;
+  SetLength(result,cnt+1);
+  lparent := self;
+  for i := cnt downto 0 do
+    begin
+      Result[i] := lparent.UID_String;
+      lparent   := lparent.Parent;
+    end;
+end;
+
+
+function TFRE_DB_Object.GetSchemePath: TFRE_DB_StringArray;
+var i       : NativeInt;
+    cnt     : NativeInt;
+    lparent : TFRE_DB_Object;
+begin
+  cnt:=0;
+  lparent := Parent;
+  while assigned(lparent) do
+    begin
+      inc(cnt);
+      lparent := lparent.Parent;
+    end;
+  SetLength(result,cnt+1);
+  lparent := self;
+  for i := cnt downto 0 do
+    begin
+      Result[i] := lparent.SchemeClass;
+      lparent   := lparent.Parent;
+    end;
 end;
 
 function TFRE_DB_Object.GetUIDPathUA: TFRE_DB_GUIDArray;
+var i       : NativeInt;
+    cnt     : NativeInt;
+    lparent : TFRE_DB_Object;
 begin
-  if Length(fuidPathUA)=0 then begin
-    if Assigned(Parent) then begin
-      Result:=Parent.GetUIDPathUA;
-      SetLength(Result,Length(Result)+1);
-      Result[Length(Result)-1]:=UID;
-    end else begin
-      SetLength(Result,1);
-      Result[0]:=UID;
+  cnt:=0;
+  lparent := Parent;
+  while assigned(lparent) do
+    begin
+      inc(cnt);
+      lparent := lparent.Parent;
     end;
-  end else begin
-    Result:=fuidPathUA;
-  end;
+  SetLength(result,cnt+1);
+  lparent := self;
+  for i := cnt downto 0 do
+    begin
+      Result[i] := lparent.UID;
+      lparent   := lparent.Parent;
+    end;
 end;
-
-//function TFRE_DB_Object.GetDBConnection: IFRE_DB_CONNECTION;
-//begin
-//  _InAccessibleCheck;
-//  result := _DBConnection;
-//end;
 
 function TFRE_DB_Object.Mediator: TFRE_DB_ObjectEx;
 begin
@@ -14819,6 +14866,12 @@ begin
   IntfCast(IFRE_DB_TEXT,result);
 end;
 
+function TFRE_DB_FIELD.IsSpecialClearMarked: Boolean;
+begin
+ result:= (_FieldType=fdbft_String) and
+          (FFieldData.strg^[0]=cFRE_DB_SYS_CLEAR_VAL_STR);
+end;
+
 function TFRE_DB_FIELD._FieldType: TFRE_DB_FIELDTYPE;
 begin
   result := FFieldData.FieldType;
@@ -14840,8 +14893,10 @@ begin
   obj := GFRE_DB.NewObject();
   obj.Field('F').CloneFromField(self);
   obj.Field('FN').AsString:=self.FieldName;
-  obj.Field('FUP').AsGUIDArr := ParentObject.GetUIDPathUA;
+  obj.Field('FUP').AsGUIDArr   := ParentObject.GetUIDPathUA;
   obj.Field('FIC').AsStringArr := ParentObject.__InternalGetCollectionListUSL;
+  obj.Field('OCP').AsStringArr := ParentObject.GetSchemePath;
+  obj.Field('OFP').AsStringArr := GetFieldPath;
   result := obj;
 end;
 
@@ -14855,6 +14910,37 @@ begin
   result := FInCollectionArray;
 end;
 
+function TFRE_DB_FIELD.GetUpdateObjSchemePath: TFRE_DB_StringArray;
+begin
+  result := FSchemePath;
+end;
+
+function TFRE_DB_FIELD.GetUpdateObjFieldPath: TFRE_DB_StringArray;
+begin
+  result := FUpObjFieldPath;
+end;
+
+function TFRE_DB_FIELD.GetFieldPath: TFRE_DB_StringArray;
+var i       : NativeInt;
+    cnt     : NativeInt;
+    lparent : TFRE_DB_FIELD;
+begin
+  result := nil;
+  cnt    := 0;
+  lparent := ParentObject.ParentField;
+  while assigned(lparent) do
+    begin
+      inc(cnt);
+      lparent := lparent.ParentObject.ParentField;
+    end;
+  SetLength(result,cnt+1);
+  lparent := self;
+  for i := cnt downto 0 do
+    begin
+      Result[i] := lparent.FieldName;
+      lparent   := lparent.ParentObject.ParentField;
+    end;
+end;
 
 procedure TFRE_DB_FIELD._IllegalTypeError(const ill_type: TFRE_DB_FIELDTYPE);
 begin
@@ -17163,6 +17249,7 @@ var i:integer;
 
  function GetJSON(const index:integer):TJSONData;
  var oa        : TFRE_DB_Object;
+     conv      : TFRE_DB_String;
  begin
    case FFieldData.FieldType of
      fdbft_NotFound:      result:=TJSONNull.Create;
@@ -17173,11 +17260,16 @@ var i:integer;
      fdbft_Int32:         result:=TJSONIntegerNumber.Create(GetAsInt32List(index));
      fdbft_UInt32:        result:=TJSONint64Number.Create(GetAsUInt32List(index));
      fdbft_Int64:         result:=TJSONInt64Number.Create(GetAsInt64List(index));
-     fdbft_UInt64:        result:=TJSONInt64Number.Create(GetAsUInt64List(index));                        // transfer of uint64 by JSON not possible
+     fdbft_UInt64:        result:=TJSONInt64Number.Create(GetAsUInt64List(index));     { transfer of uint64 by FPC JSON not possible atm }
      fdbft_Real32:        result:=TJSONFloatNumber.Create(GetAsSingleList(index));
      fdbft_Real64:        result:=TJSONFloatNumber.Create(GetAsDoubleList(index));
      fdbft_Currency:      result:=TJSONFloatNumber.Create(GetAsCurrencyList(index));
-     fdbft_String:        result:=TJSONString.Create(GetAsStringList(index));     //TODO -> think about UTF8 / encoding / decoding
+     fdbft_String:        begin
+                            if not IsSpecialClearMarked then
+                              result:=TJSONString.Create(GetAsStringList(index))       { TODO -> think about UTF8 / encoding / decoding }
+                            else
+                              result:=TJSONNull.Create;
+                          end;
      fdbft_Boolean:       result:=TJSONBoolean.Create(GetAsBooleanList(index));
      fdbft_DateTimeUTC:   result:=TJSONInt64Number.Create(GetAsDateTimeListUTC(index));
      fdbft_Stream:        begin
@@ -17188,16 +17280,6 @@ var i:integer;
                               result:= GetAsObject.GetAsJSON(without_uid,full_dump,stream_cb)
                             else
                               result:= AsObjectArr[index].GetAsJSON(without_uid,full_dump,stream_cb);
-//                            AsObject.GetAsJSON(without_uid,full_dump,stream_cb);
-                            //if not IsObjectArray then
-                            //  begin
-                            //    result := AsObject.GetAsJSON(without_uid,full_dump,stream_cb);
-                            //  end
-                            //else
-                            //  begin
-                            //    oa     := GetAsObjectList(index);
-                            //    result := oa.GetAsJSON(without_uid,full_dump,stream_cb);
-                            //  end;
                           end;
      fdbft_ObjLink:     result:=TJSONString.Create(_ConvertToString(index));
      else               raise EFRE_DB_Exception.Create(edb_INTERNAL,'not all cases handled '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]);
@@ -17861,13 +17943,22 @@ begin
       loginf := Login+'@'+GetDomain(conn);
       res := conn.sys.FetchUser(loginf,l_User);
       l_UserO := l_User.Implementor as TFRE_DB_USER;
-      writeln(l_UserO.DumpToString());
       if res<>edb_OK then
         exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Fetch Failed',fdbmt_error,nil));
       if data.FieldOnlyExisting('firstname',fld) then
-        l_UserO.Firstname:=fld.AsString;
+        begin
+          if fld.IsSpecialClearMarked then
+            l_UserO.Firstname:=''
+          else
+            l_UserO.Firstname:=fld.AsString;
+        end;
       if data.FieldOnlyExisting('lastname',fld) then
-        l_UserO.Lastname:=fld.AsString;
+        begin
+          if fld.IsSpecialClearMarked then
+            l_UserO.Lastname :=''
+          else
+            l_UserO.Lastname := fld.AsString;
+        end;
      if data.FieldOnlyExisting('picture',fld) then
        begin
          if fld.FieldType=fdbft_Stream then
@@ -17884,9 +17975,17 @@ begin
         begin
           data := data.Field('desc').AsObject;
           if data.FieldOnlyExisting('txt',fld) then
-            l_UserO.Field('desc').AsDBText.Setlong(fld.AsString);
+            begin
+              if fld.IsSpecialClearMarked then
+                l_UserO.Field('desc').AsDBText.ClearLong
+              else
+                l_UserO.Field('desc').AsDBText.Setlong(fld.AsString);
+            end;
           if data.FieldOnlyExisting('txt_s',fld) then
-            l_UserO.Field('desc').AsDBText.SetShort(fld.AsString);
+            if fld.IsSpecialClearMarked then
+              l_UserO.Field('desc').AsDBText.ClearShort
+            else
+              l_UserO.Field('desc').AsDBText.SetShort(fld.AsString);
         end;
       if data.FieldOnlyExisting('PASSWORDMD5',fld) then {FIXXME !!!! Password policies, check .... validator ...}
         l_UserO.SetPassword(fld.AsString);
