@@ -606,7 +606,14 @@ type
   end;
   P_Depfieldfield = ^R_Depfieldfield;
 
-  TFRE_DB_Depfielditerator = procedure (const depfield : R_Depfieldfield) is nested;
+  R_VisDepfieldfield = record
+    visDepFieldName  : TFRE_DB_NameType;
+    visibleValue     : String;
+  end;
+  P_VisDepfieldfield = ^R_VisDepfieldfield;
+
+  TFRE_DB_Depfielditerator    = procedure (const depfield : R_Depfieldfield) is nested;
+  TFRE_DB_VisDepfielditerator = procedure (const depfield : R_VisDepfieldfield) is nested;
 
    //IFRE_DB_EXTENSION_GRP loosely groups the necessary
    //DB Apps Registery Functions and extension functions, plus dependencies
@@ -935,6 +942,7 @@ type
     procedure  SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
     function   IsACalcField      : Boolean;
     procedure  addDepField       (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
+    procedure  addVisDepField    (const fieldName: TFRE_DB_String;const visibleValue:String);
     property   FieldName         :TFRE_DB_NameType   read GetFieldName;
     property   FieldType         :TFRE_DB_FIELDTYPE  read GetFieldType;
     property   SubschemeName     :TFRE_DB_NameType   read GetSubSchemeName;
@@ -943,6 +951,7 @@ type
     property   multiValues       :Boolean read getMultiValues write setMultiValues;
     function   ValidateField     (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
     procedure  ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
+    procedure  ForAllVisDepfields(const depfielditerator : TFRE_DB_VisDepfielditerator);
   end;
 
   IFRE_DB_NAMED_OBJECT = interface(IFRE_DB_Object)

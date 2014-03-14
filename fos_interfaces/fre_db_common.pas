@@ -220,8 +220,6 @@ type
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
   TFRE_DB_INPUT_CHOOSER_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
-  private
-    procedure _addDependentInput    (const elem: TFRE_DB_CONTENT_DESC; const chooserValue: String; const ignoreHidden: Boolean);
   public
     //@ Describes a chooser within a form.
     //@ FIXXME: display type dh_chooser_check not implemented yet.
@@ -230,10 +228,8 @@ type
                                      const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
     //@ FIXXME: not implemented yet.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
-    //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
-    procedure addDependentInput     (const inputBlock: TFRE_DB_INPUT_BLOCK_DESC; const chooserValue: String; const ignoreHidden: Boolean=true);
-    procedure addDependentInput     (const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const chooserValue: String; const ignoreHidden: Boolean=true);
-    procedure addDependentInput     (const formInput: TFRE_DB_FORM_INPUT_DESC; const chooserValue: String; const ignoreHidden: Boolean=true);
+    //@ Adds a dependent input element. If chooserValue is selected the input element will be visible. ignoreHidden set to true will not send the hidden fields on submit.
+    procedure addDependentInput     (const inputId: String; const chooserValue: String; const ignoreHidden: Boolean=true);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -376,13 +372,14 @@ type
   //@ Do NOT use! Use TFRE_DB_FORM_PANEL_DESC or TFRE_DB_DIALOG_DESC instead.
   TFRE_DB_FORM_DESC    = class(TFRE_DB_CONTENT_DESC)
   private
-    function  GetFormElement          (const elementId:String): TFRE_DB_CONTENT_DESC;
     procedure AddStore                (const store: TFRE_DB_STORE_DESC);virtual;
     procedure AddDBO                  (const id: String; const session: IFRE_DB_UserSession);virtual;
     function  GetStore                (const id:String): TFRE_DB_STORE_DESC;virtual;
     function  Describe                (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
     procedure _FillWithObjectValues   (const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession; const prefix:String);
   public
+    //@ Return the form element with the given id.
+    function  GetFormElement          (const elementId:String): TFRE_DB_CONTENT_DESC;
     //@ Sets the value of the input element with the given id.
     procedure SetElementValue         (const elementId, value:String);
     //@ Sets the value of the input element with the given id and disables it.
@@ -1757,12 +1754,12 @@ implementation
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
-  procedure TFRE_DB_INPUT_CHOOSER_DESC._addDependentInput(const elem: TFRE_DB_CONTENT_DESC; const chooserValue: String; const ignoreHidden: Boolean);
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputId: String; const chooserValue: String; const ignoreHidden: Boolean);
   var
     obj: IFRE_DB_Object;
   begin
    obj:=GFRE_DBI.NewObject;
-   obj.Field('inputId').AsString:=elem.contentId;
+   obj.Field('inputId').AsString:=inputId;
    obj.Field('value').AsString:=chooserValue;
    obj.Field('ignoreHidden').AsBoolean:=ignoreHidden;
    Field('dependentInputFields').AddObject(obj);
@@ -1792,21 +1789,6 @@ implementation
     obj.Field('storeId').AsString:=filteredStoreId;
     obj.Field('refId').AsString:=refId;
     Field('filteredStore').AddObject(obj);
-  end;
-
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputBlock: TFRE_DB_INPUT_BLOCK_DESC; const chooserValue: String; const ignoreHidden: Boolean);
-  begin
-    _addDependentInput(inputBlock,chooserValue,ignoreHidden);
-  end;
-
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const chooserValue: String; const ignoreHidden: Boolean);
-  begin
-    _addDependentInput(inputGroup,chooserValue,ignoreHidden);
-  end;
-
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const formInput: TFRE_DB_FORM_INPUT_DESC; const chooserValue: String; const ignoreHidden: Boolean);
-  begin
-    _addDependentInput(formInput,chooserValue,ignoreHidden);
   end;
 
   procedure TFRE_DB_INPUT_CHOOSER_DESC.captionCompareEnabled(const enabled: Boolean);
@@ -2155,6 +2137,7 @@ implementation
       itext              : IFRE_DB_TEXT;
       dataCollectionName : TFRE_DB_NameType;
       dataCollIsDomain   : Boolean;
+      chooserField       : TFRE_DB_INPUT_CHOOSER_DESC;
 
     procedure addObjects(const obj: IFRE_DB_Object);
     begin
@@ -2163,7 +2146,12 @@ implementation
 
     procedure DeppITerator(const df : R_Depfieldfield);
     begin
-      boolField.AddDependence(TFRE_DB_DEPENDENCE_DESC.Create.Describe(df.depFieldName,df.disablesField));
+      boolField.AddDependence(TFRE_DB_DEPENDENCE_DESC.Create.Describe(prefix+df.depFieldName,df.disablesField));
+    end;
+
+    procedure VisDeppITerator(const vdf : R_VisDepfieldfield);
+    begin
+      chooserField.addDependentInput(prefix+vdf.visDepFieldName,vdf.visibleValue);
     end;
 
     begin
@@ -2202,7 +2190,8 @@ implementation
           for i := 0 to Length(enumVals) - 1 do begin
             store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
           end;
-          group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
+          chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
+          obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
         end else begin
           obj^.fieldschemdef.getValidator(validator);
           case obj^.fieldschemdef.FieldType of

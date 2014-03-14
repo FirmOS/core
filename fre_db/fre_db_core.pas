@@ -833,7 +833,8 @@ type
   { TFRE_DB_FieldSchemeDefinition }
 
   type
-    OFRE_SL_R_Depfield = specialize OFOS_SpareList<R_Depfieldfield>;
+    OFRE_SL_R_Depfield    = specialize OFOS_SpareList<R_Depfieldfield>;
+    OFRE_SL_R_VisDepfield = specialize OFOS_SpareList<R_VisDepfieldfield>;
 
   PFRE_DB_FieldSchemeDefinition = ^TFRE_DB_FieldSchemeDefinition;
 
@@ -853,6 +854,7 @@ type
     FEnum         : TFRE_DB_Enum;
     Fvalidator    : TFRE_DB_ClientFieldValidator;
     FDepFields    : OFRE_SL_R_Depfield;
+    FVisDepFields : OFRE_SL_R_VisDepfield;
 
     FvalidatorParams: TFRE_DB_Object;
 
@@ -897,6 +899,8 @@ type
     //function   CalcField         : TFRE_DB_FIELD;
     procedure  addDepField       (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
     procedure  ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
+    procedure  addVisDepField    (const fieldName: TFRE_DB_String;const visibleValue:String);
+    procedure  ForAllVisDepfields(const depfielditerator : TFRE_DB_VisDepfielditerator);
     property   FieldName         :TFRE_DB_NameType  read GetFieldName;
     property   FieldType         :TFRE_DB_FIELDTYPE read GetFieldType;
     property   SubschemeName     :TFRE_DB_NameType  read GetSubSchemeName;
@@ -7604,6 +7608,34 @@ begin
   FDepFields.ForAllBreak(@iterate);
 end;
 
+procedure TFRE_DB_FieldSchemeDefinition.addVisDepField(const fieldName: TFRE_DB_String; const visibleValue: String);
+var
+  tmpField  : TFRE_DB_FieldSchemeDefinition;
+  visDepObj : R_VisDepfieldfield;
+begin
+  if not getParentScheme.GetSchemeField(fieldName,tmpField) then begin
+    raise EFRE_DB_Exception.Create(edb_ERROR,'Visibility dependent field ' + fieldName + ' not found');
+  end;
+  if not Assigned(FEnum) then begin
+    raise EFRE_DB_Exception.Create(edb_ERROR,'Visibility dependent fields can only be defined on enum fields');
+  end;
+
+  visDepObj.visDepFieldName := fieldName;
+  visDepObj.visibleValue    := visibleValue;
+  FVisDepFields.Add(visDepObj);
+end;
+
+procedure TFRE_DB_FieldSchemeDefinition.ForAllVisDepfields(const depfielditerator: TFRE_DB_VisDepfielditerator);
+
+  procedure iterate(var df : R_VisDepfieldfield ; const idx : NativeInt ; var halt : boolean);
+  begin
+    depfielditerator(df);
+  end;
+
+begin
+  FVisDepFields.ForAllBreak(@iterate);
+end;
+
 function TFRE_DB_FieldSchemeDefinition.getParentScheme: TFRE_DB_SchemeObject;
 begin
   Result:=FScheme; //;Parent.Parent as TFRE_DB_SchemeObject;
@@ -7619,11 +7651,25 @@ begin
   result := uppercase(df1^.depFieldName)=uppercase(df2^.depFieldName);
 end;
 
+function local_VisDepfieldNullCompare(const df : P_VisDepfieldfield):boolean;
+begin
+  result := df^.visDepFieldName='';
+end;
+
+function local_VisDepfieldCompare(const df1,df2 : P_VisDepfieldfield):boolean;
+begin
+  result := (uppercase(df1^.visDepFieldName)=uppercase(df2^.visDepFieldName)) and (df1^.visibleValue=df2^.visibleValue);
+end;
+
 constructor TFRE_DB_FieldSchemeDefinition.Create;
-var rdf : R_Depfieldfield;
+var
+  rdf  : R_Depfieldfield;
+  rvdf : R_VisDepfieldfield;
 begin
   FillByte(rdf,sizeof(R_Depfieldfield),0);
   FDepFields.InitSparseList(rdf,@local_DepfieldNullCompare,@local_DepfieldCompare,1);
+  FillByte(rvdf,sizeof(R_VisDepfieldfield),0);
+  FVisDepFields.InitSparseList(rvdf,@local_VisDepfieldNullCompare,@local_VisDepfieldCompare,1);
 end;
 
 destructor TFRE_DB_FieldSchemeDefinition.Destroy;
@@ -17290,7 +17336,7 @@ procedure TFRE_DB_FIELD.SetFromJSON(const field_type: TFRE_DB_FIELDTYPE; const j
         try
           conv := JAsString;
           if conv<>'' then
-            AddString(DecodeStringBase64(JAsString,true))
+            AddString(DecodeStringBase64(JAsString))//,true))
           else
             AddString('');
         except
