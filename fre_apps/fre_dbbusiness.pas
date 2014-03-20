@@ -571,8 +571,7 @@ begin
   dhcp          := input.Field('dhcp').AsString;
 
   GFRE_DBI.GetSystemSchemeByName(endpointclass,scheme);
-  res:=TFRE_DB_DIALOG_DESC.Create.Describe('Add Accesspoint');
-  res.SendChangedFieldsOnly(false);
+  res:=TFRE_DB_DIALOG_DESC.Create.Describe('Add Accesspoint',0,0,true,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
   res.AddSchemeFormGroup(scheme.GetInputGroup('options'),GetSession(input));
 

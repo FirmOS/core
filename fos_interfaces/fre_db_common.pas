@@ -517,7 +517,6 @@ type
     //@ Adds a html header section to the dialog.
     //@ FIXXME: not implemented yet.
     procedure AddHeader   (const header: TFRE_DB_HTML_DESC);
-    procedure SendChangedFieldsOnly  (const value: boolean);
   end;
 
   { TFRE_DB_TOPMENU_ENTRY_DESC }
@@ -2527,11 +2526,6 @@ implementation
   procedure TFRE_DB_DIALOG_DESC.AddHeader(const header: TFRE_DB_HTML_DESC);
   begin
     Field('header').AddObject(header);
-  end;
-
-  procedure TFRE_DB_DIALOG_DESC.SendChangedFieldsOnly(const value: boolean);
-  begin
-    Field('sendChanged').AsBoolean:=value;
   end;
 
   { TFRE_DB_DATA_ELEMENT_DESC }
