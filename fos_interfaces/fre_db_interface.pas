@@ -2568,7 +2568,7 @@ type
   procedure FREDB_SiteMap_AddEntry               (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : TFRE_DB_StringArray ;const x,y : integer;  const newsCount:Integer=0; const scale:Single=1; const enabled:Boolean=true);    //obsolete
   procedure FREDB_SiteMap_AddRadialEntry         (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : String; const newsCount:Integer=0; const enabled:Boolean=true);
   procedure FREDB_PositionSitemapEntry           (const angle : integer; const radius : integer; const origin_x, origin_y : integer; out x,y:integer);
-  procedure FREDB_SiteMap_RadialAutoposition     (const SiteMapData : IFRE_DB_Object; const rootangle:integer=90);
+  procedure FREDB_SiteMap_RadialAutoposition     (const SiteMapData : IFRE_DB_Object; rootangle:integer=0);
 
   function  FREDB_GuidArray2StringStream         (const arr:TFRE_DB_GUIDArray):String; { Caution ! - used in streaming}
   function  FREDB_StreamString2GuidArray         (str:string):TFRE_DB_GUIDArray; { Caution ! - used in streaming, must be in format of FREDB_GuidArray2String}
@@ -7270,7 +7270,7 @@ begin
   SiteMapEntry.Field('DIS').AsBoolean   := not enabled;
 end;
 
-procedure FREDB_SiteMap_RadialAutoposition(const SiteMapData: IFRE_DB_Object; const rootangle:integer);
+procedure FREDB_SiteMap_RadialAutoposition(const SiteMapData: IFRE_DB_Object; rootangle:integer);
 var
   SiteMapRoot  : IFRE_DB_Object;
   x,y          : integer;
@@ -7297,9 +7297,9 @@ var
       FREDB_PositionSitemapEntry(currangle, r, xp, yp, x, y);
       subentry.Field('PNGL').asint32   := currangle;
       subentry.Field('CRD').AsInt32Arr := TFRE_DB_Int32Array.Create(x,y);
-      inc(currangle,partangle);
-      if currangle>360 then begin
-        currangle := currangle - 360;
+      dec(currangle,partangle);
+      if currangle<0 then begin
+        currangle := currangle + 360;
       end;
     end;
 
@@ -7324,7 +7324,7 @@ var
           partangle := (maxangle-minangle) div (subcount-1);
         end;
       end;
-      currangle := minangle;
+      currangle := maxangle;
       xp        := SiteMapEntry.Field('CRD').AsInt32Item[0];
       yp        := SiteMapEntry.Field('CRD').AsInt32Item[1];
       for ientry := 0 to SiteMapEntry.Field('ENTRIES').ValueCount-1 do begin
@@ -7336,6 +7336,7 @@ var
 
 begin
   xo := 300; yo := 300; r := 150; scale := 0.8;
+  rootangle  := 90 - rootangle;  // start at 12h, positive angle clockwise
   SiteMapRoot:=SiteMapData.Field('ENTRIES').AsObjectItem[0];
   if assigned(SiteMapRoot) then begin
     // Position RootNode
