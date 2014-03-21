@@ -70,7 +70,7 @@ type
    function  _BuildParamsObject        (const co:IFRE_DB_ObjectArray; const keyProp: String='key'; const valueProp: String='value'):String;
    function  _BuildJSArray             (const arr:TFRE_DB_StringArray):String;
    function  _AddParams                (const jsVarName:String;const co:IFRE_DB_ObjectArray;const keyProp:String='key';const valueProp:String='value'):String;
-   procedure _BuildDialog              (const session: TFRE_DB_UserSession; const co: TFRE_DB_DIALOG_DESC);
+   procedure _BuildDialog              (const session: TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co: TFRE_DB_CONTENT_DESC);
    procedure _BuildSubSecTabContainer  (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC; const tabsHidden: Boolean);
    procedure _BuildSubSecVertContainer (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC);
    procedure _BuildMenu                (const co:TFRE_DB_MENU_DESC);
@@ -80,7 +80,8 @@ type
    function  InstallTransformDefaults  (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
    procedure BuildContextMenu          (const co:TFRE_DB_MENU_DESC; var contentString,contentType:String);
    procedure BuildFormPanel            (const session: TFRE_DB_UserSession; const co:TFRE_DB_FORM_PANEL_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
-   procedure BuildDialog               (const session: TFRE_DB_UserSession; const co:TFRE_DB_DIALOG_DESC; var contentString,contentType:String);
+   procedure BuildFormDialog           (const session: TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE; const co:TFRE_DB_FORM_DIALOG_DESC; var contentString,contentType:String);
+   procedure BuildDialog               (const session: TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE; const co:TFRE_DB_DIALOG_DESC; var contentString,contentType:String);
    procedure BuildUpdateForm           (const co:TFRE_DB_UPDATE_FORM_DESC; var contentString,contentType:String);
    procedure BuildRefreshStore         (const co:TFRE_DB_REFRESH_STORE_DESC; var contentString,contentType:String);
    procedure BuildCloseDialog          (const co:TFRE_DB_CLOSE_DIALOG_DESC; var contentString,contentType:String);
@@ -143,8 +144,11 @@ implementation
     if result_object is TFRE_DB_FORM_PANEL_DESC then begin
       gWAC_DOJO.BuildFormPanel(session,TFRE_DB_FORM_PANEL_DESC(result_object),lContent,lContentType,isInnerContent);
     end else
+    if result_object is TFRE_DB_FORM_DIALOG_DESC then begin
+      gWAC_DOJO.BuildFormDialog(session,command_type,result_object as TFRE_DB_FORM_DIALOG_DESC,lContent,lContentType);
+    end else
     if result_object is TFRE_DB_DIALOG_DESC then begin
-      gWAC_DOJO.BuildDialog(session,result_object as TFRE_DB_DIALOG_DESC,lContent,lContentType);
+      gWAC_DOJO.BuildDialog(session,command_type,result_object as TFRE_DB_DIALOG_DESC,lContent,lContentType);
     end else
     if result_object is TFRE_DB_UPDATE_FORM_DESC then begin
       gWAC_DOJO.BuildUpdateForm(result_object as TFRE_DB_UPDATE_FORM_DESC,lContent,lContentType);
@@ -781,44 +785,43 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO._BuildDialog(const session: TFRE_DB_UserSession; const co: TFRE_DB_DIALOG_DESC);
+  procedure TFRE_DB_WAPP_DOJO._BuildDialog(const session: TFRE_DB_UserSession; const command_type:TFRE_DB_COMMANDTYPE; const co: TFRE_DB_CONTENT_DESC);
   var
     hasCloseButton : Boolean;
     width          : String;
+    tmpContent     : TFRE_DB_RawByteString;
+    tmpContentType : String;
   begin
-    //if co.FieldExists('header') then begin
-    //  lsl_dialog.Add(_BuildHtml(co.Field('header').AsObject.Implementor_HC as TFRE_DB_HTML_DESC));
-    //end;
-
+    if co is TFRE_DB_DIALOG_DESC then begin
+      TransformInvocation(session,command_type,co.Field('content').AsObject,tmpContent,tmpContentType,true);
+    end;
     jsContentAdd('var diag = new FIRMOS.Dialog({');
     jsContentAdd('   id: "'+co.Field('id').AsString+'_diag"');
-    jsContentAdd('  ,title: "'+co.Field('dialogCaption').AsString+'"');
+    jsContentAdd('  ,title: "'+FREDB_String2EscapedJSString(co.Field('dialogCaption').AsString)+'"');
     if not co.Field('draggable').AsBoolean then begin
       jsContentAdd('  ,draggable: false');
     end;
-    jsContentAdd('  ,content: ');
-    if co.Field('width').AsInt16=0 then begin
-      width:='450';
-    end else begin
-      width:=co.Field('width').AsString;
+    if co is TFRE_DB_FORM_DIALOG_DESC then begin
+      jsContentAdd('  ,content: ');
+      if co.Field('width').AsInt16=0 then begin
+        width:='450';
+      end else begin
+        width:=co.Field('width').AsString;
+      end;
+      jsContentAdd('  "<div style=''width:'+width+'px''>"+');
+      _BuildForm(session,co as TFRE_DB_FORM_DIALOG_DESC,true,hasCloseButton);
+      jsContentAdd('  +"</div>"');
     end;
-    jsContentAdd('  "<div style=''width:'+width+'px''>"+');
-    _BuildForm(session,co,true,hasCloseButton);
-    jsContentAdd('  +"</div>"');
+    if co is TFRE_DB_DIALOG_DESC then begin
+      hasCloseButton:=true;
+      jsContentAdd('  ,_contentObj: '+co.FieldPath('content.id').AsString);
+      jsContentAdd('  ,_maxHeight: '+co.Field('maxHeight').AsString);
+      jsContentAdd('  ,_maxWidth: '+co.Field('maxWidth').AsString);
+      jsContentAdd('  ,_percHeight: '+co.Field('percHeight').AsString);
+      jsContentAdd('  ,_percWidth: '+co.Field('percWidth').AsString);
+    end;
     jsContentAdd('  ,closable: '+BoolToStr(hasCloseButton,'true','false'));
     jsContentAdd('});');
-
-    if co.FieldExists('header') then begin
-      //lsl_dialog.Add('                         '+co.Field('header').AsObject.Field('id').AsString+',');
-    end;
-
-    //lsl_dialog.Add('    width: '+co.Field('width').AsString+',');
-    //if co.Field('maxHeight').AsInt16=0 then begin
-    //  lsl_dialog.Add('    maxHeight: Ext.Element.getViewportHeight() - 10,');
-    //end else begin
-    //  lsl_dialog.Add('    maxHeight: '+co.Field('maxHeight').AsString+',');
-    //end;
-
 
     jsContentAdd('G_UI_COM.dialogLoaded(diag);');
   end;
@@ -864,7 +867,7 @@ implementation
         jsContentAdd('  id: "' + tab.Field('id').AsString + '"');
         updateId:=tab.Field('id').AsString;
       end;
-      jsContentAdd('  ,title: "' + tab.Field('title').AsString + '"');
+      jsContentAdd('  ,title: "' + FREDB_String2EscapedJSString(tab.Field('title').AsString) + '"');
       if co.Field('activeSection').AsString=tab.UID_String then begin
         jsContentAdd('  ,selected: true');
       end;
@@ -1142,13 +1145,30 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO.BuildDialog(const session: TFRE_DB_UserSession; const co: TFRE_DB_DIALOG_DESC; var contentString, contentType: String);
+  procedure TFRE_DB_WAPP_DOJO.BuildFormDialog(const session: TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE; const co: TFRE_DB_FORM_DIALOG_DESC; var contentString, contentType: String);
   var
     FJsonAction                    : TFRE_JSON_ACTION;
   begin
     FJsonAction := TFRE_JSON_ACTION.Create;
     jsContentClear;
-    _BuildDialog(session,co);
+    _BuildDialog(session,command_type,co);
+
+    FJsonAction.ActionType := jat_jsexecute;
+    FJsonAction.Action     := jsContent;
+    FJsonAction.ID         := co.Field('id').AsString;
+    contentString := FJsonAction.AsString;
+    contentType:= 'application/json';
+
+    FJsonAction.Free;
+  end;
+
+  procedure TFRE_DB_WAPP_DOJO.BuildDialog(const session: TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE; const co: TFRE_DB_DIALOG_DESC; var contentString, contentType: String);
+  var
+    FJsonAction                    : TFRE_JSON_ACTION;
+  begin
+    FJsonAction := TFRE_JSON_ACTION.Create;
+    jsContentClear;
+    _BuildDialog(session,command_type,co);
 
     FJsonAction.ActionType := jat_jsexecute;
     FJsonAction.Action     := jsContent;
@@ -1498,7 +1518,7 @@ implementation
     if co.Field('title').AsString<>'' then begin
       lcVar:=co.Field('id').AsString +'_lc';
       jsContentAdd('var '+ lcVar + ' = new dijit.layout.BorderContainer({');
-      jsContentAdd('   title: "' + co.Field('title').AsString + '"');
+      jsContentAdd('   title: "' + FREDB_String2EscapedJSString(co.Field('title').AsString) + '"');
       jsContentAdd('  ,id: "'+co.Field('id').AsString+'_lc"');
     end else begin
       lcVar:=co.Field('id').AsString;
@@ -1662,7 +1682,7 @@ implementation
 
     if co.Field('title').AsString<>'' then begin
       jsContentAdd('var '+co.Field('id').AsString + '_cp = new dijit.layout.ContentPane({');
-      jsContentAdd('   title: "' + co.Field('title').AsString + '",');
+      jsContentAdd('   title: "' + FREDB_String2EscapedJSString(co.Field('title').AsString) + '",');
       jsContentAdd('   id: "'+co.Field('id').AsString+'_cp"');
     end else begin
       jsContentAdd('var '+co.Field('id').AsString + ' = new dijit.layout.ContentPane({');
@@ -1848,8 +1868,8 @@ implementation
       jsContentAdd('G_UI_COM.contentLoaded('+co.Field('id').AsString+',"'+co.Field('windowCaption').AsString+'");');
     end;
 
-    if co.FieldExists('dialog') then begin
-      _BuildDialog(session,co.Field('dialog').AsObject.Implementor_HC as TFRE_DB_DIALOG_DESC);
+    if co.FieldExists('formdialog') then begin
+      _BuildDialog(session,command_type,co.Field('formdialog').AsObject.Implementor_HC as TFRE_DB_FORM_DIALOG_DESC);
     end;
 
     if not isInnerContent then begin
@@ -2073,7 +2093,7 @@ implementation
     jsContentClear;
     jsContentAdd('var message = new FIRMOS.Message({');
     jsContentAdd('   id: "'+co.Field('id').AsString+'_message"');
-    jsContentAdd('  ,title: "'+co.Field('caption').AsString+'"');
+    jsContentAdd('  ,title: "'+FREDB_String2EscapedJSString(co.Field('caption').AsString)+'"');
     jsContentAdd('  ,msg: "'+FREDB_String2EscapedJSString(co.Field('msg').AsString,true)+'"');
     jsContentAdd('  ,type: "'+co.Field('msgType').AsString+'"');
     if co.FieldExists('serverFunc') then begin
@@ -2151,7 +2171,7 @@ implementation
 
     jsContentAdd('var '+co.Field('id').AsString+'_chart = new FIRMOS.Chart({');
     jsContentAdd('   id:"'+co.Field('id').AsString+'_chart"');
-    jsContentAdd('  ,title:"'+co.Field('caption').AsString+'"');
+    jsContentAdd('  ,title:"'+FREDB_String2EscapedJSString(co.Field('caption').AsString)+'"');
     jsContentAdd('  ,type:"'+co.Field('type').AsString+'"');
     jsContentAdd('  ,store:'+store.Field('id').AsString);
     jsContentAdd('  ,seriesids: '+_BuildJSArray(co.Field('seriesIds').AsStringArr));
@@ -2242,7 +2262,7 @@ implementation
       jsContentAdd('  ,destroyNotify: true');
       session.registerUpdatableContent(co.Field('id').AsString);
     end;
-    jsContentAdd('  ,caption:"'+co.Field('caption').AsString+'"');
+    jsContentAdd('  ,caption:"'+FREDB_String2EscapedJSString(co.Field('caption').AsString)+'"');
     jsContentAdd('  ,seriesCount:'+co.Field('seriesCount').AsString);
     jsContentAdd('  ,sfClass:"'+co.FieldPath('serverFunc.class').AsString+'"');
     jsContentAdd('  ,sfFunc:"'+co.FieldPath('serverFunc.func').AsString+'"');
@@ -2313,7 +2333,7 @@ implementation
       prefix:=',';
     end;
     if co.Field('caption').AsString<>'' then begin
-      params:=params+prefix+'caption: "'+co.Field('caption').AsString + '"';
+      params:=params+prefix+'caption: "'+FREDB_String2EscapedJSString(co.Field('caption').AsString) + '"';
       prefix:=',';
     end;
     if co.Field('seriesCount').AsInt64>0 then begin
@@ -2445,7 +2465,7 @@ implementation
             entries:=entries+',isJira: true';
           end;
         end;
-        entries:=entries+',caption: "'+entry.Field('caption').AsString+'"}';
+        entries:=entries+',caption: "'+FREDB_String2EscapedJSString(entry.Field('caption').AsString)+'"}';
       end;
       entries:=entries+']';
       jsContentAdd('var '+co.Field('id').AsString + ' = new FIRMOS.TopMenu({');
@@ -2464,8 +2484,8 @@ implementation
         jsContentAdd('G_UI_COM.contentLoaded('+co.Field('id').AsString+',"'+co.Field('windowCaption').AsString+'");');
       end;
 
-      if co.FieldExists('dialog') then begin
-        _BuildDialog(session,co.Field('dialog').AsObject.Implementor_HC as TFRE_DB_DIALOG_DESC);
+      if co.FieldExists('formdialog') then begin
+        _BuildDialog(session,command_type,co.Field('formdialog').AsObject.Implementor_HC as TFRE_DB_FORM_DIALOG_DESC);
       end;
     finally
       subsecs.Finalize;

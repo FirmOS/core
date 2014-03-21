@@ -672,10 +672,10 @@ end;
 
 function TFRE_DB_TEST_FILEDIR.WEB_CreateZip(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  res : TFRE_DB_DIALOG_DESC;
+  res : TFRE_DB_FORM_DIALOG_DESC;
 begin
   Result:=GFRE_DB_NIL_DESC;
-  res:=TFRE_DB_DIALOG_DESC.create.Describe('ZIP');
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe('ZIP');
   res.AddDescription.Describe('','Your ZIP file is ready to download.');
   res.AddButton.DescribeDownload('Download','/download/test.zip',true);
   ses.SendServerClientRequest(res);
@@ -2138,7 +2138,7 @@ end;
 
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_Dialog(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  res   : TFRE_DB_DIALOG_DESC;
+  res   : TFRE_DB_FORM_DIALOG_DESC;
   g     : TFRE_DB_INPUT_GROUP_DESC;
   store : TFRE_DB_STORE_DESC;
   i     : Integer;
@@ -2148,7 +2148,7 @@ begin
     store.AddEntry.Describe('C'+IntToStr(i),'v'+IntToStr(i));
   end;
 
-  res:=TFRE_DB_DIALOG_DESC.create.Describe('Dialog');
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe('Dialog');
   g:=res.AddGroup.Describe('MAIN');
   g.AddInput.Describe('Text','text',true);
   g.AddBool.Describe('Bool','bool');
@@ -2185,7 +2185,7 @@ end;
 
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_ReadOnlyDialog(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  res  : TFRE_DB_DIALOG_DESC;
+  res  : TFRE_DB_FORM_DIALOG_DESC;
   g    : TFRE_DB_INPUT_GROUP_DESC;
   store: TFRE_DB_STORE_DESC;
   i    : Integer;
@@ -2195,7 +2195,7 @@ begin
     store.AddEntry.Describe('C'+IntToStr(i),'v'+IntToStr(i));
   end;
 
-  res:=TFRE_DB_DIALOG_DESC.create.Describe('Dialog',0,0,true,true,true,false);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe('Dialog',0,true,true,true,false);
   g:=res.AddGroup.Describe('MAIN');
   g.AddInput.Describe('Text','text',true,false,false,false,'Text');
   g.AddBool.Describe('Bool','bool',false,false,false,true);

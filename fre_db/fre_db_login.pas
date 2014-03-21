@@ -133,7 +133,7 @@ end;
 
 function TFRE_DB_LOGIN.No_Apps_ForGuests(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var dlg         : TFRE_DB_LAYOUT_DESC;
-    dialog      : TFRE_DB_DIALOG_DESC;
+    dialog      : TFRE_DB_FORM_DIALOG_DESC;
     serverFunc  : TFRE_DB_SERVER_FUNC_DESC;
 
     function _getUIHeader(const caption:String): String;
@@ -147,14 +147,14 @@ var dlg         : TFRE_DB_LAYOUT_DESC;
 
 begin
   dlg        := TFRE_DB_LAYOUT_DESC.create.Describe();
-  dialog     := WEB_LoginDlg(input,ses,app,conn).Implementor_HC as TFRE_DB_DIALOG_DESC;
-  //dialog     := TFRE_DB_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
+  dialog     := WEB_LoginDlg(input,ses,app,conn).Implementor_HC as TFRE_DB_FORM_DIALOG_DESC;
+  //dialog     := TFRE_DB_FORM_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
   //serverFunc := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'doLogin');
   //dialog.AddButton.Describe('Login',serverFunc,fdbbt_submit);
   //dialog.AddHeader(TFRE_DB_HTML_DESC.create.Describe(_getUIHeader('Login'),35));
   //dialog.AddInput.Describe('Username','uname',true);
   //dialog.AddInput.Describe('Password','pass',true,true,false,false,'',nil,false,true);
-  dlg.AddDialog(dialog);
+  dlg.AddFormDialog(dialog);
   Result:=dlg;
 end;
 
@@ -166,7 +166,7 @@ end;
 
 function TFRE_DB_LOGIN.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  dialog        : TFRE_DB_DIALOG_DESC;
+  dialog        : TFRE_DB_FORM_DIALOG_DESC;
   requested_app : String;
   dlg           : TFRE_DB_LAYOUT_DESC;
   serverFunc    : TFRE_DB_SERVER_FUNC_DESC;
@@ -230,14 +230,14 @@ begin
 end;
 
 function TFRE_DB_LOGIN.WEB_LoginDlg(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var dialog     : TFRE_DB_DIALOG_DESC;
+var dialog     : TFRE_DB_FORM_DIALOG_DESC;
     session    : TFRE_DB_UserSession;
     scheme     : IFRE_DB_SchemeObject;
     block      : TFRE_DB_INPUT_BLOCK_DESC;
     user       : IFRE_DB_USER;
 begin
   if ses.LoggedIn then begin
-    dialog:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$profile_diag_cap'),0,600,false,false);
+    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$profile_diag_cap'),0,false,false);
     GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
     block:=dialog.AddBlock.Describe();
     block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
@@ -250,7 +250,7 @@ begin
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_abort'),nil,fdbbt_close);
     user.Finalize;
   end else begin
-    dialog:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$login_diag_cap'),0,600,false,false,false);
+    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$login_diag_cap'),0,false,false,false);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
     //dialog.AddButton.Describe('Abort',nil,fdbbt_close);
     dialog.AddInput.Describe(app.FetchAppTextShort(ses,'$login_uname'),'uname',true);
