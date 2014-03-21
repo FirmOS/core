@@ -55,7 +55,7 @@ interface
 uses Sysutils,Classes,strutils,fpjson,jsonparser,fos_sparelistgen,
      FRE_DB_INTERFACE,zstream,base64,math,
      FRE_SYSTEM,FOS_ARRAYGEN,
-     FOS_TOOL_INTERFACES,FOS_REDBLACKTREE_GEN,//FRE_EXT_REGEXPR,
+     FOS_TOOL_INTERFACES,FOS_REDBLACKTREE_GEN,
      BaseUnix,
      FRE_DB_COMMON,
      FRE_DB_GRAPH;
@@ -490,6 +490,7 @@ type
   TFRE_DB_Object=class(TFRE_DB_Base,IFRE_DB_Object)
   private
    var
+    FTransOrderKey     : PShortString;  { when assigned points to the order key, used for transformed objects }
     FUID               : TGUID;
     FDomainID          : TGUID;
     FFieldStore        : _TFRE_DB_FieldTree;
@@ -499,6 +500,7 @@ type
     fuidPathUA         : TFRE_DB_GUIDArray;
     FObjectProps       : TFRE_DB_Object_PropertySet; // Runtime Properties
     FInCollectionarr   : array of IFRE_DB_PERSISTANCE_COLLECTION;
+
     procedure      _RestoreUIDandDomainID              ;
     procedure      ForAll                              (const iter:TFRE_DB_FieldIterator);
     procedure      ForAllBrk                           (const iter:TFRE_DB_FieldIteratorBrk);
@@ -579,9 +581,9 @@ type
     function        GetSchemeI                         (const raise_non_existing:boolean=false): IFRE_DB_SchemeObject;
     function        UID                                : TGUID;
     function        DomainID                           : TGUID;
-    function        DomainID_String                    : TGUID_String;
+    function        DomainID_String                    : TFRE_DB_GUID_String;
     procedure       SetDomainID                        (const domid:TGUID);
-    function        UID_String                         : TGUID_String;
+    function        UID_String                         : TFRE_DB_GUID_String;
     function        UIDP                               : PByte;
     function        GetAsJSON                          (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;virtual;
     function        GetAsJSONString                    (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_String;virtual;
@@ -1126,7 +1128,6 @@ type
 
   TFRE_DB_USER=class(TFRE_DB_Object,IFRE_DB_USER)
   private
-    Flogin  : TFRE_DB_FIELD;
     function  GetDomain              (const conn:IFRE_DB_CONNECTION): TFRE_DB_NameType;
     function  GetDomainIDLink        : TGUID;
     function  GetFirstName           : TFRE_DB_String;
@@ -1168,8 +1169,8 @@ type
   public
     class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    function        Domainname(const unique:boolean=false) : TFRE_DB_NameType;
-    function        Domainkey                              : TGUID_String;
+    function        Domainname                (const unique:boolean=false) : TFRE_DB_NameType;
+    function        Domainkey                 : TFRE_DB_GUID_String;
   end;
 
   { TFRE_DB_GROUP }
@@ -1352,7 +1353,7 @@ type
   public
     function  RefLinkSpec         : TFRE_DB_NameTypeRLArray;virtual;
     procedure AddToViewCollection (const vcd   : TFRE_DB_VIEW_LIST_LAYOUT_DESC); virtual;
-    procedure TransformField      (const conn  : IFRE_DB_CONNECTION ; const input,output : IFRE_DB_Object ; const dependency_object : IFRE_DB_Object); virtual; // A transformed object has the same UID, but not the same Schemeclass as the source, and a subset/transformation of the input object
+    procedure TransformField      (const conn  : IFRE_DB_CONNECTION ; const input,output : IFRE_DB_Object); virtual; // A transformed object has the same UID, but not the same Schemeclass as the source, and a subset/transformation of the input object
   end;
 
   { TFRE_DB_ONEONE_FT }
@@ -1361,7 +1362,7 @@ type
   protected
   public
     constructor Create         (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
-    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
   { TFRE_DB_PROGRESS_FT }
@@ -1374,7 +1375,7 @@ type
   public
     constructor Create              (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const input_textfield:TFRE_DB_String='';const output_textfield:TFRE_DB_String='';const maxValue:Single=100;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1);
     procedure   AddToViewCollection (const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC); override;
-    procedure   TransformField      (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+    procedure   TransformField      (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
   { TFRE_DB_CONST_STRING_FT }
@@ -1384,7 +1385,7 @@ type
     FConstValue : TFRE_DB_String;
   public
     constructor Create         (const out_field,value:TFRE_DB_String;const display: Boolean=false; const sortable:Boolean=false; const filterable:Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
-    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
   { TFRE_DB_TEXT_FT }
@@ -1394,7 +1395,7 @@ type
     FWhichText : TFRE_DB_TEXT_SUBTYPE;
   public
     constructor Create         (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false; const fieldSize: Integer=1);
-    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
   { TFRE_DB_COLLECTOR_FT }
@@ -1405,7 +1406,7 @@ type
     FInfieldList  : TFRE_DB_NameTypeArray;
   public
     constructor Create         (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1);
-    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
   { TFRE_DB_REFERERENCE_CHAIN_FT }
@@ -1416,7 +1417,7 @@ type
   public
     function    RefLinkSpec         : TFRE_DB_NameTypeRLArray;override;
     constructor Create         (const ref_field_chain: TFRE_DB_NameTypeRLArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false; const fieldSize: Integer=1);
-    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object); override;
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
 
@@ -1439,19 +1440,16 @@ type
   public
     constructor Create; override;
     destructor  Destroy; override;
-    function    TransformInOut (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; virtual;
+    function    TransformInOut (const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; virtual;
   end;
 
   { TFRE_DB_SIMPLE_TRANSFORM }
 
   TFRE_DB_SIMPLE_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_SIMPLE_TRANSFORM)
-  private
-    FCustTransform  : IFRE_DB_CUSTOMTRANSFORM;
   public
 
     constructor Create                       ; override;
-    function  TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const dependency_obj : IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; override;
-    procedure SetCustomTransformFunction     (const func : IFRE_DB_CUSTOMTRANSFORM);
+    function  TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; override;
     //@ Add a Field that collects STRING values to a new String Field
     //@ format : format string of the new field ; in_fieldlist : list of input fieldnames ; output_title : name of the output field, default=same as input
     procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
@@ -1470,7 +1468,7 @@ type
   { TFRE_DB_TREE_TRANSFORM }
 
   TFRE_DB_TREE_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_TRANSFORMOBJECT)
-    function  TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object; override; // todo - remove unnecessary fields
+    function  TransformInOut(const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; override; // todo - remove unnecessary fields
   end;
 
   { TFRE_DB_CHART_TRANSFORM }
@@ -1487,37 +1485,41 @@ type
     FChartType          : TFRE_DB_CHART_TYPE;
     FMaxValue           : Integer;
   public
-    function   TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object ; const input: IFRE_DB_Object): TFRE_DB_Object; override; // todo - remove unnecessary fields / transform only series fields
+    function   TransformInOut(const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; override; // todo - remove unnecessary fields / transform only series fields
     destructor Destroy;override;
   end;
 
-  TFRE_DB_SortTree = specialize TGFOS_RBTree<TFRE_DB_Object,boolean>; // Link to ManageInfo if NO Transform !
+  TFRE_DB_SortTree = specialize TGFOS_RBTree<TFRE_DB_Object,boolean>;
 
   { TFRE_DB_DERIVED_COLLECTION }
-  TFRE_DB_Orderdef=packed record
-    fieldname : String[40];
-    ascending : boolean;
-  end;
+
+  //TFRE_DB_Orderdef=packed record
+  //  fieldname : TFRE_DB_NameType;
+  //  ascending : boolean;
+  //end;
+
 
   //@ Used for filtered, sorted Collections, is based on  a "real" collection
   TFRE_DB_DERIVED_COLLECTION=class(TFRE_DB_COLLECTION,IFRE_DB_DERIVED_COLLECTION,IFRE_DB_COLLECTION_OBSERVER)
   private
    type
-     TDC_Mode=(dc_None,dc_Map2RealCollection,dc_Map2DerivedCollection,dc_ReferentialLinkCollection);
+     TDC_Mode=(dc_None,dc_Map2RealCollection);
    var
     FDCMode            : TDC_Mode;
     FDepObjectsRefNeg  : Boolean;
     FDepRefConstraint  : TFRE_DB_NameTypeRLArray;
-    FDependencyRef     : TFRE_DB_StringArray; // Array of inbound dpendencies (usually one)
+    FDependencyRef     : TFRE_DB_StringArray;     { Array of inbound dependencies (usually one) }
     FParentIds         : TFRE_DB_GUIDArray;
-    FDependencyObject  : IFRE_DB_Object;
-    FDepObjectList     : TFRE_DB_GUIDArray; // Must be extended to an array of ... (FDependencyRef ..)
+
+    //FDependencyObject  : IFRE_DB_Object;
+    //FDepObjectList     : TFRE_DB_GUIDArray;   // Must be extended to an array of ... (FDependencyRef ..)
+
     FUseDepAsLinkFilt  : Boolean;
     FUseDepFiltInvert  : Boolean;
 
     FSubscribeReflinkModeObserverTo : IFRE_DB_COLLECTION;
 
-    FParentChldLinkFldSpec : TFRE_DB_NameType;
+    FParentChldLinkFldSpec : TFRE_DB_NameTypeRL;
 
     FParentChildScheme : TFRE_DB_NameType;
     FParentChildField  : TFRE_DB_NameType;
@@ -1534,9 +1536,10 @@ type
 
     FFilters           : TFRE_DB_Object;
     FFiltersTrans      : TFRE_DB_Object;
-    FOrders            : TFRE_DB_Object;
-    FOrdersTrans       : TFRE_DB_Object;
-    FOrderDef          : Array of TFRE_DB_OrderDef;
+
+    //FOrders            : TFRE_DB_Object;
+    //FOrdersTrans       : TFRE_DB_Object;
+    //FOrderDef          : Array of TFRE_DB_OrderDef;
 
     FTransform         : TFRE_DB_TRANSFORMOBJECT;  //Links to Parent DC in Parent DC Mode
     FitemMenuFunc      : TFRE_DB_SERVER_FUNC_DESC;
@@ -1553,16 +1556,16 @@ type
     FTreeNodeIconField : TFRE_DB_String;
     FGatherUpdateList  : TFRE_DB_UPDATE_STORE_DESC; // Collects Updates between Start and End
 
-    FCurrentOrder      : TFRE_DB_DC_ORDER_LIST;
-    FCurrentStrFilters : TFRE_DB_DC_STRINGFIELDKEY_LIST;
-    FDefaultOrderField : TFRE_DB_NameType;
-    FDefaultOrderAsc   : Boolean;
+    FCurrentStrFilters     : TFRE_DB_DC_STRINGFIELDKEY_LIST;
+    FDefaultOrderField     : TFRE_DB_NameType;
+    FDefaultOrderAsc       : Boolean;
+    FDefaultOrderFieldtype : TFRE_DB_FIELDTYPE;
 
     FInitialDerived    : Boolean;
     FSession           : TFRE_DB_UserSession;
 
     function        HasParentChildRefRelationDefined : boolean;
-    function        IsReferentialLinkMode            : boolean;
+    //function        IsReferentialLinkMode            : boolean;
     function        IsDependencyFilteredCollection   : boolean;
     function        HasReflinksInTransformation      : boolean; { a potentila reflink dependency is in the transforms }
 
@@ -1580,28 +1583,23 @@ type
     function        _CheckUIDExists(obj_uid : TGuid) : Boolean;
 
 
-    procedure   InternalSetup              ; override;
-    procedure   _FilterIt                  (const childcall : boolean);
-    function    _CompareObjects  (const ob1,ob2 : TFRE_DB_Object):NativeInt;
-    function    _DeleteFilterkey (const filter_key:TFRE_DB_String;const on_transform:boolean):TFRE_DB_Errortype;
+    procedure   InternalSetup                ; override;
+    procedure   _FilterIt                    (const childcall : boolean);
+    function    _CompareObjects              (const ob1,ob2 : TFRE_DB_Object):NativeInt;
+    function    _DeleteFilterkey             (const filter_key:TFRE_DB_String;const on_transform:boolean):TFRE_DB_Errortype;
 
-    function   _Get_DC_Order                 (const input:IFRE_DB_Object):TFRE_DB_DC_ORDER_LIST;
     function   _Get_DC_StringfieldKeys       (const input:IFRE_DB_Object):TFRE_DB_DC_STRINGFIELDKEY_LIST;
-    function   _Get_DC_PageingInfo           (const input:IFRE_DB_Object):TFRE_DB_DC_PAGING_INFO;
     function   _Get_DC_ReferenceList         (const input:IFRE_DB_Object):TFRE_DB_GUIDArray;
     function   _Get_DC_QueryID               (const input:IFRE_DB_Object):String;
-
-    function   RemoveQueryIDWatch            (const QID:String):TFRE_DB_Errortype;
-    function   AddQueryIDWatch               (const QID:String;const page_i:TFRE_DB_DC_PAGING_INFO):TFRE_DB_Errortype;
 
     procedure  DC_SetFilters_From_Input      (const filter_defs:TFRE_DB_Object);
     procedure  ForAllI                       (const func:IFRE_DB_Obj_Iterator);
     procedure  _CheckDepRefConstraint        ;
+    procedure  MustBeInitialized             ;
 
   protected
     class function Forced_In_Memory: Boolean; override;
     procedure  BindSession              (const session : TFRE_DB_UserSession);
-    //procedure  ApplyToPageI            (const page_info : TFRE_DB_DC_PAGING_INFO;const iterator:IFRE_DB_Obj_Iterator);
     function IFRE_DB_DERIVED_COLLECTION.ForAll                   = ForAllI;
     function IFRE_DB_DERIVED_COLLECTION.ForAllBreak              = ForAllBreakI;
     function IFRE_DB_DERIVED_COLLECTION.ForAllModify             = ForAllModifyI;
@@ -1617,7 +1615,10 @@ type
     function IFRE_DB_DERIVED_COLLECTION.GetIndexedObj            = GetIndexedObjI;
 
   public
-    constructor     Create         (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);override;
+    constructor  Create                        (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);override;
+    function     GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
+    procedure    TransformAllTo                (var transdata : IFRE_DB_ObjectArray);
+
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     destructor Destroy;override;
@@ -1647,9 +1648,8 @@ type
 //TODO: END Locking
 
     function   RemoveFieldFilter       (const filter_key:TFRE_DB_String;const on_transform:boolean=true):TFRE_DB_Errortype;
-    function   AddOrderField           (const order_key,field_name:TFRE_DB_String;const ascending : boolean):TFRE_DB_Errortype;
-    procedure  SetDefaultOrderField    (const field_name:TFRE_DB_String;const ascending : boolean);
-    procedure  RemoveAllOrderFields    ;
+    //procedure  SetDefaultOrderField    (const field_name:TFRE_DB_String;const ascending : boolean);
+    procedure  SetDefaultOrderField    (const field_name:TFRE_DB_String ; const ascending : boolean ; const field_type : TFRE_DB_FIELDTYPE=fdbft_String);
     procedure  RemoveAllFilterFields   ;
     procedure  RemoveAllFiltersPrefix  (const prefix:string);
 
@@ -1657,16 +1657,17 @@ type
     function   Remove                          (const ouid:TGUID)            :TFRE_DB_Errortype; override;
     function   Update                          (const dbo:TFRE_DB_Object)    :TFRE_DB_Errortype; override;
 
-    procedure  SetDeriveParent                 (const coll:TFRE_DB_COLLECTION; const idField: String='uid');
+    procedure  SetDeriveParent                 (const coll:TFRE_DB_COLLECTION     ; const idField: String='uid');
     procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids'; const subscribe_observer_to : IFRE_DB_COLLECTION=nil);
 
+    { not a mode but a filter }
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
 
+    procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL);
 
     procedure  SetDeriveParentI        (const coll:IFRE_DB_COLLECTION; const idField: String='uid');
     procedure  SetDeriveTransformation (const tob:TFRE_DB_TRANSFORMOBJECT);
     procedure  SetDeriveTransformationI(const tob:IFRE_DB_TRANSFORMOBJECT);
-    function   Derive                  : TFRE_DB_Errortype;
     function   ItemCount               : Int64;override;
     function   Count                   : QWord; override;
     function   First                   : TFRE_DB_Object   ; override;
@@ -1675,7 +1676,6 @@ type
     function   Fetch                   (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;override; deprecated;  //Directly fetch in the Parent, or use a temp Collection as Parent.
     procedure  RemoveAllEntries        ;
 
-    procedure  ApplyToPage             (const QueryID:String ; const page_info:TFRE_DB_DC_PAGING_INFO;const iterator:TFRE_DB_Obj_Iterator);
     procedure  ApplyToData             (const iterator:TFRE_DB_Obj_Iterator);
 
     function   GetStoreDescription        : TFRE_DB_CONTENT_DESC;
@@ -1683,13 +1683,12 @@ type
     procedure  SetDisplayType             (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';
                                            const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil); //TODO: Make Callable Once
     procedure  SetDisplayTypeChart        (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean;const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
-    procedure  SetParentToChildLinkField  (const fieldname : TFRE_DB_NameType);
 
     function   GetDisplayDescription   : TFRE_DB_CONTENT_DESC;
     function   GetDisplayDescriptionFunction (const FilterEventKey:TFRE_DB_String): TFRE_DB_SERVER_FUNC_DESC;
     procedure  _CheckObserverAdded     (const add:boolean);
   published
-    function   IMI_GET_GRID_DATA       (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function   WEB_GET_GRID_DATA       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   IMI_GET_CHART_DATA      (const input:IFRE_DB_Object):IFRE_DB_Object;
     function   IMI_CLEAR_QUERY_RESULTS (const input:IFRE_DB_Object):IFRE_DB_Object; // Client says that it is not interested in that particular query id from now on.
     function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -1852,10 +1851,10 @@ type
     function           GetLastError                 : TFRE_DB_String;
     function           GetLastErrorcode             : TFRE_DB_Errortype;
 
-    function           GetMyDomainID                : TGUID; virtual;
-    function           GetMyDomainID_String         : TGUID_String;
-    function           GetSystemDomainID_String     : TGUID_String;
-    function           GetSysDomainUID              : TGUID; virtual;
+    function           GetMyDomainID                : TFRE_DB_GUID; virtual;
+    function           GetMyDomainID_String         : TFRE_DB_GUID_String;
+    function           GetSystemDomainID_String     : TFRE_DB_GUID_String;
+    function           GetSysDomainUID              : TFRE_DB_GUID; virtual;
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object;const without_right_check:boolean=false) : TFRE_DB_Errortype; virtual;
     function           FetchAccessRightTest         (const ouid: TGUID): boolean; { fetch the object, check rights and free }
@@ -2067,7 +2066,6 @@ type
     function    IFRE_DB_CONNECTION.StoreClientFieldValidator   = StoreClientFieldValidatorI;
     function    IFRE_DB_CONNECTION.GetSchemeCollection         = GetSchemeCollectionI;
     function    IFRE_DB_CONNECTION.AssociateObject             = AssociateObjectI;
-    function    IFRE_DB_CONNECTION.DerivedCollection           = DerivedCollectionI;
     function    CreateAClone                                   : TFRE_DB_CONNECTION;
   protected
     procedure   InternalSetupConnection   ;override;
@@ -2125,11 +2123,7 @@ type
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
     procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray);
 
-    function    GetDerivedCollection          (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
     function    CreateDerivedCollection       (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
-
-    function    DerivedCollection            (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): TFRE_DB_DERIVED_COLLECTION;
-    function    DerivedCollectionI           (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
 
     function    SYS                          : IFRE_DB_SYS_CONNECTION;
     function    GetSysDomainUID              :TGUID; override;
@@ -2547,7 +2541,7 @@ begin
     FOutFieldName := lowercase(FInFieldName);
 end;
 
-procedure TFRE_DB_REFERERENCE_CHAIN_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+procedure TFRE_DB_REFERERENCE_CHAIN_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
 var objo      : IFRE_DB_Object;
     ref_uid   : TGuid;
     i         : integer;
@@ -2602,7 +2596,7 @@ begin
    FOutFieldName:=lowercase(FInFieldName);
 end;
 
-procedure TFRE_DB_TEXT_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+procedure TFRE_DB_TEXT_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
 var text      : TFRE_DB_TEXT;
     out_text  : TFRE_DB_String;
 begin
@@ -2633,7 +2627,7 @@ begin
     vcd.AddDataElement.Describe(FOutFieldName,FOutFieldTitle,FGuiDisplaytype,FSortable,FFilterable,FFieldSize,FDisplay,false,FIconIdField,FOpenIconIDField);
 end;
 
-procedure TFRE_DB_FIELD_TRANSFORM.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+procedure TFRE_DB_FIELD_TRANSFORM.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
 begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'you need to implement/override a Transformfieldfunction for class '+ClassName);
 end;
@@ -2653,7 +2647,7 @@ begin
   FFieldSize      := fieldSize;
 end;
 
-procedure TFRE_DB_COLLECTOR_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+procedure TFRE_DB_COLLECTOR_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
 var data : TFRE_DB_String;
 begin
   try
@@ -2680,7 +2674,7 @@ begin
   FFieldSize      := fieldSize;
 end;
 
-procedure TFRE_DB_CONST_STRING_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+procedure TFRE_DB_CONST_STRING_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
 begin
   output.field(uppercase(FOutFieldName)).AsString := FConstValue;
 end;
@@ -2712,7 +2706,7 @@ begin
     vcd.AddDataElement.DescribePB(FOutFieldName,FOutFieldTitle,FOutTextField,FMaxValue,FSortable,FFilterable,FFieldSize);
 end;
 
-procedure TFRE_DB_PROGRESS_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+procedure TFRE_DB_PROGRESS_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
 begin
   output.field(uppercase(FOutFieldName)).CloneFromField(input.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
   if FOutTextField<>'' then
@@ -2742,7 +2736,7 @@ begin
     FOutFieldName:=lowercase(FInFieldName);
 end;
 
-procedure TFRE_DB_ONEONE_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
+procedure TFRE_DB_ONEONE_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
 var sa        : TFRE_DB_StringArray;
     i         : nativeint;
     transbase : IFRE_DB_Object;
@@ -2803,7 +2797,7 @@ begin
     exit(ObjectName)
 end;
 
-function TFRE_DB_DOMAIN.Domainkey: TGUID_String;
+function TFRE_DB_DOMAIN.Domainkey: TFRE_DB_GUID_String;
 begin
   result := uppercase(UID_String);
 end;
@@ -2812,7 +2806,7 @@ end;
 
 { TFRE_DB_CHART_TRANSFORM }
 
-function TFRE_DB_CHART_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
+function TFRE_DB_CHART_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const input: IFRE_DB_Object): TFRE_DB_Object;
 begin
   Result := input.CloneToNewObject.Implementor as TFRE_DB_Object;
 end;
@@ -2824,7 +2818,7 @@ end;
 
 { TFRE_DB_TREE_TRANSFORM }
 
-function TFRE_DB_TREE_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
+function TFRE_DB_TREE_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const input: IFRE_DB_Object): TFRE_DB_Object;
 begin
   Result := input.CloneToNewObject.Implementor as TFRE_DB_Object;
 end;
@@ -5197,26 +5191,19 @@ begin
   result := edb_OK;
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.SetCustomTransformFunction(const func: IFRE_DB_CUSTOMTRANSFORM);
-begin
-  FCustTransform := func;
-end;
-
 constructor TFRE_DB_SIMPLE_TRANSFORM.Create;
 begin
   inherited Create;
 end;
 
-function TFRE_DB_SIMPLE_TRANSFORM.TransformInOut(const conn : IFRE_DB_CONNECTION ; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
+function TFRE_DB_SIMPLE_TRANSFORM.TransformInOut(const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object;
   procedure Iterate(var ft : TFRE_DB_FIELD_TRANSFORM ; const idx : NativeInt ; var halt_flag:boolean);
   begin
-     ft.TransformField(conn,input,result,dependency_obj);
+     ft.TransformField(conn,input,result);
   end;
 begin
   result := GFRE_DB.NewObject;
   FTransformList.ForAllBreak(@iterate);
-  if Assigned(FCustTransform) then
-    FCustTransform(conn,dependency_obj,input,result);
   result._Field('uid').AsGUID      := input.Field('uid').AsGUID;
   result._Field('domainid').AsGUID := input.Field('domainid').AsGUID;
 end;
@@ -5289,11 +5276,6 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.HasParentChildRefRelationDefined: boolean;
 begin
   result := (FParentChldLinkFldSpec<>'');
-end;
-
-function TFRE_DB_DERIVED_COLLECTION.IsReferentialLinkMode: boolean;
-begin
-  result := FDCMode=dc_ReferentialLinkCollection;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IsDependencyFilteredCollection: boolean;
@@ -5509,9 +5491,9 @@ var not_object : IFRE_DB_Object;
     if HasParentChildRefRelationDefined then
       ParentChildDefined
     else
-    if IsReferentialLinkMode then
-      ReferentialLinkMode
-    else
+    //if IsReferentialLinkMode then
+    //  ReferentialLinkMode
+    //else
     if IsDependencyFilteredCollection then
       DependencyFilteredCollection;
     if HasReflinksInTransformation then
@@ -5551,7 +5533,7 @@ begin //nl
             FConnection.FetchI(obj_uid,not_object);
           if assigned(not_object) then
             begin
-              hack_up_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,not_object);
+              hack_up_obj := FTransform.TransformInOut(FConnection.UpcastDBC,not_object);
               if cdgf_Children in FGridDisplayFlags then
                 begin
                   if FParentChildField<>'' then
@@ -5956,7 +5938,7 @@ begin
   if not disable_filter then
     FFilters.ForAllBrk(@Filter);
   if add then begin
-    tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
+    tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,item);
     iob    := tr_obj;
     use_filter_fields:=false;
     if not disable_filter then
@@ -6017,8 +5999,8 @@ begin
   inherited InternalSetup;
   FFilters      := _Field('F').AsObject;
   FFiltersTrans := _Field('FT').AsObject;
-  FOrders       := _Field('O').AsObject;
-  FOrdersTrans  := _Field('OT').AsObject;
+  //FOrders       := _Field('O').AsObject;
+  //FOrdersTrans  := _Field('OT').AsObject;
   FDBOList      := TFRE_DB_SortTree.Create(@RB_Sort_CompareEx,self);
 end;
 
@@ -6040,17 +6022,17 @@ var cnt  : NativeInt;
      item.Finalize;
   end;
 
-  procedure Order(const order_def : TFRE_DB_FIELD);
-  var fob       : TFRE_DB_Object;
-  begin
-    if order_def.FieldType<>fdbft_Object then exit;
-    fob    := order_def.AsObject;
-    SetLength(ForderDef,length(ForderDef)+1);
-    with ForderDef[high(ForderDef)] do begin
-      fieldname  := fob.Field('N').AsString;
-      ascending  := fob.Field('A').AsBoolean;
-    end;
-  end;
+  //procedure Order(const order_def : TFRE_DB_FIELD);
+  //var fob       : TFRE_DB_Object;
+  //begin
+  //  if order_def.FieldType<>fdbft_Object then exit;
+  //  fob    := order_def.AsObject;
+  //  SetLength(ForderDef,length(ForderDef)+1);
+  //  with ForderDef[high(ForderDef)] do begin
+  //    fieldname  := fob.Field('N').AsString;
+  //    ascending  := fob.Field('A').AsBoolean;
+  //  end;
+  //end;
 
   procedure Clear(const o:TFRE_DB_Object;const no:boolean);
   begin
@@ -6067,7 +6049,7 @@ var cnt  : NativeInt;
   begin
     FDBOList.ForallNodes(@Clear);
     FDBOList.Clear;
-    SetLength(ForderDef,0);
+    //SetLength(ForderDef,0);
   end;
 
   procedure LocalInsertExpanded;
@@ -6079,34 +6061,32 @@ var cnt  : NativeInt;
   end;
 
 begin
+  exit;
+
+  { }
+
   if not assigned(FTransform) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
   if childcall then
     cnt:=0;
   case FDCMode of
-    dc_None: ;
-    dc_Map2DerivedCollection: begin
-                                abort;
-                                //ClearLocal;
-                                //FOrders.ForAllFields(@Order); // Get order definition
-                                //(FParentCollection as TFRE_DB_DERIVED_COLLECTION).FDBOList.ForAllNodes(@LocalInsertFromParentDerived);
-                              end;
+    dc_None: abort;
     dc_Map2RealCollection:    begin
                                 GFRE_DB.LogDebug(dblc_DB,'* START FILTERING [%s]',[CollectionName]);
                                 ClearLocal;
-                                FOrders.ForAllFields(@Order); // Get order definition
+                                //FOrders.ForAllFields(@Order); // Get order definition
                                 if not childcall then
                                   FParentCollection.ForAll(@LocalInsert)
                                 else
                                   LocalInsertExpanded;
                                 GFRE_DB.LogDebug(dblc_DB,'* FINAL FILTERED COUNT [%d]',[FDBOList.Count]);
                               end;
-    dc_ReferentialLinkCollection:
-                              begin
-                                 ClearLocal;
-                                 FOrders.ForAllFields(@Order); // Get order definition
-                                 LocalInsertExpanded;
-                              end;
+    //dc_ReferentialLinkCollection:
+    //                          begin
+    //                             ClearLocal;
+    //                             //FOrders.ForAllFields(@Order); // Get order definition
+    //                             LocalInsertExpanded;
+    //                          end;
   end;
 end;
 
@@ -6116,17 +6096,18 @@ var val,i : integer;
 
 begin //nl
   guid_order   := RB_Guid_Compare(ob1.UID,ob2.UID);
-  if guid_order = 0 then exit(0);
-  if Length(ForderDef)=0 then begin
-    exit(guid_order);
-  end else begin
-    for i:=0 to high(ForderDef) do begin
-      result := TFRE_DB_FIELD.OrderFieldCompare(ForderDef[i].fieldname,ob1,ob2);
-      if not ForderDef[i].ascending then result := result*-1;
-      if result<>0 then exit(result);
-    end;
-    exit(guid_order); // fallback
-  end;
+  abort;
+  //if guid_order = 0 then exit(0);
+  //if Length(ForderDef)=0 then begin
+  //  exit(guid_order);
+  //end else begin
+    //for i:=0 to high(ForderDef) do begin
+    //  result := TFRE_DB_FIELD.OrderFieldCompare(ForderDef[i].fieldname,ob1,ob2);
+    //  if not ForderDef[i].ascending then result := result*-1;
+    //  if result<>0 then exit(result);
+    //end;
+    //exit(guid_order); // fallback
+  //end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION._DeleteFilterkey(const filter_key: TFRE_DB_String; const on_transform: boolean): TFRE_DB_Errortype;
@@ -6142,22 +6123,6 @@ begin //nl
       Result := edb_OK;
     end else begin
       result := edb_NOT_FOUND;
-    end;
-  end;
-end;
-
-function TFRE_DB_DERIVED_COLLECTION._Get_DC_Order(const input: IFRE_DB_Object): TFRE_DB_DC_ORDER_LIST;
-var cnt,i : integer;
-    sort  : IFRE_DB_Object;
-begin //nl
-  if input.FieldExists('sort') then begin
-    cnt := input.Field('sort').ValueCount;
-    SetLength(result,cnt);
-    for i:=0 to cnt-1 do begin
-      sort := input.Field('SORT').AsObjectItem[i];
-      result[i].order_key   := i;
-      result[i].order_field := sort.Field('PROPERTY').AsString;
-      result[i].ascending   := sort.Field('ASCENDING').AsBoolean;
     end;
   end;
 end;
@@ -6179,11 +6144,11 @@ begin //nl
   end;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION._Get_DC_PageingInfo(const input: IFRE_DB_Object): TFRE_DB_DC_PAGING_INFO;
-begin //nl
-  result.count := input.Field('count').AsInt32;
-  result.start := input.Field('start').AsInt32;
-end;
+//function TFRE_DB_DERIVED_COLLECTION._Get_DC_PageingInfo(const input: IFRE_DB_Object): TFRE_DB_DC_PAGING_INFO;
+//begin //nl
+//  result.count := input.Field('count').AsInt32;
+//  result.start := input.Field('start').AsInt32;
+//end;
 
 function TFRE_DB_DERIVED_COLLECTION._Get_DC_ReferenceList(const input: IFRE_DB_Object): TFRE_DB_GUIDArray;
 var fld : IFRE_DB_FIELD;
@@ -6206,16 +6171,6 @@ end;
 function TFRE_DB_DERIVED_COLLECTION._Get_DC_QueryID(const input: IFRE_DB_Object): String;
 begin //nl
   result := input.Field('QueryID').AsString;
-end;
-
-function TFRE_DB_DERIVED_COLLECTION.RemoveQueryIDWatch(const QID: String): TFRE_DB_Errortype;
-begin
-
-end;
-
-function TFRE_DB_DERIVED_COLLECTION.AddQueryIDWatch(const QID: String; const page_i: TFRE_DB_DC_PAGING_INFO): TFRE_DB_Errortype;
-begin
-
 end;
 
 
@@ -6320,10 +6275,12 @@ procedure TFRE_DB_DERIVED_COLLECTION.ForAllI(const func: IFRE_DB_Obj_Iterator);
   end;
 
 begin //nl
- if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
- if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
- Derive; // Derive should be responsible for necessity checking
- FDBOList.ForallNodes(@Add);
+  if FParentCollection = nil then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
+  if FTransform        = nil then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
+  _FilterIt(false);
+  FDBOList.ForallNodes(@Add);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckDepRefConstraint;
@@ -6338,6 +6295,12 @@ begin
            end;
     end;
   //writeln('TODO::: implement checkdefrefconstraint');
+end;
+
+procedure TFRE_DB_DERIVED_COLLECTION.MustBeInitialized;
+begin
+  if FDCMode=dc_None then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'derived collection not inititialized properly');
 end;
 
 
@@ -6356,6 +6319,37 @@ end;
 constructor TFRE_DB_DERIVED_COLLECTION.Create(const connection: TFRE_DB_BASE_CONNECTION; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
 begin
   inherited;
+end;
+
+function TFRE_DB_DERIVED_COLLECTION.GetCollectionTransformKey: TFRE_DB_NameTypeRL;
+begin
+  MustBeInitialized;
+  result := FParentCollection.CollectionName(true)+'#'+CollectionName(true);
+end;
+
+procedure TFRE_DB_DERIVED_COLLECTION.TransformAllTo(var transdata: IFRE_DB_ObjectArray);
+var i   : NativeInt;
+    cnt : NativeInt;
+
+  procedure TransForm(const in_object : IFRE_DB_Object);
+  var tr_obj : IFRE_DB_Object;
+  begin
+    tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,in_object);
+    transdata[i] := tr_obj;
+    if i=cnt then
+      abort;
+    in_object.Finalize;
+    inc(i);
+  end;
+
+begin
+  MustBeInitialized;
+  for i:=0 to High(transdata) do
+    transdata[i].Finalize;
+  i   := 0;
+  cnt := FParentCollection.Count;
+  SetLength(transdata,FParentCollection.Count);
+  FParentCollection.ForAll(@TransForm);
 end;
 
 //procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPageI(const page_info: TFRE_DB_DC_PAGING_INFO; const iterator: IFRE_DB_Obj_Iterator);
@@ -6704,25 +6698,26 @@ begin
   result := _DeleteFilterKey(filter_key,on_transform);
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.AddOrderField(const order_key, field_name: TFRE_DB_String; const ascending: boolean): TFRE_DB_Errortype;
-var order:TFRE_DB_Object;
+//function TFRE_DB_DERIVED_COLLECTION.AddOrderField(const order_key, field_name: TFRE_DB_String; const ascending: boolean): TFRE_DB_Errortype;
+//var order:TFRE_DB_Object;
+//begin
+//  order := GFRE_DB.NewObject;
+//  order.Field('N').AsString  := field_name;
+//  order.Field('A').AsBoolean := ascending;
+//  FOrders.Field(order_key).AsObject := order;
+//end;
+
+procedure TFRE_DB_DERIVED_COLLECTION.SetDefaultOrderField(const field_name: TFRE_DB_String; const ascending: boolean; const field_type: TFRE_DB_FIELDTYPE);
 begin
-  order := GFRE_DB.NewObject;
-  order.Field('N').AsString  := field_name;
-  order.Field('A').AsBoolean := ascending;
-  FOrders.Field(order_key).AsObject := order;
+  FDefaultOrderField     := field_name;
+  FDefaultOrderAsc       := ascending;
+  FDefaultOrderFieldtype := field_type;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetDefaultOrderField(const field_name: TFRE_DB_String; const ascending: boolean);
-begin
-  FDefaultOrderField := field_name;
-  FDefaultOrderAsc   := ascending;
-end;
-
-procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllOrderFields;
-begin
-  FOrders.ClearAllFields;
-end;
+//procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllOrderFields;
+//begin
+//  FOrders.ClearAllFields;
+//end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFilterFields;
 begin
@@ -6774,32 +6769,13 @@ begin
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParent(const coll: TFRE_DB_COLLECTION; const idField: String);
-
-  procedure SetFunctionsFromParent(const pc : TFRE_DB_DERIVED_COLLECTION);
-  begin
-    FTransform         := pc.FTransform;
-    FitemMenuFunc      := pc.FitemMenuFunc;
-    FitemDetailsFunc   := pc.FitemDetailsFunc;
-    FselectionDepFunc  := pc.FselectionDepFunc;
-    FtreeMenuFunc      := pc.FtreeMenuFunc;
-    FdropFunc          := pc.FdropFunc;
-    FdragFunc          := pc.FdragFunc;
-    FDisplaytype       := pc.FDisplaytype;
-    FGridDisplayFlags  := pc.FGridDisplayFlags;
-    FTitle             := pc.FTitle;
-    FlabelFields       := pc.FlabelFields;
-    FTreeNodeIconField := pc.FTreeNodeIconField;
-  end;
-
 begin
   if not Assigned(coll) then raise EFRE_DB_Exception.Create(edb_ERROR,'PLEASE PROVIDE A ASSIGNED DERIVE PARENT');
-  if FDCMode<>dc_None then raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
+  if FDCMode<>dc_None then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
   FIdField:=idField;
   if coll is TFRE_DB_DERIVED_COLLECTION then begin
-    abort;
-    //FDCMode := dc_Map2DerivedCollection;
-    //FParentCollection := coll;
-    //SetFunctionsFromParent(FParentCollection as TFRE_DB_DERIVED_COLLECTION);
+    raise EFRE_DB_Exception.Create(edb_ERROR,'A DERIVE PARENT MUST BE A REAL COLLECTION (not a derived one)');
   end else begin
     FDCMode := dc_Map2RealCollection;
     FParentCollection := coll;
@@ -6812,20 +6788,24 @@ procedure TFRE_DB_DERIVED_COLLECTION.SetReferentialLinkMode(const scheme_and_fie
 var collif : IFRE_DB_COLLECTION;
     i      : NativeInt;
 begin
+  abort; // -> SetUseDependencyAsReflinkfilter
+  //SetDeriveParent(IFRE_DB);
   if FDCMode<>dc_None then
     raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
-  FDCMode           := dc_ReferentialLinkCollection;
-  FIdField          := 'uid';
-  SetLength(FDependencyRef,1);
-  FDependencyRef[0] := dependency_reference;
-  SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
-  for i := 0 to high(scheme_and_field_constraint) do
-    FDepRefConstraint[i] := scheme_and_field_constraint[i];
-  _CheckDepRefConstraint;
 
-  FSubscribeReflinkModeObserverTo := subscribe_observer_to;
-
-  FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
+  //FDCMode           := dc_Referential_Mode;
+  //
+  //FIdField          := 'uid';
+  //SetLength(FDependencyRef,1);
+  //FDependencyRef[0] := dependency_reference;
+  //SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
+  //for i := 0 to high(scheme_and_field_constraint) do
+  //  FDepRefConstraint[i] := scheme_and_field_constraint[i];
+  //_CheckDepRefConstraint;
+  //
+  //FSubscribeReflinkModeObserverTo := subscribe_observer_to;
+  //
+  //FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetUseDependencyAsRefLinkFilter(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const negate: boolean; const dependency_reference: string);
@@ -6839,9 +6819,8 @@ begin
   SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
   for i := 0 to high(scheme_and_field_constraint) do
     FDepRefConstraint[i] := scheme_and_field_constraint[i];
-  //SetLength(FDepRefConstraint,1);
-  //FDepRefConstraint[0] := scheme_and_field_constraint;
 end;
+
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParentI(const coll: IFRE_DB_COLLECTION; const idField: String);
 begin //nl
@@ -6866,11 +6845,6 @@ end;
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformationI(const tob: IFRE_DB_TRANSFORMOBJECT);
 begin
   SetDeriveTransformation(tob.Implementor as TFRE_DB_TRANSFORMOBJECT);
-end;
-
-function TFRE_DB_DERIVED_COLLECTION.Derive: TFRE_DB_Errortype;
-begin //nl
-  _FilterIt(false);
 end;
 
 
@@ -6918,18 +6892,8 @@ function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Ob
 var idbo : IFRE_DB_Object;
 begin
   case FDCMode of
-    dc_Map2RealCollection,
-    dc_Map2DerivedCollection:
-      begin
-       if not assigned(FParentCollection) then
-         raise EFRE_DB_Exception.Create(edb_ERROR,'DC FETCH, BUT NO PARENT DC ASSIGNED');
-       Result := FParentCollection.Fetch(ouid, idbo);
-       if result then
-         dbo := idbo.Implementor as TFRE_DB_Object
-       else
-         dbo := nil;
-      end;
-    dc_ReferentialLinkCollection:
+    dc_Map2RealCollection:
+    //dc_ReferentialLinkCollection:
       begin
           result := FConnection.Fetch(ouid,dbo)=edb_OK;
       end;
@@ -6954,17 +6918,17 @@ begin
 end;
 
 
-procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPage(const QueryID:String ; const page_info: TFRE_DB_DC_PAGING_INFO; const iterator: TFRE_DB_Obj_Iterator);
-
-   procedure DoIt(const key:TFRE_DB_Object;const val:boolean);
-   begin
-     iterator(key);
-   end;
-
-begin
-  AddQueryIDWatch(QueryID,page_info);
-  FDBOList.ForAllNodesRange(page_info.start,page_info.count,@DoIt);
-end;
+//procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPage(const QueryID:String ; const page_info: TFRE_DB_DC_PAGING_INFO; const iterator: TFRE_DB_Obj_Iterator);
+//
+//   procedure DoIt(const key:TFRE_DB_Object;const val:boolean);
+//   begin
+//     iterator(key);
+//   end;
+//
+//begin
+//  AddQueryIDWatch(QueryID,page_info);
+//  FDBOList.ForAllNodesRange(page_info.start,page_info.count,@DoIt);
+//end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ApplyToData(const iterator: TFRE_DB_Obj_Iterator);
    procedure PrepareData(const key:TFRE_DB_Object;const val:boolean);
@@ -6979,7 +6943,7 @@ function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
   case FDisplaytype of
     cdt_Listview:   begin
-                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
+                      result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),CSF(@IMI_CLEAR_QUERY_RESULTS),CollectionName);
                       //result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_GRID_DATA),FlabelFields,CSF(@IMI_DESTROY_STORE),nil,CollectionName);
                     end;
     cdt_Treeview:   begin;
@@ -7057,7 +7021,7 @@ end;
   Inbound Reflinks are stored  FROMSCHEME<FIELD
 }
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameType);
+procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameTypeRL);
 begin
   FParentChldLinkFldSpec := uppercase(fieldname);
   FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
@@ -7111,7 +7075,7 @@ begin
     begin
       if (not FObserverAdded) and
          ( (FDCMode=dc_Map2RealCollection)
-           or (FDCMode=dc_Map2DerivedCollection)) then
+         ) then
              begin
                FObserverAdded    := true;
                FParentCollection.AddObserver(self);
@@ -7127,7 +7091,7 @@ begin
     begin
       if (FObserverAdded) and
         ( (FDCMode=dc_Map2RealCollection)
-          or (FDCMode=dc_Map2DerivedCollection)) then
+        ) then
             begin
               FObserverAdded    := False;
               FParentCollection.RemoveObserver(self);
@@ -7142,13 +7106,14 @@ begin
 end;
 
 
-function TFRE_DB_DERIVED_COLLECTION.IMI_GET_GRID_DATA(const input: IFRE_DB_Object): IFRE_DB_Object;
-var pageinfo       : TFRE_DB_DC_PAGING_INFO;
-    order          : TFRE_DB_DC_ORDER_LIST;
+function TFRE_DB_DERIVED_COLLECTION.WEB_GET_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var order_def      : TFRE_DB_DC_ORDER_DEFINITION;
     sortfilterkeys : TFRE_DB_DC_STRINGFIELDKEY_LIST;
     QueryID        : String;
     childcall      : boolean;
     exrefs         : TFRE_DB_GUIDArray;
+    i              : NativeInt;
+    query_base     : TFRE_DB_TRANS_RESULT_BASE;
 
     function GetGridDataDescription: TFRE_DB_CONTENT_DESC;
     var i            : integer;
@@ -7162,106 +7127,121 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
 
     begin
       lOrderChanged := false;
-      if Length(order) = length(FCurrentOrder) then begin
-        for i:=0 to high(order) do begin
-           if (order[i].ascending   <> FCurrentOrder[i].ascending) or
-              (order[i].order_field <> FCurrentOrder[i].order_field) or
-              (order[i].order_key   <> FCurrentOrder[i].order_key) then begin
-                lOrderChanged := true;
-                break;
-           end;
-        end;
-      end else begin
-        lOrderChanged := true;
-      end;
-      if lOrderChanged then begin
-        FCurrentOrder := order;
-      end;
+      //if Length(order) = length(FCurrentOrder) then begin
+      //  for i:=0 to high(order) do begin
+      //     if (order[i].ascending   <> FCurrentOrder[i].ascending) or
+      //        (order[i].order_field <> FCurrentOrder[i].order_field)
+      //        //(order[i].order_key   <> FCurrentOrder[i].order_key)
+      //        then begin
+      //          lOrderChanged := true;
+      //          break;
+      //     end;
+      //  end;
+      //end else begin
+      //  lOrderChanged := true;
+      //end;
+      //if lOrderChanged then begin
+      //  FCurrentOrder := order;
+      //end;
 
      if lOrderChanged or (not FInitialDerived)  then begin
         FInitialDerived := true;
-        RemoveAllOrderFields;
         RemoveAllFiltersPrefix('*D_');
-        if Length(order)>0 then
-          for i:=0 to high(order) do begin
-            with order[i] do begin
-              ok := format('%2.2d',[order_key]);
-              AddOrderField(ok,order_field,ascending);
-            end;
-          end
-        else
-          begin
-            if FDefaultOrderField<>'' then
-              AddOrderField('DEF',FDefaultOrderField,FDefaultOrderAsc);
-          end;
+        //if Length(order)>0 then
+        //  for i:=0 to high(order) do begin
+        //    with order[i] do begin
+        //      //ok := format('%2.2d',[order_key]);
+        //      //AddOrderField(ok,order_field,ascending);
+        //    end;
+        //  end
+        //else
+        //  begin
+        //    if FDefaultOrderField<>'' then
+        //      AddOrderField('DEF',FDefaultOrderField,FDefaultOrderAsc);
+        //  end;
         for i:=0 to high(sortfilterkeys) do begin
           with sortfilterkeys[i] do
             AddStringFieldFilter(filter_key,field_name,TFRE_DB_StringArray.Create(value),filtertype,on_transform,on_filter_field);
         end;
-        if FUseDepAsLinkFilt then
-          begin
-            if Length(FDepObjectList)>0 then
-              begin
-                (FConnection.UpcastDBC).ExpandReferences(FDepObjectList,FDepRefConstraint,exrefs);
-                if FDepObjectsRefNeg then
-                  AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_NoValueInFilter)
-                else
-                  AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_OneValueFromFilter);
-              end
-            else
-              begin
-                result := TFRE_DB_STORE_DATA_DESC.create;
-                TFRE_DB_STORE_DATA_DESC(Result).Describe(0);
-                exit;
-              end;
-          end;
-        _FilterIt(childcall);
+        //if FUseDepAsLinkFilt then
+        //  begin
+        //    if Length(FDepObjectList)>0 then
+        //      begin
+        //        (FConnection.UpcastDBC).ExpandReferences(FDepObjectList,FDepRefConstraint,exrefs);
+        //        if FDepObjectsRefNeg then
+        //          AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_NoValueInFilter)
+        //        else
+        //          AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_OneValueFromFilter);
+        //      end
+        //    else
+        //      begin
+        //        result := TFRE_DB_STORE_DATA_DESC.create;
+        //        TFRE_DB_STORE_DATA_DESC(Result).Describe(0);
+        //        exit;
+        //      end;
+        //  end;
+        //_FilterIt(childcall);
       end;
       result := TFRE_DB_STORE_DATA_DESC.create;
-      ApplyToPage(QueryID,pageinfo,@GetData);
+      //ApplyToPage(QueryID,pageinfo,@GetData);
       TFRE_DB_STORE_DATA_DESC(Result).Describe(ItemCount);
     end;
 
+    function GenerateQuerySpecFromRawInput():TFRE_DB_QUERY_BASE;
+    begin
+
+    end;
+
+    var query : TFRE_DB_QUERY_BASE;
+
 begin
   try
+    //writeln('GEDTATA INPUT : ',input.DumpToString());
+    MustBeInitialized;
+    query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input);
     _CheckObserverAdded(true);
-    FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
-    FDepObjectList :=  _GET_DC_ReferenceList(input);
-    case FDCMode of
-      dc_None: ;
-      dc_Map2RealCollection: ;
-      dc_Map2DerivedCollection: ;
-      dc_ReferentialLinkCollection:
-          begin
-            FInitialDerived := false; // force it
-            assert(length(FExpandedRefs)=0);
-            if Length(FDepObjectList)>0 then
-              FConnection.UpcastDBC.ExpandReferences(FDepObjectList,FDepRefConstraint,FExpandedRefs);
-          end;
+
+    //FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
+    //FDepObjectList    :=  _GET_DC_ReferenceList(input);
+
+    { dc_Map2RealCollection }
+
+    //order_def := _Get_DC_Order(input,'');
+    try
+      if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base) then
+        GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base);
+    finally
+      GFRE_DB_TCDM.UnlockManager;
     end;
-    if input.FieldExists('parentid') then
-      begin
-        FParentIds   :=FREDB_String2GuidArray(input.Field('parentid').AsString);
-        if Length(FParentIds)>0 then
-          begin
-            FParentIds[0] := FParentIds[high(FParentIds)];
-            SetLength(FParentIds,1);
-          end;
-        FConnection.UpcastDBC.ExpandReferences(FParentIds,TFRE_DB_NameTypeRLArray.create(FParentChldLinkFldSpec),FExpandedRefs);
-      end
-    else
-      SetLength(FParentIds,0);
+      //dc_ReferentialLinkCollection:
+      //    begin
+      //      FInitialDerived := false; // force it
+      //      assert(length(FExpandedRefs)=0);
+      //      //if Length(FDepObjectList)>0 then
+      //      //  FConnection.UpcastDBC.ExpandReferences(FDepObjectList,FDepRefConstraint,FExpandedRefs);
+      //    end;
+    //if input.FieldExists('parentid') then { this is a child query }
+    //  begin
+    //    FParentIds   :=FREDB_String2GuidArray(input.Field('parentid').AsString);
+    //    if Length(FParentIds)>0 then
+    //      begin
+    //        FParentIds[0] := FParentIds[high(FParentIds)];
+    //        SetLength(FParentIds,1);
+    //      end;
+    //    //FConnection.UpcastDBC.ExpandReferences(FParentIds,TFRE_DB_NameTypeRLArray.create(FParentChldLinkFldSpec),FExpandedRefs);
+    //  end
+    //else
+    //  SetLength(FParentIds,0);
 
-    if (cdgf_Children in FGridDisplayFlags)
-       or FUseDepAsLinkFilt then
-         FInitialDerived := false; // force refresh
+    //if (cdgf_Children in FGridDisplayFlags)
+    //   or FUseDepAsLinkFilt then
+    //     FInitialDerived := false; // force refresh
 
-    pageinfo       := _Get_DC_PageingInfo(input);
-    order          := _Get_DC_Order(input);
-    sortfilterkeys := _Get_DC_StringfieldKeys(input);
-    QueryID        := _Get_DC_QueryID(input);
-    childcall      := length(FParentIds)>0;
-    result := GetGridDataDescription;
+    //pageinfo       := _Get_DC_PageingInfo(input);
+    //sortfilterkeys := _Get_DC_StringfieldKeys(input);
+    //QueryID        := _Get_DC_QueryID(input);
+    //childcall      := length(FParentIds)>0;
+    result         := GetGridDataDescription;
   except
     writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
     raise;
@@ -7270,7 +7250,7 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_GET_CHART_DATA(const input: IFRE_DB_Object): IFRE_DB_Object;
 var
-    pageinfo       : TFRE_DB_DC_PAGING_INFO;
+    //pageinfo       : TFRE_DB_DC_PAGING_INFO;
      order         : TFRE_DB_DC_ORDER_LIST;
     sortfilterkeys : TFRE_DB_DC_STRINGFIELDKEY_LIST;
     QueryID        : String;
@@ -7345,12 +7325,12 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object): IFRE_DB_Object;
 begin
-  RemoveQueryIDWatch(_Get_DC_QueryID(input));
+  //RemoveQueryIDWatch(_Get_DC_QueryID(input));
   Result:=GFRE_DB_NIL_DESC;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_GET_CHILDREN_DATA(const input: IFRE_DB_Object): IFRE_DB_Object;
-var pageinfo       : TFRE_DB_DC_PAGING_INFO;
+var //pageinfo       : TFRE_DB_DC_PAGING_INFO;
      order         : TFRE_DB_DC_ORDER_LIST;
     sortfilterkeys : TFRE_DB_DC_STRINGFIELDKEY_LIST;
     QueryID        : String;
@@ -7397,21 +7377,20 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
   begin
     GFRE_DB.LogDebug(dblc_DB,'IMI_GET_CHILDREN_DATA');
     GFRE_DB.LogDebug(dblc_DB,'%s',[input.DumpToString(4)]);
-    pageinfo.count:=1000;
-    pageinfo.start:=0;
+    //pageinfo.count:=1000;
+    //pageinfo.start:=0;
 
-    RemoveAllOrderFields;
     RemoveAllFiltersPrefix('*D_');
 
     if input.FieldExists('DEPENDENCY') and (input.Field('DEPENDENCY').FieldType=fdbft_Object) then begin
       DC_SetFilters_From_Input(input.Field('DEPENDENCY').AsObject.Implementor as TFRE_DB_Object);
     end;
-    for i:=0 to Length(FlabelFields) - 1 do begin
-      AddOrderField('A',FlabelFields[i],true);
-    end;
+    //for i:=0 to Length(FlabelFields) - 1 do begin
+    //  AddOrderField('A',FlabelFields[i],true);
+    //end;
     result := TFRE_DB_STORE_DATA_DESC.create;
-    Derive;
-    ApplyToPage(QueryID,pageinfo,@GetData);
+    _FilterIt(false);
+    //ApplyToPage(QueryID,pageinfo,@GetData);
   end;
 
 begin
@@ -7503,7 +7482,7 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB_TRANSFORMOBJECT.TransformInOut(const conn: IFRE_DB_CONNECTION; const dependency_obj: IFRE_DB_Object; const input: IFRE_DB_Object): TFRE_DB_Object;
+function TFRE_DB_TRANSFORMOBJECT.TransformInOut(const conn: IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object;
 begin
   abort;
 end;
@@ -8835,7 +8814,7 @@ begin
   FName            := name;
   FUniqueName      := uppercase(name);
   FObservers.Init;
-  FConnection     := connection;
+  FConnection      := connection;
 end;
 
 
@@ -10178,6 +10157,7 @@ var lcollection  : TFRE_DB_Collection;
     persColl     : IFRE_DB_PERSISTANCE_COLLECTION;
 
 begin
+  assert(NewCollectionClass<>TFRE_DB_DERIVED_COLLECTION,'dc must not reach the persistance layer');
   result:=nil;
   FUPcoll_name    := uppercase(collection_name);
   if FUPcoll_name='' then
@@ -10320,7 +10300,7 @@ begin
  result := FPersistance_Layer.GetLastErrorCode;
 end;
 
-function TFRE_DB_BASE_CONNECTION.GetMyDomainID: TGUID;
+function TFRE_DB_BASE_CONNECTION.GetMyDomainID: TFRE_DB_GUID;
 begin
   result := CFRE_DB_NullGUID;
   if self is TFRE_DB_CONNECTION then
@@ -10340,19 +10320,19 @@ begin
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'GetMyDomain is NULLGUID!');
 end;
 
-function TFRE_DB_BASE_CONNECTION.GetMyDomainID_String: TGUID_String;
+function TFRE_DB_BASE_CONNECTION.GetMyDomainID_String: TFRE_DB_GUID_String;
 begin
   result := uppercase(FREDB_G2H(GetMyDomainID)); // GetMyDomainID_String has to be uppercase
 end;
 
-function TFRE_DB_BASE_CONNECTION.GetSystemDomainID_String: TGUID_String;
+function TFRE_DB_BASE_CONNECTION.GetSystemDomainID_String: TFRE_DB_GUID_String;
 begin
   if GetSysDomainUID=CFRE_DB_NullGUID then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'GetSystemDomainID_String FSysDomainID is NULL');
   result := uppercase(FREDB_G2H(GetSysDomainUID)); // GetSystemDomainID_String has to be uppercase
 end;
 
-function TFRE_DB_BASE_CONNECTION.GetSysDomainUID: TGUID;
+function TFRE_DB_BASE_CONNECTION.GetSysDomainUID: TFRE_DB_GUID;
 begin
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'GetSysDomainID on base connection no allowed!');
 end;
@@ -10774,33 +10754,27 @@ begin
     expanded_refs[i] := exrefs[i];
 end;
 
-function TFRE_DB_CONNECTION.GetDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
-var coll : TFRE_DB_COLLECTION;
-begin
-  coll := Collection(collection_name,false);
-  if not assigned(coll) then
-    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the derived collection [%s] does not exist',[collection_name]);
-  if not (coll is TFRE_DB_DERIVED_COLLECTION) then
-    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the collection [%s] is not a derived collection but a [%s]',[collection_name,coll.ClassName]);
-  result := coll as TFRE_DB_DERIVED_COLLECTION;
-end;
+//function TFRE_DB_CONNECTION.GetDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
+//var coll : TFRE_DB_COLLECTION;
+//begin
+//  coll := Collection(collection_name,false);
+//  if not assigned(coll) then
+//    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the derived collection [%s] does not exist',[collection_name]);
+//  if not (coll is TFRE_DB_DERIVED_COLLECTION) then
+//    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the collection [%s] is not a derived collection but a [%s]',[collection_name,coll.ClassName]);
+//  result := coll as TFRE_DB_DERIVED_COLLECTION;
+//end;
 
 function TFRE_DB_CONNECTION.CreateDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
+var lcollection : TFRE_DB_DERIVED_COLLECTION;
 begin
-  if CollectionExists(collection_name) then
-    raise EFRE_DB_Exception.Create(edb_EXISTS,'a collection named [%s] already exists',[collection_name]);
-  result := DerivedCollection(collection_name,true);
-end;
+  lcollection := TFRE_DB_DERIVED_COLLECTION.Create(self,collection_name,nil);
+  result      := lcollection;
 
-function TFRE_DB_CONNECTION.DerivedCollection(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean): TFRE_DB_DERIVED_COLLECTION;
-begin //nl
-  result := CollectionCC(collection_name,TFRE_DB_DERIVED_COLLECTION,create_non_existing,true) as TFRE_DB_DERIVED_COLLECTION;
-end;
-
-
-function TFRE_DB_CONNECTION.DerivedCollectionI(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean): IFRE_DB_DERIVED_COLLECTION;
-begin //nl
-  result := DerivedCollection(collection_name,create_non_existing);
+  //if CollectionExists(collection_name) then
+  //  raise EFRE_DB_Exception.Create(edb_EXISTS,'a collection named [%s] already exists',[collection_name]);
+  ////result := DerivedCollection(collection_name,true);
+  //result := CollectionCC(collection_name,TFRE_DB_DERIVED_COLLECTION,true,true) as TFRE_DB_DERIVED_COLLECTION;
 end;
 
 
@@ -12602,9 +12576,9 @@ begin
  result := FDomainID;
 end;
 
-function TFRE_DB_Object.DomainID_String: TGUID_String;
+function TFRE_DB_Object.DomainID_String: TFRE_DB_GUID_String;
 begin
- result := GFRE_BT.GUID_2_HexString(FDomainID);
+ result := FREDB_G2H(FDomainID);
 end;
 
 procedure TFRE_DB_Object.SetDomainID(const domid: TGUID);
@@ -12612,9 +12586,9 @@ begin
   _field('domainid').AsGUID:=domid;
 end;
 
-function TFRE_DB_Object.UID_String: TGUID_String;
+function TFRE_DB_Object.UID_String: TFRE_DB_GUID_String;
 begin
-  result := GFRE_BT.GUID_2_HexString(FUID);
+  result := FREDB_G2H(FUID);
 end;
 
 function TFRE_DB_Object.UIDP: PByte;

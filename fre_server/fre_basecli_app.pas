@@ -52,7 +52,8 @@ uses
   fre_aps_comm_impl,
   fre_net_pl_client, { network ps layer}
   fre_db_persistance_fs_simple, { filesystem ps layer}
-  FRE_CONFIGURATION,FRE_BASE_SERVER
+  FRE_CONFIGURATION,FRE_BASE_SERVER,
+  fre_db_core_transdata
   ;
 
 type
@@ -483,7 +484,20 @@ begin
   FBaseServer.Setup;
   if not Terminated then
     GFRE_SC.RunUntilTerminate;
+<<<<<<< Updated upstream
   OrderedShutDown;
+=======
+
+
+  Teardown_APS_Comm;
+  Terminate;
+  FBaseServer.Free;
+  GFRE_DB_PS_LAYER.Finalize;
+  Cleanup_SSL_CMD_CA_Interface;
+  FinalizeTransformManager;
+  GFRE_BT.DeactivateJack;
+  exit;
+>>>>>>> Stashed changes
 end;
 
 procedure TFRE_CLISRV_APP.PrintTimeZones;
@@ -920,6 +934,7 @@ begin
   else
     GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Net(cFRE_PS_LAYER_HOST,cFRE_PS_LAYER_IP,cFRE_PS_LAYER_PORT);
 
+  InitTransfromManager;
   Init4Server;
   GFRE_DBI.LocalZone := cFRE_SERVER_DEFAULT_TIMEZONE;
   //writeln('STARTUP @LOCAL TIME :',GFRE_DT.ToStrFOS(GFRE_DT.UTCToLocalTime(GFRE_DT.Now_UTC,GFRE_DBI.LocalZone)),'  UTC TIME :',GFRE_DT.ToStrFOS(GFRE_DT.Now_UTC));

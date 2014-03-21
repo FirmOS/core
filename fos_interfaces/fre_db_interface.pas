@@ -74,7 +74,7 @@ type
   Int32                       = Longint;
   UInt16                      = word;
   UInt32                      = longword;
-  TGUID_String                = string[sizeof(TGUid)*2];
+  TFRE_DB_GUID_String         = string[sizeof(TGUid)*2]; { hex & lowercase}
   TFRE_DB_String              = type AnsiString(CP_UTF8);
   PFRE_DB_String              = ^TFRE_DB_String;
   TFRE_DB_RawByteString       = RawByteString;
@@ -227,6 +227,7 @@ type
   IFRE_DB_ClientFieldValidator = interface;
 
   IFRE_DB_ObjectArray                 = Array of IFRE_DB_Object;
+  PFRE_DB_ObjectArray                 = ^IFRE_DB_ObjectArray;
   IFRE_DB_ClientFieldValidatorArray   = Array of IFRE_DB_ClientFieldValidator;
 
   IFRE_DB_BASE   = interface
@@ -675,7 +676,7 @@ type
     function        GetDescriptionID                   : String;
     function        UID                                : TGUID;
     function        DomainID                           : TGUID;
-    function        UID_String                         : TGUID_String;
+    function        UID_String                         : TFRE_DB_GUID_String;
     function        NeededSize                         : TFRE_DB_SIZE_TYPE;
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
@@ -803,11 +804,15 @@ type
 
   IFRE_DB_TRANSFORMOBJECT = interface;
 
+  TFRE_DB_TRANS_COLL_DATA_KEY = shortstring;
+
   TFRE_DB_DC_ORDER = record
-    order_key   : byte;
-    order_field : TFRE_DB_NameType;
-    ascending   : boolean;
+    order_field      : TFRE_DB_NameType;
+    order_field_type : TFRE_DB_FIELDTYPE;
+    ascending        : boolean;
   end;
+
+  TFRE_DB_DC_ORDER_LIST = array of TFRE_DB_DC_ORDER;
 
   TFRE_DB_DC_STRINGFIELDKEY = record
     filter_key, field_name, value : TFRE_DB_String;
@@ -816,13 +821,36 @@ type
     on_filter_field               : boolean;
   end;
 
-  TFRE_DB_DC_PAGING_INFO = record
-    start  : integer;
-    count  : integer;
+  //TFRE_DB_DC_PAGING_INFO = record
+  //  start  : integer;
+  //  count  : integer;
+  //end;
+
+  { TFRE_DB_DC_ORDER_DEFINITION }
+
+  TFRE_DB_DC_ORDER_DEFINITION = class { defines a globally stored ordered and transformed set of db}
+  private
+    FOrderList  : array of TFRE_DB_DC_ORDER;
+    FKey        : TFRE_DB_TRANS_COLL_DATA_KEY;
+    FKeyPartMaj : TFRE_DB_NameType; { may be a Parentcollectionname or an starting uid }
+    FKeyPartMin : TFRE_DB_NameType; { may be a dc name or a ReflinkDefinition }
+    FRefLinkCh  : TFRE_DB_NameTypeRLArray;
+    FIsRefLinkM : Boolean;
+    function    IsSealed : Boolean;
+    procedure   MustNotBeSealed;
+    procedure   MustBeSealed;
+  public
+    procedure   SetDataKeyColl    (const parent_collectionname,derivedcollname       : TFRE_DB_NameType);
+    procedure   SetDataKeyReflink (const startuid : TFRE_DB_GUID ; const RLChainSpec : TFRE_DB_NameTypeRLArray);
+    function    GetKeyDefinition  : TFRE_DB_TRANS_COLL_DATA_KEY;
+    procedure   ClearOrders       ;
+    procedure   AddOrderDef       (const orderfield_name : TFRE_DB_NameType ; const asc : boolean);
+    procedure   Seal              ;
   end;
 
+  TFRE_DB_DC_FILTER_DEFINITION = class
+  end;
 
-  TFRE_DB_DC_ORDER_LIST               = array of TFRE_DB_DC_ORDER;
   TFRE_DB_DC_STRINGFIELDKEY_LIST      = array of TFRE_DB_DC_STRINGFIELDKEY;
 
   TFRE_DB_CHART_TYPE                  = (fdbct_pie,fdbct_column,fdbct_line);
@@ -835,26 +863,24 @@ type
   TFRE_COLLECTION_TREE_DISPLAY_FLAGS  = set of TFRE_COLLECTION_TREE_DISPLAY_FLAG;
   TFRE_COLLECTION_CHART_DISPLAY_FLAGS = set of TFRE_COLLECTION_CHART_DISPLAY_FLAG;
 
-  TFRE_DB_UserSession             = class;
+  TFRE_DB_UserSession                 = class;
 
   { IFRE_DB_DERIVED_COLLECTION }
 
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
+    procedure  TransformAllTo                (var transdata : IFRE_DB_ObjectArray);
+    function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
     procedure  BindSession                   (const session : TFRE_DB_UserSession);
-    function   AddOrderField                 (const order_key,field_name:TFRE_DB_String;const ascending : boolean):TFRE_DB_Errortype;
-    procedure  SetDefaultOrderField          (const field_name:TFRE_DB_String;const ascending : boolean);
-    procedure  RemoveAllOrderFields          ;
+    procedure  SetDefaultOrderField          (const field_name:TFRE_DB_String ; const ascending : boolean ; const field_type : TFRE_DB_FIELDTYPE=fdbft_String);
     procedure  RemoveAllFilterFields         ;
     procedure  RemoveAllFiltersPrefix        (const prefix:string);
     function   Count                         : QWord;
-    //function   FetchFromParent               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
 
     procedure  BeginUpdateGathering          ;
     procedure  FinishUpdateGathering         (const sendupdates : Boolean);
 
 
-    //procedure  ApplyToPage                   (const page_info : TFRE_DB_DC_PAGING_INFO;const iterator:IFRE_DB_Obj_Iterator);
     procedure  SetDeriveParent               (const coll:IFRE_DB_COLLECTION;  const idField: String='uid');
     procedure  SetDeriveTransformation       (const tob:IFRE_DB_TRANSFORMOBJECT);
 
@@ -864,12 +890,12 @@ type
       or all Objects which point to the the input "Dependency" object,
       via a schemelinkdefinition chain : Outbound ['TFRE_DB_SCHEME>DOMAINDILINK', ... ] or Inbound (common) ['TFRE_DB_USER<DOMAINIDLINK']
     }
-    procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids'; const subscribe_observer_to : IFRE_DB_COLLECTION=nil);
-    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
+    //procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids'; const subscribe_observer_to : IFRE_DB_COLLECTION=nil);
+    procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean = false ; const dependency_reference : string = 'uids');
 
     procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
     procedure  SetDisplayTypeChart           (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean; const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
-    procedure  SetParentToChildLinkField     (const fieldname : TFRE_DB_NameType); { Define a Child/Parent Parent/Child relation via Reflinks syntax is FROMFIELD>TOSCHEME or FROMSCHEME<FROMFIELD, the scheme could be empty }
+    procedure  SetParentToChildLinkField     (const fieldname : TFRE_DB_NameTypeRL); { Define a Child/Parent Parent/Child relation via Reflinks syntax is FROMFIELD>TOSCHEME or FROMSCHEME<FROMFIELD, the scheme could be empty }
 
     function   GetDisplayDescription         : TFRE_DB_CONTENT_DESC;
     function   GetStoreDescription           : TFRE_DB_CONTENT_DESC;
@@ -915,7 +941,6 @@ type
 
   IFRE_DB_SIMPLE_TRANSFORM=interface(IFRE_DB_TRANSFORMOBJECT)
     ['IFDBST']
-    procedure SetCustomTransformFunction     (const func : IFRE_DB_CUSTOMTRANSFORM);
     procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1);
     procedure AddFulltextFilterOnTransformed (const in_fieldlist:TFRE_DB_StringArray);
     procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='');
@@ -1087,7 +1112,7 @@ type
   IFRE_DB_DOMAIN=interface(IFRE_DB_BASE)
     ['IFDBUSERDOMAIN']
     function Domainname (const unique:boolean=false) : TFRE_DB_NameType;
-    function Domainkey                               : TGUID_String;
+    function Domainkey                               : TFRE_DB_GUID_String;
     function UID                                     : TGUID;
   end;
 
@@ -1340,7 +1365,6 @@ type
     function    CreateDomainCollection        (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
     function    DomainCollectionName          (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
 
-    function    GetDerivedCollection          (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
     function    CreateDerivedCollection       (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 
     procedure   ForAllColls                   (const iterator:IFRE_DB_Coll_Iterator)                                   ;
@@ -1624,7 +1648,7 @@ type
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
     procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
     function        UID                                : TGUID;
-    function        UID_String                         : TGUID_String;
+    function        UID_String                         : TFRE_DB_GUID_String;
     function        DomainID                           : TGUID;
     procedure       SetDomainID                        (const domid:TGUID);
     function        Parent                             : IFRE_DB_Object;
@@ -1707,6 +1731,29 @@ type
     constructor    Create(const weakclname : Shortstring);
     function       CloneInstance : TFRE_DB_WeakObjectEx;
     function       SchemeClass: TFRE_DB_NameType; override;
+  end;
+
+  TFRE_DB_QUERY_BASE=class
+  end;
+
+
+  { TFRE_DB_TRANS_COLL_DATA_BASE }
+
+  TFRE_DB_TRANS_RESULT_BASE = class
+  public
+     procedure LockBase   ; virtual; abstract;
+     procedure UnlockBase ; virtual; abstract;
+  end;
+
+  { TFRE_DB_TRANSDATA_MANAGER_BASE }
+
+  TFRE_DB_TRANSDATA_MANAGER_BASE=class
+    procedure  UnlockManager; virtual; abstract;
+    procedure  LockManager; virtual; abstract;
+
+    function   GetTransformedDataLocked   (const query : TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract; { get the order base data for the specified order definition, collection or single reference based, lock manager and if existing, the base}
+    procedure  NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
+    function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_NameType ; const collection_transform_key : TFRE_DB_NameTypeRL ; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const DefaultOrderFieldtype: TFRE_DB_FIELDTYPE; const replace_default_order: boolean=true): TFRE_DB_QUERY_BASE; virtual; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -2600,6 +2647,7 @@ var
   GFRE_DB_NIL_DESC                  : TFRE_DB_NIL_DESC;
   GFRE_DB_SUPPRESS_SYNC_ANSWER      : TFRE_DB_SUPPRESS_ANSWER_DESC;
   GFRE_DB_MIME_TYPES                : Array of TFRE_DB_Mimetype;
+  GFRE_DB_TCDM                      : TFRE_DB_TRANSDATA_MANAGER_BASE;
 
   //G_ADD_2_SITEMAP_CALLBACK          : TAddAppToSiteMap_Callback;
 
@@ -3132,6 +3180,81 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_DC_ORDER_DEFINITION }
+
+function TFRE_DB_DC_ORDER_DEFINITION.IsSealed: Boolean;
+begin
+  result := FKey<>'';
+end;
+
+procedure TFRE_DB_DC_ORDER_DEFINITION.MustNotBeSealed;
+begin
+ if IsSealed then
+   raise EFRE_DB_Exception.Create(edb_ERROR,'order definition is already sealed');
+end;
+
+procedure TFRE_DB_DC_ORDER_DEFINITION.MustBeSealed;
+begin
+ if not IsSealed then
+   raise EFRE_DB_Exception.Create(edb_ERROR,'order definition is not done');
+end;
+
+procedure TFRE_DB_DC_ORDER_DEFINITION.SetDataKeyColl(const parent_collectionname, derivedcollname: TFRE_DB_NameType);
+begin
+  FKeyPartMaj := parent_collectionname;
+  FKeyPartMin := derivedcollname;
+  FIsRefLinkM := false;
+end;
+
+procedure TFRE_DB_DC_ORDER_DEFINITION.SetDataKeyReflink(const startuid: TFRE_DB_GUID; const RLChainSpec: TFRE_DB_NameTypeRLArray);
+begin
+  FKeyPartMaj := 'U:'+FREDB_G2H(startuid);
+  FRefLinkCh  := RLChainSpec;
+  FIsRefLinkM := false;
+end;
+
+function TFRE_DB_DC_ORDER_DEFINITION.GetKeyDefinition: TFRE_DB_TRANS_COLL_DATA_KEY;
+begin
+  if FKey='' then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'key definition is not done')
+  else
+    result := FKey;
+end;
+
+procedure TFRE_DB_DC_ORDER_DEFINITION.ClearOrders;
+begin
+  SetLength(FOrderList,0);
+end;
+
+procedure TFRE_DB_DC_ORDER_DEFINITION.AddOrderDef(const orderfield_name: TFRE_DB_NameType; const asc: boolean);
+begin
+  MustNotBeSealed;
+  SetLength(FOrderList,Length(FOrderList)+1);
+  with FOrderList[high(FOrderList)] do
+    begin
+      ascending   := asc;
+      order_field := orderfield_name;
+    end;
+end;
+
+procedure TFRE_DB_DC_ORDER_DEFINITION.Seal;
+var key : string;
+    i   : NativeInt;
+begin
+  MustNotBeSealed;
+  if FIsRefLinkM then
+    begin
+      for i := 0 to high(FRefLinkCh) do
+          key := key+FRefLinkCh[i];
+      FKeyPartMin := 'R|'+GFRE_BT.HashString_MD5_HEX(key);
+    end;
+  key := '';
+  for i := 0 to high(FOrderList) do
+    with FOrderList[i] do
+      key := key +order_field+BoolToStr(ascending,'A','D');
+  FKey := FKeyPartMaj+'/'+FKeyPartMin+'/'+GFRE_BT.HashString_MD5_HEX(key);
+end;
 
 { TFRE_DB_UPDATE_FORM_DESC }
 
@@ -3752,7 +3875,8 @@ end;
 
 procedure TFRE_DB_UserSession._FixupDCName(var dcname: TFRE_DB_NameType);
 begin
-  dcname := 'dc'+uppercase(dcname)+FSessionID;
+  //dcname := 'dc'+uppercase(dcname)+FSessionID;
+  dcname := uppercase(dcname);
 end;
 
 
@@ -6041,7 +6165,7 @@ begin
   result := FImplementor.UID;
 end;
 
-function TFRE_DB_ObjectEx.UID_String: TGUID_String;
+function TFRE_DB_ObjectEx.UID_String: TFRE_DB_GUID_String;
 begin
   result := FImplementor.UID_String;
 end;

@@ -146,15 +146,16 @@ type
   TFRE_DB_UnsignedIndex=class(TFRE_DB_MM_Index)
   private
   protected
-    procedure   InitializeNullKey           ; override;
+    procedure       InitializeNullKey           ; override;
   public
-    procedure   TransformToBinaryComparable (fld:TFRE_DB_FIELD ; const key: PByte ; var keylen : Nativeint ); override;
-    procedure   SetBinaryComparableKey      (const keyvalue:qword ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean);
-    constructor CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null:boolean;const unique_null:boolean);
-    procedure   FieldTypeIndexCompatCheck   (fld:TFRE_DB_FIELD ); override;
-    function    SupportsDataType            (const typ: TFRE_DB_FIELDTYPE): boolean; override;
-    function    IndexTypeTxt                : String; override;
-    procedure   ForAllIndexedUnsignedRange  (const min, max: QWord; var guids :  TFRE_DB_GUIDArray ; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0);
+    procedure       TransformToBinaryComparable (fld:TFRE_DB_FIELD ; const key: PByte ; var keylen : Nativeint ); override;
+    procedure       SetBinaryComparableKey      (const keyvalue:qword ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean);
+    class procedure SetBinaryComparableKey      (const keyvalue:qword ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean ; const FixedKeyLen : NativeInt);
+    constructor     CreateStreamed              (const stream : TStream ; const idx_name, fieldname: TFRE_DB_NameType ; const fieldtype : TFRE_DB_FIELDTYPE ; const unique : boolean ; const collection : IFRE_DB_PERSISTANCE_COLLECTION;const allow_null:boolean;const unique_null:boolean);
+    procedure       FieldTypeIndexCompatCheck   (fld:TFRE_DB_FIELD ); override;
+    function        SupportsDataType            (const typ: TFRE_DB_FIELDTYPE): boolean; override;
+    function        IndexTypeTxt                : String; override;
+    procedure       ForAllIndexedUnsignedRange  (const min, max: QWord; var guids :  TFRE_DB_GUIDArray ; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0);
   end;
 
   { TFRE_DB_SignedIndex }
@@ -1684,10 +1685,15 @@ end;
 
 procedure TFRE_DB_UnsignedIndex.SetBinaryComparableKey(const keyvalue: qword; const key_target: PByte; var key_len: NativeInt; const is_null: boolean);
 begin
+  SetBinaryComparableKey(keyvalue,key_target,key_len,is_null,FFixedKeylen);
+end;
+
+class procedure TFRE_DB_UnsignedIndex.SetBinaryComparableKey(const keyvalue: qword; const key_target: PByte; var key_len: NativeInt; const is_null: boolean; const FixedKeyLen: NativeInt);
+begin
   if not is_null then
     begin
-      key_len := FFixedKeylen+1;
-      case FFixedKeylen of
+      key_len := FixedKeylen+1;
+      case FixedKeylen of
           1: PByte(@key_target[1])^     := Byte(keyvalue);
           2: PWord(@key_target[1])^     := SwapEndian(Word(keyvalue));
           4: PCardinal(@key_target[1])^ := SwapEndian(Cardinal(keyvalue));
@@ -1699,7 +1705,7 @@ begin
     end
   else
     begin
-      key_len := FFixedKeylen;
+      key_len := FixedKeylen;
       FillByte(key_target[0],key_len,0);
     end;
 end;
@@ -3891,7 +3897,7 @@ begin
     fdbft_Boolean:      FFixedKeylen := 1;
     fdbft_DateTimeUTC:  FFixedKeylen := 8;
     else
-      raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'unssoported fieldtype for index '+CFRE_DB_FIELDTYPE[fieldtype]);
+      raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'unsupported fieldtype for index '+CFRE_DB_FIELDTYPE[fieldtype]);
   end;
   InitializeNullKey;
 end;

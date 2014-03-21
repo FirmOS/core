@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
     <Version Value="9"/>
@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-x -y -i -t -e TEST -u admin@system -p admin"/>
+        <CommandLineParams Value="-e TEST -u admin@system -p admin --ple"/>
       </local>
     </RunParams>
     <Units Count="7">

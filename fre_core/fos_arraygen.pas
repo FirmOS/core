@@ -52,11 +52,12 @@ type
      OGFOS_Array<_TType> = object
     private
      type
-       TGFOS_ArrayType        = array of _TType;
-       TGFOS_ArrayBrkIterator = function  (const element : _TType):boolean is nested;
-       TGFOS_ArrayIterator    = procedure (const element : _TType) is nested;
-       TGFOS_SortProc         = function  (const a,b : _TType):NativeInt;
-       TGFOS_Sorter           = specialize OFRE_GenericSorter<_TType>;
+       TGFOS_ArrayType          = array of _TType;
+       TGFOS_ArrayBreakIterator = procedure (const element : _TType ; var halt:boolean) is nested;
+       TGFOS_ArrayBrkIterator   = function  (const element : _TType):boolean is nested;
+       TGFOS_ArrayIterator      = procedure (const element : _TType) is nested;
+       TGFOS_SortProc           = function  (const a,b : _TType):NativeInt;
+       TGFOS_Sorter             = specialize OFRE_GenericSorter<_TType>;
     var private
        FArray     : TGFOS_ArrayType;
        Flength    : NativeInt;
@@ -72,6 +73,7 @@ type
      function    Count        : NativeInt; inline;
      function    Capacity     : NativeInt; inline;
      function    HighArray    : NativeInt;
+     function    ForAllBreak  (const iterator: TGFOS_ArrayBreakIterator): boolean;
      function    ForAllBrk    (const iterator:TGFOS_ArrayBrkIterator):boolean;
      procedure   ForAll       (const iterator:TGFOS_ArrayIterator);
      procedure   Sort         (sort_proc : TGFOS_SortProc);
@@ -166,6 +168,20 @@ begin
   result := Flength-1;
 end;
 
+function OGFOS_Array.ForAllBreak(const iterator: TGFOS_ArrayBreakIterator): boolean;
+var i    : NativeInt;
+    halt : boolean;
+begin
+  halt := false;
+  for i:=0 to HighArray do
+    begin
+       iterator(Farray[i],halt);
+       if halt then
+         exit(true);
+    end;
+  result := false;
+end;
+
 function OGFOS_Array.ForAllBrk(const iterator: TGFOS_ArrayBrkIterator):boolean;
 var i:NativeInt;
 begin
@@ -176,7 +192,7 @@ begin
 end;
 
 procedure OGFOS_Array.ForAll(const iterator: TGFOS_ArrayIterator);
-var i: Integer;
+var i: NativeInt;
 begin
   for i:=0 to HighArray do begin
     iterator(Farray[i]);
