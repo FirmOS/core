@@ -1774,6 +1774,7 @@ type
     function   FetchAppTextFull              (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
 
     class procedure  CreateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
+    class procedure  DeleteAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String);
 
   published
      function   WEB_Content                 (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -6758,6 +6759,11 @@ var txt :IFRE_DB_TEXT;
 begin
   txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
   CheckDbResult(conn.StoreTranslateableText(txt),'CreateAppText ' + translation_key);
+end;
+
+class procedure TFRE_DB_APPLICATION.DeleteAppText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String);
+begin
+  CheckDbResult(conn.DeleteTranslateableText(uppercase(classname)+'_'+translation_key),'DeleteAppText ' + translation_key);
 end;
 
 
