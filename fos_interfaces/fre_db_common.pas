@@ -2220,6 +2220,7 @@ implementation
             fdbft_UInt16,fdbft_UInt32,fdbft_UInt64,
             fdbft_Int16,fdbft_Int32,fdbft_Int64     : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
                                                                                 obj^.disabled,obj^.hidden,'',0);
+            fdbft_Currency : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',2);
             fdbft_Real64 : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
                                                     obj^.disabled,obj^.hidden);
             fdbft_ObjLink,
@@ -2235,8 +2236,7 @@ implementation
                              boolField:=group.AddBool.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,false);
                              obj^.fieldschemdef.ForAllDepfields(@DeppIterator);
                            end;
-            fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                              obj^.required,obj^.hidden,'',validator);
+            fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',validator);
             fdbft_Stream: begin
                             group.AddFile.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
                                                    obj^.disabled,obj^.hidden,'',validator);
