@@ -782,13 +782,22 @@ type
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
     function        GetIndexedObj       (const query_value : TFRE_DB_String; out obj     : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObjs      (const query_value : TFRE_DB_String; out   obj   : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def'):boolean;
-    function        GetIndexedUIDs      (const query_value : TFRE_DB_String; out obj_uid : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def'):boolean;
 
-    function        GetIndexedUID       (const query_value : TFRE_DB_String;out obj_uid:TGUID;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+
 
     procedure       ForAllIndexed       (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
 
-    function        RemoveIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
+    function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
+    function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
+
 
     // skip_first = number of different index values to skip, max_count = number of different index values to deliver
     procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
@@ -1205,10 +1214,21 @@ type
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
     function        IndexExists                (const idx_name : TFRE_DB_NameType):NativeInt;
     // Fetches Snapshot copies of the objects, you need to finalize them
-    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
-    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean;
-    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
-    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
+    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'  ; const val_is_null : boolean = false ):boolean; // for the string fieldtype
+    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false  ; const val_is_null : boolean = false):boolean;
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'  ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false  ; const val_is_null : boolean = false):boolean; overload ;
+
+    function        GetIndexedUIDSigned        (const query_value : int64            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDUnsigned      (const query_value : QWord            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+
+
+    function        Remove                     (const ouid    : TGUID):TFRE_DB_Errortype; { from this collection }
+    function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
+    function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;  // for all signed   fieldtypes
+    function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;  // for all unsigned fieldtype
 
     procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
@@ -1229,7 +1249,7 @@ type
 
     procedure WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
     procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
-    procedure WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+    procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
     procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
     function  FDB_GetObjectCount            (const coll:boolean): Integer;
@@ -1425,7 +1445,9 @@ type
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainname: TFRE_DB_NameType=''):TFRE_DB_Errortype;
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID ):TFRE_DB_Errortype;
     function    StoreGroup                  (var group:IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
+
     function    StoreTranslateableText      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
+    function    UpdateTranslateableText     (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    DeleteTranslateableText     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
 
     function    DatabaseList                : IFOS_STRINGS;
@@ -1775,6 +1797,7 @@ type
 
     class procedure  CreateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
     class procedure  DeleteAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String);
+    class procedure  UpdateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
 
   published
      function   WEB_Content                 (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -6764,6 +6787,13 @@ end;
 class procedure TFRE_DB_APPLICATION.DeleteAppText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String);
 begin
   CheckDbResult(conn.DeleteTranslateableText(uppercase(classname)+'_'+translation_key),'DeleteAppText ' + translation_key);
+end;
+
+class procedure TFRE_DB_APPLICATION.UpdateAppText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
+var txt :IFRE_DB_TEXT;
+begin
+  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
+  CheckDbResult(conn.UpdateTranslateableText(txt),'UpdateAppText ' + translation_key);
 end;
 
 

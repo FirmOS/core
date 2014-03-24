@@ -35,6 +35,12 @@ begin
   DefaultFormat      := fPlain;
   DefaultRunAllTests := true;
 
+  GDBPS_TRANS_WRITE_THROUGH := TRUE;
+  GDBPS_TRANS_WRITE_ASYNC   := FALSE;
+  GDISABLE_WAL              := TRUE;
+  GDISABLE_SYNC             := TRUE;
+  GDROP_WAL                 := TRUE;
+
   //CfgTestLog;
   Init4Server;
   Register_DB_Extensions;

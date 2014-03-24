@@ -129,6 +129,7 @@ type
     procedure ChangeRefTestCodeClasses;
     procedure DefineIndices;
     procedure GenerateIndexTestData;
+    procedure RemoveIndexedTest;
     procedure TestIdxRangeQueries;
     procedure TestIdxUpdate;
     procedure ReconnectNotSyncedFromWAL;
@@ -946,6 +947,27 @@ begin
    DumpColl(coll_p,'ixi16');
    DumpColl(coll_p,'ixdt');
    DumpColl(coll_p,'ixc');
+end;
+
+procedure TFRE_DB_PersistanceTests.RemoveIndexedTest;
+var coll_v,coll_p   : IFRE_DB_COLLECTION;
+    coll_vu,coll_pu : IFRE_DB_COLLECTION;
+    coll_link       : IFRE_DB_COLLECTION;
+    obj             : IFRE_DB_Object;
+    guid            : TGUID;
+    res             : boolean;
+begin
+  writeln('HERE');
+  ConnectDB('admin@system','admin');
+  coll_v    := FWorkConn.GetCollection('TEST_1_VOL');
+  coll_p    := FWorkConn.GetCollection('TEST_1_PERS');
+  res       := coll_v.RemoveIndexedString('','ixs',true);
+  res       := coll_v.RemoveIndexedString('baz','ixs',false);
+  res       := coll_v.RemoveIndexedString('baz','ixs',false);
+  res       := coll_v.RemoveIndexedSigned(34,'ixi16',false);
+  res       := coll_v.RemoveIndexedUnsigned(1234,'ixui16',false);
+  res       := coll_v.RemoveIndexedSigned(34,'ixi16',true);
+  res       := coll_v.RemoveIndexedUnsigned(1234,'ixui16',true);
 end;
 
 procedure TFRE_DB_PersistanceTests.TestIdxRangeQueries;
