@@ -791,6 +791,7 @@ type
     function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
     function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
 
+    procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray);
 
     procedure       ForAllIndexed       (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
 
@@ -1442,6 +1443,8 @@ type
     function    DomainID                    (const domainname:TFRE_DB_NameType):TGUID;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     procedure   ForAllDomains               (const func:IFRE_DB_Domain_Iterator);
+    function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
+
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainname: TFRE_DB_NameType=''):TFRE_DB_Errortype;
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID ):TFRE_DB_Errortype;
     function    StoreGroup                  (var group:IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
@@ -2556,6 +2559,7 @@ type
   function  FREDB_Bool2String                    (const bool:boolean):String;
   function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString;
   function  FREDB_H2G                            (const uidstr : shortstring):TFRE_DB_GUID;
+  function  FREDB_ExtractUidsfromRightArray      (const str:TFRE_DB_StringArray;const rightname:TFRE_DB_STRING):TFRE_DB_GUIDArray;
   function  FREDB_String2GuidArray               (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Guid                    (const str:string):TGUID;
   function  FREDB_String2Bool                    (const str:string):boolean;
@@ -2796,6 +2800,44 @@ end;
 function FREDB_H2G(const uidstr: shortstring): TFRE_DB_GUID;
 begin
   result := GFRE_BT.HexString_2_GUID(uidstr);
+end;
+
+function FREDB_ExtractUidsfromRightArray(const str: TFRE_DB_StringArray; const rightname: TFRE_DB_STRING): TFRE_DB_GUIDArray;
+var uid,uidv   : TFRE_DB_GUID;
+    entry      : TFRE_DB_String;
+    sp,cnt,i,j : NativeInt;
+    fnd        : boolean;
+begin
+  cnt := 0;
+  SetLength(result,length(str));
+  for i := 0 to high(str) do
+    begin
+      entry := str[i];
+      sp := pos('@',entry);
+      if sp>0 then
+        begin
+          if rightname<>'' then
+            if rightname<>copy(entry,1,sp-1) then
+              continue;
+          uid := FREDB_H2G(Copy(entry,sp+1,maxint));
+          fnd := false;
+          for j := 0 to cnt-1 do
+            begin
+              uidv := result[j];
+              if uidv=uid then
+                begin
+                  fnd:=true;
+                  break;
+                end;
+            end;
+          if not fnd then
+            begin
+              result[cnt] := uid;
+              inc(cnt);
+            end;
+        end;
+    end;
+  SetLength(result,cnt);
 end;
 
 function FREDB_String2GuidArray(const str: string): TFRE_DB_GUIDArray;

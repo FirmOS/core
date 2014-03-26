@@ -1301,6 +1301,7 @@ type
 
     procedure       StartBlockUpdating         ;
     procedure       FinishBlockUpdating        ;
+    procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray);
 
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
     function        IndexExists                (const index_name:TFRE_DB_NameType):boolean;
@@ -1975,6 +1976,7 @@ type
     function    FetchRoleById               (const role_id: TGUID; var role: TFRE_DB_ROLE; const without_right_check: boolean=false): TFRE_DB_Errortype;
     function    FetchRoleByIdI              (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     procedure   ForAllColls                 (const iterator:TFRE_DB_Coll_Iterator) ;override;
+    function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
     function    FetchDomain                 (const name :TFRE_DB_NameType; var domain:TFRE_DB_DOMAIN):boolean;
     function    FetchDomainUIDbyName        (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
     function    FetchDomainById             (const domain_id:TGUID;var domain: TFRE_DB_DOMAIN):TFRE_DB_Errortype;
@@ -2018,6 +2020,7 @@ type
     { Many domain case, add additional checks for the specific domain }
     function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
     function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
+    function    GetDomainsForRight          (const right_name:TFRE_DB_String): TFRE_DB_GUIDArray;
     function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
 
     { Stdrights Many domain case, add additional checks for the specific domain }
@@ -4099,6 +4102,11 @@ begin //nolcock req
   inherited ForAllColls(iterator);
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.FetchAllDomainUids: TFRE_DB_GUIDArray;
+begin
+  FSysDomains.GetAllUIDS(result);
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.FetchDomainById(const domain_id: TGUID; var domain: TFRE_DB_DOMAIN): TFRE_DB_Errortype;
 begin //nolock
   result := Fetch(domain_id,TFRE_DB_Object(domain));
@@ -4570,10 +4578,17 @@ begin
   result := FREDB_StringInArray((TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+GetSystemDomainID_String),FConnectionRights); // check in system domain
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForRight(const right_name: TFRE_DB_String): TFRE_DB_GUIDArray;
+begin
+  if IsCurrentUserSystemAdmin then
+    result := FetchAllDomainUids
+  else
+    result := FREDB_ExtractUidsfromRightArray(FConnectionRights,right_name);
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const right_name: TFRE_DB_String; const classtyp: TClass): TFRE_DB_GUIDArray;
 begin
-  abort;
-  result := nil; //FIXME
+  result := GetDomainsForRight(TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name));
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4AnyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
@@ -4608,10 +4623,7 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
 begin
-  abort;
-  // if set right then deliver ALL ALL ALL DOMAIN id's
-  // if set right not set, deliver the domainid's that are in the rights array
-  result := nil; //FIXME
+  result := GetDomainsForRight(_GetStdRightName(std_right,classtyp));
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckObjectRight(const right_name: TFRE_DB_String; const uid: TGUID): boolean;
@@ -4876,8 +4888,27 @@ begin
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.DumpUserRights: TFRE_DB_String;
+var DomainUids  : TFRE_DB_GUIDArray;
+    Domainnames : TFRE_DB_StringArray;
+            i,j : NativeInt;
 begin
-  result := GFRE_DBI.StringArray2String(FConnectionRights);
+  Domainuids := FREDB_ExtractUidsfromRightArray(FConnectionRights,'');
+  SetLength(Domainnames,Length(DomainUids));
+  for i := 0 to high(DomainUids) do
+    Domainnames[i] := FetchDomainNameById(DomainUids[i]);
+  for i:=0 to high(FConnectionRights) do
+    if pos('@',FConnectionRights[i])>0 then
+      begin
+        Result:=result+FConnectionRights[i]+' (';
+        for j:=0 to high(DomainUids) do
+          if pos(uppercase(FREDB_G2H(DomainUids[j])),FConnectionRights[i])>0 then
+            begin
+              result:=result+'@'+Domainnames[j]+')'+LineEnding;
+              break;
+            end;
+      end
+    else
+     result := result+FConnectionRights[i]+LineEnding;
 end;
 
 procedure TFRE_DB_SYSTEM_CONNECTION.StartTransaction(const trans_id: TFRE_DB_NameType; const trans_type: TFRE_DB_TRANSACTION_TYPE);
@@ -9126,6 +9157,11 @@ begin
     SetLength(FObserverUpdates,0);
     FObserverBlockupdating := false;
   end;
+end;
+
+procedure TFRE_DB_COLLECTION.GetAllUids(var uids: TFRE_DB_GUIDArray);
+begin
+  FObjectLinkStore.GetAllUIDS(uids);
 end;
 
 function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false): TFRE_DB_Errortype;

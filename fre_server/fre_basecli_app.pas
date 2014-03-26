@@ -76,6 +76,8 @@ type
     FLimittransfer                 : integer;
 
     procedure  _CheckDBNameSupplied;
+    procedure  _CheckAdminUserSupplied;
+    procedure  _CheckAdminPassSupplied;
     procedure  _CheckUserSupplied;
     procedure  _CheckPassSupplied;
 
@@ -93,6 +95,7 @@ type
     procedure   DoUnitTest         ;
     procedure   InitExtensions     ;
     procedure   ShowVersions       ;
+    procedure   ShowRights         ;
     procedure   RemoveExtensions   ;
     procedure   RegisterExtensions ;
     procedure   VerifyExtensions   ;
@@ -181,7 +184,7 @@ begin
   end;
 end;
 
-procedure TFRE_CLISRV_APP._CheckUserSupplied;
+procedure TFRE_CLISRV_APP._CheckAdminUserSupplied;
 begin
   if (cFRE_ADMIN_USER='') then begin
     writeln('no admin username supplied');
@@ -190,10 +193,28 @@ begin
   end;
 end;
 
-procedure TFRE_CLISRV_APP._CheckPassSupplied;
+procedure TFRE_CLISRV_APP._CheckAdminPassSupplied;
 begin
   if (cFRE_ADMIN_PASS='') then begin
     writeln('no admin password supplied');
+    Terminate;
+    halt(1);
+  end;
+end;
+
+procedure TFRE_CLISRV_APP._CheckUserSupplied;
+begin
+  if (cG_OVERRIDE_USER='') then begin
+    writeln('no override/login username supplied');
+    Terminate;
+    halt(1);
+  end;
+end;
+
+procedure TFRE_CLISRV_APP._CheckPassSupplied;
+begin
+  if (cG_OVERRIDE_PASS='') then begin
+    writeln('no override/login password supplied');
     Terminate;
     halt(1);
   end;
@@ -262,7 +283,7 @@ begin
   ErrorMsg:=CheckOptions('hvirlgxytf:e:u:p:d:s:U:H:',
                           ['help','version','init','remove','list','graph','forcedb','forcesysdb','testdata','debugger','file:','extensions:','user:','pass:',
                            'database:','style:','remoteuser:','remotehost:','dropwal','testlog','unittests',
-                           'printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:','showinstalled',
+                           'printtz','cleanzip','nozip','nocache','jsdebug','dbo2json:','json2dbo:','showinstalled','showrights',
                            'backupdb:','restoredb:','backupsys:','restoresys','backupapp:','restoreapp:','adminuser:','adminpass:','limittransfer:',
                            'plhost:','plip:','plport:','ple','setasyncwt:']);
 
@@ -435,6 +456,13 @@ begin
       Exit;
     end;
 
+  if HasOption('*','showrights') then
+    begin
+      ShowRights;
+      Terminate;
+      Exit;
+    end;
+
   if HasOption('r','remove') then begin
     FOnlyInitDB:=true;
     RemoveExtensions;
@@ -544,6 +572,7 @@ begin
   writeln('                | --dbo2json=/path2/dbo     : convert a dbo to json represantation');
   writeln('                | --json2dbo=/path2/json    : convert a json to dbo represantation');
   writeln('                | --showinstalled           : show installed versions of all database objects');
+  writeln('                | --showrights              : show rights of specified user & and check login');
   writeln('                | --backupdb=</path2/dir>   : backup database interactive');
   writeln('                | --restoredb=</path2/dir>  : restore database interactive');
   writeln('                | --backupsys=</path2/dir>  : backup only sys database interactive');
@@ -619,8 +648,8 @@ var s     : string;
 
 begin
   _CheckDBNameSupplied;
-  _CheckUserSupplied;
-  _CheckPassSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
   ForceDirectories(dir);
   if not DirectoryExists(dir) then
     begin
@@ -727,8 +756,8 @@ var s     : string;
 
 begin
   _CheckDBNameSupplied;
-  _CheckUserSupplied;
-  _CheckPassSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
   if not DirectoryExists(dir) then
     begin
       writeln('the backup directory does not exist['+dir+'] !');
@@ -808,8 +837,8 @@ procedure TFRE_CLISRV_APP.GenerateTestdata;
 var conn : IFRE_DB_CONNECTION;
 begin
   _CheckDBNameSupplied;
-  _CheckUserSupplied;
-  _CheckPassSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
 
   { a testdomain is created globally for all extensiosn}
   conn := GFRE_DBI.NewConnection;
@@ -837,8 +866,8 @@ procedure TFRE_CLISRV_APP.DoUnitTest;
 var conn : IFRE_DB_SYS_CONNECTION;
 begin
   _CheckDBNameSupplied;
-  _CheckUserSupplied;
-  _CheckPassSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
   GFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
 end;
 
@@ -846,8 +875,8 @@ procedure TFRE_CLISRV_APP.InitExtensions;
 var conn : IFRE_DB_CONNECTION;
 begin
   _CheckDBNameSupplied;
-  _CheckUserSupplied;
-  _CheckPassSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
   //writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
   CONN := GFRE_DBI.NewConnection;
   CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
@@ -861,11 +890,22 @@ procedure TFRE_CLISRV_APP.ShowVersions;
 var conn : IFRE_DB_SYS_CONNECTION;
 begin
   _CheckDBNameSupplied;
-  _CheckUserSupplied;
-  _CheckPassSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
   CONN := GFRE_DBI.NewSysOnlyConnection;
   CheckDbResult(CONN.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
   writeln(conn.GetClassesVersionDirectory.DumpToString);
+  conn.Finalize;
+end;
+
+procedure TFRE_CLISRV_APP.ShowRights;
+var conn : IFRE_DB_SYS_CONNECTION;
+begin
+  _CheckUserSupplied;
+  _CheckPassSupplied;
+  CONN := GFRE_DBI.NewSysOnlyConnection;
+  CheckDbResult(CONN.Connect(cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect system db');
+  writeln(conn.DumpUserRights);
   conn.Finalize;
 end;
 
@@ -873,8 +913,8 @@ end;
 procedure TFRE_CLISRV_APP.RemoveExtensions;
 begin
   _CheckDBNameSupplied;
-  _CheckUserSupplied;
-  _CheckPassSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
   writeln('Remove apps for extensions :'+uppercase(FChosenExtensionList.Commatext));
   GFRE_DBI_REG_EXTMGR.Remove4Extensions(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
 end;
