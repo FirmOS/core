@@ -1294,7 +1294,7 @@ type
   public
     constructor     Create         (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);virtual;
     destructor      Destroy        ;override;
-    function        Count          : QWord; virtual;
+    function        Count          : QWord; virtual; {WARNING COUNT IS NOT ACCESS RIGHTS AWARE !}
     function        Exists         (const ouid:TGUID):boolean;
     procedure       ForAll         (const func:TFRE_DB_Obj_Iterator);
     procedure       ForAllBreak    (const func:TFRE_DB_ObjectIteratorBrk ; var halt : boolean);
@@ -1303,7 +1303,7 @@ type
     function        Update         (const dbo:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
     function        Fetch          (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;virtual;
 
-    procedure       ClearCollection;
+    procedure       ClearCollection; {WARNING - NOT RIGHTS AWARE}
 
     function        CollectionName (const unique:boolean=false):TFRE_DB_NameType;
     function        DomainCollName (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
@@ -1314,13 +1314,14 @@ type
 
     procedure       StartBlockUpdating         ;
     procedure       FinishBlockUpdating        ;
-    procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray);
+    procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray); { without right check }
 
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
     function        IndexExists                (const index_name:TFRE_DB_NameType):boolean;
 
     function        ExistsIndexed              (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
 
+    { not right aware }
     function        GetIndexedObjI             (const query_value : TFRE_DB_String; out obj     : IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObj              (const query_value : TFRE_DB_String; out obj     : TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObjs             (const query_value : TFRE_DB_String; out obj     : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def'):boolean;
@@ -1332,6 +1333,7 @@ type
     function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
     function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
     function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    { not right aware end}
 
     procedure       ForAllIndexed              (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
 
@@ -1340,6 +1342,7 @@ type
     procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
+    { not right aware }
     function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
     function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
     function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
@@ -1350,6 +1353,7 @@ type
     function        First          : TFRE_DB_Object; virtual;
     function        Last           : TFRE_DB_Object; virtual;
     function        GetItem        (const num:uint64):IFRE_DB_Object; virtual;
+    { not right aware end}
     procedure       ForceFullUpdateForObservers;
   end;
 
@@ -1881,6 +1885,8 @@ type
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object;const without_right_check:boolean=false) : TFRE_DB_Errortype; virtual;
     function           FetchAccessRightTest         (const ouid: TGUID): boolean; { fetch the object, check rights and free }
+    function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
+
     function           Update                       (const dbo:TFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
@@ -5172,7 +5178,8 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.IsCurrentUserSystemAdmin: boolean;
 begin
   if not assigned(FConnectedUser) then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,' there is no FCurrentuser ? / system startup case ?');
+    exit(true); // System Startup Case - RIGHTS GRANTED !
+    //raise EFRE_DB_Exception.Create(edb_INTERNAL,' there is no FCurrentuser ? / system startup case ?');
   if (uppercase(FConnectedUser.GetLogin)='ADMIN') and
      FREDB_Guids_Same(FConnectedUser.GetDomainIDLink,FSysDomainUID) then
        begin
@@ -7068,6 +7075,7 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
 var idbo : IFRE_DB_Object;
 begin
+  abort; { TODO : Necessary Where ? Right Check missing}
   case FDCMode of
     dc_Map2RealCollection,
     dc_Map2DerivedCollection:
@@ -9071,7 +9079,8 @@ begin
    begin
      if not FObjectLinkStore.Fetch(guids[i],obj) then
        raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
-     iter(obj,halt);
+     if FConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
+       iter(obj,halt);
      if halt then
        break;
    end;
@@ -9085,7 +9094,8 @@ begin
    begin
      if not FObjectLinkStore.Fetch(guids[i],obj) then
        raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
-     iter(obj.Implementor as TFRE_DB_Object,halt);
+     if FConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
+       iter(obj.Implementor as TFRE_DB_Object,halt);
      if halt then
        break;
    end;
@@ -9099,12 +9109,17 @@ end;
 
 function TFRE_DB_COLLECTION.Count: QWord;
 begin //nl
-  result := FObjectLinkStore.Count;
+  result := ItemCount;
 end;
 
 function TFRE_DB_COLLECTION.Exists(const ouid: TGUID): boolean;
+var dbo : TFRE_DB_Object;
 begin //nl
-  result := FObjectLinkStore.Exists(ouid);
+  //result := FObjectLinkStore.Exists(ouid);
+  result := FConnection.FetchAccessRightTest(ouid);
+  if result=false then
+    exit;
+  dbo.Finalize;
 end;
 
 
@@ -9119,7 +9134,8 @@ begin //nl
     begin
        if not FObjectLinkStore.Fetch(uids[i],obj) then
          raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(uids[i]));
-       func(obj.Implementor as TFRE_DB_Object);
+       if FConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
+         func(obj.Implementor as TFRE_DB_Object);
     end;
 end;
 
@@ -9144,17 +9160,19 @@ begin //nl
 end;
 
 function TFRE_DB_COLLECTION.Store(var new_obj: TFRE_DB_Object):TFRE_DB_Errortype;
-var objclass : TClass;
+//var objclass : TClass;
 begin //nl
   try
-     objclass := new_obj.Implementor_HC.ClassType;
+     //objclass := new_obj.Implementor_HC.ClassType; { TODO -> Use Connection Right Check}
      if new_obj.DomainID=CFRE_DB_NullGUID then
        new_obj.SetDomainID(FConnection.GetMyDomainID);
-     if not
-        ((FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,new_obj.DomainID))
-          or FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,FConnection.GetSysDomainUID) // if user has right in system domain, access is granted for all domains
-          or FConnection.IsCurrentUserSystemAdmin) then
-            exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+new_obj.DomainID_String);
+     Result := FConnection.CheckAccessRightAndCondFinalize(new_obj,sr_STORE,false,false);
+     if Result<>edb_OK then
+       exit;
+        //((FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,new_obj.DomainID))
+        //  or FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,FConnection.GetSysDomainUID) // if user has right in system domain, access is granted for all domains
+        //  or FConnection.IsCurrentUserSystemAdmin) then
+        //    exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+new_obj.DomainID_String);
      result := _InternalStore(new_obj);
   finally
     try
@@ -9170,23 +9188,27 @@ end;
 
 
 function TFRE_DB_COLLECTION.Update(const dbo: TFRE_DB_Object): TFRE_DB_Errortype;
-var objclass : TClass;
+//var objclass : TClass;
 begin //nl
   // TODO Check if in collection
-   objclass := dbo.Implementor_HC.ClassType;
+   //objclass := dbo.Implementor_HC.ClassType;
    if dbo.DomainID=CFRE_DB_NullGUID then
      dbo.SetDomainID(FConnection.GetMyDomainID);
-   if not
-      ((FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,dbo.DomainID))
-        or FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,FConnection.GetSysDomainUID)
-        or FConnection.IsCurrentUserSystemAdmin) then
-          exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+dbo.DomainID_String);
+   result := FConnection.CheckAccessRightAndCondFinalize(dbo,sr_UPDATE);
+   if result <>edb_OK then
+     exit;
+   //if not
+   //   ((FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,dbo.DomainID))
+   //     or FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,FConnection.GetSysDomainUID)
+   //     or FConnection.IsCurrentUserSystemAdmin) then
+   //       exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+dbo.DomainID_String);
     result := FConnection.Update(dbo);
 end;
 
 function TFRE_DB_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
 var dboi : IFRE_DB_Object;
 begin //nl -> TODO: Check if in collection
+  abort; {check necessary and right check}
   result := FObjectLinkStore.Fetch(ouid,dboi);
   if result then
     dbo := dboi.Implementor as TFRE_DB_Object
@@ -9269,8 +9291,18 @@ end;
 
 function TFRE_DB_COLLECTION.ExistsIndexed(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType): Boolean;
 var uidarr : TFRE_DB_GUIDArray;
+    cnt,i  : NativeInt;
 begin //nl
   result := FObjectLinkStore.GetIndexedUID(query_value,uidarr,index_name);
+  cnt := 0;
+  if not result then
+    exit;
+  for i:=0 to high(uidarr) do
+    begin
+       if FConnection.FetchAccessRightTest(uidarr[i]) then
+         inc(cnt);
+    end;
+  result := cnt>0;
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedObjI(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): boolean;
@@ -10546,32 +10578,6 @@ end;
 function TFRE_DB_BASE_CONNECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object; const without_right_check: boolean): TFRE_DB_Errortype;
 var dbi : IFRE_DB_Object;
 
-  function _Check : TFRE_DB_Errortype;
-  var classt : TClass;
-  begin
-      if not assigned(dbo) then
-        dbo    := dbi.Implementor as TFRE_DB_Object;
-      classt := dbo.Implementor_HC.ClassType;
-      //GFRE_DB.LogDebug(dblc_APPLICATION,'Check Right for FETCH of class [%s] mydomain [%s]',[classt.ClassName,GetMyDomainID_String]);   // add user info
-      if not
-       ((without_right_check
-         or IsCurrentUserSystemAdmin
-         or (classt=TFRE_DB_Object)
-         or IntCheckClassRight4Domain(sr_FETCH,classt,dbo.DomainID))
-         or IntCheckClassRight4Domain(sr_FETCH,classt,GetSysDomainUID)
-         or IntCheckObjectRight(sr_FETCH,dbo.UID)
-        ) then
-           begin
-             GFRE_DB.LogInfo(dblc_APPLICATION,'Access denied for FETCH of class [%s] domain [%s]',[classt.ClassName,FREDB_G2H(dbo.DomainID)]); // add user info
-             if not dbo.IsSystem then
-               dbo.Finalize;
-             dbo := nil;
-             exit(edb_ACCESS) //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to update objects in the specified domain : '+new_obj.DomainID_String);
-           end
-      else
-        exit(edb_OK);
-  end;
-
 begin
   dbo    := nil;
   try
@@ -10581,10 +10587,13 @@ begin
     else
       begin
         if assigned(dbi) then
-          exit(_Check);
+          begin
+            dbo    := dbi.Implementor as TFRE_DB_Object;
+            exit(CheckAccessRightAndCondFinalize(dbi,sr_FETCH,without_right_check));
+          end;
       end;
     if GFRE_DB.FetchSysObject(ouid,dbo) then
-      exit(_Check);
+      exit(CheckAccessRightAndCondFinalize(dbo,sr_FETCH,without_right_check));
     exit(edb_NOT_FOUND);
   except
     result := FPersistance_Layer.GetLastErrorCode;
@@ -10605,6 +10614,32 @@ begin
     begin
       result := false;
     end;
+end;
+
+
+function TFRE_DB_BASE_CONNECTION.CheckAccessRightAndCondFinalize(const dbi: IFRE_DB_Object; const sr: TFRE_DB_STANDARD_RIGHT; const without_right_check: boolean;const cond_finalize:boolean): TFRE_DB_Errortype;
+var classt : TClass;
+    dbo    : TFRE_DB_Object;
+begin
+    dbo    := dbi.Implementor as TFRE_DB_Object;
+    classt := dbo.Implementor_HC.ClassType;
+    //GFRE_DB.LogDebug(dblc_APPLICATION,'Check Right for FETCH of class [%s] mydomain [%s]',[classt.ClassName,GetMyDomainID_String]);   // add user info
+    if not
+     ((without_right_check
+       or IsCurrentUserSystemAdmin
+       or (classt=TFRE_DB_Object)
+       or IntCheckClassRight4Domain(sr,classt,dbo.DomainID))
+       or IntCheckClassRight4Domain(sr,classt,GetSysDomainUID)
+       or IntCheckObjectRight(sr,dbo.UID)
+      ) then
+         begin
+           GFRE_DB.LogInfo(dblc_APPLICATION,'Access denied for FETCH of class [%s] domain [%s]',[classt.ClassName,FREDB_G2H(dbo.DomainID)]); // add user info
+           if (cond_finalize) and (not dbo.IsSystem) then
+             dbo.Finalize;
+           exit(edb_ACCESS) //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to update objects in the specified domain : '+new_obj.DomainID_String);
+         end
+    else
+      exit(edb_OK);
 end;
 
 function TFRE_DB_BASE_CONNECTION.Update(const dbo: TFRE_DB_Object): TFRE_DB_Errortype;
