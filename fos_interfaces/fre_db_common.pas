@@ -1721,7 +1721,7 @@ implementation
 
   { TFRE_DB_STORE_DESC }
 
-  function TFRE_DB_STORE_DESC.Describe(const idField: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const labelFields:TFRE_DB_StringArray; const destroyFunc, clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC; const id: String; const pageSize: Integer): TFRE_DB_STORE_DESC;
+    function TFRE_DB_STORE_DESC.Describe(const idField: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const labelFields: TFRE_DB_StringArray; const destroyFunc: TFRE_DB_SERVER_FUNC_DESC; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC; const id: String; const pageSize: Integer): TFRE_DB_STORE_DESC;
   begin
     Field('idField').AsString:=idField;
     Field('labelFields').AsStringArr:=labelFields;
@@ -1997,7 +1997,7 @@ implementation
     Result:=Self;
   end;
 
-    procedure TFRE_DB_FORM_DESC._FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const prefix:String);
+  procedure TFRE_DB_FORM_DESC._FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const prefix:String);
   var
     i,j         : Integer;
     val         : String;
@@ -2160,6 +2160,8 @@ implementation
       dataCollectionName : TFRE_DB_NameType;
       dataCollIsDomain   : Boolean;
       chooserField       : TFRE_DB_INPUT_CHOOSER_DESC;
+      domainEntries      : Integer;
+      domainValue        : String;
 
     procedure addObjects(const obj: IFRE_DB_Object);
     begin
@@ -2174,6 +2176,15 @@ implementation
     procedure VisDeppITerator(const vdf : R_VisDepfieldfield);
     begin
       chooserField.addDependentInput(prefix+vdf.visDepFieldName,vdf.visibleValue);
+    end;
+
+    procedure _addDomain(const domain: IFRE_DB_Domain);
+    begin
+       if session.GetDBConnection.SYS.CheckClassRight4Domain(obj^.std_right,obj^.right_classtype,domain.Domainname) then begin
+        store.AddEntry.Describe(domain.Domainname,domain.Domainkey);
+        domainEntries:=domainEntries+1;
+        domainValue:=domain.Domainkey;
+      end;
     end;
 
     begin
@@ -2206,44 +2217,57 @@ implementation
             raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
           end;
       end else begin
-        if obj^.fieldschemdef.getEnum(enum) then begin
+        if Assigned(obj^.right_classtype) then begin
           store:=TFRE_DB_STORE_DESC.create.Describe();
-          enumVals:=enum.getEntries;
-          for i := 0 to Length(enumVals) - 1 do begin
-            store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
+          domainEntries:=0;
+          domainValue:='';
+          session.GetDBConnection.SYS.ForAllDomains(@_addDomain);
+          if obj^.hideSingle and (domainEntries=1) then begin
+            group.AddInput.Describe('',prefix+obj^.field,false,false,false,true,domainValue);
+          end else begin
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
+            obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
           end;
-          chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
-          obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
         end else begin
-          obj^.fieldschemdef.getValidator(validator);
-          case obj^.fieldschemdef.FieldType of
-            fdbft_UInt16,fdbft_UInt32,fdbft_UInt64,
-            fdbft_Int16,fdbft_Int32,fdbft_Int64     : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                                                obj^.disabled,obj^.hidden,'',0);
-            fdbft_Currency : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',2);
-            fdbft_Real64 : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                    obj^.disabled,obj^.hidden);
-            fdbft_ObjLink,
-            fdbft_String : begin
-                             group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                     obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
-                             if obj^.fieldschemdef.addConfirm then begin
-                               group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
-                                                       obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass,prefix+obj^.field);
+          if obj^.fieldschemdef.getEnum(enum) then begin
+            store:=TFRE_DB_STORE_DESC.create.Describe();
+            enumVals:=enum.getEntries;
+            for i := 0 to Length(enumVals) - 1 do begin
+              store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
+            end;
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
+            obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
+          end else begin
+            obj^.fieldschemdef.getValidator(validator);
+            case obj^.fieldschemdef.FieldType of
+              fdbft_UInt16,fdbft_UInt32,fdbft_UInt64,
+              fdbft_Int16,fdbft_Int32,fdbft_Int64     : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                                                  obj^.disabled,obj^.hidden,'',0);
+              fdbft_Currency : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',2);
+              fdbft_Real64 : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                      obj^.disabled,obj^.hidden);
+              fdbft_ObjLink,
+              fdbft_String : begin
+                               group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                       obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
+                               if obj^.fieldschemdef.addConfirm then begin
+                                 group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
+                                                         obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass,prefix+obj^.field);
+                               end;
                              end;
-                           end;
-            fdbft_Boolean: begin
-                             boolField:=group.AddBool.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,false);
-                             obj^.fieldschemdef.ForAllDepfields(@DeppIterator);
-                           end;
-            fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',validator);
-            fdbft_Stream: begin
-                            group.AddFile.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                   obj^.disabled,obj^.hidden,'',validator);
-                          end
-            else begin // String fallback
-              group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                      obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
+              fdbft_Boolean: begin
+                               boolField:=group.AddBool.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,false);
+                               obj^.fieldschemdef.ForAllDepfields(@DeppIterator);
+                             end;
+              fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',validator);
+              fdbft_Stream: begin
+                              group.AddFile.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                     obj^.disabled,obj^.hidden,'',validator);
+                            end
+              else begin // String fallback
+                group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                        obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
+              end;
             end;
           end;
         end;
