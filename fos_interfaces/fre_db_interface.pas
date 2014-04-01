@@ -1072,6 +1072,7 @@ type
     function  GetDomain                    (const conn  : IFRE_DB_CONNECTION): TFRE_DB_NameType;
     procedure AddRight                     (const right : IFRE_DB_RIGHT);
     function  GetRightNames                : TFRE_DB_StringArray;
+    procedure AddRightsFromRoles           (const roles : Array of IFRE_DB_ROLE);
   end;
 
   { IFRE_DB_USER }

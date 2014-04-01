@@ -1229,6 +1229,7 @@ type
     function  SubFormattedDisplayAvailable  : boolean; override;
     function  GetSubFormattedDisplay        (indent: integer=4): TFRE_DB_String; override;
     function  GetRightNames                 :TFRE_DB_StringArray;
+    procedure AddRightsFromRoles            (const roles : Array of IFRE_DB_ROLE);
   end;
 
   procedure          ForAllObjectsDo (const object_array:TFRE_DB_ObjectArray ; const iterator:TFRE_DB_Obj_Iterator);
@@ -3655,7 +3656,7 @@ begin
   result := Field('domainidlink').AsObjectLink;
 end;
 
-procedure TFRE_DB_ROLE.SetDomainIDlink(AValue: TGUID);
+procedure TFRE_DB_ROLE.SetDomainIDLink(AValue: TGUID);
 begin
  Field('domainidlink').AsObjectLink := AValue;
  Field('domainrolekey').AsString := GetDomainRoleKey(ObjectName,AValue);
@@ -3708,6 +3709,21 @@ end;
 function TFRE_DB_ROLE.GetRightNames: TFRE_DB_StringArray;
 begin
   result := Field('rights').AsStringArr;
+end;
+
+procedure TFRE_DB_ROLE.AddRightsFromRoles(const roles: array of IFRE_DB_ROLE);
+var i,j    : NativeInt;
+    rights : TFRE_DB_StringArray;
+begin
+  for i := 0 to high(roles) do
+    begin
+      rights := roles[i].GetRightNames;
+      for j := 0 to high(rights) do
+        begin
+          AddRight(rights[j]);
+        end;
+    end;
+  //TODO: MakeRightstringsUnique
 end;
 
 class procedure TFRE_DB_ROLE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
