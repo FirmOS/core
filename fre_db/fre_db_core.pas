@@ -1885,6 +1885,7 @@ type
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object;const without_right_check:boolean=false) : TFRE_DB_Errortype; virtual;
     function           FetchAccessRightTest         (const ouid: TGUID): boolean; { fetch the object, check rights and free }
+    function           DeleteAccessRightTest        (const ouid: TGUID): boolean; { fetch the object, check rights and free }
     function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
 
     function           Update                       (const dbo:TFRE_DB_Object)                                               : TFRE_DB_Errortype;
@@ -9152,8 +9153,13 @@ function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): TFRE_DB_Errortype;
 var ncolls : TFRE_DB_StringArray;
 begin //nl
   try
-    FConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
-    result := edb_OK;
+    if FConnection.DeleteAccessRightTest(ouid) then
+      begin
+        FConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
+        result := edb_OK;
+      end
+    else
+      exit(edb_ACCESS);
   except
     result := FConnection.FPersistance_Layer.GetLastErrorCode;
   end;
@@ -10468,8 +10474,13 @@ var dbo     : TFRE_DB_Object;
 begin
   _ConnectCheck;
   try
-    FPersistance_Layer.DeleteObject(ouid,'');
-    result:=edb_OK;
+    if DeleteAccessRightTest(ouid) then
+      begin
+        FPersistance_Layer.DeleteObject(ouid,'');
+        result:=edb_OK;
+      end
+    else
+      result:=edb_ACCESS;
   except
     result     := FPersistance_Layer.GetLastErrorCode;
   end;
@@ -10613,6 +10624,21 @@ begin
   else
     begin
       result := false;
+    end;
+end;
+
+function TFRE_DB_BASE_CONNECTION.DeleteAccessRightTest(const ouid: TGUID): boolean;
+var dbo : TFRE_DB_Object;
+    res : TFRE_DB_Errortype;
+begin
+  Res := Fetch(ouid,dbo,true);
+  if Res = edb_OK then
+    begin
+      result := CheckAccessRightAndCondFinalize(dbo,sr_DELETE) = edb_OK;
+    end
+  else
+    begin
+      result := true; { not fetchable, so possibly deletable :-) (should report edb_NOT_FOUND in next stage) }
     end;
 end;
 
