@@ -1511,6 +1511,9 @@ type
     function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
 
     function    IsCurrentUserSystemAdmin    :boolean;
+    function    SuspendContinueDomainById   (const domain_id:TGUID; const suspend : boolean):TFRE_DB_Errortype;
+    function    IsDomainSuspended           (const domainname:TFRE_DB_NameType):boolean; {delivers true if the domain exists and is suspended, otherwise false}
+
     function    DumpUserRights              :TFRE_DB_String;
     function    GetSysDomainUID             :TGUID;
     procedure   ReloadUserandRights         ;

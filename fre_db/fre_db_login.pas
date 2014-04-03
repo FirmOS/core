@@ -266,16 +266,29 @@ var
   res               : TFRE_DB_Errortype;
   promotion_error   : TFRE_DB_String;
   clear_session     : boolean;
-  //take_over_content : TFRE_DB_CONTENT_DESC;
   wsf               : TFRE_DB_SERVER_FUNC_DESC;
-  //ex_session        : TFRE_DB_UserSession;
+  domain            : TFRE_DB_String;
+  user              : TFRE_DB_String;
+  username          : TFRE_DB_String;
+
 begin
   data := input.Field('data').AsObject;
   clear_session := false;
   if data.FieldExists('CLR_SESSION') then begin
     clear_session := data.Field('CLR_SESSION').AsBoolean;
   end;
-  case ses.Promote(data.Field('uname').AsString,data.Field('pass').AsString,promotion_error,clear_session,false) of
+  username := data.field('uname').AsString;
+  if pos('@',username)=0 then {no add given, add configured "default" domain fro system}
+    begin
+      username:=username+'@'+cFRE_DEFAULT_DOMAIN;
+    end;
+  FREDB_SplitLocalatDomain(username,user,domain);
+  if conn.SYS.IsDomainSuspended(domain) then
+    begin
+      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),'TODO: Translate - The domain is suspended',fdbmt_error);
+      exit;
+    end;
+  case ses.Promote(username,data.Field('pass').AsString,promotion_error,clear_session,false) of
     pr_OK:
       result := WEB_Content(input,ses,app,ses.GetDBConnection);
     pr_Failed:

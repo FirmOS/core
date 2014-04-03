@@ -1173,6 +1173,8 @@ type
     function  IFRE_DB_DOMAIN.SetDesc          = SetDescI;
     function  GetIsInternal                   : Boolean;
     procedure SetIsInternal                   (AValue: Boolean);
+    function  GetSuspended: boolean;
+    procedure SetSuspended(AValue: boolean);
   protected
     procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
@@ -1181,6 +1183,7 @@ type
     function        Domainname(const unique:boolean=false) : TFRE_DB_NameType;
     function        Domainkey                              : TGUID_String;
     property        isInternal                             : Boolean read GetIsInternal write SetIsInternal;
+    property        Suspended  : boolean read GetSuspended write SetSuspended;
   end;
 
   { TFRE_DB_GROUP }
@@ -2016,6 +2019,8 @@ type
     function    FetchDomainByIdI            (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    FetchDomainNameById         (const domain_id:TGUID):TFRE_DB_NameType;
     function    ModifyDomainById            (const domain_id:TGUID;const domainname: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    function    SuspendContinueDomainById   (const domain_id:TGUID; const suspend : boolean):TFRE_DB_Errortype;
+    function    IsDomainSuspended           (const domainname:TFRE_DB_NameType):boolean; {delivers true if the domain exists and is suspended, otherwise false}
     function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
     function    DomainID                    (const domainname:TFRE_DB_NameType):TGUID;
@@ -2832,6 +2837,19 @@ end;
 procedure TFRE_DB_DOMAIN.SetIsInternal(AValue: Boolean);
 begin
   Field('internal').AsBoolean:=AValue;
+end;
+
+function TFRE_DB_DOMAIN.GetSuspended: boolean;
+var fld : TFRE_DB_FIELD;
+begin
+  if not FieldOnlyExisting('suspended',fld) then
+    exit(false);
+  result := fld.AsBoolean;
+end;
+
+procedure TFRE_DB_DOMAIN.SetSuspended(AValue: boolean);
+begin
+  Field('suspended').AsBoolean:=AValue;
 end;
 
 procedure TFRE_DB_DOMAIN._calcDisplayName(const calc: IFRE_DB_CALCFIELD_SETTER);
@@ -4272,6 +4290,27 @@ begin
       if txt<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
         tdomain.Description.LongText  := txt;
       result := Update(tdomain);
+    end;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.SuspendContinueDomainById(const domain_id: TGUID; const suspend: boolean): TFRE_DB_Errortype;
+var domain : TFRE_DB_DOMAIN;
+begin
+  result := FetchDomainById(domain_id,domain);
+  if result <> edb_OK then
+    exit;
+  domain.Suspended := suspend;
+  result := Update(domain);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.IsDomainSuspended(const domainname: TFRE_DB_NameType): boolean;
+var domain : TFRE_DB_DOMAIN;
+begin
+  result := false;
+  if FetchDomain(domainname,domain) then
+    begin
+      result := domain.Suspended;
+      domain.Finalize;
     end;
 end;
 
