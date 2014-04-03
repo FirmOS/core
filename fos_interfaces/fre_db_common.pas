@@ -86,6 +86,8 @@ type
     function  DescribeStatus     (const elementId:String; const disabled:Boolean; const newCaption:String=''): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
     //@ Describes a submenu change. Used to change a submenu within a toolbar.
     function  DescribeSubmenu    (const elementId:String; const menu: TFRE_DB_MENU_DESC): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+    //@ Describes if drag is disabled for a grid.
+    function  DescribeDrag       (const elementId:String; const disabled: Boolean): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
   end;
 
   { TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC }
@@ -330,6 +332,8 @@ type
     //@ The selected ids will be passed as selected parameter.
     //@ FIXXME: Not implemented yet.
     procedure SetDependentContent (const contentFunc:TFRE_DB_SERVER_FUNC_DESC);
+    //@ Disable the drag functionality. TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeDrag can be used to enable it again.
+    procedure disableDrag         ;
   end;
 
   { TFRE_DB_VIEW_TREE_DESC }
@@ -1045,6 +1049,13 @@ implementation
   begin
     Field('id').AsString:=elementId;
     Field('menu').AsObject:=menu;
+    Result:=Self;
+  end;
+
+  function TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeDrag(const elementId: String; const disabled: Boolean): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+  begin
+    Field('id').AsString:=elementId;
+    Field('disableDrag').AsBoolean:=disabled;
     Result:=Self;
   end;
 
@@ -1851,6 +1862,7 @@ implementation
     if Assigned(dragFunc) then begin
       Field('dragFunc').AsObject:=dragFunc.CloneToNewObject();
     end;
+    Field('disableDrag').AsBoolean:=false;
     Field('children').AsBoolean:=cdgf_Children in displayFlags;
     Field('columnResize').AsBoolean:=cdgf_ColumnResizeable in displayFlags;
     Field('columnHide').AsBoolean:=cdgf_ColumnHideable in displayFlags;
@@ -1940,6 +1952,11 @@ implementation
   procedure TFRE_DB_VIEW_LIST_DESC.SetDependentContent(const contentFunc: TFRE_DB_SERVER_FUNC_DESC);
   begin
     Field('depContentFunc').AsObject:=contentFunc;
+  end;
+
+  procedure TFRE_DB_VIEW_LIST_DESC.disableDrag;
+  begin
+    Field('disableDrag').AsBoolean:=true;
   end;
 
   { TFRE_DB_VIEW_TREE_DESC }

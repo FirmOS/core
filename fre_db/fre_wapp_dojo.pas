@@ -1232,11 +1232,15 @@ implementation
     JsonAction := TFRE_JSON_ACTION.Create;
     jsContentClear;
 
-    if co.FieldExists('disabled') then begin
-      jsContentAdd('G_UI_COM.updateUIElement("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disabled').AsBoolean,'true','false')+',"'+co.Field('newCaption').AsString+'");');
+    if co.FieldExists('disableDrag') then begin
+      jsContentAdd('G_UI_COM.updateGridDrag("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disableDrag').AsBoolean,'true','false')+');');
     end else begin
-      _BuildMenuDef(co.Field('menu').AsObject.Implementor_HC as TFRE_DB_MENU_DESC);
-      jsContentAdd('G_UI_COM.updateUIElementSubmenu("'+co.Field('id').AsString+'",'+co.Field('menu').AsObject.Field('id').AsString+');');
+      if co.FieldExists('disabled') then begin
+        jsContentAdd('G_UI_COM.updateUIElement("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disabled').AsBoolean,'true','false')+',"'+co.Field('newCaption').AsString+'");');
+      end else begin
+        _BuildMenuDef(co.Field('menu').AsObject.Implementor_HC as TFRE_DB_MENU_DESC);
+        jsContentAdd('G_UI_COM.updateUIElementSubmenu("'+co.Field('id').AsString+'",'+co.Field('menu').AsObject.Field('id').AsString+');');
+      end;
     end;
 
     JsonAction.ActionType := jat_jsexecute;
@@ -1476,6 +1480,9 @@ implementation
       jsContentAdd('  ,dndSourceType: "'+co.Field('dragId').AsString+'"');
       if co.FieldExists('dragClasses') then begin
         jsContentAdd('  ,dragClasses: '+_BuildJSArray(co.Field('dragClasses').AsStringArr));
+      end;
+      if co.Field('disableDrag').AsBoolean then begin
+        jsContentAdd('  ,dndDisabled: true');
       end;
     end else begin
       jsContentAdd('  ,dndDisabled: true');

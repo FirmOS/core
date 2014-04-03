@@ -14,6 +14,7 @@ uses
 
 const
   CDOMAIN_FEATURE = true;
+  CHIDE_INTERNAL  = true;
 
 type
 
@@ -28,7 +29,7 @@ type
     procedure       MySessionPromotion            (const session: TFRE_DB_UserSession); override;
     class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
-    function        HideDomains                   (const conn:IFRE_DB_CONNECTION): Boolean;
+    function        ShowDomains                   (const conn:IFRE_DB_CONNECTION): Boolean;
   public
     class procedure RegisterSystemScheme          (const scheme:IFRE_DB_SCHEMEOBJECT); override;
     function        isMultiDomainApp             : Boolean; override;
@@ -201,14 +202,16 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_domain);
     with tr_domain do begin
       AddOneToOnescheme('displayname','displayname',app.FetchAppTextShort(session,'$gc_domain'));
-      //AddOneToOnescheme ('objname','domain',app.FetchAppTextShort(session,'$gc_domain'));
-      //AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('desc.txt'),'DOMAIN_DESC',app.FetchAppTextShort(session,'$gc_domain_desc'));
     end;
     domain_Grid := session.NewDerivedCollection('DOMAINMOD_DOMAIN_GRID');
     with domain_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetDomainCollection);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_domain);
       SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_DGMenu),nil,CWSF(@WEB_DGNotification));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserIn);
@@ -218,8 +221,12 @@ begin
     userin_Grid := session.NewDerivedCollection('DOMAINMOD_USERIN_GRID');
     with userin_Grid do begin
       SetReferentialLinkMode(['TFRE_DB_USER<DOMAINIDLINK'],'uids',session.GetDBConnection.AdmGetUserCollection);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UinD'));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
@@ -229,8 +236,12 @@ begin
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
     with groupin_Grid do begin
       SetReferentialLinkMode(['TFRE_DB_GROUP<DOMAINIDLINK'],'uids',session.GetDBConnection.AdmGetDomainCollection);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_GinD'));
+      SetDefaultOrderField('displayname',true);
     end;
   end;
 end;
@@ -598,16 +609,17 @@ begin
     conn := session.GetDBConnection;
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
     with tr_Role do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).HideDomains(conn) then begin
+      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
         grid_column_cap:=app.FetchAppTextShort(session,'$gc_domain_role');
       end else begin
         grid_column_cap:=app.FetchAppTextShort(session,'$gc_role');
       end;
       AddOneToOnescheme('displayname','displayname',grid_column_cap);
+      AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
    end;
     role_Grid := session.NewDerivedCollection('ROLEMOD_ROLE_GRID');
     with role_Grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).HideDomains(conn) then begin
+      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
         SetDeriveParent           (session.GetDBConnection.AdmGetDomainCollection);
         SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',nil,nil,CWSF(@WEB_RoleNotification));
         SetParentToChildLinkField ('TFRE_DB_ROLE<DOMAINIDLINK');
@@ -615,6 +627,10 @@ begin
         SetDeriveParent           (session.GetDBConnection.AdmGetRoleCollection);
         SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',nil,nil,CWSF(@WEB_RoleNotification));
       end;
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
+      SetDefaultOrderField('displayname',true);
       SetDeriveTransformation(tr_role);
     end;
 
@@ -625,8 +641,12 @@ begin
     userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_GRID');
     with userin_Grid do begin
       SetReferentialLinkMode(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],'uids',conn.AdmGetUserCollection);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UhasR'));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserOut);
@@ -637,8 +657,12 @@ begin
     with userout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],true);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_UserOut);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UnotR'));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
@@ -648,8 +672,12 @@ begin
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
     with groupin_Grid do begin
       SetReferentialLinkMode(['TFRE_DB_GROUP<ROLEIDS'],'uids',session.GetDBConnection.AdmGetGroupCollection);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupOut);
@@ -660,8 +688,12 @@ begin
     with groupout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS'],true);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_groupOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,nil,nil,CWSF(@WEB_RemoveFromRole));
+      SetDefaultOrderField('displayname',true);
     end;
   end;
 end;
@@ -983,16 +1015,17 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).HideDomains(conn) then begin
+      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
         grid_column_cap:=app.FetchAppTextShort(session,'$gc_domain_group');
       end else begin
         grid_column_cap:=app.FetchAppTextShort(session,'$gc_group');
       end;
       AddOneToOnescheme('displayname','displayname',grid_column_cap);
+      AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
     end;
     group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_GRID');
     with group_Grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).HideDomains(conn) then begin
+      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
         SetDeriveParent           (session.GetDBConnection.AdmGetDomainCollection);
         SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
         SetParentToChildLinkField ('TFRE_DB_GROUP<DOMAINIDLINK');
@@ -1000,7 +1033,11 @@ begin
         SetDeriveParent           (session.GetDBConnection.AdmGetGroupCollection);
         SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
       end;
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_Grid);
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserIn);
@@ -1010,8 +1047,12 @@ begin
     userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_GRID');
     with userin_Grid do begin
       SetReferentialLinkMode(['TFRE_DB_USER<USERGROUPIDS'],'uids',session.GetDBConnection.AdmGetUserCollection);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UinG'),nil,'',CWSF(@WEB_UIGMenu),nil,nil,nil,CWSF(@WEB_AddToUser));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserOut);
@@ -1022,8 +1063,12 @@ begin
     with userout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],true); // UserGroupIDS
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_UserOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UnotG'),nil,'',CWSF(@WEB_UOGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromUser));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
@@ -1033,8 +1078,12 @@ begin
     rolein_Grid := session.NewDerivedCollection('GROUPMOD_ROLEIN_GRID');
     with rolein_Grid do begin
       SetReferentialLinkMode(['ROLEIDS>TFRE_DB_ROLE'],'uids',session.GetDBConnection.AdmGetRoleCollection);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleOut);
@@ -1045,8 +1094,12 @@ begin
     with roleout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetUseDependencyAsRefLinkFilter(['ROLEIDS>TFRE_DB_ROLE'],true);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_RoleOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromRole));
+      SetDefaultOrderField('displayname',true);
     end;
   end;
 end;
@@ -1133,18 +1186,29 @@ var
   dc_roleout  : IFRE_DB_DERIVED_COLLECTION;
   roleoutgrid : TFRE_DB_VIEW_LIST_DESC;
   role        : TFRE_DB_LAYOUT_DESC;
+  group       : IFRE_DB_Object;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE)) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   dc_rolein   := ses.FetchDerivedCollection('GROUPMOD_ROLEIN_GRID');
   roleingrid  := dc_rolein.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  roleingrid.contentId:='GROUPMOD_ROLEIN_GRID';
   dc_roleout  := ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
   roleoutgrid := dc_roleout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  roleoutgrid.contentId:='GROUPMOD_ROLEOUT_GRID';
 
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
     roleoutgrid.setDropGrid(roleingrid);
     roleingrid.setDropGrid(roleoutgrid);
+  end;
+
+  if ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups') then begin
+    CheckDbResult(conn.Fetch(FREDB_String2Guid(ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsString),group));
+    if (group.Implementor_HC as IFRE_DB_GROUP).isProtected then begin
+      roleoutgrid.disableDrag;
+      roleingrid.disableDrag;
+    end;
   end;
 
   role    := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(nil,roleoutgrid,nil,roleingrid,nil,true,-1,1,-1,1);
@@ -1271,9 +1335,8 @@ begin
       msg:=StringReplace(app.FetchAppTextShort(ses,'$group_deleted_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
     end;
     for i := 0 to input.Field('selected').ValueCount-1 do begin
-      //CheckDbResult(conn.DeleteGroup(),'DeleteGroupConfirmed');
+      CheckDbResult(conn.sys.DeleteGroupById(FREDB_String2Guid(input.Field('selected').AsStringItem[i])),'DeleteGroupConfirmed');
     end;
-    //FIXXME: Do real delete and error handling.
     Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_info);
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -1377,6 +1440,12 @@ begin
       Result:=GFRE_DB_NIL_DESC;
     end;
   end else begin
+    if IsContentUpdateVisible(ses,'GROUPMOD_ROLEOUT_GRID') then begin
+      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('GROUPMOD_ROLEOUT_GRID',notEditable));
+    end;
+    if IsContentUpdateVisible(ses,'GROUPMOD_ROLEIN_GRID') then begin
+      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('GROUPMOD_ROLEIN_GRID',notEditable));
+    end;
     Result:=GFRE_DB_NIL_DESC;
   end;
 end;
@@ -1668,17 +1737,18 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
 
     with tr_Grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).HideDomains(conn) then begin
+      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
         grid_column_cap:=app.FetchAppTextShort(session,'$gc_domain_user');
       end else begin
         grid_column_cap:=app.FetchAppTextShort(session,'$gc_user');
       end;
       AddOneToOnescheme    ('displayname','',grid_column_cap);
+      AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
     end;
 
     user_grid := session.NewDerivedCollection('USERMOD_USER_GRID');
     with user_grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).HideDomains(conn) then begin
+      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
         SetDeriveParent           (session.GetDBConnection.AdmGetDomainCollection);
         SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
         SetParentToChildLinkField ('TFRE_DB_USER<DOMAINIDLINK');
@@ -1686,7 +1756,11 @@ begin
         SetDeriveParent           (session.GetDBConnection.AdmGetUserCollection);
         SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
       end;
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation   (tr_Grid);
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridIn);
@@ -1697,8 +1771,12 @@ begin
     groupin_Grid := session.NewDerivedCollection('USERMOD_GROUPIN_GRID');
     with groupin_Grid do begin
       SetReferentialLinkMode(['USERGROUPIDS>TFRE_DB_GROUP'],'uids',session.GetDBConnection.AdmGetGroupCollection); // Gather all objects that the USERGROUPIDS Field points to
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_GridIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UinG'),nil,'',CWSF(@WEB_GIGMenu),nil,nil,nil,CWSF(@WEB_AddToGroup));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridOut);
@@ -1710,8 +1788,12 @@ begin
     with groupout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],true);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_GridOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromGroup));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
@@ -1722,8 +1804,12 @@ begin
     rolein_Grid := session.NewDerivedCollection('USERMOD_ROLEIN_GRID');
     with rolein_Grid do begin
       SetReferentialLinkMode(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],'uids',session.GetDBConnection.AdmGetRoleCollection); // Gather all objects that the USERGROUPIDS and then ROLEIDS Field points to
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UhasR'));
+      SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleOut);
@@ -1734,8 +1820,12 @@ begin
     with roleout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],true);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false,false);
+      end;
       SetDeriveTransformation(tr_RoleOut);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UnotR'));
+      SetDefaultOrderField('displayname',true);
     end;
   end;
 end;
@@ -2191,7 +2281,7 @@ begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppTextShort(session,'$sitemap_main'),'images_apps/accesscontrol/monitor_white.svg','',0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ACCESSCONTROL_APP));
-  if HideDomains(conn) then begin
+  if ShowDomains(conn) then begin
     FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppTextShort(session,'$sitemap_domains'),'images_apps/accesscontrol/domain_white.svg',TFRE_COMMON_DOMAIN_MOD.ClassName);
     pos:=-45;
   end else begin
@@ -2394,8 +2484,9 @@ end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
 var
-  dn: TFRE_DB_NameType;
-  group: IFRE_DB_GROUP;
+  group : IFRE_DB_GROUP;
+  role  : IFRE_DB_ROLE;
+  domain: IFRE_DB_DOMAIN;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
 
@@ -2418,37 +2509,53 @@ begin
       CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)),'could not add roles TFRE_DB_ROLE for group Admins');
       CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)),'could not add roles TFRE_DB_DOMAIN for group Admins');
 
-      //conn.NewRole('ACADMINUSER','Allowed to create, modify and delete Users');  TFRE_DB_USER.GetClassStdRoles
-      //                                                                           TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)
-      //                                                                           TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch
-      //                                                                           TFRE_COMMON_USER_MOD.GetClassRoleNameFetch
-      //conn.NewRole('ACADMINGROUP','Allowed to create, modify and delete Groups');  TFRE_DB_GROUP.GetClassStdRoles
-      //                                                                             TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)
-      //                                                                             TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)
-      //                                                                             TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch
-      //                                                                             TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch
-      //                                                                             TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch
-      //conn.NewRole('ACADMINUSERGROUP','Allowed to modify Groups and Users of Groups');  TFRE_DB_USER.GetClassStdRoles(false,false,false,true)
-      //                                                                                  TFRE_DB_GROUP.GetClassStdRoles(false,true,false,true)
-      //                                                                                  TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)
-      //                                                                                  TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)
-      //                                                                                  TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch
-      //                                                                                  TFRE_COMMON_USER_MOD.GetClassRoleNameFetch
-      //                                                                                  TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch
-      //                                                                                  TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch
-      //
-      //CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP'),'could not add roles TFRE_DB_DOMAIN for group Admins');
     end;
   if (currentVersionId='1.0') then begin
     currentVersionId:='1.1';
-    dn := conn.FetchDomainNameById(domainUID);
-    CheckDbResult(conn.FetchGroup('ACADMINS'+'@'+dn,group));
+
+    CheckDbResult(conn.FetchGroup('ACADMINS',domainUID,group));
     group.isProtected:=true;
     CheckDbResult(conn.UpdateGroup(group));
+
+    CheckDbResult(conn.AddRole('ACADMINUSER','Allowed to create, modify and delete Users','',domainUID),'could not add role ACADMINUSER');
+
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSER',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
+      TFRE_COMMON_USER_MOD.GetClassRoleNameFetch
+    )));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSER',domainUID,TFRE_DB_USER.GetClassStdRoles));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSER',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+
+    CheckDbResult(conn.AddRole('ACADMINGROUP','Allowed to create, modify and delete Groups','',domainUID),'could not add role ACADMINGROUP');
+
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
+      TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch,
+      TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch
+    )));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_GROUP.GetClassStdRoles));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+
+    CheckDbResult(conn.AddRole('ACADMINUSERGROUP','Allowed to modify Groups and Users of Groups','',domainUID),'could not add role ACADMINUSERGROUP');
+
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
+      TFRE_COMMON_USER_MOD.GetClassRoleNameFetch,
+      TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch,
+      TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch
+    )));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_USER.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,true,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+
+    CheckDbResult(conn.RemoveAllRolesFromGroup('ACADMINS',domainUID));
+    CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles TFRE_DB_DOMAIN for group Admins');
   end;
 end;
 
-function TFRE_COMMON_ACCESSCONTROL_APP.HideDomains(const conn: IFRE_DB_CONNECTION): Boolean;
+function TFRE_COMMON_ACCESSCONTROL_APP.ShowDomains(const conn: IFRE_DB_CONNECTION): Boolean;
 begin
   Result:=CDOMAIN_FEATURE and conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD);
 end;
