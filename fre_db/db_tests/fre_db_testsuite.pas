@@ -1515,9 +1515,11 @@ var obj1,obj2 : TFRE_DB_Object;
           ofv := old_field.AsString;
       end;
     case update_type of
-      cev_FieldDeleted: updt := 'DELETE FIELD '+nfn+'('+nft+')';
-      cev_FieldAdded:   updt := 'ADD FIELD '+nfn+'('+nft+')';
-      cev_FieldChanged: updt := 'CHANGE FIELD : '+nfn+' FROM '+ofv+':'+oft+' TO '+nfv+':'+nft;
+      cev_UpdateBlockStart: updt := 'OBJECT UPDATE STARTING';
+      cev_FieldDeleted:     updt := 'DELETE FIELD '+ofn+'('+oft+')';
+      cev_FieldAdded:       updt := 'ADD FIELD '+nfn+'('+nft+')';
+      cev_FieldChanged:     updt := 'CHANGE FIELD : '+nfn+' FROM '+ofv+':'+oft+' TO '+nfv+':'+nft;
+      cev_UpdateBlockEnd  : updt := 'OBJECT UPDATE ENDS';
     end;
     writeln('UPDATE STEP : ',BoolToStr(is_child_update,' CHILD UPDATE ',' ROOT UPDATE '), update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
   end;
@@ -1589,9 +1591,12 @@ procedure TFRE_DB_ObjectTests.GenericChangeList2;
             ofv := old_field.AsString;
       end;
     case update_type of
-      cev_FieldDeleted: updt := 'DELETE FIELD '+ofn+'('+oft+')';
-      cev_FieldAdded:   updt := 'ADD FIELD '+nfn+'('+nft+')';
-      cev_FieldChanged: updt := 'CHANGE FIELD : '+nfn+' FROM ('+ofv+':'+oft+') TO ('+nfv+':'+nft+')';
+      cev_UpdateBlockStart: updt := 'OBJECT UPDATE STARTING';
+      cev_FieldDeleted:     updt := 'DELETE FIELD '+ofn+'('+oft+')';
+      cev_FieldAdded:       updt := 'ADD FIELD '+nfn+'('+nft+')';
+      cev_FieldChanged:     updt := 'CHANGE FIELD : '+nfn+' FROM ('+ofv+':'+oft+') TO ('+nfv+':'+nft+')';
+      cev_UpdateBlockEnd  : updt := 'OBJECT UPDATE ENDS';
+
     end;
     writeln('UPDATE STEP : ',BoolToStr(is_child_update,' CHILD UPDATE ',' ROOT UPDATE '), update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
   end;
@@ -1734,7 +1739,7 @@ end;
 
 initialization
   RegisterTest(TFRE_DB_ObjectTests);
-  RegisterTest(TFRE_DB_PersistanceTests);
+//  RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 

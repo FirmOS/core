@@ -12575,7 +12575,7 @@ begin
   result := not assigned(obj^);
 end;
 
-class procedure TFRE_DB_Object.GenerateAnObjChangeList(const first_obj, second_obj: TFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator);
+class procedure TFRE_DB_Object.GenerateAnObjChangeList(const first_obj, second_obj: TFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator );
 var deleted_obj   : OFRE_SL_TFRE_DB_Object;
     inserted_obj  : OFRE_SL_TFRE_DB_Object;
     updated_obj   : OFRE_SL_TFRE_DB_Object;
@@ -12624,13 +12624,17 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
       if new_object.IsObjectRoot then
         begin
           child:=nil;
+          UpdateCB(false,second_obj,cev_UpdateBlockStart,nil,nil);
           new_object.__InternalCompareToObj(second_obj,@CompareEvent);
+          UpdateCB(false,second_obj,cev_UpdateBlockEnd,nil,nil);
         end
       else
         begin
           child := second_obj.FetchObjByUID(new_object.UID);
           assert(assigned(child));
+          UpdateCB(true,child,cev_UpdateBlockStart,nil,nil);
           new_object.__InternalCompareToObj(child,@CompareEvent);
+          UpdateCB(true,child,cev_UpdateBlockEnd,nil,nil);
         end;
     end;
 
@@ -12658,7 +12662,7 @@ begin
 
     first_obj.__InternalGetFullObjectList(inserted_obj);
 
-    inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);    // Yields the deletes in the oldlist, all objects in this are from the "old, stored persitent object"
+    inserted_obj.ForAllBreak(@SearchInOldAndRemoveExistingInNew);    // Yields the deletes in the oldlist, all objects in this are from the "old, stored persistent object"
     deleted_obj.ForAllBreak(@SearchInUpdatesAndRemoveExistingFromOld);
 
     if deleted_obj.Count>0 then
