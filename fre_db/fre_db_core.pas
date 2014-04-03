@@ -16674,6 +16674,18 @@ begin
                     SetLength(FFieldData.guid^,Field.ValueCount);
                     for i := 0 to Field.ValueCount-1 do
                       FFieldData.guid^[i] := Field.AsGUIDItem[i];
+                    if IsUIDField then
+                      begin
+                        if Field.ValueCount<>1 then
+                          raise EFRE_DB_Exception.Create('cannot clone a multivalue field to the special uid field');
+                        Fobj.FUID := FFieldData.guid^[0];
+                      end;
+                    if IsDomainIDField then
+                      begin
+                        if Field.ValueCount<>1 then
+                          raise EFRE_DB_Exception.Create('cannot clone a multivalue field to the special domainid field');
+                        Fobj.FDomainID := FFieldData.guid^[0];
+                      end;
                   end;
       fdbft_Byte: begin
                     New(FFieldData.byte);
