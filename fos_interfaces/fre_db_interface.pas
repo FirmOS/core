@@ -3932,7 +3932,10 @@ end;
 
 procedure TFRE_DB_UserSession.InboundNotificationBlock(const block: IFRE_DB_Object);
 begin
-  DispatchCoroutine(@self.COR_InboundNotifyBlock,block.Implementor_HC);
+  if IsInteractiveSession then
+    DispatchCoroutine(@self.COR_InboundNotifyBlock,block.Implementor_HC)
+  else
+    block.Finalize; { silently drop Notification handling for non interactive (currently feeder) sessions }
 end;
 
 procedure TFRE_DB_UserSession.COR_InboundNotifyBlock(const data: Pointer);
@@ -4301,6 +4304,7 @@ var x           : TObject;
           end;
       end else begin
         GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN/TIMEDOUT COMMAND CID=%d OR TIMEOUT',[CMD.CommandID],catError);
+        GFRE_LOG.Log('CMD: %s',[CMD.AsDBODump],catError);
         answerencap.free;
       end;
       CMD.Finalize;

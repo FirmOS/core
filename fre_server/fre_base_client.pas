@@ -708,7 +708,7 @@ begin
     if uppercase(rclassname)=uppercase(ClassName) then
       Invoke_DBREM_Method(rmethodname,command_id,input,cmd_type)
     else
-      raise EFRE_DB_Exception.Create(edb_ERROR,'Classname mismatch Mine:[%s] <> Requested:[%s] ',[ClassName,rclassname]);
+      raise EFRE_DB_Exception.Create(edb_ERROR,'Classname mismatch Mine:[%s] <> Requested:[%s] Method: [%s] CommandType [%s]',[ClassName,rclassname,rmethodname, CFRE_DB_COMMANDTYPE[cmd_type]]);
   except on e:exception
     do
       begin
