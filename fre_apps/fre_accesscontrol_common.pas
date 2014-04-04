@@ -1252,6 +1252,8 @@ begin
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
   CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('selected').AsString),group),'ModifyGroup');
 
+  if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
+
   if Pos('$',group.ObjectName)=1 then begin
     exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$modify_group_diag_cap'),app.FetchAppTextShort(ses,'$modify_group_diag_no_system_group_msg'),fdbmt_warning,nil));
   end;
@@ -1275,6 +1277,7 @@ var dbo              : IFRE_DB_Object;
     gn               : TFRE_DB_String;
     txt              : TFRE_DB_String;
     txt_s            : TFRE_DB_String;
+    group            : IFRE_DB_GROUP;
 
 begin
    if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then
@@ -1288,6 +1291,9 @@ begin
 
   dbo_uid := FREDB_String2Guid(input.Field('selected').Asstring);
 
+  CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'SaveGroup');
+  if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
+
   res := conn.sys.ModifyGroupById(dbo_uid,gn,txt,txt_s);
   if res=edb_OK then
     exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
@@ -1299,6 +1305,9 @@ function TFRE_COMMON_GROUP_MOD.WEB_DeleteGroup(const input:IFRE_DB_Object; const
 var
   sf     : TFRE_DB_SERVER_FUNC_DESC;
   cap,msg: String;
+  dbo_uid: TGuid;
+  group  : IFRE_DB_GROUP;
+  i      : Integer;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
@@ -1306,6 +1315,11 @@ begin
   sf:=CWSF(@WEB_DeleteGroupConfirmed);
   sf.AddParam.Describe('selected',input.Field('selected').AsStringArr);
   msg:=_getGroupsString(input.Field('selected').AsStringArr,GetDBConnection(input),ses);
+  for i := 0 to input.Field('selected').ValueCount-1 do begin
+    dbo_uid:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
+    CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'DeleteGroup');
+    if group.isProtected then raise EFRE_DB_Exception.Create('You cannot delete a protected group.');
+  end;
   if input.Field('selected').ValueCount>1 then begin
     cap:=app.FetchAppTextShort(ses,'$delete_groups_diag_cap');
     msg:=StringReplace(app.FetchAppTextShort(ses,'$delete_groups_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
@@ -1320,6 +1334,8 @@ function TFRE_COMMON_GROUP_MOD.WEB_DeleteGroupConfirmed(const input:IFRE_DB_Obje
 var
   cap,msg: String;
   i      : NativeInt;
+  dbo_uid: TGuid;
+  group  : IFRE_DB_GROUP;
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then
@@ -1354,7 +1370,7 @@ begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) or conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then begin
     for i := 0 to input.Field('selected').ValueCount - 1 do begin
       CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsStringItem[i]),dbo));
-      if not dbo.IsA('TFRE_DB_GROUP') then begin
+      if not dbo.IsA('TFRE_DB_GROUP') or ((dbo.Implementor_HC as IFRE_DB_GROUP).isProtected) then begin
         Result:=GFRE_DB_NIL_DESC;
         exit;
       end;
@@ -1508,6 +1524,7 @@ var
   i        : Integer;
   res      : TFRE_DB_Errortype;
   groupUid : TFRE_DB_String;
+  user_id  : TGuid;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
@@ -1524,9 +1541,10 @@ begin
 
   CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(groupUid),group),'RemoveFromUser');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    if conn.sys.FetchUserById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),user)<>edb_OK then
+    user_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
+    if conn.sys.FetchUserById(user_id,user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.sys.RemoveUserGroups(user.login+'@'+user.getDomain(conn),TFRE_DB_StringArray.Create(group.ObjectName+'@'+group.getDomain(conn)))<>edb_OK then
+    if conn.sys.RemoveUserGroupsById(user_id,TFRE_DB_GUIDArray.Create(group.UID))<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'$error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -1540,6 +1558,7 @@ var
   i        : Integer;
   res      : TFRE_DB_Errortype;
   groupUid : TFRE_DB_String;
+  user_id  : TGuid;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
@@ -1556,9 +1575,10 @@ begin
 
   CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(groupUid),group),'AddToUser');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    if conn.sys.FetchUserById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),user)<>edb_OK then
+    user_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
+    if conn.sys.FetchUserById(user_id,user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.sys.ModifyUserGroups(user.login+'@'+user.GetDomain(conn),TFRE_DB_StringArray.Create((group.ObjectName+'@'+group.GetDomain(conn))),true)<>edb_OK then
+    if conn.sys.ModifyUserGroupsById(user_id,TFRE_DB_GUIDArray.Create(group.UID),true)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'$error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -2204,10 +2224,11 @@ end;
 
 function TFRE_COMMON_USER_MOD.WEB_RemoveFromGroup(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  user   : IFRE_DB_USER;
-  group  : IFRE_DB_GROUP;
-  i      : Integer;
-  userUid: String;
+  user    : IFRE_DB_USER;
+  group   : IFRE_DB_GROUP;
+  i       : Integer;
+  userUid : String;
+  group_id: TGuid;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
@@ -2223,9 +2244,10 @@ begin
   end;
   CheckDbResult(conn.sys.FetchUserById(FREDB_String2Guid(userUid),user),'RemoveFromGroup');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    if conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
+    group_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
+    if conn.sys.FetchGroupById(group_id,group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.sys.RemoveUserGroups(user.login+'@'+user.getDomain(conn),TFRE_DB_StringArray.Create(group.ObjectName+'@'+group.GetDomain(conn)))<>edb_OK then
+    if conn.sys.RemoveUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id))<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'$error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -2233,10 +2255,11 @@ end;
 
 function TFRE_COMMON_USER_MOD.WEB_AddToGroup(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  user   : IFRE_DB_USER;
-  group  : IFRE_DB_GROUP;
-  i      : Integer;
-  userUid: String;
+  user    : IFRE_DB_USER;
+  group   : IFRE_DB_GROUP;
+  i       : Integer;
+  userUid : String;
+  group_id: TGuid;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
@@ -2252,9 +2275,10 @@ begin
   end;
   CheckDbResult(conn.sys.FetchUserById(FREDB_String2Guid(userUid),user),'AddToGroup');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    if conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
+    group_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
+    if conn.sys.FetchGroupById(group_id,group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.sys.ModifyUserGroups(user.login+'@'+user.getDomain(conn),TFRE_DB_StringArray.Create(group.ObjectName+'@'+group.GetDomain(conn)),true)<>edb_OK then
+    if conn.sys.ModifyUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id),true)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'$error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -2537,7 +2561,7 @@ begin
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
 
-    CheckDbResult(conn.AddRole('ACADMINUSERGROUP','Allowed to modify Groups and Users of Groups','',domainUID),'could not add role ACADMINUSERGROUP');
+    CheckDbResult(conn.AddRole('ACADMINUSERGROUP','Allowed to modify Users and assign Groups to Users','',domainUID),'could not add role ACADMINUSERGROUP');
 
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_StringArray.Create(
       TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
@@ -2545,8 +2569,8 @@ begin
       TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch,
       TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch
     )));
-    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_USER.GetClassStdRoles(false,false,false,true)));
-    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,true,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_USER.GetClassStdRoles(false,true,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
 

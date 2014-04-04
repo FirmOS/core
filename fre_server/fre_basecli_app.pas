@@ -834,7 +834,9 @@ begin
 end;
 
 procedure TFRE_CLISRV_APP.GenerateTestdata;
-var conn : IFRE_DB_CONNECTION;
+var
+  conn    : IFRE_DB_CONNECTION;
+  domainId: TGuid;
 begin
   _CheckDBNameSupplied;
   _CheckAdminUserSupplied;
@@ -847,14 +849,15 @@ begin
     if not conn.SYS.DomainExists('test') then begin
       CheckDbResult(conn.AddDomain('test','This domain is for testing only','Test Domain'));
     end;
-    if not conn.SYS.UserExists('admin@test') then begin
-      CheckDbResult(conn.SYS.AddUser('admin@test','test','admin','test'));
+    domainId:=conn.SYS.DomainID('test');
+    if not conn.SYS.UserExists('admin',domainId) then begin
+      CheckDbResult(conn.SYS.AddUser('admin',domainId,'test','admin','test'));
     end;
-    if not conn.SYS.UserExists('manager@test') then begin
-      CheckDbResult(conn.SYS.AddUser('manager@test','test','manager','test'));
+    if not conn.SYS.UserExists('manager',domainId) then begin
+      CheckDbResult(conn.SYS.AddUser('manager',domainId,'test','manager','test'));
     end;
-    if not conn.SYS.UserExists('viewer@test') then begin
-      CheckDbResult(conn.SYS.AddUser('viewer@test','test','viewer','test'));
+    if not conn.SYS.UserExists('viewer',domainId) then begin
+      CheckDbResult(conn.SYS.AddUser('viewer',domainId,'test','viewer','test'));
     end;
   finally
     conn.Finalize;
