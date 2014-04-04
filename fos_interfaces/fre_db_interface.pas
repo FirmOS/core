@@ -81,6 +81,7 @@ type
   PNativeUint                 = ^NativeUint;
   PNativeInt                  = ^NativeInt;
   IFRE_DB_RIGHT               = TFRE_DB_String; {a right is a string key}
+  TFRE_DB_ConstArray          = Array of TVarRec;
 
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
@@ -2278,7 +2279,7 @@ type
     function    GetDomain                :TFRE_DB_String;
     function    LoggedIn                 : Boolean;
     procedure   Logout                   ;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
 
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
@@ -2447,7 +2448,7 @@ type
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
     //function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
     procedure   COR_FinalizeTakeOver     (const data : Pointer); // In new session binding
     procedure   AutoPromote              (const NEW_RASC:IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const conn_desc:String);
@@ -2590,6 +2591,10 @@ type
 
   function  FREDB_FieldtypeShortString2Fieldtype (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
   function  FREDB_Bool2String                    (const bool:boolean):String;
+  function  FREDB_EncodeTranslatableWithParams   (const translation_key:TFRE_DB_String  ; params : array of const):TFRE_DB_String;
+  function  FREDB_TranslatableHasParams          (var   translation_key:TFRE_DB_String  ; var params : TFRE_DB_StringArray):boolean;
+  procedure FREDB_DecodeVarRecParams             (const params   : TFRE_DB_StringArray    ; var vaparams : TFRE_DB_ConstArray);
+  procedure FREDB_FinalizeVarRecParams           (const vaparams : TFRE_DB_ConstArray);
   function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString;
   function  FREDB_H2G                            (const uidstr : shortstring):TFRE_DB_GUID;
   function  FREDB_ExtractUidsfromRightArray      (const str:TFRE_DB_StringArray;const rightname:TFRE_DB_STRING):TFRE_DB_GUIDArray;
@@ -2823,6 +2828,163 @@ end;
 function FREDB_Bool2String(const bool: boolean): String;
 begin
   result := BoolToStr(bool,'1','0');
+end;
+
+function FREDB_EncodeVarRec(const v : TVarRec):TFRE_DB_String;
+begin
+  result := Char(v.VType);
+  case v.VType of
+    vtInteger:
+      result := result + IntToStr(Int64(v.VInteger));
+    vtBoolean:
+      result := result + BoolToStr(v.VBoolean,'1','0');
+    vtChar:
+      result := result + v.VChar;
+    vtExtended:
+      result := result + FloatToStr(v.VExtended^);
+    vtString:
+      result := result + v.VString^;
+    vtAnsiString:
+      result := result + AnsiString(v.VAnsiString);
+    vtCurrency:
+      result := result + CurrToStr(v.VCurrency^);
+    //vtWideString:
+    //  result := result + PWideString(v.VWideString)^;
+    vtInt64:
+      result := result + IntToStr(v.VInt64^);
+    vtQWord:
+      result := result + IntToStr(v.VInt64^);
+    vtUnicodeString :
+      result := result + UnicodeString(v.VUnicodeString);
+    else
+      raise Exception.Create('unsuported type'+inttostr(v.VType)+' for encoding');
+  end;
+  Result := GFRE_BT.Base64Encode(result);
+end;
+
+procedure FREDB_DecodeVarRecParams(const params: TFRE_DB_StringArray; var vaparams: TFRE_DB_ConstArray);
+var i     : NativeInt;
+    param : TFRE_DB_String;
+begin
+  SetLength(vaparams,Length(params));
+  for i:=0 to high(params) do
+    begin
+      param := params[i];
+      if Length(param)=0 then
+        raise EFRE_DB_Exception.Create('invalid encoding');
+       vaparams[i].VType    := ord(param[1]);
+       vaparams[i].VPointer := nil;  { safe zero }
+       param := copy(param,2,maxint);
+       case vaparams[i].VType of
+         vtInteger:
+           vaparams[i].VInteger := StrToInt(param);
+         vtBoolean:
+           vaparams[i].VBoolean := param[1]='1';
+         vtChar:
+           vaparams[i].VChar    := param[1];
+         vtExtended:
+           begin
+              New(vaparams[i].VExtended);
+              vaparams[i].VExtended^ := StrToFloat(param);
+           end;
+         vtString:
+           begin
+             New(vaparams[i].VString);
+             PShortString(vaparams[i].VString)^ := param;
+           end;
+         vtAnsiString:
+           AnsiString(vaparams[i].VAnsiString) := param;
+         vtCurrency:
+           begin
+             New(vaparams[i].VCurrency);
+             vaparams[i].VCurrency^:= StrToCurr(param);
+           end;
+         vtInt64:
+           begin
+             New(vaparams[i].VInt64);
+             vaparams[i].VInt64^ := StrToInt64(param);
+           end;
+         vtQWord:
+           begin
+             New(vaparams[i].VQWord);
+             vaparams[i].VQWord^ := StrToQWord(param);
+           end;
+         vtUnicodeString :
+           begin
+             UnicodeString(vaparams[i].VUnicodeString) := param;
+           end
+         else
+           raise Exception.Create('unsuported type'+inttostr(vaparams[i].VType)+' for encoding');
+       end;
+    end;
+end;
+
+function FREDB_EncodeTranslatableWithParams(const translation_key: TFRE_DB_String; params: array of const): TFRE_DB_String;
+var s : TVarRec;
+    i : NativeInt;
+begin
+  result:=translation_key;
+  for i := 0 to high(params) do
+    result:=result+'#'+FREDB_EncodeVarRec(params[i]); { no '#' in base64 !} // DO NOT USE # in unparametrized KEYS
+end;
+
+function FREDB_TranslatableHasParams(var translation_key: TFRE_DB_String; var params: TFRE_DB_StringArray): boolean;
+var i : NativeInt;
+begin
+  if Pos('#',translation_key)=0 then
+    result:=false
+  else
+    begin
+      result := true;
+      FREDB_SeperateString(translation_key,'#',params);
+      translation_key :=params[0];
+      for i := 1 to high(params) do
+        params[i]    := GFRE_BT.Base64Decode(params[i]);
+      params          := Copy(params,1,maxint);
+    end
+end;
+
+
+procedure FREDB_FinalizeVarRecParams(const vaparams: TFRE_DB_ConstArray);
+var i : NativeInt;
+begin
+  for i := 0 to High(vaparams) do
+    case vaparams[i].VType of
+      //vtInteger:
+      //vtBoolean:
+      //vtChar:
+      vtExtended:
+        begin
+           Dispose(vaparams[i].VExtended);
+           vaparams[i].VExtended:= nil;
+        end;
+      vtString:
+        begin
+          Dispose(vaparams[i].VString);
+          vaparams[i].VString := nil;
+        end;
+      vtAnsiString:
+        AnsiString(vaparams[i].VAnsiString) := '';
+      vtCurrency:
+        begin
+          Dispose(vaparams[i].VCurrency);
+          vaparams[i].VCurrency := nil;
+        end;
+      vtInt64:
+        begin
+          Dispose(vaparams[i].VInt64);
+          vaparams[i].VInt64 := nil;
+        end;
+      vtQWord:
+        begin
+          Dispose(vaparams[i].VQWord);
+          vaparams[i].VQWord := nil;
+        end;
+      vtUnicodeString :
+        begin
+          UnicodeString(vaparams[i].VUnicodeString) := '';
+        end;
+    end;
 end;
 
 function FREDB_G2H(const uid: TFRE_DB_GUID): ShortString;
@@ -4642,7 +4804,7 @@ type
      FClientDescription : String;
    end;
 
-function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_error: TFRE_DB_String; force_new_session_data: boolean; const session_takeover: boolean ; const auto_promote: boolean): TFRE_DB_PromoteResult;
+function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_status: TFRE_DB_String; force_new_session_data: boolean; const session_takeover: boolean ; const auto_promote: boolean): TFRE_DB_PromoteResult;
 var err                : TFRE_DB_Errortype;
     l_NDBC             : IFRE_DB_CONNECTION;
     lStoredSessionData : IFRE_DB_Object;
@@ -4682,7 +4844,7 @@ var err                : TFRE_DB_Errortype;
         end
       else
         begin
-          promotion_error := 'Takeover Failed : OLD SESSION NOT FOUND';
+          promotion_status := '$login_faild_oldnotfound_cap';
           result          := pr_Failed;
           GFRE_DBI.LogWarning(dblc_SERVER,'<FAIL : TAKEOVERSESSION FOR SESSION [%s]',[FSessionID]);
           exit;
@@ -4703,7 +4865,7 @@ begin
           edb_OK : begin
             if assigned(existing_session.FBoundSession_RA_SC) then
               begin
-                promotion_error := 'You are already logged in on '+existing_session.GetClientDetails+', would you like to takeover this existing session ?';
+                promotion_status := FREDB_EncodeTranslatableWithParams('$login_faild_already_1P',[existing_session.GetClientDetails]); //'You are already logged in on '+existing_session.GetClientDetails+', would you like to takeover this existing session ?'//;
                 existing_session.FTakeoverPrepared := FConnDesc;
                 exit(pr_TakeoverPrepared);
                 if auto_promote then
@@ -4719,8 +4881,8 @@ begin
              end;
           end
           else begin
-            promotion_error := 'Takeover Failed : '+CFRE_DB_Errortype[err];
-            result          := pr_Failed;
+            promotion_status := '$login_takeover_failed';
+            result           := pr_Failed;
             exit;
           end;
         end;
@@ -4766,9 +4928,9 @@ begin
           end;
        end;
        else begin
-         FPromoted       := false;
-         promotion_error := CFRE_DB_Errortype[err];
-         result          := pr_Failed;
+         FPromoted        := false;
+         promotion_status := '$login_faild_access';
+         result           := pr_Failed;
        end;
       end;
     end;

@@ -1095,6 +1095,7 @@ type
     procedure ClearLong;
     procedure ClearShort;
     procedure ClearHint;
+    procedure ApplyParameters  (const encoded_params : TFRE_DB_StringArray);
   published
     property  LongText         : TFRE_DB_String read GetLong write Setlong;
     property  ShortText        : TFRE_DB_String read Getshort write SetShort;
@@ -3667,6 +3668,21 @@ end;
 procedure TFRE_DB_TEXT.ClearHint;
 begin
   _Field('hnt').Clear();
+end;
+
+procedure TFRE_DB_TEXT.ApplyParameters(const encoded_params: TFRE_DB_StringArray);
+var text : TFRE_DB_String;
+    args : TFRE_DB_ConstArray;
+    s    :string;
+begin
+  FREDB_DecodeVarRecParams(encoded_params,args);
+  try
+    LongText  := Format(LongText,args);
+    ShortText := Format(ShortText,args);
+    Hint      := Format(Hint,args);
+  finally
+    FREDB_FinalizeVarRecParams(args);
+  end;
 end;
 
 class function TFRE_DB_TEXT.CreateText(const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String): TFRE_DB_TEXT;
@@ -10791,9 +10807,16 @@ begin //nl
 end;
 
 function TFRE_DB_CONNECTION.FetchTranslateableTextObj(const trans_key: TFRE_DB_String; var text: IFRE_DB_TEXT): boolean;
-var ttxt : TFRE_DB_TEXT;
+var ttxt      : TFRE_DB_TEXT;
+    tkey      : TFRE_DB_String;
+    params    : TFRE_DB_StringArray;
+    hasparams : boolean;
 begin //nl
-  if FSysConnection.FetchTranslateableText(trans_key,ttxt)=edb_OK then begin
+  tkey := trans_key;
+  hasparams := FREDB_TranslatableHasParams(tkey,params);
+  if FSysConnection.FetchTranslateableText(tkey,ttxt)=edb_OK then begin
+    if hasparams then
+      ttxt.ApplyParameters(params);
     text   := ttxt;
     result := true;
   end else begin

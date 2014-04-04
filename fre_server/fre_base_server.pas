@@ -40,7 +40,6 @@ unit fre_base_server;
 {$mode objfpc}{$H+}
 {$modeswitch nestedprocvars}
 
-//TODO : EVENT - QUEUE DISPATCHING INTERINKTIMER ??? BAD DESIGN
 
 interface
 
