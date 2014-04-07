@@ -82,8 +82,8 @@ type
 
   TFRE_DB_UPDATE_UI_ELEMENT_DESC = class(TFRE_DB_CONTENT_DESC)
   public
-    //@ Describes a status change. Used to enable/disable the element or to change the caption.
-    function  DescribeStatus     (const elementId:String; const disabled:Boolean; const newCaption:String=''): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+    //@ Describes a status change. Used to enable/disable the element or to change the caption/hint.
+    function  DescribeStatus     (const elementId:String; const disabled:Boolean; const newCaption:String=''; const newHint:String=''): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
     //@ Describes a submenu change. Used to change a submenu within a toolbar.
     function  DescribeSubmenu    (const elementId:String; const menu: TFRE_DB_MENU_DESC): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
     //@ Describes if drag is disabled for a grid.
@@ -1037,11 +1037,12 @@ implementation
 
   { TFRE_DB_UPDATE_UI_ELEMENT_DESC }
 
-  function TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeStatus(const elementId: String; const disabled: Boolean; const newCaption: String): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+  function TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeStatus(const elementId: String; const disabled: Boolean; const newCaption: String; const newHint: String): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
   begin
     Field('id').AsString:=elementId;
     Field('disabled').AsBoolean:=disabled;
     Field('newCaption').AsString:=newCaption;
+    Field('newHint').AsString:=newHint;
     Result:=Self;
   end;
 

@@ -1236,7 +1236,7 @@ implementation
       jsContentAdd('G_UI_COM.updateGridDrag("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disableDrag').AsBoolean,'true','false')+');');
     end else begin
       if co.FieldExists('disabled') then begin
-        jsContentAdd('G_UI_COM.updateUIElement("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disabled').AsBoolean,'true','false')+',"'+co.Field('newCaption').AsString+'");');
+        jsContentAdd('G_UI_COM.updateUIElement("'+co.Field('id').AsString+'",'+BoolToStr(co.Field('disabled').AsBoolean,'true','false')+',"'+co.Field('newCaption').AsString+'","'+co.Field('newHint').AsString+'");');
       end else begin
         _BuildMenuDef(co.Field('menu').AsObject.Implementor_HC as TFRE_DB_MENU_DESC);
         jsContentAdd('G_UI_COM.updateUIElementSubmenu("'+co.Field('id').AsString+'",'+co.Field('menu').AsObject.Field('id').AsString+');');
@@ -1582,8 +1582,9 @@ implementation
         jsContentAdd('});');
 
         if button.Field('tooltip').AsString<>'' then begin
-          jsContentAdd('var tooltip = new dijit.Tooltip({');
-          jsContentAdd('   connectId: [button.domNode]');
+          jsContentAdd('var tooltip = new FIRMOS.Tooltip({');
+          jsContentAdd('   id: "'+button.Field('id').AsString+'_tooltip"');
+          jsContentAdd('  ,connectId: [button.domNode]');
           jsContentAdd('  ,label: "'+button.Field('tooltip').AsString+'"');
           jsContentAdd('});');
         end;

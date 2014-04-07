@@ -146,8 +146,7 @@ type
     function        WEB_AddDomain             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_CreateDomain          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ModifyDomain          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function        WEB_DeleteDomain          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function        WEB_DeleteDomainConfirmed (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_DeActivateDomain      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_SaveDomain            (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_DGMenu                (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_DGNotification        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -202,6 +201,7 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_domain);
     with tr_domain do begin
       AddOneToOnescheme('displayname','displayname',app.FetchAppTextShort(session,'$gc_domain'));
+      AddOneToOnescheme('suspended','suspended',app.FetchAppTextShort(session,'$gc_domain_suspended'));
     end;
     domain_Grid := session.NewDerivedCollection('DOMAINMOD_DOMAIN_GRID');
     with domain_Grid do begin
@@ -258,6 +258,7 @@ var
 begin
   CheckClassVisibility4AnyDomain(ses);
 
+  ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
   dc_domain     := ses.FetchDerivedCollection('DOMAINMOD_DOMAIN_GRID');
   domaingrid    := dc_domain.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
@@ -278,9 +279,9 @@ begin
     domaingrid.AddButton.DescribeManualType('tb_modify_domain',CWSF(@WEB_ModifyDomain),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
-  if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
-    txt:=app.FetchAppTextFull(ses,'$tb_delete_domain');
-    domaingrid.AddButton.DescribeManualType('tb_delete_domain',CWSF(@WEB_DeleteDomain),'',txt.Getshort,txt.GetHint,true);
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
+    txt:=app.FetchAppTextFull(ses,'$tb_deactivate_domain');
+    domaingrid.AddButton.DescribeManualType('tb_deactivate_domain',CWSF(@WEB_DeActivateDomain),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
 
@@ -331,7 +332,7 @@ begin
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_domain_diag_cap'),600,true,true,false);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_domain_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CWSF(@WEB_CreateDomain),fdbbt_submit);
   Result:=res;
@@ -372,47 +373,24 @@ begin
   Result:=res;
 end;
 
-function TFRE_COMMON_DOMAIN_MOD.WEB_DeleteDomain(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+function TFRE_COMMON_DOMAIN_MOD.WEB_DeActivateDomain(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  sf     : TFRE_DB_SERVER_FUNC_DESC;
-  cap,msg: String;
-  domain : IFRE_DB_DOMAIN;
+  i        : Integer;
+  domain   : IFRE_DB_DOMAIN;
+  domain_id: TGuid;
 begin
-  if not (conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN)) then
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN)) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
-  if input.Field('selected').ValueCount=1 then begin
-    sf:=CWSF(@WEB_DeleteDomainConfirmed);
-    sf.AddParam.Describe('selected',input.Field('selected').AsString);
-    CheckDbResult(conn.sys.FetchDomainById(FREDB_String2Guid(input.Field('selected').AsString),domain),'DeleteDomain');
-    if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
-      exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$delete_domain_diag_cap'),app.FetchAppTextShort(ses,'$delete_domain_diag_no_system_domain_msg'),fdbmt_warning,nil));
+  Result:=GFRE_DB_NIL_DESC;
+  for i := 0 to input.Field('selected').ValueCount - 1 do begin
+    domain_id:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
+    CheckDbResult(conn.SYS.FetchDomainById(domain_id,domain));
+    CheckDbResult(conn.SYS.SuspendContinueDomainById(domain_id,not domain.Suspended));
+    if ses.GetSessionModuleData(ClassName).FieldExists('selectedDomain') then begin
+      input.Field('selected').AsString:=ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString;
+      Result:=WEB_DGNotification(input,ses,app,conn);
     end;
-    msg := domain.Domainname(false);
-    cap:=app.FetchAppTextShort(ses,'$delete_domain_diag_cap');
-    msg:=StringReplace(app.FetchAppTextShort(ses,'$delete_domain_diag_msg'),'%domain_str%',msg,[rfReplaceAll]);
-
-    Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_confirm,sf);
-  end else begin
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_delete_single_select'));
-  end;
-end;
-
-function TFRE_COMMON_DOMAIN_MOD.WEB_DeleteDomainConfirmed(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-var
-  res    : TFRE_DB_Errortype;
-begin
-  if not (conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
-
-  if input.field('confirmed').AsBoolean then begin
-    res := conn.sys.DeleteDomainById(FREDB_String2Guid(input.Field('selected').Asstring));
-    if res=edb_OK then
-      exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
-    else
-      exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$domain_delete_error_cap'),StringReplace(app.FetchAppTextShort(ses,'$domain_delete_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
-  end else begin
-    result := GFRE_DB_NIL_DESC;
   end;
 end;
 
@@ -448,6 +426,7 @@ var
   res   : TFRE_DB_MENU_DESC;
   func  : TFRE_DB_SERVER_FUNC_DESC;
   domain: IFRE_DB_DOMAIN;
+  txt   : TFRE_DB_String;
 begin
   if input.Field('selected').ValueCount=1 then begin
     CheckDbResult(conn.sys.FetchDomainById(FREDB_String2Guid(input.Field('selected').AsString),domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
@@ -461,10 +440,15 @@ begin
         res.AddEntry.Describe(app.FetchAppTextShort(ses,'$cm_modify_domain'),'',func);
       end;
 
-      if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
-        func:=CWSF(@WEB_DeleteDomain);
+      if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
+        func:=CWSF(@WEB_DeActivateDomain);
         func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-        res.AddEntry.Describe(app.FetchAppTextShort(ses,'$cm_delete_domain'),'',func);
+        if domain.Suspended then begin
+          txt:=app.FetchAppTextShort(ses,'$cm_activate_domain');
+        end else begin
+          txt:=app.FetchAppTextShort(ses,'$cm_deactivate_domain');
+        end;
+        res.AddEntry.Describe(txt,'',func);
       end;
 
       Result:=res;
@@ -477,27 +461,36 @@ end;
 function TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   domain: IFRE_DB_DOMAIN;
+  txt   : IFRE_DB_TEXT;
 begin
   if input.Field('selected').ValueCount=1 then begin
+    ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString:=input.Field('selected').AsString;
     CheckDbResult(conn.sys.FetchDomainById(FREDB_String2Guid(input.Field('selected').AsString),domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
     if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
       ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
-      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_domain',true));
+      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,app.FetchAppTextShort(ses,'$tb_deactivate_domain'),app.FetchAppTextHint(ses,'$tb_deactivate_domain')));
     end else begin
       if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
         ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',false));
       end else begin
         ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
       end;
-      if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
-        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_domain',false));
+      if domain.Suspended then begin
+        txt:=app.FetchAppTextFull(ses,'$tb_activate_domain');
       end else begin
-        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_domain',true));
+        txt:=app.FetchAppTextFull(ses,'$tb_deactivate_domain');
       end;
+      if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',false,txt.Getshort,txt.GetHint));
+      end else begin
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,txt.Getshort,txt.GetHint));
+      end;
+      txt.Finalize;
     end;
   end else begin
+    ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
     ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
-    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_domain',true));
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,app.FetchAppTextShort(ses,'$tb_deactivate_domain'),app.FetchAppTextHint(ses,'$tb_deactivate_domain')));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -527,6 +520,8 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
+    if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
+
     if addrole then begin
       if conn.sys.AddRolesToGroup(group.ObjectName,group.DomainID,TFRE_DB_StringArray.create(role.ObjectName))<>edb_OK then
         raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'$error_add_role_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
@@ -668,6 +663,7 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
     with tr_groupIn do begin
       AddOneToOnescheme('displayname','displayname',app.FetchAppTextShort(session,'$gc_group'));
+      AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
     end;
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
     with groupin_Grid do begin
@@ -683,6 +679,7 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupOut);
     with tr_GroupOut do begin
       AddOneToOnescheme('displayname','displayname',app.FetchAppTextShort(session,'$gc_group'));
+      AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
     end;
     groupout_Grid := session.NewDerivedCollection('ROLEMOD_GROUPOUT_GRID');
     with groupout_Grid do begin
@@ -932,9 +929,11 @@ begin
   end;
 
   conn.sys.FetchGroupById(FREDB_String2Guid(groupUid),group);
+  if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.sys.FetchRoleById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),role)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'$error_fetch_role_msg'),'%role%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
+
     if addrole then begin
       if conn.sys.AddRolesToGroup(group.ObjectName,group.DomainID,TFRE_DB_StringArray.Create(role.ObjectName))<>edb_OK then
         raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'$error_add_role_msg'),'%group%',group.ObjectName+'@'+group.getDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
@@ -1224,7 +1223,7 @@ begin
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_group_diag_cap'),600,true,true,false);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_group_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CWSF(@WEB_CreateGroup),fdbbt_submit);
   Result:=res;
@@ -1336,6 +1335,8 @@ var
   i      : NativeInt;
   dbo_uid: TGuid;
   group  : IFRE_DB_GROUP;
+  users  : TFRE_DB_GUIDArray;
+  j      : Integer;
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then
@@ -1351,7 +1352,16 @@ begin
       msg:=StringReplace(app.FetchAppTextShort(ses,'$group_deleted_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
     end;
     for i := 0 to input.Field('selected').ValueCount-1 do begin
-      CheckDbResult(conn.sys.DeleteGroupById(FREDB_String2Guid(input.Field('selected').AsStringItem[i])),'DeleteGroupConfirmed');
+      dbo_uid:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
+      CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'DeleteGroupConfirmed');
+      if group.isProtected then raise EFRE_DB_Exception.Create('You cannot delete a protected group.');
+
+      users:=conn.GetReferences(group.UID,false,'TFRE_DB_USER');
+      for j := 0 to High(users) do begin
+        CheckDbResult(conn.sys.RemoveUserGroupsById(users[j],TFRE_DB_GUIDArray.Create(group.UID)));
+      end;
+
+      CheckDbResult(conn.sys.DeleteGroupById(dbo_uid),'DeleteGroupConfirmed');
     end;
     Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_info);
   end else begin
@@ -2354,9 +2364,9 @@ begin
 
     CreateAppText(conn,'$error_delete_single_select','Exactly one object has to be selected for deletion.');
 
-    CreateAppText(conn,'$gc_username','Username');
-    CreateAppText(conn,'$gc_firstname','Firstname');
-    CreateAppText(conn,'$gc_lastname','Lastname');
+    CreateAppText(conn,'$gc_username','Username');//deleted in version 1.1
+    CreateAppText(conn,'$gc_firstname','Firstname');//deleted in version 1.1
+    CreateAppText(conn,'$gc_lastname','Lastname');//deleted in version 1.1
     CreateAppText(conn,'$gc_group','Group');
     CreateAppText(conn,'$gc_role','Role');
     CreateAppText(conn,'$gcap_UinG','User is in Group');
@@ -2444,21 +2454,21 @@ begin
     CreateAppText(conn,'$gcap_GnotinD','Group does not belong to Domain');
 
     CreateAppText(conn,'$tb_modify_domain','Modify','','Modify Domain');
-    CreateAppText(conn,'$tb_delete_domain','Delete','','Delete Domain');
+    CreateAppText(conn,'$tb_delete_domain','Delete','','Delete Domain');//deleted in version 1.1
     CreateAppText(conn,'$tb_add_domain','Add','','Add Domain');
     CreateAppText(conn,'$cm_modify_domain','Modify');
-    CreateAppText(conn,'$cm_delete_domain','Delete');
+    CreateAppText(conn,'$cm_delete_domain','Delete');//deleted in version 1.1
     CreateAppText(conn,'$add_domain_diag_cap','Add new domain');
     CreateAppText(conn,'$modify_domain_diag_cap','Modify domain');
     CreateAppText(conn,'$modify_domain_diag_no_system_domain_msg','Editing of the System Domain is not possible.');
-    CreateAppText(conn,'$delete_domain_diag_no_system_domain_msg','Deletion of the System domain is not possible.');
-    CreateAppText(conn,'$delete_domain_diag_cap','Confirm: Delete domain');
-    CreateAppText(conn,'$delete_domain_diag_msg','Domain %domain_str% will be deleted permanently! Please confirm to continue.');
+    CreateAppText(conn,'$delete_domain_diag_no_system_domain_msg','Deletion of the System domain is not possible.');//deleted in version 1.1
+    CreateAppText(conn,'$delete_domain_diag_cap','Confirm: Delete domain');//deleted in version 1.1
+    CreateAppText(conn,'$delete_domain_diag_msg','Domain %domain_str% will be deleted permanently! Please confirm to continue.');//deleted in version 1.1
     CreateAppText(conn,'$domain_group_in_diag_cap','Adding Group to a domain');
     CreateAppText(conn,'$domain_user_in_diag_cap','Adding User to a domain');
 
-    CreateAppText(conn,'$domain_delete_error_cap','Error');
-    CreateAppText(conn,'$domain_delete_error_msg','Delete failed %error_msg%');
+    CreateAppText(conn,'$domain_delete_error_cap','Error');//deleted in version 1.1
+    CreateAppText(conn,'$domain_delete_error_msg','Delete failed %error_msg%');//deleted in version 1.1
     CreateAppText(conn,'$domain_modify_error_cap','Error');
     CreateAppText(conn,'$domain_modify_error_msg','Modify failed %error_msg%');
 
@@ -2488,6 +2498,13 @@ begin
     DeleteAppText(conn,'$gc_username');
     DeleteAppText(conn,'$gc_firstname');
     DeleteAppText(conn,'$gc_lastname');
+    DeleteAppText(conn,'$tb_delete_domain');
+    DeleteAppText(conn,'$cm_delete_domain');
+    DeleteAppText(conn,'$delete_domain_diag_no_system_domain_msg');
+    DeleteAppText(conn,'$delete_domain_diag_cap');
+    DeleteAppText(conn,'$delete_domain_diag_msg');
+    DeleteAppText(conn,'$domain_delete_error_cap');
+    DeleteAppText(conn,'$domain_delete_error_msg');
 
     CreateAppText(conn,'$gc_domain_user','Domain / User');
     CreateAppText(conn,'$gc_domain_group','Domain / Group');
@@ -2499,9 +2516,12 @@ begin
     CreateAppText(conn,'$nogroup_tab','General');
     CreateAppText(conn,'$role_details_select_one','Please select a role to get detailed information');
     CreateAppText(conn,'$norole_tab','General');
-
-
     CreateAppText(conn,'$usernote_tab','Notes');
+    CreateAppText(conn,'$tb_deactivate_domain','Suspend','','Suspend Domain');
+    CreateAppText(conn,'$tb_activate_domain','Activate','','Activate Domain');
+    CreateAppText(conn,'$cm_deactivate_domain','Suspend');
+    CreateAppText(conn,'$cm_activate_domain','Activate');
+    CreateAppText(conn,'$gc_domain_suspended','Suspended');
   end;
   VersionInstallCheck(currentVersionId,newVersionId);
 end;

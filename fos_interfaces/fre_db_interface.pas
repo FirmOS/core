@@ -1113,9 +1113,12 @@ type
     function Domainname     (const unique:boolean=false) : TFRE_DB_NameType;
     function Domainkey      : TGUID_String;
     function GetIsInternal  : Boolean;
+    function GetSuspended   : Boolean;
     procedure SetIsInternal (AValue: Boolean);
+    procedure SetSuspended  (AValue: Boolean);
     function UID            : TGUID;
     property  isInternal    :Boolean read GetIsInternal write SetIsInternal;
+    property  Suspended     :Boolean read GetSuspended write SetSuspended;
   end;
 
 
@@ -1125,7 +1128,7 @@ type
     ['IFDBUSERGRP']
     function  GetDomain                    (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
     function  DomainID                     : TGUID;
-    function GetIsInternal                 : Boolean;
+    function  GetIsInternal                : Boolean;
     function  GetIsProtected               : Boolean;
     procedure SetIsInternal                (AValue: Boolean);
     procedure SetIsProtected               (AValue: Boolean);

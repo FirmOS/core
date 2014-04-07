@@ -2850,7 +2850,7 @@ var
   dname: String;
 begin
   dname:=Field('objname').AsString;
-  if FieldPathExists('desc.txt') then begin
+  if FieldPathExists('desc.txt') and (FieldPath('desc.txt').AsString<>'') then begin
     dname:=dname+' ('+FieldPath('desc.txt').AsString+')';
   end;
   calc.SetAsString(dname);
@@ -3526,7 +3526,7 @@ procedure TFRE_DB_GROUP._calcDisplayName(const calc: IFRE_DB_CALCFIELD_SETTER);
 var
   dname: String;
 begin
-  if FieldPathExists('desc.txt') then begin
+  if FieldPathExists('desc.txt') and (FieldPath('desc.txt').AsString<>'') then begin
     dname:=FieldPath('desc.txt').AsString+' ('+Field('objname').AsString+')';
   end else begin
     dname:=Field('objname').AsString;
@@ -11378,6 +11378,7 @@ begin
   l_dname  := uppercase(domainname);
   result.ObjectName  := l_dname;
   result.isInternal  := false;
+  result.Suspended   := false;
   result.Description := _NewText('$SYST_DOMAIN_'+l_dname,txt,txt_short);
 end;
 
