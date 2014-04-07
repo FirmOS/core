@@ -129,6 +129,7 @@ type
     procedure ChangeRefTestCodeClasses;
     procedure DefineIndices;
     procedure GenerateIndexTestData;
+    procedure RemoveIndexedTest;
     procedure TestIdxRangeQueries;
     procedure TestIdxUpdate;
     procedure ReconnectNotSyncedFromWAL;
@@ -948,6 +949,27 @@ begin
    DumpColl(coll_p,'ixc');
 end;
 
+procedure TFRE_DB_PersistanceTests.RemoveIndexedTest;
+var coll_v,coll_p   : IFRE_DB_COLLECTION;
+    coll_vu,coll_pu : IFRE_DB_COLLECTION;
+    coll_link       : IFRE_DB_COLLECTION;
+    obj             : IFRE_DB_Object;
+    guid            : TGUID;
+    res             : boolean;
+begin
+  writeln('HERE');
+  ConnectDB('admin@system','admin');
+  coll_v    := FWorkConn.GetCollection('TEST_1_VOL');
+  coll_p    := FWorkConn.GetCollection('TEST_1_PERS');
+  res       := coll_v.RemoveIndexedString('','ixs',true);
+  res       := coll_v.RemoveIndexedString('baz','ixs',false);
+  res       := coll_v.RemoveIndexedString('baz','ixs',false);
+  res       := coll_v.RemoveIndexedSigned(34,'ixi16',false);
+  res       := coll_v.RemoveIndexedUnsigned(1234,'ixui16',false);
+  res       := coll_v.RemoveIndexedSigned(34,'ixi16',true);
+  res       := coll_v.RemoveIndexedUnsigned(1234,'ixui16',true);
+end;
+
 procedure TFRE_DB_PersistanceTests.TestIdxRangeQueries;
 var coll_v,coll_p   : IFRE_DB_COLLECTION;
     coll_vu,coll_pu : IFRE_DB_COLLECTION;
@@ -1493,9 +1515,11 @@ var obj1,obj2 : TFRE_DB_Object;
           ofv := old_field.AsString;
       end;
     case update_type of
-      cev_FieldDeleted: updt := 'DELETE FIELD '+nfn+'('+nft+')';
-      cev_FieldAdded:   updt := 'ADD FIELD '+nfn+'('+nft+')';
-      cev_FieldChanged: updt := 'CHANGE FIELD : '+nfn+' FROM '+ofv+':'+oft+' TO '+nfv+':'+nft;
+      cev_UpdateBlockStart: updt := 'OBJECT UPDATE STARTING';
+      cev_FieldDeleted:     updt := 'DELETE FIELD '+ofn+'('+oft+')';
+      cev_FieldAdded:       updt := 'ADD FIELD '+nfn+'('+nft+')';
+      cev_FieldChanged:     updt := 'CHANGE FIELD : '+nfn+' FROM '+ofv+':'+oft+' TO '+nfv+':'+nft;
+      cev_UpdateBlockEnd  : updt := 'OBJECT UPDATE ENDS';
     end;
     writeln('UPDATE STEP : ',BoolToStr(is_child_update,' CHILD UPDATE ',' ROOT UPDATE '), update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
   end;
@@ -1567,9 +1591,12 @@ procedure TFRE_DB_ObjectTests.GenericChangeList2;
             ofv := old_field.AsString;
       end;
     case update_type of
-      cev_FieldDeleted: updt := 'DELETE FIELD '+ofn+'('+oft+')';
-      cev_FieldAdded:   updt := 'ADD FIELD '+nfn+'('+nft+')';
-      cev_FieldChanged: updt := 'CHANGE FIELD : '+nfn+' FROM ('+ofv+':'+oft+') TO ('+nfv+':'+nft+')';
+      cev_UpdateBlockStart: updt := 'OBJECT UPDATE STARTING';
+      cev_FieldDeleted:     updt := 'DELETE FIELD '+ofn+'('+oft+')';
+      cev_FieldAdded:       updt := 'ADD FIELD '+nfn+'('+nft+')';
+      cev_FieldChanged:     updt := 'CHANGE FIELD : '+nfn+' FROM ('+ofv+':'+oft+') TO ('+nfv+':'+nft+')';
+      cev_UpdateBlockEnd  : updt := 'OBJECT UPDATE ENDS';
+
     end;
     writeln('UPDATE STEP : ',BoolToStr(is_child_update,' CHILD UPDATE ',' ROOT UPDATE '), update_obj.UID_String,' ',update_obj.SchemeClass,' '+updt);
   end;
@@ -1712,7 +1739,7 @@ end;
 
 initialization
   RegisterTest(TFRE_DB_ObjectTests);
-  RegisterTest(TFRE_DB_PersistanceTests);
+//  RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 

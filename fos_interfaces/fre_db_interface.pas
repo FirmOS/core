@@ -81,6 +81,7 @@ type
   PNativeUint                 = ^NativeUint;
   PNativeInt                  = ^NativeInt;
   IFRE_DB_RIGHT               = TFRE_DB_String; {a right is a string key}
+  TFRE_DB_ConstArray          = Array of TVarRec;
 
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_FIELDMISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
@@ -532,7 +533,7 @@ type
   IFRE_DB_WORKFLOW              = interface;
   IFRE_DB_DOMAIN                = interface;
 
-  TFRE_DB_ObjCompareEventType           = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged);
+  TFRE_DB_ObjCompareEventType           = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged,cev_UpdateBlockStart,cev_UpdateBlockEnd);
 
   IFRE_DB_FieldIterator                 = procedure (const obj : IFRE_DB_Field) is nested;
   IFRE_DB_FieldIteratorBrk              = function  (const obj : IFRE_DB_Field):boolean is nested;
@@ -598,6 +599,9 @@ type
     dc_isdomainc   : Boolean;
     caption_key    : TFRE_DB_NameType;
     chooser_type   : TFRE_DB_CHOOSER_DH;
+    std_right      : TFRE_DB_STANDARD_RIGHT;
+    right_classtype: TClass;
+    hideSingle     : Boolean;
     fieldschemdef  : IFRE_DB_FieldSchemeDefinition; // points to
   end;
 
@@ -783,13 +787,23 @@ type
     function        ExistsIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
     function        GetIndexedObj       (const query_value : TFRE_DB_String; out obj     : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def'):boolean; // for the string fieldtype
     function        GetIndexedObjs      (const query_value : TFRE_DB_String; out   obj   : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def'):boolean;
-    function        GetIndexedUIDs      (const query_value : TFRE_DB_String; out obj_uid : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def'):boolean;
 
-    function        GetIndexedUID       (const query_value : TFRE_DB_String;out obj_uid:TGUID;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+
+    procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray);
 
     procedure       ForAllIndexed       (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
 
-    function        RemoveIndexed       (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
+    function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
+    function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
+
 
     // skip_first = number of different index values to skip, max_count = number of different index values to deliver
     procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
@@ -925,7 +939,6 @@ type
 
     function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_GUIDArray     ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
     function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:TFRE_DB_StringArray   ;const negate:boolean=false):TFRE_DB_Errortype;
-    function   AddRightFilterForEntryAndUser (const filter_key           :TFRE_DB_String;const right_prefix:TFRE_DB_NameType;const fieldname_for_uid : TFRE_DB_NameType=''):TFRE_DB_Errortype;
     function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
@@ -1080,47 +1093,72 @@ type
     property     BinaryDataKey : string              read GetBinDataKey   write SetBinDataKey;
   end;
 
+  { IFRE_DB_ROLE }
+
   IFRE_DB_ROLE = interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBRIGR']
     function  GetDomain                    (const conn  : IFRE_DB_CONNECTION): TFRE_DB_NameType;
     procedure AddRight                     (const right : IFRE_DB_RIGHT);
+    function  GetIsInternal                : Boolean;
     function  GetRightNames                : TFRE_DB_StringArray;
+    procedure AddRightsFromRole            (const role : IFRE_DB_ROLE);
+    procedure SetIsInternal                (AValue: Boolean);
+    property  isInternal                   : Boolean read GetIsInternal write SetIsInternal;
   end;
 
   { IFRE_DB_USER }
 
-  IFRE_DB_USER=interface(IFRE_DB_BASE)
+  IFRE_DB_USER=interface(IFRE_DB_UID_BASE)
     ['IFDBUSER']
     function  GetFirstName: TFRE_DB_String;
+    function  GetIsInternal: Boolean;
     function  GetLastName: TFRE_DB_String;
     function  GetLogin: TFRE_DB_String;
     function  GetDomain      (const conn:IFRE_DB_CONNECTION): TFRE_DB_NameType;
     function  GetUserGroupIDS: TFRE_DB_ObjLinkArray;
 
     procedure SetFirstName(const AValue: TFRE_DB_String);
+    procedure SetIsInternal(AValue: Boolean);
     procedure SetLastName(const AValue: TFRE_DB_String);
     procedure Setlogin(const AValue: TFRE_DB_String);
 
     property  Login              :TFRE_DB_String read GetLogin write Setlogin;
     property  Firstname          :TFRE_DB_String read GetFirstName write SetFirstName;
     property  Lastname           :TFRE_DB_String read GetLastName write SetLastName;
+    property  isInternal         :Boolean read GetIsInternal write SetIsInternal;
     procedure SetPassword        (const pw:TFRE_DB_String);
     function  Checkpassword      (const pw:TFRE_DB_String):boolean;
   end;
 
 
+  { IFRE_DB_DOMAIN }
+
   IFRE_DB_DOMAIN=interface(IFRE_DB_BASE)
     ['IFDBUSERDOMAIN']
-    function Domainname (const unique:boolean=false) : TFRE_DB_NameType;
-    function Domainkey                               : TFRE_DB_GUID_String;
-    function UID                                     : TGUID;
+    function  Domainkey                               : TFRE_DB_GUID_String;
+    function  Domainname     (const unique:boolean=false) : TFRE_DB_NameType;
+    function  GetIsInternal  : Boolean;
+    function  GetSuspended   : Boolean;
+    procedure SetIsInternal (AValue: Boolean);
+    procedure SetSuspended  (AValue: Boolean);
+    function  UID            : TGUID;
+    property  isInternal    :Boolean read GetIsInternal write SetIsInternal;
+    property  Suspended     :Boolean read GetSuspended write SetSuspended;
   end;
 
+
+  { IFRE_DB_GROUP }
 
   IFRE_DB_GROUP=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBUSERGRP']
     function  GetDomain                    (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
     function  DomainID                     : TGUID;
+    function  GetIsInternal                : Boolean;
+    function  GetIsProtected               : Boolean;
+    procedure SetIsInternal                (AValue: Boolean);
+    procedure SetIsProtected               (AValue: Boolean);
+    property  isProtected                  :Boolean read GetIsProtected write SetIsProtected;
+    property  isInternal                   :Boolean read GetIsInternal write SetIsInternal;
   end;
 
 
@@ -1230,10 +1268,21 @@ type
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
     function        IndexExists                (const idx_name : TFRE_DB_NameType):NativeInt;
     // Fetches Snapshot copies of the objects, you need to finalize them
-    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
-    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean;
-    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'): boolean;
-    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false):boolean; overload ;
+    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'  ; const val_is_null : boolean = false ):boolean; // for the string fieldtype
+    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false  ; const val_is_null : boolean = false):boolean;
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def'  ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false  ; const val_is_null : boolean = false):boolean; overload ;
+
+    function        GetIndexedUIDSigned        (const query_value : int64            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDUnsigned      (const query_value : QWord            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+
+
+    function        Remove                     (const ouid    : TGUID):TFRE_DB_Errortype; { from this collection }
+    function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
+    function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;  // for all signed   fieldtypes
+    function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;  // for all unsigned fieldtype
 
     procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
@@ -1254,7 +1303,7 @@ type
 
     procedure WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
     procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
-    procedure WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+    procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
     procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
     function  FDB_GetObjectCount            (const coll:boolean): Integer;
@@ -1412,16 +1461,16 @@ type
     function    Connect                     (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                  (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
-    function    AddUser                     (const loginatdomain,password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String=''):TFRE_DB_Errortype;
-    function    UserExists                  (const loginatdomain:TFRE_DB_String):boolean;
-    function    DeleteUser                  (const loginatdomain:TFRE_DB_String):TFRE_DB_Errortype;
+    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TGUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false;const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''):TFRE_DB_Errortype;
+    function    UserExists                  (const login:TFRE_DB_String; const domainUID: TGUID):boolean;
+    function    DeleteUser                  (const login:TFRE_DB_String; const domainUID: TGUID):TFRE_DB_Errortype;
     function    DeleteUserById              (const user_id:TGUID):TFRE_DB_Errortype;
-    function    FetchUser                   (const loginatdomain:TFRE_DB_String;var user:IFRE_DB_USER):TFRE_DB_Errortype;
+    function    FetchUser                   (const login:TFRE_DB_String; const domainUID: TGUID;var user:IFRE_DB_USER):TFRE_DB_Errortype;
     function    FetchUserById               (const user_id:TGUID;var user: IFRE_DB_USER):TFRE_DB_Errortype;
-    function    FetchGroup                  (const groupatdomain:TFRE_DB_String;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    FetchGroup                  (const group:TFRE_DB_String;const domainUID: TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupById              (const group_id:TGUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    ModifyGroupById             (const group_id:TGUID; const groupname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
-    function    FetchRole                   (const roleatdomain:TFRE_DB_NameType;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    FetchRole                   (const rolename:TFRE_DB_String;const domainUID: TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id:TGUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchDomainById             (const domain_id:TGUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    FetchDomainNameById         (const domain_id:TGUID):TFRE_DB_NameType;
@@ -1429,27 +1478,36 @@ type
     function    ModifyDomainById            (const domain_id:TGUID; const domainname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype; { use special value "*$NOCHANGE$*" for unchanged webfields }
     function    DeleteDomainById            (const domain_id:TGUID):TFRE_DB_Errortype;
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
-    function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;var role  :IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TGUID):TFRE_DB_Errortype;
+    function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;const is_internal:Boolean; var role  :IFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean; const is_internal:Boolean; var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TGUID; const is_protected:Boolean=false;const is_internal:Boolean=false):TFRE_DB_Errortype;
+    function    AddRole                     (const rolename,txt,txt_short:TFRE_DB_String;const domainUID:TGUID; const is_internal:Boolean=false):TFRE_DB_Errortype;
     function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    RemoveAllRolesFromGroup     (const group:TFRE_DB_String;const domainUID: TGUID): TFRE_DB_Errortype;
     function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype; //TODO: Remove Ignorenotset
-    function    ModifyUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
-    function    RemoveUserGroups            (const loginatdomain:TFRE_DB_String;const user_groups:TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    ModifyUserPassword          (const loginatdomain,oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
+    function    AddRoleRightsToRole         (const rolename:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    ModifyUserGroupsById        (const user_id:TGuid; const user_group_ids:TFRE_DB_GUIDArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
+    function    RemoveUserGroupsById        (const user_id:TGuid; const user_group_ids:TFRE_DB_GUIDArray):TFRE_DB_Errortype;
+    function    ModifyUserPassword          (const login:TFRE_DB_String; const domainUID: TGUID;const oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
 
-    function    RoleExists                  (const role: TFRE_DB_String):boolean;
-    function    GroupExists                 (const groupatdomain:TFRE_DB_String):boolean;
-    function    DeleteGroup                 (const groupatdomain:TFRE_DB_String):TFRE_DB_Errortype;
-    function    DeleteRole                  (const role:TFRE_DB_String):TFRE_DB_Errortype;
+    function    RoleExists                  (const role:TFRE_DB_String;const domainUID: TGUID):boolean;
+    function    GroupExists                 (const group:TFRE_DB_String;const domainUID: TGUID):boolean;
+    function    DeleteGroup                 (const group:TFRE_DB_String;const domainUID: TGUID):TFRE_DB_Errortype;
+    function    DeleteGroupById             (const group_id:TGuid):TFRE_DB_Errortype;
+    function    DeleteRole                  (const role:TFRE_DB_String;const domainUID: TGUID):TFRE_DB_Errortype;
     function    DomainExists                (const domainname:TFRE_DB_NameType):boolean;
     function    DomainID                    (const domainname:TFRE_DB_NameType):TGUID;
     function    DeleteDomain                (const domainname:TFRE_DB_Nametype):TFRE_DB_Errortype;
     procedure   ForAllDomains               (const func:IFRE_DB_Domain_Iterator);
-    function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainname: TFRE_DB_NameType=''):TFRE_DB_Errortype;
+    function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
+
     function    StoreRole                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID ):TFRE_DB_Errortype;
     function    StoreGroup                  (var group:IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
+    function    UpdateGroup                 (var group:IFRE_DB_GROUP): TFRE_DB_Errortype;
+    function    UpdateRole                  (var role:IFRE_DB_ROLE): TFRE_DB_Errortype;
+
     function    StoreTranslateableText      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
+    function    UpdateTranslateableText     (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    DeleteTranslateableText     (const key    :TFRE_DB_String) :TFRE_DB_Errortype;
 
     function    DatabaseList                : IFOS_STRINGS;
@@ -1481,6 +1539,9 @@ type
     function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
 
     function    IsCurrentUserSystemAdmin    :boolean;
+    function    SuspendContinueDomainById   (const domain_id:TGUID; const suspend : boolean):TFRE_DB_Errortype;
+    function    IsDomainSuspended           (const domainname:TFRE_DB_NameType):boolean; {delivers true if the domain exists and is suspended, otherwise false}
+
     function    DumpUserRights              :TFRE_DB_String;
     function    GetSysDomainUID             :TGUID;
     procedure   ReloadUserandRights         ;
@@ -1751,7 +1812,7 @@ type
     procedure  UnlockManager; virtual; abstract;
     procedure  LockManager; virtual; abstract;
 
-    function   GetTransformedDataLocked   (const query : TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract; { get the order base data for the specified order definition, collection or single reference based, lock manager and if existing, the base}
+    function   GetTransformedDataLocked  (const query : TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract; { get the order base data for the specified order definition, collection or single reference based, lock manager and if existing, the base}
     procedure  NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
     function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_NameType ; const collection_transform_key : TFRE_DB_NameTypeRL ; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const DefaultOrderFieldtype: TFRE_DB_FIELDTYPE; const replace_default_order: boolean=true): TFRE_DB_QUERY_BASE; virtual; abstract;
   end;
@@ -1821,6 +1882,8 @@ type
     function   FetchAppTextFull              (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
 
     class procedure  CreateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
+    class procedure  DeleteAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String);
+    class procedure  UpdateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
 
   published
      function   WEB_Content                 (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -2152,8 +2215,8 @@ type
     function    UTCToLocalTimeDB64              (const ADateTime64: TFRE_DB_DateTime64) : TFRE_DB_DateTime64;
 
     function    NewText                         (const key,txt,txt_short:TFRE_DB_String;const hint:TFRE_DB_String=''):IFRE_DB_TEXT;
-    function    NewRole                         (const rolename,txt,txt_short:TFRE_DB_String):IFRE_DB_ROLE;
-    function    NewGroup                        (const groupname,txt,txt_short:TFRE_DB_String):IFRE_DB_GROUP;
+    function    NewRole                         (const rolename,txt,txt_short:TFRE_DB_String;const is_internal:Boolean=false):IFRE_DB_ROLE;
+    function    NewGroup                        (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean=false;const is_internal:Boolean=false):IFRE_DB_GROUP;
     function    NewClientFieldValidator         (const name: TFRE_DB_String) : IFRE_DB_ClientFieldValidator;
     function    NewEnum                         (const name: TFRE_DB_String) : IFRE_DB_Enum;
     function    RegisterSysClientFieldValidator (const val : IFRE_DB_ClientFieldValidator):TFRE_DB_Errortype;
@@ -2229,6 +2292,7 @@ type
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
     procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo);
+    procedure AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
     function  GroupFields        : PFRE_InputFieldDef4GroupArr;
@@ -2265,7 +2329,7 @@ type
     function    GetDomain                :TFRE_DB_String;
     function    LoggedIn                 : Boolean;
     procedure   Logout                   ;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
 
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
@@ -2434,7 +2498,7 @@ type
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
     //function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_error:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
     procedure   COR_FinalizeTakeOver     (const data : Pointer); // In new session binding
     procedure   AutoPromote              (const NEW_RASC:IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const conn_desc:String);
@@ -2577,8 +2641,13 @@ type
 
   function  FREDB_FieldtypeShortString2Fieldtype (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
   function  FREDB_Bool2String                    (const bool:boolean):String;
+  function  FREDB_EncodeTranslatableWithParams   (const translation_key:TFRE_DB_String  ; params : array of const):TFRE_DB_String;
+  function  FREDB_TranslatableHasParams          (var   translation_key:TFRE_DB_String  ; var params : TFRE_DB_StringArray):boolean;
+  procedure FREDB_DecodeVarRecParams             (const params   : TFRE_DB_StringArray    ; var vaparams : TFRE_DB_ConstArray);
+  procedure FREDB_FinalizeVarRecParams           (const vaparams : TFRE_DB_ConstArray);
   function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString;
   function  FREDB_H2G                            (const uidstr : shortstring):TFRE_DB_GUID;
+  function  FREDB_ExtractUidsfromRightArray      (const str:TFRE_DB_StringArray;const rightname:TFRE_DB_STRING):TFRE_DB_GUIDArray;
   function  FREDB_String2GuidArray               (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Guid                    (const str:string):TGUID;
   function  FREDB_String2Bool                    (const str:string):boolean;
@@ -2625,7 +2694,9 @@ type
   procedure FREDB_SplitLocalatDomain             (const localatdomain: TFRE_DB_String; var localpart, domainpart: TFRE_DB_String);
   function  FREDB_GetDboAsBufferLen              (const dbo: IFRE_DB_Object; var mem: Pointer): UInt32;
 
-  procedure FREDB_SetStringFromExistingFieldPathOrNoChange(const obj:IFRE_DB_Object ; const fieldpath:string ; var string_fld : TFRE_DB_String);
+  procedure FREDB_SetStringFromExistingFieldPathOrNoChange(const obj:IFRE_DB_Object ; const fieldpath:string ; var string_fld : TFRE_DB_String); { }
+  function  FREDB_HCV                            (const txt : TFRE_DB_String):TFRE_DB_String; { replace cFRE_DB_SYS_CLEAR_VAL_STR with '' use for new operation/web }
+
   function  FREDB_IniLogCategory2LogCategory     (const ini_logcategory: string) : TFRE_DB_LOGCATEGORY;
 
   // This function should replace all character which should not a ppear in an ECMA Script (JS) string type to an escaped version,
@@ -2812,6 +2883,163 @@ begin
   result := BoolToStr(bool,'1','0');
 end;
 
+function FREDB_EncodeVarRec(const v : TVarRec):TFRE_DB_String;
+begin
+  result := Char(v.VType);
+  case v.VType of
+    vtInteger:
+      result := result + IntToStr(Int64(v.VInteger));
+    vtBoolean:
+      result := result + BoolToStr(v.VBoolean,'1','0');
+    vtChar:
+      result := result + v.VChar;
+    vtExtended:
+      result := result + FloatToStr(v.VExtended^);
+    vtString:
+      result := result + v.VString^;
+    vtAnsiString:
+      result := result + AnsiString(v.VAnsiString);
+    vtCurrency:
+      result := result + CurrToStr(v.VCurrency^);
+    //vtWideString:
+    //  result := result + PWideString(v.VWideString)^;
+    vtInt64:
+      result := result + IntToStr(v.VInt64^);
+    vtQWord:
+      result := result + IntToStr(v.VInt64^);
+    vtUnicodeString :
+      result := result + UnicodeString(v.VUnicodeString);
+    else
+      raise Exception.Create('unsuported type'+inttostr(v.VType)+' for encoding');
+  end;
+  Result := GFRE_BT.Base64Encode(result);
+end;
+
+procedure FREDB_DecodeVarRecParams(const params: TFRE_DB_StringArray; var vaparams: TFRE_DB_ConstArray);
+var i     : NativeInt;
+    param : TFRE_DB_String;
+begin
+  SetLength(vaparams,Length(params));
+  for i:=0 to high(params) do
+    begin
+      param := params[i];
+      if Length(param)=0 then
+        raise EFRE_DB_Exception.Create('invalid encoding');
+       vaparams[i].VType    := ord(param[1]);
+       vaparams[i].VPointer := nil;  { safe zero }
+       param := copy(param,2,maxint);
+       case vaparams[i].VType of
+         vtInteger:
+           vaparams[i].VInteger := StrToInt(param);
+         vtBoolean:
+           vaparams[i].VBoolean := param[1]='1';
+         vtChar:
+           vaparams[i].VChar    := param[1];
+         vtExtended:
+           begin
+              New(vaparams[i].VExtended);
+              vaparams[i].VExtended^ := StrToFloat(param);
+           end;
+         vtString:
+           begin
+             New(vaparams[i].VString);
+             PShortString(vaparams[i].VString)^ := param;
+           end;
+         vtAnsiString:
+           AnsiString(vaparams[i].VAnsiString) := param;
+         vtCurrency:
+           begin
+             New(vaparams[i].VCurrency);
+             vaparams[i].VCurrency^:= StrToCurr(param);
+           end;
+         vtInt64:
+           begin
+             New(vaparams[i].VInt64);
+             vaparams[i].VInt64^ := StrToInt64(param);
+           end;
+         vtQWord:
+           begin
+             New(vaparams[i].VQWord);
+             vaparams[i].VQWord^ := StrToQWord(param);
+           end;
+         vtUnicodeString :
+           begin
+             UnicodeString(vaparams[i].VUnicodeString) := param;
+           end
+         else
+           raise Exception.Create('unsuported type'+inttostr(vaparams[i].VType)+' for encoding');
+       end;
+    end;
+end;
+
+function FREDB_EncodeTranslatableWithParams(const translation_key: TFRE_DB_String; params: array of const): TFRE_DB_String;
+var s : TVarRec;
+    i : NativeInt;
+begin
+  result:=translation_key;
+  for i := 0 to high(params) do
+    result:=result+'#'+FREDB_EncodeVarRec(params[i]); { no '#' in base64 !} // DO NOT USE # in unparametrized KEYS
+end;
+
+function FREDB_TranslatableHasParams(var translation_key: TFRE_DB_String; var params: TFRE_DB_StringArray): boolean;
+var i : NativeInt;
+begin
+  if Pos('#',translation_key)=0 then
+    result:=false
+  else
+    begin
+      result := true;
+      FREDB_SeperateString(translation_key,'#',params);
+      translation_key :=params[0];
+      for i := 1 to high(params) do
+        params[i]    := GFRE_BT.Base64Decode(params[i]);
+      params          := Copy(params,1,maxint);
+    end
+end;
+
+
+procedure FREDB_FinalizeVarRecParams(const vaparams: TFRE_DB_ConstArray);
+var i : NativeInt;
+begin
+  for i := 0 to High(vaparams) do
+    case vaparams[i].VType of
+      //vtInteger:
+      //vtBoolean:
+      //vtChar:
+      vtExtended:
+        begin
+           Dispose(vaparams[i].VExtended);
+           vaparams[i].VExtended:= nil;
+        end;
+      vtString:
+        begin
+          Dispose(vaparams[i].VString);
+          vaparams[i].VString := nil;
+        end;
+      vtAnsiString:
+        AnsiString(vaparams[i].VAnsiString) := '';
+      vtCurrency:
+        begin
+          Dispose(vaparams[i].VCurrency);
+          vaparams[i].VCurrency := nil;
+        end;
+      vtInt64:
+        begin
+          Dispose(vaparams[i].VInt64);
+          vaparams[i].VInt64 := nil;
+        end;
+      vtQWord:
+        begin
+          Dispose(vaparams[i].VQWord);
+          vaparams[i].VQWord := nil;
+        end;
+      vtUnicodeString :
+        begin
+          UnicodeString(vaparams[i].VUnicodeString) := '';
+        end;
+    end;
+end;
+
 function FREDB_G2H(const uid: TFRE_DB_GUID): ShortString;
 begin
   result := GFRE_BT.GUID_2_HexString(uid);
@@ -2820,6 +3048,44 @@ end;
 function FREDB_H2G(const uidstr: shortstring): TFRE_DB_GUID;
 begin
   result := GFRE_BT.HexString_2_GUID(uidstr);
+end;
+
+function FREDB_ExtractUidsfromRightArray(const str: TFRE_DB_StringArray; const rightname: TFRE_DB_STRING): TFRE_DB_GUIDArray;
+var uid,uidv   : TFRE_DB_GUID;
+    entry      : TFRE_DB_String;
+    sp,cnt,i,j : NativeInt;
+    fnd        : boolean;
+begin
+  cnt := 0;
+  SetLength(result,length(str));
+  for i := 0 to high(str) do
+    begin
+      entry := str[i];
+      sp := pos('@',entry);
+      if sp>0 then
+        begin
+          if rightname<>'' then
+            if rightname<>copy(entry,1,sp-1) then
+              continue;
+          uid := FREDB_H2G(Copy(entry,sp+1,maxint));
+          fnd := false;
+          for j := 0 to cnt-1 do
+            begin
+              uidv := result[j];
+              if uidv=uid then
+                begin
+                  fnd:=true;
+                  break;
+                end;
+            end;
+          if not fnd then
+            begin
+              result[cnt] := uid;
+              inc(cnt);
+            end;
+        end;
+    end;
+  SetLength(result,cnt);
 end;
 
 function FREDB_String2GuidArray(const str: string): TFRE_DB_GUIDArray;
@@ -3980,7 +4246,10 @@ end;
 
 procedure TFRE_DB_UserSession.InboundNotificationBlock(const block: IFRE_DB_Object);
 begin
-  DispatchCoroutine(@self.COR_InboundNotifyBlock,block.Implementor_HC);
+  if IsInteractiveSession then
+    DispatchCoroutine(@self.COR_InboundNotifyBlock,block.Implementor_HC)
+  else
+    block.Finalize; { silently drop Notification handling for non interactive (currently feeder) sessions }
 end;
 
 procedure TFRE_DB_UserSession.COR_InboundNotifyBlock(const data: Pointer);
@@ -4349,6 +4618,7 @@ var x           : TObject;
           end;
       end else begin
         GFRE_LOG.Log('GOT ANSWER FOR UNKNOWN/TIMEDOUT COMMAND CID=%d OR TIMEOUT',[CMD.CommandID],catError);
+        GFRE_LOG.Log('CMD: %s',[CMD.AsDBODump],catError);
         answerencap.free;
       end;
       CMD.Finalize;
@@ -4663,7 +4933,7 @@ type
      FClientDescription : String;
    end;
 
-function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_error: TFRE_DB_String; force_new_session_data: boolean; const session_takeover: boolean ; const auto_promote: boolean): TFRE_DB_PromoteResult;
+function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_status: TFRE_DB_String; force_new_session_data: boolean; const session_takeover: boolean ; const auto_promote: boolean): TFRE_DB_PromoteResult;
 var err                : TFRE_DB_Errortype;
     l_NDBC             : IFRE_DB_CONNECTION;
     lStoredSessionData : IFRE_DB_Object;
@@ -4703,7 +4973,7 @@ var err                : TFRE_DB_Errortype;
         end
       else
         begin
-          promotion_error := 'Takeover Failed : OLD SESSION NOT FOUND';
+          promotion_status := '$login_faild_oldnotfound_cap';
           result          := pr_Failed;
           GFRE_DBI.LogWarning(dblc_SERVER,'<FAIL : TAKEOVERSESSION FOR SESSION [%s]',[FSessionID]);
           exit;
@@ -4724,7 +4994,7 @@ begin
           edb_OK : begin
             if assigned(existing_session.FBoundSession_RA_SC) then
               begin
-                promotion_error := 'You are already logged in on '+existing_session.GetClientDetails+', would you like to takeover this existing session ?';
+                promotion_status := FREDB_EncodeTranslatableWithParams('$login_faild_already_1P',[existing_session.GetClientDetails]); //'You are already logged in on '+existing_session.GetClientDetails+', would you like to takeover this existing session ?'//;
                 existing_session.FTakeoverPrepared := FConnDesc;
                 exit(pr_TakeoverPrepared);
                 if auto_promote then
@@ -4740,8 +5010,8 @@ begin
              end;
           end
           else begin
-            promotion_error := 'Takeover Failed : '+CFRE_DB_Errortype[err];
-            result          := pr_Failed;
+            promotion_status := '$login_takeover_failed';
+            result           := pr_Failed;
             exit;
           end;
         end;
@@ -4787,9 +5057,9 @@ begin
           end;
        end;
        else begin
-         FPromoted       := false;
-         promotion_error := CFRE_DB_Errortype[err];
-         result          := pr_Failed;
+         FPromoted        := false;
+         promotion_status := '$login_faild_access';
+         result           := pr_Failed;
        end;
       end;
     end;
@@ -5633,7 +5903,7 @@ end;
 
 class function TFRE_DB_Base.CreateClassRole(const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
 begin
- result := GFRE_DBI.NewRole(GetClassRoleName(rolename),long_desc,short_desc);
+ result := GFRE_DBI.NewRole(GetClassRoleName(rolename),long_desc,short_desc,true);
 end;
 
 class function TFRE_DB_Base.GetClassRoleName(const rolename: TFRE_DB_String): TFRE_DB_String;
@@ -6071,6 +6341,21 @@ begin
           role := CreateClassRole('fetch','Fetch ' + ClassName,'Allowed to fetch ' + ClassName + ' objects');
           role.AddRight(GetRight4Domain(GetClassRightNameFetch,domainUID));
           CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.fetch role');
+        end
+      else
+        begin //FIXXME - CK - should be handled while upgrading AC from 1.0 to 1.1 together with domains, users and groups
+          CheckDbResult(conn.FetchRole(GetClassRoleNameStore,domainUID,role));
+          role.isInternal:=true;
+          CheckDbResult(conn.UpdateRole(role));
+          CheckDbResult(conn.FetchRole(GetClassRoleNameDelete,domainUID,role));
+          role.isInternal:=true;
+          CheckDbResult(conn.UpdateRole(role));
+          CheckDbResult(conn.FetchRole(GetClassRoleNameUpdate,domainUID,role));
+          role.isInternal:=true;
+          CheckDbResult(conn.UpdateRole(role));
+          CheckDbResult(conn.FetchRole(GetClassRoleNameFetch,domainUID,role));
+          role.isInternal:=true;
+          CheckDbResult(conn.UpdateRole(role));
         end;
     end;
 end;
@@ -6884,6 +7169,18 @@ begin
   CheckDbResult(conn.StoreTranslateableText(txt),'CreateAppText ' + translation_key);
 end;
 
+class procedure TFRE_DB_APPLICATION.DeleteAppText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String);
+begin
+  CheckDbResult(conn.DeleteTranslateableText(uppercase(classname)+'_'+translation_key),'DeleteAppText ' + translation_key);
+end;
+
+class procedure TFRE_DB_APPLICATION.UpdateAppText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
+var txt :IFRE_DB_TEXT;
+begin
+  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
+  CheckDbResult(conn.UpdateTranslateableText(txt),'UpdateAppText ' + translation_key);
+end;
+
 
 function TFRE_DB_APPLICATION._FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
@@ -7547,6 +7844,14 @@ begin
     string_fld := obj.FieldPath(fieldpath).AsString
   else
     string_fld := cFRE_DB_SYS_NOCHANGE_VAL_STR;
+end;
+
+function FREDB_HCV(const txt: TFRE_DB_String): TFRE_DB_String;
+begin
+  if txt<>cFRE_DB_SYS_CLEAR_VAL_STR then
+    result := txt
+  else
+    result := '';
 end;
 
 function FREDB_IniLogCategory2LogCategory(const ini_logcategory: string): TFRE_DB_LOGCATEGORY;

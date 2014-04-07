@@ -146,7 +146,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   _StoreObjectPersistent     (const obj:TFRE_DB_Object ; const no_storelocking : boolean=false);
 
      procedure   WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
-     procedure   WT_DeleteCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+     procedure   WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
      procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
@@ -655,13 +655,13 @@ begin
   _StoreCollectionPersistent(coll);
 end;
 
-procedure TFRE_DB_PS_FILE.WT_DeleteCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+procedure TFRE_DB_PS_FILE.WT_DeleteCollectionPersistent(const collname: TFRE_DB_NameType);
 var wd : TFRE_DB_ASYNC_DEL_CMD;
     fn : String;
 begin
-  if not coll.IsVolatile then
-    begin
-      fn := FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col';
+  //if not coll.IsVolatile then
+    //begin
+      fn := FCollectionsDir+GFRE_BT.Str2HexStr(collname)+'.col';
       if GDBPS_TRANS_WRITE_ASYNC then
         begin
           wd := TFRE_DB_ASYNC_DEL_CMD.Create(fn);
@@ -669,11 +669,11 @@ begin
         end
       else
         begin
-          GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[coll.CollectionName]);
+          GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[collname]);
           if not DeleteFile(fn) then
-            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+coll.CollectionName());
+            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+collname);
         end;
-    end;
+    //end;
 end;
 
 procedure TFRE_DB_PS_FILE.WT_StoreObjectPersistent(const obj: IFRE_DB_Object ; const no_store_locking : boolean=true);

@@ -82,10 +82,12 @@ type
 
   TFRE_DB_UPDATE_UI_ELEMENT_DESC = class(TFRE_DB_CONTENT_DESC)
   public
-    //@ Describes a status change. Used to enable/disable the element or to change the caption.
-    function  DescribeStatus     (const elementId:String; const disabled:Boolean; const newCaption:String=''): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+    //@ Describes a status change. Used to enable/disable the element or to change the caption/hint.
+    function  DescribeStatus     (const elementId:String; const disabled:Boolean; const newCaption:String=''; const newHint:String=''): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
     //@ Describes a submenu change. Used to change a submenu within a toolbar.
     function  DescribeSubmenu    (const elementId:String; const menu: TFRE_DB_MENU_DESC): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+    //@ Describes if drag is disabled for a grid.
+    function  DescribeDrag       (const elementId:String; const disabled: Boolean): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
   end;
 
   { TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC }
@@ -330,6 +332,8 @@ type
     //@ The selected ids will be passed as selected parameter.
     //@ FIXXME: Not implemented yet.
     procedure SetDependentContent (const contentFunc:TFRE_DB_SERVER_FUNC_DESC);
+    //@ Disable the drag functionality. TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeDrag can be used to enable it again.
+    procedure disableDrag         ;
   end;
 
   { TFRE_DB_VIEW_TREE_DESC }
@@ -369,7 +373,7 @@ type
   { TFRE_DB_FORM_DESC }
 
   //@ Base class form panels and dialogs.
-  //@ Do NOT use! Use TFRE_DB_FORM_PANEL_DESC or TFRE_DB_DIALOG_DESC instead.
+  //@ Do NOT use! Use TFRE_DB_FORM_PANEL_DESC or TFRE_DB_FORM_DIALOG_DESC instead.
   TFRE_DB_FORM_DESC    = class(TFRE_DB_CONTENT_DESC)
   private
     procedure AddStore                (const store: TFRE_DB_STORE_DESC);virtual;
@@ -505,18 +509,27 @@ type
     procedure SetMenu (const menu: TFRE_DB_MENU_DESC);
   end;
 
-  { TFRE_DB_DIALOG_DESC }
+  { TFRE_DB_FORM_DIALOG_DESC }
 
-  TFRE_DB_DIALOG_DESC    = class(TFRE_DB_FORM_DESC)
+  TFRE_DB_FORM_DIALOG_DESC    = class(TFRE_DB_FORM_DESC)
   public
     //@ Describes a modal dialog. See also TFRE_DB_FORM_DESC.
     //@ If defaultClose is true a close button will be added to the dialog which simply closes the dialog.
     //@ If defaultClose is false and no explicit close button is added the dialog will not be closable at all (e.g. force login).
     //@ sendChangedFieldsOnly true: good for data updates, false: all field values are send unconditonally, goot for new objects
-    function  Describe    (const caption:String; const width:Integer=0; const maxHeight:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0): TFRE_DB_DIALOG_DESC;
-    //@ Adds a html header section to the dialog.
-    //@ FIXXME: not implemented yet.
-    procedure AddHeader   (const header: TFRE_DB_HTML_DESC);
+    function  Describe    (const caption:String; const width:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0): TFRE_DB_FORM_DIALOG_DESC;
+  end;
+
+  { TFRE_DB_DIALOG_DESC }
+
+  TFRE_DB_DIALOG_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a modal dialog.
+    //@ percWidth/Height (in %) or maxWidth/Height (in px) should be defined. If not 80% will be the default for percWidth/Height.
+    //@ In case of given percWidth/Height maxWidth/Height will be ignored.
+    //@ If defaultClose is true a close button will be added to the dialog which simply closes the dialog.
+    //@ If defaultClose is false and no explicit close button is added the dialog will not be closable at all (e.g. force login).
+    function  Describe    (const caption:String; const content:TFRE_DB_CONTENT_DESC; const percWidth: Integer=0; const percHeight: Integer=0; const maxWidth:Integer=0; const maxHeight: Integer=0; const isDraggable:Boolean=true): TFRE_DB_DIALOG_DESC;
   end;
 
   { TFRE_DB_TOPMENU_ENTRY_DESC }
@@ -552,17 +565,17 @@ type
   TFRE_DB_TOPMENU_DESC  = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes a top menu.
-    function  Describe      (): TFRE_DB_TOPMENU_DESC;
+    function  Describe          : TFRE_DB_TOPMENU_DESC;
     //@ Creates a new top menu entry description and adds it.
-    function  AddEntry      : TFRE_DB_TOPMENU_ENTRY_DESC;
+    function  AddEntry          : TFRE_DB_TOPMENU_ENTRY_DESC;
     //@ Creates a new top menu dialog entry description and adds it.
-    function  AddDialogEntry: TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC;
+    function  AddDialogEntry    : TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC;
     //@ Creates a new top menu jira dialog entry description and adds it.
     //@ Jira integration has to be enabled within the TFRE_DB_MAIN_DESC.
     function  AddJiraDialogEntry: TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC;
     //@ Adds a dialog to the top menu which will be opened.
-    //@ See TFRE_DB_DIALOG_DESC.
-    procedure AddDialog     (const dialog:TFRE_DB_DIALOG_DESC);
+    //@ See TFRE_DB_FORM_DIALOG_DESC.
+    procedure AddFormDialog     (const dialog:TFRE_DB_FORM_DIALOG_DESC);
   end;
 
   { TFRE_DB_LAYOUT_DESC }
@@ -577,8 +590,8 @@ type
     //@ Parameter resizeable will be ignored for the center section because it is resizeable if any other section is resizeable.
     procedure AddSection        (const section:TFRE_DB_CONTENT_DESC; const pos: TFRE_DB_LAYOUT_POS; const resizeable: Boolean=true; const size: Integer=-1);    //deprecated, don't use
     //@ Adds a dialog to the layout which will be opened.
-    //@ See TFRE_DB_DIALOG_DESC.
-    procedure AddDialog         (const dialog:TFRE_DB_DIALOG_DESC);
+    //@ See TFRE_DB_FORM_DIALOG_DESC.
+    procedure AddFormDialog     (const dialog:TFRE_DB_FORM_DIALOG_DESC);
     //@ Sets the relative size of the content section.
     //@ Will only be used if no explicit center section is added with AddSection procedure.
     //@ Default value is 3.
@@ -859,6 +872,20 @@ implementation
     raise Exception.Create('invalid short DBContentType specifier : ['+fts+']');
   end;
 
+  { TFRE_DB_DIALOG_DESC }
+
+  function TFRE_DB_DIALOG_DESC.Describe(const caption: String; const content: TFRE_DB_CONTENT_DESC; const percWidth, percHeight, maxWidth, maxHeight: Integer; const isDraggable: Boolean): TFRE_DB_DIALOG_DESC;
+  begin
+    Field('dialogCaption').AsString:=caption;
+    Field('content').AsObject:=content;
+    Field('percWidth').AsInt16:=percWidth;
+    Field('percHeight').AsInt16:=percHeight;
+    Field('maxWidth').AsInt16:=maxWidth;
+    Field('maxHeight').AsInt16:=maxHeight;
+    Field('draggable').AsBoolean:=isDraggable;
+    Result:=Self;
+  end;
+
   { TFRE_DB_UPDATE_SVG_DESC }
 
   function TFRE_DB_UPDATE_SVG_DESC.Describe(const svgId, elementId, attrName, attrValue: String): TFRE_DB_UPDATE_SVG_DESC;
@@ -1010,11 +1037,12 @@ implementation
 
   { TFRE_DB_UPDATE_UI_ELEMENT_DESC }
 
-  function TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeStatus(const elementId: String; const disabled: Boolean; const newCaption: String): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+  function TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeStatus(const elementId: String; const disabled: Boolean; const newCaption: String; const newHint: String): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
   begin
     Field('id').AsString:=elementId;
     Field('disabled').AsBoolean:=disabled;
     Field('newCaption').AsString:=newCaption;
+    Field('newHint').AsString:=newHint;
     Result:=Self;
   end;
 
@@ -1022,6 +1050,13 @@ implementation
   begin
     Field('id').AsString:=elementId;
     Field('menu').AsObject:=menu;
+    Result:=Self;
+  end;
+
+  function TFRE_DB_UPDATE_UI_ELEMENT_DESC.DescribeDrag(const elementId: String; const disabled: Boolean): TFRE_DB_UPDATE_UI_ELEMENT_DESC;
+  begin
+    Field('id').AsString:=elementId;
+    Field('disableDrag').AsBoolean:=disabled;
     Result:=Self;
   end;
 
@@ -1174,9 +1209,9 @@ implementation
     Field('entries').AddObject(Result);
   end;
 
-  procedure TFRE_DB_TOPMENU_DESC.AddDialog(const dialog: TFRE_DB_DIALOG_DESC);
+  procedure TFRE_DB_TOPMENU_DESC.AddFormDialog(const dialog: TFRE_DB_FORM_DIALOG_DESC);
   begin
-    Field('dialog').AsObject:=dialog;
+    Field('formdialog').AsObject:=dialog;
   end;
 
   { TFRE_DB_CHART_DATA_DESC }
@@ -1698,7 +1733,7 @@ implementation
 
   { TFRE_DB_STORE_DESC }
 
-  function TFRE_DB_STORE_DESC.Describe(const idField: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const labelFields:TFRE_DB_StringArray; const destroyFunc, clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC; const id: String; const pageSize: Integer): TFRE_DB_STORE_DESC;
+    function TFRE_DB_STORE_DESC.Describe(const idField: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const labelFields: TFRE_DB_StringArray; const destroyFunc: TFRE_DB_SERVER_FUNC_DESC; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC; const id: String; const pageSize: Integer): TFRE_DB_STORE_DESC;
   begin
     Field('idField').AsString:=idField;
     Field('labelFields').AsStringArr:=labelFields;
@@ -1828,6 +1863,7 @@ implementation
     if Assigned(dragFunc) then begin
       Field('dragFunc').AsObject:=dragFunc.CloneToNewObject();
     end;
+    Field('disableDrag').AsBoolean:=false;
     Field('children').AsBoolean:=cdgf_Children in displayFlags;
     Field('columnResize').AsBoolean:=cdgf_ColumnResizeable in displayFlags;
     Field('columnHide').AsBoolean:=cdgf_ColumnHideable in displayFlags;
@@ -1919,6 +1955,11 @@ implementation
     Field('depContentFunc').AsObject:=contentFunc;
   end;
 
+  procedure TFRE_DB_VIEW_LIST_DESC.disableDrag;
+  begin
+    Field('disableDrag').AsBoolean:=true;
+  end;
+
   { TFRE_DB_VIEW_TREE_DESC }
 
   function TFRE_DB_VIEW_TREE_DESC.Describe(const store: TFRE_DB_STORE_DESC; const title: String; const itemContextMenuFunc: TFRE_DB_SERVER_FUNC_DESC; const contextMenuFunc: TFRE_DB_SERVER_FUNC_DESC): TFRE_DB_VIEW_TREE_DESC;
@@ -1974,7 +2015,7 @@ implementation
     Result:=Self;
   end;
 
-    procedure TFRE_DB_FORM_DESC._FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const prefix:String);
+  procedure TFRE_DB_FORM_DESC._FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const prefix:String);
   var
     i,j         : Integer;
     val         : String;
@@ -2137,6 +2178,8 @@ implementation
       dataCollectionName : TFRE_DB_NameType;
       dataCollIsDomain   : Boolean;
       chooserField       : TFRE_DB_INPUT_CHOOSER_DESC;
+      domainEntries      : Integer;
+      domainValue        : String;
 
     procedure addObjects(const obj: IFRE_DB_Object);
     begin
@@ -2151,6 +2194,15 @@ implementation
     procedure VisDeppITerator(const vdf : R_VisDepfieldfield);
     begin
       chooserField.addDependentInput(prefix+vdf.visDepFieldName,vdf.visibleValue);
+    end;
+
+    procedure _addDomain(const domain: IFRE_DB_Domain);
+    begin
+       if session.GetDBConnection.SYS.CheckClassRight4Domain(obj^.std_right,obj^.right_classtype,domain.Domainname) then begin
+        store.AddEntry.Describe(domain.Domainname,domain.Domainkey);
+        domainEntries:=domainEntries+1;
+        domainValue:=domain.Domainkey;
+      end;
     end;
 
     begin
@@ -2183,44 +2235,57 @@ implementation
             raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
           end;
       end else begin
-        if obj^.fieldschemdef.getEnum(enum) then begin
+        if Assigned(obj^.right_classtype) then begin
           store:=TFRE_DB_STORE_DESC.create.Describe();
-          enumVals:=enum.getEntries;
-          for i := 0 to Length(enumVals) - 1 do begin
-            store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
+          domainEntries:=0;
+          domainValue:='';
+          session.GetDBConnection.SYS.ForAllDomains(@_addDomain);
+          if obj^.hideSingle and (domainEntries=1) then begin
+            group.AddInput.Describe('',prefix+obj^.field,false,false,false,true,domainValue);
+          end else begin
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
+            obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
           end;
-          chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
-          obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
         end else begin
-          obj^.fieldschemdef.getValidator(validator);
-          case obj^.fieldschemdef.FieldType of
-            fdbft_UInt16,fdbft_UInt32,fdbft_UInt64,
-            fdbft_Int16,fdbft_Int32,fdbft_Int64     : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                                                obj^.disabled,obj^.hidden,'',0);
-            fdbft_Real64 : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                    obj^.disabled,obj^.hidden);
-            fdbft_ObjLink,
-            fdbft_String : begin
-                             group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                     obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
-                             if obj^.fieldschemdef.addConfirm then begin
-                               group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
-                                                       obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass,prefix+obj^.field);
+          if obj^.fieldschemdef.getEnum(enum) then begin
+            store:=TFRE_DB_STORE_DESC.create.Describe();
+            enumVals:=enum.getEntries;
+            for i := 0 to Length(enumVals) - 1 do begin
+              store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
+            end;
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
+            obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
+          end else begin
+            obj^.fieldschemdef.getValidator(validator);
+            case obj^.fieldschemdef.FieldType of
+              fdbft_UInt16,fdbft_UInt32,fdbft_UInt64,
+              fdbft_Int16,fdbft_Int32,fdbft_Int64     : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                                                  obj^.disabled,obj^.hidden,'',0);
+              fdbft_Currency : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',2);
+              fdbft_Real64 : group.AddNumber.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                      obj^.disabled,obj^.hidden);
+              fdbft_ObjLink,
+              fdbft_String : begin
+                               group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                       obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
+                               if obj^.fieldschemdef.addConfirm then begin
+                                 group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
+                                                         obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass,prefix+obj^.field);
+                               end;
                              end;
-                           end;
-            fdbft_Boolean: begin
-                             boolField:=group.AddBool.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,false);
-                             obj^.fieldschemdef.ForAllDepfields(@DeppIterator);
-                           end;
-            fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                              obj^.required,obj^.hidden,'',validator);
-            fdbft_Stream: begin
-                            group.AddFile.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                                   obj^.disabled,obj^.hidden,'',validator);
-                          end
-            else begin // String fallback
-              group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
-                                      obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
+              fdbft_Boolean: begin
+                               boolField:=group.AddBool.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,false);
+                               obj^.fieldschemdef.ForAllDepfields(@DeppIterator);
+                             end;
+              fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',validator);
+              fdbft_Stream: begin
+                              group.AddFile.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                                     obj^.disabled,obj^.hidden,'',validator);
+                            end
+              else begin // String fallback
+                group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
+                                        obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
+              end;
             end;
           end;
         end;
@@ -2511,21 +2576,15 @@ implementation
     Field('menu').AsObject:=menu;
   end;
 
-  { TFRE_DB_DIALOG_DESC }
+  { TFRE_DB_FORM_DIALOG_DESC }
 
-  function TFRE_DB_DIALOG_DESC.Describe(const caption:String;const width,maxHeight:Integer; const defaultClose,isDraggable:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_DIALOG_DESC;
+  function TFRE_DB_FORM_DIALOG_DESC.Describe(const caption:String;const width:Integer; const defaultClose,isDraggable:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DIALOG_DESC;
   begin
     inherited Describe('',defaultClose,sendChangedFieldsOnly,editable,onChangeFunc,onChangeDelay);
     Field('dialogCaption').AsString:=caption;
     Field('width').AsInt16:=width;
-    Field('maxHeight').AsInt16:=maxHeight;
     Field('draggable').AsBoolean:=isDraggable;
     Result:=Self;
-  end;
-
-  procedure TFRE_DB_DIALOG_DESC.AddHeader(const header: TFRE_DB_HTML_DESC);
-  begin
-    Field('header').AddObject(header);
   end;
 
   { TFRE_DB_DATA_ELEMENT_DESC }
@@ -2643,9 +2702,9 @@ implementation
     Field(CFRE_DB_LAYOUT_POS[pos]).AsObject:=sec;
   end;
 
-  procedure TFRE_DB_LAYOUT_DESC.AddDialog(const dialog: TFRE_DB_DIALOG_DESC);
+  procedure TFRE_DB_LAYOUT_DESC.AddFormDialog(const dialog: TFRE_DB_FORM_DIALOG_DESC);
   begin
-    Field('dialog').AsObject:=dialog;
+    Field('formdialog').AsObject:=dialog;
   end;
 
   procedure TFRE_DB_LAYOUT_DESC.setContentSize(const size: Integer);

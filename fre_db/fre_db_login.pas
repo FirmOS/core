@@ -107,11 +107,19 @@ begin
 
     CreateAppText(conn,'$no_takeover_cap','No takeover');
     CreateAppText(conn,'$no_takeover_message','You choose to not takeover the existing session');
-
     currentVersionId:='1.0';
   end;
   if (currentVersionId='1.0') then begin
-    //next update code
+    currentVersionId:='1.1';
+    CreateAppText(conn,'$login_faild_already_1P','You are already logged in with another client => (%s)');
+    CreateAppText(conn,'$login_faild_oldnotfound_cap','The old session ID to continue your sesison was not found');
+    CreateAppText(conn,'$login_takeover_failed','The takeover of the existing session failed, try again');
+    CreateAppText(conn,'$login_faild_access','Invalid Username/Domain/Passsword combination');
+    CreateAppText(conn,'$login_faild_suspended','Currently the domain is suspended, no login is possible.');
+  end;
+  if (currentVersionId='1.1') then begin
+    //currentVersionId:='1.1';
+    //next version code
   end;
 end;
 
@@ -133,7 +141,7 @@ end;
 
 function TFRE_DB_LOGIN.No_Apps_ForGuests(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var dlg         : TFRE_DB_LAYOUT_DESC;
-    dialog      : TFRE_DB_DIALOG_DESC;
+    dialog      : TFRE_DB_FORM_DIALOG_DESC;
     serverFunc  : TFRE_DB_SERVER_FUNC_DESC;
 
     function _getUIHeader(const caption:String): String;
@@ -147,14 +155,14 @@ var dlg         : TFRE_DB_LAYOUT_DESC;
 
 begin
   dlg        := TFRE_DB_LAYOUT_DESC.create.Describe();
-  dialog     := WEB_LoginDlg(input,ses,app,conn).Implementor_HC as TFRE_DB_DIALOG_DESC;
-  //dialog     := TFRE_DB_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
+  dialog     := WEB_LoginDlg(input,ses,app,conn).Implementor_HC as TFRE_DB_FORM_DIALOG_DESC;
+  //dialog     := TFRE_DB_FORM_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
   //serverFunc := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'doLogin');
   //dialog.AddButton.Describe('Login',serverFunc,fdbbt_submit);
   //dialog.AddHeader(TFRE_DB_HTML_DESC.create.Describe(_getUIHeader('Login'),35));
   //dialog.AddInput.Describe('Username','uname',true);
   //dialog.AddInput.Describe('Password','pass',true,true,false,false,'',nil,false,true);
-  dlg.AddDialog(dialog);
+  dlg.AddFormDialog(dialog);
   Result:=dlg;
 end;
 
@@ -166,7 +174,7 @@ end;
 
 function TFRE_DB_LOGIN.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  dialog        : TFRE_DB_DIALOG_DESC;
+  dialog        : TFRE_DB_FORM_DIALOG_DESC;
   requested_app : String;
   dlg           : TFRE_DB_LAYOUT_DESC;
   serverFunc    : TFRE_DB_SERVER_FUNC_DESC;
@@ -230,14 +238,14 @@ begin
 end;
 
 function TFRE_DB_LOGIN.WEB_LoginDlg(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var dialog     : TFRE_DB_DIALOG_DESC;
+var dialog     : TFRE_DB_FORM_DIALOG_DESC;
     session    : TFRE_DB_UserSession;
     scheme     : IFRE_DB_SchemeObject;
     block      : TFRE_DB_INPUT_BLOCK_DESC;
     user       : IFRE_DB_USER;
 begin
   if ses.LoggedIn then begin
-    dialog:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$profile_diag_cap'),0,600,false,false);
+    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$profile_diag_cap'),0,false,false);
     GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
     block:=dialog.AddBlock.Describe();
     block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
@@ -250,7 +258,7 @@ begin
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_abort'),nil,fdbbt_close);
     user.Finalize;
   end else begin
-    dialog:=TFRE_DB_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$login_diag_cap'),0,600,false,false,false);
+    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$login_diag_cap'),0,false,false,false);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
     //dialog.AddButton.Describe('Abort',nil,fdbbt_close);
     dialog.AddInput.Describe(app.FetchAppTextShort(ses,'$login_uname'),'uname',true);
@@ -264,28 +272,49 @@ var
   pass              : TFRE_DB_INPUT_DESC;
   data              : IFRE_DB_Object;
   res               : TFRE_DB_Errortype;
-  promotion_error   : TFRE_DB_String;
+  promotion_status  : TFRE_DB_String;
   clear_session     : boolean;
-  //take_over_content : TFRE_DB_CONTENT_DESC;
   wsf               : TFRE_DB_SERVER_FUNC_DESC;
-  //ex_session        : TFRE_DB_UserSession;
+  domain            : TFRE_DB_String;
+  user              : TFRE_DB_String;
+  username          : TFRE_DB_String;
+
+  function ExpandPromotionStatus:TFRE_DB_String;
+  begin
+    if promotion_status<>'' then
+      result := app.FetchAppTextShort(ses,promotion_status)
+    else
+      result :='';
+  end;
+
 begin
   data := input.Field('data').AsObject;
   clear_session := false;
   if data.FieldExists('CLR_SESSION') then begin
     clear_session := data.Field('CLR_SESSION').AsBoolean;
   end;
-  case ses.Promote(data.Field('uname').AsString,data.Field('pass').AsString,promotion_error,clear_session,false) of
+  username := data.field('uname').AsString;
+  if pos('@',username)=0 then {no add given, add configured "default" domain fro system}
+    begin
+      username:=username+'@'+cFRE_DEFAULT_DOMAIN;
+    end;
+  FREDB_SplitLocalatDomain(username,user,domain);
+  if conn.SYS.IsDomainSuspended(domain) then
+    begin
+      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),app.FetchAppTextShort(ses,'$login_faild_suspended'),fdbmt_error);
+      exit;
+    end;
+  case ses.Promote(username,data.Field('pass').AsString,promotion_status,clear_session,false) of
     pr_OK:
       result := WEB_Content(input,ses,app,ses.GetDBConnection);
     pr_Failed:
       begin
-        Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),promotion_error,fdbmt_error);
+        Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),ExpandPromotionStatus,fdbmt_error);
       end;
     pr_TakeoverPrepared:
       begin
         ses.SendServerClientRequest(TFRE_DB_CLOSE_DIALOG_DESC.create);
-        Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$already_logged_in_cap'),promotion_error,fdbmt_confirm,CWSF(@WEB_TakeOverSession));
+        Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$already_logged_in_cap'),ExpandPromotionStatus,fdbmt_confirm,CWSF(@WEB_TakeOverSession));
       end;
     pr_Takeover:
       begin
@@ -293,7 +322,7 @@ begin
         result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
       end
     else
-      GFRE_BT.CriticalAbort('unhandled takeover case');
+      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),'UNSPECIFIED',fdbmt_error);
   end;
 end;
 

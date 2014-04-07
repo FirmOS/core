@@ -352,16 +352,16 @@ procedure GenerateTestData(const dbname: string; const user, pass: string);
 
 type _tusertype = (utguest,utuser,utadmin,utdemo);
 
-var conn  : IFRE_DB_CONNECTION;
-    res   : TFRE_DB_Errortype;
-    i     : integer;
-    login : string;
+var conn    : IFRE_DB_CONNECTION;
+    res     : TFRE_DB_Errortype;
+    i       : integer;
+    domainId: TGuid;
+    group   : IFRE_DB_GROUP;
+    userObj : IFRE_DB_USER;
 
-  procedure _AddUser(const user: string; const domain : TFRE_DB_NameType; const usertype:_tusertype;firstname:string='';lastname: string='';passwd : string='');
-  var login  : string;
-      ims    : TFRE_DB_Stream;
+  procedure _AddUser(const user: string; const domain : TGuid; const usertype:_tusertype;firstname:string='';lastname: string='';passwd : string='');
+  var ims    : TFRE_DB_Stream;
   begin
-    login := user+'@'+domain;
     if passwd='' then begin
       case usertype of
        utadmin: passwd:='a';
@@ -372,8 +372,8 @@ var conn  : IFRE_DB_CONNECTION;
     if lastname='' then lastname:='Lastname '+user;
     if firstname='' then firstname:='Firstname '+user;
 
-    if conn.sys.UserExists(login) then CheckDbResult(conn.sys.DeleteUser(login),'cannot delete user '+login);
-    CheckDbResult(conn.sys.AddUser(login,passwd,firstname,lastname),'cannot add user '+login);
+    if conn.sys.UserExists(user,domain) then CheckDbResult(conn.sys.DeleteUser(user,domain),'cannot delete user '+user);
+    CheckDbResult(conn.sys.AddUser(user,domain,passwd,firstname,lastname),'cannot add user '+user);
 
     //ims := TFRE_DB_Stream.Create;
     //ims.LoadFromFile(cFRE_SERVER_WWW_ROOT_DIR+'/fre_css/'+ cFRE_WEB_STYLE + '/images/LOGIN.png');
@@ -398,37 +398,43 @@ begin
     CheckDbResult(conn.AddDomain('fpc','FPC Domain','FPC Domain'),'cannot add domain fpc');
     CheckDbResult(conn.AddDomain('demo','Demo Domain','Demo Domain'),'cannot add domain demo');
 
-    _AddUser('admin1',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
-    _AddUser('admin2',CFRE_DB_SYS_DOMAIN_NAME,utadmin);
-    _AddUser('city',CFRE_DB_SYS_DOMAIN_NAME,utadmin,'','','city');
+    domainId:=conn.sys.DomainID(CFRE_DB_SYS_DOMAIN_NAME);
+    _AddUser('admin1',domainId,utadmin);
+    _AddUser('admin2',domainId,utadmin);
+    _AddUser('city',domainId,utadmin,'','','city');
 
-    _AddUser('user1',CFRE_DB_SYS_DOMAIN_NAME,utuser);
-    _AddUser('user2',CFRE_DB_SYS_DOMAIN_NAME,utuser);
+    _AddUser('user1',domainId,utuser);
+    _AddUser('user2',domainId,utuser);
 
-    _AddUser('demo1',CFRE_DB_SYS_DOMAIN_NAME,utdemo);
-    _AddUser('demo2',CFRE_DB_SYS_DOMAIN_NAME,utdemo);
+    _AddUser('demo1',domainId,utdemo);
+    _AddUser('demo2',domainId,utdemo);
 
-    _AddUser('myadmin','demo',utadmin);
-    _AddUser('user1','demo',utuser);
-    _AddUser('user2','demo',utuser);
+    domainId:=conn.sys.DomainID('demo');
+    _AddUser('myadmin',domainId,utadmin);
+    _AddUser('user1',domainId,utuser);
+    _AddUser('user2',domainId,utuser);
 
-    _AddUser('myadmin','fpc',utadmin);
-    _AddUser('user1','fpc',utuser);
-    _AddUser('user2','fpc',utuser);
+    domainId:=conn.sys.DomainID('fpc');
+    _AddUser('myadmin',domainId,utadmin);
+    _AddUser('user1',domainId,utuser);
+    _AddUser('user2',domainId,utuser);
 
-    _AddUser('myadmin','firmos',utadmin);
-    _AddUser('user1','firmos',utuser);
-    _AddUser('user2','firmos',utuser);
-    _AddUser('hhartl','firmos',utadmin,'Helmut','Hartl');
-    _AddUser('fschober','firmos',utadmin,'Franz','Schober');
-    _AddUser('ckoch','firmos',utadmin,'Christian','Koch');
+    domainId:=conn.sys.DomainID('firmos');
+    _AddUser('myadmin',domainId,utadmin);
+    _AddUser('user1',domainId,utuser);
+    _AddUser('user2',domainId,utuser);
+    _AddUser('hhartl',domainId,utadmin,'Helmut','Hartl');
+    _AddUser('fschober',domainId,utadmin,'Franz','Schober');
+    _AddUser('ckoch',domainId,utadmin,'Christian','Koch');
 
 
 
-    login :='testfeeder@'+CFRE_DB_SYS_DOMAIN_NAME;
+    domainId:=conn.sys.DomainID(CFRE_DB_SYS_DOMAIN_NAME);
 
-    CheckDbResult(conn.sys.AddUser(login,'x','testfeeder','testfeeder'),'cannot add user '+login);
-    CheckDbResult(conn.sys.ModifyUserGroups(login,TFRE_DB_StringArray.Create('TESTFEEDER'+'@'+CFRE_DB_SYS_DOMAIN_NAME),true),'cannot set user groups '+login);
+    CheckDbResult(conn.sys.AddUser('testfeeder',domainId,'x','testfeeder','testfeeder'),'cannot add user testfeeder');
+    CheckDbResult(conn.sys.FetchGroup('TESTFEEDER',domainId,group));
+    CheckDbResult(conn.sys.FetchUser('testfeeder',domainId,userObj));
+    CheckDbResult(conn.sys.ModifyUserGroupsById(userObj.UID,TFRE_DB_GUIDArray.Create(group.UID),true),'cannot set user groups testfeeder');
 
 
 
@@ -672,10 +678,10 @@ end;
 
 function TFRE_DB_TEST_FILEDIR.WEB_CreateZip(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  res : TFRE_DB_DIALOG_DESC;
+  res : TFRE_DB_FORM_DIALOG_DESC;
 begin
   Result:=GFRE_DB_NIL_DESC;
-  res:=TFRE_DB_DIALOG_DESC.create.Describe('ZIP');
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe('ZIP');
   res.AddDescription.Describe('','Your ZIP file is ready to download.');
   res.AddButton.DescribeDownload('Download','/download/test.zip',true);
   ses.SendServerClientRequest(res);
@@ -2138,7 +2144,7 @@ end;
 
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_Dialog(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  res   : TFRE_DB_DIALOG_DESC;
+  res   : TFRE_DB_FORM_DIALOG_DESC;
   g     : TFRE_DB_INPUT_GROUP_DESC;
   store : TFRE_DB_STORE_DESC;
   i     : Integer;
@@ -2148,7 +2154,7 @@ begin
     store.AddEntry.Describe('C'+IntToStr(i),'v'+IntToStr(i));
   end;
 
-  res:=TFRE_DB_DIALOG_DESC.create.Describe('Dialog');
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe('Dialog');
   g:=res.AddGroup.Describe('MAIN');
   g.AddInput.Describe('Text','text',true);
   g.AddBool.Describe('Bool','bool');
@@ -2185,7 +2191,7 @@ end;
 
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_ReadOnlyDialog(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  res  : TFRE_DB_DIALOG_DESC;
+  res  : TFRE_DB_FORM_DIALOG_DESC;
   g    : TFRE_DB_INPUT_GROUP_DESC;
   store: TFRE_DB_STORE_DESC;
   i    : Integer;
@@ -2195,7 +2201,7 @@ begin
     store.AddEntry.Describe('C'+IntToStr(i),'v'+IntToStr(i));
   end;
 
-  res:=TFRE_DB_DIALOG_DESC.create.Describe('Dialog',0,0,true,true,true,false);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe('Dialog',0,true,true,true,false);
   g:=res.AddGroup.Describe('MAIN');
   g.AddInput.Describe('Text','text',true,false,false,false,'Text');
   g.AddBool.Describe('Bool','bool',false,false,false,true);
