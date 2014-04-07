@@ -115,6 +115,7 @@ begin
     CreateAppText(conn,'$login_faild_oldnotfound_cap','The old session ID to continue your sesison was not found');
     CreateAppText(conn,'$login_takeover_failed','The takeover of the existing session failed, try again');
     CreateAppText(conn,'$login_faild_access','Invalid Username/Domain/Passsword combination');
+    CreateAppText(conn,'$login_faild_suspended','Currently the domain is suspended, no login is possible.');
   end;
   if (currentVersionId='1.1') then begin
     //currentVersionId:='1.1';
@@ -300,7 +301,7 @@ begin
   FREDB_SplitLocalatDomain(username,user,domain);
   if conn.SYS.IsDomainSuspended(domain) then
     begin
-      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),'TODO: Translate - The domain is suspended',fdbmt_error);
+      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),app.FetchAppTextShort(ses,'$login_faild_suspended'),fdbmt_error);
       exit;
     end;
   case ses.Promote(username,data.Field('pass').AsString,promotion_status,clear_session,false) of

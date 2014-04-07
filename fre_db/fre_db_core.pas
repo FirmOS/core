@@ -1150,7 +1150,7 @@ type
     function  SubFormattedDisplayAvailable: boolean; override;
     function  GetSubFormattedDisplay(indent: integer=4): TFRE_DB_String; override;
     procedure SetImage           (const image_stream: TFRE_DB_Stream; const streamtype: string ; const etag : string);
-    procedure InitData           (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String;const userdomainid:TGuid;const is_internal:Boolean);
+    procedure InitData           (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String;const userdomainid:TGuid;const is_internal:Boolean;const long_desc,short_desc:TFRE_DB_String);
     property  Login              :TFRE_DB_String read GetLogin write Setlogin;
     property  Firstname          :TFRE_DB_String read GetFirstName write SetFirstName;
     property  Lastname           :TFRE_DB_String read GetLastName write SetLastName;
@@ -1935,7 +1935,7 @@ type
 
     function    _DomainIDasString           (const name :TFRE_DB_NameType):TFRE_DB_NameType;
 
-    function    _AddUser(const login:TFRE_DB_String; const domainUID: TGUID;const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream=nil; const imagetype:string='' ; const etag: String='';const is_internal:Boolean=false): TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
+    function    _AddUser(const login:TFRE_DB_String; const domainUID: TGUID;const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream=nil; const imagetype:string='' ; const etag: String='';const is_internal:Boolean=false ; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''): TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
 
     function    IFRE_DB_SYS_CONNECTION.FetchUser                   = FetchUserI;
     function    IFRE_DB_SYS_CONNECTION.FetchUserById               = FetchUserByIdI;
@@ -1988,7 +1988,7 @@ type
     function    CheckLogin                  (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    Connect                     (const loginatdomain:TFRE_DB_String='';const password:TFRE_DB_String='') : TFRE_DB_Errortype;
 
-    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TGUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false):TFRE_DB_Errortype;
+    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TGUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''):TFRE_DB_Errortype;
     function    UserExists                  (const login:TFRE_DB_String; const domainUID: TGUID):boolean;
     function    DeleteUser                  (const login:TFRE_DB_String; const domainUID: TGUID):TFRE_DB_Errortype;
     function    DeleteUserById              (const user_id:TGUID):TFRE_DB_Errortype;
@@ -4087,9 +4087,9 @@ begin
   ForAllColls(@DumpAllCollections);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.AddUser(const login:TFRE_DB_String; const domainUID: TGUID;const password, first_name, last_name: TFRE_DB_String; const image: TFRE_DB_Stream; const imagetype: String;const is_internal:Boolean=false): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.AddUser(const login: TFRE_DB_String; const domainUID: TGUID; const password, first_name, last_name: TFRE_DB_String; const image: TFRE_DB_Stream; const imagetype: String; const is_internal: Boolean; const long_desc: TFRE_DB_String; const short_desc: TFRE_DB_String): TFRE_DB_Errortype;
 begin //nl
-  result := _AddUser(login,domainUID,password,first_name,last_name,false,image,imagetype,'',is_internal);
+  result := _AddUser(login,domainUID,password,first_name,last_name,false,image,imagetype,'',is_internal,long_desc,short_desc);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.UserExists(const login: TFRE_DB_String; const domainUID: TGUID): boolean;
@@ -4437,7 +4437,7 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.AddGroup(const groupname, txt, txt_short: TFRE_DB_String; const domainUID: TGUID; const is_protected:Boolean;const is_internal:Boolean): TFRE_DB_Errortype;
 var group : IFRE_DB_GROUP;
 begin
-  result := NewGroupI(groupname,txt,txt_short,is_protected,is_internal,group);
+  result := NewGroupI(FREDB_HCV(groupname),FREDB_HCV(txt),FREDB_HCV(txt_short),is_protected,is_internal,group);
   if result<>edb_OK then
     exit(result);
   result := StoreGroupI(group,domainUID);
@@ -5110,13 +5110,13 @@ begin
 end;
 
 
-function TFRE_DB_SYSTEM_CONNECTION._AddUser(const login:TFRE_DB_String; const domainUID: TGUID;const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype: string; const etag: String;const is_internal:Boolean=false): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._AddUser(const login: TFRE_DB_String; const domainUID: TGUID; const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype: string; const etag: String; const is_internal: Boolean; const long_desc: TFRE_DB_String; const short_desc: TFRE_DB_String): TFRE_DB_Errortype;
 var user       : TFRE_DB_USER;
 begin
   if Userexists(login,domainUID) then
     exit(edb_EXISTS);
   user := GFRE_DB.NewObject(TFRE_DB_USER) as TFRE_DB_USER;
-  user.InitData(login,first_name,last_name,password,domainUID,is_internal);
+  user.InitData(login,first_name,last_name,password,domainUID,is_internal,long_desc,short_desc);
   if assigned(image) then
     user.SetImage(image,imagetype,etag);
   if system_start_up then
@@ -5621,7 +5621,12 @@ var not_object : IFRE_DB_Object;
               begin
                 if rl_Add then
                   begin
-                    _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
+                    if length(FDepObjectList)>0 then { filter unwanted updates }
+                      begin
+                        if FREDB_GuidInArray(to_uid,FDepObjectList)<>-1 then
+                          _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
+                      end;
+                      //_AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
                     FInitialDerived := False;
                   end
                 else
@@ -5753,13 +5758,16 @@ begin //nl
 
     end;
     fdbntf_INSERT: begin
-        not_object := obj;
-        if not assigned(not_object) then
-          FConnection.FetchI(obj_uid,not_object);
-        if assigned(not_object) then
-          begin
-            _AddToTransformedCollection(not_object.Implementor as TFRE_DB_Object,true);
-          end;
+      if FDCMode=dc_Map2RealCollection then
+        begin
+          not_object := obj;
+          if not assigned(not_object) then
+            FConnection.FetchI(obj_uid,not_object);
+          if assigned(not_object) then
+            begin
+              _AddToTransformedCollection(not_object.Implementor as TFRE_DB_Object,true);
+            end;
+        end;
     end;
     fdbntf_UPDATE: begin
         //if _CheckUIDExists(obj_uid) then begin {hack}
@@ -11118,7 +11126,7 @@ begin
     exit(edb_EXISTS);
   if domainname=CFRE_DB_SYS_DOMAIN_NAME then
     raise EFRE_DB_Exception.Create(edb_ERROR,'it is not allowed to add a domain called SYSTEM');
-  domain    := GFRE_DB._NewDomain(domainname,txt,txt_short);
+  domain    := GFRE_DB._NewDomain(FREDB_HCV(domainname),FREDB_HCV(txt),FREDB_HCV(txt_short));
   domain.SetDomainID(domain.UID);
   domainUID := domain.UID;
   result := AdmGetDomainCollection.Store(TFRE_DB_Object(domain));
@@ -18123,13 +18131,15 @@ begin
   Field('picture'+cFRE_DB_ST_ETAG).AsString := etag;
 end;
 
-procedure TFRE_DB_USER.InitData(const nlogin, nfirst, nlast, npasswd: TFRE_DB_String; const userdomainid: TGuid;const is_internal:Boolean);
+procedure TFRE_DB_USER.InitData(const nlogin, nfirst, nlast, npasswd: TFRE_DB_String; const userdomainid: TGuid; const is_internal: Boolean; const long_desc, short_desc: TFRE_DB_String);
 begin
   SetDomainIDLink(userdomainid);
   Login          := nlogin;
   Firstname      := nfirst;
   Lastname       := nlast;
   isInternal     := is_internal;
+  Field('desc').AsDBText.Setlong(long_desc);
+  Field('desc').AsDBText.SetShort(short_desc);
   SetPassword(npasswd);
 end;
 
@@ -18211,13 +18221,16 @@ var dbo              : IFRE_DB_Object;
     dbc              : TFRE_DB_CONNECTION;
     loginf,pw,pwc,
     fn,ln            : String;
-    //obj              : IFRE_DB_DOMAIN;
+    ldesc,sdesc      : TFRE_DB_String;
     fld              : IFRE_DB_Field;
     image            : TFRE_DB_Stream;
     imagetype        : String;
+    domlink          : TFRE_DB_GUID;
 
 begin
  data    := input.Field('DATA').asobject;
+ domlink := data.field('domainidlink').AsGUID;
+
  dbc     := input.GetReference as TFRE_DB_CONNECTION;
 
  loginf  := data.Field('login').AsString;
@@ -18242,7 +18255,25 @@ begin
       image:=nil;
       imagetype:='';
     end;
- res := dbc.sys.AddUser(loginf,data.field('domainidlink').AsGUID,pw,fn,ln,image,imagetype);
+
+  if data.FieldOnlyExisting('desc',fld) then
+    begin
+      data := data.Field('desc').AsObject;
+      if data.FieldOnlyExisting('txt',fld) then
+        begin
+          if fld.IsSpecialClearMarked then
+            ldesc := ''
+          else
+            ldesc := fld.AsString;
+        end;
+      if data.FieldOnlyExisting('txt_s',fld) then
+        if fld.IsSpecialClearMarked then
+          sdesc := ''
+        else
+          sdesc := fld.AsString;
+    end;
+
+ res := dbc.sys.AddUser(loginf,domlink,pw,fn,ln,image,imagetype,false,ldesc,sdesc);
  if res=edb_OK then
    begin
      exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe());

@@ -1437,7 +1437,7 @@ type
     function    Connect                     (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                  (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
-    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TGUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false):TFRE_DB_Errortype;
+    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TGUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false;const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''):TFRE_DB_Errortype;
     function    UserExists                  (const login:TFRE_DB_String; const domainUID: TGUID):boolean;
     function    DeleteUser                  (const login:TFRE_DB_String; const domainUID: TGUID):TFRE_DB_Errortype;
     function    DeleteUserById              (const user_id:TGUID):TFRE_DB_Errortype;
@@ -2647,7 +2647,9 @@ type
   procedure FREDB_SplitLocalatDomain             (const localatdomain: TFRE_DB_String; var localpart, domainpart: TFRE_DB_String);
   function  FREDB_GetDboAsBufferLen              (const dbo: IFRE_DB_Object; var mem: Pointer): UInt32;
 
-  procedure FREDB_SetStringFromExistingFieldPathOrNoChange(const obj:IFRE_DB_Object ; const fieldpath:string ; var string_fld : TFRE_DB_String);
+  procedure FREDB_SetStringFromExistingFieldPathOrNoChange(const obj:IFRE_DB_Object ; const fieldpath:string ; var string_fld : TFRE_DB_String); { }
+  function  FREDB_HCV                            (const txt : TFRE_DB_String):TFRE_DB_String; { replace cFRE_DB_SYS_CLEAR_VAL_STR with '' use for new operation/web }
+
   function  FREDB_IniLogCategory2LogCategory     (const ini_logcategory: string) : TFRE_DB_LOGCATEGORY;
 
   // This function should replace all character which should not a ppear in an ECMA Script (JS) string type to an escaped version,
@@ -7718,6 +7720,14 @@ begin
     string_fld := obj.FieldPath(fieldpath).AsString
   else
     string_fld := cFRE_DB_SYS_NOCHANGE_VAL_STR;
+end;
+
+function FREDB_HCV(const txt: TFRE_DB_String): TFRE_DB_String;
+begin
+  if txt<>cFRE_DB_SYS_CLEAR_VAL_STR then
+    result := txt
+  else
+    result := '';
 end;
 
 function FREDB_IniLogCategory2LogCategory(const ini_logcategory: string): TFRE_DB_LOGCATEGORY;
