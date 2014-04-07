@@ -44,11 +44,11 @@ interface
 uses
   Classes, SysUtils, FRE_DB_CORE, FRE_WAPP_DOJO, FRE_DB_INTERFACE;
 
-  function gFRE_InstallServerDefaults: Boolean;
+  function GFRE_InstallServerDefaults: Boolean;
 
 implementation
 
-function gFRE_InstallServerDefaults: Boolean;
+function GFRE_InstallServerDefaults: Boolean;
 var
   conn: IFRE_DB_SYS_CONNECTION;
   tob:IFRE_DB_TEXT;

@@ -302,6 +302,7 @@ type
     function  Text              :String;
     procedure SetQuoteChar      (const qc:Char);
     function  QuoteChar         :Char;
+    function  AsTStrings        : TStrings;
     procedure SetLineBreakStyle (const lbs:TTextLineBreakStyle);
     function  LineBreakStyle    :TTextLineBreakStyle;
     function  Count             :Integer;

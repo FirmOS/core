@@ -77,6 +77,7 @@ implementation
     function  DelimitedText     :String;
     procedure SetText           (const txt:String);
     function  Text              :String;
+    function  AsTStrings        : TStrings;
     procedure SetQuoteChar      (const qc:Char);
     function  QuoteChar         :Char;
     procedure SetLineBreakStyle (const lbs:TTextLineBreakStyle);
@@ -217,6 +218,11 @@ end;
 function TFOS_SL.Text: String;
 begin
  result:=_sl.Text;
+end;
+
+function TFOS_SL.AsTStrings: TStrings;
+begin
+  result := _sl;
 end;
 
 procedure TFOS_SL.SetQuoteChar(const qc: Char);
