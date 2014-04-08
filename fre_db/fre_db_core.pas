@@ -14297,8 +14297,8 @@ procedure TFRE_DB_Object.SetAllSimpleObjectFieldsFromObject(const source_object:
   procedure iterat(const fld:IFRE_DB_Field);
   begin
     case fld.FieldType of
-      fdbft_Object,
-      fdbft_ObjLink: ; //skip
+      fdbft_Object: ; //skip
+      fdbft_ObjLink,
       fdbft_GUID:
         begin
           if fld.IsUIDField then
