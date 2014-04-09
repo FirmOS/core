@@ -224,7 +224,8 @@ begin
     end;
     userin_Grid := session.NewDerivedCollection('DOMAINMOD_USERIN_GRID');
     with userin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_USER<DOMAINIDLINK'],'uids',session.GetDBConnection.AdmGetUserCollection);
+      SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<DOMAINIDLINK'],false,'uids');
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -239,7 +240,8 @@ begin
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
     with groupin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_GROUP<DOMAINIDLINK'],'uids',session.GetDBConnection.AdmGetDomainCollection);
+      SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<DOMAINIDLINK'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -660,7 +662,8 @@ begin
     end;
     userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_GRID');
     with userin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],'uids',conn.AdmGetUserCollection);
+      SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -692,7 +695,8 @@ begin
     end;
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
     with groupin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_GROUP<ROLEIDS'],'uids',session.GetDBConnection.AdmGetGroupCollection);
+      SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1129,7 +1133,8 @@ begin
     end;
     userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_GRID');
     with userin_Grid do begin
-      SetReferentialLinkMode(['TFRE_DB_USER<USERGROUPIDS'],'uids',session.GetDBConnection.AdmGetUserCollection);
+      SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],false); // UserGroupIDS
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1160,7 +1165,8 @@ begin
     end;
     rolein_Grid := session.NewDerivedCollection('GROUPMOD_ROLEIN_GRID');
     with rolein_Grid do begin
-      SetReferentialLinkMode(['ROLEIDS>TFRE_DB_ROLE'],'uids',session.GetDBConnection.AdmGetRoleCollection);
+      SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
+      SetUseDependencyAsRefLinkFilter(['ROLEIDS>TFRE_DB_ROLE'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1940,7 +1946,8 @@ begin
 
     groupin_Grid := session.NewDerivedCollection('USERMOD_GROUPIN_GRID');
     with groupin_Grid do begin
-      SetReferentialLinkMode(['USERGROUPIDS>TFRE_DB_GROUP'],'uids',session.GetDBConnection.AdmGetGroupCollection); // Gather all objects that the USERGROUPIDS Field points to
+      SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
+      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1973,7 +1980,8 @@ begin
 
     rolein_Grid := session.NewDerivedCollection('USERMOD_ROLEIN_GRID');
     with rolein_Grid do begin
-      SetReferentialLinkMode(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],'uids',session.GetDBConnection.AdmGetRoleCollection); // Gather all objects that the USERGROUPIDS and then ROLEIDS Field points to
+      SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
+      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;

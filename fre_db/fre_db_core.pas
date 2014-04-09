@@ -5672,7 +5672,12 @@ var not_object : IFRE_DB_Object;
                             end
                           else
                             begin
-                             _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
+                              if length(FDepObjectList)>0 then { filter unwanted updates }
+                                begin
+                                  if FREDB_GuidInArray(to_uid,FDepObjectList)<>-1 then
+                                    _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
+                                end;
+                                //_AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
                             end;
                           FInitialDerived := False;
                         end;
