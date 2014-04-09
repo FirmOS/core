@@ -211,10 +211,7 @@ var cfgfile  : string;
         cFRE_MONITORING_KEY_FILE        := ini.ReadString('MONITORING','KEY_FILE'    , cFRE_MONITORING_KEY_FILE);
         cFRE_MONITORING_DEST_DIR        := ini.ReadString('MONITORING','DIRECTORY'   , cFRE_MONITORING_DEST_DIR);
         cFRE_MACHINE_NAME               := ini.ReadString('MACHINE','NAME', cFRE_MACHINE_NAME);
-        if cFRE_MACHINE_NAME='' then
-          begin
-            GFRE_BT.CriticalAbort('No NAME set in subsection [MACHINE] in .ini File');
-          end;
+
         ConfigureLogging;
       finally
         ini.Free;

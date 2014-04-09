@@ -95,6 +95,7 @@ var
       cFRE_STATIC_HTTP_CACHE_EXTS     :string = '.js,.css,.html,.htm,.xhtml'; // comma seperated,lowercase (!!)
       cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowercase (!!)
       cFRE_MACHINE_NAME               :string = '';
+      cFRE_DB_MACHINE_COLLECTION      :string = 'SysMachineCollection';
       cFRE_DEFAULT_DOMAIN             :string = 'system';
       cFRE_DB_ALLOW_WEAKMEDIATORS     :boolean=true;
       cFRE_DB_LOGIN_APP_UID           :TGuid;

@@ -120,6 +120,7 @@ type
     procedure   PrepareStartup     ;
     procedure   CfgTestLog         ;
     procedure   SchemeDump         (const filename:string='output');
+    procedure   DumpAll            (const filterstring: string);
   public
     constructor Create             (TheOwner: TComponent); override;
     destructor  Destroy            ; override;
@@ -265,6 +266,7 @@ begin
   AddCheckOption('U:','remoteuser:'  ,'  -U            | --remoteuser=<user>            : user for remote commands');
   AddCheckOption('H:','remotehost:'  ,'  -H            | --remotehost=<pass>            : host for remote commands');
   AddCheckOption('g:','graph:'       ,'  -g <filename> | --graph=<filename>             : graphical dump (system without extensions)');
+  AddCheckOption('z' ,'testdump:'      ,'  -z [Scheme,..]| --testdump=[Scheme,..]         : dump class and uid of all objects');
   AddHelpOutLine;
   AddCheckOption('*','ple'           ,'                | --ple                          : use embedded persistence layer');
   AddCheckOption('*','plhost:'       ,'                | --plhost=<dnsname>             : use dns host for pl net connection');
@@ -593,10 +595,16 @@ begin
       result := true;
       ShowRights;
     end;
-  if HasOption('g','graph') then begin
-    result := true;
-    SchemeDump(GetOptionValue('g','graph'));
-  end;
+  if HasOption('g','graph') then
+    begin
+      result := true;
+      SchemeDump(GetOptionValue('g','graph'));
+    end;
+  if HasOption('z','testdump') then
+    begin
+      result := true;
+      DumpAll(GetOptionValue('z','testdump'));
+    end;
 end;
 
 procedure TFRE_CLISRV_APP.PrintTimeZones;
@@ -1124,6 +1132,34 @@ begin
   finally
     mems.free;
   end;
+end;
+
+procedure TFRE_CLISRV_APP.DumpAll(const filterstring : string);
+var conn   : IFRE_DB_CONNECTION;
+    filter : TFRE_DB_StringArray;
+    procedure Local(const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
+    begin
+      writeln('DUMPING OBJ : ',current,'/',max,' ',obj.UID_String,' ',obj.SchemeClass);
+      obj.Finalize;
+    end;
+
+begin
+  _CheckDBNameSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
+  CONN := GFRE_DBI.NewConnection;
+  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect db');
+  if filterstring<>'' then
+    FREDB_SeperateString(filterstring,',',filter);
+  writeln('');
+  writeln('DUMPING ALL OBJECTS FROM ',FDBName,' FILTER [',filterstring,']');
+  writeln('');
+  conn.ForAllDatabaseObjectsDo(@local,filter);
+  writeln('');
+  writeln('DUMPING ALL SYSTEM OBJECTS FILTER [',filterstring,']');
+  writeln('');
+  conn.sys.ForAllDatabaseObjectsDo(@local,filter);
+  conn.Finalize;
 end;
 
 constructor TFRE_CLISRV_APP.Create(TheOwner: TComponent);

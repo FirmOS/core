@@ -181,7 +181,7 @@ type
   TFRE_DB_INPUT_DESCRIPTION_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes an info field within a form.
-    function  Describe (const caption,description: String) : TFRE_DB_INPUT_DESCRIPTION_DESC;
+    function  Describe (const caption,description_: String) : TFRE_DB_INPUT_DESCRIPTION_DESC;
   end;
 
   { TFRE_DB_DEPENDENCE_DESC }
@@ -1388,9 +1388,9 @@ implementation
 
   { TFRE_DB_INPUT_DESCRIPTION_DESC }
 
-  function TFRE_DB_INPUT_DESCRIPTION_DESC.Describe(const caption,description: String): TFRE_DB_INPUT_DESCRIPTION_DESC;
+  function TFRE_DB_INPUT_DESCRIPTION_DESC.Describe(const caption,description_: String): TFRE_DB_INPUT_DESCRIPTION_DESC;
   begin
-    inherited Describe(caption, '', false, false, true, false, description);
+    inherited Describe(caption, '', false, false, true, false, description_);
     Result:=Self;
   end;
 

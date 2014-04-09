@@ -377,7 +377,7 @@ type
 
   public
     function     FetchNewTransactionID (const transid:string):String;
-    function     GetPersistantRootObjectCount : Integer;
+    function     GetPersistantRootObjectCount (const UppercaseSchemesFilter: TFRE_DB_StringArray=nil): Integer;
 
     function     InternalStoreObjectFromStable (const obj : TFRE_DB_Object) : TFRE_DB_Errortype;
     function     InternalRebuildRefindex                                    : TFRE_DB_Errortype;
@@ -396,7 +396,7 @@ type
     function    FetchObject           (const obj_uid : TGuid ; var obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
     procedure   StoreObject           (const obj     : TFRE_DB_Object  ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification);
     procedure   DeleteObject          (const obj_uid : TGuid ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification);
-    procedure   ForAllObjectsInternal (const pers,volatile:boolean ; const iter:TFRE_DB_Obj_Iterator); // No Clone
+    procedure   ForAllObjectsInternal (const pers,volatile:boolean ; const iter:TFRE_DB_ObjectIteratorBrk); // No Clone
     function    MasterColls           : TFRE_DB_CollectionManageTree;
     procedure   ApplyWAL              (const WALStream : TStream);
   end;
@@ -3319,12 +3319,16 @@ begin
   result := IntToStr(F_DB_TX_Number)+'#'+transid;
 end;
 
-function TFRE_DB_Master_Data.GetPersistantRootObjectCount: Integer;
+function TFRE_DB_Master_Data.GetPersistantRootObjectCount(const UppercaseSchemesFilter: TFRE_DB_StringArray): Integer;
 var brk:integer;
-    procedure Scan(const obj : TFRE_DB_Object);
+    procedure Scan(const obj : TFRE_DB_Object ; var break : boolean);
     begin
       if obj.IsObjectRoot then
-        inc(result);
+        begin
+          if (length(UppercaseSchemesFilter)=0)
+             or (FREDB_StringInArray(uppercase(obj.SchemeClass),UpperCaseSchemesFilter)) then
+              inc(result);
+        end;
     end;
 begin
   result := 0;
@@ -3354,7 +3358,7 @@ end;
 
 function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
 
-  procedure BuildRef(const obj:TFRE_DB_Object);
+  procedure BuildRef(const obj:TFRE_DB_Object ; var break : boolean);
   var references_to_list : TFRE_DB_ObjectReferences;
      scheme_links        : TFRE_DB_NameTypeRLArray;
   begin
@@ -3370,7 +3374,7 @@ end;
 
 procedure TFRE_DB_Master_Data.InternalStoreLock;
 
-  procedure StoreLock(const obj:TFRE_DB_Object);
+  procedure StoreLock(const obj:TFRE_DB_Object ; var break : boolean);
   begin
     if obj.IsObjectRoot then
       obj.Set_Store_Locked(true);
@@ -3743,18 +3747,20 @@ begin
     end;
 end;
 
-procedure TFRE_DB_Master_Data.ForAllObjectsInternal(const pers, volatile: boolean; const iter: TFRE_DB_Obj_Iterator);
+procedure TFRE_DB_Master_Data.ForAllObjectsInternal(const pers, volatile: boolean; const iter: TFRE_DB_ObjectIteratorBrk);
+var break : boolean;
 
-  procedure ObjCallBack(var val:NativeUint);
+  procedure ObjCallBack(var val:NativeUint;var break : boolean);
   begin
-    iter(FREDB_PtrUIntToObject(val) as TFRE_DB_Object);
+    iter(FREDB_PtrUIntToObject(val) as TFRE_DB_Object,break);
   end;
 
 begin
+  break := false;
   if pers then
-    FMasterPersistentObjStore.LinearScan(@ObjCallback);
+    FMasterPersistentObjStore.LinearScanBreak(@ObjCallback,break);
   if volatile then
-    FMasterPersistentObjStore.LinearScan(@ObjCallback);
+    FMasterPersistentObjStore.LinearScanBreak(@ObjCallback,break);
 end;
 
 function TFRE_DB_Master_Data.MasterColls: TFRE_DB_CollectionManageTree;

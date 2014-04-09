@@ -6,7 +6,7 @@ unit fre_basedbo_server;
 interface
 
 uses
-  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FRE_SYS_BASE_CS,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES,FOS_INTERLOCKED,baseunix;
+  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FRE_SYS_BASE_CS,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES,FOS_INTERLOCKED,FRE_SYSTEM,baseunix;
 
 type
   RDBO_SRV_CFG=record
@@ -133,6 +133,10 @@ end;
 
 procedure TFRE_DBO_SERVER.Setup;
 begin
+  if cFRE_MACHINE_NAME='' then
+    begin
+      GFRE_BT.CriticalAbort('No NAME set in subsection [MACHINE] in .ini File');
+    end;
   GFRE_SC.SetNewListenerCB(@NewListener);
   GFRE_SC.SetNewChannelCB(@NewChannel);
   if FDBO_Srv_Cfg.SpecialFile<>'' then

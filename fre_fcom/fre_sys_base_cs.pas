@@ -450,14 +450,7 @@ end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.ReadChannelData(const channel: IFRE_APSC_CHANNEL);
 var myDataCount : NativeInt;
-
-    //s           : String;
-    //sr          : integer;
-    //sw          : integer;
-    //dispatch_it : boolean;
     CMD         : IFRE_DB_COMMAND;
-    //myDataCount : Integer;
-
 
     procedure _Dispatch;
     var id       : Uint64;
@@ -465,9 +458,8 @@ var myDataCount : NativeInt;
         i        : integer;
         prom_res : TFRE_DB_PromoteResult;
         prom_err : TFRE_DB_String;
-        //dummy    : TFRE_DB_CONTENT_DESC;
-        app      : IFRE_DB_Object;
-        //ex_sess  : TFRE_DB_UserSession;
+        app          : IFRE_DB_Object;
+        FMachineUIDs : TFRE_DB_GUIDArray;
         sessid   : String;
     begin
       try
@@ -493,6 +485,14 @@ var myDataCount : NativeInt;
                   end;
                   if (prom_res=pr_OK) or (prom_res=pr_Takeover) then
                     begin
+                      try
+                        FMachineUIDs := FUserSession.FetchOrInitFeederMachines(cmd.Data.Field('MACHINENAME').AsStringArr);
+                      except
+                        on e:Exception do
+                          begin
+                            GFRE_DBI.LogError(dblc_FLEX_IO,'> Cannot init the MachineID array for da feeder '+e.Message);
+                          end;
+                      end;
                       apps := FUserSession.GetSessionAppArray;
                       CMD.Data.ClearAllFields;
                       for i:=0 to high(apps) do begin
@@ -501,7 +501,8 @@ var myDataCount : NativeInt;
                         app.Field('UID').AsGUID     := apps[i].UID;
                         CMD.Data.Field('APPS').AsObject.Field(apps[i].AppClassName).AsObject:=app;
                         CMD.Data.Field('LOGIN_OK').AsBoolean:=true;
-                        CMD.Data.Field('LOGIN_TXT').AsString:='SESSION : '+FUserSession.GetSessionID;
+                        CMD.Data.Field('LOGIN_TXT').AsString := 'SESSION : '+FUserSession.GetSessionID;
+                        CMD.Data.Field('MACHINE_UID').AsGUIDArr := FMachineUIDs;
                         CMD.ChangeSession := FUserSession.GetSessionID;
                       end;
                     end
@@ -561,37 +562,40 @@ var myDataCount : NativeInt;
 
 
 begin
-  myDataCount := FCHANNEL.CH_GetDataCount;
-  case state of
-    ss_READY: begin
-      case _ReadHeader(myDataCount) of
-        crs_OK:               ;
-        crs_WAIT_CMD_SZ: exit ;  // stay in cmd read state
-        crs_FAULT: begin
-                     FCHANNEL.Finalize; // Drop connection
-                   end;
-      end;
-      state := ss_WAITCMD;
-      if myDataCount>0 then begin
-        _Read_DB_Command;
-      end;
-    end;
-    ss_WAITCMD: _Read_DB_Command;
-    ss_CONTCMD: begin
-      //writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
-      case _ReadRest(myDatacount,cmd) of
-        crs_OK: begin
-          state:=ss_READY;
-          _Dispatch;
-          exit;
+  repeat
+    myDataCount := FCHANNEL.CH_GetDataCount;
+    case state of
+      ss_READY: begin
+        case _ReadHeader(myDataCount) of
+          crs_OK:               ;
+          crs_WAIT_CMD_SZ: exit ;  // stay in cmd read state
+          crs_FAULT: begin
+                       FCHANNEL.Finalize; // Drop connection
+                     end;
         end;
-        crs_PARTIAL_READ: exit; // Stay in state
+        state := ss_WAITCMD;
+        if myDataCount>0 then begin
+          _Read_DB_Command;
+        end;
+      end;
+      ss_WAITCMD: _Read_DB_Command;
+      ss_CONTCMD: begin
+        //writeln('->>>>>>>>> SERVER CONTiNuATION READ ');
+        case _ReadRest(myDatacount,cmd) of
+          crs_OK: begin
+            state:=ss_READY;
+            _Dispatch;
+          end;
+          crs_PARTIAL_READ: exit; // Stay in state
+        end;
+      end;
+      else begin
+        HandleError('invalid state for SOCKREAD event');
       end;
     end;
-    else begin
-      HandleError('invalid state for SOCKREAD event');
-    end;
-  end;
+    if myDataCount<0 then
+      GFRE_BT.CriticalAbort('du kanst nicht rechnen');
+  until myDataCount=0;
 end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.DisconnectChannel(const channel: IFRE_APSC_CHANNEL);
@@ -707,8 +711,9 @@ begin
   toread:=gfre_bt.Min(fCMD_SIZE,data_count);
   try
     size_read := FCHANNEL.CH_ReadBuffer(readm.Memory,toread);
+    dec(data_count,size_read);
   except on e:Exception do begin
-    writeln('ERROR _READCOMMAND sock.receive',e.Message);
+    GFRE_LOG.Log('ERROR _READCOMMAND sock.receive ? -> %s',[e.Message],catError);
   end;end;
   //writeln('RECEIVE GOT ',res);
   if size_read=-1 then begin

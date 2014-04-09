@@ -1809,6 +1809,8 @@ type
 
     { Notification Interface - End }
 
+    function            GetDatabaseObjectCount       (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
+    procedure           ForAllDatabaseObjectsDo      (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil); { Warning may take some time, delivers a clone }
     function            GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;virtual;
     function            GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;virtual;
     function            GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;virtual;
@@ -1923,8 +1925,8 @@ type
     FConnectionRights    : TFRE_DB_StringArray; // specialized on clone
     FConnectedUser       : TFRE_DB_User;        // specialized on clone
 
-    function    ImpersonateTheClone         (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
-    procedure   InternalSetupConnection     ; override;
+    function     ImpersonateTheClone        (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
+    procedure    InternalSetupConnection    ; override;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass ; const domainguid : TGuid): TFRE_DB_String;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_String;
     function    _RoleID                     (const rolename:TFRE_DB_String;const domainUID:TGUID;var role_id:TGUID):boolean;
@@ -2106,7 +2108,7 @@ type
     function    IFRE_DB_CONNECTION.StoreScheme                 = StoreSchemeI;
     function    IFRE_DB_CONNECTION.Fetch                       = FetchI;
     function    IFRE_DB_CONNECTION.Update                      = UpdateI;
-    function    IFRE_DB_CONNECTION.ForAllObjects               = ForAllObjectsI;
+    //function    IFRE_DB_CONNECTION.ForAllObjects               = ForAllObjectsI;
     function    IFRE_DB_CONNECTION.ForAllColls                 = ForAllCollsI;
     function    IFRE_DB_CONNECTION.ForAllSchemes               = ForAllSchemesI;
     function    IFRE_DB_CONNECTION.ForAllEnums                 = ForAllEnumsI;
@@ -4864,13 +4866,14 @@ var CTRL_OBJ:TFRE_DB_Object;
      str.Write(Pointer(@line[1])^,Length(line));
    end;
 
-   procedure DumpObj(const obj:IFRE_DB_Object);
+   procedure DumpObj(const obj:IFRE_DB_Object ; var break : boolean);
    begin
      if obj_progress then
        inc(cnt);
      DWriteln(obj.GetAsJSONString(false,true));
      if Assigned(progress) and obj_progress then
        progress('Object Backup',obj.GetDescriptionID,'',cnt,max);
+     obj.Finalize;
    end;
 
    procedure DumpColl(const obj:IFRE_DB_Object);
@@ -4880,6 +4883,7 @@ var CTRL_OBJ:TFRE_DB_Object;
      DWriteln(obj.GetAsJSONString(true,true));
      if Assigned(progress) and obj_progress then
        progress('Collection Backup',obj.Field('CollectionName').AsString,'',cnt,max);
+     obj.Finalize;
    end;
 
 
@@ -10016,6 +10020,26 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'connect notif must not be finalized - use a proxy ?');
 end;
 
+function TFRE_DB_BASE_CONNECTION.GetDatabaseObjectCount(const Schemes: TFRE_DB_StringArray): NativeInt;
+begin
+  result := FPersistance_Layer.FDB_GetObjectCount(false,Schemes);
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.ForAllDatabaseObjectsDo(const dbo: IFRE_DB_ObjectIteratorBrkProgress; const Schemes: TFRE_DB_StringArray);
+var max,curr : NativeInt;
+
+  procedure local(const obj : IFRE_DB_Object ; var break : boolean);
+  begin
+   dbo(obj,break,curr,max);
+   inc(curr);
+  end;
+
+begin
+  max  := GetDatabaseObjectCount(Schemes);
+  curr := 1;
+  FPersistance_Layer.FDB_ForAllObjects(@local,schemes);
+end;
+
 function TFRE_DB_BASE_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
 begin
   result := FPersistance_Layer.GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter);
@@ -10101,8 +10125,18 @@ procedure TFRE_DB_CONNECTION.InternalSetupConnection;
     FSysNotes := Collection('SysNoteCollection');
   end;
 
+  procedure SetupMachineCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists(cFRE_DB_MACHINE_COLLECTION) then begin
+      coll := Collection(cFRE_DB_MACHINE_COLLECTION); // Instance (new) Collections here with false parameter
+      coll.DefineIndexOnField('objname',fdbft_String,true,true,'def',false);
+    end;
+  end;
+
 begin
   SetupNoteCollection;
+  SetupMachineCollection;
   inherited InternalSetupConnection;
 end;
 
@@ -14271,8 +14305,8 @@ procedure TFRE_DB_Object.SetAllSimpleObjectFieldsFromObject(const source_object:
   procedure iterat(const fld:IFRE_DB_Field);
   begin
     case fld.FieldType of
-      fdbft_Object,
-      fdbft_ObjLink: ; //skip
+      fdbft_Object: ; //skip
+      fdbft_ObjLink,
       fdbft_GUID:
         begin
           if fld.IsUIDField then
