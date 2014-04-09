@@ -1810,6 +1810,8 @@ type
 
     { Notification Interface - End }
 
+    function            GetDatabaseObjectCount       :NativeInt;
+    procedure           ForAllDatabaseObjectsDo      (const dbo:IFRE_DB_ObjectIteratorBrkProgress); { Warning may take some time, delivers a clone }
     function            GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;virtual;
     function            GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;virtual;
     function            GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;virtual;
@@ -2107,7 +2109,7 @@ type
     function    IFRE_DB_CONNECTION.StoreScheme                 = StoreSchemeI;
     function    IFRE_DB_CONNECTION.Fetch                       = FetchI;
     function    IFRE_DB_CONNECTION.Update                      = UpdateI;
-    function    IFRE_DB_CONNECTION.ForAllObjects               = ForAllObjectsI;
+    //function    IFRE_DB_CONNECTION.ForAllObjects               = ForAllObjectsI;
     function    IFRE_DB_CONNECTION.ForAllColls                 = ForAllCollsI;
     function    IFRE_DB_CONNECTION.ForAllSchemes               = ForAllSchemesI;
     function    IFRE_DB_CONNECTION.ForAllEnums                 = ForAllEnumsI;
@@ -4870,13 +4872,14 @@ var CTRL_OBJ:TFRE_DB_Object;
      str.Write(Pointer(@line[1])^,Length(line));
    end;
 
-   procedure DumpObj(const obj:IFRE_DB_Object);
+   procedure DumpObj(const obj:IFRE_DB_Object ; var break : boolean);
    begin
      if obj_progress then
        inc(cnt);
      DWriteln(obj.GetAsJSONString(false,true));
      if Assigned(progress) and obj_progress then
        progress('Object Backup',obj.GetDescriptionID,'',cnt,max);
+     obj.Finalize;
    end;
 
    procedure DumpColl(const obj:IFRE_DB_Object);
@@ -4886,6 +4889,7 @@ var CTRL_OBJ:TFRE_DB_Object;
      DWriteln(obj.GetAsJSONString(true,true));
      if Assigned(progress) and obj_progress then
        progress('Collection Backup',obj.Field('CollectionName').AsString,'',cnt,max);
+     obj.Finalize;
    end;
 
 
@@ -10035,6 +10039,26 @@ end;
 procedure TFRE_DB_BASE_CONNECTION.FinalizeNotif;
 begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'connect notif must not be finalized - use a proxy ?');
+end;
+
+function TFRE_DB_BASE_CONNECTION.GetDatabaseObjectCount: NativeInt;
+begin
+  result := FPersistance_Layer.FDB_GetObjectCount(false);
+end;
+
+procedure TFRE_DB_BASE_CONNECTION.ForAllDatabaseObjectsDo(const dbo: IFRE_DB_ObjectIteratorBrkProgress);
+var max,curr : NativeInt;
+
+  procedure local(const obj : IFRE_DB_Object ; var break : boolean);
+  begin
+   dbo(obj,break,curr,max);
+   inc(curr);
+  end;
+
+begin
+  max  := GetDatabaseObjectCount;
+  curr := 1;
+  FPersistance_Layer.FDB_ForAllObjects(@local);
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
