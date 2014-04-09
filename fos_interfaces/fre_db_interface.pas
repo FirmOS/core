@@ -538,6 +538,7 @@ type
   IFRE_DB_FieldIteratorBrk              = function  (const obj : IFRE_DB_Field):boolean is nested;
   IFRE_DB_Obj_Iterator                  = procedure (const obj : IFRE_DB_Object) is nested;
   IFRE_DB_ObjectIteratorBrk             = procedure (const obj:IFRE_DB_Object; var halt:boolean) is nested;
+  IFRE_DB_ObjectIteratorBrkProgress     = procedure (const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt) is nested;
   IFRE_DB_UpdateChange_Iterator         = procedure (const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field) is nested;
   IFRE_DB_ObjUid_IteratorBreak          = procedure (const uid : TGUID ; var halt : boolean) is nested;
   IFRE_DB_Scheme_Iterator               = procedure (const obj : IFRE_DB_SchemeObject) is nested;
@@ -1282,7 +1283,7 @@ type
     procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
     function  FDB_GetObjectCount            (const coll:boolean): Integer;
-    procedure FDB_ForAllObjects             (const cb:IFRE_DB_Obj_Iterator);
+    procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk);
     procedure FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
     procedure FDB_PrepareDBRestore          (const phase:integer);
     procedure FDB_SendObject                (const obj:IFRE_DB_Object);
@@ -1392,6 +1393,7 @@ type
     function    GetDerivedCollection          (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
     function    CreateDerivedCollection       (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 
+    procedure   ForAllDatabaseObjectsDo       (const dbo:IFRE_DB_ObjectIteratorBrkProgress); { Warning may take some time, delivers a clone }
     procedure   ForAllColls                   (const iterator:IFRE_DB_Coll_Iterator)                                   ;
     procedure   ForAllSchemes                 (const iterator:IFRE_DB_Scheme_Iterator)                                 ;
     procedure   ForAllEnums                   (const iterator:IFRE_DB_Enum_Iterator)                                   ;
@@ -1499,6 +1501,7 @@ type
     procedure   StartTransaction            (const trans_id: TFRE_DB_NameType ; const trans_type : TFRE_DB_TRANSACTION_TYPE);
     procedure   Commit                      ;
     procedure   DrawScheme                  (const datastream:TStream);
+    procedure   ForAllDatabaseObjectsDo       (const dbo:IFRE_DB_ObjectIteratorBrkProgress); { Warning may take some time, delivers a clone }
 
     function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
     function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;

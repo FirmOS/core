@@ -160,7 +160,7 @@ type
       procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
       function  FDB_GetObjectCount            (const coll:boolean): Integer;
-      procedure FDB_ForAllObjects             (const cb:IFRE_DB_Obj_Iterator);
+      procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk);
       procedure FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
       procedure FDB_PrepareDBRestore          (const phase:integer);
       procedure FDB_SendObject                (const obj:IFRE_DB_Object);
@@ -1158,7 +1158,7 @@ begin
 
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_ForAllObjects(const cb: IFRE_DB_Obj_Iterator);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_ForAllObjects(const cb: IFRE_DB_ObjectIteratorBrk);
 begin
 
 end;
