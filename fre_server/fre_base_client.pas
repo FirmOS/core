@@ -81,6 +81,7 @@ type
       FApps                    : IFRE_DB_Object;
       FTimeout                 : integer;
       fMySessionID             : String;
+      fMyMachineUIDs           : TFRE_DB_GUIDArray;
       FClientState             : TBC_ClientState;
       FContinuationArray       : Array [0..cFRE_DB_MAX_PENDING_CLIENT_REQUESTS] of TDispatch_Continuation;
       FContinnuationCount      : Nativeint;
@@ -142,6 +143,7 @@ type
     procedure AddSubFeederEventViaUX  (const special_id : Shortstring);
     procedure AddSubFeederEventViaTCP (const ip,port,special_id : Shortstring);
     procedure SubfeederEvent          (const id:string; const dbo:IFRE_DB_Object);virtual;
+    function  GetMyMachineUIDs        : TFRE_DB_GUIDArray;
   end;
 
 
@@ -153,6 +155,7 @@ procedure TFRE_BASE_CLIENT.CCB_SessionSetup(const DATA: IFRE_DB_Object; const st
 var arr     : TFRE_DB_RemoteReqSpecArray;
     i       : NativeInt;
     regdata : IFRE_DB_Object;
+    fmuid   : IFRE_DB_Field;
 begin
   FClientStateLock.Acquire;
   try
@@ -161,7 +164,9 @@ begin
         if FClientState = csSETUPSESSION then begin
           if (data.FieldExists('LOGIN_OK') and (data.Field('LOGIN_OK').AsBoolean=true)) then
             begin
-              GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP OK : SESSION [%s]',[fMySessionID]);
+              if data.FieldOnlyExisting('MACHINE_UID',fmuid) then
+                fMyMachineUIDs := fmuid.AsGUIDArr;
+              GFRE_DBI.LogInfo(dblc_FLEXCOM,'SESSION SETUP OK : SESSION [%s] MACHINE [%s/%s]',[fMySessionID,cFRE_MACHINE_NAME,FREDB_GuidArray2StringStream(fMyMachineUIDs)]);
               FClientState := csConnected;
               FApps        := data.Field('APPS').AsObject.CloneToNewObject();
               writeln('GOT APPS : ',FApps.DumpToString());
@@ -246,6 +251,7 @@ begin
           FBaseconnection.OnNewServerRequest      := @MyRequestArrived;
           data := GFRE_DBI.NewObject;
           data.Field('SESSION_ID').AsString:=fMySessionID;
+          data.Field('MACHINENAME').AsString:=cFRE_MACHINE_NAME;
           QueryUserPass(fuser,fpass);
           if fuser<>'' then begin
             data.Field('USER').AsString:=fuser;
@@ -650,6 +656,10 @@ end;
 
 procedure TFRE_BASE_CLIENT.Setup;
 begin
+  if cFRE_MACHINE_NAME='' then
+    begin
+      GFRE_BT.CriticalAbort('No NAME set in subsection [MACHINE] in .ini File');
+    end;
   GFRE_SC.AddTimer('F_STATE',1000,@MyStateCheckTimer);
   GFRE_SC.AddTimer('F_SUB_STATE',1000,@MySubFeederStateTimer);
   GFRE_SC.SetSingnalCB(@MyHandleSignals);
@@ -764,6 +774,11 @@ end;
 procedure TFRE_BASE_CLIENT.SubfeederEvent(const id: string; const dbo: IFRE_DB_Object);
 begin
 
+end;
+
+function TFRE_BASE_CLIENT.GetMyMachineUIDs: TFRE_DB_GUIDArray;
+begin
+  result := fMyMachineUIDs;
 end;
 
 function TFRE_BASE_CLIENT.SendServerCommand(const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER; const timeout: integer): boolean;

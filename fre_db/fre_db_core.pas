@@ -10122,8 +10122,18 @@ procedure TFRE_DB_CONNECTION.InternalSetupConnection;
     FSysNotes := Collection('SysNoteCollection');
   end;
 
+  procedure SetupMachineCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists(cFRE_DB_MACHINE_COLLECTION) then begin
+      coll := Collection(cFRE_DB_MACHINE_COLLECTION); // Instance (new) Collections here with false parameter
+      coll.DefineIndexOnField('objname',fdbft_String,true,true,'def',false);
+    end;
+  end;
+
 begin
   SetupNoteCollection;
+  SetupMachineCollection;
   inherited InternalSetupConnection;
 end;
 

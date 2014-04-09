@@ -1680,6 +1680,15 @@ type
     procedure      Free                                ;
 
     //Interface - Compatibility Block
+
+    {if it's a named object support this }
+    function        GetDesc         : IFRE_DB_TEXT;   {}
+    procedure       SetDesc         (const AValue: IFRE_DB_TEXT);
+    function        GetName         : TFRE_DB_String;
+    procedure       SetName         (const AValue: TFRE_DB_String);
+    property        ObjectName      : TFRE_DB_String       read GetName write SetName;
+    property        Description     : IFRE_DB_TEXT read GetDesc write SetDesc;
+
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
@@ -1775,9 +1784,19 @@ type
   TFRE_DB_NOTE=class(TFRE_DB_ObjectEx)
   public
   protected
-    class procedure RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
+
+  { TFRE_DB_UNCONFIGURED_MACHINE }
+
+  TFRE_DB_UNCONFIGURED_MACHINE=class(TFRE_DB_ObjectEx)
+  public
+  protected
+    class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
 
   TFRE_DB_APPLICATION_MODULE=class;
   TFRE_DB_APPLICATION_MODULE_ITERATOR = procedure(const module : IFRE_DB_APPLICATION_MODULE;const modul_order:NativeInt) is nested;
@@ -2471,6 +2490,8 @@ type
     procedure   SetClientDetails         (const net_conn_desc:String);
     function    GetTakeOverKey           : String;
     function    GetSessionAppArray       : IFRE_DB_APPLICATION_ARRAY;
+
+    function    FetchOrInitFeederMachines  (const MachineNames : TFRE_DB_StringArray):TFRE_DB_GUIDArray; { Initialize or deliver Machine Objects in the Session DB }
 
     procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const interactive_session:boolean);
     procedure   ClearServerClientInterface ;
@@ -3398,6 +3419,31 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_UNCONFIGURED_MACHINE }
+
+class procedure TFRE_DB_UNCONFIGURED_MACHINE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+end;
+
+class procedure TFRE_DB_UNCONFIGURED_MACHINE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+
+  newVersionId:='1.0';
+
+  if (currentVersionId='') then
+    begin
+      currentVersionId:='1.0';
+      //CreateAppText(conn,'$xxx','xxx','xxxx','xxxx');
+    end;
+  if (currentVersionId='1.0') then
+    begin
+    //next update code
+    end;
+  VersionInstallCheck(currentVersionId,newVersionId);
+end;
 
 { TFRE_DB_UPDATE_FORM_DESC }
 
@@ -5116,6 +5162,31 @@ begin
   end;
 end;
 
+function TFRE_DB_UserSession.FetchOrInitFeederMachines(const MachineNames: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
+var  i      : Integer;
+     mcoll  : IFRE_DB_COLLECTION;
+     muid   : TFRE_DB_GUID;
+     unmach : TFRE_DB_UNCONFIGURED_MACHINE;
+begin
+  if not FPromoted then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'you not allowed the machineobjects [%s]',[FDBConnection.GetDatabaseName]);
+  SetLength(result,Length(MachineNames));
+  mcoll := FDBConnection.GetCollection(CFRE_DB_MACHINE_COLLECTION);
+  for i:=0 to high(MachineNames) do
+    begin
+      if mcoll.GetIndexedUID(MachineNames[i],muid,'def') then
+        result[i] := muid
+      else
+        begin
+          unmach := TFRE_DB_UNCONFIGURED_MACHINE.CreateForDB;
+          unmach.ObjectName := MachineNames[i];
+          result[i] := unmach.UID;
+          CheckDbResult(mcoll.Store(unmach),'failed to store a unconfigured machine');
+          GFRE_DBI.LogNotice(dblc_SESSION,'CREATED UNCONFIGURED MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+MachineNames[i]+'] MACHINE_UID ['+FREDB_G2H(result[i])+']');
+        end;
+    end;
+end;
+
 procedure TFRE_DB_UserSession.SetServerClientInterface(const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const interactive_session: boolean);
 begin
   if assigned(FBoundSession_RA_SC) then
@@ -6298,6 +6369,38 @@ procedure TFRE_DB_ObjectEx.Free;
 begin
   if self<>nil then
     Finalize;
+end;
+
+function TFRE_DB_ObjectEx.GetDesc: IFRE_DB_TEXT;
+begin
+  if assigned(FNamedObject) then
+    result := FNamedObject.GetDesc
+  else
+   raise EFRE_DB_Exception.Create(edb_ERROR,'the ex object does not support the named object interface');
+end;
+
+procedure TFRE_DB_ObjectEx.SetDesc(const AValue: IFRE_DB_TEXT);
+begin
+  if assigned(FNamedObject) then
+    FNamedObject.SetDesc(AValue)
+  else
+   raise EFRE_DB_Exception.Create(edb_ERROR,'the ex object does not support the named object interface');
+end;
+
+function TFRE_DB_ObjectEx.GetName: TFRE_DB_String;
+begin
+  if assigned(FNamedObject) then
+    result := FNamedObject.GetName
+  else
+   raise EFRE_DB_Exception.Create(edb_ERROR,'the ex object does not support the named object interface');
+end;
+
+procedure TFRE_DB_ObjectEx.SetName(const AValue: TFRE_DB_String);
+begin
+  if assigned(FNamedObject) then
+    FNamedObject.SetName(AValue)
+  else
+   raise EFRE_DB_Exception.Create(edb_ERROR,'the ex object does not support the named object interface');
 end;
 
 function TFRE_DB_ObjectEx.ObjectRoot: IFRE_DB_Object;
