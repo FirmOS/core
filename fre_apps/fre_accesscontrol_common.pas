@@ -100,6 +100,8 @@ type
     function        WEB_AddToUser             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_RIGMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ROGMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_RIGNotification       (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_ROGNotification       (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_AddToRole             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_RemoveFromRole        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
@@ -126,6 +128,8 @@ type
     function        WEB_AddToRole             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GIRMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GORMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_GIRNotification       (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_GORNotification       (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_RemoveFromRole        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
@@ -221,7 +225,7 @@ begin
     userin_Grid := session.NewDerivedCollection('DOMAINMOD_USERIN_GRID');
     with userin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
-      SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<DOMAINIDLINK']);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<DOMAINIDLINK'],false,'uids');
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -236,8 +240,8 @@ begin
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
     with groupin_Grid do begin
-      SetDeriveParent(session.GetDBConnection.AdmGetDomainCollection);
-      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<DOMAINIDLINK']);
+      SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<DOMAINIDLINK'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -264,14 +268,10 @@ begin
   dc_domain     := ses.FetchDerivedCollection('DOMAINMOD_DOMAIN_GRID');
   domaingrid    := dc_domain.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
-  result        := domaingrid;
-  sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-
-  dc_userin   := ses.FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
-
-  domaingrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
-
-  if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_DOMAIN) then begin  //class right without domain
+  if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_DOMAIN) and
+     conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) and
+     conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) and
+     conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_ROLE) then begin  //class right without domain
     txt:=app.FetchAppTextFull(ses,'$tb_add_domain');
     domaingrid.AddButton.Describe(CWSF(@WEB_AddDomain),'',txt.Getshort,txt.GetHint);
     txt.Finalize;
@@ -287,15 +287,28 @@ begin
     txt.Finalize;
   end;
 
-  sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'$users_tab'),2);
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) or
+     conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
 
-  dc_groupin  := ses.FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
+    sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
 
-  domaingrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
+    if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
+      dc_userin   := ses.FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
+      domaingrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
+      sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'$users_tab'),2);
+    end;
 
-  sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'$groups_tab'),1);
+    if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
+      dc_groupin  := ses.FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
+      domaingrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
+      sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'$groups_tab'),1);
+    end;
 
-  Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(domaingrid,sec,nil,nil,nil,true);
+    Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(domaingrid,sec,nil,nil,nil,true);
+  end else begin
+    Result:=domaingrid;
+  end;
+
 end;
 
 function TFRE_COMMON_DOMAIN_MOD.WEB_ContentUsers(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -303,7 +316,8 @@ var
   dc_userin     : IFRE_DB_DERIVED_COLLECTION;
   useringrid    : TFRE_DB_VIEW_LIST_DESC;
 begin
-  CheckClassVisibility4AnyDomain(ses);
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER)) then
+    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   dc_userin   := ses.FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
   useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -317,7 +331,8 @@ var
   groupingrid   : TFRE_DB_VIEW_LIST_DESC;
 
 begin
-  CheckClassVisibility4AnyDomain(ses);
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP)) then
+    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   dc_groupin  := ses.FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
   groupingrid := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -330,7 +345,10 @@ var
   scheme: IFRE_DB_SchemeObject;
   res   : TFRE_DB_FORM_DIALOG_DESC;
 begin
-  if not (conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_DOMAIN)) then   //class right without domain
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_DOMAIN) and
+          conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) and
+          conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) and
+          conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_ROLE)) then  //class right without domain
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
@@ -342,7 +360,10 @@ end;
 
 function TFRE_COMMON_DOMAIN_MOD.WEB_CreateDomain(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  if not (conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_DOMAIN)) then   //class right without domain
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_DOMAIN) and
+          conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) and
+          conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) and
+          conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_ROLE)) then  //class right without domain
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
   //FIXXME - please handle input and error
   CheckDbResult(conn.AddDomain(input.Field('data').AsObject.Field('objname').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt_s').AsString));
@@ -465,34 +486,36 @@ var
   domain: IFRE_DB_DOMAIN;
   txt   : IFRE_DB_TEXT;
 begin
-  if input.Field('selected').ValueCount=1 then begin
-    ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString:=input.Field('selected').AsString;
-    CheckDbResult(conn.sys.FetchDomainById(FREDB_String2Guid(input.Field('selected').AsString),domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
-    if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
+    if input.Field('selected').ValueCount=1 then begin
+      ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString:=input.Field('selected').AsString;
+      CheckDbResult(conn.sys.FetchDomainById(FREDB_String2Guid(input.Field('selected').AsString),domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
+      if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,app.FetchAppTextShort(ses,'$tb_deactivate_domain'),app.FetchAppTextHint(ses,'$tb_deactivate_domain')));
+      end else begin
+        if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
+          ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',false));
+        end else begin
+          ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
+        end;
+        if domain.Suspended then begin
+          txt:=app.FetchAppTextFull(ses,'$tb_activate_domain');
+        end else begin
+          txt:=app.FetchAppTextFull(ses,'$tb_deactivate_domain');
+        end;
+        if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
+          ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',false,txt.Getshort,txt.GetHint));
+        end else begin
+          ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,txt.Getshort,txt.GetHint));
+        end;
+        txt.Finalize;
+      end;
+    end else begin
+      ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
       ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
       ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,app.FetchAppTextShort(ses,'$tb_deactivate_domain'),app.FetchAppTextHint(ses,'$tb_deactivate_domain')));
-    end else begin
-      if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
-        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',false));
-      end else begin
-        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
-      end;
-      if domain.Suspended then begin
-        txt:=app.FetchAppTextFull(ses,'$tb_activate_domain');
-      end else begin
-        txt:=app.FetchAppTextFull(ses,'$tb_deactivate_domain');
-      end;
-      if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
-        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',false,txt.Getshort,txt.GetHint));
-      end else begin
-        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,txt.Getshort,txt.GetHint));
-      end;
-      txt.Finalize;
     end;
-  end else begin
-    ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
-    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
-    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,app.FetchAppTextShort(ses,'$tb_deactivate_domain'),app.FetchAppTextHint(ses,'$tb_deactivate_domain')));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -540,10 +563,12 @@ var
   sec: TFRE_DB_SUBSECTIONS_DESC;
 begin
   sec:=TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
     sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'$users_tab'),2);
   end;
-  sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'$groups_tab'),1);
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
+    sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'$groups_tab'),1);
+  end;
   sec.contentId:='ROLE_DETAILS';
   Result:=sec;
 end;
@@ -637,7 +662,7 @@ begin
     end;
     userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_GRID');
     with userin_Grid do begin
-      SetDeriveParent(conn.AdmGetUserCollection);
+      SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
@@ -671,12 +696,12 @@ begin
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
     with groupin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
-      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS']);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
       SetDeriveTransformation(tr_groupIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,CWSF(@WEB_GIRNotification),nil,CWSF(@WEB_AddToRole));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -693,7 +718,7 @@ begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
       SetDeriveTransformation(tr_groupOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,nil,nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,CWSF(@WEB_GORNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
     end;
   end;
@@ -713,20 +738,25 @@ begin
   dc_role     := ses.FetchDerivedCollection('ROLEMOD_ROLE_GRID');
   rolegrid    := dc_role.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
-  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
     dc_userin   := ses.FetchDerivedCollection('ROLEMOD_USERIN_GRID');
     dc_userout  := ses.FetchDerivedCollection('ROLEMOD_USEROUT_GRID');
-
     rolegrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
     rolegrid.AddFilterEvent(dc_userout.getDescriptionStoreId(),'uids');
   end;
-  dc_groupin  := ses.FetchDerivedCollection('ROLEMOD_GROUPIN_GRID');
-  dc_groupout := ses.FetchDerivedCollection('ROLEMOD_GROUPOUT_GRID');
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
+    dc_groupin  := ses.FetchDerivedCollection('ROLEMOD_GROUPIN_GRID');
+    dc_groupout := ses.FetchDerivedCollection('ROLEMOD_GROUPOUT_GRID');
+    rolegrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
+    rolegrid.AddFilterEvent(dc_groupout.getDescriptionStoreId(),'uids');
+  end;
 
-  rolegrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
-  rolegrid.AddFilterEvent(dc_groupout.getDescriptionStoreId(),'uids');
-
-  Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(rolegrid,_getNoRoleDetails(input,ses,app,conn),nil,nil,nil,true);
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) or
+     conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
+    Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(rolegrid,_getNoRoleDetails(input,ses,app,conn),nil,nil,nil,true);
+  end else begin
+    Result:=rolegrid;
+  end;
 end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_ContentNoRoleSel(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -773,6 +803,8 @@ begin
   if (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then begin
     groupoutgrid.setDropGrid(groupingrid);
     groupingrid.setDropGrid(groupoutgrid);
+    groupoutgrid.AddButton.DescribeManualType('tb_add_group_to_role',CWSF(@WEB_AddToRole),'',app.FetchAppTextShort(ses,'$tb_add_group_to_role'),'',true);
+    groupingrid.AddButton.DescribeManualType('tb_remove_group_from_role',CWSF(@WEB_RemoveFromRole),'',app.FetchAppTextShort(ses,'$tb_remove_group_from_role'),'',true);
   end;
   group   := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(nil,groupoutgrid,nil,groupingrid,nil,true,-1,1,-1,1);
   Result  := group;
@@ -882,6 +914,54 @@ begin
   end;
 end;
 
+function TFRE_COMMON_ROLE_MOD.WEB_GIRNotification(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  buttonDisabled: Boolean;
+  group         : IFRE_DB_GROUP;
+  i             : Integer;
+begin
+  if conn.SYS.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
+    if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
+      buttonDisabled:=false;
+      for i := 0 to input.Field('SELECTED').ValueCount - 1 do begin
+        CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.Field('SELECTED').AsStringItem[i]),group));
+        if group.isProtected then begin
+          buttonDisabled:=true;
+          break;
+        end;
+      end;
+    end else begin
+      buttonDisabled:=true;
+    end;
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_remove_group_from_role',buttonDisabled));
+  end;
+  Result:=GFRE_DB_NIL_DESC;
+end;
+
+function TFRE_COMMON_ROLE_MOD.WEB_GORNotification(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  buttonDisabled: Boolean;
+  group         : IFRE_DB_GROUP;
+  i             : Integer;
+begin
+  if conn.SYS.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
+    if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
+      buttonDisabled:=false;
+      for i := 0 to input.Field('SELECTED').ValueCount - 1 do begin
+        CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.Field('SELECTED').AsStringItem[i]),group));
+        if group.isProtected then begin
+          buttonDisabled:=true;
+          break;
+        end;
+      end;
+    end else begin
+      buttonDisabled:=true;
+    end;
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_add_group_to_role',buttonDisabled));
+  end;
+  Result:=GFRE_DB_NIL_DESC;
+end;
+
 function TFRE_COMMON_ROLE_MOD.WEB_RemoveFromRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
@@ -954,8 +1034,12 @@ var
   sec: TFRE_DB_SUBSECTIONS_DESC;
 begin
   sec:=TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-  sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'$users_tab'),1);
-  sec.AddSection.Describe(CWSF(@WEB_ContentRoles),app.FetchAppTextShort(ses,'$roles_tab'),2);
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
+    sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'$users_tab'),1);
+  end;
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
+    sec.AddSection.Describe(CWSF(@WEB_ContentRoles),app.FetchAppTextShort(ses,'$roles_tab'),2);
+  end;
   sec.contentId:='GROUP_DETAILS';
   Result:=sec;
 end;
@@ -1050,7 +1134,7 @@ begin
     userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_GRID');
     with userin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
-      SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS']); // UserGroupIDS
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],false); // UserGroupIDS
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1082,12 +1166,12 @@ begin
     rolein_Grid := session.NewDerivedCollection('GROUPMOD_ROLEIN_GRID');
     with rolein_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
-      SetUseDependencyAsRefLinkFilter(['ROLEIDS>TFRE_DB_ROLE']);
+      SetUseDependencyAsRefLinkFilter(['ROLEIDS>TFRE_DB_ROLE'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
       SetDeriveTransformation(tr_RoleIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,nil,nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,CWSF(@WEB_RIGNotification),nil,CWSF(@WEB_AddToRole));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -1103,7 +1187,7 @@ begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
       SetDeriveTransformation(tr_RoleOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,CWSF(@WEB_ROGNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
     end;
   end;
@@ -1140,15 +1224,19 @@ begin
     txt.Finalize;
   end;
 
-  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
-    dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_GRID');
-    dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
-    groupgrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
-    groupgrid.AddFilterEvent(dc_userout.getDescriptionStoreId(),'uids');
-    dc_rolein   := ses.FetchDerivedCollection('GROUPMOD_ROLEIN_GRID');
-    dc_roleout  := ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
-    groupgrid.AddFilterEvent(dc_rolein.getDescriptionStoreId(),'uids');
-    groupgrid.AddFilterEvent(dc_roleout.getDescriptionStoreId(),'uids');
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) or conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
+    if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
+      dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_GRID');
+      dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
+      groupgrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
+      groupgrid.AddFilterEvent(dc_userout.getDescriptionStoreId(),'uids');
+    end;
+    if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
+      dc_rolein   := ses.FetchDerivedCollection('GROUPMOD_ROLEIN_GRID');
+      dc_roleout  := ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
+      groupgrid.AddFilterEvent(dc_rolein.getDescriptionStoreId(),'uids');
+      groupgrid.AddFilterEvent(dc_roleout.getDescriptionStoreId(),'uids');
+    end;
     Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(groupgrid,_getNoGroupDetails(input,ses,app,conn),nil,nil,nil,true);
   end else begin
     Result:=groupgrid;
@@ -1176,8 +1264,12 @@ begin
   dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
   useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
-  useroutgrid.setDropGrid(useringrid);
-  useringrid.setDropGrid(useroutgrid);
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
+    useroutgrid.setDropGrid(useringrid);
+    useringrid.setDropGrid(useroutgrid);
+    useroutgrid.AddButton.Describe(CWSF(@WEB_AddToUser),'',app.FetchAppTextShort(ses,'$tb_add_group_to_user'),'',fdgbd_multi);
+    useringrid.AddButton.Describe(CWSF(@WEB_RemoveFromUser),'',app.FetchAppTextShort(ses,'$tb_remove_group_from_user'),'',fdgbd_multi);
+  end;
 
   user    := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(nil,useroutgrid,nil,useringrid,nil,true,-1,1,-1,1);
   Result  := user;
@@ -1206,6 +1298,8 @@ begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
     roleoutgrid.setDropGrid(roleingrid);
     roleingrid.setDropGrid(roleoutgrid);
+    roleoutgrid.AddButton.DescribeManualType('tb_add_group_to_role',CWSF(@WEB_AddToRole),'',app.FetchAppTextShort(ses,'$tb_add_group_to_role'),'',true);
+    roleingrid.AddButton.DescribeManualType('tb_remove_group_from_role',CWSF(@WEB_RemoveFromRole),'',app.FetchAppTextShort(ses,'$tb_remove_group_from_role'),'',true);
   end;
 
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups') then begin
@@ -1324,6 +1418,10 @@ begin
     dbo_uid:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
     CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'DeleteGroup');
     if group.isProtected then raise EFRE_DB_Exception.Create('You cannot delete a protected group.');
+    if conn.IsReferenced(group.UID,false,'TFRE_DB_USER') and not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
+      Result:=TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$delete_not_empty_group_error_diag_cap'),app.FetchAppTextShort(ses,'$delete_not_empty_group_error_diag_msg'),fdbmt_error);
+      exit;
+    end;
   end;
   if input.Field('selected').ValueCount>1 then begin
     cap:=app.FetchAppTextShort(ses,'$delete_groups_diag_cap');
@@ -1432,10 +1530,6 @@ begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
-
-  if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
-
   oldSelIsGroup:=ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups');
 
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
@@ -1446,10 +1540,12 @@ begin
       notEditable:=(selObj.Implementor_HC as IFRE_DB_GROUP).isProtected;
       domain_guid := selObj.Field('DOMAINIDLINK').AsGUID;
       selObj.Finalize;
-      dc_userout := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
-      dc_userout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
-      dc_roleout := ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
-      dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+      if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
+        dc_userout := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
+        dc_userout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+        dc_roleout := ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
+        dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+      end;
     end else begin
       ses.GetSessionModuleData(ClassName).DeleteField('selectedGroups');
     end;
@@ -1459,8 +1555,12 @@ begin
 
   newSelIsGroup:=ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups');
 
-  ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_group',not newSelIsGroup or notEditable));
-  ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_group',not newSelIsGroup or notEditable));
+  if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then begin
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_group',not newSelIsGroup or notEditable));
+  end;
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_group',not newSelIsGroup or notEditable));
+  end;
   if newSelIsGroup<>oldSelIsGroup then begin
     if IsContentUpdateVisible(ses,'GROUP_DETAILS') then begin
       if newSelIsGroup then begin
@@ -1489,7 +1589,7 @@ var
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
 begin
-  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) and
     input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
@@ -1514,7 +1614,7 @@ var
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
 begin
-  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) and
      input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
@@ -1542,7 +1642,7 @@ var
   groupUid : TFRE_DB_String;
   user_id  : TGuid;
 begin
-  if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
+  if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   if input.FieldExists('uids_ref') then begin
@@ -1576,7 +1676,7 @@ var
   groupUid : TFRE_DB_String;
   user_id  : TGuid;
 begin
-  if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
+  if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   if input.FieldExists('uids_ref') then begin
@@ -1651,6 +1751,42 @@ begin
   end;
 end;
 
+function TFRE_COMMON_GROUP_MOD.WEB_RIGNotification(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  buttonDisabled: Boolean;
+  group         : IFRE_DB_GROUP;
+begin
+  if conn.SYS.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
+    buttonDisabled:=true;
+    if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
+      if input.FieldPathExists('dependency.uids_ref.filtervalues') and (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+        CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.FieldPath('dependency.uids_ref.filtervalues').AsString),group));
+        buttonDisabled:=group.isProtected;
+      end;
+    end;
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_remove_group_from_role',buttonDisabled));
+  end;
+  Result:=GFRE_DB_NIL_DESC;
+end;
+
+function TFRE_COMMON_GROUP_MOD.WEB_ROGNotification(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  buttonDisabled: Boolean;
+  group         : IFRE_DB_GROUP;
+begin
+  if conn.SYS.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
+    buttonDisabled:=true;
+    if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
+      if input.FieldPathExists('dependency.uids_ref.filtervalues') and (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+        CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.FieldPath('dependency.uids_ref.filtervalues').AsString),group));
+        buttonDisabled:=group.isProtected;
+      end;
+    end;
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_add_group_to_role',buttonDisabled));
+  end;
+  Result:=GFRE_DB_NIL_DESC;
+end;
+
 function TFRE_COMMON_GROUP_MOD.WEB_RemoveFromRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
@@ -1706,9 +1842,13 @@ var
 begin
   sec:=TFRE_DB_SUBSECTIONS_DESC.create.Describe;
   sec.AddSection.Describe(CWSF(@WEB_ContentInfo),app.FetchAppTextShort(ses,'$userinfo_tab'),1);
-  sec.AddSection.Describe(CWSF(@WEB_ContentNote),app.FetchAppTextShort(ses,'$usernote_tab'),2);
-  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_NOTE) then begin
+    sec.AddSection.Describe(CWSF(@WEB_ContentNote),app.FetchAppTextShort(ses,'$usernote_tab'),2);
+  end;
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
     sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'$groups_tab'),3);
+  end;
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
     sec.AddSection.Describe(CWSF(@WEB_ContentRoles),app.FetchAppTextShort(ses,'$roles_tab'),4);
   end;
   sec.contentId:='USER_DETAILS';
@@ -1807,7 +1947,7 @@ begin
     groupin_Grid := session.NewDerivedCollection('USERMOD_GROUPIN_GRID');
     with groupin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
-      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP']);
+      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1841,7 +1981,7 @@ begin
     rolein_Grid := session.NewDerivedCollection('USERMOD_ROLEIN_GRID');
     with rolein_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
-      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE']);
+      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],false);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1895,14 +2035,15 @@ begin
     usergrid.AddButton.DescribeManualType('tb_delete_user',CWSF(@WEB_DeleteUser),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
-  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
     dc_groupin := ses.FetchDerivedCollection('USERMOD_GROUPIN_GRID');
     dc_groupout:= ses.FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
-    dc_rolein := ses.FetchDerivedCollection('USERMOD_ROLEIN_GRID');
-    dc_roleout:= ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
-
     usergrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
     usergrid.AddFilterEvent(dc_groupout.getDescriptionStoreId(),'uids');
+  end;
+  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
+    dc_rolein := ses.FetchDerivedCollection('USERMOD_ROLEIN_GRID');
+    dc_roleout:= ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
     usergrid.AddFilterEvent(dc_rolein.getDescriptionStoreId(),'uids');
     usergrid.AddFilterEvent(dc_roleout.getDescriptionStoreId(),'uids');
   end;
@@ -1944,7 +2085,9 @@ begin
 
   newSelIsUser:=ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers');
   if newSelIsUser<>oldSelIsUser then begin
-    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_user',not newSelIsUser));
+    if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_USER) then begin
+      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_delete_user',not newSelIsUser));
+    end;
     if newSelIsUser then begin
       Result:=_getDetails(input,ses,app,conn);
     end else begin
@@ -2032,7 +2175,9 @@ begin
     sel_guid := ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsGUID;
     CheckDbResult(conn.sys.FetchUserById(sel_guid,user),'UserContent');
     load_func   := CWSF(@WEB_NoteLoad);
-    if conn.sys.CheckClassRight4Domain(sr_UPDATE,TFRE_DB_USER,user.GetDomain(conn)) then begin
+    if conn.sys.CheckClassRight4Domain(sr_UPDATE,TFRE_DB_USER,user.GetDomain(conn)) and
+       conn.sys.CheckClassRight4Domain(sr_STORE,TFRE_DB_NOTE,user.GetDomain(conn)) and
+       conn.sys.CheckClassRight4Domain(sr_UPDATE,TFRE_DB_NOTE,user.GetDomain(conn)) then begin
       save_func := CWSF(@WEB_NoteSave);
       start_edit:= CWSF(@WEB_NoteStartEdit);
       stop_edit := CWSF(@WEB_NoteStopEdit);
@@ -2062,8 +2207,12 @@ begin
   dc_groupout:= ses.FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
   groupoutgrid:= dc_groupout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
-  groupoutgrid.setDropGrid(groupingrid);
-  groupingrid.setDropGrid(groupoutgrid);
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
+    groupoutgrid.setDropGrid(groupingrid);
+    groupingrid.setDropGrid(groupoutgrid);
+    groupoutgrid.AddButton.Describe(CWSF(@WEB_AddToGroup),'',app.FetchAppTextShort(ses,'$tb_add_user_to_group'),'',fdgbd_multi);
+    groupingrid.AddButton.Describe(CWSF(@WEB_RemoveFromGroup),'',app.FetchAppTextShort(ses,'$tb_remove_user_from_group'),'',fdgbd_multi);
+  end;
 
   group   := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(nil,groupoutgrid,nil,groupingrid,nil,true,-1,1,-1,1);
   Result  := group;
@@ -2248,7 +2397,7 @@ var
   userUid : String;
   group_id: TGuid;
 begin
-  if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
+  if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   if input.FieldExists('uids_ref') then begin
@@ -2279,7 +2428,7 @@ var
   userUid : String;
   group_id: TGuid;
 begin
-  if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
+  if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
 
   if input.FieldExists('uids_ref') then begin
@@ -2426,11 +2575,11 @@ begin
     CreateAppText(conn,'$cm_remove_group_from_role','Remove role from group');
     CreateAppText(conn,'$cm_add_group_to_role','Add role to group');
 
-    CreateAppText(conn,'$group_user_in_diag_cap','Add User to Group');
+    CreateAppText(conn,'$group_user_in_diag_cap','Add User to Group');//deleted in version 1.1
     CreateAppText(conn,'$add_group_diag_cap','Add new group');
     CreateAppText(conn,'$modify_group_diag_cap','Modify group');
     CreateAppText(conn,'$modify_group_diag_no_system_group_msg','You can not modify a system group.');
-    CreateAppText(conn,'$group_user_out_diag_cap','Remove User from Group');
+    CreateAppText(conn,'$group_user_out_diag_cap','Remove User from Group');//deleted in version 1.1
     CreateAppText(conn,'$group_role_in_diag_cap','Add role to group');
     CreateAppText(conn,'$group_role_out_diag_cap','Remove role from group');
     CreateAppText(conn,'$role_group_in_diag_cap','Add group to role');
@@ -2513,6 +2662,8 @@ begin
     DeleteAppText(conn,'$delete_domain_diag_msg');
     DeleteAppText(conn,'$domain_delete_error_cap');
     DeleteAppText(conn,'$domain_delete_error_msg');
+    DeleteAppText(conn,'$group_user_in_diag_cap');
+    DeleteAppText(conn,'$group_user_out_diag_cap');
 
     CreateAppText(conn,'$gc_domain_user','Domain / User');
     CreateAppText(conn,'$gc_domain_group','Domain / Group');
@@ -2530,6 +2681,14 @@ begin
     CreateAppText(conn,'$cm_deactivate_domain','Suspend');
     CreateAppText(conn,'$cm_activate_domain','Activate');
     CreateAppText(conn,'$gc_domain_suspended','Suspended');
+    CreateAppText(conn,'$delete_not_empty_group_error_diag_cap','Delete group');
+    CreateAppText(conn,'$delete_not_empty_group_error_diag_msg','You are not allowed to modify Users. Therefore you can only delete empty groups.');
+    CreateAppText(conn,'$tb_remove_user_from_group','Remove');
+    CreateAppText(conn,'$tb_add_user_to_group','Add');
+    CreateAppText(conn,'$tb_remove_group_from_user','Remove');
+    CreateAppText(conn,'$tb_add_group_to_user','Add');
+    CreateAppText(conn,'$tb_remove_group_from_role','Remove');
+    CreateAppText(conn,'$tb_add_group_to_role','Add');
   end;
   VersionInstallCheck(currentVersionId,newVersionId);
 end;
@@ -2577,6 +2736,7 @@ begin
     )));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSER',domainUID,TFRE_DB_USER.GetClassStdRoles));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSER',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSER',domainUID,TFRE_DB_NOTE.GetClassStdRoles));
 
     CheckDbResult(conn.AddRole('ACADMINGROUP','Allowed to create, modify and delete Groups','',domainUID),'could not add role ACADMINGROUP');
 
@@ -2601,6 +2761,7 @@ begin
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_NOTE.GetClassStdRoles));
 
     CheckDbResult(conn.RemoveAllRolesFromGroup('ACADMINS',domainUID));
     CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles TFRE_DB_DOMAIN for group Admins');
