@@ -226,6 +226,7 @@ begin
     with userin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<DOMAINIDLINK'],false,'uids');
+      domain_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -242,6 +243,7 @@ begin
     with groupin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<DOMAINIDLINK'],false);
+      domain_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -293,14 +295,10 @@ begin
     sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
 
     if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
-      dc_userin   := ses.FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
-      domaingrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
       sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'$users_tab'),2);
     end;
 
     if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
-      dc_groupin  := ses.FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
-      domaingrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
       sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'$groups_tab'),1);
     end;
 
@@ -664,6 +662,7 @@ begin
     with userin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],false);
+      role_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -680,6 +679,7 @@ begin
     with userout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],true);
+      role_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -697,6 +697,7 @@ begin
     with groupin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS'],false);
+      role_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -714,6 +715,7 @@ begin
     with groupout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS'],true);
+      role_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -727,29 +729,10 @@ end;
 function TFRE_COMMON_ROLE_MOD.WEB_Content(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   rolegrid    : TFRE_DB_VIEW_LIST_DESC;
-  dc_role     : IFRE_DB_DERIVED_COLLECTION;
-  dc_userin   : IFRE_DB_DERIVED_COLLECTION;
-  dc_userout  : IFRE_DB_DERIVED_COLLECTION;
-  dc_groupin  : IFRE_DB_DERIVED_COLLECTION;
-  dc_groupout : IFRE_DB_DERIVED_COLLECTION;
 begin
   CheckClassVisibility4AnyDomain(ses);
 
-  dc_role     := ses.FetchDerivedCollection('ROLEMOD_ROLE_GRID');
-  rolegrid    := dc_role.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-
-  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
-    dc_userin   := ses.FetchDerivedCollection('ROLEMOD_USERIN_GRID');
-    dc_userout  := ses.FetchDerivedCollection('ROLEMOD_USEROUT_GRID');
-    rolegrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
-    rolegrid.AddFilterEvent(dc_userout.getDescriptionStoreId(),'uids');
-  end;
-  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
-    dc_groupin  := ses.FetchDerivedCollection('ROLEMOD_GROUPIN_GRID');
-    dc_groupout := ses.FetchDerivedCollection('ROLEMOD_GROUPOUT_GRID');
-    rolegrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
-    rolegrid.AddFilterEvent(dc_groupout.getDescriptionStoreId(),'uids');
-  end;
+  rolegrid := ses.FetchDerivedCollection('ROLEMOD_ROLE_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) or
      conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
@@ -1135,6 +1118,7 @@ begin
     with userin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],false); // UserGroupIDS
+      group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1151,6 +1135,7 @@ begin
     with userout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],true); // UserGroupIDS
+      group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1167,6 +1152,7 @@ begin
     with rolein_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetUseDependencyAsRefLinkFilter(['ROLEIDS>TFRE_DB_ROLE'],false);
+      group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1183,6 +1169,7 @@ begin
     with roleout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetUseDependencyAsRefLinkFilter(['ROLEIDS>TFRE_DB_ROLE'],true);
+      group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1197,17 +1184,10 @@ function TFRE_COMMON_GROUP_MOD.WEB_Content(const input:IFRE_DB_Object; const ses
 var
   sec     : TFRE_DB_SUBSECTIONS_DESC;
   groupgrid   : TFRE_DB_VIEW_LIST_DESC;
-  dc_group    : IFRE_DB_DERIVED_COLLECTION;
-  dc_userin   : IFRE_DB_DERIVED_COLLECTION;
-  dc_userout  : IFRE_DB_DERIVED_COLLECTION;
-  dc_rolein   : IFRE_DB_DERIVED_COLLECTION;
-  dc_roleout  : IFRE_DB_DERIVED_COLLECTION;
   txt         : IFRE_DB_TEXT;
 begin
   CheckClassVisibility4AnyDomain(ses);
-
-  dc_group := ses.FetchDerivedCollection('GROUPMOD_GROUP_GRID');
-  groupgrid := dc_group.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  groupgrid := ses.FetchDerivedCollection('GROUPMOD_GROUP_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) then begin
     txt:=app.FetchAppTextFull(ses,'$tb_add_group');
     groupgrid.AddButton.Describe(CWSF(@WEB_AddGroup),'',txt.Getshort,txt.GetHint);
@@ -1225,18 +1205,6 @@ begin
   end;
 
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) or conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
-    if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
-      dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_GRID');
-      dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
-      groupgrid.AddFilterEvent(dc_userin.getDescriptionStoreId(),'uids');
-      groupgrid.AddFilterEvent(dc_userout.getDescriptionStoreId(),'uids');
-    end;
-    if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
-      dc_rolein   := ses.FetchDerivedCollection('GROUPMOD_ROLEIN_GRID');
-      dc_roleout  := ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
-      groupgrid.AddFilterEvent(dc_rolein.getDescriptionStoreId(),'uids');
-      groupgrid.AddFilterEvent(dc_roleout.getDescriptionStoreId(),'uids');
-    end;
     Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(groupgrid,_getNoGroupDetails(input,ses,app,conn),nil,nil,nil,true);
   end else begin
     Result:=groupgrid;
@@ -1948,6 +1916,7 @@ begin
     with groupin_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],false);
+      user_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1965,6 +1934,7 @@ begin
     with groupout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],true);
+      user_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1982,6 +1952,7 @@ begin
     with rolein_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],false);
+      user_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -1998,6 +1969,7 @@ begin
     with roleout_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],true);
+      user_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false,false);
       end;
@@ -2012,18 +1984,12 @@ end;
 function TFRE_COMMON_USER_MOD.WEB_Content(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   usergrid    : TFRE_DB_VIEW_LIST_DESC;
-  dc_user     : IFRE_DB_DERIVED_COLLECTION;
-  dc_groupin  : IFRE_DB_DERIVED_COLLECTION;
-  dc_groupout : IFRE_DB_DERIVED_COLLECTION;
-  dc_rolein   : IFRE_DB_DERIVED_COLLECTION;
-  dc_roleout  : IFRE_DB_DERIVED_COLLECTION;
   txt         : IFRE_DB_TEXT;
 begin
   CheckClassVisibility4AnyDomain(ses);
 
   ses.GetSessionModuleData(ClassName).DeleteField('selectedUsers');
-  dc_user := ses.FetchDerivedCollection('USERMOD_USER_GRID');
-  usergrid := dc_user.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  usergrid := ses.FetchDerivedCollection('USERMOD_USER_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) then begin
     txt:=app.FetchAppTextFull(ses,'$tb_add_user');
@@ -2034,18 +2000,6 @@ begin
     txt:=app.FetchAppTextFull(ses,'$tb_delete_user');
     usergrid.AddButton.DescribeManualType('tb_delete_user',CWSF(@WEB_DeleteUser),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
-  end;
-  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
-    dc_groupin := ses.FetchDerivedCollection('USERMOD_GROUPIN_GRID');
-    dc_groupout:= ses.FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
-    usergrid.AddFilterEvent(dc_groupin.getDescriptionStoreId(),'uids');
-    usergrid.AddFilterEvent(dc_groupout.getDescriptionStoreId(),'uids');
-  end;
-  if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
-    dc_rolein := ses.FetchDerivedCollection('USERMOD_ROLEIN_GRID');
-    dc_roleout:= ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
-    usergrid.AddFilterEvent(dc_rolein.getDescriptionStoreId(),'uids');
-    usergrid.AddFilterEvent(dc_roleout.getDescriptionStoreId(),'uids');
   end;
   Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(usergrid,_getNoUserDetails(input,ses,app,conn),nil,nil,nil,true);
 end;
