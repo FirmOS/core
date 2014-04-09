@@ -889,6 +889,7 @@ type
     function   GetDisplayDescription         : TFRE_DB_CONTENT_DESC;
     function   GetStoreDescription           : TFRE_DB_CONTENT_DESC;
     function   getDescriptionStoreId         : String;
+    procedure  AddSelectionDependencyEvent   (const derived_collection_name : TFRE_DB_NameType ; const ReferenceID :TFRE_DB_NameType='uids'); {On selection change a dependency "filter" object is generated and sent to the derived collection}
     //@
     function   GetDisplayDescriptionFunction (const FilterEventKey:TFRE_DB_String=''): TFRE_DB_SERVER_FUNC_DESC;
     //@ Set a String Filter, which can be used before or after the transformation

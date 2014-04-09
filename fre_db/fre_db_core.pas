@@ -1536,6 +1536,11 @@ type
     ascending : boolean;
   end;
 
+  TFRE_DB_SelectionDependencyEvents=record
+    dc_name  : TFRE_DB_NameType;
+    ref_name : TFRE_DB_NameType;
+  end;
+
   //@ Used for filtered, sorted Collections, is based on  a "real" collection
   TFRE_DB_DERIVED_COLLECTION=class(TFRE_DB_COLLECTION,IFRE_DB_DERIVED_COLLECTION,IFRE_DB_COLLECTION_OBSERVER)
   private
@@ -1551,6 +1556,7 @@ type
     FDepObjectList     : TFRE_DB_GUIDArray; // Must be extended to an array of ... (FDependencyRef ..)
     FUseDepAsLinkFilt  : Boolean;
     FUseDepFiltInvert  : Boolean;
+    FSelectionDepEvents: Array of TFRE_DB_SelectionDependencyEvents;
 
     FSubscribeReflinkModeObserverTo : IFRE_DB_COLLECTION;
 
@@ -1681,6 +1687,7 @@ type
     function   AddDateTimeFieldFilter         (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_DateTimeArray ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE ;const on_transform:boolean=true ; const on_filter_field:boolean=false):TFRE_DB_Errortype;
     function   AddSchemeFilter                (const filter_key           :TFRE_DB_String;const values:TFRE_DB_StringArray   ;const negate:boolean ) :TFRE_DB_Errortype;
 //TODO: END Locking
+    procedure  AddSelectionDependencyEvent   (const derived_collection_name : TFRE_DB_NameType ; const ReferenceID :TFRE_DB_NameType); {On selection change a dependency "filter" object is generated and sent to the derived collection}
 
     function   RemoveFieldFilter       (const filter_key:TFRE_DB_String;const on_transform:boolean=true):TFRE_DB_Errortype;
     function   AddOrderField           (const order_key,field_name:TFRE_DB_String;const ascending : boolean):TFRE_DB_Errortype;
@@ -6919,6 +6926,16 @@ begin
   FFilters.Field(filter_key).AsObject := filter;
 end;
 
+procedure TFRE_DB_DERIVED_COLLECTION.AddSelectionDependencyEvent(const derived_collection_name: TFRE_DB_NameType; const ReferenceID: TFRE_DB_NameType);
+begin
+  SetLength(FSelectionDepEvents,Length(FSelectionDepEvents)+1);
+  with FSelectionDepEvents[high(FSelectionDepEvents)] do
+    begin
+      dc_name  := derived_collection_name;
+      ref_name := ReferenceID;
+    end;
+end;
+
 function TFRE_DB_DERIVED_COLLECTION.RemoveFieldFilter(const filter_key: TFRE_DB_String; const on_transform: boolean): TFRE_DB_Errortype;
 begin
   result := _DeleteFilterKey(filter_key,on_transform);
@@ -7059,8 +7076,6 @@ begin
   SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
   for i := 0 to high(scheme_and_field_constraint) do
     FDepRefConstraint[i] := scheme_and_field_constraint[i];
-  //SetLength(FDepRefConstraint,1);
-  //FDepRefConstraint[0] := scheme_and_field_constraint;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveParentI(const coll: IFRE_DB_COLLECTION; const idField: String);
@@ -7290,9 +7305,13 @@ function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
 
   function GetListViewDescription: TFRE_DB_VIEW_LIST_DESC;
   var vcd : TFRE_DB_VIEW_LIST_LAYOUT_DESC;
+        i : NativeInt;
   begin
     vcd := (FTransform as TFRE_DB_SIMPLE_TRANSFORM).GetViewCollectionDescription as TFRE_DB_VIEW_LIST_LAYOUT_DESC;
     result := TFRE_DB_VIEW_LIST_DESC.create.Describe(GetStoreDescription as TFRE_DB_STORE_DESC, vcd, FitemMenuFunc, FTitle,FGridDisplayFlags,FitemDetailsFunc,FselectionDepFunc,nil,FdropFunc,FdragFunc);
+    for i := 0 to high(FSelectionDepEvents) do
+      with FSelectionDepEvents[i] do
+        result.AddFilterEvent(dc_name,ref_name);
   end;
 
   function GetTreeViewDescription: TFRE_DB_VIEW_TREE_DESC;
