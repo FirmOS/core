@@ -119,7 +119,12 @@ type
     procedure   UnlockManager ; override;
     function    GetTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; var cd   : TFRE_DB_TRANS_RESULT_BASE):boolean; override;
     procedure   NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE);override;
-    function    GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_NameType ; const collection_transform_key : TFRE_DB_NameTypeRL ; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const DefaultOrderFieldtype: TFRE_DB_FIELDTYPE; const replace_default_order: boolean=true): TFRE_DB_QUERY_BASE;override;
+    {
+     Generate the query spec from the JSON Webinput object
+     dependency_reference_ids : this are the dependency keys that be considered to use from the JSON (usually one, input dependency)
+     collection_transform_key : unique specifier of the DATA TRANSFORMATION defined by this collection, ORDERS derive from them
+    }
+    function    GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const collection_transform_key : TFRE_DB_NameTypeRL ; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const DefaultOrderFieldtype: TFRE_DB_FIELDTYPE; const replace_default_order: boolean=true): TFRE_DB_QUERY_BASE;override;
   end;
 
 
@@ -243,28 +248,27 @@ begin
     end;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.GenerateQueryFromRawInput(const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_NameType; const collection_transform_key: TFRE_DB_NameTypeRL; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const DefaultOrderFieldtype: TFRE_DB_FIELDTYPE; const replace_default_order: boolean): TFRE_DB_QUERY_BASE;
+function TFRE_DB_TRANSDATA_MANAGER.GenerateQueryFromRawInput(const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray; const collection_transform_key: TFRE_DB_NameTypeRL; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const DefaultOrderFieldtype: TFRE_DB_FIELDTYPE; const replace_default_order: boolean): TFRE_DB_QUERY_BASE;
 var fld : IFRE_DB_FIELD;
       i : NativeInt;
     qry : TFRE_DB_QUERY;
 
-   procedure ProcessFilters;
-   var fld : IFRE_DB_FIELD;
-         i : NativeInt;
+   procedure ProcessDependencies;
+   var fld   : IFRE_DB_FIELD;
+         i,j : NativeInt;
    begin
-     if dependecy_reference_id<>'' then
+     for i:=0 to high(dependecy_reference_id) do
        begin
-         fld := input.FieldPath('DEPENDENCY.'+dependecy_reference_id+'_REF.FILTERVALUES',true);
+         fld := input.FieldPath('DEPENDENCY.'+dependecy_reference_id[i]+'_REF.FILTERVALUES',true);
          if assigned(fld) then
            with qry do
              begin
                SetLength(FDependcyUids,fld.ValueCount);
-               for i := 0 to High(FDependcyUids) do
-                 FDependcyUids[i] := FREDB_H2G(fld.AsStringArr[i]);
+               for j := 0 to High(FDependcyUids) do
+                 FDependcyUids[j] := FREDB_H2G(fld.AsStringArr[j]);
                exit;
              end
        end;
-     SetLength(qry.FDependcyUids,0);
    end;
 
    procedure ProcessOrderDefinition;
@@ -335,7 +339,7 @@ var fld : IFRE_DB_FIELD;
 begin
   qry := TFRE_DB_QUERY.Create;
   ProcessCheckChildQuery;
-  ProcessFilters;
+  ProcessDependencies;
   ProcessOrderDefinition;
   ProcessRange;
 end;

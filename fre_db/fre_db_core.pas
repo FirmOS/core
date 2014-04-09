@@ -7420,7 +7420,7 @@ begin
   try
     //writeln('GEDTATA INPUT : ',input.DumpToString());
     MustBeInitialized;
-//HERE    query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input);
+    query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input,FDependencyRef,FName,FDefaultOrderField,FDefaultOrderAsc,FDefaultOrderFieldtype,true);
     _CheckObserverAdded(true);
 
     //FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
