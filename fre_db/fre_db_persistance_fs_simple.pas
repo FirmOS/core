@@ -152,8 +152,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
 
      {< Backup Functionality}
-     function    FDB_GetObjectCount            (const coll:boolean): Integer;
-     procedure   FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk);
+     function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
+     procedure   FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
      procedure   FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
      procedure   FDB_PrepareDBRestore          (const phase:integer);
      procedure   FDB_SendObject                (const obj:IFRE_DB_Object);
@@ -706,31 +706,35 @@ begin
     end;
 end;
 
-function TFRE_DB_PS_FILE.FDB_GetObjectCount(const coll: boolean): Integer;
+function TFRE_DB_PS_FILE.FDB_GetObjectCount(const coll: boolean; const SchemesFilter: TFRE_DB_StringArray): Integer;
 begin
   if coll then
     result := FMaster.MasterColls.GetCollectionCount
   else
-    result := FMaster.GetPersistantRootObjectCount;
+    result := FMaster.GetPersistantRootObjectCount(FREDB_StringArray2Upper(SchemesFilter));
 end;
 
-procedure TFRE_DB_PS_FILE.FDB_ForAllObjects(const cb: IFRE_DB_ObjectIteratorBrk);
+procedure TFRE_DB_PS_FILE.FDB_ForAllObjects(const cb: IFRE_DB_ObjectIteratorBrk; const SchemesFilter: TFRE_DB_StringArray);
+var filter : TFRE_DB_StringArray;
 
   procedure ForAll(const obj : TFRE_DB_Object;var break:boolean);
   var lock : boolean;
   begin
     if obj.IsObjectRoot then
-      begin
-        obj.Set_Store_LockedUnLockedIf(false,lock);
-        try
-          cb(obj.CloneToNewObject,break);
-        finally
-          obj.Set_Store_LockedUnLockedIf(true,lock);
-        end;
-      end;
+        if  (Length(filter)=0) or
+            (FREDB_StringInArray(uppercase(obj.SchemeClass),filter)) then
+               begin
+                 obj.Set_Store_LockedUnLockedIf(false,lock);
+                try
+                  cb(obj.CloneToNewObject,break);
+                finally
+                  obj.Set_Store_LockedUnLockedIf(true,lock);
+                end;
+              end;
   end;
 
 begin
+  filter := FREDB_StringArray2Upper(SchemesFilter);
   FMaster.ForAllObjectsInternal(true,false,@ForAll);
 end;
 

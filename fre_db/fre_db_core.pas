@@ -1810,8 +1810,8 @@ type
 
     { Notification Interface - End }
 
-    function            GetDatabaseObjectCount       :NativeInt;
-    procedure           ForAllDatabaseObjectsDo      (const dbo:IFRE_DB_ObjectIteratorBrkProgress); { Warning may take some time, delivers a clone }
+    function            GetDatabaseObjectCount       (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
+    procedure           ForAllDatabaseObjectsDo      (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil); { Warning may take some time, delivers a clone }
     function            GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;virtual;
     function            GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;virtual;
     function            GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;virtual;
@@ -1926,8 +1926,8 @@ type
     FConnectionRights    : TFRE_DB_StringArray; // specialized on clone
     FConnectedUser       : TFRE_DB_User;        // specialized on clone
 
-    function    ImpersonateTheClone         (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
-    procedure   InternalSetupConnection     ; override;
+    function     ImpersonateTheClone        (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
+    procedure    InternalSetupConnection    ; override;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass ; const domainguid : TGuid): TFRE_DB_String;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_String;
     function    _RoleID                     (const rolename:TFRE_DB_String;const domainUID:TGUID;var role_id:TGUID):boolean;
@@ -10041,12 +10041,12 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'connect notif must not be finalized - use a proxy ?');
 end;
 
-function TFRE_DB_BASE_CONNECTION.GetDatabaseObjectCount: NativeInt;
+function TFRE_DB_BASE_CONNECTION.GetDatabaseObjectCount(const Schemes: TFRE_DB_StringArray): NativeInt;
 begin
-  result := FPersistance_Layer.FDB_GetObjectCount(false);
+  result := FPersistance_Layer.FDB_GetObjectCount(false,Schemes);
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.ForAllDatabaseObjectsDo(const dbo: IFRE_DB_ObjectIteratorBrkProgress);
+procedure TFRE_DB_BASE_CONNECTION.ForAllDatabaseObjectsDo(const dbo: IFRE_DB_ObjectIteratorBrkProgress; const Schemes: TFRE_DB_StringArray);
 var max,curr : NativeInt;
 
   procedure local(const obj : IFRE_DB_Object ; var break : boolean);
@@ -10056,9 +10056,9 @@ var max,curr : NativeInt;
   end;
 
 begin
-  max  := GetDatabaseObjectCount;
+  max  := GetDatabaseObjectCount(Schemes);
   curr := 1;
-  FPersistance_Layer.FDB_ForAllObjects(@local);
+  FPersistance_Layer.FDB_ForAllObjects(@local,schemes);
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;

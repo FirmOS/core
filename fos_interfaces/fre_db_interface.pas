@@ -1282,8 +1282,8 @@ type
     procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
     procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
-    function  FDB_GetObjectCount            (const coll:boolean): Integer;
-    procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk);
+    function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
+    procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
     procedure FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
     procedure FDB_PrepareDBRestore          (const phase:integer);
     procedure FDB_SendObject                (const obj:IFRE_DB_Object);
@@ -1393,7 +1393,8 @@ type
     function    GetDerivedCollection          (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
     function    CreateDerivedCollection       (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 
-    procedure   ForAllDatabaseObjectsDo       (const dbo:IFRE_DB_ObjectIteratorBrkProgress); { Warning may take some time, delivers a clone }
+    function    GetDatabaseObjectCount        (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
+    procedure   ForAllDatabaseObjectsDo       (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil); { Warning may take some time, delivers a clone }
     procedure   ForAllColls                   (const iterator:IFRE_DB_Coll_Iterator)                                   ;
     procedure   ForAllSchemes                 (const iterator:IFRE_DB_Scheme_Iterator)                                 ;
     procedure   ForAllEnums                   (const iterator:IFRE_DB_Enum_Iterator)                                   ;
@@ -1501,7 +1502,9 @@ type
     procedure   StartTransaction            (const trans_id: TFRE_DB_NameType ; const trans_type : TFRE_DB_TRANSACTION_TYPE);
     procedure   Commit                      ;
     procedure   DrawScheme                  (const datastream:TStream);
-    procedure   ForAllDatabaseObjectsDo       (const dbo:IFRE_DB_ObjectIteratorBrkProgress); { Warning may take some time, delivers a clone }
+
+    function    GetDatabaseObjectCount      (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
+    procedure   ForAllDatabaseObjectsDo     (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil ); { Warning may take some time, delivers a clone }
 
     function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
     function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
@@ -2649,6 +2652,7 @@ type
 
   function  FREDB_getThemedResource                 (const id: String): String;
   function  FREDB_StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
+  function  FREDB_StringArray2Upper                 (const sa : TFRE_DB_StringArray):TFRE_DB_StringArray;
   function  FREDB_StringInArrayIdx                  (const src:string;const arr:TFRE_DB_StringArray):NativeInt;
   function  FREDB_PrefixStringInArray               (const pfx:string;const arr:TFRE_DB_StringArray):boolean;
   procedure FREDB_ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
@@ -3272,6 +3276,15 @@ end;
 function FREDB_StringInArray(const src: string; const arr: TFRE_DB_StringArray): boolean;
 begin
   result := FREDB_StringInArrayIdx(src,arr)<>-1;
+end;
+
+function FREDB_StringArray2Upper(const sa: TFRE_DB_StringArray): TFRE_DB_StringArray;
+var
+  i: NativeInt;
+begin
+  SetLength(result,Length(sa));
+  for i:=0 to high(result) do
+    result[i] := uppercase(sa[i]);
 end;
 
 function FREDB_StringInArrayIdx(const src: string; const arr: TFRE_DB_StringArray): NativeInt;

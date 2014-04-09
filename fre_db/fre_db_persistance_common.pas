@@ -376,7 +376,7 @@ type
 
   public
     function     FetchNewTransactionID (const transid:string):String;
-    function     GetPersistantRootObjectCount : Integer;
+    function     GetPersistantRootObjectCount (const UppercaseSchemesFilter: TFRE_DB_StringArray=nil): Integer;
 
     function     InternalStoreObjectFromStable (const obj : TFRE_DB_Object) : TFRE_DB_Errortype;
     function     InternalRebuildRefindex                                    : TFRE_DB_Errortype;
@@ -3313,12 +3313,16 @@ begin
   result := IntToStr(F_DB_TX_Number)+'#'+transid;
 end;
 
-function TFRE_DB_Master_Data.GetPersistantRootObjectCount: Integer;
+function TFRE_DB_Master_Data.GetPersistantRootObjectCount(const UppercaseSchemesFilter: TFRE_DB_StringArray): Integer;
 var brk:integer;
     procedure Scan(const obj : TFRE_DB_Object ; var break : boolean);
     begin
       if obj.IsObjectRoot then
-        inc(result);
+        begin
+          if (length(UppercaseSchemesFilter)=0)
+             or (FREDB_StringInArray(uppercase(obj.SchemeClass),UpperCaseSchemesFilter)) then
+              inc(result);
+        end;
     end;
 begin
   result := 0;
