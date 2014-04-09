@@ -1812,6 +1812,7 @@ type
 
     function            GetDatabaseObjectCount       (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
     procedure           ForAllDatabaseObjectsDo      (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil); { Warning may take some time, delivers a clone }
+    function            IsReferenced                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;virtual;
     function            GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;virtual;
     function            GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;virtual;
     function            GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;virtual;
@@ -2168,6 +2169,7 @@ type
     function    FetchTranslateableTextLong  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
     function    FetchTranslateableTextHint  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
 
+    function    IsReferenced                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;override;
     function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;override;
     function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;override;
     function    GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;override;
@@ -3553,7 +3555,7 @@ begin
   input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_GROUP_group_group');
   input_group.AddInput('objname','$scheme_TFRE_DB_GROUP_name');
   //input_group:=scheme.AddInputGroup('domain').Setup('$scheme_TFRE_DB_GROUP_group_domain');
-  input_group.AddDomainChooser('domainidlink',sr_STORE,TFRE_DB_USER,true,'$scheme_TFRE_DB_GROUP_domainid');
+  input_group.AddDomainChooser('domainidlink',sr_STORE,TFRE_DB_GROUP,true,'$scheme_TFRE_DB_GROUP_domainid');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
 
   input_group:=scheme.AddInputGroup('main_edit').Setup('$scheme_TFRE_DB_GROUP_group_group');
@@ -10061,6 +10063,11 @@ begin
   FPersistance_Layer.FDB_ForAllObjects(@local,schemes);
 end;
 
+function TFRE_DB_BASE_CONNECTION.IsReferenced(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
+begin
+  result := FPersistance_Layer.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter)>0;
+end;
+
 function TFRE_DB_BASE_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
 begin
   result := FPersistance_Layer.GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter);
@@ -10904,6 +10911,11 @@ begin //nl
     end
   else
     text := '';
+end;
+
+function TFRE_DB_CONNECTION.IsReferenced(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
+begin
+  Result:=(inherited IsReferenced(obj_uid, from, scheme_prefix_filter, field_exact_filter)) or FSysConnection.IsReferenced(obj_uid, from, scheme_prefix_filter, field_exact_filter);
 end;
 
 function TFRE_DB_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
