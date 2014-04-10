@@ -2663,20 +2663,24 @@ begin
 
   if not assigned(FNotifyIf) then
     abort;
-  FNotifyIf.StartNotificationBlock(FTransId);
-  try
-    if changes then
-      begin
-        FChangeList.ForAllBreak(@StoreInCollection);
-        FChangeList.ForAllBreak(@MasterStore);
-      end
-    else
-     changes:=changes;
-  finally
-    FNotifyIf.FinishNotificationBlock(block);
-    if assigned(block) then
-      FNotifyIf.SendNotificationBlock(block);
-  end;
+
+  if changes then
+    begin
+      FNotifyIf.StartNotificationBlock(FTransId);
+      try
+        if changes then
+          begin
+            FChangeList.ForAllBreak(@StoreInCollection);
+            FChangeList.ForAllBreak(@MasterStore);
+          end
+        else
+         changes:=changes;
+      finally
+        FNotifyIf.FinishNotificationBlock(block);
+        if assigned(block) then
+          FNotifyIf.SendNotificationBlock(block);
+      end;
+    end;
   result := changes;
 end;
 

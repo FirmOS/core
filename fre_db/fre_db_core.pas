@@ -2157,6 +2157,8 @@ type
 
     //Warning Fetching from DB, and then from system can have undesired side effects ...
     function    Fetch                       (const ouid:TGUID;out dbo:TFRE_DB_Object ; const without_right_check:boolean=false) : TFRE_DB_Errortype; override;
+    function    FetchAs                     (const ouid:TGUID;const classref : TFRE_DB_BaseClass ; var outobj) : TFRE_DB_Errortype;
+
     //Warning Fetching from DB, and then from system can have undesired side effects ...
     //function    FetchInternal               (const ouid:TGUID;out dbo:TFRE_DB_Object) : boolean; override;
 
@@ -8317,7 +8319,7 @@ begin
     end;
     if not exists
        and (upname<>'DOMAINID') then
-         raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'Field <%s> is not defined in Scheme <%s>, and strict access is required.',[name,DefinedSchemeName]);
+         raise EFRE_DB_Exception.Create(edb_MISMATCH,'Field <%s> is not defined in Scheme <%s>, and strict access is required.',[name,DefinedSchemeName]);
   end;
 end;
 
@@ -8448,7 +8450,7 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
              sub_object := Update_Object.Field(field_name).AsObject;
              if sub_object.SchemeClass <> sub_scheme_name then begin
                //writeln('subobject **********',sub_object.DumpToString());
-               raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'update of subfield object is only allowed if the specified subfield object has the same scheme. subfield=[%s] subfield scheme=[%s] update object scheme=[%s]',[field_name,sub_scheme_name,sub_object.SchemeClass]);
+               raise EFRE_DB_Exception.Create(edb_MISMATCH,'update of subfield object is only allowed if the specified subfield object has the same scheme. subfield=[%s] subfield scheme=[%s] update object scheme=[%s]',[field_name,sub_scheme_name,sub_object.SchemeClass]);
              end;
              sub_scheme.SetObjectFieldsWithScheme(Field.AsObject,sub_object,false,DBConnection,schemeType);
            end;
@@ -10827,6 +10829,24 @@ begin
       begin
         writeln('WARNING : FETCHED A NON OBJECT ROOT ? / SHOULD NOT BE POSSIBLE ');
       end;
+end;
+
+function TFRE_DB_CONNECTION.FetchAs(const ouid: TGUID; const classref: TFRE_DB_BaseClass; var outobj): TFRE_DB_Errortype;
+var dbo : TFRE_DB_Object;
+begin
+  result := Fetch(ouid,dbo);
+  if result <> edb_OK then
+    exit;
+  if dbo.Implementor_HC is classref then
+    begin
+      Pointer(outobj) := dbo.Implementor_HC;
+      result          := edb_OK;
+    end
+  else
+    begin
+     Pointer(outobj) := nil;
+     result          := edb_MISMATCH;
+    end;
 end;
 
 
@@ -15707,7 +15727,7 @@ procedure TFRE_DB_FIELD._CheckFieldType(const expected: TFRE_DB_FIELDTYPE);
 begin
   //if (FFieldData.FieldType=fdbft_CalcField) and (expected=fdbft_Object) then exit;
   if FFieldData.FieldType<>expected then
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected '+CFRE_DB_FIELDTYPE[expected]+' for field ['+FieldName+']');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected '+CFRE_DB_FIELDTYPE[expected]+' for field ['+FieldName+']');
 end;
 
 procedure TFRE_DB_FIELD._CheckIndex(const idx: integer; const typ: TFRE_DB_FIELDTYPE);
@@ -15730,7 +15750,7 @@ begin
   if (FFieldData.FieldType=expected) then begin
     exit(true);
   end else begin
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected '+CFRE_DB_FIELDTYPE[expected]+' or uninitialized field');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected '+CFRE_DB_FIELDTYPE[expected]+' or uninitialized field');
   end;
 end;
 
@@ -16174,7 +16194,7 @@ begin
   if FFieldData.obj is TFRE_DB_OBJECTLIST then
     result := GFRE_DB.ConstructObjectArrayOI(TFRE_DB_OBJECTLIST(FFieldData.obj).CheckOutAsArray)
   else
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
   Clear;
 end;
 
@@ -16186,7 +16206,7 @@ begin
   if FFieldData.obj is TFRE_DB_OBJECTLIST then
     result := TFRE_DB_OBJECTLIST(FFieldData.obj).CheckoutObject(idx)
   else
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 function TFRE_DB_FIELD.CheckOutObjectI: IFRE_DB_Object;
@@ -16205,7 +16225,7 @@ begin
   if FFieldData.obj is TFRE_DB_OBJECTLIST then
     result := TFRE_DB_OBJECTLIST(FFieldData.obj).GetAsObjectArray
   else
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 function TFRE_DB_FIELD.GetAsObjectLinkArray: TFRE_DB_ObjLinkArray;
@@ -16227,7 +16247,7 @@ begin
   if FFieldData.obj is TFRE_DB_OBJECTLIST then
     result := TFRE_DB_OBJECTLIST(FFieldData.obj).GetAsArray(idx)
   else
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 function TFRE_DB_FIELD.GetAsObjectLinkList(idx: Integer): TGUID;
@@ -16495,7 +16515,7 @@ begin
   if FFieldData.obj is TFRE_DB_OBJECTLIST then
     TFRE_DB_OBJECTLIST(FFieldData.obj).SetAsObjectArray(Avalue)
   else
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 procedure TFRE_DB_FIELD.SetAsObjectList(idx: Integer; const AValue: TFRE_DB_Object);
@@ -16511,7 +16531,7 @@ begin
   if FFieldData.obj is TFRE_DB_OBJECTLIST then
     TFRE_DB_OBJECTLIST(FFieldData.obj)[idx]:=Avalue
   else
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 procedure TFRE_DB_FIELD.SetAsStream(const AValue: TFRE_DB_Stream);
@@ -17245,7 +17265,7 @@ begin
   if FFieldData.obj is TFRE_DB_OBJECTLIST then
     TFRE_DB_OBJECTLIST(FFieldData.obj).AddObject(value)
   else
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 procedure TFRE_DB_FIELD.AddObjectLink(const value: TGUID);
@@ -17554,7 +17574,7 @@ begin
   if FFieldData.obj is TFRE_DB_OBJECTLIST then
     TFRE_DB_OBJECTLIST(FFieldData.obj).RemoveObject(idx)
   else
-    raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'try to access an object array/list but wrong class stored');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
 end;
 
 procedure TFRE_DB_FIELD.RemoveObjectLink(const idx: integer);
@@ -17966,7 +17986,7 @@ begin
   if (f1=nil) and  (f2=nil) then exit(0);
   if f1=nil then exit(-1);
   if f2=nil then exit(1);
-  if f1.FieldType<>f2.FieldType then raise EFRE_DB_Exception.Create(edb_FIELDMISMATCH,'ORDERFIELDCOMPARE GUIDS= %s / %s  FIELD=%s  TYPES = %s / %s',[GFRE_BT.GUID_2_HexString(o1.UID),GFRE_BT.GUID_2_HexString(o2.UID),ofieldname,CFRE_DB_FIELDTYPE[f1.FieldType],CFRE_DB_FIELDTYPE[f2.FieldType]]);
+  if f1.FieldType<>f2.FieldType then raise EFRE_DB_Exception.Create(edb_MISMATCH,'ORDERFIELDCOMPARE GUIDS= %s / %s  FIELD=%s  TYPES = %s / %s',[GFRE_BT.GUID_2_HexString(o1.UID),GFRE_BT.GUID_2_HexString(o2.UID),ofieldname,CFRE_DB_FIELDTYPE[f1.FieldType],CFRE_DB_FIELDTYPE[f2.FieldType]]);
   case f1.FieldType of
     fdbft_GUID:       begin
                         result:=RB_Guid_Compare(f1.AsGUID,f2.AsGUID);

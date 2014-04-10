@@ -1431,10 +1431,12 @@ begin
                      //halt;
                    end;
                  updatestep := TFRE_DB_UpdateStep.Create(self,obj,to_update_obj,false);
-                 FTransaction.AddChangeStep(updatestep);
                  //TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,@GenInsert,@GenDelete,@GenUpdate);
                  TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,nil,nil,@GenUpdate);
-
+                 if updatestep.HasNoChanges then
+                   updatestep.Free
+                 else
+                   FTransaction.AddChangeStep(updatestep);
                  result := FTransaction.GetTransLastStepTransId;
               finally
                 to_update_obj.Set_Store_Locked(true);
