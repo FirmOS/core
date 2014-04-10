@@ -120,6 +120,7 @@ type
     procedure SystemSyncSnapshot;
     procedure SetupTestWorkDB;
     procedure SetupTestCollections;
+    procedure NullChangeUpdate;
     procedure FetchTestColletion;
     procedure StoreVolatileAndPersistent;
     procedure SubobjectTwiceTest;
@@ -420,22 +421,26 @@ end;
 
 procedure TFRE_DB_PersistanceTests.SystemAdduser;
 var result_code : TFRE_DB_Errortype;
+    domuid      : TFRE_DB_GUID;
 begin
   FSysconn    := GFRE_DBI.NewSysOnlyConnection;
   result_code := FSysconn.Connect('admin@system','admin');
   AssertTrue('SYS CONNECT FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_OK);
-  result_code := FSysconn.AddUser('test1@system','test1','Egon','Semmerl');
+  domuid      := FSysconn.DomainID('SYSTEM');
+  result_code := FSysconn.AddUser('test1',domuid,'test1','Egon','Semmerl');
   AssertTrue('SYS ADDUSER FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_OK);
   FSysconn.DumpSystem;
 end;
 
 procedure TFRE_DB_PersistanceTests.SystemCheckUser;
 var result_code : TFRE_DB_Errortype;
+    domuid      : TFRE_DB_GUID;
 begin
   FSysconn    := GFRE_DBI.NewSysOnlyConnection;
   result_code := FSysconn.Connect('admin@system','admin');
   AssertTrue('SYS CONNECT FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_OK);
-  result_code := FSysconn.AddUser('test1@system','test1','Egon','Semmerl');
+  domuid      := FSysconn.DomainID('SYSTEM');
+  result_code := FSysconn.AddUser('test1',domuid,'test1','Egon','Semmerl');
   AssertTrue('SYS ADDUSER FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_EXISTS);
   FSysconn.DumpSystem;
 end;
@@ -470,6 +475,7 @@ begin
   coll_p := FWorkConn.CreateCollection('TEST_1_PERS_U',false); // unique
   coll_p := FWorkConn.CreateCollection('REFTEST',false); // unique
   coll_p := FWorkConn.CreateCollection('REFTEST_CC',false);
+  coll_p := FWorkConn.CreateCollection('NULLTEST');
 end;
 
 procedure TFRE_DB_PersistanceTests.FetchTestColletion;
@@ -677,6 +683,22 @@ begin
 
   AssertTrue('must be ok',coll_p.Store(o1)=edb_OK);
   AssertTrue('must be exists',coll_v.store(o2)=edb_EXISTS);
+end;
+
+procedure TFRE_DB_PersistanceTests.NullChangeUpdate;
+var coll_v,coll_p : IFRE_DB_COLLECTION;
+    res           : TFRE_DB_Errortype;
+    ta            : TFRE_DB_TEST_CODE_CLASS;
+    tauid         : TFRE_DB_GUID;
+begin
+  ConnectDB('admin@system','admin');
+  coll_p := FWorkConn.GetCollection('NULLTEST');
+  AssertNotNull(coll_p);
+  ta := TFRE_DB_TEST_CODE_CLASS.CreateForDB;
+  tauid := ta.UID;
+  CheckDbResult(coll_p.Store(ta));
+  CheckDbResult(FWorkConn.FetchAs(tauid,TFRE_DB_TEST_CODE_CLASS,ta));
+  CheckDbResult(coll_p.Update(ta)); // check with debugger that no notifications are sent ...
 end;
 
 // Reflink Example
@@ -1739,7 +1761,7 @@ end;
 
 initialization
   RegisterTest(TFRE_DB_ObjectTests);
-//  RegisterTest(TFRE_DB_PersistanceTests);
+  RegisterTest(TFRE_DB_PersistanceTests);
 
 end.
 
