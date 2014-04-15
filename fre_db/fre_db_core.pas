@@ -1958,6 +1958,8 @@ type
     function    IFRE_DB_SYS_CONNECTION.UpdateGroup                 = UpdateGroupI;
     function    IFRE_DB_SYS_CONNECTION.StoreRole                   = StoreRoleI;
     function    IFRE_DB_SYS_CONNECTION.UpdateRole                  = UpdateRoleI;
+    function    IFRE_DB_SYS_CONNECTION.UpdateDomain                = UpdateDomainI;
+    function    IFRE_DB_SYS_CONNECTION.UpdateUser                  = UpdateUserI;
     function    IFRE_DB_SYS_CONNECTION.StoreAppData                = StoreAppDataI;
     function    IFRE_DB_SYS_CONNECTION.StoreTranslateableText      = StoreTranslateableTextI;
     function    IFRE_DB_SYS_CONNECTION.UpdateTranslateableText     = UpdateTranslateableTextI;
@@ -1979,6 +1981,8 @@ type
 
     function    StoreRoleI                   (var   role:IFRE_DB_ROLE; const domainUID : TGUID):TFRE_DB_Errortype;
     function    UpdateRoleI                  (var   role:IFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    UpdateDomainI                (var   domain:IFRE_DB_DOMAIN):TFRE_DB_Errortype;
+    function    UpdateUserI                  (var   user:IFRE_DB_USER):TFRE_DB_Errortype;
 
     function    StoreGroupI                  (var   group: IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
     function    UpdateGroupI                 (var   group: IFRE_DB_GROUP): TFRE_DB_Errortype;
@@ -2055,6 +2059,8 @@ type
     function    UpdateRole                  (var role:TFRE_DB_ROLE):TFRE_DB_Errortype;
     function    StoreGroup                  (const domain_id: TGUID; var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
     function    UpdateGroup                 (var group: TFRE_DB_GROUP): TFRE_DB_Errortype;
+    function    UpdateDomain                (var domain: TFRE_DB_DOMAIN): TFRE_DB_Errortype;
+    function    UpdateUser                  (var user: TFRE_DB_USER): TFRE_DB_Errortype;
 
     function    StoreTranslateableText      (var   txt    :TFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    UpdateTranslateableText     (const txt    :TFRE_DB_TEXT) :TFRE_DB_Errortype;
@@ -4681,6 +4687,16 @@ begin
  result := FSysGroups.Update(TFRE_DB_Object(group));
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.UpdateDomain(var domain: TFRE_DB_DOMAIN): TFRE_DB_Errortype;
+begin
+ result := FSysDomains.Update(TFRE_DB_Object(domain));
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.UpdateUser(var user: TFRE_DB_USER): TFRE_DB_Errortype;
+begin
+ result := FSysUsers.Update(TFRE_DB_Object(user));
+end;
+
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreTranslateableText(var txt: TFRE_DB_TEXT): TFRE_DB_Errortype;
 begin
@@ -5204,6 +5220,22 @@ begin //nl
  lrole    := role.Implementor as TFRE_DB_ROLE;
  result := UpdateRole(lrole);
  role  := nil;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.UpdateDomainI(var domain: IFRE_DB_DOMAIN): TFRE_DB_Errortype;
+var ldomain : TFRE_DB_DOMAIN;
+begin //nl
+ ldomain := domain.Implementor as TFRE_DB_DOMAIN;
+ result  := UpdateDomain(ldomain);
+ domain  := nil;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.UpdateUserI(var user: IFRE_DB_USER): TFRE_DB_Errortype;
+var luser : TFRE_DB_USER;
+begin //nl
+ luser  := user.Implementor as TFRE_DB_USER;
+ result := UpdateUser(luser);
+ user   := nil;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreGroupI(var group:IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
