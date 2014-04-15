@@ -1459,6 +1459,8 @@ type
     function    StoreGroup                  (var group:IFRE_DB_GROUP;const domainUID: TGUID): TFRE_DB_Errortype;
     function    UpdateGroup                 (var group:IFRE_DB_GROUP): TFRE_DB_Errortype;
     function    UpdateRole                  (var role:IFRE_DB_ROLE): TFRE_DB_Errortype;
+    function    UpdateDomain                (var domain:IFRE_DB_DOMAIN): TFRE_DB_Errortype;
+    function    UpdateUser                  (var user:IFRE_DB_USER): TFRE_DB_Errortype;
 
     function    StoreTranslateableText      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    UpdateTranslateableText     (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;

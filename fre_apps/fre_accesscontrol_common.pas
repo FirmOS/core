@@ -2489,6 +2489,46 @@ begin
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+
+procedure _convertObjs_1_1(const obj: IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
+var
+  domain: IFRE_DB_DOMAIN;
+  group : IFRE_DB_GROUP;
+  user  : IFRE_DB_USER;
+  role  : IFRE_DB_ROLE;
+begin
+  if obj.IsA('TFRE_DB_DOMAIN') then begin
+    domain:=obj.Implementor_HC as IFRE_DB_DOMAIN;
+    domain.isInternal:=false;
+    domain.Suspended:=false;
+    CheckDbResult(conn.UpdateDomain(domain));
+  end else
+  if obj.IsA('TFRE_DB_GROUP') then begin
+    group:=obj.Implementor_HC as IFRE_DB_GROUP;
+    if not obj.FieldExists('internal') then begin
+      group.isInternal:=false;
+    end;
+    if not obj.FieldExists('protected') then begin
+      group.isProtected:=false;
+    end;
+    CheckDbResult(conn.UpdateGroup(group));
+  end else
+  if obj.IsA('TFRE_DB_USER') then begin
+    if not obj.FieldExists('internal') then begin
+      user:=obj.Implementor_HC as IFRE_DB_USER;
+      user.isInternal:=false;
+      CheckDbResult(conn.UpdateUser(user));
+    end;
+  end else
+  if obj.IsA('TFRE_DB_ROLE') then begin
+    if not obj.FieldExists('internal') then begin
+      role:=obj.Implementor_HC as IFRE_DB_ROLE;
+      role.isInternal:=false;
+      CheckDbResult(conn.UpdateRole(role));
+    end;
+  end;
+end;
+
 begin
   inherited;
 
@@ -2677,6 +2717,8 @@ begin
     CreateAppText(conn,'$tb_add_group_to_user','Add');
     CreateAppText(conn,'$tb_remove_group_from_role','Remove');
     CreateAppText(conn,'$tb_add_group_to_role','Add');
+
+    conn.ForAllDatabaseObjectsDo(@_convertObjs_1_1,TFRE_DB_StringArray.create('TFRE_DB_DOMAIN','TFRE_DB_GROUP','TFRE_DB_USER','TFRE_DB_ROLE'));
   end;
   VersionInstallCheck(currentVersionId,newVersionId);
 end;
