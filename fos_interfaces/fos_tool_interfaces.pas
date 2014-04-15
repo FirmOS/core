@@ -314,6 +314,8 @@ type
    { IFOS_BASIC_TOOLS }
    {$INTERFACES CORBA}
    IFOS_BASIC_TOOLS=interface
+    procedure HashFast32                (const mem : PByte ; const len :NativeUint ; var hash : cardinal);
+    function  HashFast32_Hex            (const value : ansistring):ansistring;
     function  HashString_MD5            (const Value: ansistring): ansistring;
     function  HashString_MD5_HEX        (const Value: ansistring): ansistring;
     function  HMAC_MD5                  (const Text: ansistring; Key: ansistring): ansistring;

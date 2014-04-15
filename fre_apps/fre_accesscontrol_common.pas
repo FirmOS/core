@@ -211,7 +211,7 @@ begin
     with domain_Grid do begin
       SetDeriveParent(session.GetDBConnection.AdmGetDomainCollection);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_domain);
       SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_DGMenu),nil,CWSF(@WEB_DGNotification));
@@ -228,7 +228,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<DOMAINIDLINK'],false,'uids');
       domain_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UinD'));
@@ -245,7 +245,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<DOMAINIDLINK'],false);
       domain_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_GinD'));
@@ -648,7 +648,7 @@ begin
         SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',nil,nil,CWSF(@WEB_RoleNotification));
       end;
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDefaultOrderField('displayname',true);
       SetDeriveTransformation(tr_role);
@@ -664,7 +664,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],false);
       role_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UhasR'));
@@ -681,7 +681,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],true);
       role_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserOut);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UnotR'));
@@ -699,7 +699,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS'],false);
       role_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,CWSF(@WEB_GIRNotification),nil,CWSF(@WEB_AddToRole));
@@ -717,7 +717,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS'],true);
       role_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_groupOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,CWSF(@WEB_GORNotification),nil,CWSF(@WEB_RemoveFromRole));
@@ -816,9 +816,9 @@ begin
       domain_guid := selObj.Field('DOMAINIDLINK').AsGUID;
       selObj.Finalize;
       dc_groupout := ses.FetchDerivedCollection('ROLEMOD_GROUPOUT_GRID');
-      dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+      dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
       dc_userout := ses.FetchDerivedCollection('ROLEMOD_USEROUT_GRID');
-      dc_userout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+      dc_userout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
     end else begin
       ses.GetSessionModuleData(ClassName).DeleteField('selectedRoles');
     end;
@@ -1104,7 +1104,7 @@ begin
         SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
       end;
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_Grid);
       SetDefaultOrderField('displayname',true);
@@ -1120,7 +1120,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],false); // UserGroupIDS
       group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UinG'),nil,'',CWSF(@WEB_UIGMenu),nil,nil,nil,CWSF(@WEB_AddToUser));
@@ -1137,7 +1137,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],true); // UserGroupIDS
       group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UnotG'),nil,'',CWSF(@WEB_UOGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromUser));
@@ -1154,7 +1154,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['ROLEIDS>TFRE_DB_ROLE'],false);
       group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,CWSF(@WEB_RIGNotification),nil,CWSF(@WEB_AddToRole));
@@ -1171,7 +1171,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['ROLEIDS>TFRE_DB_ROLE'],true);
       group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,CWSF(@WEB_ROGNotification),nil,CWSF(@WEB_RemoveFromRole));
@@ -1510,9 +1510,9 @@ begin
       selObj.Finalize;
       if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
         dc_userout := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
-        dc_userout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+        dc_userout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
         dc_roleout := ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
-        dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+        dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
       end;
     end else begin
       ses.GetSessionModuleData(ClassName).DeleteField('selectedGroups');
@@ -1901,7 +1901,7 @@ begin
         SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
       end;
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation   (tr_Grid);
       SetDefaultOrderField('displayname',true);
@@ -1918,7 +1918,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],false);
       user_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_GridIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UinG'),nil,'',CWSF(@WEB_GIGMenu),nil,nil,nil,CWSF(@WEB_AddToGroup));
@@ -1936,7 +1936,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],true);
       user_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_GridOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'$gcap_UnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,nil,nil,CWSF(@WEB_RemoveFromGroup));
@@ -1954,7 +1954,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],false);
       user_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UhasR'));
@@ -1971,7 +1971,7 @@ begin
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],true);
       user_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        AddBooleanFieldFilter('internal','internal',false,false);
+        AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleOut);
       SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'$gcap_UnotR'));
@@ -2027,9 +2027,9 @@ begin
       domain_guid := selObj.Field('DOMAINIDLINK').AsGUID;
       selObj.Finalize;
       dc_groupout := ses.FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
-      dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+      dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
       dc_roleout  := ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
-      dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT,false);
+      dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
     end else begin
       ses.GetSessionModuleData(ClassName).DeleteField('selectedUsers');
     end;

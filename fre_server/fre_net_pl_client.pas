@@ -41,6 +41,7 @@ type
       function        Count                      : int64;
       function        Exists                     (const ouid: TGUID): boolean;
       procedure       GetAllUIDS                 (var uids : TFRE_DB_GUIDArray);
+      procedure       GetAllObjects              (var objs : IFRE_DB_ObjectArray);
 
       function        Fetch                      (const uid:TGUID ; var obj : IFRE_DB_Object) : boolean;
       function        First                      : IFRE_DB_Object;
@@ -272,6 +273,22 @@ begin
   try
     FLayer.CheckRaiseAnswerError(answer);
     uids := answer.Field('G').AsGUIDArr;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetAllObjects(var objs: IFRE_DB_ObjectArray);
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
+begin
+  cmd :=  Flayer.NewPersistenceLayerCommand('CGAO');
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    objs := answer.Field('O').AsObjectArr;
     Flayer.FLasterror     := '';
     FLayer.FLastErrorCode := edb_OK;
   finally

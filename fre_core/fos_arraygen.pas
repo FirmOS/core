@@ -73,7 +73,7 @@ type
      function    Count        : NativeInt; inline;
      function    Capacity     : NativeInt; inline;
      function    HighArray    : NativeInt;
-     function    ForAllBreak  (const iterator: TGFOS_ArrayBreakIterator): boolean;
+     function    ForAllBreak  (const iterator: TGFOS_ArrayBreakIterator ; var halt : boolean): boolean;
      function    ForAllBrk    (const iterator:TGFOS_ArrayBrkIterator):boolean;
      procedure   ForAll       (const iterator:TGFOS_ArrayIterator);
      procedure   Sort         (sort_proc : TGFOS_SortProc);
@@ -168,11 +168,9 @@ begin
   result := Flength-1;
 end;
 
-function OGFOS_Array.ForAllBreak(const iterator: TGFOS_ArrayBreakIterator): boolean;
+function OGFOS_Array.ForAllBreak(const iterator: TGFOS_ArrayBreakIterator; var halt: boolean): boolean;
 var i    : NativeInt;
-    halt : boolean;
 begin
-  halt := false;
   for i:=0 to HighArray do
     begin
        iterator(Farray[i],halt);

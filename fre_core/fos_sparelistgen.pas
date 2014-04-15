@@ -75,6 +75,7 @@ type
        procedure SetElement           (idx : NativeInt; AValue: _TType);
        function  Count                : NativeInt;
        function  ForAllBreak          (const elem_func : TGFOS_ElemProc):Boolean;
+       function  ForAllBreak2         (const elem_func : TGFOS_ElemProc ; var halt : boolean):boolean;
        procedure ClearIndex           (const idx : NativeInt);
        function  GetLastNotNull       (var elem : _TType):NativeInt;
        function  GetFirstNotNull      (var elem : _TType):NativeInt;
@@ -225,24 +226,50 @@ begin
 end;
 
 function OFOS_SpareList.ForAllBreak(const elem_func: TGFOS_ElemProc): Boolean;
+//var i       : NativeInt;
+//    haltf   : boolean;
+//    cnt,
+//    savecnt : NativeInt;
+var   haltf : boolean;
+begin
+  haltf := false;
+  result := ForAllBreak2(elem_func,haltf);
+  //result  := true;
+  //haltf   := false;
+  //cnt     := 0;
+  //savecnt := FCnt;
+  //for i := 0 to High(FArray) do
+  //  begin
+  //    if not MyNullCompare(@FArray[i]) then
+  //      begin
+  //        elem_func(FArray[i],i,haltf);
+  //        inc(cnt);
+  //        if cnt=savecnt then
+  //           exit(haltf);
+  //        if haltf then
+  //           exit(true);
+  //      end;
+  //  end;
+  //exit(false);
+end;
+
+function OFOS_SpareList.ForAllBreak2(const elem_func: TGFOS_ElemProc; var halt: boolean): boolean;
 var i       : NativeInt;
-    haltf   : boolean;
     cnt,
     savecnt : NativeInt;
 begin
   result  := true;
-  haltf   := false;
   cnt     := 0;
   savecnt := FCnt;
   for i := 0 to High(FArray) do
     begin
       if not MyNullCompare(@FArray[i]) then
         begin
-          elem_func(FArray[i],i,haltf);
+          elem_func(FArray[i],i,halt);
           inc(cnt);
           if cnt=savecnt then
-             exit(haltf);
-          if haltf then
+             exit(halt);
+          if halt then
              exit(true);
         end;
     end;

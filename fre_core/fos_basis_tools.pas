@@ -39,7 +39,7 @@ unit fos_basis_tools;
 
 interface
 
-uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64,
+uses Classes, SysUtils, FOS_TOOL_INTERFACES,sha1,base64,crc,
 {$ifdef UNIX}
      BaseUnix,Unix;
 {$endif}
@@ -55,6 +55,8 @@ type
   TFOS_DEFAULT_BASISTOOLS = class(TObject, IFOS_BASIC_TOOLS)
   public
     destructor Destroy                  ; override;
+    procedure HashFast32                (const mem : PByte ; const len :NativeUint ; var hash : cardinal);
+    function  HashFast32_Hex            (const value : ansistring):ansistring;
     function  HashString_MD5            (const Value: ansistring): ansistring;
     function  HashString_MD5_HEX        (const Value: ansistring): ansistring;
     function  HMAC_MD5                  (const Text: ansistring; Key: ansistring): ansistring;
@@ -515,6 +517,18 @@ begin
      writeln('JACK GOT NAILED');
    end;
   inherited Destroy;
+end;
+
+procedure TFOS_DEFAULT_BASISTOOLS.HashFast32(const mem: PByte; const len: NativeUint; var hash: cardinal);
+begin
+  hash := crc32(0,mem,len);
+end;
+
+function TFOS_DEFAULT_BASISTOOLS.HashFast32_Hex(const value: ansistring): ansistring;
+var hash : Cardinal;
+begin
+  HashFast32(@value[1],Length(value),hash);
+  result := Mem2HexStr(@hash,4);
 end;
 
 function TFOS_DEFAULT_BASISTOOLS.HashString_MD5(const Value: ansistring): ansistring;

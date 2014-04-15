@@ -87,7 +87,7 @@ type
       stored_key     : PtrUInt;
       stored_key_len : NativeInt;
       stored_value   : NativeUint;
-      class function NewAndInitLeaf (value : NativeUint; key:PByte ; key_len:Nativeint): PFRE_ART_LeafNode; static; // negative keylens mean that the pointer to the key is stored, must not be volatile or moving!
+      class function NewAndInitLeaf (var value : PNativeUint; key:PByte ; key_len:Nativeint): PFRE_ART_LeafNode; static; // negative keylens mean that the pointer to the key is stored, must not be volatile or moving!
       function       GetStoredKey     : PByte; inline;
       function       GetStoredKeyLen  : NativeInt; inline;
       function       GetStoredValue   : PNativeUint; inline;
@@ -165,7 +165,7 @@ type
        procedure   CopyPrefix              (src,dst : PFRE_ART_Node); inline; // Helper function that copies the prefix from the source to the destination node
        function    LeafMatches             (leaf: PFRE_ART_Node ; key : PByte; keyLength,depth : Nativeint):boolean; inline ;  // Check if the key of the leaf is equal to the searched key
        function    PrefixMismatchAtByte    (node: PFRE_ART_Node ; key : PByte; keyLength,depth : Nativeint):Nativeint; // inline ;// Compare the key with the prefix of the node, return the number matching bytes
-       function    InsertInto              (node: PFRE_ART_Node; nodeRef: PPFRE_ART_Node; key: PByte; key_len, depth: NativeInt; var value: NativeUint): boolean;
+       function    InsertInto              (node: PFRE_ART_Node; nodeRef: PPFRE_ART_Node; key: PByte; key_len, depth: NativeInt; var value: PNativeUint): boolean;
        function    LookupKey               (node: PFRE_ART_Node ; key : PByte;keyLength,depth:NativeInt):PFRE_ART_Node; // Find the node with a matching key
        function    LookupKeyPessimistic    (node: PFRE_ART_Node ; key : PByte;keyLength,depth:NativeInt):PFRE_ART_Node; // Find the node with a matching key
        function    LookupKeyOrPrefix       (node: PFRE_ART_Node ; key : PByte;keyLength,depth:NativeInt):PFRE_ART_Node;
@@ -191,13 +191,16 @@ type
        procedure   Clear                   ;
        procedure   DumpTree                (const key_as_string : boolean = false ; const with_inner_nodes:boolean=false);
        function    InsertBinaryKey         (const key: PByte  ; const keylen : Nativeint ; const value: PtrUInt):boolean;
+       function    InsertBinaryKeyorFetchR (const key: PByte  ; const keylen : Nativeint ; var   value: PNativeUint):boolean;
        function    InsertBinaryKeyOrFetch  (const key: PByte  ; const keylen : Nativeint ; var   value: PtrUInt):boolean;
        function    ExistsBinaryKey         (const key: PByte  ; const keylen : Nativeint ; var   value: PtrUInt):boolean;
        function    RemoveBinaryKey         (const key: PByte  ; const keylen : Nativeint ; var   value: PtrUInt):boolean;
        function    InsertStringKey         (const key: string ; const value  : PtrUInt):boolean;
        function    InsertStringKeyOrFetch  (const key: string ; var   value  : PtrUInt):boolean;
-       function    ExistsStringKey         (const key: String ; var   value: PtrUInt):boolean;
-       function    RemoveStringKey         (const key: String ; var   value: PtrUInt):boolean;
+       function    InsertStringKeyOrFetchR (const key: string ; var   value  : PNativeUint):boolean;
+
+       function    ExistsStringKey         (const key: String ; var   value  : PtrUInt):boolean;
+       function    RemoveStringKey         (const key: String ; var   value  : PtrUInt):boolean;
 
        function    InsertUInt64Key         (const key: Uint64 ; var value : PtrUInt):boolean;
 
@@ -210,7 +213,9 @@ type
        function    FirstKeyValString       (var key_string: String ; var out_val : PtrUInt) : Boolean;
        function    LastKeyValString        (var key_string: String ; var out_val : PtrUInt) : Boolean;
 
-       function    PrefixScan              (const prefix_key : PByte ; key_len : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback):boolean;
+       function    PrefixScan              (const prefix_key : PByte  ; key_len : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback):boolean;
+       function    PrefixStringScan        (const prefix_key : string ; const nested_node_proc : TFRE_ART_NodeBreakCallback):boolean;
+       procedure   PrefixStringScanClear   (const prefix_key : string ; const nested_node_proc : TFRE_ART_NodeValueProc);
 
        function    RangeScan               (const lo_key,hi_key: PByte; const lo_keylen,hi_keylen : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallbackCountDown ; const max_count : NativeInt=0 ; skip : NativeInt=0 ; const asc : boolean=true):boolean;
        function    GetValueCount           : NativeUint;
@@ -1216,7 +1221,7 @@ begin
   result := true;
 end;
 
-function TFRE_ART_TREE.PrefixMismatchAtByte(node : PFRE_ART_Node ; key : PByte ; keylength,depth : NativeInt):Nativeint; // Compare the key with the prefix of the node, return the number matching bytes
+function TFRE_ART_TREE.PrefixMismatchAtByte(node: PFRE_ART_Node; key: PByte; keyLength, depth: Nativeint): Nativeint; // Compare the key with the prefix of the node, return the number matching bytes
 var pos     : Nativeint;
     minKey  : PByte;
     max_len : Nativeint;
@@ -1392,7 +1397,7 @@ begin
   move(src^.prefix,dst^.prefix,artmin(src^.prefixLength,CFREA_max_compressed_prefix));
 end;
 
-function TFRE_ART_TREE.InsertInto(node : PFRE_ART_Node ; nodeRef : PPFRE_ART_Node ; key : PByte ; key_len,depth : Nativeint ; var value : NativeUint) : boolean;
+function TFRE_ART_TREE.InsertInto(node: PFRE_ART_Node; nodeRef: PPFRE_ART_Node; key: PByte; key_len, depth: NativeInt; var value: PNativeUint): boolean;
 var
     minKey          : PByte;
     newPrefixLength : Nativeint;
@@ -1420,7 +1425,7 @@ begin
                end;
       if (depth+newPrefixLength >= abs_key_len) and (PFRE_ART_LeafNode(node)^.GetStoredKeyLen<=abs_key_len) then
         begin
-          value := PFRE_ART_LeafNode(node)^.GetStoredValue^;
+          value := PFRE_ART_LeafNode(node)^.GetStoredValue;
           exit(false);
         end;
       newNode  := TFRE_ART_Node4.NewAndInitNode4;
@@ -1493,7 +1498,7 @@ begin
         end
       else
         begin
-          value  :=  PFRE_ART_LeafNode(child^)^.GetStoredValue^;
+          value  :=  PFRE_ART_LeafNode(child^)^.GetStoredValue;
           result := false;
           exit(false);
         end;
@@ -1814,7 +1819,7 @@ end;
 
 { TFRE_ART_LeafNode }
 
-class function TFRE_ART_LeafNode.NewAndInitLeaf(value: NativeUint; key: PByte; key_len: Nativeint): PFRE_ART_LeafNode;
+class function TFRE_ART_LeafNode.NewAndInitLeaf(var value: PNativeUint; key: PByte; key_len: Nativeint): PFRE_ART_LeafNode;
 begin
   if key_len=0 then raise Exception.Create('art tree keylen must be > 0');
   result         := New(PFRE_ART_LeafNode);
@@ -1834,7 +1839,11 @@ begin
       move(key^,TExConvert(Result^.stored_key).Ptr^,key_len);
     end;
   result^.stored_key_len := key_len;
-  result^.stored_value   := value;
+  if assigned(value) then
+    result^.stored_value   := value^
+  else
+    result^.stored_value   := 0;
+  value := result^.GetStoredValue;
 end;
 
 function TFRE_ART_LeafNode.GetStoredKey: PByte;
@@ -1871,19 +1880,24 @@ end;
 
 
 function TFRE_ART_TREE.InsertBinaryKey(const key: PByte; const keylen: Nativeint; const value: PtrUInt): boolean;
-var val : PtrUInt;
+var val : PNativeUint;
 begin
-  val := value;
-  result := InsertInto(FArtTree,@FArtTree,key,keylen,0,val);
+  val    := @value;
+  result := InsertBinaryKeyorFetchR(key,keylen,val);
+end;
+
+function TFRE_ART_TREE.InsertBinaryKeyorFetchR(const key: PByte; const keylen: Nativeint; var value: PNativeUint): boolean;
+begin
+  result := InsertInto(FArtTree,@FArtTree,key,keylen,0,value);
   if result then
     inc(FValueCount);
-  //if not assigned(LookupKey(FArtTree,key,keylen,0)) then
-  //  raise Exception.Create('DEBUG FAIL LOOKUP');
 end;
 
 function TFRE_ART_TREE.InsertBinaryKeyOrFetch(const key: PByte; const keylen: Nativeint; var value: PtrUInt): boolean;
+var val : PNativeUint;
 begin
-  result := InsertInto(FArtTree,@FArtTree,key,keylen,0,value);
+  val    := @value;
+  result := InsertInto(FArtTree,@FArtTree,key,keylen,0,val);
   if result then
     inc(FValueCount);
 end;
@@ -1927,6 +1941,11 @@ end;
 function TFRE_ART_TREE.InsertStringKeyOrFetch(const key: string; var value: PtrUInt): boolean;
 begin
   result := InsertBinaryKeyOrFetch(@key[1],length(key),value);
+end;
+
+function TFRE_ART_TREE.InsertStringKeyOrFetchR(const key: string; var value: PNativeUint): boolean;
+begin
+  result := InsertBinaryKeyOrFetchR(@key[1],length(key),value);
 end;
 
 function TFRE_ART_TREE.ExistsStringKey(const key: String; var value: PtrUInt): boolean;
@@ -2117,6 +2136,37 @@ begin
     begin
       ForAllNodeLeafs(node,@CheckNode,result);
     end;
+end;
+
+function TFRE_ART_TREE.PrefixStringScan(const prefix_key: string; const nested_node_proc: TFRE_ART_NodeBreakCallback): boolean;
+begin
+  result := PrefixScan(@prefix_key[1],Length(prefix_key),nested_node_proc);
+end;
+
+procedure TFRE_ART_TREE.PrefixStringScanClear(const prefix_key: string; const nested_node_proc: TFRE_ART_NodeValueProc);
+var keys   : array of RawByteString;
+    values : array of PtrUInt;
+    cnt    : NativeInt;
+
+
+   procedure Internal(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean);
+   begin
+     if Length(keys)=cnt then
+       SetLength(keys,Length(keys)+512);
+     SetLength(keys[cnt],KeyLen);
+     move(key^,keys[cnt][1],KeyLen);
+     inc(cnt);
+   end;
+
+begin
+  cnt := 0;
+  PrefixStringScan(prefix_key,@internal);
+  SetLength(values,cnt);
+  SetLength(keys,cnt);
+  for cnt := 0 to high(keys) do
+    assert(RemoveBinaryKey(@keys[cnt][1],length(keys[cnt]),values[cnt]),'internal implementation error arttree prefixscanclear');
+  for cnt := 0 to high(values) do
+    nested_node_proc(values[cnt]);
 end;
 
 function TFRE_ART_TREE.RangeScan(const lo_key, hi_key: PByte; const lo_keylen, hi_keylen: NativeUint; const nested_node_proc: TFRE_ART_NodeBreakCallbackCountDown; const max_count: NativeInt; skip: NativeInt; const asc: boolean): boolean;

@@ -1053,8 +1053,8 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
   begin
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry);    // DROP : Websock / JSON / IN / OUT
     GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);    // DROP : JSON
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Debug,'*',flra_DropEntry);    // DROP SESSION  DEBUG
-    //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Debug,'*',flra_DropEntry);    // DROP SESSION  DEBUG
+    GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
   end;
 
   procedure Setup_APS_COMM_Logging;
@@ -1137,6 +1137,7 @@ end;
 procedure TFRE_CLISRV_APP.DumpAll(const filterstring : string);
 var conn   : IFRE_DB_CONNECTION;
     filter : TFRE_DB_StringArray;
+
     procedure Local(const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
     begin
       writeln('DUMPING OBJ : ',current,'/',max,' ',obj.UID_String,' ',obj.SchemeClass);

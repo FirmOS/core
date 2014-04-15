@@ -2553,7 +2553,8 @@ begin
   CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
 
   COLL := CONN.GetCollection('COLL_TEST_A');
-  for i := 0 to 20 - 1 do begin
+  for i := 0 to 20000 - 1 do begin
+    if i mod 100=0 then writeln('ENDLESS A ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i;
     lobj.Field('number_pb').AsUInt32:=i * 10;
