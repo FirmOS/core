@@ -1044,7 +1044,6 @@ begin
       dummy := FREDB_ObjectToPtrUInt(oc);
       if not FArtTreeKeyToObj.InsertBinaryKeyOrFetch(key,currpos,dummy) then
         begin
-          oc.Free;
           oc := FREDB_PtrUIntToObject(dummy) as TFRE_DB_OrderContainer;
         end;
       oc.AddObject(tobj);

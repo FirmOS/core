@@ -198,7 +198,7 @@ type
     nullkeylen      : NativeInt;
   protected
     procedure         SetBinaryComparableKey      (const keyvalue : TFRE_DB_String ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean);
-    class procedure   SetBinaryComparableKey      (const keyvalue : TFRE_DB_String ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean ; const FieldType : TFRE_DB_FIELDTYPE ; const case_insensitive : boolean ; const invert_key : boolean = false);
+    class procedure   SetBinaryComparableKey      (const keyvalue : TFRE_DB_String ; const key_target : PByte ; var key_len : NativeInt ; const is_null : boolean ; const case_insensitive : boolean ; const invert_key : boolean = false);
     procedure         StreamHeader                (const stream: TStream);override;
     class procedure   InitializeNullKey           ; override;
   public
@@ -1590,15 +1590,13 @@ begin
 end;
 
 class procedure TFRE_DB_SignedIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const key: PByte; var keylen: Nativeint; const is_casesensitive: boolean; const invert_key: boolean);
-var val           : Int64;
-    is_null_value : Boolean;
+var is_null_value : Boolean;
 begin
   is_null_value := not assigned(fld);
   if not is_null_value then
-    val := fld.AsInt64
+    SetBinaryComparableKey(fld.AsInt64,key,keylen,is_null_value,fld.FieldType,invert_key)
   else
-    val := 0;
-  SetBinaryComparableKey(val,key,keylen,is_null_value,fld.FieldType)
+    SetBinaryComparableKey(fld.AsInt64,key,keylen,is_null_value,fdbft_NotFound,invert_key);
 end;
 
 procedure TFRE_DB_SignedIndex.SetBinaryComparableKey(const keyvalue: int64; const key_target: PByte; var key_len: NativeInt; const is_null: boolean);
@@ -1610,9 +1608,9 @@ class procedure TFRE_DB_SignedIndex.SetBinaryComparableKey(const keyvalue: int64
 var FFixedKeylen : NativeInt;
     i            : NativeInt;
 begin
-  GetKeyLenForFieldtype(FieldType,FFixedKeylen);
   if not is_null then
     begin
+      GetKeyLenForFieldtype(FieldType,FFixedKeylen);
       key_len := FFixedKeylen+1;
       case FFixedKeylen of
          2: PSmallInt(@key_target[1])^ := SwapEndian(SmallInt(keyvalue));
@@ -1729,10 +1727,10 @@ begin
 end;
 
 class procedure TFRE_DB_UnsignedIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const key: PByte; var keylen: Nativeint; const is_cassensitive: boolean; const invert_key: boolean);
-var val           : Qword;
-    guid          : TGuid;
+var guid          : TGuid;
     is_null_value : boolean;
     isguid        : boolean;
+    i             : NativeInt;
 
 begin
   is_null_value := not assigned(fld);
@@ -1743,7 +1741,8 @@ begin
        begin
          guid   := fld.AsGUID;
          isguid := true;
-       end;
+       end
+  else
   if (not is_null_value)
      and (fld.FieldType=fdbft_ObjLink) then
        begin
@@ -1755,22 +1754,29 @@ begin
     begin
       if not is_null_value then
         begin
-          move(guid,key^,sizeof(tguid));
-          keylen:=16;
+          move(guid,key[1],sizeof(tguid));
+          keylen:=17;
+          key[0]:=1;
+          if invert_key then
+            for i:=1 to sizeof(TGuid) do
+              key[i] := not key[i];
         end
       else
         begin
-          FillByte(key^,17,0);
-          keylen:=17;
+          //FillByte(key^,17,0);
+          keylen := 2;
+          if not invert_key then
+            key[0] := 0
+          else
+            key[0] := 2;
         end
     end
   else
     begin
       if not is_null_value then
-        val := fld.AsUInt64
+        SetBinaryComparableKey(fld.AsUInt64,key,keylen,is_null_value,fld.FieldType,invert_key)
       else
-        val := 0;
-      SetBinaryComparableKey(val,key,keylen,is_null_value,fld.FieldType,invert_key)
+        SetBinaryComparableKey(0,key,keylen,is_null_value,fld.FieldType,invert_key);
     end;
 end;
 
@@ -1783,9 +1789,9 @@ class procedure TFRE_DB_UnsignedIndex.SetBinaryComparableKey(const keyvalue: qwo
 var FixedKeyLen : NativeInt;
     i           : NativeInt;
 begin
-  GetKeyLenForFieldtype(FieldType,FixedKeyLen);
   if not is_null then
     begin
+      GetKeyLenForFieldtype(FieldType,FixedKeyLen);
       key_len := FixedKeylen+1;
       case FixedKeylen of
           1: PByte(@key_target[1])^     := Byte(keyvalue);
@@ -3885,10 +3891,10 @@ end;
 
 procedure TFRE_DB_TextIndex.SetBinaryComparableKey(const keyvalue: TFRE_DB_String; const key_target: PByte; var key_len: NativeInt; const is_null: boolean);
 begin
-  SetBinaryComparableKey(keyvalue,key_target,key_len,is_null,FFieldType,FCaseInsensitive);
+  SetBinaryComparableKey(keyvalue,key_target,key_len,is_null,FCaseInsensitive);
 end;
 
-class procedure TFRE_DB_TextIndex.SetBinaryComparableKey(const keyvalue: TFRE_DB_String; const key_target: PByte; var key_len: NativeInt; const is_null: boolean; const FieldType: TFRE_DB_FIELDTYPE; const case_insensitive: boolean; const invert_key: boolean);
+class procedure TFRE_DB_TextIndex.SetBinaryComparableKey(const keyvalue: TFRE_DB_String; const key_target: PByte; var key_len: NativeInt; const is_null: boolean ;  const case_insensitive: boolean; const invert_key: boolean);
 var str           : TFRE_DB_String;
     regular_value : boolean;
     i             : NativeInt;
@@ -3919,7 +3925,7 @@ begin
         end;
     end;
   key_len := Length(str);
-  if invert_key and regular_value then;
+  if invert_key and regular_value then
     begin
       for i:= 2 to Length(str) do
         byte(str[i]) := not byte(str[i]);
@@ -3938,7 +3944,7 @@ end;
 
 class procedure TFRE_DB_TextIndex.InitializeNullKey;
 begin
-  SetBinaryComparableKey('',@nullkey,nullkeylen,true,fdbft_String,true);
+  SetBinaryComparableKey('',@nullkey,nullkeylen,true,true);
 end;
 
 
@@ -3979,15 +3985,13 @@ begin
 end;
 
 class procedure TFRE_DB_TextIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const key: PByte; var keylen: Nativeint; const is_casesensitive: boolean; const invert_key: boolean);
-var val           : TFRE_DB_String;
-    is_null_value : Boolean;
+var is_null_value : Boolean;
 begin
   is_null_value := not assigned(fld);
   if not is_null_value then
-    val := fld.AsString
+    SetBinaryComparableKey(fld.AsString,key,keylen,is_null_value,is_casesensitive,invert_key)
   else
-    val := '';
-  SetBinaryComparableKey(val,key,keylen,is_null_value,fld.FieldType,is_casesensitive);
+    SetBinaryComparableKey('',key,keylen,is_null_value,is_casesensitive,invert_key);
 end;
 
 function TFRE_DB_TextIndex.SupportsDataType(const typ: TFRE_DB_FIELDTYPE): boolean;
