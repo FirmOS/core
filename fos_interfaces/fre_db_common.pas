@@ -228,7 +228,7 @@ type
     //@ FIXXME: single_select=false not implemented yet.
     function  Describe              (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean=true; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
                                      const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
-    //@ FIXXME: not implemented yet.
+    //@ FIXXME: only implemented for dh_chooser_combo.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
     //@ Adds a dependent input element. If chooserValue is selected the input element will be visible. ignoreHidden set to true will not send the hidden fields on submit.
     procedure addDependentInput     (const inputId: String; const chooserValue: String; const ignoreHidden: Boolean=true);
@@ -530,6 +530,8 @@ type
     //@ If defaultClose is true a close button will be added to the dialog which simply closes the dialog.
     //@ If defaultClose is false and no explicit close button is added the dialog will not be closable at all (e.g. force login).
     function  Describe    (const caption:String; const content:TFRE_DB_CONTENT_DESC; const percWidth: Integer=0; const percHeight: Integer=0; const maxWidth:Integer=0; const maxHeight: Integer=0; const isDraggable:Boolean=true): TFRE_DB_DIALOG_DESC;
+    //@ Creates a new button and adds it to the form. See also TFRE_DB_BUTTON_DESC.
+    function  AddButton   : TFRE_DB_BUTTON_DESC;
   end;
 
   { TFRE_DB_TOPMENU_ENTRY_DESC }
@@ -874,7 +876,7 @@ implementation
 
   { TFRE_DB_DIALOG_DESC }
 
-  function TFRE_DB_DIALOG_DESC.Describe(const caption: String; const content: TFRE_DB_CONTENT_DESC; const percWidth, percHeight, maxWidth, maxHeight: Integer; const isDraggable: Boolean): TFRE_DB_DIALOG_DESC;
+    function TFRE_DB_DIALOG_DESC.Describe(const caption: String; const content: TFRE_DB_CONTENT_DESC; const percWidth: Integer; const percHeight: Integer; const maxWidth: Integer; const maxHeight: Integer; const isDraggable: Boolean): TFRE_DB_DIALOG_DESC;
   begin
     Field('dialogCaption').AsString:=caption;
     Field('content').AsObject:=content;
@@ -884,6 +886,12 @@ implementation
     Field('maxHeight').AsInt16:=maxHeight;
     Field('draggable').AsBoolean:=isDraggable;
     Result:=Self;
+  end;
+
+  function TFRE_DB_DIALOG_DESC.AddButton: TFRE_DB_BUTTON_DESC;
+  begin
+    Result := TFRE_DB_BUTTON_DESC.create;
+    Field('buttons').AddObject(Result);
   end;
 
   { TFRE_DB_UPDATE_SVG_DESC }

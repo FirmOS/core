@@ -59,6 +59,7 @@ type
    procedure jsContentAdd              (const str: String);
    function  _getStoreById             (const id: String;const stores: IFRE_DB_ObjectArray): TFRE_DB_STORE_DESC;
    procedure _BuildForm                (const session: TFRE_DB_UserSession; const co:TFRE_DB_FORM_DESC;const isDialog:Boolean; var hasCloseButton: Boolean);
+   procedure _BuildButton              (const co:TFRE_DB_BUTTON_DESC; const hiddenFields: IFRE_DB_ObjectArray; const isDialog:Boolean; var hasCloseButton: Boolean);
    procedure _BuildInput               (const co:TFRE_DB_INPUT_DESC);
    procedure _BuildInputNumber         (const co:TFRE_DB_INPUT_NUMBER_DESC);
    procedure _BuildInputDate           (const co:TFRE_DB_INPUT_DATE_DESC);
@@ -294,14 +295,14 @@ implementation
 
   procedure TFRE_DB_WAPP_DOJO._BuildForm(const session: TFRE_DB_UserSession; const co: TFRE_DB_FORM_DESC; const isDialog: Boolean; var hasCloseButton: Boolean);
   var
-    button      : TFRE_DB_BUTTON_DESC;
     i           : Integer;
     fieldtype   : String;
     stores      : IFRE_DB_ObjectArray;
     hiddenFields: IFRE_DB_ObjectArray;
-    bt          : TFRE_DB_BUTTON_TYPE;
     propsPrefix : String;
+    conn        : IFRE_DB_CONNECTION;
   begin
+    conn:=session.GetDBConnection;
     if co.FieldExists('stores') then begin
       stores:=co.Field('stores').AsObjectArr;
     end else begin
@@ -329,40 +330,48 @@ implementation
 
     hasCloseButton:=false;
     if co.Field('defaultClose').AsBoolean then begin
-      co.Field('buttons').AddObject(TFRE_DB_BUTTON_DESC.create.Describe('Close',nil,fdbbt_close));
+      co.Field('buttons').AddObject(TFRE_DB_BUTTON_DESC.create.Describe(_getText(conn,'close'),nil,fdbbt_close));
     end;
 
     jsContentAdd('"<tr><td colspan=''2'' style=''text-align:center;''>"+');
     for i := 0 to co.Field('buttons').ValueCount - 1 do begin
-      button:=co.Field('buttons').AsObjectItem[i].Implementor_HC as TFRE_DB_BUTTON_DESC;
-      jsContentAdd('"  <button dojoType=''FIRMOS.FormButton'' "+');
-      jsContentAdd('"  data-dojo-props=\""+');
-      if button.FieldExists('serverFunc') then begin
-        jsContentAdd('"    actionClassname:'''+button.FieldPath('serverFunc.class').AsString+''', actionFunctionname:'''+button.FieldPath('serverFunc.func').AsString+''', "+');
-        jsContentAdd('"    actionUidPath:'+_BuildJSArray(button.Field('serverFunc').AsObject.Field('uidPath').AsStringArr)+' ,actionParams:'+_BuildParamsObject(button.Field('serverFunc').AsObject.Field('params').AsObjectArr)+',"+');
-        jsContentAdd('"    hiddenFields:'+_BuildParamsObject(hiddenFields,'field','defaultValue')+', isDialog:'+BoolToStr(isDialog,'true','false')+'"+');
-        propsPrefix:=', ';
-      end else begin
-        propsPrefix:='';
-      end;
-      bt:=String2DBButtonType(button.Field('buttonType').AsString);
-      case bt of
-        fdbbt_button  : jsContentAdd('"    \" type=''button'' "+');
-        fdbbt_submit  : jsContentAdd('"    \" type=''submit'' "+');
-        fdbbt_close   : begin
-                          jsContentAdd('"    '+propsPrefix+' closeDialog: true \" type=''button'' "+');
-                          hasCloseButton:=true;
-                        end;
-        fdbbt_download: begin
-                          jsContentAdd('"    '+propsPrefix+' downloadId: '''+button.Field('downloadId').AsString+''', closeDialog: '+BoolToStr(button.Field('closeDialog').AsBoolean,'true','false')+' \" type=''button'' "+');
-                          hasCloseButton:=true;
-                        end;
-      end;
-      jsContentAdd('">'+button.Field('caption').AsString+'</button>"+');
+      _BuildButton(co.Field('buttons').AsObjectItem[i].Implementor_HC as TFRE_DB_BUTTON_DESC,hiddenFields,isDialog,hasCloseButton);
+      jsContentAdd('+');
     end;
     jsContentAdd('"</td></tr>"+');
     jsContentAdd('"</table>"+');
     jsContentAdd('"</form>"');
+  end;
+
+  procedure TFRE_DB_WAPP_DOJO._BuildButton(const co: TFRE_DB_BUTTON_DESC; const hiddenFields: IFRE_DB_ObjectArray; const isDialog:Boolean; var hasCloseButton: Boolean);
+  var
+    propsPrefix: String;
+    bt         : TFRE_DB_BUTTON_TYPE;
+  begin
+    jsContentAdd('"  <button dojoType=''FIRMOS.FormButton'' "+');
+    jsContentAdd('"  data-dojo-props=\""+');
+    if co.FieldExists('serverFunc') then begin
+      jsContentAdd('"    actionClassname:'''+co.FieldPath('serverFunc.class').AsString+''', actionFunctionname:'''+co.FieldPath('serverFunc.func').AsString+''', "+');
+      jsContentAdd('"    actionUidPath:'+_BuildJSArray(co.Field('serverFunc').AsObject.Field('uidPath').AsStringArr)+' ,actionParams:'+_BuildParamsObject(co.Field('serverFunc').AsObject.Field('params').AsObjectArr)+',"+');
+      jsContentAdd('"    hiddenFields:'+_BuildParamsObject(hiddenFields,'field','defaultValue')+', isDialog:'+BoolToStr(isDialog,'true','false')+'"+');
+      propsPrefix:=', ';
+    end else begin
+      propsPrefix:='';
+    end;
+    bt:=String2DBButtonType(co.Field('buttonType').AsString);
+    case bt of
+      fdbbt_button  : jsContentAdd('"    \" type=''button'' "+');
+      fdbbt_submit  : jsContentAdd('"    \" type=''submit'' "+');
+      fdbbt_close   : begin
+                        jsContentAdd('"    '+propsPrefix+' closeDialog: true \" type=''button'' "+');
+                        hasCloseButton:=true;
+                      end;
+      fdbbt_download: begin
+                        jsContentAdd('"    '+propsPrefix+' downloadId: '''+co.Field('downloadId').AsString+''', closeDialog: '+BoolToStr(co.Field('closeDialog').AsBoolean,'true','false')+' \" type=''button'' "+');
+                        hasCloseButton:=true;
+                      end;
+    end;
+    jsContentAdd('">'+co.Field('caption').AsString+'</button>"');
   end;
 
   procedure TFRE_DB_WAPP_DOJO._BuildInput(const co: TFRE_DB_INPUT_DESC);
@@ -603,6 +612,15 @@ implementation
                              end;
                              jsContentAdd('"]\""+');
                            end;
+                           if co.Field('filteredStore').ValueCount>0 then begin
+                             jsContentAdd('", depStores: \"["+');
+                             preFix:='';
+                             for i := 0 to co.Field('filteredStore').ValueCount - 1 do begin
+                               jsContentAdd('" '+preFix+'{storeId: \\\"'+co.Field('filteredStore').AsObjectArr[i].Field('storeId').AsString +'\\\", refId: \\\"'+co.Field('filteredStore').AsObjectArr[i].Field('refId').AsString +'\\\"}"+');
+                               preFix:=',';
+                             end;
+                             jsContentAdd('"]\""+');
+                           end;
                            jsContentAdd('"''>"+');
                            if not co.Field('required').AsBoolean then begin
                              jsContentAdd('"  <option value=''''></option>"+');
@@ -791,6 +809,8 @@ implementation
     width          : String;
     tmpContent     : TFRE_DB_RawByteString;
     tmpContentType : String;
+    i              : Integer;
+    hiddenFields   : IFRE_DB_ObjectArray;
   begin
     if co is TFRE_DB_DIALOG_DESC then begin
       TransformInvocation(session,command_type,co.Field('content').AsObject,tmpContent,tmpContentType,true);
@@ -815,6 +835,16 @@ implementation
     if co is TFRE_DB_DIALOG_DESC then begin
       hasCloseButton:=true;
       jsContentAdd('  ,_contentObj: '+co.FieldPath('content.id').AsString);
+      if co.FieldExists('buttons') then begin
+        jsContentAdd('  ,_buttonDef: ');
+        SetLength(hiddenFields,0);
+        for i := 0 to co.Field('buttons').ValueCount - 1 do begin
+          if i>0 then begin
+            jsContentAdd('+');
+          end;
+          _BuildButton(co.Field('buttons').AsObjectItem[i].Implementor_HC as TFRE_DB_BUTTON_DESC,hiddenFields,true,hasCloseButton);
+        end;
+      end;
       jsContentAdd('  ,_maxHeight: '+co.Field('maxHeight').AsString);
       jsContentAdd('  ,_maxWidth: '+co.Field('maxWidth').AsString);
       jsContentAdd('  ,_percHeight: '+co.Field('percHeight').AsString);
@@ -1054,6 +1084,7 @@ implementation
     _storeText(conn,'rec_interval','Interval');
     _storeText(conn,'rec_count','Count');
     _storeText(conn,'ow_error','Unable to open window! Popup Blocker?');
+    _storeText(conn,'close','Close');
   end;
 
   procedure TFRE_DB_WAPP_DOJO.BuildContextMenu(const co: TFRE_DB_MENU_DESC; var contentString, contentType: String);
