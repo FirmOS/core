@@ -1007,17 +1007,17 @@ var i       : NativeInt;
           begin
             if TFRE_DB_MM_Index.GetIndexClassForFieldtype(fld.FieldType,idx)=edb_UNSUPPORTED then
               begin
-                TFRE_DB_TextIndex.TransformToBinaryComparable(nil,@key[currpos],KeyLen,false); { fallback transform the nil/unknown/unsupported fieldtype to a text null value }
+                TFRE_DB_TextIndex.TransformToBinaryComparable(nil,@key[currpos],KeyLen,false,not order.ascending); { fallback transform the nil/unknown/unsupported fieldtype to a text null value }
               end
             else
               if idx=TFRE_DB_UnsignedIndex then
-                TFRE_DB_UnsignedIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false)
+                TFRE_DB_UnsignedIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false,not order.ascending)
               else
               if idx=TFRE_DB_SignedIndex then
-                TFRE_DB_SignedIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false)
+                TFRE_DB_SignedIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false,not order.ascending)
               else
               if idx=TFRE_DB_TextIndex then
-                TFRE_DB_TextIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false)
+                TFRE_DB_TextIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false,not order.ascending)
               else
                 raise EFRE_DB_Exception.Create(edb_INTERNAL,' unknonw idx typed must be reported as unsupported!');
           end

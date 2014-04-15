@@ -851,11 +851,21 @@ var
   res       : TFRE_DB_MENU_DESC;
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
+  i         : Integer;
+  group     : IFRE_DB_GROUP;
 begin
-
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
      input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+
+    for i := 0 to input.Field('SELECTED').ValueCount - 1 do begin
+      CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.Field('SELECTED').AsStringItem[i]),group));
+      if group.isProtected then begin
+        Result:=GFRE_DB_NIL_DESC;
+        exit;
+      end;
+    end;
+
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CWSF(@WEB_RemoveFromRole);
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
@@ -877,10 +887,21 @@ var
   res       : TFRE_DB_MENU_DESC;
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
+  i         : Integer;
+  group     : IFRE_DB_GROUP;
 begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
      input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
+
+     for i := 0 to input.Field('SELECTED').ValueCount - 1 do begin
+      CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.Field('SELECTED').AsStringItem[i]),group));
+      if group.isProtected then begin
+        Result:=GFRE_DB_NIL_DESC;
+        exit;
+      end;
+    end;
+
     res:=TFRE_DB_MENU_DESC.create.Describe;
     func:=CWSF(@WEB_AddToRole);
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
@@ -1428,7 +1449,7 @@ begin
       CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'DeleteGroupConfirmed');
       if group.isProtected then raise EFRE_DB_Exception.Create('You cannot delete a protected group.');
 
-      users:=conn.GetReferences(group.UID,false,'TFRE_DB_USER');
+      conn.ExpandReferences(TFRE_DB_GUIDArray.create(group.UID),TFRE_DB_NameTypeRLArray.create('TFRE_DB_USER<USERGROUPIDS'),users);
       for j := 0 to High(users) do begin
         CheckDbResult(conn.sys.RemoveUserGroupsById(users[j],TFRE_DB_GUIDArray.Create(group.UID)));
       end;
@@ -1673,22 +1694,28 @@ var
   res       : TFRE_DB_MENU_DESC;
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
+  group     : IFRE_DB_GROUP;
 begin
-
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
      input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
-    res:=TFRE_DB_MENU_DESC.create.Describe;
-    func:=CWSF(@WEB_RemoveFromRole);
-    func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
-    func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-    if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_role');
+
+    CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.FieldPath('dependency.uids_ref.filtervalues').AsString),group));
+    if group.isProtected then begin
+      Result:=GFRE_DB_NIL_DESC;
     end else begin
-      txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_roles');
+      res:=TFRE_DB_MENU_DESC.create.Describe;
+      func:=CWSF(@WEB_RemoveFromRole);
+      func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
+      func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+      if input.Field('selected').ValueCount=1 then begin
+        txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_role');
+      end else begin
+        txt:=app.FetchAppTextShort(ses,'$cm_remove_group_from_roles');
+      end;
+      res.AddEntry.Describe(txt,'',func);
+      Result:=res;
     end;
-    res.AddEntry.Describe(txt,'',func);
-    Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
   end;
@@ -1699,21 +1726,28 @@ var
   res       : TFRE_DB_MENU_DESC;
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
+  group     : IFRE_DB_GROUP;
 begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) and
      input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
-    res:=TFRE_DB_MENU_DESC.create.Describe;
-    func:=CWSF(@WEB_AddToRole);
-    func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
-    func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-    if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_role');
+
+    CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.FieldPath('dependency.uids_ref.filtervalues').AsString),group));
+    if group.isProtected then begin
+      Result:=GFRE_DB_NIL_DESC;
     end else begin
-      txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_roles');
+      res:=TFRE_DB_MENU_DESC.create.Describe;
+      func:=CWSF(@WEB_AddToRole);
+      func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
+      func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+      if input.Field('selected').ValueCount=1 then begin
+        txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_role');
+      end else begin
+        txt:=app.FetchAppTextShort(ses,'$cm_add_group_to_roles');
+      end;
+      res.AddEntry.Describe(txt,'',func);
+      Result:=res;
     end;
-    res.AddEntry.Describe(txt,'',func);
-    Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
   end;
