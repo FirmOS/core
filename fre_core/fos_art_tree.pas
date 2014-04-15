@@ -1900,6 +1900,7 @@ begin
   result := InsertInto(FArtTree,@FArtTree,key,keylen,0,val);
   if result then
     inc(FValueCount);
+  value  := val^;
 end;
 
 function TFRE_ART_TREE.ExistsBinaryKey(const key: PByte; const keylen: Nativeint; var value: PtrUInt): boolean;
