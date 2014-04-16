@@ -330,7 +330,7 @@ implementation
 
     hasCloseButton:=false;
     if co.Field('defaultClose').AsBoolean then begin
-      co.Field('buttons').AddObject(TFRE_DB_BUTTON_DESC.create.Describe(_getText(conn,'close'),nil,fdbbt_close));
+      co.Field('buttons').AddObject(TFRE_DB_BUTTON_DESC.create.Describe('Close',nil,fdbbt_close));
     end;
 
     jsContentAdd('"<tr><td colspan=''2'' style=''text-align:center;''>"+');
