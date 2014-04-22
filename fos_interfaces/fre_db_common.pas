@@ -230,8 +230,8 @@ type
                                      const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
     //@ FIXXME: only implemented for dh_chooser_combo.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
-    //@ Adds a dependent input element. If chooserValue is selected the input element will be visible. ignoreHidden set to true will not send the hidden fields on submit.
-    procedure addDependentInput     (const inputId: String; const chooserValue: String; const ignoreHidden: Boolean=true);
+    //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
+    procedure addDependentInput     (const inputId: String; const chooserValue: String);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -1796,14 +1796,13 @@ implementation
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputId: String; const chooserValue: String; const ignoreHidden: Boolean);
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputId: String; const chooserValue: String);
   var
     obj: IFRE_DB_Object;
   begin
    obj:=GFRE_DBI.NewObject;
    obj.Field('inputId').AsString:=inputId;
    obj.Field('value').AsString:=chooserValue;
-   obj.Field('ignoreHidden').AsBoolean:=ignoreHidden;
    Field('dependentInputFields').AddObject(obj);
   end;
 
