@@ -2827,6 +2827,7 @@ begin
     dt_date: ;
     dt_number: ;
     dt_number_pb: ;
+    dt_currency: ;
     dt_icon:
       begin
         SetLength(sa,0);

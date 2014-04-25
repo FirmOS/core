@@ -1400,10 +1400,11 @@ implementation
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderDate(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridDate"');
                         end;
-            dt_number : begin
-                          jsContentAdd('      ,widgetClass: dijit.form.NumberTextBox, styles: "text-align: right;"');
-                          jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridNumber"');
-                        end;
+            dt_number,
+            dt_currency: begin
+                           jsContentAdd('      ,widgetClass: dijit.form.NumberTextBox, styles: "text-align: right;"');
+                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridNumber"');
+                         end;
             dt_icon   : begin
                           jsContentAdd('      ,editable: false');
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderIcons(object, value, node, options);}');
