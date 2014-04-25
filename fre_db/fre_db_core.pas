@@ -4661,8 +4661,6 @@ begin
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.StoreRole(var role: TFRE_DB_ROLE; const domainUID: TGUID): TFRE_DB_Errortype;
-var app_id :TGUID;
-  role_id: TGUID;
 begin
   Result:=edb_ERROR;
   role.SetDomainID(domainUID);

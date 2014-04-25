@@ -6318,21 +6318,6 @@ begin
           role.AddRight(GetRight4Domain(GetClassRightNameFetch,domainUID));
           CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.fetch role');
         end
-      else
-        begin //FIXXME - CK - should be handled while upgrading AC from 1.0 to 1.1 together with domains, users and groups
-          CheckDbResult(conn.FetchRole(GetClassRoleNameStore,domainUID,role));
-          role.isInternal:=true;
-          CheckDbResult(conn.UpdateRole(role));
-          CheckDbResult(conn.FetchRole(GetClassRoleNameDelete,domainUID,role));
-          role.isInternal:=true;
-          CheckDbResult(conn.UpdateRole(role));
-          CheckDbResult(conn.FetchRole(GetClassRoleNameUpdate,domainUID,role));
-          role.isInternal:=true;
-          CheckDbResult(conn.UpdateRole(role));
-          CheckDbResult(conn.FetchRole(GetClassRoleNameFetch,domainUID,role));
-          role.isInternal:=true;
-          CheckDbResult(conn.UpdateRole(role));
-        end;
     end;
 end;
 
