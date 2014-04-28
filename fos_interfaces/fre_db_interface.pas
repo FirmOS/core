@@ -110,7 +110,7 @@ type
   end;
 
   TFRE_DB_FIELDTYPE     = (fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink);
-  TFRE_DB_DISPLAY_TYPE  = (dt_string,dt_date,dt_number,dt_number_pb,dt_icon,dt_boolean);
+  TFRE_DB_DISPLAY_TYPE  = (dt_string,dt_date,dt_number,dt_number_pb,dt_currency,dt_icon,dt_boolean);
   TFRE_DB_MESSAGE_TYPE  = (fdbmt_error,fdbmt_warning,fdbmt_info,fdbmt_confirm,fdbmt_wait);
 
 
@@ -125,7 +125,7 @@ const
   CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM','QUERY','DBTDM');
   CFRE_DB_LOGCATEGORY_INI_IDENT  : Array[TFRE_DB_LOGCATEGORY]             of String = ('NONE','PERSISTANCE','PERSISTANCE_NOTIFY','DB','MEMORY','REFERENCES','EXCEPTION','SERVER','HTTP_REQ','HTTP_RES','WEBSOCK','APPLICATION','SESSION','FLEXCOM','SERVER_DATA','WS_JSON','FLEX_IO','APSCOMM','HTTP_ZIP','HTTP_CACHE','STREAMING','QUERY','DBTM');
   CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');
-  CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','ICO','BOO');
+  CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','CUR','ICO','BOO');
   CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
   CFRE_DB_SUBSEC_DISPLAY_TYPE    : array [TFRE_DB_SUBSEC_DISPLAY_TYPE]    of string = ('sec_dt_tab','sec_dt_vertical','sec_dt_hiddentab');
   CFRE_DB_SYS_DOMAIN_NAME        = 'SYSTEM';
@@ -1937,8 +1937,6 @@ type
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
     function    ShowInApplicationChooser    (const session:IFRE_DB_UserSession): Boolean;virtual;
 
-//    procedure  CreateAppText                (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
-
     function   _FetchAppText                 (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
     function   FetchAppTextShort             (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
     function   FetchAppTextLong              (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
@@ -1992,6 +1990,16 @@ type
     function   GetModuleClassName            : Shortstring;
     function   AsObject                      : IFRE_DB_Object;
     function   IsContentUpdateVisible        (const session: IFRE_DB_UserSession; const update_content_id:string):Boolean;
+
+    function   _FetchModuleText              (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
+    function   FetchModuleTextShort          (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchModuleTextLong           (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchModuleTextHint           (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function   FetchModuleTextFull           (const session:IFRE_DB_UserSession;const translation_key:TFRE_DB_String):IFRE_DB_TEXT;// FINALIZE THE OBJECT
+
+    class procedure  CreateModuleText        (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
+    class procedure  DeleteModuleText        (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String);
+    class procedure  UpdateModuleText        (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
   published
     function   IMI_OnUIChange                (const input:IFRE_DB_Object):IFRE_DB_Object; virtual;
   end;
@@ -6443,21 +6451,6 @@ begin
           role.AddRight(GetRight4Domain(GetClassRightNameFetch,domainUID));
           CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.fetch role');
         end
-      else
-        begin //FIXXME - CK - should be handled while upgrading AC from 1.0 to 1.1 together with domains, users and groups
-          CheckDbResult(conn.FetchRole(GetClassRoleNameStore,domainUID,role));
-          role.isInternal:=true;
-          CheckDbResult(conn.UpdateRole(role));
-          CheckDbResult(conn.FetchRole(GetClassRoleNameDelete,domainUID,role));
-          role.isInternal:=true;
-          CheckDbResult(conn.UpdateRole(role));
-          CheckDbResult(conn.FetchRole(GetClassRoleNameUpdate,domainUID,role));
-          role.isInternal:=true;
-          CheckDbResult(conn.UpdateRole(role));
-          CheckDbResult(conn.FetchRole(GetClassRoleNameFetch,domainUID,role));
-          role.isInternal:=true;
-          CheckDbResult(conn.UpdateRole(role));
-        end;
     end;
 end;
 
@@ -7744,6 +7737,62 @@ end;
 function TFRE_DB_APPLICATION_MODULE.IsContentUpdateVisible(const session: IFRE_DB_UserSession; const update_content_id: string): Boolean;
 begin
   result := GetEmbeddingApp.IsContentUpdateVisible(session,update_content_id);
+end;
+
+function TFRE_DB_APPLICATION_MODULE._FetchModuleText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
+begin
+  if not session.GetDBConnection.FetchTranslateableTextOBJ(uppercase(classname)+'_'+translation_key,result) then
+    begin
+      Result := GFRE_DBI.CreateText('notfound',translation_key+'_short',translation_key+'_long',translation_key+'_is_missing!');
+    end;
+end;
+
+function TFRE_DB_APPLICATION_MODULE.FetchModuleTextShort(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): TFRE_DB_String;
+var txt : IFRE_DB_TEXT;
+begin
+  txt := _FetchModuleText(session,translation_key);
+  result := txt.Getshort;
+  txt.Finalize;
+end;
+
+function TFRE_DB_APPLICATION_MODULE.FetchModuleTextLong(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): TFRE_DB_String;
+var txt : IFRE_DB_TEXT;
+begin
+  txt := _FetchModuleText(session,translation_key);
+  result := txt.GetLong;
+  txt.Finalize;
+end;
+
+function TFRE_DB_APPLICATION_MODULE.FetchModuleTextHint(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): TFRE_DB_String;
+var txt : IFRE_DB_TEXT;
+begin
+  txt := _FetchModuleText(session,translation_key);
+  result := txt.GetHint;
+  txt.Finalize;
+end;
+
+function TFRE_DB_APPLICATION_MODULE.FetchModuleTextFull(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
+begin
+  result := _FetchModuleText(session,translation_key);
+end;
+
+class procedure TFRE_DB_APPLICATION_MODULE.CreateModuleText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
+var txt :IFRE_DB_TEXT;
+begin
+  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
+  CheckDbResult(conn.StoreTranslateableText(txt),'CreateModuleText ' + translation_key);
+end;
+
+class procedure TFRE_DB_APPLICATION_MODULE.DeleteModuleText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String);
+begin
+  CheckDbResult(conn.DeleteTranslateableText(uppercase(classname)+'_'+translation_key),'DeleteModuleText ' + translation_key);
+end;
+
+class procedure TFRE_DB_APPLICATION_MODULE.UpdateModuleText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
+var txt :IFRE_DB_TEXT;
+begin
+  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
+  CheckDbResult(conn.UpdateTranslateableText(txt),'UpdateModuleText ' + translation_key);
 end;
 
 function TFRE_DB_APPLICATION_MODULE.IMI_OnUIChange(const input: IFRE_DB_Object): IFRE_DB_Object;

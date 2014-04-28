@@ -997,7 +997,7 @@ begin
       AddOneToOnescheme('fdbft_UInt64','','Uint64',dt_number,true,true,true);
       AddOneToOnescheme('fdbft_Real32','','Real32',dt_number,true,true,true);
       AddOneToOnescheme('fdbft_Real64','','Real64',dt_number,true,true,true);
-      AddOneToOnescheme('fdbft_Currency','','Currency',dt_number,true,true,true);
+      AddOneToOnescheme('fdbft_Currency','','Currency',dt_currency,true,true,true);
       AddOneToOnescheme('fdbft_String','','String',dt_String,true,true,true);
       AddOneToOnescheme('fdbft_Boolean','','Boolean',dt_boolean,true,true,true);
       AddOneToOnescheme('fdbft_DateTimeUTC','','Datetime',dt_date,true,true,true);

@@ -607,7 +607,7 @@ implementation
                              jsContentAdd('", depGroup: \"["+');
                              preFix:='';
                              for i := 0 to co.Field('dependentInputFields').ValueCount - 1 do begin
-                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\", value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\", ignoreHidden: '+ BoolToStr(co.Field('dependentInputFields').AsObjectArr[i].Field('ignoreHidden').AsBoolean,'true','false') +'}"+');
+                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\", value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\"}"+');
                                preFix:=',';
                              end;
                              jsContentAdd('"]\""+');
@@ -1400,10 +1400,11 @@ implementation
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderDate(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridDate"');
                         end;
-            dt_number : begin
-                          jsContentAdd('      ,widgetClass: dijit.form.NumberTextBox, styles: "text-align: right;"');
-                          jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridNumber"');
-                        end;
+            dt_number,
+            dt_currency: begin
+                           jsContentAdd('      ,widgetClass: dijit.form.NumberTextBox, styles: "text-align: right;"');
+                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridNumber"');
+                         end;
             dt_icon   : begin
                           jsContentAdd('      ,editable: false');
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderIcons(object, value, node, options);}');
