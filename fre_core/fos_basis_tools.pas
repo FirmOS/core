@@ -55,8 +55,8 @@ type
   TFOS_DEFAULT_BASISTOOLS = class(TObject, IFOS_BASIC_TOOLS)
   public
     destructor Destroy                  ; override;
-    procedure HashFast32                (const mem : PByte ; const len :NativeUint ; var hash : cardinal);
-    function  HashFast32_Hex            (const value : ansistring):ansistring;
+    function  HashFast32                (const mem : PByte ; const len :NativeUint ; const seed : cardinal=0):cardinal;
+    function  HashFast32_Hex            (const value: ansistring; const seed: cardinal=0): ansistring;
     function  HashString_MD5            (const Value: ansistring): ansistring;
     function  HashString_MD5_HEX        (const Value: ansistring): ansistring;
     function  HMAC_MD5                  (const Text: ansistring; Key: ansistring): ansistring;
@@ -519,15 +519,15 @@ begin
   inherited Destroy;
 end;
 
-procedure TFOS_DEFAULT_BASISTOOLS.HashFast32(const mem: PByte; const len: NativeUint; var hash: cardinal);
+function TFOS_DEFAULT_BASISTOOLS.HashFast32(const mem: PByte; const len: NativeUint; const seed: cardinal): cardinal;
 begin
-  hash := crc32(0,mem,len);
+  result := crc32(seed,mem,len); { 2be replaced by a xxxHash implementation }
 end;
 
-function TFOS_DEFAULT_BASISTOOLS.HashFast32_Hex(const value: ansistring): ansistring;
+function TFOS_DEFAULT_BASISTOOLS.HashFast32_Hex(const value: ansistring ; const seed: cardinal): ansistring;
 var hash : Cardinal;
 begin
-  HashFast32(@value[1],Length(value),hash);
+  hash   := HashFast32(@value[1],Length(value),seed);
   result := Mem2HexStr(@hash,4);
 end;
 

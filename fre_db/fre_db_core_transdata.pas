@@ -42,7 +42,7 @@ unit fre_db_core_transdata;
 interface
 
 uses
-     Classes, SysUtils,fos_sparelistgen,fre_db_interface,fre_db_core,fos_art_tree,fos_basis_tools,fos_tool_interfaces,fos_arraygen,fre_db_persistance_common,crc;
+     Classes,contnrs, SysUtils,fos_sparelistgen,fre_db_interface,fre_db_core,fos_art_tree,fos_basis_tools,fos_tool_interfaces,fos_arraygen,fre_db_persistance_common,strutils;
 var
     cFRE_INT_TUNE_SYSFILTEXTENSION_SZ : NativeUint = 128;
 
@@ -83,33 +83,128 @@ type
     procedure   ForAllOrders      (const orderiterator : TFRE_DB_DC_ORDER_ITERATOR);
   end;
 
-  RDC_Filter_Entry=record
-    key          : TFRE_DB_NameType;
-    fldname      : TFRE_DB_NameType;
-    flttype      : TFRE_DB_FILTERTYPE;
-    filtervalcnt : NativeUInt;
-    filtervalues : Pointer; {points to a mem block of filter values}
+  { TFRE_DB_FILTER_STRING }
+
+  TFRE_DB_FILTER_STRING=class(TFRE_DB_FILTER_BASE)
+  protected
+    FValues     : TFRE_DB_StringArray;
+    FFilterType : TFRE_DB_STR_FILTERTYPE;
+  public
+    function  Clone            : TFRE_DB_FILTER_BASE;override;
+    function  GetDefinitionKey : TFRE_DB_NameType;override;
+    function  CheckFilterHit   (const obj : IFRE_DB_Object; var flt_errors : Int64):boolean; override;
+    procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String ; const stringfiltertype : TFRE_DB_STR_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
   end;
 
-  PRDC_Filter_Entry = ^RDC_Filter_Entry;
+  { TFRE_DB_FILTER_SIGNED }
 
-  OFRE_SL_RDC_Filter_Def  = specialize OFOS_SpareList<RDC_Filter_Entry>;
+  TFRE_DB_FILTER_SIGNED=class(TFRE_DB_FILTER_BASE)
+  protected
+    FValues     : TFRE_DB_Int64Array;
+    FFilterType : TFRE_DB_NUM_FILTERTYPE;
+    FIsDateTime : Boolean;
+  public
+    function  Clone            : TFRE_DB_FILTER_BASE;override;
+    function  GetDefinitionKey : TFRE_DB_NameType;override;
+    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of Int64 ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean ; const isdatetime : boolean=false);
+  end;
+
+
+  { TFRE_DB_FILTER_UNSIGNED }
+
+  TFRE_DB_FILTER_UNSIGNED=class(TFRE_DB_FILTER_BASE)
+  protected
+    FValues     : TFRE_DB_UInt64Array;
+    FFilterType : TFRE_DB_NUM_FILTERTYPE;
+  public
+    function  Clone            : TFRE_DB_FILTER_BASE;override;
+    function  GetDefinitionKey : TFRE_DB_NameType; override;
+    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of UInt64 ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
+  end;
+
+  { TFRE_DB_FILTER_BOOLEAN }
+
+  TFRE_DB_FILTER_BOOLEAN=class(TFRE_DB_FILTER_BASE)
+  protected
+    FValue      : Boolean;
+    FFilterType : TFRE_DB_NUM_FILTERTYPE;
+  public
+    function  Clone           : TFRE_DB_FILTER_BASE;override;
+    function  CheckFilterHit  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  GetDefinitionKey: TFRE_DB_NameType; override;
+    procedure InitFilter      (const fieldname : TFRE_DB_NameType ; const value: boolean ; const include_null_values : boolean);
+  end;
+
+  { TFRE_DB_FILTER_UID }
+
+  TFRE_DB_FILTER_UID=class(TFRE_DB_FILTER_BASE)
+  protected
+    FValues     : TFRE_DB_GUIDArray;
+    FFilterType : TFRE_DB_NUM_FILTERTYPE;
+  public
+    function  Clone            : TFRE_DB_FILTER_BASE;override;
+    function  GetDefinitionKey : TFRE_DB_NameType; override;
+    procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
+  end;
+
+  { TFRE_DB_FILTER_SCHEME }
+
+  TFRE_DB_FILTER_SCHEME=class(TFRE_DB_FILTER_BASE)
+  protected
+    FValues     : Array of TFRE_DB_NameType;
+  public
+    function  Clone            : TFRE_DB_FILTER_BASE ; override;
+    function  GetDefinitionKey : TFRE_DB_NameType; override;
+    procedure InitFilter       (filtervalues : Array of TFRE_DB_String ; const negate:boolean);
+  end;
+
+  { TFRE_DB_FILTER_RIGHT }
+
+  TFRE_DB_FILTER_RIGHT=class(TFRE_DB_FILTER_BASE)
+  protected
+    FRight     : TFRE_DB_STANDARD_RIGHT_SET;
+    FUserToken : IFRE_DB_USER_RIGHT_TOKEN;
+  public
+    function  Clone            : TFRE_DB_FILTER_BASE;override;
+    function  GetDefinitionKey : TFRE_DB_NameType; override;
+    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    procedure InitFilter       (stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
+  end;
 
   { TFRE_DB_DC_FILTER_DEFINITION }
 
   TFRE_DB_DC_FILTER_DEFINITION = class(TFRE_DB_DC_FILTER_DEFINITION_BASE)
   private
-    FFilterKey : TFRE_DB_TRANS_COLL_DATA_KEY;
-    FKeyList   : OFRE_SL_RDC_Filter_Def; { for a stable hash it may be necessary to order the filter list (add/delete)}
+    FFilterKey  : TFRE_DB_TRANS_COLL_DATA_KEY; { summed unique filter key }
+    FKeyList    : TFPHashObjectList;
+    FFilterMiss : boolean;
+    FFilterErr  : int64;
     function   IsSealed : Boolean;
+    procedure  _ForAllAdd    (obj:TObject ; arg:Pointer);
+    procedure  _ForAllKey    (obj:TObject ; arg:Pointer);
+    procedure  _ForAllFilter (obj:TObject ; arg:Pointer);
   public
-    constructor Create               ;
-    destructor  Destroy              ;override;
-    procedure   AddFilters           (const source : TFRE_DB_DC_FILTER_DEFINITION_BASE);
-    procedure   MustNotBeSealed      ;
-    procedure   MustBeSealed         ;
-    procedure   Seal                 ;
-    function    GetFilterKey         : TFRE_DB_TRANS_COLL_DATA_KEY;
+    constructor Create                  ;
+    destructor  Destroy                 ;override;
+    procedure   AddFilters              (const source : TFRE_DB_DC_FILTER_DEFINITION_BASE; const clone : boolean=true); { add filters,take ownership }
+    procedure   AddFilter               (const source : TFRE_DB_FILTER_BASE; const clone : boolean=false);              { add filter,take ownership }
+    procedure   AddStringFieldFilter    (const key,fieldname:TFRE_DB_NameType ; filtervalue  : TFRE_DB_String              ; const stringfiltertype : TFRE_DB_STR_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);override;
+    procedure   AddSignedFieldFilter    (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Int64              ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);override;
+    procedure   AddUnsignedFieldFilter  (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Uint64             ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);override;
+    procedure   AddDatetimeFieldFilter  (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_DateTime64 ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);override;
+    procedure   AddBooleanFieldFilter   (const key,fieldname:TFRE_DB_NameType ; filtervalue  : boolean                                                                       ; const negate:boolean=false ; const include_null_values : boolean=false);override;
+    procedure   AddUIDFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);override;
+    procedure   AddSchemeObjectFilter   (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=false);override;
+    procedure   AddStdRightObjectFilter (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=false);override;
+    function    RemoveFilter            (const key:          TFRE_DB_NameType):boolean;override;
+    function    FilterExists            (const key:          TFRE_DB_NameType):boolean;override;
+    procedure   MustNotBeSealed         ;
+    procedure   MustBeSealed            ;
+    procedure   Seal                    ;
+    function    GetFilterKey            : TFRE_DB_TRANS_COLL_DATA_KEY;
+    function    DoesObjectPassFilters   (const obj : IFRE_DB_Object) : boolean;
   end;
 
   { TFRE_DB_QUERY }
@@ -196,13 +291,16 @@ type
     FCnt      : NativeUint;
     FFilled   : Boolean;
     FFCCreationTime  : TFRE_DB_DateTime64;
+    FFilters         : TFRE_DB_DC_FILTER_DEFINITION;
     procedure SetFilled(AValue: boolean);
   public
     property    IsFilled         : boolean read FFilled write SetFilled;
     procedure   Execute          (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY);
     procedure   CheckFilteredAdd (const obj : IFRE_DB_Object);
     procedure   AdjustLength     ;
-    constructor Create;
+    constructor Create           ;
+    destructor  Destroy          ;override;
+    function    Filters          : TFRE_DB_DC_FILTER_DEFINITION;
   end;
 
 
@@ -285,6 +383,439 @@ begin
     end;
 end;
 
+{ TFRE_DB_FILTER_RIGHT }
+
+function TFRE_DB_FILTER_RIGHT.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_RIGHT;
+begin
+  fClone             := TFRE_DB_FILTER_RIGHT.Create(FKey);
+  fClone.FRight      := FRight;
+  fClone.FNegate     := FNegate;
+  fClone.FUserToken  := FUserToken;
+  result             := fClone;
+end;
+
+function TFRE_DB_FILTER_RIGHT.GetDefinitionKey: TFRE_DB_NameType;
+begin
+  result := 'R:';
+  if sr_STORE in FRight then
+    result:=result+'S';
+  if sr_UPDATE in FRight then
+    result:=result+'U';
+  if sr_FETCH in FRight then
+    result:=result+'F';
+  if sr_DELETE in FRight then
+    result:=result+'D';
+  result:=result+FUserToken.GetUniqueTokenKey;
+end;
+
+function TFRE_DB_FILTER_RIGHT.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+begin
+  //FUserToken.Chec;
+  result := FUserToken.CheckStdRightAndCondFinalize(obj,sr_FETCH,false,false)=edb_OK;
+end;
+
+procedure TFRE_DB_FILTER_RIGHT.InitFilter(stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+begin
+  if stdrightset=[] then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'at least one right must be specified for the filter');
+  FRight     := stdrightset;
+  FUserToken := usertoken;
+  FNegate    := negate;
+end;
+
+{ TFRE_DB_FILTER_SCHEME }
+
+function TFRE_DB_FILTER_SCHEME.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_SCHEME;
+begin
+  fClone             := TFRE_DB_FILTER_SCHEME.Create(FKey);
+  fClone.FNegate     := FNegate;
+  fClone.FAllowNull  := False;
+  fClone.FValues     := Copy(FValues);
+  result             := fClone;
+end;
+
+function TFRE_DB_FILTER_SCHEME.GetDefinitionKey: TFRE_DB_NameType;
+var  hsh : cardinal;
+     i   : Integer;
+     scr : String[4];
+begin
+  hsh := GFRE_BT.HashFast32(nil,0,0);
+  for i:= 0 to high(FValues) do
+    hsh := GFRE_BT.HashFast32(@FValues[i][1],Length(FValues[i]),hsh);
+  result := 'X:'+GFRE_BT.Mem2HexStr(@hsh,4);
+end;
+
+procedure TFRE_DB_FILTER_SCHEME.InitFilter(filtervalues: array of TFRE_DB_String; const negate: boolean);
+var i:integer;
+begin
+  if Length(filtervalues)=0 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'at least one scheme must be specified for the filter');
+  SetLength(FValues,length(filtervalues));
+  for i:=0 to high(filtervalues) do
+    FValues[i] := filtervalues[i];
+  FNegate     := negate;
+end;
+
+{ TFRE_DB_FILTER_UID }
+
+function TFRE_DB_FILTER_UID.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_UID;
+begin
+  fClone             := TFRE_DB_FILTER_UID.Create(FKey);
+  fClone.FFieldname  := FFieldname;
+  fClone.FNegate     := FNegate;
+  fClone.FAllowNull  := FAllowNull;
+  fClone.FFilterType := FFilterType;
+  fClone.FValues     := Copy(FValues);
+  result             := fClone;
+end;
+
+function TFRE_DB_FILTER_UID.GetDefinitionKey: TFRE_DB_NameType;
+var  hsh : cardinal;
+     i   : Integer;
+     scr : String[4];
+begin
+  hsh := GFRE_BT.HashFast32(nil,0,0);
+  scr := CFRE_DB_NUM_FILTERTYPE[FFilterType];
+  hsh := GFRE_BT.HashFast32(@scr[1],Length(scr),hsh);
+  for i:= 0 to high(FValues) do
+    hsh := GFRE_BT.HashFast32(@FValues[i],SizeOf(TFRE_DB_GUID),hsh);
+  result := 'G:'+ GFRE_BT.Mem2HexStr(@hsh,4);
+end;
+
+procedure TFRE_DB_FILTER_UID.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_GUID; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var i:integer;
+begin
+  FFieldname  := fieldname;
+  SetLength(FValues,length(filtervalues));
+  for i:=0 to high(filtervalues) do
+    FValues[i] := filtervalues[i];
+  FFilterType := numfiltertype;
+  FNegate     := negate;
+  FAllowNull  := include_null_values;
+  case numfiltertype of
+    dbnf_EXACT:
+      if Length(filtervalues)<>1 then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the uid filter with numfiltertype %s, needs exactly one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+    dbnf_AllValuesFromFilter,
+    dbnf_OneValueFromFilter:
+      if Length(filtervalues)=0 then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the uid filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+    dbnf_LESSER,
+    dbnf_LESSER_EQ,
+    dbnf_GREATER,
+    dbnf_GREATER_EQ,
+    dbnf_IN_RANGE_EX_BOUNDS,
+    dbnf_IN_RANGE_WITH_BOUNDS:
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the uid filter does not support numfiltertype %s',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+  end;
+end;
+
+{ TFRE_DB_FILTER_BOOLEAN }
+
+function TFRE_DB_FILTER_BOOLEAN.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_BOOLEAN;
+begin
+  fClone             := TFRE_DB_FILTER_BOOLEAN.Create(FKey);
+  fClone.FFieldname  := FFieldname;
+  fClone.FNegate     := FNegate;
+  fClone.FAllowNull  := FAllowNull;
+  fClone.FFilterType := FFilterType;
+  fClone.FValue      := FValue;
+  result             := fClone;
+end;
+
+function TFRE_DB_FILTER_BOOLEAN.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+var fieldval       : boolean;
+     fld           : IFRE_DB_Field;
+     multivalfield : boolean;
+     error_fld     : boolean;
+begin
+  error_fld := false;
+  if obj.FieldOnlyExisting(FFieldname,fld) then
+    begin
+      multivalfield := fld.ValueCount>1;
+      try
+        fieldval      := fld.AsBoolean;
+        result        := fieldval=FValue;
+      except { invalid conversion }
+        error_fld := true;
+        inc(flt_errors);
+      end;
+    end
+  else { fld is null }
+    result := not FAllowNull;
+  result := (result xor FNegate) or error_fld; { invert result, or filter error results }
+end;
+
+function TFRE_DB_FILTER_BOOLEAN.GetDefinitionKey: TFRE_DB_NameType;
+begin
+  result := 'B:'+CFRE_DB_NUM_FILTERTYPE[FFilterType]+BoolToStr(FValue);
+end;
+
+procedure TFRE_DB_FILTER_BOOLEAN.InitFilter(const fieldname: TFRE_DB_NameType; const value: boolean; const include_null_values: boolean);
+var i:integer;
+begin
+  FFieldname  := fieldname;
+  FValue      := value;
+  FNegate     := false;
+  FAllowNull  := include_null_values;
+end;
+
+{ TFRE_DB_FILTER_UNSIGNED }
+
+function TFRE_DB_FILTER_UNSIGNED.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_UNSIGNED;
+begin
+  fClone             := TFRE_DB_FILTER_UNSIGNED.Create(FKey);
+  fClone.FFieldname  := FFieldname;
+  fClone.FNegate     := FNegate;
+  fClone.FAllowNull  := FAllowNull;
+  fClone.FFilterType := FFilterType;
+  fClone.FValues     := Copy(FValues);
+  result             := fClone;
+end;
+
+function TFRE_DB_FILTER_UNSIGNED.GetDefinitionKey: TFRE_DB_NameType;
+var  hsh : cardinal;
+     i   : Integer;
+     scr : String[4];
+begin
+  hsh := GFRE_BT.HashFast32(nil,0,0);
+  scr := CFRE_DB_NUM_FILTERTYPE[FFilterType];
+  hsh := GFRE_BT.HashFast32(@scr[1],Length(scr),hsh);
+  for i:= 0 to high(FValues) do
+    hsh := GFRE_BT.HashFast32(@FValues[i],SizeOf(QWord),hsh);
+  result := 'U:'+GFRE_BT.Mem2HexStr(@hsh,4);
+end;
+
+function TFRE_DB_FILTER_UNSIGNED.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+begin
+  result := false;
+  inc(flt_errors); // Unsigned Filter not implemented
+end;
+
+procedure TFRE_DB_FILTER_UNSIGNED.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of UInt64; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var i:integer;
+begin
+  FFieldname  := fieldname;
+  SetLength(FValues,length(filtervalues));
+  for i:=0 to high(filtervalues) do
+    FValues[i] := filtervalues[i];
+  FFilterType := numfiltertype;
+  FNegate     := negate;
+  FAllowNull  := include_null_values;
+  case numfiltertype of
+    dbnf_EXACT,
+    dbnf_LESSER,
+    dbnf_LESSER_EQ,
+    dbnf_GREATER,
+    dbnf_GREATER_EQ:
+      if Length(filtervalues)<>1 then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the unsigned filter with numfiltertype %s, needs exactly one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+    dbnf_IN_RANGE_EX_BOUNDS,
+    dbnf_IN_RANGE_WITH_BOUNDS:
+      if Length(filtervalues)<>2 then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the unsigned filter with numfiltertype %s, needs exactly two bounding values',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+    dbnf_AllValuesFromFilter,
+    dbnf_OneValueFromFilter:
+      if Length(filtervalues)=0 then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the unsigned filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+  end;
+end;
+
+{ TFRE_DB_FILTER_SIGNED }
+
+function TFRE_DB_FILTER_SIGNED.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_SIGNED;
+begin
+  fClone             := TFRE_DB_FILTER_SIGNED.Create(FKey);
+  fClone.FFieldname  := FFieldname;
+  fClone.FNegate     := FNegate;
+  fClone.FAllowNull  := FAllowNull;
+  fClone.FFilterType := FFilterType;
+  fClone.FValues     := Copy(FValues);
+  fClone.FIsDateTime := FIsDateTime;
+  result             := fClone;
+end;
+
+function TFRE_DB_FILTER_SIGNED.GetDefinitionKey: TFRE_DB_NameType;
+var  hsh : cardinal;
+     i   : Integer;
+     scr : String[4];
+begin
+  hsh := GFRE_BT.HashFast32(nil,0,0);
+  scr := CFRE_DB_NUM_FILTERTYPE[FFilterType];
+  hsh := GFRE_BT.HashFast32(@scr[1],Length(scr),hsh);
+  for i:= 0 to high(FValues) do
+    hsh := GFRE_BT.HashFast32(@FValues[i],SizeOf(int64),hsh);
+  result := 'S:'+GFRE_BT.Mem2HexStr(@hsh,4);
+end;
+
+function TFRE_DB_FILTER_SIGNED.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+var multivalfield : boolean;
+    fieldval      : int64;
+    fieldisnull   : boolean;
+    fielmismatch  : boolean;
+    error_fld     : boolean;
+    fld           : IFRE_DB_Field;
+
+  procedure DoInBounds;
+  var lbnd,ubnd : int64;
+  begin
+    lbnd   := FValues[0];
+    ubnd   := FValues[1];
+    result := (fieldval>lbnd) and (fieldval<ubnd);
+  end;
+
+  procedure DoWithBounds;
+  var lbnd,ubnd : int64;
+  begin
+    lbnd   := FValues[0];
+    ubnd   := FValues[1];
+    result := (fieldval>=lbnd) and (fieldval<=ubnd);
+  end;
+
+  procedure AllValues;
+  begin
+    error_fld:=true;
+    inc(flt_errors); { not implemented }
+  end;
+
+  procedure OneValue;
+  begin
+    error_fld:=true;
+    inc(flt_errors); { not implemented }
+  end;
+
+begin
+  error_fld := false;
+  if obj.FieldOnlyExisting(FFieldname,fld) then
+    begin
+      multivalfield := fld.ValueCount>1;
+      try
+        fieldval      := fld.AsInt64;
+        case FFilterType of
+          dbnf_EXACT:                result := fieldval= FValues[0];
+          dbnf_LESSER:               result := fieldval< FValues[0];
+          dbnf_LESSER_EQ:            result := fieldval<=FValues[0];
+          dbnf_GREATER:              result := fieldval> FValues[0];
+          dbnf_GREATER_EQ:           result := fieldval>=FValues[0];
+          dbnf_IN_RANGE_EX_BOUNDS:   DoInBounds;
+          dbnf_IN_RANGE_WITH_BOUNDS: DoWithBounds;
+          dbnf_AllValuesFromFilter:  AllValues;
+          dbnf_OneValueFromFilter:   OneValue;
+        end;
+      except { invalid conversion }
+        error_fld := true;
+        inc(flt_errors);
+      end;
+    end
+  else { fld is null }
+    result := not FAllowNull;
+  result := (result xor FNegate) or error_fld; { invert result, or filter error results }
+end;
+
+procedure TFRE_DB_FILTER_SIGNED.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of Int64; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean; const isdatetime: boolean);
+var i:integer;
+begin
+  FFieldname  := fieldname;
+  SetLength(FValues,length(filtervalues));
+  for i:=0 to high(filtervalues) do
+    FValues[i] := filtervalues[i];
+  FFilterType := numfiltertype;
+  FIsDateTime := isdatetime;
+  FNegate     := negate;
+  FAllowNull  := include_null_values;
+  case numfiltertype of
+    dbnf_EXACT,
+    dbnf_LESSER,
+    dbnf_LESSER_EQ,
+    dbnf_GREATER,
+    dbnf_GREATER_EQ:
+      if Length(filtervalues)<>1 then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the signed filter with numfiltertype %s, needs exactly one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+    dbnf_IN_RANGE_EX_BOUNDS,
+    dbnf_IN_RANGE_WITH_BOUNDS:
+      if Length(filtervalues)<>2 then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the signed filter with numfiltertype %s, needs exactly two bounding values',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+    dbnf_AllValuesFromFilter,
+    dbnf_OneValueFromFilter:
+      if Length(filtervalues)=0 then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the signed filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+  end;
+end;
+
+{ TFRE_DB_FILTER_STRING }
+
+function TFRE_DB_FILTER_STRING.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_STRING;
+begin
+  fClone             := TFRE_DB_FILTER_STRING.Create(FKey);
+  fClone.FFieldname  := FFieldname;
+  fClone.FNegate     := FNegate;
+  fClone.FAllowNull  := FAllowNull;
+  fClone.FFilterType := FFilterType;
+  fClone.FValues     := Copy(FValues);
+  result             := fClone;
+end;
+
+function TFRE_DB_FILTER_STRING.GetDefinitionKey: TFRE_DB_NameType;
+var  hsh : cardinal;
+     i   : Integer;
+     scr : String[4];
+begin
+  hsh := GFRE_BT.HashFast32(nil,0,0);
+  scr := CFRE_DB_STR_FILTERTYPE[FFilterType];
+  hsh := GFRE_BT.HashFast32(@scr[1],Length(scr),hsh);
+  hsh := GFRE_BT.HashFast32(@scr[1],Length(scr),hsh);
+  for i:= 0 to high(FValues) do
+    hsh := GFRE_BT.HashFast32(@FValues[i][1],Length(FValues[i]),hsh);
+  result := 'T:'+GFRE_BT.Mem2HexStr(@hsh,4);
+end;
+
+function TFRE_DB_FILTER_STRING.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+var fieldval       : TFRE_DB_String;
+     fld           : IFRE_DB_Field;
+     multivalfield : boolean;
+     error_fld     : boolean;
+begin
+  error_fld := false;
+  if obj.FieldOnlyExisting(FFieldname,fld) then
+    begin
+      multivalfield := fld.ValueCount>1;
+      try
+        fieldval      := fld.AsString;
+        case FFilterType of
+          dbft_EXACT:      result := AnsiContainsText(fieldval,FValues[0]) and (length(fieldval)=length(FValues[0]));
+          dbft_PART:       result := AnsiContainsText(fieldval,FValues[0]);
+          dbft_STARTPART:  result := AnsiStartsText  (FValues[0],fieldval);
+          dbft_ENDPART:    result := AnsiEndsText    (FValues[0],fieldval);
+        end;
+      except { invalid conversion }
+        error_fld := true;
+        inc(flt_errors);
+      end;
+    end
+  else { fld is null }
+    result := not FAllowNull;
+  result := (result xor FNegate) or error_fld; { invert result, or filter error results }
+end;
+
+procedure TFRE_DB_FILTER_STRING.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_String; const stringfiltertype: TFRE_DB_STR_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var i:integer;
+begin
+  FFieldname  := fieldname;
+  SetLength(FValues,length(filtervalues));
+  for i:=0 to high(filtervalues) do
+    FValues[i] := filtervalues[i];
+  FFilterType := stringfiltertype;
+  FNegate     := negate;
+  FAllowNull  := include_null_values;
+end;
+
 { TFRE_DB_FilterContainer }
 
 procedure TFRE_DB_FilterContainer.SetFilled(AValue: boolean);
@@ -296,8 +827,8 @@ procedure TFRE_DB_FilterContainer.Execute(const iter: IFRE_DB_Obj_Iterator; cons
 var i   : NativeInt;
     obj : IFRE_DB_Object;
 begin
-  if qry_context.FStartIdx > High(FOBJArray) then
-    raise EFRE_DB_Exception.Create(edb_MISMATCH,'query start point too high');
+  //if qry_context.FStartIdx > High(FOBJArray) then
+  //  raise EFRE_DB_Exception.Create(edb_MISMATCH,'query start point too high');
   qry_context.FQueryPotentialCount := FCnt;
   qry_context.SetMaxResultDBOLen;
   for i:=qry_context.FStartIdx to High(FOBJArray) do
@@ -318,7 +849,7 @@ begin
   if FCnt=Length(FOBJArray) then
     SetLength(FOBJArray,Length(FOBJArray)+cFRE_INT_TUNE_SYSFILTEXTENSION_SZ);
   //Test Filter Code ...
-  if true then
+  if FFilters.DoesObjectPassFilters(obj) then
     begin
       FOBJArray[FCnt]:=obj;
       inc(FCnt);
@@ -335,6 +866,18 @@ begin
   inherited Create;
   FCnt := 0;
   FFCCreationTime := GFRE_DT.Now_UTC;
+  FFilters        := TFRE_DB_DC_FILTER_DEFINITION.Create;
+end;
+
+destructor TFRE_DB_FilterContainer.Destroy;
+begin
+  FFilters.Free;
+  inherited Destroy;
+end;
+
+function TFRE_DB_FilterContainer.Filters: TFRE_DB_DC_FILTER_DEFINITION;
+begin
+  result := FFilters;
 end;
 
 
@@ -345,40 +888,152 @@ begin
   result := FFilterKey<>'';
 end;
 
-{ TFRE_DB_DC_Filter_Def }
-
-function RDC_NullCompare(const filt : PRDC_Filter_Entry):boolean;
+procedure TFRE_DB_DC_FILTER_DEFINITION._ForAllAdd(obj: TObject; arg: Pointer);
+var clone  : boolean;
 begin
-  result := filt^.key='';
+  clone := NativeUint(arg)=1;
+  AddFilter(obj as TFRE_DB_FILTER_BASE,clone);
 end;
 
-function RDC_ElemCompare(const a,b : PRDC_Filter_Entry):boolean;
+procedure TFRE_DB_DC_FILTER_DEFINITION._ForAllKey(obj: TObject; arg: Pointer);
 begin
-  result := a^.key = b^.key;
+  TStringList(arg).Add((obj as TFRE_DB_FILTER_BASE).GetDefinitionKey);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION._ForAllFilter(obj: TObject; arg: Pointer);
+var tob : TFRE_DB_Object;
+    flt : TFRE_DB_FILTER_BASE;
+begin
+  if FFilterMiss=true then
+    exit;
+  tob         := TFRE_DB_Object(arg);
+  flt         := obj as TFRE_DB_FILTER_BASE;
+  FFilterMiss := not flt.CheckFilterHit(tob,FFilterErr);
 end;
 
 constructor TFRE_DB_DC_FILTER_DEFINITION.Create;
 begin
   inherited;
-  FKeyList.InitSparseList(default(RDC_Filter_Entry),@RDC_NullCompare,@RDC_ElemCompare,10);
+  FKeyList := TFPHashObjectList.Create(true);
 end;
 
 destructor TFRE_DB_DC_FILTER_DEFINITION.Destroy;
 begin
+  FKeyList.Free;
   inherited Destroy;
 end;
 
-procedure TFRE_DB_DC_FILTER_DEFINITION.AddFilters(const source: TFRE_DB_DC_FILTER_DEFINITION_BASE);
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddFilters(const source: TFRE_DB_DC_FILTER_DEFINITION_BASE; const clone: boolean);
 var src : TFRE_DB_DC_FILTER_DEFINITION;
-
-   procedure add(var x:RDC_Filter_Entry;const idx:NativeInt ; var halt_flag:boolean);
-   begin
-     abort;
-   end;
-
 begin
   src := source as TFRE_DB_DC_FILTER_DEFINITION;
-  src.FKeyList.ForAllBreak(@add);
+  if clone then
+    src.FKeyList.ForEachCall(@_ForAllAdd,Pointer(1))
+  else
+    src.FKeyList.ForEachCall(@_ForAllAdd,Pointer(0));
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddFilter(const source: TFRE_DB_FILTER_BASE; const clone: boolean);
+var filt : TFRE_DB_FILTER_BASE;
+    key  : TFRE_DB_NameType;
+begin
+  key := source.GetKeyName;
+  if FKeyList.FindIndexOf(key)<>-1 then
+    begin
+      try
+        if not clone then
+          source.Free;
+      except
+      end;
+      raise EFRE_DB_Exception.Create(edb_ERROR,'FILTER WITH KEY ALREADY EXISTS IN THIS DEFINITION');
+    end;
+  if clone then
+    filt := source.Clone
+  else
+    filt := source;
+  FKeyList.Add(source.GetKeyName,filt)
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddStringFieldFilter(const key, fieldname: TFRE_DB_NameType; filtervalue: TFRE_DB_String; const stringfiltertype: TFRE_DB_STR_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var filt : TFRE_DB_FILTER_STRING;
+begin
+  filt := TFRE_DB_FILTER_STRING.Create(key);
+  filt.InitFilter(fieldname,filtervalue,stringfiltertype,negate,include_null_values);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddSignedFieldFilter(const key, fieldname: TFRE_DB_NameType; filtervalues: array of Int64; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var filt : TFRE_DB_FILTER_SIGNED;
+begin
+  filt := TFRE_DB_FILTER_SIGNED.Create(key);
+  filt.InitFilter(fieldname,filtervalues,numfiltertype,negate,include_null_values);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddUnsignedFieldFilter(const key, fieldname: TFRE_DB_NameType; filtervalues: array of Uint64; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var filt : TFRE_DB_FILTER_UNSIGNED;
+begin
+  filt := TFRE_DB_FILTER_UNSIGNED.Create(key);
+  filt.InitFilter(fieldname,filtervalues,numfiltertype,negate,include_null_values);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddDatetimeFieldFilter(const key, fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_DateTime64; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var filt : TFRE_DB_FILTER_SIGNED;
+begin
+  filt := TFRE_DB_FILTER_SIGNED.Create(key);
+  filt.InitFilter(fieldname,filtervalues,numfiltertype,negate,include_null_values,true);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddBooleanFieldFilter(const key, fieldname: TFRE_DB_NameType; filtervalue: boolean; const negate: boolean; const include_null_values: boolean);
+var filt : TFRE_DB_FILTER_BOOLEAN;
+begin
+  filt := TFRE_DB_FILTER_BOOLEAN.Create(key);
+  if negate then
+    filtervalue := not filtervalue;
+  filt.InitFilter(fieldname,filtervalue,include_null_values);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddUIDFieldFilter(const key, fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_GUID; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var filt : TFRE_DB_FILTER_UID;
+begin
+  filt := TFRE_DB_FILTER_UID.Create(key);
+  filt.InitFilter(fieldname,filtervalues,numfiltertype,negate,include_null_values);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddSchemeObjectFilter(const key: TFRE_DB_NameType; filtervalues: array of TFRE_DB_String; const negate: boolean);
+var filt : TFRE_DB_FILTER_SCHEME;
+begin
+  filt := TFRE_DB_FILTER_SCHEME.Create(key);
+  filt.InitFilter(filtervalues,negate);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddStdRightObjectFilter(const key: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+var filt : TFRE_DB_FILTER_RIGHT;
+begin
+  filt := TFRE_DB_FILTER_RIGHT.Create(key);
+  filt.InitFilter(stdrightset,usertoken,negate);
+  AddFilter(filt,false);
+end;
+
+function TFRE_DB_DC_FILTER_DEFINITION.RemoveFilter(const key: TFRE_DB_NameType): boolean;
+var idx : Integer;
+begin
+  idx    := FKeyList.FindIndexOf(key);
+  result := idx<>-1;
+  if result then
+    FKeyList.Delete(idx);
+end;
+
+function TFRE_DB_DC_FILTER_DEFINITION.FilterExists(const key: TFRE_DB_NameType): boolean;
+var idx : Integer;
+begin
+  idx    := FKeyList.FindIndexOf(key);
+  result := idx<>-1;
 end;
 
 procedure TFRE_DB_DC_FILTER_DEFINITION.MustNotBeSealed;
@@ -394,25 +1049,33 @@ begin
 end;
 
 procedure TFRE_DB_DC_FILTER_DEFINITION.Seal;
-var key : string;
-    i   : NativeInt;
-
-   procedure add(var x:RDC_Filter_Entry;const idx:NativeInt ; var halt_flag:boolean);
-   begin
-     key:=key+x.key;
-   end;
-
+var sl : TStringList;
 begin
   MustNotBeSealed;
-  key := '';
-  FKeyList.ForAllBreak(@Add);
-  FFilterKey := 'FK|'+GFRE_BT.HashFast32_Hex(key);
+  FFilterKey:='';
+  sl := TStringList.Create;
+  try
+    FKeyList.ForEachCall(@_ForAllKey,sl);
+    sl.Sort;
+    FFilterKey := sl.CommaText;
+    FFilterKey := 'FK|'+GFRE_BT.HashFast32_Hex(FFilterKey);
+  finally
+    sl.free;
+  end;
 end;
 
 function TFRE_DB_DC_FILTER_DEFINITION.GetFilterKey: TFRE_DB_TRANS_COLL_DATA_KEY;
 begin
   MustBeSealed;
   result := FFilterKey;
+end;
+
+function TFRE_DB_DC_FILTER_DEFINITION.DoesObjectPassFilters(const obj: IFRE_DB_Object): boolean;
+begin
+  FFilterMiss := false;
+  FFilterErr  := 0;
+  FKeyList.ForEachCall(@_ForAllFilter,obj.Implementor);
+  result := not FFilterMiss;
 end;
 
 { TFRE_DB_DC_ORDER_DEFINITION }
@@ -853,8 +1516,96 @@ var fld : IFRE_DB_FIELD;
    end;
 
    procedure Processfilters;
+   var dop : IFRE_DB_Object;
+
+       procedure AddFilter(const filter_key : TFRE_DB_NameType ; const filterdef : IFRE_DB_Object);
+       var ftstr      : shortstring;
+           ft         : TFRE_DB_FILTERTYPE;
+           ffn        : TFRE_DB_NameType;
+           sft        : TFRE_DB_STR_FILTERTYPE;
+           fld        : IFRE_DB_FIELD;
+           fallownull : boolean;
+           fnegate    : boolean;
+
+           function _C2DT : TFRE_DB_DateTimeArray;
+           var ffld : IFRE_DB_Field;
+               i    : NativeInt;
+           begin
+             ffld :=  filterdef.field('FILTERVALUES');
+             SetLength(result,ffld.ValueCount);
+             for i := 0 to high(Result) do
+               result[i] := StrToInt64(ffld.AsStringItem[i]); // TODO - DATETIME BAD FROM CLIENT
+           end;
+
+           function _C2S : TFRE_DB_Int64Array;
+           var ffld  : IFRE_DB_Field;
+               ffldt : TFRE_DB_FIELDTYPE;
+           begin
+             ffldt := ffld.FieldType;
+             case ffldt of
+               //fdbft_NotFound: ;
+               //fdbft_GUID: ;
+               //fdbft_Byte: ;
+               //fdbft_Int16: ;
+               //fdbft_UInt16: ;
+               //fdbft_Int32: ;
+               //fdbft_UInt32: ;
+               fdbft_Int64: filterdef.field('FILTERVALUES').AsInt64Arr;
+               //fdbft_UInt64: ;
+               //fdbft_Real32: ;
+               fdbft_Real64: ;
+               //fdbft_Currency: ;
+               fdbft_String: ;
+               //fdbft_Boolean: ;
+               fdbft_DateTimeUTC: ;
+               //fdbft_Stream: ;
+               //fdbft_Object: ;
+               //fdbft_ObjLink: ;
+               else
+                 raise EFRE_DB_Exception.Create(edb_ERROR,'internal/could not convert filtervalue array');
+             end;
+           end;
+
+       begin
+         writeln('FILTER : ',filter_key);
+         writeln(filterdef.DumpToString);
+         ft         := FREDB_FilterTypeString2Filtertype(filterdef.Field('FILTERTYPE').AsString);
+         ffn        := filterdef.Field('FILTERFIELDNAME').AsString;
+         if filterdef.FieldOnlyExisting('ALLOWNULL',fld) then
+           fallownull := fld.AsBoolean
+         else
+           fallownull := false;
+         if filterdef.FieldOnlyExisting('NEG',fld) then
+           fnegate    := fld.AsBoolean
+         else
+           fnegate    := false;
+         case ft of
+           dbf_TEXT:
+             begin
+               ftstr := filterdef.field('STRFILTERTYPE').AsString;
+               if ftstr<>'' then
+                 sft := FREDB_String2StrFilterType(filterdef.field('STRFILTERTYPE').AsString)
+               else
+                 sft := dbft_PART;
+               qry.Filterdef.AddStringFieldFilter(filter_key,ffn,filterdef.field('FILTERVALUES').AsStringArr[0],sft,fallownull);
+             end;
+           dbf_SIGNED:    qry.Filterdef.AddSignedFieldFilter(filter_key,ffn,_C2S,FREDB_String2NumfilterType(filterdef.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+           dbf_UNSIGNED:  qry.Filterdef.AddUnsignedFieldFilter(filter_key,ffn,filterdef.field('FILTERVALUES').AsUInt64Arr,FREDB_String2NumfilterType(filterdef.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+           dbf_DATETIME:  qry.Filterdef.AddDatetimeFieldFilter(filter_key,ffn,_C2DT,FREDB_String2NumfilterType(filterdef.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+           dbf_BOOLEAN:   qry.Filterdef.AddBooleanFieldFilter(filter_key,ffn,filterdef.field('FILTERVALUES').AsBoolean,fnegate,fallownull);
+           dbf_GUID:      qry.Filterdef.AddUIDFieldFilter(filter_key,ffn,filterdef.field('FILTERVALUES').AsGUIDArr,FREDB_String2NumfilterType(filterdef.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+           dbf_SCHEME:    qry.Filterdef.AddSchemeObjectFilter(filter_key,filterdef.field('FILTERVALUES').AsStringArr,fnegate);
+           dbf_RIGHT:     qry.Filterdef.AddStdRightObjectFilter(filter_key,FREDB_RightSetString2RightSet(filterdef.field('FILTERVALUES').AsString),session.GetDBConnection.SYS.GetCurrentUserToken,fnegate);
+         end;
+       end;
+
    begin
-     qry.Filterdef.AddFilters(dc_static_filters);
+     qry.Filterdef.AddStdRightObjectFilter('*SRF*',[sr_FETCH],session.GetDBConnection.SYS.GetCurrentUserToken,false);
+     qry.Filterdef.AddFilters(dc_static_filters,true);
+     if input.FieldOnlyExistingObject('DEPENDENCY',dop) then
+       begin
+         dop.ForAllObjectsFieldName(@AddFilter);
+       end;
      qry.Filterdef.Seal;
    end;
 
@@ -992,7 +1743,7 @@ var i       : NativeInt;
     KeyLen  : NativeInt;
     currpos : NativeInt;
     oc      : TFRE_DB_OrderContainer;
-    dummy   : PtrUInt;
+    dummy   : PPtrUInt;
     obj     : IFRE_DB_Object;
     tobj    : TFRE_DB_Object;
 
@@ -1040,12 +1791,13 @@ begin
       obj  := FBaseTransData.GetDataArray^[i];
       tobj := obj.Implementor as TFRE_DB_Object;
       SetBinaryKey(obj);
-      oc    := TFRE_DB_OrderContainer.Create;
-      dummy := FREDB_ObjectToPtrUInt(oc);
-      if not FArtTreeKeyToObj.InsertBinaryKeyOrFetch(key,currpos,dummy) then
+      if FArtTreeKeyToObj.InsertBinaryKeyorFetchR(key,currpos,dummy) then
         begin
-          oc := FREDB_PtrUIntToObject(dummy) as TFRE_DB_OrderContainer;
-        end;
+          oc := TFRE_DB_OrderContainer.Create;
+          dummy^ := FREDB_ObjectToPtrUInt(oc);
+        end
+      else
+        oc := FREDB_PtrUIntToObject(dummy^) as TFRE_DB_OrderContainer;
       oc.AddObject(tobj);
       tobj.Field(cFRE_DB_SYS_ORDER_REF_KEY).AsObject.Field(GetFullKeyDef).AsBoolean:=true;
     end;
@@ -1090,6 +1842,8 @@ begin
   if FArtTreeFilterKey.InsertStringKeyOrFetchR(filtkey,dummy) then
     begin
       filtercont := TFRE_DB_FilterContainer.Create;
+      filtercont.Filters.AddFilters(qry_context.FQueryFilters);
+      filtercont.Filters.Seal;
       dummy^     := FREDB_ObjectToPtrUInt(filtercont);
     end
   else
@@ -1098,6 +1852,7 @@ begin
     begin
       GFRE_DBI.LogInfo(dblc_DBTDM,'>NEW FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s]',[GetFullKeyDef,filtkey]);
       st := GFRE_BT.Get_Ticks_ms;
+      filtercont.Filters.MustBeSealed;
       FArtTreeKeyToObj.LinearScanBreak(@IteratorBreak,brk,false);
       filtercont.IsFilled := true;
       filtercont.AdjustLength;

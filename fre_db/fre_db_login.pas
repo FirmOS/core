@@ -251,12 +251,11 @@ begin
     block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
     block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
     dialog.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
-    user:=ses.GetLoginUser;
+    user:=conn.SYS.GetCurrentUserToken.User;
     dialog.FillWithObjectValues(user.Implementor_HC as IFRE_DB_Object,ses);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_logout'),CWSF(@WEB_doLogout),fdbbt_submit);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_abort'),nil,fdbbt_close);
-    user.Finalize;
   end else begin
     dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$login_diag_cap'),0,false,false,false);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
