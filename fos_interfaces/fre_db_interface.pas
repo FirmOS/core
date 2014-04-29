@@ -1595,11 +1595,11 @@ type
     FMediatorExtention        : TFRE_DB_ObjectEx;
     function  Implementor_HC  : TObject;override;
     function  Debug_ID        : TFRE_DB_String;virtual;
-    class procedure VersionInstallCheck         (const currentVersionId,newVersionId: TFRE_DB_NameType);
   public
+    class procedure  VersionInstallationCheck   (const currentVersionId,newVersionId: TFRE_DB_NameType);
     class procedure  RegisterSystemScheme       (const scheme:IFRE_DB_SCHEMEOBJECT); virtual;
 
-    class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); virtual;
+    class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); virtual;
     class procedure  InstallDBObjects4Domain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
 
     class procedure  InstallUserDBObjects       (const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
@@ -1796,7 +1796,7 @@ type
   public
   protected
     class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
-    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_UNCONFIGURED_MACHINE }
@@ -1805,7 +1805,7 @@ type
   public
   protected
     class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
-    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
 
@@ -1821,7 +1821,7 @@ type
     procedure  SessionFinalize               (const session : TFRE_DB_UserSession);virtual;
     procedure  SessionPromotion              (const session : TFRE_DB_UserSession);virtual;
   protected
-    class procedure  InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure  InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     function   IsContentUpdateVisible        (const session : IFRE_DB_UserSession; const update_content_id:string):Boolean;
     procedure  InternalSetup                 ; override;
     procedure  SetupApplicationStructure     ; virtual;
@@ -1887,7 +1887,7 @@ type
     procedure  MyServerInitializeModule      (const admin_dbc : IFRE_DB_CONNECTION); virtual;
     procedure  CheckClassVisibility4AnyDomain(const session : IFRE_DB_UserSession);virtual;
     procedure  CheckClassVisibility4MyDomain (const session : IFRE_DB_UserSession);virtual;
-    class procedure  InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure  InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure  ForAllAppModules              (const module_iterator:TFRE_DB_APPLICATION_MODULE_ITERATOR);
     procedure  MySessionInitializeModule     (const session : TFRE_DB_UserSession);virtual;
@@ -3456,7 +3456,7 @@ begin
   inherited RegisterSystemScheme(scheme);
 end;
 
-class procedure TFRE_DB_UNCONFIGURED_MACHINE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_UNCONFIGURED_MACHINE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
 
@@ -3471,7 +3471,7 @@ begin
     begin
     //next update code
     end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 { TFRE_DB_UPDATE_FORM_DESC }
@@ -3615,8 +3615,9 @@ begin
   scheme.AddSchemeField('note',fdbft_String);
 end;
 
-class procedure TFRE_DB_NOTE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_NOTE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
+   currentVersionId:='1.0';
    newVersionId:='1.0';
 end;
 
@@ -5838,9 +5839,9 @@ begin
   result := 'LOGIC: NO DEBUG ID SET';
 end;
 
-class procedure TFRE_DB_Base.VersionInstallCheck(const currentVersionId, newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_Base.VersionInstallationCheck(const currentVersionId, newVersionId: TFRE_DB_NameType);
 begin
-  if currentVersionId<>newVersionId then
+  if ((newVersionId<>'UNUSED') and (newVersionId<>'BASE')) and (currentVersionId<>newVersionId) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'%s> install failed, not all versions handled properly old=[%s] new=[%s]',[classname,currentVersionId,newVersionId]);
 end;
 
@@ -6286,7 +6287,7 @@ class procedure TFRE_DB_Base.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOB
 begin
 end;
 
-class procedure TFRE_DB_Base.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_Base.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   if self.ClassType=TFRE_DB_ObjectEx then
     newVersionId := 'BASE'
@@ -7139,7 +7140,7 @@ begin
   ForAllFieldsBreak(@_initSubModules);
 end;
 
-class procedure TFRE_DB_APPLICATION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_APPLICATION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='UNUSED';
 end;
@@ -7475,7 +7476,7 @@ begin
     raise EFRE_DB_Exception.Create(GetEmbeddingApp.FetchAppTextShort(session,'$error_no_access'));
 end;
 
-class procedure TFRE_DB_APPLICATION_MODULE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_APPLICATION_MODULE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId := 'UNUSED';
 end;

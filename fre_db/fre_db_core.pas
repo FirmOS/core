@@ -1159,7 +1159,7 @@ type
     function  Checkpassword      (const pw:TFRE_DB_String):boolean;
     class procedure RegisterSystemScheme     (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainLoginKey        (const loginpart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
-    class procedure InstallDBObjects         (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects         (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     property  isInternal                    : Boolean read GetIsInternal write SetIsInternal;
   published
     class     function  WBC_NewUserOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -1179,7 +1179,7 @@ type
   protected
     procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
-    class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     function        Domainname(const unique:boolean=false) : TFRE_DB_NameType;
     function        Domainkey                              : TGUID_String;
@@ -1207,7 +1207,7 @@ type
   public
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainGroupKey       (const grouppart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
-    class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
 
     function  GetDomain                    (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
     function  SubFormattedDisplayAvailable : boolean; override;
@@ -1231,7 +1231,7 @@ type
   protected
     procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
-    class procedure InstallDBObjects        (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects        (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainRoleKey        (const rolepart : TFRE_DB_String; const domain_id : TGUID) : TFRE_DB_String;
     procedure AddRight                      (const right : IFRE_DB_RIGHT);
@@ -2876,13 +2876,13 @@ begin
   calc.SetAsString(dname);
 end;
 
-class procedure TFRE_DB_DOMAIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_DOMAIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 class procedure TFRE_DB_DOMAIN.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -3601,13 +3601,13 @@ begin
   result := lowercase(GFRE_BT.GUID_2_HexString(domain_id)+'@'+grouppart);
 end;
 
-class procedure TFRE_DB_GROUP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_GROUP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 function TFRE_DB_TEXT.GetHint: TFRE_DB_String;
@@ -3763,13 +3763,13 @@ begin
   calc.SetAsString(dname);
 end;
 
-class procedure TFRE_DB_ROLE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_ROLE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 procedure TFRE_DB_ROLE.AddRight(const right: IFRE_DB_RIGHT);
@@ -11652,6 +11652,7 @@ var
   i              : integer;
   newVersion     : TFRE_DB_NameType;
   oldVersion     : TFRE_DB_NameType;
+  chkVersion     :  TFRE_DB_NameType;
   version_dbo    : IFRE_DB_Object;
   exclassname    : ShortString;
 
@@ -11700,7 +11701,9 @@ begin
           if installforonedomain=false then
             begin
               try
-                FExClassArray[i].exclass.InstallDBObjects(conn.sys,oldVersion,newVersion);  // The base class sets the version to "UNUSED", so you need to override and set a version<>'' to call Install4Domain and be able to install dbos
+                chkVersion := oldVersion;
+                FExClassArray[i].exclass.InstallDBObjects(conn.sys,chkVersion,newVersion);  // The base class sets the version to "UNUSED", so you need to override and set a version<>'' to call Install4Domain and be able to install dbos
+                FExClassArray[i].exclass.VersionInstallationCheck(chkVersion,newVersion);
               except on
                 e:exception do
                   begin
@@ -18326,13 +18329,13 @@ begin
   result := GFRE_BT.GUID_2_HexString(domain_id)+'@'+lowercase(loginpart);
 end;
 
-class procedure TFRE_DB_USER.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_USER.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
  newVersionId:='1.0';
  if currentVersionId='' then begin
    currentVersionId := '1.0';
  end;
- VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 class function TFRE_DB_USER.WBC_NewUserOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;

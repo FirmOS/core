@@ -65,7 +65,7 @@ type
   private
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     procedure   CALC_CalcIconStatus(const calc : IFRE_DB_CALCFIELD_SETTER);
   end;
@@ -75,7 +75,7 @@ type
   TFRE_DB_TEST_B=class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     function        WEB_Content         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ChildrenData    (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -85,7 +85,7 @@ type
 
   TFRE_DB_TEST_ALL_TYPES=class(TFRE_DB_ObjectEx)
   protected
-    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure   Gamble(const id:int64);
     procedure   CALC_Uint32 (const calc : IFRE_DB_CALCFIELD_SETTER);
@@ -100,7 +100,7 @@ type
 
   TFRE_DB_TEST_FILEDIR=class(TFRE_DB_ObjectEx)
   protected
-    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure InternalSetup; override;
     procedure SetIsFile     (const isfile:boolean);
@@ -128,7 +128,7 @@ type
   private
     procedure       SetupApplicationStructure     ; override;
 
-    class procedure  InstallDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;  { system specific data inits go here}
+    class procedure  InstallDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;  { system specific data inits go here}
     class procedure  InstallDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;                   { system domain specific data inits go here}
     class procedure  InstallUserDBObjects        (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); override;                                         { app db specific data inits goes here }
     class procedure  InstallUserDBObjects4Domain (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID); override;                       { app db domain specific data inits goes here }
@@ -520,9 +520,12 @@ end;
 
 { TFRE_DB_TEST_FILEDIR }
 
-class procedure TFRE_DB_TEST_FILEDIR.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_TEST_FILEDIR.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId := '1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
 end;
 
 class procedure TFRE_DB_TEST_FILEDIR.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -1405,9 +1408,12 @@ begin
   input_group.AddInput('icon','Icon');
 end;
 
-class procedure TFRE_DB_TEST_B.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_TEST_B.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId := '1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
 end;
 
 function TFRE_DB_TEST_B.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1504,9 +1510,12 @@ end;
 
 { TFRE_DB_TEST_ALL_TYPES }
 
-class procedure TFRE_DB_TEST_ALL_TYPES.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_TEST_ALL_TYPES.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId := '1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
 end;
 
 class procedure TFRE_DB_TEST_ALL_TYPES.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -2277,7 +2286,7 @@ begin
   AddApplicationModule(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.create);
 end;
 
-class procedure TFRE_DB_TEST_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_TEST_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then
@@ -2499,9 +2508,12 @@ begin
   scheme.AddCalcSchemeField   ('icon',fdbft_String,@CALC_CalcIconStatus);
 end;
 
-class procedure TFRE_DB_TEST_A.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_TEST_A.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-   newVersionId := '1.0';
+  newVersionId := '1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
 end;
 
 procedure TFRE_DB_TEST_A.CALC_CalcIconStatus(const calc: IFRE_DB_CALCFIELD_SETTER);
