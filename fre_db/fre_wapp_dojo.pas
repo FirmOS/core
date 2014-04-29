@@ -260,6 +260,7 @@ implementation
       txt.Finalize;
     end else begin
       Result:='$dojo_'+key;
+      if key='close' then result :='Close';  //FIXME
     end;
   end;
 
