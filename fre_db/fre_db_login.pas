@@ -52,7 +52,7 @@ type
 
   TFRE_DB_LOGIN = class (TFRE_DB_APPLICATION)
   protected
-    class procedure InstallDBObjects     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects     (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure  SetupApplicationStructure ; override;
     procedure  InternalSetup             ; override;
@@ -76,10 +76,10 @@ implementation
 
 { TFRE_DB_LOGIN }
 
-class procedure TFRE_DB_LOGIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_LOGIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
-  newVersionId:='1.0';
+  newVersionId:='1.1';
 
   if (currentVersionId='') then begin
     CreateAppText(conn,'$profile_diag_cap','Profile');
@@ -111,16 +111,21 @@ begin
   end;
   if (currentVersionId='1.0') then begin
     currentVersionId:='1.1';
-    CreateAppText(conn,'$login_faild_already_1P','You are already logged in with another client => (%s)');
-    CreateAppText(conn,'$login_faild_oldnotfound_cap','The old session ID to continue your sesison was not found');
-    CreateAppText(conn,'$login_takeover_failed','The takeover of the existing session failed, try again');
-    CreateAppText(conn,'$login_faild_access','Invalid Username/Domain/Passsword combination');
-    CreateAppText(conn,'$login_faild_suspended','Currently the domain is suspended, no login is possible.');
+    try
+      CreateAppText(conn,'$login_faild_already_1P','You are already logged in with another client => (%s)');
+      CreateAppText(conn,'$login_faild_oldnotfound_cap','The old session ID to continue your sesison was not found');
+      CreateAppText(conn,'$login_takeover_failed','The takeover of the existing session failed, try again');
+      CreateAppText(conn,'$login_faild_access','Invalid Username/Domain/Passsword combination');
+      CreateAppText(conn,'$login_faild_suspended','Currently the domain is suspended, no login is possible.');
+    except
+      //ignore errors here, someone forgot to set the newversionID to 1.1
+    end;
   end;
   if (currentVersionId='1.1') then begin
     //currentVersionId:='1.1';
     //next version code
   end;
+  //
 end;
 
 procedure TFRE_DB_LOGIN.SetupApplicationStructure;

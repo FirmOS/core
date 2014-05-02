@@ -47,7 +47,7 @@ uses
   {$ENDIF}
   Classes, SysUtils,
   fre_samplesubfeed_client,
-  fre_basesubfeed_app, fre_basesubfeed_server;
+  fre_basesubfeed_app;
 
 {$I fos_version_helper.inc}
 

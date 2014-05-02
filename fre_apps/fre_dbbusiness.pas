@@ -56,7 +56,7 @@ type
   TFRE_DB_COUNTRY = class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_ADDRESS }
@@ -64,7 +64,7 @@ type
   TFRE_DB_ADDRESS = class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_Site }
@@ -72,7 +72,7 @@ type
   TFRE_DB_Site = class (TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     function IMI_Content            (const input:IFRE_DB_Object):IFRE_DB_Object;
     function IMI_Menu               (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -110,7 +110,7 @@ type
   TFRE_DB_Contact  = class (TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_Tenant }
@@ -120,7 +120,7 @@ type
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
   published
     function        IMI_addCustomer  (const input:IFRE_DB_Object):IFRE_DB_Object;
-    class procedure InstallDBObjects (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
   { TFRE_DB_Customer }
@@ -128,7 +128,7 @@ type
   TFRE_DB_Customer = class (TFRE_DB_Contact)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
    function IMI_Menu              (const input:IFRE_DB_Object):IFRE_DB_Object;
    function IMI_Edit              (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -140,7 +140,7 @@ type
   TFRE_DB_GEOPOSITION = class(TFRE_DB_ObjectEx)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
 implementation
@@ -175,7 +175,7 @@ begin
   group.AddInput('tld',GetTranslateableTextKey('scheme_tld'));
 end;
 
-class procedure TFRE_DB_COUNTRY.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_COUNTRY.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then
@@ -185,7 +185,7 @@ begin
       CheckDbResult(StoreTranslateableText(conn,'scheme_name','Country Name'));
       CheckDbResult(StoreTranslateableText(conn,'scheme_tld','Country TLD'));
     end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+   
 end;
 
 class procedure TFRE_DB_ADDRESS.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -214,7 +214,7 @@ begin
   group.AddInput('country',GetTranslateableTextKey('scheme_country'),false,false,'country');
 end;
 
-class procedure TFRE_DB_ADDRESS.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_ADDRESS.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then
@@ -230,7 +230,7 @@ begin
       StoreTranslateableText(conn,'scheme_zip','ZIP');
       StoreTranslateableText(conn,'scheme_country','Country');
     end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+   
 end;
 
 class procedure TFRE_DB_GEOPOSITION.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -244,7 +244,7 @@ begin
   group.AddInput('latitude',GetTranslateableTextKey('scheme_latitude'));
 end;
 
-class procedure TFRE_DB_GEOPOSITION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_GEOPOSITION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then
@@ -254,7 +254,7 @@ begin
       CheckDbResult(StoreTranslateableText(conn,'scheme_longitude','Longitude'));
       CheckDbResult(StoreTranslateableText(conn,'scheme_latitude','Latitude'));
     end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+   
 end;
 
 class procedure TFRE_DB_Phone.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -300,7 +300,7 @@ begin
   group.AddInput('http.url',GetTranslateableTextKey('scheme_web'));
 end;
 
-class procedure TFRE_DB_Contact.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_Contact.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then
@@ -320,7 +320,7 @@ begin
       CheckDbResult(StoreTranslateableText(conn,'scheme_mail','EMail'));
       CheckDbResult(StoreTranslateableText(conn,'scheme_web','Web'));
     end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+   
 end;
 
 { TFRE_DB_Customer }
@@ -339,7 +339,7 @@ begin
   group.UseInputGroup('TFRE_DB_CONTACT','main');
 end;
 
-class procedure TFRE_DB_Customer.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_Customer.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then
@@ -348,7 +348,7 @@ begin
       StoreTranslateableText(conn,'scheme_main_group','Customer Information');
       StoreTranslateableText(conn,'scheme_number','Number');
     end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+   
 end;
 
 function TFRE_DB_Customer.IMI_Menu(const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -435,7 +435,7 @@ begin
   Result:=res;
 end;
 
-class procedure TFRE_DB_Tenant.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_Tenant.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then
@@ -443,7 +443,7 @@ begin
       currentVersionId:='1.0';
       { Franz weiß warum, einfach nachfragen}
     end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+   
 end;
 
 
@@ -469,7 +469,7 @@ begin
   group.UseInputGroup('TFRE_DB_GEOPOSITION','main','position');
 end;
 
-class procedure TFRE_DB_Site.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_Site.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then
@@ -480,7 +480,7 @@ begin
       StoreTranslateableText(conn,'scheme_name','Name');
       StoreTranslateableText(conn,'scheme_key','Key');
     end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+   
 end;
 
 function TFRE_DB_Site.IMI_Content(const input: IFRE_DB_Object): IFRE_DB_Object;

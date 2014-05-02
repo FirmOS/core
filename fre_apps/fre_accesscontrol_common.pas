@@ -27,7 +27,7 @@ type
   protected
     procedure       MySessionInitialize           (const session: TFRE_DB_UserSession);override;
     procedure       MySessionPromotion            (const session: TFRE_DB_UserSession); override;
-    class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
     function        ShowDomains                   (const conn:IFRE_DB_CONNECTION): Boolean;
   public
@@ -46,7 +46,7 @@ type
   protected
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
@@ -78,7 +78,7 @@ type
   protected
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
@@ -116,7 +116,7 @@ type
   protected
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
@@ -140,7 +140,7 @@ type
   protected
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
@@ -175,13 +175,13 @@ begin
   InitModuleDesc('$domain_description')
 end;
 
-class procedure TFRE_COMMON_DOMAIN_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_COMMON_DOMAIN_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 procedure TFRE_COMMON_DOMAIN_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -593,13 +593,13 @@ begin
   InitModuleDesc('$role_description');
 end;
 
-class procedure TFRE_COMMON_ROLE_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_COMMON_ROLE_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 procedure TFRE_COMMON_ROLE_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1070,13 +1070,13 @@ begin
   InitModuleDesc('$group_description')
 end;
 
-class procedure TFRE_COMMON_GROUP_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_COMMON_GROUP_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 procedure TFRE_COMMON_GROUP_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1879,13 +1879,13 @@ begin
   InitModuleDesc('$user_description')
 end;
 
-class procedure TFRE_COMMON_USER_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_COMMON_USER_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 procedure TFRE_COMMON_USER_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -2488,7 +2488,7 @@ begin
     _UpdateSitemap(session);
 end;
 
-class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 
 procedure _convertObjs_1_1(const obj: IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
 var
@@ -2720,7 +2720,7 @@ begin
 
     conn.ForAllDatabaseObjectsDo(@_convertObjs_1_1,TFRE_DB_StringArray.create('TFRE_DB_DOMAIN','TFRE_DB_GROUP','TFRE_DB_USER','TFRE_DB_ROLE'));
   end;
-  VersionInstallCheck(currentVersionId,newVersionId);
+
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
@@ -2794,7 +2794,7 @@ begin
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_NOTE.GetClassStdRoles));
 
     CheckDbResult(conn.RemoveAllRolesFromGroup('ACADMINS',domainUID));
-    CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles TFRE_DB_DOMAIN for group Admins');
+    CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles for group Admins');
   end;
 end;
 
