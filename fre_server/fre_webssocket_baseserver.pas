@@ -1328,8 +1328,11 @@ begin
       lfilename:=cFRE_SERVER_WWW_ROOT_FILENAME;
     end;
 
+  if cFRE_USE_STATIC_CACHE=true then { using the cache, so use metadata - if not metaentry is possibly (while debugging, most certainly, wrong) }
+    HttpBaseServer.FetchMetaEntry(fn,metae)
+  else
+    metae:=nil;
 
-  HttpBaseServer.FetchMetaEntry(fn,metae);
   if assigned(metae) then
     begin { When metadataexist, no range query is implemented by now }
       if if_none_match=metae.ETag then
@@ -1359,14 +1362,13 @@ begin
         end
       else
         begin { not cached }
-           gzip_allowed:=false;
-           _SendHttpFileMetadata(metae,gzip_allowed and metae.ZippedExist);
-           exit;
+          _SendHttpFileMetadata(metae,gzip_allowed and metae.ZippedExist);
+          exit;
         end;
     end
   else
     begin {No metadata availlable}
-       if use_dynamic_wwwroot then
+       if (use_dynamic_wwwroot) or (not cFRE_USE_STATIC_CACHE) then
          begin
            if length(range)<>0 then
               _ProcessRangeRequestAndSendFile

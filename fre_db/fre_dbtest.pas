@@ -208,6 +208,16 @@ type
   end;
 
 
+  { TFRE_DB_TEST_APP_GRID_DEMOS_MOD }
+
+  TFRE_DB_TEST_APP_GRID_DEMOS_MOD = class (TFRE_DB_APPLICATION_MODULE)
+  protected
+    class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    procedure       SetupAppModuleStructure ; override;
+  public
+  published
+  end;
+
 
   { TFRE_DB_TEST_APP_GRID_MOD }
 
@@ -256,6 +266,7 @@ type
     function  WEB_HelloWorld            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Menu                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_GRID_ITEM_DETAILS     (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_GRID_ITEM_NOTIFY      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_AddRecordBefore       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_AddRecordAfter        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_DelRecord             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -466,6 +477,22 @@ begin
   finally
     conn.Finalize;
   end;
+end;
+
+{ TFRE_DB_TEST_APP_GRID_DEMOS_MOD }
+
+class procedure TFRE_DB_TEST_APP_GRID_DEMOS_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
+end;
+
+procedure TFRE_DB_TEST_APP_GRID_DEMOS_MOD.SetupAppModuleStructure;
+begin
+  InitModuleDesc('$grid_demos');
+  AddApplicationModule(TFRE_DB_TEST_APP_GRID_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_GRID2_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_ALLGRID_MOD.create);
 end;
 
 { TFRE_DB_TEST_APP_SVG_MOD }
@@ -1194,8 +1221,8 @@ var
   i      : Integer;
 begin
   SetLength(data,1);
-  SetLength(data[0],4);
-  for i := 0 to 3 do begin
+  SetLength(data[0],120);
+  for i := 0 to high(data[0]) do begin
     data[0][i]:=Random(100);
   end;
   res:=TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC.create.Describe('slchart',data);
@@ -1215,7 +1242,7 @@ end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentSL(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeSampledLine('slchart',1,4,CWSF(@WEB_StartStopSLC),0,100,'Sampled Live Chart');
+  Result:=TFRE_DB_LIVE_CHART_DESC.create.DescribeSampledLine('slchart',1,120,CWSF(@WEB_StartStopSLC),0,100,'Sampled Live Chart');
 end;
 
 function TFRE_DB_TEST_APP_LIVE_CHART_MOD.WEB_ContentL(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1566,10 +1593,11 @@ end;
 procedure TFRE_DB_TEST_ALL_TYPES.Gamble(const id: int64);
   const TestChars : TFRE_DB_String = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';//_#*?!"§$%';
 
-  var buf : QWord;
-      ids : string;
-      dbt : IFRE_DB_TEXT;
-      str : TFRE_DB_Stream;
+  var buf    : QWord;
+      ids    : string;
+      dbt    : IFRE_DB_TEXT;
+      str    : TFRE_DB_Stream;
+      addsub : TFRE_DB_DateTime64;
 
   function GetRandString : TFRE_DB_String;
   var i : integer;
@@ -1601,14 +1629,16 @@ begin
   Field('fdbft_Int64').AsInt64             := PInt64(@buf)^;
   GetRandomBytes(buf,8);
   Field('fdbft_UInt64').AsUInt64           := PQWord(@Buf)^;
-  Field('fdbft_Real32').AsReal32           := Single (Random (100000)) / Single((Random (123456789)+1));
-  Field('fdbft_Real64').AsReal64           := Double (Random (100000)) / Single((Random (123456789)+1));
+  Field('fdbft_Real32').AsReal32           := Single (Random (100000)) / Single((Random (1234)+1));
+  Field('fdbft_Real64').AsReal64           := Double (Random (100000)) / Single((Random (1234)+1));
   Field('fdbft_Currency').AsCurrency       := Random (1000000) / 100;
-  Field('fdbft_String').AsString           := Field('MYID').AsString+'_'+GetRandstring;
   Field('fdbft_Boolean').AsBoolean         := random(3)=1;
-  Field('fdbft_DateTimeUTC').AsDateTimeUTC := GFRE_DT.Now_UTC;
+  addsub := ((random(20)-10)*1000000+random(1000000)) + ((id-50)*10000000);
+  writeln('ADDSUB ',addsub);
+  Field('fdbft_DateTimeUTC').AsDateTimeUTC := GFRE_DT.Now_UTC+addsub;
   ids := IntToStr(id);
   Field('MYID').AsInt64                    := id;
+  Field('fdbft_String').AsString           := Field('MYID').AsString+'_'+GetRandstring;
   Field('dbText').AsDBText.SetupText('KEY'+ids,'Short_'+ids,'Long_'+ids,'Hint_'+ids);  // This works only if the type of an implicitly created subobject is known, by defining the field in the scheme !
 end;
 
@@ -1761,7 +1791,7 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
       AddOneToOnescheme    ('number','','Number',dt_number);
-      AddProgressTransform ('number_pb','','Number PB','number_pb','',1000);
+      AddProgressTransform ('number_pb','','Number PB','number_pb','',10000);
       AddOneToOnescheme    ('string','','String');
       AddOneToOnescheme    ('boolean','','Boolean',dt_boolean);
       AddOneToOnescheme    ('date','','Date',dt_date);
@@ -1772,7 +1802,8 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_A2'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',CWSF(@WEB_Menu));
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',CWSF(@WEB_Menu),nil,
+                     CWSF(@WEB_GRID_ITEM_NOTIFY));
     end;
   end;
 end;
@@ -1845,6 +1876,20 @@ end;
 function TFRE_DB_TEST_APP_GRID2_MOD.WEB_GRID_ITEM_DETAILS(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   Result:=TFRE_DB_HTML_DESC.create.Describe('<B>GUGUG</B><BR>SEAS');
+end;
+
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_GRID_ITEM_NOTIFY(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  session: TFRE_DB_UserSession;
+  html   : TFRE_DB_HTML_DESC;
+begin
+  Result:=GFRE_DB_NIL_DESC;
+  session := GetSession(input);
+  //html:=TFRE_DB_HTML_DESC.create.Describe('<B>'+FREDB_String2EscapedJSString(input.DumpToString())+'</B>');
+  html:=TFRE_DB_HTML_DESC.create.Describe('<PRE>'+FREDB_String2EscapedJSString(input.DumpToString())+'</PRE>');
+  //html.updateId:='GRID2_HTML';
+  html.contentId:='GRID2_HTML';
+  session.SendServerClientRequest(html);
 end;
 
 function TFRE_DB_TEST_APP_GRID2_MOD.WEB_AddRecordBefore(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -2046,7 +2091,7 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
       AddOneToOnescheme    ('number','','Number',dt_number);
-      AddProgressTransform ('number_pb','','Number PB','number_pb','',1000);
+      AddProgressTransform ('number_pb','','Number PB','number_pb','',50000);
       AddOneToOnescheme    ('string','','String');
       AddOneToOnescheme    ('boolean','','Boolean',dt_boolean);
       AddOneToOnescheme    ('date','','Date',dt_date);
@@ -2058,7 +2103,7 @@ begin
       SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_A'));
       SetDeriveTransformation(tr_Grid);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
-      SetDefaultOrderField('number',false);
+      SetDefaultOrderField('number',true);
     end;
     if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin
       session.GetSessionModuleData(Classname).Field('BLAST').AsBoolean:=false;
@@ -2274,16 +2319,15 @@ end;
 procedure TFRE_DB_TEST_APP.SetupApplicationStructure;
 begin
   AddApplicationModule(TFRE_DB_TEST_APP_WELCOME_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_GRID_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_GRID2_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_GRID_DEMOS_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_CHART_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_LIVE_CHART_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_EDITORS_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_SVG_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_FORMTEST_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_ALLGRID_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.create);
+  //AddApplicationModule();
 end;
 
 class procedure TFRE_DB_TEST_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -2300,14 +2344,13 @@ begin
       CreateAppText(conn,'$svg_description','SVG','SVG','SVG');
       CreateAppText(conn,'$chart_description','Chart Test','Chart Test','Chart Test');
       CreateAppText(conn,'$live_chart_description','Live Chart Test','Live Chart Test','Live Chart Test');
+      CreateAppText(conn,'$grid_demos','Grid Demos','GRID DEMOS','The Grid Demos');
       CreateAppText(conn,'$grid_description','Grid Test','Grid Test','Grid Test');
       CreateAppText(conn,'$grid2_description','Grid 2 Test','Grid 2 Test','Grid 2 Test');
       CreateAppText(conn,'$formtest_description','Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
       CreateAppText(conn,'$allgrid_description','Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
       CreateAppText(conn,'$feedbrowsetree_description','Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
    end;
-  if currentVersionId<>newVersionId then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'upgrade failed for '+currentVersionId+' : '+newVersionId);
 end;
 
 
@@ -2403,14 +2446,17 @@ begin
   SiteMapData  := GFRE_DBI.NewObject;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main','Main','images_apps/test/sitemap_icon.svg','',0,true);
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Welcome','Welcome','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_WELCOME_MOD.ClassName,0, conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_WELCOME_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid','Grid','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_MOD.ClassName,1,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
+
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/GridDemos','Grid','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_DEMOS_MOD.ClassName,1,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/GridDemos/Grid','Grid','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_DEMOS_MOD.ClassName+':'+TFRE_DB_TEST_APP_GRID_MOD.ClassName,1,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/GridDemos/Grid2','Grid2','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_DEMOS_MOD.ClassName+':'+TFRE_DB_TEST_APP_GRID2_MOD.Classname,5,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID2_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/GridDemos/allgrid','Grid Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_DEMOS_MOD.ClassName+':'+TFRE_DB_TEST_APP_ALLGRID_MOD.Classname,2,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_ALLGRID_MOD));
+
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_CHART_MOD.Classname,4,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_CHART_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_LIVE_CHART_MOD.Classname,4,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_LIVE_CHART_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Grid2','Grid2','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID2_MOD.Classname,5,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID2_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FORMTEST_MOD.Classname,2,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_FORMTEST_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/allgrid','Grid Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_ALLGRID_MOD.Classname,2,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_ALLGRID_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.Classname,2,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_EDITORS_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/SVG','SVG','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_SVG_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_SVG_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
@@ -2623,7 +2669,7 @@ begin
 
   COLL := CONN.GetCollection('COLL_TEST_AT');
   CheckDbResult(COLL.DefineIndexOnField('fdbft_GUID',fdbft_GUID,true,true,'ix_uid'),'failed uid index creation ix_uid');
-  for i := 0 to 10 - 1 do begin
+  for i := 0 to 100 - 1 do begin
     //if i mod 100=0 then writeln('AT ENDLESS ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_ALL_TYPES);
     (lobj.Implementor_HC as TFRE_DB_TEST_ALL_TYPES).Gamble(i);
@@ -2642,6 +2688,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_A);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_B);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_ALL_TYPES);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID_DEMOS_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_ALLGRID_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD);

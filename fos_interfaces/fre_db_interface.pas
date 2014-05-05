@@ -85,7 +85,7 @@ type
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,
                                  dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING,dblc_QUERY,dblc_DBTDM);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_MISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
-  TFRE_DB_FILTERTYPE          = (dbf_TEXT,dbf_SIGNED,dbf_UNSIGNED,dbf_DATETIME,dbf_BOOLEAN,dbf_GUID,dbf_SCHEME,dbf_RIGHT);
+  TFRE_DB_FILTERTYPE          = (dbf_TEXT,dbf_SIGNED,dbf_UNSIGNED,dbf_DATETIME,dbf_BOOLEAN,dbf_CURRENCY,dbf_REAL64,dbf_GUID,dbf_SCHEME,dbf_RIGHT);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART); { currently only the first value of the filter is uses in this modes }
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter);
   TFRE_DB_SchemeType          = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
@@ -119,7 +119,7 @@ const
   CFRE_DB_FIELDTYPE_SHORT        : Array[TFRE_DB_FIELDTYPE]               of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
   CFRE_DB_STANDARD_RIGHT         : Array[TFRE_DB_STANDARD_RIGHT]          of String = ('BAD','STORE','UPDATE','DELETE','FETCH');
   CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','MISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
-  CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','G','X','R');
+  CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','C','R','G','X','Z');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','LE','LEQ','GT','GEQ','REXB','RWIB','AVFF','OVFV');
   CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM','QUERY','DBTDM');
@@ -527,7 +527,11 @@ type
     function  GetInCollectionArrayUSL       : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
     function  GetUpdateObjSchemePath        : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
     function  GetUpdateObjFieldPath         : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
-    function  IsSpecialClearMarked          : Boolean; { if a string field and has special clear string mark set => true (usefull for json web interface) }
+    function  IsSpecialClearMarked          : Boolean;             { if a string field and has special clear string mark set => true (usefull for json web interface) }
+    function  ConvAsSignedArray             : TFRE_DB_Int64Array;    { for filtering purposes }
+    function  ConvAsUnsignedArray           : TFRE_DB_UInt64Array;   { for filtering purposes }
+    function  ConvAsCurrencyArray           : TFRE_DB_CurrencyArray; { for filtering purposes }
+    function  ConvAsReal64Array             : TFRE_DB_Real64Array;   { for filtering purposes }
   end;
 
 
@@ -857,7 +861,7 @@ type
     procedure  TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; var record_cnt : NativeInt);
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
     procedure  BindSession                   (const session : TFRE_DB_UserSession);
-    procedure  SetDefaultOrderField          (const field_name:TFRE_DB_String ; const ascending : boolean ; const field_type : TFRE_DB_FIELDTYPE=fdbft_String);
+    procedure  SetDefaultOrderField          (const field_name:TFRE_DB_String ; const ascending : boolean);
     procedure  RemoveAllFilterFields         ;
     procedure  RemoveAllFiltersPrefix        (const prefix:string);
     function   Count                         : QWord;
@@ -1263,19 +1267,23 @@ type
 
     function        GetIndexedUIDSigned        (const query_value : int64            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
     function        GetIndexedUIDUnsigned      (const query_value : QWord            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    function        GetIndexedUIDReal          (const query_value : Double           ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+
     function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
     function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-
+    function        GetIndexedUIDReal          (const query_value : Double         ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
 
     function        Remove                     (const ouid    : TGUID):TFRE_DB_Errortype; { from this collection }
     function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
-    function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;  // for all signed   fieldtypes
-    function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;  // for all unsigned fieldtype
+    function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
+    function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
+    function        RemoveIndexedReal          (const query_value : Double         ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all real fieldtypes
 
     procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
     procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
+    procedure       ForAllIndexedRealRange     (const min_value,max_value : Double         ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
   end;
@@ -1569,6 +1577,7 @@ type
     function   AppClassName                 : ShortString;
     function   AsObject                     : IFRE_DB_Object;
     function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
+    function   IsMultiDomainApp             : Boolean;
   end;
 
   IFRE_DB_APPLICATION_MODULE=interface
@@ -1812,7 +1821,9 @@ type
     FAllowNull : Boolean;
   public
     function    GetKeyName       : TFRE_DB_NameType;
+    { get a reproducable unique key, depending on the filter field, values and settings}
     function    GetDefinitionKey : TFRE_DB_NameType;virtual;abstract;
+    { return true if the filter hits }
     function    CheckFilterHit   (const obj : IFRE_DB_Object ; var flt_errors : Int64):boolean;virtual;abstract;
     constructor Create           (const key : TFRE_DB_NameType);
     function    Clone            : TFRE_DB_FILTER_BASE;virtual; abstract;
@@ -1827,17 +1838,15 @@ type
     procedure UnlockBase ; virtual; abstract;
     function  GetFullKeyDef : TFRE_DB_TRANS_COLL_DATA_KEY; virtual ; abstract;
   end;
-//
-//  function   AddStringFieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_StringArray;const filtertype:TFRE_DB_STR_FILTERTYPE):TFRE_DB_Errortype;
-//  function   AddBooleanFieldFilter         (const filter_key,field_name:TFRE_DB_String;const value :Boolean):TFRE_DB_Errortype;
-//  function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_GUIDArray     ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE):TFRE_DB_Errortype;
-//  function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:TFRE_DB_StringArray   ;const negate:boolean=false):TFRE_DB_Errortype;
-//  function   RemoveFilter                  (const filter_key           :TFRE_DB_String):TFRE_DB_Errortype;
+
+  { TFRE_DB_DC_FILTER_DEFINITION_BASE }
 
   TFRE_DB_DC_FILTER_DEFINITION_BASE = class
     procedure  AddStringFieldFilter    (const key,fieldname:TFRE_DB_NameType ; filtervalue  : TFRE_DB_String              ; const stringfiltertype : TFRE_DB_STR_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
     procedure  AddSignedFieldFilter    (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Int64              ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
     procedure  AddUnsignedFieldFilter  (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Uint64             ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
+    procedure  AddCurrencyFieldFilter  (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Currency           ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
+    procedure  AddReal64FieldFilter    (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Double             ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
     procedure  AddDatetimeFieldFilter  (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_DateTime64 ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
     procedure  AddBooleanFieldFilter   (const key,fieldname:TFRE_DB_NameType ; filtervalue  : boolean                                                                       ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
     procedure  AddUIDFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
@@ -1864,7 +1873,7 @@ type
     procedure  NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
     function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const dc_name,parent_name : TFRE_DB_NameTypeRL ;
                                           const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
-                                          const DefaultOrderFieldtype: TFRE_DB_FIELDTYPE ; const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE; virtual; abstract;
+                                          const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE; virtual; abstract;
     procedure   StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;
     procedure   RemoveQuery              (const qry_id : TFRE_DB_NameType); virtual; abstract;
     procedure   DropAllQuerys            (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
@@ -1931,7 +1940,7 @@ type
 
     function   AsObject                     : IFRE_DB_Object;
     function   AppClassName                 : ShortString;
-    function   isMultiDomainApp             : Boolean; virtual;
+    function   IsMultiDomainApp             : Boolean; virtual;
     function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
 
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
@@ -1949,7 +1958,6 @@ type
 
   published
      function   WEB_Content                 (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
-
      function   WEB_OnUIChange              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
   end;
 
@@ -2001,7 +2009,8 @@ type
     class procedure  DeleteModuleText        (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String);
     class procedure  UpdateModuleText        (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
   published
-    function   IMI_OnUIChange                (const input:IFRE_DB_Object):IFRE_DB_Object; virtual;
+    function   WEB_Content                   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
+    function   WEB_OnUIChange                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
   end;
 
   // Describes a basic content Element
@@ -7658,8 +7667,9 @@ end;
 function TFRE_DB_APPLICATION_MODULE.GetEmbeddingApp: TFRE_DB_APPLICATION;
 var obj:IFRE_DB_Object;
 begin
+  obj := self;
   repeat
-    obj := Parent;
+    obj := obj.Parent;
     if obj.IsA(TFRE_DB_APPLICATION.ClassName) then begin
       exit(obj.Implementor_HC as TFRE_DB_APPLICATION);
     end;
@@ -7796,7 +7806,41 @@ begin
   CheckDbResult(conn.UpdateTranslateableText(txt),'UpdateModuleText ' + translation_key);
 end;
 
-function TFRE_DB_APPLICATION_MODULE.IMI_OnUIChange(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_APPLICATION_MODULE.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var ActiveSection : String;
+    res           : TFRE_DB_SUBSECTIONS_DESC;
+
+    procedure DescribeAppModules(const module:IFRE_DB_APPLICATION_MODULE;const module_order:nativeint);
+    var
+      menu    : TFRE_DB_MENU_DESC;
+      section : TFRE_DB_SECTION_DESC;
+      csf     : TFRE_DB_SERVER_FUNC_DESC;
+      title   : TFRE_DB_String;
+      id      : String;
+    begin
+      if conn.sys.CheckClassRight4MyDomain(sr_FETCH,module.GetImplementorsClass) or
+         (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,module.GetImplementorsClass) and app.isMultiDomainApp) then
+        begin
+          csf   := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(module.AsObject,'content');
+          title := module.GetModuleTitle(ses);
+          id    := module.GetModuleClassName;
+          section:=TFRE_DB_SUBSECTIONS_DESC(res).AddSection.Describe(csf,title,module_order,id);
+          menu:=TFRE_DB_MENU_DESC(module.GetToolbarMenu(ses));
+          if Assigned(menu) then
+            section.SetMenu(menu);
+        end;
+     end;
+
+begin
+  res     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
+  TFRE_DB_SUBSECTIONS_DESC(res).OnUIChange(CWSF(@WEB_OnUIChange));
+  ForAllAppModules(@DescribeAppModules);
+  ActiveSection := ses.GetSessionAppData(ClassName).Field('activeSection').AsString;
+  TFRE_DB_SUBSECTIONS_DESC(res).SetActiveSection(ActiveSection);
+  result := res;
+end;
+
+function TFRE_DB_APPLICATION_MODULE.WEB_OnUIChange(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   GetDBModuleSessionData(input).Field('activeSection').AsString:=input.Field('sectionid').AsString;
   Result:=GFRE_DB_NIL_DESC;
@@ -7883,7 +7927,7 @@ begin
   SiteMapEntry.Field('NC').AsInt16      := newsCount;
   SiteMapEntry.Field('CAP').AsString    := caption;
   SiteMapEntry.Field('ICO').AsString    := icon;
-  FREDB_SeperateString(InterAppLink,':',ial);
+  FREDB_SeperateString(InterAppLink,':',ial); { class:class:class }
   SiteMapEntry.Field('IAL').AsStringArr := ial;
   SiteMapEntry.Field('SCL').AsReal32    := 1.0;
   SiteMapEntry.Field('DIS').AsBoolean   := not enabled;

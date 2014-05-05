@@ -164,6 +164,8 @@ type
 
     function  _ConvertToSignedArray   : TFRE_DB_Int64Array;
     function  _ConvertToUnsignedArray : TFRE_DB_UInt64Array;
+    function  _ConvertToCurrencyArray : TFRE_DB_CurrencyArray;
+    function  _ConvertToReal64Array   : TFRE_DB_Real64Array;
 
     function  _ConvertToBool      : Boolean;
     function  _ConvertToDateTime  : TFRE_DB_Datetime64;
@@ -472,6 +474,10 @@ type
 
     property  AsObjectI                     : IFRE_DB_Object read GetAsObjectI write SetAsObjectI;
     function  IsSpecialClearMarked          : Boolean; { if a string field and has special clear string mark set => true (usefull for json web interface) }
+    function  ConvAsSignedArray             : TFRE_DB_Int64Array;    { for filtering purposes }
+    function  ConvAsUnsignedArray           : TFRE_DB_UInt64Array;   { for filtering purposes }
+    function  ConvAsCurrencyArray           : TFRE_DB_CurrencyArray; { for filtering purposes }
+    function  ConvAsReal64Array             : TFRE_DB_Real64Array;   { for filtering purposes }
   end;
   _TFRE_DB_FieldTree        = specialize TGFOS_RBTree<TFRE_DB_NameType,TFRE_DB_FIELD>;
 
@@ -1605,7 +1611,6 @@ type
     //FCurrentStrFilters     : TFRE_DB_DC_STRINGFIELDKEY_LIST;
     FDefaultOrderField     : TFRE_DB_NameType;
     FDefaultOrderAsc       : Boolean;
-    FDefaultOrderFieldtype : TFRE_DB_FIELDTYPE;
 
     FInitialDerived    : Boolean;
     FSession           : TFRE_DB_UserSession;
@@ -1687,7 +1692,7 @@ type
     procedure  AddSelectionDependencyEvent   (const derived_collection_name : TFRE_DB_NameType ; const ReferenceID :TFRE_DB_NameType); {On selection change a dependency "filter" object is generated and sent to the derived collection}
 
     function   RemoveFieldFilter       (const filter_key:TFRE_DB_String;const on_transform:boolean=true):TFRE_DB_Errortype;
-    procedure  SetDefaultOrderField    (const field_name:TFRE_DB_String ; const ascending : boolean ; const field_type : TFRE_DB_FIELDTYPE=fdbft_String);
+    procedure  SetDefaultOrderField    (const field_name:TFRE_DB_String ; const ascending : boolean);
     procedure  RemoveAllFilterFields   ;
     procedure  RemoveAllFiltersPrefix  (const prefix:string);
 
@@ -7096,11 +7101,10 @@ end;
 //  FOrders.Field(order_key).AsObject := order;
 //end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetDefaultOrderField(const field_name: TFRE_DB_String; const ascending: boolean; const field_type: TFRE_DB_FIELDTYPE);
+procedure TFRE_DB_DERIVED_COLLECTION.SetDefaultOrderField(const field_name: TFRE_DB_String; const ascending: boolean);
 begin
   FDefaultOrderField     := field_name;
   FDefaultOrderAsc       := ascending;
-  FDefaultOrderFieldtype := field_type;
 end;
 
 //procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllOrderFields;
@@ -7567,7 +7571,7 @@ begin
     qry_ok := false;
     MustBeInitialized;
     query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input,FDependencyRef,CollectionName(true),FParentCollection.CollectionName(true),FDCollFilters,
-                                                    FDefaultOrderField,FDefaultOrderAsc,FDefaultOrderFieldtype,ses);
+                                                    FDefaultOrderField,FDefaultOrderAsc,ses);
     try
       _CheckObserverAdded(true);
 
@@ -11911,6 +11915,15 @@ begin
 
 end;
 
+{
+  this function converts a (convertable) JSON DBO Representation to a DBO
+  some limitations apply
+  input must be a JSON Object (not array, not null)
+  arrays in the object must be uniform
+  the number type is guessed from the values of the array -> int32/64,qword,float
+  special fields are uid, uidpath
+
+}
 
 function TFRE_DB.JSONObject2Object(const json_string: string): IFRE_DB_Object; //TODO: Handle DomainID ?
 var  l_JSONParser : TJSONParser;
@@ -11943,16 +11956,138 @@ var  l_JSONParser : TJSONParser;
      end;
    end;
 
+   type
+     tuniform_array_type=(j2o_unspec,j2o_empty_arr,j2o_Bool,j2o_String,j2o_Obj,j2o_R64,j2o_Int32,j2o_Int64,j2o_QWord);
+   const
+     cuniform_array_type:array [tuniform_array_type] of string=('UNSPECIFIED','EMPTY','BOOLEAN','STRING','OBJECT','REAL','INTEGER32','INTEGER64','QWORD');
+
 
   procedure _ConvertObject(const l_JSONObject : TJSONObject ; const l_DataObj : IFRE_DB_Object);
   var i,j           : integer;
       l_JSONItem    : TJSONData;
       l_SubDataObj  : IFRE_DB_Object;
       l_GotUid      : Boolean;
-      l_Fields      : TFOSStringArray;
-      //l_sub_objects : TFRE_DB_StringArray;
-      s             : string;
       l_FieldName   : String;
+      l_array_t     : tuniform_array_type;
+
+      function _GetUniformJsonArrayType : tuniform_array_type;
+      var j         : integer;
+          jnt       : TJSONNumberType;
+          neg_val   : boolean;
+          arr_item  : TJSONData;
+      begin
+        result := j2o_unspec;
+        if l_JSONItem.Count=0 then
+          exit(j2o_empty_arr);
+        neg_val := false; { no negative values till now }
+        for j := 0 to l_JSONItem.Count - 1 do begin
+          arr_item := l_JSONItem.Items[j];
+          if arr_item is TJSONString then
+            case Result of
+              j2o_unspec: result := j2o_String;
+              j2o_String: ; { no change, ok }
+              else EFRE_DB_Exception.Create(edb_ERROR,'unexpected JSON Element in array %s itemclass %s the array should be of uniform type %s',[l_FieldName,arr_item.ClassName,cuniform_array_type[result]]);
+            end
+          else
+          if arr_item is TJSONBoolean then
+            case Result of
+              j2o_unspec: result := j2o_Bool;
+              j2o_Bool: ; { no change, ok }
+              else EFRE_DB_Exception.Create(edb_ERROR,'unexpected JSON Element in array %s itemclass %s the array should be of uniform type %s',[l_FieldName,arr_item.ClassName,cuniform_array_type[result]]);
+            end
+          else
+          if arr_item is TJSONNumber then
+            begin
+              jnt := TJSONNumber(arr_item).NumberType;
+              case Result of
+                j2o_unspec:
+                  case jnt of
+                    ntFloat:   result := j2o_R64;
+                    ntInteger:
+                      begin
+                        result  := j2o_Int32;
+                        neg_val := (neg_val or (TJSONNumber(arr_item).AsInteger<0));
+                      end;
+                    ntInt64:
+                      begin
+                        result := j2o_Int64;
+                        neg_val := (neg_val or (TJSONNumber(arr_item).AsInt64<0));
+                      end;
+                    ntQWord:   result := j2o_QWord;
+                    else EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected JSON number subtype %d',[ord(jnt)]);
+                  end;
+                j2o_R64:   ; { stay on R64}
+                j2o_Int32:
+                  case jnt of
+                    ntFloat:   result := j2o_R64  ; { upgrade to R64 }
+                    ntInteger:
+                      begin  { stay on R32 }
+                        neg_val := (neg_val or (TJSONNumber(arr_item).AsInteger<0));
+                      end;
+                    ntInt64:
+                      begin
+                        result  := j2o_Int64; { upgrade to I64 }
+                        neg_val := (neg_val or (TJSONNumber(arr_item).AsInt64<0));
+                      end;
+                    ntQWord:
+                      begin
+                        if neg_val then { the current qword is positive, check if all prior values are positive too}
+                          EFRE_DB_Exception.Create(edb_INTERNAL,'cannot upgrade a uniform JSON array type from i32 to qword, because there are negative values in the array prior to this large qword number');
+                        result := j2o_QWord;        { upgrade to qword }
+                      end
+                    else EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected JSON number subtype %d',[ord(jnt)]);
+                  end;
+                j2o_Int64:
+                  case jnt of
+                    ntFloat:   result := j2o_R64  ; { upgrade to R64 }
+                    ntInteger:
+                      begin  { stay on I64 }
+                        neg_val := (neg_val or (TJSONNumber(arr_item).AsInteger<0));
+                      end;
+                    ntInt64:
+                      begin { stay on I64 }
+                        neg_val := (neg_val or (TJSONNumber(arr_item).AsInt64<0));
+                      end;
+                    ntQWord:
+                      begin
+                        if neg_val then { the current qword is positive, check if all prior values are positive too}
+                          EFRE_DB_Exception.Create(edb_INTERNAL,'cannot upgrade a uniform JSON array type from i64 to qword, because there are negative values in the array prior to this large qword number');
+                        result := j2o_QWord;        { upgrade to qword }
+                      end
+                    else EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected JSON number subtype %d',[ord(jnt)]);
+                  end;
+                j2o_QWord:
+                  case jnt of
+                    ntFloat:   result := j2o_R64  ; { upgrade to R64 }
+                    ntInteger:
+                      begin  { try stay on QWord }
+                        neg_val := (neg_val or (TJSONNumber(arr_item).AsInteger<0));
+                        if neg_val then
+                          EFRE_DB_Exception.Create(edb_INTERNAL,'cannot handle a uniform JSON array type qword, because there is a negative i32 value in the array after qword number(s)');
+                      end;
+                    ntInt64:
+                      begin { try stay on QWord }
+                        neg_val := (neg_val or (TJSONNumber(arr_item).AsInt64<0));
+                        if neg_val then
+                          EFRE_DB_Exception.Create(edb_INTERNAL,'cannot handle a uniform JSON array type qword, because there is a negative i32 value in the array after qword number(s)');
+                      end;
+                    ntQWord: ; { stay on qword }
+                    else EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected JSON number subtype %d',[ord(jnt)]);
+                  end;
+                else EFRE_DB_Exception.Create(edb_ERROR,'unexpected JSON Element in array %s itemclass %s the array should be of uniform type %s',[l_FieldName,arr_item.ClassName,cuniform_array_type[result]]);
+              end;
+            end
+          else
+          if arr_item is TJSONObject then
+            case Result of
+              j2o_unspec: result := j2o_Obj;
+              j2o_Obj: ; { no change, ok }
+              else EFRE_DB_Exception.Create(edb_ERROR,'unexpected JSON Element in array %s itemclass %s the array should be of uniform type %s',[l_FieldName,arr_item.ClassName,cuniform_array_type[result]]);
+            end
+          else
+            raise EFRE_DB_Exception.Create(edb_ERROR,'unexpected JSON Element in array %s / %s',[l_FieldName,arr_item.ClassName]);
+        end;
+      end;
 
   begin
     for i:=0 to l_JSONObject.Count-1 do begin
@@ -11971,39 +12106,67 @@ var  l_JSONParser : TJSONParser;
             l_DataObj.Field('uidpath').AsGUIDArr := JSON2GUidArray(l_JSONItem.AsJSON);
           end else begin
             if l_JSONItem is TJSONArray then begin
-              if l_JSONItem.Count=0 then begin
-                 l_DataObj.Field(l_FieldName).SetAsEmptyStringArray;
-              end else begin
-                for j := 0 to l_JSONItem.Count - 1 do begin
-                  if l_JSONItem.Items[j] is TJSONString then begin
-                    l_DataObj.Field(l_FieldName).AddString(l_JSONItem.Items[j].AsString);
-                  end else
-                  if l_JSONItem.Items[j] is TJSONNumber then begin
-                    if TJSONNumber(l_JSONItem.Items[j]).NumberType=ntFloat then begin
-                      l_DataObj.Field(l_FieldName).AddReal64(l_JSONItem.Items[j].AsFloat);
-                    end else begin
-                      l_DataObj.Field(l_FieldName).AddInt64(l_JSONItem.Items[j].AsInteger);
-                    end;
-                  end else
-                  if l_JSONItem.Items[j] is TJSONObject then begin
-                    l_SubDataObj := GFRE_DBI.NewObject;
-                    l_DataObj.Field(l_FieldName).AddObject(l_SubDataObj);
-                    _ConvertObject(TJSONObject(l_JSONItem.Items[j]),l_SubDataObj);
-                  end else raise EFRE_DB_Exception.Create(edb_ERROR,'unexpected JSON Element in array %s / %s',[l_FieldName,l_JSONItem.ClassName]);
-                end;
-              end;
+               l_array_t := _GetUniformJsonArrayType;
+               for j := 0 to l_JSONItem.Count-1 do
+                 case l_array_t of
+                   j2o_unspec: ;
+                   j2o_empty_arr: l_DataObj.Field(l_FieldName).SetAsEmptyStringArray;
+                   j2o_Bool:      l_DataObj.Field(l_FieldName).AddBoolean(l_JSONItem.Items[j].AsBoolean);
+                   j2o_String:    l_DataObj.Field(l_FieldName).AddString(l_JSONItem.Items[j].AsString);
+                   j2o_Obj:       begin
+                                    l_SubDataObj := GFRE_DBI.NewObject;
+                                    l_DataObj.Field(l_FieldName).AddObject(l_SubDataObj);
+                                    _ConvertObject(TJSONObject(l_JSONItem.Items[j]),l_SubDataObj);
+                                  end;
+                   j2o_R64:       l_DataObj.Field(l_FieldName).AddReal64(l_JSONItem.Items[j].AsFloat);
+                   j2o_Int32:     l_DataObj.Field(l_FieldName).AddInt32 (l_JSONItem.Items[j].AsInteger);
+                   j2o_Int64:     l_DataObj.Field(l_FieldName).AddInt64 (l_JSONItem.Items[j].AsInt64);
+                   j2o_QWord:     l_DataObj.Field(l_FieldName).AddUInt64(l_JSONItem.Items[j].AsQWord);
+                 end;
+              //if l_JSONItem.Count=0 then begin
+              //   l_DataObj.Field(l_FieldName).SetAsEmptyStringArray;
+              //end else
+              //  begin
+              //    for j := 0 to l_JSONItem.Count - 1 do
+              //      begin
+              //        if l_JSONItem.Items[j] is TJSONString then
+              //          begin
+              //            l_DataObj.Field(l_FieldName).AddString(l_JSONItem.Items[j].AsString);
+              //          end
+              //        else
+              //        if l_JSONItem.Items[j] is TJSONNumber then
+              //          begin
+              //            case TJSONNumber(l_JSONItem.Items[j]).NumberType of
+              //              ntFloat:    l_DataObj.Field(l_FieldName).AddReal64(l_JSONItem.Items[j].AsFloat);
+              //              ntInteger:  l_DataObj.Field(l_FieldName).AddInt32(l_JSONItem.Items[j].AsInteger);
+              //              ntInt64:    l_DataObj.Field(l_FieldName).AddInt64(l_JSONItem.Items[j].AsInt64);
+              //              ntQWord:    l_DataObj.Field(l_FieldName).AddUInt64(l_JSONItem.Items[j].AsQWord);
+              //            end;
+              //          end
+              //        else
+              //          if l_JSONItem.Items[j] is TJSONObject then
+              //            begin
+              //              l_SubDataObj := GFRE_DBI.NewObject;
+              //              l_DataObj.Field(l_FieldName).AddObject(l_SubDataObj);
+              //              _ConvertObject(TJSONObject(l_JSONItem.Items[j]),l_SubDataObj);
+              //            end
+              //          else
+              //            raise EFRE_DB_Exception.Create(edb_ERROR,'unexpected JSON Element in array %s / %s',[l_FieldName,l_JSONItem.ClassName]);
+              //      end;
+              //end;
             end else
-            if l_JSONItem is TJSONNull then begin
-              l_DataObj.Field(l_FieldName).AsString := cFRE_DB_SYS_CLEAR_VAL_STR;  { A JSON Null Field is defined here to issue a CLEAR on the original Field }
-            end
-            else begin
-              l_DataObj.Field(l_FieldName).AsString := l_JSONItem.AsString;
-            end;
+            if l_JSONItem is TJSONNull then
+              begin
+                l_DataObj.Field(l_FieldName).AsString := cFRE_DB_SYS_CLEAR_VAL_STR;  { A JSON Null Field is defined here to issue a CLEAR on the original Field }
+              end
+            else
+              begin
+                l_DataObj.Field(l_FieldName).AsString := l_JSONItem.AsString;
+              end;
           end;
         end;
       end;
     end;
-    //l_sub_objects := l_DataObj.GetFieldListFilter(fdbft_Object);
   end;
 
 begin
@@ -15388,6 +15551,26 @@ begin
           (FFieldData.strg^[0]=cFRE_DB_SYS_CLEAR_VAL_STR);
 end;
 
+function TFRE_DB_FIELD.ConvAsSignedArray: TFRE_DB_Int64Array;
+begin
+  result := _ConvertToSignedArray;
+end;
+
+function TFRE_DB_FIELD.ConvAsUnsignedArray: TFRE_DB_UInt64Array;
+begin
+ result := _ConvertToUnsignedArray;
+end;
+
+function TFRE_DB_FIELD.ConvAsCurrencyArray: TFRE_DB_CurrencyArray;
+begin
+  result := _ConvertToCurrencyArray;
+end;
+
+function TFRE_DB_FIELD.ConvAsReal64Array: TFRE_DB_Real64Array;
+begin
+  result := _ConvertToReal64Array;
+end;
+
 function TFRE_DB_FIELD._FieldType: TFRE_DB_FIELDTYPE;
 begin
   result := FFieldData.FieldType;
@@ -15904,7 +16087,57 @@ begin
       fdbft_String:      result[i] := StrToQWord(FFieldData.strg^[i]);
       fdbft_Boolean:     result[i] := Ord(FFieldData.bool^[i]);
       fdbft_DateTimeUTC: result[i] := FFieldData.date^[i];
-      else               raise EFRE_DB_Exception.Create(edb_ERROR,'cannot convert %s to signed array',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
+      else               raise EFRE_DB_Exception.Create(edb_ERROR,'cannot convert %s to unsigned array',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
+    end;
+end;
+
+function TFRE_DB_FIELD._ConvertToCurrencyArray: TFRE_DB_CurrencyArray;
+var i : NativeInt;
+begin
+  if ValueCount=0 then
+    exit(nil);
+  SetLength(result,ValueCount);
+  for i := 0 to ValueCount-1 do
+    case FFieldData.FieldType of
+      fdbft_Byte:        result[i] := FFieldData.byte^[i];
+      fdbft_Int16:       result[i] := FFieldData.in16^[i];
+      fdbft_UInt16:      result[i] := FFieldData.ui16^[i];
+      fdbft_Int32:       result[i] := FFieldData.in32^[i];
+      fdbft_UInt32:      result[i] := FFieldData.ui32^[i];
+      fdbft_Int64:       result[i] := FFieldData.in64^[i];
+      fdbft_UInt64:      result[i] := FFieldData.ui64^[i];
+      fdbft_Real32:      result[i] := FFieldData.re32^[i];
+      fdbft_Real64:      result[i] := FFieldData.re64^[i];
+      fdbft_Currency:    result[i] := FFieldData.curr^[i];
+      fdbft_String:      result[i] := StrToCurr(FFieldData.strg^[i]);
+      fdbft_Boolean:     result[i] := Ord(FFieldData.bool^[i]);
+      fdbft_DateTimeUTC: result[i] := FFieldData.date^[i];
+      else               raise EFRE_DB_Exception.Create(edb_ERROR,'cannot convert %s to currency array',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
+    end;
+end;
+
+function TFRE_DB_FIELD._ConvertToReal64Array: TFRE_DB_Real64Array;
+var i : NativeInt;
+begin
+  if ValueCount=0 then
+    exit(nil);
+  SetLength(result,ValueCount);
+  for i := 0 to ValueCount-1 do
+    case FFieldData.FieldType of
+      fdbft_Byte:        result[i] := FFieldData.byte^[i];
+      fdbft_Int16:       result[i] := FFieldData.in16^[i];
+      fdbft_UInt16:      result[i] := FFieldData.ui16^[i];
+      fdbft_Int32:       result[i] := FFieldData.in32^[i];
+      fdbft_UInt32:      result[i] := FFieldData.ui32^[i];
+      fdbft_Int64:       result[i] := FFieldData.in64^[i];
+      fdbft_UInt64:      result[i] := FFieldData.ui64^[i];
+      fdbft_Real32:      result[i] := FFieldData.re32^[i];
+      fdbft_Real64:      result[i] := FFieldData.re64^[i];
+      fdbft_Currency:    result[i] := FFieldData.curr^[i];
+      fdbft_String:      result[i] := StrToFloat(FFieldData.strg^[i]);
+      fdbft_Boolean:     result[i] := Ord(FFieldData.bool^[i]);
+      fdbft_DateTimeUTC: result[i] := FFieldData.date^[i];
+      else               raise EFRE_DB_Exception.Create(edb_ERROR,'cannot convert %s to real64 array',[CFRE_DB_FIELDTYPE[FFieldData.FieldType]]);
     end;
 end;
 
