@@ -126,21 +126,17 @@ type
 
   TFRE_DB_TEST_APP=class(TFRE_DB_APPLICATION)
   private
-    procedure       SetupApplicationStructure     ; override;
+    procedure        SetupApplicationStructure     ; override;
 
     class procedure  InstallDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;  { system specific data inits go here}
-    class procedure  InstallDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;                   { system domain specific data inits go here}
-    class procedure  InstallUserDBObjects        (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); override;                                         { app db specific data inits goes here }
-    class procedure  InstallUserDBObjects4Domain (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID); override;                       { app db domain specific data inits goes here }
+    class procedure  InstallDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;                       { system domain specific data inits go here}
+    class procedure  InstallUserDBObjects        (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); override;                                             { app db specific data inits goes here }
+    class procedure  InstallUserDBObjects4Domain (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID); override;                           { app db domain specific data inits goes here }
 
     class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); override;
     class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
-
-    procedure       _UpdateSitemap            (const session: TFRE_DB_UserSession);
   protected
-    procedure       MyServerInitialize        (const admin_dbc: IFRE_DB_CONNECTION); override; { initialize in memory collections here }
-    procedure       MySessionInitialize       (const session: TFRE_DB_UserSession); override;
-    procedure       MySessionPromotion        (const session: TFRE_DB_UserSession); override;
+    procedure        MyServerInitialize        (const admin_dbc: IFRE_DB_CONNECTION); override; { initialize in memory collections here }
   public
     class procedure RegisterSystemScheme        (const scheme:IFRE_DB_SCHEMEOBJECT); override;
   published
@@ -156,7 +152,8 @@ type
 
   TFRE_DB_TEST_APP_WELCOME_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
-    procedure       SetupAppModuleStructure ; override;
+    procedure SetupAppModuleStructure; override;
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
   published
@@ -167,7 +164,7 @@ type
 
   TFRE_DB_TEST_APP_FORMTEST_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
-    procedure       SetupAppModuleStructure ; override;
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     function        GetToolbarMenu          (const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
   public
     class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
@@ -181,9 +178,9 @@ type
 
   TFRE_DB_TEST_APP_ALLGRID_MOD= class(TFRE_DB_APPLICATION_MODULE)
   protected
-    procedure       SetupAppModuleStructure ; override;
   public
     class procedure RegisterSystemScheme (const scheme:IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects     (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       MySessionInitializeModule  (const session: TFRE_DB_UserSession); override;
   published
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -193,9 +190,9 @@ type
 
   TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD= class(TFRE_DB_APPLICATION_MODULE)
   protected
-    procedure       SetupAppModuleStructure ; override;
     function        GetToolbarMenu       (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
   public
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme       (const scheme:IFRE_DB_SCHEMEOBJECT); override;
     procedure       MySessionInitializeModule  (const session: TFRE_DB_UserSession); override;
   published
@@ -212,11 +209,35 @@ type
 
   TFRE_DB_TEST_APP_GRID_DEMOS_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
-    class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       SetupAppModuleStructure ; override;
-  public
-  published
   end;
+
+  { TFRE_DB_TEST_APP_CHART_DEMOS_MOD }
+
+  TFRE_DB_TEST_APP_CHART_DEMOS_MOD = class (TFRE_DB_APPLICATION_MODULE)
+  protected
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    procedure       SetupAppModuleStructure ; override;
+  end;
+
+
+  { TFRE_DB_TEST_APP_FORM_DEMOS_MOD }
+
+  TFRE_DB_TEST_APP_FORM_DEMOS_MOD = class (TFRE_DB_APPLICATION_MODULE)
+  protected
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    procedure       SetupAppModuleStructure ; override;
+  end;
+
+  { TFRE_DB_TEST_APP_SPECIAL_DEMOS_MOD }
+
+  TFRE_DB_TEST_APP_SPECIAL_DEMOS_MOD = class (TFRE_DB_APPLICATION_MODULE)
+  protected
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    procedure       SetupAppModuleStructure ; override;
+  end;
+
 
 
   { TFRE_DB_TEST_APP_GRID_MOD }
@@ -229,7 +250,7 @@ type
     procedure updateWait  (const session: IFRE_DB_UserSession);
   protected
     class procedure RegisterSystemScheme    (const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure       SetupAppModuleStructure ; override;
+    class procedure InstallDBObjects        (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     function        GetToolbarMenu       (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
   public
     procedure SC_ChangeData_Result      (const input:IFRE_DB_Object);
@@ -257,7 +278,7 @@ type
   TFRE_DB_TEST_APP_GRID2_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure       SetupAppModuleStructure ; override;
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     function  GetToolbarMenu            (const ses : IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
@@ -274,14 +295,14 @@ type
     function  WEB_UpdateCS              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
+
   { TFRE_DB_TEST_APP_CHART_MOD }
 
   TFRE_DB_TEST_APP_CHART_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
-    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure       SetupAppModuleStructure ; override;
     procedure       MyServerInitializeModule  (const admin_dbc : IFRE_DB_CONNECTION); override;
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
+    class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_ContentPie            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -292,8 +313,7 @@ type
   TFRE_DB_TEST_APP_LIVE_CHART_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
     _idx: Integer;
-    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure       SetupAppModuleStructure ; override;
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       _SendDataSLC        (const ses: IFRE_DB_Usersession);
     procedure       _SendDataLC         (const ses: IFRE_DB_Usersession);
     procedure       _SendDataCC         (const ses: IFRE_DB_Usersession);
@@ -312,7 +332,7 @@ type
   TFRE_DB_TEST_APP_GRIDTREEFORM_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure       SetupAppModuleStructure ; override;
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -323,7 +343,7 @@ type
   TFRE_DB_TEST_APP_EDITORS_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure       SetupAppModuleStructure ; override;
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -349,7 +369,7 @@ type
   TFRE_DB_TEST_APP_SVG_MOD = class (TFRE_DB_APPLICATION_MODULE)
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure       SetupAppModuleStructure ; override;
+    class procedure InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     function        GetToolbarMenu          (const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC; override;
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
@@ -479,17 +499,76 @@ begin
   end;
 end;
 
+{ TFRE_DB_TEST_APP_SPECIAL_DEMOS_MOD }
+
+class procedure TFRE_DB_TEST_APP_SPECIAL_DEMOS_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Special Demos','SPECIAL DEMOS','The Special Demos');
+   end;
+end;
+
+procedure TFRE_DB_TEST_APP_SPECIAL_DEMOS_MOD.SetupAppModuleStructure;
+begin
+  AddApplicationModule(TFRE_DB_TEST_APP_EDITORS_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_SVG_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.create);
+end;
+
+{ TFRE_DB_TEST_APP_FORM_DEMOS_MOD }
+
+class procedure TFRE_DB_TEST_APP_FORM_DEMOS_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Form Demos','FORM DEMOS','The Form Demos');
+   end;
+end;
+
+procedure TFRE_DB_TEST_APP_FORM_DEMOS_MOD.SetupAppModuleStructure;
+begin
+  AddApplicationModule(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_FORMTEST_MOD.create);
+end;
+
+{ TFRE_DB_TEST_APP_CHART_DEMOS_MOD }
+
+class procedure TFRE_DB_TEST_APP_CHART_DEMOS_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Chart Demos','CHART DEMOS','The Chart Demos');
+   end;
+end;
+
+procedure TFRE_DB_TEST_APP_CHART_DEMOS_MOD.SetupAppModuleStructure;
+begin
+  AddApplicationModule(TFRE_DB_TEST_APP_CHART_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_LIVE_CHART_MOD.create);
+end;
+
 { TFRE_DB_TEST_APP_GRID_DEMOS_MOD }
 
-class procedure TFRE_DB_TEST_APP_GRID_DEMOS_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+
+class procedure TFRE_DB_TEST_APP_GRID_DEMOS_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited RegisterSystemScheme(scheme);
-  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Grid Demos','GRID DEMOS','The Grid Demos');
+   end;
 end;
 
 procedure TFRE_DB_TEST_APP_GRID_DEMOS_MOD.SetupAppModuleStructure;
 begin
-  InitModuleDesc('$grid_demos');
   AddApplicationModule(TFRE_DB_TEST_APP_GRID_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_GRID2_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_ALLGRID_MOD.create);
@@ -503,10 +582,14 @@ begin
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
 end;
 
-procedure TFRE_DB_TEST_APP_SVG_MOD.SetupAppModuleStructure;
+class procedure TFRE_DB_TEST_APP_SVG_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$svg_description')
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'SVG','SVG','SVG');
+   end;
 end;
 
 function TFRE_DB_TEST_APP_SVG_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
@@ -779,12 +862,6 @@ end;
 
 { TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD }
 
-procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.SetupAppModuleStructure;
-begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$feedbrowsetree_description');
-end;
-
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
 var
   submenu,menu : TFRE_DB_MENU_DESC;
@@ -807,6 +884,16 @@ begin
   menu.AddEntry.DescribeDownload('Download from a DBO (Attachment)','',ses.GetDownLoadLink4StreamField(myuid,'fdbft_Stream',true,'x-safe-this/file-as-saveas','super_file.txt'));
   menu.AddEntry.DescribeDownload('Download from a DBO (Non Attachment)','',ses.GetDownLoadLink4StreamField(myuid,'fdbft_Stream',false,'application/octet-stream','super_file.txt'));
   Result:=menu;
+end;
+
+class procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:= '1.0';
+  if currentVersionId='' then
+    begin
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
+      currentVersionId:='1.0';
+    end;
 end;
 
 class procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -994,16 +1081,20 @@ end;
 
 { TFRE_DB_TEST_APP_ALLGRID_MOD }
 
-procedure TFRE_DB_TEST_APP_ALLGRID_MOD.SetupAppModuleStructure;
-begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$allgrid_description');
-end;
-
 class procedure TFRE_DB_TEST_APP_ALLGRID_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
+end;
+
+class procedure TFRE_DB_TEST_APP_ALLGRID_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:= '1.0';
+  if currentVersionId='' then
+    begin
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
+      currentVersionId:='1.0';
+    end;
 end;
 
 procedure TFRE_DB_TEST_APP_ALLGRID_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1086,10 +1177,14 @@ end;
 
 { TFRE_DB_TEST_APP_FORMTEST_MOD }
 
-procedure TFRE_DB_TEST_APP_FORMTEST_MOD.SetupAppModuleStructure;
+class procedure TFRE_DB_TEST_APP_FORMTEST_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$formtest_description');
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
+   end;
 end;
 
 function TFRE_DB_TEST_APP_FORMTEST_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
@@ -1159,16 +1254,14 @@ end;
 
 { TFRE_DB_TEST_APP_LIVE_CHART_MOD }
 
-class procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+class procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited RegisterSystemScheme(scheme);
-  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
-end;
-
-procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD.SetupAppModuleStructure;
-begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$live_chart_description')
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Live Chart Test','Live Chart Test','Live Chart Test');
+   end;
 end;
 
 procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataLC(const ses: IFRE_DB_Usersession);
@@ -1299,10 +1392,14 @@ begin
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
 end;
 
-procedure TFRE_DB_TEST_APP_EDITORS_MOD.SetupAppModuleStructure;
+class procedure TFRE_DB_TEST_APP_EDITORS_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$edit_description')
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Editors','Editors','Editors');
+   end;
 end;
 
 procedure TFRE_DB_TEST_APP_EDITORS_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1400,14 +1497,22 @@ end;
 
 procedure TFRE_DB_TEST_APP_WELCOME_MOD.SetupAppModuleStructure;
 begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$welcome_description');
+  SitemapIconFilename:='testappwelcome.svg';
+end;
+
+class procedure TFRE_DB_TEST_APP_WELCOME_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Welcome Test');
+   end;
 end;
 
 class procedure TFRE_DB_TEST_APP_WELCOME_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
-  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
 end;
 
 function TFRE_DB_TEST_APP_WELCOME_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1485,10 +1590,14 @@ begin
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
 end;
 
-procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.SetupAppModuleStructure;
+class procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$gtf_description')
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
+   end;
 end;
 
 procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1674,16 +1783,14 @@ end;
 
 { TFRE_DB_TEST_APP_CHART_MOD }
 
-class procedure TFRE_DB_TEST_APP_CHART_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+class procedure TFRE_DB_TEST_APP_CHART_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited RegisterSystemScheme(scheme);
-  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
-end;
-
-procedure TFRE_DB_TEST_APP_CHART_MOD.SetupAppModuleStructure;
-begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$chart_description')
+  newVersionId:='1.0';
+  if currentVersionId='' then
+    begin
+      currentVersionId := '1.0';
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Chart Test','Chart Test','Chart Test');
+   end;
 end;
 
 procedure TFRE_DB_TEST_APP_CHART_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
@@ -1775,10 +1882,14 @@ begin
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
 end;
 
-procedure TFRE_DB_TEST_APP_GRID2_MOD.SetupAppModuleStructure;
+class procedure TFRE_DB_TEST_APP_GRID2_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$grid2_description')
+  newVersionId:= '1.0';
+  if currentVersionId='' then
+    begin
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Grid 2 Test','Grid 2 Test','Grid 2 Test');
+      currentVersionId:='1.0';
+    end;
 end;
 
 procedure TFRE_DB_TEST_APP_GRID2_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -2036,10 +2147,14 @@ begin
   scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
 end;
 
-procedure TFRE_DB_TEST_APP_GRID_MOD.SetupAppModuleStructure;
+class procedure TFRE_DB_TEST_APP_GRID_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  inherited SetupAppModuleStructure;
-  InitModuleDesc('$grid_description')
+  newVersionId:= '1.0';
+  if currentVersionId='' then
+    begin
+      CreateModuleText(conn,StdSitemapModuleTitleKey,'Grid Test','Grid Test','Grid Test');
+      currentVersionId:='1.0';
+    end;
 end;
 
 procedure TFRE_DB_TEST_APP_GRID_MOD.SC_ChangeData_Result(const input: IFRE_DB_Object);
@@ -2318,16 +2433,13 @@ end;
 
 procedure TFRE_DB_TEST_APP.SetupApplicationStructure;
 begin
+  SiteMapIconSubPath         := 'test';  { Set the subpath of the application (under wwwroot:/fre_css/[stylekey]/images_apps/test) }
+  SiteMapMainIconFilename    := 'testappmain.svg'; {}
   AddApplicationModule(TFRE_DB_TEST_APP_WELCOME_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_GRID_DEMOS_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_CHART_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_LIVE_CHART_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_EDITORS_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_SVG_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_FORMTEST_MOD.create);
-  AddApplicationModule(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.create);
-  //AddApplicationModule();
+  AddApplicationModule(TFRE_DB_TEST_APP_CHART_DEMOS_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_FORM_DEMOS_MOD.create);
+  AddApplicationModule(TFRE_DB_TEST_APP_SPECIAL_DEMOS_MOD.create);
 end;
 
 class procedure TFRE_DB_TEST_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -2336,20 +2448,8 @@ begin
   if currentVersionId='' then
     begin
       currentVersionId := '1.0';
-      CreateAppText(conn,'$caption','Test App','Test App','Test App');
-      CreateAppText(conn,'$vnc_description','VNC Test','VNC Test','VNC Test');
-      CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
-      CreateAppText(conn,'$gtf_description','Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
-      CreateAppText(conn,'$edit_description','Editors','Editors','Editors');
-      CreateAppText(conn,'$svg_description','SVG','SVG','SVG');
-      CreateAppText(conn,'$chart_description','Chart Test','Chart Test','Chart Test');
-      CreateAppText(conn,'$live_chart_description','Live Chart Test','Live Chart Test','Live Chart Test');
-      CreateAppText(conn,'$grid_demos','Grid Demos','GRID DEMOS','The Grid Demos');
-      CreateAppText(conn,'$grid_description','Grid Test','Grid Test','Grid Test');
-      CreateAppText(conn,'$grid2_description','Grid 2 Test','Grid 2 Test','Grid 2 Test');
-      CreateAppText(conn,'$formtest_description','Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
-      CreateAppText(conn,'$allgrid_description','Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
-      CreateAppText(conn,'$feedbrowsetree_description','Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
+      CreateAppText(conn,StdSitemapCaptionKey,'FirmOS Test App');
+      CreateAppText(conn,StdSidebarCaptionKey,'FOS TestApp');
    end;
 end;
 
@@ -2408,7 +2508,7 @@ begin
 
 end;
 
-class procedure TFRE_DB_TEST_APP.InstallUserDBobjects(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType);
+class procedure TFRE_DB_TEST_APP.InstallUserDBObjects(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType);
 begin
   if currentVersionId='' then
     begin
@@ -2437,53 +2537,11 @@ begin
   inherited RemoveDBObjects4Domain(conn, currentVersionId, domainUID);
 end;
 
-procedure TFRE_DB_TEST_APP._UpdateSitemap(const session: TFRE_DB_UserSession);
-var
-  SiteMapData  : IFRE_DB_Object;
-  conn         : IFRE_DB_CONNECTION;
-begin
-  conn:=session.GetDBConnection;
-  SiteMapData  := GFRE_DBI.NewObject;
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main','Main','images_apps/test/sitemap_icon.svg','',0,true);
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Welcome','Welcome','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_WELCOME_MOD.ClassName,0, conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_WELCOME_MOD));
-
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/GridDemos','Grid','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_DEMOS_MOD.ClassName,1,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/GridDemos/Grid','Grid','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_DEMOS_MOD.ClassName+':'+TFRE_DB_TEST_APP_GRID_MOD.ClassName,1,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/GridDemos/Grid2','Grid2','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_DEMOS_MOD.ClassName+':'+TFRE_DB_TEST_APP_GRID2_MOD.Classname,5,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRID2_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/GridDemos/allgrid','Grid Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRID_DEMOS_MOD.ClassName+':'+TFRE_DB_TEST_APP_ALLGRID_MOD.Classname,2,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_ALLGRID_MOD));
-
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/TGF','TreeGridForm','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_GRIDTREEFORM_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Chart','Chart','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_CHART_MOD.Classname,4,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_CHART_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/Live_Chart','Live Chart','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_LIVE_CHART_MOD.Classname,4,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_LIVE_CHART_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/formtest','Form Test','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FORMTEST_MOD.Classname,2,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_FORMTEST_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/feedbrowser','Feed Browser','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.Classname,2,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/EDIT','Editors','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_EDITORS_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_EDITORS_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Main/SVG','SVG','images_apps/test/sitemap_icon.svg',TFRE_DB_TEST_APP_SVG_MOD.Classname,0,conn.SYS.CheckClassRight4MyDomain(sr_FETCH,TFRE_DB_TEST_APP_SVG_MOD));
-  FREDB_SiteMap_RadialAutoposition(SiteMapData);
-  session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
-end;
-
 procedure TFRE_DB_TEST_APP.MyServerInitialize(const admin_dbc: IFRE_DB_CONNECTION);
 begin
   admin_dbc.CreateCollection('CHART_MOD_LINE',true);
   admin_dbc.CreateCollection('CHART_MOD_PIE',true);
   admin_dbc.CreateCollection('CHART_MOD_COLUMNS',true);
-end;
-
-procedure TFRE_DB_TEST_APP.MySessionInitialize(const session: TFRE_DB_UserSession);
-begin
-  inherited MySessionInitialize(session);
-  if session.IsInteractiveSession then begin
-    _UpdateSitemap(session);
-  end;
-end;
-
-procedure TFRE_DB_TEST_APP.MySessionPromotion(const session: TFRE_DB_UserSession);
-begin
-  inherited MySessionPromotion(session);
-  if session.IsInteractiveSession then begin
-    _UpdateSitemap(session);
-  end;
 end;
 
 
@@ -2688,12 +2746,15 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_A);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_B);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_ALL_TYPES);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_FORM_DEMOS_MOD);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_SPECIAL_DEMOS_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID_DEMOS_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_ALLGRID_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_FORMTEST_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID2_MOD);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_CHART_DEMOS_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_CHART_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_LIVE_CHART_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD);

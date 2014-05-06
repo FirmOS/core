@@ -265,7 +265,9 @@ type
      FParentChldLinkFldSpec  : TFRE_DB_NameTypeRL;
      FQueryFilters           : TFRE_DB_DC_FILTER_DEFINITION; { managed here, cleanup here}
      FOrderDef               : TFRE_DB_DC_ORDER_DEFINITION;  { linked to order definition of base ordered data, dont cleanup here}
-     FDependcyUids           : Array of TFRE_DB_GUIDArray;   { this is a special filter type, the GUID array may at some later time be extended to support other field types }
+     FDependencyIds          : TFRE_DB_StringArray;          { dependency id's of this querys DC, in same order as }
+     FDepRefConstraints      : TFRE_DB_NameTypeRLArrayArray; { this reference link constraints, there must be an extra }
+     FDependcyFilterUids     : Array of TFRE_DB_GUIDArray;   { this is a special filter type, the GUID array may, at some later time, be extended to support other field types }
      FParentIds              : TFRE_DB_GUIDArray;            { path to root}
      FUserKey                : TFRE_DB_String;               { Login@Domain | GUID ?}
      FFullTextFilter         : TFRE_DB_String;               { use this on all string fields, if set}
@@ -284,6 +286,8 @@ type
 
      procedure               StartQueryRun;
      procedure               EndQueryRun;
+     function                GetReflinkSpec        (const upper_refid : TFRE_DB_NameType):TFRE_DB_NameTypeRLArray;
+     function                GetReflinkStartValues (const upper_refid : TFRE_DB_NameType):TFRE_DB_GUIDArray; { start values for the RL expansion }
      //function                TestObjAgainstQueryFilterAndIncIdx (const obj : IFRE_DB_Object): Boolean; { filter must match and start condition must match, true=add to result }
   public
      constructor Create;
@@ -377,7 +381,7 @@ type
     FArtQueryStore : TFRE_ART_TREE;
     FTransLock     : IFOS_LOCK;
     FTransList     : OFRE_DB_TransCollTransformedDataList; { List of base transformed data}
-    FOrders        : OFRE_DB_TransCollOrderedDataList;     { List of orderedings of base transforms}
+    FOrders        : OFRE_DB_TransCollOrderedDataList;     { List of ordereings of base transforms}
     function    GetBaseTransformedData (base_key : TFRE_DB_NameTypeRL ; out base_data : TFRE_DB_TRANFORMED_DATA) : boolean;
     procedure   AddBaseTransformedData (const base_data : TFRE_DB_TRANFORMED_DATA);
   public
@@ -393,8 +397,9 @@ type
      dependency_reference_ids : this are the dependency keys that be considered to use from the JSON (usually one, input dependency)
      collection_transform_key : unique specifier of the DATA TRANSFORMATION defined by this collection, ORDERS derive from them
     }
-    function    GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const dc_name,parent_name : TFRE_DB_NameTypeRL ;
-                                           const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
+    function    GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ;  const dependency_reference_constraint : TFRE_DB_NameTypeRLArrayArray;
+                                           const dependency_negate : boolean ; const dc_name,parent_name : TFRE_DB_NameTypeRL ; const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ;
+                                           const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
                                            const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE;override;
     { remember the query as open for the session }
     procedure   StoreQuery                (const qry: TFRE_DB_QUERY_BASE); override;
@@ -513,7 +518,7 @@ begin
       end;
     end
   else { fld is null }
-    result := not FAllowNull;
+    result := FAllowNull;
   result := (result xor FNegate) or error_fld; { invert result, or filter error results }
 end;
 
@@ -633,7 +638,7 @@ begin
       end;
     end
   else { fld is null }
-    result := not FAllowNull;
+    result := FAllowNull;
   result := (result xor FNegate) or error_fld; { invert result, or filter error results }
 end;
 
@@ -753,7 +758,7 @@ begin
       end;
     end
   else { fld is null }
-    result := not FAllowNull;
+    result := FAllowNull;
   result := (result xor FNegate) or error_fld; { invert result, or filter error results }
 end;
 
@@ -885,9 +890,58 @@ begin
 end;
 
 function TFRE_DB_FILTER_UID.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+var fieldvals      : TFRE_DB_GUIDArray;
+     fld           : IFRE_DB_Field;
+     error_fld     : boolean;
+     i,j           : NativeInt;
 begin
-  result := false;
-  inc(flt_errors); // Uid Filter not implemented
+  error_fld := false;
+  if obj.FieldOnlyExisting(FFieldname,fld) then
+    begin
+      fieldvals     := fld.AsGUIDArr;
+      try
+        case FFilterType of
+          dbnf_EXACT:               { all fieldvalues and filtervalues must be the same in the same order }
+            begin
+              result := true;
+              if Length(fieldvals) <> Length(FValues) then
+                begin
+                  result:=false;
+                  exit;
+                end
+              else
+                for i:=0 to high(FValues) do
+                  if not FREDB_Guids_Same(fieldvals[i],FValues[i]) then
+                    begin
+                      result:=false;
+                      exit;
+                    end;
+            end;
+          dbnf_OneValueFromFilter:  {}
+            begin
+              result := false;
+              for i:=0 to high(fieldvals) do
+               for j:=0 to high(FValues) do
+                 if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
+                   begin
+                     result := true;
+                     break;
+                   end;
+            end;
+          dbnf_AllValuesFromFilter: { all fieldvalues must be in filter}
+            begin
+              error_fld:=true;
+              inc(flt_errors);
+            end;
+        end;
+      except { invalid conversion }
+        error_fld := true;
+        inc(flt_errors);
+      end;
+    end
+  else { fld is null }
+    result := FAllowNull;
+  result := (result xor FNegate) or error_fld; { invert result, or filter error results }
 end;
 
 function TFRE_DB_FILTER_UID.GetDefinitionKey: TFRE_DB_NameType;
@@ -906,10 +960,10 @@ end;
 procedure TFRE_DB_FILTER_UID.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_GUID; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
 var i:integer;
 begin
-  FFieldname  := fieldname;
   SetLength(FValues,length(filtervalues));
   for i:=0 to high(filtervalues) do
     FValues[i] := filtervalues[i];
+  FFieldname  := fieldname;
   FFilterType := numfiltertype;
   FNegate     := negate;
   FAllowNull  := include_null_values;
@@ -918,9 +972,9 @@ begin
       if Length(filtervalues)<>1 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the uid filter with numfiltertype %s, needs exactly one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_AllValuesFromFilter,
-    dbnf_OneValueFromFilter:
-      if Length(filtervalues)=0 then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'the uid filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
+    dbnf_OneValueFromFilter: ; { empty array is allowed }
+      //if Length(filtervalues)=0 then
+      //  raise EFRE_DB_Exception.Create(edb_ERROR,'the uid filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_LESSER,
     dbnf_LESSER_EQ,
     dbnf_GREATER,
@@ -1137,7 +1191,7 @@ begin
       end;
     end
   else { fld is null }
-    result := not FAllowNull;
+    result := FAllowNull;
   result := (result xor FNegate) or error_fld; { invert result, or filter error results }
 end;
 
@@ -1221,7 +1275,7 @@ begin
       end;
     end
   else { fld is null }
-    result := not FAllowNull;
+    result := FAllowNull;
   result := (result xor FNegate) or error_fld; { invert result, or filter error results }
 end;
 
@@ -1667,6 +1721,24 @@ begin
   GFRE_DBI.LogInfo(dblc_QUERY,'QUERY ID [%s] finished in %d ms',[FQueryId,FQueryEndTime-FQueryStartTime]);
 end;
 
+function TFRE_DB_QUERY.GetReflinkSpec(const upper_refid: TFRE_DB_NameType): TFRE_DB_NameTypeRLArray;
+var i:integer;
+begin
+  for i:=0 to high(FDependencyIds) do
+    if FDependencyIds[i]=upper_refid then
+      exit(FDepRefConstraints[i]);
+  raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find a reflink spec for reference id '+upper_refid);
+end;
+
+function TFRE_DB_QUERY.GetReflinkStartValues(const upper_refid: TFRE_DB_NameType): TFRE_DB_GUIDArray;
+var i:integer;
+begin
+  for i:=0 to high(FDependencyIds) do
+    if FDependencyIds[i]=upper_refid then
+      exit(FDependcyFilterUids[i]);
+  raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find the filter values for reference id '+upper_refid);
+end;
+
 constructor TFRE_DB_QUERY.Create;
 begin
   inherited;
@@ -1862,7 +1934,9 @@ begin
     end;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.GenerateQueryFromRawInput(const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray; const dc_name, parent_name: TFRE_DB_NameTypeRL; const dc_static_filters: TFRE_DB_DC_FILTER_DEFINITION_BASE; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const session: IFRE_DB_UserSession): TFRE_DB_QUERY_BASE;
+function TFRE_DB_TRANSDATA_MANAGER.GenerateQueryFromRawInput(const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray; const dependency_reference_constraint: TFRE_DB_NameTypeRLArrayArray;
+                                                             const dependency_negate : boolean ;const dc_name, parent_name: TFRE_DB_NameTypeRL; const dc_static_filters: TFRE_DB_DC_FILTER_DEFINITION_BASE;
+                                                             const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const session: IFRE_DB_UserSession): TFRE_DB_QUERY_BASE;
 var fld : IFRE_DB_FIELD;
       i : NativeInt;
     qry : TFRE_DB_QUERY;
@@ -1871,16 +1945,20 @@ var fld : IFRE_DB_FIELD;
    var fld   : IFRE_DB_FIELD;
          i,j : NativeInt;
    begin
-     SetLength(qry.FDependcyUids,Length(dependecy_reference_id));
+     SetLength(qry.FDependencyIds,Length(dependecy_reference_id));
+     for i:=0 to high(qry.FDependencyIds) do
+      qry.FDependencyIds[i] := uppercase(dependecy_reference_id[i]);
+     SetLength(qry.FDependcyFilterUids,Length(dependecy_reference_id));
+     qry.FDepRefConstraints := dependency_reference_constraint;
      for i:=0 to high(dependecy_reference_id) do
        begin
          fld := input.FieldPath('DEPENDENCY.'+dependecy_reference_id[i]+'_REF.FILTERVALUES',true);
          if assigned(fld) then
            with qry do
              begin
-               SetLength(FDependcyUids[i],fld.ValueCount);
-               for j := 0 to High(FDependcyUids) do
-                 FDependcyUids[i][j] := FREDB_H2G(fld.AsStringArr[j]);
+               SetLength(FDependcyFilterUids[i],fld.ValueCount);
+               for j := 0 to High(FDependcyFilterUids) do
+                 FDependcyFilterUids[i][j] := FREDB_H2G(fld.AsStringArr[j]);
                exit;
              end
        end;
@@ -1965,14 +2043,15 @@ var fld : IFRE_DB_FIELD;
            fld         : IFRE_DB_FIELD;
            fallownull  : boolean;
            fnegate     : boolean;
+           nft         : TFRE_DB_NUM_FILTERTYPE;
+           nfts        : TFRE_DB_String;
+
 
            procedure ProcessDateTimeFilter;
            var ffld : IFRE_DB_Field;
                i    : NativeInt;
-               nft  : TFRE_DB_NUM_FILTERTYPE;
                vals : TFRE_DB_DateTimeArray;
            begin {}
-             nft := FREDB_String2NumfilterType(filterdef.field('NUMFILTERTYPE').AsString);
              ffld :=  filterdef.field('FILTERVALUES');
              vals := ffld.AsInt64Arr;
              case ftfrom_vals of
@@ -2003,13 +2082,60 @@ var fld : IFRE_DB_FIELD;
              result := filterdef.field('FILTERVALUES').ConvAsReal64Array;
            end;
 
-       //var tst : string;
+           procedure ProcessUidFilter;
+           var vals         : TFRE_DB_GUIDArray;
+               sa           : TFRE_DB_StringArray;
+               i            : NativeInt;
+               refl_filter  : boolean;
+               refl_spec    : TFRE_DB_NameTypeRLArray;
+               refl_vals    : TFRE_DB_GUIDArray;
+               expanded_uid : TFRE_DB_GUIDArray;
+           begin
+             if FREDB_StringInArray(uppercase(ffn),qry.FDependencyIds) then
+               begin { dependency ref UID Filter}
+                 refl_spec := qry.GetReflinkSpec(ffn);
+                 refl_vals := qry.GetReflinkStartValues(ffn);
+                 session.GetDBConnection.ExpandReferences(refl_vals,refl_spec,expanded_uid);
+                 qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_OneValueFromFilter,dependency_negate,fallownull);
+
+                 //        (FConnection.UpcastDBC).ExpandReferences(FDepObjectList,FDepRefConstraint,exrefs);
+                 //        if FDepObjectsRefNeg then
+                 //          AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_NoValueInFilter)
+                 //        else
+                 //          AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_OneValueFromFilter);
+
+
+               end
+             else
+               begin { "normal" UID Filter}
+                 raise EFRE_DB_Exception.Create(edb_internal,'uid filter type not implemented ');
+                 //if nfts='' then
+                 //  nft := dbnf_OneValueFromFilter;
+                 //sa  := filterdef.field('FILTERVALUES').AsStringArr;
+                 //SetLength(vals,Length(sa));
+                 //for i := 0 to high(vals) do
+                 //  vals[i] := FREDB_H2G(sa[i]);
+                 //refl_filter := Length(qry.FDepRefConstraints)>0;
+                 //if refl_filter then
+                 //
+                 //qry.Filterdef.AddUIDFieldFilter(filter_key,ffn,vals,nft,fnegate,fallownull);
+               end
+           end;
+
+       var tst : string;
        begin
-         //writeln('FILTER : ',filter_key);
-         //tst  := filterdef.DumpToString;
-         //writeln(filterdef.DumpToString);
+         writeln('FILTER : ',filter_key);
+         tst  := filterdef.DumpToString;
+         writeln(filterdef.DumpToString);
+
+         nfts := filterdef.field('NUMFILTERTYPE').AsString;
+         if nfts<>'' then
+           nft := FREDB_String2NumfilterType(nfts)
+         else
+           nft := dbnf_EXACT;
+
          ft         := FREDB_FilterTypeString2Filtertype(filterdef.Field('FILTERTYPE').AsString);
-         ffn        := filterdef.Field('FILTERFIELDNAME').AsString;
+         ffn        := uppercase(filterdef.Field('FILTERFIELDNAME').AsString);
          case filterdef.field('FILTERVALUES').FieldType of { value type does not propagate exact through json->dbo}
            fdbft_Byte:        ftfrom_vals := dbf_SIGNED;
            fdbft_Int16:       ftfrom_vals := dbf_SIGNED;
@@ -2024,6 +2150,10 @@ var fld : IFRE_DB_FIELD;
            fdbft_String:      ftfrom_vals := dbf_TEXT;
            fdbft_Boolean:     ftfrom_vals := dbf_BOOLEAN;
            fdbft_DateTimeUTC: ftfrom_vals := dbf_DATETIME;
+           fdbft_GUID:        ftfrom_vals := dbf_UNSIGNED;
+           fdbft_NotFound:    ftfrom_vals := dbf_EMPTY;
+           else
+             raise EFRE_DB_Exception.Create(edb_ERROR,'cannot determine filtertype from input filtervalues fieldtype=%s',[CFRE_DB_FIELDTYPE[filterdef.field('FILTERVALUES').FieldType]]);
          end;
          if filterdef.FieldOnlyExisting('ALLOWNULL',fld) then
            fallownull := fld.AsBoolean
@@ -2069,7 +2199,7 @@ var fld : IFRE_DB_FIELD;
              end;
            dbf_DATETIME:  ProcessDateTimeFilter;
            dbf_BOOLEAN:   qry.Filterdef.AddBooleanFieldFilter(filter_key,ffn,filterdef.field('FILTERVALUES').AsBoolean,fnegate,fallownull);
-           dbf_GUID:      qry.Filterdef.AddUIDFieldFilter(filter_key,ffn,filterdef.field('FILTERVALUES').AsGUIDArr,FREDB_String2NumfilterType(filterdef.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+           dbf_GUID:      ProcessUIDFilter;
            dbf_SCHEME:    qry.Filterdef.AddSchemeObjectFilter(filter_key,filterdef.field('FILTERVALUES').AsStringArr,fnegate);
            dbf_RIGHT:     qry.Filterdef.AddStdRightObjectFilter(filter_key,FREDB_RightSetString2RightSet(filterdef.field('FILTERVALUES').AsString),session.GetDBConnection.SYS.GetCurrentUserToken,fnegate);
            else raise EFRE_DB_Exception.Create(edb_ERROR,'unhandled filter type');
@@ -2092,9 +2222,10 @@ var fld : IFRE_DB_FIELD;
    end;
 
 begin
-  //writeln('QUERY_DEF');
-  //writeln(input.DumpToString());
-  //writeln('---');
+  writeln('QUERY_DEF');
+  writeln('DEPENDENCY REFERENCE : ',FREDB_CombineString(dependecy_reference_id,','));
+  writeln(input.DumpToString());
+  writeln('---');
   qry := TFRE_DB_QUERY.Create;
   SetQueryID;
   ProcessCheckChildQuery;

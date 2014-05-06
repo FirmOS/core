@@ -85,7 +85,7 @@ type
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,
                                  dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING,dblc_QUERY,dblc_DBTDM);
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_MISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
-  TFRE_DB_FILTERTYPE          = (dbf_TEXT,dbf_SIGNED,dbf_UNSIGNED,dbf_DATETIME,dbf_BOOLEAN,dbf_CURRENCY,dbf_REAL64,dbf_GUID,dbf_SCHEME,dbf_RIGHT);
+  TFRE_DB_FILTERTYPE          = (dbf_TEXT,dbf_SIGNED,dbf_UNSIGNED,dbf_DATETIME,dbf_BOOLEAN,dbf_CURRENCY,dbf_REAL64,dbf_GUID,dbf_SCHEME,dbf_RIGHT,dbf_EMPTY);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART); { currently only the first value of the filter is uses in this modes }
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter);
   TFRE_DB_SchemeType          = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
@@ -119,7 +119,7 @@ const
   CFRE_DB_FIELDTYPE_SHORT        : Array[TFRE_DB_FIELDTYPE]               of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
   CFRE_DB_STANDARD_RIGHT         : Array[TFRE_DB_STANDARD_RIGHT]          of String = ('BAD','STORE','UPDATE','DELETE','FETCH');
   CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','MISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
-  CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','C','R','G','X','Z');
+  CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','C','R','G','X','Z','E');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','LE','LEQ','GT','GEQ','REXB','RWIB','AVFF','OVFV');
   CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM','QUERY','DBTDM');
@@ -197,10 +197,11 @@ type
   PFRE_DB_NameType        = ^TFRE_DB_NameType;
   TFRE_DB_NameTypeRL      = string[129]; // SCHEMENAME(64 + < + FIELDNAME(64)  = 129 Byte (InboundLink)
                                          // FIELDNAME(64) + > + SCHEMENAME(64) = 129 Byte (Outboundlink)
-  TFRE_DB_TransStepId      = String[80]; // Nametype+/+number
-  TFRE_DB_NameTypeArray    = Array of TFRE_DB_NameType;
-  TFRE_DB_NameTypeRLArray  = Array of TFRE_DB_NameTypeRL;
-  TFRE_DB_MimeTypeStr   = string[100];
+  TFRE_DB_TransStepId           = String[80]; // Nametype+/+number
+  TFRE_DB_NameTypeArray         = Array of TFRE_DB_NameType;
+  TFRE_DB_NameTypeRLArray       = Array of TFRE_DB_NameTypeRL;
+  TFRE_DB_NameTypeRLArrayArray  = Array of TFRE_DB_NameTypeRLArray;
+  TFRE_DB_MimeTypeStr           = string[100];
 
   TFRE_DB_CountedGuid=record
     link  : TGuid;
@@ -1589,6 +1590,7 @@ type
     function   GetDBModuleSessionData        (const input:IFRE_DB_Object): IFRE_DB_Object;
     function   GetModuleTitle                (const ses : IFRE_DB_Usersession): TFRE_DB_String;
     function   GetModuleClassName            : Shortstring;
+    function   GetSitemapIconFilename        : TFRE_DB_String;
     function   AsObject                      : IFRE_DB_Object;
   end;
 
@@ -1871,8 +1873,9 @@ type
     function   GetNewFilterDefinition    : TFRE_DB_DC_FILTER_DEFINITION_BASE; virtual; abstract;
     function   GetTransformedDataLocked  (const query : TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;
     procedure  NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
-    function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const dc_name,parent_name : TFRE_DB_NameTypeRL ;
-                                          const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
+    function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const dependency_reference_constraint : TFRE_DB_NameTypeRLArrayArray;
+                                          const dependency_negate : boolean ; const dc_name,parent_name : TFRE_DB_NameTypeRL ; const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ;
+                                          const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
                                           const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE; virtual; abstract;
     procedure   StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;
     procedure   RemoveQuery              (const qry_id : TFRE_DB_NameType); virtual; abstract;
@@ -1905,24 +1908,29 @@ type
   { TFRE_DB_APPLICATION}
   TFRE_DB_APPLICATION = class (TFRE_DB_ObjectEx,IFRE_DB_APPLICATION) // Requires Named Object as Implementor
   private
+    function   GetSitemapMainiconFilename    : string;
+    function   GetSitemapMainiconSubpath     : string;
     procedure  SetDescTranslationKey         (const AValue: TFRE_DB_String);
     function   GetDescTranslationKey         : TFRE_DB_String;
     procedure  SessionInitialize             (const session : TFRE_DB_UserSession);virtual;
     procedure  SessionFinalize               (const session : TFRE_DB_UserSession);virtual;
     procedure  SessionPromotion              (const session : TFRE_DB_UserSession);virtual;
+    procedure  SetSitemapMainiconFilename    (AValue: string);
+    procedure  SetSitemapMainiconSubpath     (AValue: string);
   protected
     class procedure  InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     function   IsContentUpdateVisible        (const session : IFRE_DB_UserSession; const update_content_id:string):Boolean;
     procedure  InternalSetup                 ; override;
     procedure  SetupApplicationStructure     ; virtual;
 
-    procedure  AddApplicationModule          (const module:TFRE_DB_APPLICATION_MODULE);
+    procedure  AddApplicationModule          (const module:TFRE_DB_APPLICATION_MODULE ; const sitemap_key : string='' ; const icon_path : string='');
     function   DelegateInvoke                (const modulename:TFRE_DB_String;const methname:string;const input : IFRE_DB_Object):IFRE_DB_Object;
     function   IFRE_DB_APPLICATION.ObjectName = ObjectNameI;
     procedure  MySessionInitialize           (const session: TFRE_DB_UserSession); virtual;
     procedure  MySessionPromotion            (const session: TFRE_DB_UserSession); virtual;
     procedure  MySessionFinalize             (const session: TFRE_DB_UserSession); virtual;
     procedure  MyServerInitialize            (const admin_dbc : IFRE_DB_CONNECTION);virtual;
+    procedure  MyUpdateSitemap               (const session: TFRE_DB_UserSession);virtual;
     procedure  MyServerFinalize              ;
   public
     procedure  ForAllAppModules              (const module_iterator:TFRE_DB_APPLICATION_MODULE_ITERATOR);
@@ -1956,6 +1964,11 @@ type
     class procedure  DeleteAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String);
     class procedure  UpdateAppText          (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
 
+    class function   StdSidebarCaptionKey   : TFRE_DB_String;
+    class function   StdSitemapCaptionKey   : TFRE_DB_String;
+    property   SiteMapIconSubPath           : string read GetSitemapMainiconSubpath write SetSitemapMainiconSubpath;
+    property   SiteMapMainIconFilename      : string read GetSitemapMainiconFilename write SetSitemapMainiconFilename;
+
   published
      function   WEB_Content                 (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
      function   WEB_OnUIChange              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -1965,11 +1978,13 @@ type
 
   TFRE_DB_APPLICATION_MODULE = class (TFRE_DB_ObjectEx,IFRE_DB_APPLICATION_MODULE)
   private
-    procedure  InternalSetup ; override;
+    procedure  InternalSetup                 ; override;
+    procedure  SetSitemapIconFilename        (AValue: TFRE_DB_String);
+    function   GetSitemapIconFilename        : TFRE_DB_String;
   protected
     procedure  SetupAppModuleStructure       ;virtual;
     procedure  AddApplicationModule          (const module:TFRE_DB_APPLICATION_MODULE);
-    procedure  InitModuleDesc                (const descr_translation_key:TFRE_DB_String);virtual;
+    procedure  InitModuleDesc                (const descr_translation_key:TFRE_DB_String);virtual; deprecated ; { use the std translation keys }
 
     function   IFRE_DB_APPLICATION_MODULE.ObjectName  = GetName;
     function   IFRE_DB_APPLICATION_MODULE.DEscription = GetDesc;
@@ -1978,6 +1993,8 @@ type
     procedure  CheckClassVisibility4MyDomain (const session : IFRE_DB_UserSession);virtual;
     class procedure  InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
+    class function  StdSitemapModuleTitleKey : TFRE_DB_String;
+    class procedure RegisterSystemScheme     (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure  ForAllAppModules              (const module_iterator:TFRE_DB_APPLICATION_MODULE_ITERATOR);
     procedure  MySessionInitializeModule     (const session : TFRE_DB_UserSession);virtual;
     procedure  MySessionPromotionModule      (const session: TFRE_DB_UserSession); virtual;
@@ -1992,8 +2009,8 @@ type
     function   GetDBModuleSessionData        (const input:IFRE_DB_Object): IFRE_DB_Object;
     function   GetDependencyFiltervalues     (const input:IFRE_DB_Object; const dependencyfield:string): TFRE_DB_StringArray;
 
-    procedure  SetDescrTranslationKey        (const val:TFRE_DB_String);
-    function   GetDescrTranslationKey        :TFRE_DB_String;
+    procedure  SetDescrTranslationKey        (const val:TFRE_DB_String); deprecated;
+    function   GetDescrTranslationKey        :TFRE_DB_String; deprecated;
     function   GetModuleTitle                (const ses : IFRE_DB_Usersession): TFRE_DB_String;
     function   GetModuleClassName            : Shortstring;
     function   AsObject                      : IFRE_DB_Object;
@@ -2008,6 +2025,7 @@ type
     class procedure  CreateModuleText        (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
     class procedure  DeleteModuleText        (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String);
     class procedure  UpdateModuleText        (const conn: IFRE_DB_SYS_CONNECTION;const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
+    property         SitemapIconFilename     :TFRE_DB_String read GetsitemapIconFilename write SetSitemapIconFilename;
   published
     function   WEB_Content                   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
     function   WEB_OnUIChange                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -7185,6 +7203,15 @@ begin
   Field('params').AddObject(Result);
 end;
 
+function TFRE_DB_APPLICATION.GetSitemapMainiconFilename: string;
+begin
+  result := Field('sm_mainicon_fn').asstring;
+end;
+
+function TFRE_DB_APPLICATION.GetSitemapMainiconSubpath: string;
+begin
+  result := Field('sm_icon_path').asstring;
+end;
 
 procedure TFRE_DB_APPLICATION.SetDescTranslationKey(const AValue: TFRE_DB_String);
 begin
@@ -7241,7 +7268,7 @@ begin
  result := ClassName;
 end;
 
-function TFRE_DB_APPLICATION.isMultiDomainApp: Boolean;
+function TFRE_DB_APPLICATION.IsMultiDomainApp: Boolean;
 begin
   Result:=false;
 end;
@@ -7297,6 +7324,16 @@ begin
   ForAllFieldsBreak(@_initSubModules);
 end;
 
+procedure TFRE_DB_APPLICATION.SetSitemapMainiconFilename(AValue: string);
+begin
+  Field('sm_mainicon_fn').asstring := AValue;
+end;
+
+procedure TFRE_DB_APPLICATION.SetSitemapMainiconSubpath(AValue: string);
+begin
+  Field('sm_icon_path').asstring:=AValue;
+end;
+
 class procedure TFRE_DB_APPLICATION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId:='UNUSED';
@@ -7332,6 +7369,16 @@ begin
   CheckDbResult(conn.UpdateTranslateableText(txt),'UpdateAppText ' + translation_key);
 end;
 
+class function TFRE_DB_APPLICATION.StdSidebarCaptionKey: TFRE_DB_String;
+begin
+  result := '$caption';
+end;
+
+class function TFRE_DB_APPLICATION.StdSitemapCaptionKey: TFRE_DB_String;
+begin
+  result := '$sitemap_main';
+end;
+
 
 function TFRE_DB_APPLICATION._FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
@@ -7342,7 +7389,7 @@ begin
 end;
 
 
-procedure TFRE_DB_APPLICATION.AddApplicationModule(const module: TFRE_DB_APPLICATION_MODULE);
+procedure TFRE_DB_APPLICATION.AddApplicationModule(const module: TFRE_DB_APPLICATION_MODULE; const sitemap_key: string; const icon_path: string);
 var FSubmoduleOrder : Integer;
 begin
   Field(module.GetModuleClassName).AsObject := module;
@@ -7354,6 +7401,7 @@ begin
   end;
   Field('SubModuleOrder').AsInt32 := FSubmoduleOrder;
   Field(module.GetModuleClassName+'_O').AsInt16:=FSubModuleOrder;
+  Field(module.GetModuleClassName+'_IFN').AsString:=icon_path;
 end;
 
 function TFRE_DB_APPLICATION.DelegateInvoke(const modulename: TFRE_DB_String; const methname: string; const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -7367,12 +7415,16 @@ end;
 
 procedure TFRE_DB_APPLICATION.MySessionInitialize(const session: TFRE_DB_UserSession);
 begin
-
+  if session.IsInteractiveSession then begin
+    MyUpdateSitemap(session);
+  end;
 end;
 
 procedure TFRE_DB_APPLICATION.MySessionPromotion(const session: TFRE_DB_UserSession);
 begin
-
+  if session.IsInteractiveSession then begin
+    MyUpdateSitemap(session);
+  end;
 end;
 
 procedure TFRE_DB_APPLICATION.MySessionFinalize(const session: TFRE_DB_UserSession);
@@ -7383,6 +7435,54 @@ end;
 procedure TFRE_DB_APPLICATION.MyServerInitialize(const admin_dbc: IFRE_DB_CONNECTION);
 begin
 
+end;
+
+procedure TFRE_DB_APPLICATION.MyUpdateSitemap(const session: TFRE_DB_UserSession);
+var
+  SiteMapData     : IFRE_DB_Object;
+  conn            : IFRE_DB_CONNECTION;
+  moduleclasspath : TFRE_DB_String;
+  keypath         : TFRE_DB_String;
+
+    procedure BuildSiteMap(const module:IFRE_DB_APPLICATION_MODULE;const module_order:nativeint);
+    var
+      modulename         : shortstring;
+      moduleclass        : shortstring;
+      modl               : TFRE_DB_APPLICATION_MODULE;
+      mymoduleclasspath  : TFRE_DB_String;
+      oldkeypath         : TFRE_DB_String;
+      oldmoduleclasspath : TFRE_DB_String;
+    begin
+      modl              := module.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE;
+      moduleclass       := module.GetModuleClassName;
+      if moduleclasspath='' then
+        mymoduleclasspath := moduleclass
+      else
+        mymoduleclasspath := moduleclasspath+':'+moduleclass;
+      FREDB_SiteMap_AddRadialEntry(SiteMapData,keypath+'/'+moduleclass,modl.FetchModuleTextShort(session,modl.StdSitemapModuleTitleKey),
+                                   'images_apps/'+SiteMapIconSubPath+DirectorySeparator+module.GetSitemapIconFilename,mymoduleclasspath,0,
+                                   conn.SYS.CheckClassRight4MyDomain(sr_FETCH,modl.ClassType));
+      oldkeypath         := keypath;
+      oldmoduleclasspath := moduleclasspath;
+      keypath            := keypath+'/'+moduleclass;
+      if moduleclasspath<>'' then
+        moduleclasspath := moduleclasspath+':'+moduleclass
+      else
+        moduleclasspath := moduleclass;
+      modl.ForAllAppModules(@BuildSiteMap);
+      keypath         := oldkeypath;
+      moduleclasspath := oldmoduleclasspath;
+     end;
+
+begin
+  conn:=session.GetDBConnection;
+  SiteMapData  := GFRE_DBI.NewObject;
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'MAIN',FetchAppTextShort(session,StdSitemapCaptionKey),'images_apps'+DirectorySeparator+SiteMapIconSubPath+DirectorySeparator+SiteMapMainIconFilename,'',0,true);
+  moduleclasspath := '';
+  keypath         := 'MAIN';
+  ForAllAppModules(@BuildSiteMap);
+  FREDB_SiteMap_RadialAutoposition(SiteMapData);
+  session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
 
 procedure TFRE_DB_APPLICATION.MyServerFinalize;
@@ -7575,6 +7675,11 @@ begin
   SetupAppModuleStructure;
 end;
 
+procedure TFRE_DB_APPLICATION_MODULE.SetSitemapIconFilename(AValue: TFRE_DB_String);
+begin
+  Field('sm_icon_fn').asstring := AValue;
+end;
+
 procedure TFRE_DB_APPLICATION_MODULE.SetupAppModuleStructure;
 begin
 
@@ -7636,6 +7741,18 @@ end;
 class procedure TFRE_DB_APPLICATION_MODULE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   newVersionId := 'UNUSED';
+end;
+
+class function TFRE_DB_APPLICATION_MODULE.StdSitemapModuleTitleKey: TFRE_DB_String;
+begin
+  result := '$SMTK_'+ClassName;
+end;
+
+class procedure TFRE_DB_APPLICATION_MODULE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  if ClassName<>'TFRE_DB_APPLICATION_MODULE' then
+    scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
 end;
 
 
@@ -7726,10 +7843,22 @@ begin
   Result := field('mod_desc_key').AsString;
 end;
 
-function TFRE_DB_APPLICATION_MODULE.GetModuleTitle(const ses: IFRE_DB_Usersession): TFRE_DB_String;
+function TFRE_DB_APPLICATION_MODULE.GetModuleTitle(const ses: IFRE_DB_Usersession): TFRE_DB_String; { TODO: Change all Modules to getstddescrkey }
 var txt : IFRE_DB_TEXT;
+    key : string;
 begin
-  txt    := GetEmbeddingApp._FetchAppText(ses,GetDescrTranslationKey);
+  key    :=  GetDescrTranslationKey;
+  txt    :=  FetchModuleTextFull(ses,key);
+  if txt.GetTKey='notfound' then
+    begin
+      txt.Finalize;
+      txt :=  GetEmbeddingApp._FetchAppText(ses,GetDescrTranslationKey);
+    end;
+  if txt.GetTKey='notfound' then
+    begin
+      txt.Finalize;
+      txt :=  FetchModuleTextFull(ses,StdSitemapModuleTitleKey);
+    end;
   result := txt.Getshort;
   txt.Finalize;
 end;
@@ -7785,6 +7914,13 @@ end;
 function TFRE_DB_APPLICATION_MODULE.FetchModuleTextFull(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
   result := _FetchModuleText(session,translation_key);
+end;
+
+function TFRE_DB_APPLICATION_MODULE.GetSitemapIconFilename: TFRE_DB_String;
+begin
+  result := Field('sm_icon_fn').asstring;
+  if result='' then
+    result := GetEmbeddingApp.SiteMapMainIconFilename;
 end;
 
 class procedure TFRE_DB_APPLICATION_MODULE.CreateModuleText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);

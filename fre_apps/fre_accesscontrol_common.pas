@@ -13,7 +13,7 @@ uses
   ;
 
 const
-  CDOMAIN_FEATURE = true;
+  CDOMAIN_FEATURE = false;
   CHIDE_INTERNAL  = true;
 
 type

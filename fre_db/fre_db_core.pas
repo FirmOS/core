@@ -1558,7 +1558,7 @@ type
     FDCollFilters      : TFRE_DB_DC_FILTER_DEFINITION_BASE;
     FDCMode            : TDC_Mode;
     FDepObjectsRefNeg  : Boolean;
-    FDepRefConstraint  : TFRE_DB_NameTypeRLArray;
+    FDepRefConstraint  : TFRE_DB_NameTypeRLArrayArray;
     FDependencyRef     : TFRE_DB_StringArray;     { Array of inbound dependencies (usually one) }
     FParentIds         : TFRE_DB_GUIDArray;
 
@@ -1734,7 +1734,7 @@ type
     function   WEB_GET_GRID_DATA       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_CLEAR_QUERY_RESULTS (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_DESTROY_STORE       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function   IMI_GET_CHART_DATA      (const input:IFRE_DB_Object):IFRE_DB_Object;
+    function   WEB_GET_CHART_DATA      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
     function   IMI_GET_DISPLAY_DESC    (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
@@ -6011,7 +6011,7 @@ var not_object : IFRE_DB_Object;
 
     procedure DependencyFilteredCollection;
     begin
-      cmp_dir := FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme);
+      cmp_dir := FREDB_SplitRefLinkDescription(FDepRefConstraint[0][high(FDepRefConstraint)],cmp_field,cmp_scheme);
       if (rl_field=cmp_field) and
           ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
             (cmp_dir=rl_outbound) then
@@ -7209,9 +7209,10 @@ begin
   SetLength(FDependencyRef,1);
   FDependencyRef[0] := dependency_reference;
   FDepObjectsRefNeg := negate;
-  SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
+  SetLength(FDepRefConstraint,1);
+  SetLength(FDepRefConstraint[0],Length(scheme_and_field_constraint));
   for i := 0 to high(scheme_and_field_constraint) do
-    FDepRefConstraint[i] := scheme_and_field_constraint[i];
+    FDepRefConstraint[0][i] := scheme_and_field_constraint[i];
 end;
 
 
@@ -7338,7 +7339,7 @@ begin
   case FDisplaytype of
     cdt_Listview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_GRID_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName);
     cdt_Treeview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName);
-    cdt_Chartview:  result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHART_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName);
+    cdt_Chartview:  result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHART_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName);
     else
       raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
   end
@@ -7570,11 +7571,10 @@ begin
     //writeln('GEDTATA INPUT : ',input.DumpToString());
     qry_ok := false;
     MustBeInitialized;
-    query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input,FDependencyRef,CollectionName(true),FParentCollection.CollectionName(true),FDCollFilters,
+    query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input,FDependencyRef,FDepRefConstraint,FDepObjectsRefNeg,CollectionName(true),FParentCollection.CollectionName(true),FDCollFilters,
                                                     FDefaultOrderField,FDefaultOrderAsc,ses);
     try
       _CheckObserverAdded(true);
-
       //FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
       //FDepObjectList    :=  _GET_DC_ReferenceList(input);
 
@@ -7600,8 +7600,6 @@ begin
           GFRE_DB_TCDM.StoreQuery(query);
         end;
     end;
-
-
         //dc_ReferentialLinkCollection:
         //    begin
         //      FInitialDerived := false; // force it
@@ -7636,7 +7634,7 @@ begin
   end;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.IMI_GET_CHART_DATA(const input: IFRE_DB_Object): IFRE_DB_Object;
+function TFRE_DB_DERIVED_COLLECTION.WEB_GET_CHART_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
     //pageinfo       : TFRE_DB_DC_PAGING_INFO;
      //order         : TFRE_DB_DC_ORDER_LIST;
@@ -7707,7 +7705,7 @@ var
   end;
 
 begin
-   _CheckObserverAdded(true);
+   //_CheckObserverAdded(true);
   result := GetChartDataDescription;
 end;
 
