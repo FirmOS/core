@@ -147,7 +147,8 @@ type
 
       function  ObjectExists                  (const obj_uid : TGUID) : boolean;
       function  DeleteObject                  (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
-      function  Fetch                         (const ouid   :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false): TFRE_DB_Errortype;
+      function  Fetch                         (const ouid   :  TGUID  ; out   dbo:IFRE_DB_Object): TFRE_DB_Errortype; //Remove internal fetch
+      function  BulkFetch                     (const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray):TFRE_DB_Errortype;
       function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
       procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
       procedure SyncSnapshot                  (const final : boolean=false);
@@ -163,6 +164,7 @@ type
       procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
       procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
       procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
+      function  INT_Fetch                     (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object):boolean;
 
       function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
       procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
@@ -1070,13 +1072,11 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object; const internal_object: boolean): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object): TFRE_DB_Errortype;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  if internal_object then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal fetch obviously unsupported on net layer!');
   cmd := NewPersistenceLayerCommand('F');
   cmd.Field('G').AsGUID    := ouid;
   SendCycle(cmd,answer);
@@ -1090,6 +1090,11 @@ begin
   finally
     answer.Finalize;
   end;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.BulkFetch(const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
+begin
+  abort;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.StoreOrUpdateObject(const obj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean): TFRE_DB_TransStepId;
@@ -1194,34 +1199,39 @@ begin
 
 end;
 
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.INT_Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object): boolean;
+begin
+  abort;
+end;
+
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_GetObjectCount(const coll: boolean; const SchemesFilter: TFRE_DB_StringArray): Integer;
 begin
-
+  abort;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_ForAllObjects(const cb: IFRE_DB_ObjectIteratorBrk; const SchemesFilter: TFRE_DB_StringArray);
 begin
-
+  abort;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_ForAllColls(const cb: IFRE_DB_Obj_Iterator);
 begin
-
+  abort;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_PrepareDBRestore(const phase: integer);
 begin
-
+  abort;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendObject(const obj: IFRE_DB_Object);
 begin
-
+  abort;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendCollection(const obj: IFRE_DB_Object);
 begin
-
+  abort;
 end;
 
 { TFRE_DB_PL_NET_CLIENT.TPLNet_Layer }

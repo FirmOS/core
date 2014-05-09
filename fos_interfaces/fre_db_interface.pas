@@ -131,9 +131,10 @@ const
   CFRE_DB_SYS_DOMAIN_NAME        = 'SYSTEM';
   cFRE_DB_STKEY                  = '#ST#';
   cFRE_DB_ST_ETAG                = '#ETG#';
-  cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*'; { used to indicate a DONT CHANGE THE FIELD in translating from JSON <-> DBO }
-  cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';    { used to indicate a CLEAR FIELD in translating from JSON <-> DBO  }
-  cFRE_DB_SYS_ORDER_REF_KEY      = '*$ORK*';      { used to backlink from ordered data(key) to base transformed data }
+  cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*';  { used to indicate a DONT CHANGE THE FIELD in translating from JSON <-> DBO }
+  cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';     { used to indicate a CLEAR FIELD in translating from JSON <-> DBO  }
+  cFRE_DB_SYS_ORDER_REF_KEY      = '*$ORK*';       { used to backlink from ordered data(key) to base transformed data }
+  cFRE_DB_SYS_PARENT_PATH        = '*$_PPATH_*';   { used in a parent child transform to set the pp in the child }
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
   CFRE_DB_EPSILON_SGL                                               = 1.192092896e-07;         // Epsiolon for Single Compare (Zero / boolean)
@@ -859,7 +860,7 @@ type
 
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
-    procedure  TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; var record_cnt : NativeInt);
+    procedure  TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; const lazy_child_expand : boolean ; var record_cnt : NativeInt);
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
     procedure  BindSession                   (const session : TFRE_DB_UserSession);
     procedure  SetDefaultOrderField          (const field_name:TFRE_DB_String ; const ascending : boolean);
@@ -886,6 +887,7 @@ type
     procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
     procedure  SetDisplayTypeChart           (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean; const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
     procedure  SetParentToChildLinkField     (const fieldname : TFRE_DB_NameTypeRL); { Define a Child/Parent Parent/Child relation via Reflinks syntax is FROMFIELD>TOSCHEME or FROMSCHEME<FROMFIELD, the scheme could be empty }
+    function   HasParentChildRefRelationDefined : boolean;
 
     function   GetDisplayDescription         : TFRE_DB_CONTENT_DESC;
     function   GetStoreDescription           : TFRE_DB_CONTENT_DESC;
@@ -902,7 +904,7 @@ type
     function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:TFRE_DB_StringArray   ;const negate:boolean=false):TFRE_DB_Errortype;
     function   RemoveFilter                  (const filter_key           :TFRE_DB_String):TFRE_DB_Errortype;
 
-    function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
+    //function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
   IFRE_DB_SCHEME_COLLECTION=interface(IFRE_DB_COLLECTION)
@@ -1309,6 +1311,7 @@ type
     procedure FDB_PrepareDBRestore          (const phase:integer);
     procedure FDB_SendObject                (const obj:IFRE_DB_Object);
     procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
+    function  INT_Fetch                     (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object):boolean;
 
     function  GetConnectedDB                : TFRE_DB_NameType;
     function  GetLastError                  : TFRE_DB_String;
@@ -1336,7 +1339,8 @@ type
 
     function  ObjectExists                  (const obj_uid : TGUID) : boolean;
     function  DeleteObject                  (const obj_uid : TGUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
-    function  Fetch                         (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false):TFRE_DB_Errortype;
+    function  Fetch                         (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object):TFRE_DB_Errortype;
+    function  BulkFetch                     (const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray):TFRE_DB_Errortype;
     function  StoreOrUpdateObject           (const obj     : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
     function  DefineIndexOnField            (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
 
@@ -1854,6 +1858,8 @@ type
     procedure  AddUIDFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);virtual;abstract;
     procedure  AddSchemeObjectFilter   (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=false);virtual;abstract;
     procedure  AddStdRightObjectFilter (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=false);virtual;abstract;
+    procedure  AddChildFilter          (const key:          TFRE_DB_NameType); virtual ; abstract;
+    procedure  AddParentFilter         (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); virtual ; abstract ;
     function   RemoveFilter            (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
     function   FilterExists            (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
   end;
@@ -1874,7 +1880,8 @@ type
     function   GetTransformedDataLocked  (const query : TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;
     procedure  NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
     function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const dependency_reference_constraint : TFRE_DB_NameTypeRLArrayArray;
-                                          const dependency_negate : boolean ; const dc_name,parent_name : TFRE_DB_NameTypeRL ; const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ;
+                                          const dependency_negate : boolean ; const parent_child_spec : TFRE_DB_NameTypeRL ; const parent_child_skip_schemes : TFRE_DB_NameTypeRLArray ;
+                                          const dc_name,parent_name : TFRE_DB_NameTypeRL ; const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ;
                                           const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
                                           const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE; virtual; abstract;
     procedure   StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;

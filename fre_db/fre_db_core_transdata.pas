@@ -63,18 +63,16 @@ type
 
   TFRE_DB_DC_ORDER_DEFINITION = class { defines a globally stored ordered and transformed set of dbo's}
   private
-    FOrderList     : array of TFRE_DB_DC_ORDER;
-    FKey           : TFRE_DB_TRANS_COLL_DATA_KEY;
-    FKeyPartMaj    : TFRE_DB_NameType; { may be a Parentcollectionname or an starting uid }
-    FKeyPartMin    : TFRE_DB_NameType; { may be a dc name or a ReflinkDefinition }
-    FRefLinkCh     : TFRE_DB_NameTypeRLArray;
-    FIsRefLinkM    : Boolean;
+    FOrderList          : array of TFRE_DB_DC_ORDER;
+    FKey                : TFRE_DB_TRANS_COLL_DATA_KEY;
+    FKeyPartMaj         : TFRE_DB_NameType; { may be a Parentcollectionname or an starting uid }
+    FKeyPartMin         : TFRE_DB_NameType; { may be a dc name or a ReflinkDefinition }
+    FKeyPartParentChild : TFRE_DB_NameTypeRL;
     function    IsSealed : Boolean;
   public
     procedure   MustNotBeSealed;
     procedure   MustBeSealed;
-    procedure   SetDataKeyColl    (const parent_collectionname,derivedcollname       : TFRE_DB_NameType);
-    procedure   SetDataKeyReflink (const startuid : TFRE_DB_GUID ; const RLChainSpec : TFRE_DB_NameTypeRLArray);
+    procedure   SetDataKeyColl    (const parent_collectionname,derivedcollname : TFRE_DB_NameType ; const ParentChildspec : TFRE_DB_NameTypeRL);
     procedure   ClearOrders       ;
     procedure   AddOrderDef       (const orderfield_name : TFRE_DB_NameType ; const asc : boolean);
     procedure   Seal              ;
@@ -214,6 +212,31 @@ type
     procedure InitFilter       (stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
   end;
 
+  { TFRE_DB_FILTER_PARENT }
+
+  TFRE_DB_FILTER_PARENT=class(TFRE_DB_FILTER_BASE)
+  protected
+    FAllowedParent : String;
+  public
+    function  Clone            : TFRE_DB_FILTER_BASE;override;
+    function  GetDefinitionKey : TFRE_DB_NameType; override;
+    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    procedure InitFilter       (const allowed_parent_path: TFRE_DB_GUIDArray);
+  end;
+
+  { TFRE_DB_FILTER_CHILD }
+
+  TFRE_DB_FILTER_CHILD=class(TFRE_DB_FILTER_BASE)
+  protected
+  public
+    function  Clone            : TFRE_DB_FILTER_BASE;override;
+    function  GetDefinitionKey : TFRE_DB_NameType; override;
+    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    procedure InitFilter       ;
+  end;
+
+
+
   { TFRE_DB_DC_FILTER_DEFINITION }
 
   TFRE_DB_DC_FILTER_DEFINITION = class(TFRE_DB_DC_FILTER_DEFINITION_BASE)
@@ -241,6 +264,8 @@ type
     procedure   AddUIDFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=false ; const include_null_values : boolean=false);override;
     procedure   AddSchemeObjectFilter   (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=false);override;
     procedure   AddStdRightObjectFilter (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=false);override;
+    procedure   AddChildFilter          (const key:          TFRE_DB_NameType); override ;
+    procedure   AddParentFilter         (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); override ;
     function    RemoveFilter            (const key:          TFRE_DB_NameType):boolean;override;
     function    FilterExists            (const key:          TFRE_DB_NameType):boolean;override;
     procedure   MustNotBeSealed         ;
@@ -261,14 +286,15 @@ type
      FConnection             : IFRE_DB_CONNECTION;           { used for right profile check (implicit righfilter) }
      FQueryId                : TFRE_DB_NameType;             { ID of this specific Query }
      //FCollTransfromKey      : TFRE_DB_NameTypeRL;          { an order is created and diversificated by the transformation(dc name) and the parent collection }
-     FReferenceMode          : Boolean;                      { true if reference query, false if collection query }
-     FParentChldLinkFldSpec  : TFRE_DB_NameTypeRL;
+     //FReferenceMode          : Boolean;                      { true if reference query, false if collection query }
+     FParentChildLinkFldSpec : TFRE_DB_NameTypeRL;           { rl spec of the parent child relation }
+     FParentChildSkipschemes : TFRE_DB_NameTypeRLArray;      { skip this schemes in a parent child query }
      FQueryFilters           : TFRE_DB_DC_FILTER_DEFINITION; { managed here, cleanup here}
      FOrderDef               : TFRE_DB_DC_ORDER_DEFINITION;  { linked to order definition of base ordered data, dont cleanup here}
      FDependencyIds          : TFRE_DB_StringArray;          { dependency id's of this querys DC, in same order as }
      FDepRefConstraints      : TFRE_DB_NameTypeRLArrayArray; { this reference link constraints, there must be an extra }
      FDependcyFilterUids     : Array of TFRE_DB_GUIDArray;   { this is a special filter type, the GUID array may, at some later time, be extended to support other field types }
-     FParentIds              : TFRE_DB_GUIDArray;            { path to root}
+     FParentIds              : TFRE_DB_GUIDArray;            { parentid / path to root / of this query (filter) }
      FUserKey                : TFRE_DB_String;               { Login@Domain | GUID ?}
      FFullTextFilter         : TFRE_DB_String;               { use this on all string fields, if set}
      FStartIdx               : NativeInt;                    { }
@@ -294,7 +320,7 @@ type
      destructor  Destroy              ; override;
      function    GetQueryID           : TFRE_DB_NameType; override;
      function    HasOrderDefinition   : boolean;
-     property    Orderdef             : TFRE_DB_DC_ORDER_DEFINITION  read GetOrderDefinition; { lazy create on access}
+     property    Orderdef             : TFRE_DB_DC_ORDER_DEFINITION  read GetOrderDefinition;  { lazy create on access}
      property    Filterdef            : TFRE_DB_DC_FILTER_DEFINITION read GetFilterDefinition; { lazy create on access}
      function    GetBaseTransDataKey  : TFRE_DB_TRANS_COLL_DATA_KEY;
      function    GetFullQueryOrderKey : TFRE_DB_TRANS_COLL_DATA_KEY;
@@ -309,9 +335,11 @@ type
 
   TFRE_DB_TRANFORMED_DATA=class
   private
-    FBaseKey         : TFRE_DB_NameTypeRL;
-    FTransformeddata : IFRE_DB_ObjectArray;
-    FTDCreationTime  : TFRE_DB_DateTime64;
+    FBaseKey           : TFRE_DB_NameTypeRL;
+    FTransformeddata   : IFRE_DB_ObjectArray;
+    FTDCreationTime    : TFRE_DB_DateTime64;
+    FIncludesChildData : Boolean;
+    FChildDataIsLazy   : Boolean;
   public
     function    GetTransFormKey : TFRE_DB_NameTypeRL;
     function    GetDataArray    : PFRE_DB_ObjectArray;
@@ -397,10 +425,11 @@ type
      dependency_reference_ids : this are the dependency keys that be considered to use from the JSON (usually one, input dependency)
      collection_transform_key : unique specifier of the DATA TRANSFORMATION defined by this collection, ORDERS derive from them
     }
-    function    GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ;  const dependency_reference_constraint : TFRE_DB_NameTypeRLArrayArray;
-                                           const dependency_negate : boolean ; const dc_name,parent_name : TFRE_DB_NameTypeRL ; const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ;
-                                           const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
-                                           const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE;override;
+    function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const dependency_reference_constraint : TFRE_DB_NameTypeRLArrayArray;
+                                          const dependency_negate : boolean ; const parent_child_spec : TFRE_DB_NameTypeRL ; const parent_child_skip_schemes : TFRE_DB_NameTypeRLArray ;
+                                          const dc_name,parent_name : TFRE_DB_NameTypeRL ; const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ;
+                                          const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
+                                          const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE; override ;
     { remember the query as open for the session }
     procedure   StoreQuery                (const qry: TFRE_DB_QUERY_BASE); override;
     { forget the query as open for the session }
@@ -429,6 +458,70 @@ begin
       GFRE_DB_TCDM.Free;
       GFRE_DB_TCDM:=nil;
     end;
+end;
+
+{ TFRE_DB_FILTER_CHILD }
+
+function TFRE_DB_FILTER_CHILD.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_CHILD;
+begin
+  fClone                := TFRE_DB_FILTER_CHILD.Create(FKey);
+  result                := fClone;
+end;
+
+function TFRE_DB_FILTER_CHILD.GetDefinitionKey: TFRE_DB_NameType;
+begin
+  result := 'CF';
+end;
+
+function TFRE_DB_FILTER_CHILD.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+begin
+  result := not obj.FieldExists(cFRE_DB_SYS_PARENT_PATH);
+end;
+
+procedure TFRE_DB_FILTER_CHILD.InitFilter;
+begin
+
+end;
+
+{ TFRE_DB_FILTER_PARENT }
+
+function TFRE_DB_FILTER_PARENT.Clone: TFRE_DB_FILTER_BASE;
+var fClone : TFRE_DB_FILTER_PARENT;
+begin
+  fClone                := TFRE_DB_FILTER_PARENT.Create(FKey);
+  fClone.FAllowedParent := FAllowedParent;
+  result                := fClone;
+end;
+
+
+function TFRE_DB_FILTER_PARENT.GetDefinitionKey: TFRE_DB_NameType;
+var  hsh : cardinal;
+     i   : NativeInt;
+begin
+  hsh := GFRE_BT.HashFast32(@FAllowedParent[1],length(FAllowedParent),0);
+  result := 'PF:'+ GFRE_BT.Mem2HexStr(@hsh,4);
+end;
+
+function TFRE_DB_FILTER_PARENT.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+var fld  : IFRE_DB_FIELD;
+    pidp : string;
+begin
+  result := false;
+  if obj.FieldOnlyExisting(cFRE_DB_SYS_PARENT_PATH,fld) then
+    begin
+      pidp   := fld.AsString;
+      result := FAllowedParent=pidp;
+    end
+end;
+
+procedure TFRE_DB_FILTER_PARENT.InitFilter(const allowed_parent_path: TFRE_DB_GUIDArray);
+var
+  i: NativeInt;
+begin
+  for i:=0 to high(allowed_parent_path)-1 do
+    FAllowedParent := FAllowedParent+'-'+FREDB_G2H(allowed_parent_path[i]);
+  FAllowedParent:=FAllowedParent+FREDB_G2H(allowed_parent_path[i]);
 end;
 
 { TFRE_DB_FILTER_REAL64 }
@@ -1512,6 +1605,22 @@ begin
   AddFilter(filt,false);
 end;
 
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddChildFilter(const key: TFRE_DB_NameType);
+var filt : TFRE_DB_FILTER_CHILD;
+begin
+  filt := TFRE_DB_FILTER_CHILD.Create(key);
+  filt.InitFilter;
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddParentFilter(const key: TFRE_DB_NameType; const allowed_parent_path: TFRE_DB_GUIDArray);
+var filt : TFRE_DB_FILTER_PARENT;
+begin
+  filt := TFRE_DB_FILTER_PARENT.Create(key);
+  filt.InitFilter(allowed_parent_path);
+  AddFilter(filt,false);
+end;
+
 function TFRE_DB_DC_FILTER_DEFINITION.RemoveFilter(const key: TFRE_DB_NameType): boolean;
 var idx : Integer;
 begin
@@ -1589,18 +1698,14 @@ begin
    raise EFRE_DB_Exception.Create(edb_ERROR,'order definition is not done');
 end;
 
-procedure TFRE_DB_DC_ORDER_DEFINITION.SetDataKeyColl(const parent_collectionname, derivedcollname: TFRE_DB_NameType);
+procedure TFRE_DB_DC_ORDER_DEFINITION.SetDataKeyColl(const parent_collectionname, derivedcollname: TFRE_DB_NameType; const ParentChildspec: TFRE_DB_NameTypeRL);
 begin
-  FKeyPartMaj := parent_collectionname;
-  FKeyPartMin := derivedcollname;
-  FIsRefLinkM := false;
-end;
-
-procedure TFRE_DB_DC_ORDER_DEFINITION.SetDataKeyReflink(const startuid: TFRE_DB_GUID; const RLChainSpec: TFRE_DB_NameTypeRLArray);
-begin
-  FKeyPartMaj := 'U:'+FREDB_G2H(startuid);
-  FRefLinkCh  := RLChainSpec;
-  FIsRefLinkM := false;
+  FKeyPartMaj             := parent_collectionname;
+  FKeyPartMin             := derivedcollname;
+  if ParentChildspec='' then
+    FKeyPartParentChild:='#'
+  else
+    FKeyPartParentChild := GFRE_BT.HashFast32_Hex(ParentChildspec);
 end;
 
 function TFRE_DB_DC_ORDER_DEFINITION.GetFullKeyDef: TFRE_DB_TRANS_COLL_DATA_KEY;
@@ -1640,22 +1745,16 @@ var key : string;
     i   : NativeInt;
 begin
   MustNotBeSealed;
-  if FIsRefLinkM then
-    begin
-      for i := 0 to high(FRefLinkCh) do
-          key := key+FRefLinkCh[i];
-      FKeyPartMin := 'R|'+GFRE_BT.HashFast32_Hex(key);
-    end;
   key := '';
   for i := 0 to high(FOrderList) do
     with FOrderList[i] do
       key := key +order_field+BoolToStr(ascending,'A','D');
-  FKey := FKeyPartMaj+'/'+FKeyPartMin+'/'+GFRE_BT.HashFast32_Hex(key);
+  FKey := FKeyPartMaj+'/'+FKeyPartMin+'/'+FKeyPartParentChild+'/'+GFRE_BT.HashFast32_Hex(key);
 end;
 
 function TFRE_DB_DC_ORDER_DEFINITION.GetBaseKeyPart: TFRE_DB_TRANS_COLL_DATA_KEY;
 begin
-  result := FKeyPartMaj+'/'+FKeyPartMin;
+  result := FKeyPartMaj+'/'+FKeyPartMin+'/'+FKeyPartParentChild;
 end;
 
 
@@ -1904,8 +2003,6 @@ begin
   result := FOrders.ForAllBreak(@Search,fnd);
   result := fnd;
   GFRE_DBI.LogDebug(dblc_DBTDM,'>GET ORDERING FOR TRANSFORMED DATA FOR [%s] %s',[fkd,BoolToStr(fnd,'FOUND','NOT FOUND')]);
-  if not fnd then
-    result := FOrders.ForAllBreak(@Search,fnd);
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.NewTransformedDataLocked(const qry: TFRE_DB_QUERY_BASE; const dc: IFRE_DB_DERIVED_COLLECTION; var cd: TFRE_DB_TRANS_RESULT_BASE);
@@ -1922,7 +2019,9 @@ begin
           GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[basekey]);
           st        := GFRE_BT.Get_Ticks_ms;
           transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey);
-          dc.TransformAllTo(transdata.GetDataArray^,rcnt);       { need base transformation layer}
+          transdata.FChildDataIsLazy    := true;
+          transdata.FIncludesChildData  := dc.HasParentChildRefRelationDefined;
+          dc.TransformAllTo(transdata.GetDataArray^,transdata.FChildDataIsLazy,rcnt);       { need base transformation layer}
           AddBaseTransformedData(transdata);
           et        := GFRE_BT.Get_Ticks_ms;
           GFRE_DBI.LogInfo(dblc_DBTDM,'<BASE TRANSFORMING DATA FOR [%s] DONE - Transformed %d records in %d ms',[basekey,rcnt,et-st]);
@@ -1934,9 +2033,7 @@ begin
     end;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.GenerateQueryFromRawInput(const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray; const dependency_reference_constraint: TFRE_DB_NameTypeRLArrayArray;
-                                                             const dependency_negate : boolean ;const dc_name, parent_name: TFRE_DB_NameTypeRL; const dc_static_filters: TFRE_DB_DC_FILTER_DEFINITION_BASE;
-                                                             const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const session: IFRE_DB_UserSession): TFRE_DB_QUERY_BASE;
+function TFRE_DB_TRANSDATA_MANAGER.GenerateQueryFromRawInput(const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray; const dependency_reference_constraint: TFRE_DB_NameTypeRLArrayArray; const dependency_negate: boolean; const parent_child_spec: TFRE_DB_NameTypeRL; const parent_child_skip_schemes: TFRE_DB_NameTypeRLArray; const dc_name, parent_name: TFRE_DB_NameTypeRL; const dc_static_filters: TFRE_DB_DC_FILTER_DEFINITION_BASE; const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean; const session: IFRE_DB_UserSession): TFRE_DB_QUERY_BASE;
 var fld : IFRE_DB_FIELD;
       i : NativeInt;
     qry : TFRE_DB_QUERY;
@@ -1978,29 +2075,27 @@ var fld : IFRE_DB_FIELD;
        end
      else
        qry.Orderdef.AddOrderDef(DefaultOrderField,DefaultOrderAsc);
-
-     qry.Orderdef.SetDataKeyColl(dc_name,parent_name);
+     qry.Orderdef.SetDataKeyColl(dc_name,parent_name,qry.FParentChildLinkFldSpec);
      qry.OrderDef.Seal;
    end;
 
    procedure ProcessCheckChildQuery;
    begin
      with qry do begin
+       FParentChildLinkFldSpec := parent_child_spec;         { comes from dc }
+       FParentChildSkipschemes := parent_child_skip_schemes; { comes from dc }
        if input.FieldExists('parentid') then
          begin { this is a child query }
-           FReferenceMode :=  true;
-           FParentIds :=FREDB_String2GuidArray(input.Field('parentid').AsString);
-           if Length(FParentIds)>0 then
-             begin
-               FParentIds[0] := FParentIds[high(FParentIds)];
-               SetLength(FParentIds,1);
-             end;
+           FParentIds := FREDB_String2GuidArray(input.Field('parentid').AsString);
+           //if Length(FParentIds)>0 then
+           //  begin
+           //    FParentIds[0] := FParentIds[high(FParentIds)];
+           //    SetLength(FParentIds,1);
+           //  end;
+           Filterdef.AddParentFilter('*SPCF*',FParentIds); { add a parent field filter }
          end
        else
-         begin
-           SetLength(FParentIds,0);
-           FReferenceMode :=  false;
-         end;
+         Filterdef.AddChildFilter('*SPCF*'); { add a child filter }
      end;
    end;
 

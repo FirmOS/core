@@ -150,6 +150,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
 
+     function    INT_Fetch                     (const ouid    :  TGUID  ; out   dbi:IFRE_DB_Object):boolean; { unlocked internal fetch }
+
 
      {< Backup Functionality}
      function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
@@ -161,39 +163,39 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      { Backup Functionality >}
 
 
-     procedure   _LoadCollectionPersistent  (const file_name : string);
-     procedure   _LoadObjectPersistent      (const UID: TGuid; var obj: TFRE_DB_Object);
-     procedure   _SyncDBInternal            (const final:boolean=false);
+     procedure   _LoadCollectionPersistent     (const file_name : string);
+     procedure   _LoadObjectPersistent         (const UID: TGuid; var obj: TFRE_DB_Object);
+     procedure   _SyncDBInternal               (const final:boolean=false);
 
-     function   _InternalFetchConnectedLayer(db_name:TFRE_DB_String;var idx :NativeInt): TFRE_DB_PS_FILE;
+     function   _InternalFetchConnectedLayer   (db_name:TFRE_DB_String;var idx :NativeInt): TFRE_DB_PS_FILE;
 
-     procedure   DEBUG_DisconnectLayer (const db:TFRE_DB_String;const clean_master_data :boolean = false);
-     function    _FetchO             (const ouid:TGUID ; out dbo:TFRE_DB_Object ; const internal_object:boolean): boolean;
+     procedure   DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
+     function    _FetchO                       (const ouid:TGUID ; out dbo:TFRE_DB_Object ; const internal_object:boolean): boolean;
 
    public
-     function    GetConnectedDB               : TFRE_DB_NameType;
+     function    GetConnectedDB                : TFRE_DB_NameType;
 
-     constructor Create                     (const basedir,name:TFRE_DB_String);
-     destructor  Destroy                    ; override;
-     procedure   Finalize                   ;
+     constructor Create                        (const basedir,name:TFRE_DB_String);
+     destructor  Destroy                       ; override;
+     procedure   Finalize                      ;
 
-
-
-     function    DatabaseList       : IFOS_STRINGS;
-     function    DatabaseExists     (const dbname:TFRE_DB_String):Boolean;
-     function    CreateDatabase     (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-     function    DeleteDatabase     (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+     function    DatabaseList                  : IFOS_STRINGS;
+     function    DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
+     function    CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+     function    DeleteDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
 
 
-     function    GetReferences         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
-     function    GetReferencesCount    (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
-     function    GetReferencesDetailed (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
+     function    GetReferences                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
+     function    GetReferencesCount            (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
+     function    GetReferencesDetailed         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
 
 
      function    Connect             (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotification=nil) : TFRE_DB_Errortype;
      function    Disconnect          : TFRE_DB_Errortype;
      function    ObjectExists        (const obj_uid : TGUID) : boolean;
-     function    Fetch               (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object ; const internal_object : boolean=false):TFRE_DB_Errortype;
+     function    Fetch               (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object):TFRE_DB_Errortype;
+     function    BulkFetch           (const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray):TFRE_DB_Errortype;
+
 
      { Transactional Operations / These operations report the last transaction step id generated, there may be more then one generated }
 
@@ -706,6 +708,16 @@ begin
     end;
 end;
 
+function TFRE_DB_PS_FILE.INT_Fetch(const ouid: TGUID; out dbi: IFRE_DB_Object): boolean;
+var dbo : TFRE_DB_Object;
+begin
+  result := _FetchO(ouid,dbo,true);
+  if result then
+    dbi := dbo
+  else
+    dbi:=nil;
+end;
+
 function TFRE_DB_PS_FILE.FDB_GetObjectCount(const coll: boolean; const SchemesFilter: TFRE_DB_StringArray): Integer;
 begin
   if coll then
@@ -1161,13 +1173,13 @@ end;
 //begin
 //end;
 
-function TFRE_DB_PS_FILE.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object; const internal_object: boolean): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object): TFRE_DB_Errortype;
 var dboo : TFRE_DB_Object;
 begin
   FLayerLock.Acquire;
   try
     try
-      if FMaster.FetchObject(ouid,dboo,internal_object) then
+      if FMaster.FetchObject(ouid,dboo,false) then
         begin
           dbo := dboo;
           FLastErrorCode := edb_OK;
@@ -1204,6 +1216,76 @@ begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    FLayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.BulkFetch(const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
+var dboo  : TFRE_DB_Object;
+    dboa  : TFRE_DB_ObjectArray;
+    i     : NativeInt;
+    all   : Boolean;
+begin
+  SetLength(dboa,length(obj_uids));
+  FLayerLock.Acquire;
+  try
+    try
+      all := true;
+      for i := 0 to high(dboa) do
+         if not FMaster.FetchObject(obj_uids[i],dboa[i],false) then
+           begin
+             all := false;
+             break;
+           end;
+      if all then
+        begin
+          SetLength(objects,Length(dboa));
+          for i := 0 to high(objects) do
+            objects[i] := dboa[i];
+          FLastErrorCode := edb_OK;
+          FLastError     := '';
+          exit(edb_OK);
+        end
+      else
+        begin
+          try
+            for i := 0 to high(dboa) do
+              dboa[i].Finalize;
+          except
+            on e:exception do
+              GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/PL EXCEPTION BULKFETCHFAIL/FREE EXCEPTION :  %s',['Fetch',e.Message]);
+          end;
+          FLastErrorCode := edb_NOT_FOUND;
+          FLastError     := '';
+          exit(edb_NOT_FOUND);
+        end;
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          objects := nil;
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['BulkFetch',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          objects := nil;
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['BulkFetch',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          objects := nil;
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['BulkFetch',e.Message]);
           raise;
         end;
     end;

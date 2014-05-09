@@ -1616,9 +1616,9 @@ type
     FSession           : TFRE_DB_UserSession;
 
     function        HasParentChildRefRelationDefined : boolean;
-    //function        IsReferentialLinkMode            : boolean;
+
     function        IsDependencyFilteredCollection   : boolean;
-    function        HasReflinksInTransformation      : boolean; { a potentila reflink dependency is in the transforms }
+    function        HasReflinksInTransformation      : boolean; { a potential reflink dependency is in the transforms }
 
     function        ParentchildRelationIsOutbound    : boolean;
     procedure       _CheckSetDisplayType (const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
@@ -1669,7 +1669,7 @@ type
     constructor  Create                        (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);override;
     destructor   Destroy;override;
     function     GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
-    procedure    TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; var record_cnt : NativeInt);
+    procedure    TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; const lazy_child_expand : boolean ; var record_cnt : NativeInt);
 
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -1705,7 +1705,6 @@ type
 
     { not a mode but a filter }
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
-
     procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL);
 
     procedure  SetDeriveParentI        (const coll:IFRE_DB_COLLECTION; const idField: String='uid');
@@ -1918,13 +1917,15 @@ type
     function           GetSysDomainUID              : TFRE_DB_GUID; virtual;abstract;
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object;const without_right_check:boolean=false) : TFRE_DB_Errortype; virtual;
+    function           BulkFetchNoRightCheck        (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; virtual;
+
     function           FetchAccessRightTest         (const ouid: TGUID): boolean; { fetch the object, check rights and free / USE CASE ONLY GUID IS KNOWN }
     function           DeleteAccessRightTest        (const ouid: TGUID): boolean; { fetch the object, check rights and free / USE CASE ONLY GUID IS KNOWN }
     function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
-    function           Update                       (const dbo:TFRE_DB_Object)                                               : TFRE_DB_Errortype;
-    function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
-    function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
-    function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual; // with user rights
+    function           Update                       (const dbo:TFRE_DB_Object)              : TFRE_DB_Errortype;
+    function           UpdateI                      (const dbo:IFRE_DB_Object)              : TFRE_DB_Errortype;
+    function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype;virtual;
+    function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype;virtual; // with user rights
     procedure          DrawScheme                   (const datastream:TStream);
   end;
 
@@ -2237,42 +2238,45 @@ type
     //Warning Fetching from DB, and then from system can have undesired side effects ...
     function    Fetch                       (const ouid:TGUID;out dbo:TFRE_DB_Object ; const without_right_check:boolean=false) : TFRE_DB_Errortype; override;
     function    FetchAs                     (const ouid:TGUID;const classref : TFRE_DB_BaseClass ; var outobj) : TFRE_DB_Errortype;
+    function    BulkFetchNoRightCheck       (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; override;
 
     //Warning Fetching from DB, and then from system can have undesired side effects ...
     //function    FetchInternal               (const ouid:TGUID;out dbo:TFRE_DB_Object) : boolean; override;
 
 
-    function    AdmGetUserCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetGroupCollection       :IFRE_DB_COLLECTION;
-    function    AdmGetDomainCollection      :IFRE_DB_COLLECTION;
+    function    AdmGetUserCollection          :IFRE_DB_COLLECTION;
+    function    AdmGetRoleCollection          :IFRE_DB_COLLECTION;
+    function    AdmGetGroupCollection         :IFRE_DB_COLLECTION;
+    function    AdmGetDomainCollection        :IFRE_DB_COLLECTION;
 
-    function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
-    function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
+    function    FetchUserSessionData           (var SessionData: IFRE_DB_OBJECT):boolean;
+    function    StoreUserSessionData           (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
 
-    function    FetchTranslateableTextObj   (const trans_key:TFRE_DB_String;var text:IFRE_DB_TEXT):boolean;
-    function    FetchTranslateableTextShort (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
-    function    FetchTranslateableTextLong  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
-    function    FetchTranslateableTextHint  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextObj      (const trans_key:TFRE_DB_String;var text:IFRE_DB_TEXT):boolean;
+    function    FetchTranslateableTextShort    (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextLong     (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextHint     (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
 
-    function    IsReferenced                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;override;
-    function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;override;
-    function    GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;override;
-    function    GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;override;
-    function    FetchDomainUIDbyName         (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
+    function    IsReferenced                   (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;override;
+    function    GetReferences                  (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;override;
+    function    GetReferencesCountNoRightCheck (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
+    function    GetReferencesNoRightCheck      (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
+    function    GetReferencesCount             (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;override;
+    function    GetReferencesDetailed          (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;override;
+    function    FetchDomainUIDbyName           (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
 
 
-    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_ObjectArray);
-    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);
-    procedure   ExpandReferences             (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray);
+    procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_ObjectArray); { TODO: BulkFetch, UserToken usage}
+    procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);   { TODO: BulkFetch, UserToken usage}
+    procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray); { TODO: BulkFetch, UserToken usage}
 
-    function    CreateDerivedCollection       (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
+    function    CreateDerivedCollection        (const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 
-    function    SYS                          : IFRE_DB_SYS_CONNECTION;
-    function    GetSysDomainUID              :TGUID; override;
-    function    GetMyDomainID                : TFRE_DB_GUID; override;
-    function    AddDomain                    (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
-    function    GetCurrentUserToken          : IFRE_DB_USER_RIGHT_TOKEN;override;
+    function    SYS                            :IFRE_DB_SYS_CONNECTION;
+    function    GetSysDomainUID                :TGUID; override;
+    function    GetMyDomainID                  :TFRE_DB_GUID; override;
+    function    AddDomain                      (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
+    function    GetCurrentUserToken            :IFRE_DB_USER_RIGHT_TOKEN;override;
   end;
 
   TFRE_RInterfaceImplementor =record
@@ -6941,23 +6945,98 @@ begin
   result := FParentCollection.CollectionName(true)+'#'+CollectionName(true);
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformAllTo(var transdata: IFRE_DB_ObjectArray; var record_cnt: NativeInt);
-var i   : NativeInt;
+procedure TFRE_DB_DERIVED_COLLECTION.TransformAllTo(var transdata: IFRE_DB_ObjectArray; const lazy_child_expand : boolean ; var record_cnt: NativeInt);
+var i          : NativeInt;
+    upconn     : TFRE_DB_CONNECTION;
 
   procedure TransForm(const in_object : TFRE_DB_Object);
-  var tr_obj : TFRE_DB_Object;
+  var tr_obj        : TFRE_DB_Object;
+      refd_uids     : TFRE_DB_GUIDArray;
+      refd_objs     : IFRE_DB_ObjectArray;
+      refcnt        : NativeInt;
+      fld           : TFRE_DB_FIELD;
+      len_chld      : NativeInt;
+      in_chld_obj   : IFRE_DB_Object;
+      parentpath    : TFRE_DB_GUIDArray;
+      depth         : NativeInt;
+
+
+      procedure SetSpecialFields;
+      begin
+       tr_obj.Field('_menufunc_').AsString      := 'Menu';
+       tr_obj.Field('_contentfunc_').AsString   := 'Content';
+       if in_object.FieldOnlyExisting('icon',fld) then // icon in source
+         tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
+      end;
+
+      procedure TransFormChildsForUid(const parentpath : string ; const depth : NativeInt ; const in_uid : TFRE_DB_GUID);
+      var j : NativeInt;
+      begin
+       refd_uids     := upconn.GetReferencesNoRightCheck(in_uid,FParentLinksChild,FParentChildScheme,FParentChildField);
+       len_chld      := length(refd_uids);
+       tr_obj.Field('_children_count_').AsInt32 := refcnt;
+       if len_chld>0 then
+         begin
+           SetLength(transdata,Length(transdata)+len_chld);
+           inc(record_cnt,len_chld);
+           tr_obj.Field('children').AsString        := 'UNCHECKED';
+           CheckDbResult(upconn.BulkFetchNoRightCheck(refd_uids,refd_objs),'transform childs');
+           for j:=0 to high(refd_objs) do
+             begin
+               in_chld_obj  := refd_objs[j];
+               try
+                 tr_obj       := FTransform.TransformInOut(upconn,in_chld_obj);
+                 SetSpecialFields;
+                 tr_obj.Field(cFRE_DB_SYS_PARENT_PATH).AsString := parentpath;
+                 transdata[i] := tr_obj;
+                 inc(i);
+               finally
+                 in_chld_obj.Finalize;
+               end;
+             end;
+           for j:=0 to high(refd_objs) do
+             begin
+               TransFormChildsForUid(parentpath+'-'+refd_objs[j].UID_String,depth+1,refd_objs[j].UID);
+             end;
+         end;
+      end;
+
   begin
-    tr_obj       := FTransform.TransformInOut(FConnection.UpcastDBC,in_object);
-    transdata[i] := tr_obj;
-    in_object.Finalize;
-    inc(i);
+    try
+      tr_obj       := FTransform.TransformInOut(upconn,in_object);
+      transdata[i] := tr_obj;
+      inc(i);
+      // next step transfrom children recursive
+      if HasParentChildRefRelationDefined then
+        begin
+          SetSpecialFields;
+          if false and lazy_child_expand then
+            begin
+              refcnt := upconn.GetReferencesCountNoRightCheck(in_object.UID,FParentLinksChild,FParentChildScheme,FParentChildField);
+              tr_obj.Field('_children_count_').AsInt32 := refcnt;
+              if refcnt>0 then
+                begin
+                  tr_obj.Field('children').AsString        := 'UNCHECKED';
+                end;
+            end
+          else
+            begin
+              SetLength(parentpath,1);
+              depth             := 0;
+              TransFormChildsForUid(in_object.UID_String,depth,in_object.UID);
+            end;
+        end
+    finally
+      in_object.Finalize;
+    end;
   end;
 
 begin
   MustBeInitialized;
   for i:=0 to High(transdata) do
     transdata[i].Finalize;
-  i   := 0;
+  i          := 0;
+  upconn     := FConnection.UpcastDBC;
   record_cnt := FParentCollection.Count;
   SetLength(transdata,record_cnt);
   (FParentCollection.Implementor_HC as TFRE_DB_COLLECTION).ForAllNoRightChk(@TransForm);
@@ -7503,6 +7582,7 @@ var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
     exrefs          : TFRE_DB_GUIDArray;
     i               : NativeInt;
     query_base_data : TFRE_DB_TRANS_RESULT_BASE;
+    child_base_data : TFRE_DB_TRANS_RESULT_BASE;
     query           : TFRE_DB_QUERY_BASE;
     qry_ok          : boolean;
 
@@ -7571,7 +7651,12 @@ begin
     //writeln('GEDTATA INPUT : ',input.DumpToString());
     qry_ok := false;
     MustBeInitialized;
-    query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input,FDependencyRef,FDepRefConstraint,FDepObjectsRefNeg,CollectionName(true),FParentCollection.CollectionName(true),FDCollFilters,
+
+    //FParentLinksChild
+    //FParentChildField
+    //FParentChildScheme;
+
+    query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input,FDependencyRef,FDepRefConstraint,FDepObjectsRefNeg,FParentChldLinkFldSpec,nil,CollectionName(true),FParentCollection.CollectionName(true),FDCollFilters,
                                                     FDefaultOrderField,FDefaultOrderAsc,ses);
     try
       _CheckObserverAdded(true);
@@ -10787,7 +10872,7 @@ var dbi : IFRE_DB_Object;
 begin
   dbo    := nil;
   try
-    result := FPersistance_Layer.Fetch(ouid,dbi,false);
+    result := FPersistance_Layer.Fetch(ouid,dbi);
     if result <> edb_OK then
       exit(Result)
     else
@@ -10801,6 +10886,15 @@ begin
     if GFRE_DB.FetchSysObject(ouid,dbo) then
       exit(CheckAccessRightAndCondFinalize(dbo,sr_FETCH,without_right_check));
     exit(edb_NOT_FOUND);
+  except
+    result := FPersistance_Layer.GetLastErrorCode;
+  end;
+end;
+
+function TFRE_DB_BASE_CONNECTION.BulkFetchNoRightCheck(const uids: TFRE_DB_GUIDArray; out dbos: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
+begin
+  try
+    result := FPersistance_Layer.BulkFetch(uids,dbos);
   except
     result := FPersistance_Layer.GetLastErrorCode;
   end;
@@ -10934,6 +11028,14 @@ begin
     end;
 end;
 
+function TFRE_DB_CONNECTION.BulkFetchNoRightCheck(const uids: TFRE_DB_GUIDArray; out dbos: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
+begin
+ dbos := nil;
+ Result:=inherited BulkFetchNoRightCheck(uids, dbos);
+ if result=edb_NOT_FOUND then
+   result := FSysConnection.BulkFetchNoRightCheck(uids,dbos);
+end;
+
 
 function TFRE_DB_CONNECTION.AdmGetUserCollection: IFRE_DB_COLLECTION;
 begin //nl
@@ -11034,9 +11136,7 @@ function TFRE_DB_CONNECTION.GetReferences(const obj_uid: TGuid; const from: bool
 var result_with_rights : TFRE_DB_GUIDArray;
     i,cnt              : NativeInt;
 begin
- Result:=inherited GetReferences(obj_uid, from,scheme_prefix_filter,field_exact_filter);
- if not assigned(Result) then
-   result := FSysConnection.GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+ result := GetReferencesNoRightCheck(obj_uid,from,scheme_prefix_filter,field_exact_filter);
  SetLength(result_with_rights,Length(result));
  cnt := 0;
  for i:=0 to high(Result) do
@@ -11047,6 +11147,20 @@ begin
      end;
   SetLength(result_with_rights,cnt);
   result := result_with_rights;
+end;
+
+function TFRE_DB_CONNECTION.GetReferencesCountNoRightCheck(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
+begin
+  Result:=inherited GetReferencesCount(obj_uid, from,scheme_prefix_filter,field_exact_filter);
+  if Result=0 then
+    result := FSysConnection.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+end;
+
+function TFRE_DB_CONNECTION.GetReferencesNoRightCheck(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
+begin
+  Result:=inherited GetReferences(obj_uid, from,scheme_prefix_filter,field_exact_filter);
+  if not assigned(Result) then
+    result := FSysConnection.GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter);
 end;
 
 function TFRE_DB_CONNECTION.GetReferencesCount(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;

@@ -5178,7 +5178,7 @@ begin
       in_txt := stream.ReadAnsiString; // guid;
       assert(Length(in_txt)=16);
       move(in_txt[1],uid,16);
-      if (FLayer.Fetch(uid,dbi,true)<>edb_OK) or
+      if not FLayer.INT_Fetch(uid,dbi) or
          not assigned(dbi) then
            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / FETCH FAILED [%s]',[GFRE_BT.GUID_2_HexString(uid)]);
       dbo := dbi.Implementor as TFRE_DB_Object;
@@ -5237,7 +5237,7 @@ begin
   for i := 0 to high(arr) do
     begin
       uid := arr[i];
-      if (FLayer.Fetch(uid,dbi,true)<>edb_OK) or
+      if (not FLayer.INT_Fetch(uid,dbi)) or
          not assigned(dbi) then
            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / FETCH FAILED [%s]',[GFRE_BT.GUID_2_HexString(uid)]);
       dbo := dbi.Implementor as TFRE_DB_Object;
