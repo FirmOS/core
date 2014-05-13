@@ -1467,9 +1467,12 @@ type
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean; const is_internal:Boolean; var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TGUID; const is_protected:Boolean=false;const is_internal:Boolean=false):TFRE_DB_Errortype;
     function    AddRole                     (const rolename,txt,txt_short:TFRE_DB_String;const domainUID:TGUID; const is_internal:Boolean=false):TFRE_DB_Errortype;
+    function    AddRolesToGroupById         (const group:TFRE_DB_String;const domainUID: TGUID;const role_ids: TFRE_DB_GUIDArray):TFRE_DB_Errortype;
     function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    AddSysRolesToGroup          (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    RemoveAllRolesFromGroup     (const group:TFRE_DB_String;const domainUID: TGUID): TFRE_DB_Errortype;
     function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype; //TODO: Remove Ignorenotset
+    function    RemoveRolesFromGroupById    (const group:TFRE_DB_String;const domainUID: TGUID;const role_ids: TFRE_DB_GUIDArray; const ignore_not_set:boolean): TFRE_DB_Errortype; //TODO: Remove Ignorenotset
     function    AddRoleRightsToRole         (const rolename:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    ModifyUserGroupsById        (const user_id:TGuid; const user_group_ids:TFRE_DB_GUIDArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroupsById        (const user_id:TGuid; const user_group_ids:TFRE_DB_GUIDArray):TFRE_DB_Errortype;
@@ -1592,6 +1595,7 @@ type
   TFRE_DB_Base              = class(TFOS_Base)
   private
     TAGRef                  : TObject;
+    class procedure  _InstallDBObjects4Domain   (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID);
   protected
     FMediatorExtention        : TFRE_DB_ObjectEx;
     function  Implementor_HC  : TObject;override;
@@ -1602,9 +1606,11 @@ type
 
     class procedure  InstallDBObjects           (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); virtual;
     class procedure  InstallDBObjects4Domain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
+    class procedure  InstallDBObjects4SysDomain (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
 
-    class procedure  InstallUserDBObjects       (const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
-    class procedure  InstallUserDBObjects4Domain(const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
+    class procedure  InstallUserDBObjects          (const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
+    class procedure  InstallUserDBObjects4Domain   (const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
+    class procedure  InstallUserDBObjects4SysDomain(const conn:IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
 
     class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); virtual;
     class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); virtual;
@@ -5826,6 +5832,33 @@ end;
 //     end;
 //end;
 
+class procedure TFRE_DB_Base._InstallDBObjects4Domain(const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID);
+var
+  role: IFRE_DB_ROLE;
+begin
+  if not (self.ClassType=TFRE_DB_ObjectEx) then
+    begin
+      if currentVersionId='' then // Initial Install
+        begin
+          role := CreateClassRole('store','Store ' + ClassName,'Allowed to store new ' + ClassName + ' objects');
+          role.AddRight(GetRight4Domain(GetClassRightNameStore,domainUID));
+          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.store role');
+
+          role := CreateClassRole('delete','Delete ' + ClassName,'Allowed to delete ' + ClassName + ' objects');
+          role.AddRight(GetRight4Domain(GetClassRightNameDelete,domainUID));
+          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.delete role');
+
+          role := CreateClassRole('update','Update ' + ClassName,'Allowed to edit ' + ClassName + ' objects');
+          role.AddRight(GetRight4Domain(GetClassRightNameUpdate,domainUID));
+          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.update role');
+
+          role := CreateClassRole('fetch','Fetch ' + ClassName,'Allowed to fetch ' + ClassName + ' objects');
+          role.AddRight(GetRight4Domain(GetClassRightNameFetch,domainUID));
+          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.fetch role');
+        end
+    end;
+end;
+
 function TFRE_DB_Base.Implementor_HC: TObject;
 begin
   if assigned(FMediatorExtention) then begin
@@ -6297,30 +6330,13 @@ begin
 end;
 
 class procedure TFRE_DB_Base.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
-var
-  role: IFRE_DB_ROLE;
 begin
-  if not (self.ClassType=TFRE_DB_ObjectEx) then
-    begin
-      if currentVersionId='' then // Initial Install
-        begin
-          role := CreateClassRole('store','Store ' + ClassName,'Allowed to store new ' + ClassName + ' objects');
-          role.AddRight(GetRight4Domain(GetClassRightNameStore,domainUID));
-          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.store role');
+  _InstallDBObjects4Domain(conn,currentVersionId,domainUID);
+end;
 
-          role := CreateClassRole('delete','Delete ' + ClassName,'Allowed to delete ' + ClassName + ' objects');
-          role.AddRight(GetRight4Domain(GetClassRightNameDelete,domainUID));
-          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.delete role');
-
-          role := CreateClassRole('update','Update ' + ClassName,'Allowed to edit ' + ClassName + ' objects');
-          role.AddRight(GetRight4Domain(GetClassRightNameUpdate,domainUID));
-          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.update role');
-
-          role := CreateClassRole('fetch','Fetch ' + ClassName,'Allowed to fetch ' + ClassName + ' objects');
-          role.AddRight(GetRight4Domain(GetClassRightNameFetch,domainUID));
-          CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.fetch role');
-        end
-    end;
+class procedure TFRE_DB_Base.InstallDBObjects4SysDomain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+begin
+  _InstallDBObjects4Domain(conn,currentVersionId,domainUID);
 end;
 
 class procedure TFRE_DB_Base.InstallUserDBObjects(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType);
@@ -6329,6 +6345,11 @@ begin
 end;
 
 class procedure TFRE_DB_Base.InstallUserDBObjects4Domain(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+begin
+
+end;
+
+class procedure TFRE_DB_Base.InstallUserDBObjects4SysDomain(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
 begin
 
 end;
