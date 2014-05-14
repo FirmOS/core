@@ -129,7 +129,7 @@ type
     procedure       SetupApplicationStructure     ; override;
 
     class procedure  InstallDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;  { system specific data inits go here}
-    class procedure  InstallDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;                   { system domain specific data inits go here}
+    class procedure  InstallDBObjects4SysDomain  (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;                   { system domain specific data inits go here}
     class procedure  InstallUserDBObjects        (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); override;                                         { app db specific data inits goes here }
     class procedure  InstallUserDBObjects4Domain (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID); override;                       { app db domain specific data inits goes here }
 
@@ -2311,7 +2311,7 @@ begin
 end;
 
 
-class procedure TFRE_DB_TEST_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+class procedure TFRE_DB_TEST_APP.InstallDBObjects4SysDomain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
 var group : IFRE_DB_GROUP;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
@@ -2324,45 +2324,6 @@ begin
         TFRE_DB_TEST_APP.GetClassRoleNameFetch
         )),'could not add roles for group TESTFEEDER');
     end;
-
-
-  //admin_app_role  := _CreateAppRole('ADMIN','TESTAPP ADMIN','Test App Administration Rights');
-  //user_app_role   := _CreateAppRole('USER','TESTAPP USER','Test App Default User Rights');
-  //guest_app_role  := _CreateAppRole('GUEST','TESTAPP GUEST','Test App Default Guest User Rights');
-
-  //_AddAppRight(admin_app_role ,'ADMIN');
-  //_AddAppRight(user_app_role  ,'START');
-  //
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['grid']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['grid2']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['chart']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['live_chart']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['vmcontroller']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['tgf']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['edit']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['formtest']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['allgrid']));
-  //_AddAppRightModules(user_app_role,GFRE_DBI.ConstructStringArray(['feedbrowser']));
-  //
-  //_AddAppRight(guest_app_role ,'START'); // Guests are allowed to START the app
-  //_AddAppRightModules(guest_app_role,GFRE_DBI.ConstructStringArray(['welcome']));
-  //
-  //conn.StoreRole(admin_app_role,ObjectName,domain);
-  //conn.StoreRole(user_app_role,ObjectName,domain);
-  //conn.StoreRole(guest_app_role,ObjectName,domain);
-  //
-
-//   conn.NewGroup('TESTAPPADMIN','Admin Group for the testapp','Testapp Admins',domainUID,group);
-
-
-  //conn.AddAppGroup(ObjectName,'USER'+'@'+domain,ObjectName+' UG',ObjectName+' User');  // DEMONSTRATION GROUPS -> make your own in your App
-  //conn.AddAppGroup(ObjectName,'ADMIN'+'@'+domain,ObjectName+' AG',ObjectName+' Admin');
-  //conn.AddAppGroup(ObjectName,'GUEST'+'@'+domain,ObjectName+' GG',ObjectName+' Guest');
-  //
-  //conn.AddGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'USER'+'@'+domain)));
-  //conn.AddGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'GUEST'+'@'+domain)));
-  //conn.AddGroupRoles(Get_Groupname_App_Group_Subgroup(ObjectName,'ADMIN'+'@'+domain));
-
 end;
 
 class procedure TFRE_DB_TEST_APP.InstallUserDBobjects(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType);
