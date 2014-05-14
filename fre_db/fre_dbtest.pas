@@ -259,6 +259,7 @@ type
   published
     procedure MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     function  WEB_ToggleUpdates         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_CollectionUpdates     (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_HelloWorld            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_OpenFIRMOS            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -2171,11 +2172,12 @@ procedure TFRE_DB_TEST_APP_GRID_MOD.PRC_UPDATE_TASK(const ses: IFRE_DB_Usersessi
 var
   res          : TFRE_DB_UPDATE_STORE_DESC;
   entry        : IFRE_DB_Object;
-  DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
+  Grid_Long    : IFRE_DB_COLLECTION;
   k            : integer;
   cnt          : integer;
 begin
-  DC_Grid_Long := ses.FetchDerivedCollection('COLL_TEST_A_DERIVED');
+  Grid_Long := ses.GetDBConnection.GetCollection('COLL_TEST_A');
+
   cnt := ses.GetSessionModuleData(Classname).Field('BLAST_CNT').AsInt32;
   dec(cnt);
   ses.GetSessionModuleData(Classname).Field('BLAST_CNT').AsInt32 := cnt;
@@ -2185,13 +2187,13 @@ begin
       ses.RemoveTaskMethod('GRID_BLAST');
       ses.GetSessionModuleData(ClassName).Field('BLAST').AsBoolean := false;
     end;
-  k := DC_Grid_Long.ItemCount;
-  if k>0 then begin
-    entry := DC_Grid_Long.GetItem(random(k));
-    entry.Field('number').AsUInt32 := random(1000);
+  k := Grid_Long.ItemCount;
+  if k>0 then begin { manual virtual update }
+    entry := Grid_Long.GetItem(random(k));
+    entry.Field('number').AsUInt32    := random(1000);
     entry.Field('number_pb').AsUInt32 := random(1000);
-    res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(DC_Grid_Long.CollectionName);
-    res.addUpdatedEntry(entry);
+    res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe('COLL_TEST_A_DERIVED');
+    res.addUpdatedEntry(entry); {in this special case, the icon is in a calculated field, the theming is in the transformation, the entry gets cloned, NO WAY TO FIX THE BAD ICON (!) }
     ses.SendServerClientRequest(res);
   end;
 end;
@@ -2251,6 +2253,25 @@ begin
   result := GFRE_DB_NIL_DESC;
 end;
 
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_CollectionUpdates(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res          : TFRE_DB_UPDATE_STORE_DESC;
+  entry        : IFRE_DB_Object;
+  Grid_Long    : IFRE_DB_COLLECTION;
+  k            : integer;
+  cnt          : integer;
+begin
+  result := GFRE_DB_NIL_DESC;
+  Grid_Long := ses.GetDBConnection.GetCollection('COLL_TEST_A');
+  k := Grid_Long.ItemCount;
+  if k>0 then begin { manual virtual update }
+    entry := Grid_Long.GetItem(random(k));
+    entry.Field('number').AsUInt32 := random(1000);
+    entry.Field('number_pb').AsUInt32 := random(1000);
+    Grid_Long.Update(entry);
+  end;
+end;
+
 function TFRE_DB_TEST_APP_GRID_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var lvd_Grid     : TFRE_DB_VIEW_LIST_DESC;
     DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
@@ -2264,9 +2285,10 @@ begin
   lvd_Grid.AddButton.Describe(CWSF(@WEB_Dialog),'images_apps/test/add.png','Dialog');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_ReadOnlyDialog),'images_apps/test/add.png','Read only Dialog');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_ChangeData),'images_apps/test/add.png','Change Dataset');
-  lvd_Grid.AddButton.Describe(CWSF(@WEB_ToggleUpdates),'images_apps/test/add.png','ToggleUpdates');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_ToggleUpdates),'images_apps/test/add.png','ManualUpdate');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_SendADialog),'images_apps/test/add.png','ServerClientDialog');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_WaitMessage),'images_apps/test/add.png','Wait Message');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_CollectionUpdates),'images_apps/test/add.png','CollectionUpdate');
   result := lvd_Grid;
 end;
 
@@ -2626,12 +2648,13 @@ var    lstatus_icon : TFRE_DB_String;
 begin
   lstatus    := Field('status').AsString;
   case lstatus of
-    'OK'      : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_ok.png');
-    'WARNING' : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_warning.png');
-    'FAILURE' : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_failure.png');
-    'UNKNOWN' : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_unknown.png');
-    'NEW'     : lstatus_icon := FREDB_getThemedResource('images_apps/test/signal_unknown.png');
-    else raise EFRE_DB_Exception.Create(edb_ERROR,'UNKNOWN ENUM FIELD VALUE SiGNaL Status');
+    'OK'      : lstatus_icon := 'images_apps/test/signal_ok.png';
+    'WARNING' : lstatus_icon := 'images_apps/test/signal_warning.png';
+    'FAILURE' : lstatus_icon := 'images_apps/test/signal_failure.png';
+    'UNKNOWN' : lstatus_icon := 'images_apps/test/signal_unknown.png';
+    'NEW'     : lstatus_icon := 'images_apps/test/signal_unknown.png';
+    else
+      lstatus_icon := 'images_apps/test/signal_unknown.png';//raise EFRE_DB_Exception.Create(edb_ERROR,'UNKNOWN ENUM FIELD VALUE SiGNaL Status');
   end;
   calc.SetAsString(lstatus_icon);
 end;
@@ -2669,7 +2692,7 @@ begin
   CONN.Connect(dbname,'admin'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'admin');
 
   COLL := CONN.GetCollection('COLL_TEST_A');
-  for i := 0 to 5000 - 1 do begin
+  for i := 0 to 100 - 1 do begin // 5000
     if i mod 100=0 then writeln('ENDLESS A ',i);
     lobj := GFRE_DBI.NewObjectScheme(TFRE_DB_TEST_A);
     lobj.Field('number').AsUInt32:=i;

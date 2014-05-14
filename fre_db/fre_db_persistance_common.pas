@@ -5277,10 +5277,12 @@ end;
 
 function TFRE_DB_Persistance_Collection.First: IFRE_DB_Object;
 var obj : TFRE_DB_Object;
+
   procedure SetIt(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
   begin
     obj := TFRE_DB_Object(value);
   end;
+
 begin
  result := nil;
  obj    := nil;
@@ -5293,22 +5295,38 @@ end;
 
 function TFRE_DB_Persistance_Collection.Last: IFRE_DB_Object;
 var obj : TFRE_DB_Object;
+
   procedure SetIt(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
   begin
     obj := TFRE_DB_Object(value);
   end;
+
 begin
   result := nil;
+  obj    := nil;
   FGuidObjStore.LastKeyVal(@SetIt);
+  if assigned(obj) then
+    result := CloneOutObject(obj)
+  else
+    result := nil;
+ end;
+
+function TFRE_DB_Persistance_Collection.GetItem(const num: uint64): IFRE_DB_Object;
+var obj : TFRE_DB_Object;
+
+  procedure SetIt(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
+  begin
+    obj := TFRE_DB_Object(value);
+  end;
+
+begin
+ result := nil;
+ obj    := nil;
+ FGuidObjStore.ScanItemIdxKeyVal(num,@SetIt);
  if assigned(obj) then
    result := CloneOutObject(obj)
  else
    result := nil;
-end;
-
-function TFRE_DB_Persistance_Collection.GetItem(const num: uint64): IFRE_DB_Object;
-begin
-  abort;
 end;
 
 function TFRE_DB_Persistance_Collection.DefineIndexOnFieldReal(const checkonly: boolean; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_Errortype;

@@ -209,6 +209,8 @@ type
        procedure   LinearScanKeyVals       (const nested_node_proc : TFRE_ART_NodeCallback);
        function    FirstKeyVal             (const callback : TFRE_ART_NodeCallback):boolean;
        function    LastKeyVal              (const callback : TFRE_ART_NodeCallback):boolean;
+       procedure   ScanItemIdxKeyVal       (const idx:NativeInt ; const callback : TFRE_ART_NodeCallback);
+
 
        function    FirstKeyValString       (var key_string: String ; var out_val : PtrUInt) : Boolean;
        function    LastKeyValString        (var key_string: String ; var out_val : PtrUInt) : Boolean;
@@ -2083,6 +2085,30 @@ begin
   if result then
     with PFRE_ART_LeafNode(node)^ do
       callback(GetStoredValue^,GetStoredKey,GetStoredKeyLen);
+end;
+
+procedure TFRE_ART_TREE.ScanItemIdxKeyVal(const idx: NativeInt; const callback: TFRE_ART_NodeCallback);
+var node : PFRE_ART_Node;
+    cidx : NativeInt;
+    brk  : boolean;
+
+    procedure Scan(const node : PFRE_ART_Node);
+    begin
+      dec(cidx);
+      if cidx>0 then
+        exit;
+      brk:=true;
+      with PFRE_ART_LeafNode(node)^ do
+        callback(GetStoredValue^,GetStoredKey,GetStoredKeyLen);
+    end;
+
+begin
+  if (idx<0) or
+     (idx>=FValueCount) then
+       raise Exception.Create('art tree, index out of range');
+  cidx := idx;
+  brk  := false;
+  ForAllNodeLeafs(FArtTree,@Scan,brk);
 end;
 
 function TFRE_ART_TREE.FirstKeyValString(var key_string: String; var out_val: PtrUInt): Boolean;

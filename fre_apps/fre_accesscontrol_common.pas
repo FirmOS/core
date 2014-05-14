@@ -2061,9 +2061,14 @@ begin
       domain_guid := selObj.Field('DOMAINIDLINK').AsGUID;
       selObj.Finalize;
       dc_groupout := ses.FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
-      dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
+      dc_groupout.RemoveFilter('*domain*');
+      //dc_groupout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
+      //dc_groupout.AddUIDFieldFilter('*domain*','DOMAINID',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
+      dc_groupout.AddUIDFieldFilter('*domain*','DOMAINID',[domain_guid],dbnf_EXACT);
       dc_roleout  := ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
-      dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
+      dc_roleout.RemoveFilter('*domain*');
+      //dc_roleout.AddUIDFieldFilter('*domain*','DOMAINIDLINK',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
+      dc_roleout.AddUIDFieldFilter('*domain*','DOMAINID',TFRE_DB_GUIDArray.Create(domain_guid),dbnf_EXACT);
     end else begin
       ses.GetSessionModuleData(ClassName).DeleteField('selectedUsers');
     end;

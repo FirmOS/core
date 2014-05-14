@@ -1573,14 +1573,10 @@ type
     FDependencyRef     : TFRE_DB_StringArray;     { Array of inbound dependencies (usually one) }
     FParentIds         : TFRE_DB_GUIDArray;
 
-    //FDependencyObject  : IFRE_DB_Object;
-    //FDepObjectList     : TFRE_DB_GUIDArray;   // Must be extended to an array of ... (FDependencyRef ..)
-
     FUseDepAsLinkFilt  : Boolean;
     FUseDepFiltInvert  : Boolean;
     FSelectionDepEvents: Array of TFRE_DB_SelectionDependencyEvents;
 
-    FSubscribeReflinkModeObserverTo : IFRE_DB_COLLECTION;
 
     FParentChldLinkFldSpec : TFRE_DB_NameTypeRL;
 
@@ -1590,19 +1586,8 @@ type
 
     FObserverAdded     : Boolean;
 
-    FExpandedRefs      : TFRE_DB_ObjectArray;
-
-    FDBOList           : TFRE_DB_SortTree;  // Link to
-
     FParentCollection  : IFRE_DB_COLLECTION;
     FIdField           : String;
-
-    FFilters           : TFRE_DB_Object;
-    FFiltersTrans      : TFRE_DB_Object;
-
-    //FOrders            : TFRE_DB_Object;
-    //FOrdersTrans       : TFRE_DB_Object;
-    //FOrderDef          : Array of TFRE_DB_OrderDef;
 
     FTransform         : TFRE_DB_TRANSFORMOBJECT;  //Links to Parent DC in Parent DC Mode
     FitemMenuFunc      : TFRE_DB_SERVER_FUNC_DESC;
@@ -1619,7 +1604,6 @@ type
     FTreeNodeIconField : TFRE_DB_String;
     FGatherUpdateList  : TFRE_DB_UPDATE_STORE_DESC; // Collects Updates between Start and End
 
-    //FCurrentStrFilters     : TFRE_DB_DC_STRINGFIELDKEY_LIST;
     FDefaultOrderField     : TFRE_DB_NameType;
     FDefaultOrderAsc       : Boolean;
 
@@ -1642,19 +1626,12 @@ type
     procedure       FinishUpdateGathering       (const sendupdates : Boolean);
     procedure       _AddToTransformedCollection (item:IFRE_DB_Object;const send_client_notify:boolean=false;const update_data:boolean=false;const child_call : boolean=false ; const parentid:string='' ; const disable_filter : boolean =false);
 
-    function        _CheckUIDExists(obj_uid : TGuid) : Boolean;
+    //function        _CheckUIDExists(obj_uid : TGuid) : Boolean;
 
 
     procedure   InternalSetup                ; override;
-    procedure   _FilterIt                    (const childcall : boolean);
-    function    _CompareObjects              (const ob1,ob2 : TFRE_DB_Object):NativeInt;
     function    _DeleteFilterkey             (const filter_key:TFRE_DB_String;const on_transform:boolean):TFRE_DB_Errortype;
 
-    //function   _Get_DC_StringfieldKeys       (const input:IFRE_DB_Object):TFRE_DB_DC_STRINGFIELDKEY_LIST;
-    function   _Get_DC_ReferenceList         (const input:IFRE_DB_Object):TFRE_DB_GUIDArray;
-    function   _Get_DC_QueryID               (const input:IFRE_DB_Object):String;
-
-    procedure  DC_SetFilters_From_Input      (const filter_defs:TFRE_DB_Object);
     procedure  ForAllI                       (const func:IFRE_DB_Obj_Iterator);
     procedure  _CheckDepRefConstraint        ;
     procedure  MustBeInitialized             ;
@@ -1690,10 +1667,10 @@ type
     //@ filterkey = ID of the Filter / field_name : on which field the filter works / filtertype: how the filter works / on_transform : true = work after transformation / on_filter_field : true = filter works on a transform filter field which is not in the output
 
 
-    function   AddStringFieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_StringArray;const filtertype:TFRE_DB_STR_FILTERTYPE):TFRE_DB_Errortype;
+    function   AddStringFieldFilter          (const filter_key,field_name:TFRE_DB_String;const value :TFRE_DB_String;const filtertype:TFRE_DB_STR_FILTERTYPE):TFRE_DB_Errortype;
     function   AddBooleanFieldFilter         (const filter_key,field_name:TFRE_DB_String;const value :Boolean):TFRE_DB_Errortype;
-    function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_GUIDArray     ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE):TFRE_DB_Errortype;
-    function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:TFRE_DB_StringArray   ;const negate:boolean=false):TFRE_DB_Errortype;
+    function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:Array of TFRE_DB_GUID ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE):TFRE_DB_Errortype;
+    function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:Array of TFRE_DB_String;const negate:boolean=false):TFRE_DB_Errortype;
     function   RemoveFilter                  (const filter_key           :TFRE_DB_String):TFRE_DB_Errortype;
 
     //// Add a UID Field Filter | Match types : dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter
@@ -1728,8 +1705,6 @@ type
     function   GetItem                 (const num:uint64):IFRE_DB_Object; override;
     function   Fetch                   (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;override; deprecated;  //Directly fetch in the Parent, or use a temp Collection as Parent.
     procedure  RemoveAllEntries        ;
-
-    procedure  ApplyToData             (const iterator:TFRE_DB_Obj_Iterator);
 
     function   GetStoreDescription        : TFRE_DB_CONTENT_DESC;
     function   getDescriptionStoreId      : String;
@@ -2497,8 +2472,6 @@ type
 
   OFRE_DB_ConnectionArr  = specialize OGFOS_Array<TFRE_DB_CONNECTION>;
 
-  function  RB_Sort_CompareEx  (const a,b : TFRE_DB_Object ; const DP : Pointer):NativeInt;
-
   operator = (a,b:TGUID) c:boolean;
 
   procedure Init4Server;
@@ -2538,10 +2511,10 @@ implementation
     end;
   end;
 
-  function RB_Sort_CompareEx(const a, b: TFRE_DB_Object ; const DP:Pointer): NativeInt;
-  begin
-    result := TFRE_DB_DERIVED_COLLECTION(DP)._CompareObjects(a,b);
-  end;
+  //function RB_Sort_CompareEx(const a, b: TFRE_DB_Object ; const DP:Pointer): NativeInt;
+  //begin
+  //  result := TFRE_DB_DERIVED_COLLECTION(DP)._CompareObjects(a,b);
+  //end;
 
   operator=(a, b: TGUID)c: boolean;
   begin
@@ -6157,18 +6130,18 @@ var not_object : IFRE_DB_Object;
       end;
 
     begin
-      if FTransform.IsReflinkSpecRelevant(key_description) then
-        begin
-          FInitialDerived := false;
-          if FDBOList.ForAllNodesBrk(@FindItem) then
-            begin
-              FInitialDerived := false;
-              if FConnection.FetchI(to_uid,up_obj)=edb_OK then
-                begin
-                  _AddToTransformedCollection(up_obj.Implementor as TFRE_DB_Object,true,true,false,'',true);
-                end;
-            end;
-        end;
+      //if FTransform.IsReflinkSpecRelevant(key_description) then
+      //  begin
+      //    FInitialDerived := false;
+      //    if FDBOList.ForAllNodesBrk(@FindItem) then
+      //      begin
+      //        FInitialDerived := false;
+      //        if FConnection.FetchI(to_uid,up_obj)=edb_OK then
+      //          begin
+      //            _AddToTransformedCollection(up_obj.Implementor as TFRE_DB_Object,true,true,false,'',true);
+      //          end;
+      //      end;
+      //  end;
     end;
 
   begin
@@ -6251,12 +6224,12 @@ begin //nl
         //end;
     end;
     fdbntf_DELETE: begin
-      if _CheckUIDExists(obj_uid) then begin
-        if assigned(FSession) then begin
-          DeleteRecord;
-        end;
-        FInitialDerived := false; // Force rebuild
-      end;
+      //if _CheckUIDExists(obj_uid) then begin
+      //  if assigned(FSession) then begin
+      //    DeleteRecord;
+      //  end;
+      //  FInitialDerived := false; // Force rebuild
+      //end;
     end;
     fdbntf_COLLECTION_RELOAD: begin
       FInitialDerived := false;
@@ -6338,625 +6311,450 @@ var i                 : Integer;
     use_filter_fields : boolean;
     revItemIsPrevious : Boolean;
 
-    function Filter(const fob_f:TFRE_DB_FIELD):boolean;
-    var fob             : TFRE_DB_Object;
-        fieldname       : TFRE_DB_String;
-        filter_fld_type : TFRE_DB_FIELDTYPE;
-        str_filtertype  : TFRE_DB_STR_FILTERTYPE;
-        filterkey       : string;
-
-        procedure GenericNumericFilter;
-        var num_filt_typ    : TFRE_DB_NUM_FILTERTYPE;
-            guid_filt_vals  : TFRE_DB_GUIDArray;
-            guid_field_vals : TFRE_DB_GUIDArray;
-            bool_field_vals : TFRE_DB_BoolArray;
-            bool_filt_vals  : TFRE_DB_BoolArray;
-            i,j             : integer;
-
-            procedure _FieldTypeCheck;
-            begin
-              if target_field_type<>filter_fld_type then raise EFRE_DB_Exception.Create(edb_ERROR,'NUMERICFILTER REQUESTED FILTER ON A [%s] FIELD BUT TARGETFIELD [%s] IS OF TYPE [%s]',[CFRE_DB_FIELDTYPE[filter_fld_type],fieldname,CFRE_DB_FIELDTYPE[target_field_type]]);
-            end;
-
-        begin
-          add := true;
-          num_filt_typ := FREDB_String2NumfilterType(fob.Field('FT').AsString);
-          case filter_fld_type of
-            fdbft_GUID: begin
-                           if (target_field_type<>fdbft_GUID) and (target_field_type<>fdbft_ObjLink) then raise EFRE_DB_Exception.Create(edb_ERROR,'NUMERICFILTER REQUESTED FILTER ON A [%s] FIELD BUT TARGETFIELD [%s] IS OF TYPE [%s]',[CFRE_DB_FIELDTYPE[filter_fld_type],fieldname,CFRE_DB_FIELDTYPE[target_field_type]]);
-                           guid_filt_vals  := fob.Field('FV').AsGUIDArr;
-                           if target_field_type=fdbft_ObjLink then begin
-                             guid_field_vals := iob.Field(fieldname).AsObjectLinkArray;
-                           end else begin
-                             guid_field_vals := iob.Field(fieldname).AsGUIDArr;
-                           end;
-                           //writeln('UIDFIELD: ',fieldname,'KEY: ',filterkey,' FILTER: ',FREDB_GuidArray2String(guid_filt_vals),' FIELD :',FREDB_GuidArray2String(guid_field_vals));
-                           case num_filt_typ of
-                             dbnf_OneValueFromFilter: begin
-                                                        add := false;
-                                                        for i:=0 to high(guid_field_vals) do begin
-                                                          for j:=0 to high(guid_filt_vals) do begin
-                                                            if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
-                                                              add := true;
-                                                              exit;
-                                                            end;
-                                                          end;
-                                                        end;
-                                                      end;
-                             //dbnf_NoValueInFilter:    begin
-                             //                           add := true;
-                             //                           if length(guid_filt_vals)=0 then
-                             //                             exit;
-                             //                           for i:=0 to high(guid_field_vals) do begin
-                             //                             for j:=0 to high(guid_filt_vals) do begin
-                             //                               if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
-                             //                                 add := false;
-                             //                                 exit;
-                             //                               end;
-                             //                             end;
-                             //                           end;
-                             //                         end;
-                             dbnf_EXACT: begin
-                                           add := true;
-                                           if Length(guid_field_vals) <> Length(guid_filt_vals) then begin
-                                             add:=false;
-                                             exit;
-                                           end else begin
-                                             for i:=0 to high(guid_filt_vals) do begin
-                                               if not FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[i]) then begin
-                                                 add:=false;
-                                                 exit;
-                                               end;
-                                             end;
-                                           end;
-                                         end;
-                             else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNSUPPORTED NUM FILTER TYPE ON GUID FIELD');
-                           end;
-                        end;
-            fdbft_Byte: ;
-            fdbft_Int16: ;
-            fdbft_UInt16: ;
-            fdbft_Int32: ;
-            fdbft_UInt32: ;
-            fdbft_Int64: ;
-            fdbft_UInt64: ;
-            fdbft_Real32: ;
-            fdbft_Real64: ;
-            fdbft_Currency: ;
-            fdbft_Boolean:
-                           begin
-                               case num_filt_typ of
-                                 dbnf_EXACT:
-                                 //dbnf_EXACT_NEGATED:
-                                                begin
-                                                  add := true;
-                                                  bool_filt_vals  := fob.Field('FV').AsBooleanArr;
-                                                  bool_field_vals := iob.Field(fieldname).AsBooleanArr;
-                                                  if Length(bool_filt_vals)<>Length(bool_field_vals) then
-                                                    add := false;
-                                                  if add then
-                                                    for i:=0 to high(bool_filt_vals) do begin
-                                                      if not (bool_field_vals[i]=bool_filt_vals[i]) then begin
-                                                        add:=false;
-                                                        break;
-                                                      end;
-                                                    end;
-                                                  //if num_filt_typ=dbnf_EXACT_NEGATED then
-                                                  //  add := not add;
-                                                end;
-                                   else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNSUPPORTED NUM FILTER TYPE ON BOOLEAN FIELD');
-                               end;
-                           end;
-            fdbft_DateTimeUTC: ;
-          end;
-        end;
-
-        procedure StringFieldFilter;  //TODO:Array Filter
-        var filtval : TFRE_DB_String;
-        begin
-          add := true;
-          filtval         := fob.Field('FV').AsString;
-          str_filtertype  := FREDB_String2StrFilterType(fob.Field('FT').AsString);
-          fieldval   := iob.Field(fieldname).AsString;
-          case str_filtertype of
-            dbft_EXACT:      add := AnsiContainsText(fieldval,filtval) and (length(fieldval)=length(filtval));
-            dbft_PART:       add := AnsiContainsText(fieldval,filtval);
-            dbft_STARTPART:  add := AnsiStartsText(fieldval,filtval);
-            dbft_ENDPART:    add := AnsiEndsText(fieldval,filtval);
-          end;
-        end;
-
-        procedure SchemeFilter;
-        var filtval : String;
-            negate  : boolean;
-        begin
-          add     := true;
-          filtval := fob.Field('FV').AsString;
-          negate  := fob.Field('NEG').AsBoolean;
-          add     := uppercase(iob.SchemeClass)=uppercase(filtval);
-          if negate then add := not add;
-        end;
-
-        procedure RightFilter;
-        var right          : String;
-            fieldnameforid : TFRE_DB_NameType;
-        begin
-          right          := fob.Field('FV').AsString;
-          fieldnameforid := fob.Field('FN').AsString;
-          if fieldnameforid='' then
-            begin
-              //right := FREDB_Get_Rightname_UID(right,iob.UID);
-              //add   := FConnection.InternalCheckRight(right);
-              add := true;
-            end
-          else
-            begin
-              //if iob.FieldExists(fieldnameforid) then
-                begin
-                  //right := FREDB_Get_Rightname_UID(right,iob.Field(fieldnameforid).AsGUID);
-                  add   := true;//  result := GetEmbeddingApp.FetchAppText(conn,GetDescrTranslationKey);
-
-                  //abort;
-                end
-              //else
-              //  add := false;  //TODO: Think if an exception is maybe better ??
-            end;
-        end;
-
-    begin
-     result := false;
-     if fob_f.FieldType<>fdbft_Object then exit;
-     fob    := fob_f.AsObject;
-     if fob.Field('FF').AsBoolean<>use_filter_fields then exit; // Is this a Filterfieldpass (Filterfields are processed seperately)?
-     fieldname       := fob.Field('FN').AsString;
-     filterkey       := fob_f.FieldName;
-     case fob.Field('T').AsString of
-       'RFU'  : begin
-                 RightFilter;
-                 if add then exit(true);
-               end;
-       'SCH' : begin
-                 SchemeFilter;
-                 if add=false then exit(true);
-               end;
-       'SFF' : begin
-                 filter_fld_type := FREDB_FieldtypeShortString2Fieldtype(fob.Field('TR').AsString);
-                 if not iob.FieldExists(fieldname) then begin
-                   raise EFRE_DB_Exception.Create(edb_ERROR,'THE FILTERFIELD [%s] WAS NOT FOUND WHILE DERIVING [%s]',[fieldname,CollectionName]);
-                 end;
-                 target_field_type := iob.Field(fieldname).FieldType;
-                 StringFieldFilter;
-                 if add=false then exit(true); // break
-               end;
-       'GFF' : begin
-                 filter_fld_type := FREDB_FieldtypeShortString2Fieldtype(fob.Field('TR').AsString);
-                 if not iob.FieldExists(fieldname) then begin
-                   raise EFRE_DB_Exception.Create(edb_ERROR,'THE FILTERFIELD [%s] WAS NOT FOUND WHILE DERIVING [%s]',[fieldname,CollectionName]);
-                 end;
-                 target_field_type := iob.Field(fieldname).FieldType;
-                 GenericNumericFilter;
-                 //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'    *LEFT GFF (%s) add=[%s]',[filterkey,FREDB_Bool2String(add)]);
-                 if add=false then exit(true);
-               end;
-       else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNEXPECTED FILTERTYPE IN DERIVED COLLECTION [%s]',[CollectionName]);
-     end;
-    end;
-
-    procedure SendClientUpdate(const tr_obj:TFRE_DB_Object;const parentid:string='');
-    var
-        tr2 : TFRE_DB_Object;
-        dum : boolean;
-        ups : String;
-        tr_parent : TFRE_DB_Object;
-
-
-        procedure  Chartupdate;
-        var fct   : TFRE_DB_CHART_TRANSFORM;
-            i     : integer;
-            entry : IFRE_DB_Object;
-        begin
-          fct := FTransform as TFRE_DB_CHART_TRANSFORM;
-          for i:=0 to  high(fct.FseriesFieldNames) do begin // Send updates for all series values
-            entry:=GFRE_DBI.NewObject;
-            entry.Field('uid').AsGUID     := tr_obj.Field(fct.FseriesFieldNames[i]+'_uid').AsGUID;
-            entry.Field('value').AsReal32 := tr_obj.Field(fct.FseriesFieldNames[i]).AsReal32;
-            FGatherUpdateList.addUpdatedEntry(entry);
-          end;
-        end;
-
-        function  FindParent(const Item : TFRE_DB_Object ; const bool:boolean):boolean;
-        begin
-          if item.UID_String=parentid then
-            begin
-              result := true;
-              tr_parent := item;
-            end
-          else
-            result := false;
-        end;
-
-    begin
-      if update_data then begin
-        case FDisplaytype of
-          cdt_Invalid : raise EFRE_DB_Exception.Create(edb_ERROR,'invvalid derived collection displaytype');
-          cdt_Listview,
-          cdt_Treeview: FGatherUpdateList.addUpdatedEntry(tr_obj);
-          cdt_Chartview: ChartUpdate;
-        end;
-      end else begin
-                //TODO Check if in any PAGESET / CURSOR / OPEN RESULTSET
-        ups := First.UID_String;
-        tr2 := tr_obj;
-        if FDBOList.FindPrev(tr2,dum) then begin
-          ups    := tr2.UID_String;
-          revItemIsPrevious := true;
-        end else
-        if FDBOList.FindNext(tr2,dum) then begin
-          ups    := tr2.UID_String;
-          revItemIsPrevious := False;
-        end else
-          begin
-            ups := '';
-          end;
-        ups := ''; { FIXXME }
-        FGatherUpdateList.addNewEntry(tr_obj,ups,parentid,revItemIsPrevious);
-        tr_parent := nil;
-        if (parentid<>'') then
-          if FDBOList.ForAllNodesBrk(@FindParent) then
-              if assigned(tr_parent) then
-                begin
-                  tr_parent.Field('children').AsString := 'UNCHECKED';
-                  FGatherUpdateList.addUpdatedEntry(tr_parent);
-               end;
-      end;
-    end;
-
-    var fld : IFRE_DB_FIELD;
-
-begin
-  iob := item;
-  add := true;
-  if (cdgf_Children in FGridDisplayFlags)
-    and (not child_call) then
-      begin
-        if item.FieldOnlyExisting(FParentChildField,fld) then
-          begin
-            if fld.ValueCount>0 then
-              exit;
-          end;
-      end;
-
-  use_filter_fields:=false;
-  if not disable_filter then
-    FFilters.ForAllBrk(@Filter);
-  if add then begin
-    tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,item);
-    iob    := tr_obj;
-    use_filter_fields:=false;
-    if not disable_filter then
-      FFiltersTrans.ForAllBrk(@Filter);
-    //if FTransform.HasFilterFields then begin
-    //  use_filter_fields:=true;
-    //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
-    //  FFilters.ForAllBrk(@Filter);
-    //  iob.Finalize;
+    //function Filter(const fob_f:TFRE_DB_FIELD):boolean;
+    //var fob             : TFRE_DB_Object;
+    //    fieldname       : TFRE_DB_String;
+    //    filter_fld_type : TFRE_DB_FIELDTYPE;
+    //    str_filtertype  : TFRE_DB_STR_FILTERTYPE;
+    //    filterkey       : string;
+    //
+    //    procedure GenericNumericFilter;
+    //    var num_filt_typ    : TFRE_DB_NUM_FILTERTYPE;
+    //        guid_filt_vals  : TFRE_DB_GUIDArray;
+    //        guid_field_vals : TFRE_DB_GUIDArray;
+    //        bool_field_vals : TFRE_DB_BoolArray;
+    //        bool_filt_vals  : TFRE_DB_BoolArray;
+    //        i,j             : integer;
+    //
+    //        procedure _FieldTypeCheck;
+    //        begin
+    //          if target_field_type<>filter_fld_type then raise EFRE_DB_Exception.Create(edb_ERROR,'NUMERICFILTER REQUESTED FILTER ON A [%s] FIELD BUT TARGETFIELD [%s] IS OF TYPE [%s]',[CFRE_DB_FIELDTYPE[filter_fld_type],fieldname,CFRE_DB_FIELDTYPE[target_field_type]]);
+    //        end;
+    //
+    //    begin
+    //      add := true;
+    //      num_filt_typ := FREDB_String2NumfilterType(fob.Field('FT').AsString);
+    //      case filter_fld_type of
+    //        fdbft_GUID: begin
+    //                       if (target_field_type<>fdbft_GUID) and (target_field_type<>fdbft_ObjLink) then raise EFRE_DB_Exception.Create(edb_ERROR,'NUMERICFILTER REQUESTED FILTER ON A [%s] FIELD BUT TARGETFIELD [%s] IS OF TYPE [%s]',[CFRE_DB_FIELDTYPE[filter_fld_type],fieldname,CFRE_DB_FIELDTYPE[target_field_type]]);
+    //                       guid_filt_vals  := fob.Field('FV').AsGUIDArr;
+    //                       if target_field_type=fdbft_ObjLink then begin
+    //                         guid_field_vals := iob.Field(fieldname).AsObjectLinkArray;
+    //                       end else begin
+    //                         guid_field_vals := iob.Field(fieldname).AsGUIDArr;
+    //                       end;
+    //                       //writeln('UIDFIELD: ',fieldname,'KEY: ',filterkey,' FILTER: ',FREDB_GuidArray2String(guid_filt_vals),' FIELD :',FREDB_GuidArray2String(guid_field_vals));
+    //                       case num_filt_typ of
+    //                         dbnf_OneValueFromFilter: begin
+    //                                                    add := false;
+    //                                                    for i:=0 to high(guid_field_vals) do begin
+    //                                                      for j:=0 to high(guid_filt_vals) do begin
+    //                                                        if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
+    //                                                          add := true;
+    //                                                          exit;
+    //                                                        end;
+    //                                                      end;
+    //                                                    end;
+    //                                                  end;
+    //                         //dbnf_NoValueInFilter:    begin
+    //                         //                           add := true;
+    //                         //                           if length(guid_filt_vals)=0 then
+    //                         //                             exit;
+    //                         //                           for i:=0 to high(guid_field_vals) do begin
+    //                         //                             for j:=0 to high(guid_filt_vals) do begin
+    //                         //                               if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
+    //                         //                                 add := false;
+    //                         //                                 exit;
+    //                         //                               end;
+    //                         //                             end;
+    //                         //                           end;
+    //                         //                         end;
+    //                         dbnf_EXACT: begin
+    //                                       add := true;
+    //                                       if Length(guid_field_vals) <> Length(guid_filt_vals) then begin
+    //                                         add:=false;
+    //                                         exit;
+    //                                       end else begin
+    //                                         for i:=0 to high(guid_filt_vals) do begin
+    //                                           if not FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[i]) then begin
+    //                                             add:=false;
+    //                                             exit;
+    //                                           end;
+    //                                         end;
+    //                                       end;
+    //                                     end;
+    //                         else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNSUPPORTED NUM FILTER TYPE ON GUID FIELD');
+    //                       end;
+    //                    end;
+    //        fdbft_Byte: ;
+    //        fdbft_Int16: ;
+    //        fdbft_UInt16: ;
+    //        fdbft_Int32: ;
+    //        fdbft_UInt32: ;
+    //        fdbft_Int64: ;
+    //        fdbft_UInt64: ;
+    //        fdbft_Real32: ;
+    //        fdbft_Real64: ;
+    //        fdbft_Currency: ;
+    //        fdbft_Boolean:
+    //                       begin
+    //                           case num_filt_typ of
+    //                             dbnf_EXACT:
+    //                             //dbnf_EXACT_NEGATED:
+    //                                            begin
+    //                                              add := true;
+    //                                              bool_filt_vals  := fob.Field('FV').AsBooleanArr;
+    //                                              bool_field_vals := iob.Field(fieldname).AsBooleanArr;
+    //                                              if Length(bool_filt_vals)<>Length(bool_field_vals) then
+    //                                                add := false;
+    //                                              if add then
+    //                                                for i:=0 to high(bool_filt_vals) do begin
+    //                                                  if not (bool_field_vals[i]=bool_filt_vals[i]) then begin
+    //                                                    add:=false;
+    //                                                    break;
+    //                                                  end;
+    //                                                end;
+    //                                              //if num_filt_typ=dbnf_EXACT_NEGATED then
+    //                                              //  add := not add;
+    //                                            end;
+    //                               else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNSUPPORTED NUM FILTER TYPE ON BOOLEAN FIELD');
+    //                           end;
+    //                       end;
+    //        fdbft_DateTimeUTC: ;
+    //      end;
+    //    end;
+    //
+    //    procedure StringFieldFilter;  //TODO:Array Filter
+    //    var filtval : TFRE_DB_String;
+    //    begin
+    //      add := true;
+    //      filtval         := fob.Field('FV').AsString;
+    //      str_filtertype  := FREDB_String2StrFilterType(fob.Field('FT').AsString);
+    //      fieldval   := iob.Field(fieldname).AsString;
+    //      case str_filtertype of
+    //        dbft_EXACT:      add := AnsiContainsText(fieldval,filtval) and (length(fieldval)=length(filtval));
+    //        dbft_PART:       add := AnsiContainsText(fieldval,filtval);
+    //        dbft_STARTPART:  add := AnsiStartsText(fieldval,filtval);
+    //        dbft_ENDPART:    add := AnsiEndsText(fieldval,filtval);
+    //      end;
+    //    end;
+    //
+    //    procedure SchemeFilter;
+    //    var filtval : String;
+    //        negate  : boolean;
+    //    begin
+    //      add     := true;
+    //      filtval := fob.Field('FV').AsString;
+    //      negate  := fob.Field('NEG').AsBoolean;
+    //      add     := uppercase(iob.SchemeClass)=uppercase(filtval);
+    //      if negate then add := not add;
+    //    end;
+    //
+    //    procedure RightFilter;
+    //    var right          : String;
+    //        fieldnameforid : TFRE_DB_NameType;
+    //    begin
+    //      right          := fob.Field('FV').AsString;
+    //      fieldnameforid := fob.Field('FN').AsString;
+    //      if fieldnameforid='' then
+    //        begin
+    //          //right := FREDB_Get_Rightname_UID(right,iob.UID);
+    //          //add   := FConnection.InternalCheckRight(right);
+    //          add := true;
+    //        end
+    //      else
+    //        begin
+    //          //if iob.FieldExists(fieldnameforid) then
+    //            begin
+    //              //right := FREDB_Get_Rightname_UID(right,iob.Field(fieldnameforid).AsGUID);
+    //              add   := true;//  result := GetEmbeddingApp.FetchAppText(conn,GetDescrTranslationKey);
+    //
+    //              //abort;
+    //            end
+    //          //else
+    //          //  add := false;  //TODO: Think if an exception is maybe better ??
+    //        end;
+    //    end;
+    //
+    //begin
+    // result := false;
+    // if fob_f.FieldType<>fdbft_Object then exit;
+    // fob    := fob_f.AsObject;
+    // if fob.Field('FF').AsBoolean<>use_filter_fields then exit; // Is this a Filterfieldpass (Filterfields are processed seperately)?
+    // fieldname       := fob.Field('FN').AsString;
+    // filterkey       := fob_f.FieldName;
+    // case fob.Field('T').AsString of
+    //   'RFU'  : begin
+    //             RightFilter;
+    //             if add then exit(true);
+    //           end;
+    //   'SCH' : begin
+    //             SchemeFilter;
+    //             if add=false then exit(true);
+    //           end;
+    //   'SFF' : begin
+    //             filter_fld_type := FREDB_FieldtypeShortString2Fieldtype(fob.Field('TR').AsString);
+    //             if not iob.FieldExists(fieldname) then begin
+    //               raise EFRE_DB_Exception.Create(edb_ERROR,'THE FILTERFIELD [%s] WAS NOT FOUND WHILE DERIVING [%s]',[fieldname,CollectionName]);
+    //             end;
+    //             target_field_type := iob.Field(fieldname).FieldType;
+    //             StringFieldFilter;
+    //             if add=false then exit(true); // break
+    //           end;
+    //   'GFF' : begin
+    //             filter_fld_type := FREDB_FieldtypeShortString2Fieldtype(fob.Field('TR').AsString);
+    //             if not iob.FieldExists(fieldname) then begin
+    //               raise EFRE_DB_Exception.Create(edb_ERROR,'THE FILTERFIELD [%s] WAS NOT FOUND WHILE DERIVING [%s]',[fieldname,CollectionName]);
+    //             end;
+    //             target_field_type := iob.Field(fieldname).FieldType;
+    //             GenericNumericFilter;
+    //             //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'    *LEFT GFF (%s) add=[%s]',[filterkey,FREDB_Bool2String(add)]);
+    //             if add=false then exit(true);
+    //           end;
+    //   else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNEXPECTED FILTERTYPE IN DERIVED COLLECTION [%s]',[CollectionName]);
+    // end;
     //end;
-    if add then begin
-      if cdgf_Children in FGridDisplayFlags then
-        begin
-          if FParentChildField<>'' then
-            begin
-              if (FConnection.GetReferencesCount(iob.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
-                begin
-                  tr_obj.Field('children').AsString        := 'UNCHECKED';
-                end;
-              tr_obj.Field('_menufunc_').AsString      := 'Menu';
-              tr_obj.Field('_contentfunc_').AsString   := 'Content';
-              if item.FieldOnlyExisting('icon',fld) then // icon in source
-                  tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
-            end
-          else
-            begin
-              // Non Reflink Child Parent Mode
-            end;
-        end;
-      if update_data then begin
-        FDBOList.Update(tr_obj,false);
-      end else begin
-        FDBOList.Add(tr_obj,false); // Sort;
-      end;
-      if send_client_notify and assigned(FGatherUpdateList) then begin
-        SendClientUpdate(tr_obj,parentid);
-      end;
-    end else begin
-      //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL REJECT [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
-    end;
-  end;
-end;
-
-function TFRE_DB_DERIVED_COLLECTION._CheckUIDExists(obj_uid: TGuid): Boolean;
-
-  function CheckUID(const Key :TFRE_DB_Object;const Item:boolean):boolean;
-  begin
-     result := FREDB_Guids_Same(Key.UID,obj_uid);
-  end;
+    //
+    //procedure SendClientUpdate(const tr_obj:TFRE_DB_Object;const parentid:string='');
+    //var
+    //    tr2 : TFRE_DB_Object;
+    //    dum : boolean;
+    //    ups : String;
+    //    tr_parent : TFRE_DB_Object;
+    //
+    //
+    //    procedure  Chartupdate;
+    //    var fct   : TFRE_DB_CHART_TRANSFORM;
+    //        i     : integer;
+    //        entry : IFRE_DB_Object;
+    //    begin
+    //      fct := FTransform as TFRE_DB_CHART_TRANSFORM;
+    //      for i:=0 to  high(fct.FseriesFieldNames) do begin // Send updates for all series values
+    //        entry:=GFRE_DBI.NewObject;
+    //        entry.Field('uid').AsGUID     := tr_obj.Field(fct.FseriesFieldNames[i]+'_uid').AsGUID;
+    //        entry.Field('value').AsReal32 := tr_obj.Field(fct.FseriesFieldNames[i]).AsReal32;
+    //        FGatherUpdateList.addUpdatedEntry(entry);
+    //      end;
+    //    end;
+    //
+    //    function  FindParent(const Item : TFRE_DB_Object ; const bool:boolean):boolean;
+    //    begin
+    //      if item.UID_String=parentid then
+    //        begin
+    //          result := true;
+    //          tr_parent := item;
+    //        end
+    //      else
+    //        result := false;
+    //    end;
+    //
+    //begin
+    //  if update_data then begin
+    //    case FDisplaytype of
+    //      cdt_Invalid : raise EFRE_DB_Exception.Create(edb_ERROR,'invvalid derived collection displaytype');
+    //      cdt_Listview,
+    //      cdt_Treeview: FGatherUpdateList.addUpdatedEntry(tr_obj);
+    //      cdt_Chartview: ChartUpdate;
+    //    end;
+    //  end else begin
+    //            //TODO Check if in any PAGESET / CURSOR / OPEN RESULTSET
+    //    ups := First.UID_String;
+    //    tr2 := tr_obj;
+    //    if FDBOList.FindPrev(tr2,dum) then begin
+    //      ups    := tr2.UID_String;
+    //      revItemIsPrevious := true;
+    //    end else
+    //    if FDBOList.FindNext(tr2,dum) then begin
+    //      ups    := tr2.UID_String;
+    //      revItemIsPrevious := False;
+    //    end else
+    //      begin
+    //        ups := '';
+    //      end;
+    //    ups := ''; { FIXXME }
+    //    FGatherUpdateList.addNewEntry(tr_obj,ups,parentid,revItemIsPrevious);
+    //    tr_parent := nil;
+    //    if (parentid<>'') then
+    //      if FDBOList.ForAllNodesBrk(@FindParent) then
+    //          if assigned(tr_parent) then
+    //            begin
+    //              tr_parent.Field('children').AsString := 'UNCHECKED';
+    //              FGatherUpdateList.addUpdatedEntry(tr_parent);
+    //           end;
+    //  end;
+    //end;
+    //
+    //var fld : IFRE_DB_FIELD;
 
 begin
-  result := FDBOList.ForAllNodesBrk(@CheckUID);
+  //iob := item;
+  //add := true;
+  //if (cdgf_Children in FGridDisplayFlags)
+  //  and (not child_call) then
+  //    begin
+  //      if item.FieldOnlyExisting(FParentChildField,fld) then
+  //        begin
+  //          if fld.ValueCount>0 then
+  //            exit;
+  //        end;
+  //    end;
+  //
+  //use_filter_fields:=false;
+  //if not disable_filter then
+  //  FFilters.ForAllBrk(@Filter);
+  //if add then begin
+  //  tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,item);
+  //  iob    := tr_obj;
+  //  use_filter_fields:=false;
+  //  if not disable_filter then
+  //    FFiltersTrans.ForAllBrk(@Filter);
+  //  //if FTransform.HasFilterFields then begin
+  //  //  use_filter_fields:=true;
+  //  //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
+  //  //  FFilters.ForAllBrk(@Filter);
+  //  //  iob.Finalize;
+  //  //end;
+  //  if add then begin
+  //    if cdgf_Children in FGridDisplayFlags then
+  //      begin
+  //        if FParentChildField<>'' then
+  //          begin
+  //            if (FConnection.GetReferencesCount(iob.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
+  //              begin
+  //                tr_obj.Field('children').AsString        := 'UNCHECKED';
+  //              end;
+  //            tr_obj.Field('_menufunc_').AsString      := 'Menu';
+  //            tr_obj.Field('_contentfunc_').AsString   := 'Content';
+  //            if item.FieldOnlyExisting('icon',fld) then // icon in source
+  //                tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
+  //          end
+  //        else
+  //          begin
+  //            // Non Reflink Child Parent Mode
+  //          end;
+  //      end;
+  //    if update_data then begin
+  //      FDBOList.Update(tr_obj,false);
+  //    end else begin
+  //      FDBOList.Add(tr_obj,false); // Sort;
+  //    end;
+  //    if send_client_notify and assigned(FGatherUpdateList) then begin
+  //      SendClientUpdate(tr_obj,parentid);
+  //    end;
+  //  end else begin
+  //    //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL REJECT [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
+  //  end;
+  //end;
 end;
+
+//function TFRE_DB_DERIVED_COLLECTION._CheckUIDExists(obj_uid: TGuid): Boolean;
+//
+//  function CheckUID(const Key :TFRE_DB_Object;const Item:boolean):boolean;
+//  begin
+//     result := FREDB_Guids_Same(Key.UID,obj_uid);
+//  end;
+//
+//begin
+//  abort;
+//  //result := FDBOList.ForAllNodesBrk(@CheckUID);
+//end;
 
 
 procedure TFRE_DB_DERIVED_COLLECTION.InternalSetup;
 begin
   inherited InternalSetup;
-  FFilters      := _Field('F').AsObject;
-  FFiltersTrans := _Field('FT').AsObject;
-  //FOrders       := _Field('O').AsObject;
-  //FOrdersTrans  := _Field('OT').AsObject;
-  FDBOList      := TFRE_DB_SortTree.Create(@RB_Sort_CompareEx,self);
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION._FilterIt(const childcall: boolean);
-var cnt  : NativeInt;
-
-  procedure LocalInsert(const item:IFRE_DB_Object);
-  begin
-     try
-       _AddToTransformedCollection(item,false,false,childcall);
-     finally
-       item.Finalize;
-     end;
-  end;
-
-  procedure LocalInsertFromParentDerived(const item : TFRE_DB_Object;const id : boolean);
-  begin
-     _AddToTransformedCollection(item,false,false,childcall);
-     item.Finalize;
-  end;
-
-  //procedure Order(const order_def : TFRE_DB_FIELD);
-  //var fob       : TFRE_DB_Object;
-  //begin
-  //  if order_def.FieldType<>fdbft_Object then exit;
-  //  fob    := order_def.AsObject;
-  //  SetLength(ForderDef,length(ForderDef)+1);
-  //  with ForderDef[high(ForderDef)] do begin
-  //    fieldname  := fob.Field('N').AsString;
-  //    ascending  := fob.Field('A').AsBoolean;
-  //  end;
-  //end;
-
-  procedure Clear(const o:TFRE_DB_Object;const no:boolean);
-  begin
-    o.free;
-  end;
-
-  procedure CheckParentAndTransform;
-  begin
-    if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
-    if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
-  end;
-
-  procedure ClearLocal;
-  begin
-    FDBOList.ForallNodes(@Clear);
-    FDBOList.Clear;
-    //SetLength(ForderDef,0);
-  end;
-
-  procedure LocalInsertExpanded;
-  var i   : NativeInt;
-  begin
-    for i:=0 to high(FExpandedRefs) do
-      LocalInsert(FExpandedRefs[i]);
-    SetLength(FExpandedRefs,0);
-  end;
-
-begin
-  exit;
-
-  { }
-
-  if not assigned(FTransform) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
-  if childcall then
-    cnt:=0;
-  case FDCMode of
-    dc_None: abort;
-    dc_Map2RealCollection:    begin
-                                GFRE_DB.LogDebug(dblc_DB,'* START FILTERING [%s]',[CollectionName]);
-                                ClearLocal;
-                                //FOrders.ForAllFields(@Order); // Get order definition
-                                if not childcall then
-                                  FParentCollection.ForAll(@LocalInsert)
-                                else
-                                  LocalInsertExpanded;
-                                GFRE_DB.LogDebug(dblc_DB,'* FINAL FILTERED COUNT [%d]',[FDBOList.Count]);
-                              end;
-    //dc_ReferentialLinkCollection:
-    //                          begin
-    //                             ClearLocal;
-    //                             //FOrders.ForAllFields(@Order); // Get order definition
-    //                             LocalInsertExpanded;
-    //                          end;
-  end;
-end;
-
-function TFRE_DB_DERIVED_COLLECTION._CompareObjects(const ob1, ob2: TFRE_DB_Object): NativeInt;
-var val,i : integer;
-    guid_order : integer;
-
-begin //nl
-  guid_order   := RB_Guid_Compare(ob1.UID,ob2.UID);
-  abort;
-  //if guid_order = 0 then exit(0);
-  //if Length(ForderDef)=0 then begin
-  //  exit(guid_order);
-  //end else begin
-    //for i:=0 to high(ForderDef) do begin
-    //  result := TFRE_DB_FIELD.OrderFieldCompare(ForderDef[i].fieldname,ob1,ob2);
-    //  if not ForderDef[i].ascending then result := result*-1;
-    //  if result<>0 then exit(result);
-    //end;
-    //exit(guid_order); // fallback
-  //end;
-end;
-
-function TFRE_DB_DERIVED_COLLECTION._DeleteFilterkey(const filter_key: TFRE_DB_String; const on_transform: boolean): TFRE_DB_Errortype;
-begin //nl
-  if on_transform then begin
-    if FFiltersTrans.DeleteField(filter_key) then begin
-      Result := edb_OK;
-    end else begin
-      result := edb_NOT_FOUND;
-    end;
-  end else begin
-    if FFilters.DeleteField(filter_key) then begin
-      Result := edb_OK;
-    end else begin
-      result := edb_NOT_FOUND;
-    end;
-  end;
-end;
-
-//function TFRE_DB_DERIVED_COLLECTION._Get_DC_StringfieldKeys(const input: IFRE_DB_Object): TFRE_DB_DC_STRINGFIELDKEY_LIST;
-//var ftx:string;
-//begin //nl
-//  ftx := input.Field('FULLTEXT').AsString;
-//  if ftx<>'' then begin
-//    SetLength(result,1);
-//    with result[0] do begin
-//      filter_key      := '*D_FTX';
-//      field_name      := 'FTX_SEARCH';
-//      value           := ftx;
-//      filtertype      := dbft_PART;
-//      on_transform    := false;
-//      on_filter_field := true;
-//    end;
+//procedure TFRE_DB_DERIVED_COLLECTION._FilterIt(const childcall: boolean);
+//var cnt  : NativeInt;
+//
+//  procedure LocalInsert(const item:IFRE_DB_Object);
+//  begin
+//     try
+//       _AddToTransformedCollection(item,false,false,childcall);
+//     finally
+//       item.Finalize;
+//     end;
+//  end;
+//
+//  procedure LocalInsertFromParentDerived(const item : TFRE_DB_Object;const id : boolean);
+//  begin
+//     _AddToTransformedCollection(item,false,false,childcall);
+//     item.Finalize;
+//  end;
+//
+//  //procedure Order(const order_def : TFRE_DB_FIELD);
+//  //var fob       : TFRE_DB_Object;
+//  //begin
+//  //  if order_def.FieldType<>fdbft_Object then exit;
+//  //  fob    := order_def.AsObject;
+//  //  SetLength(ForderDef,length(ForderDef)+1);
+//  //  with ForderDef[high(ForderDef)] do begin
+//  //    fieldname  := fob.Field('N').AsString;
+//  //    ascending  := fob.Field('A').AsBoolean;
+//  //  end;
+//  //end;
+//
+//  procedure Clear(const o:TFRE_DB_Object;const no:boolean);
+//  begin
+//    o.free;
+//  end;
+//
+//  procedure CheckParentAndTransform;
+//  begin
+//    if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
+//    if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
+//  end;
+//
+//  procedure ClearLocal;
+//  begin
+//    //FDBOList.ForallNodes(@Clear);
+//    //FDBOList.Clear;
+//    //SetLength(ForderDef,0);
+//  end;
+//
+//  //procedure LocalInsertExpanded;
+//  //var i   : NativeInt;
+//  //begin
+//  //  for i:=0 to high(FExpandedRefs) do
+//  //    LocalInsert(FExpandedRefs[i]);
+//  //  SetLength(FExpandedRefs,0);
+//  //end;
+//
+//begin
+//  abort;
+//  exit;
+//
+//  { }
+//
+//  if not assigned(FTransform) then
+//    raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
+//  if childcall then
+//    cnt:=0;
+//  case FDCMode of
+//    dc_None: abort;
+//    dc_Map2RealCollection:    begin
+//                                GFRE_DB.LogDebug(dblc_DB,'* START FILTERING [%s]',[CollectionName]);
+//                                ClearLocal;
+//                                //FOrders.ForAllFields(@Order); // Get order definition
+//                                if not childcall then
+//                                  FParentCollection.ForAll(@LocalInsert)
+//                                else
+//                                  //LocalInsertExpanded;
+//                                GFRE_DB.LogDebug(dblc_DB,'* FINAL FILTERED COUNT [%d]',[FDBOList.Count]);
+//                              end;
+//    //dc_ReferentialLinkCollection:
+//    //                          begin
+//    //                             ClearLocal;
+//    //                             //FOrders.ForAllFields(@Order); // Get order definition
+//    //                             LocalInsertExpanded;
+//    //                          end;
 //  end;
 //end;
 
-//function TFRE_DB_DERIVED_COLLECTION._Get_DC_PageingInfo(const input: IFRE_DB_Object): TFRE_DB_DC_PAGING_INFO;
-//begin //nl
-//  result.count := input.Field('count').AsInt32;
-//  result.start := input.Field('start').AsInt32;
-//end;
-
-function TFRE_DB_DERIVED_COLLECTION._Get_DC_ReferenceList(const input: IFRE_DB_Object): TFRE_DB_GUIDArray;
-var fld : IFRE_DB_FIELD;
-      i : NativeInt;
+function TFRE_DB_DERIVED_COLLECTION._DeleteFilterkey(const filter_key: TFRE_DB_String; const on_transform: boolean): TFRE_DB_Errortype;
 begin //nl
- if assigned(FDependencyRef) then
-   begin
-     fld := input.FieldPath('DEPENDENCY.'+FDependencyRef[0]+'_REF.FILTERVALUES',true);
-     if assigned(fld) then
-       begin
-         SetLength(result,fld.ValueCount);
-         for i := 0 to High(Result) do
-           result[i] := GFRE_BT.HexString_2_GUID(fld.AsStringArr[i]);
-         exit;
-       end
-   end;
- SetLength(result,0);
-end;
-
-function TFRE_DB_DERIVED_COLLECTION._Get_DC_QueryID(const input: IFRE_DB_Object): String;
-begin //nl
-  result := input.Field('QueryID').AsString;
-end;
-
-
-procedure TFRE_DB_DERIVED_COLLECTION.DC_SetFilters_From_Input(const filter_defs: TFRE_DB_Object);
-var key  : integer;
-
-  procedure GetDependency(const filter_def:TFRE_DB_FIELD);
-  var filter_field_type   : TFRE_DB_FIELDTYPE;
-      filter_field_name   : TFRE_DB_String;
-      on_transform        : Boolean;
-      on_filter_field     : boolean;
-      dont_convert_2_utc  : boolean;
-      value_array         : TFRE_DB_StringArray;
-      num_filt_typ        : TFRE_DB_NUM_FILTERTYPE;
-      str_filt_typ        : TFRE_DB_STR_FILTERTYPE;
-      key_val             : string;
-  begin
-    if filter_def.FieldName='UID' then
-      exit;
-    inc(key);
-    if filter_def.FieldType=fdbft_Object then begin
-      with filter_def.AsObject do begin
-        writeln('--   ',filter_def.AsObject.DumpToString());
-        filter_field_name   := Field('FILTERFIELDNAME').AsString;
-        value_array         := Field('FILTERVALUES').AsStringArr; //filter_def.AsStringArr;
-        //if FieldExists('AFTERTRANS') then begin
-        //  on_transform        := FREDB_String2Bool(Field('AFTERTRANS').AsString);
-        //end else begin
-        //  on_transform      := false;
-        //end;
-        //if FieldExists('ONFILTERFIELD') then begin
-        //  on_filter_field     := FREDB_String2Bool(Field('ONFILTERFIELD').AsString);
-        //end else begin
-        //  on_filter_field   := false;
-        //end;
-        if FieldExists('FILTERKEY') then begin
-          key_val := '*D_'+Field('FILTERKEY').AsString;
-        end else begin
-          key_val := '*D_'+inttostr(key);
-        end;
-        if FieldExists('FILTERFIELDTYPE') then begin
-          filter_field_type := FREDB_FieldtypeShortString2Fieldtype(Field('FILTERFIELDTYPE').AsString);
-        end else begin
-          filter_field_type := fdbft_String;
-        end;
-        if FieldExists('NUMFILTERTYPE') then begin
-          num_filt_typ := FREDB_String2NumfilterType(Field('NUMFILTERTYPE').AsString);
-        end else begin
-          case filter_field_type of
-            fdbft_GUID: num_filt_typ := dbnf_OneValueFromFilter;
-            else        num_filt_typ := dbnf_EXACT;
-          end;
-        end;
-        if FieldExists('STRFILTERTYPE') then begin
-          str_filt_typ  := FREDB_String2StrFilterType(Field('STRFILTERTYPE').AsString);
-        end else begin
-          str_filt_typ  := dbft_EXACT;
-        end;
-        if FieldExists('NO_UTC_CONV') then begin
-          dont_convert_2_utc := FREDB_String2Bool(Field('NO_UTC_CONV').AsString);
-        end else begin
-          dont_convert_2_utc := false;
-        end;
-      end;
-      case filter_field_type of
-        fdbft_GUID:         AddUIDFieldFilter      (key_val,filter_field_name,GFRE_DB.StringArray2GuidArray(value_array),num_filt_typ);
-        //fdbft_Byte:         AddByteFieldFilter     (key_val,filter_field_name,GFRE_DB.StringArray2ByteArray(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_Int16:        AddInt16FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int16Array(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_UInt16:       AddUint16FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt16Array(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_Int32:        Addint32FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int32Array(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_UInt32:       AddUint32FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt32Array(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_Int64:        Addint64FieldFilter    (key_val,filter_field_name,GFRE_DB.StringArray2Int64Array(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_UInt64:       AddUint64FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2UInt64Array(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_Real32:       AddReal32FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2Real32Array(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_Real64:       AddReal64FieldFilter   (key_val,filter_field_name,GFRE_DB.StringArray2Real64Array(value_array),num_filt_typ,on_transform,on_filter_field);
-        //fdbft_Currency:     AddCurrencyFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2CurrArray(value_array),num_filt_typ,on_transform,on_filter_field);
-        fdbft_String:       AddStringFieldFilter   (key_val,filter_field_name,value_array,str_filt_typ);
-        fdbft_Boolean:      AddBooleanFieldFilter  (key_val,filter_field_name,FREDB_String2Bool(value_array[0]));
-        //fdbft_DateTimeUTC:  begin
-        //                      if not dont_convert_2_utc then begin
-        //                        AddDateTimeFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2DateTimeArray(value_array),num_filt_typ,on_transform,on_filter_field);
-        //                      end else begin
-        //                        AddDateTimeFieldFilter (key_val,filter_field_name,GFRE_DB.StringArray2DateTimeArrayUTC(value_array),num_filt_typ,on_transform,on_filter_field);
-        //                      end;
-        //                    end
-        else
-          raise EFRE_DB_Exception.Create(edb_ERROR,'INPUT FILTER TYPE [%d] IS NOT SUPPORTED',[filter_field_type]);
-      end;
-    end;
-  end;
-
-begin //nl
-  key := 0;
-  filter_defs.ForAllFields(@GetDependency);
+  abort;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ForAllI(const func: IFRE_DB_Obj_Iterator);
@@ -6971,8 +6769,8 @@ begin //nl
     raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
   if FTransform        = nil then
     raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
-  _FilterIt(false);
-  FDBOList.ForallNodes(@Add);
+  //_FilterIt(false);
+  //FDBOList.ForallNodes(@Add);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckDepRefConstraint;
@@ -7152,11 +6950,11 @@ begin
 
     //if assigned(FDependencyObject) then
       //FDependencyObject.Finalize;
-    for i := 0 to high(FExpandedRefs) do
-      FExpandedRefs[i].Finalize;
+    //for i := 0 to high(FExpandedRefs) do
+    //  FExpandedRefs[i].Finalize;
 
-    FDBOList.ForAllNodes(@MyFinalize);
-    FDBOList.Free;
+    //FDBOList.ForAllNodes(@MyFinalize);
+    //FDBOList.Free;
     if assigned(FTransform) then
       FTransform.free;
     FitemMenuFunc.Free;
@@ -7174,61 +6972,36 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.AddStringFieldFilter(const filter_key, field_name: TFRE_DB_String; const values: TFRE_DB_StringArray; const filtertype: TFRE_DB_STR_FILTERTYPE): TFRE_DB_Errortype;
-var filter:TFRE_DB_Object;
+function TFRE_DB_DERIVED_COLLECTION.AddStringFieldFilter(const filter_key, field_name: TFRE_DB_String; const value: TFRE_DB_String; const filtertype: TFRE_DB_STR_FILTERTYPE): TFRE_DB_Errortype;
 begin
-  filter := GFRE_DB.NewObject;
-  filter.Field('T').AsString     :='SFF';
-  filter.Field('TR').AsString    := CFRE_DB_FIELDTYPE_SHORT[fdbft_String];
-  filter.Field('FN').AsString    := field_name;
-  filter.Field('FV').AsStringArr := values;
-  filter.Field('FT').AsString    := CFRE_DB_STR_FILTERTYPE[filtertype];
-  FFiltersTrans.Field(filter_key).AsObject := filter;
+  abort;
+  FDCollFilters.AddStringFieldFilter(filter_key,field_name,value,filtertype);
+  exit(edb_OK);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.AddBooleanFieldFilter(const filter_key, field_name: TFRE_DB_String; const value: Boolean): TFRE_DB_Errortype;
-var filter:TFRE_DB_Object;
 begin
-  filter := GFRE_DB.NewObject;
-  filter.Field('T').AsString   := 'GFF'; // Generic Field Filter
-  filter.Field('TR').AsString  := CFRE_DB_FIELDTYPE_SHORT[fdbft_Boolean];
-  filter.Field('FN').AsString  := field_name;
-  filter.Field('FV').AsBoolean := value;
-  filter.Field('FT').AsString  := CFRE_DB_NUM_FILTERTYPE[dbnf_EXACT];
-  FFiltersTrans.Field(filter_key).AsObject := filter;
+  FDCollFilters.AddBooleanFieldFilter(filter_key,field_name,value);
+  result := edb_OK;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.AddUIDFieldFilter(const filter_key, field_name: TFRE_DB_String; const values: TFRE_DB_GUIDArray; const number_compare_type: TFRE_DB_NUM_FILTERTYPE): TFRE_DB_Errortype;
-var filter:TFRE_DB_Object;
+function TFRE_DB_DERIVED_COLLECTION.AddUIDFieldFilter(const filter_key, field_name: TFRE_DB_String; const values: array of TFRE_DB_GUID; const number_compare_type: TFRE_DB_NUM_FILTERTYPE): TFRE_DB_Errortype;
 begin
-  filter := GFRE_DB.NewObject;
-  //if not(number_compare_type in [dbnf_EXACT,dbnf_EXACT_NEGATED,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter]) then raise EFRE_DB_Exception.Create(edb_ERROR,'DERIVED COLLECTION : UID Field Filter number_compare_type [%s] is not valid',[FREDB_NumFilterType2String(number_compare_type)]);
-  filter.Field('T').AsString   := 'GFF'; // Generic Field Filter
-  filter.Field('TR').AsString  := CFRE_DB_FIELDTYPE_SHORT[fdbft_GUID];
-  filter.Field('FN').AsString  := field_name;
-  filter.Field('FV').AsGUIDArr := values;
-  filter.Field('FT').AsString  := CFRE_DB_NUM_FILTERTYPE[number_compare_type];
-  FFiltersTrans.Field(filter_key).AsObject := filter;
+  FDCollFilters.AddUIDFieldFilter(filter_key,field_name,values,number_compare_type);
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.AddSchemeFilter(const filter_key: TFRE_DB_String; const values: TFRE_DB_StringArray; const negate: boolean): TFRE_DB_Errortype;
-var filter:TFRE_DB_Object;
+function TFRE_DB_DERIVED_COLLECTION.AddSchemeFilter(const filter_key: TFRE_DB_String; const values: array of TFRE_DB_String; const negate: boolean): TFRE_DB_Errortype;
 begin
-  filter := GFRE_DB.NewObject;
-  filter.Field('T').AsString          := 'SCH'; // Generic Scheme Filter
-  filter.Field('TR').AsString         := 'S';
-  filter.Field('FF').AsBoolean        := false;
-  filter.Field('FN').AsString         := 'S';
-  filter.Field('FV').AsStringArr      := values;
-  filter.Field('FT').AsString         := 'X';
-  filter.Field('OT').AsBoolean        := false;
-  filter.Field('NEG').AsBoolean       := negate;
-  FFiltersTrans.Field(filter_key).AsObject := filter;
+  abort; // implemented / check NOW
+  FDCollFilters.AddSchemeObjectFilter(filter_key,values,negate);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.RemoveFilter(const filter_key: TFRE_DB_String): TFRE_DB_Errortype;
 begin
-
+  if FDCollFilters.RemoveFilter(filter_key) then
+    exit(edb_OK)
+  else
+    exit(edb_NOT_FOUND);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.AddSelectionDependencyEvent(const derived_collection_name: TFRE_DB_NameType; const ReferenceID: TFRE_DB_NameType);
@@ -7246,58 +7019,20 @@ begin
   result := _DeleteFilterKey(filter_key,on_transform);
 end;
 
-//function TFRE_DB_DERIVED_COLLECTION.AddOrderField(const order_key, field_name: TFRE_DB_String; const ascending: boolean): TFRE_DB_Errortype;
-//var order:TFRE_DB_Object;
-//begin
-//  order := GFRE_DB.NewObject;
-//  order.Field('N').AsString  := field_name;
-//  order.Field('A').AsBoolean := ascending;
-//  FOrders.Field(order_key).AsObject := order;
-//end;
-
 procedure TFRE_DB_DERIVED_COLLECTION.SetDefaultOrderField(const field_name: TFRE_DB_String; const ascending: boolean);
 begin
   FDefaultOrderField     := field_name;
   FDefaultOrderAsc       := ascending;
 end;
 
-//procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllOrderFields;
-//begin
-//  FOrders.ClearAllFields;
-//end;
-
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFilterFields;
 begin
-  FFilters.ClearAllFields;
-  FFiltersTrans.ClearAllFields;
+  abort;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFiltersPrefix(const prefix: string);
-var sl : TStringlist;
-     i : Integer;
-
-    procedure GetRemoveList(const fld:TFRE_DB_FIELD);
-    begin
-      if pos(prefix,fld.FieldName)=1 then begin
-        sl.add(fld.FieldName);
-      end;
-    end;
-
 begin
-  sl :=TStringList.Create;
-  try
-    FFilters.ForAllFields(@GetRemoveList);
-    for i:=0 to sl.count-1 do begin
-      FFilters.DeleteField(sl[i]);
-    end;
-    sl.clear;
-    FFiltersTrans.ForAllFields(@GetRemoveList);
-    for i:=0 to sl.count-1 do begin
-      FFiltersTrans.DeleteField(sl[i]);
-    end;
-  finally
-    sl.free;
-  end;
+  abort;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Store(var obj: TFRE_DB_Object): TFRE_DB_Errortype;
@@ -7410,8 +7145,10 @@ function TFRE_DB_DERIVED_COLLECTION.First: TFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  if ItemCount=0 then exit(nil);
-  FDBOList.FirstNode(obj,item);
+  abort;
+  if ItemCount=0 then
+    exit(nil);
+  //FDBOList.FirstNode(obj,item);
   result := obj;
 end;
 
@@ -7419,8 +7156,10 @@ function TFRE_DB_DERIVED_COLLECTION.Last: TFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  if ItemCount=0 then exit(nil);
-  FDBOList.LastNode(obj,item);
+  abort;
+  if ItemCount=0 then
+    exit(nil);
+  //FDBOList.LastNode(obj,item);
   result := obj;
 end;
 
@@ -7428,12 +7167,13 @@ function TFRE_DB_DERIVED_COLLECTION.GetItem(const num: uint64): IFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
 begin
-  if ItemCount=0 then exit(nil);
-  if FDBOList.GetDirect(num,obj,item) then begin
-    result := obj;
-  end else begin
-    result := nil;
-  end;
+  abort;
+  //if ItemCount=0 then exit(nil);
+  //if FDBOList.GetDirect(num,obj,item) then begin
+  //  result := obj;
+  //end else begin
+  //  result := nil;
+  //end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
@@ -7460,10 +7200,11 @@ procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllEntries;
   end;
 
 begin
-  if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
-  if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
-  FDBOList.ForallNodes(@Clear);
-  FDBOList.Clear;
+  abort;
+  //if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
+  //if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
+  //FDBOList.ForallNodes(@Clear);
+  //FDBOList.Clear;
 end;
 
 
@@ -7479,14 +7220,14 @@ end;
 //  FDBOList.ForAllNodesRange(page_info.start,page_info.count,@DoIt);
 //end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.ApplyToData(const iterator: TFRE_DB_Obj_Iterator);
-   procedure PrepareData(const key:TFRE_DB_Object;const val:boolean);
-   begin
-     iterator(key);
-   end;
-begin
-  FDBOList.ForAllNodes(@PrepareData);
-end;
+//procedure TFRE_DB_DERIVED_COLLECTION.ApplyToData(const iterator: TFRE_DB_Obj_Iterator);
+//   procedure PrepareData(const key:TFRE_DB_Object;const val:boolean);
+//   begin
+//     iterator(key);
+//   end;
+//begin
+//  //FDBOList.ForAllNodes(@PrepareData);
+//end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
@@ -7535,8 +7276,7 @@ begin
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayTypeChart(const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean;const series_labels: TFRE_DB_StringArray; const showLegend: Boolean; const maxValue: Integer);
-var value_count : QWord;
-    i           : integer;
+var i           : integer;
 begin
   _CheckSetDisplayType (cdt_Chartview);
   _ClearMode;
@@ -7551,8 +7291,8 @@ begin
     FChartType          := chart_type;
     FMaxValue           := maxValue;
   end;
-  _FilterIt(false);
-  value_count := FDBOList.Count;
+  //_FilterIt(false);
+  //abort;
 end;
 
 {
@@ -7614,38 +7354,39 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION._CheckObserverAdded(const add: boolean);
 begin
-  if add then
-    begin
-      if (not FObserverAdded) and
-         ( (FDCMode=dc_Map2RealCollection)
-         ) then
-             begin
-               FObserverAdded    := true;
-               FParentCollection.AddObserver(self);
-             end;
-      if (not FObserverAdded) and
-         assigned(FSubscribeReflinkModeObserverTo) then
-           begin
-             FObserverAdded    := true;
-             FSubscribeReflinkModeObserverTo.AddObserver(self);
-           end;
-    end
-  else
-    begin
-      if (FObserverAdded) and
-        ( (FDCMode=dc_Map2RealCollection)
-        ) then
-            begin
-              FObserverAdded    := False;
-              FParentCollection.RemoveObserver(self);
-            end;
-      if (FObserverAdded) and
-         assigned(FSubscribeReflinkModeObserverTo) then
-           begin
-             FObserverAdded    := False;
-             FSubscribeReflinkModeObserverTo.RemoveObserver(self);
-           end;
-    end;
+  exit;
+  //if add then
+  //  begin
+  //    if (not FObserverAdded) and
+  //       ( (FDCMode=dc_Map2RealCollection)
+  //       ) then
+  //           begin
+  //             FObserverAdded    := true;
+  //             FParentCollection.AddObserver(self);
+  //           end;
+  //    if (not FObserverAdded) and
+  //       assigned(FSubscribeReflinkModeObserverTo) then
+  //         begin
+  //           FObserverAdded    := true;
+  //           FSubscribeReflinkModeObserverTo.AddObserver(self);
+  //         end;
+  //  end
+  //else
+  //  begin
+  //    if (FObserverAdded) and
+  //      ( (FDCMode=dc_Map2RealCollection)
+  //      ) then
+  //          begin
+  //            FObserverAdded    := False;
+  //            FParentCollection.RemoveObserver(self);
+  //          end;
+  //    if (FObserverAdded) and
+  //       assigned(FSubscribeReflinkModeObserverTo) then
+  //         begin
+  //           FObserverAdded    := False;
+  //           FSubscribeReflinkModeObserverTo.RemoveObserver(self);
+  //         end;
+  //  end;
 end;
 
 
@@ -7805,68 +7546,69 @@ var
      i      : integer;
 
 
-  function GetChartDataDescription:TFRE_DB_CHART_DATA_DESC;
-  var ok     : string;
-      data   : TFRE_DB_Real32Array;
-      uids   : TFRE_DB_GUIDArray;
-      colors : TFRE_DB_StringArray;
-      texts  : TFRE_DB_StringArray;
-      leg    : TFRE_DB_StringArray;
-      max    : Integer;
-
-      procedure GetData(const obj:TFRE_DB_Object);
-      var
-       res    : TFRE_DB_CHART_DATA_DESC;
-     begin
-       //uids[i] := obj.Field(series_id+'_uid').AsGUID;
-       uids[i] := obj.UID;
-       if obj.FieldExists(series_id) then
-         data[i] := obj.Field(series_id).AsReal32
-       else
-         data[i] := 0;
-       if ChartTransForm.FUseSeriesColors then begin
-         colors[i] := obj.Field(series_id+'_col').AsString;
-       end;
-       if ChartTransForm.FUseSeriesLabels then begin
-         texts[i] := obj.Field(series_id+'_lbl').AsString;
-       end;
-       if ChartTransForm.FShowLegend then begin
-         leg[i] := obj.Field(series_id+'_leg').AsString;
-       end;
-       inc(i);
-     end;
-
-  begin
-    series_id := input.FieldPath('query.sid').AsString;
-    GFRE_DB.LogDebug(dblc_DB,'GET_CHART_DATA '+series_id);
-    GFRE_DB.LogDebug(dblc_DB,'%s',[input.DumpToString(4)]);
-
-    max            := FDBOList.Count;
-    ChartTransForm := FTransform as TFRE_DB_CHART_TRANSFORM;
-
-    colors := nil;
-    texts  := nil;
-    leg    := nil;
-    SetLength(data,max);
-    SetLength(uids,max);
-    if ChartTransForm.FUseSeriesColors then begin
-      SetLength(colors,max);
-    end;
-    if ChartTransForm.FUseSeriesLabels then begin
-      SetLength(texts,max);
-    end;
-    if ChartTransForm.FShowLegend then begin
-      SetLength(leg,max);
-    end;
-    i:=0;
-    ApplyToData(@GetData);
-    result := TFRE_DB_CHART_DATA_DESC.create;
-    result.setSeries(data,uids,colors,texts,leg);
-  end;
+  //function GetChartDataDescription:TFRE_DB_CHART_DATA_DESC;
+  //var ok     : string;
+  //    data   : TFRE_DB_Real32Array;
+  //    uids   : TFRE_DB_GUIDArray;
+  //    colors : TFRE_DB_StringArray;
+  //    texts  : TFRE_DB_StringArray;
+  //    leg    : TFRE_DB_StringArray;
+  //    max    : Integer;
+  //
+  //    procedure GetData(const obj:TFRE_DB_Object);
+  //    var
+  //     res    : TFRE_DB_CHART_DATA_DESC;
+  //   begin
+  //     //uids[i] := obj.Field(series_id+'_uid').AsGUID;
+  //     uids[i] := obj.UID;
+  //     if obj.FieldExists(series_id) then
+  //       data[i] := obj.Field(series_id).AsReal32
+  //     else
+  //       data[i] := 0;
+  //     if ChartTransForm.FUseSeriesColors then begin
+  //       colors[i] := obj.Field(series_id+'_col').AsString;
+  //     end;
+  //     if ChartTransForm.FUseSeriesLabels then begin
+  //       texts[i] := obj.Field(series_id+'_lbl').AsString;
+  //     end;
+  //     if ChartTransForm.FShowLegend then begin
+  //       leg[i] := obj.Field(series_id+'_leg').AsString;
+  //     end;
+  //     inc(i);
+  //   end;
+  //
+  //begin
+  //  series_id := input.FieldPath('query.sid').AsString;
+  //  GFRE_DB.LogDebug(dblc_DB,'GET_CHART_DATA '+series_id);
+  //  GFRE_DB.LogDebug(dblc_DB,'%s',[input.DumpToString(4)]);
+  //
+  //  //max            := FDBOList.Count;
+  //  ChartTransForm := FTransform as TFRE_DB_CHART_TRANSFORM;
+  //
+  //  colors := nil;
+  //  texts  := nil;
+  //  leg    := nil;
+  //  SetLength(data,max);
+  //  SetLength(uids,max);
+  //  if ChartTransForm.FUseSeriesColors then begin
+  //    SetLength(colors,max);
+  //  end;
+  //  if ChartTransForm.FUseSeriesLabels then begin
+  //    SetLength(texts,max);
+  //  end;
+  //  if ChartTransForm.FShowLegend then begin
+  //    SetLength(leg,max);
+  //  end;
+  //  i:=0;
+  //  ApplyToData(@GetData);
+  //  result := TFRE_DB_CHART_DATA_DESC.create;
+  //  result.setSeries(data,uids,colors,texts,leg);
+  //end;
 
 begin
+  abort;
    //_CheckObserverAdded(true);
-  result := GetChartDataDescription;
+  //result := GetChartDataDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -7883,67 +7625,68 @@ var //pageinfo       : TFRE_DB_DC_PAGING_INFO;
     //sortfilterkeys : TFRE_DB_DC_STRINGFIELDKEY_LIST;
     QueryID        : String;
 
-  function GetChildrenDataDescription:TFRE_DB_STORE_DATA_DESC;
-  var i  : integer;
-      ok : string;
-
-      procedure GetData(const obj:TFRE_DB_Object);
-      var
-        entry       : IFRE_DB_Object;
-        i           : Integer;
-      begin
-        //entry:=GFRE_DB.NewObjectI;
-        //entry.Field('_icon_').AsString := obj.Field(FTreeNodeIconField).AsString;
-        //case FDCMode of
-        //  dc_None: raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DC MODE IN IMI_GET_CHILDREN_DATA');
-        //  dc_Map2RealCollection: begin
-                                 //for i := 0 to Length(FlabelFields) - 1 do begin
-                                 //  if obj.FieldExists(FlabelFields[i]) then begin
-                                 //    entry.Field(FlabelFields[i]).AsString:=obj.Field(FlabelFields[i]).AsString;
-                                 //  end;
-                                 //end;
-                                 //entry.Field('uid').AsGUID:=obj.UID;
-                                 //entry.Field('uidpath').AsStringArr:=obj.GetUIDPath;
-                                 //entry.Field('_funcclassname_').AsString:=obj.SchemeClass;
-                                 //entry.Field('_childrenfunc_').AsString:='ChildrenData';
-                                 //entry.Field('_menufunc_').AsString:='Menu';
-                                 //entry.Field('_contentfunc_').AsString:='Content';
-                                 //if obj.MethodExists('CHILDRENDATA') then begin
-                                 //  entry.Field('children').AsString:='UNCHECKED';
-                                 //end;
-        //                       end;
-        //end;
-        entry := obj.CloneToNewObject();
-        //entry.Field('_funcclassname_').AsString := obj.SchemeClass;
-        //entry.Field('_childrenfunc_').AsString:='ChildrenData';
-        //entry.Field('_menufunc_').AsString:='Menu';
-        //entry.Field('_contentfunc_').AsString:='Content';
-        //writeln('CHILDRENDATA  ',entry.DumpToString());
-        TFRE_DB_STORE_DATA_DESC(result).addTreeEntry(entry,true);
-      end;
-
-  begin
-    GFRE_DB.LogDebug(dblc_DB,'IMI_GET_CHILDREN_DATA');
-    GFRE_DB.LogDebug(dblc_DB,'%s',[input.DumpToString(4)]);
-    //pageinfo.count:=1000;
-    //pageinfo.start:=0;
-
-    RemoveAllFiltersPrefix('*D_');
-
-    if input.FieldExists('DEPENDENCY') and (input.Field('DEPENDENCY').FieldType=fdbft_Object) then begin
-      DC_SetFilters_From_Input(input.Field('DEPENDENCY').AsObject.Implementor as TFRE_DB_Object);
-    end;
-    //for i:=0 to Length(FlabelFields) - 1 do begin
-    //  AddOrderField('A',FlabelFields[i],true);
-    //end;
-    result := TFRE_DB_STORE_DATA_DESC.create;
-    _FilterIt(false);
-    //ApplyToPage(QueryID,pageinfo,@GetData);
-  end;
+  //function GetChildrenDataDescription:TFRE_DB_STORE_DATA_DESC;
+  //var i  : integer;
+  //    ok : string;
+  //
+  //    procedure GetData(const obj:TFRE_DB_Object);
+  //    var
+  //      entry       : IFRE_DB_Object;
+  //      i           : Integer;
+  //    begin
+  //      //entry:=GFRE_DB.NewObjectI;
+  //      //entry.Field('_icon_').AsString := obj.Field(FTreeNodeIconField).AsString;
+  //      //case FDCMode of
+  //      //  dc_None: raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DC MODE IN IMI_GET_CHILDREN_DATA');
+  //      //  dc_Map2RealCollection: begin
+  //                               //for i := 0 to Length(FlabelFields) - 1 do begin
+  //                               //  if obj.FieldExists(FlabelFields[i]) then begin
+  //                               //    entry.Field(FlabelFields[i]).AsString:=obj.Field(FlabelFields[i]).AsString;
+  //                               //  end;
+  //                               //end;
+  //                               //entry.Field('uid').AsGUID:=obj.UID;
+  //                               //entry.Field('uidpath').AsStringArr:=obj.GetUIDPath;
+  //                               //entry.Field('_funcclassname_').AsString:=obj.SchemeClass;
+  //                               //entry.Field('_childrenfunc_').AsString:='ChildrenData';
+  //                               //entry.Field('_menufunc_').AsString:='Menu';
+  //                               //entry.Field('_contentfunc_').AsString:='Content';
+  //                               //if obj.MethodExists('CHILDRENDATA') then begin
+  //                               //  entry.Field('children').AsString:='UNCHECKED';
+  //                               //end;
+  //      //                       end;
+  //      //end;
+  //      entry := obj.CloneToNewObject();
+  //      //entry.Field('_funcclassname_').AsString := obj.SchemeClass;
+  //      //entry.Field('_childrenfunc_').AsString:='ChildrenData';
+  //      //entry.Field('_menufunc_').AsString:='Menu';
+  //      //entry.Field('_contentfunc_').AsString:='Content';
+  //      //writeln('CHILDRENDATA  ',entry.DumpToString());
+  //      TFRE_DB_STORE_DATA_DESC(result).addTreeEntry(entry,true);
+  //    end;
+  //
+  //begin
+  //  GFRE_DB.LogDebug(dblc_DB,'IMI_GET_CHILDREN_DATA');
+  //  GFRE_DB.LogDebug(dblc_DB,'%s',[input.DumpToString(4)]);
+  //  //pageinfo.count:=1000;
+  //  //pageinfo.start:=0;
+  //
+  //  RemoveAllFiltersPrefix('*D_');
+  //
+  //  if input.FieldExists('DEPENDENCY') and (input.Field('DEPENDENCY').FieldType=fdbft_Object) then begin
+  //    //DC_SetFilters_From_Input(input.Field('DEPENDENCY').AsObject.Implementor as TFRE_DB_Object);
+  //  end;
+  //  //for i:=0 to Length(FlabelFields) - 1 do begin
+  //  //  AddOrderField('A',FlabelFields[i],true);
+  //  //end;
+  //  result := TFRE_DB_STORE_DATA_DESC.create;
+  //  _FilterIt(false);
+  //  //ApplyToPage(QueryID,pageinfo,@GetData);
+  //end;
 
 begin
+  abort;
   _CheckObserverAdded(true);
-  result := GetChildrenDataDescription;
+  //result := GetChildrenDataDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.IMI_GET_DISPLAY_DESC(const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -10167,6 +9910,7 @@ var s     : string;
 begin
   try
     block.Field('L').AsString := FDBName;  { set layer for session processing }
+    GFRE_DB_TCDM.InboundNotificationBlock(FDBName,block);
     FConnectionClones.ForAllBreak(@SendBlockToClones);
     self.StartNotificationBlock(block.Field('KEY').AsString);
     FREDB_ApplyNotificationBlockToNotifIF(block,self,dummy);
@@ -15628,9 +15372,15 @@ procedure TFRE_DB_FIELD.CalculateValue;
 begin
   if not assigned(FCalcMethod) then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'calcfield but no function assigned?');
-
   TMethod(FCalcMethod).Data:=Fobj.Implementor_HC;
-  FCalcMethod(self);
+  try
+    FCalcMethod(self);
+  except
+    on E:Exception do
+      begin
+        GFRE_DBI.LogError(dblc_APPLICATION,'calculate value of field ['+FieldName+'] failed for : '+e.Message);
+      end;
+  end;
 end;
 
 procedure TFRE_DB_FIELD.SetAsEmptyStringArray;

@@ -898,10 +898,10 @@ type
     //@ Set a String Filter, which can be used before or after the transformation
     //@ filterkey = ID of the Filter / field_name : on which field the filter works / filtertype: how the filter works
 
-    function   AddStringFieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_StringArray;const filtertype:TFRE_DB_STR_FILTERTYPE):TFRE_DB_Errortype;
+    function   AddStringFieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_String ; const filtertype:TFRE_DB_STR_FILTERTYPE):TFRE_DB_Errortype;
     function   AddBooleanFieldFilter         (const filter_key,field_name:TFRE_DB_String;const value :Boolean):TFRE_DB_Errortype;
-    function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_GUIDArray     ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE):TFRE_DB_Errortype;
-    function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:TFRE_DB_StringArray   ;const negate:boolean=false):TFRE_DB_Errortype;
+    function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:array of TFRE_DB_GUID ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE):TFRE_DB_Errortype;
+    function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:array of TFRE_DB_String;const negate:boolean=false):TFRE_DB_Errortype;
     function   RemoveFilter                  (const filter_key           :TFRE_DB_String):TFRE_DB_Errortype;
 
     //function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -1875,20 +1875,21 @@ type
   { TFRE_DB_TRANSDATA_MANAGER_BASE }
 
   TFRE_DB_TRANSDATA_MANAGER_BASE=class
-    procedure  UnlockManager; virtual; abstract;
-    procedure  LockManager; virtual; abstract;
+    procedure  UnlockManager             ; virtual; abstract;
+    procedure  LockManager               ; virtual; abstract;
     function   GetNewFilterDefinition    : TFRE_DB_DC_FILTER_DEFINITION_BASE; virtual; abstract;
-    function   GetTransformedDataLocked  (const query : TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;
-    procedure  NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
+    function   GetTransformedDataLocked  (const query: TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;
+    procedure  NewTransformedDataLocked  (const qry: TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
     function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const dependency_reference_constraint : TFRE_DB_NameTypeRLArrayArray;
                                           const dependency_negate : boolean ; const parent_child_spec : TFRE_DB_NameTypeRL ; const parent_child_skip_schemes : TFRE_DB_NameTypeRLArray ;
                                           const dc_name,parent_name : TFRE_DB_NameTypeRL ; const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ;
                                           const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
                                           const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE; virtual; abstract;
     procedure   StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;
-    procedure   RemoveQuery              (const qry_id : TFRE_DB_NameType); virtual; abstract;
-    procedure   DropAllQuerys            (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
-    function    FormQueryID              (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : shortstring):TFRE_DB_NameType; virtual; abstract;
+    procedure   RemoveQuery              (const qry_id: TFRE_DB_NameType); virtual; abstract;
+    procedure   DropAllQuerys            (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
+    function    FormQueryID              (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : shortstring):TFRE_DB_NameType; virtual; abstract;
+    procedure   InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -2818,7 +2819,7 @@ type
   // as additional feature it replaces CR with a <br> tag, which is useful in formatting HTML
   function  FREDB_String2EscapedJSString         (const input_string:TFRE_DB_String;const replace_cr_with_br:boolean=false) : TFRE_DB_String;
 
-  procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification ; out layer : TFRE_DB_NameType);
+  procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification ; var layer : TFRE_DB_NameType);
 
   operator< (g1, g2: TGUID) b : boolean;
   operator> (g1, g2: TGUID) b : boolean;
@@ -7770,7 +7771,14 @@ procedure TFRE_DB_APPLICATION_MODULE.MySessionInitializeModule(const session: TF
   var app_module : IFRE_DB_APPLICATION_MODULE;
   begin
     if field.IsObjectField and field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE,app_module) then begin
-      (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionInitializeModule(session);
+      try
+        (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionInitializeModule(session);
+      except
+        on e:Exception do
+          begin
+            GFRE_DBI.LogError(dblc_SESSION,'SESSION INITIALIZATION FAILED SESS(%s) %s : %s ',[session.GetSessionID,classname,e.Message]);
+          end;
+      end;
     end;
   end;
 
@@ -8267,7 +8275,7 @@ begin
   result := StringReplace(Result            ,''''   , '\u0027', [rfReplaceAll]);   // Single Quote
 end;
 
-procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification ; out layer : TFRE_DB_NameType);
+procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification ; var layer : TFRE_DB_NameType);
 var cmd   : ShortString;
     objs  : IFRE_DB_ObjectArray;
     i     : NativeInt;

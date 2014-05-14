@@ -299,7 +299,7 @@ type
      FFullTextFilter         : TFRE_DB_String;               { use this on all string fields, if set}
      FStartIdx               : NativeInt;                    { }
      FToDeliverCount         : NativeInt;                    { }
-     FResultDBOs             : TFRE_DB_GUIDArray;            { }
+     FResultDBOs             : TFRE_DB_GUIDArray;            { remember all uids of this query }
 
      FQueryRunning           : boolean;
      FQueryStartTime         : NativeInt;
@@ -335,7 +335,8 @@ type
 
   TFRE_DB_TRANFORMED_DATA=class
   private
-    FBaseKey           : TFRE_DB_NameTypeRL;
+    FBaseKey           : TFRE_DB_NameTypeRL;   { CN/DCN/CHILD RL SPEC }
+    FTransformKey      : QWord;
     FTransformeddata   : IFRE_DB_ObjectArray;
     FTDCreationTime    : TFRE_DB_DateTime64;
     FIncludesChildData : Boolean;
@@ -402,16 +403,50 @@ type
   OFRE_DB_TransCollTransformedDataList = specialize OGFOS_Array<TFRE_DB_TRANFORMED_DATA>; { list of transformed collections }
   OFRE_DB_TransCollOrderedDataList     = specialize OGFOS_Array<TFRE_DB_TRANS_COLL_DATA>; { orders upon the data, referencing to the collection }
 
+
+  TFRE_DB_TDM_STATS_CLEANER=class;
+
   { TFRE_DB_TRANSDATA_MANAGER }
 
-  TFRE_DB_TRANSDATA_MANAGER=class(TFRE_DB_TRANSDATA_MANAGER_BASE)
+  TFRE_DB_TRANSDATA_MANAGER=class(TFRE_DB_TRANSDATA_MANAGER_BASE,IFRE_DB_DBChangedNotification)
   private
+    FTransformKey  : QWord;
+    FStatCleaner   : TFRE_DB_TDM_STATS_CLEANER;
     FArtQueryStore : TFRE_ART_TREE;
     FTransLock     : IFOS_LOCK;
     FTransList     : OFRE_DB_TransCollTransformedDataList; { List of base transformed data}
     FOrders        : OFRE_DB_TransCollOrderedDataList;     { List of ordereings of base transforms}
     function    GetBaseTransformedData (base_key : TFRE_DB_NameTypeRL ; out base_data : TFRE_DB_TRANFORMED_DATA) : boolean;
     procedure   AddBaseTransformedData (const base_data : TFRE_DB_TRANFORMED_DATA);
+    procedure   TL_StatsTimer;
+
+    {NOFIF BLOCK INTERFACE}
+    function   InterfaceNeedsAProxy   : Boolean;
+    procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
+    procedure  FinishNotificationBlock(out block : IFRE_DB_Object);
+    procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
+    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
+    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
+    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); { FULL STATE }
+    procedure  ObjectDeleted          (const obj : IFRE_DB_Object); { FULL STATE }
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object); { FULL STATE }
+    procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
+    procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
+    procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object);           { DIFFERENTIAL STATE}
+    procedure  FieldDelete            (const old_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
+    procedure  FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
+    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field);  { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
+    procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
+    procedure  SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  InboundReflinkDropped  (const from_obj: IFRE_DB_Object    ; const to_obj   : TGUID       ; const key_description : TFRE_DB_NameTypeRL);
+    procedure  OutboundReflinkDropped (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description: TFRE_DB_NameTypeRL);
+    procedure  FinalizeNotif          ;
+    {NOFIF BLOCK INTERFACE - END}
+
   public
     constructor Create        ;
     destructor  Destroy       ; override;
@@ -437,6 +472,20 @@ type
     { forget all querys for the session/dc }
     procedure   DropAllQuerys             (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); override; { can be dc wide, or session wide dc_name='' }
     function    FormQueryID               (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : shortstring):TFRE_DB_NameType;override;
+    procedure   InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); override;
+  end;
+
+  { TFRE_DB_TDM_STATS_CLEANER }
+
+  TFRE_DB_TDM_STATS_CLEANER=class(TThread)
+  private
+    FStatEvent : IFOS_TE;
+    FTM        : TFRE_DB_TRANSDATA_MANAGER;
+  public
+    constructor Create(const tm:TFRE_DB_TRANSDATA_MANAGER);
+    destructor  Destroy;override;
+    procedure   Terminate;
+    procedure   Execute ;override;
   end;
 
 
@@ -458,6 +507,44 @@ begin
       GFRE_DB_TCDM.Free;
       GFRE_DB_TCDM:=nil;
     end;
+end;
+
+{ TFRE_DB_TDM_STATS_CLEANER }
+
+constructor TFRE_DB_TDM_STATS_CLEANER.Create(const tm: TFRE_DB_TRANSDATA_MANAGER);
+begin
+  FTM := tm;
+  GFRE_TF.Get_TimedEvent(FStatEvent);
+  inherited Create(false);
+end;
+
+destructor TFRE_DB_TDM_STATS_CLEANER.Destroy;
+begin
+  Terminate;
+  WaitFor;
+  FStatEvent.Finalize;
+  inherited Destroy;
+end;
+
+procedure TFRE_DB_TDM_STATS_CLEANER.Terminate;
+begin
+  inherited Terminate;
+  FStatEvent.SetEvent;
+end;
+
+procedure TFRE_DB_TDM_STATS_CLEANER.Execute;
+begin
+  repeat
+    FStatEvent.WaitFor(1000);
+    if not Terminated then
+      begin
+        FTM.TL_StatsTimer;
+      end
+    else
+      begin
+        writeln('FINAL ROUND');
+      end;
+  until Terminated;
 end;
 
 { TFRE_DB_FILTER_CHILD }
@@ -1012,14 +1099,43 @@ begin
             end;
           dbnf_OneValueFromFilter:  {}
             begin
-              result := false;
-              for i:=0 to high(fieldvals) do
-               for j:=0 to high(FValues) do
-                 if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
-                   begin
-                     result := true;
-                     break;
-                   end;
+              if not fnegate then
+                begin
+                  result := false;
+                  for i:=0 to high(fieldvals) do
+                   for j:=0 to high(FValues) do
+                     if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
+                       begin
+                         result := true;
+                         break;
+                       end;
+                end
+              else
+                begin
+                  if length(FValues)=0 then
+                    exit;
+                  result := true;
+                  for i:=0 to high(fieldvals) do
+                   for j:=0 to high(FValues) do
+                     if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
+                       begin
+                         result := false;
+                         break;
+                       end;
+              //dbnf_NoValueInFilter:    begin
+              //                           add := true;
+              //                           if length(guid_filt_vals)=0 then
+              //                             exit;
+              //                           for i:=0 to high(guid_field_vals) do begin
+              //                             for j:=0 to high(guid_filt_vals) do begin
+              //                               if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
+              //                                 add := false;
+              //                                 exit;
+              //                               end;
+              //                             end;
+              //                           end;
+              //                         end;
+                end;
             end;
           dbnf_AllValuesFromFilter: { all fieldvalues must be in filter}
             begin
@@ -1034,7 +1150,7 @@ begin
     end
   else { fld is null }
     result := FAllowNull;
-  result := (result xor FNegate) or error_fld; { invert result, or filter error results }
+  result := result or error_fld; { invert result, or filter error results }
 end;
 
 function TFRE_DB_FILTER_UID.GetDefinitionKey: TFRE_DB_NameType;
@@ -1703,7 +1819,7 @@ begin
   FKeyPartMaj             := parent_collectionname;
   FKeyPartMin             := derivedcollname;
   if ParentChildspec='' then
-    FKeyPartParentChild:='#'
+    FKeyPartParentChild := '#'
   else
     FKeyPartParentChild := GFRE_BT.HashFast32_Hex(ParentChildspec);
 end;
@@ -1961,16 +2077,152 @@ begin
   FTransList.Add2Array(base_data);
 end;
 
+procedure TFRE_DB_TRANSDATA_MANAGER.TL_StatsTimer;
+begin
+  LockManager;
+  try
+    exit;
+    writeln('GDBTM Stats:  QueryCount ',FArtQueryStore.GetValueCount,' Transforms: ',FTransList.Count,' Orders: ',FOrders.Count);
+  finally
+    UnlockManager;
+  end;
+end;
+
+function TFRE_DB_TRANSDATA_MANAGER.InterfaceNeedsAProxy: Boolean;
+begin
+  abort;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.StartNotificationBlock(const key: TFRE_DB_TransStepId);
+begin
+  abort;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.FinishNotificationBlock(out block: IFRE_DB_Object);
+begin
+  abort;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.SendNotificationBlock(const block: IFRE_DB_Object);
+begin
+  abort;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.CollectionCreated(const coll_name: TFRE_DB_NameType);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.CollectionDeleted(const coll_name: TFRE_DB_NameType);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.ObjectDeleted(const obj: IFRE_DB_Object);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object);
+
+  procedure CheckIfNeeded(const tcd : TFRE_DB_TRANS_COLL_DATA);
+  begin
+    tcd.GetDataArray;
+    //-> Check if in base transformed data
+    //---
+    //
+
+
+    //if bd.GetTransFormKey = base_key then
+    //  begin
+    //    halt      := true;
+    //    base_data := bd;
+    //  end;
+  end;
+
+begin
+  LockManager;
+  try
+    inc(F
+    FOrders.ForAll(@CheckIfNeeded);
+  finally
+    UnlockManager;
+  end;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.SubObjectStored(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.DifferentiallUpdStarts(const obj_uid: IFRE_DB_Object);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.FieldDelete(const old_field: IFRE_DB_Field);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.FieldAdd(const new_field: IFRE_DB_Field);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.FieldChange(const old_field, new_field: IFRE_DB_Field);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+begin
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.FinalizeNotif;
+begin
+end;
+
 constructor TFRE_DB_TRANSDATA_MANAGER.Create;
 begin
   GFRE_TF.Get_Lock(FTransLock,true);
   FOrders.Init(10);
   FTransList.Init(10);
   FArtQueryStore := TFRE_ART_TREE.Create;
+  FStatCleaner   := TFRE_DB_TDM_STATS_CLEANER.Create(self);
 end;
 
 destructor TFRE_DB_TRANSDATA_MANAGER.Destroy;
 begin
+  FStatCleaner.Free;
   FTransLock.Finalize;
   { TODO : Free Transformations, Free Orders}
   FArtQueryStore.Free;   { TODO: clean queries }
@@ -2018,10 +2270,13 @@ begin
         begin
           GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[basekey]);
           st        := GFRE_BT.Get_Ticks_ms;
+          inc(FTransformKey);
           transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey);
           transdata.FChildDataIsLazy    := true;
           transdata.FIncludesChildData  := dc.HasParentChildRefRelationDefined;
+          transdata.FTransformKey       := FTransformKey;
           dc.TransformAllTo(transdata.GetDataArray^,transdata.FChildDataIsLazy,rcnt);       { need base transformation layer}
+
           AddBaseTransformedData(transdata);
           et        := GFRE_BT.Get_Ticks_ms;
           GFRE_DBI.LogInfo(dblc_DBTDM,'<BASE TRANSFORMING DATA FOR [%s] DONE - Transformed %d records in %d ms',[basekey,rcnt,et-st]);
@@ -2191,15 +2446,12 @@ var fld : IFRE_DB_FIELD;
                  refl_spec := qry.GetReflinkSpec(ffn);
                  refl_vals := qry.GetReflinkStartValues(ffn);
                  session.GetDBConnection.ExpandReferences(refl_vals,refl_spec,expanded_uid);
-                 qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_OneValueFromFilter,dependency_negate,fallownull);
-
+                 qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_OneValueFromFilter,dependency_negate,fallownull)
                  //        (FConnection.UpcastDBC).ExpandReferences(FDepObjectList,FDepRefConstraint,exrefs);
                  //        if FDepObjectsRefNeg then
                  //          AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_NoValueInFilter)
                  //        else
                  //          AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_OneValueFromFilter);
-
-
                end
              else
                begin { "normal" UID Filter}
@@ -2413,6 +2665,12 @@ begin
     result := result + '/'+GFRE_BT.HashFast32_Hex(dc_name);
   if client_part<>'' then
     result := result+'#'+client_part;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.InboundNotificationBlock(const dbname: TFRE_DB_NameType; const block: IFRE_DB_Object);
+var ln : TFRE_DB_NameType;
+begin
+  FREDB_ApplyNotificationBlockToNotifIF(block,self,ln);
 end;
 
 
