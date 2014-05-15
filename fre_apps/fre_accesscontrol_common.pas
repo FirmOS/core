@@ -283,19 +283,19 @@ end;
 procedure TFRE_COMMON_DOMAIN_MOD.CalculateDomainIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if input_object.DomainID=conn.GetSysDomainUID then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico_lck.svg');
   end else begin
     if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_DOMAIN,input_object.DomainID) then begin
       if input_object.Field('suspended').AsBoolean then begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_suspended.png');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico_sus.svg');
       end else begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain.png');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
       end;
     end else begin
       if input_object.Field('suspended').AsBoolean then begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_locked_suspended.png');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_lck_sus.svg');
       end else begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_locked.png');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_lck.svg');
       end;
     end;
   end;
@@ -304,18 +304,18 @@ end;
 procedure TFRE_COMMON_DOMAIN_MOD.CalculateGroupIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if input_object.Field('protected').AsBoolean or not conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
   end;
 end;
 
 procedure TFRE_COMMON_DOMAIN_MOD.CalculateUserIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
 end;
 
@@ -838,12 +838,12 @@ end;
 procedure TFRE_COMMON_ROLE_MOD.CalculateRoleIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if input_object.IsA('TFRE_DB_DOMAIN') then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
   end else begin
     if conn.sys.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,input_object.DomainID) then begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
     end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_locked.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_lck.svg');
     end;
   end;
 end;
@@ -851,12 +851,12 @@ end;
 procedure TFRE_COMMON_ROLE_MOD.CalculateGroupIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if not conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
   end else begin
     if input_object.Field('protected').AsBoolean then begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_protected.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
     end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
     end;
   end;
 end;
@@ -864,9 +864,9 @@ end;
 procedure TFRE_COMMON_ROLE_MOD.CalculateUserIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
 end;
 
@@ -1392,10 +1392,10 @@ end;
 procedure TFRE_COMMON_GROUP_MOD.CalculateRoleFields(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if conn.sys.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
     transformed_object.Field('_disabledrag_').AsBoolean:=false;
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_lck.svg');
     transformed_object.Field('_disabledrag_').AsBoolean:=true;
   end;
 end;
@@ -1403,15 +1403,15 @@ end;
 procedure TFRE_COMMON_GROUP_MOD.CalculateGroupIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if input_object.IsA('TFRE_DB_DOMAIN') then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
   end else begin
     if not conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,input_object.DomainID) then begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_locked.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
     end else begin
       if input_object.Field('protected').AsBoolean then begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_protected.png');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
       end else begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group.png');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
       end;
     end;
   end;
@@ -1420,9 +1420,9 @@ end;
 procedure TFRE_COMMON_GROUP_MOD.CalculateUserIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
 end;
 
@@ -2290,9 +2290,9 @@ end;
 procedure TFRE_COMMON_USER_MOD.CalculateRoleIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if conn.sys.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_lck.svg');
   end;
 end;
 
@@ -2300,13 +2300,13 @@ procedure TFRE_COMMON_USER_MOD.CalculateGroupFields(const conn: IFRE_DB_CONNECTI
 begin
   if conn.SYS.CheckClassRight4DomainId('assignGroup',TFRE_DB_GROUP,input_object.DomainID) then begin
     if input_object.Field('protected').AsBoolean then begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_protected.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
     end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
     end;
     transformed_object.Field('_disabledrag_').AsBoolean:=false;
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_locked.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
     transformed_object.Field('_disabledrag_').AsBoolean:=true;
   end;
 end;
@@ -2314,12 +2314,12 @@ end;
 procedure TFRE_COMMON_USER_MOD.CalculateUserIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if input_object.IsA('TFRE_DB_DOMAIN') then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain.png');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
   end else begin
     if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,input_object.DomainID) then begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
     end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_locked.png');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
     end;
   end;
 end;
@@ -2806,16 +2806,16 @@ var
 begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppTextShort(session,'$sitemap_main'),'images_apps/accesscontrol/monitor_white.svg','',0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ACCESSCONTROL_APP));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppTextShort(session,'$sitemap_main'),'images_apps/accesscontrol/accesscontrol.svg','',0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ACCESSCONTROL_APP));
   if ShowDomains(conn) then begin
-    FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppTextShort(session,'$sitemap_domains'),'images_apps/accesscontrol/domain_white.svg',TFRE_COMMON_DOMAIN_MOD.ClassName);
+    FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppTextShort(session,'$sitemap_domains'),'images_apps/accesscontrol/domain.svg',TFRE_COMMON_DOMAIN_MOD.ClassName);
     pos:=-45;
   end else begin
     pos:=0;
   end;
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppTextShort(session,'$sitemap_users'),'images_apps/accesscontrol/user_white.svg',TFRE_COMMON_USER_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_USER_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppTextShort(session,'$sitemap_groups'),'images_apps/accesscontrol/group_white.svg',TFRE_COMMON_GROUP_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_GROUP_MOD));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Roles',FetchAppTextShort(session,'$sitemap_roles'),'images_apps/accesscontrol/notebook_white.svg',TFRE_COMMON_ROLE_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ROLE_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppTextShort(session,'$sitemap_users'),'images_apps/accesscontrol/user.svg',TFRE_COMMON_USER_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_USER_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppTextShort(session,'$sitemap_groups'),'images_apps/accesscontrol/group.svg',TFRE_COMMON_GROUP_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_GROUP_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Roles',FetchAppTextShort(session,'$sitemap_roles'),'images_apps/accesscontrol/role.svg',TFRE_COMMON_ROLE_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ROLE_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData,pos);
   session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
