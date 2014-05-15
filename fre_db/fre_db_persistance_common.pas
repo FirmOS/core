@@ -238,12 +238,12 @@ type
     function      GetPersLayer        : IFRE_DB_PERSISTANCE_LAYER;
   public
 
-    {< Do all streaming changes for tis section }
+    {< Do all streaming changes for this section }
     procedure     StreamToThis       (const stream : TStream);
     procedure     LoadFromThis       (const stream : TStream);
     function      BackupToObject     : IFRE_DB_Object;
     procedure     RestoreFromObject  (const obj:IFRE_DB_Object);
-    { Do all streaming changes for tis section >}
+    { Do all streaming changes for this section >}
 
     function    CollectionName     (const unique:boolean):TFRE_DB_NameType;
     function    GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
@@ -380,6 +380,7 @@ type
 
     function     InternalStoreObjectFromStable (const obj : TFRE_DB_Object) : TFRE_DB_Errortype;
     function     InternalRebuildRefindex                                    : TFRE_DB_Errortype;
+    function     InternalCheckRestoredBackup                                : TFRE_DB_Errortype;
     procedure    InternalStoreLock                                          ;
 
     procedure    FDB_CleanUpMasterData                                    ;
@@ -3367,6 +3368,36 @@ function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
 
 begin
   ForAllObjectsInternal(true,false,@BuildRef);
+  result := edb_OK;
+end;
+
+function TFRE_DB_Master_Data.InternalCheckRestoredBackup: TFRE_DB_Errortype;
+var cnt : NativeInt;
+
+  procedure CheckObjectInCollection(const obj:TFRE_DB_Object ; var break : boolean);
+  begin
+    if obj.IsObjectRoot then
+      begin
+        obj.Set_Store_Locked(False);
+        try
+          if length(obj.__InternalGetCollectionList)=0 then
+          begin
+            inc(cnt);
+            writeln(':::DB VERIFY - OFFENDING OBJECT (not stored in an collection ?)', obj.DumpToString());
+          end;
+        finally
+          obj.Set_Store_Locked(True);
+        end;
+     end;
+  end;
+
+begin
+  cnt := 0;
+  ForAllObjectsInternal(true,false,@CheckObjectInCollection);
+  if cnt>0 then
+    begin
+      writeln('FAILURES : ',cnt);
+    end;
   result := edb_OK;
 end;
 

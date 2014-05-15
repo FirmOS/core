@@ -766,6 +766,10 @@ begin
           raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RECREATE REFERENTIAL INTEGRITY FROM STABLE');
         FMaster.InternalStoreLock;
       end;
+    2 :
+      begin { Do a Checkphase of the restore }
+        result := FMaster.InternalCheckRestoredBackup;
+      end;
     100 :
       begin
 
@@ -1412,6 +1416,12 @@ begin
               raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the object [%s] is a child object, only root objects updates are allowed',[obj.UID_String]);
             if not _FetchO(obj.UID,to_update_obj,true) then
               raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
+            if length(to_update_obj.__InternalGetCollectionList)=0 then
+              begin
+                writeln('::: OFFENDING OBJECT ', to_update_obj.DumpToString());
+                //halt;
+                raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fetched to update ubj must have internal collections(!)');
+              end;
             if collection_name<>'' then
               if not GetCollection(collection_name,coll) then
                 raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');

@@ -5250,6 +5250,9 @@ begin
     progress('READ COLLECTIONS ',obj.Field('CollectionName').AsString,'',i+1,count);
     FPersistance_Layer.FDB_SendCollection(obj);
   end;
+  progress('CHECK RESTORE','','',0,0);
+  FPersistance_Layer.FDB_PrepareDBRestore(2);
+  progress('CHECK RESTORE DONE','','',0,0);
   FPersistance_Layer.FDB_PrepareDBRestore(100);
   progress('','','DONE',0,0);
 end;
