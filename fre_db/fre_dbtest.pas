@@ -479,7 +479,7 @@ end;
 procedure TFRE_DB_TEST_APP_SVG_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$svg_description')
+  InitModuleDesc('svg_description')
 end;
 
 function TFRE_DB_TEST_APP_SVG_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
@@ -755,7 +755,7 @@ end;
 procedure TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$feedbrowsetree_description');
+  InitModuleDesc('feedbrowsetree_description');
 end;
 
 function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
@@ -970,7 +970,7 @@ end;
 procedure TFRE_DB_TEST_APP_ALLGRID_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$allgrid_description');
+  InitModuleDesc('allgrid_description');
 end;
 
 class procedure TFRE_DB_TEST_APP_ALLGRID_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -1062,7 +1062,7 @@ end;
 procedure TFRE_DB_TEST_APP_FORMTEST_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$formtest_description');
+  InitModuleDesc('formtest_description');
 end;
 
 function TFRE_DB_TEST_APP_FORMTEST_MOD.GetToolbarMenu(const ses: IFRE_DB_Usersession): TFRE_DB_CONTENT_DESC;
@@ -1141,7 +1141,7 @@ end;
 procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$live_chart_description')
+  InitModuleDesc('live_chart_description')
 end;
 
 procedure TFRE_DB_TEST_APP_LIVE_CHART_MOD._SendDataLC(const ses: IFRE_DB_Usersession);
@@ -1275,7 +1275,7 @@ end;
 procedure TFRE_DB_TEST_APP_EDITORS_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$edit_description')
+  InitModuleDesc('edit_description')
 end;
 
 procedure TFRE_DB_TEST_APP_EDITORS_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1374,7 +1374,7 @@ end;
 procedure TFRE_DB_TEST_APP_WELCOME_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$welcome_description');
+  InitModuleDesc('welcome_description');
 end;
 
 class procedure TFRE_DB_TEST_APP_WELCOME_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -1461,7 +1461,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$gtf_description')
+  InitModuleDesc('gtf_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1653,7 +1653,7 @@ end;
 procedure TFRE_DB_TEST_APP_CHART_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$chart_description')
+  InitModuleDesc('chart_description')
 end;
 
 procedure TFRE_DB_TEST_APP_CHART_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
@@ -1748,7 +1748,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRID2_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$grid2_description')
+  InitModuleDesc('grid2_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRID2_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1994,7 +1994,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRID_MOD.SetupAppModuleStructure;
 begin
   inherited SetupAppModuleStructure;
-  InitModuleDesc('$grid_description')
+  InitModuleDesc('grid_description')
 end;
 
 procedure TFRE_DB_TEST_APP_GRID_MOD.SC_ChangeData_Result(const input: IFRE_DB_Object);
@@ -2292,19 +2292,19 @@ begin
   if currentVersionId='' then
     begin
       currentVersionId := '1.0';
-      CreateAppText(conn,'$caption','Test App','Test App','Test App');
-      CreateAppText(conn,'$vnc_description','VNC Test','VNC Test','VNC Test');
-      CreateAppText(conn,'$welcome_description','Welcome Test','Welcome Test','Welcome Test');
-      CreateAppText(conn,'$gtf_description','Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
-      CreateAppText(conn,'$edit_description','Editors','Editors','Editors');
-      CreateAppText(conn,'$svg_description','SVG','SVG','SVG');
-      CreateAppText(conn,'$chart_description','Chart Test','Chart Test','Chart Test');
-      CreateAppText(conn,'$live_chart_description','Live Chart Test','Live Chart Test','Live Chart Test');
-      CreateAppText(conn,'$grid_description','Grid Test','Grid Test','Grid Test');
-      CreateAppText(conn,'$grid2_description','Grid 2 Test','Grid 2 Test','Grid 2 Test');
-      CreateAppText(conn,'$formtest_description','Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
-      CreateAppText(conn,'$allgrid_description','Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
-      CreateAppText(conn,'$feedbrowsetree_description','Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
+      CreateAppText(conn,'caption','Test App','Test App','Test App');
+      CreateAppText(conn,'vnc_description','VNC Test','VNC Test','VNC Test');
+      CreateAppText(conn,'welcome_description','Welcome Test','Welcome Test','Welcome Test');
+      CreateAppText(conn,'gtf_description','Grid Tree Form Test','Grid Tree Form Test','Grid Tree Form Test');
+      CreateAppText(conn,'edit_description','Editors','Editors','Editors');
+      CreateAppText(conn,'svg_description','SVG','SVG','SVG');
+      CreateAppText(conn,'chart_description','Chart Test','Chart Test','Chart Test');
+      CreateAppText(conn,'live_chart_description','Live Chart Test','Live Chart Test','Live Chart Test');
+      CreateAppText(conn,'grid_description','Grid Test','Grid Test','Grid Test');
+      CreateAppText(conn,'grid2_description','Grid 2 Test','Grid 2 Test','Grid 2 Test');
+      CreateAppText(conn,'formtest_description','Fieldtypes Formtest','Form Tests','A form to test all possible validators,data types, gauges etc');
+      CreateAppText(conn,'allgrid_description','Fieldtypes Gridtest','Grid Tests','A grid to test all possible validators,data types, gauges etc');
+      CreateAppText(conn,'feedbrowsetree_description','Feeder Browser','Feeder Browser','A Module implementing a simple test browser tree');
    end;
   if currentVersionId<>newVersionId then
     raise EFRE_DB_Exception.Create(edb_ERROR,'upgrade failed for '+currentVersionId+' : '+newVersionId);
