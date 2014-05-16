@@ -45,7 +45,7 @@ interface
 uses
   Classes, SysUtils, CustApp,
   FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
-  FRE_DB_CORE,fre_db_serverdefaults,
+  FRE_DB_CORE,
 
   fre_dbbase,fre_openssl_cmd,
 
@@ -662,7 +662,6 @@ begin
   if GFRE_DB_PS_LAYER.DatabaseExists('SYSTEM') then
     CheckDbResult(GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM'),'DELETE SYSTEM DB FAILED');
   CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM'),'CREATE SYSTEM DB FAILED');
-  gFRE_InstallServerDefaults;
 end;
 
 procedure TFRE_CLISRV_APP.BackupDB(const adb,sdb:boolean ; const dir: string);

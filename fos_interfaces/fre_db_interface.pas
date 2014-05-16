@@ -2673,6 +2673,7 @@ type
   function  FREDB_ObjectToPtrUInt                (const obj : TObject):PtrUInt;
   function  FREDB_PtrUIntToObject                (const obj : PtrUInt):TObject;
 
+  function  FREDB_GetGlobalTextKey                  (const key: String): String;
   function  FREDB_getThemedResource                 (const id: String): String;
   function  FREDB_StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
   function  FREDB_StringArray2Upper                 (const sa : TFRE_DB_StringArray):TFRE_DB_StringArray;
@@ -3289,6 +3290,11 @@ end;
 function FREDB_PtrUIntToObject(const obj: PtrUInt): TObject;
 begin
   result := TObject(obj);
+end;
+
+function FREDB_GetGlobalTextKey(const key: String): String;
+begin
+  Result:='$TFRE_DB_GLOBAL_TEXTS_'+key;
 end;
 
 function FREDB_getThemedResource(const id: String): String;

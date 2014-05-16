@@ -2276,7 +2276,7 @@ implementation
                                group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
                                                        obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
                                if obj^.fieldschemdef.addConfirm then begin
-                                 group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
+                                 group.AddInput.Describe(_getText(FREDB_GetGlobalTextKey('input_confirm_prefix'))+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
                                                          obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass,prefix+obj^.field);
                                end;
                              end;

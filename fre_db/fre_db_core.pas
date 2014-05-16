@@ -1092,6 +1092,7 @@ type
     procedure SetTKey(const AValue: TFRE_DB_String);
   public
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure ClearLong;
     procedure ClearShort;
     procedure ClearHint;
@@ -2428,8 +2429,6 @@ type
     procedure   ClearGUID              (var uid:TGUID);
     function    Get_A_Guid             : TGUID;
     function    Get_A_Guid_HEX         : Ansistring;
-
-    function    InstallDBDefaults      (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
   end;
 
   OFRE_DB_ConnectionArr  = specialize OGFOS_Array<TFRE_DB_CONNECTION>;
@@ -2958,6 +2957,9 @@ begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
+
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_DOMAIN_scheme_group','Domain'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_DOMAIN_scheme_name','Name'));
   end;
 
 end;
@@ -2972,8 +2974,8 @@ begin
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
   scheme.AddCalcSchemeField('displayname',fdbft_String,@_calcDisplayName);
 
-  input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_DOMAIN_group');
-  input_group.AddInput('objname','$scheme_TFRE_DB_DOMAIN_name');
+  input_group:=scheme.AddInputGroup('main').Setup('$TFRE_DB_DOMAIN_scheme_group');
+  input_group.AddInput('objname','$TFRE_DB_DOMAIN_scheme_name');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
 
 end;
@@ -3189,7 +3191,7 @@ begin
   if cap_trans_key<>'' then
     obj.caption_key    := cap_trans_key
   else
-    obj.caption_key    := '$scheme_'+fieldDef.FScheme.DefinedSchemeName+'_'+schemefield;
+    obj.caption_key    := '$'+fieldDef.FScheme.DefinedSchemeName+'_scheme_'+schemefield;
   obj.datacollection := field_backing_collection;
   obj.dc_isdomainc   := fbCollectionIsDomainCollection;
   obj.chooser_type   := chooser_type;
@@ -3645,14 +3647,13 @@ begin
   scheme.AddSchemeField('domaingroupkey',fdbft_String).SetupFieldDef(true,false);
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 
-  input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_GROUP_group_group');
-  input_group.AddInput('objname','$scheme_TFRE_DB_GROUP_name');
-  //input_group:=scheme.AddInputGroup('domain').Setup('$scheme_TFRE_DB_GROUP_group_domain');
-  input_group.AddDomainChooser('domainidlink',sr_STORE,TFRE_DB_GROUP,true,'$scheme_TFRE_DB_GROUP_domainid');
+  input_group:=scheme.AddInputGroup('main').Setup('$TFRE_DB_GROUP_scheme_group_group');
+  input_group.AddInput('objname','$TFRE_DB_GROUP_scheme_name');
+  input_group.AddDomainChooser('domainidlink',sr_STORE,TFRE_DB_GROUP,true,'$TFRE_DB_GROUP_scheme_domainid');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
 
-  input_group:=scheme.AddInputGroup('main_edit').Setup('$scheme_TFRE_DB_GROUP_group_group');
-  input_group.AddInput('objname','$scheme_TFRE_DB_GROUP_name');
+  input_group:=scheme.AddInputGroup('main_edit').Setup('$TFRE_DB_GROUP_scheme_group_group');
+  input_group.AddInput('objname','$TFRE_DB_GROUP_scheme_name');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
 end;
 
@@ -3683,8 +3684,12 @@ begin
   newVersionId:='1.1';
   if (currentVersionId='') or (currentVersionId='1.0') then begin
     currentVersionId := '1.1';
-  end;
 
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_group_group','Group'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_group_domain','Domain'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_name','Name'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_domainid','Domain'));
+  end;
 end;
 
 class procedure TFRE_DB_GROUP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
@@ -3766,18 +3771,33 @@ begin
   field_def         := scheme.AddSchemeField('txt_s',fdbft_String);
   field_def         := scheme.AddSchemeField('hnt',fdbft_String);
 
-  input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_TEXT_descr_group');
-  input_group.AddInput('txt','$scheme_TFRE_DB_TEXT_txt');
-  input_group.AddInput('txt_s','$scheme_TFRE_DB_TEXT_txt_s');
-  input_group:=scheme.AddInputGroup('main_full').Setup('$scheme_TFRE_DB_TEXT_descr_group');
-  input_group.AddInput('txt','$scheme_TFRE_DB_TEXT_txt');
-  input_group.AddInput('txt_s','$scheme_TFRE_DB_TEXT_txt_s');
-  input_group.AddInput('hnt','$scheme_TFRE_DB_TEXT_txt_s');
-  input_group:=scheme.AddInputGroup('main_all').Setup('$scheme_TFRE_DB_TEXT_descr_group');
-  input_group.AddInput('txt','$scheme_TFRE_DB_TEXT_txt');
-  input_group.AddInput('txt_s','$scheme_TFRE_DB_TEXT_txt_s');
-  input_group.AddInput('hnt','$scheme_TFRE_DB_TEXT_txt_s');
-  input_group.AddInput('t_key','$scheme_TFRE_DB_TEXT_key');
+  input_group:=scheme.AddInputGroup('main').Setup('$TFRE_DB_TEXT_scheme_descr_group');
+  input_group.AddInput('txt','$TFRE_DB_TEXT_scheme_txt');
+  input_group.AddInput('txt_s','$TFRE_DB_TEXT_scheme_txt_s');
+  input_group:=scheme.AddInputGroup('main_full').Setup('$TFRE_DB_TEXT_scheme_descr_group');
+  input_group.AddInput('txt','$TFRE_DB_TEXT_scheme_txt');
+  input_group.AddInput('txt_s','$TFRE_DB_TEXT_scheme_txt_s');
+  input_group.AddInput('hnt','$TFRE_DB_TEXT_scheme_hnt');
+  input_group:=scheme.AddInputGroup('main_all').Setup('$TFRE_DB_TEXT_scheme_descr_group');
+  input_group.AddInput('txt','$TFRE_DB_TEXT_scheme_txt');
+  input_group.AddInput('txt_s','$TFRE_DB_TEXT_scheme_txt_s');
+  input_group.AddInput('hnt','$TFRE_DB_TEXT_scheme_hnt');
+  input_group.AddInput('t_key','$TFRE_DB_TEXT_scheme_key');
+end;
+
+class procedure TFRE_DB_TEXT.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+
+  if (currentVersionId='') then begin
+    currentVersionId:='1.0';
+
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_TEXT_scheme_descr_group','Description'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_TEXT_scheme_txt','Description'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_TEXT_scheme_txt_s','Brief Description'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_TEXT_scheme_hnt','Hint'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_TEXT_scheme_key','Key'));
+  end;
 end;
 
 procedure TFRE_DB_TEXT.ClearLong;
@@ -4950,9 +4970,6 @@ begin
   if result then
     exit;
   result := FREDB_StringInArray(TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+GetMyDomainID_String,FConnectionRights); // GetMyDomainID_String has to be uppercase
-  if result then
-    exit;
-  result := FREDB_StringInArray(TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+GetSystemDomainID_String,FConnectionRights); // check in system domain
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4MyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
@@ -4961,9 +4978,6 @@ begin
   if result then
     exit;
   result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,GetMyDomainID),FConnectionRights);
-  if result then
-    exit;
-  result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,FSysDomainUID),FConnectionRights);  // check in system domain
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4AnyDomain(const right_name: TFRE_DB_String; const classtyp: TClass): boolean;
@@ -4985,9 +4999,6 @@ begin
  if result then
    exit;
  result := FREDB_StringInArray((TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+uppercase(GFRE_BT.GUID_2_HexString(domain))),FConnectionRights); // DomainIDasString has to be uppercase!
- if result then
-   exit;
- result := FREDB_StringInArray((TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+GetSystemDomainID_String),FConnectionRights); // check in system domain
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForRight(const right_name: TFRE_DB_String): TFRE_DB_GUIDArray;
@@ -5022,9 +5033,6 @@ begin
  if result then
    exit;
  result := IntCheckClassRight4Domain(std_right,ClassTyp,domain);
- if result then
-   exit;
- result := IntCheckClassRight4Domain(std_right,ClassTyp,FSysDomainUID);  // check in system domain
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.IntCheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainuid: TGuid): boolean;
@@ -5033,9 +5041,6 @@ begin
   if result then
     exit;
   result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,domainuid),FConnectionRights);
-  if result then
-    exit;
-  result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,FSysDomainUID),FConnectionRights);  // check in system domain
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
@@ -11068,7 +11073,6 @@ begin
        or IsCurrentUserSystemAdmin
        or (classt=TFRE_DB_Object)
        or IntCheckClassRight4Domain(sr,classt,dbo.DomainID))
-       or IntCheckClassRight4Domain(sr,classt,GetSysDomainUID)
        or IntCheckObjectRight(sr,dbo.UID)
       ) then
          begin
@@ -11092,7 +11096,6 @@ begin
     objclass := dbo.Implementor_HC.ClassType;
     if not
      ((IntCheckClassRight4Domain(sr_UPDATE,objclass,dbo.DomainID))
-       or IntCheckClassRight4Domain(sr_UPDATE,objclass,GetSysDomainUID)
        or IntCheckObjectRight(sr_UPDATE,dbo.UID)
        or IsCurrentUserSystemAdmin) then
          exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to update objects in the specified domain : '+new_obj.DomainID_String);
@@ -11838,46 +11841,6 @@ var x:TGuid;
 begin
   x := Get_A_Guid;
   result := GFRE_BT.Mem2HexStr(PByte(@x),sizeof(TGuid));
-end;
-
-function TFRE_DB.InstallDBDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
-
-  function _storeText(const key,value:TFRE_DB_String):TFRE_DB_Errortype;
-  var
-    txt: IFRE_DB_TEXT;
-  begin
-   txt:=GFRE_DBI.CreateText(key,value);
-   Result:=conn.StoreTranslateableText(txt);
-  end;
-
-begin
- _storeText('$scheme_TFRE_DB_TEXT_descr_group','Description');
-
- _storeText('$scheme_TFRE_DB_TEXT_txt','Description');
- _storeText('$scheme_TFRE_DB_TEXT_txt_s','Brief Description');
- _storeText('$scheme_TFRE_DB_TEXT_hnt','Hint');
- _storeText('$scheme_TFRE_DB_TEXT_key','Key');
-
- _storeText('$scheme_TFRE_DB_USER_user_group','User');
- _storeText('$scheme_TFRE_DB_USER_descr_group','Description');
- _storeText('$scheme_TFRE_DB_USER_picture_group','Picture');
- _storeText('$scheme_TFRE_DB_USER_login','Login name');
- _storeText('$scheme_TFRE_DB_USER_firstname','Firstname');
- _storeText('$scheme_TFRE_DB_USER_lastname','Lastname');
- _storeText('$scheme_TFRE_DB_USER_passwordMD5','Password');
- _storeText('$scheme_TFRE_DB_USER_picture','');
- _storeText('$scheme_TFRE_DB_USER_domain_group','Domain');
- _storeText('$scheme_TFRE_DB_USER_domainidlink','Domain');
-
- _storeText('$scheme_TFRE_DB_GROUP_group_group','Group');
- _storeText('$scheme_TFRE_DB_GROUP_group_domain','Domain');
- _storeText('$scheme_TFRE_DB_GROUP_name','Name');
- _storeText('$scheme_TFRE_DB_GROUP_domainid','Domain');
-
- _storeText('$scheme_TFRE_DB_DOMAIN_group','Domain');
- _storeText('$scheme_TFRE_DB_DOMAIN_name','Name');
-
- _storeText('$scheme_input_confirm_prefix','Confirm');
 end;
 
 procedure TFRE_DB.AddSystemObjectToSysList(const obj: TFRE_DB_Object);
@@ -18589,24 +18552,23 @@ begin
   scheme.AddSchemeFieldSubscheme('desc','TFRE_DB_TEXT');
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('login','firstname','lastname'),'%s - (%s %s)');
 
-  input_group:=scheme.AddInputGroup('main').Setup('$scheme_TFRE_DB_USER_user_group');
-  input_group.AddInput('login','$scheme_TFRE_DB_USER_login');
-  //input_group:=scheme.AddInputGroup('domain').Setup('$scheme_TFRE_DB_USER_domain_group');
-  input_group.AddDomainChooser('domainidlink',sr_STORE,TFRE_DB_USER,true,'$scheme_TFRE_DB_USER_domainidlink');
-  input_group.AddInput('firstname','$scheme_TFRE_DB_USER_firstname');
-  input_group.AddInput('lastname','$scheme_TFRE_DB_USER_lastname');
-  input_group.AddInput('passwordMD5','$scheme_TFRE_DB_USER_passwordMD5');
+  input_group:=scheme.AddInputGroup('main').Setup('$TFRE_DB_USER_scheme_user_group');
+  input_group.AddInput('login','$TFRE_DB_USER_scheme_login');
+  input_group.AddDomainChooser('domainidlink',sr_STORE,TFRE_DB_USER,true,'$TFRE_DB_USER_scheme_domainidlink');
+  input_group.AddInput('firstname','$TFRE_DB_USER_scheme_firstname');
+  input_group.AddInput('lastname','$TFRE_DB_USER_scheme_lastname');
+  input_group.AddInput('passwordMD5','$TFRE_DB_USER_scheme_passwordMD5');
 
-  input_group:=scheme.AddInputGroup('main_edit').Setup('$scheme_TFRE_DB_USER_user_group');
-  input_group.AddInput('login','$scheme_TFRE_DB_USER_login',true);
-  input_group.AddInput('firstname','$scheme_TFRE_DB_USER_firstname');
-  input_group.AddInput('lastname','$scheme_TFRE_DB_USER_lastname');
-  input_group.AddInput('passwordMD5','$scheme_TFRE_DB_USER_passwordMD5');
+  input_group:=scheme.AddInputGroup('main_edit').Setup('$TFRE_DB_USER_scheme_user_group');
+  input_group.AddInput('login','$TFRE_DB_USER_scheme_login',true);
+  input_group.AddInput('firstname','$TFRE_DB_USER_scheme_firstname');
+  input_group.AddInput('lastname','$TFRE_DB_USER_scheme_lastname');
+  input_group.AddInput('passwordMD5','$TFRE_DB_USER_scheme_passwordMD5');
 
-  input_group:=scheme.AddInputGroup('descr').Setup('$scheme_TFRE_DB_USER_descr_group');
+  input_group:=scheme.AddInputGroup('descr').Setup('$TFRE_DB_USER_scheme_descr_group');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc');
-  input_group:=scheme.AddInputGroup('picture').Setup('$scheme_TFRE_DB_USER_picture_group');
-  input_group.AddInput('picture','',false,false,'');
+  input_group:=scheme.AddInputGroup('picture').Setup('$TFRE_DB_USER_scheme_picture_group');
+  input_group.AddInput('picture','$TFRE_DB_USER_scheme_picture',false,false,'');
 end;
 
 class function TFRE_DB_USER.GetDomainLoginKey(const loginpart: TFRE_DB_String; const domain_id: TGUID): TFRE_DB_String;
@@ -18619,6 +18581,17 @@ begin
  newVersionId:='1.0';
  if currentVersionId='' then begin
    currentVersionId := '1.0';
+
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_user_group','User'));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_descr_group','User'));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_picture_group','Description'));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_login','Login name'));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_firstname','Firstname'));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_lastname','Lastname'));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_passwordMD5','Password'));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_picture',''));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_domain_group','Domain'));
+   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_domainidlink','Domain'));
  end;
 
 end;
