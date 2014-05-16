@@ -155,14 +155,11 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
      procedure   FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
      procedure   FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
-     procedure   FDB_PrepareDBRestore          (const phase:integer);
+     procedure   FDB_PrepareDBRestore          (const phase:integer);     { used for various preparations and checks }
      procedure   FDB_SendObject                (const obj:IFRE_DB_Object);
      procedure   FDB_SendCollection            (const obj:IFRE_DB_Object);
      { Backup Functionality >}
 
-
-     procedure   _LoadCollectionPersistent  (const file_name : string);
-     procedure   _LoadObjectPersistent      (const UID: TGuid; var obj: TFRE_DB_Object);
      procedure   _SyncDBInternal            (const final:boolean=false);
 
      function   _InternalFetchConnectedLayer(db_name:TFRE_DB_String;var idx :NativeInt): TFRE_DB_PS_FILE;
@@ -326,6 +323,7 @@ begin
 end;
 
 procedure TFRE_DB_ASYNC_WRITE_BLOCK.DoOperation;
+var msg : string;
 begin
      try
        m.SaveToFile(FFilename);
@@ -333,7 +331,9 @@ begin
      except on e:exception do
        begin
          writeln('----------------------------------------->>>>> EXC - ASYNC WRITE ',FFilename,' ',e.Message);
-         GFRE_DBI.LogEmergency(dblc_PERSISTANCE,'<<STORE ASYNC : '+FFilename+' FAILED DONE');
+         msg := '<<STORE ASYNC : '+FFilename+' FAILED -> NOT DONE (!!!) '+e.Message;
+         GFRE_DBI.LogError(dblc_PERSISTANCE,msg);
+         GFRE_DBI.LogEmergency(dblc_PERSISTANCE,msg);
        end;
      end;
 end;
@@ -375,12 +375,24 @@ end;
 constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
 
     procedure _BuildMasterCollection;
+
       procedure add_guid(file_name:AnsiString);
-      var g   : TGUID;
-          obj : TFRE_DB_Object;
+      var g          : TGUID;
+          obj        : TFRE_DB_Object;
+          m          : TMemorystream;
+          uid_string : TFRE_DB_String;
       begin
         g := GFRE_BT.HexString_2_GUID(Copy(file_name,1,32));
-        _LoadObjectPersistent(g,obj);
+        uid_string:=GFRE_BT.GUID_2_HexString(g);
+        GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>RETRIEVE OBJECT [%s]',[uid_string]);
+        m:=TMemoryStream.Create;
+        try
+          m.LoadFromFile(FMasterCollDir+file_name);
+          obj:= TFRE_DB_Object.CreateFromMemory(m.Memory);
+        finally
+          m.free;
+        end;
+        GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<RETRIEVE OBJECT [%s] DONE',[uid_string]);
         result := FMaster.InternalStoreObjectFromStable(obj);
         if result<>edb_OK then
           raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RECREATE MEMORY FROM STABLE at [%s]',[GFRE_BT.GUID_2_HexString(g)]);
@@ -394,30 +406,28 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
     end;
 
     procedure _BuildCollections;
+
       procedure add_collection(file_name:AnsiString);
+      var f    : TFileStream;
+          res  : TFRE_DB_Errortype;
+          coll : IFRE_DB_PERSISTANCE_COLLECTION;
+          name : TFRE_DB_NameType;
       begin
-        _LoadCollectionPersistent(file_name);
+        name := GFRE_BT.HexStr2Str(Copy(file_name,1,Length(file_name)-4));
+        GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD COLLECTION [%s]',[name]);
+        f :=  TFileStream.Create(FCollectionsDir+file_name,fmOpenRead);
+        try
+          res := FMaster.MasterColls.NewCollection(name,'*',coll,false,self);
+          if res <> edb_OK then
+            raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
+          coll.GetPersLayerIntf.LoadFromThis(f);
+        finally
+          f.free;
+        end;
       end;
+
     begin
       GFRE_BT.List_Files(FCollectionsDir,@add_collection);
-    end;
-
-    procedure _BuildMetaData;
-    var m        : TMemorystream;
-        filename : TFRE_DB_String;
-        obj      : TFRE_DB_Object;
-    begin
-      filename   := 'reflinks.fdbo';
-      if FileExists(FMetaDir+filename) then begin
-        m:=TMemoryStream.Create;
-        try
-          m.LoadFromFile(FMetaDir+filename);
-          obj:= TFRE_DB_Object.CreateFromMemory(m.Memory);
-        finally
-          m.free;
-        end;
-        //meta_cb(fdbmt_Reflinks,obj);
-      end;
     end;
 
     function File_Size (const File_Name : String) : Int64;
@@ -497,6 +507,8 @@ begin
     end;
   result := edb_OK;
   _OpenWAL;
+  if not GDBPS_SKIP_STARTUP_CHECKS then
+    CheckDbResult(FMaster.InternalCheckRestoredBackup,' Internal Consistency Check Failed');
   FConnected   := true;
   FGlobalLayer := false;
 end;
@@ -585,25 +597,6 @@ begin
           end;
         end;
     end;
-end;
-
-procedure TFRE_DB_PS_FILE._LoadCollectionPersistent(const file_name: string);
-var f    : TFileStream;
-    res  : TFRE_DB_Errortype;
-    coll : IFRE_DB_PERSISTANCE_COLLECTION;
-    name : TFRE_DB_NameType;
-begin
-  name := GFRE_BT.HexStr2Str(Copy(file_name,1,Length(file_name)-4));
-  GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD COLLECTION [%s]',[name]);
-  f :=  TFileStream.Create(FCollectionsDir+file_name,fmOpenRead);
-  try
-    res := FMaster.MasterColls.NewCollection(name,'*',coll,false,self);
-    if res <> edb_OK then
-      raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
-    coll.GetPersLayerIntf.LoadFromThis(f);
-  finally
-    f.free;
-  end;
 end;
 
 procedure TFRE_DB_PS_FILE._StoreObjectPersistent(const obj: TFRE_DB_Object; const no_storelocking: boolean);
@@ -799,24 +792,6 @@ begin
     raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM BACKUP FAILED FOR [%s]',[name]);
   coll.GetPersLayerIntf.RestoreFromObject(obj);
   WT_StoreCollectionPersistent(coll);
-end;
-
-procedure TFRE_DB_PS_FILE._LoadObjectPersistent(const UID: TGuid; var obj: TFRE_DB_Object);
-var m          : TMemorystream;
-    filename   : TFRE_DB_String;
-    uid_string : TFRE_DB_String;
-begin
-  uid_string:=GFRE_BT.GUID_2_HexString(uid);
-  //GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>RETRIEVE OBJECT [%s]',[uid_string]);
-  filename   := uid_string+'.fdbo';
-  m:=TMemoryStream.Create;
-  try
-    m.LoadFromFile(FMasterCollDir+filename);
-    obj:= TFRE_DB_Object.CreateFromMemory(m.Memory);
-  finally
-    m.free;
-  end;
-  //GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<RETRIEVE OBJECT [%s] DONE',[uid_string]);
 end;
 
 procedure TFRE_DB_PS_FILE._SyncDBInternal(const final:boolean=false);
@@ -1050,8 +1025,9 @@ begin
     end;
   FMaster.Free;
 
-  if not FDontFinalizeNotif then
-    FChangeNotificationIF.FinalizeNotif;
+  if not FDontFinalizeNotif
+     and assigned(FChangeNotificationIF) then
+       FChangeNotificationIF.FinalizeNotif;
 
   FChangeNotificationIF:=nil;
   FLayerLock.Finalize;
@@ -1374,6 +1350,10 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     end;
   end;
 
+  function DoesNotNeedANewCollection:boolean;
+  begin
+    result := to_update_obj.__InternalCollectionExistsName(collection_name)>0;
+  end;
 
 begin
   FLayerLock.Acquire;
@@ -1420,7 +1400,8 @@ begin
               begin
                 writeln('::: OFFENDING OBJECT ', to_update_obj.DumpToString());
                 //halt;
-                raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fetched to update ubj must have internal collections(!)');
+                if not GDBPS_SKIP_STARTUP_CHECKS then
+                  raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fetched to update ubj must have internal collections(!)');
               end;
             if collection_name<>'' then
               if not GetCollection(collection_name,coll) then
@@ -1441,9 +1422,8 @@ begin
                      //halt;
                    end;
                  updatestep := TFRE_DB_UpdateStep.Create(self,obj,to_update_obj,false);
-                 //TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,@GenInsert,@GenDelete,@GenUpdate);
                  TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,nil,nil,@GenUpdate);
-                 if updatestep.HasNoChanges then
+                 if updatestep.HasNoChanges and DoesNotNeedANewCollection then
                    updatestep.Free
                  else
                    FTransaction.AddChangeStep(updatestep);

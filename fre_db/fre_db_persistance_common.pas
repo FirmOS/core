@@ -3375,6 +3375,8 @@ function TFRE_DB_Master_Data.InternalCheckRestoredBackup: TFRE_DB_Errortype;
 var cnt : NativeInt;
 
   procedure CheckObjectInCollection(const obj:TFRE_DB_Object ; var break : boolean);
+  var obrefs : TFRE_DB_ObjectReferences;
+      i      : NativeInt;
   begin
     if obj.IsObjectRoot then
       begin
@@ -3383,7 +3385,14 @@ var cnt : NativeInt;
           if length(obj.__InternalGetCollectionList)=0 then
           begin
             inc(cnt);
-            writeln(':::DB VERIFY - OFFENDING OBJECT (not stored in an collection ?)', obj.DumpToString());
+            writeln('INTERNAL FAILURE :::DB VERIFY - OFFENDING OBJECT (not stored in an collection ?)');
+            writeln(obj.DumpToString(2));
+            writeln('--Looking for references');
+            obrefs := GetReferencesDetailed(obj.UID,false);
+            for i:=0 to high(obrefs) do
+              begin
+                writeln('Is referenced by : ',obrefs[i].schemename,'(',FREDB_G2H(obrefs[i].linked_uid),').',obrefs[i].fieldname);
+              end;
           end;
         finally
           obj.Set_Store_Locked(True);
@@ -3397,6 +3406,7 @@ begin
   if cnt>0 then
     begin
       writeln('FAILURES : ',cnt);
+      exit(edb_INTERNAL);
     end;
   result := edb_OK;
 end;

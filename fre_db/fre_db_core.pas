@@ -2448,6 +2448,7 @@ var
   GDISABLE_SYNC             : boolean;
   GDBPS_TRANS_WRITE_THROUGH : boolean;
   GDBPS_TRANS_WRITE_ASYNC   : boolean;
+  GDBPS_SKIP_STARTUP_CHECKS : boolean;
 
   procedure GFRE_DB_Init_Check;
 
@@ -12936,7 +12937,7 @@ end;
 
 procedure TFRE_DB.LogEmergency(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
 begin
-  GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Info,CFOS_LL_Target[fll_Emergency],false);
+  GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Emergency,CFOS_LL_Target[fll_Emergency],false);
 end;
 
 

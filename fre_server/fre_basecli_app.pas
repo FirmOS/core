@@ -468,10 +468,11 @@ begin
   end;
 
   GDBPS_TRANS_WRITE_THROUGH := TRUE;
-  GDBPS_TRANS_WRITE_ASYNC   := TRUE;
+  GDBPS_TRANS_WRITE_ASYNC   := FALSE; { ASYNC Writethrough may be error prone (!) and unsave }
   GDISABLE_WAL              := TRUE;
   GDISABLE_SYNC             := TRUE;
   GDROP_WAL                 := TRUE;
+  GDBPS_SKIP_STARTUP_CHECKS := FALSE;
 
   ParsePersistanceLayerParams;
   if PreStartupTerminatingCommands then
