@@ -709,6 +709,10 @@ end;
 
 procedure TFRE_DB_PS_FILE.FDB_ForAllObjects(const cb: IFRE_DB_ObjectIteratorBrk; const SchemesFilter: TFRE_DB_StringArray);
 var filter : TFRE_DB_StringArray;
+    guids  : TFRE_DB_GUIDArray;
+    cnt    : NativeInt;
+    obj    : TFRE_DB_Object;
+    break  : boolean;
 
   procedure ForAll(const obj : TFRE_DB_Object;var break:boolean);
   var lock : boolean;
@@ -719,7 +723,10 @@ var filter : TFRE_DB_StringArray;
                begin
                  obj.Set_Store_LockedUnLockedIf(false,lock);
                 try
-                  cb(obj.CloneToNewObject,break);
+                  if cnt=Length(guids) then
+                    SetLength(guids,Length(guids)+1024);
+                  guids[cnt] := obj.UID;
+                  inc(cnt);
                 finally
                   obj.Set_Store_LockedUnLockedIf(true,lock);
                 end;
@@ -728,7 +735,19 @@ var filter : TFRE_DB_StringArray;
 
 begin
   filter := FREDB_StringArray2Upper(SchemesFilter);
+  cnt    := 0;
   FMaster.ForAllObjectsInternal(true,false,@ForAll);
+  SetLength(guids,cnt);
+  break  := false;
+  for cnt  := 0 to high(guids) do
+    if FMaster.FetchObject(guids[cnt],obj,false) then
+      begin
+        cb(obj,break);
+        if break then
+          exit;
+      end
+    else
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'for all bulk/fetch error');
 end;
 
 procedure TFRE_DB_PS_FILE.FDB_ForAllColls(const cb: IFRE_DB_Obj_Iterator);

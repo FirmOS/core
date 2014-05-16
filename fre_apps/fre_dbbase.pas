@@ -82,8 +82,8 @@ begin
     currentVersionId:='1.0';
 
     //all apps
-    StoreTranslateableText(conn,'$error_no_access','Access denied');
-    StoreTranslateableText(conn,'$button_save','Save');
+    StoreTranslateableText(conn,'error_no_access','Access denied');
+    StoreTranslateableText(conn,'button_save','Save');
     //fre_db_common
     StoreTranslateableText(conn,'input_confirm_prefix','Confirm');
     //dojo

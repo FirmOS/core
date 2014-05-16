@@ -2119,6 +2119,8 @@ type
 
     function    GetClassesVersionDirectory  : IFRE_DB_Object;
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
+    function    DelClassesVersionDirectory  : TFRE_DB_Errortype;
+
 
     function    DumpUserRights               :TFRE_DB_String;
 
@@ -5293,6 +5295,19 @@ begin
     begin
       result := FSysSingletons.UpdateI(version_dbo);
     end;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.DelClassesVersionDirectory: TFRE_DB_Errortype;
+begin
+  if FSysSingletons.ExistsIndexed('CLASSVERSIONS') then
+    begin
+      if FSysSingletons.RemoveIndexedString('CLASSVERSIONS') then
+        exit(edb_OK)
+      else
+        exit(edb_NOT_FOUND);
+    end
+  else
+    result := edb_NOT_FOUND;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.DumpUserRights: TFRE_DB_String;

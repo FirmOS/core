@@ -1444,6 +1444,7 @@ type
     function    GetNotif                    : IFRE_DB_DBChangedNotification; { get the notif of an impersonated (cloned) connection}
     function    GetClassesVersionDirectory  : IFRE_DB_Object;
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
+    function    DelClassesVersionDirectory  : TFRE_DB_Errortype;
     function    Connect                     (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                  (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
@@ -3481,7 +3482,7 @@ begin
   if (currentVersionId='') then
     begin
       currentVersionId:='1.0';
-      //CreateAppText(conn,'$xxx','xxx','xxxx','xxxx');
+      //CreateAppText(conn,'xxx','xxx','xxxx','xxxx');
     end;
   if (currentVersionId='1.0') then
     begin
@@ -4941,7 +4942,7 @@ var err                : TFRE_DB_Errortype;
         end
       else
         begin
-          promotion_status := '$login_faild_oldnotfound_cap';
+          promotion_status := 'login_faild_oldnotfound_cap';
           result          := pr_Failed;
           GFRE_DBI.LogWarning(dblc_SERVER,'<FAIL : TAKEOVERSESSION FOR SESSION [%s]',[FSessionID]);
           exit;
@@ -4962,7 +4963,7 @@ begin
           edb_OK : begin
             if assigned(existing_session.FBoundSession_RA_SC) then
               begin
-                promotion_status := FREDB_EncodeTranslatableWithParams('$login_faild_already_1P',[existing_session.GetClientDetails]); //'You are already logged in on '+existing_session.GetClientDetails+', would you like to takeover this existing session ?'//;
+                promotion_status := FREDB_EncodeTranslatableWithParams('login_faild_already_1P',[existing_session.GetClientDetails]); //'You are already logged in on '+existing_session.GetClientDetails+', would you like to takeover this existing session ?'//;
                 existing_session.FTakeoverPrepared := FConnDesc;
                 exit(pr_TakeoverPrepared);
                 if auto_promote then
@@ -4978,7 +4979,7 @@ begin
              end;
           end
           else begin
-            promotion_status := '$login_takeover_failed';
+            promotion_status := 'login_takeover_failed';
             result           := pr_Failed;
             exit;
           end;
@@ -5026,7 +5027,7 @@ begin
        end;
        else begin
          FPromoted        := false;
-         promotion_status := '$login_faild_access';
+         promotion_status := 'login_faild_access';
          result           := pr_Failed;
        end;
       end;
@@ -7122,7 +7123,7 @@ end;
 
 function TFRE_DB_APPLICATION.GetCaption(const ses: IFRE_DB_Usersession): TFRE_DB_String;
 begin
-  result := FetchAppTextShort(ses,'$caption');
+  result := FetchAppTextShort(ses,'caption');
 end;
 
 
@@ -7190,26 +7191,26 @@ end;
 class procedure TFRE_DB_APPLICATION.CreateAppText(const conn: IFRE_DB_SYS_CONNECTION;const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 var txt :IFRE_DB_TEXT;
 begin
-  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
+  txt := GFRE_DBI.NewText('$'+uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
   CheckDbResult(conn.StoreTranslateableText(txt),'CreateAppText ' + translation_key);
 end;
 
 class procedure TFRE_DB_APPLICATION.DeleteAppText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String);
 begin
-  CheckDbResult(conn.DeleteTranslateableText(uppercase(classname)+'_'+translation_key),'DeleteAppText ' + translation_key);
+  CheckDbResult(conn.DeleteTranslateableText('$'+uppercase(classname)+'_'+translation_key),'DeleteAppText ' + translation_key);
 end;
 
 class procedure TFRE_DB_APPLICATION.UpdateAppText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 var txt :IFRE_DB_TEXT;
 begin
-  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
+  txt := GFRE_DBI.NewText('$'+uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
   CheckDbResult(conn.UpdateTranslateableText(txt),'UpdateAppText ' + translation_key);
 end;
 
 
 function TFRE_DB_APPLICATION._FetchAppText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
-  if not session.GetDBConnection.FetchTranslateableTextOBJ(uppercase(classname)+'_'+translation_key,result) then
+  if not session.GetDBConnection.FetchTranslateableTextOBJ('$'+uppercase(classname)+'_'+translation_key,result) then
     begin
       Result := GFRE_DBI.CreateText('notfound',translation_key+'_short',translation_key+'_long',translation_key+'_is_missing!');
     end;
@@ -7498,13 +7499,13 @@ end;
 procedure TFRE_DB_APPLICATION_MODULE.CheckClassVisibility4AnyDomain(const session: IFRE_DB_UserSession);
 begin
   if not session.GetDBConnection.sys.CheckClassRight4AnyDomain(sr_FETCH,ClassType) then
-    raise EFRE_DB_Exception.Create(GetEmbeddingApp.FetchAppTextShort(session,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(GetEmbeddingapp.FetchAppTextShort(session,'error_no_access'));
 end;
 
 procedure TFRE_DB_APPLICATION_MODULE.CheckClassVisibility4MyDomain(const session: IFRE_DB_UserSession);
 begin
   if not session.GetDBConnection.sys.CheckClassRight4MyDomain(sr_FETCH,ClassType) then
-    raise EFRE_DB_Exception.Create(GetEmbeddingApp.FetchAppTextShort(session,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(GetEmbeddingapp.FetchAppTextShort(session,'error_no_access'));
 end;
 
 class procedure TFRE_DB_APPLICATION_MODULE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -7625,7 +7626,7 @@ end;
 
 function TFRE_DB_APPLICATION_MODULE._FetchModuleText(const session: IFRE_DB_UserSession; const translation_key: TFRE_DB_String): IFRE_DB_TEXT;
 begin
-  if not session.GetDBConnection.FetchTranslateableTextOBJ(uppercase(classname)+'_'+translation_key,result) then
+  if not session.GetDBConnection.FetchTranslateableTextOBJ('$'+uppercase(classname)+'_'+translation_key,result) then
     begin
       Result := GFRE_DBI.CreateText('notfound',translation_key+'_short',translation_key+'_long',translation_key+'_is_missing!');
     end;
@@ -7663,19 +7664,19 @@ end;
 class procedure TFRE_DB_APPLICATION_MODULE.CreateModuleText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 var txt :IFRE_DB_TEXT;
 begin
-  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
+  txt := GFRE_DBI.NewText('$'+uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
   CheckDbResult(conn.StoreTranslateableText(txt),'CreateModuleText ' + translation_key);
 end;
 
 class procedure TFRE_DB_APPLICATION_MODULE.DeleteModuleText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String);
 begin
-  CheckDbResult(conn.DeleteTranslateableText(uppercase(classname)+'_'+translation_key),'DeleteModuleText ' + translation_key);
+  CheckDbResult(conn.DeleteTranslateableText('$'+uppercase(classname)+'_'+translation_key),'DeleteModuleText ' + translation_key);
 end;
 
 class procedure TFRE_DB_APPLICATION_MODULE.UpdateModuleText(const conn: IFRE_DB_SYS_CONNECTION; const translation_key: TFRE_DB_String; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 var txt :IFRE_DB_TEXT;
 begin
-  txt := GFRE_DBI.NewText(uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
+  txt := GFRE_DBI.NewText('$'+uppercase(classname)+'_'+translation_key,long_text,short_text,hint_text);
   CheckDbResult(conn.UpdateTranslateableText(txt),'UpdateModuleText ' + translation_key);
 end;
 
