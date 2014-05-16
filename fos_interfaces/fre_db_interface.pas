@@ -1444,6 +1444,7 @@ type
     function    GetNotif                    : IFRE_DB_DBChangedNotification; { get the notif of an impersonated (cloned) connection}
     function    GetClassesVersionDirectory  : IFRE_DB_Object;
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
+    function    DelClassesVersionDirectory  : TFRE_DB_Errortype;
     function    Connect                     (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                  (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
