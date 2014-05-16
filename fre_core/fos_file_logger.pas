@@ -181,7 +181,7 @@ type
    procedure   LogConsole           (const msg:String);
    procedure   LogSystem            (const msg:String;const facility: TFOS_LOG_FACILITY; const level: TFOS_LOG_LEVEL);overload;
    procedure   RegisterCategory     (const cat:string;filename:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const nolog:TFOS_BoolType=fbtNotSet;const not_in_full_log:TFOS_BoolType=fbtNotSet);
-   procedure   RegisterTarget       (const target:string;targetdir:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility:TFOS_LOG_FACILITY=flf_User);
+   procedure   RegisterTarget       (const target:string;subfilepath:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility:TFOS_LOG_FACILITY=flf_User);
    procedure   SetDefaults          (const defaultfilename:string;fullfilename,base_dir:string;const turnaround,generations:cardinal;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility: TFOS_LOG_FACILITY=flf_Kernel);
    procedure   RegisterThread       (const name:string);
    constructor Create               ;reintroduce;
@@ -386,7 +386,8 @@ var LO:RLogObjP;
      end;
      if op.fullfilename<>'' then Entry_Opts.fullfilename    := op.fullfilename;
      if op.generations<>-1  then Entry_Opts.generations     := op.generations;
-     if op.level<>fll_Invalid then Entry_Opts.level           := op.level;
+     if op.turnaround<>-1   then Entry_Opts.turnaround      := op.turnaround;
+     if op.level<>fll_Invalid then Entry_Opts.level         := op.level;
      if op.nolog<>fbtNotSet then Entry_Opts.nolog           := op.nolog;
      if op.not_in_full_log<>fbtNotSet
                             then Entry_Opts.not_in_full_log := op.not_in_full_log;
@@ -507,7 +508,7 @@ var LO:RLogObjP;
          end else begin
           if (Entry_Opts.fullfilename<>'') and (Entry_Opts.not_in_full_log=fbtFalse) then begin
             with Entry_Opts do begin
-             if LogToFile(basedir+targetpreselect+fullfilename,formated_entry,turnaround,generations)=true then exit;
+             if LogToFile(basedir+fullfilename,formated_entry,turnaround,generations)=true then exit;
             end;
           end;
           with Entry_Opts do begin
@@ -756,12 +757,12 @@ begin
   Chq.Push(CATG);
 end;
 
-procedure TFileLoggerThread.RegisterTarget(const target: string; targetdir: string; turnaround: integer; generations: integer; const minseveritylevel: TFOS_LOG_LEVEL; const facility: TFOS_LOG_FACILITY);
+procedure TFileLoggerThread.RegisterTarget(const target: string; subfilepath: string; turnaround: integer; generations: integer; const minseveritylevel: TFOS_LOG_LEVEL; const facility: TFOS_LOG_FACILITY);
 var TARG:TTargetLogOptions;
 begin
  TARG:=TTargetLogOptions.Create;
  TARG.target:=uppercase(target);
- TARG.opts.filename:=ExtractFilePath(targetdir+DirectorySeparator);
+ TARG.opts.filename:=subfilepath;
  TARG.opts.fullfilename:='';
  TARG.opts.turnaround:=turnaround;
  TARG.opts.generations:=generations;
@@ -826,7 +827,7 @@ begin
     writeln('************* EMERGENCY LOG *************>');
   except
   end;
-  LogToFile('emergency.log',msg,0,0);
+  LogToFile(BaseDir+'emergency.log',msg,0,0);
 end;
 
 var FLogger:TFileLoggerThread;

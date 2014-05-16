@@ -91,11 +91,12 @@ type
     procedure   DoRun                   ; override ;
     procedure   OrderedShutDown         ;
 
-    function    PreStartupTerminatingCommands: boolean  ; virtual;            { cmd's that should be executed without db(ple), they terminate}
-    function    AfterStartupTerminatingCommands:boolean ; virtual;            { cmd's that should be executed with db core init, they terminate}
-    function    AfterInitDBTerminatingCommands:boolean  ; virtual;            { cmd's that should be executed with full db init, they terminate}
-    procedure   ParseSetSystemFlags                     ; virtual;            { Setting of global flags before startup go here }
-    procedure   AddCommandLineOptions                   ; virtual;            { override for custom options/flags/commands}
+    function    PreStartupTerminatingCommands: boolean        ; virtual;            { cmd's that should be executed without db(ple), they terminate}
+    function    AfterConfigStartupTerminatingCommands:boolean ; virtual;            { cmd's that should be executed after the reading of cfg file, but before db core init}
+    function    AfterStartupTerminatingCommands:boolean       ; virtual;            { cmd's that should be executed with db core init, they terminate}
+    function    AfterInitDBTerminatingCommands:boolean        ; virtual;            { cmd's that should be executed with full db init, they terminate}
+    procedure   ParseSetSystemFlags                           ; virtual;            { Setting of global flags before startup go here }
+    procedure   AddCommandLineOptions                         ; virtual;            { override for custom options/flags/commands}
 
     procedure   WriteHelp                               ; virtual;
     procedure   WriteVersion                            ; virtual;
@@ -118,6 +119,7 @@ type
     procedure   ListExtensions     ;
     procedure   PrepareStartup     ;
     procedure   CfgTestLog         ;
+    procedure   EndlessLogTest     ;
     procedure   SchemeDump         (const filename:string='output');
     procedure   DumpAll            (const filterstring: string);
   public
@@ -293,6 +295,7 @@ begin
   AddCheckOption('*','adminuser:'    ,'                | --adminuser=<user>             : specify user for admin options');
   AddCheckOption('*','adminpass:'    ,'                | --adminpass=<password>         : specify password for admin options');
   AddCheckOption('*','testlog'       ,'                | --testlog                      : enable fixed (debug-cfg) logging to console');
+  AddCheckOption('*','testlogcfg'    ,'                | --testlogcfg                   : do an endless logging test');
   AddHelpOutLine;
   AddCheckOption('*','setasyncwt:'   ,'                | --setasyncwt=<on/off>          : in write through mode do the writes sync or async');
 end;
@@ -479,7 +482,9 @@ begin
    halt(0);
   ParseSetSystemFlags;
   ParseExtensionsUserPassDB;
-
+  Initialize_Read_FRE_CFG_Parameter;
+  if AfterConfigStartupTerminatingCommands then
+   halt(0);
   PrepareStartup;      { The initial startup is done (connections can be made, but no extensions initialized }
   CheckTestLogging;    { CFG File reading done}
   RegisterExtensions;
@@ -546,7 +551,14 @@ begin
     end;
 end;
 
-function TFRE_CLISRV_APP.AfterStartupTerminatingCommands: boolean; { if true the shutdown, don't start }
+function TFRE_CLISRV_APP.AfterConfigStartupTerminatingCommands: boolean;
+begin
+  result := false;
+  if HasOption('*','testlogcfg') then
+    EndlessLogTest;
+end;
+
+function TFRE_CLISRV_APP.AfterStartupTerminatingCommands: boolean; { if true then shutdown, don't start }
 begin
   result := false;
   if HasOption('*','dbo2json') then
@@ -1006,7 +1018,6 @@ end;
 
 procedure TFRE_CLISRV_APP.PrepareStartup;
 begin
-  Initialize_Read_FRE_CFG_Parameter;
   Setup_SSL_CMD_CA_Interface;
   Setup_APS_Comm;
 
@@ -1086,6 +1097,22 @@ begin
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
   GFRE_LOG.DisableSyslog;
+end;
+
+procedure TFRE_CLISRV_APP.EndlessLogTest;
+var
+  cat: TFRE_DB_LOGCATEGORY;
+begin
+  while true do
+    for cat in TFRE_DB_LOGCATEGORY do
+      begin
+        GFRE_DB.LogDebug(cat,' <DEBUG LOG ENTRY> ');
+        GFRE_DB.LogInfo(cat,' <INFO LOG ENTRY> ');
+        GFRE_DB.LogEmergency(cat,' <EMERGENCY LOG ENTRY>');
+        GFRE_DB.LogWarning(cat,' <WARNING LOG ENTRY> ');
+        GFRE_DB.LogError (cat,' <ERROR LOG ENTRY> ');
+        GFRE_DB.LogNotice(cat,' <NOTICE LOG ENTRY> ');
+     end;
 end;
 
 procedure TFRE_CLISRV_APP.SchemeDump(const filename: string);
