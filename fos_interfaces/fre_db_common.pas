@@ -2165,9 +2165,7 @@ implementation
 
     function _getText(const key:TFRE_DB_String):TFRE_DB_String;
     begin
-       if not ((key<>'')
-         and session.GetDBConnection.FetchTranslateableTextShort(key,result)) then
-           Result:=key;
+      Result:=session.GetDBConnection.FetchTranslateableTextShort(key);
     end;
 
     procedure _addInput(const obj:PFRE_InputFieldDef4Group; const prefix:String; const requiredParent:Boolean);

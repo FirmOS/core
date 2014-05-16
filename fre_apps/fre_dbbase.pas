@@ -81,7 +81,12 @@ begin
   if (currentVersionId='') then begin
     currentVersionId:='1.0';
 
+    //all apps
+    StoreTranslateableText(conn,'$error_no_access','Access denied');
+    StoreTranslateableText(conn,'$button_save','Save');
+    //fre_db_common
     StoreTranslateableText(conn,'input_confirm_prefix','Confirm');
+    //dojo
     StoreTranslateableText(conn,'search_label','Search:');
     StoreTranslateableText(conn,'gf_n_eq','Equal');
     StoreTranslateableText(conn,'gf_n_lt','Less than');

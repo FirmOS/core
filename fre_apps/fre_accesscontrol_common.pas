@@ -380,7 +380,7 @@ var
   useringrid    : TFRE_DB_VIEW_LIST_DESC;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   dc_userin   := ses.FetchDerivedCollection('DOMAINMOD_USERIN_GRID');
   useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -395,7 +395,7 @@ var
 
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   dc_groupin  := ses.FetchDerivedCollection('DOMAINMOD_GROUPIN_GRID');
   groupingrid := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -412,12 +412,12 @@ begin
           conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) and
           conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) and
           conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_ROLE)) then  //class right without domain
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
   res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_domain_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
-  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CWSF(@WEB_CreateDomain),fdbbt_submit);
+  res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$button_save')),CWSF(@WEB_CreateDomain),fdbbt_submit);
   Result:=res;
 end;
 
@@ -427,7 +427,7 @@ begin
           conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) and
           conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) and
           conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_ROLE)) then  //class right without domain
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
   //FIXXME - please handle input and error
   CheckDbResult(conn.AddDomain(input.Field('data').AsObject.Field('objname').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt_s').AsString));
   Result:=TFRE_DB_CLOSE_DIALOG_DESC.create.Describe();
@@ -441,7 +441,7 @@ var
   sf     : TFRE_DB_SERVER_FUNC_DESC;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
   res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$modify_domain_diag_cap'),600);
@@ -454,7 +454,7 @@ begin
 
   sf:=CWSF(@WEB_SaveDomain);
   sf.AddParam.Describe('selected',input.Field('selected').AsString);
-  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),sf,fdbbt_submit);
+  res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$button_save')),sf,fdbbt_submit);
   res.FillWithObjectValues(domain.Implementor_HC as IFRE_DB_Object,ses);
   Result:=res;
 end;
@@ -466,7 +466,7 @@ var
   domain_id: TGuid;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   Result:=GFRE_DB_NIL_DESC;
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
@@ -490,7 +490,7 @@ var dbo              : IFRE_DB_Object;
     txt_s            : TFRE_DB_String;
 begin
  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN)) then
-   raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+   raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
  data    := input.Field('DATA').asobject;
 
@@ -901,7 +901,7 @@ var
   user        : TFRE_DB_LAYOUT_DESC;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   dc_userin   := ses.FetchDerivedCollection('ROLEMOD_USERIN_GRID');
   useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -922,7 +922,7 @@ var
   role         : IFRE_DB_Object;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   dc_groupin  := ses.FetchDerivedCollection('ROLEMOD_GROUPIN_GRID');
   groupingrid := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -957,7 +957,7 @@ var
   notEditable : Boolean;
 
 begin
-  if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE)) then raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE)) then raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   oldSelIsRole:=ses.GetSessionModuleData(ClassName).FieldExists('selectedRoles');
 
@@ -997,7 +997,7 @@ end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_AddToRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
   Result:=_addremoverole(input,ses,app,conn,true);
 end;
 
@@ -1091,7 +1091,7 @@ end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_RemoveFromRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
-  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
   Result:=_addremoverole(input,ses,app,conn,false);
 end;
 
@@ -1474,7 +1474,7 @@ var
   group       : IFRE_DB_Object;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_GRID');
   useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -1513,7 +1513,7 @@ var
   group       : IFRE_DB_Object;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   dc_rolein   := ses.FetchDerivedCollection('GROUPMOD_ROLEIN_GRID');
   roleingrid  := dc_rolein.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -1547,19 +1547,19 @@ var
   res   : TFRE_DB_FORM_DIALOG_DESC;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
   res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_group_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
-  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CWSF(@WEB_CreateGroup),fdbbt_submit);
+  res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$button_save')),CWSF(@WEB_CreateGroup),fdbbt_submit);
   Result:=res;
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_CreateGroup(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
   CheckDbResult(conn.sys.AddGroup(input.Field('data').AsObject.Field('objname').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt_s').AsString,FREDB_String2Guid(input.Field('data').AsObject.Field('DOMAINIDLINK').AsString)));
   Result:=TFRE_DB_CLOSE_DIALOG_DESC.create.Describe();
 end;
@@ -1573,7 +1573,7 @@ var
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
   CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('selected').AsString),group),'ModifyGroup');
@@ -1589,7 +1589,7 @@ begin
 
   sf:=CWSF(@WEB_SaveGroup);
   sf.AddParam.Describe('selected',input.Field('selected').AsString);
-  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),sf,fdbbt_submit);
+  res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$button_save')),sf,fdbbt_submit);
 
   res.FillWithObjectValues(group.Implementor_HC as IFRE_DB_Object,ses);
   Result:=res;
@@ -1607,7 +1607,7 @@ var dbo              : IFRE_DB_Object;
 
 begin
    if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   data    := input.Field('DATA').asobject;
 
@@ -1636,7 +1636,7 @@ var
   i      : Integer;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   sf:=CWSF(@WEB_DeleteGroupConfirmed);
   sf.AddParam.Describe('selected',input.Field('selected').AsStringArr);
@@ -1671,7 +1671,7 @@ var
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   if input.field('confirmed').AsBoolean then begin
     msg:=_getGroupsString(input.Field('selected').AsStringArr,GetDBConnection(input),ses);
@@ -1754,7 +1754,7 @@ var
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   oldSelIsGroup:=ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups');
 
@@ -1890,7 +1890,7 @@ var
   user_id  : TGuid;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   if input.FieldExists('uids_ref') then begin
     groupUid:=input.Field('uids_ref').AsString;
@@ -1924,7 +1924,7 @@ var
   user_id  : TGuid;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   if input.FieldExists('uids_ref') then begin
     groupUid:=input.Field('uids_ref').AsString;
@@ -2027,14 +2027,14 @@ end;
 function TFRE_COMMON_GROUP_MOD.WEB_RemoveFromRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
   result := _addremoverole(input,ses,app,conn,false);
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_AddToRole(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
   result := _addremoverole(input,ses,app,conn,true);
 end;
 
@@ -2359,7 +2359,7 @@ var
   notEditable    : Boolean;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   oldSelIsUser:=ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers');
 
@@ -2441,7 +2441,7 @@ var
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers')  then begin
     sel_guid := ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsGUID;
@@ -2455,7 +2455,7 @@ begin
     panel.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
     panel.FillWithObjectValues(user.Implementor_HC as IFRE_DB_Object,ses);
     if userEditable then begin
-      panel.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
+      panel.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$button_save')),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
     end;
   end else begin
     panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(app.FetchAppTextShort(ses,'$user_content_header'));
@@ -2475,7 +2475,7 @@ var
   user        : IFRE_DB_USER;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   save_func := nil;
   start_edit:= nil;
@@ -2510,7 +2510,7 @@ var
   user         : IFRE_DB_Object;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   dc_groupin := ses.FetchDerivedCollection('USERMOD_GROUPIN_GRID');
   groupingrid:= dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -2546,7 +2546,7 @@ var
   role        : TFRE_DB_LAYOUT_DESC;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   dc_rolein := ses.FetchDerivedCollection('USERMOD_ROLEIN_GRID');
   roleingrid:= dc_rolein.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
@@ -2564,7 +2564,7 @@ var
   block : TFRE_DB_INPUT_BLOCK_DESC;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
   res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$add_user_diag_cap'),600);
@@ -2572,7 +2572,7 @@ begin
   block.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses,false,false,2);
   block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
-  res.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CSCF('TFRE_DB_USER','NewUserOperation'),fdbbt_submit);
+  res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$button_save')),CSCF('TFRE_DB_USER','NewUserOperation'),fdbbt_submit);
   Result:=res;
 end;
 
@@ -2582,7 +2582,7 @@ var
   cap,msg: String;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   sf:=CWSF(@WEB_DeleteUserConfirmed);
   sf.AddParam.Describe('selected',input.Field('selected').AsStringArr);
@@ -2604,7 +2604,7 @@ var
   i      : NativeInt;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   if input.field('confirmed').AsBoolean then begin
     msg:=_getUsersString(input.Field('selected').AsStringArr,GetDBConnection(input),ses);
@@ -2733,7 +2733,7 @@ var
   group_id: TGuid;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   if input.FieldExists('uids_ref') then begin
     userUid:=input.Field('uids_ref').AsString;
@@ -2764,7 +2764,7 @@ var
   group_id: TGuid;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
-    raise EFRE_DB_Exception.Create(app.FetchAppTextShort(ses,'$error_no_access'));
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('$error_no_access')));
 
   if input.FieldExists('uids_ref') then begin
     userUid:=input.Field('uids_ref').AsString;
@@ -2882,6 +2882,7 @@ begin
   newVersionId:='1.2';
 
   if (currentVersionId='') then begin
+    currentVersionId:='1.0';
     CreateAppText(conn,'$caption','Access Control','Access Control','Access Control');
     CreateAppText(conn,'$user_description','Users','Users','Users');
     CreateAppText(conn,'$group_description','Groups','Groups','Groups');
@@ -3013,12 +3014,8 @@ begin
     CreateAppText(conn,'$error_add_group_msg','Could not add user %user% to group %group%');
     CreateAppText(conn,'$error_remove_group_msg','Could not remove user %user% from group %group%');
 
-    //FIXXME - CHECK
     CreateAppText(conn,'$and','and'); //used as and within a string - need some kind of a template?
-    CreateAppText(conn,'$error_no_access','Access denied'); //global text?
-    CreateAppText(conn,'$button_save','Save'); //global text?
-
-    currentVersionId:='1.0';
+    //CreateAppText(conn,'$error_no_access','Access denied'); //delete with patch
   end;
   if (currentVersionId='1.0') then begin
     currentVersionId:='1.1';

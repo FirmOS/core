@@ -1423,9 +1423,9 @@ type
 
     function    FetchApplications             (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
     function    FetchTranslateableTextOBJ     (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean; // Warning: finalize the TEXTOBJ!
-    function    FetchTranslateableTextShort   (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
-    function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
-    function    FetchTranslateableTextHint    (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextShort   (const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function    FetchTranslateableTextHint    (const translation_key:TFRE_DB_String):TFRE_DB_String;
 
     function    AdmGetUserCollection          :IFRE_DB_COLLECTION;
     function    AdmGetRoleCollection          :IFRE_DB_COLLECTION;
@@ -6809,17 +6809,17 @@ end;
 
 class function TFRE_DB_ObjectEx.GetTranslateableTextShort(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
 begin
-  conn.FetchTranslateableTextShort(GetTranslateableTextKey(key),result);
+  Result:=conn.FetchTranslateableTextShort(GetTranslateableTextKey(key));
 end;
 
 class function TFRE_DB_ObjectEx.GetTranslateableTextLong(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
 begin
-  conn.FetchTranslateableTextLong(GetTranslateableTextKey(key),result);
+  Result:=conn.FetchTranslateableTextLong(GetTranslateableTextKey(key));
 end;
 
 class function TFRE_DB_ObjectEx.GetTranslateableTextHint(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
 begin
-  conn.FetchTranslateableTextHint(GetTranslateableTextKey(key),result);
+  Result:=conn.FetchTranslateableTextHint(GetTranslateableTextKey(key));
 end;
 
 function TFRE_DB_ObjectEx.GetInstanceRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;

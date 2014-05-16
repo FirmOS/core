@@ -2200,9 +2200,9 @@ type
     function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
 
     function    FetchTranslateableTextObj   (const trans_key:TFRE_DB_String;var text:IFRE_DB_TEXT):boolean;
-    function    FetchTranslateableTextShort (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
-    function    FetchTranslateableTextLong  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
-    function    FetchTranslateableTextHint  (const translation_key:TFRE_DB_String; var text: TFRE_DB_String):Boolean;
+    function    FetchTranslateableTextShort (const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function    FetchTranslateableTextLong  (const translation_key:TFRE_DB_String):TFRE_DB_String;
+    function    FetchTranslateableTextHint  (const translation_key:TFRE_DB_String):TFRE_DB_String;
 
     function    IsReferenced                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;override;
     function    GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;override;
@@ -11218,43 +11218,40 @@ begin //nl
   end;
 end;
 
-function TFRE_DB_CONNECTION.FetchTranslateableTextShort(const translation_key: TFRE_DB_String; var text: TFRE_DB_String): Boolean;
+function TFRE_DB_CONNECTION.FetchTranslateableTextShort(const translation_key: TFRE_DB_String): TFRE_DB_String;
 var txt:IFRE_DB_TEXT;
 begin //nl
-  result := FetchTranslateableTextObj(translation_key,txt);
-  if result then
+  if FetchTranslateableTextObj(translation_key,txt) then
     begin
-      text := txt.Getshort;
+      Result := txt.Getshort;
       txt.Finalize;
     end
   else
-    text := '';
+    Result := translation_key;
 end;
 
-function TFRE_DB_CONNECTION.FetchTranslateableTextLong(const translation_key: TFRE_DB_String; var text: TFRE_DB_String): Boolean;
+function TFRE_DB_CONNECTION.FetchTranslateableTextLong(const translation_key: TFRE_DB_String): TFRE_DB_String;
 var txt:IFRE_DB_TEXT;
 begin //nl
-  result := FetchTranslateableTextObj(translation_key,txt);
-  if result then
+  if FetchTranslateableTextObj(translation_key,txt) then
     begin
-      text := txt.GetLong;
+      Result := txt.GetLong;
       txt.Finalize;
     end
   else
-    text := '';
+    Result := translation_key;
 end;
 
-function TFRE_DB_CONNECTION.FetchTranslateableTextHint(const translation_key: TFRE_DB_String; var text: TFRE_DB_String): Boolean;
+function TFRE_DB_CONNECTION.FetchTranslateableTextHint(const translation_key: TFRE_DB_String): TFRE_DB_String;
 var txt:IFRE_DB_TEXT;
 begin //nl
-  result := FetchTranslateableTextObj(translation_key,txt);
-  if result then
+  if FetchTranslateableTextObj(translation_key,txt) then
     begin
-      text := txt.GetHint;
+      Result := txt.GetHint;
       txt.Finalize;
     end
   else
-    text := '';
+    Result := translation_key;
 end;
 
 function TFRE_DB_CONNECTION.IsReferenced(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
