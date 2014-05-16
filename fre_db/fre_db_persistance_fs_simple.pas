@@ -1350,11 +1350,6 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
     end;
   end;
 
-  function DoesNotNeedANewCollection:boolean;
-  begin
-    result := to_update_obj.__InternalCollectionExistsName(collection_name)>0;
-  end;
-
 begin
   FLayerLock.Acquire;
   try
@@ -1404,8 +1399,8 @@ begin
                   raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fetched to update ubj must have internal collections(!)');
               end;
             if collection_name<>'' then
-              if not GetCollection(collection_name,coll) then
-                raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+              if to_update_obj.__InternalCollectionExistsName(collection_name)=-1 then
+                raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'a collectionname was given for updaterequest, but the dbo is not in that collection');
             if not assigned(FTransaction) then
               begin
                 FTransaction        := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster,FChangeNotificationIF);
@@ -1423,7 +1418,7 @@ begin
                    end;
                  updatestep := TFRE_DB_UpdateStep.Create(self,obj,to_update_obj,false);
                  TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,nil,nil,@GenUpdate);
-                 if updatestep.HasNoChanges and DoesNotNeedANewCollection then
+                 if updatestep.HasNoChanges then
                    updatestep.Free
                  else
                    FTransaction.AddChangeStep(updatestep);

@@ -232,21 +232,30 @@ var dummy:TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
     end;
 
     procedure ZipFiles(var value : NativeUint);
-    var metae : TFRE_HTTP_METAENTRY;
-        gzip  : TGZFileStream;
-        plain : TFileStream;
-        fnz   : string;
-        info  : stat;
+    var metae  : TFRE_HTTP_METAENTRY;
+        gzip   : TGZFileStream;
+        plain  : TFileStream;
+        fnz,fn : string;
+        info   : stat;
     begin
       metae := TFRE_HTTP_METAENTRY(FREDB_PtrUIntToObject(value));
       if metae.ZippedExist=false then
         begin
+          fn  := metae.Filename;
           fnz := metae.Filename+'.gzip';
-          GFRE_DB.LogDebug(dblc_HTTP_ZIP,'ZIPPING FILE [%s]',[metae.Filename]);
+          GFRE_DB.LogDebug(dblc_HTTP_ZIP,'ZIPPING FILE [%s]',[fn]);
           try
-            plain := TFileStream.Create(metae.filename,fmOpenRead);
-            gzip := TGZFileStream.create(fnz,gzopenwrite);
-            gzip.CopyFrom(plain,0);
+            try
+              plain := TFileStream.Create(fn,fmOpenRead);
+              gzip := TGZFileStream.create(fnz,gzopenwrite);
+              gzip.CopyFrom(plain,0);
+            except
+              on e:exception do
+               begin
+                 fn := fn+' '+e.Message;
+                 GFRE_BT.CriticalAbort('cannot zip file : '+fn);
+               end;
+            end;
           finally
             plain.free;
             gzip.free;

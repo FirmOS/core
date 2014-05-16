@@ -250,13 +250,8 @@ implementation
   { TFRE_DB_WAPP_DOJO }
 
   function TFRE_DB_WAPP_DOJO._getText(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_String): TFRE_DB_String;
-  var
-    txt: IFRE_DB_TEXT;
   begin
-    if conn.FetchTranslateableTextOBJ(FREDB_GetGlobalTextKey(key),txt) then begin
-      Result:=txt.Getshort;
-      txt.Finalize;
-    end;
+    Result := conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey(key));
   end;
 
   procedure TFRE_DB_WAPP_DOJO.jsContentClear;

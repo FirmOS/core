@@ -502,9 +502,10 @@ type
 
   TFRE_DB_InsertStep=class(TFRE_DB_ChangeStep)
   private
-    FNewObj   : TFRE_DB_Object;
-    FColl     : IFRE_DB_PERSISTANCE_COLLECTION;
-    FCollName : TFRE_DB_NameType;
+    FNewObj                   : TFRE_DB_Object;
+    FColl                     : IFRE_DB_PERSISTANCE_COLLECTION;
+    FCollName                 : TFRE_DB_NameType;
+    FThisIsAnAddToAnotherColl : Boolean;
   public
     constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);  { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
@@ -2725,9 +2726,15 @@ end;
 
 
 procedure TFRE_DB_InsertStep.CheckExistence(const master: TFRE_DB_Master_Data);
+var existing_object : TFRE_DB_Object;
 begin
-  if master.ExistsObject(FNewObj.UID) then
-    raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject.')
+  if master.FetchObject(FNewObj.UID,existing_object,true) then
+    begin
+      FCollName:=FCollName;
+      if existing_object.__InternalCollectionExistsName(FCollName)<>-1 then
+        raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, and in teh specified collection [%s]',[FNewObj.UID_String,FCollName]);
+      FThisIsAnAddToAnotherColl := true;
+    end;
 end;
 
 procedure TFRE_DB_InsertStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
@@ -2744,7 +2751,8 @@ end;
 procedure TFRE_DB_InsertStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
   assert((check=true) or (length(FNewObj.__InternalGetCollectionList)>0));
-  master.StoreObject(FNewObj,check,FTransList.GetNotifyIF);
+  if not FThisIsAnAddToAnotherColl then
+    master.StoreObject(FNewObj,check,FTransList.GetNotifyIF);
   if not check then
     begin
       FTransList.GetNotifyIF.ObjectStored(FColl.CollectionName, FNewObj);

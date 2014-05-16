@@ -1925,7 +1925,7 @@ type
     function           DeleteAccessRightTest        (const ouid: TGUID): boolean; { fetch the object, check rights and free }
     function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
 
-    function           Update                       (const dbo:TFRE_DB_Object)                                               : TFRE_DB_Errortype;
+    function           Update                       (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
     function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual; // with user rights
@@ -9592,7 +9592,7 @@ begin //nl
    //     or FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,FConnection.GetSysDomainUID)
    //     or FConnection.IsCurrentUserSystemAdmin) then
    //       exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+dbo.DomainID_String);
-    result := FConnection.Update(dbo);
+    result := FConnection.Update(dbo,CollectionName(true));
 end;
 
 function TFRE_DB_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
@@ -11086,13 +11086,13 @@ begin
       exit(edb_OK);
 end;
 
-function TFRE_DB_BASE_CONNECTION.Update(const dbo: TFRE_DB_Object): TFRE_DB_Errortype;
+function TFRE_DB_BASE_CONNECTION.Update(const dbo: TFRE_DB_Object; const collection_name: TFRE_DB_NameType): TFRE_DB_Errortype;
 var dboo     : TFRE_DB_Object;
     objuid   : TGUID;
     ncolls   : TFRE_DB_StringArray;
     objclass : TClass;
 begin
-  try
+  //try
     dboo   := dbo;
     objclass := dbo.Implementor_HC.ClassType;
     if not
@@ -11102,21 +11102,21 @@ begin
          exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to update objects in the specified domain : '+new_obj.DomainID_String);
     objuid := dbo.UID;
     try
-      FPersistance_Layer.StoreOrUpdateObject(dboo,'',false);
+      FPersistance_Layer.StoreOrUpdateObject(dboo,collection_name,false);
       result := edb_OK;
       dboo:=nil;
     except
       exit(FPersistance_Layer.GetLastErrorCode);
     end;
-  finally
-    try
-      if assigned(dboo) then
-        dboo.Finalize;
-    except
-      on e:exception do
-        GFRE_DBI.LogError(dblc_DB,'finalizing of dbo failed in baseconnection update, instance invalid ? [%s] ',[e.Message]);
-    end;
-  end;
+  //finally
+  //  try
+  //    //if assigned(dboo) then { dbo finalize in update in every CASE !}
+  //    //  dboo.Finalize;
+  //  except
+  //    on e:exception do
+  //      GFRE_DBI.LogError(dblc_DB,'finalizing of dbo failed in baseconnection update, instance invalid ? [%s] ',[e.Message]);
+  //  end;
+  //end;
 end;
 
 function TFRE_DB_BASE_CONNECTION.UpdateI(const dbo: IFRE_DB_Object): TFRE_DB_Errortype;
