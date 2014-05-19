@@ -185,7 +185,6 @@ program fpmake_packages;
         AddUnit('../fre_apps/fre_dbbusiness.pas');
         AddUnit('fre_configuration.pas');
         AddUnit('../fre_core/fre_process.pas');
-        AddUnit('fre_db_serverdefaults.pas');
      end;
     end;
     P := AddPackage('FRE_BLKCOM');
