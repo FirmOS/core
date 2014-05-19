@@ -2165,9 +2165,7 @@ implementation
 
     function _getText(const key:TFRE_DB_String):TFRE_DB_String;
     begin
-       if not ((key<>'')
-         and session.GetDBConnection.FetchTranslateableTextShort(key,result)) then
-           Result:=key;
+      Result:=session.GetDBConnection.FetchTranslateableTextShort(key);
     end;
 
     procedure _addInput(const obj:PFRE_InputFieldDef4Group; const prefix:String; const requiredParent:Boolean);
@@ -2276,7 +2274,7 @@ implementation
                                group.AddInput.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,
                                                        obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass);
                                if obj^.fieldschemdef.addConfirm then begin
-                                 group.AddInput.Describe(_getText('$scheme_input_confirm_prefix')+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
+                                 group.AddInput.Describe(_getText(FREDB_GetGlobalTextKey('input_confirm_prefix'))+' ' + _getText(obj^.caption_key),prefix+obj^.field + '_confirm',required,obj^.required,
                                                          obj^.disabled,obj^.hidden,'',validator,obj^.fieldschemdef.multiValues,obj^.fieldschemdef.isPass,prefix+obj^.field);
                                end;
                              end;

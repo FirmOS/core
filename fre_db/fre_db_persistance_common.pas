@@ -294,12 +294,12 @@ type
     function      GetPersLayer        : IFRE_DB_PERSISTANCE_LAYER;
   public
 
-    {< Do all streaming changes for tis section }
+    {< Do all streaming changes for this section }
     procedure     StreamToThis       (const stream : TStream);
     procedure     LoadFromThis       (const stream : TStream);
     function      BackupToObject     : IFRE_DB_Object;
     procedure     RestoreFromObject  (const obj:IFRE_DB_Object);
-    { Do all streaming changes for tis section >}
+    { Do all streaming changes for this section >}
 
     function    CollectionName     (const unique:boolean):TFRE_DB_NameType;
     function    GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
@@ -440,6 +440,7 @@ type
 
     function     InternalStoreObjectFromStable (const obj : TFRE_DB_Object) : TFRE_DB_Errortype;
     function     InternalRebuildRefindex                                    : TFRE_DB_Errortype;
+    function     InternalCheckRestoredBackup                                : TFRE_DB_Errortype;
     procedure    InternalStoreLock                                          ;
 
     procedure    FDB_CleanUpMasterData                                    ;
@@ -561,9 +562,10 @@ type
 
   TFRE_DB_InsertStep=class(TFRE_DB_ChangeStep)
   private
-    FNewObj   : TFRE_DB_Object;
-    FColl     : IFRE_DB_PERSISTANCE_COLLECTION;
-    FCollName : TFRE_DB_NameType;
+    FNewObj                   : TFRE_DB_Object;
+    FColl                     : IFRE_DB_PERSISTANCE_COLLECTION;
+    FCollName                 : TFRE_DB_NameType;
+    FThisIsAnAddToAnotherColl : Boolean;
   public
     constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);  { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
@@ -3024,9 +3026,15 @@ end;
 
 
 procedure TFRE_DB_InsertStep.CheckExistence(const master: TFRE_DB_Master_Data);
+var existing_object : TFRE_DB_Object;
 begin
-  if master.ExistsObject(FNewObj.UID) then
-    raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject.')
+  if master.FetchObject(FNewObj.UID,existing_object,true) then
+    begin
+      FCollName:=FCollName;
+      if existing_object.__InternalCollectionExistsName(FCollName)<>-1 then
+        raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, and in teh specified collection [%s]',[FNewObj.UID_String,FCollName]);
+      FThisIsAnAddToAnotherColl := true;
+    end;
 end;
 
 procedure TFRE_DB_InsertStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
@@ -3043,7 +3051,8 @@ end;
 procedure TFRE_DB_InsertStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
 begin
   assert((check=true) or (length(FNewObj.__InternalGetCollectionList)>0));
-  master.StoreObject(FNewObj,check,FTransList.GetNotifyIF);
+  if not FThisIsAnAddToAnotherColl then
+    master.StoreObject(FNewObj,check,FTransList.GetNotifyIF);
   if not check then
     begin
       FTransList.GetNotifyIF.ObjectStored(FColl.CollectionName, FNewObj);
@@ -3667,6 +3676,46 @@ function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
 
 begin
   ForAllObjectsInternal(true,false,@BuildRef);
+  result := edb_OK;
+end;
+
+function TFRE_DB_Master_Data.InternalCheckRestoredBackup: TFRE_DB_Errortype;
+var cnt : NativeInt;
+
+  procedure CheckObjectInCollection(const obj:TFRE_DB_Object ; var break : boolean);
+  var obrefs : TFRE_DB_ObjectReferences;
+      i      : NativeInt;
+  begin
+    if obj.IsObjectRoot then
+      begin
+        obj.Set_Store_Locked(False);
+        try
+          if length(obj.__InternalGetCollectionList)=0 then
+          begin
+            inc(cnt);
+            writeln('INTERNAL FAILURE :::DB VERIFY - OFFENDING OBJECT (not stored in an collection ?)');
+            writeln(obj.DumpToString(2));
+            writeln('--Looking for references');
+            obrefs := GetReferencesDetailed(obj.UID,false);
+            for i:=0 to high(obrefs) do
+              begin
+                writeln('Is referenced by : ',obrefs[i].schemename,'(',FREDB_G2H(obrefs[i].linked_uid),').',obrefs[i].fieldname);
+              end;
+          end;
+        finally
+          obj.Set_Store_Locked(True);
+        end;
+     end;
+  end;
+
+begin
+  cnt := 0;
+  ForAllObjectsInternal(true,false,@CheckObjectInCollection);
+  if cnt>0 then
+    begin
+      writeln('FAILURES : ',cnt);
+      exit(edb_INTERNAL);
+    end;
   result := edb_OK;
 end;
 

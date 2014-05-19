@@ -1890,7 +1890,7 @@ end;
 
 procedure TFRE_DB_OrderContainer.ForAllBreak(const iter: IFRE_DB_ObjectIteratorBrk; var halt: boolean);
 
-  procedure MyIter(var obj : TFRE_DB_Object ; const idx:Int64 ; var halt:boolean);
+  procedure MyIter(var obj : TFRE_DB_Object ; const idx:NativeInt ; var halt:boolean);
   begin
     iter(obj,halt);
   end;
@@ -2136,7 +2136,7 @@ procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object);
 
   procedure CheckIfNeeded(const tcd : TFRE_DB_TRANS_COLL_DATA);
   begin
-    tcd.GetDataArray;
+    //tcd.GetDataArray;
     //-> Check if in base transformed data
     //---
     //
@@ -2152,8 +2152,8 @@ procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object);
 begin
   LockManager;
   try
-    inc(F
-    FOrders.ForAll(@CheckIfNeeded);
+    //inc(F
+    //FOrders.ForAll(@CheckIfNeeded);
   finally
     UnlockManager;
   end;

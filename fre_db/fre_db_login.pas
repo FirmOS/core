@@ -82,41 +82,41 @@ begin
   newVersionId:='1.1';
 
   if (currentVersionId='') then begin
-    CreateAppText(conn,'$profile_diag_cap','Profile');
-    CreateAppText(conn,'$login_diag_cap','FirmOS WebApp Server Login');
+    CreateAppText(conn,'profile_diag_cap','Profile');
+    CreateAppText(conn,'login_diag_cap','FirmOS WebApp Server Login');
 
-    CreateAppText(conn,'$login_uname','Username');
-    CreateAppText(conn,'$login_pass','Password');
+    CreateAppText(conn,'login_uname','Username');
+    CreateAppText(conn,'login_pass','Password');
 
-    CreateAppText(conn,'$window_cap','FirmOS Application Server');
-    CreateAppText(conn,'$top_messages','Messages');
-    CreateAppText(conn,'$top_home','Home');
-    CreateAppText(conn,'$top_login','Login');
-    CreateAppText(conn,'$top_profile','Profile');
+    CreateAppText(conn,'window_cap','FirmOS Application Server');
+    CreateAppText(conn,'top_messages','Messages');
+    CreateAppText(conn,'top_home','Home');
+    CreateAppText(conn,'top_login','Login');
+    CreateAppText(conn,'top_profile','Profile');
 
-    CreateAppText(conn,'$button_login','Login');
-    CreateAppText(conn,'$button_logout','Logout');
-    CreateAppText(conn,'$button_abort','Abort');
-    CreateAppText(conn,'$button_save','Save');
+    CreateAppText(conn,'button_login','Login');
+    CreateAppText(conn,'button_logout','Logout');
+    CreateAppText(conn,'button_abort','Abort');
+    CreateAppText(conn,'button_save','Save');
 
-    CreateAppText(conn,'$resume_error_cap','SESSION FAIL');
-    CreateAppText(conn,'$resume_error_message','You can not resume your session [%session_id%], because of an failure, please relogin.');
+    CreateAppText(conn,'resume_error_cap','SESSION FAIL');
+    CreateAppText(conn,'resume_error_message','You can not resume your session [%session_id%], because of an failure, please relogin.');
 
-    CreateAppText(conn,'$login_faild_cap','Login Failed');
-    CreateAppText(conn,'$already_logged_in_cap','Already logged in');
+    CreateAppText(conn,'login_faild_cap','Login Failed');
+    CreateAppText(conn,'already_logged_in_cap','Already logged in');
 
-    CreateAppText(conn,'$no_takeover_cap','No takeover');
-    CreateAppText(conn,'$no_takeover_message','You choose to not takeover the existing session');
+    CreateAppText(conn,'no_takeover_cap','No takeover');
+    CreateAppText(conn,'no_takeover_message','You choose to not takeover the existing session');
     currentVersionId:='1.0';
   end;
   if (currentVersionId='1.0') then begin
     currentVersionId:='1.1';
     try
-      CreateAppText(conn,'$login_faild_already_1P','You are already logged in with another client => (%s)');
-      CreateAppText(conn,'$login_faild_oldnotfound_cap','The old session ID to continue your sesison was not found');
-      CreateAppText(conn,'$login_takeover_failed','The takeover of the existing session failed, try again');
-      CreateAppText(conn,'$login_faild_access','Invalid Username/Domain/Passsword combination');
-      CreateAppText(conn,'$login_faild_suspended','Currently the domain is suspended, no login is possible.');
+      CreateAppText(conn,'login_faild_already_1P','You are already logged in with another client => (%s)');
+      CreateAppText(conn,'login_faild_oldnotfound_cap','The old session ID to continue your sesison was not found');
+      CreateAppText(conn,'login_takeover_failed','The takeover of the existing session failed, try again');
+      CreateAppText(conn,'login_faild_access','Invalid Username/Domain/Passsword combination');
+      CreateAppText(conn,'login_faild_suspended','Currently the domain is suspended, no login is possible.');
     except
       //ignore errors here, someone forgot to set the newversionID to 1.1
     end;
@@ -196,19 +196,19 @@ var
       profile_caption: String;
   begin
     res := TFRE_DB_TOPMENU_DESC.create.Describe();
-    res.AddJiraDialogEntry.Describe(app.FetchAppTextShort(ses,'$top_messages'),'images_apps/login/messages.svg');
-    res.AddEntry.Describe(app.FetchAppTextShort(ses,'$top_home'),'images_apps/login/home.svg',
+    res.AddJiraDialogEntry.Describe(app.FetchAppTextShort(ses,'top_messages'),'images_apps/login/messages.svg');
+    res.AddEntry.Describe(app.FetchAppTextShort(ses,'top_home'),'images_apps/login/home.svg',
                           TFRE_DB_SERVER_FUNC_DESC_ARRAY.Create(
                             CWSF(@WEB_BuildSiteMap),
                             CWSF(@WEB_BuildAppList)
                           ),'Home',TFRE_DB_StringArray.Create('SiteMap','AppContainer'),
                           true,true);
     res.updateId:='FirmOSViewport';
-    res.windowCaption:=app.FetchAppTextShort(ses,'$window_cap');
+    res.windowCaption:=app.FetchAppTextShort(ses,'window_cap');
     if ses.LoggedIn then begin
-      profile_caption:=app.FetchAppTextShort(ses,'$top_profile');
+      profile_caption:=app.FetchAppTextShort(ses,'top_profile');
     end else begin
-      profile_caption:=app.FetchAppTextShort(ses,'$top_login');
+      profile_caption:=app.FetchAppTextShort(ses,'top_login');
     end;
     res.AddDialogEntry.Describe(profile_caption,'images_apps/login/profile.svg',CWSF(@WEB_LoginDlg));
     result :=  res;
@@ -218,7 +218,7 @@ begin
   case ses.GetSessionState of
     sta_BAD:
       begin
-        result := TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$resume_error_cap'),StringReplace(app.FetchAppTextShort(ses,'$resume_error_message'),'%session_id%',ses.GetSessionID,[rfReplaceAll]),fdbmt_wait);
+        result := TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'resume_error_cap'),StringReplace(app.FetchAppTextShort(ses,'resume_error_message'),'%session_id%',ses.GetSessionID,[rfReplaceAll]),fdbmt_wait);
       end;
     sta_ActiveNew,
     sta_ReUsed:
@@ -250,7 +250,7 @@ var dialog     : TFRE_DB_FORM_DIALOG_DESC;
     user       : IFRE_DB_USER;
 begin
   if ses.LoggedIn then begin
-    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$profile_diag_cap'),0,false,false);
+    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'profile_diag_cap'),0,false,false);
     GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
     block:=dialog.AddBlock.Describe();
     block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
@@ -258,15 +258,16 @@ begin
     dialog.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
     user:=conn.SYS.GetCurrentUserToken.User;
     dialog.FillWithObjectValues(user.Implementor_HC as IFRE_DB_Object,ses);
-    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_save'),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
-    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_logout'),CWSF(@WEB_doLogout),fdbbt_submit);
-    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_abort'),nil,fdbbt_close);
+    dialog.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
+    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_logout'),CWSF(@WEB_doLogout),fdbbt_submit);
+    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_abort'),nil,fdbbt_close);
+    user.Finalize;
   end else begin
-    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'$login_diag_cap'),0,false,false,false);
-    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'$button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
+    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'login_diag_cap'),0,false,false,false);
+    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
     //dialog.AddButton.Describe('Abort',nil,fdbbt_close);
-    dialog.AddInput.Describe(app.FetchAppTextShort(ses,'$login_uname'),'uname',true);
-    dialog.AddInput.Describe(app.FetchAppTextShort(ses,'$login_pass'),'pass',true,true,false,false,'',nil,false,true);
+    dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_uname'),'uname',true);
+    dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_pass'),'pass',true,true,false,false,'',nil,false,true);
   end;
   Result:=dialog;
 end;
@@ -305,7 +306,7 @@ begin
   FREDB_SplitLocalatDomain(username,user,domain);
   if conn.SYS.IsDomainSuspended(domain) then
     begin
-      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),app.FetchAppTextShort(ses,'$login_faild_suspended'),fdbmt_error);
+      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'login_faild_cap'),app.FetchAppTextShort(ses,'login_faild_suspended'),fdbmt_error);
       exit;
     end;
   case ses.Promote(username,data.Field('pass').AsString,promotion_status,clear_session,false) of
@@ -313,12 +314,12 @@ begin
       result := WEB_Content(input,ses,app,ses.GetDBConnection);
     pr_Failed:
       begin
-        Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),ExpandPromotionStatus,fdbmt_error);
+        Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'login_faild_cap'),ExpandPromotionStatus,fdbmt_error);
       end;
     pr_TakeoverPrepared:
       begin
         ses.SendServerClientRequest(TFRE_DB_CLOSE_DIALOG_DESC.create);
-        Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$already_logged_in_cap'),ExpandPromotionStatus,fdbmt_confirm,CWSF(@WEB_TakeOverSession));
+        Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'already_logged_in_cap'),ExpandPromotionStatus,fdbmt_confirm,CWSF(@WEB_TakeOverSession));
       end;
     pr_Takeover:
       begin
@@ -326,7 +327,7 @@ begin
         result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
       end
     else
-      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'$login_faild_cap'),'UNSPECIFIED',fdbmt_error);
+      Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'login_faild_cap'),'UNSPECIFIED',fdbmt_error);
   end;
 end;
 
@@ -407,7 +408,7 @@ begin
     end
   else
     begin
-      result := TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'$no_takeover_cap'),app.FetchAppTextShort(ses,'$no_takeover_message'),fdbmt_info,CWSF(@WEB_SendPageReload));
+      result := TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'no_takeover_cap'),app.FetchAppTextShort(ses,'no_takeover_message'),fdbmt_info,CWSF(@WEB_SendPageReload));
     end;
 end;
 

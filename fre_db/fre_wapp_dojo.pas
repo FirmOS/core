@@ -53,8 +53,6 @@ type
   TFRE_DB_WAPP_DOJO = class // --- **TRANSFORMS DB CLIENT AGNOSTIC DESCRIPTIONS INTO HTML/DOJO REPRESENTATION**
   private
    jsContent                           : String;
-   function  _getText                  (const conn: IFRE_DB_CONNECTION; const key:TFRE_DB_String): TFRE_DB_String;
-   function  _storeText                (const conn: IFRE_DB_SYS_CONNECTION; const key,value: TFRE_DB_String): TFRE_DB_Errortype;
    procedure jsContentClear            ;
    procedure jsContentAdd              (const str: String);
    function  _getStoreById             (const id: String;const stores: IFRE_DB_ObjectArray): TFRE_DB_STORE_DESC;
@@ -76,9 +74,9 @@ type
    procedure _BuildSubSecVertContainer (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC);
    procedure _BuildMenu                (const co:TFRE_DB_MENU_DESC);
    procedure _BuildMenuDef             (const co:TFRE_DB_MENU_DESC);
+   function  _getText                  (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_String): TFRE_DB_String;
    //function  _BuildDataArray           (const co:IFRE_DB_ObjectArray):String;
   public
-   function  InstallTransformDefaults  (const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
    procedure BuildContextMenu          (const co:TFRE_DB_MENU_DESC; var contentString,contentType:String);
    procedure BuildFormPanel            (const session: TFRE_DB_UserSession; const co:TFRE_DB_FORM_PANEL_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildFormDialog           (const session: TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE; const co:TFRE_DB_FORM_DIALOG_DESC; var contentString,contentType:String);
@@ -252,24 +250,8 @@ implementation
   { TFRE_DB_WAPP_DOJO }
 
   function TFRE_DB_WAPP_DOJO._getText(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_String): TFRE_DB_String;
-  var
-    txt: IFRE_DB_TEXT;
   begin
-    if conn.FetchTranslateableTextOBJ('$dojo_'+key,txt) then begin
-      Result:=txt.Getshort;
-      txt.Finalize;
-    end else begin
-      Result:='$dojo_'+key;
-      if key='close' then result :='Close';  //FIXME
-    end;
-  end;
-
-  function TFRE_DB_WAPP_DOJO._storeText(const conn:IFRE_DB_SYS_CONNECTION; const key, value: TFRE_DB_String):TFRE_DB_Errortype;
-  var
-    txt: IFRE_DB_TEXT;
-  begin
-    txt:=GFRE_DBI.CreateText('$dojo_' + key,value);
-    Result:=conn.StoreTranslateableText(txt);
+    Result := conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey(key));
   end;
 
   procedure TFRE_DB_WAPP_DOJO.jsContentClear;
@@ -1037,55 +1019,6 @@ implementation
       _addEntry(co.Field('entries').AsObjectItem[i]);
     end;
     jsContentAdd('];');
-  end;
-
-  function TFRE_DB_WAPP_DOJO.InstallTransformDefaults(const conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_Errortype;
-  begin
-    _storeText(conn,'search_label','Search:');
-    _storeText(conn,'gf_n_eq','Equal');
-    _storeText(conn,'gf_n_lt','Less than');
-    _storeText(conn,'gf_n_gt','Greater than');
-    _storeText(conn,'gf_n_gtlt','Between');
-    _storeText(conn,'gf_d_eq','Equal');
-    _storeText(conn,'gf_d_lt','Before');
-    _storeText(conn,'gf_d_gt','After');
-    _storeText(conn,'gf_d_gtlt','Between');
-    _storeText(conn,'gf_filter_label','Filter');
-    _storeText(conn,'gf_filter_set','Set');
-    _storeText(conn,'gf_filter_clear','Clear');
-    _storeText(conn,'in_file_select','Select');
-    _storeText(conn,'in_combo_placeholder','Please select');
-    _storeText(conn,'msg_confirm_yes','Yes');
-    _storeText(conn,'msg_confirm_no','No');
-    _storeText(conn,'msg_ok','OK');
-    _storeText(conn,'msg_abort','Abort');
-    _storeText(conn,'editor_save','Save');
-    _storeText(conn,'editor_reset','Reset');
-    _storeText(conn,'vnc_cad','Send Ctrl+Alt+Del');
-    _storeText(conn,'vnc_wakeup','Wake Up');
-    _storeText(conn,'vnc_mount','Mount ISO');
-    _storeText(conn,'rec_once','Once');
-    _storeText(conn,'rec_minute','Every minute');
-    _storeText(conn,'rec_hour','Hourly');
-    _storeText(conn,'rec_day','Daily');
-    _storeText(conn,'rec_week','Weekly');
-    _storeText(conn,'rec_month','Monthly');
-    _storeText(conn,'rec_quarter','Quarterly');
-    _storeText(conn,'rec_year','Yearly');
-    _storeText(conn,'rec_mo','M');
-    _storeText(conn,'rec_tu','T');
-    _storeText(conn,'rec_we','W');
-    _storeText(conn,'rec_th','T');
-    _storeText(conn,'rec_fr','F');
-    _storeText(conn,'rec_sa','S');
-    _storeText(conn,'rec_su','S');
-    _storeText(conn,'rec_start','Start');
-    _storeText(conn,'rec_noend','Forever');
-    _storeText(conn,'rec_end','Until');
-    _storeText(conn,'rec_interval','Interval');
-    _storeText(conn,'rec_count','Count');
-    _storeText(conn,'ow_error','Unable to open window! Popup Blocker?');
-    _storeText(conn,'close','Close');
   end;
 
   procedure TFRE_DB_WAPP_DOJO.BuildContextMenu(const co: TFRE_DB_MENU_DESC; var contentString, contentType: String);

@@ -478,7 +478,7 @@ type
     procedure Log              (const msg:String;params:array of const;cat:String;Level:TFOS_LOG_LEVEL=fll_Debug;const target:string='';const sync:boolean=false);overload;
     procedure LogSystem        (const msg:String;const facility: TFOS_LOG_FACILITY; const level: TFOS_LOG_LEVEL);overload;
     procedure RegisterCategory (const cat:string;filename:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const nolog:TFOS_BoolType=fbtNotSet;const not_in_full_log:TFOS_BoolType=fbtNotSet);
-    procedure RegisterTarget   (const target:string;targetdir:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility:TFOS_LOG_FACILITY=flf_User);
+    procedure RegisterTarget   (const target:string;subfilepath:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility:TFOS_LOG_FACILITY=flf_User);
     procedure RegisterThread   (const Name:string);
     procedure SetDefaults      (const defaultfilename:string;fullfilename,basedir:string;const turnaround,generations:cardinal; const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug ;  const facility: TFOS_LOG_FACILITY=flf_Kernel );
     procedure ClearLogRules    ;
