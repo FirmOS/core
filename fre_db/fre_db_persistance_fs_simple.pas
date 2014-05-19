@@ -607,6 +607,8 @@ var  FileName : string;
      w        : TFRE_DB_ASYNC_WRITE_BLOCK;
 
 begin
+  if obj.IsVolatile then
+    exit;
   if obj.IsObjectRoot then
     begin
       if not no_storelocking then
