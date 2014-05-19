@@ -7677,6 +7677,9 @@ var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
 
       procedure GetData(const transformed_filtered_cloned_obj:IFRE_DB_Object);
       begin
+        if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
+            and assigned(TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform) then
+              TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserToken,transformed_filtered_cloned_obj);
         TFRE_DB_STORE_DATA_DESC(result).addEntry(transformed_filtered_cloned_obj);
       end;
 
