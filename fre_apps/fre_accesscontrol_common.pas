@@ -201,8 +201,35 @@ begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
-  end;
 
+    CreateModuleText(conn,'groups_tab','Groups');
+    CreateModuleText(conn,'users_tab','Users');
+
+    CreateModuleText(conn,'gc_domain','Domain');
+    CreateModuleText(conn,'gc_user','User');
+    CreateModuleText(conn,'gc_group','Group');
+    CreateModuleText(conn,'gc_domain_desc','Description');
+    CreateModuleText(conn,'gcap_UinD','User belongs to Domain');
+    CreateModuleText(conn,'gcap_UnotinD','User does not belong to Domain');
+    CreateModuleText(conn,'gcap_GinD','Group belongs to Domain');
+    CreateModuleText(conn,'gcap_GnotinD','Group does not belong to Domain');
+
+    CreateModuleText(conn,'tb_modify_domain','Modify','','Modify Domain');
+    CreateModuleText(conn,'tb_add_domain','Add','','Add Domain');
+    CreateModuleText(conn,'cm_modify_domain','Modify');
+    CreateModuleText(conn,'add_domain_diag_cap','Add new domain');
+    CreateModuleText(conn,'modify_domain_diag_cap','Modify domain');
+    CreateModuleText(conn,'modify_domain_diag_no_system_domain_msg','Editing of the System Domain is not possible.');
+    CreateModuleText(conn,'domain_group_in_diag_cap','Adding Group to a domain');
+    CreateModuleText(conn,'domain_user_in_diag_cap','Adding User to a domain');
+    CreateModuleText(conn,'tb_deactivate_domain','Suspend','','Suspend Domain');
+    CreateModuleText(conn,'tb_activate_domain','Activate','','Activate Domain');
+    CreateModuleText(conn,'cm_deactivate_domain','Suspend');
+    CreateModuleText(conn,'cm_activate_domain','Activate');
+
+    CreateModuleText(conn,'domain_modify_error_cap','Error');
+    CreateModuleText(conn,'domain_modify_error_msg','Modify failed %error_msg%');
+  end;
 end;
 
 procedure TFRE_COMMON_DOMAIN_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -225,7 +252,7 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_domain);
     with tr_domain do begin
-      AddOneToOnescheme('displayname','displayname',app.FetchAppTextShort(session,'gc_domain'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_domain'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateDomainIcon);
     end;
@@ -242,7 +269,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserIn);
     with tr_UserIn do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -255,13 +282,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserIn);
-      SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'gcap_UinD'));
+      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UinD'));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
     with tr_groupIn do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
     end;
@@ -274,7 +301,7 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_groupIn);
-      SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'gcap_GinD'));
+      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_GinD'));
       SetDefaultOrderField('displayname',true);
     end;
   end;
@@ -339,17 +366,17 @@ begin
      conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) and
      conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) and
      conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_ROLE) then begin  //class right without domain
-    txt:=app.FetchAppTextFull(ses,'tb_add_domain');
+    txt:=FetchModuleTextFull(ses,'tb_add_domain');
     domaingrid.AddButton.Describe(CWSF(@WEB_AddDomain),'',txt.Getshort,txt.GetHint);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
-    txt:=app.FetchAppTextFull(ses,'tb_modify_domain');
+    txt:=FetchModuleTextFull(ses,'tb_modify_domain');
     domaingrid.AddButton.DescribeManualType('tb_modify_domain',CWSF(@WEB_ModifyDomain),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN) then begin
-    txt:=app.FetchAppTextFull(ses,'tb_deactivate_domain');
+    txt:=FetchModuleTextFull(ses,'tb_deactivate_domain');
     domaingrid.AddButton.DescribeManualType('tb_deactivate_domain',CWSF(@WEB_DeActivateDomain),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
@@ -360,11 +387,11 @@ begin
     sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
 
     if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
-      sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'users_tab'),2);
+      sec.AddSection.Describe(CWSF(@WEB_ContentUsers),FetchModuleTextShort(ses,'users_tab'),2);
     end;
 
     if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
-      sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'groups_tab'),1);
+      sec.AddSection.Describe(CWSF(@WEB_ContentGroups),FetchModuleTextShort(ses,'groups_tab'),1);
     end;
 
     Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(domaingrid,sec,nil,nil,nil,true);
@@ -415,7 +442,7 @@ begin
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'add_domain_diag_cap'),600);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'add_domain_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CWSF(@WEB_CreateDomain),fdbbt_submit);
   Result:=res;
@@ -444,12 +471,12 @@ begin
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_DOMAIN',scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'modify_domain_diag_cap'),600);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'modify_domain_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
 
   CheckDbResult(conn.sys.FetchDomainById(FREDB_String2Guid(input.Field('selected').AsString),domain),'ModifyDomain');
   if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
-    exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'modify_domain_diag_cap'),app.FetchAppTextShort(ses,'modify_domain_diag_no_system_domain_msg'),fdbmt_warning,nil));
+    exit(TFRE_DB_MESSAGE_DESC.create.Describe(FetchModuleTextShort(ses,'modify_domain_diag_cap'),FetchModuleTextShort(ses,'modify_domain_diag_no_system_domain_msg'),fdbmt_warning,nil));
   end;
 
   sf:=CWSF(@WEB_SaveDomain);
@@ -504,7 +531,7 @@ begin
  if res=edb_OK then
    exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
  else
-   exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'domain_modify_error_cap'),StringReplace(app.FetchAppTextShort(ses,'domain_delete_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
+   exit(TFRE_DB_MESSAGE_DESC.create.Describe(FetchModuleTextShort(ses,'domain_modify_error_cap'),StringReplace(FetchModuleTextShort(ses,'domain_delete_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
 end;
 
 function TFRE_COMMON_DOMAIN_MOD.WEB_DGMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -525,16 +552,16 @@ begin
       if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
         func:=CWSF(@WEB_ModifyDomain);
         func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-        res.AddEntry.Describe(app.FetchAppTextShort(ses,'cm_modify_domain'),'',func);
+        res.AddEntry.Describe(FetchModuleTextShort(ses,'cm_modify_domain'),'',func);
       end;
 
       if conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_DOMAIN,domainUid) and conn.sys.CheckClassRight4DomainId(sr_DELETE,TFRE_DB_DOMAIN,domainUid) then begin
         func:=CWSF(@WEB_DeActivateDomain);
         func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
         if domain.Suspended then begin
-          txt:=app.FetchAppTextShort(ses,'cm_activate_domain');
+          txt:=FetchModuleTextShort(ses,'cm_activate_domain');
         end else begin
-          txt:=app.FetchAppTextShort(ses,'cm_deactivate_domain');
+          txt:=FetchModuleTextShort(ses,'cm_deactivate_domain');
         end;
         res.AddEntry.Describe(txt,'',func);
       end;
@@ -559,7 +586,7 @@ begin
       CheckDbResult(conn.sys.FetchDomainById(domainUid,domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
       if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
         ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
-        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,app.FetchAppTextShort(ses,'tb_deactivate_domain'),app.FetchAppTextHint(ses,'tb_deactivate_domain')));
+        ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,FetchModuleTextShort(ses,'tb_deactivate_domain'),FetchModuleTextHint(ses,'tb_deactivate_domain')));
       end else begin
         if conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_DOMAIN,domainUid) then begin
           ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',false));
@@ -567,9 +594,9 @@ begin
           ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
         end;
         if domain.Suspended then begin
-          txt:=app.FetchAppTextFull(ses,'tb_activate_domain');
+          txt:=FetchModuleTextFull(ses,'tb_activate_domain');
         end else begin
-          txt:=app.FetchAppTextFull(ses,'tb_deactivate_domain');
+          txt:=FetchModuleTextFull(ses,'tb_deactivate_domain');
         end;
         if conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_DOMAIN,domainUid) and conn.sys.CheckClassRight4DomainId(sr_DELETE,TFRE_DB_DOMAIN,domainUid) then begin
           ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',false,txt.Getshort,txt.GetHint));
@@ -581,7 +608,7 @@ begin
     end else begin
       ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
       ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
-      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,app.FetchAppTextShort(ses,'tb_deactivate_domain'),app.FetchAppTextHint(ses,'tb_deactivate_domain')));
+      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_deactivate_domain',true,FetchModuleTextShort(ses,'tb_deactivate_domain'),FetchModuleTextHint(ses,'tb_deactivate_domain')));
     end;
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -613,15 +640,15 @@ begin
 
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
 
     if addrole then begin
       if conn.sys.AddRolesToGroupById(group.ObjectName,group.DomainID,TFRE_DB_GUIDArray.create(role.UID))<>edb_OK then
-        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'error_add_role_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
+        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_role_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
     end else begin
       if conn.sys.RemoveRolesFromGroupById(group.ObjectName,group.DomainID,TFRE_DB_GUIDArray.create(role.UID),false)<>edb_OK then
-        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'error_remove_role_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
+        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_remove_role_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
     end;
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -633,10 +660,10 @@ var
 begin
   sec:=TFRE_DB_SUBSECTIONS_DESC.create.Describe;
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
-    sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'users_tab'),2);
+    sec.AddSection.Describe(CWSF(@WEB_ContentUsers),FetchModuleTextShort(ses,'users_tab'),2);
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
-    sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'groups_tab'),1);
+    sec.AddSection.Describe(CWSF(@WEB_ContentGroups),FetchModuleTextShort(ses,'groups_tab'),1);
   end;
   sec.contentId:='ROLE_DETAILS';
   Result:=sec;
@@ -647,7 +674,7 @@ var
   res: TFRE_DB_SUBSECTIONS_DESC;
 begin
   res:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe;
-  res.AddSection.Describe(CWSF(@WEB_ContentNoRoleSel),app.FetchAppTextShort(ses,'norole_tab'),1);
+  res.AddSection.Describe(CWSF(@WEB_ContentNoRoleSel),FetchModuleTextShort(ses,'norole_tab'),1);
   res.contentId:='ROLE_DETAILS';
   Result:=res;
 end;
@@ -697,6 +724,33 @@ begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
+
+    CreateModuleText(conn,'groups_tab','Groups');
+    CreateModuleText(conn,'users_tab','Users');
+    CreateModuleText(conn,'gc_domain_role','Domain / Role');
+    CreateModuleText(conn,'gc_role','Role');
+    CreateModuleText(conn,'gc_group','Group');
+    CreateModuleText(conn,'gc_user','User');
+
+    CreateModuleText(conn,'gcap_GhasR','Group has Role');
+    CreateModuleText(conn,'gcap_GnotR','Group has not Role');
+    CreateModuleText(conn,'gcap_UhasR','User has Role');
+    CreateModuleText(conn,'gcap_UnotR','User has not Role');
+
+    CreateModuleText(conn,'tb_remove_group_from_role','Remove');
+    CreateModuleText(conn,'tb_add_group_to_role','Add');
+
+    CreateModuleText(conn,'cm_remove_groups_from_role','Remove role from groups');
+    CreateModuleText(conn,'cm_add_groups_to_role','Add role to groups');
+    CreateModuleText(conn,'cm_remove_group_from_role','Remove role from group');
+    CreateModuleText(conn,'cm_add_group_to_role','Add role to group');
+
+    CreateModuleText(conn,'role_details_select_one','Please select a role to get detailed information');
+    CreateModuleText(conn,'norole_tab','General');
+
+    CreateModuleText(conn,'error_fetch_group_msg','Could not fetch group with id %group%');
+    CreateModuleText(conn,'error_add_role_msg','Could not add role %role% to group %group%');
+    CreateModuleText(conn,'error_remove_role_msg','Could not remove role %role% from group %group%');
   end;
 
 end;
@@ -729,9 +783,9 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
     with tr_Role do begin
       if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
-        grid_column_cap:=app.FetchAppTextShort(session,'gc_domain_role');
+        grid_column_cap:=FetchModuleTextShort(session,'gc_domain_role');
       end else begin
-        grid_column_cap:=app.FetchAppTextShort(session,'gc_role');
+        grid_column_cap:=FetchModuleTextShort(session,'gc_role');
       end;
       AddOneToOnescheme('displayname','displayname',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
@@ -757,7 +811,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserIn);
     with tr_UserIn do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -770,13 +824,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserIn);
-      SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'gcap_UhasR'));
+      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UhasR'));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserOut);
     with tr_UserOut do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -789,13 +843,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserOut);
-      SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'gcap_UnotR'));
+      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UnotR'));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
     with tr_groupIn do begin
-      AddOneToOnescheme('displayname','displayname',app.FetchAppTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
@@ -809,13 +863,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_groupIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,CWSF(@WEB_GIRNotification),nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,CWSF(@WEB_GIRNotification),nil,CWSF(@WEB_AddToRole));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupOut);
     with tr_GroupOut do begin
-      AddOneToOnescheme('displayname','displayname',app.FetchAppTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
@@ -829,7 +883,7 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_groupOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,CWSF(@WEB_GORNotification),nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,CWSF(@WEB_GORNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
     end;
   end;
@@ -889,7 +943,7 @@ end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_ContentNoRoleSel(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_HTML_DESC.create.Describe(app.FetchAppTextShort(ses,'role_details_select_one'));
+  Result:=TFRE_DB_HTML_DESC.create.Describe(FetchModuleTextShort(ses,'role_details_select_one'));
 end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_ContentUsers(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -934,8 +988,8 @@ begin
   if (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then begin
     groupoutgrid.setDropGrid(groupingrid);
     groupingrid.setDropGrid(groupoutgrid);
-    groupoutgrid.AddButton.DescribeManualType('tb_add_group_to_role',CWSF(@WEB_AddToRole),'',app.FetchAppTextShort(ses,'tb_add_group_to_role'),'',true);
-    groupingrid.AddButton.DescribeManualType('tb_remove_group_from_role',CWSF(@WEB_RemoveFromRole),'',app.FetchAppTextShort(ses,'tb_remove_group_from_role'),'',true);
+    groupoutgrid.AddButton.DescribeManualType('tb_add_group_to_role',CWSF(@WEB_AddToRole),'',FetchModuleTextShort(ses,'tb_add_group_to_role'),'',true);
+    groupingrid.AddButton.DescribeManualType('tb_remove_group_from_role',CWSF(@WEB_RemoveFromRole),'',FetchModuleTextShort(ses,'tb_remove_group_from_role'),'',true);
   end;
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedRoles') then begin
     CheckDbResult(conn.Fetch(FREDB_String2Guid(ses.GetSessionModuleData(ClassName).Field('selectedRoles').AsString),role));
@@ -1016,9 +1070,9 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'cm_remove_group_from_role');
+      txt:=FetchModuleTextShort(ses,'cm_remove_group_from_role');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'cm_remove_group_from_roles');
+      txt:=FetchModuleTextShort(ses,'cm_remove_groups_from_role');
     end;
     res.AddEntry.Describe(txt,'',func);
     Result:=res;
@@ -1042,9 +1096,9 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'cm_add_group_to_role');
+      txt:=FetchModuleTextShort(ses,'cm_add_group_to_role');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'cm_add_group_to_roles');
+      txt:=FetchModuleTextShort(ses,'cm_add_groups_to_role');
     end;
     res.AddEntry.Describe(txt,'',func);
     Result:=res;
@@ -1107,7 +1161,7 @@ begin
     CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(groups[i]),group),'_getGroupsString');
     if i>0 then begin
       if i=(Length(groups) - 1) then begin
-        res:=res + ' ' +GetEmbeddingapp.FetchAppTextShort(ses,'and')+' ';
+        res:=res + ' ' +FetchModuleTextShort(ses,'and')+' ';
       end else begin
         res:=res+', ';
       end;
@@ -1143,15 +1197,15 @@ begin
   if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     if conn.sys.FetchRoleById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),role)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'error_fetch_role_msg'),'%role%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_role_msg'),'%role%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
 
     if (role.GetDomain(conn)=CFRE_DB_SYS_DOMAIN_NAME) and not conn.sys.CheckClassRight4Domain('assignRole',TFRE_DB_GROUP,CFRE_DB_SYS_DOMAIN_NAME) then raise EFRE_DB_Exception.Create('You are not allowed to assigne System Roles');
     if addrole then begin
       if conn.sys.AddRolesToGroupById(group.ObjectName,group.DomainID,TFRE_DB_GUIDArray.Create(role.UID))<>edb_OK then
-        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'error_add_role_msg'),'%group%',group.ObjectName+'@'+group.getDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
+        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_role_msg'),'%group%',group.ObjectName+'@'+group.getDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
     end else begin
       if conn.sys.RemoveRolesFromGroupById(group.ObjectName,group.DomainID,TFRE_DB_GUIDArray.Create(role.UID),false)<>edb_OK then
-        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'error_remove_role_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
+        raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_remove_role_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%role%',role.ObjectName+'@'+role.GetDomain(conn),[rfReplaceAll]));
     end;
   end;
   Result:=GFRE_DB_NIL_DESC;
@@ -1163,10 +1217,10 @@ var
 begin
   sec:=TFRE_DB_SUBSECTIONS_DESC.create.Describe;
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
-    sec.AddSection.Describe(CWSF(@WEB_ContentUsers),app.FetchAppTextShort(ses,'users_tab'),1);
+    sec.AddSection.Describe(CWSF(@WEB_ContentUsers),FetchModuleTextShort(ses,'users_tab'),1);
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
-    sec.AddSection.Describe(CWSF(@WEB_ContentRoles),app.FetchAppTextShort(ses,'roles_tab'),2);
+    sec.AddSection.Describe(CWSF(@WEB_ContentRoles),FetchModuleTextShort(ses,'roles_tab'),2);
   end;
   sec.contentId:='GROUP_DETAILS';
   Result:=sec;
@@ -1177,7 +1231,7 @@ var
   res: TFRE_DB_SUBSECTIONS_DESC;
 begin
   res:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe;
-  res.AddSection.Describe(CWSF(@WEB_ContentNoGroupSel),app.FetchAppTextShort(ses,'nogroup_tab'),1);
+  res.AddSection.Describe(CWSF(@WEB_ContentNoGroupSel),FetchModuleTextShort(ses,'nogroup_tab'),1);
   res.contentId:='GROUP_DETAILS';
   Result:=res;
 end;
@@ -1251,6 +1305,67 @@ begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
+
+    CreateModuleText(conn,'roles_tab','Roles');
+    CreateModuleText(conn,'users_tab','Users');
+
+    CreateModuleText(conn,'gc_domain_group','Domain / Group');
+    CreateModuleText(conn,'gc_group','Group');
+    CreateModuleText(conn,'gc_user','User');
+    CreateModuleText(conn,'gc_role','Role');
+    CreateModuleText(conn,'gcap_UinG','User is in Group');
+    CreateModuleText(conn,'gcap_UnotG','User is not in Group');
+    CreateModuleText(conn,'gcap_GhasR','Group has Role');
+    CreateModuleText(conn,'gcap_GnotR','Group has not Role');
+    CreateModuleText(conn,'group_details_select_one','Please select a group to get detailed information');
+    CreateModuleText(conn,'nogroup_tab','General');
+
+    CreateModuleText(conn,'delete_group_diag_cap','Confirm: Delete group');
+    CreateModuleText(conn,'delete_groups_diag_cap','Confirm: Delete multiple groups');
+    CreateModuleText(conn,'delete_group_diag_msg','Group %group_str% will be deleted permanently! Please confirm to continue.');
+    CreateModuleText(conn,'delete_groups_diag_msg','Groupss %group_str% will be deleted permanently! Please confirm to continue.');
+    CreateModuleText(conn,'group_deleted_diag_cap','Group deleted');
+    CreateModuleText(conn,'groups_deleted_diag_cap','Groups deleted');
+    CreateModuleText(conn,'group_deleted_diag_msg','Group %group_str% successfully deleted.');
+    CreateModuleText(conn,'groups_deleted_diag_msg','Groups %group_str% successfully deleted.');
+
+    CreateModuleText(conn,'add_group_diag_cap','Add new group');
+    CreateModuleText(conn,'modify_group_diag_cap','Modify group');
+    CreateModuleText(conn,'modify_group_diag_no_system_group_msg','You can not modify a system group.');
+    CreateModuleText(conn,'delete_not_empty_group_error_diag_cap','Delete group');
+    CreateModuleText(conn,'delete_not_empty_group_error_diag_msg','You are not allowed to modify Users. Therefore you can only delete empty groups.');
+
+    CreateModuleText(conn,'cm_modify_group','Modify','','Modify Group');
+    CreateModuleText(conn,'cm_delete_group','Delete','','Delete Group');
+    CreateModuleText(conn,'cm_delete_groups','Delete','','Delete Groups');
+    CreateModuleText(conn,'cm_remove_group_from_users','Remove users from group');
+    CreateModuleText(conn,'cm_add_group_to_users','Add users to group');
+    CreateModuleText(conn,'cm_remove_group_from_user','Remove user from group');
+    CreateModuleText(conn,'cm_add_group_to_user','Add user to group');
+    CreateModuleText(conn,'cm_remove_group_from_roles','Remove roles from group');
+    CreateModuleText(conn,'cm_add_group_to_roles','Add roles to group');
+    CreateModuleText(conn,'cm_remove_group_from_role','Remove role from group');
+    CreateModuleText(conn,'cm_add_group_to_role','Add role to group');
+
+    CreateModuleText(conn,'tb_add_group','Add','','Add Group');
+    CreateModuleText(conn,'tb_modify_group','Modify','','Modify Group');
+    CreateModuleText(conn,'tb_delete_group','Delete','','Delete Group');
+    CreateModuleText(conn,'tb_remove_group_from_user','Remove');
+    CreateModuleText(conn,'tb_add_group_to_user','Add');
+    CreateModuleText(conn,'tb_remove_group_from_role','Remove');
+    CreateModuleText(conn,'tb_add_group_to_role','Add');
+
+    CreateModuleText(conn,'group_modify_error_cap','Error');
+    CreateModuleText(conn,'group_modify_error_msg','Modify failed %error_msg%');
+
+    CreateModuleText(conn,'and','and');
+
+    CreateModuleText(conn,'error_fetch_role_msg','Could not fetch role with id %role%');
+    CreateModuleText(conn,'error_fetch_user_msg','Could not fetch user with id %user%');
+    CreateModuleText(conn,'error_add_role_msg','Could not add role %role% to group %group%');
+    CreateModuleText(conn,'error_remove_role_msg','Could not remove role %role% from group %group%');
+    CreateModuleText(conn,'error_add_group_msg','Could not add user %user% to group %group%');
+    CreateModuleText(conn,'error_remove_group_msg','Could not remove user %user% from group %group%');
   end;
 
 end;
@@ -1283,9 +1398,9 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
       if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
-        grid_column_cap:=app.FetchAppTextShort(session,'gc_domain_group');
+        grid_column_cap:=FetchModuleTextShort(session,'gc_domain_group');
       end else begin
-        grid_column_cap:=app.FetchAppTextShort(session,'gc_group');
+        grid_column_cap:=FetchModuleTextShort(session,'gc_group');
       end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
@@ -1311,7 +1426,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserIn);
     with tr_UserIn do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -1324,13 +1439,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_UIGMenu),nil,CWSF(@WEB_UIGNotification),nil,CWSF(@WEB_AddToUser));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_UIGMenu),nil,CWSF(@WEB_UIGNotification),nil,CWSF(@WEB_AddToUser));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserOut);
     with tr_UserOut do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -1343,13 +1458,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_UOGMenu),nil,CWSF(@WEB_UOGNotification),nil,CWSF(@WEB_RemoveFromUser));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_UOGMenu),nil,CWSF(@WEB_UOGNotification),nil,CWSF(@WEB_RemoveFromUser));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
     with tr_RoleIn do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       SetFinalRightTransformFunction(@CalculateRoleFields);
@@ -1363,13 +1478,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,CWSF(@WEB_RIGNotification),nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,CWSF(@WEB_RIGNotification),nil,CWSF(@WEB_AddToRole));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleOut);
     with tr_RoleOut do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_role'),dt_string,true,false,false,6,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,6,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       SetFinalRightTransformFunction(@CalculateRoleFields);
@@ -1383,7 +1498,7 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,CWSF(@WEB_ROGNotification),nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,CWSF(@WEB_ROGNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
     end;
   end;
@@ -1437,17 +1552,17 @@ begin
 
   groupgrid := ses.FetchDerivedCollection('GROUPMOD_GROUP_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) then begin
-    txt:=app.FetchAppTextFull(ses,'tb_add_group');
+    txt:=FetchModuleTextFull(ses,'tb_add_group');
     groupgrid.AddButton.Describe(CWSF(@WEB_AddGroup),'',txt.Getshort,txt.GetHint);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
-    txt:=app.FetchAppTextFull(ses,'tb_modify_group');
+    txt:=FetchModuleTextFull(ses,'tb_modify_group');
     groupgrid.AddButton.DescribeManualType('tb_modify_group',CWSF(@WEB_ModifyGroup),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then begin
-    txt:=app.FetchAppTextFull(ses,'tb_delete_group');
+    txt:=FetchModuleTextFull(ses,'tb_delete_group');
     groupgrid.AddButton.DescribeManualType('tb_delete_group',CWSF(@WEB_DeleteGroup),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
@@ -1461,7 +1576,7 @@ end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_ContentNoGroupSel(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_HTML_DESC.create.Describe(app.FetchAppTextShort(ses,'group_details_select_one'));
+  Result:=TFRE_DB_HTML_DESC.create.Describe(FetchModuleTextShort(ses,'group_details_select_one'));
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_ContentUsers(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1486,8 +1601,8 @@ begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
     useroutgrid.setDropGrid(useringrid);
     useringrid.setDropGrid(useroutgrid);
-    useroutgrid.AddButton.DescribeManualType('tb_add_group_to_user',CWSF(@WEB_AddToUser),'',app.FetchAppTextShort(ses,'tb_add_group_to_user'),'',true);
-    useringrid.AddButton.DescribeManualType('tb_remove_group_from_user',CWSF(@WEB_RemoveFromUser),'',app.FetchAppTextShort(ses,'tb_remove_group_from_user'),'',true);
+    useroutgrid.AddButton.DescribeManualType('tb_add_group_to_user',CWSF(@WEB_AddToUser),'',FetchModuleTextShort(ses,'tb_add_group_to_user'),'',true);
+    useringrid.AddButton.DescribeManualType('tb_remove_group_from_user',CWSF(@WEB_RemoveFromUser),'',FetchModuleTextShort(ses,'tb_remove_group_from_user'),'',true);
   end;
 
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups') then begin
@@ -1525,8 +1640,8 @@ begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
     roleoutgrid.setDropGrid(roleingrid);
     roleingrid.setDropGrid(roleoutgrid);
-    roleoutgrid.AddButton.DescribeManualType('tb_add_group_to_role',CWSF(@WEB_AddToRole),'',app.FetchAppTextShort(ses,'tb_add_group_to_role'),'',true);
-    roleingrid.AddButton.DescribeManualType('tb_remove_group_from_role',CWSF(@WEB_RemoveFromRole),'',app.FetchAppTextShort(ses,'tb_remove_group_from_role'),'',true);
+    roleoutgrid.AddButton.DescribeManualType('tb_add_group_to_role',CWSF(@WEB_AddToRole),'',FetchModuleTextShort(ses,'tb_add_group_to_role'),'',true);
+    roleingrid.AddButton.DescribeManualType('tb_remove_group_from_role',CWSF(@WEB_RemoveFromRole),'',FetchModuleTextShort(ses,'tb_remove_group_from_role'),'',true);
   end;
 
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups') then begin
@@ -1550,7 +1665,7 @@ begin
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'add_group_diag_cap'),600);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'add_group_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CWSF(@WEB_CreateGroup),fdbbt_submit);
   Result:=res;
@@ -1581,10 +1696,10 @@ begin
   if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
 
   if Pos('$',group.ObjectName)=1 then begin
-    exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'modify_group_diag_cap'),app.FetchAppTextShort(ses,'modify_group_diag_no_system_group_msg'),fdbmt_warning,nil));
+    exit(TFRE_DB_MESSAGE_DESC.create.Describe(FetchModuleTextShort(ses,'modify_group_diag_cap'),FetchModuleTextShort(ses,'modify_group_diag_no_system_group_msg'),fdbmt_warning,nil));
   end;
 
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'modify_group_diag_cap'));
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'modify_group_diag_cap'));
   res.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses);
 
   sf:=CWSF(@WEB_SaveGroup);
@@ -1624,7 +1739,7 @@ begin
   if res=edb_OK then
     exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe())
   else
-    exit(TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'group_modify_error_cap'),StringReplace(app.FetchAppTextShort(ses,'group_modify_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
+    exit(TFRE_DB_MESSAGE_DESC.create.Describe(FetchModuleTextShort(ses,'group_modify_error_cap'),StringReplace(FetchModuleTextShort(ses,'group_modify_error_msg'),'%error_msg%',CFRE_DB_Errortype[res],[rfReplaceAll]),fdbmt_error,nil));
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_DeleteGroup(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1646,16 +1761,16 @@ begin
     CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'DeleteGroup');
     if group.isProtected then raise EFRE_DB_Exception.Create('You cannot delete a protected group.');
     if conn.IsReferenced(group.UID,false,'TFRE_DB_USER') and not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
-      Result:=TFRE_DB_MESSAGE_DESC.create.Describe(app.FetchAppTextShort(ses,'delete_not_empty_group_error_diag_cap'),app.FetchAppTextShort(ses,'delete_not_empty_group_error_diag_msg'),fdbmt_error);
+      Result:=TFRE_DB_MESSAGE_DESC.create.Describe(FetchModuleTextShort(ses,'delete_not_empty_group_error_diag_cap'),FetchModuleTextShort(ses,'delete_not_empty_group_error_diag_msg'),fdbmt_error);
       exit;
     end;
   end;
   if input.Field('selected').ValueCount>1 then begin
-    cap:=app.FetchAppTextShort(ses,'delete_groups_diag_cap');
-    msg:=StringReplace(app.FetchAppTextShort(ses,'delete_groups_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
+    cap:=FetchModuleTextShort(ses,'delete_groups_diag_cap');
+    msg:=StringReplace(FetchModuleTextShort(ses,'delete_groups_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
   end else begin
-    cap:=app.FetchAppTextShort(ses,'delete_group_diag_cap');
-    msg:=StringReplace(app.FetchAppTextShort(ses,'delete_group_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
+    cap:=FetchModuleTextShort(ses,'delete_group_diag_cap');
+    msg:=StringReplace(FetchModuleTextShort(ses,'delete_group_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
   end;
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_confirm,sf);
 end;
@@ -1676,11 +1791,11 @@ begin
   if input.field('confirmed').AsBoolean then begin
     msg:=_getGroupsString(input.Field('selected').AsStringArr,GetDBConnection(input),ses);
     if input.Field('selected').ValueCount>1 then begin
-      cap:=app.FetchAppTextShort(ses,'groups_deleted_diag_cap');
-      msg:=StringReplace(app.FetchAppTextShort(ses,'groups_deleted_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
+      cap:=FetchModuleTextShort(ses,'groups_deleted_diag_cap');
+      msg:=StringReplace(FetchModuleTextShort(ses,'groups_deleted_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
     end else begin
-      cap:=app.FetchAppTextShort(ses,'group_deleted_diag_cap');
-      msg:=StringReplace(app.FetchAppTextShort(ses,'group_deleted_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
+      cap:=FetchModuleTextShort(ses,'group_deleted_diag_cap');
+      msg:=StringReplace(FetchModuleTextShort(ses,'group_deleted_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
     end;
     for i := 0 to input.Field('selected').ValueCount-1 do begin
       dbo_uid:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
@@ -1717,11 +1832,11 @@ begin
       end;
     end;
     if input.Field('selected').ValueCount=1 then begin
-      mtxt:=app.FetchAppTextShort(ses,'cm_modify_group');
-      dtxt:=app.FetchAppTextShort(ses,'cm_delete_group');
+      mtxt:=FetchModuleTextShort(ses,'cm_modify_group');
+      dtxt:=FetchModuleTextShort(ses,'cm_delete_group');
     end else begin
-      mtxt:=app.FetchAppTextShort(ses,'cm_modify_group');
-      dtxt:=app.FetchAppTextShort(ses,'cm_delete_groups');
+      mtxt:=FetchModuleTextShort(ses,'cm_modify_group');
+      dtxt:=FetchModuleTextShort(ses,'cm_delete_groups');
     end;
     res:=TFRE_DB_MENU_DESC.create.Describe;
     if conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,dbo.DomainID) then
@@ -1823,9 +1938,9 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'cm_remove_group_from_user');
+      txt:=FetchModuleTextShort(ses,'cm_remove_group_from_user');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'cm_remove_group_from_users');
+      txt:=FetchModuleTextShort(ses,'cm_remove_group_from_users');
     end;
     res.AddEntry.Describe(txt,'',func);
     Result:=res;
@@ -1846,9 +1961,9 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'cm_add_group_to_user');
+      txt:=FetchModuleTextShort(ses,'cm_add_group_to_user');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'cm_add_group_to_users');
+      txt:=FetchModuleTextShort(ses,'cm_add_group_to_users');
     end;
     res.AddEntry.Describe(txt,'',func);
     Result:=res;
@@ -1907,9 +2022,9 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     user_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchUserById(user_id,user)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.RemoveUserGroupsById(user_id,TFRE_DB_GUIDArray.Create(group.UID))<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 
@@ -1941,9 +2056,9 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     user_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchUserById(user_id,user)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.ModifyUserGroupsById(user_id,TFRE_DB_GUIDArray.Create(group.UID),true)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -1960,9 +2075,9 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'cm_remove_group_from_role');
+      txt:=FetchModuleTextShort(ses,'cm_remove_group_from_role');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'cm_remove_group_from_roles');
+      txt:=FetchModuleTextShort(ses,'cm_remove_group_from_roles');
     end;
     res.AddEntry.Describe(txt,'',func);
     Result:=res;
@@ -1983,9 +2098,9 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'cm_add_group_to_role');
+      txt:=FetchModuleTextShort(ses,'cm_add_group_to_role');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'cm_add_group_to_roles');
+      txt:=FetchModuleTextShort(ses,'cm_add_group_to_roles');
     end;
     res.AddEntry.Describe(txt,'',func);
     Result:=res;
@@ -2051,7 +2166,7 @@ begin
     CheckDbResult(conn.sys.FetchUserById(FREDB_String2Guid(logins[i]),user),'_getUsersString');
     if i>0 then begin
       if i=(Length(logins) - 1) then begin
-        res:=res + ' ' +GetEmbeddingapp.FetchAppTextShort(ses,'and')+' ';
+        res:=res + ' ' +FetchModuleTextShort(ses,'and')+' ';
       end else begin
         res:=res+', ';
       end;
@@ -2079,15 +2194,15 @@ var
   sec : TFRE_DB_SUBSECTIONS_DESC;
 begin
   sec:=TFRE_DB_SUBSECTIONS_DESC.create.Describe;
-  sec.AddSection.Describe(CWSF(@WEB_ContentInfo),app.FetchAppTextShort(ses,'userinfo_tab'),1);
+  sec.AddSection.Describe(CWSF(@WEB_ContentInfo),FetchModuleTextShort(ses,'userinfo_tab'),1);
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_NOTE) then begin
-    sec.AddSection.Describe(CWSF(@WEB_ContentNote),app.FetchAppTextShort(ses,'usernote_tab'),2);
+    sec.AddSection.Describe(CWSF(@WEB_ContentNote),FetchModuleTextShort(ses,'usernote_tab'),2);
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
-    sec.AddSection.Describe(CWSF(@WEB_ContentGroups),app.FetchAppTextShort(ses,'groups_tab'),3);
+    sec.AddSection.Describe(CWSF(@WEB_ContentGroups),FetchModuleTextShort(ses,'groups_tab'),3);
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
-    sec.AddSection.Describe(CWSF(@WEB_ContentRoles),app.FetchAppTextShort(ses,'roles_tab'),4);
+    sec.AddSection.Describe(CWSF(@WEB_ContentRoles),FetchModuleTextShort(ses,'roles_tab'),4);
   end;
   sec.contentId:='USER_DETAILS';
   Result:=sec;
@@ -2098,7 +2213,7 @@ var
   res: TFRE_DB_SUBSECTIONS_DESC;
 begin
   res:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe;
-  res.AddSection.Describe(CWSF(@WEB_ContentNoUserSel),app.FetchAppTextShort(ses,'nouser_tab'),1);
+  res.AddSection.Describe(CWSF(@WEB_ContentNoUserSel),FetchModuleTextShort(ses,'nouser_tab'),1);
   res.contentId:='USER_DETAILS';
   Result:=res;
 end;
@@ -2146,6 +2261,53 @@ begin
   newVersionId:='1.0';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
+
+    CreateModuleText(conn,'roles_tab','Roles');
+    CreateModuleText(conn,'groups_tab','Groups');
+    CreateModuleText(conn,'usernote_tab','Notes');
+    CreateModuleText(conn,'userinfo_tab','User Properties');
+    CreateModuleText(conn,'user_content_header','Informations about the selected user.');
+
+    CreateModuleText(conn,'gc_user','User');
+    CreateModuleText(conn,'gc_group','Group');
+    CreateModuleText(conn,'gc_role','Role');
+    CreateModuleText(conn,'gc_domain_user','Domain / User');
+    CreateModuleText(conn,'gcap_UinG','User is in Group');
+    CreateModuleText(conn,'gcap_UnotG','User is not in Group');
+    CreateModuleText(conn,'gcap_UhasR','User has Role');
+    CreateModuleText(conn,'gcap_UnotR','User has not Role');
+    CreateModuleText(conn,'user_details_select_one','Please select a user to get detailed information');
+    CreateModuleText(conn,'nouser_tab','General');
+
+    CreateModuleText(conn,'add_user_diag_cap','Add new user');
+    CreateModuleText(conn,'delete_user_diag_cap','Confirm: Delete user');
+    CreateModuleText(conn,'delete_users_diag_cap','Confirm: Delete multiple users');
+    CreateModuleText(conn,'delete_user_diag_msg','User %user_str% will be deleted permanently! Please confirm to continue.');
+    CreateModuleText(conn,'delete_users_diag_msg','Users %user_str% will be deleted permanently! Please confirm to continue.');
+    CreateModuleText(conn,'user_deleted_diag_cap','User deleted');
+    CreateModuleText(conn,'users_deleted_diag_cap','Users deleted');
+    CreateModuleText(conn,'user_deleted_diag_msg','User %user_str% successfully deleted.');
+    CreateModuleText(conn,'users_deleted_diag_msg','Users %user_str% successfully deleted.');
+
+    CreateModuleText(conn,'cm_delete_user','Delete','','Delete User');
+    CreateModuleText(conn,'cm_delete_users','Delete','','Delete Users');
+    CreateModuleText(conn,'cm_remove_user_from_groups','Remove user from groups');
+    CreateModuleText(conn,'cm_add_user_to_groups','Add user to groups');
+    CreateModuleText(conn,'cm_remove_user_from_group','Remove user from group');
+    CreateModuleText(conn,'cm_add_user_to_group','Add user to group');
+
+    CreateModuleText(conn,'tb_delete_user','Delete','','Delete User');
+    CreateModuleText(conn,'tb_add_user','Add','','Add User');
+    CreateModuleText(conn,'tb_remove_user_from_group','Remove');
+    CreateModuleText(conn,'tb_add_user_to_group','Add');
+
+    CreateModuleText(conn,'and','and');
+
+    CreateModuleText(conn,'error_fetch_group_msg','Could not fetch group with id %group%');
+    CreateModuleText(conn,'error_fetch_user_msg','Could not fetch user with id %user%');
+    CreateModuleText(conn,'error_delete_user_msg','Could not delete user with id %user%');
+    CreateModuleText(conn,'error_add_group_msg','Could not add user %user% to group %group%');
+    CreateModuleText(conn,'error_remove_group_msg','Could not remove user %user% from group %group%');
   end;
 
 end;
@@ -2178,9 +2340,9 @@ begin
 
     with tr_Grid do begin
       if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
-        grid_column_cap:=app.FetchAppTextShort(session,'gc_domain_user');
+        grid_column_cap:=FetchModuleTextShort(session,'gc_domain_user');
       end else begin
-        grid_column_cap:=app.FetchAppTextShort(session,'gc_user');
+        grid_column_cap:=FetchModuleTextShort(session,'gc_user');
       end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
@@ -2207,7 +2369,7 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridIn);
     with tr_GridIn do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       SetFinalRightTransformFunction(@CalculateGroupFields);
@@ -2222,13 +2384,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_GridIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddToGroup));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddToGroup));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridOut);
     with tr_GridOut do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       SetFinalRightTransformFunction(@CalculateGroupFields);
@@ -2243,13 +2405,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_GridOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],app.FetchAppTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveFromGroup));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveFromGroup));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
     with tr_RoleIn do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateRoleIcon);
     end;
@@ -2263,13 +2425,13 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleIn);
-      SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'gcap_UhasR'));
+      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UhasR'));
       SetDefaultOrderField('displayname',true);
     end;
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleOut);
     with tr_RoleOut do begin
-      AddOneToOnescheme('displayname','',app.FetchAppTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateRoleIcon);
     end;
@@ -2282,7 +2444,7 @@ begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleOut);
-      SetDisplayType(cdt_Listview,[],app.FetchAppTextShort(session,'gcap_UnotR'));
+      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UnotR'));
       SetDefaultOrderField('displayname',true);
     end;
   end;
@@ -2337,12 +2499,12 @@ begin
   usergrid := ses.FetchDerivedCollection('USERMOD_USER_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) then begin
-    txt:=app.FetchAppTextFull(ses,'tb_add_user');
+    txt:=FetchModuleTextFull(ses,'tb_add_user');
     usergrid.AddButton.Describe(CWSF(@WEB_AddUser),'',txt.Getshort,txt.GetHint);
     txt.Finalize;
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_USER) then begin
-    txt:=app.FetchAppTextFull(ses,'tb_delete_user');
+    txt:=FetchModuleTextFull(ses,'tb_delete_user');
     usergrid.AddButton.DescribeManualType('tb_delete_user',CWSF(@WEB_DeleteUser),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
@@ -2366,7 +2528,7 @@ begin
 
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount=1)  then begin
     sel_guid := input.Field('SELECTED').AsGUID; // is user
-    CheckDbResult(conn.Fetch(sel_guid,selObj),StringReplace(app.FetchAppTextShort(ses,'error_fetch_user_msg'),'%user%',GUIDToString(sel_guid),[rfReplaceAll]));
+    CheckDbResult(conn.Fetch(sel_guid,selObj),StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',GUIDToString(sel_guid),[rfReplaceAll]));
     if selObj.IsA('TFRE_DB_USER') then begin
       ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString:=input.Field('SELECTED').AsString;
       domainUid:=selObj.DomainID;
@@ -2426,7 +2588,7 @@ end;
 
 function TFRE_COMMON_USER_MOD.WEB_ContentNoUserSel(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  Result:=TFRE_DB_HTML_DESC.create.Describe(app.FetchAppTextShort(ses,'user_details_select_one'));
+  Result:=TFRE_DB_HTML_DESC.create.Describe(FetchModuleTextShort(ses,'user_details_select_one'));
 end;
 
 function TFRE_COMMON_USER_MOD.WEB_ContentInfo(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -2449,7 +2611,7 @@ begin
     CheckDbResult(conn.sys.FetchUserById(sel_guid,user),'UserContent');
     userEditable:=conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,user.GetDomainIDLink);
     GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
-    panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(app.FetchAppTextShort(ses,'user_content_header'),true,userEditable);
+    panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(FetchModuleTextShort(ses,'user_content_header'),true,userEditable);
     block:=panel.AddBlock.Describe();
     block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
     block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,false,false);
@@ -2459,7 +2621,7 @@ begin
       panel.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
     end;
   end else begin
-    panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(app.FetchAppTextShort(ses,'user_content_header'));
+    panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(FetchModuleTextShort(ses,'user_content_header'));
   end;
   panel.contentId:='USER_INFO';
   Result:=panel;
@@ -2523,8 +2685,8 @@ begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) and conn.sys.CheckClassRight4AnyDomain('assignGroup',TFRE_DB_GROUP) then begin
     groupoutgrid.setDropGrid(groupingrid);
     groupingrid.setDropGrid(groupoutgrid);
-    groupoutgrid.AddButton.DescribeManualType('tb_add_user_to_group',CWSF(@WEB_AddToGroup),'',app.FetchAppTextShort(ses,'tb_add_user_to_group'),'',true);
-    groupingrid.AddButton.DescribeManualType('tb_remove_user_from_group',CWSF(@WEB_RemoveFromGroup),'',app.FetchAppTextShort(ses,'tb_remove_user_from_group'),'',true);
+    groupoutgrid.AddButton.DescribeManualType('tb_add_user_to_group',CWSF(@WEB_AddToGroup),'',FetchModuleTextShort(ses,'tb_add_user_to_group'),'',true);
+    groupingrid.AddButton.DescribeManualType('tb_remove_user_from_group',CWSF(@WEB_RemoveFromGroup),'',FetchModuleTextShort(ses,'tb_remove_user_from_group'),'',true);
   end;
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers') then begin
     CheckDbResult(conn.Fetch(FREDB_String2Guid(ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString),user));
@@ -2568,7 +2730,7 @@ begin
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'add_user_diag_cap'),600);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'add_user_diag_cap'),600);
   block:=res.AddBlock.Describe();
   block.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses,false,false,2);
   block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
@@ -2589,11 +2751,11 @@ begin
   sf.AddParam.Describe('selected',input.Field('selected').AsStringArr);
   msg:=_getUsersString(input.Field('selected').AsStringArr,GetDBConnection(input),ses);
   if input.Field('selected').ValueCount>1 then begin
-    cap:=app.FetchAppTextShort(ses,'delete_users_diag_cap');
-    msg:=StringReplace(app.FetchAppTextShort(ses,'delete_users_diag_msg'),'%user_str%',msg,[rfReplaceAll]);
+    cap:=FetchModuleTextShort(ses,'delete_users_diag_cap');
+    msg:=StringReplace(FetchModuleTextShort(ses,'delete_users_diag_msg'),'%user_str%',msg,[rfReplaceAll]);
   end else begin
-    cap:=app.FetchAppTextShort(ses,'delete_user_diag_cap');
-    msg:=StringReplace(app.FetchAppTextShort(ses,'delete_user_diag_msg'),'%user_str%',msg,[rfReplaceAll]);
+    cap:=FetchModuleTextShort(ses,'delete_user_diag_cap');
+    msg:=StringReplace(FetchModuleTextShort(ses,'delete_user_diag_msg'),'%user_str%',msg,[rfReplaceAll]);
   end;
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_confirm,sf);
 end;
@@ -2610,16 +2772,16 @@ begin
   if input.field('confirmed').AsBoolean then begin
     msg:=_getUsersString(input.Field('selected').AsStringArr,GetDBConnection(input),ses);
     if input.Field('selected').ValueCount>1 then begin
-      cap:=app.FetchAppTextShort(ses,'users_deleted_diag_cap');
-      msg:=StringReplace(app.FetchAppTextShort(ses,'users_deleted_diag_msg'),'%user_str%',msg,[rfReplaceAll]);
+      cap:=FetchModuleTextShort(ses,'users_deleted_diag_cap');
+      msg:=StringReplace(FetchModuleTextShort(ses,'users_deleted_diag_msg'),'%user_str%',msg,[rfReplaceAll]);
     end else begin
-      cap:=app.FetchAppTextShort(ses,'user_deleted_diag_cap');
-      msg:=StringReplace(app.FetchAppTextShort(ses,'user_deleted_diag_msg'),'%user_str%',msg,[rfReplaceAll]);
+      cap:=FetchModuleTextShort(ses,'user_deleted_diag_cap');
+      msg:=StringReplace(FetchModuleTextShort(ses,'user_deleted_diag_msg'),'%user_str%',msg,[rfReplaceAll]);
     end;
     for i:=0 to input.Field('selected').ValueCount-1  do
       begin
         if conn.sys.DeleteUserById(FREDB_String2Guid(input.Field('selected').AsStringItem[i]))<>edb_OK then
-          raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'error_delete_user_msg'),'%user%',input.Field('selected').AsStringItem[i],[rfReplaceAll]));
+          raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_delete_user_msg'),'%user%',input.Field('selected').AsStringItem[i],[rfReplaceAll]));
       end;
     Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_info);
   end else begin
@@ -2644,9 +2806,9 @@ begin
   end;
 
   if input.Field('selected').ValueCount=1 then begin
-    dtxt := app.FetchAppTextShort(ses,'cm_delete_user');
+    dtxt := FetchModuleTextShort(ses,'cm_delete_user');
   end else begin
-    dtxt := app.FetchAppTextShort(ses,'cm_delete_users');
+    dtxt := FetchModuleTextShort(ses,'cm_delete_users');
   end;
   res:=TFRE_DB_MENU_DESC.create.Describe;
   func:=CWSF(@WEB_DeleteUser);
@@ -2667,9 +2829,9 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'cm_remove_user_from_group');
+      txt:=FetchModuleTextShort(ses,'cm_remove_user_from_group');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'cm_remove_user_from_groups');
+      txt:=FetchModuleTextShort(ses,'cm_remove_user_from_groups');
     end;
     res.AddEntry.Describe(txt,'',func);
     Result:=res;
@@ -2690,9 +2852,9 @@ begin
     func.AddParam.Describe('uids_ref',input.FieldPath('dependency.uids_ref.filtervalues').AsString);
     func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
     if input.Field('selected').ValueCount=1 then begin
-      txt:=app.FetchAppTextShort(ses,'cm_add_user_to_group');
+      txt:=FetchModuleTextShort(ses,'cm_add_user_to_group');
     end else begin
-      txt:=app.FetchAppTextShort(ses,'cm_add_user_to_groups');
+      txt:=FetchModuleTextShort(ses,'cm_add_user_to_groups');
     end;
     res.AddEntry.Describe(txt,'',func);
     Result:=res;
@@ -2749,9 +2911,9 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     group_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchGroupById(group_id,group)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.RemoveUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id))<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -2780,9 +2942,9 @@ begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
     group_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchGroupById(group_id,group)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(app.FetchAppTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.ModifyUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id),true)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(app.FetchAppTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -2837,50 +2999,10 @@ begin
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
-
-procedure _convertObjs_1_1(const obj: IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
-var
-  domain: IFRE_DB_DOMAIN;
-  group : IFRE_DB_GROUP;
-  user  : IFRE_DB_USER;
-  role  : IFRE_DB_ROLE;
-begin
-  if obj.IsA('TFRE_DB_DOMAIN') then begin
-    domain:=obj.Implementor_HC as IFRE_DB_DOMAIN;
-    domain.isInternal:=false;
-    domain.Suspended:=false;
-    CheckDbResult(conn.UpdateDomain(domain));
-  end else
-  if obj.IsA('TFRE_DB_GROUP') then begin
-    group:=obj.Implementor_HC as IFRE_DB_GROUP;
-    if not obj.FieldExists('internal') then begin
-      group.isInternal:=false;
-    end;
-    if not obj.FieldExists('protected') then begin
-      group.isProtected:=false;
-    end;
-    CheckDbResult(conn.UpdateGroup(group));
-  end else
-  if obj.IsA('TFRE_DB_USER') then begin
-    if not obj.FieldExists('internal') then begin
-      user:=obj.Implementor_HC as IFRE_DB_USER;
-      user.isInternal:=false;
-      CheckDbResult(conn.UpdateUser(user));
-    end;
-  end else
-  if obj.IsA('TFRE_DB_ROLE') then begin
-    if not obj.FieldExists('internal') then begin
-      role:=obj.Implementor_HC as IFRE_DB_ROLE;
-      role.isInternal:=false;
-      CheckDbResult(conn.UpdateRole(role));
-    end;
-  end;
-end;
-
 begin
   inherited;
 
-  newVersionId:='1.2';
+  newVersionId:='1.0';
 
   if (currentVersionId='') then begin
     currentVersionId:='1.0';
@@ -2895,180 +3017,6 @@ begin
     CreateAppText(conn,'sitemap_groups','Groups','','Groups');
     CreateAppText(conn,'sitemap_roles','Roles','','Roles');
     CreateAppText(conn,'sitemap_domains','Domains','','Domains');
-
-    CreateAppText(conn,'error_delete_single_select','Exactly one object has to be selected for deletion.');
-
-    CreateAppText(conn,'gc_username','Username');//deleted in version 1.1
-    CreateAppText(conn,'gc_firstname','Firstname');//deleted in version 1.1
-    CreateAppText(conn,'gc_lastname','Lastname');//deleted in version 1.1
-    CreateAppText(conn,'gc_group','Group');
-    CreateAppText(conn,'gc_role','Role');
-    CreateAppText(conn,'gcap_UinG','User is in Group');
-    CreateAppText(conn,'gcap_UnotG','User is not in Group');
-    CreateAppText(conn,'gcap_UhasR','User has Role');
-    CreateAppText(conn,'gcap_UnotR','User has not Role');
-    CreateAppText(conn,'gcap_GhasR','Group has Role');
-    CreateAppText(conn,'gcap_GnotR','Group has not Role');
-
-    CreateAppText(conn,'roles_tab','Roles');
-    CreateAppText(conn,'groups_tab','Groups');
-    CreateAppText(conn,'users_tab','Users');
-    CreateAppText(conn,'note_tab','Note');
-    CreateAppText(conn,'userinfo_tab','User Properties');
-    CreateAppText(conn,'user_content_header','Informations about the selected user.');
-
-    CreateAppText(conn,'tb_delete_user','Delete','','Delete User');
-    CreateAppText(conn,'tb_add_user','Add','','Add User');
-
-    CreateAppText(conn,'cm_delete_user','Delete','','Delete User');
-    CreateAppText(conn,'cm_delete_users','Delete','','Delete Users');
-    CreateAppText(conn,'cm_remove_user_from_groups','Remove user from groups');
-    CreateAppText(conn,'cm_add_user_to_groups','Add user to groups');
-    CreateAppText(conn,'cm_remove_user_from_group','Remove user from group');
-    CreateAppText(conn,'cm_add_user_to_group','Add user to group');
-
-    CreateAppText(conn,'add_user_diag_cap','Add new user');
-    CreateAppText(conn,'delete_user_diag_cap','Confirm: Delete user');
-    CreateAppText(conn,'delete_users_diag_cap','Confirm: Delete multiple users');
-    CreateAppText(conn,'delete_user_diag_msg','User %user_str% will be deleted permanently! Please confirm to continue.');
-    CreateAppText(conn,'delete_users_diag_msg','Users %user_str% will be deleted permanently! Please confirm to continue.');
-    CreateAppText(conn,'user_deleted_diag_cap','User deleted');
-    CreateAppText(conn,'users_deleted_diag_cap','Users deleted');
-    CreateAppText(conn,'user_deleted_diag_msg','User %user_str% successfully deleted.');
-    CreateAppText(conn,'users_deleted_diag_msg','Users %user_str% successfully deleted.');
-
-    CreateAppText(conn,'cm_modify_group','Modify','','Modify Group');
-    CreateAppText(conn,'cm_delete_group','Delete','','Delete Group');
-    CreateAppText(conn,'cm_delete_groups','Delete','','Delete Groups');
-    CreateAppText(conn,'tb_add_group','Add','','Add Group');
-    CreateAppText(conn,'tb_modify_group','Modify','','Modify Group');
-    CreateAppText(conn,'tb_delete_group','Delete','','Delete Group');
-    CreateAppText(conn,'cm_remove_group_from_users','Remove users from group');
-    CreateAppText(conn,'cm_add_group_to_users','Add users to group');
-    CreateAppText(conn,'cm_remove_group_from_user','Remove user from group');
-    CreateAppText(conn,'cm_add_group_to_user','Add user to group');
-    CreateAppText(conn,'cm_remove_group_from_roles','Remove roles from group');
-    CreateAppText(conn,'cm_add_group_to_roles','Add roles to group');
-    CreateAppText(conn,'cm_remove_group_from_role','Remove role from group');
-    CreateAppText(conn,'cm_add_group_to_role','Add role to group');
-
-    CreateAppText(conn,'group_user_in_diag_cap','Add User to Group');//deleted in version 1.1
-    CreateAppText(conn,'add_group_diag_cap','Add new group');
-    CreateAppText(conn,'modify_group_diag_cap','Modify group');
-    CreateAppText(conn,'modify_group_diag_no_system_group_msg','You can not modify a system group.');
-    CreateAppText(conn,'group_user_out_diag_cap','Remove User from Group');//deleted in version 1.1
-    CreateAppText(conn,'group_role_in_diag_cap','Add role to group');
-    CreateAppText(conn,'group_role_out_diag_cap','Remove role from group');
-    CreateAppText(conn,'role_group_in_diag_cap','Add group to role');
-    CreateAppText(conn,'role_group_out_diag_cap','Remove group from role');
-
-    CreateAppText(conn,'delete_group_diag_cap','Confirm: Delete group');
-    CreateAppText(conn,'delete_groups_diag_cap','Confirm: Delete multiple groups');
-    CreateAppText(conn,'delete_group_diag_msg','Group %group_str% will be deleted permanently! Please confirm to continue.');
-    CreateAppText(conn,'delete_groups_diag_msg','Groupss %group_str% will be deleted permanently! Please confirm to continue.');
-    CreateAppText(conn,'group_deleted_diag_cap','Group deleted');
-    CreateAppText(conn,'groups_deleted_diag_cap','Groups deleted');
-    CreateAppText(conn,'group_deleted_diag_msg','Group %group_str% successfully deleted.');
-    CreateAppText(conn,'groups_deleted_diag_msg','Groups %group_str% successfully deleted.');
-
-    CreateAppText(conn,'group_modify_error_cap','Error');
-    CreateAppText(conn,'group_modify_error_msg','Modify failed %error_msg%');
-
-    CreateAppText(conn,'users_info','Overview of all users and assigned groups.');//deleted in version 1.1
-    CreateAppText(conn,'groups_info','Overview of all groups and members.');//deleted in version 1.1
-    CreateAppText(conn,'roles_info','Overview of all roles.');//deleted in version 1.1
-    CreateAppText(conn,'domain_info','Overview of domains.');//deleted in version 1.1
-
-    CreateAppText(conn,'gc_domainname','Domain');//deleted in version 1.1
-    CreateAppText(conn,'gc_domain','Domain');
-    CreateAppText(conn,'gc_domain_desc','Description');
-    CreateAppText(conn,'gcap_UinD','User belongs to Domain');
-    CreateAppText(conn,'gcap_UnotinD','User does not belong to Domain');
-    CreateAppText(conn,'gcap_GinD','Group belongs to Domain');
-    CreateAppText(conn,'gcap_GnotinD','Group does not belong to Domain');
-
-    CreateAppText(conn,'tb_modify_domain','Modify','','Modify Domain');
-    CreateAppText(conn,'tb_delete_domain','Delete','','Delete Domain');//deleted in version 1.1
-    CreateAppText(conn,'tb_add_domain','Add','','Add Domain');
-    CreateAppText(conn,'cm_modify_domain','Modify');
-    CreateAppText(conn,'cm_delete_domain','Delete');//deleted in version 1.1
-    CreateAppText(conn,'add_domain_diag_cap','Add new domain');
-    CreateAppText(conn,'modify_domain_diag_cap','Modify domain');
-    CreateAppText(conn,'modify_domain_diag_no_system_domain_msg','Editing of the System Domain is not possible.');
-    CreateAppText(conn,'delete_domain_diag_no_system_domain_msg','Deletion of the System domain is not possible.');//deleted in version 1.1
-    CreateAppText(conn,'delete_domain_diag_cap','Confirm: Delete domain');//deleted in version 1.1
-    CreateAppText(conn,'delete_domain_diag_msg','Domain %domain_str% will be deleted permanently! Please confirm to continue.');//deleted in version 1.1
-    CreateAppText(conn,'domain_group_in_diag_cap','Adding Group to a domain');
-    CreateAppText(conn,'domain_user_in_diag_cap','Adding User to a domain');
-
-    CreateAppText(conn,'domain_delete_error_cap','Error');//deleted in version 1.1
-    CreateAppText(conn,'domain_delete_error_msg','Delete failed %error_msg%');//deleted in version 1.1
-    CreateAppText(conn,'domain_modify_error_cap','Error');
-    CreateAppText(conn,'domain_modify_error_msg','Modify failed %error_msg%');
-
-    CreateAppText(conn,'error_fetch_group_msg','Could not fetch group with id %group%');
-    CreateAppText(conn,'error_fetch_role_msg','Could not fetch role with id %role%');
-    CreateAppText(conn,'error_fetch_user_msg','Could not fetch user with id %user%');
-    CreateAppText(conn,'error_delete_user_msg','Could not delete user with id %user%');
-    CreateAppText(conn,'error_add_role_msg','Could not add role %role% to group %group%');
-    CreateAppText(conn,'error_remove_role_msg','Could not remove role %role% from group %group%');
-    CreateAppText(conn,'error_add_group_msg','Could not add user %user% to group %group%');
-    CreateAppText(conn,'error_remove_group_msg','Could not remove user %user% from group %group%');
-
-    CreateAppText(conn,'and','and'); //used as and within a string - need some kind of a template?
-    //CreateAppText(conn,'error_no_access','Access denied'); //delete with patch
-  end;
-  if (currentVersionId='1.0') then begin
-    currentVersionId:='1.1';
-    DeleteAppText(conn,'gc_domainname');
-    DeleteAppText(conn,'users_info');
-    DeleteAppText(conn,'groups_info');
-    DeleteAppText(conn,'roles_info');
-    DeleteAppText(conn,'domain_info');
-    DeleteAppText(conn,'gc_username');
-    DeleteAppText(conn,'gc_firstname');
-    DeleteAppText(conn,'gc_lastname');
-    DeleteAppText(conn,'tb_delete_domain');
-    DeleteAppText(conn,'cm_delete_domain');
-    DeleteAppText(conn,'delete_domain_diag_no_system_domain_msg');
-    DeleteAppText(conn,'delete_domain_diag_cap');
-    DeleteAppText(conn,'delete_domain_diag_msg');
-    DeleteAppText(conn,'domain_delete_error_cap');
-    DeleteAppText(conn,'domain_delete_error_msg');
-    DeleteAppText(conn,'group_user_in_diag_cap');
-    DeleteAppText(conn,'group_user_out_diag_cap');
-
-    CreateAppText(conn,'gc_domain_user','Domain / User');
-    CreateAppText(conn,'gc_domain_group','Domain / Group');
-    CreateAppText(conn,'gc_domain_role','Domain / Role');
-    CreateAppText(conn,'gc_user','User');
-    CreateAppText(conn,'user_details_select_one','Please select a user to get detailed information');
-    CreateAppText(conn,'nouser_tab','General');
-    CreateAppText(conn,'group_details_select_one','Please select a group to get detailed information');
-    CreateAppText(conn,'nogroup_tab','General');
-    CreateAppText(conn,'role_details_select_one','Please select a role to get detailed information');
-    CreateAppText(conn,'norole_tab','General');
-    CreateAppText(conn,'usernote_tab','Notes');
-    CreateAppText(conn,'tb_deactivate_domain','Suspend','','Suspend Domain');
-    CreateAppText(conn,'tb_activate_domain','Activate','','Activate Domain');
-    CreateAppText(conn,'cm_deactivate_domain','Suspend');
-    CreateAppText(conn,'cm_activate_domain','Activate');
-    CreateAppText(conn,'gc_domain_suspended','Suspended');//deleted in version 1.2
-    CreateAppText(conn,'delete_not_empty_group_error_diag_cap','Delete group');
-    CreateAppText(conn,'delete_not_empty_group_error_diag_msg','You are not allowed to modify Users. Therefore you can only delete empty groups.');
-    CreateAppText(conn,'tb_remove_user_from_group','Remove');
-    CreateAppText(conn,'tb_add_user_to_group','Add');
-    CreateAppText(conn,'tb_remove_group_from_user','Remove');
-    CreateAppText(conn,'tb_add_group_to_user','Add');
-    CreateAppText(conn,'tb_remove_group_from_role','Remove');
-    CreateAppText(conn,'tb_add_group_to_role','Add');
-
-    conn.ForAllDatabaseObjectsDo(@_convertObjs_1_1,TFRE_DB_StringArray.create('TFRE_DB_DOMAIN','TFRE_DB_GROUP','TFRE_DB_USER','TFRE_DB_ROLE'));
-  end;
-  if (currentVersionId='1.1') then begin
-    currentVersionId:='1.2';
-
-    DeleteAppText(conn,'gc_domain_suspended');
   end;
 
 end;
@@ -3079,32 +3027,8 @@ var
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
 
-  if currentVersionId='' then
-    begin
-      currentVersionId:='1.0';
-      //ADMINS
-      CheckDbResult(conn.AddGroup('ACADMINS','Access Control Admins','Access Control Admins',domainUID),'could not create admins group');
-
-      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create(
-        TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
-        //TFRE_COMMON_DOMAIN_MOD.GetClassRoleNameFetch,
-        TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch,
-        TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch,
-        TFRE_COMMON_USER_MOD.GetClassRoleNameFetch
-      )),'could not add roles for group Admins');
-
-      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_USER.GetClassStdRoles),'could not add roles TFRE_DB_USER for group Admins');
-      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_GROUP.GetClassStdRoles),'could not add roles TFRE_DB_GROUP for group Admins');
-      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)),'could not add roles TFRE_DB_ROLE for group Admins');
-      CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID, TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)),'could not add roles TFRE_DB_DOMAIN for group Admins');
-
-    end;
-  if (currentVersionId='1.0') then begin
-    currentVersionId:='1.1';
-
-    CheckDbResult(conn.FetchGroup('ACADMINS',domainUID,group));
-    group.isProtected:=true;
-    CheckDbResult(conn.UpdateGroup(group));
+  if currentVersionId='' then begin
+    currentVersionId:='1.0';
 
     CheckDbResult(conn.AddRole('ACADMINUSER','Allowed to create, modify and delete Users','',domainUID),'could not add role ACADMINUSER');
 
@@ -3126,6 +3050,7 @@ begin
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_GROUP.GetClassStdRoles));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_StringArray.Create(TFRE_DB_ROLE.GetClassRoleName('assignRole'))));
 
     CheckDbResult(conn.AddRole('ACADMINUSERGROUP','Allowed to modify Users and assign Groups to Users','',domainUID),'could not add role ACADMINUSERGROUP');
 
@@ -3140,16 +3065,12 @@ begin
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_NOTE.GetClassStdRoles));
-
-    CheckDbResult(conn.RemoveAllRolesFromGroup('ACADMINS',domainUID));
-    CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles for group Admins');
-  end;
-  if (currentVersionId='1.1') then begin
-    currentVersionId:='1.2';
-
-    CheckDbResult(conn.AddSysRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACVIEWSYSTEM')),'could not add roles for group Admins');
-    CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_StringArray.Create(TFRE_DB_ROLE.GetClassRoleName('assignRole'))));
     CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_StringArray.Create(TFRE_DB_GROUP.GetClassRoleName('assignGroup'))));
+
+    CheckDbResult(conn.AddGroup('ACADMINS','Access Control Admins','Access Control Admins',domainUID,true),'could not create admins group');
+
+    CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles for group Admins');
+    CheckDbResult(conn.AddSysRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACVIEWSYSTEM')),'could not add roles for group Admins');
   end;
 end;
 
@@ -3162,29 +3083,6 @@ begin
   if currentVersionId='' then begin
     currentVersionId:='1.0';
     //ADMINS
-    CheckDbResult(conn.AddGroup('ACADMINS','Access Control Admins','Access Control Admins',domainUID),'could not create admins group');
-
-  end;
-  if (currentVersionId='1.0') then begin
-    currentVersionId:='1.1';
-
-    CheckDbResult(conn.FetchGroup('ACADMINS',domainUID,group));
-    group.isProtected:=true;
-    CheckDbResult(conn.UpdateGroup(group));
-
-    CheckDbResult(conn.AddRole('ACADMINUSER','Allowed to create, modify and delete Users','',domainUID),'could not add role ACADMINUSER');
-    CheckDbResult(conn.AddRole('ACADMINGROUP','Allowed to create, modify and delete Groups','',domainUID),'could not add role ACADMINGROUP');
-    CheckDbResult(conn.AddRole('ACADMINUSERGROUP','Allowed to modify Users and assign Groups to Users','',domainUID),'could not add role ACADMINUSERGROUP');
-
-  end;
-  if (currentVersionId='1.1') then begin
-    currentVersionId:='1.2';
-
-    CheckDbResult(conn.DeleteGroup('ACADMINS',domainUID));
-    CheckDbResult(conn.DeleteRole('ACADMINUSER',domainUID));
-    CheckDbResult(conn.DeleteRole('ACADMINGROUP',domainUID));
-    CheckDbResult(conn.DeleteRole('ACADMINUSERGROUP',domainUID));
-
     CheckDbResult(conn.AddRole('ACVIEWSYSTEM','Allowed to view System Groups and Roles','',domainUID),'could not add role ACVIEWSYSTEM');
 
     CheckDbResult(conn.AddRoleRightsToRole('ACVIEWSYSTEM',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,false,false,true)));
