@@ -3687,8 +3687,8 @@ begin
          obj.Assert_CheckStoreLocked;
          obj.Set_Store_Locked(false);
          try
-          if Length(obj.__InternalGetCollectionList)<1 then
-            abort;
+          //if Length(obj.__InternalGetCollectionList)<1 then
+          //  abort;
           clobj := obj.CloneToNewObject;
          finally
            obj.Set_Store_Locked(true);
