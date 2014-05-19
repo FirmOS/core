@@ -3684,9 +3684,9 @@ end;
 
 class procedure TFRE_DB_GROUP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.1';
-  if (currentVersionId='') or (currentVersionId='1.0') then begin
-    currentVersionId := '1.1';
+  newVersionId:='1.0';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
 
     conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_group_group','Group'));
     conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_group_domain','Domain'));
@@ -3700,8 +3700,8 @@ var
   role: IFRE_DB_ROLE;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
-  if (currentVersionId='') or (currentVersionId='1.0') then begin
-    currentVersionId := '1.1';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
 
     role := CreateClassRole('assignGroup','Assign Group','Allowed to assign Groups');
     role.AddRight(GetRight4Domain(GetClassRightName('assignGroup'),domainUID));
@@ -3714,8 +3714,8 @@ var
   role: IFRE_DB_ROLE;
 begin
   inherited InstallDBObjects4SysDomain(conn, currentVersionId, domainUID);
-  if (currentVersionId='') or (currentVersionId='1.0') then begin
-    currentVersionId := '1.1';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
 
     role := CreateClassRole('assignGroup','Assign System Group','Allowed to assign System Groups');
     role.AddRight(GetRight4Domain(GetClassRightName('assignGroup'),domainUID));
@@ -3905,8 +3905,8 @@ var
   role: IFRE_DB_ROLE;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
-  if (currentVersionId='') or (currentVersionId='1.0') then begin
-    currentVersionId := '1.1';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
 
     role := CreateClassRole('assignRole','Assign Role','Allowed to assign Roles');
     role.AddRight(GetRight4Domain(GetClassRightName('assignRole'),domainUID));
@@ -3919,8 +3919,8 @@ var
   role: IFRE_DB_ROLE;
 begin
   inherited InstallDBObjects4SysDomain(conn, currentVersionId, domainUID);
-  if (currentVersionId='') or (currentVersionId='1.0') then begin
-    currentVersionId := '1.1';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
 
     role := CreateClassRole('assignRole','Assign System Role','Allowed to assign System Roles');
     role.AddRight(GetRight4Domain(GetClassRightName('assignRole'),domainUID));

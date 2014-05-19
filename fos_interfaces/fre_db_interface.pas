@@ -3479,16 +3479,9 @@ begin
 
   newVersionId:='1.0';
 
-  if (currentVersionId='') then
-    begin
-      currentVersionId:='1.0';
-      //CreateAppText(conn,'xxx','xxx','xxxx','xxxx');
-    end;
-  if (currentVersionId='1.0') then
-    begin
-    //next update code
-    end;
-
+  if (currentVersionId='') then begin
+    currentVersionId:='1.0';
+  end;
 end;
 
 { TFRE_DB_UPDATE_FORM_DESC }
@@ -3634,8 +3627,10 @@ end;
 
 class procedure TFRE_DB_NOTE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-   currentVersionId:='1.0';
-   newVersionId:='1.0';
+  newVersionId:='1.0';
+  if (currentVersionId='') then begin
+    currentVersionId:='1.0';
+  end;
 end;
 
 { TFRE_DB_EDITOR_DATA_DESC }
