@@ -254,6 +254,7 @@ begin
     with tr_domain do begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_domain'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('suspended');
       SetFinalRightTransformFunction(@CalculateDomainIcon);
     end;
     domain_Grid := session.NewDerivedCollection('DOMAINMOD_DOMAIN_GRID');
@@ -290,6 +291,7 @@ begin
     with tr_groupIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('protected');
       SetFinalRightTransformFunction(@CalculateGroupIcon);
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
@@ -851,6 +853,7 @@ begin
     with tr_groupIn do begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('protected');
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
     end;
@@ -873,6 +876,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
+      AddOneToOnescheme('protected');
     end;
     groupout_Grid := session.NewDerivedCollection('ROLEMOD_GROUPOUT_GRID');
     with groupout_Grid do begin
@@ -891,7 +895,7 @@ end;
 
 procedure TFRE_COMMON_ROLE_MOD.CalculateRoleIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object);
 begin
-  if transformed_object.IsA('TFRE_DB_DOMAIN') then begin
+  if transformed_object.PreTransformedWasA('TFRE_DB_DOMAIN') then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
   end else begin
     if ut.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,transformed_object.DomainID) then begin
@@ -1404,6 +1408,7 @@ begin
       end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('protected');
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
     end;
@@ -1517,7 +1522,7 @@ end;
 
 procedure TFRE_COMMON_GROUP_MOD.CalculateGroupIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object);
 begin
-  if transformed_object.IsA('TFRE_DB_DOMAIN') then begin
+  if transformed_object.PreTransformedWasA('TFRE_DB_DOMAIN') then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
   end else begin
     if not ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,transformed_object.DomainID) then begin
@@ -2372,6 +2377,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
+      AddOneToOnescheme('protected');
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
 
@@ -2393,6 +2399,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
+      AddOneToOnescheme('protected');
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
 
@@ -2476,7 +2483,7 @@ end;
 
 procedure TFRE_COMMON_USER_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object);
 begin
-  if transformed_object.IsA('TFRE_DB_DOMAIN') then begin
+  if transformed_object.PreTransformedWasA('TFRE_DB_DOMAIN') then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
   end else begin
     if ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,transformed_object.DomainID) then begin

@@ -135,6 +135,7 @@ const
   cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';     { used to indicate a CLEAR FIELD in translating from JSON <-> DBO  }
   cFRE_DB_SYS_ORDER_REF_KEY      = '*$ORK*';       { used to backlink from ordered data(key) to base transformed data }
   cFRE_DB_SYS_PARENT_PATH        = '*$_PPATH_*';   { used in a parent child transform to set the pp in the child }
+  cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A = '*$_TIOWA*';    { used in the transform as implicit field }
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
   CFRE_DB_EPSILON_SGL                                               = 1.192092896e-07;         // Epsiolon for Single Compare (Zero / boolean)
@@ -726,8 +727,9 @@ type
     function        SubFormattedDisplayAvailable       : boolean;
     function        GetSubFormattedDisplay             (indent:integer=4):TFRE_DB_String;
     function        SchemeClass                        : TFRE_DB_NameType;
-    function        IsA                                (const schemename    : TFRE_DB_NameType):Boolean;
+    function        IsA                                (const schemename    : shortstring):Boolean;
     function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
+    function        PreTransformedWasA                 (const schemename:shortstring):Boolean;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
 
@@ -1187,7 +1189,7 @@ type
     function  AddSchemeFieldSubscheme     (const newfieldname :TFRE_DB_NameType ; const sub_scheme:TFRE_DB_NameType):IFRE_DB_FieldSchemeDefinition;
     function  GetSchemeField              (const fieldname    :TFRE_DB_NameType ; var fieldschemedef:IFRE_DB_FieldSchemeDefinition): boolean;
     function  GetSchemeField              (const fieldname    :TFRE_DB_NameType): IFRE_DB_FieldSchemeDefinition;
-    function  IsA                         (const schemename   :TFRE_DB_NameType):Boolean;
+    function  IsA                         (const schemename   :shortstring):Boolean;
     procedure SetSimpleSysDisplayField    (const field_name   :TFRE_DB_String);
     procedure SetSysDisplayField          (const field_names  :TFRE_DB_NameTypeArray;const format:TFRE_DB_String);
     function  GetFormattedDisplay         (const obj : IFRE_DB_Object):TFRE_DB_String;
@@ -1769,8 +1771,9 @@ type
     function        SubFormattedDisplayAvailable       : boolean;
     function        GetSubFormattedDisplay             (indent:integer=4):TFRE_DB_String;
     function        SchemeClass                        : TFRE_DB_NameType; virtual;
-    function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
+    function        IsA                                (const schemename:shortstring):Boolean;
     function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
+    function        PreTransformedWasA                 (const schemename:shortstring):Boolean;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
     function        ReferencesObjectsFromData          : Boolean;
@@ -6773,7 +6776,7 @@ begin
   result := Classname;
 end;
 
-function TFRE_DB_ObjectEx.IsA(const schemename: TFRE_DB_NameType): Boolean;
+function TFRE_DB_ObjectEx.IsA(const schemename: shortstring): Boolean;
 begin
   result := FImplementor.IsA(schemename);
 end;
@@ -6781,6 +6784,11 @@ end;
 function TFRE_DB_ObjectEx.IsA(const IsSchemeclass: TFRE_DB_OBJECTCLASSEX; var obj): Boolean;
 begin
   result := FImplementor.IsA(IsSchemeclass,obj);
+end;
+
+function TFRE_DB_ObjectEx.PreTransformedWasA(const schemename: shortstring): Boolean;
+begin
+  result := FImplementor.PreTransformedWasA(schemename);
 end;
 
 function TFRE_DB_ObjectEx.IsObjectRoot: Boolean;

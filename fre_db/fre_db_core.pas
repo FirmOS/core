@@ -639,8 +639,9 @@ type
     function        SubFormattedDisplayAvailable       : boolean;virtual;
     function        GetSubFormattedDisplay             (indent:integer=4):TFRE_DB_String;virtual;
     function        SchemeClass                        : TFRE_DB_NameType;
-    function        IsA                                (const schemename:TFRE_DB_NameType):Boolean;
+    function        IsA                                (const schemename:shortstring):Boolean;
     function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
+    function        PreTransformedWasA                 (const schemename:shortstring):Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
     class function  CreateFromFile                     (const filename:TFRE_DB_String):TFRE_DB_Object;
     function        CloneToNewObject                   (const generate_new_uids:boolean=false): TFRE_DB_Object; inline;
@@ -1048,7 +1049,7 @@ type
     function  GetSchemeFieldI           (const fieldname   :TFRE_DB_NameType ; var fieldschemedef:IFRE_DB_FieldSchemeDefinition): boolean;
     function  GetSchemeField            (const fieldname   :TFRE_DB_NameType): TFRE_DB_FieldSchemeDefinition;
     function  GetSchemeFieldI           (const fieldname   :TFRE_DB_NameType): IFRE_DB_FieldSchemeDefinition;
-    function  IsA                       (const schemename :TFRE_DB_NameType):Boolean;
+    function  IsA                       (const schemename :shortstring):Boolean;
     procedure SetSimpleSysDisplayField  (const field_name  :TFRE_DB_String);
     procedure SetSysDisplayField        (const field_names :TFRE_DB_NameTypeArray;const format:TFRE_DB_String);
     function  GetFormattedDisplay       (const obj : TFRE_DB_Object):TFRE_DB_String;
@@ -6114,6 +6115,7 @@ begin
   FTransformList.ForAllBreak(@iterate);
   result._Field('uid').AsGUID      := input.Field('uid').AsGUID;
   result._Field('domainid').AsGUID := input.Field('domainid').AsGUID;
+  result._Field(cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A).AsString:=input.SchemeClass;
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer; const hide_in_output: boolean);
@@ -8503,7 +8505,7 @@ begin
  result:=GetSchemeField(fieldname);
 end;
 
-function TFRE_DB_SchemeObject.IsA(const schemename: TFRE_DB_NameType): Boolean;
+function TFRE_DB_SchemeObject.IsA(const schemename: shortstring): Boolean;
 var current : TFRE_DB_SchemeObject;
 begin
   result  := false;
@@ -14460,7 +14462,7 @@ begin
     result := UpperCase(ClassName);
 end;
 
-function TFRE_DB_Object.IsA(const schemename: TFRE_DB_NameType): Boolean;
+function TFRE_DB_Object.IsA(const schemename: shortstring): Boolean;
 var
   scheme: TFRE_DB_SchemeObject;
 begin
@@ -14481,6 +14483,13 @@ begin
         exit(true);
       end;
   result := false;
+end;
+
+function TFRE_DB_Object.PreTransformedWasA(const schemename: shortstring): Boolean;
+var fld:TFRE_DB_FIELD;
+begin
+  if FieldOnlyExisting(cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A,fld) then
+    result := fld.AsString=uppercase(schemename);
 end;
 
 
