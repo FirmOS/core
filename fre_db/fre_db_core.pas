@@ -2540,6 +2540,7 @@ begin
 
   case FGuiDisplaytype of
     dt_string: ;
+    dt_description: ;
     dt_date: ;
     dt_number: ;
     dt_number_pb: ;
@@ -2903,6 +2904,7 @@ begin
   end;
   case FGuiDisplaytype of
     dt_string: ;
+    dt_description: ;
     dt_date: ;
     dt_number: ;
     dt_number_pb: ;

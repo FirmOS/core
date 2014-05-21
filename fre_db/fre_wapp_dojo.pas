@@ -1251,17 +1251,19 @@ implementation
 
   procedure TFRE_DB_WAPP_DOJO.BuildGridContainer(const session:TFRE_DB_UserSession; const co: TFRE_DB_VIEW_LIST_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
-    JSonAction  :TFRE_JSON_ACTION;
-    layout      :TFRE_DB_VIEW_LIST_LAYOUT_DESC;
-    elem        :IFRE_DB_Object;
-    i,sizeSum   :Integer;
-    firstElement:Boolean;
-    store       :TFRE_DB_STORE_DESC;
-    lcVar       :String;
-    button      :TFRE_DB_VIEW_LIST_BUTTON_DESC;
-    cssString   :String;
-    chCol       :Boolean;
-    conn        :IFRE_DB_CONNECTION;
+    JSonAction      :TFRE_JSON_ACTION;
+    layout          :TFRE_DB_VIEW_LIST_LAYOUT_DESC;
+    elem            :IFRE_DB_Object;
+    i,sizeSum       :Integer;
+    firstElement    :Boolean;
+    store           :TFRE_DB_STORE_DESC;
+    lcVar           :String;
+    button          :TFRE_DB_VIEW_LIST_BUTTON_DESC;
+    cssString       :String;
+    chCol           :Boolean;
+    conn            :IFRE_DB_CONNECTION;
+    isTree          :Boolean;
+    descriptionField: String;
   begin
     conn:=session.GetDBConnection;
     if not isInnerContent then begin
@@ -1291,9 +1293,15 @@ implementation
       firstElement:=false;
     end;
     chCol:=co.Field('children').AsBoolean;
+    isTree:=chCol;
+    descriptionField:='';
     for i := 0 to layout.Field('data').ValueCount - 1 do begin
       elem:=layout.Field('data').AsObjectItem[i];
       if elem.Field('display').AsBoolean then begin
+        if FREDB_String2DBDisplayType(elem.Field('displayType').AsString)=dt_description then begin
+          descriptionField:=elem.Field('id').AsString;
+          continue;
+        end;
         if firstElement then begin
           firstElement:=false;
         end else begin
@@ -1485,6 +1493,8 @@ implementation
       jsContentAdd('  ,selDepParams: '+_BuildParamsObject(co.Field('selectionDepFunc').AsObject.Field('params').AsObjectArr));
     end;
     jsContentAdd('  ,columns: gridLayout');
+    jsContentAdd('  ,descrField: "'+descriptionField+'"');
+    jsContentAdd('  ,isTree: ' + BoolToStr(isTree,'true','false'));
     jsContentAdd('  ,allowSelectAll: true');
     jsContentAdd('});');
 
