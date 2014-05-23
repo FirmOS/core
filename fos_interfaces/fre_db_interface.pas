@@ -528,8 +528,6 @@ type
   IFRE_DB_Enum                  = interface;
   IFRE_DB_COLLECTION            = interface;
   IFRE_DB_FieldSchemeDefinition = interface;
-  IFRE_DB_WORKFLOWSTEP          = interface;
-  IFRE_DB_WORKFLOW              = interface;
   IFRE_DB_DOMAIN                = interface;
 
   TFRE_DB_ObjCompareEventType           = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged,cev_UpdateBlockStart,cev_UpdateBlockEnd);
@@ -546,7 +544,6 @@ type
   IFRE_DB_Enum_Iterator                 = procedure (const obj : IFRE_DB_Enum) is nested;
   IFRE_DB_ClientFieldValidator_Iterator = procedure (const obj : IFRE_DB_ClientFieldValidator) is nested;
   IFRE_DB_Coll_Iterator                 = procedure (const coll: IFRE_DB_COLLECTION) is nested;
-  IFRE_DB_Workflow_Iterator             = procedure (const wfs : IFRE_DB_WORKFLOW) is nested;
   IFRE_DB_Domain_Iterator               = procedure (const obj : IFRE_DB_Domain) is nested;
 
   TFRE_DB_StreamingCallback             = procedure (const uid,fieldname: TFRE_DB_String ; const stream:TFRE_DB_Stream) is nested;
@@ -573,7 +570,6 @@ type
 
   IFRE_DB_CalcMethod           = procedure (const calcfieldsetter : IFRE_DB_CALCFIELD_SETTER) of object;
 
-  IFRE_DB_Invoke_WF_Method     = procedure (const WF_Step : IFRE_DB_WORKFLOWSTEP) of object;
   IFRE_DB_CS_CALLBACK          = procedure (const Input:IFRE_DB_Object) of Object;
   IFRE_DB_InvokeProcedure      = procedure (const Input:IFRE_DB_Object) of Object;
 
@@ -1549,15 +1545,6 @@ type
 
   TFRE_DB_CONTENT_DESC_ARRAY = array of TFRE_DB_CONTENT_DESC;
 
-  TFRE_DB_WORKFLOW_STATE = (wfs_INVALID,wfs_RUNNING,wfs_COMPLETED_OK,wfs_FAILED);
-
-  IFRE_DB_WORKFLOWSTEP=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
-    ['IFDWFS']
-  end;
-  IFRE_DB_WORKFLOW=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
-    ['IFDWF']
-  end;
-
   IFRE_DB_APPLICATION=interface(IFRE_DB_COMMON)
     ['IFDBAPP']
 //    function   GetDescription               (conn : IFRE_DB_CONNECTION): IFRE_DB_TEXT;
@@ -1809,6 +1796,25 @@ type
     class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
+
+  { TFRE_DB_AUDIT_ENTRY }
+
+  TFRE_DB_AUDIT_ENTRY=class(TFRE_DB_ObjectEx)
+  public
+  protected
+    class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
+  { TFRE_DB_WORKFLOW_STEP }
+
+  TFRE_DB_WORKFLOW_STEP=class(TFRE_DB_ObjectEx)
+  public
+  protected
+    class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
 
   { TFRE_DB_UNCONFIGURED_MACHINE }
 
@@ -3466,6 +3472,62 @@ type
 
    pmethodnametable =  ^tmethodnametable;
 
+{ TFRE_DB_AUDIT_ENTRY }
+
+class procedure TFRE_DB_AUDIT_ENTRY.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName(TFRE_DB_ObjectEx.Classname);
+  scheme.AddSchemeField('user',fdbft_ObjLink).required:=true; { the user who set the action }
+  scheme.AddSchemeField('action_lang_key',fdbft_String);      { the description of the action, LANGUAGE KEY ? - TRANSLATION}
+  scheme.AddSchemeField('action_ts',fdbft_DateTimeUTC);       { timestamp of the action}
+  scheme.AddSchemeField('note',fdbft_String);                 { inline note / which may be filled in by the user}
+end;
+
+class procedure TFRE_DB_AUDIT_ENTRY.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+end;
+
+{ TFRE_DB_WORKFLOW_STEP }
+
+class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  {
+    workflows can be either in the workflow scheme collection (to define a scheme, or in the workflow collection where scheme levels are linked to parent steps which may or may not be copied from schemes
+    example one OE MODULE  points to a level of = steps 1, 2, 2 ,2 ,3 , 4 ,4 , 5 , and one Error step in the Workflow Scheme Collection
+    when the the Orrder is Entered, then multiple products and modules  are grouped under one ORDER WF Step (Parent)-> and one WF Step per Product (Childs)-> and all LEVEL STEPS From each OE MODULE (Childs)
+    in the WF Collection (not the wf scheme collection)
+    the workflow engine advances to the next step id in this level, when all parallel id's are done, and the time condition is satisfied
+  }
+  scheme.AddSchemeField('step_parent',fdbft_ObjLink);         { parent of this step }
+  scheme.AddSchemeField('step_id',fdbft_UInt32);              { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
+  scheme.AddSchemeField('is_error_step',fdbft_Boolean);       { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
+  scheme.AddSchemeField('step_state',fdbft_UInt32);           { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
+  scheme.AddSchemeField('designated_user',fdbft_ObjLink);     { this user should do the step }
+  scheme.AddSchemeField('designated_group',fdbft_ObjLink);    { exor this group should do the step }
+  scheme.AddSchemeField('done_by_user',fdbft_ObjLink);        { who has done the step }
+  scheme.AddSchemeField('auth_group',fdbft_ObjLink);          { step needs auth by this group }
+  scheme.AddSchemeField('auth_by_user',fdbft_ObjLink);        { if the action was required to be authorized, by whom it was authorized}
+  scheme.AddSchemeField('creation_ts',fdbft_DateTimeUTC);     { timestamp of the creation of the action}
+  scheme.AddSchemeField('finalization_ts',fdbft_DateTimeUTC); { timestamp of the finalization }
+  scheme.AddSchemeField('may allowed_time',fdbft_UInt32);     { time in seconds when the action is considered to be failed, and advances to failed state automatically }
+  scheme.AddSchemeField('auth_ts',fdbft_DateTimeUTC);         { timestamp of the auth action }
+  scheme.AddSchemeField('note',fdbft_String);                 { inline note / which may be filled in by the user}
+  scheme.AddSchemeField('sys_note',fdbft_String);             { inline note / which may be filled in by the system (e.g. chosen IP adress, whatever) }
+  scheme.AddSchemeField('sys_progress',fdbft_String);         { system progress string, filled in by a (feeder) or the system }
+  scheme.AddSchemeField('user_progress',fdbft_String);        { progress text that is presented to the end user (webuser), which hides detail of the actual progress, may be the same text for several steps or changing percent values / translation key ? .}
+  scheme.AddSchemeField('manual_action',fdbft_String);        { manual action, which needs to be confirmed as OK or FAILED by the USER }
+  scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
+  scheme.AddSchemeField('action_method',fdbft_String);        { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+end;
+
+class procedure TFRE_DB_WORKFLOW_STEP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+end;
+
 { TFRE_DB_UNCONFIGURED_MACHINE }
 
 class procedure TFRE_DB_UNCONFIGURED_MACHINE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -3620,8 +3682,8 @@ class procedure TFRE_DB_NOTE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOB
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName(TFRE_DB_ObjectEx.Classname);
-//  scheme.AddSchemeField('linkid',fdbft_ObjLink).required:=true;
   scheme.AddSchemeField('link',fdbft_String).required:=true;
+  scheme.AddSchemeField('notetyp',fdbft_String); { IF EMPTY this is a Fully User definable NOTE (no logical meaning) -> If set it may be used by the Application logic () }
   scheme.AddSchemeField('note',fdbft_String);
 end;
 

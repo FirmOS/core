@@ -1947,6 +1947,9 @@ type
     FSysDomains          : TFRE_DB_COLLECTION;
     FSysUserSessionsData : TFRE_DB_COLLECTION;
     FSysSingletons       : TFRE_DB_COLLECTION;
+    FSysWorkflow         : TFRE_DB_COLLECTION; { the steps, may be with additional hierarchic levels }
+    FSysWorkflowScheme   : TFRE_DB_COLLECTION; { the schemes, hierarchic }
+    FSysAudit            : TFRE_DB_COLLECTION;
 
     FConnectionRights    : TFRE_DB_StringArray; // specialized on clone
     FConnectedUser       : TFRE_DB_User;        // specialized on clone
@@ -2197,6 +2200,9 @@ type
     function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
     function    AdmGetGroupCollection       :IFRE_DB_COLLECTION;
     function    AdmGetDomainCollection      :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection       :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection    :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection :IFRE_DB_COLLECTION;
 
     function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -4067,7 +4073,8 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysUserGroup') then begin
-      coll := Collection('SysUserGroup'); // Instance (new) Collections here with false parameter
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysUserGroup');
+      coll := Collection('SysUserGroup');
       coll.DefineIndexOnField('domaingroupkey',fdbft_String,True,True);
     end;
     FSysGroups := Collection('SysUserGroup');
@@ -4077,16 +4084,44 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysNoteCollection') then begin
-      coll := Collection('SysNoteCollection'); // Instance (new) Collections here with false parameter
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysNoteCollection');
+      coll := Collection('SysNoteCollection');
       coll.DefineIndexOnField('link',fdbft_String,True,True);
     end;
     FSysNotes := Collection('SysNoteCollection');
+  end;
+
+  procedure SetupWorkflowCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysWorkflow') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflow');
+      coll := Collection('SysWorkflow');
+    end;
+    FSysWorkflow := Collection('SysWorkflow');
+
+    if not CollectionExists('SysWorkflowScheme') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowScheme');
+      coll := Collection('SysWorkflowScheme');
+    end;
+    FSysWorkflowScheme := Collection('SysWorkflowScheme');
+  end;
+
+  procedure SetupAuditCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysAudit') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysAudit');
+      coll := Collection('SysAudit');
+    end;
+    FSysAudit := Collection('SysAudit');
   end;
 
   procedure SetupSingletonCollection;
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysSingleton') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysSingleton');
       coll := Collection('SysSingleton');
       coll.DefineIndexOnField('singletonkey',fdbft_String,True,True);
     end;
@@ -4132,6 +4167,8 @@ begin
   SetupUserGroupCollection;
   SetupSystemDomain;
   SetupNoteCollection;
+  SetupAuditCollection;
+  SetupWorkflowCollection;
   CheckStandardUsers;
 end;
 
@@ -11202,6 +11239,21 @@ end;
 function TFRE_DB_CONNECTION.AdmGetDomainCollection: IFRE_DB_COLLECTION;
 begin //nl
  result := FSysConnection.FSysDomains; // TODO: CHECK RIGHTS
+end;
+
+function TFRE_DB_CONNECTION.AdmGetAuditCollection: IFRE_DB_COLLECTION;
+begin
+  result := FSysConnection.FSysAudit;
+end;
+
+function TFRE_DB_CONNECTION.AdmGetWorkFlowCollection: IFRE_DB_COLLECTION;
+begin
+ result := FSysConnection.FSysWorkflow;
+end;
+
+function TFRE_DB_CONNECTION.AdmGetWorkFlowSchemeCollection: IFRE_DB_COLLECTION;
+begin
+  result := FSysConnection.FSysWorkflowScheme;
 end;
 
 
