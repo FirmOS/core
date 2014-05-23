@@ -730,6 +730,7 @@ type
     function        IsA                                (const schemename    : shortstring):Boolean;
     function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
     function        PreTransformedWasA                 (const schemename:shortstring):Boolean;
+    function        PreTransformedScheme               :ShortString;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
 
@@ -1083,6 +1084,7 @@ type
     function    GetSysDomainID               : TFRE_DB_GUID;
     function    GetMyDomainID                : TFRE_DB_GUID;
     function    CheckStdRightAndCondFinalize (const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
+    function    CheckStdRightSetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
     { Safe case, use for single domain use cases }
     function    CheckClassRight4MyDomain     (const right_name:TFRE_DB_String;const classtyp: TClass):boolean; { and systemuser and systemdomain}
     { Many domain case, add additional checks for the specific domain }
@@ -1654,7 +1656,9 @@ type
     class function   GetStdObjectRightPart      (const std_right: TFRE_DB_STANDARD_RIGHT):TFRE_DB_String;
     class function   _GetClassRight             (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
     class function   GetRight4Domain            (const right: TFRE_DB_NameType; const domainUID:TGUID): IFRE_DB_RIGHT;
+    class function   GetClassRightName          (const rclassname:ShortString ; const right: TFRE_DB_NameType): TFRE_DB_String;
     class function   GetClassRightName          (const right: TFRE_DB_NameType): TFRE_DB_String;
+    class function   GetClassRightNameSR        (const rclassname:ShortString ; const sright: TFRE_DB_STANDARD_RIGHT): TFRE_DB_String;
     class function   GetClassRightNameUpdate    : TFRE_DB_String;
     class function   GetClassRightNameDelete    : TFRE_DB_String;
     class function   GetClassRightNameStore     : TFRE_DB_String;
@@ -1774,6 +1778,7 @@ type
     function        IsA                                (const schemename:shortstring):Boolean;
     function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
     function        PreTransformedWasA                 (const schemename:shortstring):Boolean;
+    function        PreTransformedScheme               :ShortString;
     function        IsObjectRoot                       : Boolean;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
     function        ReferencesObjectsFromData          : Boolean;
@@ -6091,6 +6096,11 @@ begin
  result := uppercase(right+'@'+GFRE_BT.GUID_2_HexString(domainUID));
 end;
 
+class function TFRE_DB_Base.GetClassRightName(const rclassname: ShortString; const right: TFRE_DB_NameType): TFRE_DB_String;
+begin
+  Result := uppercase('$O_R_'+RClassName+'_'+right);
+end;
+
 class function TFRE_DB_Base.CreateClassRole(const rolename: TFRE_DB_String; const short_desc, long_desc: TFRE_DB_String): IFRE_DB_ROLE;
 begin
  result := GFRE_DBI.NewRole(GetClassRoleName(rolename),long_desc,short_desc,true);
@@ -6143,27 +6153,39 @@ end;
 
 class function TFRE_DB_Base.GetClassRightName(const right: TFRE_DB_NameType): TFRE_DB_String;
 begin
-  Result := uppercase('$O_R_'+ClassName+'_'+right);
+  Result := GetClassRightName(Classname,right);
+end;
+
+class function TFRE_DB_Base.GetClassRightNameSR(const rclassname: ShortString; const sright: TFRE_DB_STANDARD_RIGHT): TFRE_DB_String;
+begin
+  case sright of
+    sr_STORE:  Result:=GetClassRightName(rclassname,'store');
+    sr_UPDATE: Result:=GetClassRightName(rclassname,'update');
+    sr_DELETE: Result:=GetClassRightName(rclassname,'delete');
+    sr_FETCH:  Result:=GetClassRightName(rclassname,'fetch');
+    else
+      raise EFRE_DB_Exception.Create(edb_ERROR,'invalid standard right');
+  end;
 end;
 
 class function TFRE_DB_Base.GetClassRightNameUpdate: TFRE_DB_String;
 begin
-  Result:=GetClassRightName('update');
+  Result:=GetClassRightNameSR(ClassName,sr_UPDATE);
 end;
 
 class function TFRE_DB_Base.GetClassRightNameDelete: TFRE_DB_String;
 begin
-  Result:=GetClassRightName('delete');
+  Result:=GetClassRightNameSR(ClassName,sr_DELETE);
 end;
 
 class function TFRE_DB_Base.GetClassRightNameStore: TFRE_DB_String;
 begin
-  Result:=GetClassRightName('store');
+  Result:=GetClassRightNameSR(ClassName,sr_STORE);
 end;
 
 class function TFRE_DB_Base.GetClassRightNameFetch: TFRE_DB_String;
 begin
-  Result:=GetClassRightName('fetch');
+  Result:=GetClassRightNameSR(ClassName,sr_FETCH);
 end;
 
 
@@ -6791,6 +6813,11 @@ begin
   result := FImplementor.PreTransformedWasA(schemename);
 end;
 
+function TFRE_DB_ObjectEx.PreTransformedScheme: ShortString;
+begin
+  result := FImplementor.PreTransformedScheme;
+end;
+
 function TFRE_DB_ObjectEx.IsObjectRoot: Boolean;
 begin
   result := FImplementor.IsObjectRoot;
@@ -6800,11 +6827,6 @@ procedure TFRE_DB_ObjectEx.SaveToFile(const filename: TFRE_DB_String);
 begin
   FImplementor.SaveToFile(filename);
 end;
-
-//function TFRE_DB_ObjectEx.ReferencesObjects: Boolean;
-//begin
-//  result := FImplementor.ReferencesObjects;
-//end;
 
 function TFRE_DB_ObjectEx.ReferencesObjectsFromData: Boolean;
 begin

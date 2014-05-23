@@ -642,6 +642,7 @@ type
     function        IsA                                (const schemename:shortstring):Boolean;
     function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
     function        PreTransformedWasA                 (const schemename:shortstring):Boolean;
+    function        PreTransformedScheme               : ShortString;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
     class function  CreateFromFile                     (const filename:TFRE_DB_String):TFRE_DB_Object;
     function        CloneToNewObject                   (const generate_new_uids:boolean=false): TFRE_DB_Object; inline;
@@ -1944,18 +1945,18 @@ type
     function    GetSystemDomainID_String    : TFRE_DB_GUID_String; //inline;
     function    GetDomainID                 (const domainname:TFRE_DB_NameType):TGUID;//inline;
     function    GetDomainNameByUid          (const domainid:TFRE_DB_GUID):TFRE_DB_NameType;//inline;
-    //function    _DomainIDasString           (const name :TFRE_DB_NameType):TFRE_DB_NameType;
+    function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString ; const domainguid : TGuid): TFRE_DB_String;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass ; const domainguid : TGuid): TFRE_DB_String;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_String;
     function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
-
-    //function    IntCheckClassRight4Domain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainuid:TGuid):boolean;
 
   public
     constructor Create                      (const user : TFRE_DB_USER ; const rights : TFRE_DB_StringArray ; is_sys_admin : boolean ; sysdom_id,user_domid : TFRE_DB_GUID ; domainids: TFRE_DB_GUIDArray ; domain_names : TFRE_DB_NameTypeArray);
     destructor  Destroy                     ;override;
 
     function    CheckStdRightAndCondFinalize (const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
+    function    CheckStdRightSetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
+
     { Safe case, use for single domain use cases }
     function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean; { and systemuser and systemdomain}
     { Many domain case, add additional checks for the specific domain }
@@ -1971,6 +1972,7 @@ type
     function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean; { specific domain }
     function    CheckClassRight4DomainId    (const right_name: TFRE_DB_String; const classtyp: TClass; const domain: TGuid): boolean;
     function    CheckClassRight4DomainId    (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domain: TGuid): boolean;
+    function    CheckClassRight4DomainId    (const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString; const domain: TGuid): boolean;
 
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
 
@@ -2592,6 +2594,11 @@ begin
   raise EFRE_Exception.Create('domainid not found');
 end;
 
+function TFRE_DB_USER_RIGHT_TOKEN._GetStdRightName(const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString; const domainguid: TGuid): TFRE_DB_String;
+begin
+  result:=TFRE_DB_Base.GetClassRightNameSR(rclassname,std_right)+'@'+uppercase(GFRE_BT.GUID_2_HexString(domainguid));
+end;
+
 //function TFRE_DB_USER_RIGHT_TOKEN._DomainIDasString(const name: TFRE_DB_NameType): TFRE_DB_NameType;
 //begin
 //  result := uppercase(FREDB_G2H(GetDomainID(name))); // DomainIDasString has to be uppercase!
@@ -2699,10 +2706,18 @@ end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4DomainId(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domain: TGuid): boolean;
 begin
- result := IsCurrentUserSystemAdmin;
- if result then
-   exit;
- result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,domain),FConnectionRights);
+  result := IsCurrentUserSystemAdmin;
+  if result then
+    exit;
+  result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,domain),FConnectionRights);
+end;
+
+function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4DomainId(const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString; const domain: TGuid): boolean;
+begin
+  result := IsCurrentUserSystemAdmin;
+  if result then
+    exit;
+  result := FREDB_StringInArray(_GetStdRightName(std_right,rclassname,domain),FConnectionRights);
 end;
 
 //function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4DomainKey(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainKey: TGuid): boolean;
@@ -2802,6 +2817,47 @@ begin
          end
     else
       exit(edb_OK);
+end;
+
+function TFRE_DB_USER_RIGHT_TOKEN.CheckStdRightSetUIDAndClass(const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
+var classt : ShortString;
+    res    : boolean;
+
+    function IntCheck(const rt : TFRE_DB_STANDARD_RIGHT):boolean;
+    begin
+      result := ((classt='TFRE_DB_OBJECT')
+                  or CheckClassRight4DomainId(rt,classt,obj_domuid)
+                  or CheckObjectRight(rt,obj_uid));
+    end;
+
+begin
+  classt := uppercase(check_classname);
+  res    := true;
+  result := edb_OK;
+  if sr_FETCH in sr then
+    begin
+      res := res AND IntCheck(sr_FETCH);
+      if not res then
+        exit(edb_ACCESS);
+    end;
+  if sr_STORE in sr then
+    begin
+      res := res AND IntCheck(sr_FETCH);
+      if not res then
+        exit(edb_ACCESS);
+    end;
+  if sr_UPDATE in sr then
+    begin
+      res := res AND IntCheck(sr_FETCH);
+      if not res then
+        exit(edb_ACCESS);
+    end;
+  if sr_DELETE in sr then
+    begin
+      res := res AND IntCheck(sr_FETCH);
+      if not res then
+        exit(edb_ACCESS);
+    end;
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
@@ -14492,17 +14548,13 @@ begin
     result := fld.AsString=uppercase(schemename);
 end;
 
-
-
-function file_lock(const  typ:cshort ; const whence:cshort):flock;
-const  flock_ret:flock = ();
+function TFRE_DB_Object.PreTransformedScheme: ShortString;
+var fld:TFRE_DB_FIELD;
 begin
-  result          := flock_ret;
-  result.l_type   := typ;
-  result.l_start  := 0;
-  result.l_whence := whence;
-  result.l_len    := 0;
-  Result.l_pid    := FpGetpid;
+  if FieldOnlyExisting(cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A,fld) then
+    exit(Fld.AsString)
+  else
+    result := 'INVALID';
 end;
 
 
@@ -14511,7 +14563,6 @@ var m      : TMemoryStream;
     fs     : THandleStream;
     handle : THandle;
     res    : longint;
-    x      : flock;
 
 begin
   _InAccessibleCheck;

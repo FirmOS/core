@@ -1002,8 +1002,10 @@ begin
 end;
 
 function TFRE_DB_FILTER_RIGHT.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+var cn:ShortString;
 begin
-  result := FUserToken.CheckStdRightAndCondFinalize(obj,sr_FETCH,false,false)=edb_OK;
+  cn := obj.PreTransformedScheme;
+  result := FUserToken.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,cn,FRight)=edb_OK;
 end;
 
 procedure TFRE_DB_FILTER_RIGHT.InitFilter(stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
