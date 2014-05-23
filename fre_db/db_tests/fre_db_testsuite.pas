@@ -537,6 +537,7 @@ var coll_v,coll_p    : IFRE_DB_COLLECTION;
     osub_uid         : TFRE_DB_GUID;
     res              : TFRE_DB_Errortype;
 begin
+
   if cFFG_SKIP_EXCEPTION_TEST then
     exit;
   ConnectDB('admin@system','admin');
@@ -555,7 +556,9 @@ begin
 
   AssertTrue('must return exists 1',coll_p.Store(o2)=edb_EXISTS);
   osub_uid := osub.UID;
-  AssertTrue('must return exists 2',coll_p.Store(osub)=edb_EXISTS); { osub is freed on store in every case! }
+
+  res := coll_p.Store(osub); // TODO FIXME : THIS KILLS THE DATABASE
+  AssertTrue('must return exists 2',res=edb_EXISTS); { osub is freed on store in every case! }
   AssertTrue(FWorkConn.Fetch(osub_UID,osub2)=edb_ERROR); { don't use the osub reference here, its possibly bad}
 
   coll_v := FWorkConn.CreateCollection('TEST_1_SUBTWICE_V',true);
@@ -588,6 +591,19 @@ begin
   ConnectDB('admin@system','admin');
   coll_p := FWorkConn.GetCollection('REFTEST');
   AssertTrue(assigned(coll_p));
+
+  u1 := FWorkConn.SYS.GetLoginUser.UID;
+  n1 := GFRE_DBI.NewObject;
+  u2 := n1.UID;
+  n1.Field('LINK').AsObjectLink := u1; // Link into SystemDB;
+  CheckDbResult(coll_p.Store(n1));
+  ra := FWorkConn.GetReferences(u1,false);
+  AssertTrue('get user ref',Length(ra)=1);
+  AssertTrue('is user ref',ra[0]=u2);
+
+  ra := FWorkConn.GetReferences(u2,true);
+  AssertTrue('get user ref',Length(ra)=1);
+  AssertTrue('is user ref',ra[0]=u1);
 
   n1 := GFRE_DBI.NewObject;
   n2 := GFRE_DBI.NewObject;
@@ -682,7 +698,8 @@ begin
   o2   := o1.CloneToNewObject();
 
   AssertTrue('must be ok',coll_p.Store(o1)=edb_OK);
-  AssertTrue('must be exists',coll_v.store(o2)=edb_EXISTS);
+  res := coll_v.store(o2); { this is a "other collection" add -> think about if its okay to mix VOLATILE AND PERS COLLECTIONS !!!! TODO}
+  AssertTrue('must be ok '+CFRE_DB_Errortype[res],res=edb_ok);
 end;
 
 procedure TFRE_DB_PersistanceTests.NullChangeUpdate;
