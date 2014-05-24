@@ -1363,6 +1363,7 @@ type
     function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
 
     function        IsVolatile          : Boolean;
+    function        IsADomainCollection : Boolean;
 
     function        ItemCount      : Int64         ; virtual;
     function        First          : TFRE_DB_Object; virtual;
@@ -1929,7 +1930,7 @@ type
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
     function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual; // with user rights
-    procedure          DrawScheme                   (const datastream:TStream);
+    procedure          DrawScheme                   (const datastream:TStream;const classfile:string)                        ; virtual;
   end;
 
 
@@ -2124,6 +2125,7 @@ type
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
     function    DelClassesVersionDirectory  : TFRE_DB_Errortype;
 
+    procedure   DrawScheme                   (const datastream:TStream;const classfile:string);override;
 
     function    DumpUserRights               :TFRE_DB_String;
 
@@ -2232,7 +2234,7 @@ type
     function    SYS                          : IFRE_DB_SYS_CONNECTION;
     function    GetSysDomainUID              :TGUID; override;
     function    AddDomain                    (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
-
+    procedure   DrawScheme                   (const datastream:TStream;const classfile:string) ; override ;
 
   end;
 
@@ -3982,7 +3984,7 @@ begin
   Scheme.Strict(true);
   Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
   scheme.AddSchemeField('appdataid',fdbft_ObjLink).SetupFieldDef(false,true);
-  scheme.AddSchemeFieldSubscheme('rights','TFRE_DB_RIGHT').multiValues:=true;
+//  scheme.AddSchemeFieldSubscheme('rights','TFRE_DB_RIGHT').multiValues:=true;
   scheme.AddSchemeField('domainidlink',fdbft_ObjLink).SetupFieldDef(false,false);
   scheme.AddSchemeField('domainrolekey',fdbft_String).SetupFieldDef(false,false);
   scheme.AddCalcSchemeField('displayname',fdbft_String,@_calcDisplayName);
@@ -5349,6 +5351,11 @@ begin
     result := edb_NOT_FOUND;
 end;
 
+procedure TFRE_DB_SYSTEM_CONNECTION.DrawScheme(const datastream: TStream; const classfile: string);
+begin
+  inherited DrawScheme(datastream, classfile);
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.DumpUserRights: TFRE_DB_String;
 var DomainUids  : TFRE_DB_GUIDArray;
     Domainnames : TFRE_DB_StringArray;
@@ -5708,8 +5715,13 @@ begin //nl
 end;
 
 
-procedure TFRE_DB_BASE_CONNECTION.DrawScheme(const datastream: TStream);
+procedure TFRE_DB_BASE_CONNECTION.DrawScheme(const datastream: TStream; const classfile: string);
 var  dbgraph : TFRE_DB_GRAPH;
+
+  procedure nestedObjectIterator(const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
+  begin
+   dbgraph.ObjectIterator(obj,self);
+  end;
 
   procedure nestedCollectionIterator(const coll: IFRE_DB_Collection);
   begin
@@ -5726,25 +5738,61 @@ var  dbgraph : TFRE_DB_GRAPH;
     dbgraph.SchemeIterator(obj);
   end;
 
-  procedure nestedObjectIterator(const obj:IFRE_DB_OBJECT);
-  begin
-    dbgraph.ObjectIterator(obj,self);
-  end;
+  procedure nestedObjectCheckClassesIterator(const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
+  var
+    checkedobjs: IFRE_DB_Object;
 
-  procedure nestedCollectionObjectIterator(const coll: IFRE_DB_Collection);
+    procedure CheckObjectReferences(const dobj:IFRE_DB_Object);
+    var refs: TFRE_DB_ObjectReferences;
+           i: NativeInt;
+        sobj: IFRE_DB_Object;
+    begin
+     dbgraph.AddClass(dobj.SchemeClass);
+//     writeln('DOBJ:',dobj.UID_String);
+     if checkedobjs.FieldExists(dobj.UID_String) then
+       exit
+     else
+       checkedobjs.Field(dobj.UID_String).AsBoolean:=true;
+
+     refs := GetReferencesDetailed(dobj.UID,false);
+
+     for i:=0 to high(refs) do
+       begin
+         CheckDbResult(FetchI(refs[i].linked_uid,sobj),'could not fetch object on to references for '+dobj.UID_String);
+//         writeln('SOBJ1:',sobj.UID_String);
+         CheckObjectReferences(sobj);
+         sobj.Finalize;
+       end;
+     refs := GetReferencesDetailed(dobj.UID,true);
+     for i:=0 to high(refs) do
+       begin
+         CheckDbResult(FetchI(refs[i].linked_uid,sobj),'could not fetch object on for references for '+dobj.UID_String);
+//         writeln('SOBJ2:',sobj.UID_String);
+         CheckObjectReferences(sobj);
+         sobj.Finalize;
+       end;
+    end;
+
   begin
-    coll.ForAll(@nestedObjectIterator);
+    checkedobjs := GFRE_DBI.NewObject;
+//    writeln('SWL: CHECK OBJ SCHEME:',obj.SchemeClass);
+    if dbgraph.IsInClasslist(obj.SchemeClass) then
+      begin
+        CheckObjectReferences(obj);
+      end;
+    checkedobjs.Finalize;
   end;
 
 begin
-  writeln('DrawScheme');
   dbgraph        :=        TFRE_DB_GRAPH.Create;
   try
+    dbgraph.SetClassfile(classfile);
     dbgraph.PlotStart;
+    self.ForAllDatabaseObjectsDo(@nestedObjectCheckClassesIterator);
     self.ForAllCollsI(@nestedCollectionIterator);
     self.ForAllSchemesI(@nestedEmbeddedIterator);
     self.ForAllSchemesI(@nestedSchemeIterator);
-    self.ForAllCollsI(@nestedCollectionObjectIterator);
+    self.ForAllDatabaseObjectsDo(@nestedObjectIterator);
     dbgraph.PlotEnd;
     dbgraph.PlotScheme(datastream);
   finally
@@ -9861,6 +9909,19 @@ begin
   result := FObjectLinkStore.IsVolatile;
 end;
 
+function TFRE_DB_COLLECTION.IsADomainCollection: Boolean;
+var domuid : TFRE_DB_GUID;
+begin
+  if Length(FName)<=32 then { this solution is (c) by HellySoft }
+    exit(false);
+  try
+    domuid := FREDB_H2G(copy(FName,1,32));
+    exit(true);
+  except
+    exit(false);
+  end;
+end;
+
 function TFRE_DB_COLLECTION.ItemCount: Int64;
 begin
   result := FObjectLinkStore.Count;
@@ -9953,15 +10014,13 @@ begin // Nolock R/O
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllCollsI(const iterator: IFRE_DB_Coll_Iterator);
-
-  procedure Iterate(const collection : TFRE_DB_COLLECTION);
-  begin
-     iterator(collection);
-  end;
-
+var colls : TFRE_DB_NameTypeArray;
+    cname : TFRE_DB_NameType;
 begin // Nolock R/O
   _ConnectCheck;
-  FCollectionStore.ForAllItems(@Iterate);
+  colls :=  FPersistance_Layer.FDB_GetAllCollsNames;
+  for cname in colls do
+    iterator(GetCollection(cname));
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllSchemesI(const iterator: IFRE_DB_Scheme_Iterator);
@@ -11589,6 +11648,11 @@ begin
   GFRE_DB.DBAddDomainInstAllSystemClasses(self,domainUID);
   GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
   Sys.ReloadUserAndRights;
+end;
+
+procedure TFRE_DB_CONNECTION.DrawScheme(const datastream: TStream; const classfile: string);
+begin
+   inherited DrawScheme(datastream, classfile);
 end;
 
 

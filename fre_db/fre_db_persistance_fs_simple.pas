@@ -156,6 +156,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
      procedure   FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
      procedure   FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
+     function    FDB_GetAllCollsNames          :TFRE_DB_NameTypeArray;
      procedure   FDB_PrepareDBRestore          (const phase:integer);     { used for various preparations and checks }
      procedure   FDB_SendObject                (const obj:IFRE_DB_Object);
      procedure   FDB_SendCollection            (const obj:IFRE_DB_Object);
@@ -762,6 +763,24 @@ procedure TFRE_DB_PS_FILE.FDB_ForAllColls(const cb: IFRE_DB_Obj_Iterator);
 
 begin
   FMaster.MasterColls.ForAllCollections(@CollCB);
+end;
+
+function TFRE_DB_PS_FILE.FDB_GetAllCollsNames: TFRE_DB_NameTypeArray;
+var cnt : NativeInt;
+
+  procedure CollCB(const pcoll : TFRE_DB_Persistance_Collection);
+  begin
+    if Length(result)=cnt then
+      SetLength(result,Length(result)+32);
+    result[cnt]:=pcoll.CollectionName(false);
+    inc(cnt);
+  end;
+
+begin
+  cnt := 0;
+  SetLength(Result,32);
+  FMaster.MasterColls.ForAllCollections(@CollCB);
+  SetLength(Result,cnt);
 end;
 
 procedure TFRE_DB_PS_FILE.FDB_PrepareDBRestore(const phase: integer);

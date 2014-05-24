@@ -767,6 +767,8 @@ type
     function        Fetch               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
     function        CollectionName      (const unique:boolean=false): TFRE_DB_NameType;
     function        DomainCollName      (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
+    function        IsADomainCollection : Boolean;
+
 
     function        ItemCount           : Int64;
     function        First               : IFRE_DB_Object;
@@ -1284,6 +1286,7 @@ type
     function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
     procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
     procedure FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
+    function  FDB_GetAllCollsNames          :TFRE_DB_NameTypeArray;
     procedure FDB_PrepareDBRestore          (const phase:integer);
     procedure FDB_SendObject                (const obj:IFRE_DB_Object);
     procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
@@ -1430,6 +1433,8 @@ type
     function    GetSysDomainUID               :TGUID;
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    procedure   DrawScheme                    (const datastream:TStream; const classfile:string);
+
   end;
 
 
@@ -1510,7 +1515,7 @@ type
     function    CheckRightForGroup          (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
     procedure   StartTransaction            (const trans_id: TFRE_DB_NameType ; const trans_type : TFRE_DB_TRANSACTION_TYPE);
     procedure   Commit                      ;
-    procedure   DrawScheme                  (const datastream:TStream);
+    procedure   DrawScheme                  (const datastream:TStream; const classfile:string);
 
     function    GetDatabaseObjectCount      (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
     procedure   ForAllDatabaseObjectsDo     (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil ); { Warning may take some time, delivers a clone }
