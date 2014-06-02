@@ -258,6 +258,7 @@ begin
   scheme.AddSchemeField('company',fdbft_String);
   scheme.AddSchemeFieldSubscheme('mainaddress','TFRE_DB_ADDRESS').required:=true;
   scheme.AddSchemeFieldSubscheme('deliveryaddress','TFRE_DB_ADDRESS');
+  scheme.AddSchemeFieldSubscheme('billingaddress','TFRE_DB_ADDRESS');
   scheme.AddSchemeFieldSubscheme('businessphone','TFRE_DB_PHONE');
   scheme.AddSchemeFieldSubscheme('mobilephone','TFRE_DB_PHONE');
   scheme.AddSchemeFieldSubscheme('privatephone','TFRE_DB_PHONE');

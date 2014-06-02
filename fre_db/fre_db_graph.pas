@@ -122,11 +122,15 @@ end;
 procedure TFRE_DB_GRAPH.WriteMethods(const obj: IFRE_DB_SCHEMEOBJECT);
 var methodarray         :      TFRE_DB_StringArray;
     lmethodcounter      :      integer;
-
+    skipmethodarray     :      TFRE_DB_StringArray;
+    lmethodname         :      TFRE_DB_String;
 begin
+  skipmethodarray     := TFRE_DB_StringArray.Create('SAVEOPERATION','DELETEOPERATION','NOTELOAD','NOTESAVE','NOTESTARTEDIT','NOTESTOPEDIT');
   methodarray         := obj.GetAll_IMI_Methods;
   for lmethodcounter  := low (methodarray) to high (methodarray) do begin
-    plotlist.Add('<tr><td align="left" colspan="3" bgcolor="lightblue">'+methodarray[lmethodcounter] +'</td></tr>');
+    lmethodname       := methodarray[lmethodcounter];
+    if not FREDB_StringInArray(lmethodname,skipmethodarray) then
+      plotlist.Add('<tr><td align="left" colspan="3" bgcolor="lightblue">'+lmethodname +'</td></tr>');
   end;
 end;
 
@@ -210,8 +214,11 @@ begin
   if length(obj.Explanation)>0 then begin
    plotlist.Add('<tr><td align="left" colspan="3" PORT="sn" bgcolor="lightyellow">'+FormatExplanationToTable(obj.Explanation) +'</td></tr>');
   end;
-  WriteFields(obj);
-  WriteMethods(obj);
+  if obj.DefinedSchemeName<>'TFRE_DB_TEXT' then
+    begin
+      WriteFields(obj);
+      WriteMethods(obj);
+    end;
   plotlist.add('</table>');
   plotlist.Add('</td>');
   plotlist.Add('</tr>');
@@ -393,7 +400,7 @@ begin
   plotlist.Add('</TABLE>>];');
   if assigned(obj.GetParentScheme) then
     begin
-      if (obj.GetParentSchemeName<>'') and (obj.GetParentSchemeName<>'TFRE_DB_OBJECTEX') then begin
+      if (obj.GetParentSchemeName<>'') and (obj.GetParentSchemeName<>'TFRE_DB_OBJECTEX') and (obj.GetParentSchemeName<>'TFRE_DB_NAMED_OBJECT')  then begin
        AddParent(obj.GetParentSchemeName,obj.DefinedSchemeName);
       end;
     end;
