@@ -5716,7 +5716,8 @@ end;
 
 
 procedure TFRE_DB_BASE_CONNECTION.DrawScheme(const datastream: TStream; const classfile: string);
-var  dbgraph : TFRE_DB_GRAPH;
+var  dbgraph     : TFRE_DB_GRAPH;
+     checkedobjs : IFRE_DB_Object;
 
   procedure nestedObjectIterator(const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
   begin
@@ -5739,8 +5740,6 @@ var  dbgraph : TFRE_DB_GRAPH;
   end;
 
   procedure nestedObjectCheckClassesIterator(const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
-  var
-    checkedobjs: IFRE_DB_Object;
 
     procedure CheckObjectReferences(const dobj:IFRE_DB_Object);
     var refs: TFRE_DB_ObjectReferences;
@@ -5774,13 +5773,11 @@ var  dbgraph : TFRE_DB_GRAPH;
     end;
 
   begin
-    checkedobjs := GFRE_DBI.NewObject;
 //    writeln('SWL: CHECK OBJ SCHEME:',obj.SchemeClass);
     if dbgraph.IsInClasslist(obj.SchemeClass) then
       begin
         CheckObjectReferences(obj);
       end;
-    checkedobjs.Finalize;
   end;
 
 begin
@@ -5788,7 +5785,9 @@ begin
   try
     dbgraph.SetClassfile(classfile);
     dbgraph.PlotStart;
+    checkedobjs := GFRE_DBI.NewObject;
     self.ForAllDatabaseObjectsDo(@nestedObjectCheckClassesIterator);
+    checkedobjs.Finalize;
     self.ForAllCollsI(@nestedCollectionIterator);
     self.ForAllSchemesI(@nestedEmbeddedIterator);
     self.ForAllSchemesI(@nestedSchemeIterator);
