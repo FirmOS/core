@@ -3542,9 +3542,8 @@ class procedure TFRE_DB_WORKFLOW_STEP.InstallDBObjects(const conn: IFRE_DB_SYS_C
 begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
   newVersionId:='0.1';
-  currentVersionId:='0.1';
-
-  if (currentVersionId='0.1') then begin
+  if (currentVersionId='UNUSED') then currentVersionId:='';
+  if (currentVersionId='') then begin
     currentVersionId:='0.1';
 
     StoreTranslateableText(conn,'scheme_main_group','General Information');
