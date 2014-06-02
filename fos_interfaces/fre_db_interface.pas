@@ -1430,6 +1430,9 @@ type
     function    AdmGetRoleCollection          :IFRE_DB_COLLECTION;
     function    AdmGetGroupCollection         :IFRE_DB_COLLECTION;
     function    AdmGetDomainCollection        :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection         :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection      :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection:IFRE_DB_COLLECTION;
     function    GetSysDomainUID               :TGUID;
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
@@ -3497,6 +3500,8 @@ end;
 { TFRE_DB_WORKFLOW_STEP }
 
 class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+var
+  group: IFRE_DB_InputGroupSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
   {
@@ -3506,6 +3511,7 @@ begin
     in the WF Collection (not the wf scheme collection)
     the workflow engine advances to the next step id in this level, when all parallel id's are done, and the time condition is satisfied
   }
+  scheme.AddSchemeField('step_caption',fdbft_String);         { caption of the workflow step }
   scheme.AddSchemeField('step_parent',fdbft_ObjLink);         { parent of this step }
   scheme.AddSchemeField('step_id',fdbft_UInt32);              { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
   scheme.AddSchemeField('is_error_step',fdbft_Boolean);       { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
@@ -3526,11 +3532,25 @@ begin
   scheme.AddSchemeField('manual_action',fdbft_String);        { manual action, which needs to be confirmed as OK or FAILED by the USER }
   scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
   scheme.AddSchemeField('action_method',fdbft_String);        { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
+  group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
+
 end;
 
 class procedure TFRE_DB_WORKFLOW_STEP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  newVersionId:='0.1';
+  currentVersionId:='0.1';
+
+  if (currentVersionId='0.1') then begin
+    currentVersionId:='0.1';
+
+    StoreTranslateableText(conn,'scheme_main_group','General Information');
+    StoreTranslateableText(conn,'scheme_step_caption','Caption');
+  end;
+
 end;
 
 { TFRE_DB_UNCONFIGURED_MACHINE }
