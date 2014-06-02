@@ -3083,7 +3083,13 @@ begin
   if value<>$BAD0BEEF then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, value invalid [%d]',[value]);
   if not FetchObject(to_uid,to_obj,true) then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)]);
+    begin
+      if not assigned(FSystemMasterData) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)])
+      else
+        if not FSystemMasterData.FetchObject(to_uid,to_obj,true) then
+          raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)]);
+    end;
   if assigned(notifif) then
     begin
       to_obj.Set_Store_LockedUnLockedIf(false,lock_state);
