@@ -533,6 +533,7 @@ type
     function        IFRE_DB_Object.ParentField         = ParentFieldI;
     function        IFRE_DB_Object.Parent              = ParentI;
     function        IFRE_DB_Object.FieldPath           = FieldPathI;
+    function        IFRE_DB_Object.FieldPathCreate     = FieldPathCreateI;
     function        IFRE_DB_Object.Field               = FieldI;
     function        IFRE_DB_Object.CloneToNewObject    = CloneToNewObjectI;
     function        IFRE_DB_Object.GetScheme           = GetSchemeI;
@@ -609,8 +610,10 @@ type
     function        FieldOnlyExistingI                 (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
     function        FieldOnlyExistingObj               (const name:TFRE_DB_NameType):TFRE_DB_Object;
     function        FieldOnlyExistingObjI              (const name:TFRE_DB_NameType):IFRE_DB_Object;
-    function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):TFRE_DB_FIELD;virtual;
-    function        FieldPathI                         (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;virtual;
+    function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false;const create_non_existing:boolean=false):TFRE_DB_FIELD;
+    function        FieldPathI                         (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
+    function        FieldPathCreate                    (const name:TFRE_DB_String):TFRE_DB_FIELD;
+    function        FieldPathCreateI                   (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name: TFRE_DB_String): Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
@@ -767,6 +770,7 @@ type
     function  IFRE_DB_NAMED_OBJECT.ParentField      = ParentFieldI;
     function  IFRE_DB_NAMED_OBJECT.Parent           = ParentI;
     function  IFRE_DB_NAMED_OBJECT.FieldPath        = FieldPathI;
+    function  IFRE_DB_NAMED_OBJECT.FieldPathCreate  = FieldPathCreateI;
     function  IFRE_DB_NAMED_OBJECT.Field            = FieldI;
     function  IFRE_DB_NAMED_OBJECT.GetScheme        = GetSchemeI;
     function  IFRE_DB_NAMED_OBJECT.CloneToNewObject = CloneToNewObjectI;
@@ -14212,7 +14216,7 @@ begin
   result := FieldOnlyExistingObj(name);
 end;
 
-function TFRE_DB_Object.FieldPath(const name: TFRE_DB_String; const dont_raise_ex: boolean): TFRE_DB_FIELD;
+function TFRE_DB_Object.FieldPath(const name: TFRE_DB_String; const dont_raise_ex: boolean; const create_non_existing: boolean): TFRE_DB_FIELD;
 var fp :TFOSStringArray;
     i  : Integer;
     obj:TFRE_DB_Object;
@@ -14225,12 +14229,15 @@ begin
     if Length(fp)>0 then begin
       obj := self;
       for i:=0 to high(fp)-1 do begin
-        if not obj.FieldExists(fp[i]) then exit;
+        if (not obj.FieldExists(fp[i])) and (create_non_existing=false) then
+          exit;
         obj := obj.Field(fp[i]).AsObject;
-        if not assigned(obj) then exit;
+        if not assigned(obj) then
+          exit;
       end;
       nam := fp[high(fp)];
-      if not obj.FieldExists(nam) then exit;
+      if (not obj.FieldExists(nam)) and (create_non_existing=false) then
+        exit;
       result := obj.Field(nam);
     end else begin
       result := nil;
@@ -14243,6 +14250,16 @@ end;
 function TFRE_DB_Object.FieldPathI(const name: TFRE_DB_String; const dont_raise_ex: boolean): IFRE_DB_FIELD;
 begin
   result := FieldPath(name,dont_raise_ex);
+end;
+
+function TFRE_DB_Object.FieldPathCreate(const name: TFRE_DB_String): TFRE_DB_FIELD;
+begin
+  result := FieldPath(name,false,true);
+end;
+
+function TFRE_DB_Object.FieldPathCreateI(const name: TFRE_DB_String): IFRE_DB_FIELD;
+begin
+  result := FieldPathCreate(name);
 end;
 
 function TFRE_DB_Object.FieldPathExists(const name: TFRE_DB_String): Boolean;

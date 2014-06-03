@@ -291,7 +291,7 @@ begin
   scheme.AddSchemeField('tenantid',fdbft_ObjLink).required:=true;
   scheme.AddSchemeField('customernumber',fdbft_String).required:=true;
 
-  group:=scheme.ReplaceInputGroup('main').Setup(GetTranslateableTextKey('scheme_customer_group'));
+  group:=scheme.AddInputGroup('customer').Setup(GetTranslateableTextKey('scheme_customer_group'));
   group.AddInput('customernumber',GetTranslateableTextKey('scheme_number'));
   group.AddInput('tenantid','',False,true);
 

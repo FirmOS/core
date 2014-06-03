@@ -110,7 +110,7 @@ type
   TFRE_DB_FIELDTYPE     = (fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink);
   TFRE_DB_DISPLAY_TYPE  = (dt_string,dt_date,dt_number,dt_number_pb,dt_currency,dt_icon,dt_boolean,dt_description);
   TFRE_DB_MESSAGE_TYPE  = (fdbmt_error,fdbmt_warning,fdbmt_info,fdbmt_confirm,fdbmt_wait);
-
+  TFRE_DB_FIELDTYPE_Array = Array of TFRE_DB_FIELDTYPE;
 
 const
   CFRE_DB_FIELDTYPE              : Array[TFRE_DB_FIELDTYPE]               of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK');
@@ -687,6 +687,7 @@ type
     function        FieldOnlyExistingObj               (const name:TFRE_DB_NameType):IFRE_DB_Object;
     function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
+    function        FieldPathCreate                    (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
@@ -1721,6 +1722,7 @@ type
     function        FieldOnlyExistingObj               (const name:TFRE_DB_NameType):IFRE_DB_Object;
     function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
+    function        FieldPathCreate                    (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
@@ -6606,6 +6608,11 @@ end;
 function TFRE_DB_ObjectEx.FieldPath(const name: TFRE_DB_String; const dont_raise_ex: boolean): IFRE_DB_FIELD;
 begin
   result := FImplementor.FieldPath(name,dont_raise_ex);
+end;
+
+function TFRE_DB_ObjectEx.FieldPathCreate(const name: TFRE_DB_String): IFRE_DB_FIELD;
+begin
+  result := FImplementor.FieldPathCreate(name);
 end;
 
 function TFRE_DB_ObjectEx.FieldPathExists(const name: TFRE_DB_String): Boolean;
