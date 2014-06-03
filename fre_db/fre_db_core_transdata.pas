@@ -335,16 +335,19 @@ type
 
   TFRE_DB_TRANFORMED_DATA=class
   private
-    FBaseKey           : TFRE_DB_NameTypeRL;   { CN/DCN/CHILD RL SPEC }
-    FTransformKey      : QWord;
-    FTransformeddata   : IFRE_DB_ObjectArray;
-    FTDCreationTime    : TFRE_DB_DateTime64;
-    FIncludesChildData : Boolean;
-    FChildDataIsLazy   : Boolean;
+    FBaseKey              : TFRE_DB_NameTypeRL;   { CN/DCN/CHILD RL SPEC }
+    FTransformKey         : QWord;
+    FTransformeddata      : IFRE_DB_ObjectArray;
+    FTDCreationTime       : TFRE_DB_DateTime64;
+    FIncludesChildData    : Boolean; { the query is a tree query}
+    FChildDataIsLazy      : Boolean; { the child data is lazy : UNSUPPORTED }
+    FTransFormAllCallback : IFRE_DB_DERIVED_COLLECTION_TRANSFORM_ALL_CB;
   public
     function    GetTransFormKey : TFRE_DB_NameTypeRL;
     function    GetDataArray    : PFRE_DB_ObjectArray;
-    constructor Create(const base_key : TFRE_DB_NameTypeRL);
+    procedure   TransformAll    (var rcnt : NativeInt);       { transform all objects of the parent collection }
+    procedure   TransformSingle (const obj : IFRE_DB_Object ; var uid_change_list : TFRE_DB_GUIDArray); { transform a single object }
+    constructor Create          (const base_key : TFRE_DB_NameTypeRL ; const child_data_lazy,includes_child_data : boolean ; const tranform_all_cb : IFRE_DB_DERIVED_COLLECTION_TRANSFORM_ALL_CB);
   end;
 
   { TFRE_DB_OrderContainer }
@@ -415,7 +418,7 @@ type
     FArtQueryStore : TFRE_ART_TREE;
     FTransLock     : IFOS_LOCK;
     FTransList     : OFRE_DB_TransCollTransformedDataList; { List of base transformed data}
-    FOrders        : OFRE_DB_TransCollOrderedDataList;     { List of ordereings of base transforms}
+    FOrders        : OFRE_DB_TransCollOrderedDataList;     { List of orderings of base transforms}
     function    GetBaseTransformedData (base_key : TFRE_DB_NameTypeRL ; out base_data : TFRE_DB_TRANFORMED_DATA) : boolean;
     procedure   AddBaseTransformedData (const base_data : TFRE_DB_TRANFORMED_DATA);
     procedure   TL_StatsTimer;
@@ -429,8 +432,9 @@ type
     procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
     procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
     procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); { FULL STATE }
-    procedure  ObjectDeleted          (const obj : IFRE_DB_Object); { FULL STATE }
-    procedure  ObjectUpdated          (const obj : IFRE_DB_Object); { FULL STATE }
+    procedure  ObjectDeleted          (const obj : IFRE_DB_Object);                                      { FULL STATE }
+    procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);  { FULL STATE }
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray);    { FULL STATE }
     procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object);           { DIFFERENTIAL STATE}
@@ -438,7 +442,6 @@ type
     procedure  FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
     procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field);  { DIFFERENTIAL STATE}
     procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
-    procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
     procedure  SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
     procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
     procedure  InboundReflinkDropped  (const from_obj: IFRE_DB_Object    ; const to_obj   : TGUID       ; const key_description : TFRE_DB_NameTypeRL);
@@ -2036,9 +2039,23 @@ begin
   result := @FTransformeddata;
 end;
 
-constructor TFRE_DB_TRANFORMED_DATA.Create(const base_key: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_TRANFORMED_DATA.TransformAll(var rcnt: NativeInt);
 begin
-  FBaseKey        := uppercase(base_key);
+  FTransFormAllCallback(GetDataArray^,FChildDataIsLazy,rcnt);
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.TransformSingle(const obj: IFRE_DB_Object; var uid_change_list: TFRE_DB_GUIDArray);
+begin
+
+end;
+
+constructor TFRE_DB_TRANFORMED_DATA.Create(const base_key: TFRE_DB_NameTypeRL; const child_data_lazy, includes_child_data: boolean; const tranform_all_cb: IFRE_DB_DERIVED_COLLECTION_TRANSFORM_ALL_CB);
+begin
+  FBaseKey              := uppercase(base_key);
+  FChildDataIsLazy      := child_data_lazy;
+  FIncludesChildData    := includes_child_data;
+  FTransFormAllCallback := tranform_all_cb;
+  //FParentColl     := GFRE_BT.SepLeft(base_key,'/');
   FTDCreationTime := GFRE_DT.Now_UTC;
 end;
 
@@ -2122,22 +2139,39 @@ end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
+  LockManager;
+  try
+    abort;
+  finally
+    UnlockManager;
+  end;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.ObjectDeleted(const obj: IFRE_DB_Object);
 begin
+  LockManager;
+  try
+    abort;
+  finally
+    UnlockManager;
+  end;
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object);
+procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object; const colls: TFRE_DB_StringArray);
 
-  procedure CheckIfNeeded(const tcd : TFRE_DB_TRANS_COLL_DATA);
+  procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
+  var i      : NativeInt;
+      uid_cl : TFRE_DB_GUIDArray;
   begin
+    for i:=0 to high(colls) do
+      if pos(colls[i]+'/',tcd.GetTransFormKey)=1 then
+        begin
+          tcd.TransformSingle(obj.Implementor as TFRE_DB_Object,uid_cl);
+        end;
     //tcd.GetDataArray;
     //-> Check if in base transformed data
     //---
     //
-
-
     //if bd.GetTransFormKey = base_key then
     //  begin
     //    halt      := true;
@@ -2148,6 +2182,10 @@ procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object);
 begin
   LockManager;
   try
+    writeln('UPDATE OBJ : ',FREDB_CombineString(colls,','),' ',obj.DumpToString);
+    FTransList.ForAll(@CheckIfNeeded);
+
+    //abort;
     //inc(F
     //FOrders.ForAll(@CheckIfNeeded);
   finally
@@ -2185,26 +2223,59 @@ end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
 begin
+  LockManager;
+  try
+    abort;
+  finally
+    UnlockManager;
+  end;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
+  LockManager;
+  try
+    writeln('SETUP OUTBOUND RL '+key_description+' TO : ',to_obj.DumpToString);
+  finally
+    UnlockManager;
+  end;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
+  LockManager;
+  try
+    writeln('SETUP INBOUND RL '+key_description+' FROM : ',from_obj.DumpToString);
+    //abort;
+  finally
+    UnlockManager;
+  end;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 begin
+  LockManager;
+  try
+    writeln('DROP INBOUND RL '+key_description+' FROM : ',from_obj.DumpToString);
+    abort;
+  finally
+    UnlockManager;
+  end;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
 begin
+  LockManager;
+  try
+    writeln('DROP OUTBOUND RL '+key_description+' TO : ',to_obj.DumpToString);
+  finally
+    UnlockManager;
+  end;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.FinalizeNotif;
 begin
+
 end;
 
 constructor TFRE_DB_TRANSDATA_MANAGER.Create;
@@ -2267,12 +2338,9 @@ begin
           GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[basekey]);
           st        := GFRE_BT.Get_Ticks_ms;
           inc(FTransformKey);
-          transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey);
-          transdata.FChildDataIsLazy    := true;
-          transdata.FIncludesChildData  := dc.HasParentChildRefRelationDefined;
-          transdata.FTransformKey       := FTransformKey;
-          dc.TransformAllTo(transdata.GetDataArray^,transdata.FChildDataIsLazy,rcnt);       { need base transformation layer}
-
+          transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey,true,dc.HasParentChildRefRelationDefined,@dc.TransformAllTo);
+          //transdata.FTransformKey       := FTransformKey;
+          transdata.TransFormAll(rcnt);
           AddBaseTransformedData(transdata);
           et        := GFRE_BT.Get_Ticks_ms;
           GFRE_DBI.LogInfo(dblc_DBTDM,'<BASE TRANSFORMING DATA FOR [%s] DONE - Transformed %d records in %d ms',[basekey,rcnt,et-st]);
@@ -2326,7 +2394,7 @@ var fld : IFRE_DB_FIELD;
        end
      else
        qry.Orderdef.AddOrderDef(DefaultOrderField,DefaultOrderAsc);
-     qry.Orderdef.SetDataKeyColl(dc_name,parent_name,qry.FParentChildLinkFldSpec);
+     qry.Orderdef.SetDataKeyColl(parent_name,dc_name,qry.FParentChildLinkFldSpec);
      qry.OrderDef.Seal;
    end;
 
@@ -2565,10 +2633,10 @@ var fld : IFRE_DB_FIELD;
    end;
 
 begin
-  writeln('QUERY_DEF');
-  writeln('DEPENDENCY REFERENCE : ',FREDB_CombineString(dependecy_reference_id,','));
-  writeln(input.DumpToString());
-  writeln('---');
+  //writeln('QUERY_DEF');
+  //writeln('DEPENDENCY REFERENCE : ',FREDB_CombineString(dependecy_reference_id,','));
+  //writeln(input.DumpToString());
+  //writeln('---');
   qry := TFRE_DB_QUERY.Create;
   SetQueryID;
   ProcessCheckChildQuery;

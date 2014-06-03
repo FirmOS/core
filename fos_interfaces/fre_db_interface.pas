@@ -848,6 +848,8 @@ type
 
   { IFRE_DB_DERIVED_COLLECTION }
 
+  IFRE_DB_DERIVED_COLLECTION_TRANSFORM_ALL_CB = procedure(var transdata : IFRE_DB_ObjectArray ; const lazy_child_expand : boolean ; var record_cnt : NativeInt) of object;
+
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
     procedure  TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; const lazy_child_expand : boolean ; var record_cnt : NativeInt);
@@ -1351,8 +1353,8 @@ type
     procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
     procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
     procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); { FULL STATE }
-    procedure  ObjectDeleted          (const obj : IFRE_DB_Object); { FULL STATE }
-    procedure  ObjectUpdated          (const obj : IFRE_DB_Object); { FULL STATE }
+    procedure  ObjectDeleted          (const obj : IFRE_DB_Object);                                      { FULL STATE }
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray);    { FULL STATE }
     procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
     procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object);           { DIFFERENTIAL STATE}
@@ -8287,28 +8289,35 @@ begin
     with objs[i] do
       begin
         cmd   := Field('C').AsString;
-        case cmd of
-          'CC'  : deploy_if.CollectionCreated(Field('CC').AsString);
-          'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
-          'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
-          'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
-          'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').AsObject);
-          'OU'  : deploy_if.ObjectUpdated(Field('obj').AsObject);
-          'OD'  : deploy_if.ObjectDeleted(Field('obj').AsObject);
-          'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').AsObject);
-          'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField);
-          'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);
-          'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField);
-          'SOS' : deploy_if.SubObjectStored(Field('SO').AsObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
-          'SOD' : deploy_if.SubObjectDeleted(Field('SO').AsObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
-          'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
-          'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
-          'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
-          'DIL' : deploy_if.InboundReflinkDropped (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
-          'DUS' : deploy_if.DifferentiallUpdStarts(field('O').AsObject);
-          'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
-          else
-            raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
+        try
+          case cmd of
+            'CC'  : deploy_if.CollectionCreated(Field('CC').AsString);
+            'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
+            'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
+            'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
+            'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').AsObject);
+            'OU'  : deploy_if.ObjectUpdated(Field('obj').AsObject,Field('CC').AsStringArr);
+            'OD'  : deploy_if.ObjectDeleted(Field('obj').AsObject);
+            'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').AsObject);
+            'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField);
+            'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);
+            'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField);
+            'SOS' : deploy_if.SubObjectStored(Field('SO').AsObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
+            'SOD' : deploy_if.SubObjectDeleted(Field('SO').AsObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
+            'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
+            'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
+            'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
+            'DIL' : deploy_if.InboundReflinkDropped (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
+            'DUS' : deploy_if.DifferentiallUpdStarts(field('O').AsObject);
+            'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
+            else
+              raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
+          end;
+        except on
+          e:exception do
+            begin
+              GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'APPLYNOTIFBLOCK [%s] failed due to [%s] on Step [%d of %d]',[cmd,e.Message,i,High(objs)]);
+            end;
         end;
       end;
 end;

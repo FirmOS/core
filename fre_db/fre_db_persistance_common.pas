@@ -688,7 +688,7 @@ type
     procedure  ObjectStored           (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object) ; virtual;
     procedure  ObjectDeleted          (const obj : IFRE_DB_Object)  ; virtual;
     procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
-    procedure  ObjectUpdated          (const obj : IFRE_DB_Object); virtual ;
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray);virtual;    { FULL STATE }
     procedure  DifferentiallUpdStarts (const obj       : IFRE_DB_Object); virtual;            { DIFFERENTIAL STATE}
     procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID); virtual;             { DIFFERENTIAL STATE}
     procedure  FieldDelete            (const old_field : IFRE_DB_Field); virtual;
@@ -729,7 +729,7 @@ type
     procedure   ObjectStored           (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object) ; override;
     procedure   ObjectDeleted          (const obj : IFRE_DB_Object)  ; override;
     procedure   ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); override;
-    procedure   ObjectUpdated          (const obj : IFRE_DB_Object); override ;
+    procedure   ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray);override;
     procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object); override;
     procedure   DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID); override;
     procedure   FieldDelete            (const old_field : IFRE_DB_Field); override;
@@ -1145,7 +1145,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.ObjectUpdated(const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectUpdated(const obj: IFRE_DB_Object; const colls: TFRE_DB_StringArray);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1153,7 +1153,7 @@ begin
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
     newe.Field('C').AsString    := 'OU';
-    //newe.Field('CC').AsString   := coll_name;
+    newe.Field('CC').AsStringArr:= colls;
     newe.Field('OBJ').AsObject  := obj.CloneToNewObject;
     AddNotificationEntry(newe);
   except on
@@ -1414,9 +1414,9 @@ begin
   GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT REMOVED FROM [%s] -> %s',[FLayerDB,coll_name,obj.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.ObjectUpdated(const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationBase.ObjectUpdated(const obj: IFRE_DB_Object; const colls: TFRE_DB_StringArray);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT UPDATED -> %s',[FLayerDB,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT UPDATED -> %s in [%s]',[FLayerDB,obj.GetDescriptionID,FREDB_CombineString(colls,',')]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
@@ -2585,7 +2585,7 @@ begin
     begin
       to_upd_obj.Set_Store_Locked(false);
       try
-        GetNotificationRecordIF.ObjectUpdated(to_upd_obj);
+        GetNotificationRecordIF.ObjectUpdated(to_upd_obj,to_upd_obj.__InternalGetCollectionListUSL);
       finally
         to_upd_obj.Set_Store_Locked(true);
       end;
@@ -2715,9 +2715,6 @@ end;
 constructor TFRE_DB_DeleteSubObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const del_obj: TFRE_DB_Object; const from_coll: TFRE_DB_NameType; const is_store: boolean);
 begin
   inherited Create(layer,masterdata,del_obj,from_coll,is_store);
-  //FDelObj   := del_obj;
-  //FIsStore  := is_store;
-  //CollName  := from_coll;
 end;
 
 function TFRE_DB_DeleteSubObjectStep.Needs_WAL: Boolean;
