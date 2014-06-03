@@ -614,8 +614,15 @@ implementation
                              end;
                              jsContentAdd('"]\""+');
                            end;
+                           if co.FieldExists('dependentFields') then begin
+                             jsContentAdd('", dependentfields:\"{"+');
+                             for i:=0 to co.Field('dependentFields').ValueCount - 1 do begin
+                               jsContentAdd('"'+co.Field('dependentFields').AsObjectItem[i].Field('fieldName').AsString+':'+BoolToStr(co.Field('dependentFields').AsObjectItem[i].Field('disablesField').AsBoolean,'true','false')+'"+');
+                             end;
+                             jsContentAdd('"}\""+');
+                           end;
                            jsContentAdd('"''>"+');
-                           if not co.Field('required').AsBoolean then begin
+                           if not co.Field('required').AsBoolean or co.Field('addEmptyForRequired').AsBoolean then begin
                              jsContentAdd('"  <option value=''''></option>"+');
                            end;
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin

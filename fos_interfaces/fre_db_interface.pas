@@ -582,25 +582,26 @@ type
   TFRE_DB_SESSIONSTATE  =(sta_BAD,sta_ActiveNew,sta_ReUsed);
 
   OFRE_InputFieldDef4Group = record
-    typ            : TFRE_InputGroupDefType;
-    field          : TFRE_DB_NameType;
-    scheme         : string[255]; //path
+    typ              : TFRE_InputGroupDefType;
+    field            : TFRE_DB_NameType;
+    scheme           : string[255]; //path
     collapsible,
     collapsed,
     required,
     disabled,
-    hidden         : Boolean;
-    group          : TFRE_DB_NameType;
-    prefix         : TFRE_DB_NameType;
-    datacollection : TFRE_DB_NameType;
-    standardcoll   : TFRE_DB_STANDARD_COLL;
-    dc_isdomainc   : Boolean;
-    caption_key    : TFRE_DB_NameType;
-    chooser_type   : TFRE_DB_CHOOSER_DH;
-    std_right      : TFRE_DB_STANDARD_RIGHT;
-    right_classtype: TClass;
-    hideSingle     : Boolean;
-    fieldschemdef  : IFRE_DB_FieldSchemeDefinition; // points to
+    hidden           : Boolean;
+    group            : TFRE_DB_NameType;
+    prefix           : TFRE_DB_NameType;
+    datacollection   : TFRE_DB_NameType;
+    standardcoll     : TFRE_DB_STANDARD_COLL;
+    dc_isdomainc     : Boolean;
+    caption_key      : TFRE_DB_NameType;
+    chooser_type     : TFRE_DB_CHOOSER_DH;
+    chooser_add_empty: Boolean;
+    std_right        : TFRE_DB_STANDARD_RIGHT;
+    right_classtype  : TClass;
+    hideSingle       : Boolean;
+    fieldschemdef    : IFRE_DB_FieldSchemeDefinition; // points to
   end;
 
   PFRE_InputFieldDef4Group    = ^OFRE_InputFieldDef4Group;
@@ -2311,7 +2312,7 @@ type
     //procedure SetInputGroupID    (AValue: TFRE_DB_String);
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
-    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE);
+    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE; const chooserAddEmptyForRequired: Boolean=false);
     procedure AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
@@ -3506,6 +3507,7 @@ end;
 class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 var
   group: IFRE_DB_InputGroupSchemeDefinition;
+  du,dg: IFRE_DB_FieldSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
   {
@@ -3515,33 +3517,37 @@ begin
     in the WF Collection (not the wf scheme collection)
     the workflow engine advances to the next step id in this level, when all parallel id's are done, and the time condition is satisfied
   }
-  scheme.AddSchemeField('step_caption',fdbft_String);         { caption of the workflow step }
-  scheme.AddSchemeField('step_parent',fdbft_ObjLink);         { parent of this step }
-  scheme.AddSchemeField('step_id',fdbft_UInt32);              { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
-  scheme.AddSchemeField('is_error_step',fdbft_Boolean);       { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
-  scheme.AddSchemeField('step_state',fdbft_UInt32);           { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
-  scheme.AddSchemeField('designated_user',fdbft_ObjLink);     { this user should do the step }
-  scheme.AddSchemeField('designated_group',fdbft_ObjLink);    { exor this group should do the step }
-  scheme.AddSchemeField('done_by_user',fdbft_ObjLink);        { who has done the step }
-  scheme.AddSchemeField('auth_group',fdbft_ObjLink);          { step needs auth by this group }
-  scheme.AddSchemeField('auth_by_user',fdbft_ObjLink);        { if the action was required to be authorized, by whom it was authorized}
-  scheme.AddSchemeField('creation_ts',fdbft_DateTimeUTC);     { timestamp of the creation of the action}
-  scheme.AddSchemeField('finalization_ts',fdbft_DateTimeUTC); { timestamp of the finalization }
-  scheme.AddSchemeField('allowed_time',fdbft_UInt32);         { time in seconds when the action is considered to be failed, and advances to failed state automatically }
-  scheme.AddSchemeField('auth_ts',fdbft_DateTimeUTC);         { timestamp of the auth action }
-  scheme.AddSchemeField('note',fdbft_String);                 { inline note / which may be filled in by the user}
-  scheme.AddSchemeField('sys_note',fdbft_String);             { inline note / which may be filled in by the system (e.g. chosen IP adress, whatever) }
-  scheme.AddSchemeField('sys_progress',fdbft_String);         { system progress string, filled in by a (feeder) or the system }
-  scheme.AddSchemeField('user_progress',fdbft_String);        { progress text that is presented to the end user (webuser), which hides detail of the actual progress, may be the same text for several steps or changing percent values / translation key ? .}
-  scheme.AddSchemeField('manual_action',fdbft_String);        { manual action, which needs to be confirmed as OK or FAILED by the USER }
+  scheme.AddSchemeField('step_caption',fdbft_String).required:=true;    { caption of the workflow step }
+  scheme.AddSchemeField('step_parent',fdbft_ObjLink);                   { parent of this step }
+  scheme.AddSchemeField('step_id',fdbft_UInt32).required:=true;         { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
+  scheme.AddSchemeField('is_error_step',fdbft_Boolean);                 { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
+  scheme.AddSchemeField('step_state',fdbft_UInt32);                     { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
+  du:=scheme.AddSchemeField('designated_user',fdbft_ObjLink);           { this user should do the step }
+  du.required:=true;
+  dg:=scheme.AddSchemeField('designated_group',fdbft_ObjLink);          { exor this group should do the step }
+  dg.required:=true;
+  dg.addDepField('designated_user');
+  du.addDepField('designated_group');
+  scheme.AddSchemeField('done_by_user',fdbft_ObjLink);                  { who has done the step }
+  scheme.AddSchemeField('auth_group',fdbft_ObjLink);                    { step needs auth by this group }
+  scheme.AddSchemeField('auth_by_user',fdbft_ObjLink);                  { if the action was required to be authorized, by whom it was authorized}
+  scheme.AddSchemeField('creation_ts',fdbft_DateTimeUTC);               { timestamp of the creation of the action}
+  scheme.AddSchemeField('finalization_ts',fdbft_DateTimeUTC);           { timestamp of the finalization }
+  scheme.AddSchemeField('allowed_time',fdbft_UInt32);                   { time in seconds when the action is considered to be failed, and advances to failed state automatically }
+  scheme.AddSchemeField('auth_ts',fdbft_DateTimeUTC);                   { timestamp of the auth action }
+  scheme.AddSchemeField('note',fdbft_String);                           { inline note / which may be filled in by the user}
+  scheme.AddSchemeField('sys_note',fdbft_String);                       { inline note / which may be filled in by the system (e.g. chosen IP adress, whatever) }
+  scheme.AddSchemeField('sys_progress',fdbft_String);                   { system progress string, filled in by a (feeder) or the system }
+  scheme.AddSchemeField('user_progress',fdbft_String);                  { progress text that is presented to the end user (webuser), which hides detail of the actual progress, may be the same text for several steps or changing percent values / translation key ? .}
+  scheme.AddSchemeField('manual_action',fdbft_String);                  { manual action, which needs to be confirmed as OK or FAILED by the USER }
   scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
-  scheme.AddSchemeField('action_method',fdbft_String);        { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+  scheme.AddSchemeField('action_method',fdbft_String);                  { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
 
   group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
   group.AddInput('step_id',GetTranslateableTextKey('scheme_step_id'));
-  group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER);
-  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP);
+  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP,true);
+  group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER,true);
   group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'',false,dh_chooser_combo,coll_GROUP);
   group.AddInput('allowed_time',GetTranslateableTextKey('scheme_allowed_time'));
   group.AddInput('manual_action',GetTranslateableTextKey('scheme_manual_action'));
@@ -3558,14 +3564,13 @@ begin
 
     StoreTranslateableText(conn,'scheme_main_group','General Information');
     StoreTranslateableText(conn,'scheme_step_caption','Caption');
-    StoreTranslateableText(conn,'scheme_step_id','Caption');
+    StoreTranslateableText(conn,'scheme_step_id','Id (Priority)');
     StoreTranslateableText(conn,'scheme_designated_user','Assigned User');
     StoreTranslateableText(conn,'scheme_designated_group','Assigned Group');
     StoreTranslateableText(conn,'scheme_auth_group','Authorizing Group');
-    StoreTranslateableText(conn,'scheme_allowed_time','Allowed time');
+    StoreTranslateableText(conn,'scheme_allowed_time','Allowed time (seconds)');
     StoreTranslateableText(conn,'scheme_manual_action','Manual action');
   end;
-
 end;
 
 { TFRE_DB_UNCONFIGURED_MACHINE }
