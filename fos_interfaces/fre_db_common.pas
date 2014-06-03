@@ -2182,6 +2182,7 @@ implementation
       itext              : IFRE_DB_TEXT;
       dataCollectionName : TFRE_DB_NameType;
       dataCollIsDomain   : Boolean;
+      standardColl       : TFRE_DB_STANDARD_COLL;
       chooserField       : TFRE_DB_INPUT_CHOOSER_DESC;
       domainEntries      : Integer;
       domainValue        : String;
@@ -2214,21 +2215,29 @@ implementation
       required           := requiredParent and obj^.required;
       dataCollectionName := obj^.datacollection;
       dataCollIsDomain   := obj^.dc_isdomainc;
-      if dataCollectionName<>'' then begin
-        if dataCollIsDomain then
-          begin
-            if pos('$SDC:',dataCollectionName)=1 then
-              coll := session.FetchDerivedCollection(session.GetDBConnection.DomainCollectionName(Copy(dataCollectionName,6,MaxInt)))
-            else
-              coll := session.GetDBConnection.GetCollection(session.GetDBConnection.DomainCollectionName(dataCollectionName));
-          end
-        else
-          begin
-            if pos('$SDC:',dataCollectionName)=1 then
-              coll := session.FetchDerivedCollection(Copy(dataCollectionName,6,MaxInt))
-            else
-              coll := session.GetDBConnection.GetCollection(dataCollectionName);
-          end;
+      standardColl       := obj^.standardcoll;
+      if (dataCollectionName<>'') or (standardColl<>coll_NONE) then begin
+        case standardColl of
+          coll_DOMAIN: coll:=session.GetDBConnection.AdmGetDomainCollection;
+          coll_GROUP : coll:=session.GetDBConnection.AdmGetGroupCollection;
+          coll_USER  : coll:=session.GetDBConnection.AdmGetUserCollection;
+          coll_NONE  : begin
+                         if dataCollIsDomain then
+                           begin
+                             if pos('$SDC:',dataCollectionName)=1 then
+                               coll := session.FetchDerivedCollection(session.GetDBConnection.DomainCollectionName(Copy(dataCollectionName,6,MaxInt)))
+                             else
+                               coll := session.GetDBConnection.GetCollection(session.GetDBConnection.DomainCollectionName(dataCollectionName));
+                           end
+                         else
+                           begin
+                             if pos('$SDC:',dataCollectionName)=1 then
+                               coll := session.FetchDerivedCollection(Copy(dataCollectionName,6,MaxInt))
+                             else
+                               coll := session.GetDBConnection.GetCollection(dataCollectionName);
+                           end;
+                       end;
+        end;
         if assigned(coll) then
           begin
             store:=TFRE_DB_STORE_DESC.create.Describe();
