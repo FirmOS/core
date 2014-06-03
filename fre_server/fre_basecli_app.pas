@@ -121,7 +121,7 @@ type
     procedure   PrepareStartup     ;
     procedure   CfgTestLog         ;
     procedure   EndlessLogTest     ;
-    procedure   SchemeDump         (const filename:string='output');
+    procedure   SchemeDump         (const filename:string;const classfile:string);
     procedure   DumpAll            (const filterstring: string);
   public
     constructor Create             (TheOwner: TComponent); override;
@@ -268,7 +268,8 @@ begin
   AddCheckOption('U:','remoteuser:'  ,'  -U            | --remoteuser=<user>            : user for remote commands');
   AddCheckOption('H:','remotehost:'  ,'  -H            | --remotehost=<pass>            : host for remote commands');
   AddCheckOption('g:','graph:'       ,'  -g <filename> | --graph=<filename>             : graphical dump (system without extensions)');
-  AddCheckOption('z' ,'testdump:'      ,'  -z [Scheme,..]| --testdump=[Scheme,..]         : dump class and uid of all objects');
+  AddCheckOption('*' ,'classfile:'   ,'                | --classfile=<filename>         : filter graphical dump to classes listed in classfile and related');
+  AddCheckOption('z' ,'testdump:'    ,'  -z [Scheme,..]| --testdump=[Scheme,..]         : dump class and uid of all objects');
   AddHelpOutLine;
   AddCheckOption('*','ple'           ,'                | --ple                          : use embedded persistence layer');
   AddCheckOption('*','plhost:'       ,'                | --plhost=<dnsname>             : use dns host for pl net connection');
@@ -611,7 +612,7 @@ begin
   if HasOption('g','graph') then
     begin
       result := true;
-      SchemeDump(GetOptionValue('g','graph'));
+      SchemeDump(GetOptionValue('g','graph'),GetOptionValue('*','classfile'));
     end;
   if HasOption('z','testdump') then
     begin
@@ -1118,7 +1119,7 @@ begin
      end;
 end;
 
-procedure TFRE_CLISRV_APP.SchemeDump(const filename: string);
+procedure TFRE_CLISRV_APP.SchemeDump(const filename: string; const classfile: string);
 var lconn   : IFRE_DB_CONNECTION;
     sconn   : IFRE_DB_SYS_CONNECTION;
     res     : TFRE_DB_Errortype;
@@ -1145,14 +1146,14 @@ begin
     if system then begin
       sconn := GFRE_DBI.NewSysOnlyConnection();
       sconn.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
-      sconn.DrawScheme(mems);
+      sconn.DrawScheme(mems,classfile);
     end else begin
       lconn := GFRE_DBI.NewConnection;
       res   := lconn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
       if res<>edb_OK then begin
         WriteLn('SCHEME DUMP CHECK CONNECT FAILED : ',CFRE_DB_Errortype[res]);
       end;
-      lconn.sys.DrawScheme(mems);
+      lconn.DrawScheme(mems,classfile);
       lconn.Finalize;
     end;
     mems.SaveToFile(filename);

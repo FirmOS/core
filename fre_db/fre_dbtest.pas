@@ -1573,6 +1573,7 @@ begin
     obj:=GFRE_DBI.NewObject;
     obj.Field('firstname').AsString:='f'+IntToStr(i);
     obj.Field('lastname').AsString:='l'+IntToStr(i);
+    obj.Field('description').AsString:=obj.Field('firstname').AsString + ' ' + obj.Field('lastname').AsString;
     obj.Field('icon').AsString:='i'+IntToStr(i);
     obj.Field('children').AsString:='UNCHECKED';
     obj.Field('uidpath').AsStringArr:=Self.GetUIDPath;
@@ -1612,7 +1613,8 @@ begin
     with tr_Grid do begin
       AddOneToOnescheme ('firstname','','Firstname');
       AddOneToOnescheme ('lastname','','Lastname');
-      AddOneToOnescheme ('icon','','Icon');
+      AddOneToOnescheme ('icon','','Icon',dt_icon);
+      AddCollectorscheme('%s %s',TFRE_DB_NameTypeArray.create('firstname','lastname'),'description','',true,false,false,dt_description);
       AddConstString('_funcclassname_','TFRE_DB_TEST_B');
       AddConstString('_childrenfunc_','CHILDRENDATA');
       AddConstString('children','UNCHECKED');

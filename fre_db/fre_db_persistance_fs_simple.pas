@@ -109,7 +109,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
    TFRE_DB_PS_FILE = class(TObject,IFRE_DB_PERSISTANCE_LAYER)
    private
-     FMaster               : TFRE_DB_Master_Data; // Global, Volatile, Per DB, at least one for system
+     FMaster               : TFRE_DB_Master_Data; // Global, Volatile, Per DB, at least one for system, NIL in GLOBAL LAYER
+     FSystemMaster         : TFRE_DB_Master_Data; // The Masterdata of the System Connection, only (! )set in global layer
      FLayerLock            : IFOS_LOCK;
      FBasedirectory        : TFRE_DB_String;
      FMasterCollDir        : TFRE_DB_String;
@@ -133,7 +134,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
      function     EscapeDBName              (const name:string):string;
      function     UnEsacpeDBName            (const name:string):string;
-     constructor  InternalCreate            (const basedir,name:TFRE_DB_String ; out result:TFRE_DB_Errortype);
+     constructor InternalCreate             (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype; const sysmasterdata: TFRE_DB_Master_Data);
 
      function     GetCollection             (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
      function     ExistCollection           (const coll_name : TFRE_DB_NameType) : Boolean;
@@ -157,6 +158,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
      procedure   FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
      procedure   FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
+     function    FDB_GetAllCollsNames          :TFRE_DB_NameTypeArray;
      procedure   FDB_PrepareDBRestore          (const phase:integer);     { used for various preparations and checks }
      procedure   FDB_SendObject                (const obj:IFRE_DB_Object);
      procedure   FDB_SendCollection            (const obj:IFRE_DB_Object);
@@ -374,7 +376,7 @@ begin
   result := GFRE_BT.HexStr2Str(name);
 end;
 
-constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
+constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype ;  const sysmasterdata : TFRE_DB_Master_Data);
 
     procedure _BuildMasterCollection;
 
@@ -494,7 +496,7 @@ begin
   if FileExists(FWalFilename)
      and (File_Size(FWalFilename)=0) then
        _ClearWAL;
-  FMaster := TFRE_DB_Master_Data.Create(FConnectedDB,self);
+  FMaster := TFRE_DB_Master_Data.Create(FConnectedDB,self,sysmasterdata);
   FBlockWALWrites:=true;
   _BuildMasterCollection;
   _BuildCollections;
@@ -518,9 +520,9 @@ end;
 function TFRE_DB_PS_FILE.GetCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION): Boolean;
 begin
   result := FMaster.MasterColls.GetCollection(coll_name,Collection);
-  if (not result)
-     and (FGlobalLayer=false) then // Fetch from Global
-      result := GFRE_DB_PS_LAYER.GetCollection(coll_name,Collection);
+  //if (not result)
+  //   and (FGlobalLayer=false) then // Fetch from Global
+  //    result := GFRE_DB_PS_LAYER.GetCollection(coll_name,Collection);
 end;
 
 function TFRE_DB_PS_FILE.ExistCollection(const coll_name: TFRE_DB_NameType): Boolean;
@@ -775,6 +777,24 @@ begin
   FMaster.MasterColls.ForAllCollections(@CollCB);
 end;
 
+function TFRE_DB_PS_FILE.FDB_GetAllCollsNames: TFRE_DB_NameTypeArray;
+var cnt : NativeInt;
+
+  procedure CollCB(const pcoll : TFRE_DB_Persistance_Collection);
+  begin
+    if Length(result)=cnt then
+      SetLength(result,Length(result)+32);
+    result[cnt]:=pcoll.CollectionName(false);
+    inc(cnt);
+  end;
+
+begin
+  cnt := 0;
+  SetLength(Result,32);
+  FMaster.MasterColls.ForAllCollections(@CollCB);
+  SetLength(Result,cnt);
+end;
+
 procedure TFRE_DB_PS_FILE.FDB_PrepareDBRestore(const phase: integer);
 var result : TFRE_DB_Errortype;
 begin
@@ -877,8 +897,10 @@ var idx : NativeInt;
 begin
   if not FGlobalLayer then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fail');
-  if clean_master_data then
-    FMaster.FDB_CleanUpMasterData;
+  //if clean_master_data then       { BAD 23.5.14 GLOBAL LAYER SHOULD NOT HAVE A MASTER...}
+  //  FMaster.FDB_CleanUpMasterData;
+  if uppercase(DB)='SYSTEM' then
+    FSystemMaster := nil;
   l := _InternalFetchConnectedLayer(db,idx);
   l.Free;
   FConnectedLayers[idx] := nil;
@@ -1022,7 +1044,7 @@ begin
       GFRE_BT.CriticalAbort('cannot setup basedirectory');
     end;
   end;
-  FMaster               := TFRE_DB_Master_Data.Create('GLOBAL',self);
+  FMaster               := nil; //TFRE_DB_Master_Data.Create('GLOBAL',self);
   FConnectedDB          := 'GLOBAL';
   FGlobalLayer          := True;
   FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(FConnectedDB);
@@ -1864,10 +1886,12 @@ begin
     if not assigned(dblayer_o) then
       begin
         SetLength(FConnectedLayers,Length(FConnectedLayers)+1);
-        FConnectedLayers[high(FConnectedLayers)] := TFRE_DB_PS_FILE.InternalCreate(FBasedirectory,up_dbname,result);
+        FConnectedLayers[high(FConnectedLayers)] := TFRE_DB_PS_FILE.InternalCreate(FBasedirectory,up_dbname,result,FSystemMaster);
         if result<>edb_OK then
           exit;
         dblayer_o := FConnectedLayers[high(FConnectedLayers)];
+        if dblayer_o.FConnectedDB='SYSTEM' then
+          FSystemMaster := dblayer_o.FMaster; { copy SYSTEM Masterdata reference to global layer}
         db_layer  := dblayer_o;
         UpdateNotifyIF;
         result         := edb_OK;

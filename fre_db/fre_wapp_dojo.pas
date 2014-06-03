@@ -56,6 +56,7 @@ type
    procedure jsContentClear            ;
    procedure jsContentAdd              (const str: String);
    function  _getStoreById             (const id: String;const stores: IFRE_DB_ObjectArray): TFRE_DB_STORE_DESC;
+   function  _EscapeValueString        (const value: String): String;
    procedure _BuildForm                (const session: TFRE_DB_UserSession; const co:TFRE_DB_FORM_DESC;const isDialog:Boolean; var hasCloseButton: Boolean);
    procedure _BuildButton              (const co:TFRE_DB_BUTTON_DESC; const hiddenFields: IFRE_DB_ObjectArray; const isDialog:Boolean; var hasCloseButton: Boolean);
    procedure _BuildInput               (const co:TFRE_DB_INPUT_DESC);
@@ -276,6 +277,15 @@ implementation
     end;
   end;
 
+  function TFRE_DB_WAPP_DOJO._EscapeValueString(const value: String): String;
+  begin
+    result := StringReplace(value          ,#13#10 , '\n',    [rfReplaceAll]);   // WINDOWS to Single CR
+    result := StringReplace(Result          ,#10    , '\n',    [rfReplaceAll]);   // CR
+    result := StringReplace(Result          ,#13    , '\n',    [rfReplaceAll]);   // LF
+    result := StringReplace(Result          ,'"'    , '&quot;',[rfReplaceAll]);   // Double Qoute
+    result := StringReplace(Result          ,''''   , '&apos;',[rfReplaceAll]);   // Single Quote
+  end;
+
   procedure TFRE_DB_WAPP_DOJO._BuildForm(const session: TFRE_DB_UserSession; const co: TFRE_DB_FORM_DESC; const isDialog: Boolean; var hasCloseButton: Boolean);
   var
     i           : Integer;
@@ -376,7 +386,7 @@ implementation
       jsContentAdd('" disabled"+');
     end;
     if co.Field('defaultValue').AsString<>'' then begin
-      jsContentAdd('" value= '''+StringReplace(co.Field('defaultValue').AsString,#10,'\n',[rfReplaceAll]) + '''"+');
+      jsContentAdd('" value= '''+ _EscapeValueString(co.Field('defaultValue').AsString) + '''"+');
     end;
     if co.Field('confirms').AsString<>'' then begin
       jsContentAdd('" confirms='''+co.Field('confirms').AsString+'''"+');
@@ -431,7 +441,7 @@ implementation
       jsContentAdd('" disabled"+');
     end;
     if co.Field('defaultValue').AsString<>'' then begin
-      jsContentAdd('" value='+co.Field('defaultValue').AsString+ '"+');
+      jsContentAdd('" value='+ _EscapeValueString(co.Field('defaultValue').AsString) + '"+');
     end;
     if co.Field('required').AsBoolean then begin
       jsContentAdd('" required=true"+');
@@ -450,7 +460,7 @@ implementation
       jsContentAdd('" disabled"+');
     end;
     if co.Field('defaultValue').AsString<>'' then begin
-      jsContentAdd('" displayedValue='''+co.Field('defaultValue').AsString + '''"+');
+      jsContentAdd('" displayedValue='''+ _EscapeValueString(co.Field('defaultValue').AsString) + '''"+');
     end;
     jsContentAdd('" required= '+BoolToStr(co.Field('required').AsBoolean,'true','false') + '"+');
     if not co.Field('required').AsBoolean and co.Field('groupRequired').AsBoolean then begin
@@ -466,7 +476,7 @@ implementation
       jsContentAdd('" disabled"+');
     end;
     if co.Field('defaultValue').AsString<>'' then begin
-      jsContentAdd('" value='''+ co.Field('defaultValue').AsString + '''"+');
+      jsContentAdd('" value='''+ _EscapeValueString(co.Field('defaultValue').AsString) + '''"+');
     end;
     jsContentAdd('" data-dojo-props=''"+');
     jsContentAdd('"rionce:'+BoolToStr(co.Field('rIOnce').AsBoolean,'true','false')+',"+');
@@ -508,7 +518,7 @@ implementation
       jsContentAdd('" disabled"+');
     end;
     if co.Field('defaultValue').AsString<>'' then begin
-      jsContentAdd('" value='''+StringReplace(co.Field('defaultValue').AsString,#10,'\n',[rfReplaceAll]) + '''"+');
+      jsContentAdd('" value='''+ _EscapeValueString(co.Field('defaultValue').AsString) + '''"+');
     end;
     if co.Field('required').AsBoolean then begin
       jsContentAdd('" required=true"+');
@@ -565,7 +575,7 @@ implementation
                            end;
                            jsContentAdd('"  data-dojo-props=''"+');
                            if co.Field('defaultValue').AsString<>'' then begin
-                             jsContentAdd('" value: \"'+co.Field('defaultValue').AsString+'\""+');
+                             jsContentAdd('" value: \"'+ _EscapeValueString(co.Field('defaultValue').AsString) +'\""+');
                            end;
                            jsContentAdd('"''>"+');
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
@@ -585,7 +595,7 @@ implementation
                              jsContentAdd('" grouprequired=true"+');
                            end;
                            jsContentAdd('"  data-dojo-props=''"+');
-                           jsContentAdd('" value: \"'+co.Field('defaultValue').AsString+'\", placeHolder:\"'+_getText(conn,'in_combo_placeholder')+'\""+');
+                           jsContentAdd('" value: \"'+ _EscapeValueString(co.Field('defaultValue').AsString) +'\", placeHolder:\"'+_getText(conn,'in_combo_placeholder')+'\""+');
                            if co.Field('dependentInputFields').ValueCount>0 then begin
                              jsContentAdd('", depGroup: \"["+');
                              preFix:='';
@@ -707,7 +717,7 @@ implementation
           jsContentAdd('"class=''firmosFormInputTD''>"+');
           case elem.ClassName of
             'TFRE_DB_INPUT_DESCRIPTION_DESC': begin
-                                                jsContentAdd('"'+elem.Field('defaultValue').AsString+'"+');
+                                                jsContentAdd('"'+ _EscapeValueString(elem.Field('defaultValue').AsString) +'"+');
                                               end;
             'TFRE_DB_INPUT_DESC': begin
                                     _BuildInput(elem.Implementor_HC as TFRE_DB_INPUT_DESC);
@@ -1251,17 +1261,19 @@ implementation
 
   procedure TFRE_DB_WAPP_DOJO.BuildGridContainer(const session:TFRE_DB_UserSession; const co: TFRE_DB_VIEW_LIST_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
-    JSonAction  :TFRE_JSON_ACTION;
-    layout      :TFRE_DB_VIEW_LIST_LAYOUT_DESC;
-    elem        :IFRE_DB_Object;
-    i,sizeSum   :Integer;
-    firstElement:Boolean;
-    store       :TFRE_DB_STORE_DESC;
-    lcVar       :String;
-    button      :TFRE_DB_VIEW_LIST_BUTTON_DESC;
-    cssString   :String;
-    chCol       :Boolean;
-    conn        :IFRE_DB_CONNECTION;
+    JSonAction      :TFRE_JSON_ACTION;
+    layout          :TFRE_DB_VIEW_LIST_LAYOUT_DESC;
+    elem            :IFRE_DB_Object;
+    i,sizeSum       :Integer;
+    firstElement    :Boolean;
+    store           :TFRE_DB_STORE_DESC;
+    lcVar           :String;
+    button          :TFRE_DB_VIEW_LIST_BUTTON_DESC;
+    cssString       :String;
+    chCol           :Boolean;
+    conn            :IFRE_DB_CONNECTION;
+    isTree          :Boolean;
+    descriptionField: String;
   begin
     conn:=session.GetDBConnection;
     if not isInnerContent then begin
@@ -1291,9 +1303,15 @@ implementation
       firstElement:=false;
     end;
     chCol:=co.Field('children').AsBoolean;
+    isTree:=chCol;
+    descriptionField:='';
     for i := 0 to layout.Field('data').ValueCount - 1 do begin
       elem:=layout.Field('data').AsObjectItem[i];
       if elem.Field('display').AsBoolean then begin
+        if FREDB_String2DBDisplayType(elem.Field('displayType').AsString)=dt_description then begin
+          descriptionField:=elem.Field('id').AsString;
+          continue;
+        end;
         if firstElement then begin
           firstElement:=false;
         end else begin
@@ -1485,6 +1503,8 @@ implementation
       jsContentAdd('  ,selDepParams: '+_BuildParamsObject(co.Field('selectionDepFunc').AsObject.Field('params').AsObjectArr));
     end;
     jsContentAdd('  ,columns: gridLayout');
+    jsContentAdd('  ,descrField: "'+descriptionField+'"');
+    jsContentAdd('  ,isTree: ' + BoolToStr(isTree,'true','false'));
     jsContentAdd('  ,allowSelectAll: true');
     jsContentAdd('});');
 

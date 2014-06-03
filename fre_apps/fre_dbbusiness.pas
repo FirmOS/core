@@ -75,10 +75,6 @@ type
     class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     function IMI_Content            (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function IMI_Menu               (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function IMI_AddEndpoint        (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function IMI_AddMobileDevice    (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function WEB_ChildrenData       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   end;
 
 
@@ -119,20 +115,7 @@ type
   protected
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
   published
-    function        IMI_addCustomer  (const input:IFRE_DB_Object):IFRE_DB_Object;
     class procedure InstallDBObjects (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-  end;
-
-  { TFRE_DB_Customer }
-
-  TFRE_DB_Customer = class (TFRE_DB_Contact)
-  protected
-    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class procedure InstallDBObjects    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-  published
-   function IMI_Menu              (const input:IFRE_DB_Object):IFRE_DB_Object;
-   function IMI_Edit              (const input:IFRE_DB_Object):IFRE_DB_Object;
-   function IMI_addSite           (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
   { TFRE_DB_GEOPOSITION }
@@ -268,11 +251,14 @@ var group : IFRE_DB_InputGroupSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.Explanation:='Base scheme for all contacts<br>(persons, customers, tenant)';
+  scheme.AddSchemeField('parent_contact_id',fdbft_ObjLink);
+
   scheme.AddSchemeField('firstname',fdbft_String).required:=true;
   scheme.AddSchemeField('lastname',fdbft_String).required:=true;
   scheme.AddSchemeField('company',fdbft_String);
   scheme.AddSchemeFieldSubscheme('mainaddress','TFRE_DB_ADDRESS').required:=true;
   scheme.AddSchemeFieldSubscheme('deliveryaddress','TFRE_DB_ADDRESS');
+  scheme.AddSchemeFieldSubscheme('billingaddress','TFRE_DB_ADDRESS');
   scheme.AddSchemeFieldSubscheme('businessphone','TFRE_DB_PHONE');
   scheme.AddSchemeFieldSubscheme('mobilephone','TFRE_DB_PHONE');
   scheme.AddSchemeFieldSubscheme('privatephone','TFRE_DB_PHONE');
@@ -290,6 +276,9 @@ begin
   group:=scheme.AddInputGroup('address_delivery').Setup(GetTranslateableTextKey('scheme_delivery_group'));
   group.UseInputGroup('TFRE_DB_ADDRESS','main','deliveryaddress');
 
+  group:=scheme.AddInputGroup('address_billing').Setup(GetTranslateableTextKey('scheme_billingadress_group'));
+  group.UseInputGroup('TFRE_DB_ADDRESS','main','billingaddress');
+
   group:=scheme.AddInputGroup('number').Setup(GetTranslateableTextKey('scheme_number_group'));
   group.AddInput('businessphone.number',GetTranslateableTextKey('scheme_bnumber'));
   group.AddInput('mobilephone.number',GetTranslateableTextKey('scheme_mnumber'));
@@ -298,6 +287,15 @@ begin
   group:=scheme.AddInputGroup('eaddresses').Setup(GetTranslateableTextKey('scheme_eaddress_group'));
   group.AddInput('mail.url',GetTranslateableTextKey('scheme_mail'));
   group.AddInput('http.url',GetTranslateableTextKey('scheme_web'));
+
+  scheme.AddSchemeField('tenantid',fdbft_ObjLink).required:=true;
+  scheme.AddSchemeField('customernumber',fdbft_String).required:=true;
+
+  group:=scheme.AddInputGroup('customer').Setup(GetTranslateableTextKey('scheme_customer_group'));
+  group.AddInput('customernumber',GetTranslateableTextKey('scheme_number'));
+  group.AddInput('tenantid','',False,true);
+
+
 end;
 
 class procedure TFRE_DB_Contact.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -307,8 +305,9 @@ begin
     begin
       currentVersionId:='1.0';
       CheckDbResult(StoreTranslateableText(conn,'scheme_main_group','General Information'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_address_group','Mainaddress'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_delivery_group','Deliveryaddress'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_address_group','Main Address'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_delivery_group','Delivery Address'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_billingadress_group','Billing Address'));
       CheckDbResult(StoreTranslateableText(conn,'scheme_number_group','Phone Numbers'));
       CheckDbResult(StoreTranslateableText(conn,'scheme_eaddress_group','EContact'));
       CheckDbResult(StoreTranslateableText(conn,'scheme_company','Company'));
@@ -319,84 +318,13 @@ begin
       CheckDbResult(StoreTranslateableText(conn,'scheme_pnumber','Private'));
       CheckDbResult(StoreTranslateableText(conn,'scheme_mail','EMail'));
       CheckDbResult(StoreTranslateableText(conn,'scheme_web','Web'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_customer_group','Customer Information'));
+      CheckDbResult(StoreTranslateableText(conn,'scheme_customernumber','Customer Number'));
+
     end;
    
 end;
 
-{ TFRE_DB_Customer }
-
-class procedure TFRE_DB_Customer.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
-var group : IFRE_DB_InputGroupSchemeDefinition;
-begin
-  inherited RegisterSystemScheme(scheme);
-  scheme.SetParentSchemeByName('TFRE_DB_CONTACT');
-  scheme.AddSchemeField('tenantid',fdbft_ObjLink).required:=true;
-  scheme.AddSchemeField('customernumber',fdbft_String).required:=true;
-
-  group:=scheme.ReplaceInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
-  group.AddInput('customernumber',GetTranslateableTextKey('scheme_number'));
-  group.AddInput('tenantid','',False,true);
-  group.UseInputGroup('TFRE_DB_CONTACT','main');
-end;
-
-class procedure TFRE_DB_Customer.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
-begin
-  newVersionId:='1.0';
-  if currentVersionId='' then
-    begin
-      currentVersionId:='1.0';
-      StoreTranslateableText(conn,'scheme_main_group','Customer Information');
-      StoreTranslateableText(conn,'scheme_number','Number');
-    end;
-   
-end;
-
-function TFRE_DB_Customer.IMI_Menu(const input: IFRE_DB_Object): IFRE_DB_Object;
-var  res: TFRE_DB_MENU_DESC;
-begin
-  res:=TFRE_DB_MENU_DESC.create.Describe();
-  res.AddEntry.Describe('Add Site','images_apps/business/customer_add_site.png',TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'addSite'));
-  res.AddEntry.Describe('Edit','images_apps/business/modify_customer.png',TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'edit'));
-  res.AddEntry.Describe('Delete','images_apps/business/delete_customer.png',TFRE_DB_SERVER_FUNC_DESC.Create.Describe(self,'deleteOperation'));
-  Result:=res;
-end;
-
-function TFRE_DB_Customer.IMI_Edit(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  res    : TFRE_DB_FORM_DIALOG_DESC;
-  scheme : IFRE_DB_SchemeObject;
-begin
-  scheme := GetScheme;
-
-  res:=TFRE_DB_FORM_DIALOG_DESC.Create.Describe('Edit Customer');
-  res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
-  res.AddSchemeFormGroup(scheme.GetInputGroup('address'),GetSession(input)).SetCollapseState(true);
-  res.AddSchemeFormGroup(scheme.GetInputGroup('address_delivery'),GetSession(input)).SetCollapseState(true);
-  res.AddSchemeFormGroup(scheme.GetInputGroup('number'),GetSession(input)).SetCollapseState(true);
-  res.AddSchemeFormGroup(scheme.GetInputGroup('eaddresses'),GetSession(input)).SetCollapseState(true);
-  res.FillWithObjectValues(Self,GetSession(input));
-  res.AddButton.Describe('Save',TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'saveOperation'),fdbbt_submit);
-  Result:=res;
-end;
-
-function TFRE_DB_Customer.IMI_addSite(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  res       : TFRE_DB_FORM_DIALOG_DESC;
-  scheme    : IFRE_DB_SchemeObject;
-  serverFunc: TFRE_DB_SERVER_FUNC_DESC;
-begin
-  GFRE_DBI.GetSystemScheme(TFRE_DB_SITE,scheme);
-
-  res:=TFRE_DB_FORM_DIALOG_DESC.Create.Describe('Add Site');
-  res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
-  res.AddSchemeFormGroup(scheme.GetInputGroup('address'),GetSession(input));
-
-  res.SetElementValue('customerid',UID_String);
-  serverFunc:=TFRE_DB_SERVER_FUNC_DESC.Create.Describe('TFRE_DB_SITE','newOperation');
-  serverFunc.AddParam.Describe('collection','site');
-  res.AddButton.Describe('Save',serverFunc,fdbbt_submit);
-  Result:=res;
-end;
 
 { TFRE_DB_Tenant }
 
@@ -404,6 +332,8 @@ class procedure TFRE_DB_Tenant.RegisterSystemScheme(const scheme: IFRE_DB_SCHEME
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName('TFRE_DB_CONTACT');
+  scheme.Explanation:='Extended scheme from TFRE_DB_CONTACT for tenant information';
+
    //constraints
    // TFRE_DB_CUSTOMER:
    // tenantid must link to existend TFRE_DB_TENANT
@@ -412,27 +342,6 @@ begin
    // name and tld must be unique
    // TFRE_DB_ADDRESS:
    // country must link to existend TFRE_DB_COUNTRY
-end;
-
-function TFRE_DB_Tenant.IMI_addCustomer(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  res       : TFRE_DB_FORM_DIALOG_DESC;
-  scheme    : IFRE_DB_SchemeObject;
-  serverFunc: TFRE_DB_SERVER_FUNC_DESC;
-begin
-  GFRE_DBI.GetSystemScheme(TFRE_DB_CUSTOMER,scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.Create.Describe('Add Customer');
-  res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
-  res.AddSchemeFormGroup(scheme.GetInputGroup('address'),GetSession(input));
-  res.AddSchemeFormGroup(scheme.GetInputGroup('address_delivery'),GetSession(input)).SetCollapseState(true);
-  res.AddSchemeFormGroup(scheme.GetInputGroup('number'),GetSession(input)).SetCollapseState(true);
-  res.AddSchemeFormGroup(scheme.GetInputGroup('eaddresses'),GetSession(input)).SetCollapseState(true);
-
-  res.SetElementValue('tenantid',GFRE_BT.GUID_2_HexString(UID));
-  serverFunc:=TFRE_DB_SERVER_FUNC_DESC.Create.Describe('TFRE_DB_CUSTOMER','newOperation');
-  serverFunc.AddParam.Describe('collection','customer');
-  res.AddButton.Describe('Save',serverFunc,fdbbt_submit);
-  Result:=res;
 end;
 
 class procedure TFRE_DB_Tenant.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -497,150 +406,6 @@ begin
   Result:=res;
 end;
 
-function TFRE_DB_Site.IMI_Menu(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  res            : TFRE_DB_MENU_DESC;
-  submenu        : TFRE_DB_SUBMENU_DESC;
-  entry,subentry : TFRE_DB_MENU_ENTRY_DESC;
-  param          : TFRE_DB_PARAM_DESC;
-  serverfunc     : TFRE_DB_SERVER_FUNC_DESC;
-  linksys,lancom : TFRE_DB_GUIDArray;
-  add_linksys    : boolean;
-  add_lancom     : boolean;
-
-  procedure _addEPMenu (const endpointclass:string; const menutext:string; const dhcp:boolean);
-  var
-   subentry       : TFRE_DB_MENU_ENTRY_DESC;
-   param          : TFRE_DB_PARAM_DESC;
-   serverfunc     : TFRE_DB_SERVER_FUNC_DESC;
-
-  begin
-    serverfunc:=TFRE_DB_SERVER_FUNC_DESC.Create;
-    serverfunc.Describe(Self,'addEndpoint');
-    serverfunc.AddParam.Describe('endpointclass',endpointclass);
-    if dhcp then begin
-      serverfunc.AddParam.Describe('dhcp','true');
-    end else begin
-      serverfunc.AddParam.Describe('dhcp','false');
-    end;
-    subentry:=submenu.AddEntry.Describe(menutext,'images_apps/business/add_endpoint.png',serverfunc);
-  end;
-
-begin
-  res:=TFRE_DB_MENU_DESC.create.Describe();
-
-  abort;
-
-  //TODO FIX
-  //linksys   := ReferencedByList('TFRE_DB_AP_LINKSYS');
-  //lancom    := ReferencedByList('TFRE_DB_AP_LANCOM');
-  //writeln ('Linksys:',length(linksys),' Lancom:',length(lancom));
-
-  add_linksys := (length(linksys)=0)  and (length(lancom)=0);
-  add_lancom  := (length(linksys)=0);
-
-  if add_linksys or add_lancom then begin
-    submenu   :=res.AddMenu.Describe('Add Endpoint','');
-    if add_linksys then begin
-      _addEPMenu('TFRE_DB_AP_LINKSYS_E1000','Linksys E1000',true);
-      _addEPMenu('TFRE_DB_AP_LINKSYS_E1200','Linksys E1200',true);
-      _addEPMenu('TFRE_DB_AP_LINKSYS_E1200V2','Linksys E1200V2',true);
-    end;
-    if add_lancom then begin
-      _addEPMenu('TFRE_DB_AP_LANCOM_IAP321','Lancom IAP321',false);
-      _addEPMenu('TFRE_DB_AP_LANCOM_OAP321','Lancom OAP321',false);
-    end;
-  end;
-  res.AddEntry.Describe('Add Mobiledevice','images_apps/business/add_mobile_device.png',TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'addMobileDevice'));
-  res.AddEntry.Describe('Delete','images_apps/business/delete_site.png',TFRE_DB_SERVER_FUNC_DESC.Create.Describe(self,'deleteOperation'));
-
-
- Result:=res;
-end;
-
-function TFRE_DB_Site.IMI_AddEndpoint(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  res           : TFRE_DB_FORM_DIALOG_DESC;
-  scheme        : IFRE_DB_SchemeObject;
-  serverFunc    : TFRE_DB_SERVER_FUNC_DESC;
-  endpointclass : TFRE_DB_String;
-  dhcp          : string;
-
-begin
-  endpointclass := input.Field('endpointclass').AsString;
-  dhcp          := input.Field('dhcp').AsString;
-
-  GFRE_DBI.GetSystemSchemeByName(endpointclass,scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.Create.Describe('Add Accesspoint',0,true,true,false);
-  res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
-  res.AddSchemeFormGroup(scheme.GetInputGroup('options'),GetSession(input));
-
-  res.SetElementValue('site',GFRE_BT.GUID_2_HexString(UID));
-  res.SetElementValue('channel','0');
-  res.SetElementValue('dhcp',dhcp);
-  serverFunc:=TFRE_DB_SERVER_FUNC_DESC.Create.Describe(endpointclass,'newOperation');
-  serverFunc.AddParam.Describe('collection','endpoint');
-  res.AddButton.Describe('Save',serverFunc,fdbbt_submit);
-  Result:=res;
-end;
-
-function TFRE_DB_Site.IMI_AddMobileDevice(const input: IFRE_DB_Object): IFRE_DB_Object;
-var
-  res       : TFRE_DB_FORM_DIALOG_DESC;
-  scheme    : IFRE_DB_SchemeObject;
-  serverFunc: TFRE_DB_SERVER_FUNC_DESC;
-begin
-  GFRE_DBI.GetSystemSchemeByName('TFRE_DB_MOBILEDEVICE',scheme); //FIXXME:schramml -> derive, this is a HAL Class
-  res:=TFRE_DB_FORM_DIALOG_DESC.Create.Describe('Add Mobile Device');
-  res.AddSchemeFormGroup(scheme.GetInputGroup('main'),GetSession(input));
-  res.SetElementValue('site',GFRE_BT.GUID_2_HexString(UID));
-  serverFunc:=TFRE_DB_SERVER_FUNC_DESC.Create.Describe('TFRE_DB_MOBILEDEVICE','newOperation');
-  serverFunc.AddParam.Describe('collection','mobiledevice');
-  res.AddButton.Describe('Save',serverFunc,fdbbt_submit);
-  Result:=res;
-end;
-
-
-function TFRE_DB_Site.WEB_ChildrenData(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var
-  res   : TFRE_DB_STORE_DATA_DESC;
-  childs: TFRE_DB_GUIDArray;
-  i     : Integer;
-  dbo   : IFRE_DB_Object;
-  txt   : String;
-  entry : IFRE_DB_Object;
-
-begin
-  res := TFRE_DB_STORE_DATA_DESC.create;
-  abort;
-  //TODO FIX
-  //childs:=ReferencedByList('TFRE_DB_DEVICE');
-  for i := 0 to Length(childs) - 1 do begin
-    conn.Fetch(childs[i],dbo);
-    if dbo.IsA('TFRE_DB_DEVICE') then begin
-      if dbo.IsA('TFRE_DB_ENDPOINT') then begin
-        txt:=dbo.field('Displayname').AsString;
-      end else begin
-        txt:=dbo.field('Name').AsString;
-      end;
-
-      entry:=GFRE_DBI.NewObject;
-      entry.Field('text').AsString:=txt;
-      entry.Field('uid').AsGUID:=dbo.UID;
-      entry.Field('uidpath').AsStringArr:=dbo.GetUIDPath;
-      entry.Field('_funcclassname_').AsString:=dbo.SchemeClass;
-      entry.Field('_childrenfunc_').AsString:='ChildrenData';
-      entry.Field('_menufunc_').AsString:='Menu';
-      entry.Field('_contentfunc_').AsString:='Content';
-      if not dbo.IsA('TFRE_DB_MobileDevice') then begin
-        entry.Field('children').AsString:='UNCHECKED';
-      end;
-      res.addEntry(entry);
-    end;
-  end;
-  Result:=res;
-end;
-
 
 
 
@@ -657,7 +422,6 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Phone);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Contact);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Tenant);
-  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Customer);
   GFRE_DBI.Initialize_Extension_Objects;
 end;
 

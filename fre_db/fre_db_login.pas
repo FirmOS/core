@@ -79,9 +79,11 @@ implementation
 class procedure TFRE_DB_LOGIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
-  newVersionId:='1.1';
+  newVersionId:='1.0';
 
   if (currentVersionId='') then begin
+    currentVersionId:='1.0';
+
     CreateAppText(conn,'profile_diag_cap','Profile');
     CreateAppText(conn,'login_diag_cap','FirmOS WebApp Server Login');
 
@@ -107,25 +109,13 @@ begin
 
     CreateAppText(conn,'no_takeover_cap','No takeover');
     CreateAppText(conn,'no_takeover_message','You choose to not takeover the existing session');
-    currentVersionId:='1.0';
+
+    CreateAppText(conn,'login_faild_already_1P','You are already logged in with another client => (%s)');
+    CreateAppText(conn,'login_faild_oldnotfound_cap','The old session ID to continue your sesison was not found');
+    CreateAppText(conn,'login_takeover_failed','The takeover of the existing session failed, try again');
+    CreateAppText(conn,'login_faild_access','Invalid Username/Domain/Passsword combination');
+    CreateAppText(conn,'login_faild_suspended','Currently the domain is suspended, no login is possible.');
   end;
-  if (currentVersionId='1.0') then begin
-    currentVersionId:='1.1';
-    try
-      CreateAppText(conn,'login_faild_already_1P','You are already logged in with another client => (%s)');
-      CreateAppText(conn,'login_faild_oldnotfound_cap','The old session ID to continue your sesison was not found');
-      CreateAppText(conn,'login_takeover_failed','The takeover of the existing session failed, try again');
-      CreateAppText(conn,'login_faild_access','Invalid Username/Domain/Passsword combination');
-      CreateAppText(conn,'login_faild_suspended','Currently the domain is suspended, no login is possible.');
-    except
-      //ignore errors here, someone forgot to set the newversionID to 1.1
-    end;
-  end;
-  if (currentVersionId='1.1') then begin
-    //currentVersionId:='1.1';
-    //next version code
-  end;
-  //
 end;
 
 procedure TFRE_DB_LOGIN.SetupApplicationStructure;

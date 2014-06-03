@@ -61,6 +61,8 @@ type
     embeddedlist       :       TStringList;
     referenceobj       :       IFRE_DB_Object;
     collectionobj      :       IFRE_DB_Object;
+    classlist          :       TStringList;
+    extendedclasslist  :       TStringList;
 
     procedure          WriteHeader;
     procedure          WriteFooter;
@@ -81,6 +83,9 @@ type
     destructor         Destroy;
 
     procedure          PlotStart;
+    procedure          SetClassfile                      (const classfilename :string);
+    procedure          AddClass                          (const objclassname:string);
+    function           IsInClassList                     (const objclassname:string):boolean;
     procedure          CollectionIterator                (const coll: IFRE_DB_COLLECTION);
     procedure          EmbeddedIterator                  (const obj : IFRE_DB_SchemeObject);
     procedure          SchemeIterator                    (const obj : IFRE_DB_SchemeObject);
@@ -117,11 +122,15 @@ end;
 procedure TFRE_DB_GRAPH.WriteMethods(const obj: IFRE_DB_SCHEMEOBJECT);
 var methodarray         :      TFRE_DB_StringArray;
     lmethodcounter      :      integer;
-
+    skipmethodarray     :      TFRE_DB_StringArray;
+    lmethodname         :      TFRE_DB_String;
 begin
+  skipmethodarray     := TFRE_DB_StringArray.Create('SAVEOPERATION','DELETEOPERATION','NOTELOAD','NOTESAVE','NOTESTARTEDIT','NOTESTOPEDIT');
   methodarray         := obj.GetAll_IMI_Methods;
   for lmethodcounter  := low (methodarray) to high (methodarray) do begin
-    plotlist.Add('<tr><td align="left" colspan="3" bgcolor="lightblue">'+methodarray[lmethodcounter] +'</td></tr>');
+    lmethodname       := methodarray[lmethodcounter];
+    if not FREDB_StringInArray(lmethodname,skipmethodarray) then
+      plotlist.Add('<tr><td align="left" colspan="3" bgcolor="lightblue">'+lmethodname +'</td></tr>');
   end;
 end;
 
@@ -205,8 +214,11 @@ begin
   if length(obj.Explanation)>0 then begin
    plotlist.Add('<tr><td align="left" colspan="3" PORT="sn" bgcolor="lightyellow">'+FormatExplanationToTable(obj.Explanation) +'</td></tr>');
   end;
-  WriteFields(obj);
-  WriteMethods(obj);
+  if obj.DefinedSchemeName<>'TFRE_DB_TEXT' then
+    begin
+      WriteFields(obj);
+      WriteMethods(obj);
+    end;
   plotlist.add('</table>');
   plotlist.Add('</td>');
   plotlist.Add('</tr>');
@@ -226,22 +238,21 @@ procedure TFRE_DB_GRAPH.WriteReferences;
 
   procedure FieldIterate (const fld: IFRE_DB_Field);
   begin
-   if fld.IsUIDField=false then begin
-     plotlist.Add(lowercase(fld.FieldName)+ ' [color=blue] [fontcolor=blue] [label="'+fld.AsString+'"];');
+   if fld.FieldType=fdbft_Object then begin
+     plotlist.Add(lowercase(fld.AsObject.Field('reference').asstring)+ ' [color=blue] [fontcolor=blue] [label="'+fld.AsObject.Field('refcount').asstring+'"];');
    end;
   end;
 
 begin
   referenceobj.ForAllFields(@FieldIterate);
-//  writeln(referenceobj.DumpToString());
 end;
 
 procedure TFRE_DB_GRAPH.WriteCollectionContains;
 
   procedure FieldIterate (const fld: IFRE_DB_Field);
   begin
-   if fld.IsUIDField=false then begin
-     plotlist.Add(lowercase(fld.FieldName)+ ' [color=sandybrown] [fontcolor=sandybrown] [label="'+fld.AsString+'"];');
+   if fld.FieldType=fdbft_Object then begin
+     plotlist.Add(lowercase(fld.AsObject.Field('coll').asstring)+ ' [color=sandybrown] [fontcolor=sandybrown] [label="'+fld.AsObject.Field('collcount').AsString+'"];');
    end;
   end;
 
@@ -282,15 +293,19 @@ end;
 
 constructor TFRE_DB_GRAPH.Create;
 begin
-  plotlist      :=      TStringList.Create;
-  parentlist    :=      TStringList.Create;
-  embeddedlist  :=      TStringList.Create;
-  referenceobj  :=      GFRE_DBI.NewObject;
-  collectionobj :=      GFRE_DBI.NewObject;
+  plotlist          :=      TStringList.Create;
+  parentlist        :=      TStringList.Create;
+  embeddedlist      :=      TStringList.Create;
+  classlist         :=      TStringList.Create;
+  extendedclasslist :=      TstringList.Create;
+  referenceobj      :=      GFRE_DBI.NewObject;
+  collectionobj     :=      GFRE_DBI.NewObject;
 end;
 
 destructor TFRE_DB_GRAPH.Destroy;
 begin
+  extendedclasslist.Free;
+  classlist.Free;
   embeddedlist.Free;
   parentlist.Free;
   plotlist.Free;
@@ -301,58 +316,79 @@ begin
   WriteHeader;
 end;
 
+procedure TFRE_DB_GRAPH.SetClassfile(const classfilename: string);
+begin
+  if classfilename<>'' then
+    begin
+      if FileExists(classfilename)=false then
+        begin
+          writeln('Invalid classfilename !');
+          halt;
+        end;
+      writeln('classfile loaded');
+      classlist.LoadFromFile(classfilename);
+      extendedclasslist.Assign(classlist);
+    end;
+end;
+
 procedure TFRE_DB_GRAPH.CollectionIterator (const coll: IFRE_DB_COLLECTION);
  var  scolor            : string;
       indexedcollection : IFRE_DB_COLLECTION;
-      collectiontype    : string;
+      collname          : TFRE_DB_String;
+      colltype          : TFRE_DB_String;
+      coll_obj          : IFRE_DB_Object;
 
    procedure ObjectIterate (const obj: IFRE_DB_OBJECT);
    var  scollection    : string;
         icollcount     : int64;
    begin
-     scollection:='coll'+lowercase(coll.CollectionName)+':sn -> struct'+lowercase(obj.SchemeClass)+':sn';
-     if collectionobj.FieldExists(scollection) then begin
-       icollcount    := collectionobj.Field(scollection).AsInt64;
+     scollection:='coll'+lowercase(collname)+':sn -> struct'+lowercase(obj.SchemeClass)+':sn';
+     if collectionobj.FieldExists(GFRE_BT.HashString_MD5_HEX(scollection)) then begin
+       icollcount := collectionobj.Field(GFRE_BT.HashString_MD5_HEX(scollection)).AsObject.Field('collcount').asint64;
        inc(icollcount);
      end else begin
+       coll_obj:=GFRE_DBI.NewObject;
+       coll_obj.Field('coll').asstring:=scollection;
+       collectionobj.Field(GFRE_BT.HashString_MD5_HEX(scollection)).AsObject:=coll_obj;
        icollcount    := 1;
      end;
-     collectionobj.Field (scollection).AsInt64:=icollcount;
+     collectionobj.Field(GFRE_BT.HashString_MD5_HEX(scollection)).AsObject.Field('collcount').asint64:=icollcount;
    end;
 
  begin
-   if coll.Collectionname='' then begin
-     exit;
-   end;
-
-   collectiontype := coll.Implementor_HC.ClassName;
-   writeln(coll.Implementor_HC.ClassName);
-   case collectiontype of
-     'TFRE_DB_INDEXED_COLLECTION' : scolor := 'orange';
-     'TFRE_DB_SCHEME_COLLECTION'  : scolor := 'green';
-     else                           scolor := 'navajowhite';
-   end;
-   collectiontype := ' ('+collectiontype+')  ';
-   plotlist.Add('coll'+lowercase(coll.CollectionName)+' [label=<');
+   if coll.IsADomainCollection then
+     begin
+       collname := coll.DomainCollName;
+       colltype := ' [D]';
+       scolor   := 'orange';
+     end
+   else
+     begin
+       collname := coll.CollectionName;
+       colltype := ' [C] '+' ('+inttostr(coll.Count)+')';
+       scolor   := 'green';
+     end;
+   plotlist.Add('coll'+lowercase(collname)+' [label=<');
    plotlist.Add('<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">');
-   plotlist.Add('<tr><td align="left" colspan="2" PORT="sn" bgcolor="'+scolor+'"><u>'+uppercase(coll.Collectionname)+collectiontype+' ('+inttostr(coll.Count)+')</u></td></tr>');
-   //if assigned(indexedcollection) then begin
-   //  plotlist.Add('<tr><td align="left">Index</td><td align="left">'+lowercase(indexedcollection.GetIndexField)+'</td></tr>');
-   //end;
+   plotlist.Add('<tr><td align="left" colspan="2" PORT="sn" bgcolor="'+scolor+'"><u>'+lowercase(collname)+colltype+'</u></td></tr>');
    plotlist.Add('</TABLE>>];');
    coll.ForAll(@ObjectIterate);
  end;
 
-procedure TFRE_DB_GRAPH.EmbeddedIterator(const obj:IFRE_DB_SCHEMEOBJECT);
+procedure TFRE_DB_GRAPH.EmbeddedIterator(const obj: IFRE_DB_SchemeObject);
 begin
   CheckFieldsSubscheme(obj);
 end;
 
-procedure TFRE_DB_GRAPH.SchemeIterator(const obj:IFRE_DB_SCHEMEOBJECT);
+procedure TFRE_DB_GRAPH.SchemeIterator(const obj: IFRE_DB_SchemeObject);
 begin
   if embeddedlist.IndexOf(uppercase(obj.DefinedSchemeName))>=0 then begin
    exit;
   end;
+  if (extendedclasslist.Count>0) and (extendedclasslist.IndexOf(uppercase(obj.DefinedSchemeName))<0) then
+    begin
+      exit;
+    end;
   plotlist.Add('struct'+lowercase(obj.DefinedSchemeName)+' [label=<');
   plotlist.Add('<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">');
   plotlist.Add('<tr><td align="left" colspan="3" PORT="sn" bgcolor="lightgreen"><u>'+uppercase(obj.DefinedSchemeName)+'</u></td></tr>');
@@ -364,7 +400,7 @@ begin
   plotlist.Add('</TABLE>>];');
   if assigned(obj.GetParentScheme) then
     begin
-      if obj.GetParentSchemeName<>'' then begin
+      if (obj.GetParentSchemeName<>'') and (obj.GetParentSchemeName<>'TFRE_DB_OBJECTEX') and (obj.GetParentSchemeName<>'TFRE_DB_NAMED_OBJECT')  then begin
        AddParent(obj.GetParentSchemeName,obj.DefinedSchemeName);
       end;
     end;
@@ -379,28 +415,47 @@ var sfrom        : string;
       ivaluecount  : integer;
       link_obj     : TFRE_DB_Object;
       irefcount    : int64;
+      ref_obj      : IFRE_DB_Object;
   begin
     if fld.FieldType = fdbft_ObjLink then begin
       if fld.ValueCount>0 then begin
         for ivaluecount     :=  0  to  fld.ValueCount-1 do begin
           CheckDbResult((conn as TFRE_DB_BASE_CONNECTION).Fetch(fld.AsObjectLinkArray[ivaluecount],link_obj),'inconsistency db links');
           sreference:='struct'+lowercase(obj.Schemeclass)+':'+lowercase(fld.Fieldname)+' -> struct'+lowercase(link_obj.SchemeClass)+':sn';
-          if referenceobj.FieldExists(sreference) then begin
-            irefcount    := referenceobj.Field(sreference).AsInt64;
+          if referenceobj.FieldExists(GFRE_BT.HashString_MD5_HEX(sreference)) then begin
+            irefcount:=referenceobj.Field(GFRE_BT.HashString_MD5_HEX(sreference)).AsObject.Field('refcount').asint64;
             inc(irefcount);
           end else begin
+            ref_obj:=GFRE_DBI.NewObject;
+            referenceobj.Field(GFRE_BT.HashString_MD5_HEX(sreference)).AsObject:=ref_obj;
+            referenceobj.Field(GFRE_BT.HashString_MD5_HEX(sreference)).AsObject.Field('reference').asstring:=sreference;
             irefcount    := 1;
           end;
-          referenceobj.Field (sreference).AsInt64:=irefcount;
+          referenceobj.Field(GFRE_BT.HashString_MD5_HEX(sreference)).AsObject.Field('refcount').asint64:=irefcount;
         end;
       end;
     end;
   end;
 
 begin
-  if obj.ReferencesObjectsFromData then begin
+//  writeln(obj.SchemeClass);
+//  if obj.ReferencesObjectsFromData then begin
     obj.ForallFields(@FieldIterate);
-  end;
+//  end;
+end;
+
+procedure TFRE_DB_GRAPH.AddClass(const objclassname: string);
+begin
+  if extendedclasslist.IndexOf(uppercase(objclassname))<0 then
+    begin
+//      writeln('SWL ADD CLASS:',uppercase(objclassname));
+      extendedclasslist.Add(uppercase(objclassname));
+    end;
+end;
+
+function TFRE_DB_GRAPH.IsInClassList(const objclassname: string): boolean;
+begin
+  result:=classlist.IndexOf(uppercase(objclassname))>=0;
 end;
 
 procedure TFRE_DB_GRAPH.PlotEnd;
@@ -421,6 +476,7 @@ var
 
 begin
   process     := TFRE_Process.Create(nil);
+//  plotlist.SaveToFile('plot');
   instream    := TStringStream.Create(plotlist.Text);
   errorstream := TStringStream.Create('');
   try

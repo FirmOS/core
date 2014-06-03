@@ -110,9 +110,9 @@ type
   end;
 
   TFRE_DB_FIELDTYPE     = (fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream,fdbft_Object,fdbft_ObjLink);
-  TFRE_DB_DISPLAY_TYPE  = (dt_string,dt_date,dt_number,dt_number_pb,dt_currency,dt_icon,dt_boolean);
+  TFRE_DB_DISPLAY_TYPE  = (dt_string,dt_date,dt_number,dt_number_pb,dt_currency,dt_icon,dt_boolean,dt_description);
   TFRE_DB_MESSAGE_TYPE  = (fdbmt_error,fdbmt_warning,fdbmt_info,fdbmt_confirm,fdbmt_wait);
-
+  TFRE_DB_FIELDTYPE_Array = Array of TFRE_DB_FIELDTYPE;
 
 const
   CFRE_DB_FIELDTYPE              : Array[TFRE_DB_FIELDTYPE]               of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK');
@@ -125,7 +125,7 @@ const
   CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM','QUERY','DBTDM');
   CFRE_DB_LOGCATEGORY_INI_IDENT  : Array[TFRE_DB_LOGCATEGORY]             of String = ('NONE','PERSISTANCE','PERSISTANCE_NOTIFY','DB','MEMORY','REFERENCES','EXCEPTION','SERVER','HTTP_REQ','HTTP_RES','WEBSOCK','APPLICATION','SESSION','FLEXCOM','SERVER_DATA','WS_JSON','FLEX_IO','APSCOMM','HTTP_ZIP','HTTP_CACHE','STREAMING','QUERY','DBTM');
   CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');
-  CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','CUR','ICO','BOO');
+  CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','CUR','ICO','BOO','DES');
   CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
   CFRE_DB_SUBSEC_DISPLAY_TYPE    : array [TFRE_DB_SUBSEC_DISPLAY_TYPE]    of string = ('sec_dt_tab','sec_dt_vertical','sec_dt_hiddentab');
   CFRE_DB_SYS_DOMAIN_NAME        = 'SYSTEM';
@@ -542,8 +542,6 @@ type
   IFRE_DB_Enum                  = interface;
   IFRE_DB_COLLECTION            = interface;
   IFRE_DB_FieldSchemeDefinition = interface;
-  IFRE_DB_WORKFLOWSTEP          = interface;
-  IFRE_DB_WORKFLOW              = interface;
   IFRE_DB_DOMAIN                = interface;
   IFRE_DB_USER_RIGHT_TOKEN      = interface;
 
@@ -564,7 +562,6 @@ type
   IFRE_DB_Enum_Iterator                 = procedure (const obj : IFRE_DB_Enum) is nested;
   IFRE_DB_ClientFieldValidator_Iterator = procedure (const obj : IFRE_DB_ClientFieldValidator) is nested;
   IFRE_DB_Coll_Iterator                 = procedure (const coll: IFRE_DB_COLLECTION) is nested;
-  IFRE_DB_Workflow_Iterator             = procedure (const wfs : IFRE_DB_WORKFLOW) is nested;
   IFRE_DB_Domain_Iterator               = procedure (const obj : IFRE_DB_Domain) is nested;
 
   TFRE_DB_StreamingCallback             = procedure (const uid,fieldname: TFRE_DB_String ; const stream:TFRE_DB_Stream) is nested;
@@ -593,7 +590,6 @@ type
 
   IFRE_DB_CalcMethod           = procedure (const calcfieldsetter : IFRE_DB_CALCFIELD_SETTER) of object;
 
-  IFRE_DB_Invoke_WF_Method     = procedure (const WF_Step : IFRE_DB_WORKFLOWSTEP) of object;
   IFRE_DB_CS_CALLBACK          = procedure (const Input:IFRE_DB_Object) of Object;
   IFRE_DB_InvokeProcedure      = procedure (const Input:IFRE_DB_Object) of Object;
 
@@ -714,6 +710,7 @@ type
     function        FieldOnlyExistingObjAs             (const name:TFRE_DB_NameType; const classref : TFRE_DB_BaseClass ; var outobj) : boolean;
     function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
+    function        FieldPathCreate                    (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
@@ -796,6 +793,8 @@ type
     function        Fetch               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
     function        CollectionName      (const unique:boolean=false): TFRE_DB_NameType;
     function        DomainCollName      (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
+    function        IsADomainCollection : Boolean;
+
 
     function        ItemCount           : Int64;
     function        First               : IFRE_DB_Object;
@@ -1317,6 +1316,7 @@ type
     function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
     procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
     procedure FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
+    function  FDB_GetAllCollsNames          :TFRE_DB_NameTypeArray;
     procedure FDB_PrepareDBRestore          (const phase:integer);
     procedure FDB_SendObject                (const obj:IFRE_DB_Object);
     procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
@@ -1459,9 +1459,14 @@ type
     function    AdmGetRoleCollection          :IFRE_DB_COLLECTION;
     function    AdmGetGroupCollection         :IFRE_DB_COLLECTION;
     function    AdmGetDomainCollection        :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection         :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection      :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection:IFRE_DB_COLLECTION;
     function    GetSysDomainUID               :TGUID;
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    procedure   DrawScheme                    (const datastream:TStream; const classfile:string);
+
   end;
 
 
@@ -1541,7 +1546,7 @@ type
     //function    CheckRightForGroup          (const right_name:TFRE_DB_String;const group_uid : TGuid) : boolean;
     procedure   StartTransaction            (const trans_id: TFRE_DB_NameType ; const trans_type : TFRE_DB_TRANSACTION_TYPE);
     procedure   Commit                      ;
-    procedure   DrawScheme                  (const datastream:TStream);
+    procedure   DrawScheme                  (const datastream:TStream; const classfile:string);
 
     function    GetDatabaseObjectCount      (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
     procedure   ForAllDatabaseObjectsDo     (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil ); { Warning may take some time, delivers a clone }
@@ -1575,15 +1580,6 @@ type
 
 
   TFRE_DB_CONTENT_DESC_ARRAY = array of TFRE_DB_CONTENT_DESC;
-
-  TFRE_DB_WORKFLOW_STATE = (wfs_INVALID,wfs_RUNNING,wfs_COMPLETED_OK,wfs_FAILED);
-
-  IFRE_DB_WORKFLOWSTEP=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
-    ['IFDWFS']
-  end;
-  IFRE_DB_WORKFLOW=interface(IFRE_DB_NAMED_OBJECT_PLAIN)
-    ['IFDWF']
-  end;
 
   IFRE_DB_APPLICATION=interface(IFRE_DB_COMMON)
     ['IFDBAPP']
@@ -1762,6 +1758,7 @@ type
     function        FieldOnlyExistingObjAs             (const name:TFRE_DB_NameType; const classref : TFRE_DB_BaseClass ; var outobj) : boolean;
     function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
     function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
+    function        FieldPathCreate                    (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
@@ -1921,6 +1918,25 @@ type
     class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
+
+  { TFRE_DB_AUDIT_ENTRY }
+
+  TFRE_DB_AUDIT_ENTRY=class(TFRE_DB_ObjectEx)
+  public
+  protected
+    class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
+  { TFRE_DB_WORKFLOW_STEP }
+
+  TFRE_DB_WORKFLOW_STEP=class(TFRE_DB_ObjectEx)
+  public
+  protected
+    class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
 
   { TFRE_DB_UNCONFIGURED_MACHINE }
 
@@ -3624,6 +3640,78 @@ begin
   FKey := key;
 end;
 
+{ TFRE_DB_AUDIT_ENTRY }
+
+class procedure TFRE_DB_AUDIT_ENTRY.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName(TFRE_DB_ObjectEx.Classname);
+  scheme.AddSchemeField('user',fdbft_ObjLink).required:=true; { the user who set the action }
+  scheme.AddSchemeField('action_lang_key',fdbft_String);      { the description of the action, LANGUAGE KEY ? - TRANSLATION}
+  scheme.AddSchemeField('action_ts',fdbft_DateTimeUTC);       { timestamp of the action}
+  scheme.AddSchemeField('note',fdbft_String);                 { inline note / which may be filled in by the user}
+end;
+
+class procedure TFRE_DB_AUDIT_ENTRY.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+end;
+
+{ TFRE_DB_WORKFLOW_STEP }
+
+class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+var
+  group: IFRE_DB_InputGroupSchemeDefinition;
+begin
+  inherited RegisterSystemScheme(scheme);
+  {
+    workflows can be either in the workflow scheme collection (to define a scheme, or in the workflow collection where scheme levels are linked to parent steps which may or may not be copied from schemes
+    example one OE MODULE  points to a level of = steps 1, 2, 2 ,2 ,3 , 4 ,4 , 5 , and one Error step in the Workflow Scheme Collection
+    when the the Orrder is Entered, then multiple products and modules  are grouped under one ORDER WF Step (Parent)-> and one WF Step per Product (Childs)-> and all LEVEL STEPS From each OE MODULE (Childs)
+    in the WF Collection (not the wf scheme collection)
+    the workflow engine advances to the next step id in this level, when all parallel id's are done, and the time condition is satisfied
+  }
+  scheme.AddSchemeField('step_caption',fdbft_String);         { caption of the workflow step }
+  scheme.AddSchemeField('step_parent',fdbft_ObjLink);         { parent of this step }
+  scheme.AddSchemeField('step_id',fdbft_UInt32);              { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
+  scheme.AddSchemeField('is_error_step',fdbft_Boolean);       { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
+  scheme.AddSchemeField('step_state',fdbft_UInt32);           { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
+  scheme.AddSchemeField('designated_user',fdbft_ObjLink);     { this user should do the step }
+  scheme.AddSchemeField('designated_group',fdbft_ObjLink);    { exor this group should do the step }
+  scheme.AddSchemeField('done_by_user',fdbft_ObjLink);        { who has done the step }
+  scheme.AddSchemeField('auth_group',fdbft_ObjLink);          { step needs auth by this group }
+  scheme.AddSchemeField('auth_by_user',fdbft_ObjLink);        { if the action was required to be authorized, by whom it was authorized}
+  scheme.AddSchemeField('creation_ts',fdbft_DateTimeUTC);     { timestamp of the creation of the action}
+  scheme.AddSchemeField('finalization_ts',fdbft_DateTimeUTC); { timestamp of the finalization }
+  scheme.AddSchemeField('may allowed_time',fdbft_UInt32);     { time in seconds when the action is considered to be failed, and advances to failed state automatically }
+  scheme.AddSchemeField('auth_ts',fdbft_DateTimeUTC);         { timestamp of the auth action }
+  scheme.AddSchemeField('note',fdbft_String);                 { inline note / which may be filled in by the user}
+  scheme.AddSchemeField('sys_note',fdbft_String);             { inline note / which may be filled in by the system (e.g. chosen IP adress, whatever) }
+  scheme.AddSchemeField('sys_progress',fdbft_String);         { system progress string, filled in by a (feeder) or the system }
+  scheme.AddSchemeField('user_progress',fdbft_String);        { progress text that is presented to the end user (webuser), which hides detail of the actual progress, may be the same text for several steps or changing percent values / translation key ? .}
+  scheme.AddSchemeField('manual_action',fdbft_String);        { manual action, which needs to be confirmed as OK or FAILED by the USER }
+  scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
+  scheme.AddSchemeField('action_method',fdbft_String);        { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
+  group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
+
+end;
+
+class procedure TFRE_DB_WORKFLOW_STEP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  newVersionId:='0.1';
+  if (currentVersionId='UNUSED') then currentVersionId:='';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+
+    StoreTranslateableText(conn,'scheme_main_group','General Information');
+    StoreTranslateableText(conn,'scheme_step_caption','Caption');
+  end;
+
+end;
+
 { TFRE_DB_UNCONFIGURED_MACHINE }
 
 class procedure TFRE_DB_UNCONFIGURED_MACHINE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -3778,8 +3866,8 @@ class procedure TFRE_DB_NOTE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOB
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.SetParentSchemeByName(TFRE_DB_ObjectEx.Classname);
-//  scheme.AddSchemeField('linkid',fdbft_ObjLink).required:=true;
   scheme.AddSchemeField('link',fdbft_String).required:=true;
+  scheme.AddSchemeField('notetyp',fdbft_String); { IF EMPTY this is a Fully User definable NOTE (no logical meaning) -> If set it may be used by the Application logic () }
   scheme.AddSchemeField('note',fdbft_String);
 end;
 
@@ -6731,6 +6819,11 @@ end;
 function TFRE_DB_ObjectEx.FieldPath(const name: TFRE_DB_String; const dont_raise_ex: boolean): IFRE_DB_FIELD;
 begin
   result := FImplementor.FieldPath(name,dont_raise_ex);
+end;
+
+function TFRE_DB_ObjectEx.FieldPathCreate(const name: TFRE_DB_String): IFRE_DB_FIELD;
+begin
+  result := FImplementor.FieldPathCreate(name);
 end;
 
 function TFRE_DB_ObjectEx.FieldPathExists(const name: TFRE_DB_String): Boolean;

@@ -406,8 +406,9 @@ type
 
   TFRE_DB_Master_Data=class(TObject)
   private
+    FSystemMasterData          : TFRE_DB_Master_Data;
     F_DB_TX_Number             : Qword;
-    FMastername                : String;
+    FMyMastername                : String;
     FMasterPersistentObjStore  : TFRE_ART_TREE;
     FMasterVolatileObjStore    : TFRE_ART_TREE;
     FMasterRefLinks            : TFRE_ART_TREE;
@@ -445,7 +446,7 @@ type
 
     procedure    FDB_CleanUpMasterData                                    ;
 
-    constructor Create                (const master_name : string ; const Layer : IFRE_DB_PERSISTANCE_LAYER);
+    constructor Create                (const master_name: string; const Layer: IFRE_DB_PERSISTANCE_LAYER; const SystemMasterData: TFRE_DB_Master_Data);
     destructor  Destroy               ; override;
 
     function    GetReferences         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
@@ -3382,7 +3383,13 @@ begin
   if value<>$BAD0BEEF then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, value invalid [%d]',[value]);
   if not FetchObject(to_uid,to_obj,true) then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)]);
+    begin
+      if not assigned(FSystemMasterData) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)])
+      else
+        if not FSystemMasterData.FetchObject(to_uid,to_obj,true) then
+          raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)]);
+    end;
   if assigned(notifif) then
     begin
       to_obj.Set_Store_LockedUnLockedIf(false,lock_state);
@@ -3451,7 +3458,13 @@ var j       : NativeInt;
 begin
   //writeln('TODO _ PARALLEL CHECK OF REFLINK INDEX TREE');
   if not FetchObject(link,ref_obj,true) then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)]);
+    begin
+      if not assigned(FSystemMasterData) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)])
+      else
+        if not FSystemMasterData.FetchObject(link,ref_obj,true) then
+          raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)]);
+    end;
   if obj.IsVolatile or obj.IsSystem then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the linking object is volatile or system!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)]);
   scheme_link := uppercase(fieldname+'>'+ref_obj.SchemeClass);
@@ -3479,7 +3492,13 @@ begin
   FREDB_SplitRefLinkDescription(FromFieldToSchemename,fieldname,schemename);
 
   if not FetchObject(references_to,ref_obj,true) then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,GFRE_BT.GUID_2_HexString(references_to)]);
+    begin
+      if not assigned(FSystemMasterData) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,GFRE_BT.GUID_2_HexString(references_to)])
+      else
+        if not FSystemMasterData.FetchObject(references_to,ref_obj,true) then
+          raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,GFRE_BT.GUID_2_HexString(references_to)])
+    end;
   if not ref_obj.IsObjectRoot then
     begin
       writeln('SSSLL :::');
@@ -3846,14 +3865,26 @@ end;
 //end;
 //
 
-constructor TFRE_DB_Master_Data.Create(const master_name: string ; const Layer : IFRE_DB_PERSISTANCE_LAYER);
+constructor TFRE_DB_Master_Data.Create(const master_name: string ; const Layer : IFRE_DB_PERSISTANCE_LAYER ; const SystemMasterData : TFRE_DB_Master_Data);
 begin
   FMasterPersistentObjStore := TFRE_ART_TREE.Create;
   FMasterVolatileObjStore   := TFRE_ART_TREE.Create;
   FMasterRefLinks           := TFRE_ART_TREE.Create;
   FMasterCollectionStore    := TFRE_DB_CollectionManageTree.Create;
+  FMyMastername             := master_name;
+  FSystemMasterData         := SystemMasterData;
   F_DB_TX_Number            := 0;
   FLayer                    := Layer;
+  if (uppercase(master_name)='SYSTEM') then
+    begin
+      if (SystemMasterData<>nil) then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'BAD SYSTEM MASTER SHOULD NOT REFERENCE SYSTEM MASTER!!!');
+    end
+  else
+    if (SystemMasterData=nil) then
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'BAD NON SYSTEM MASTER SHOULD REFERENCE A SYSTEM MASTER!!!');
+  if FMyMastername='' then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'BAD NO NAME');
 end;
 
 destructor TFRE_DB_Master_Data.Destroy;
@@ -3987,8 +4018,8 @@ begin
          obj.Assert_CheckStoreLocked;
          obj.Set_Store_Locked(false);
          try
-          if Length(obj.__InternalGetCollectionList)<1 then
-            abort;
+          //if Length(obj.__InternalGetCollectionList)<1 then
+          //  abort;
           clobj := obj.CloneToNewObject;
          finally
            obj.Set_Store_Locked(true);
@@ -4118,7 +4149,7 @@ end;
 procedure TFRE_DB_Master_Data.ApplyWAL(const WALStream: TStream);
 var WAL_Transaction : TFRE_DB_TransactionalUpdateList;
 begin
-  writeln('WAL REAPPLY/REPAIR ',FMastername);
+  writeln('WAL REAPPLY/REPAIR ',FMyMastername);
   while WALStream.Position<>WALStream.Size do
     begin
       WAL_Transaction := TFRE_DB_TransactionalUpdateList.Create('',self,nil);

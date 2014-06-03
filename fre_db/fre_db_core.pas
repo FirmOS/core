@@ -544,6 +544,7 @@ type
     function        IFRE_DB_Object.ParentField         = ParentFieldI;
     function        IFRE_DB_Object.Parent              = ParentI;
     function        IFRE_DB_Object.FieldPath           = FieldPathI;
+    function        IFRE_DB_Object.FieldPathCreate     = FieldPathCreateI;
     function        IFRE_DB_Object.Field               = FieldI;
     function        IFRE_DB_Object.CloneToNewObject    = CloneToNewObjectI;
     function        IFRE_DB_Object.GetScheme           = GetSchemeI;
@@ -623,8 +624,10 @@ type
     function        FieldOnlyExistingObjI              (const name:TFRE_DB_NameType):IFRE_DB_Object;
     function        FieldOnlyExistingObject            (const name:TFRE_DB_NameType; var obj:IFRE_DB_Object):boolean;
     function        FieldOnlyExistingObjAs             (const name:TFRE_DB_NameType; const classref : TFRE_DB_BaseClass ; var outobj) : boolean;
-    function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):TFRE_DB_FIELD;virtual;
-    function        FieldPathI                         (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;virtual;
+    function        FieldPath                          (const name:TFRE_DB_String;const dont_raise_ex:boolean=false;const create_non_existing:boolean=false):TFRE_DB_FIELD;
+    function        FieldPathI                         (const name:TFRE_DB_String;const dont_raise_ex:boolean=false):IFRE_DB_FIELD;
+    function        FieldPathCreate                    (const name:TFRE_DB_String):TFRE_DB_FIELD;
+    function        FieldPathCreateI                   (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name: TFRE_DB_String): Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
     function        FieldCount                         (const without_calcfields:boolean): SizeInt;
@@ -783,6 +786,7 @@ type
     function  IFRE_DB_NAMED_OBJECT.ParentField      = ParentFieldI;
     function  IFRE_DB_NAMED_OBJECT.Parent           = ParentI;
     function  IFRE_DB_NAMED_OBJECT.FieldPath        = FieldPathI;
+    function  IFRE_DB_NAMED_OBJECT.FieldPathCreate  = FieldPathCreateI;
     function  IFRE_DB_NAMED_OBJECT.Field            = FieldI;
     function  IFRE_DB_NAMED_OBJECT.GetScheme        = GetSchemeI;
     function  IFRE_DB_NAMED_OBJECT.CloneToNewObject = CloneToNewObjectI;
@@ -1380,6 +1384,7 @@ type
     function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
 
     function        IsVolatile          : Boolean;
+    function        IsADomainCollection : Boolean;
 
     function        ItemCount      : Int64         ; virtual;
     function        First          : TFRE_DB_Object; virtual;
@@ -1921,7 +1926,7 @@ type
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
     function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual; // with user rights
-    procedure          DrawScheme                   (const datastream:TStream);
+    procedure          DrawScheme                   (const datastream:TStream;const classfile:string)                        ; virtual;
   end;
 
   { TFRE_DB_USER_RIGHT_TOKEN }
@@ -2001,6 +2006,9 @@ type
     FSysDomains          : TFRE_DB_COLLECTION;
     FSysUserSessionsData : TFRE_DB_COLLECTION;
     FSysSingletons       : TFRE_DB_COLLECTION;
+    FSysWorkflow         : TFRE_DB_COLLECTION; { the steps, may be with additional hierarchic levels }
+    FSysWorkflowScheme   : TFRE_DB_COLLECTION; { the schemes, hierarchic }
+    FSysAudit            : TFRE_DB_COLLECTION;
 
     FCurrentUserToken    : TFRE_DB_USER_RIGHT_TOKEN;
 
@@ -2175,6 +2183,7 @@ type
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
     function    DelClassesVersionDirectory  : TFRE_DB_Errortype;
 
+    procedure   DrawScheme                   (const datastream:TStream;const classfile:string);override;
 
     function    DumpUserRights               :TFRE_DB_String;
 
@@ -2248,13 +2257,16 @@ type
     //function    FetchInternal               (const ouid:TGUID;out dbo:TFRE_DB_Object) : boolean; override;
 
 
-    function    AdmGetUserCollection           :IFRE_DB_COLLECTION;
-    function    AdmGetRoleCollection           :IFRE_DB_COLLECTION;
-    function    AdmGetGroupCollection          :IFRE_DB_COLLECTION;
-    function    AdmGetDomainCollection         :IFRE_DB_COLLECTION;
+    function    AdmGetUserCollection        :IFRE_DB_COLLECTION;
+    function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
+    function    AdmGetGroupCollection       :IFRE_DB_COLLECTION;
+    function    AdmGetDomainCollection      :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection       :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection    :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection :IFRE_DB_COLLECTION;
 
-    function    FetchUserSessionData           (var SessionData: IFRE_DB_OBJECT):boolean;
-    function    StoreUserSessionData           (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
+    function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
+    function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
 
     function    FetchTranslateableTextObj      (const trans_key:TFRE_DB_String;var text:IFRE_DB_TEXT):boolean;
     function    FetchTranslateableTextShort    (const translation_key:TFRE_DB_String):TFRE_DB_String;
@@ -2269,7 +2281,6 @@ type
     function    GetReferencesDetailed          (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;override;
     function    FetchDomainUIDbyName           (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
 
-
     procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_ObjectArray); { TODO: BulkFetch, UserToken usage}
     procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);   { TODO: BulkFetch, UserToken usage}
     procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray); { TODO: BulkFetch, UserToken usage}
@@ -2280,6 +2291,7 @@ type
     function    GetSysDomainUID                :TGUID; override;
     function    GetMyDomainID                  :TFRE_DB_GUID; override;
     function    AddDomain                      (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
+    procedure   DrawScheme                   (const datastream:TStream;const classfile:string) ; override ;
     function    GetCurrentUserToken            :IFRE_DB_USER_RIGHT_TOKEN;override;
   end;
 
@@ -3273,6 +3285,7 @@ begin
   end;
   case FGuiDisplaytype of
     dt_string: ;
+    dt_description: ;
     dt_date: ;
     dt_number: ;
     dt_number_pb: ;
@@ -4398,7 +4411,7 @@ begin
   Scheme.Strict(true);
   Scheme.SetParentSchemeByName(TFRE_DB_NAMED_OBJECT.ClassName);
   scheme.AddSchemeField('appdataid',fdbft_ObjLink).SetupFieldDef(false,true);
-  scheme.AddSchemeFieldSubscheme('rights','TFRE_DB_RIGHT').multiValues:=true;
+//  scheme.AddSchemeFieldSubscheme('rights','TFRE_DB_RIGHT').multiValues:=true;
   scheme.AddSchemeField('domainidlink',fdbft_ObjLink).SetupFieldDef(false,false);
   scheme.AddSchemeField('domainrolekey',fdbft_String).SetupFieldDef(false,false);
   scheme.AddCalcSchemeField('displayname',fdbft_String,@_calcDisplayName);
@@ -4520,7 +4533,8 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysUserGroup') then begin
-      coll := Collection('SysUserGroup'); // Instance (new) Collections here with false parameter
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysUserGroup');
+      coll := Collection('SysUserGroup');
       coll.DefineIndexOnField('domaingroupkey',fdbft_String,True,True);
     end;
     FSysGroups := Collection('SysUserGroup');
@@ -4530,16 +4544,44 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysNoteCollection') then begin
-      coll := Collection('SysNoteCollection'); // Instance (new) Collections here with false parameter
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysNoteCollection');
+      coll := Collection('SysNoteCollection');
       coll.DefineIndexOnField('link',fdbft_String,True,True);
     end;
     FSysNotes := Collection('SysNoteCollection');
+  end;
+
+  procedure SetupWorkflowCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysWorkflow') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflow');
+      coll := Collection('SysWorkflow');
+    end;
+    FSysWorkflow := Collection('SysWorkflow');
+
+    if not CollectionExists('SysWorkflowScheme') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowScheme');
+      coll := Collection('SysWorkflowScheme');
+    end;
+    FSysWorkflowScheme := Collection('SysWorkflowScheme');
+  end;
+
+  procedure SetupAuditCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysAudit') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysAudit');
+      coll := Collection('SysAudit');
+    end;
+    FSysAudit := Collection('SysAudit');
   end;
 
   procedure SetupSingletonCollection;
   var coll : TFRE_DB_COLLECTION;
   begin
     if not CollectionExists('SysSingleton') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysSingleton');
       coll := Collection('SysSingleton');
       coll.DefineIndexOnField('singletonkey',fdbft_String,True,True);
     end;
@@ -4585,6 +4627,8 @@ begin
   SetupUserGroupCollection;
   SetupSystemDomain;
   SetupNoteCollection;
+  SetupAuditCollection;
+  SetupWorkflowCollection;
   CheckStandardUsers;
 end;
 
@@ -5731,6 +5775,11 @@ begin
     result := edb_NOT_FOUND;
 end;
 
+procedure TFRE_DB_SYSTEM_CONNECTION.DrawScheme(const datastream: TStream; const classfile: string);
+begin
+  inherited DrawScheme(datastream, classfile);
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.DumpUserRights: TFRE_DB_String;
 begin
   result := FCurrentUserToken.DumpUserRights;
@@ -6083,8 +6132,14 @@ begin //nl
 end;
 
 
-procedure TFRE_DB_BASE_CONNECTION.DrawScheme(const datastream: TStream);
-var  dbgraph : TFRE_DB_GRAPH;
+procedure TFRE_DB_BASE_CONNECTION.DrawScheme(const datastream: TStream; const classfile: string);
+var  dbgraph     : TFRE_DB_GRAPH;
+     checkedobjs : IFRE_DB_Object;
+
+  procedure nestedObjectIterator(const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
+  begin
+   dbgraph.ObjectIterator(obj,self);
+  end;
 
   procedure nestedCollectionIterator(const coll: IFRE_DB_Collection);
   begin
@@ -6101,25 +6156,59 @@ var  dbgraph : TFRE_DB_GRAPH;
     dbgraph.SchemeIterator(obj);
   end;
 
-  procedure nestedObjectIterator(const obj:IFRE_DB_OBJECT);
-  begin
-    dbgraph.ObjectIterator(obj,self);
-  end;
+  procedure nestedObjectCheckClassesIterator(const obj:IFRE_DB_Object; var halt:boolean ; const current,max : NativeInt);
 
-  procedure nestedCollectionObjectIterator(const coll: IFRE_DB_Collection);
+    procedure CheckObjectReferences(const dobj:IFRE_DB_Object);
+    var refs: TFRE_DB_ObjectReferences;
+           i: NativeInt;
+        sobj: IFRE_DB_Object;
+    begin
+     dbgraph.AddClass(dobj.SchemeClass);
+//     writeln('DOBJ:',dobj.UID_String);
+     if checkedobjs.FieldExists(dobj.UID_String) then
+       exit
+     else
+       checkedobjs.Field(dobj.UID_String).AsBoolean:=true;
+
+     refs := GetReferencesDetailed(dobj.UID,false);
+
+     for i:=0 to high(refs) do
+       begin
+         CheckDbResult(FetchI(refs[i].linked_uid,sobj),'could not fetch object on to references for '+dobj.UID_String);
+//         writeln('SOBJ1:',sobj.UID_String);
+         CheckObjectReferences(sobj);
+         sobj.Finalize;
+       end;
+     refs := GetReferencesDetailed(dobj.UID,true);
+     for i:=0 to high(refs) do
+       begin
+         CheckDbResult(FetchI(refs[i].linked_uid,sobj),'could not fetch object on for references for '+dobj.UID_String);
+//         writeln('SOBJ2:',sobj.UID_String);
+         CheckObjectReferences(sobj);
+         sobj.Finalize;
+       end;
+    end;
+
   begin
-    coll.ForAll(@nestedObjectIterator);
+//    writeln('SWL: CHECK OBJ SCHEME:',obj.SchemeClass);
+    if dbgraph.IsInClasslist(obj.SchemeClass) then
+      begin
+        CheckObjectReferences(obj);
+      end;
   end;
 
 begin
-  writeln('DrawScheme');
   dbgraph        :=        TFRE_DB_GRAPH.Create;
   try
+    dbgraph.SetClassfile(classfile);
     dbgraph.PlotStart;
+    checkedobjs := GFRE_DBI.NewObject;
+    self.ForAllDatabaseObjectsDo(@nestedObjectCheckClassesIterator);
+    checkedobjs.Finalize;
     self.ForAllCollsI(@nestedCollectionIterator);
     self.ForAllSchemesI(@nestedEmbeddedIterator);
     self.ForAllSchemesI(@nestedSchemeIterator);
-    self.ForAllCollsI(@nestedCollectionObjectIterator);
+    self.ForAllDatabaseObjectsDo(@nestedObjectIterator);
     dbgraph.PlotEnd;
     dbgraph.PlotScheme(datastream);
   finally
@@ -9877,6 +9966,19 @@ begin
   result := FObjectLinkStore.IsVolatile;
 end;
 
+function TFRE_DB_COLLECTION.IsADomainCollection: Boolean;
+var domuid : TFRE_DB_GUID;
+begin
+  if Length(FName)<=32 then { this solution is (c) by HellySoft }
+    exit(false);
+  try
+    domuid := FREDB_H2G(copy(FName,1,32));
+    exit(true);
+  except
+    exit(false);
+  end;
+end;
+
 function TFRE_DB_COLLECTION.ItemCount: Int64;
 begin
   result := FObjectLinkStore.Count;
@@ -9969,15 +10071,13 @@ begin // Nolock R/O
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllCollsI(const iterator: IFRE_DB_Coll_Iterator);
-
-  procedure Iterate(const collection : TFRE_DB_COLLECTION);
-  begin
-     iterator(collection);
-  end;
-
+var colls : TFRE_DB_NameTypeArray;
+    cname : TFRE_DB_NameType;
 begin // Nolock R/O
   _ConnectCheck;
-  FCollectionStore.ForAllItems(@Iterate);
+  colls :=  FPersistance_Layer.FDB_GetAllCollsNames;
+  for cname in colls do
+    iterator(GetCollection(cname));
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllSchemesI(const iterator: IFRE_DB_Scheme_Iterator);
@@ -11185,6 +11285,21 @@ begin //nl
  result := FSysConnection.FSysDomains; // TODO: CHECK RIGHTS
 end;
 
+function TFRE_DB_CONNECTION.AdmGetAuditCollection: IFRE_DB_COLLECTION;
+begin
+  result := FSysConnection.FSysAudit;
+end;
+
+function TFRE_DB_CONNECTION.AdmGetWorkFlowCollection: IFRE_DB_COLLECTION;
+begin
+ result := FSysConnection.FSysWorkflow;
+end;
+
+function TFRE_DB_CONNECTION.AdmGetWorkFlowSchemeCollection: IFRE_DB_COLLECTION;
+begin
+  result := FSysConnection.FSysWorkflowScheme;
+end;
+
 
 function TFRE_DB_CONNECTION.FetchUserSessionData(var SessionData: IFRE_DB_OBJECT): boolean;
 begin //nl
@@ -11534,6 +11649,11 @@ end;
 function TFRE_DB_CONNECTION.GetCurrentUserToken: IFRE_DB_USER_RIGHT_TOKEN;
 begin
   result := FSysConnection.GetCurrentUserToken;
+end;
+
+procedure TFRE_DB_CONNECTION.DrawScheme(const datastream: TStream; const classfile: string);
+begin
+   inherited DrawScheme(datastream, classfile);
 end;
 
 
@@ -14273,7 +14393,7 @@ begin
      TObject(outobj) := obj as classref;
 end;
 
-function TFRE_DB_Object.FieldPath(const name: TFRE_DB_String; const dont_raise_ex: boolean): TFRE_DB_FIELD;
+function TFRE_DB_Object.FieldPath(const name: TFRE_DB_String; const dont_raise_ex: boolean; const create_non_existing: boolean): TFRE_DB_FIELD;
 var fp :TFOSStringArray;
     i  : Integer;
     obj:TFRE_DB_Object;
@@ -14286,12 +14406,15 @@ begin
     if Length(fp)>0 then begin
       obj := self;
       for i:=0 to high(fp)-1 do begin
-        if not obj.FieldExists(fp[i]) then exit;
+        if (not obj.FieldExists(fp[i])) and (create_non_existing=false) then
+          exit;
         obj := obj.Field(fp[i]).AsObject;
-        if not assigned(obj) then exit;
+        if not assigned(obj) then
+          exit;
       end;
       nam := fp[high(fp)];
-      if not obj.FieldExists(nam) then exit;
+      if (not obj.FieldExists(nam)) and (create_non_existing=false) then
+        exit;
       result := obj.Field(nam);
     end else begin
       result := nil;
@@ -14304,6 +14427,16 @@ end;
 function TFRE_DB_Object.FieldPathI(const name: TFRE_DB_String; const dont_raise_ex: boolean): IFRE_DB_FIELD;
 begin
   result := FieldPath(name,dont_raise_ex);
+end;
+
+function TFRE_DB_Object.FieldPathCreate(const name: TFRE_DB_String): TFRE_DB_FIELD;
+begin
+  result := FieldPath(name,false,true);
+end;
+
+function TFRE_DB_Object.FieldPathCreateI(const name: TFRE_DB_String): IFRE_DB_FIELD;
+begin
+  result := FieldPathCreate(name);
 end;
 
 function TFRE_DB_Object.FieldPathExists(const name: TFRE_DB_String): Boolean;

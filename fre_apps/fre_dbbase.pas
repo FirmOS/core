@@ -68,6 +68,8 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_APPLICATION);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_APPLICATION_MODULE);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_NOTE);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_WORKFLOW_STEP);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_AUDIT_ENTRY);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_UNCONFIGURED_MACHINE);
   GFRE_DBI.Initialize_Extension_Objects;
 end;
