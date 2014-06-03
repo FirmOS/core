@@ -10208,25 +10208,17 @@ begin
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.SendNotificationBlock(const block: IFRE_DB_Object);
-var s     : string;
-    blk   : IFRE_DB_Object;
-    dummy : TFRE_DB_NameType;
 
   procedure SendBlockToClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
-  var ldummy : TFRE_DB_NameType;
-      blk   : IFRE_DB_Object;
   begin
     conn.AcquireConnLock;
     try
       if not conn.FCloned then
         raise EFRE_DB_Exception.Create(edb_INTERNAL,'must be a clone !');
       try
-        if assigned(conn.FBoundSession) then { apply block to session }
-          conn.FBoundSession.InboundNotificationBlock(block.CloneToNewObject);
-
-        //conn.StartNotificationBlock(block.Field('KEY').AsString);
-        FREDB_ApplyNotificationBlockToNotifIF_Connection(block.CloneToNewObject,conn,ldummy);
-        //conn.FinishNotificationBlock(blk);
+        FREDB_ApplyNotificationBlockToNotifIF_Connection(block.CloneToNewObject,conn); { metadata changes for cloned connection }
+        if assigned(conn.FBoundSession) then
+          conn.FBoundSession.InboundNotificationBlock(block.CloneToNewObject); { apply block to session, session updates -> differential FORM updates }
       except
         on E: Exception do
           begin
@@ -10238,18 +10230,13 @@ var s     : string;
     end;
   end;
 
-
 begin
   try
-    block.Field('L').AsString := FDBName;  { set layer for session processing }
-    GFRE_DB_TCDM.InboundNotificationBlock(FDBName,block);
-    FConnectionClones.ForAllBreak(@SendBlockToClones);
-    //self.StartNotificationBlock(block.Field('KEY').AsString);
-    FREDB_ApplyNotificationBlockToNotifIF_Connection(block,self,dummy);
-    //self.FinishNotificationBlock(blk);
+    FREDB_ApplyNotificationBlockToNotifIF_Connection(block,self); { metadata changes for master connection }
+    FConnectionClones.ForAllBreak(@SendBlockToClones);            { send metatada, and session updates }
+    GFRE_DB_TCDM.InboundNotificationBlock(FDBName,block);         { route data updates to the TCDM, Query updates (Grids) }
   except on e:exception do
     begin
-      s:='?';
       raise;
     end;
   end;

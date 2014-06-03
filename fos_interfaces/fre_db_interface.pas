@@ -1301,7 +1301,8 @@ type
 
   { IFRE_DB_PERSISTANCE_LAYER }
 
-  IFRE_DB_DBChangedNotificationBlock = interface;
+  IFRE_DB_DBChangedNotificationBlock = interface; { sending a bulk change from an transaction }
+  IFRE_DB_DBChangedNotification      = interface; { recording changes in the transaction }
 
   IFRE_DB_PERSISTANCE_LAYER=interface
     procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
@@ -1310,6 +1311,7 @@ type
     procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
     procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
     procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
+    procedure WT_TransactionID              (const number:qword);
 
     function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
     procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
@@ -1353,7 +1355,7 @@ type
 
     procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
     procedure SyncSnapshot                  (const final : boolean=false);
-    function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotificationBlock;
+    function  GetNotificationRecordIF       : IFRE_DB_DBChangedNotification; { to record changes }
   end;
 
   IFRE_DB_DBChangedNotification = interface
@@ -2612,7 +2614,6 @@ type
     FBoundSession_RA_SC   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
     FIsInteractive        : Boolean;
     FBindState            : TFRE_DB_SESSIONSTATE;
-    FCurrentNotificationBlockLayer : TFRE_DB_NameType; { this sied effect variable is set while executing a notif block }
 
     procedure     SetOnCheckUserNamePW   (AValue: TFRE_DB_OnCheckUserNamePassword);
     procedure     SetOnExistsUserSession (AValue: TFRE_DB_OnExistsUserSessionForKey);
@@ -2856,8 +2857,8 @@ type
   function  FREDB_String2EscapedJSString         (const input_string:TFRE_DB_String;const replace_cr_with_br:boolean=false) : TFRE_DB_String;
 
   procedure FREDB_ApplyNotificationBlockToNotifIF            (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification           ; var layer : TFRE_DB_NameType); { full block used in transaction, and in TransDM }
-  procedure FREDB_ApplyNotificationBlockToNotifIF_Connection (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationConnection ; var layer : TFRE_DB_NameType);
-  procedure FREDB_ApplyNotificationBlockToNotifIF_Session    (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationSession    ; var layer : TFRE_DB_NameType);
+  procedure FREDB_ApplyNotificationBlockToNotifIF_Connection (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationConnection);
+  procedure FREDB_ApplyNotificationBlockToNotifIF_Session    (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationSession);
 
   operator< (g1, g2: TGUID) b : boolean;
   operator> (g1, g2: TGUID) b : boolean;
@@ -4479,9 +4480,7 @@ procedure TFRE_DB_UserSession.COR_InboundNotifyBlock(const data: Pointer);
 var block : IFRE_DB_Object;
 begin
   block := GFRE_DBI.AnonObject2Interface(data);
-  FCurrentNotificationBlockLayer:='?';
-  FREDB_ApplyNotificationBlockToNotifIF_Session(block,self,FCurrentNotificationBlockLayer);
-  FCurrentNotificationBlockLayer:='?';
+  FREDB_ApplyNotificationBlockToNotifIF_Session(block,self);
 end;
 
 function TFRE_DB_UserSession.SearchSessionDC(dc_name: TFRE_DB_String; out dc: IFRE_DB_DERIVED_COLLECTION): boolean;
@@ -8326,14 +8325,15 @@ begin
       end;
 end;
 
-procedure FREDB_ApplyNotificationBlockToNotifIF_Connection(const block: IFRE_DB_Object; const deploy_if: IFRE_DB_DBChangedNotificationConnection; var layer: TFRE_DB_NameType);
+procedure FREDB_ApplyNotificationBlockToNotifIF_Connection(const block: IFRE_DB_Object; const deploy_if: IFRE_DB_DBChangedNotificationConnection);
 var cmd   : ShortString;
+    key   : TFRE_DB_String;
     objs  : IFRE_DB_ObjectArray;
     i     : NativeInt;
 
 begin
   objs  := block.Field('N').AsObjectArr;
-  layer := block.Field('L').AsString;
+  key := block.Field('KEY').AsString;
   for i:=0 to High(objs) do
     with objs[i] do
       begin
@@ -8347,14 +8347,13 @@ begin
       end;
 end;
 
-procedure FREDB_ApplyNotificationBlockToNotifIF_Session(const block: IFRE_DB_Object; const deploy_if: IFRE_DB_DBChangedNotificationSession; var layer: TFRE_DB_NameType);
+procedure FREDB_ApplyNotificationBlockToNotifIF_Session(const block: IFRE_DB_Object; const deploy_if: IFRE_DB_DBChangedNotificationSession);
 var cmd   : ShortString;
     objs  : IFRE_DB_ObjectArray;
     i     : NativeInt;
 
 begin
   objs  := block.Field('N').AsObjectArr;
-  layer := block.Field('L').AsString;
   for i:=0 to High(objs) do
     with objs[i] do
       begin

@@ -373,15 +373,6 @@ type
     function    GetCollectionCount   : Integer;
   end;
 
-  //TFRE_DB_REF_TYPE=(fredb_REFOUTBOUND,fredb_REFINBOUND);
-
-  //RFRE_DB_GUID_RefLink_Out_Key = packed record
-  //  GUID      : Array [0..15] of Byte;
-  //  RefTyp    : Byte;  // 17 Bytes // Outlink = $99 // Inlink= $AA
-  //  FieldName : Array [0..62] of Byte;
-  //end;
-  //PFRE_DB_GUID_RefLink_Out_Key = ^RFRE_DB_GUID_RefLink_Out_Key;
-
   RFRE_DB_GUID_RefLink_InOut_Key = packed record
     GUID            : Array [0..15] of Byte;
     RefTyp          : Byte; // 17 Bytes // Outlink = $99 // Inlink= $AA
@@ -391,23 +382,18 @@ type
   end;
   PFRE_DB_GUID_RefLink_In_Key = ^RFRE_DB_GUID_RefLink_InOut_Key;
 
+  var
+    G_DB_TX_Number             : Qword;
 
-  //{ TREF_LinkEncapsulation }
+  function     G_FetchNewTransactionID : QWord;
 
-  //TREF_LinkEncapsulation=class(Tobject)
-  //private
-  //  FLinks : TFRE_DB_GUIDArray;
-  //public
-  //  constructor Create (const links : TFRE_DB_GUIDArray);
-  //  function    Links  : TFRE_DB_GUIDArray;
-  //end;
 
+  type
   { TFRE_DB_Master_Data }
 
   TFRE_DB_Master_Data=class(TObject)
   private
     FSystemMasterData          : TFRE_DB_Master_Data;
-    F_DB_TX_Number             : Qword;
     FMyMastername                : String;
     FMasterPersistentObjStore  : TFRE_ART_TREE;
     FMasterVolatileObjStore    : TFRE_ART_TREE;
@@ -436,7 +422,6 @@ type
     procedure    _CheckRefIntegrityForObject (const obj:TFRE_DB_Object ; var ref_array : TFRE_DB_ObjectReferences ; var schemelink_arr : TFRE_DB_NameTypeRLArray);
 
   public
-    function     FetchNewTransactionID (const transid:string):String;
     function     GetPersistantRootObjectCount (const UppercaseSchemesFilter: TFRE_DB_StringArray=nil): Integer;
 
     function     InternalStoreObjectFromStable (const obj : TFRE_DB_Object) : TFRE_DB_Errortype;
@@ -469,6 +454,7 @@ type
   TFRE_DB_ChangeStep=class
   protected
     FLayer         : IFRE_DB_PERSISTANCE_LAYER;
+    Fmaster        : TFRE_DB_Master_Data;
     FIsStore       : Boolean; // TRUE = Store / False = UPDATE
     FIsWalReadBack : Boolean;
     FTransList     : TFRE_DB_TransactionalUpdateList;
@@ -481,17 +467,19 @@ type
     procedure      CheckWriteThroughObj        (obj: IFRE_DB_Object; const no_store_locking: boolean=true);
     procedure      CheckWriteThroughDeleteObj  (obj  : IFRE_DB_Object);
   public
-    constructor    Create                      (const layer : IFRE_DB_PERSISTANCE_LAYER);
+    constructor    Create                      (const layer : IFRE_DB_PERSISTANCE_LAYER ; const masterdata : TFRE_DB_Master_Data);
     function       Needs_WAL                   : Boolean; virtual; abstract;
     function       IsInsert                    : Boolean;
-    procedure      CheckExistence              (const master : TFRE_DB_Master_Data); virtual;    // CHECK:  Is Existence required or bad ?
+    procedure      CheckExistence              ; virtual;    // CHECK:  Is Existence required or bad ?
     procedure      WriteToWAL                  (const m:TMemoryStream); virtual ; abstract;
-    procedure      WalReconstructionphase      (const master : TFRE_DB_Master_Data); virtual;   // Regenerate Step Data not written to WAL
-    procedure      ChangeInCollectionCheckOrDo (const master : TFRE_DB_Master_Data ; const check : boolean); virtual ; abstract; { Do all collection related checks or stores (+collection indices) }
-    procedure      MasterStore                 (const master : TFRE_DB_Master_Data ; const check : boolean); virtual ; abstract; { Do all objectc related checks or stores, (+reflink index) }
-    class function CreateFromWal           (const wal : TStream) : TFRE_DB_Changestep;
+    procedure      WalReconstructionphase      ;virtual;   // Regenerate Step Data not written to WAL
+    procedure      ChangeInCollectionCheckOrDo (const check : boolean); virtual ; abstract; { Do all collection related checks or stores (+collection indices) }
+    procedure      MasterStore                 (const check : boolean); virtual ; abstract; { Do all objectc related checks or stores, (+reflink index) }
+    class function CreateFromWal               (const wal : TStream) : TFRE_DB_Changestep;
     procedure      SetStepID                   (const id:NativeInt);
     function       GetTransActionStepID        : TFRE_DB_TransStepId;
+    function       Master                      : TFRE_DB_Master_Data;
+    function       GetNotificationRecordIF     : IFRE_DB_DBChangedNotification; { the recording notification if }
   end;
 
   { TFRE_DB_NewCollectionStep }
@@ -503,11 +491,11 @@ type
     FNewCollection  : IFRE_DB_PERSISTANCE_COLLECTION;
     FCClassname     : Shortstring;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const coll_name: TFRE_DB_NameType;const CollectionClassname: Shortstring;const volatile_in_memory: boolean);
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType;const CollectionClassname: Shortstring;const volatile_in_memory: boolean);
     constructor CreateAsWALReadBack          (const coll_name: TFRE_DB_NameType);
-    procedure   CheckExistence               (const master : TFRE_DB_Master_Data); override;
-    procedure   ChangeInCollectionCheckOrDo  (const master: TFRE_DB_Master_Data; const check: boolean); override;
-    procedure   MasterStore                  (const master: TFRE_DB_Master_Data; const check: boolean); override;
+    procedure   CheckExistence               ; override;
+    procedure   ChangeInCollectionCheckOrDo  (const check: boolean); override;
+    procedure   MasterStore                  (const check: boolean); override;
     function    Needs_WAL                    : Boolean; override;
     procedure   WriteToWAL                   (const m: TMemoryStream); override;
     function    GetNewCollection             : IFRE_DB_PERSISTANCE_COLLECTION;
@@ -532,10 +520,10 @@ type
     Fallownull        : boolean;
     FUniqueNull       : boolean;
   public
-    constructor Create                       (const layer  : IFRE_DB_PERSISTANCE_LAYER;const coll_name: TFRE_DB_NameType ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
-    procedure   CheckExistence               (const master : TFRE_DB_Master_Data); override;
-    procedure   ChangeInCollectionCheckOrDo  (const master : TFRE_DB_Master_Data; const check: boolean); override;
-    procedure   MasterStore                  (const master : TFRE_DB_Master_Data; const check: boolean); override;
+    constructor Create                       (const layer  : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+    procedure   CheckExistence               ; override;
+    procedure   ChangeInCollectionCheckOrDo  (const check: boolean); override;
+    procedure   MasterStore                  (const check: boolean); override;
     function    Needs_WAL                    : Boolean; override;
     procedure   WriteToWAL                   (const m: TMemoryStream); override;
   end;
@@ -549,11 +537,11 @@ type
     FPersColl       : IFRE_DB_PERSISTANCE_COLLECTION;
     FVolatile       : boolean;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const coll_name: TFRE_DB_NameType);
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType);
     constructor CreateAsWALReadBack          (const coll_name: TFRE_DB_NameType);
-    procedure   CheckExistence               (const master : TFRE_DB_Master_Data); override;
-    procedure   ChangeInCollectionCheckOrDo  (const master: TFRE_DB_Master_Data; const check: boolean); override;
-    procedure   MasterStore                  (const master: TFRE_DB_Master_Data; const check: boolean); override;
+    procedure   CheckExistence               ; override;
+    procedure   ChangeInCollectionCheckOrDo  (const check: boolean); override;
+    procedure   MasterStore                  (const check: boolean); override;
     function    Needs_WAL                    : Boolean; override;
     procedure   WriteToWAL                   (const m: TMemoryStream); override;
   end;
@@ -568,12 +556,12 @@ type
     FCollName                 : TFRE_DB_NameType;
     FThisIsAnAddToAnotherColl : Boolean;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);  { ? is_store is used to differentiate the store from the update case}
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);  { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
     function    Needs_WAL: Boolean           ; override;
-    procedure   CheckExistence               (const master : TFRE_DB_Master_Data); override;
-    procedure   ChangeInCollectionCheckOrDo  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
-    procedure   MasterStore                  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   CheckExistence               ; override;
+    procedure   ChangeInCollectionCheckOrDo  (const check : boolean); override;
+    procedure   MasterStore                  (const check : boolean); override;
     procedure   WriteToWAL                   (const m:TMemoryStream);override;
   end;
 
@@ -585,12 +573,12 @@ type
     FColl     : IFRE_DB_PERSISTANCE_COLLECTION;
     FCollName : TFRE_DB_NameType;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean); { ? is_store is used to differentiate the store from the update case}
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean); { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
     function    Needs_WAL: Boolean           ; override;
-    procedure   CheckExistence               (const master : TFRE_DB_Master_Data); override;
-    procedure   ChangeInCollectionCheckOrDo  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
-    procedure   MasterStore                  (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   CheckExistence               ; override;
+    procedure   ChangeInCollectionCheckOrDo  (const check : boolean); override;
+    procedure   MasterStore                  (const check : boolean); override;
     procedure   WriteToWAL                   (const m:TMemoryStream);override;
   end;
 
@@ -602,22 +590,22 @@ type
     CollName               : TFRE_DB_NameType;
     FWouldNeedMasterDelete : Boolean;
   public
-    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const del_obj : TFRE_DB_Object ; const from_coll : TFRE_DB_NameType ; const is_store : boolean); // all collections or a single collection
+    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const del_obj : TFRE_DB_Object ; const from_coll : TFRE_DB_NameType ; const is_store : boolean); // all collections or a single collection
     function    Needs_WAL: Boolean            ; override;
     procedure   WriteToWAL                    (const m:TMemoryStream) ; override;
-    procedure   ChangeInCollectionCheckOrDo   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
-    procedure   MasterStore                   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   ChangeInCollectionCheckOrDo   (const check : boolean); override;
+    procedure   MasterStore                   (const check : boolean); override;
   end;
 
     { TFRE_DB_DeleteSubObjectStep }
 
   TFRE_DB_DeleteSubObjectStep=class(TFRE_DB_DeleteObjectStep)
   public
-    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const del_obj : TFRE_DB_Object ; const from_coll : TFRE_DB_NameType ; const is_store : boolean); // all collections or a single collection
+    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const del_obj : TFRE_DB_Object ; const from_coll : TFRE_DB_NameType ; const is_store : boolean); // all collections or a single collection
     function    Needs_WAL: Boolean            ; override;
     procedure   WriteToWAL                    (const m:TMemoryStream) ; override;
-    procedure   ChangeInCollectionCheckOrDo   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
-    procedure   MasterStore                   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   ChangeInCollectionCheckOrDo   (const check : boolean); override;
+    procedure   MasterStore                   (const check : boolean); override;
   end;
 
 
@@ -639,18 +627,18 @@ type
     FCnt        : NativeInt;
     upobj       : TFRE_DB_Object;             // "new" object
     to_upd_obj  : TFRE_DB_Object;             // "old" object (Fields of object will be updated by newobjects fields)
-    procedure   InternallApplyChanges         (const master: TFRE_DB_Master_Data; const check: boolean);
+    procedure   InternallApplyChanges         (const check: boolean);
     procedure   InternalWriteWalHeader        (const m:TMemoryStream); virtual ;
     procedure   InternalWriteWAL              (const m:TMemoryStream);
   public
     procedure   AddSubStep                    (const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD; const is_a_child_field: boolean;const update_obj: TFRE_DB_Object); { update_obj = to_update_obj or child}
-    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;obj,to_update_obj : TFRE_DB_Object ; const is_insert : boolean);
+    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;obj,to_update_obj : TFRE_DB_Object ; const is_insert : boolean);
     constructor CreateAsWalReadBack           (new_obj : TGuid ; const is_store : boolean ; const ws:TStream);
     function    HasNoChanges                  : Boolean;
     function    Needs_WAL: Boolean            ; override;
     procedure   WriteToWAL                    (const m:TMemoryStream);override;
-    procedure   ChangeInCollectionCheckOrDo   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
-    procedure   MasterStore                   (const master : TFRE_DB_Master_Data ; const check : boolean); override;
+    procedure   ChangeInCollectionCheckOrDo   (const check : boolean); override;
+    procedure   MasterStore                   (const check : boolean); override;
   end;
 
   OFRE_SL_TFRE_DB_ChangeStep  = specialize OFOS_SpareList<TFRE_DB_ChangeStep>;
@@ -662,14 +650,13 @@ type
   TFRE_DB_TransactionalUpdateList = class(TObject)
   private
     FChangeList  : OFRE_SL_TFRE_DB_ChangeStep; // The sparse List has to be ordered (!) / deletetions and reinsertions must not happen
-    FNotifyIf    : IFRE_DB_DBChangedNotification;
     FTransId     : TFRE_DB_NameType;
-    FMaster      : TFRE_DB_Master_Data;
+    FTransNumber : QWord;
     FWalMem      : TMemoryStream;
     FNeedsWAL    : Boolean;
     FLastStepId  : TFRE_DB_TransStepId;
     procedure    ProcessCheck            (const WAL_RepairMode: boolean);
-    procedure    Write_WAL_Or_DCC        (const Layer : IFRE_DB_PERSISTANCE_LAYER);
+    procedure    Write_WAL_Or_DCC        ; { wal is overall - all layers }
   public
     constructor  Create                  (const TransID : TFRE_DB_NameType ; const master_data : TFRE_DB_Master_Data ; const notify_if : IFRE_DB_DBChangedNotification);
     procedure    ReadFromBackWalStream   (const walstream : TStream);
@@ -677,9 +664,8 @@ type
 
     function     GetTransActionId        : TFRE_DB_NameType;
     function     GetTransLastStepTransId : TFRE_DB_TransStepId;
-    function     GetNotifyIF             : IFRE_DB_DBChangedNotification;
 
-    function     Commit                  (const Layer : IFRE_DB_PERSISTANCE_LAYER ; const WAL_RepairMode : boolean=false):boolean;
+    function     Commit                  (const WAL_RepairMode : boolean=false):boolean;
     procedure    Rollback                ;
     destructor   Destroy                 ;override;
   end;
@@ -758,6 +744,12 @@ type
   end;
 
 implementation
+
+function G_FetchNewTransactionID : QWord;
+begin
+  inc(G_DB_TX_Number);
+  result := G_DB_TX_Number;
+end;
 
 { TFRE_DB_RealIndex }
 
@@ -903,9 +895,9 @@ end;
 
 { TFRE_DB_DefineIndexOnFieldStep }
 
-constructor TFRE_DB_DefineIndexOnFieldStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+constructor TFRE_DB_DefineIndexOnFieldStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
 begin
-  FLayer      := layer;
+  Inherited Create(layer,masterdata);
   FCollname   := coll_name;
   FFieldName  := FieldName;
   FFieldType  := FieldType;
@@ -916,13 +908,13 @@ begin
   FUniqueNull := unique_null_values;
 end;
 
-procedure TFRE_DB_DefineIndexOnFieldStep.CheckExistence(const master: TFRE_DB_Master_Data);
+procedure TFRE_DB_DefineIndexOnFieldStep.CheckExistence;
 begin
   if not Master.MasterColls.GetCollection(FCollname,FCollection) then
     raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] does not exists!',[FCollname]);
 end;
 
-procedure TFRE_DB_DefineIndexOnFieldStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DefineIndexOnFieldStep.ChangeInCollectionCheckOrDo(const check: boolean);
 var res : TFRE_DB_Errortype;
 begin
   res := FCollection.GetPersLayerIntf.DefineIndexOnFieldReal(check,FFieldName,FFieldType,FUnique,FIgnoreCC,FindexName,Fallownull,FUniqueNull);
@@ -930,11 +922,11 @@ begin
     raise EFRE_DB_PL_Exception.Create(res,'collection [%s], index [%s] creation failed!',[FCollname,FindexName]);
 end;
 
-procedure TFRE_DB_DefineIndexOnFieldStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DefineIndexOnFieldStep.MasterStore(const check: boolean);
 begin
   if not check then
     begin
-      FTransList.GetNotifyIF.IndexDefinedOnField(FCollname,FFieldName,FFieldType,FUnique,FIgnoreCC,FindexName,Fallownull,FUniqueNull);
+      FLayer.GetNotificationRecordIF.IndexDefinedOnField(FCollname,FFieldName,FFieldType,FUnique,FIgnoreCC,FindexName,Fallownull,FUniqueNull);
       CheckWriteThroughColl(FCollection);
     end;
 end;
@@ -987,6 +979,7 @@ begin
     CheckBlockNotStarted;
     FBlockList := GFRE_DBI.NewObject;
     FBlockList.Field('KEY').AsString := key;
+    FBlockList.Field('L').AsString   := FLayerDB;
   except
     on e:Exception do
     begin
@@ -1489,10 +1482,10 @@ end;
 
 { TFRE_DB_InsertSubStep }
 
-constructor TFRE_DB_InsertSubStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_store: boolean);
+constructor TFRE_DB_InsertSubStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_store: boolean);
 var cn:string;
 begin
-  inherited Create(layer);
+  inherited Create(layer,masterdata);
   FNewObj   := new_obj;
   FColl     := coll;
   FIsStore  := is_store;
@@ -1514,13 +1507,13 @@ begin
 
 end;
 
-procedure TFRE_DB_InsertSubStep.CheckExistence(const master: TFRE_DB_Master_Data);
+procedure TFRE_DB_InsertSubStep.CheckExistence;
 begin
   if master.ExistsObject(FNewObj.UID) then
     raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored subobject [%s] does already exist in master data as subobject or rootobject.')
 end;
 
-procedure TFRE_DB_InsertSubStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_InsertSubStep.ChangeInCollectionCheckOrDo(const check: boolean);
 begin
   if IsInsert then
     begin
@@ -1536,12 +1529,12 @@ begin
     end;
 end;
 
-procedure TFRE_DB_InsertSubStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_InsertSubStep.MasterStore(const check: boolean);
 begin
-  master.StoreObject(FNewObj,check,FTransList.GetNotifyIF);
+  master.StoreObject(FNewObj,check,FLayer.GetNotificationRecordIF);
   if not check then
     begin
-      FTransList.GetNotifyIF.SubObjectStored(FNewObj,FNewObj.ParentField.FieldName,FNewObj.Parent.GetUIDPathUA);
+      FLayer.GetNotificationRecordIF.SubObjectStored(FNewObj,FNewObj.ParentField.FieldName,FNewObj.Parent.GetUIDPathUA);
       CheckWriteThroughObj(FNewObj.ObjectRoot);
       if assigned(Fcoll) then
         CheckWriteThroughColl(FColl);
@@ -1555,9 +1548,9 @@ end;
 
 { TFRE_DB_DeleteCollectionStep }
 
-constructor TFRE_DB_DeleteCollectionStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType);
+constructor TFRE_DB_DeleteCollectionStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const coll_name: TFRE_DB_NameType);
 begin
-  inherited create(layer);
+  inherited create(layer,masterdata);
   FCollname      := coll_name;
 end;
 
@@ -1566,19 +1559,19 @@ begin
   FCollname      := coll_name;
 end;
 
-procedure TFRE_DB_DeleteCollectionStep.CheckExistence(const master: TFRE_DB_Master_Data);
+procedure TFRE_DB_DeleteCollectionStep.CheckExistence;
 begin
   if not Master.MasterColls.GetCollection(FCollname,FPersColl) then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'collection [%s] does not exists!',[FCollname]);
   FVolatile := FPersColl.IsVolatile;
 end;
 
-procedure TFRE_DB_DeleteCollectionStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DeleteCollectionStep.ChangeInCollectionCheckOrDo(const check: boolean);
 begin
 
 end;
 
-procedure TFRE_DB_DeleteCollectionStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DeleteCollectionStep.MasterStore(const check: boolean);
 var res:TFRE_DB_Errortype;
 begin
   if not check then
@@ -1586,7 +1579,7 @@ begin
       res := Master.MasterColls.DeleteCollection(FCollname);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to delete new collection [%s] in transaction step',[FCollname]);
-      FTransList.GetNotifyIF.CollectionDeleted(FCollname);
+      GetNotificationRecordIF.CollectionDeleted(FCollname);
       if not FVolatile then
         CheckWriteThroughDeleteColl(FCollname);
     end;
@@ -1605,9 +1598,9 @@ end;
 
 { TFRE_DB_DeleteObjectStep }
 
-constructor TFRE_DB_DeleteObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const del_obj: TFRE_DB_Object; const from_coll: TFRE_DB_NameType; const is_store: boolean);
+constructor TFRE_DB_DeleteObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const del_obj: TFRE_DB_Object; const from_coll: TFRE_DB_NameType; const is_store: boolean);
 begin
-  inherited Create(layer);
+  inherited Create(layer,masterdata);
   FDelObj   := del_obj;
   FIsStore  := is_store;
   CollName  := from_coll;
@@ -1632,7 +1625,7 @@ begin
   m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_DELETE_OBJECT]+BoolToStr(FIsStore,'1','0')+FDelObj.UID_String+CollName);
 end;
 
-procedure TFRE_DB_DeleteObjectStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DeleteObjectStep.ChangeInCollectionCheckOrDo(const check: boolean);
 var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
       i : NativeInt;
      idx: NativeInt;
@@ -1652,7 +1645,7 @@ begin
           arr[i].GetPersLayerIntf.DeleteFromThisColl(FDelObj,check);
           if not check then
             begin
-              FTransList.GetNotifyIF.ObjectRemoved(arr[i].CollectionName(false),FDelObj);
+              GetNotificationRecordIF.ObjectRemoved(arr[i].CollectionName(false),FDelObj);
               CheckWriteThroughColl(arr[i]);
             end;
         end;
@@ -1667,28 +1660,28 @@ begin
            FWouldNeedMasterDelete:=true;
       if not check then
         begin
-          FTransList.GetNotifyIF.ObjectRemoved(CollName, FDelObj);
+          GetNotificationRecordIF.ObjectRemoved(CollName, FDelObj);
           CheckWriteThroughColl(arr[idx]);
         end;
     end;
 end;
 
-procedure TFRE_DB_DeleteObjectStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DeleteObjectStep.MasterStore(const check: boolean);
 begin
   assert(IsInsert=false);
   try
     if check
        and FWouldNeedMasterDelete then { this is the check phase, the internalcount is >1}
          begin
-           master.DeleteObject(FDelObj.UID,check,FTransList.GetNotifyIF);
+           master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF);
          end
     else
       begin
         if length(FDelObj.__InternalGetCollectionList)=0 then
           begin
-            FTransList.GetNotifyIF.ObjectDeleted(FDelObj); { Notify before delete }
+            GetNotificationRecordIF.ObjectDeleted(FDelObj); { Notify before delete }
             CheckWriteThroughDeleteObj(FDelObj);
-            master.DeleteObject(FDelObj.UID,check,FTransList.GetNotifyIF);
+            master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF);
           end;
       end;
   except { Only in Exception case, lock the object and raise}
@@ -1700,9 +1693,9 @@ end;
 { TFRE_DB_NewCollectionStep }
 
 
-constructor TFRE_DB_NewCollectionStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const volatile_in_memory: boolean);
+constructor TFRE_DB_NewCollectionStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const volatile_in_memory: boolean);
 begin
-  inherited Create(layer);
+  inherited Create(layer,masterdata);
   FCollname      := coll_name;
   FVolatile      := volatile_in_memory;
   FCClassname    := CollectionClassname;
@@ -1714,19 +1707,19 @@ begin
   FVolatile      := false;
 end;
 
-procedure TFRE_DB_NewCollectionStep.CheckExistence(const master: TFRE_DB_Master_Data);
+procedure TFRE_DB_NewCollectionStep.CheckExistence;
 var coll : IFRE_DB_PERSISTANCE_COLLECTION;
 begin
   if Master.MasterColls.GetCollection(FCollname,coll) then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'collection [%s] already exists!',[FCollname]);
 end;
 
-procedure TFRE_DB_NewCollectionStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_NewCollectionStep.ChangeInCollectionCheckOrDo(const check: boolean);
 begin
 
 end;
 
-procedure TFRE_DB_NewCollectionStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_NewCollectionStep.MasterStore(const check: boolean);
 var res:TFRE_DB_Errortype;
 begin
   if not check then
@@ -1734,7 +1727,7 @@ begin
       res := Master.MasterColls.NewCollection(FCollname,FCClassname,FNewCollection,FVolatile,Master.FLayer);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
-      FTransList.GetNotifyIF.CollectionCreated(FCollname);
+      GetNotificationRecordIF.CollectionCreated(FCollname);
       CheckWriteThroughColl(FNewCollection);
     end;
 end;
@@ -2203,9 +2196,10 @@ begin
   end;
 end;
 
-constructor TFRE_DB_ChangeStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER);
+constructor TFRE_DB_ChangeStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data);
 begin
-  FLayer := layer;
+  FLayer  := layer;
+  Fmaster := masterdata;
 end;
 
 function TFRE_DB_ChangeStep.IsInsert: Boolean;
@@ -2213,12 +2207,12 @@ begin
   result := FIsStore;
 end;
 
-procedure TFRE_DB_ChangeStep.CheckExistence(const master: TFRE_DB_Master_Data);
+procedure TFRE_DB_ChangeStep.CheckExistence;
 begin
 
 end;
 
-procedure TFRE_DB_ChangeStep.WalReconstructionphase(const master: TFRE_DB_Master_Data);
+procedure TFRE_DB_ChangeStep.WalReconstructionphase;
 begin
 
 end;
@@ -2285,6 +2279,16 @@ begin
   result := FTransList.GetTransActionId+'/'+inttostr(FStepID);
 end;
 
+function TFRE_DB_ChangeStep.Master: TFRE_DB_Master_Data;
+begin
+  result := Fmaster;
+end;
+
+function TFRE_DB_ChangeStep.GetNotificationRecordIF: IFRE_DB_DBChangedNotification;
+begin
+  Result := FLayer.GetNotificationRecordIF;
+end;
+
 { TREF_LinkEncapsulation }
 
 //constructor TREF_LinkEncapsulation.Create(const links: TFRE_DB_GUIDArray);
@@ -2300,9 +2304,9 @@ end;
 
 { TFRE_DB_UpdateStep }
 
-constructor TFRE_DB_UpdateStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; obj, to_update_obj: TFRE_DB_Object; const is_insert: boolean);
+constructor TFRE_DB_UpdateStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; obj, to_update_obj: TFRE_DB_Object; const is_insert: boolean);
 begin
-  inherited Create(layer);
+  inherited Create(layer,masterdata);
   SetLength(FSublist,25);
   FCnt          := 0;
   upobj         := obj;
@@ -2383,7 +2387,7 @@ begin
   inc(fcnt);
 end;
 
-procedure TFRE_DB_UpdateStep.InternallApplyChanges(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_UpdateStep.InternallApplyChanges(const check: boolean);
 var i,j         : NativeInt;
     collarray   : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
     inmemobject : TFRE_DB_Object;
@@ -2395,13 +2399,13 @@ var i,j         : NativeInt;
           to_upd_obj.Set_Store_Locked(false);
           try
             if not check then
-              FTransList.GetNotifyIF.FieldDelete(oldfield); { Notify before delete }
+              GetNotificationRecordIF.FieldDelete(oldfield); { Notify before delete }
             case oldfield.FieldType of
               fdbft_Object:
                 begin
                   writeln('MASTERSTORE ABORT 1'); {TODOD: Make a testcase }
                   abort;
-                  master.DeleteObject(newfield.AsObject.UID,check,FTransList.GetNotifyIF);
+                  master.DeleteObject(newfield.AsObject.UID,check,GetNotificationRecordIF);
                 end;
               fdbft_ObjLink:
                 begin
@@ -2409,7 +2413,7 @@ var i,j         : NativeInt;
                      // new links are nil
                   else
                     begin
-                      master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(oldfield.FieldName),oldfield.AsObjectLinkArray,nil,FTransList.GetNotifyIF);
+                      master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(oldfield.FieldName),oldfield.AsObjectLinkArray,nil,GetNotificationRecordIF);
                       inmemobject.Field(oldfield.FieldName).Clear;
                     end;
                 end;
@@ -2433,7 +2437,7 @@ var i,j         : NativeInt;
           to_upd_obj.Set_Store_Locked(false);
           try
             if not check then
-              FTransList.GetNotifyIF.FieldAdd(newfield);
+              GetNotificationRecordIF.FieldAdd(newfield);
             case newfield.FieldType of
               fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
               fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
@@ -2463,7 +2467,7 @@ var i,j         : NativeInt;
                     for j:=0 to high(newfield.AsObjectLinkArray) do
                       begin
                         master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
-                        master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j],FTransList.GetNotifyIF);
+                        master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j],GetNotificationRecordIF);
                       end;
                     //inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
@@ -2485,7 +2489,7 @@ var i,j         : NativeInt;
           try
             if (not check) then
               begin
-                FTransList.GetNotifyIF.FieldChange(oldfield, newfield);
+                GetNotificationRecordIF.FieldChange(oldfield, newfield);
               end;
             case newfield.FieldType of
               fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
@@ -2514,7 +2518,7 @@ var i,j         : NativeInt;
                   begin
                     oldlinks := oldfield.AsObjectLinkArray;
                     inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
-                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldlinks,newfield.AsObjectLinkArray,FTransList.GetNotifyIF);
+                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldlinks,newfield.AsObjectLinkArray,GetNotificationRecordIF);
                   end;
             end;
           finally
@@ -2544,7 +2548,7 @@ begin
         diffupdo.ClearAllFields;
         diffupdo.Field('uid').AsGUID      := to_upd_obj.UID;
         diffupdo.Field('domainid').AsGUID := to_upd_obj.DomainID;
-        FTransList.GetNotifyIF.DifferentiallUpdStarts(diffupdo);
+        GetNotificationRecordIF.DifferentiallUpdStarts(diffupdo);
       finally
         to_upd_obj.Set_Store_Locked(true);
       end;
@@ -2575,13 +2579,13 @@ begin
         end;
     end;
   if not check then
-    FTransList.GetNotifyIF.DifferentiallUpdEnds(to_upd_obj.UID); { Notifications will be transmitted on block level -> no special handling here, block get deleted on error }
+    GetNotificationRecordIF.DifferentiallUpdEnds(to_upd_obj.UID); { Notifications will be transmitted on block level -> no special handling here, block get deleted on error }
 
   if not check then
     begin
       to_upd_obj.Set_Store_Locked(false);
       try
-        FTransList.GetNotifyIF.ObjectUpdated(to_upd_obj);
+        GetNotificationRecordIF.ObjectUpdated(to_upd_obj);
       finally
         to_upd_obj.Set_Store_Locked(true);
       end;
@@ -2685,7 +2689,7 @@ end;
 
 
 //Check what has to be done at master level, (reflinks)
-procedure TFRE_DB_UpdateStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_UpdateStep.ChangeInCollectionCheckOrDo(const check: boolean);
 var i,j       : NativeInt;
     collarray : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
 begin
@@ -2698,22 +2702,22 @@ begin
       end
 end;
 
-procedure TFRE_DB_UpdateStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_UpdateStep.MasterStore(const check: boolean);
 begin
   if to_upd_obj.IsObjectRoot then
     if length(to_upd_obj.__InternalGetCollectionList)=0 then
       raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'must have internal collections to store into');
-  InternallApplyChanges(master,check);
+  InternallApplyChanges(check);
 end;
 
 { TFRE_DB_DeleteSubObjectStep }
 
-constructor TFRE_DB_DeleteSubObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const del_obj: TFRE_DB_Object; const from_coll: TFRE_DB_NameType; const is_store: boolean);
+constructor TFRE_DB_DeleteSubObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const del_obj: TFRE_DB_Object; const from_coll: TFRE_DB_NameType; const is_store: boolean);
 begin
-  inherited Create(layer,del_obj,from_coll,is_store);
-  FDelObj   := del_obj;
-  FIsStore  := is_store;
-  CollName  := from_coll;
+  inherited Create(layer,masterdata,del_obj,from_coll,is_store);
+  //FDelObj   := del_obj;
+  //FIsStore  := is_store;
+  //CollName  := from_coll;
 end;
 
 function TFRE_DB_DeleteSubObjectStep.Needs_WAL: Boolean;
@@ -2730,7 +2734,7 @@ begin
    m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_DELETE_SUB_OBJECT]+BoolToStr(FIsStore,'1','0')+FDelObj.UID_String+CollName);
 end;
 
-procedure TFRE_DB_DeleteSubObjectStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DeleteSubObjectStep.ChangeInCollectionCheckOrDo(const check: boolean);
 var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
       i : NativeInt;
 begin
@@ -2748,7 +2752,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_DeleteSubObjectStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_DeleteSubObjectStep.MasterStore(const check: boolean);
 begin
   try
     assert(IsInsert=false);
@@ -2756,12 +2760,11 @@ begin
       begin
         //FDelObj.Pa Assert_CheckStoreLocked;
         try
-          FTransList.GetNotifyIF.SubObjectDeleted(FDelObj,FDelObj.ParentField.FieldName,FDelObj.Parent.GetUIDPathUA); { Notify before delete }
-
+          GetNotificationRecordIF.SubObjectDeleted(FDelObj,FDelObj.ParentField.FieldName,FDelObj.Parent.GetUIDPathUA); { Notify before delete }
         finally
         end;
       end;
-    master.DeleteObject(FDelObj.UID,check,FTransList.GetNotifyIF);
+    master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF);
   except { Only in Exception case, lock the object and raise}
     FDelObj.Set_Store_Locked(true);
     raise;
@@ -2783,10 +2786,10 @@ end;
 constructor TFRE_DB_TransactionalUpdateList.Create(const TransID: TFRE_DB_NameType; const master_data: TFRE_DB_Master_Data; const notify_if: IFRE_DB_DBChangedNotification);
 begin
   FChangeList.InitSparseList(nil,@ChangeStepNull,@ChangeStepSame,10);
-  FMaster   := master_data;
-  FTransId  := FMaster.FetchNewTransactionID(TransId);
-  FWalMem   := TMemoryStream.Create;
-  FNotifyIf := notify_if;
+  FTransNumber := G_FetchNewTransactionID;
+  FTransId     := IntToStr(G_DB_TX_Number)+'#'+TransID;
+  if not GDISABLE_WAL then
+    FWalMem   := TMemoryStream.Create;
 end;
 
 procedure TFRE_DB_TransactionalUpdateList.ReadFromBackWalStream(const walstream: TStream);
@@ -2835,11 +2838,6 @@ begin
   result := FLastStepId;
 end;
 
-function TFRE_DB_TransactionalUpdateList.GetNotifyIF: IFRE_DB_DBChangedNotification;
-begin
-  result := FNotifyIf;
-end;
-
 procedure TFRE_DB_TransactionalUpdateList.ProcessCheck(const WAL_RepairMode: boolean);
 var failure : boolean;
 
@@ -2847,25 +2845,25 @@ var failure : boolean;
   procedure WalReconstruction(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
     with step do
-      WalReconstructionphase(FMaster);
+      WalReconstructionphase;
   end;
 
   procedure CheckForExistence(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
     with step do
-      CheckExistence(FMaster);
+      CheckExistence;
   end;
 
   procedure StoreInCollectionCheck(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
     with step do
-      ChangeInCollectionCheckOrDo(FMaster,true);
+      ChangeInCollectionCheckOrDo(true);
   end;
 
   procedure MasterStoreCheck(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
     with step do
-      MasterStore(FMaster,true);
+      MasterStore(true);
   end;
 
   procedure NeedsWalCheck(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
@@ -2889,7 +2887,7 @@ begin
 end;
 
 
-procedure TFRE_DB_TransactionalUpdateList.Write_WAL_Or_DCC(const Layer: IFRE_DB_PERSISTANCE_LAYER);
+procedure TFRE_DB_TransactionalUpdateList.Write_WAL_Or_DCC;
 //var TransID:String;
 
   procedure WriteWAL(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
@@ -2910,7 +2908,7 @@ begin
         FWalMem.WriteAnsiString(IntToStr(FChangeList.Count));
         FChangeList.ForAllBreak(@WriteWal);
         FWalMem.WriteAnsiString(FTransId+'#!');
-        Layer.SyncWriteWAL(FWalMem);
+        //Layer.SyncWriteWAL(FWalMem);
       except
         on e:exception do
           begin
@@ -2920,13 +2918,14 @@ begin
     end;
 end;
 
-function TFRE_DB_TransactionalUpdateList.Commit(const Layer: IFRE_DB_PERSISTANCE_LAYER; const WAL_RepairMode: boolean): boolean;
-var changes : boolean;
-    block   : IFRE_DB_Object;
+function TFRE_DB_TransactionalUpdateList.Commit(const WAL_RepairMode: boolean): boolean;
+var changes          : boolean;
+    l_notifs         : TList;
+    ftransid_w_layer : IFRE_DB_PERSISTANCE_LAYER;
 
   procedure StoreInCollection(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
-    step.ChangeInCollectionCheckOrDo(FMaster,false);
+    step.ChangeInCollectionCheckOrDo(false);
     if step is TFRE_DB_InsertStep then
       halt_flag:=true;
   end;
@@ -2934,42 +2933,71 @@ var changes : boolean;
   //Store objects and sub objects
   procedure MasterStore(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
-    step.MasterStore(FMaster,false);
+    if not assigned(ftransid_w_layer) then
+      ftransid_w_layer := step.FLayer; { just get one layer to write the last transaction id on success }
+    step.MasterStore(false);
   end;
 
+  procedure GatherNotifs(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
+  var ni : IFRE_DB_DBChangedNotification;
+  begin
+    ni := step.GetNotificationRecordIF;
+    if l_notifs.IndexOf(ni)=-1 then
+      l_notifs.Add(ni);
+  end;
+
+  procedure StartNotifBlocks;
+  var i : NativeInt;
+  begin
+    for i := 0 to l_notifs.Count-1 do
+      with IFRE_DB_DBChangedNotification(l_notifs.Items[i]) do
+        StartNotificationBlock(FTransId);
+  end;
+
+  procedure SendNotifBlocks;
+  var i     : NativeInt;
+      block : IFRE_DB_Object;
+  begin
+    for i := 0 to l_notifs.Count-1 do
+      with IFRE_DB_DBChangedNotification(l_notifs.Items[i]) do
+        begin
+          FinishNotificationBlock(block);
+          if assigned(block) then
+            SendNotificationBlock(block);
+        end;
+  end;
+
+
 begin
+  ftransid_w_layer := nil;
   { Perform all necessary prechecks before changing the Database }
   ProcessCheck(WAL_RepairMode);
 
   changes := FChangeList.Count>0;
 
   { Write the WAL Log }
-
   if (not WAL_RepairMode) and (not GDISABLE_WAL) then
-    begin
-       Write_WAL_Or_DCC(Layer);
-    end;
+    Write_WAL_Or_DCC;
 
   { Apply the changes, and record the Notifications }
 
-  if not assigned(FNotifyIf) then
-    abort;
-
   if changes then
     begin
-      FNotifyIf.StartNotificationBlock(FTransId);
       try
         if changes then
           begin
+            l_notifs := TList.Create;
+            FChangeList.ForAllBreak(@GatherNotifs);
+            StartNotifBlocks;
             FChangeList.ForAllBreak(@StoreInCollection);
             FChangeList.ForAllBreak(@MasterStore);
+            ftransid_w_layer.WT_TransactionID(FTransNumber);
+            SendNotifBlocks;
           end
         else
          changes:=changes;
       finally
-        FNotifyIf.FinishNotificationBlock(block);
-        if assigned(block) then
-          FNotifyIf.SendNotificationBlock(block);
+        l_notifs.free;
       end;
     end;
   result := changes;
@@ -2992,10 +3020,10 @@ end;
 
 { TFRE_DB_InsertStep }
 
-constructor TFRE_DB_InsertStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_store: boolean);
+constructor TFRE_DB_InsertStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_store: boolean);
 var cn:string;
 begin
-  inherited Create(layer);
+  inherited Create(layer,masterdata);
   FNewObj   := new_obj;
   FColl     := coll;
   FIsStore  := is_store;
@@ -3020,7 +3048,7 @@ begin
 end;
 
 
-procedure TFRE_DB_InsertStep.CheckExistence(const master: TFRE_DB_Master_Data);
+procedure TFRE_DB_InsertStep.CheckExistence;
 var existing_object : TFRE_DB_Object;
 begin
   if master.FetchObject(FNewObj.UID,existing_object,true) then
@@ -3032,25 +3060,25 @@ begin
     end;
 end;
 
-procedure TFRE_DB_InsertStep.ChangeInCollectionCheckOrDo(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_InsertStep.ChangeInCollectionCheckOrDo(const check: boolean);
 begin
   //writeln('********** INSERT CHECK ',FNewObj.UID_String,' ',FNewObj.ClassName,'  ',IsARootInsert);
   //writeln(FNewObj.DumpToString());
   //writeln('********** INSERT CHECK ',FNewObj.UID_String,' ',FNewObj.ClassName,'  ',IsARootInsert);
   if FIsWalReadBack then
-    if not FTransList.FMaster.MasterColls.GetCollection(FCollName,FColl) then
+    if not Master.MasterColls.GetCollection(FCollName,FColl) then
       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'insert step, wal repair collection [%s] does not exist!',[FCollName]);
   FColl.GetPersLayerIntf.StoreInThisColl(FNewObj,check)
 end;
 
-procedure TFRE_DB_InsertStep.MasterStore(const master: TFRE_DB_Master_Data; const check: boolean);
+procedure TFRE_DB_InsertStep.MasterStore(const check: boolean);
 begin
   assert((check=true) or (length(FNewObj.__InternalGetCollectionList)>0));
   if not FThisIsAnAddToAnotherColl then
-    master.StoreObject(FNewObj,check,FTransList.GetNotifyIF);
+    master.StoreObject(FNewObj,check,GetNotificationRecordIF);
   if not check then
     begin
-      FTransList.GetNotifyIF.ObjectStored(FColl.CollectionName, FNewObj);
+      GetNotificationRecordIF.ObjectStored(FColl.CollectionName, FNewObj);
       CheckWriteThroughObj(FNewObj);
       CheckWriteThroughColl(FColl);
     end;
@@ -3633,12 +3661,6 @@ begin
     __CheckReferenceLink(obj,ref_array[i].fieldname,ref_array[i].linked_uid,schemelink_arr[i]);
 end;
 
-function TFRE_DB_Master_Data.FetchNewTransactionID(const transid: string): String;
-begin
-  inc(F_DB_TX_Number);
-  result := IntToStr(F_DB_TX_Number)+'#'+transid;
-end;
-
 function TFRE_DB_Master_Data.GetPersistantRootObjectCount(const UppercaseSchemesFilter: TFRE_DB_StringArray): Integer;
 var brk:integer;
     procedure Scan(const obj : TFRE_DB_Object ; var break : boolean);
@@ -3785,7 +3807,6 @@ begin
   FMasterRefLinks.LinearScan(@CleanReflinks);
   FMasterRefLinks.Clear;
   FMasterCollectionStore.Clear;
-  F_DB_TX_Number            := 0;
 end;
 
 //procedure TFRE_DB_Master_Data._AddRefLink(const from_obj, to_obj: TGuid; const rebuild: boolean);
@@ -3867,7 +3888,6 @@ begin
   FMasterCollectionStore    := TFRE_DB_CollectionManageTree.Create;
   FMyMastername             := master_name;
   FSystemMasterData         := SystemMasterData;
-  F_DB_TX_Number            := 0;
   FLayer                    := Layer;
   if (uppercase(master_name)='SYSTEM') then
     begin
@@ -4149,7 +4169,7 @@ begin
       WAL_Transaction := TFRE_DB_TransactionalUpdateList.Create('',self,nil);
       try
         WAL_Transaction.ReadFromBackWalStream(WALStream);
-        WAL_Transaction.Commit(FLayer,true);
+        WAL_Transaction.Commit(true);
       finally
         WAL_Transaction.Free;
         WAL_Transaction:=nil;

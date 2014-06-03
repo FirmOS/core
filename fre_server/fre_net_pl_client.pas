@@ -153,12 +153,11 @@ type
       procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
       procedure SyncSnapshot                  (const final : boolean=false);
 
-      function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotificationBlock;
-
       function  DefineIndexOnField            (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
       function  GetLastErrorCode              : TFRE_DB_Errortype;
       function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
 
+      procedure WT_TransactionID              (const number:qword);
       procedure WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
       procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
       procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
@@ -172,7 +171,7 @@ type
       procedure FDB_PrepareDBRestore          (const phase:integer);
       procedure FDB_SendObject                (const obj:IFRE_DB_Object);
       procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
-
+      function  GetNotificationRecordIF    : IFRE_DB_DBChangedNotification; { to record changes }
     end;
   var
     FLayers            : TList;
@@ -845,6 +844,11 @@ begin
   end;
 end;
 
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_TransactionID(const number: qword);
+begin
+  abort;
+end;
+
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeleteCollection(const coll_name: TFRE_DB_NameType): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
 begin
@@ -1129,13 +1133,6 @@ begin
   ; { Silent ignore, until WAL Mode is implemented }
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetNotificationStreamCallback: IFRE_DB_DBChangedNotificationBlock;
-begin
-  if FGlobal then
-    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  result := FNotificationIF;
-end;
-
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DefineIndexOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
     dba        : TFRE_DB_StringArray;
@@ -1229,6 +1226,11 @@ end;
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendCollection(const obj: IFRE_DB_Object);
 begin
   abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetNotificationRecordIF: IFRE_DB_DBChangedNotification;
+begin
+  raise EFRE_DB_Exception.Create(edb_INTERNAL,'the net layer is not supposed to record changes');
 end;
 
 { TFRE_DB_PL_NET_CLIENT.TPLNet_Layer }

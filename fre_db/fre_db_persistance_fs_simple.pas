@@ -58,8 +58,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
   type TFRE_DB_ASYNC_WT_THREAD=class;
 
-  var  FTransaction : TFRE_DB_TransactionalUpdateList;
-       GAsyncWT     : TFRE_DB_ASYNC_WT_THREAD;
+  var  G_Transaction : TFRE_DB_TransactionalUpdateList;
+       GAsyncWT      : TFRE_DB_ASYNC_WT_THREAD;
 
   type
 
@@ -129,13 +129,13 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FLastError            : TFRE_DB_String;
      FLastErrorCode        : TFRE_DB_Errortype;
      FChangeNotificationIF : IFRE_DB_DBChangedNotification;
-     FChangeNotifBlockIF   : IFRE_DB_DBChangedNotificationBlock;
+     //FChangeNotifBlockIF   : IFRE_DB_DBChangedNotificationBlock;
 
      procedure    _ConnectCheck             ;
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
      function     EscapeDBName              (const name:string):string;
      function     UnEsacpeDBName            (const name:string):string;
-     constructor InternalCreate             (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype; const sysmasterdata: TFRE_DB_Master_Data);
+     constructor  InternalCreate             (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype; const sysmasterdata: TFRE_DB_Master_Data);
 
      function     GetCollection             (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
      function     ExistCollection           (const coll_name : TFRE_DB_NameType) : Boolean;
@@ -147,6 +147,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   _StoreCollectionPersistent (const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const no_storelocking : boolean=false);
      procedure   _StoreObjectPersistent     (const obj:TFRE_DB_Object ; const no_storelocking : boolean=false);
 
+     procedure   WT_TransactionID              (const number:qword);
      procedure   WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
      procedure   WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
      procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
@@ -216,7 +217,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   SyncSnapshot        (const final : boolean=false);
      function    GetLastError        : TFRE_DB_String;
      function    GetLastErrorCode    : TFRE_DB_Errortype;
-     function    GetNotificationStreamCallback : IFRE_DB_DBChangedNotificationBlock;
+     function    GetNotificationRecordIF : IFRE_DB_DBChangedNotification;
    end;
 
 implementation
@@ -650,6 +651,17 @@ begin
     end;
 end;
 
+procedure TFRE_DB_PS_FILE.WT_TransactionID(const number: qword);
+var filename:string;
+begin
+  filename := FBasedirectory+DirectorySeparator+'transaction';
+  try
+    GFRE_BT.StringToFile(filename,IntToStr(number));
+  except
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot write current transaction number !!');
+  end;
+end;
+
 procedure TFRE_DB_PS_FILE.WT_StoreCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
 begin
   _StoreCollectionPersistent(coll);
@@ -925,15 +937,15 @@ begin
     CleanApply := false;
     try
       try
-        if not assigned(FTransaction) then
+        if not assigned(G_Transaction) then
           begin
-            FTransaction        := TFRE_DB_TransactionalUpdateList.Create('C',Fmaster,FChangeNotificationIF);
+            G_Transaction       := TFRE_DB_TransactionalUpdateList.Create('C',Fmaster,FChangeNotificationIF);
             ImplicitTransaction := True;
           end;
-        step := TFRE_DB_NewCollectionStep.Create(self,coll_name,CollectionClassname,volatile_in_memory);
-        FTransaction.AddChangeStep(step);
+        step := TFRE_DB_NewCollectionStep.Create(self,FMaster,coll_name,CollectionClassname,volatile_in_memory);
+        G_Transaction.AddChangeStep(step);
         if ImplicitTransaction then
-          FTransaction.Commit(self);
+          G_Transaction.Commit;
         CleanApply     := true;
         Collection     := step.GetNewCollection;
         result         := step.GetTransActionStepID;
@@ -965,8 +977,8 @@ begin
     finally
       if ImplicitTransaction then
         begin
-          FTransaction.Free;
-          FTransaction := nil;
+          G_Transaction.Free;
+          G_Transaction := nil;
         end;
     end;
   finally
@@ -985,15 +997,15 @@ begin
     CleanApply := false;
     try
       try
-        if not assigned(FTransaction) then
+        if not assigned(G_Transaction) then
           begin
-            FTransaction        := TFRE_DB_TransactionalUpdateList.Create('DC',Fmaster,FChangeNotificationIF);
+            G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DC',Fmaster,FChangeNotificationIF);
             ImplicitTransaction := True;
           end;
-        step := TFRE_DB_DeleteCollectionStep.Create(self,coll_name);
-        FTransaction.AddChangeStep(step);
+        step := TFRE_DB_DeleteCollectionStep.Create(self,FMaster,coll_name);
+        G_Transaction.AddChangeStep(step);
         if ImplicitTransaction then
-          FTransaction.Commit(self);
+          G_Transaction.Commit;
         CleanApply     := true;
         result         := step.GetTransActionStepID;
         FLastErrorCode := edb_OK;
@@ -1024,8 +1036,8 @@ begin
     finally
       if ImplicitTransaction then
         begin
-          FTransaction.Free;
-          FTransaction := nil;
+          G_Transaction.Free;
+          G_Transaction := nil;
         end;
     end;
   finally
@@ -1036,7 +1048,7 @@ end;
 
 constructor TFRE_DB_PS_FILE.Create(const basedir,name: TFRE_DB_String);
 var GSTRING   : String;
-    MAX_GUID  : TGuid;
+    //MAX_GUID  : TGuid;
 begin
   GFRE_TF.Get_Lock(FLayerLock,True);
   FBasedirectory := basedir;
@@ -1052,6 +1064,15 @@ begin
   FDontFinalizeNotif    := false;
   if GDBPS_TRANS_WRITE_ASYNC then
     GAsyncWT := TFRE_DB_ASYNC_WT_THREAD.Create;
+  if FileExists(FBasedirectory+DirectorySeparator+'transaction') then
+    begin
+      GSTRING := GFRE_BT.StringFromFile(FBasedirectory+DirectorySeparator+'transaction');
+      G_DB_TX_Number := StrToIntDef(GSTRING,0);
+    end
+  else
+    GFRE_DBI.LogWarning(dblc_PERSISTANCE,'>>NO GLOBAL TRANSACTION COUNTER FILE FOUND');
+  if G_DB_TX_Number=0 then
+    GFRE_DBI.LogWarning(dblc_PERSISTANCE,'>> GLOBAL TRANSACTION COUNTER IS ZERO - MAYBE BAD/NO FILE');
 end;
 
 
@@ -1338,9 +1359,9 @@ begin
     CleanApply := false;
     try
       try
-        if not assigned(FTransaction) then
+        if not assigned(G_Transaction) then
           begin
-            FTransaction        := TFRE_DB_TransactionalUpdateList.Create('ID',Fmaster,FChangeNotificationIF);
+            G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('ID',Fmaster,FChangeNotificationIF);
             ImplicitTransaction := True;
           end;
           //if collection_name='' then
@@ -1353,10 +1374,10 @@ begin
 
           delete_object.Set_Store_Locked(false);
           if delete_object.IsObjectRoot then
-             step := TFRE_DB_DeleteObjectStep.Create(self,delete_object,collection_name,false)
+             step := TFRE_DB_DeleteObjectStep.Create(self,FMaster,delete_object,collection_name,false)
           else
-             step := TFRE_DB_DeleteSubObjectStep.Create(self,delete_object,collection_name,false);
-          FTransaction.AddChangeStep(step);
+             step := TFRE_DB_DeleteSubObjectStep.Create(self,FMaster,delete_object,collection_name,false);
+          G_Transaction.AddChangeStep(step);
           result := step.GetTransActionStepID;
           if ImplicitTransaction then
             Commit;
@@ -1389,8 +1410,8 @@ begin
     finally
       if ImplicitTransaction then
         begin
-          FTransaction.Free;
-          FTransaction := nil;
+          G_Transaction.Free;
+          G_Transaction := nil;
         end;
     end;
   finally
@@ -1427,9 +1448,9 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
         halt;
       end;
     if insert_obj.IsObjectRoot then
-      FTransaction.AddChangeStep(TFRE_DB_InsertStep.Create(self,insert_obj.Implementor as TFRE_DB_Object,coll,store))
+      G_Transaction.AddChangeStep(TFRE_DB_InsertStep.Create(self,FMaster,insert_obj.Implementor as TFRE_DB_Object,coll,store))
     else
-      FTransaction.AddChangeStep(TFRE_DB_InsertSubStep.Create(self,insert_obj.Implementor as TFRE_DB_Object,coll,store));
+      G_Transaction.AddChangeStep(TFRE_DB_InsertSubStep.Create(self,FMaster,insert_obj.Implementor as TFRE_DB_Object,coll,store));
   end;
 
   procedure GenDelete(const del_obj : IFRE_DB_Object);
@@ -1440,7 +1461,7 @@ var coll                : IFRE_DB_PERSISTANCE_COLLECTION;
         halt;
       end;
     assert(not del_obj.IsObjectRoot); { this must be a subobject delete }
-    FTransaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(self,del_obj.Implementor as TFRE_DB_Object,collection_name,store));
+    G_Transaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(self,FMaster,del_obj.Implementor as TFRE_DB_Object,collection_name,store));
   end;
 
   procedure GenUpdate(const is_child_update : boolean ; const up_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_ifield, old_ifield: IFRE_DB_Field);
@@ -1493,18 +1514,18 @@ begin
               raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
             if not GetCollection(collection_name,coll) then
               raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
-            if not assigned(FTransaction) then
+            if not assigned(G_Transaction) then
               begin
-                FTransaction        := TFRE_DB_TransactionalUpdateList.Create('S',Fmaster,FChangeNotificationIF);
+                G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('S',Fmaster,FChangeNotificationIF);
                 ImplicitTransaction := True;
               end;
             to_update_obj := nil;
             if coll.IsVolatile then
               obj.Set_Volatile;
             TFRE_DB_Object.GenerateAnObjChangeList(obj,nil,@GenInsert,nil,nil); { there must not be updates or delets in STORE case}
-            result := FTransaction.GetTransLastStepTransId;
+            result := G_Transaction.GetTransLastStepTransId;
             if ImplicitTransaction then
-              FTransaction.Commit(self);
+              G_Transaction.Commit;
             obj.Set_Store_Locked(true);
             obj:=nil;
             CleanApply     := true;
@@ -1527,9 +1548,9 @@ begin
             if collection_name<>'' then
               if to_update_obj.__InternalCollectionExistsName(collection_name)=-1 then
                 raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'a collectionname was given for updaterequest, but the dbo is not in that collection');
-            if not assigned(FTransaction) then
+            if not assigned(G_Transaction) then
               begin
-                FTransaction        := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster,FChangeNotificationIF);
+                G_Transaction       := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster,FChangeNotificationIF);
                 ImplicitTransaction := True;
               end else
                 ImplicitTransaction := false;
@@ -1542,17 +1563,17 @@ begin
                      //writeln('------- IN Object    ',iobj.DumpToString());
                      //halt;
                    end;
-                 updatestep := TFRE_DB_UpdateStep.Create(self,obj,to_update_obj,false);
+                 updatestep := TFRE_DB_UpdateStep.Create(self,FMaster,obj,to_update_obj,false);
                  TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,nil,nil,@GenUpdate);
                  if updatestep.HasNoChanges then
                    updatestep.Free
                  else
-                   FTransaction.AddChangeStep(updatestep);
-                 result := FTransaction.GetTransLastStepTransId;
+                   G_Transaction.AddChangeStep(updatestep);
+                 result := G_Transaction.GetTransLastStepTransId;
               finally
                 to_update_obj.Set_Store_Locked(true);
               end;
-              result := FTransaction.GetTransLastStepTransId;
+              result := G_Transaction.GetTransLastStepTransId;
               if ImplicitTransaction then
                 changes := Commit;
             CleanApply := true;
@@ -1597,8 +1618,8 @@ begin
       end;
       if ImplicitTransaction then
         begin
-          FTransaction.Free;
-          FTransaction := nil;
+          G_Transaction.Free;
+          G_Transaction := nil;
         end;
     end;
   finally
@@ -1618,15 +1639,15 @@ begin
     CleanApply := false;
     try
       try
-        if not assigned(FTransaction) then
+        if not assigned(G_Transaction) then
           begin
-            FTransaction        := TFRE_DB_TransactionalUpdateList.Create('DIOF',Fmaster,FChangeNotificationIF);
+            G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DIOF',Fmaster,FChangeNotificationIF);
             ImplicitTransaction := True;
           end;
-        step := TFRE_DB_DefineIndexOnFieldStep.Create(self,coll_name,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
-        FTransaction.AddChangeStep(step);
+        step := TFRE_DB_DefineIndexOnFieldStep.Create(self,FMaster,coll_name,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
+        G_Transaction.AddChangeStep(step);
         if ImplicitTransaction then
-          FTransaction.Commit(self);
+          G_Transaction.Commit;
         CleanApply := true;
         result     := step.GetTransActionStepID;
         FLastErrorCode := edb_OK;
@@ -1657,8 +1678,8 @@ begin
     finally
       if ImplicitTransaction then
         begin
-          FTransaction.Free;
-          FTransaction := nil;
+          G_Transaction.Free;
+          G_Transaction := nil;
         end;
     end;
   finally
@@ -1671,9 +1692,9 @@ begin
   FLayerLock.Acquire;
   try
     try
-      if Assigned(FTransaction) then
+      if Assigned(G_Transaction) then
        exit(edb_EXISTS);
-      FTransaction := TFRE_DB_TransactionalUpdateList.Create(id,FMaster,FChangeNotificationIF);
+      G_Transaction := TFRE_DB_TransactionalUpdateList.Create(id,FMaster,FChangeNotificationIF);
       result := edb_OK;
       FLastErrorCode := edb_OK;
       FLastError     := '';
@@ -1711,7 +1732,7 @@ begin
   try
     try
       try
-        result := FTransaction.Commit(self);
+        result := G_Transaction.Commit;
         if result then
          begin
            FLastErrorCode := edb_OK;
@@ -1741,8 +1762,8 @@ begin
           end;
       end;
     finally
-      FTransaction.Free;
-      FTransaction := nil;
+      G_Transaction.Free;
+      G_Transaction := nil;
     end;
   finally
     FLayerLock.Release;
@@ -1755,7 +1776,7 @@ begin
   try
     try
       try
-        FTransaction.Rollback;
+        G_Transaction.Rollback;
         FLastErrorCode := edb_OK;
         FLastError     := '';
       except
@@ -1782,8 +1803,8 @@ begin
           end;
       end;
     finally
-      FTransaction.Free;
-      FTransaction := nil;
+      G_Transaction.Free;
+      G_Transaction := nil;
     end;
   finally
     FLayerLock.Release;
@@ -1841,9 +1862,9 @@ end;
 //    FChangeNotificationIF := change_if;
 //end;
 
-function TFRE_DB_PS_FILE.GetNotificationStreamCallback: IFRE_DB_DBChangedNotificationBlock;
+function TFRE_DB_PS_FILE.GetNotificationRecordIF: IFRE_DB_DBChangedNotification;
 begin
-  result := FChangeNotifBlockIF;
+  result := FChangeNotificationIF;
 end;
 
 function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotificationBlock): TFRE_DB_Errortype;
