@@ -1274,17 +1274,6 @@ type
 
   TFRE_DB_COLLECTIONCLASS  = class of TFRE_DB_COLLECTION;
 
-  RFRE_DB_UPDATE_ENTRY = record
-                           update_type     : TFRE_DB_NotifyObserverType;
-                           update_obj      : TFRE_DB_Object;
-                           update_uid      : TGuid;
-                           to_uid          : TGUID;
-                           key_description : TFRE_DB_NameTypeRL;
-                           upfield         : IFRE_DB_Field;
-                         end;
-
-  //OFRE_DB_ObserverList = specialize OGFOS_Array<IFRE_DB_COLLECTION_OBSERVER>;
-
   { TFRE_DB_COLLECTION }
 
   TFRE_DB_COLLECTION=class(TFRE_DB_Object,IFRE_DB_COLLECTION)
@@ -1339,12 +1328,6 @@ type
     function        CollectionName (const unique:boolean=false):TFRE_DB_NameType;
     function        DomainCollName (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
 
-
-    //function        AddObserver                (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
-    //function        RemoveObserver             (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
-
-    //procedure       StartBlockUpdating         ;
-    //procedure       FinishBlockUpdating        ;
     procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray); { without right check }
 
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
@@ -1386,7 +1369,6 @@ type
     function        Last           : TFRE_DB_Object; virtual;
     function        GetItem        (const num:uint64):IFRE_DB_Object; virtual;
     { not right aware end}
-    procedure       ForceFullUpdateForObservers;
   end;
 
   //Base Class Tranforms a DB Object into another DB Object
@@ -1569,7 +1551,7 @@ type
   end;
 
   //@ Used for filtered, sorted Collections, is based on  a "real" collection
-  TFRE_DB_DERIVED_COLLECTION=class(TFRE_DB_COLLECTION,IFRE_DB_DERIVED_COLLECTION,IFRE_DB_COLLECTION_OBSERVER)
+  TFRE_DB_DERIVED_COLLECTION=class(TFRE_DB_COLLECTION,IFRE_DB_DERIVED_COLLECTION)
   private
    type
      TDC_Mode=(dc_None,dc_Map2RealCollection);
@@ -1592,8 +1574,6 @@ type
     FParentChildField  : TFRE_DB_NameType;
     FParentLinksChild  : Boolean ;
 
-    FObserverAdded     : Boolean;
-
     FParentCollection  : IFRE_DB_COLLECTION;
     FIdField           : String;
 
@@ -1610,7 +1590,6 @@ type
     FTitle             : TFRE_DB_String;
     FlabelFields       : TFRE_DB_StringArray;
     FTreeNodeIconField : TFRE_DB_String;
-    FGatherUpdateList  : TFRE_DB_UPDATE_STORE_DESC; // Collects Updates between Start and End
 
     FDefaultOrderField     : TFRE_DB_NameType;
     FDefaultOrderAsc       : Boolean;
@@ -1626,16 +1605,6 @@ type
     function        ParentchildRelationIsOutbound    : boolean;
     procedure       _CheckSetDisplayType (const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
     procedure       _ClearMode;
-
-    procedure       ICO_CollectionNotify (const notify_type : TFRE_DB_NotifyObserverType ; const obj : IFRE_DB_Object ; const obj_uid: TGUID ; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL ; const upfield: IFRE_DB_Field);
-    function        ICO_ObserverID       : String;
-
-    procedure       BeginUpdateGathering        ;
-    procedure       FinishUpdateGathering       (const sendupdates : Boolean);
-    procedure       _AddToTransformedCollection (item:IFRE_DB_Object;const send_client_notify:boolean=false;const update_data:boolean=false;const child_call : boolean=false ; const parentid:string='' ; const disable_filter : boolean =false);
-
-    //function        _CheckUIDExists(obj_uid : TGuid) : Boolean;
-
 
     procedure   InternalSetup                ; override;
     function    _DeleteFilterkey             (const filter_key:TFRE_DB_String;const on_transform:boolean):TFRE_DB_Errortype;
@@ -1697,8 +1666,6 @@ type
     function   Update                          (const dbo:TFRE_DB_Object)    :TFRE_DB_Errortype; override;
 
     procedure  SetDeriveParent                 (const coll:TFRE_DB_COLLECTION     ; const idField: String='uid');
-    procedure  SetReferentialLinkMode          (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const dependency_reference : string = 'uids'; const subscribe_observer_to : IFRE_DB_COLLECTION=nil);
-
     { not a mode but a filter }
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
     procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL);
@@ -1722,7 +1689,6 @@ type
 
     function   GetDisplayDescription   : TFRE_DB_CONTENT_DESC;
     function   GetDisplayDescriptionFunction (const FilterEventKey:TFRE_DB_String): TFRE_DB_SERVER_FUNC_DESC;
-    procedure  _CheckObserverAdded     (const add:boolean);
   published
     function   WEB_GET_GRID_DATA       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_CLEAR_QUERY_RESULTS (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -1795,7 +1761,6 @@ type
     function            GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;virtual;
     function            GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;virtual;
 
-    //procedure          _NotifyCollectionObservers   (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID ; const ncolls:TFRE_DB_StringArray);
     procedure          _CheckSchemeDefinitions      (const obj:TFRE_DB_Object);
     function           _FetchApp                    (const name:TFRE_DB_String;var app:TFRE_DB_APPLICATION):boolean;
     function           _Connect                     (const db:TFRE_DB_String ; const is_clone_connect : boolean):TFRE_DB_Errortype;virtual;
@@ -2498,11 +2463,6 @@ implementation
   operator=(a, b: TGUID)c: boolean;
   begin
     c := FREDB_Guids_Same(a,b);
-  end;
-
-  operator=(e1, e2: RFRE_DB_UPDATE_ENTRY)b: boolean;
-  begin
-
   end;
 
   function _CovertRaw2Displayable(const s:TFRE_DB_String):TFRE_DB_String;
@@ -6342,785 +6302,10 @@ begin
   FTreeNodeIconField     := '';
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.ICO_CollectionNotify(const notify_type: TFRE_DB_NotifyObserverType; const obj: IFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
-var not_object : IFRE_DB_Object;
-    hack_up_obj: IFRE_DB_Object;
-    hack_fld   : IFRE_DB_Field;
-    rl_field   : TFRE_DB_NameType;
-    rl_scheme  : TFRE_DB_NameType;
-    rl_Add     : boolean;
-    rl_outbound: Boolean;
-    cmp_field  : TFRE_DB_NameType;
-    cmp_scheme : TFRE_DB_NameType;
-    cmp_dir    : boolean;
-    dbg_collname:string;
-    rc          : string;
-
-  procedure DeleteRecord;
-  var res    : TFRE_DB_UPDATE_STORE_DESC;
-  begin
-    res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
-    res.addDeletedEntry(GFRE_BT.GUID_2_HexString(obj_uid));
-    FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,res);
-  end;
-
-  procedure DeleteRecordUid(const uid:TFRE_DB_GUID);
-  var res    : TFRE_DB_UPDATE_STORE_DESC;
-  begin
-    res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
-    res.addDeletedEntry(GFRE_BT.GUID_2_HexString(uid));
-    FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,res);
-  end;
-
-  procedure RefLinksChanged;
-    procedure ParentChildDefined ; {Grid or Tree}
-    begin
-      cmp_dir := ParentchildRelationIsOutbound;
-      if (rl_outbound = cmp_dir) and
-        (rl_field=FParentChildField) and
-        ((FParentChildScheme='') or (FParentChildScheme=rl_scheme)) and
-            assigned(obj) then
-              begin
-                if rl_Add then
-                  begin
-                    _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,true,FREDB_G2H(to_uid),true); { Add Object }
-                    FInitialDerived := False;
-                  end
-                else
-                  begin
-                    //if _CheckUIDExists(obj_uid) then begin
-                    //  if assigned(FSession) then begin
-                      DeleteRecordUid(obj_uid);
-                      //end;
-                      FInitialDerived := false; // Force rebuild
-                    //end;
-                  end
-              end;
-    end;
-
-    //procedure ReferentialLinkMode;
-    //begin
-    // cmp_dir :=FREDB_SplitRefLinkDescription(FDepRefConstraint[high(FDepRefConstraint)],cmp_field,cmp_scheme);
-    // if (rl_field=cmp_field) and
-    //      ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and
-    //        (cmp_dir=rl_outbound) then { notification is relevant}
-    //          begin
-    //            if rl_Add then
-    //              begin
-    //                if length(FDepObjectList)>0 then { filter unwanted updates }
-    //                  begin
-    //                    if FREDB_GuidInArray(to_uid,FDepObjectList)<>-1 then
-    //                      _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
-    //                  end;
-    //                  //_AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
-    //                FInitialDerived := False;
-    //              end
-    //            else
-    //              begin
-    //                if cmp_dir then
-    //                  begin
-    //                    DeleteRecordUid(to_uid);
-    //                    FInitialDerived := False;
-    //                  end
-    //                else
-    //                  begin
-    //                    DeleteRecordUid(obj_uid);
-    //                    FInitialDerived := False;
-    //                  end;
-    //              end;
-    //          end;
-    //end;
-
-    procedure DependencyFilteredCollection;
-    begin
-      cmp_dir := FREDB_SplitRefLinkDescription(FDepRefConstraint[0][high(FDepRefConstraint)],cmp_field,cmp_scheme);
-      if (rl_field=cmp_field) and
-          ((cmp_scheme='') or (cmp_scheme=rl_scheme)) and { notification is relevant}
-            (cmp_dir=rl_outbound) then
-                begin
-                  if rl_Add then
-                    begin
-                      if FDepObjectsRefNeg then
-                        begin
-                          DeleteRecordUid(obj_uid);
-                        end
-                      else
-                        begin
-                          if FParentChildField<>'' then
-                            begin
-                              _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,FREDB_G2H(to_uid),true);
-                            end
-                          else
-                            begin
-//                              if length(FDepObjectList)>0 then { filter unwanted updates }
-                              abort;
-                                begin
-                                  //if FREDB_GuidInArray(to_uid,FDepObjectList)<>-1 then
-                                    _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
-                                end;
-                                //_AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true); { Add Object }
-                            end;
-                          FInitialDerived := False;
-                        end;
-                    end
-                  else
-                    begin
-                      if FDepObjectsRefNeg then
-                        begin
-                          _AddToTransformedCollection(obj.Implementor as TFRE_DB_Object,true,false,false,'',true);
-                          FInitialDerived := False;
-                        end
-                      else
-                        begin
-                          if cmp_dir then begin;
-                            DeleteRecordUid(to_uid);
-                          end else begin
-                            DeleteRecordUid(obj_uid);
-                          end;
-                          FInitialDerived := False;
-                        end;
-                    end
-                end;
-    end;
-
-    procedure ProcessTransforms;
-    var found_obj : IFRE_DB_Object;
-        up_obj    : IFRE_DB_Object;
-        tr_upobj  : IFRE_DB_Object;
-
-      function  FindItem(const Item : TFRE_DB_Object ; const bool:boolean):boolean;
-      begin
-        if item.UID=to_uid then
-          begin
-            result := true;
-            found_obj := item;
-          end
-        else
-          result := false;
-      end;
-
-    begin
-      //if FTransform.IsReflinkSpecRelevant(key_description) then
-      //  begin
-      //    FInitialDerived := false;
-      //    if FDBOList.ForAllNodesBrk(@FindItem) then
-      //      begin
-      //        FInitialDerived := false;
-      //        if FConnection.FetchI(to_uid,up_obj)=edb_OK then
-      //          begin
-      //            _AddToTransformedCollection(up_obj.Implementor as TFRE_DB_Object,true,true,false,'',true);
-      //          end;
-      //      end;
-      //  end;
-    end;
-
-  begin
-    //dbg_collname:=FName;
-    //if pos('MODULE_ADDONSIN_GRID',dbg_collname)>0 then { DEBUG A SPECIFIC GRID }
-    //  dbg_collname:=dbg_collname
-    //else
-    //  exit;
-    if HasParentChildRefRelationDefined then
-      ParentChildDefined
-    else
-    //if IsReferentialLinkMode then
-    //  ReferentialLinkMode
-    //else
-    if IsDependencyFilteredCollection then
-      DependencyFilteredCollection;
-    if HasReflinksInTransformation then
-      ProcessTransforms;
-  end;
-
-begin //nl
-  //dbg_collname := CollectionName();
-  //if pos('GROUPMOD_USEROUT_GRID',dbg_collname)>0 then
-  //if pos('GROUPMOD_USERIN_GRID',dbg_collname)>0 then
-  //  begin
-  //    dbg_collname := CollectionName();
-  //  end;
-  case notify_type of
-    fdbntf_START_UPDATING : begin
-      BeginUpdateGathering;
-    end;
-    fdbntf_ENDUPDATE_APPLY: begin
-      FinishUpdateGathering(true);
-    end;
-    fdbntf_FIELDCHANGE: begin {is a update of an object}
-
-    end;
-    fdbntf_INSERT: begin
-      if FDCMode=dc_Map2RealCollection then
-        begin
-          not_object := obj;
-          if not assigned(not_object) then
-            FConnection.FetchI(obj_uid,not_object);
-          if assigned(not_object) then
-            begin
-              _AddToTransformedCollection(not_object.Implementor as TFRE_DB_Object,true);
-            end;
-        end;
-    end;
-    fdbntf_UPDATE: begin
-        //if _CheckUIDExists(obj_uid) then begin {hack}
-          not_object := obj;
-          if not assigned(not_object) then
-            FConnection.FetchI(obj_uid,not_object);
-          if assigned(not_object) then
-            begin
-              hack_up_obj := FTransform.TransformInOut(FConnection.UpcastDBC,not_object);
-              if cdgf_Children in FGridDisplayFlags then
-                begin
-                  if FParentChildField<>'' then
-                    begin
-                      if (FConnection.GetReferencesCount(hack_up_obj.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
-                        begin
-                          hack_up_obj.Field('children').AsString        := 'UNCHECKED';
-                        end;
-                      hack_up_obj.Field('_menufunc_').AsString      := 'Menu';
-                      hack_up_obj.Field('_contentfunc_').AsString   := 'Content';
-                      if hack_up_obj.FieldOnlyExisting('icon',hack_fld) then // icon in source
-                          hack_up_obj.Field('icon').AsString:= FREDB_getThemedResource(hack_fld.AsString); // icon in transformed
-                    end
-                  else
-                    begin
-                      // Non Reflink Child Parent Mode
-                    end;
-                end;
-
-              FGatherUpdateList.addUpdatedEntry(hack_up_obj);
-              //_AddToTransformedCollection(not_object.Implementor as TFRE_DB_Object,true,true,false,'',true);
-            end;
-        //end;
-    end;
-    fdbntf_DELETE: begin
-      //if _CheckUIDExists(obj_uid) then begin
-      //  if assigned(FSession) then begin
-      //    DeleteRecord;
-      //  end;
-      //  FInitialDerived := false; // Force rebuild
-      //end;
-    end;
-    fdbntf_COLLECTION_RELOAD: begin
-      FInitialDerived := false;
-      FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,TFRE_DB_REFRESH_STORE_DESC.create.Describe(CollectionName));
-    end;
-    fdbntf_InboundRL_ADD:
-      begin
-        //if (key_description='TFOS_DB_CITYCOM_PRODUCT<MODULES') and
-        //(pos('MODULE_PRODUCTSIN_GRID',FName)>0)then
-        //  rl_field:='MODULE_PRODUCTSIN_GRID';
-        if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-          raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-        rl_outbound := false;
-        rl_Add      := true;
-        RefLinksChanged;
-      end;
-    fdbntf_InboundRL_DEL:
-      begin
-        if FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-          raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-        rl_outbound := false;
-        rl_Add      := false;
-        RefLinksChanged;
-      end;
-    fdbntf_OutboundRL_ADD:
-      begin
-        if not FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-          raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-        rl_outbound := true;
-        rl_Add      := true;
-        RefLinksChanged;
-      end;
-    fdbntf_OutboundRL_DEL:
-      begin
-        if not FREDB_SplitRefLinkDescription(key_description,rl_field,rl_scheme) then
-          raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected notifcation direction is wrong');
-        rl_outbound := true;
-        rl_Add      := false;
-        RefLinksChanged;
-      end;
-  end;
-end;
-
-function TFRE_DB_DERIVED_COLLECTION.ICO_ObserverID: String;
-begin
-  result := CollectionName;
-end;
-
-procedure TFRE_DB_DERIVED_COLLECTION.BeginUpdateGathering;
-begin
-  if assigned(FGatherUpdateList) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'UPDATE GATHERING ALREADY STARTED');
-  FGatherUpdateList := TFRE_DB_UPDATE_STORE_DESC.create.Describe(CollectionName);
-end;
-
-procedure TFRE_DB_DERIVED_COLLECTION.FinishUpdateGathering(const sendupdates: Boolean);
-begin
-  if sendupdates then begin
-    if FGatherUpdateList.hasChanges then begin
-      FSession.DispatchCoroutine(@FSession.COR_SendContentOnBehalf,FGatherUpdateList);
-    end else begin
-      FGatherUpdateList.Free;
-    end;
-  end else begin
-    FGatherUpdateList.Free;
-  end;
-  FGatherUpdateList:=nil;
-end;
-
-procedure TFRE_DB_DERIVED_COLLECTION._AddToTransformedCollection(item: IFRE_DB_Object; const send_client_notify: boolean; const update_data: boolean; const child_call: boolean; const parentid: string; const disable_filter: boolean);
-var i                 : Integer;
-    iob               : IFRE_DB_Object;
-    tmp_ob            : IFRE_DB_Object;
-    add               : boolean;
-    filtval           : TFRE_DB_String;
-    fieldval          : TFRE_DB_String;
-    tr_obj            : TFRE_DB_Object;
-    target_field_type : TFRE_DB_FIELDTYPE;
-    use_filter_fields : boolean;
-    revItemIsPrevious : Boolean;
-
-    //function Filter(const fob_f:TFRE_DB_FIELD):boolean;
-    //var fob             : TFRE_DB_Object;
-    //    fieldname       : TFRE_DB_String;
-    //    filter_fld_type : TFRE_DB_FIELDTYPE;
-    //    str_filtertype  : TFRE_DB_STR_FILTERTYPE;
-    //    filterkey       : string;
-    //
-    //    procedure GenericNumericFilter;
-    //    var num_filt_typ    : TFRE_DB_NUM_FILTERTYPE;
-    //        guid_filt_vals  : TFRE_DB_GUIDArray;
-    //        guid_field_vals : TFRE_DB_GUIDArray;
-    //        bool_field_vals : TFRE_DB_BoolArray;
-    //        bool_filt_vals  : TFRE_DB_BoolArray;
-    //        i,j             : integer;
-    //
-    //        procedure _FieldTypeCheck;
-    //        begin
-    //          if target_field_type<>filter_fld_type then raise EFRE_DB_Exception.Create(edb_ERROR,'NUMERICFILTER REQUESTED FILTER ON A [%s] FIELD BUT TARGETFIELD [%s] IS OF TYPE [%s]',[CFRE_DB_FIELDTYPE[filter_fld_type],fieldname,CFRE_DB_FIELDTYPE[target_field_type]]);
-    //        end;
-    //
-    //    begin
-    //      add := true;
-    //      num_filt_typ := FREDB_String2NumfilterType(fob.Field('FT').AsString);
-    //      case filter_fld_type of
-    //        fdbft_GUID: begin
-    //                       if (target_field_type<>fdbft_GUID) and (target_field_type<>fdbft_ObjLink) then raise EFRE_DB_Exception.Create(edb_ERROR,'NUMERICFILTER REQUESTED FILTER ON A [%s] FIELD BUT TARGETFIELD [%s] IS OF TYPE [%s]',[CFRE_DB_FIELDTYPE[filter_fld_type],fieldname,CFRE_DB_FIELDTYPE[target_field_type]]);
-    //                       guid_filt_vals  := fob.Field('FV').AsGUIDArr;
-    //                       if target_field_type=fdbft_ObjLink then begin
-    //                         guid_field_vals := iob.Field(fieldname).AsObjectLinkArray;
-    //                       end else begin
-    //                         guid_field_vals := iob.Field(fieldname).AsGUIDArr;
-    //                       end;
-    //                       //writeln('UIDFIELD: ',fieldname,'KEY: ',filterkey,' FILTER: ',FREDB_GuidArray2String(guid_filt_vals),' FIELD :',FREDB_GuidArray2String(guid_field_vals));
-    //                       case num_filt_typ of
-    //                         dbnf_OneValueFromFilter: begin
-    //                                                    add := false;
-    //                                                    for i:=0 to high(guid_field_vals) do begin
-    //                                                      for j:=0 to high(guid_filt_vals) do begin
-    //                                                        if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
-    //                                                          add := true;
-    //                                                          exit;
-    //                                                        end;
-    //                                                      end;
-    //                                                    end;
-    //                                                  end;
-    //                         //dbnf_NoValueInFilter:    begin
-    //                         //                           add := true;
-    //                         //                           if length(guid_filt_vals)=0 then
-    //                         //                             exit;
-    //                         //                           for i:=0 to high(guid_field_vals) do begin
-    //                         //                             for j:=0 to high(guid_filt_vals) do begin
-    //                         //                               if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
-    //                         //                                 add := false;
-    //                         //                                 exit;
-    //                         //                               end;
-    //                         //                             end;
-    //                         //                           end;
-    //                         //                         end;
-    //                         dbnf_EXACT: begin
-    //                                       add := true;
-    //                                       if Length(guid_field_vals) <> Length(guid_filt_vals) then begin
-    //                                         add:=false;
-    //                                         exit;
-    //                                       end else begin
-    //                                         for i:=0 to high(guid_filt_vals) do begin
-    //                                           if not FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[i]) then begin
-    //                                             add:=false;
-    //                                             exit;
-    //                                           end;
-    //                                         end;
-    //                                       end;
-    //                                     end;
-    //                         else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNSUPPORTED NUM FILTER TYPE ON GUID FIELD');
-    //                       end;
-    //                    end;
-    //        fdbft_Byte: ;
-    //        fdbft_Int16: ;
-    //        fdbft_UInt16: ;
-    //        fdbft_Int32: ;
-    //        fdbft_UInt32: ;
-    //        fdbft_Int64: ;
-    //        fdbft_UInt64: ;
-    //        fdbft_Real32: ;
-    //        fdbft_Real64: ;
-    //        fdbft_Currency: ;
-    //        fdbft_Boolean:
-    //                       begin
-    //                           case num_filt_typ of
-    //                             dbnf_EXACT:
-    //                             //dbnf_EXACT_NEGATED:
-    //                                            begin
-    //                                              add := true;
-    //                                              bool_filt_vals  := fob.Field('FV').AsBooleanArr;
-    //                                              bool_field_vals := iob.Field(fieldname).AsBooleanArr;
-    //                                              if Length(bool_filt_vals)<>Length(bool_field_vals) then
-    //                                                add := false;
-    //                                              if add then
-    //                                                for i:=0 to high(bool_filt_vals) do begin
-    //                                                  if not (bool_field_vals[i]=bool_filt_vals[i]) then begin
-    //                                                    add:=false;
-    //                                                    break;
-    //                                                  end;
-    //                                                end;
-    //                                              //if num_filt_typ=dbnf_EXACT_NEGATED then
-    //                                              //  add := not add;
-    //                                            end;
-    //                               else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNSUPPORTED NUM FILTER TYPE ON BOOLEAN FIELD');
-    //                           end;
-    //                       end;
-    //        fdbft_DateTimeUTC: ;
-    //      end;
-    //    end;
-    //
-    //    procedure StringFieldFilter;  //TODO:Array Filter
-    //    var filtval : TFRE_DB_String;
-    //    begin
-    //      add := true;
-    //      filtval         := fob.Field('FV').AsString;
-    //      str_filtertype  := FREDB_String2StrFilterType(fob.Field('FT').AsString);
-    //      fieldval   := iob.Field(fieldname).AsString;
-    //      case str_filtertype of
-    //        dbft_EXACT:      add := AnsiContainsText(fieldval,filtval) and (length(fieldval)=length(filtval));
-    //        dbft_PART:       add := AnsiContainsText(fieldval,filtval);
-    //        dbft_STARTPART:  add := AnsiStartsText(fieldval,filtval);
-    //        dbft_ENDPART:    add := AnsiEndsText(fieldval,filtval);
-    //      end;
-    //    end;
-    //
-    //    procedure SchemeFilter;
-    //    var filtval : String;
-    //        negate  : boolean;
-    //    begin
-    //      add     := true;
-    //      filtval := fob.Field('FV').AsString;
-    //      negate  := fob.Field('NEG').AsBoolean;
-    //      add     := uppercase(iob.SchemeClass)=uppercase(filtval);
-    //      if negate then add := not add;
-    //    end;
-    //
-    //    procedure RightFilter;
-    //    var right          : String;
-    //        fieldnameforid : TFRE_DB_NameType;
-    //    begin
-    //      right          := fob.Field('FV').AsString;
-    //      fieldnameforid := fob.Field('FN').AsString;
-    //      if fieldnameforid='' then
-    //        begin
-    //          //right := FREDB_Get_Rightname_UID(right,iob.UID);
-    //          //add   := FConnection.InternalCheckRight(right);
-    //          add := true;
-    //        end
-    //      else
-    //        begin
-    //          //if iob.FieldExists(fieldnameforid) then
-    //            begin
-    //              //right := FREDB_Get_Rightname_UID(right,iob.Field(fieldnameforid).AsGUID);
-    //              add   := true;//  result := GetEmbeddingApp.FetchAppText(conn,GetDescrTranslationKey);
-    //
-    //              //abort;
-    //            end
-    //          //else
-    //          //  add := false;  //TODO: Think if an exception is maybe better ??
-    //        end;
-    //    end;
-    //
-    //begin
-    // result := false;
-    // if fob_f.FieldType<>fdbft_Object then exit;
-    // fob    := fob_f.AsObject;
-    // if fob.Field('FF').AsBoolean<>use_filter_fields then exit; // Is this a Filterfieldpass (Filterfields are processed seperately)?
-    // fieldname       := fob.Field('FN').AsString;
-    // filterkey       := fob_f.FieldName;
-    // case fob.Field('T').AsString of
-    //   'RFU'  : begin
-    //             RightFilter;
-    //             if add then exit(true);
-    //           end;
-    //   'SCH' : begin
-    //             SchemeFilter;
-    //             if add=false then exit(true);
-    //           end;
-    //   'SFF' : begin
-    //             filter_fld_type := FREDB_FieldtypeShortString2Fieldtype(fob.Field('TR').AsString);
-    //             if not iob.FieldExists(fieldname) then begin
-    //               raise EFRE_DB_Exception.Create(edb_ERROR,'THE FILTERFIELD [%s] WAS NOT FOUND WHILE DERIVING [%s]',[fieldname,CollectionName]);
-    //             end;
-    //             target_field_type := iob.Field(fieldname).FieldType;
-    //             StringFieldFilter;
-    //             if add=false then exit(true); // break
-    //           end;
-    //   'GFF' : begin
-    //             filter_fld_type := FREDB_FieldtypeShortString2Fieldtype(fob.Field('TR').AsString);
-    //             if not iob.FieldExists(fieldname) then begin
-    //               raise EFRE_DB_Exception.Create(edb_ERROR,'THE FILTERFIELD [%s] WAS NOT FOUND WHILE DERIVING [%s]',[fieldname,CollectionName]);
-    //             end;
-    //             target_field_type := iob.Field(fieldname).FieldType;
-    //             GenericNumericFilter;
-    //             //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'    *LEFT GFF (%s) add=[%s]',[filterkey,FREDB_Bool2String(add)]);
-    //             if add=false then exit(true);
-    //           end;
-    //   else raise EFRE_DB_Exception.Create(edb_INTERNAL,'UNEXPECTED FILTERTYPE IN DERIVED COLLECTION [%s]',[CollectionName]);
-    // end;
-    //end;
-    //
-    //procedure SendClientUpdate(const tr_obj:TFRE_DB_Object;const parentid:string='');
-    //var
-    //    tr2 : TFRE_DB_Object;
-    //    dum : boolean;
-    //    ups : String;
-    //    tr_parent : TFRE_DB_Object;
-    //
-    //
-    //    procedure  Chartupdate;
-    //    var fct   : TFRE_DB_CHART_TRANSFORM;
-    //        i     : integer;
-    //        entry : IFRE_DB_Object;
-    //    begin
-    //      fct := FTransform as TFRE_DB_CHART_TRANSFORM;
-    //      for i:=0 to  high(fct.FseriesFieldNames) do begin // Send updates for all series values
-    //        entry:=GFRE_DBI.NewObject;
-    //        entry.Field('uid').AsGUID     := tr_obj.Field(fct.FseriesFieldNames[i]+'_uid').AsGUID;
-    //        entry.Field('value').AsReal32 := tr_obj.Field(fct.FseriesFieldNames[i]).AsReal32;
-    //        FGatherUpdateList.addUpdatedEntry(entry);
-    //      end;
-    //    end;
-    //
-    //    function  FindParent(const Item : TFRE_DB_Object ; const bool:boolean):boolean;
-    //    begin
-    //      if item.UID_String=parentid then
-    //        begin
-    //          result := true;
-    //          tr_parent := item;
-    //        end
-    //      else
-    //        result := false;
-    //    end;
-    //
-    //begin
-    //  if update_data then begin
-    //    case FDisplaytype of
-    //      cdt_Invalid : raise EFRE_DB_Exception.Create(edb_ERROR,'invvalid derived collection displaytype');
-    //      cdt_Listview,
-    //      cdt_Treeview: FGatherUpdateList.addUpdatedEntry(tr_obj);
-    //      cdt_Chartview: ChartUpdate;
-    //    end;
-    //  end else begin
-    //            //TODO Check if in any PAGESET / CURSOR / OPEN RESULTSET
-    //    ups := First.UID_String;
-    //    tr2 := tr_obj;
-    //    if FDBOList.FindPrev(tr2,dum) then begin
-    //      ups    := tr2.UID_String;
-    //      revItemIsPrevious := true;
-    //    end else
-    //    if FDBOList.FindNext(tr2,dum) then begin
-    //      ups    := tr2.UID_String;
-    //      revItemIsPrevious := False;
-    //    end else
-    //      begin
-    //        ups := '';
-    //      end;
-    //    ups := ''; { FIXXME }
-    //    FGatherUpdateList.addNewEntry(tr_obj,ups,parentid,revItemIsPrevious);
-    //    tr_parent := nil;
-    //    if (parentid<>'') then
-    //      if FDBOList.ForAllNodesBrk(@FindParent) then
-    //          if assigned(tr_parent) then
-    //            begin
-    //              tr_parent.Field('children').AsString := 'UNCHECKED';
-    //              FGatherUpdateList.addUpdatedEntry(tr_parent);
-    //           end;
-    //  end;
-    //end;
-    //
-    //var fld : IFRE_DB_FIELD;
-
-begin
-  //iob := item;
-  //add := true;
-  //if (cdgf_Children in FGridDisplayFlags)
-  //  and (not child_call) then
-  //    begin
-  //      if item.FieldOnlyExisting(FParentChildField,fld) then
-  //        begin
-  //          if fld.ValueCount>0 then
-  //            exit;
-  //        end;
-  //    end;
-  //
-  //use_filter_fields:=false;
-  //if not disable_filter then
-  //  FFilters.ForAllBrk(@Filter);
-  //if add then begin
-  //  tr_obj := FTransform.TransformInOut(FConnection.UpcastDBC,item);
-  //  iob    := tr_obj;
-  //  use_filter_fields:=false;
-  //  if not disable_filter then
-  //    FFiltersTrans.ForAllBrk(@Filter);
-  //  //if FTransform.HasFilterFields then begin
-  //  //  use_filter_fields:=true;
-  //  //  iob    := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,item);
-  //  //  FFilters.ForAllBrk(@Filter);
-  //  //  iob.Finalize;
-  //  //end;
-  //  if add then begin
-  //    if cdgf_Children in FGridDisplayFlags then
-  //      begin
-  //        if FParentChildField<>'' then
-  //          begin
-  //            if (FConnection.GetReferencesCount(iob.UID,FParentLinksChild,FParentChildScheme,FParentChildField)>0) then
-  //              begin
-  //                tr_obj.Field('children').AsString        := 'UNCHECKED';
-  //              end;
-  //            tr_obj.Field('_menufunc_').AsString      := 'Menu';
-  //            tr_obj.Field('_contentfunc_').AsString   := 'Content';
-  //            if item.FieldOnlyExisting('icon',fld) then // icon in source
-  //                tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
-  //          end
-  //        else
-  //          begin
-  //            // Non Reflink Child Parent Mode
-  //          end;
-  //      end;
-  //    if update_data then begin
-  //      FDBOList.Update(tr_obj,false);
-  //    end else begin
-  //      FDBOList.Add(tr_obj,false); // Sort;
-  //    end;
-  //    if send_client_notify and assigned(FGatherUpdateList) then begin
-  //      SendClientUpdate(tr_obj,parentid);
-  //    end;
-  //  end else begin
-  //    //GFRE_DB.LogInfo(ll_DebugAll,dblc_DB,'  * FINAL REJECT [%s]',[tr_obj.UID_String,FREDB_Bool2String(add)]);
-  //  end;
-  //end;
-end;
-
-//function TFRE_DB_DERIVED_COLLECTION._CheckUIDExists(obj_uid: TGuid): Boolean;
-//
-//  function CheckUID(const Key :TFRE_DB_Object;const Item:boolean):boolean;
-//  begin
-//     result := FREDB_Guids_Same(Key.UID,obj_uid);
-//  end;
-//
-//begin
-//  abort;
-//  //result := FDBOList.ForAllNodesBrk(@CheckUID);
-//end;
-
-
 procedure TFRE_DB_DERIVED_COLLECTION.InternalSetup;
 begin
   inherited InternalSetup;
 end;
-
-//procedure TFRE_DB_DERIVED_COLLECTION._FilterIt(const childcall: boolean);
-//var cnt  : NativeInt;
-//
-//  procedure LocalInsert(const item:IFRE_DB_Object);
-//  begin
-//     try
-//       _AddToTransformedCollection(item,false,false,childcall);
-//     finally
-//       item.Finalize;
-//     end;
-//  end;
-//
-//  procedure LocalInsertFromParentDerived(const item : TFRE_DB_Object;const id : boolean);
-//  begin
-//     _AddToTransformedCollection(item,false,false,childcall);
-//     item.Finalize;
-//  end;
-//
-//  //procedure Order(const order_def : TFRE_DB_FIELD);
-//  //var fob       : TFRE_DB_Object;
-//  //begin
-//  //  if order_def.FieldType<>fdbft_Object then exit;
-//  //  fob    := order_def.AsObject;
-//  //  SetLength(ForderDef,length(ForderDef)+1);
-//  //  with ForderDef[high(ForderDef)] do begin
-//  //    fieldname  := fob.Field('N').AsString;
-//  //    ascending  := fob.Field('A').AsBoolean;
-//  //  end;
-//  //end;
-//
-//  procedure Clear(const o:TFRE_DB_Object;const no:boolean);
-//  begin
-//    o.free;
-//  end;
-//
-//  procedure CheckParentAndTransform;
-//  begin
-//    if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
-//    if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
-//  end;
-//
-//  procedure ClearLocal;
-//  begin
-//    //FDBOList.ForallNodes(@Clear);
-//    //FDBOList.Clear;
-//    //SetLength(ForderDef,0);
-//  end;
-//
-//  //procedure LocalInsertExpanded;
-//  //var i   : NativeInt;
-//  //begin
-//  //  for i:=0 to high(FExpandedRefs) do
-//  //    LocalInsert(FExpandedRefs[i]);
-//  //  SetLength(FExpandedRefs,0);
-//  //end;
-//
-//begin
-//  abort;
-//  exit;
-//
-//  { }
-//
-//  if not assigned(FTransform) then
-//    raise EFRE_DB_Exception.Create(edb_ERROR,'NO TRANSFORM SET!');
-//  if childcall then
-//    cnt:=0;
-//  case FDCMode of
-//    dc_None: abort;
-//    dc_Map2RealCollection:    begin
-//                                GFRE_DB.LogDebug(dblc_DB,'* START FILTERING [%s]',[CollectionName]);
-//                                ClearLocal;
-//                                //FOrders.ForAllFields(@Order); // Get order definition
-//                                if not childcall then
-//                                  FParentCollection.ForAll(@LocalInsert)
-//                                else
-//                                  //LocalInsertExpanded;
-//                                GFRE_DB.LogDebug(dblc_DB,'* FINAL FILTERED COUNT [%d]',[FDBOList.Count]);
-//                              end;
-//    //dc_ReferentialLinkCollection:
-//    //                          begin
-//    //                             ClearLocal;
-//    //                             //FOrders.ForAllFields(@Order); // Get order definition
-//    //                             LocalInsertExpanded;
-//    //                          end;
-//  end;
-//end;
 
 function TFRE_DB_DERIVED_COLLECTION._DeleteFilterkey(const filter_key: TFRE_DB_String; const on_transform: boolean): TFRE_DB_Errortype;
 begin //nl
@@ -7333,7 +6518,7 @@ begin
     FtreeMenuFunc.free;
     FdropFunc.free;
     FdragFunc.free;
-    FGatherUpdateList.free;
+    //FGatherUpdateList.free;
   //  writeln(' OK');
   //except on e:exception do
   //  writeln('FAILED ',e.Message);
@@ -7436,30 +6621,6 @@ begin
 end;
 
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetReferentialLinkMode(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const dependency_reference: string; const subscribe_observer_to: IFRE_DB_COLLECTION);
-var collif : IFRE_DB_COLLECTION;
-    i      : NativeInt;
-begin
-  abort; // -> SetUseDependencyAsReflinkfilter
-  //SetDeriveParent(IFRE_DB);
-  if FDCMode<>dc_None then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'CANNOT SWITCH DERIVED CONNECTION MODE, ONCE IT WAS CHOSEN');
-
-  //FDCMode           := dc_Referential_Mode;
-  //
-  //FIdField          := 'uid';
-  //SetLength(FDependencyRef,1);
-  //FDependencyRef[0] := dependency_reference;
-  //SetLength(FDepRefConstraint,Length(scheme_and_field_constraint));
-  //for i := 0 to high(scheme_and_field_constraint) do
-  //  FDepRefConstraint[i] := scheme_and_field_constraint[i];
-  //_CheckDepRefConstraint;
-  //
-  //FSubscribeReflinkModeObserverTo := subscribe_observer_to;
-  //
-  //FParentCollection := nil; // used for system objects too, so make an own list, because storeing sysobjects in other collections is a bad idea ...
-end;
-
 procedure TFRE_DB_DERIVED_COLLECTION.SetUseDependencyAsRefLinkFilter(const scheme_and_field_constraint: array of TFRE_DB_NameTypeRL; const negate: boolean; const dependency_reference: string);
 var
   i: NativeInt;
@@ -7538,12 +6699,6 @@ var obj  : TFRE_DB_Object;
     item : boolean;
 begin
   abort;
-  //if ItemCount=0 then exit(nil);
-  //if FDBOList.GetDirect(num,obj,item) then begin
-  //  result := obj;
-  //end else begin
-  //  result := nil;
-  //end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
@@ -7562,42 +6717,10 @@ begin
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllEntries;
-
-  //procedure Clear(const o:TFRE_DB_Object;const no:boolean);
-  //begin
-  //  _NotifyObserversOrRecord(fdbntf_DELETE,o,o.UID,CFRE_DB_NullGUID,'');
-  //  o.free;
-  //end;
-
 begin
   abort;
-  //if FParentCollection = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the parent collection is not set in derived collection '+CollectionName);
-  //if FTransform        = nil then raise EFRE_DB_Exception.Create(edb_ERROR,'the transformation object is not set in derived collection '+CollectionName);
-  //FDBOList.ForallNodes(@Clear);
-  //FDBOList.Clear;
 end;
 
-
-//procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPage(const QueryID:String ; const page_info: TFRE_DB_DC_PAGING_INFO; const iterator: TFRE_DB_Obj_Iterator);
-//
-//   procedure DoIt(const key:TFRE_DB_Object;const val:boolean);
-//   begin
-//     iterator(key);
-//   end;
-//
-//begin
-//  AddQueryIDWatch(QueryID,page_info);
-//  FDBOList.ForAllNodesRange(page_info.start,page_info.count,@DoIt);
-//end;
-
-//procedure TFRE_DB_DERIVED_COLLECTION.ApplyToData(const iterator: TFRE_DB_Obj_Iterator);
-//   procedure PrepareData(const key:TFRE_DB_Object;const val:boolean);
-//   begin
-//     iterator(key);
-//   end;
-//begin
-//  //FDBOList.ForAllNodes(@PrepareData);
-//end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
@@ -7722,44 +6845,6 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION._CheckObserverAdded(const add: boolean);
-begin
-  exit;
-  //if add then
-  //  begin
-  //    if (not FObserverAdded) and
-  //       ( (FDCMode=dc_Map2RealCollection)
-  //       ) then
-  //           begin
-  //             FObserverAdded    := true;
-  //             FParentCollection.AddObserver(self);
-  //           end;
-  //    if (not FObserverAdded) and
-  //       assigned(FSubscribeReflinkModeObserverTo) then
-  //         begin
-  //           FObserverAdded    := true;
-  //           FSubscribeReflinkModeObserverTo.AddObserver(self);
-  //         end;
-  //  end
-  //else
-  //  begin
-  //    if (FObserverAdded) and
-  //      ( (FDCMode=dc_Map2RealCollection)
-  //      ) then
-  //          begin
-  //            FObserverAdded    := False;
-  //            FParentCollection.RemoveObserver(self);
-  //          end;
-  //    if (FObserverAdded) and
-  //       assigned(FSubscribeReflinkModeObserverTo) then
-  //         begin
-  //           FObserverAdded    := False;
-  //           FSubscribeReflinkModeObserverTo.RemoveObserver(self);
-  //         end;
-  //  end;
-end;
-
-
 function TFRE_DB_DERIVED_COLLECTION.WEB_GET_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
     //sortfilterkeys : TFRE_DB_DC_STRINGFIELDKEY_LIST;
@@ -7848,7 +6933,7 @@ begin
     query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input,FDependencyRef,FDepRefConstraint,FDepObjectsRefNeg,FParentChldLinkFldSpec,nil,CollectionName(true),FParentCollection.CollectionName(true),FDCollFilters,
                                                     FDefaultOrderField,FDefaultOrderAsc,ses);
     try
-      _CheckObserverAdded(true);
+      //_CheckObserverAdded(true);
       //FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
       //FDepObjectList    :=  _GET_DC_ReferenceList(input);
 
@@ -8058,7 +7143,7 @@ var //pageinfo       : TFRE_DB_DC_PAGING_INFO;
 
 begin
   abort;
-  _CheckObserverAdded(true);
+  //_CheckObserverAdded(true);
   //result := GetChildrenDataDescription;
 end;
 
@@ -9434,37 +8519,6 @@ end;
 
 { TFRE_DB_COLLECTION }
 
-//procedure TFRE_DB_COLLECTION.__NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
-//  procedure Notify(const obs : IFRE_DB_COLLECTION_OBSERVER);
-//  begin
-//    try
-//      obs.ICO_CollectionNotify(notify_type,obj,obj_uid,to_uid,key_description,upfield);
-//    except on e:exception do
-//      writeln('**>> ERROR -- COLLECTION NOTIFY WENT WRONG ',e.Message);
-//    end;
-//  end;
-//begin
-//  FObservers.ForAll(@Notify);
-//end;
-
-//procedure TFRE_DB_COLLECTION._NotifyObserversOrRecord(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
-//begin
-//  if FObservers.Count>0 then
-//    if not FObserverBlockUpdating then begin
-//      __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-//      __NotifyCollectionObservers(notify_type,obj,obj_uid,to_uid,key_description,upfield); // Store = Add l Notify all direct observers
-//      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-//    end else begin
-//      SetLength(FObserverUpdates,Length(FObserverUpdates)+1);
-//      FObserverUpdates[high(FObserverUpdates)].update_type     := notify_type;
-//      FObserverUpdates[high(FObserverUpdates)].update_obj      := obj;
-//      FObserverUpdates[high(FObserverUpdates)].update_uid      := obj_uid;
-//      FObserverUpdates[high(FObserverUpdates)].to_uid          := to_uid;
-//      FObserverUpdates[high(FObserverUpdates)].key_description := key_description;
-//      FObserverUpdates[high(FObserverUpdates)].upfield         := upfield;
-//    end;
-//end;
-
 class function TFRE_DB_COLLECTION.Forced_In_Memory: Boolean;
 begin
   result := false;
@@ -9940,12 +8994,6 @@ begin
     end;
 end;
 
-procedure TFRE_DB_COLLECTION.ForceFullUpdateForObservers;
-begin
- abort;
-  //_NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-end;
-
 procedure TFRE_DB_BASE_CONNECTION.ForAllColls(const iterator: TFRE_DB_Coll_Iterator);
 
   procedure DoAllCollections_Iterate(const collection :TFRE_DB_COLLECTION);//const key:TFRE_DB_String;const manage:TFRE_DB_Collection_ManageInfo;const data:Pointer);
@@ -10305,28 +9353,6 @@ function TFRE_DB_BASE_CONNECTION.GetReferencesDetailed(const obj_uid: TGuid; con
 begin
    result := FPersistance_Layer.GetReferencesDetailed(obj_uid,from,scheme_prefix_filter,field_exact_filter);
 end;
-
-
-//procedure TFRE_DB_BASE_CONNECTION._NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const ncolls: TFRE_DB_StringArray);
-//
-//  procedure CollIterator(const coll:TFRE_DB_COLLECTION);
-//  var obs_typ:string;
-//  begin
-//    try
-//      if FREDB_StringInArray(uppercase(coll.CollectionName),ncolls) then
-//        coll._NotifyObserversOrRecord(notify_type,obj,obj_uid,CFRE_DB_NullGUID,'');
-//    except on e:Exception do begin
-//      WriteStr(obs_typ,notify_type);
-//      GFRE_DB.LogError(dblc_DB,'COULD NOT FIRE [%s] OBSERVER COLL [%s] UID[%s] ERR[%s] ',[obs_typ,coll.ClassName,GFRE_BT.GUID_2_HexString(obj_UID),e.Message]);
-//    end;end;
-//  end;
-//
-//begin
-//  if (FConnected)  and (length(ncolls)>0) then begin
-//    ForAllColls(@CollIterator);
-//  end;
-//end;
-
 
 destructor TFRE_DB_BASE_CONNECTION.Destroy;
 
