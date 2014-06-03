@@ -95,6 +95,7 @@ type
   TFRE_DB_CHOOSER_DH          = (dh_chooser_radio,dh_chooser_check,dh_chooser_combo);
 
   TFRE_DB_STANDARD_RIGHT      = (sr_BAD,sr_STORE,sr_UPDATE,sr_DELETE,sr_FETCH);  //DB CORE RIGHTS
+  TFRE_DB_STANDARD_COLL       = (coll_NONE,coll_USER,coll_GROUP,coll_DOMAIN);
 
 
   EFRE_DB_Exception=class(EFRE_Exception)
@@ -592,6 +593,7 @@ type
     group          : TFRE_DB_NameType;
     prefix         : TFRE_DB_NameType;
     datacollection : TFRE_DB_NameType;
+    standardcoll   : TFRE_DB_STANDARD_COLL;
     dc_isdomainc   : Boolean;
     caption_key    : TFRE_DB_NameType;
     chooser_type   : TFRE_DB_CHOOSER_DH;
@@ -2309,7 +2311,7 @@ type
     //procedure SetInputGroupID    (AValue: TFRE_DB_String);
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
-    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo);
+    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE);
     procedure AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
@@ -3525,7 +3527,7 @@ begin
   scheme.AddSchemeField('auth_by_user',fdbft_ObjLink);        { if the action was required to be authorized, by whom it was authorized}
   scheme.AddSchemeField('creation_ts',fdbft_DateTimeUTC);     { timestamp of the creation of the action}
   scheme.AddSchemeField('finalization_ts',fdbft_DateTimeUTC); { timestamp of the finalization }
-  scheme.AddSchemeField('may allowed_time',fdbft_UInt32);     { time in seconds when the action is considered to be failed, and advances to failed state automatically }
+  scheme.AddSchemeField('allowed_time',fdbft_UInt32);         { time in seconds when the action is considered to be failed, and advances to failed state automatically }
   scheme.AddSchemeField('auth_ts',fdbft_DateTimeUTC);         { timestamp of the auth action }
   scheme.AddSchemeField('note',fdbft_String);                 { inline note / which may be filled in by the user}
   scheme.AddSchemeField('sys_note',fdbft_String);             { inline note / which may be filled in by the system (e.g. chosen IP adress, whatever) }
@@ -3537,6 +3539,12 @@ begin
 
   group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
+  group.AddInput('step_id',GetTranslateableTextKey('scheme_step_id'));
+  group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER);
+  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP);
+  group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'',false,dh_chooser_combo,coll_GROUP);
+  group.AddInput('allowed_time',GetTranslateableTextKey('scheme_allowed_time'));
+  group.AddInput('manual_action',GetTranslateableTextKey('scheme_manual_action'));
 
 end;
 
@@ -3550,6 +3558,12 @@ begin
 
     StoreTranslateableText(conn,'scheme_main_group','General Information');
     StoreTranslateableText(conn,'scheme_step_caption','Caption');
+    StoreTranslateableText(conn,'scheme_step_id','Caption');
+    StoreTranslateableText(conn,'scheme_designated_user','Assigned User');
+    StoreTranslateableText(conn,'scheme_designated_group','Assigned Group');
+    StoreTranslateableText(conn,'scheme_auth_group','Authorizing Group');
+    StoreTranslateableText(conn,'scheme_allowed_time','Allowed time');
+    StoreTranslateableText(conn,'scheme_manual_action','Manual action');
   end;
 
 end;
