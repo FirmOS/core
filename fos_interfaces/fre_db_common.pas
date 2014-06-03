@@ -227,11 +227,14 @@ type
     //@ FIXXME: display type dh_chooser_check not implemented yet.
     //@ FIXXME: single_select=false not implemented yet.
     function  Describe              (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean=true; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
-                                     const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
+                                     const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
     //@ FIXXME: only implemented for dh_chooser_combo.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
     //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
     procedure addDependentInput     (const inputId: String; const chooserValue: String);
+    //@ Adds a dependent field.
+    //@ See TFRE_DB_DEPENDENCE_DESC.
+    procedure AddDependence(const depField: TFRE_DB_DEPENDENCE_DESC);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -1806,13 +1809,19 @@ implementation
    Field('dependentInputFields').AddObject(obj);
   end;
 
-  function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean; const display_hint:TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const disabled: boolean; const defaultValue:String): TFRE_DB_INPUT_CHOOSER_DESC;
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.AddDependence(const depField: TFRE_DB_DEPENDENCE_DESC);
+  begin
+    Field('dependentFields').AddObject(depField);
+  end;
+
+  function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean; const display_hint:TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue:String): TFRE_DB_INPUT_CHOOSER_DESC;
   var
     obj: IFRE_DB_Object;
   begin
     inherited Describe(caption,field_reference,required,groupRequired,disabled,false,defaultValue);
     Field('singleSelect').AsBoolean:=true;
     Field('displayHint').AsString:=CFRE_DB_CHOOSER_DH[display_hint];
+    Field('addEmptyForRequired').AsBoolean:=add_empty_for_required;
     obj:=GFRE_DBI.NewObject;
     obj.Field('id').AsString:=store.Field('id').AsString;
     obj.Field('serverFuncExists').AsBoolean:=store.FieldExists('serverFunc');
@@ -2189,12 +2198,18 @@ implementation
 
     procedure addObjects(const obj: IFRE_DB_Object);
     begin
-      store.AddEntry.Describe(obj.GetFormattedDisplay,obj.UID_String);
+      if (standardColl=coll_NONE) or not obj.Field('internal').AsBoolean then
+        store.AddEntry.Describe(obj.GetFormattedDisplay,obj.UID_String);
     end;
 
-    procedure DeppITerator(const df : R_Depfieldfield);
+    procedure DeppITeratorBool(const df : R_Depfieldfield);
     begin
       boolField.AddDependence(TFRE_DB_DEPENDENCE_DESC.Create.Describe(prefix+df.depFieldName,df.disablesField));
+    end;
+
+    procedure DeppITeratorChooser(const df : R_Depfieldfield);
+    begin
+      chooserField.AddDependence(TFRE_DB_DEPENDENCE_DESC.Create.Describe(prefix+df.depFieldName,df.disablesField));
     end;
 
     procedure VisDeppITerator(const vdf : R_VisDepfieldfield);
@@ -2242,7 +2257,10 @@ implementation
           begin
             store:=TFRE_DB_STORE_DESC.create.Describe();
             coll.ForAll(@addObjects);
-            group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required).captionCompareEnabled(true);
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
+            chooserField.captionCompareEnabled(true);
+            obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
+            obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
           end
         else
           begin
@@ -2257,8 +2275,9 @@ implementation
           if obj^.hideSingle and (domainEntries=1) then begin
             group.AddInput.Describe('',prefix+obj^.field,false,false,false,true,domainValue);
           end else begin
-            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
             obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
+            obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
           end;
         end else begin
           if obj^.fieldschemdef.getEnum(enum) then begin
@@ -2267,8 +2286,9 @@ implementation
             for i := 0 to Length(enumVals) - 1 do begin
               store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
             end;
-            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required);
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
             obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
+            obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
           end else begin
             obj^.fieldschemdef.getValidator(validator);
             case obj^.fieldschemdef.FieldType of
@@ -2289,7 +2309,7 @@ implementation
                              end;
               fdbft_Boolean: begin
                                boolField:=group.AddBool.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,false);
-                               obj^.fieldschemdef.ForAllDepfields(@DeppIterator);
+                               obj^.fieldschemdef.ForAllDepfields(@DeppITeratorBool);
                              end;
               fdbft_DateTimeUTC: iField:=group.AddDate.Describe(_getText(obj^.caption_key),prefix+obj^.field,required,obj^.required,obj^.disabled,obj^.hidden,'',validator);
               fdbft_Stream: begin
