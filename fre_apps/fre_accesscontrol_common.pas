@@ -254,7 +254,7 @@ begin
     with tr_domain do begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_domain'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('suspended');
+      AddOneToOnescheme('suspended','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateDomainIcon);
     end;
     domain_Grid := session.NewDerivedCollection('DOMAINMOD_DOMAIN_GRID');
@@ -291,7 +291,7 @@ begin
     with tr_groupIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('protected');
+      AddOneToOnescheme('protected','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
@@ -853,7 +853,7 @@ begin
     with tr_groupIn do begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('protected');
+      AddOneToOnescheme('protected','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
     end;
@@ -876,7 +876,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
-      AddOneToOnescheme('protected');
+      AddOneToOnescheme('protected','','',dt_string,False);
     end;
     groupout_Grid := session.NewDerivedCollection('ROLEMOD_GROUPOUT_GRID');
     with groupout_Grid do begin
@@ -1408,7 +1408,7 @@ begin
       end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('protected');
+      AddOneToOnescheme('protected','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
     end;
@@ -2377,7 +2377,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
-      AddOneToOnescheme('protected');
+      AddOneToOnescheme('protected','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
 
@@ -2399,7 +2399,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
-      AddOneToOnescheme('protected');
+      AddOneToOnescheme('protected','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
 

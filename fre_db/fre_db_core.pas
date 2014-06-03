@@ -1408,7 +1408,6 @@ type
     FSortable        : Boolean;              // Field can be sorted
     FFilterable      : Boolean;              // Field can be filtered
     FDisplay         : Boolean;              // Field Should be in Output Displayed
-    //FFilterField     : Boolean;              // Field is in output but not in display -> e.g. a concatenated fulltext field
     FGuiDisplaytype  : TFRE_DB_DISPLAY_TYPE; // How the gui should display the field
     FFieldSize       : NativeInt;            // Relative gui size of the element (Column)
     FIconIdField     : TFRE_DB_String;       // The name of the field holding the resource descriptor url of the through this transform defined column for the normal state
