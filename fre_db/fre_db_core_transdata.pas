@@ -421,7 +421,6 @@ type
     procedure   TL_StatsTimer;
 
     {NOFIF BLOCK INTERFACE}
-    function   InterfaceNeedsAProxy   : Boolean;
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object);
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
@@ -2090,11 +2089,6 @@ begin
   end;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.InterfaceNeedsAProxy: Boolean;
-begin
-  abort;
-end;
-
 procedure TFRE_DB_TRANSDATA_MANAGER.StartNotificationBlock(const key: TFRE_DB_TransStepId);
 begin
   abort;
@@ -2471,11 +2465,11 @@ var fld : IFRE_DB_FIELD;
                end
            end;
 
-       var tst : string;
+       //var tst : string;
        begin
-         writeln('FILTER : ',filter_key);
-         tst  := filterdef.DumpToString;
-         writeln(filterdef.DumpToString);
+         //writeln('FILTER : ',filter_key);
+         //tst  := filterdef.DumpToString;
+         //writeln(filterdef.DumpToString);
 
          nfts := filterdef.field('NUMFILTERTYPE').AsString;
          if nfts<>'' then

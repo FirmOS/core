@@ -99,7 +99,7 @@ type
       FCommandPending : boolean;
       FGlobal         : boolean;
       FAnswer         : IFRE_DB_Object;
-      FNotificationIF : IFRE_DB_DBChangedNotification;
+      FNotificationIF : IFRE_DB_DBChangedNotificationBlock;
       FCollections    : TList;
       constructor Create                     (nclient:TFRE_DB_PL_NET_CLIENT ; id:NativeInt ; host,ip,port,specfile,layername : Shortstring);
       destructor  Destroy                    ;override;
@@ -128,7 +128,7 @@ type
       function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
       function  DeleteCollection              (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
 
-      function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotification=nil) : TFRE_DB_Errortype;
+      function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
       function  Disconnect                    : TFRE_DB_Errortype;
 
       function  DatabaseList                  : IFOS_STRINGS;
@@ -152,9 +152,8 @@ type
       function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
       procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
       procedure SyncSnapshot                  (const final : boolean=false);
-      procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
 
-      function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
+      function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotificationBlock;
 
       function  DefineIndexOnField            (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
       function  GetLastErrorCode              : TFRE_DB_Errortype;
@@ -193,7 +192,7 @@ type
     constructor Create;
     destructor  Destroy;override;
     procedure   SetConnectionDetails (const host,ip,port:string;const uxs:string);
-    function    ConnectPLServer      (const name:TFRE_DB_NameType ; out conn_layer : IFRE_DB_PERSISTANCE_LAYER ; const NotifIF: IFRE_DB_DBChangedNotification):TFRE_DB_Errortype;
+    function    ConnectPLServer      (const name:TFRE_DB_NameType ; out conn_layer : IFRE_DB_PERSISTANCE_LAYER ; const NotifIF: IFRE_DB_DBChangedNotificationBlock):TFRE_DB_Errortype;
     function    SearchForLayer       (const db_name : TFRE_DB_NameType ; out database_layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
   end;
 
@@ -867,7 +866,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotification): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotificationBlock): TFRE_DB_Errortype;
 begin
   if not FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is only allowed in then global layer');
@@ -884,7 +883,7 @@ begin
     begin
       if assigned(FNotificationIF) then
         begin
-          FNotificationIF.FinalizeNotif;
+          //FNotificationIF.FinalizeNotif;
           FNotificationIF:=nil;
         end;
     end;
@@ -1130,15 +1129,7 @@ begin
   ; { Silent ignore, until WAL Mode is implemented }
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.SetNotificationStreamCallback(const change_if: IFRE_DB_DBChangedNotification; const create_proxy: boolean);
-begin
-  if FGlobal then
-    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  { ignore proxy request, decoupled by the net }
-  FNotificationIF := change_if;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetNotificationStreamCallback: IFRE_DB_DBChangedNotification;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetNotificationStreamCallback: IFRE_DB_DBChangedNotificationBlock;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
@@ -1387,13 +1378,12 @@ begin
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.NewDBOFromServer_Locked(const pls: TPLNet_Layer; const dbo: IFRE_DB_Object);
-var dummy : TFRE_DB_NameType;
 begin
   if dbo.Field('CID').AsString='EVENT' then {Process Event}
     begin
       if assigned(pls.FNotificationIF) then
         try
-          FREDB_ApplyNotificationBlockToNotifIF(dbo.Field('BLOCK').AsObject,pls.FNotificationIF,dummy);
+          pls.FNotificationIF.SendNotificationBlock(dbo.Field('BLOCK').AsObject);
         except on e:exception do
           GFRE_DBI.LogError(dblc_PERSISTANCE,'FAILURE INBOUND EVENT PROCESSING NOTIFY [%s]',[e.Message]);
         end;
@@ -1467,7 +1457,7 @@ begin
   FGlobalUnixSocket  := cFRE_UX_SOCKS_DIR+uxs;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.ConnectPLServer(const name: TFRE_DB_NameType; out conn_layer: IFRE_DB_PERSISTANCE_LAYER; const NotifIF: IFRE_DB_DBChangedNotification): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.ConnectPLServer(const name: TFRE_DB_NameType; out conn_layer: IFRE_DB_PERSISTANCE_LAYER; const NotifIF: IFRE_DB_DBChangedNotificationBlock): TFRE_DB_Errortype;
 var lay : TPLNet_Layer;
 begin
   FLayerLock.Acquire;

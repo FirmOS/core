@@ -801,10 +801,6 @@ type
     function        Last                : IFRE_DB_Object;
     function        GetItem             (const num:uint64):IFRE_DB_Object;
     procedure       ClearCollection     ;
-    procedure       StartBlockUpdating  ;
-    procedure       FinishBlockUpdating ;
-    function        AddObserver         (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
-    function        RemoveObserver      (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
     //Define a basic index according to fieldtype
     function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
     function        IndexExists         (const index_name:TFRE_DB_NameType):boolean;
@@ -1303,7 +1299,7 @@ type
 
   { IFRE_DB_PERSISTANCE_LAYER }
 
-  IFRE_DB_DBChangedNotification = interface;
+  IFRE_DB_DBChangedNotificationBlock = interface;
 
   IFRE_DB_PERSISTANCE_LAYER=interface
     procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
@@ -1330,7 +1326,7 @@ type
     function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
     function  DeleteCollection              (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
 
-    function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotification=nil) : TFRE_DB_Errortype;
+    function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
     function  Disconnect                    : TFRE_DB_Errortype;
     function  DatabaseList                  : IFOS_STRINGS;
     function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
@@ -1355,12 +1351,10 @@ type
 
     procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
     procedure SyncSnapshot                  (const final : boolean=false);
-    //procedure SetNotificationStreamCallback (const change_if : IFRE_DB_DBChangedNotification ; const create_proxy : boolean=true);
-    function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
+    function  GetNotificationStreamCallback : IFRE_DB_DBChangedNotificationBlock;
   end;
 
   IFRE_DB_DBChangedNotification = interface
-    function   InterfaceNeedsAProxy   : Boolean;
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object);
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
@@ -1386,6 +1380,27 @@ type
     procedure  FinalizeNotif          ;
   end;
 
+  IFRE_DB_DBChangedNotificationBlock=interface
+    procedure  SendNotificationBlock  (const block : IFRE_DB_Object); { encapsulate a block of changes from a transaction }
+  end;
+
+  IFRE_DB_DBChangedNotificationConnection = interface { handle metadata changes }
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
+    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
+    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
+  end;
+
+
+  IFRE_DB_DBChangedNotificationSession = interface
+    procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object);           { DIFFERENTIAL STATE}
+    procedure  FieldDelete            (const old_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
+    procedure  FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
+    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field);  { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
+  end;
+
+
   TFRE_DB_APPLICATION       = Class;
   TFRE_DB_APPLICATIONCLASS  = Class of TFRE_DB_APPLICATION;
 
@@ -1396,7 +1411,6 @@ type
 
   IFRE_DB_CONNECTION=interface(IFRE_DB_BASE)
   ['IFDB_CONN']
-    function    GetNotif                      : IFRE_DB_DBChangedNotification; { get the notif of an impersonated (cloned) connection}
     procedure   BindUserSession               (const session : IFRE_DB_Usersession);
     procedure   ClearUserSessionBinding       ;
 
@@ -1474,7 +1488,7 @@ type
 
   IFRE_DB_SYS_CONNECTION=interface(IFRE_DB_BASE)
   ['IFDB_SYS_CONN']
-    function    GetNotif                    : IFRE_DB_DBChangedNotification; { get the notif of an impersonated (cloned) connection}
+    //function    GetNotif                    : IFRE_DB_DBChangedNotification; { get the notif of an impersonated (cloned) connection}
     function    GetClassesVersionDirectory  : IFRE_DB_Object;
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
     function    DelClassesVersionDirectory  : TFRE_DB_Errortype;
@@ -2540,7 +2554,7 @@ type
     procedure   DispatchAnswer (const ses : IFRE_DB_UserSession);
   end;
 
-  TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession,IFRE_DB_DBChangedNotification)
+  TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession,IFRE_DB_DBChangedNotificationSession)
   private type
     TDiffFieldUpdateMode=(mode_df_add,mode_df_del,mode_df_change);
     TDispatch_Continuation = record
@@ -2718,25 +2732,7 @@ type
     property    OnFetchSessionById       :TFRE_DB_OnFetchSessionByID read FOnFetchSessionByIdL write SetOnFetchSessionById;
 
     { Notification interface function, the notification interface gets an update block pushed from the net/pl layer }
-    function    InterfaceNeedsAProxy   : Boolean;
-    procedure   StartNotificationBlock (const key : TFRE_DB_TransStepId);
-    procedure   FinishNotificationBlock(out block : IFRE_DB_Object);
-    procedure   SendNotificationBlock  (const block : IFRE_DB_Object);
-    procedure   CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
-    procedure   CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
-    procedure   IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
-    procedure   IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
-    procedure   ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object);
-    procedure   ObjectDeleted          (const obj : IFRE_DB_Object);
-    procedure   ObjectUpdated          (const obj : IFRE_DB_Object);
-    procedure   SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
-    procedure   SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
-    procedure   ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
-    procedure   SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
-    procedure   SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
-    procedure   InboundReflinkDropped  (const from_obj: IFRE_DB_Object    ; const to_obj   : TGUID       ; const key_description : TFRE_DB_NameTypeRL);
-    procedure   OutboundReflinkDropped (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description: TFRE_DB_NameTypeRL);
-    procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object);             { DIFFERENTIAL STATE}
+    procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object);           { DIFFERENTIAL STATE}
     procedure   DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
     procedure   FieldDelete            (const old_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
     procedure   FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
@@ -2853,11 +2849,13 @@ type
 
   function  FREDB_IniLogCategory2LogCategory     (const ini_logcategory: string) : TFRE_DB_LOGCATEGORY;
 
-  // This function should replace all character which should not a ppear in an ECMA Script (JS) string type to an escaped version,
+  // This function should replace all character which should not a appear in an ECMA Script (JS) string type to an escaped version,
   // as additional feature it replaces CR with a <br> tag, which is useful in formatting HTML
   function  FREDB_String2EscapedJSString         (const input_string:TFRE_DB_String;const replace_cr_with_br:boolean=false) : TFRE_DB_String;
 
-  procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification ; var layer : TFRE_DB_NameType);
+  procedure FREDB_ApplyNotificationBlockToNotifIF            (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification           ; var layer : TFRE_DB_NameType); { full block used in transaction, and in TransDM }
+  procedure FREDB_ApplyNotificationBlockToNotifIF_Connection (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationConnection ; var layer : TFRE_DB_NameType);
+  procedure FREDB_ApplyNotificationBlockToNotifIF_Session    (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationSession    ; var layer : TFRE_DB_NameType);
 
   operator< (g1, g2: TGUID) b : boolean;
   operator> (g1, g2: TGUID) b : boolean;
@@ -4468,7 +4466,7 @@ var block : IFRE_DB_Object;
 begin
   block := GFRE_DBI.AnonObject2Interface(data);
   FCurrentNotificationBlockLayer:='?';
-  FREDB_ApplyNotificationBlockToNotifIF(block,self,FCurrentNotificationBlockLayer);
+  FREDB_ApplyNotificationBlockToNotifIF_Session(block,self,FCurrentNotificationBlockLayer);
   FCurrentNotificationBlockLayer:='?';
 end;
 
@@ -5806,143 +5804,32 @@ begin
   result := '/FDBOSF/'+FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'+BoolToStr(is_attachment,'A','N')+'/'+ GFRE_BT.Str2HexStr(mime_type)+'/'+ GFRE_BT.Str2HexStr(file_name)+'/'+GFRE_BT.Str2HexStr(force_url_etag)+'/'+GFRE_BT.Str2HexStr(fieldname);
 end;
 
-function TFRE_DB_UserSession.InterfaceNeedsAProxy: Boolean;
-begin
-  raise EFRE_DB_Exception.Create(edb_INTERNAL,'should not be called');
-end;
-
-procedure TFRE_DB_UserSession.StartNotificationBlock(const key: TFRE_DB_TransStepId);
-begin
-  raise EFRE_DB_Exception.Create(edb_INTERNAL,'should not be called');
-end;
-
-procedure TFRE_DB_UserSession.FinishNotificationBlock(out block: IFRE_DB_Object);
-begin
-  raise EFRE_DB_Exception.Create(edb_INTERNAL,'should not be called');
-end;
-
-procedure TFRE_DB_UserSession.SendNotificationBlock(const block: IFRE_DB_Object);
-begin
-  raise EFRE_DB_Exception.Create(edb_INTERNAL,'should not be called');
-end;
-
-procedure TFRE_DB_UserSession.CollectionCreated(const coll_name: TFRE_DB_NameType);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.CollectionCreated(coll_name)
-  else
-    FDBConnection.GetNotif.CollectionCreated(coll_name);
-end;
-
-procedure TFRE_DB_UserSession.CollectionDeleted(const coll_name: TFRE_DB_NameType);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.CollectionDeleted(coll_name)
-  else
-    FDBConnection.GetNotif.CollectionDeleted(coll_name);
-end;
-
-procedure TFRE_DB_UserSession.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.IndexDefinedOnField(coll_name,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values)
-  else
-    FDBConnection.GetNotif.IndexDefinedOnField(coll_name,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
-end;
-
-procedure TFRE_DB_UserSession.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.IndexDroppedOnField(coll_name,index_name)
-  else
-    FDBConnection.GetNotif.IndexDroppedOnField(coll_name,index_name);
-end;
-
-procedure TFRE_DB_UserSession.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
-begin
-  if IsDBOUpdatable(obj.UID) then
-    begin
-
-    end;
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.ObjectStored(coll_name,obj)
-  else
-    FDBConnection.GetNotif.ObjectStored(coll_name,obj);
-end;
-
-procedure TFRE_DB_UserSession.ObjectDeleted(const obj: IFRE_DB_Object);
-begin
-  if IsDBOUpdatable(obj.UID) then
-    begin
-
-    end;
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.ObjectDeleted(obj)
-  else
-    FDBConnection.GetNotif.ObjectDeleted(obj);
-end;
-
-procedure TFRE_DB_UserSession.ObjectUpdated(const obj: IFRE_DB_Object);
-begin
-  //if IsDBOUpdatable(obj.UID) then
-  //  begin
-  //    try
-  //      //SendServerClientRequest(TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(obj.CloneToNewObject));
-  //      writeln('FULLSTATE UPDATE : ');
-  //      writeln(obj.DumpToString());
-  //    except on e:Exception do
-  //      begin
-  //        writeln('FAILURE ObjectUpdated in Session ',FSessionID,' ',FUserName);
-  //      end;
-  //    end;
-  //  end;
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.ObjectUpdated(obj)
-  else
-    FDBConnection.GetNotif.ObjectUpdated(obj);
-end;
-
-procedure TFRE_DB_UserSession.SubObjectStored(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.SubObjectStored(obj,parent_field_name,ParentObjectUIDPath)
-  else
-    FDBConnection.GetNotif.SubObjectStored(obj,parent_field_name,ParentObjectUIDPath);
-end;
-
-procedure TFRE_DB_UserSession.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.SubObjectDeleted(obj,parent_field_name,ParentObjectUIDPath)
-  else
-    FDBConnection.GetNotif.SubObjectDeleted(obj,parent_field_name,ParentObjectUIDPath);
-end;
 
 procedure TFRE_DB_UserSession.FieldDelete(const old_field: IFRE_DB_Field);
 begin
   HandleDiffField(mode_df_del,old_field);
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.FieldDelete(old_field)
-  else
-    FDBConnection.GetNotif.FieldDelete(old_field);
+  //if FCurrentNotificationBlockLayer='SYSTEM' then
+  //  FDBConnection.SYS.GetNotif.FieldDelete(old_field)
+  //else
+  //  FDBConnection.GetNotif.FieldDelete(old_field);
 end;
 
 procedure TFRE_DB_UserSession.FieldAdd(const new_field: IFRE_DB_Field);
 begin
   HandleDiffField(mode_df_add,new_field);
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.FieldAdd(new_field)
-  else
-    FDBConnection.GetNotif.FieldAdd(new_field);
+  //if FCurrentNotificationBlockLayer='SYSTEM' then
+  //  FDBConnection.SYS.GetNotif.FieldAdd(new_field)
+  //else
+  //  FDBConnection.GetNotif.FieldAdd(new_field);
 end;
 
 procedure TFRE_DB_UserSession.FieldChange(const old_field, new_field: IFRE_DB_Field);
 begin
   HandleDiffField(mode_df_change,new_field);
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.FieldChange(old_field,new_field)
-  else
-    FDBConnection.GetNotif.FieldChange(old_field,new_field);
+  //if FCurrentNotificationBlockLayer='SYSTEM' then
+  //  FDBConnection.SYS.GetNotif.FieldChange(old_field,new_field)
+  //else
+  //  FDBConnection.GetNotif.FieldChange(old_field,new_field);
 end;
 
 procedure TFRE_DB_UserSession.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
@@ -5960,46 +5847,6 @@ begin
       //writeln('SENT');
       upo.Finalize;
     end;
-end;
-
-procedure TFRE_DB_UserSession.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.ObjectRemoved(coll_name,obj)
-  else
-    FDBConnection.GetNotif.ObjectRemoved(coll_name,obj);
-end;
-
-procedure TFRE_DB_UserSession.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.SetupOutboundRefLink(from_obj,to_obj,key_description)
-  else
-    FDBConnection.GetNotif.SetupOutboundRefLink(from_obj,to_obj,key_description);
-end;
-
-procedure TFRE_DB_UserSession.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.SetupInboundRefLink(from_obj,to_obj,key_description)
-  else
-    FDBConnection.GetNotif.SetupInboundRefLink(from_obj,to_obj,key_description);
-end;
-
-procedure TFRE_DB_UserSession.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.InboundReflinkDropped(from_obj,to_obj,key_description)
-  else
-    FDBConnection.GetNotif.InboundReflinkDropped(from_obj,to_obj,key_description);
-end;
-
-procedure TFRE_DB_UserSession.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
-begin
-  if FCurrentNotificationBlockLayer='SYSTEM' then
-    FDBConnection.SYS.GetNotif.OutboundReflinkDropped(from_obj,to_obj,key_description)
-  else
-    FDBConnection.GetNotif.OutboundReflinkDropped(from_obj,to_obj,key_description);
 end;
 
 procedure TFRE_DB_UserSession.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
@@ -8427,7 +8274,7 @@ begin
   result := StringReplace(Result            ,''''   , '\u0027', [rfReplaceAll]);   // Single Quote
 end;
 
-procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotification ; var layer : TFRE_DB_NameType);
+procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object; const deploy_if: IFRE_DB_DBChangedNotification; var layer: TFRE_DB_NameType);
 var cmd   : ShortString;
     objs  : IFRE_DB_ObjectArray;
     i     : NativeInt;
@@ -8461,6 +8308,51 @@ begin
           'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
           else
             raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
+        end;
+      end;
+end;
+
+procedure FREDB_ApplyNotificationBlockToNotifIF_Connection(const block: IFRE_DB_Object; const deploy_if: IFRE_DB_DBChangedNotificationConnection; var layer: TFRE_DB_NameType);
+var cmd   : ShortString;
+    objs  : IFRE_DB_ObjectArray;
+    i     : NativeInt;
+
+begin
+  objs  := block.Field('N').AsObjectArr;
+  layer := block.Field('L').AsString;
+  for i:=0 to High(objs) do
+    with objs[i] do
+      begin
+        cmd   := Field('C').AsString;
+        case cmd of
+          'CC'  : deploy_if.CollectionCreated(Field('CC').AsString);
+          'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
+          'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
+          'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
+        end;
+      end;
+end;
+
+procedure FREDB_ApplyNotificationBlockToNotifIF_Session(const block: IFRE_DB_Object; const deploy_if: IFRE_DB_DBChangedNotificationSession; var layer: TFRE_DB_NameType);
+var cmd   : ShortString;
+    objs  : IFRE_DB_ObjectArray;
+    i     : NativeInt;
+
+begin
+  objs  := block.Field('N').AsObjectArr;
+  layer := block.Field('L').AsString;
+  for i:=0 to High(objs) do
+    with objs[i] do
+      begin
+        cmd   := Field('C').AsString;
+        case cmd of
+          'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField);
+          'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);
+          'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField);
+          'DUS' : deploy_if.DifferentiallUpdStarts(field('O').AsObject);
+          'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
+        //  else
+        //    raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
         end;
       end;
 end;

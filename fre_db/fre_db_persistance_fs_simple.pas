@@ -129,6 +129,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FLastError            : TFRE_DB_String;
      FLastErrorCode        : TFRE_DB_Errortype;
      FChangeNotificationIF : IFRE_DB_DBChangedNotification;
+     FChangeNotifBlockIF   : IFRE_DB_DBChangedNotificationBlock;
 
      procedure    _ConnectCheck             ;
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
@@ -189,7 +190,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    GetReferencesDetailed         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
 
 
-     function    Connect             (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotification=nil) : TFRE_DB_Errortype;
+     function    Connect             (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
      function    Disconnect          : TFRE_DB_Errortype;
      function    ObjectExists        (const obj_uid : TGUID) : boolean;
      function    Fetch               (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -215,7 +216,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   SyncSnapshot        (const final : boolean=false);
      function    GetLastError        : TFRE_DB_String;
      function    GetLastErrorCode    : TFRE_DB_Errortype;
-     function    GetNotificationStreamCallback : IFRE_DB_DBChangedNotification;
+     function    GetNotificationStreamCallback : IFRE_DB_DBChangedNotificationBlock;
    end;
 
 implementation
@@ -1840,12 +1841,12 @@ end;
 //    FChangeNotificationIF := change_if;
 //end;
 
-function TFRE_DB_PS_FILE.GetNotificationStreamCallback: IFRE_DB_DBChangedNotification;
+function TFRE_DB_PS_FILE.GetNotificationStreamCallback: IFRE_DB_DBChangedNotificationBlock;
 begin
-  result := FChangeNotificationIF;
+  result := FChangeNotifBlockIF;
 end;
 
-function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotification): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotificationBlock): TFRE_DB_Errortype;
 var up_dbname : TFRE_DB_String;
     idx       : NativeInt;
     dblayer_o : TFRE_DB_PS_FILE;
@@ -1857,20 +1858,21 @@ var up_dbname : TFRE_DB_String;
         if assigned(dblayer_o.FChangeNotificationIF)
            and (not dblayer_o.FDontFinalizeNotif) then
              dblayer_o.FChangeNotificationIF.FinalizeNotif;
-        if NotifIF.InterfaceNeedsAProxy then
-          begin
+        //if NotifIF.InterfaceNeedsAProxy then
+        //  begin
             dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationProxy.Create(NotifIF,db_name);
             dblayer_o.FDontFinalizeNotif := false;
-          end
-        else
-          begin
-            dblayer_o.FChangeNotificationIF := NotifIF;
-            dblayer_o.FDontFinalizeNotif := true;
-          end;
+        //  end
+        //else
+        //  begin
+        //    dblayer_o.FChangeNotificationIF := NotifIF;
+        //    dblayer_o.FDontFinalizeNotif := true;
+        //  end;
       end
     else
       if not assigned(dblayer_o.FChangeNotificationIF) then
-        dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(db_name);
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,' should not happen ');
+        //dblayer_o.FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(db_name);
   end;
 
 begin

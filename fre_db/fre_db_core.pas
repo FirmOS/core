@@ -1283,7 +1283,7 @@ type
                            upfield         : IFRE_DB_Field;
                          end;
 
-  OFRE_DB_ObserverList = specialize OGFOS_Array<IFRE_DB_COLLECTION_OBSERVER>;
+  //OFRE_DB_ObserverList = specialize OGFOS_Array<IFRE_DB_COLLECTION_OBSERVER>;
 
   { TFRE_DB_COLLECTION }
 
@@ -1294,12 +1294,7 @@ type
     FObjectLinkStore       : IFRE_DB_PERSISTANCE_COLLECTION; //? Necessary to be referenced here
     FName                  : TFRE_DB_NameType;
     FUniqueName            :  TFRE_DB_NameType;
-    FObservers             : OFRE_DB_ObserverList;
-    FObserverUpdates       : Array of RFRE_DB_UPDATE_ENTRY;
-    FObserverBlockupdating : Boolean;
 
-    procedure        __NotifyCollectionObservers   (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID ; const to_uid : TGUID ; const key_description: TFRE_DB_NameTypeRL ; const upfield: IFRE_DB_Field=nil);
-    procedure        _NotifyObserversOrRecord      (const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID ; const key_description: TFRE_DB_NameTypeRL ; const upfield : IFRE_DB_Field=nil);
   protected
     class function  Forced_In_Memory               : Boolean;virtual;
 
@@ -1345,11 +1340,11 @@ type
     function        DomainCollName (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
 
 
-    function        AddObserver                (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
-    function        RemoveObserver             (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
+    //function        AddObserver                (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
+    //function        RemoveObserver             (const obs : IFRE_DB_COLLECTION_OBSERVER):boolean;
 
-    procedure       StartBlockUpdating         ;
-    procedure       FinishBlockUpdating        ;
+    //procedure       StartBlockUpdating         ;
+    //procedure       FinishBlockUpdating        ;
     procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray); { without right check }
 
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
@@ -1750,11 +1745,11 @@ type
 
   { TFRE_DB_BASE_CONNECTION }
 
-  TFRE_DB_BASE_CONNECTION=class(TFOS_BASE,IFRE_DB_DBChangedNotification)
+  TFRE_DB_BASE_CONNECTION=class(TFOS_BASE,IFRE_DB_DBChangedNotificationConnection,IFRE_DB_DBChangedNotificationBlock)
   private
     FConnLock             : IFOS_LOCK;
     FDBName               : TFRE_DB_String;
-    FSession              : IFRE_DB_UserSession;
+    FBoundSession         : IFRE_DB_UserSession;
 
     FConnectionClones     : OFRE_SL_TFRE_DB_BASE_CONNECTION; { Only in Master, not in clones }
     FCloned               : boolean;
@@ -1779,39 +1774,18 @@ type
   protected
     procedure  AcquireConnLock;
     procedure  ReleaseConnLock;
-    procedure  SendSessionNotificationBlock  (const block: IFRE_DB_Object);
     procedure  BindUserSession               (const session : IFRE_DB_Usersession);virtual;
     procedure  ClearUserSessionBinding       ;virtual;
-    function   GetNotif                      : IFRE_DB_DBChangedNotification;
+    function   GetNotifBlock                 : IFRE_DB_DBChangedNotificationBlock;
 
 
-    { Notification Interface }
-    function   InterfaceNeedsAProxy   : Boolean;
-    procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId); virtual;
-    procedure  FinishNotificationBlock(out block : IFRE_DB_Object); virtual ;
-    procedure  SendNotificationBlock  (const block : IFRE_DB_Object); virtual;
-    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ; virtual;
-    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ; virtual;
-    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);virtual;
-    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);virtual;
-    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
-    procedure  ObjectDeleted          (const obj : IFRE_DB_Object); virtual;
-    procedure  ObjectUpdated          (const obj : IFRE_DB_Object); virtual;
-    procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
-    procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
-
-    procedure  DifferentiallUpdStarts (const obj       : IFRE_DB_Object); virtual;            { DIFFERENTIAL STATE}
-    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID); virtual;             { DIFFERENTIAL STATE}
-    procedure  FieldDelete            (const old_field : IFRE_DB_Field); virtual;
-    procedure  FieldAdd               (const new_field : IFRE_DB_Field); virtual;
-    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field); virtual;
-    procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
-    procedure  SetupOutboundRefLink   (const from_obj : TGUID             ; const to_obj : IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);virtual;
-    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object    ; const to_obj : TGUID          ; const key_description : TFRE_DB_NameTypeRL);virtual;
-    procedure  InboundReflinkDropped  (const from_obj: IFRE_DB_Object     ; const to_obj : TGUID          ; const key_description : TFRE_DB_NameTypeRL);virtual;
-    procedure  OutboundReflinkDropped (const from_obj : TGUID             ; const to_obj : IFRE_DB_Object ; const key_description: TFRE_DB_NameTypeRL);virtual;
-    procedure  FinalizeNotif          ;
-
+    { Notification Interface - Block }
+    procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
+    { Notification Interface - Connection }
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
+    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
+    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
     { Notification Interface - End }
 
     function            GetDatabaseObjectCount       (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
@@ -1821,7 +1795,7 @@ type
     function            GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;virtual;
     function            GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;virtual;
 
-    procedure          _NotifyCollectionObservers   (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID ; const ncolls:TFRE_DB_StringArray);
+    //procedure          _NotifyCollectionObservers   (const notify_type : TFRE_DB_NotifyObserverType ; const obj : TFRE_DB_Object ; const obj_uid: TGUID ; const ncolls:TFRE_DB_StringArray);
     procedure          _CheckSchemeDefinitions      (const obj:TFRE_DB_Object);
     function           _FetchApp                    (const name:TFRE_DB_String;var app:TFRE_DB_APPLICATION):boolean;
     function           _Connect                     (const db:TFRE_DB_String ; const is_clone_connect : boolean):TFRE_DB_Errortype;virtual;
@@ -1881,29 +1855,6 @@ type
     destructor         Destroy                                                                                               ; override;
     function           Exists                       (const ouid:TGUID)                                                       : boolean;
     function           Delete                       (const ouid:TGUID)                                                       : TFRE_DB_Errortype;virtual;
-
-    //function           CheckRightForGroup           (const right_name:TFRE_DB_String;const group_uid : TGuid)                :boolean; //Hack
-    //if self is TFRE_DB_CONNECTION then
-    //  exit(TFRE_DB_CONNECTION(self).CheckRightForGroup(right_name,group_uid));
-    //if self is TFRE_DB_SYSTEM_CONNECTION then
-    //  exit(TFRE_DB_SYSTEM_CONNECTION(self).CheckRightForGroup(right_name,group_uid));
-    //raise EFRE_DB_Exception.Create(edb_INTERNAL,'checkrightforgroup basecass : '+self.ClassName);
-    //function           CheckClassRight4Domain       (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
-    //if self is TFRE_DB_CONNECTION then
-    //  exit(TFRE_DB_CONNECTION(self).FSysConnection.CheckClassRight4Domain(std_right,classtyp,domainKey));
-    //if self is TFRE_DB_SYSTEM_CONNECTION then
-    //  exit(TFRE_DB_SYSTEM_CONNECTION(self).CheckClassRight4Domain(std_right,classtyp,domainKey));
-    //raise EFRE_DB_Exception.Create(edb_INTERNAL,'CheckClassRight4Domain basecass : '+self.ClassName);
-
-    //function           IntCheckClassRight4Domain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainuid:TGuid):boolean;virtual;abstract;
-    //if self is TFRE_DB_CONNECTION then
-    //  exit(TFRE_DB_CONNECTION(self).FSysConnection.IntCheckClassRight4Domain(std_right,classtyp,domainuid));
-    //if self is TFRE_DB_SYSTEM_CONNECTION then
-    //  exit(TFRE_DB_SYSTEM_CONNECTION(self).IntCheckClassRight4Domain(std_right,classtyp,domainuid));
-    //raise EFRE_DB_Exception.Create(edb_INTERNAL,'IntCheckClassRight4Domain basecass : '+self.ClassName);
-    //function           CheckClassRight4DomainKey    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TGuid):boolean;virtual;abstract; { specific domain }
-    //function           CheckObjectRight             (const std_right:TFRE_DB_STANDARD_RIGHT;const objuid:TGuid):boolean;virtual;abstract;
-
     function           UpcastDBC                    : TFRE_DB_Connection;
 
     function           GetLastError                 : TFRE_DB_String;
@@ -7358,9 +7309,9 @@ var
 begin
   //write('DESTROY DC : ',FName);
   //try
-    if assigned(FParentCollection) then begin
-      (FParentCollection.Implementor as TFRE_DB_COLLECTION).RemoveObserver(self);
-    end;
+    //if assigned(FParentCollection) then begin
+    //  (FParentCollection.Implementor as TFRE_DB_COLLECTION).RemoveObserver(self);
+    //end;
 
     //if assigned(FDependencyObject) then
       //FDependencyObject.Finalize;
@@ -7607,11 +7558,11 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllEntries;
 
-  procedure Clear(const o:TFRE_DB_Object;const no:boolean);
-  begin
-    _NotifyObserversOrRecord(fdbntf_DELETE,o,o.UID,CFRE_DB_NullGUID,'');
-    o.free;
-  end;
+  //procedure Clear(const o:TFRE_DB_Object;const no:boolean);
+  //begin
+  //  _NotifyObserversOrRecord(fdbntf_DELETE,o,o.UID,CFRE_DB_NullGUID,'');
+  //  o.free;
+  //end;
 
 begin
   abort;
@@ -9478,36 +9429,36 @@ end;
 
 { TFRE_DB_COLLECTION }
 
-procedure TFRE_DB_COLLECTION.__NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
-  procedure Notify(const obs : IFRE_DB_COLLECTION_OBSERVER);
-  begin
-    try
-      obs.ICO_CollectionNotify(notify_type,obj,obj_uid,to_uid,key_description,upfield);
-    except on e:exception do
-      writeln('**>> ERROR -- COLLECTION NOTIFY WENT WRONG ',e.Message);
-    end;
-  end;
-begin
-  FObservers.ForAll(@Notify);
-end;
+//procedure TFRE_DB_COLLECTION.__NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
+//  procedure Notify(const obs : IFRE_DB_COLLECTION_OBSERVER);
+//  begin
+//    try
+//      obs.ICO_CollectionNotify(notify_type,obj,obj_uid,to_uid,key_description,upfield);
+//    except on e:exception do
+//      writeln('**>> ERROR -- COLLECTION NOTIFY WENT WRONG ',e.Message);
+//    end;
+//  end;
+//begin
+//  FObservers.ForAll(@Notify);
+//end;
 
-procedure TFRE_DB_COLLECTION._NotifyObserversOrRecord(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
-begin
-  if FObservers.Count>0 then
-    if not FObserverBlockUpdating then begin
-      __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-      __NotifyCollectionObservers(notify_type,obj,obj_uid,to_uid,key_description,upfield); // Store = Add l Notify all direct observers
-      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-    end else begin
-      SetLength(FObserverUpdates,Length(FObserverUpdates)+1);
-      FObserverUpdates[high(FObserverUpdates)].update_type     := notify_type;
-      FObserverUpdates[high(FObserverUpdates)].update_obj      := obj;
-      FObserverUpdates[high(FObserverUpdates)].update_uid      := obj_uid;
-      FObserverUpdates[high(FObserverUpdates)].to_uid          := to_uid;
-      FObserverUpdates[high(FObserverUpdates)].key_description := key_description;
-      FObserverUpdates[high(FObserverUpdates)].upfield         := upfield;
-    end;
-end;
+//procedure TFRE_DB_COLLECTION._NotifyObserversOrRecord(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const to_uid: TGUID; const key_description: TFRE_DB_NameTypeRL; const upfield: IFRE_DB_Field);
+//begin
+//  if FObservers.Count>0 then
+//    if not FObserverBlockUpdating then begin
+//      __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
+//      __NotifyCollectionObservers(notify_type,obj,obj_uid,to_uid,key_description,upfield); // Store = Add l Notify all direct observers
+//      __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
+//    end else begin
+//      SetLength(FObserverUpdates,Length(FObserverUpdates)+1);
+//      FObserverUpdates[high(FObserverUpdates)].update_type     := notify_type;
+//      FObserverUpdates[high(FObserverUpdates)].update_obj      := obj;
+//      FObserverUpdates[high(FObserverUpdates)].update_uid      := obj_uid;
+//      FObserverUpdates[high(FObserverUpdates)].to_uid          := to_uid;
+//      FObserverUpdates[high(FObserverUpdates)].key_description := key_description;
+//      FObserverUpdates[high(FObserverUpdates)].upfield         := upfield;
+//    end;
+//end;
 
 class function TFRE_DB_COLLECTION.Forced_In_Memory: Boolean;
 begin
@@ -9521,7 +9472,7 @@ begin
   FObjectLinkStore := pers_coll;
   FName            := name;
   FUniqueName      := uppercase(name);
-  FObservers.Init;
+  //FObservers.Init;
   FConnection      := connection;
 end;
 
@@ -9789,39 +9740,6 @@ begin
   result := Copy(result,33,maxint);
 end;
 
-function TFRE_DB_COLLECTION.AddObserver(const obs: IFRE_DB_COLLECTION_OBSERVER): boolean;
-begin
-  FConnection._CloneTrueCheck;
-  result := FObservers.Add2ArrayChk(obs);
-end;
-
-function TFRE_DB_COLLECTION.RemoveObserver(const obs: IFRE_DB_COLLECTION_OBSERVER): boolean;
-begin
-  FConnection._CloneTrueCheck;
-  result := FObservers.Remove(obs);
-end;
-
-procedure TFRE_DB_COLLECTION.StartBlockUpdating;
-begin
-  if length(FObserverUpdates)<>0 then raise EFRE_DB_Exception.Create(edb_ERROR,'BLOCK UPDATING LOGIC ERROR UPLEN=[%d]',[Length(FObserverUpdates)]);
-  FObserverBlockupdating := true;
-end;
-
-procedure TFRE_DB_COLLECTION.FinishBlockUpdating;
-var i : integer;
-begin
-  __NotifyCollectionObservers(fdbntf_START_UPDATING,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-  try
-    for i:=0 to High(FObserverUpdates) do
-      with FObserverUpdates[i] do
-        __NotifyCollectionObservers(update_type,update_obj,update_uid,to_uid,key_description);
-    __NotifyCollectionObservers(fdbntf_ENDUPDATE_APPLY,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
-  finally
-    SetLength(FObserverUpdates,0);
-    FObserverBlockupdating := false;
-  end;
-end;
-
 procedure TFRE_DB_COLLECTION.GetAllUids(var uids: TFRE_DB_GUIDArray);
 begin
   FObjectLinkStore.GetAllUIDS(uids);
@@ -10019,7 +9937,8 @@ end;
 
 procedure TFRE_DB_COLLECTION.ForceFullUpdateForObservers;
 begin
-  _NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
+ abort;
+  //_NotifyObserversOrRecord(fdbntf_COLLECTION_RELOAD,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'');
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllColls(const iterator: TFRE_DB_Coll_Iterator);
@@ -10250,23 +10169,15 @@ begin
   FConnLock.Release;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.SendSessionNotificationBlock(const block: IFRE_DB_Object);
-begin
-  if assigned(FSession) then
-    Fsession.InboundNotificationBlock(block)
-  else
-    block.Finalize;
-end;
-
 procedure TFRE_DB_BASE_CONNECTION.BindUserSession(const session: IFRE_DB_Usersession);
 begin
   AcquireConnLock;
   try
     if not FCloned then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'only cloned sessions can be bound !');
-    if assigned(FSession) then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'only cloned connections can be bound !');
+    if assigned(FBoundSession) then
       raise EFRE_DB_Exception.Create(edb_ERROR,'connection already has a bound  session!');
-    FSession := session;
+    FBoundSession := session;
   finally
     ReleaseConnLock;
   end;
@@ -10277,34 +10188,19 @@ begin
   AcquireConnLock;
   try
     if not FCloned then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'only cloned sessions can be unbound !');
-    FSession := nil;
+      raise EFRE_DB_Exception.Create(edb_ERROR,'only cloned connections can be unbound !');
+    FBoundSession := nil;
   finally
     ReleaseConnLock;
   end;
 end;
 
-function TFRE_DB_BASE_CONNECTION.GetNotif: IFRE_DB_DBChangedNotification;
+function TFRE_DB_BASE_CONNECTION.GetNotifBlock: IFRE_DB_DBChangedNotificationBlock;
 begin
   if FCloned then
     result := self
   else
     raise EFRE_DB_Exception.Create(edb_Internal,'this function was intended to get the notif from the session bound,impersonated (cloned) connection.');
-end;
-
-function TFRE_DB_BASE_CONNECTION.InterfaceNeedsAProxy: Boolean;
-begin
-  result := true;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.StartNotificationBlock(const key: TFRE_DB_TransStepId);
-begin
-
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.FinishNotificationBlock(out block: IFRE_DB_Object);
-begin
-
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.SendNotificationBlock(const block: IFRE_DB_Object);
@@ -10313,22 +10209,26 @@ var s     : string;
     dummy : TFRE_DB_NameType;
 
   procedure SendBlockToClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
-  var nblock : IFRE_DB_Object;
+  var ldummy : TFRE_DB_NameType;
+      blk   : IFRE_DB_Object;
   begin
-    nblock := block.CloneToNewObject;
     conn.AcquireConnLock;
     try
-      if conn.FCloned then
-        begin
-          try
-            conn.SendSessionNotificationBlock(nblock);
-          except
-            on E: Exception do
-              begin
-                GFRE_DBI.LogError(dblc_SERVER,'SENT NOTIFY BLOCK/PROXY TO %s %s',[conn.FDBName,conn.AuthenticatedUserName]);
-              end;
+      if not conn.FCloned then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'must be a clone !');
+      try
+        if assigned(conn.FBoundSession) then { apply block to session }
+          conn.FBoundSession.InboundNotificationBlock(block.CloneToNewObject);
+
+        //conn.StartNotificationBlock(block.Field('KEY').AsString);
+        FREDB_ApplyNotificationBlockToNotifIF_Connection(block.CloneToNewObject,conn,ldummy);
+        //conn.FinishNotificationBlock(blk);
+      except
+        on E: Exception do
+          begin
+            GFRE_DBI.LogError(dblc_SERVER,'SENT NOTIFY BLOCK/PROXY TO %s %s',[conn.FDBName,conn.AuthenticatedUserName]);
           end;
-        end;
+      end;
     finally
       conn.ReleaseConnLock;
     end;
@@ -10340,9 +10240,9 @@ begin
     block.Field('L').AsString := FDBName;  { set layer for session processing }
     GFRE_DB_TCDM.InboundNotificationBlock(FDBName,block);
     FConnectionClones.ForAllBreak(@SendBlockToClones);
-    self.StartNotificationBlock(block.Field('KEY').AsString);
-    FREDB_ApplyNotificationBlockToNotifIF(block,self,dummy);
-    self.FinishNotificationBlock(blk);
+    //self.StartNotificationBlock(block.Field('KEY').AsString);
+    FREDB_ApplyNotificationBlockToNotifIF_Connection(block,self,dummy);
+    //self.FinishNotificationBlock(blk);
   except on e:exception do
     begin
       s:='?';
@@ -10372,173 +10272,6 @@ end;
 procedure TFRE_DB_BASE_CONNECTION.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
 begin
 
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
-var
-  lcollection      : TFRE_DB_Collection;
-begin
-  try
-    if FCollectionStore.Find(uppercase(coll_name),lcollection) then
-      lcollection._NotifyObserversOrRecord(fdbntf_INSERT,obj.Implementor as TFRE_DB_Object,obj.UID,CFRE_DB_NullGUID,'');
-  finally
-    obj.Finalize;
-  end;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.SubObjectStored(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
-begin
-  obj.Finalize;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.ObjectDeleted(const obj: IFRE_DB_Object);
-begin
-  obj.Finalize;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.ObjectUpdated(const obj: IFRE_DB_Object);
-var dummy:boolean;
-
-  procedure NotifyObjUpdate(const coll : TFRE_DB_COLLECTION);
-  begin
-    coll._NotifyObserversOrRecord(fdbntf_UPDATE,obj.Implementor as TFRE_DB_Object,obj.UID,CFRE_DB_NullGUID,'');
-  end;
-
-begin
-  try
-    ForAllColls(@NotifyObjUpdate);
-  finally
-    obj.Finalize;
-  end;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
-begin
-  obj.Finalize;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
-begin
-
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
-begin
-
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.FieldDelete(const old_field: IFRE_DB_Field);
-begin
-  old_field.Finalize;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.FieldAdd(const new_field: IFRE_DB_Field);
-begin
-  new_field.Finalize;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.FieldChange(const old_field, new_field: IFRE_DB_Field);
-//var dummy:boolean;
-//
-//  procedure DoForClones(var conn : TFRE_DB_BASE_CONNECTION ; const idx :NativeInt ; var halt : boolean);
-//  var
-//      lcollection      : TFRE_DB_Collection;
-//      sa               : TFRE_DB_StringArray;
-//      i                : NativeInt;
-//  begin
-//    sa := old_field.GetInCollectionArrayUSL;
-//    for i:=0 to high(sa) do
-//      if conn.FCollectionStore.Find(sa[i],lcollection) then
-//        lcollection._NotifyObserversOrRecord(fdbntf_FIELDCHANGE,nil,CFRE_DB_NullGUID,CFRE_DB_NullGUID,'',new_field);
-//  end;
-//
-begin
- old_field.Finalize;
- new_field.Finalize;
- //AcquireBig;
- // try
- //   _CloneCheck;
- //   DoForClones(self,0,dummy);
- //   FConnectionClones.ForAllBreak(@DoForClones);
- // finally
- //   old_field.Finalize;
- //   new_field.Finalize;
- //   ReleaseBig;
- // end;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
-var
-  lcollection      : TFRE_DB_Collection;
-begin
-  try
-    if FCollectionStore.Find(uppercase(coll_name),lcollection) then
-      lcollection._NotifyObserversOrRecord(fdbntf_DELETE,nil,obj.UID,CFRE_DB_NullGUID,'');
-  finally
-    obj.Finalize;
-  end;
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
-
-  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
-  begin
-    coll._NotifyObserversOrRecord(fdbntf_OutboundRL_ADD,to_obj.Implementor as TFRE_DB_Object,to_obj.UID, from_obj,key_description);
-  end;
-
-begin
-  try
-    ForAllColls(@NotifyCollectionRefLinkchange);
-  finally
-    to_obj.Finalize;
-  end;
-end;
-
-
-
-procedure TFRE_DB_BASE_CONNECTION.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
-
-  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
-  begin
-    coll._NotifyObserversOrRecord(fdbntf_InboundRL_ADD,from_obj.Implementor as TFRE_DB_Object,from_obj.UID, to_obj,key_description);
-  end;
-
-begin
-  try
-    ForAllColls(@NotifyCollectionRefLinkchange);
-  finally
-    from_obj.Finalize;
-  end;
-end;
-
-
-procedure TFRE_DB_BASE_CONNECTION.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
-
-  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
-  begin
-    coll._NotifyObserversOrRecord(fdbntf_InboundRL_DEL,from_obj.Implementor as TFRE_DB_Object,from_obj.UID, to_obj,key_description);
-  end;
-
-begin
-  ForAllColls(@NotifyCollectionRefLinkchange);
-end;
-
-
-
-procedure TFRE_DB_BASE_CONNECTION.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
-
-  procedure NotifyCollectionRefLinkChange(const coll : TFRE_DB_COLLECTION);
-  begin
-    coll._NotifyObserversOrRecord(fdbntf_OutboundRL_DEL,to_obj.Implementor as TFRE_DB_Object,from_obj, to_obj.UID,key_description);
-  end;
-
-begin
-  ForAllColls(@NotifyCollectionRefLinkchange);
-end;
-
-procedure TFRE_DB_BASE_CONNECTION.FinalizeNotif;
-begin
-  raise EFRE_DB_Exception.Create(edb_ERROR,'connect notif must not be finalized - use a proxy ?');
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetDatabaseObjectCount(const Schemes: TFRE_DB_StringArray): NativeInt;
@@ -10582,25 +10315,25 @@ begin
 end;
 
 
-procedure TFRE_DB_BASE_CONNECTION._NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const ncolls: TFRE_DB_StringArray);
-
-  procedure CollIterator(const coll:TFRE_DB_COLLECTION);
-  var obs_typ:string;
-  begin
-    try
-      if FREDB_StringInArray(uppercase(coll.CollectionName),ncolls) then
-        coll._NotifyObserversOrRecord(notify_type,obj,obj_uid,CFRE_DB_NullGUID,'');
-    except on e:Exception do begin
-      WriteStr(obs_typ,notify_type);
-      GFRE_DB.LogError(dblc_DB,'COULD NOT FIRE [%s] OBSERVER COLL [%s] UID[%s] ERR[%s] ',[obs_typ,coll.ClassName,GFRE_BT.GUID_2_HexString(obj_UID),e.Message]);
-    end;end;
-  end;
-
-begin
-  if (FConnected)  and (length(ncolls)>0) then begin
-    ForAllColls(@CollIterator);
-  end;
-end;
+//procedure TFRE_DB_BASE_CONNECTION._NotifyCollectionObservers(const notify_type: TFRE_DB_NotifyObserverType; const obj: TFRE_DB_Object; const obj_uid: TGUID; const ncolls: TFRE_DB_StringArray);
+//
+//  procedure CollIterator(const coll:TFRE_DB_COLLECTION);
+//  var obs_typ:string;
+//  begin
+//    try
+//      if FREDB_StringInArray(uppercase(coll.CollectionName),ncolls) then
+//        coll._NotifyObserversOrRecord(notify_type,obj,obj_uid,CFRE_DB_NullGUID,'');
+//    except on e:Exception do begin
+//      WriteStr(obs_typ,notify_type);
+//      GFRE_DB.LogError(dblc_DB,'COULD NOT FIRE [%s] OBSERVER COLL [%s] UID[%s] ERR[%s] ',[obs_typ,coll.ClassName,GFRE_BT.GUID_2_HexString(obj_UID),e.Message]);
+//    end;end;
+//  end;
+//
+//begin
+//  if (FConnected)  and (length(ncolls)>0) then begin
+//    ForAllColls(@CollIterator);
+//  end;
+//end;
 
 
 destructor TFRE_DB_BASE_CONNECTION.Destroy;
@@ -10612,7 +10345,7 @@ destructor TFRE_DB_BASE_CONNECTION.Destroy;
 
 begin
   AcquireConnLock;
-  if assigned(FSession) then
+  if assigned(FBoundSession) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'never, ever free a bound connection');
   if assigned(FPersistance_Layer) then
     FPersistance_Layer.Disconnect;
