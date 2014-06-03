@@ -255,6 +255,7 @@ begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_domain'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('suspended','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateDomainIcon);
     end;
     domain_Grid := session.NewDerivedCollection('DOMAINMOD_DOMAIN_GRID');
@@ -272,6 +273,7 @@ begin
     with tr_UserIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userin_Grid := session.NewDerivedCollection('DOMAINMOD_USERIN_GRID');
@@ -292,6 +294,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('protected','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
@@ -791,6 +794,7 @@ begin
       end;
       AddOneToOnescheme('displayname','displayname',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateRoleIcon);
       AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
    end;
@@ -815,6 +819,7 @@ begin
     with tr_UserIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_GRID');
@@ -834,6 +839,7 @@ begin
     with tr_UserOut do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userout_Grid := session.NewDerivedCollection('ROLEMOD_USEROUT_GRID');
@@ -854,8 +860,9 @@ begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('protected','','',dt_string,False);
-      SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
+      SetFinalRightTransformFunction(@CalculateGroupIcon);
     end;
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
     with groupin_Grid do begin
@@ -877,6 +884,7 @@ begin
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
       AddOneToOnescheme('protected','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_string,False);
     end;
     groupout_Grid := session.NewDerivedCollection('ROLEMOD_GROUPOUT_GRID');
     with groupout_Grid do begin
@@ -1409,6 +1417,7 @@ begin
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('protected','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
     end;
@@ -1433,6 +1442,7 @@ begin
     with tr_UserIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_GRID');
@@ -1452,6 +1462,7 @@ begin
     with tr_UserOut do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userout_Grid := session.NewDerivedCollection('GROUPMOD_USEROUT_GRID');
@@ -1472,6 +1483,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateRoleFields);
     end;
     rolein_Grid := session.NewDerivedCollection('GROUPMOD_ROLEIN_GRID');
@@ -1492,6 +1504,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,6,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateRoleFields);
     end;
     roleout_Grid := session.NewDerivedCollection('GROUPMOD_ROLEOUT_GRID');
@@ -2351,6 +2364,7 @@ begin
       end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateUserIcon);
       AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
     end;
@@ -2378,6 +2392,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       AddOneToOnescheme('protected','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
 
@@ -2400,6 +2415,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       AddOneToOnescheme('protected','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
 
@@ -2420,6 +2436,7 @@ begin
     with tr_RoleIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateRoleIcon);
     end;
 
@@ -2440,6 +2457,7 @@ begin
     with tr_RoleOut do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateRoleIcon);
     end;
     roleout_Grid := session.NewDerivedCollection('USERMOD_ROLEOUT_GRID');
