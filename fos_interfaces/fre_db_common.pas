@@ -2198,7 +2198,8 @@ implementation
 
     procedure addObjects(const obj: IFRE_DB_Object);
     begin
-      if (standardColl=coll_NONE) or not obj.Field('internal').AsBoolean then
+      if (standardColl=coll_NONE) or
+         not (obj.FieldExists('internal') and obj.Field('internal').AsBoolean) then
         store.AddEntry.Describe(obj.GetFormattedDisplay,obj.UID_String);
     end;
 
