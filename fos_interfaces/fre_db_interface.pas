@@ -3506,15 +3506,15 @@ var
   group: IFRE_DB_InputGroupSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
-
-  scheme.AddSchemeField('auto_caption',fdbft_String).required:=true;    { caption of the automatic step }
+  scheme.AddSchemeField('auto_key',fdbft_String).required:=true;        { key of the automatic step }
+  scheme.AddSchemeField('auto_desc',fdbft_String).required:=true;       { description of the automatic step }
   scheme.AddSchemeField('auto_grpkey',fdbft_String).required:=true;     { group key of the context of the automatic steps (='PROVISIONING') hardcoded (to enable filtering of autosteps) }
-  scheme.AddSchemeField('action_desc',fdbft_String);                    { description of the automatic step }
   scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
   scheme.AddSchemeField('action_method',fdbft_String);                  { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+  scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.create('auto_key','auto_desc'),'%s-(%s)');
 
   group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('wf_auto_main_group'));
-  group.AddInput('auto_caption',GetTranslateableTextKey('wf_auto_caption'));
+  group.AddInput('auto_key',GetTranslateableTextKey('wf_auto_key'));
   group.AddInput('auto_desc',GetTranslateableTextKey('wf_auto_desc'));
 end;
 

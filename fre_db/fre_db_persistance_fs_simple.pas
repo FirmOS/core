@@ -666,9 +666,12 @@ begin
         end
       else
         begin
-          GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[collname]);
-          if not DeleteFile(fn) then
-            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+collname);
+          if FileExists(fn) then
+            begin
+              GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[collname]);
+              if not DeleteFile(fn) then
+                raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+collname);
+            end;
         end;
     //end;
 end;

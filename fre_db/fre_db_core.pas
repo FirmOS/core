@@ -1853,7 +1853,6 @@ type
     procedure          InternalSetupConnection      ;virtual;
     function           CollectionExists             (const name:TFRE_DB_NameType):boolean;virtual;
     function           CollectionCN                 (const collection_name:TFRE_DB_NameType;const NewCollectionClassName:ShortString):TFRE_DB_COLLECTION;virtual;
-    function           DeleteCollection             (const name:TFRE_DB_NameType):TFRE_DB_Errortype;virtual;
 
     function           NewObjectCC                  (const ObjClass:TFRE_DB_OBJECTCLASS)                                     : TFRE_DB_Object; virtual;
     procedure          Finalize                     ;
@@ -1866,6 +1865,8 @@ type
     procedure          DumpSystem                    ;virtual;
     function           IsCurrentUserSystemAdmin     : boolean;
   public
+    function           DeleteCollection             (const name:TFRE_DB_NameType):TFRE_DB_Errortype;virtual;
+
     function           AuthenticatedUserName        : String ; virtual;
     function           CollectionCC                 (const collection_name:TFRE_DB_NameType;const NewCollectionClass:TFRE_DB_COLLECTIONCLASS;const create_non_existing:boolean=true;const in_memory_only:boolean=false):TFRE_DB_COLLECTION;virtual;
 
@@ -2238,6 +2239,7 @@ type
     function    DerivedCollectionI           (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true): IFRE_DB_DERIVED_COLLECTION;
 
     function    SYS                          : IFRE_DB_SYS_CONNECTION;
+    function    SYSC                         : TFRE_DB_SYSTEM_CONNECTION;
     function    GetSysDomainUID              :TGUID; override;
     function    AddDomain                    (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
     procedure   DrawScheme                   (const datastream:TStream;const classfile:string) ; override ;
@@ -4116,15 +4118,14 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
     if not CollectionExists('SysWorkflowScheme') then begin
       GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowScheme');
       coll := Collection('SysWorkflowScheme');
+      coll.DefineIndexOnField('error_idx',fdbft_String,true,true);
     end;
     FSysWorkflowScheme := Collection('SysWorkflowScheme');
-    if not FSysWorkflowScheme.IndexExists('def') then begin
-      FSysWorkflowScheme.DefineIndexOnField('error_idx',fdbft_String,true,true);
-    end;
 
     if not CollectionExists('SysWorkflowAutoMethods') then begin
       GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowAutoMethods');
       coll := Collection('SysWorkflowAutoMethods');
+      coll.DefineIndexOnField('auto_key',fdbft_String,true,true,'def',false,false);
     end;
     FSysWorkAutoMethods := Collection('SysWorkflowAutoMethods');
   end;
@@ -10801,7 +10802,7 @@ function TFRE_DB_BASE_CONNECTION.DeleteDomainCollection(const name: TFRE_DB_Name
 var dom_cname : TFRE_DB_NameType;
 begin
   dom_cname := GetMyDomainID_String+name;
-  result    := DeleteDomainCollection(name);
+  result    := DeleteCollection(name);
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_COLLECTION;
@@ -11665,6 +11666,11 @@ end;
 
 
 function TFRE_DB_CONNECTION.SYS: IFRE_DB_SYS_CONNECTION;
+begin
+  result := FSysConnection;
+end;
+
+function TFRE_DB_CONNECTION.SYSC: TFRE_DB_SYSTEM_CONNECTION;
 begin
   result := FSysConnection;
 end;
