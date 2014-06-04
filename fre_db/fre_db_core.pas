@@ -6172,6 +6172,8 @@ var not_object : IFRE_DB_Object;
       ProcessTransforms;
   end;
 
+  var exrefs : TFRE_DB_GUIDArray;
+
 begin //nl
   //dbg_collname := CollectionName();
   //if pos('GROUPMOD_USEROUT_GRID',dbg_collname)>0 then
@@ -6197,6 +6199,17 @@ begin //nl
             FConnection.FetchI(obj_uid,not_object);
           if assigned(not_object) then
             begin
+              if (FUseDepAsLinkFilt) then { update dependency relation }
+                begin
+                  if Length(FDepObjectList)>0 then
+                    begin
+                      (FConnection.UpcastDBC).ExpandReferences(FDepObjectList,FDepRefConstraint,exrefs);
+                      if FDepObjectsRefNeg then
+                        AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_NoValueInFilter)
+                      else
+                        AddUIDFieldFilter('*RLF*','uid',exrefs,dbnf_OneValueFromFilter);
+                    end
+                end;
               _AddToTransformedCollection(not_object.Implementor as TFRE_DB_Object,true);
             end;
         end;
