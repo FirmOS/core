@@ -4118,6 +4118,9 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
       coll := Collection('SysWorkflowScheme');
     end;
     FSysWorkflowScheme := Collection('SysWorkflowScheme');
+    if not FSysWorkflowScheme.IndexExists('def') then begin
+      FSysWorkflowScheme.DefineIndexOnField('error_idx',fdbft_String,true,true);
+    end;
 
     if not CollectionExists('SysWorkflowAutoMethods') then begin
       GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowAutoMethods');

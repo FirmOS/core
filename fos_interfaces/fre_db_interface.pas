@@ -95,7 +95,7 @@ type
   TFRE_DB_CHOOSER_DH          = (dh_chooser_radio,dh_chooser_check,dh_chooser_combo);
 
   TFRE_DB_STANDARD_RIGHT      = (sr_BAD,sr_STORE,sr_UPDATE,sr_DELETE,sr_FETCH);  //DB CORE RIGHTS
-  TFRE_DB_STANDARD_COLL       = (coll_NONE,coll_USER,coll_GROUP,coll_DOMAIN);
+  TFRE_DB_STANDARD_COLL       = (coll_NONE,coll_USER,coll_GROUP,coll_DOMAIN,coll_WFAUTO);
 
 
   EFRE_DB_Exception=class(EFRE_Exception)
@@ -1430,14 +1430,15 @@ type
     function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String):TFRE_DB_String;
     function    FetchTranslateableTextHint    (const translation_key:TFRE_DB_String):TFRE_DB_String;
 
-    function    AdmGetUserCollection          :IFRE_DB_COLLECTION;
-    function    AdmGetRoleCollection          :IFRE_DB_COLLECTION;
-    function    AdmGetGroupCollection         :IFRE_DB_COLLECTION;
-    function    AdmGetDomainCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetAuditCollection         :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowCollection      :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowSchemeCollection:IFRE_DB_COLLECTION;
-    function    GetSysDomainUID               :TGUID;
+    function    AdmGetUserCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetRoleCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetGroupCollection           :IFRE_DB_COLLECTION;
+    function    AdmGetDomainCollection          :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection           :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection        :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection  :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowAutoMethCollection:IFRE_DB_COLLECTION;
+    function    GetSysDomainUID                 :TGUID;
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     procedure   DrawScheme                    (const datastream:TStream; const classfile:string);
@@ -3583,6 +3584,7 @@ begin
   scheme.AddSchemeField('step_parent',fdbft_ObjLink);                   { parent of this step }
   scheme.AddSchemeField('step_id',fdbft_UInt32).required:=true;         { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
   scheme.AddSchemeField('is_error_step',fdbft_Boolean);                 { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
+  scheme.AddSchemeField('error_idx',fdbft_String);                      { index for the error step }
   scheme.AddSchemeField('step_state',fdbft_UInt32);                     { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
   du:=scheme.AddSchemeField('designated_user',fdbft_ObjLink);           { this user should do the step }
   du.required:=true;
@@ -3602,8 +3604,7 @@ begin
   scheme.AddSchemeField('sys_progress',fdbft_String);                   { system progress string, filled in by a (feeder) or the system }
   scheme.AddSchemeField('user_progress',fdbft_String);                  { progress text that is presented to the end user (webuser), which hides detail of the actual progress, may be the same text for several steps or changing percent values / translation key ? .}
   scheme.AddSchemeField('manual_action',fdbft_String);                  { manual action, which needs to be confirmed as OK or FAILED by the USER }
-  scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
-  scheme.AddSchemeField('action_method',fdbft_String);                  { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+  scheme.AddSchemeField('auto_action',fdbft_ObjLink);                   { automatic action }
 
   scheme.AddCalcSchemeField('icon',fdbft_String,@_getIcon);
 
@@ -3614,12 +3615,14 @@ begin
   group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER,true);
   group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'',false,dh_chooser_combo,coll_GROUP);
   group.AddInput('allowed_time',GetTranslateableTextKey('scheme_allowed_time'));
+  group.AddInput('auto_action',GetTranslateableTextKey('scheme_auto_action'),false,false,'',false,dh_chooser_combo,coll_WFAUTO,true);
   group.AddInput('manual_action',GetTranslateableTextKey('scheme_manual_action'));
 
   group:=scheme.AddInputGroup('error_main').Setup(GetTranslateableTextKey('scheme_error_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
   group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP,true);
   group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER,true);
+  group.AddInput('auto_action',GetTranslateableTextKey('scheme_auto_action'),false,false,'',false,dh_chooser_combo,coll_WFAUTO,true);
   group.AddInput('manual_action',GetTranslateableTextKey('scheme_manual_action'));
 end;
 
@@ -3638,6 +3641,7 @@ begin
     StoreTranslateableText(conn,'scheme_designated_group','Assigned Group');
     StoreTranslateableText(conn,'scheme_auth_group','Authorizing Group');
     StoreTranslateableText(conn,'scheme_allowed_time','Allowed time (seconds)');
+    StoreTranslateableText(conn,'scheme_auto_action','Automatic action');
     StoreTranslateableText(conn,'scheme_manual_action','Manual action');
 
     StoreTranslateableText(conn,'scheme_error_main_group','General Information');

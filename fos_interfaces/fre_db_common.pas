@@ -2236,6 +2236,7 @@ implementation
           coll_DOMAIN: coll:=session.GetDBConnection.AdmGetDomainCollection;
           coll_GROUP : coll:=session.GetDBConnection.AdmGetGroupCollection;
           coll_USER  : coll:=session.GetDBConnection.AdmGetUserCollection;
+          coll_WFAUTO: coll:=session.GetDBConnection.AdmGetWorkFlowAutoMethCollection;
           coll_NONE  : begin
                          if dataCollIsDomain then
                            begin
