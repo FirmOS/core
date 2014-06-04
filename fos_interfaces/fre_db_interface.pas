@@ -1822,10 +1822,15 @@ type
   { TFRE_DB_WORKFLOW_STEP }
 
   TFRE_DB_WORKFLOW_STEP=class(TFRE_DB_ObjectEx)
-  public
+  private
+    function         getIsErrorStep: Boolean;
+    procedure        setIsErrorStep(AValue: Boolean);
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  public
+    procedure _getIcon       (const calc: IFRE_DB_CALCFIELD_SETTER);
+    property  isErrorStep    : Boolean read getIsErrorStep write setIsErrorStep;
   end;
 
 
@@ -3504,6 +3509,25 @@ end;
 
 { TFRE_DB_WORKFLOW_STEP }
 
+function TFRE_DB_WORKFLOW_STEP.getIsErrorStep: Boolean;
+begin
+  Result:=FieldExists('is_error_step') and Field('is_error_step').AsBoolean;
+end;
+
+procedure TFRE_DB_WORKFLOW_STEP.setIsErrorStep(AValue: Boolean);
+begin
+  Field('is_error_step').AsBoolean:=AValue;
+end;
+
+procedure TFRE_DB_WORKFLOW_STEP._getIcon(const calc: IFRE_DB_CALCFIELD_SETTER);
+begin
+   if getIsErrorStep then begin
+     calc.SetAsString('images_apps/share/wf_step_error.svg');
+   end else begin
+     calc.SetAsString('images_apps/share/wf_step.svg');
+   end;
+end;
+
 class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 var
   group: IFRE_DB_InputGroupSchemeDefinition;
@@ -3543,6 +3567,8 @@ begin
   scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
   scheme.AddSchemeField('action_method',fdbft_String);                  { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
 
+  scheme.AddCalcSchemeField('icon',fdbft_String,@_getIcon);
+
   group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
   group.AddInput('step_id',GetTranslateableTextKey('scheme_step_id'));
@@ -3552,6 +3578,11 @@ begin
   group.AddInput('allowed_time',GetTranslateableTextKey('scheme_allowed_time'));
   group.AddInput('manual_action',GetTranslateableTextKey('scheme_manual_action'));
 
+  group:=scheme.AddInputGroup('error_main').Setup(GetTranslateableTextKey('scheme_error_main_group'));
+  group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
+  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP,true);
+  group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER,true);
+  group.AddInput('manual_action',GetTranslateableTextKey('scheme_manual_action'));
 end;
 
 class procedure TFRE_DB_WORKFLOW_STEP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -3564,12 +3595,14 @@ begin
 
     StoreTranslateableText(conn,'scheme_main_group','General Information');
     StoreTranslateableText(conn,'scheme_step_caption','Caption');
-    StoreTranslateableText(conn,'scheme_step_id','Id (Priority)');
+    StoreTranslateableText(conn,'scheme_step_id','Order');
     StoreTranslateableText(conn,'scheme_designated_user','Assigned User');
     StoreTranslateableText(conn,'scheme_designated_group','Assigned Group');
     StoreTranslateableText(conn,'scheme_auth_group','Authorizing Group');
     StoreTranslateableText(conn,'scheme_allowed_time','Allowed time (seconds)');
     StoreTranslateableText(conn,'scheme_manual_action','Manual action');
+
+    StoreTranslateableText(conn,'scheme_error_main_group','General Information');
   end;
 end;
 
