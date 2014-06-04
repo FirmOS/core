@@ -237,7 +237,7 @@ var dialog     : TFRE_DB_FORM_DIALOG_DESC;
     session    : TFRE_DB_UserSession;
     scheme     : IFRE_DB_SchemeObject;
     block      : TFRE_DB_INPUT_BLOCK_DESC;
-    user       : IFRE_DB_USER;
+    user       : IFRE_DB_Object;
 begin
   if ses.LoggedIn then begin
     dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'profile_diag_cap'),0,false,false);
@@ -246,8 +246,8 @@ begin
     block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
     block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
     dialog.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
-    user:=conn.SYS.GetCurrentUserToken.User;
-    dialog.FillWithObjectValues(user.Implementor_HC as IFRE_DB_Object,ses);
+    CheckDbResult(conn.Fetch((conn.SYS.GetCurrentUserToken.User.Implementor_HC as IFRE_DB_Object).UID,user));
+    dialog.FillWithObjectValues(user,ses);
     dialog.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_logout'),CWSF(@WEB_doLogout),fdbbt_submit);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_abort'),nil,fdbbt_close);

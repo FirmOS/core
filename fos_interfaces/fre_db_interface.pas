@@ -848,8 +848,6 @@ type
 
   { IFRE_DB_DERIVED_COLLECTION }
 
-  IFRE_DB_DERIVED_COLLECTION_TRANSFORM_ALL_CB = procedure(var transdata : IFRE_DB_ObjectArray ; const lazy_child_expand : boolean ; var record_cnt : NativeInt) of object;
-
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
     procedure  TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; const lazy_child_expand : boolean ; var record_cnt : NativeInt);

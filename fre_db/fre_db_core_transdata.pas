@@ -331,6 +331,9 @@ type
      function    Execute              (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;override; { execute the query, determine count and array of result dbo's }
   end;
 
+  TFRE_DB_TRANSDATA_CHANGE_NOTIFIER=class
+  end;
+
   { TFRE_DB_TRANFORMED_DATA }
 
   TFRE_DB_TRANFORMED_DATA=class
@@ -341,13 +344,14 @@ type
     FTDCreationTime       : TFRE_DB_DateTime64;
     FIncludesChildData    : Boolean; { the query is a tree query}
     FChildDataIsLazy      : Boolean; { the child data is lazy : UNSUPPORTED }
-    FTransFormAllCallback : IFRE_DB_DERIVED_COLLECTION_TRANSFORM_ALL_CB;
+    FDC                   : IFRE_DB_DERIVED_COLLECTION;
   public
-    function    GetTransFormKey : TFRE_DB_NameTypeRL;
-    function    GetDataArray    : PFRE_DB_ObjectArray;
-    procedure   TransformAll    (var rcnt : NativeInt);       { transform all objects of the parent collection }
-    procedure   TransformSingle (const obj : IFRE_DB_Object ; var uid_change_list : TFRE_DB_GUIDArray); { transform a single object }
-    constructor Create          (const base_key : TFRE_DB_NameTypeRL ; const child_data_lazy,includes_child_data : boolean ; const tranform_all_cb : IFRE_DB_DERIVED_COLLECTION_TRANSFORM_ALL_CB);
+    function    IsObjectInDataIdx (const obj : IFRE_DB_Object ; var idx :NativeInt):boolean;
+    function    GetTransFormKey   : TFRE_DB_NameTypeRL;
+    function    GetDataArray      : PFRE_DB_ObjectArray;
+    procedure   TransformAll      (var rcnt : NativeInt);       { transform all objects of the parent collection }
+    procedure   TransformSingle   (const obj : IFRE_DB_Object ; const cn : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER); { transform a single object }
+    constructor Create            (const base_key : TFRE_DB_NameTypeRL ; const child_data_lazy,includes_child_data : boolean ; const dc : IFRE_DB_DERIVED_COLLECTION);
   end;
 
   { TFRE_DB_OrderContainer }
@@ -2029,6 +2033,19 @@ end;
 
 { TFRE_DB_TRANFORMED_DATA }
 
+function TFRE_DB_TRANFORMED_DATA.IsObjectInDataIdx(const obj: IFRE_DB_Object; var idx: NativeInt): boolean;
+var i : NativeInt;
+begin
+  for i := 0 to High(FTransformeddata) do
+    if obj.UID=FTransformeddata[i].uid then
+      begin
+        idx := i;
+        exit(true);
+      end;
+  idx    := -1;
+  result := false;
+end;
+
 function TFRE_DB_TRANFORMED_DATA.GetTransFormKey: TFRE_DB_NameTypeRL;
 begin
   result := FBaseKey;
@@ -2041,20 +2058,20 @@ end;
 
 procedure TFRE_DB_TRANFORMED_DATA.TransformAll(var rcnt: NativeInt);
 begin
-  FTransFormAllCallback(GetDataArray^,FChildDataIsLazy,rcnt);
+  FDC.TransformAllTo(GetDataArray^,FChildDataIsLazy,rcnt);
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.TransformSingle(const obj: IFRE_DB_Object; var uid_change_list: TFRE_DB_GUIDArray);
+procedure TFRE_DB_TRANFORMED_DATA.TransformSingle(const obj: IFRE_DB_Object; const cn: TFRE_DB_TRANSDATA_CHANGE_NOTIFIER);
 begin
 
 end;
 
-constructor TFRE_DB_TRANFORMED_DATA.Create(const base_key: TFRE_DB_NameTypeRL; const child_data_lazy, includes_child_data: boolean; const tranform_all_cb: IFRE_DB_DERIVED_COLLECTION_TRANSFORM_ALL_CB);
+constructor TFRE_DB_TRANFORMED_DATA.Create(const base_key: TFRE_DB_NameTypeRL; const child_data_lazy, includes_child_data: boolean; const dc: IFRE_DB_DERIVED_COLLECTION);
 begin
   FBaseKey              := uppercase(base_key);
   FChildDataIsLazy      := child_data_lazy;
   FIncludesChildData    := includes_child_data;
-  FTransFormAllCallback := tranform_all_cb;
+  FDC                   := dc;
   //FParentColl     := GFRE_BT.SepLeft(base_key,'/');
   FTDCreationTime := GFRE_DT.Now_UTC;
 end;
@@ -2161,13 +2178,15 @@ procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object; con
 
   procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
   var i      : NativeInt;
+      idx    : NAtiveint;
       uid_cl : TFRE_DB_GUIDArray;
+      cn     : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER;
   begin
-    for i:=0 to high(colls) do
-      if pos(colls[i]+'/',tcd.GetTransFormKey)=1 then
-        begin
-          tcd.TransformSingle(obj.Implementor as TFRE_DB_Object,uid_cl);
-        end;
+    if tcd.IsObjectInDataIdx(obj,idx) then
+      begin
+         cn := TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.Create;
+         tcd.TransformSingle(obj.Implementor as TFRE_DB_Object,cn);
+      end;
     //tcd.GetDataArray;
     //-> Check if in base transformed data
     //---
@@ -2338,7 +2357,7 @@ begin
           GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[basekey]);
           st        := GFRE_BT.Get_Ticks_ms;
           inc(FTransformKey);
-          transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey,true,dc.HasParentChildRefRelationDefined,@dc.TransformAllTo);
+          transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey,true,dc.HasParentChildRefRelationDefined,dc);
           //transdata.FTransformKey       := FTransformKey;
           transdata.TransFormAll(rcnt);
           AddBaseTransformedData(transdata);
