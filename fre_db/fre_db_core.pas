@@ -1954,6 +1954,7 @@ type
     FSysSingletons       : TFRE_DB_COLLECTION;
     FSysWorkflow         : TFRE_DB_COLLECTION; { the steps, may be with additional hierarchic levels }
     FSysWorkflowScheme   : TFRE_DB_COLLECTION; { the schemes, hierarchic }
+    FSysWorkAutoMethods  : TFRE_DB_COLLECTION; { the automatic steps }
     FSysAudit            : TFRE_DB_COLLECTION;
 
     FConnectionRights    : TFRE_DB_StringArray; // specialized on clone
@@ -2209,6 +2210,7 @@ type
     function    AdmGetAuditCollection       :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowCollection    :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowSchemeCollection :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowAutoMethCollection :IFRE_DB_COLLECTION;
 
     function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -4116,6 +4118,12 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
       coll := Collection('SysWorkflowScheme');
     end;
     FSysWorkflowScheme := Collection('SysWorkflowScheme');
+
+    if not CollectionExists('SysWorkflowAutoMethods') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowAutoMethods');
+      coll := Collection('SysWorkflowAutoMethods');
+    end;
+    FSysWorkAutoMethods := Collection('SysWorkflowAutoMethods');
   end;
 
   procedure SetupAuditCollection;
@@ -11338,6 +11346,11 @@ end;
 function TFRE_DB_CONNECTION.AdmGetWorkFlowSchemeCollection: IFRE_DB_COLLECTION;
 begin
   result := FSysConnection.FSysWorkflowScheme;
+end;
+
+function TFRE_DB_CONNECTION.AdmGetWorkFlowAutoMethCollection: IFRE_DB_COLLECTION;
+begin
+ result := FSysConnection.FSysWorkAutoMethods;
 end;
 
 

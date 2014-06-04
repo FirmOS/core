@@ -1833,6 +1833,14 @@ type
     property  isErrorStep    : Boolean read getIsErrorStep write setIsErrorStep;
   end;
 
+  { TFRE_DB_WORKFLOW_AUTOMATIC_METHOD }
+
+  TFRE_DB_WORKFLOW_AUTOMATIC_METHOD=class(TFRE_DB_ObjectEx)
+  protected
+    class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
 
   { TFRE_DB_UNCONFIGURED_MACHINE }
 
@@ -3489,6 +3497,36 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_WORKFLOW_AUTOMATIC_METHOD }
+
+class procedure TFRE_DB_WORKFLOW_AUTOMATIC_METHOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+var
+  group: IFRE_DB_InputGroupSchemeDefinition;
+begin
+  inherited RegisterSystemScheme(scheme);
+
+  scheme.AddSchemeField('auto_caption',fdbft_String).required:=true;    { caption of the automatic step }
+  scheme.AddSchemeField('auto_grpkey',fdbft_String).required:=true;     { group key of the context of the automatic steps (='PROVISIONING') hardcoded (to enable filtering of autosteps) }
+  scheme.AddSchemeField('action_desc',fdbft_String);                    { description of the automatic step }
+  scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
+  scheme.AddSchemeField('action_method',fdbft_String);                  { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('wf_auto_main_group'));
+  group.AddInput('auto_caption',GetTranslateableTextKey('wf_auto_caption'));
+  group.AddInput('auto_desc',GetTranslateableTextKey('wf_auto_desc'));
+end;
+
+class procedure TFRE_DB_WORKFLOW_AUTOMATIC_METHOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  newVersionId:='0.1';
+  if (currentVersionId='UNUSED') then currentVersionId:='';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+    //StoreTranslateableText(conn,'scheme_main_group','General Information');
+  end;
+end;
 
 { TFRE_DB_AUDIT_ENTRY }
 
