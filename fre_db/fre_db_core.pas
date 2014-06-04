@@ -7852,7 +7852,7 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
           with sortfilterkeys[i] do
             AddStringFieldFilter(filter_key,field_name,TFRE_DB_StringArray.Create(value),filtertype,on_transform,on_filter_field);
         end;
-        if FUseDepAsLinkFilt then
+        if (FUseDepAsLinkFilt) and (not childcall) then
           begin
             if Length(FDepObjectList)>0 then
               begin
@@ -7868,6 +7868,10 @@ var pageinfo       : TFRE_DB_DC_PAGING_INFO;
                 TFRE_DB_STORE_DATA_DESC(Result).Describe(0);
                 exit;
               end;
+          end
+        else
+          begin
+            RemoveAllFiltersPrefix('*RLF*');
           end;
         _FilterIt(childcall);
       end;
