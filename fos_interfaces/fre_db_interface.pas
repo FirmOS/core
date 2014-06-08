@@ -95,7 +95,7 @@ type
 
   TFRE_DB_STANDARD_RIGHT      = (sr_BAD,sr_STORE,sr_UPDATE,sr_DELETE,sr_FETCH);  //DB CORE RIGHTS
   TFRE_DB_STANDARD_RIGHT_SET  = set of TFRE_DB_STANDARD_RIGHT;
-  TFRE_DB_STANDARD_COLL       = (coll_NONE,coll_USER,coll_GROUP,coll_DOMAIN);
+  TFRE_DB_STANDARD_COLL       = (coll_NONE,coll_USER,coll_GROUP,coll_DOMAIN,coll_WFAUTO);
 
 
   EFRE_DB_Exception=class(EFRE_Exception)
@@ -899,7 +899,7 @@ type
     ['IFDBTO']
   end;
 
-  IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION = procedure (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object) of object;
+  IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION = procedure (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object) of object;
 
   IFRE_DB_SIMPLE_TRANSFORM=interface(IFRE_DB_TRANSFORMOBJECT)
     ['IFDBST']
@@ -1457,14 +1457,15 @@ type
     function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String):TFRE_DB_String;
     function    FetchTranslateableTextHint    (const translation_key:TFRE_DB_String):TFRE_DB_String;
 
-    function    AdmGetUserCollection          :IFRE_DB_COLLECTION;
-    function    AdmGetRoleCollection          :IFRE_DB_COLLECTION;
-    function    AdmGetGroupCollection         :IFRE_DB_COLLECTION;
-    function    AdmGetDomainCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetAuditCollection         :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowCollection      :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowSchemeCollection:IFRE_DB_COLLECTION;
-    function    GetSysDomainUID               :TGUID;
+    function    AdmGetUserCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetRoleCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetGroupCollection           :IFRE_DB_COLLECTION;
+    function    AdmGetDomainCollection          :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection           :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection        :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection  :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowAutoMethCollection:IFRE_DB_COLLECTION;
+    function    GetSysDomainUID                 :TGUID;
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     procedure   DrawScheme                    (const datastream:TStream; const classfile:string);
@@ -1933,7 +1934,20 @@ type
   { TFRE_DB_WORKFLOW_STEP }
 
   TFRE_DB_WORKFLOW_STEP=class(TFRE_DB_ObjectEx)
+  private
+    function         getIsErrorStep: Boolean;
+    procedure        setIsErrorStep(AValue: Boolean);
+  protected
+    class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
+    procedure _getIcon       (const calc: IFRE_DB_CALCFIELD_SETTER);
+    property  isErrorStep    : Boolean read getIsErrorStep write setIsErrorStep;
+  end;
+
+  { TFRE_DB_WORKFLOW_AUTOMATIC_METHOD }
+
+  TFRE_DB_WORKFLOW_AUTOMATIC_METHOD=class(TFRE_DB_ObjectEx)
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
@@ -3613,6 +3627,37 @@ type
 
    pmethodnametable =  ^tmethodnametable;
 
+{ TFRE_DB_WORKFLOW_AUTOMATIC_METHOD }
+
+class procedure TFRE_DB_WORKFLOW_AUTOMATIC_METHOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+var
+  group: IFRE_DB_InputGroupSchemeDefinition;
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.AddSchemeField('auto_key',fdbft_String).required:=true;        { key of the automatic step }
+  scheme.AddSchemeField('auto_desc',fdbft_String).required:=true;       { description of the automatic step }
+  scheme.AddSchemeField('auto_grpkey',fdbft_String).required:=true;     { group key of the context of the automatic steps (='PROVISIONING') hardcoded (to enable filtering of autosteps) }
+  scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
+  scheme.AddSchemeField('action_method',fdbft_String);                  { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+  scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.create('auto_key','auto_desc'),'%s-(%s)');
+
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('wf_auto_main_group'));
+  group.AddInput('auto_key',GetTranslateableTextKey('wf_auto_key'));
+  group.AddInput('auto_desc',GetTranslateableTextKey('wf_auto_desc'));
+end;
+
+class procedure TFRE_DB_WORKFLOW_AUTOMATIC_METHOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  newVersionId:='0.1';
+  if (currentVersionId='UNUSED') then currentVersionId:='';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+    //StoreTranslateableText(conn,'scheme_main_group','General Information');
+  end;
+end;
+
+
 { TFRE_DB_FILTER_BASE }
 
 function TFRE_DB_FILTER_BASE.GetKeyName: TFRE_DB_NameType;
@@ -3644,6 +3689,25 @@ end;
 
 { TFRE_DB_WORKFLOW_STEP }
 
+function TFRE_DB_WORKFLOW_STEP.getIsErrorStep: Boolean;
+begin
+  Result:=FieldExists('is_error_step') and Field('is_error_step').AsBoolean;
+end;
+
+procedure TFRE_DB_WORKFLOW_STEP.setIsErrorStep(AValue: Boolean);
+begin
+  Field('is_error_step').AsBoolean:=AValue;
+end;
+
+procedure TFRE_DB_WORKFLOW_STEP._getIcon(const calc: IFRE_DB_CALCFIELD_SETTER);
+begin
+   if getIsErrorStep then begin
+     calc.SetAsString('images_apps/share/wf_step_error.svg');
+   end else begin
+     calc.SetAsString('images_apps/share/wf_step.svg');
+   end;
+end;
+
 class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 var
   group: IFRE_DB_InputGroupSchemeDefinition;
@@ -3661,6 +3725,7 @@ begin
   scheme.AddSchemeField('step_parent',fdbft_ObjLink);                   { parent of this step }
   scheme.AddSchemeField('step_id',fdbft_UInt32).required:=true;         { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
   scheme.AddSchemeField('is_error_step',fdbft_Boolean);                 { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
+  scheme.AddSchemeField('error_idx',fdbft_String);                      { index for the error step }
   scheme.AddSchemeField('step_state',fdbft_UInt32);                     { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
   du:=scheme.AddSchemeField('designated_user',fdbft_ObjLink);           { this user should do the step }
   du.required:=true;
@@ -3680,8 +3745,9 @@ begin
   scheme.AddSchemeField('sys_progress',fdbft_String);                   { system progress string, filled in by a (feeder) or the system }
   scheme.AddSchemeField('user_progress',fdbft_String);                  { progress text that is presented to the end user (webuser), which hides detail of the actual progress, may be the same text for several steps or changing percent values / translation key ? .}
   scheme.AddSchemeField('manual_action',fdbft_String);                  { manual action, which needs to be confirmed as OK or FAILED by the USER }
-  scheme.AddSchemeField('action_uidpath',fdbft_GUID).multiValues:=true; { uidpath of the automatic action to be set }
-  scheme.AddSchemeField('action_method',fdbft_String);                  { Classname.Methodname of the WEB_Action to be called, the input of the action contains all objects pointing to the WF Object !}
+  scheme.AddSchemeField('auto_action',fdbft_ObjLink);                   { automatic action }
+
+  scheme.AddCalcSchemeField('icon',fdbft_String,@_getIcon);
 
   group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
@@ -3690,8 +3756,15 @@ begin
   group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER,true);
   group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'',false,dh_chooser_combo,coll_GROUP);
   group.AddInput('allowed_time',GetTranslateableTextKey('scheme_allowed_time'));
+  group.AddInput('auto_action',GetTranslateableTextKey('scheme_auto_action'),false,false,'',false,dh_chooser_combo,coll_WFAUTO,true);
   group.AddInput('manual_action',GetTranslateableTextKey('scheme_manual_action'));
 
+  group:=scheme.AddInputGroup('error_main').Setup(GetTranslateableTextKey('scheme_error_main_group'));
+  group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
+  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP,true);
+  group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER,true);
+  group.AddInput('auto_action',GetTranslateableTextKey('scheme_auto_action'),false,false,'',false,dh_chooser_combo,coll_WFAUTO,true);
+  group.AddInput('manual_action',GetTranslateableTextKey('scheme_manual_action'));
 end;
 
 class procedure TFRE_DB_WORKFLOW_STEP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -3704,12 +3777,15 @@ begin
 
     StoreTranslateableText(conn,'scheme_main_group','General Information');
     StoreTranslateableText(conn,'scheme_step_caption','Caption');
-    StoreTranslateableText(conn,'scheme_step_id','Id (Priority)');
+    StoreTranslateableText(conn,'scheme_step_id','Order');
     StoreTranslateableText(conn,'scheme_designated_user','Assigned User');
     StoreTranslateableText(conn,'scheme_designated_group','Assigned Group');
     StoreTranslateableText(conn,'scheme_auth_group','Authorizing Group');
     StoreTranslateableText(conn,'scheme_allowed_time','Allowed time (seconds)');
+    StoreTranslateableText(conn,'scheme_auto_action','Automatic action');
     StoreTranslateableText(conn,'scheme_manual_action','Manual action');
+
+    StoreTranslateableText(conn,'scheme_error_main_group','General Information');
   end;
 end;
 
@@ -5372,12 +5448,12 @@ end;
 function TFRE_DB_UserSession.GetSessionAppData(const app_key: TFRE_DB_String): IFRE_DB_Object;
 begin
   assert(assigned(FSessionData));
-  result := FSessionData.Field('APP_DATA_'+app_key).AsObject;
+  result := GetSessionGlobalData.Field('APP_DATA_'+app_key).AsObject;
 end;
 
 function TFRE_DB_UserSession.GetSessionModuleData(const mod_key: TFRE_DB_String): IFRE_DB_Object;
 begin
-  result := FSessionData.Field('MOD_DATA_'+mod_key).AsObject;
+  result := GetSessionGlobalData.Field('MOD_DATA_'+mod_key).AsObject;
 end;
 
 function TFRE_DB_UserSession.GetSessionGlobalData: IFRE_DB_Object;

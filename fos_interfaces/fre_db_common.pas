@@ -2198,7 +2198,8 @@ implementation
 
     procedure addObjects(const obj: IFRE_DB_Object);
     begin
-      if (standardColl=coll_NONE) or not obj.Field('internal').AsBoolean then
+      if (standardColl=coll_NONE) or
+         not (obj.FieldExists('internal') and obj.Field('internal').AsBoolean) then
         store.AddEntry.Describe(obj.GetFormattedDisplay,obj.UID_String);
     end;
 
@@ -2236,6 +2237,7 @@ implementation
           coll_DOMAIN: coll:=session.GetDBConnection.AdmGetDomainCollection;
           coll_GROUP : coll:=session.GetDBConnection.AdmGetGroupCollection;
           coll_USER  : coll:=session.GetDBConnection.AdmGetUserCollection;
+          coll_WFAUTO: coll:=session.GetDBConnection.AdmGetWorkFlowAutoMethCollection;
           coll_NONE  : begin
                          if dataCollIsDomain then
                            begin
