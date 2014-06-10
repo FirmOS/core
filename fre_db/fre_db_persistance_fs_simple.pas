@@ -152,9 +152,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
      procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
-
      function    INT_Fetch                     (const ouid    :  TGUID  ; out   dbi:IFRE_DB_Object):boolean; { unlocked internal fetch }
-
+     function    WT_GetSysLayer                : IFRE_DB_PERSISTANCE_LAYER;
 
      {< Backup Functionality}
      function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
@@ -731,6 +730,14 @@ begin
     dbi:=nil;
 end;
 
+function TFRE_DB_PS_FILE.WT_GetSysLayer: IFRE_DB_PERSISTANCE_LAYER;
+begin
+  if FMaster.IsSystemMasterData then
+    exit(self)
+  else
+    exit(FMaster.SysLayer);
+end;
+
 function TFRE_DB_PS_FILE.FDB_GetObjectCount(const coll: boolean; const SchemesFilter: TFRE_DB_StringArray): Integer;
 begin
   if coll then
@@ -1227,7 +1234,7 @@ begin
   FLayerLock.Acquire;
   try
     try
-      if FMaster.FetchObject(ouid,dboo,false) then
+      if _FetchO(ouid,dboo,false) then
         begin
           dbo := dboo;
           FLastErrorCode := edb_OK;

@@ -592,7 +592,7 @@ type
   IFRE_DB_CS_CALLBACK          = procedure (const Input:IFRE_DB_Object) of Object;
   IFRE_DB_InvokeProcedure      = procedure (const Input:IFRE_DB_Object) of Object;
 
-  TFRE_DB_Object_Properties    = (fop_SYSTEM,fop_READ_ONLY,fop_VOLATILE,fop_STORED_IMMUTABLE);
+  TFRE_DB_Object_Properties    = (fop_SYSTEM,fop_READ_ONLY,fop_VOLATILE,fop_STORED_IMMUTABLE,fop_IN_SYSTEM_DB); { fop_SYSTEM=static/read only, fop_IN_SYSTEM_DB = from System DB masterdata}
   TFRE_DB_Object_PropertySet   = set of TFRE_DB_Object_Properties;
 
   TFRE_InputGroupDefType=(igd_Bad,igd_Field,igd_UsedGroup,igd_UsedSubGroup);
@@ -1303,6 +1303,7 @@ type
     procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
     procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
     procedure WT_TransactionID              (const number:qword);
+    function  WT_GetSysLayer                : IFRE_DB_PERSISTANCE_LAYER;
 
     function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
     procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);

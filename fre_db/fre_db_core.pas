@@ -575,6 +575,7 @@ type
     function        GetDescriptionID                   : String;
     procedure       Set_ReadOnly                       ;
     procedure       Set_Volatile                       ;
+    procedure       Set_SystemDB                       ;
     procedure       Set_System                         ;
     procedure       Set_Store_Locked                   (const locked:boolean=true); // Obj is as original in Persistent/MemoryStore Do not read or write it!
     procedure       Set_Store_LockedUnLockedIf         (const locked:boolean ; var lock_state : boolean);
@@ -655,6 +656,7 @@ type
     function        ReferencesFromData                 : TFRE_DB_ObjectReferences;
 
     function        IsSystem                           : Boolean;
+    function        IsSystemDB                         : Boolean;
     function        IsVolatile                         : Boolean;
     function        GetFieldListFilter                 (const field_type:TFRE_DB_FIELDTYPE):TFRE_DB_StringArray;
     function        GetUIDPath                         : TFRE_DB_StringArray;
@@ -12855,6 +12857,11 @@ begin
   Include(FObjectProps,fop_VOLATILE);
 end;
 
+procedure TFRE_DB_Object.Set_SystemDB;
+begin
+ Include(FObjectProps,fop_IN_SYSTEM_DB);
+end;
+
 procedure TFRE_DB_Object.Set_System;
 begin
   Include(FObjectProps,fop_SYSTEM);
@@ -13638,6 +13645,11 @@ end;
 function TFRE_DB_Object.IsSystem: Boolean;
 begin
  result := fop_SYSTEM in FObjectProps;
+end;
+
+function TFRE_DB_Object.IsSystemDB: Boolean;
+begin
+ result := fop_IN_SYSTEM_DB in FObjectProps;
 end;
 
 function TFRE_DB_Object.IsVolatile: Boolean;

@@ -422,6 +422,9 @@ type
     procedure    _CheckRefIntegrityForObject (const obj:TFRE_DB_Object ; var ref_array : TFRE_DB_ObjectReferences ; var schemelink_arr : TFRE_DB_NameTypeRLArray);
 
   public
+    function     SysLayer                   : IFRE_DB_PERSISTANCE_LAYER;
+    function     IsSystemMasterData         : Boolean;
+
     function     GetPersistantRootObjectCount (const UppercaseSchemesFilter: TFRE_DB_StringArray=nil): Integer;
 
     function     InternalStoreObjectFromStable (const obj : TFRE_DB_Object) : TFRE_DB_Errortype;
@@ -2131,19 +2134,22 @@ begin
 end;
 
 procedure TFRE_DB_ChangeStep.CheckWriteThroughColl(Coll: IFRE_DB_PERSISTANCE_COLLECTION);
+var layer : IFRE_DB_PERSISTANCE_LAYER;
 begin
   if coll.IsVolatile then
     exit;
   try
+   layer := FLayer;
    if GDBPS_TRANS_WRITE_THROUGH then
      begin
-       FLayer.WT_StoreCollectionPersistent(coll);
-       GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH STORE COLLECTION (%s)',[FLayer.GetConnectedDB,coll.CollectionName()]));
+       layer := coll.GetPersLayer;
+       layer.WT_StoreCollectionPersistent(coll);
+       GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH STORE COLLECTION (%s)',[Layer.GetConnectedDB,coll.CollectionName()]));
      end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH ERROR STORE COLLECTION (%s) (%s)',[FLayer.GetConnectedDB,coll.CollectionName(),e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH ERROR STORE COLLECTION (%s) (%s)',[Layer.GetConnectedDB,coll.CollectionName(),e.Message]));
       end;
   end;
 end;
@@ -2165,17 +2171,27 @@ begin
 end;
 
 procedure TFRE_DB_ChangeStep.CheckWriteThroughObj(obj: IFRE_DB_Object ; const no_store_locking: boolean=true);
+var layer : IFRE_DB_PERSISTANCE_LAYER;
+    cdb   : String;
 begin
   try
     if GDBPS_TRANS_WRITE_THROUGH then
       begin
-        FLayer.WT_StoreObjectPersistent(obj,no_store_locking);
-        GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
+        layer := FLayer;
+        if (obj.Implementor as TFRE_DB_Object).IsSystemDB then
+          begin
+            layer := FLayer.WT_GetSysLayer;
+            layer.WT_StoreObjectPersistent(obj,no_store_locking)
+          end
+        else
+          FLayer.WT_StoreObjectPersistent(obj,no_store_locking);
+        cdb := Layer.GetConnectedDB;
+        GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH OBJECT (%s)',[cdb,obj.GetDescriptionID]));
       end;
   except
     on e:Exception do
       begin
-        GFRE_DBI.LogEmergency(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH ERROR OBJECT (%s) (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
+        GFRE_DBI.LogEmergency(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH ERROR OBJECT (%s) (%s)',[Layer.GetConnectedDB,obj.GetDescriptionID,e.Message]));
       end;
   end;
 end;
@@ -2311,7 +2327,7 @@ begin
   FCnt          := 0;
   upobj         := obj;
   to_upd_obj    := to_update_obj;
-  FIsStore     := is_insert;
+  FIsStore      := is_insert;
 end;
 
 constructor TFRE_DB_UpdateStep.CreateAsWalReadBack(new_obj: TGuid; const is_store: boolean; const ws: TStream);
@@ -3402,13 +3418,7 @@ begin
   if value<>$BAD0BEEF then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, value invalid [%d]',[value]);
   if not FetchObject(to_uid,to_obj,true) then
-    begin
-      if not assigned(FSystemMasterData) then
-        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)])
-      else
-        if not FSystemMasterData.FetchObject(to_uid,to_obj,true) then
-          raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)]);
-    end;
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)]);
   if assigned(notifif) then
     begin
       to_obj.Set_Store_LockedUnLockedIf(false,lock_state);
@@ -3477,13 +3487,7 @@ var j       : NativeInt;
 begin
   //writeln('TODO _ PARALLEL CHECK OF REFLINK INDEX TREE');
   if not FetchObject(link,ref_obj,true) then
-    begin
-      if not assigned(FSystemMasterData) then
-        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)])
-      else
-        if not FSystemMasterData.FetchObject(link,ref_obj,true) then
-          raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)]);
-    end;
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)]);
   if obj.IsVolatile or obj.IsSystem then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the linking object is volatile or system!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)]);
   scheme_link := uppercase(fieldname+'>'+ref_obj.SchemeClass);
@@ -3511,13 +3515,7 @@ begin
   FREDB_SplitRefLinkDescription(FromFieldToSchemename,fieldname,schemename);
 
   if not FetchObject(references_to,ref_obj,true) then
-    begin
-      if not assigned(FSystemMasterData) then
-        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,GFRE_BT.GUID_2_HexString(references_to)])
-      else
-        if not FSystemMasterData.FetchObject(references_to,ref_obj,true) then
-          raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,GFRE_BT.GUID_2_HexString(references_to)])
-    end;
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,GFRE_BT.GUID_2_HexString(references_to)]);
   if not ref_obj.IsObjectRoot then
     begin
       writeln('SSSLL :::');
@@ -3658,6 +3656,18 @@ begin
     __CheckReferenceLink(obj,ref_array[i].fieldname,ref_array[i].linked_uid,schemelink_arr[i]);
 end;
 
+function TFRE_DB_Master_Data.SysLayer: IFRE_DB_PERSISTANCE_LAYER;
+begin
+  if not assigned(FSystemMasterData) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'fail - only use on system masterdata');
+  result := FSystemMasterData.FLayer;
+end;
+
+function TFRE_DB_Master_Data.IsSystemMasterData: Boolean;
+begin
+  result := FSystemMasterData=nil; { only in the SYSTEM db layer}
+end;
+
 function TFRE_DB_Master_Data.GetPersistantRootObjectCount(const UppercaseSchemesFilter: TFRE_DB_StringArray): Integer;
 var brk:integer;
     procedure Scan(const obj : TFRE_DB_Object ; var break : boolean);
@@ -3725,7 +3735,7 @@ var cnt : NativeInt;
           if length(obj.__InternalGetCollectionList)=0 then
           begin
             inc(cnt);
-            writeln('INTERNAL FAILURE :::DB VERIFY - OFFENDING OBJECT (not stored in an collection ?)');
+            writeln('INTERNAL FAILURE ('+FLayer.GetConnectedDB+'):::DB VERIFY - OFFENDING OBJECT (not stored in an collection ?)');
             writeln(obj.DumpToString(2));
             writeln('--Looking for references');
             obrefs := GetReferencesDetailed(obj.UID,false);
@@ -4021,6 +4031,8 @@ begin
      else
        //writeln(' FAILED !!!!!!');
     end;
+  if result and IsSystemMasterData then
+    obj.Set_SystemDB; { set internal flag that this object comes from the sys layer ( update/wt) }
   if result and
      not internal_obj then
        begin
@@ -4037,6 +4049,11 @@ begin
          end;
          obj := clobj;
        end;
+   if not result then { not found here, search in system master data }
+    if assigned(FSystemMasterData) then
+      begin
+        result := FSystemMasterData.FetchObject(obj_uid,obj,internal_obj);
+      end;
 end;
 
 procedure TFRE_DB_Master_Data.StoreObject(const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification);
