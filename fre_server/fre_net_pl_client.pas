@@ -158,6 +158,8 @@ type
       procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
       procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
       procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
+      function  WT_GetSysLayer                : IFRE_DB_PERSISTANCE_LAYER;
+
 
       function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
       procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
@@ -1150,6 +1152,11 @@ begin
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_DeleteObjectPersistent(const iobj: IFRE_DB_Object);
+begin
+
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_GetSysLayer: IFRE_DB_PERSISTANCE_LAYER;
 begin
 
 end;
