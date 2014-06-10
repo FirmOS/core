@@ -1955,7 +1955,7 @@ type
     FSysSingletons       : TFRE_DB_COLLECTION;
     FSysWorkflow         : TFRE_DB_COLLECTION; { the steps, may be with additional hierarchic levels }
     FSysWorkflowScheme   : TFRE_DB_COLLECTION; { the schemes, hierarchic }
-    FSysWorkAutoMethods  : TFRE_DB_COLLECTION; { the automatic steps }
+    FSysWorkflowMethods  : TFRE_DB_COLLECTION; { the automatic steps }
     FSysAudit            : TFRE_DB_COLLECTION;
 
     FConnectionRights    : TFRE_DB_StringArray; // specialized on clone
@@ -2211,7 +2211,7 @@ type
     function    AdmGetAuditCollection       :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowCollection    :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowSchemeCollection :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowAutoMethCollection :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowMethCollection :IFRE_DB_COLLECTION;
 
     function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -4122,12 +4122,12 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
     end;
     FSysWorkflowScheme := Collection('SysWorkflowScheme');
 
-    if not CollectionExists('SysWorkflowAutoMethods') then begin
-      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowAutoMethods');
-      coll := Collection('SysWorkflowAutoMethods');
-      coll.DefineIndexOnField('auto_key',fdbft_String,true,true,'def',false,false);
+    if not CollectionExists('SysWorkflowMethods') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowMethods');
+      coll := Collection('SysWorkflowMethods');
+      coll.DefineIndexOnField('key',fdbft_String,true,true,'def',false,false);
     end;
-    FSysWorkAutoMethods := Collection('SysWorkflowAutoMethods');
+    FSysWorkflowMethods := Collection('SysWorkflowMethods');
   end;
 
   procedure SetupAuditCollection;
@@ -11352,9 +11352,9 @@ begin
   result := FSysConnection.FSysWorkflowScheme;
 end;
 
-function TFRE_DB_CONNECTION.AdmGetWorkFlowAutoMethCollection: IFRE_DB_COLLECTION;
+function TFRE_DB_CONNECTION.AdmGetWorkFlowMethCollection: IFRE_DB_COLLECTION;
 begin
- result := FSysConnection.FSysWorkAutoMethods;
+ result := FSysConnection.FSysWorkflowMethods;
 end;
 
 
