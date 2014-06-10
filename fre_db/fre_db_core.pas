@@ -500,7 +500,6 @@ type
   TFRE_DB_Object=class(TFRE_DB_Base,IFRE_DB_Object)
   private
    var
-    FTransOrderKey     : PShortString;  { when assigned points to the order key, used for transformed objects }
     FUID               : TGUID;
     FDomainID          : TGUID;
     FFieldStore        : _TFRE_DB_FieldTree;
@@ -510,6 +509,7 @@ type
     fuidPathUA         : TFRE_DB_GUIDArray;
     FObjectProps       : TFRE_DB_Object_PropertySet; // Runtime Properties
     FInCollectionarr   : array of IFRE_DB_PERSISTANCE_COLLECTION;
+    FExtensionTag      : Pointer;
 
     procedure      _RestoreUIDandDomainID              ;
     procedure      ForAll                              (const iter:TFRE_DB_FieldIterator);
@@ -1636,9 +1636,9 @@ type
     destructor   Destroy;override;
     function     GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
 
-    procedure    MyTransForm                   (const in_object : TFRE_DB_Object ; var trans_data: IFRE_DB_ObjectArray ; var idx : NativeInt ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode);
-    procedure    TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure TransformSingleUpdate(const in_object: IFRE_DB_Object; var transdata: IFRE_DB_ObjectArray; const lazy_child_expand: boolean; var record_idxs: TFRE_DB_Int32Array; var upd_idx: NativeInt);
+    procedure    MyTransForm                   (const in_object : TFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var idx : NativeInt ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode);
+    procedure    TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
+    procedure    TransformSingleUpdate         (const in_object : IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean ; var upd_idx: NativeInt);
 
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -6390,7 +6390,7 @@ begin
   result := FParentCollection.CollectionName(true)+'#'+CollectionName(true);
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const in_object: TFRE_DB_Object; var trans_data: IFRE_DB_ObjectArray; var idx: NativeInt; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode);
+procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const in_object: TFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; var idx: NativeInt; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode);
 var tr_obj        : TFRE_DB_Object;
     refd_uids     : TFRE_DB_GUIDArray;
     refd_objs     : IFRE_DB_ObjectArray;
@@ -6409,15 +6409,17 @@ var tr_obj        : TFRE_DB_Object;
        tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
     end;
 
-    procedure TransFormChildsForUid(const parentpath : string ; const depth : NativeInt ; const in_uid : TFRE_DB_GUID);
+    procedure TransFormChildsForUid(const parent_tr_obj : TFRE_DB_Object ; const parentpath : string ; const depth : NativeInt ; const in_uid : TFRE_DB_GUID);
     var j : NativeInt;
     begin
      refd_uids     := upconn.GetReferencesNoRightCheck(in_uid,FParentLinksChild,FParentChildScheme,FParentChildField);
      len_chld      := length(refd_uids);
-     tr_obj.Field('_children_count_').AsInt32 := len_chld;
+     parent_tr_obj.Field('_children_count_').AsInt32 := len_chld;
      if len_chld>0 then
        begin
-         SetLength(trans_data,Length(trans_data)+len_chld);
+         parent_tr_obj.FExtensionTag := GFRE_DB_TCDM.CreateTransformedArray;
+         //SetLength(trans_data,Length(trans_data)+len_chld);
+         abort;
          inc(rec_cnt,len_chld);
          tr_obj.Field('children').AsString        := 'UNCHECKED';
          CheckDbResult(upconn.BulkFetchNoRightCheck(refd_uids,refd_objs),'transform childs');
@@ -6428,14 +6430,15 @@ var tr_obj        : TFRE_DB_Object;
                tr_obj       := FTransform.TransformInOut(upconn,in_chld_obj);
                SetSpecialFields;
                tr_obj.Field(cFRE_DB_SYS_PARENT_PATH).AsString := parentpath;
-               trans_data[idx] := tr_obj;
+               //trans_data[idx] := tr_obj;
+               aborT;
                inc(idx);
              finally
                in_chld_obj.Finalize;
              end;
            end;
          for j:=0 to high(refd_objs) do
-           TransFormChildsForUid(parentpath+'-'+refd_objs[j].UID_String,depth+1,refd_objs[j].UID);
+           TransFormChildsForUid(nil,parentpath+'-'+refd_objs[j].UID_String,depth+1,refd_objs[j].UID);
        end;
     end;
 
@@ -6443,10 +6446,14 @@ begin
   try
     upconn          := FConnection.UpcastDBC;
     tr_obj          := FTransform.TransformInOut(upconn,in_object);
-    trans_data[idx] := tr_obj;
+    case mode of
+      trans_Insert:
+          transdata.SetTransformedObject(idx,tr_obj);
+      trans_Update:
+          transdata.UpdateTransformedObject(idx,tr_obj);
+    end;
     inc(idx);
-    // next step transfrom children recursive
-    if HasParentChildRefRelationDefined then
+    if HasParentChildRefRelationDefined then { next step transfrom children recursive }
       begin
         SetSpecialFields;
         if false and lazy_child_expand then
@@ -6462,7 +6469,7 @@ begin
           begin
             SetLength(parentpath,1);
             depth             := 0;
-            TransFormChildsForUid(in_object.UID_String,depth,in_object.UID);
+            TransFormChildsForUid(tr_obj,in_object.UID_String,depth,in_object.UID);
           end;
       end
   finally
@@ -6471,7 +6478,7 @@ begin
 end;
 
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformAllTo(var transdata: IFRE_DB_ObjectArray; const lazy_child_expand: boolean; var record_cnt: NativeInt);
+procedure TFRE_DB_DERIVED_COLLECTION.TransformAllTo(const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; var record_cnt: NativeInt);
 var cnt        : NativeInt;
     upconn     : TFRE_DB_CONNECTION;
     uids       : TFRE_DB_GUIDArray;
@@ -6480,12 +6487,11 @@ var cnt        : NativeInt;
 
 begin
   MustBeInitialized;
-  for cnt :=0 to High(transdata) do
-    transdata[cnt].Finalize;
+  transdata.CleanUp; { retransform ? }
   oidx       := 0;
   upconn     := FConnection.UpcastDBC;
   record_cnt := FParentCollection.Count;
-  SetLength(transdata,record_cnt);
+  transdata.SetDataCnt(record_cnt);
   (FParentCollection.Implementor_HC as TFRE_DB_COLLECTION).GetAllUids(uids); // ForAllNoRightChk(@TransForm);
   upconn.BulkFetchNoRightCheck(uids,objs);
   if record_cnt<>Length(objs) then
@@ -6494,7 +6500,7 @@ begin
     MyTransForm(objs[cnt].Implementor as TFRE_DB_Object,transdata,oidx,record_cnt,lazy_child_expand,trans_Insert);
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; var transdata: IFRE_DB_ObjectArray; const lazy_child_expand: boolean; var record_idxs: TFRE_DB_Int32Array; var upd_idx: NativeInt);
+procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; var upd_idx: NativeInt);
 var rec_cnt:NativeInt;
 begin
   MyTransForm(in_object.Implementor AS TFRE_DB_Object,transdata,upd_idx,rec_cnt,lazy_child_expand,trans_Update);

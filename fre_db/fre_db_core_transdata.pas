@@ -331,12 +331,12 @@ type
      function    Execute              (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;override; { execute the query, determine count and array of result dbo's }
   end;
 
-  TFRE_DB_TRANSDATA_CHANGE_NOTIFIER=class
+  TFRE_DB_TRANSDATA_CHANGE_NOTIFIER=class(IFRE_DB_TRANSDATA_CHANGE_NOTIFIER)
   end;
 
   { TFRE_DB_TRANFORMED_DATA }
 
-  TFRE_DB_TRANFORMED_DATA=class
+  TFRE_DB_TRANFORMED_DATA=class(TFRE_DB_TRANSFORMED_ARRAY_BASE)
   private
     FBaseKey              : TFRE_DB_NameTypeRL;   { CN/DCN/CHILD RL SPEC }
     FTransformKey         : QWord;
@@ -346,11 +346,13 @@ type
     FChildDataIsLazy      : Boolean; { the child data is lazy : UNSUPPORTED }
     FDC                   : IFRE_DB_DERIVED_COLLECTION;
   public
+    procedure   Cleanup           ; override;
+    procedure   SetDataCnt        (const rcnt : NativeInt) ; override ;
     function    IsObjectInDataIdx (const obj : IFRE_DB_Object ; var idx :NativeInt):boolean;
     function    GetTransFormKey   : TFRE_DB_NameTypeRL;
     function    GetDataArray      : PFRE_DB_ObjectArray;
     procedure   TransformAll      (var rcnt : NativeInt);       { transform all objects of the parent collection }
-    procedure   TransformSingle   (const obj : IFRE_DB_Object ; const cn : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER); { transform a single object }
+    procedure   TransformSingle   (const obj : IFRE_DB_Object ; const cn : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER ; const idx : NativeInt); { transform a single object }
     constructor Create            (const base_key : TFRE_DB_NameTypeRL ; const child_data_lazy,includes_child_data : boolean ; const dc : IFRE_DB_DERIVED_COLLECTION);
   end;
 
@@ -2033,6 +2035,21 @@ end;
 
 { TFRE_DB_TRANFORMED_DATA }
 
+procedure TFRE_DB_TRANFORMED_DATA.Cleanup;
+var cnt : NativeInt;
+begin
+  for cnt :=0 to High(FTransformeddata) do
+    FTransformeddata[cnt].Finalize;
+  Setlength(FTransformeddata,0);
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.SetDataCnt(const rcnt: NativeInt);
+begin
+  if Length(FTransformeddata)<>0 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'handle cleanup of arrays');
+  SetLength(FTransformeddata,rcnt);
+end;
+
 function TFRE_DB_TRANFORMED_DATA.IsObjectInDataIdx(const obj: IFRE_DB_Object; var idx: NativeInt): boolean;
 var i : NativeInt;
 begin
@@ -2058,12 +2075,14 @@ end;
 
 procedure TFRE_DB_TRANFORMED_DATA.TransformAll(var rcnt: NativeInt);
 begin
-  FDC.TransformAllTo(GetDataArray^,FChildDataIsLazy,rcnt);
+  FDC.TransformAllTo(self,FChildDataIsLazy,rcnt);
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.TransformSingle(const obj: IFRE_DB_Object; const cn: TFRE_DB_TRANSDATA_CHANGE_NOTIFIER);
+procedure TFRE_DB_TRANFORMED_DATA.TransformSingle(const obj: IFRE_DB_Object; const cn: TFRE_DB_TRANSDATA_CHANGE_NOTIFIER; const idx: NativeInt);
+var uidx : NativeInt;
 begin
-
+  uidx := idx;
+  FDC.TransformSingleUpdate(obj,self,FChildDataIsLazy,uidx);
 end;
 
 constructor TFRE_DB_TRANFORMED_DATA.Create(const base_key: TFRE_DB_NameTypeRL; const child_data_lazy, includes_child_data: boolean; const dc: IFRE_DB_DERIVED_COLLECTION);
@@ -2178,14 +2197,15 @@ procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object; con
 
   procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
   var i      : NativeInt;
-      idx    : NAtiveint;
+      idx    : NativeInt;
       uid_cl : TFRE_DB_GUIDArray;
       cn     : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER;
   begin
     if tcd.IsObjectInDataIdx(obj,idx) then
       begin
          cn := TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.Create;
-         tcd.TransformSingle(obj.Implementor as TFRE_DB_Object,cn);
+         //cn.Add
+         tcd.TransformSingle(obj.Implementor as TFRE_DB_Object,cn,idx);
       end;
     //tcd.GetDataArray;
     //-> Check if in base transformed data

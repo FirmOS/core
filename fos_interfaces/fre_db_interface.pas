@@ -846,11 +846,18 @@ type
 
   TFRE_DB_UserSession                 = class;
 
+  IFRE_DB_TRANSDATA_CHANGE_NOTIFIER   = interface
+  end;
+
+  TFRE_DB_TRANSFORMED_ARRAY_BASE      = class;
+
   { IFRE_DB_DERIVED_COLLECTION }
 
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
-    procedure  TransformAllTo                (var transdata : IFRE_DB_ObjectArray ; const lazy_child_expand : boolean ; var record_cnt : NativeInt);
+    procedure  TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
+    procedure  TransformSingleUpdate         (const in_object : IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean ; var upd_idx: NativeInt);
+
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
     procedure  BindSession                   (const session : TFRE_DB_UserSession);
     procedure  SetDefaultOrderField          (const field_name:TFRE_DB_String ; const ascending : boolean);
@@ -1893,6 +1900,13 @@ type
   end;
 
 
+  TFRE_DB_TRANSFORMED_ARRAY_BASE=class
+    procedure CleanUp                  ; virtual ; abstract;
+    procedure SetDataCnt               (const rcnt : NativeInt) ; virtual ; abstract;
+    procedure SetTransformedObject     (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);virtual; abstract;
+    procedure UpdateTransformedObject  (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);virtual; abstract;
+  end;
+
   { TFRE_DB_TRANSDATA_MANAGER_BASE }
 
   TFRE_DB_TRANSDATA_MANAGER_BASE=class
@@ -1910,6 +1924,7 @@ type
     procedure   RemoveQuery              (const qry_id: TFRE_DB_NameType); virtual; abstract;
     procedure   DropAllQuerys            (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
     function    FormQueryID              (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : shortstring):TFRE_DB_NameType; virtual; abstract;
+    function    CreateTransformedArray   : TFRE_DB_TRANSFORMED_ARRAY_BASE;virtual; abstract;
     procedure   InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
   end;
 
