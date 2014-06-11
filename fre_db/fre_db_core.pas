@@ -1933,7 +1933,7 @@ type
     function           DeleteAccessRightTest        (const ouid: TGUID): boolean; { fetch the object, check rights and free }
     function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
 
-    function           Update                       (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;
+    function           Update                       (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;virtual;
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
     function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual; // with user rights
@@ -2190,6 +2190,8 @@ type
     function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;override;
 
     function    Delete                    (const ouid: TGUID): TFRE_DB_Errortype; override;
+    function    Update                    (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;override; { hack for notification, remove }
+
     destructor  Destroy                   ;override;
 
     function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY):TFRE_DB_Errortype;override;
@@ -5869,7 +5871,14 @@ begin
   result := GFRE_DB.NewObject;
   FTransformList.ForAllBreak(@iterate);
   if Assigned(FCustTransform) then
-    FCustTransform(conn,dependency_obj,input,result);
+    try
+      FCustTransform(conn,dependency_obj,input,result);
+    except
+      on e:exception do
+        begin
+          GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
+        end;
+    end;
   result._Field('uid').AsGUID      := input.Field('uid').AsGUID;
   result._Field('domainid').AsGUID := input.Field('domainid').AsGUID;
 end;
@@ -6236,6 +6245,7 @@ begin //nl
           if assigned(not_object) then
             begin
               hack_up_obj := FTransform.TransformInOut(FConnection.UpcastDBC,FDependencyObject,not_object);
+              FInitialDerived := false;
               if cdgf_Children in FGridDisplayFlags then
                 begin
                   if FParentChildField<>'' then
@@ -6247,7 +6257,7 @@ begin //nl
                       hack_up_obj.Field('_menufunc_').AsString      := 'Menu';
                       hack_up_obj.Field('_contentfunc_').AsString   := 'Content';
                       //if hack_up_obj.FieldOnlyExisting('icon',hack_fld) then // icon in source
-                      //    hack_up_obj.Field('icon').AsString:= FREDB_getThemedResource(hack_fld.AsString); // icon in transformed
+                      //      hack_up_obj.Field('icon').AsString:= FREDB_getThemedResource(hack_fld.AsString); // icon in transformed
                     end
                   else
                     begin
@@ -10887,7 +10897,18 @@ end;
 
 function TFRE_DB_CONNECTION.Delete(const ouid: TGUID): TFRE_DB_Errortype;
 begin  //nl
-  Result:=inherited Delete(ouid);
+  if FSysConnection.Exists(oUID) then
+    Result:=FSysConnection.Delete(ouid)
+  else
+    Result:=inherited Delete(ouid);
+end;
+
+function TFRE_DB_CONNECTION.Update(const dbo: TFRE_DB_Object; const collection_name: TFRE_DB_NameType): TFRE_DB_Errortype;
+begin
+  if FSysConnection.Exists(dbo.UID) then
+    Result:=FSysConnection.Update(dbo, collection_name)
+  else
+    Result:=inherited Update(dbo, collection_name);
 end;
 
 destructor TFRE_DB_CONNECTION.Destroy;

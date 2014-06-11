@@ -7041,6 +7041,9 @@ begin
   scheme            := GetScheme;
   update_object_uid := UID;
   raw_object        := input.Field('data').AsObject;
+  //writeln('SAVEOP----------RAW OBJECT---------');
+  //writeln(raw_object.DumpToString);
+  //writeln('----------RAW OBJECT---------');
   scheme.SetObjectFieldsWithScheme(raw_object,self,false,conn);
   CheckDbResult(conn.Update(self.CloneToNewObject()),'failure on update');  // This instance is freed by now, so rely on the stackframe only (self) pointer is garbage(!!)
   result := TFRE_DB_CLOSE_DIALOG_DESC.Create.Describe();
