@@ -185,6 +185,7 @@ var
       i      : integer;
       profile_caption: String;
   begin
+    ses.ClearUpdatable;
     res := TFRE_DB_TOPMENU_DESC.create.Describe();
     res.AddJiraDialogEntry.Describe(app.FetchAppTextShort(ses,'top_messages'),'images_apps/login/messages.svg');
     res.AddEntry.Describe(app.FetchAppTextShort(ses,'top_home'),'images_apps/login/home.svg',

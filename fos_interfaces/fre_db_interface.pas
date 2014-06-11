@@ -2384,6 +2384,7 @@ type
     function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
     function    RemoveTaskMethod         (const id:string='TIMER'):boolean;
 
+    procedure   ClearUpdatable               ;
     procedure   RegisterUpdatableContent     (const contentId: String);
     procedure   UnregisterUpdatableContent   (const contentId: String);
     procedure   RegisterUpdatableDBO         (const UID_id: TFRE_DB_GUID);
@@ -2564,6 +2565,8 @@ type
     procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const interactive_session:boolean);
     procedure   ClearServerClientInterface ;
     function    GetClientServerInterface   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
+
+    procedure   ClearUpdatable             ;
 
     procedure   RegisterUpdatableContent   (const contentId: String);
     procedure   UnregisterUpdatableContent (const contentId: String);
@@ -5462,6 +5465,12 @@ end;
 function TFRE_DB_UserSession.GetClientServerInterface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
 begin
   result := FBoundSession_RA_SC;
+end;
+
+procedure TFRE_DB_UserSession.ClearUpdatable;
+begin
+  FUpdateableContent.ClearAllFields;
+  FUpdateableDBOS.ClearAllFields;
 end;
 
 procedure TFRE_DB_UserSession.RegisterUpdatableContent(const contentId: String);
