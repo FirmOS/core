@@ -184,14 +184,9 @@ type
     function  Describe (const caption,description_: String) : TFRE_DB_INPUT_DESCRIPTION_DESC;
   end;
 
-  { TFRE_DB_DEPENDENCE_DESC }
-
-  TFRE_DB_DEPENDENCE_DESC = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes a dependent field of a boolean field.
-    //@ Used as parameter of TFRE_DB_INPUT_BOOL_DESC.AddDependence.
-    function Describe (const fieldName: String; const disablesField: Boolean=true): TFRE_DB_DEPENDENCE_DESC;
-  end;
+  TFRE_DB_INPUT_BLOCK_DESC       = class;
+  TFRE_DB_INPUT_GROUP_DESC       = class;
+  TFRE_DB_INPUT_GROUP_PROXY_DESC = class;
 
   { TFRE_DB_INPUT_BOOL_DESC }
 
@@ -200,8 +195,9 @@ type
     //@ Describes a boolean input field within a form.
     function  Describe(const caption, field_reference:string; const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:Boolean=false):TFRE_DB_INPUT_BOOL_DESC;
     //@ Adds a dependent field.
-    //@ See TFRE_DB_DEPENDENCE_DESC.
-    procedure AddDependence(const depField: TFRE_DB_DEPENDENCE_DESC);
+    procedure AddDependence(const fieldName: String; const disablesField: Boolean=true);
+    //@ Adds all fields of the input group as dependent fields.
+    procedure AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean=true);
   end;
 
   { TFRE_DB_INPUT_NUMBER_DESC }
@@ -214,10 +210,6 @@ type
     //@ Describes a number slider within a form.
     function  DescribeSlider (const caption,field_reference : String; const min,max: Real; const showValueField: Boolean=true; const defaultValue:String=''; const digits: Integer=0; const steps: Integer=-1) : TFRE_DB_INPUT_NUMBER_DESC;
   end;
-
-  TFRE_DB_INPUT_BLOCK_DESC       = class;
-  TFRE_DB_INPUT_GROUP_DESC       = class;
-  TFRE_DB_INPUT_GROUP_PROXY_DESC = class;
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
@@ -233,8 +225,9 @@ type
     //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
     procedure addDependentInput     (const inputId: String; const chooserValue: String);
     //@ Adds a dependent field.
-    //@ See TFRE_DB_DEPENDENCE_DESC.
-    procedure AddDependence(const depField: TFRE_DB_DEPENDENCE_DESC);
+    procedure AddDependence(const fieldName: String; const disablesField: Boolean=true);
+    //@ Adds all fields of the input group as dependent fields.
+    procedure AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean=true);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -1444,15 +1437,6 @@ implementation
     Result:=_Describe(func,icon,caption,tooltip,fdgbd_manual);
   end;
 
-  { TFRE_DB_DEPENDENCE_DESC }
-
-  function TFRE_DB_DEPENDENCE_DESC.Describe(const fieldName: String; const disablesField: Boolean): TFRE_DB_DEPENDENCE_DESC;
-  begin
-    Field('fieldName').AsString:=fieldName;
-    Field('disablesField').AsBoolean:=disablesField;
-    Result:=Self;
-  end;
-
   { TFRE_DB_BUTTON_DESC }
 
   function TFRE_DB_BUTTON_DESC.Describe(const caption: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const buttonType: TFRE_DB_BUTTON_TYPE): TFRE_DB_BUTTON_DESC;
@@ -1786,9 +1770,23 @@ implementation
   end;
   { TFRE_DB_INPUT_BOOL_DESC }
 
-  procedure TFRE_DB_INPUT_BOOL_DESC.AddDependence(const depField: TFRE_DB_DEPENDENCE_DESC);
+  procedure TFRE_DB_INPUT_BOOL_DESC.AddDependence(const fieldName: String; const disablesField: Boolean=true);
+  var
+    obj: IFRE_DB_Object;
   begin
-    Field('dependentFields').AddObject(depField);
+    obj:=GFRE_DBI.NewObject;
+    obj.Field('fieldName').AsString:=fieldName;
+    obj.Field('disablesField').AsBoolean:=disablesField;
+    Field('dependentFields').AddObject(obj);
+  end;
+
+  procedure TFRE_DB_INPUT_BOOL_DESC.AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean);
+  var
+    i: Integer;
+  begin
+    for i := 0 to inputGroup.Field('elements').ValueCount - 1 do begin
+      AddDependence(inputGroup.Field('elements').AsObjectItem[i].Field('field').AsString,disablesFields);
+    end;
   end;
 
   function TFRE_DB_INPUT_BOOL_DESC.Describe(const caption, field_reference: string; const required: boolean; const groupRequired: Boolean; const disabled: boolean; const defaultValue: Boolean): TFRE_DB_INPUT_BOOL_DESC;
@@ -1809,9 +1807,23 @@ implementation
    Field('dependentInputFields').AddObject(obj);
   end;
 
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.AddDependence(const depField: TFRE_DB_DEPENDENCE_DESC);
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.AddDependence(const fieldName: String; const disablesField: Boolean=true);
+  var
+    obj: IFRE_DB_Object;
   begin
-    Field('dependentFields').AddObject(depField);
+    obj:=GFRE_DBI.NewObject;
+    obj.Field('fieldName').AsString:=fieldName;
+    obj.Field('disablesField').AsBoolean:=disablesField;
+    Field('dependentFields').AddObject(obj);
+  end;
+
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean);
+  var
+    i: Integer;
+  begin
+    for i := 0 to inputGroup.Field('elements').ValueCount - 1 do begin
+      AddDependence(inputGroup.Field('elements').AsObjectItem[i].Field('field').AsString,disablesFields);
+    end;
   end;
 
   function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean; const display_hint:TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue:String): TFRE_DB_INPUT_CHOOSER_DESC;
@@ -2205,12 +2217,12 @@ implementation
 
     procedure DeppITeratorBool(const df : R_Depfieldfield);
     begin
-      boolField.AddDependence(TFRE_DB_DEPENDENCE_DESC.Create.Describe(prefix+df.depFieldName,df.disablesField));
+      boolField.AddDependence(prefix+df.depFieldName,df.disablesField);
     end;
 
     procedure DeppITeratorChooser(const df : R_Depfieldfield);
     begin
-      chooserField.AddDependence(TFRE_DB_DEPENDENCE_DESC.Create.Describe(prefix+df.depFieldName,df.disablesField));
+      chooserField.AddDependence(prefix+df.depFieldName,df.disablesField);
     end;
 
     procedure VisDeppITerator(const vdf : R_VisDepfieldfield);
@@ -2234,26 +2246,26 @@ implementation
       standardColl       := obj^.standardcoll;
       if (dataCollectionName<>'') or (standardColl<>coll_NONE) then begin
         case standardColl of
-          coll_DOMAIN: coll:=session.GetDBConnection.AdmGetDomainCollection;
-          coll_GROUP : coll:=session.GetDBConnection.AdmGetGroupCollection;
-          coll_USER  : coll:=session.GetDBConnection.AdmGetUserCollection;
-          coll_WFAUTO: coll:=session.GetDBConnection.AdmGetWorkFlowAutoMethCollection;
-          coll_NONE  : begin
-                         if dataCollIsDomain then
-                           begin
-                             if pos('$SDC:',dataCollectionName)=1 then
-                               coll := session.FetchDerivedCollection(session.GetDBConnection.DomainCollectionName(Copy(dataCollectionName,6,MaxInt)))
-                             else
-                               coll := session.GetDBConnection.GetCollection(session.GetDBConnection.DomainCollectionName(dataCollectionName));
-                           end
-                         else
-                           begin
-                             if pos('$SDC:',dataCollectionName)=1 then
-                               coll := session.FetchDerivedCollection(Copy(dataCollectionName,6,MaxInt))
-                             else
-                               coll := session.GetDBConnection.GetCollection(dataCollectionName);
-                           end;
-                       end;
+          coll_DOMAIN  : coll:=session.GetDBConnection.AdmGetDomainCollection;
+          coll_GROUP   : coll:=session.GetDBConnection.AdmGetGroupCollection;
+          coll_USER    : coll:=session.GetDBConnection.AdmGetUserCollection;
+          coll_WFACTION: coll:=session.GetDBConnection.AdmGetWorkFlowMethCollection;
+          coll_NONE    : begin
+                           if dataCollIsDomain then
+                             begin
+                               if pos('$SDC:',dataCollectionName)=1 then
+                                 coll := session.FetchDerivedCollection(session.GetDBConnection.DomainCollectionName(Copy(dataCollectionName,6,MaxInt)))
+                               else
+                                 coll := session.GetDBConnection.GetCollection(session.GetDBConnection.DomainCollectionName(dataCollectionName));
+                             end
+                           else
+                             begin
+                               if pos('$SDC:',dataCollectionName)=1 then
+                                 coll := session.FetchDerivedCollection(Copy(dataCollectionName,6,MaxInt))
+                               else
+                                 coll := session.GetDBConnection.GetCollection(dataCollectionName);
+                             end;
+                         end;
         end;
         if assigned(coll) then
           begin

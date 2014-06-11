@@ -1844,7 +1844,7 @@ type
     function           FetchAccessRightTest         (const ouid: TGUID): boolean; { fetch the object, check rights and free / USE CASE ONLY GUID IS KNOWN }
     function           DeleteAccessRightTest        (const ouid: TGUID): boolean; { fetch the object, check rights and free / USE CASE ONLY GUID IS KNOWN }
     function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
-    function           Update                       (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;
+    function           Update                       (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;virtual;
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
     function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
     function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual; // with user rights
@@ -1930,7 +1930,7 @@ type
     FSysSingletons       : TFRE_DB_COLLECTION;
     FSysWorkflow         : TFRE_DB_COLLECTION; { the steps, may be with additional hierarchic levels }
     FSysWorkflowScheme   : TFRE_DB_COLLECTION; { the schemes, hierarchic }
-    FSysWorkAutoMethods  : TFRE_DB_COLLECTION; { the automatic steps }
+    FSysWorkflowMethods  : TFRE_DB_COLLECTION; { the automatic steps }
     FSysAudit            : TFRE_DB_COLLECTION;
 
     FCurrentUserToken    : TFRE_DB_USER_RIGHT_TOKEN;
@@ -2163,6 +2163,8 @@ type
     function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;override;
 
     function    Delete                    (const ouid: TGUID): TFRE_DB_Errortype; override;
+    function    Update                    (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;override; { hack for notification, remove }
+
     destructor  Destroy                   ;override;
 
     function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY):TFRE_DB_Errortype;override;
@@ -2187,7 +2189,7 @@ type
     function    AdmGetAuditCollection       :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowCollection    :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowSchemeCollection :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowAutoMethCollection :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowMethCollection :IFRE_DB_COLLECTION;
 
     function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -4493,12 +4495,12 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
     end;
     FSysWorkflowScheme := Collection('SysWorkflowScheme');
 
-    if not CollectionExists('SysWorkflowAutoMethods') then begin
-      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowAutoMethods');
-      coll := Collection('SysWorkflowAutoMethods');
-      coll.DefineIndexOnField('auto_key',fdbft_String,true,true,'def',false,false);
+    if not CollectionExists('SysWorkflowMethods') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysWorkflowMethods');
+      coll := Collection('SysWorkflowMethods');
+      coll.DefineIndexOnField('key',fdbft_String,true,true,'def',false,false);
     end;
-    FSysWorkAutoMethods := Collection('SysWorkflowAutoMethods');
+    FSysWorkflowMethods := Collection('SysWorkflowMethods');
   end;
 
   procedure SetupAuditCollection;
@@ -6904,7 +6906,14 @@ var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
       begin
         if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
             and assigned(TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform) then
-              TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserToken,transformed_filtered_cloned_obj,ses.GetSessionGlobalData);
+              try
+                TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserToken,transformed_filtered_cloned_obj,ses.GetSessionGlobalData);
+              except
+                on e:exception do
+                  begin
+                    GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
+                  end;
+              end;
         TFRE_DB_STORE_DATA_DESC(result).addEntry(transformed_filtered_cloned_obj);
       end;
 
@@ -9690,7 +9699,18 @@ end;
 
 function TFRE_DB_CONNECTION.Delete(const ouid: TGUID): TFRE_DB_Errortype;
 begin  //nl
-  Result:=inherited Delete(ouid);
+  if FSysConnection.Exists(oUID) then
+    Result:=FSysConnection.Delete(ouid)
+  else
+    Result:=inherited Delete(ouid);
+end;
+
+function TFRE_DB_CONNECTION.Update(const dbo: TFRE_DB_Object; const collection_name: TFRE_DB_NameType): TFRE_DB_Errortype;
+begin
+  if FSysConnection.Exists(dbo.UID) then
+    Result:=FSysConnection.Update(dbo, collection_name)
+  else
+    Result:=inherited Update(dbo, collection_name);
 end;
 
 destructor TFRE_DB_CONNECTION.Destroy;
@@ -10088,9 +10108,9 @@ begin
   result := FSysConnection.FSysWorkflowScheme;
 end;
 
-function TFRE_DB_CONNECTION.AdmGetWorkFlowAutoMethCollection: IFRE_DB_COLLECTION;
+function TFRE_DB_CONNECTION.AdmGetWorkFlowMethCollection: IFRE_DB_COLLECTION;
 begin
- result := FSysConnection.FSysWorkAutoMethods;
+ result := FSysConnection.FSysWorkflowMethods;
 end;
 
 

@@ -346,8 +346,11 @@ type
     FChildDataIsLazy      : Boolean; { the child data is lazy : UNSUPPORTED }
     FDC                   : IFRE_DB_DERIVED_COLLECTION;
   public
-    procedure   Cleanup           ; override;
-    procedure   SetDataCnt        (const rcnt : NativeInt) ; override ;
+    procedure   Cleanup                  ; override;
+    procedure   SetDataCnt               (const rcnt : NativeInt) ; override ;
+    procedure   SetTransformedObject     (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);override;
+    procedure   UpdateTransformedObject  (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);override;
+
     function    IsObjectInDataIdx (const obj : IFRE_DB_Object ; var idx :NativeInt):boolean;
     function    GetTransFormKey   : TFRE_DB_NameTypeRL;
     function    GetDataArray      : PFRE_DB_ObjectArray;
@@ -428,6 +431,7 @@ type
     function    GetBaseTransformedData (base_key : TFRE_DB_NameTypeRL ; out base_data : TFRE_DB_TRANFORMED_DATA) : boolean;
     procedure   AddBaseTransformedData (const base_data : TFRE_DB_TRANFORMED_DATA);
     procedure   TL_StatsTimer;
+    function    CreateTransformedArray: TFRE_DB_TRANSFORMED_ARRAY_BASE;override;
 
     {NOFIF BLOCK INTERFACE}
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
@@ -2050,6 +2054,18 @@ begin
   SetLength(FTransformeddata,rcnt);
 end;
 
+procedure TFRE_DB_TRANFORMED_DATA.SetTransformedObject(const idx: NativeInt; const tr_obj: IFRE_DB_Object);
+begin
+  FTransformeddata[idx] := tr_obj;
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.UpdateTransformedObject(const idx: NativeInt; const tr_obj: IFRE_DB_Object);
+begin
+  abort;
+  FTransformeddata[idx].Finalize;
+  FTransformeddata[idx] := tr_obj;
+end;
+
 function TFRE_DB_TRANFORMED_DATA.IsObjectInDataIdx(const obj: IFRE_DB_Object; var idx: NativeInt): boolean;
 var i : NativeInt;
 begin
@@ -2140,6 +2156,11 @@ begin
   finally
     UnlockManager;
   end;
+end;
+
+function TFRE_DB_TRANSDATA_MANAGER.CreateTransformedArray: TFRE_DB_TRANSFORMED_ARRAY_BASE;
+begin
+  result := TFRE_DB_T
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.StartNotificationBlock(const key: TFRE_DB_TransStepId);

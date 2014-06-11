@@ -2197,12 +2197,22 @@ begin
 end;
 
 procedure TFRE_DB_ChangeStep.CheckWriteThroughDeleteObj(obj: IFRE_DB_Object);
+var layer : IFRE_DB_PERSISTANCE_LAYER;
+    cdb   : TFRE_DB_NameType;
 begin
   try
    if GDBPS_TRANS_WRITE_THROUGH then
      begin
-       FLayer.WT_DeleteObjectPersistent(obj);
-       GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH DELETE OBJECT (%s)',[FLayer.GetConnectedDB,obj.GetDescriptionID]));
+       layer := FLayer;
+       if (obj.Implementor as TFRE_DB_Object).IsSystemDB then
+         begin
+           layer := FLayer.WT_GetSysLayer;
+           Layer.WT_DeleteObjectPersistent(obj);
+         end
+       else
+         Layer.WT_DeleteObjectPersistent(obj);
+       cdb := Layer.GetConnectedDB;
+       GFRE_DBI.LogDebug(dblc_PERSISTANCE,Format('[%s]> WRITE THROUGH DELETE OBJECT (%s)',[cdb,obj.GetDescriptionID]));
      end;
   except
     on e:Exception do

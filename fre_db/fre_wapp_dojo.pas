@@ -537,7 +537,8 @@ implementation
 
   procedure TFRE_DB_WAPP_DOJO._BuildInputBool(const co: TFRE_DB_INPUT_BOOL_DESC);
   var
-    i: Integer;
+    i     : Integer;
+    preFix: String;
   begin
     jsContentAdd('"<input id='''+co.Field('id').AsString+''' name='''+co.Field('field').AsString+''' type=''checkbox'' dojoType=''FIRMOS.BoolCheckBox''"+');
     if co.Field('disabled').AsBoolean then begin
@@ -548,8 +549,10 @@ implementation
     end;
     if co.FieldExists('dependentFields') then begin
       jsContentAdd('" dependentfields={"+');
+      preFix:='';
       for i:=0 to co.Field('dependentFields').ValueCount - 1 do begin
-        jsContentAdd('"'+co.Field('dependentFields').AsObjectItem[i].Field('fieldName').AsString+':'+BoolToStr(co.Field('dependentFields').AsObjectItem[i].Field('disablesField').AsBoolean,'true','false')+'"+');
+        jsContentAdd('"'+preFix+'\"'+co.Field('dependentFields').AsObjectItem[i].Field('fieldName').AsString+'\":'+BoolToStr(co.Field('dependentFields').AsObjectItem[i].Field('disablesField').AsBoolean,'true','false')+'"+');
+        preFix:=',';
       end;
       jsContentAdd('"}"+');
     end;
@@ -616,8 +619,10 @@ implementation
                            end;
                            if co.FieldExists('dependentFields') then begin
                              jsContentAdd('", dependentfields:\"{"+');
+                             preFix:='';
                              for i:=0 to co.Field('dependentFields').ValueCount - 1 do begin
-                               jsContentAdd('"'+co.Field('dependentFields').AsObjectItem[i].Field('fieldName').AsString+':'+BoolToStr(co.Field('dependentFields').AsObjectItem[i].Field('disablesField').AsBoolean,'true','false')+'"+');
+                               jsContentAdd('"'+preFix+'\\\"'+co.Field('dependentFields').AsObjectItem[i].Field('fieldName').AsString+'\\\":'+BoolToStr(co.Field('dependentFields').AsObjectItem[i].Field('disablesField').AsBoolean,'true','false')+'"+');
+                               preFix:=',';
                              end;
                              jsContentAdd('"}\""+');
                            end;
