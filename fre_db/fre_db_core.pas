@@ -6394,6 +6394,7 @@ begin
   result := FParentCollection.CollectionName(true)+'#'+CollectionName(true);
 end;
 
+{ record cnt includes transformed childs}
 procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const in_object: TFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; var idx: NativeInt; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode);
 var tr_obj        : TFRE_DB_Object;
     refd_uids     : TFRE_DB_GUIDArray;
@@ -6404,16 +6405,17 @@ var tr_obj        : TFRE_DB_Object;
     parentpath    : TFRE_DB_GUIDArray;
     depth         : NativeInt;
     upconn        : TFRE_DB_CONNECTION;
+    childs        : TFRE_DB_TRANSFORMED_ARRAY_BASE;
 
     procedure SetSpecialFields;
     begin
-     tr_obj.Field('_menufunc_').AsString      := 'Menu';
-     tr_obj.Field('_contentfunc_').AsString   := 'Content';
-     if in_object.FieldOnlyExisting('icon',fld) then // icon in source
-       tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
+      tr_obj.Field('_menufunc_').AsString      := 'Menu';
+      tr_obj.Field('_contentfunc_').AsString   := 'Content';
+      if in_object.FieldOnlyExisting('icon',fld) then // icon in source
+        tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
     end;
 
-    procedure TransFormChildsForUid(const parent_tr_obj : TFRE_DB_Object ; const parentpath : string ; const depth : NativeInt ; const in_uid : TFRE_DB_GUID);
+    procedure TransFormChildsForUid(const parent_tr_obj : IFRE_DB_Object ; const parentpath : string ; const depth : NativeInt ; const in_uid : TFRE_DB_GUID);
     var j : NativeInt;
     begin
      refd_uids     := upconn.GetReferencesNoRightCheck(in_uid,FParentLinksChild,FParentChildScheme,FParentChildField);
@@ -6421,28 +6423,26 @@ var tr_obj        : TFRE_DB_Object;
      parent_tr_obj.Field('_children_count_').AsInt32 := len_chld;
      if len_chld>0 then
        begin
-         parent_tr_obj.FExtensionTag := GFRE_DB_TCDM.CreateTransformedArray;
-         //SetLength(trans_data,Length(trans_data)+len_chld);
-         abort;
-         inc(rec_cnt,len_chld);
-         tr_obj.Field('children').AsString        := 'UNCHECKED';
+         childs                      := transdata.CreateChildArrayData(len_chld);
+         (parent_tr_obj.Implementor as TFRE_DB_Object).FExtensionTag := childs;
+         parent_tr_obj.Field('children').AsString        := 'UNCHECKED';
+         inc(rec_cnt,len_chld); { record cnt includes transformed childs}
          CheckDbResult(upconn.BulkFetchNoRightCheck(refd_uids,refd_objs),'transform childs');
          for j:=0 to high(refd_objs) do
            begin
              in_chld_obj  := refd_objs[j];
              try
-               tr_obj       := FTransform.TransformInOut(upconn,in_chld_obj);
+               tr_obj    := FTransform.TransformInOut(upconn,in_chld_obj);
                SetSpecialFields;
                tr_obj.Field(cFRE_DB_SYS_PARENT_PATH).AsString := parentpath;
-               //trans_data[idx] := tr_obj;
-               aborT;
-               inc(idx);
+               childs.SetTransformedObject(j,tr_obj);
              finally
                in_chld_obj.Finalize;
              end;
            end;
-         for j:=0 to high(refd_objs) do
-           TransFormChildsForUid(nil,parentpath+'-'+refd_objs[j].UID_String,depth+1,refd_objs[j].UID);
+         SetLength(refd_objs,0);
+         for j:=0 to childs.GetDataCnt-1 do
+           TransFormChildsForUid(childs.GetTransformedObject(j),parentpath+'-'+FREDB_G2H(refd_uids[j]),depth+1,refd_uids[j]);
        end;
     end;
 
@@ -6462,6 +6462,7 @@ begin
         SetSpecialFields;
         if false and lazy_child_expand then
           begin
+            abort; // bad , rework
             len_chld := upconn.GetReferencesCountNoRightCheck(in_object.UID,FParentLinksChild,FParentChildScheme,FParentChildField);
             tr_obj.Field('_children_count_').AsInt32 := len_chld;
             if len_chld>0 then

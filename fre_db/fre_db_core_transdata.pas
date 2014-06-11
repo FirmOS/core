@@ -344,19 +344,24 @@ type
     FTDCreationTime       : TFRE_DB_DateTime64;
     FIncludesChildData    : Boolean; { the query is a tree query}
     FChildDataIsLazy      : Boolean; { the child data is lazy : UNSUPPORTED }
+    FIsChildata           : Boolean; { this is a childdata array }
     FDC                   : IFRE_DB_DERIVED_COLLECTION;
   public
     procedure   Cleanup                  ; override;
     procedure   SetDataCnt               (const rcnt : NativeInt) ; override ;
+    function    GetDataCnt               : NativeInt ; override ;
     procedure   SetTransformedObject     (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);override;
+    function    GetTransformedObject     (const idx : NativeInt) : IFRE_DB_Object ; override;
     procedure   UpdateTransformedObject  (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);override;
 
-    function    IsObjectInDataIdx (const obj : IFRE_DB_Object ; var idx :NativeInt):boolean;
-    function    GetTransFormKey   : TFRE_DB_NameTypeRL;
-    function    GetDataArray      : PFRE_DB_ObjectArray;
-    procedure   TransformAll      (var rcnt : NativeInt);       { transform all objects of the parent collection }
-    procedure   TransformSingle   (const obj : IFRE_DB_Object ; const cn : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER ; const idx : NativeInt); { transform a single object }
-    constructor Create            (const base_key : TFRE_DB_NameTypeRL ; const child_data_lazy,includes_child_data : boolean ; const dc : IFRE_DB_DERIVED_COLLECTION);
+    function    IsObjectInDataIdx        (const obj : IFRE_DB_Object ; var idx :NativeInt):boolean;
+    function    GetTransFormKey          : TFRE_DB_NameTypeRL;
+    function    GetDataArray             : PFRE_DB_ObjectArray;
+    procedure   TransformAll             (var rcnt : NativeInt);       { transform all objects of the parent collection }
+    procedure   TransformSingle          (const obj : IFRE_DB_Object ; const cn : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER ; const idx : NativeInt); { transform a single object }
+    constructor Create                   (const base_key : TFRE_DB_NameTypeRL ; const child_data_lazy,includes_child_data : boolean ; const dc : IFRE_DB_DERIVED_COLLECTION);
+    function    CreateChildArrayData     (const len_child : NativeInt): TFRE_DB_TRANSFORMED_ARRAY_BASE;override;
+    function    IsChildData              : Boolean;
   end;
 
   { TFRE_DB_OrderContainer }
@@ -431,7 +436,6 @@ type
     function    GetBaseTransformedData (base_key : TFRE_DB_NameTypeRL ; out base_data : TFRE_DB_TRANFORMED_DATA) : boolean;
     procedure   AddBaseTransformedData (const base_data : TFRE_DB_TRANFORMED_DATA);
     procedure   TL_StatsTimer;
-    function    CreateTransformedArray: TFRE_DB_TRANSFORMED_ARRAY_BASE;override;
 
     {NOFIF BLOCK INTERFACE}
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
@@ -2054,9 +2058,19 @@ begin
   SetLength(FTransformeddata,rcnt);
 end;
 
+function TFRE_DB_TRANFORMED_DATA.GetDataCnt: NativeInt;
+begin
+  result := Length(FTransformeddata);
+end;
+
 procedure TFRE_DB_TRANFORMED_DATA.SetTransformedObject(const idx: NativeInt; const tr_obj: IFRE_DB_Object);
 begin
   FTransformeddata[idx] := tr_obj;
+end;
+
+function TFRE_DB_TRANFORMED_DATA.GetTransformedObject(const idx: NativeInt): IFRE_DB_Object;
+begin
+
 end;
 
 procedure TFRE_DB_TRANFORMED_DATA.UpdateTransformedObject(const idx: NativeInt; const tr_obj: IFRE_DB_Object);
@@ -2108,7 +2122,22 @@ begin
   FIncludesChildData    := includes_child_data;
   FDC                   := dc;
   //FParentColl     := GFRE_BT.SepLeft(base_key,'/');
-  FTDCreationTime := GFRE_DT.Now_UTC;
+  FTDCreationTime       := GFRE_DT.Now_UTC;
+  FIsChildata           := false;
+end;
+
+function TFRE_DB_TRANFORMED_DATA.CreateChildArrayData(const len_child: NativeInt): TFRE_DB_TRANSFORMED_ARRAY_BASE;
+var cd : TFRE_DB_TRANFORMED_DATA;
+begin
+  cd := TFRE_DB_TRANFORMED_DATA.Create(FBaseKey,FChildDataIsLazy,FIncludesChildData,FDC);
+  cd.FIsChildata:=true;
+  cd.SetDataCnt(len_child);
+  result := cd;
+end;
+
+function TFRE_DB_TRANFORMED_DATA.IsChildData: Boolean;
+begin
+  result := FIsChildata;
 end;
 
 { TFRE_DB_TRANSDATA_MANAGER }
@@ -2156,11 +2185,6 @@ begin
   finally
     UnlockManager;
   end;
-end;
-
-function TFRE_DB_TRANSDATA_MANAGER.CreateTransformedArray: TFRE_DB_TRANSFORMED_ARRAY_BASE;
-begin
-  result := TFRE_DB_T
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.StartNotificationBlock(const key: TFRE_DB_TransStepId);

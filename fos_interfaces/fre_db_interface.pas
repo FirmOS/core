@@ -1904,8 +1904,11 @@ type
   TFRE_DB_TRANSFORMED_ARRAY_BASE=class
     procedure CleanUp                  ; virtual ; abstract;
     procedure SetDataCnt               (const rcnt : NativeInt) ; virtual ; abstract;
+    function  GetDataCnt               : NativeInt ; virtual ; abstract;
     procedure SetTransformedObject     (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);virtual; abstract;
+    function  GetTransformedObject     (const idx : NativeInt) : IFRE_DB_Object;virtual; abstract;
     procedure UpdateTransformedObject  (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);virtual; abstract;
+    function  CreateChildArrayData     (const len_child : NativeInt): TFRE_DB_TRANSFORMED_ARRAY_BASE;virtual;abstract;
   end;
 
   { TFRE_DB_TRANSDATA_MANAGER_BASE }
@@ -1925,7 +1928,6 @@ type
     procedure   RemoveQuery              (const qry_id: TFRE_DB_NameType); virtual; abstract;
     procedure   DropAllQuerys            (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
     function    FormQueryID              (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : shortstring):TFRE_DB_NameType; virtual; abstract;
-    function    CreateTransformedArray   : TFRE_DB_TRANSFORMED_ARRAY_BASE;virtual; abstract;
     procedure   InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
   end;
 
