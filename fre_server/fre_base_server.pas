@@ -54,13 +54,11 @@ procedure RegisterLogin;
 type
   { TFRE_BASE_SERVER }
 
-  TFRE_DB_SessionIterator = procedure (const session : TFRE_DB_UserSession ; var halt : boolean) is nested ;
-
   TFRE_DB_LOG_TYPE=(log_Warning,log_Error,log_INFO);
 
   TFRE_UserSession_Tree         = specialize TGFOS_RBTree<string,TFRE_DB_UserSession>;
 
-  TFRE_BASE_SERVER=class(TObject,IFRE_HTTP_BASESERVER)
+  TFRE_BASE_SERVER=class(TObject,IFRE_HTTP_BASESERVER,IFRE_DB_NetServer)
   private
     FOpenDatabaseList  : OFRE_DB_ConnectionArr;
     FUserSessionsTree  : TFRE_UserSession_Tree;  //TODO-> make array
@@ -95,6 +93,7 @@ type
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
+    function       SendDelegatedContentToClient              (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
 
     function       FetchStreamDBO                            (const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString; var stored_ct: TFRE_DB_String; var stored_etag: TFRE_DB_String): boolean;
     function       GetETag                                   (const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64):String;
@@ -818,12 +817,6 @@ begin
   result:= GetImpersonatedDatabaseConnection(dbname,username,pass,dbc);
   if result=edb_OK then begin
     dbs := TFRE_DB_UserSession.Create(username,'',default_app,default_uid_path,dbc); { default logins, guest will not bind the session to the DBC, so no updates for this sessions by now}
-    dbs.OnGetImpersonatedDBC    := @GetImpersonatedDatabaseConnection;
-    dbs.OnExistsUserSession     := @ExistsUserSessionForUserLocked;
-    dbs.OnExistsUserSession4Key := @ExistsUserSessionForKeyLocked;
-    dbs.OnCheckUserNamePW       := @CheckUserNamePW;
-    dbs.OnFetchSessionById      := @FetchSessionByIdLocked;
-    dbs.OnFetchPublisherRAC     := @FetchPublisherSessionLocked;
     dbs.SetClientDetails(session_net_desc);
   end;
 end;
@@ -1050,6 +1043,27 @@ begin
   end;
 end;
 
+function TFRE_BASE_SERVER.SendDelegatedContentToClient(sessionID: TFRE_DB_String; const content: TFRE_DB_CONTENT_DESC): boolean;
+var session : TFRE_DB_UserSession;
+begin
+  result := GFRE_DBI.NetServ.FetchSessionByIdLocked(sessionID,session);
+  if result then
+    begin
+      try
+        result := session.DispatchCoroutine(@session.COR_SendContentOnBehalf,content);
+      finally
+        session.UnlockSession;
+      end;
+    end
+  else
+    try
+      content.Finalize;
+    except
+      on E:Exception do
+        raise EFRE_DB_Exception.Create(edb_ERROR,'content free for send delegated, seesion not found, failed [%s]',[e.Message]);
+    end;
+end;
+
 function TFRE_BASE_SERVER.FetchStreamDBO(const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString ; var stored_ct : TFRE_DB_String; var stored_etag : TFRE_DB_String): boolean;
 var fetch_uid : TGuid;
     ses       : TFRE_DB_UserSession;
@@ -1075,8 +1089,9 @@ end;
 
 constructor TFRE_BASE_SERVER.create(const defaultdbname: string);
 begin
-  DefaultDatabase := defaultdbname;
-  FStaticHTTPMeta := TFRE_ART_TREE.Create;
+  DefaultDatabase   := defaultdbname;
+  FStaticHTTPMeta   := TFRE_ART_TREE.Create;
+  GFRE_DB.NetServer := self;
 end;
 
 function  TFRE_BASE_SERVER.BindInitialSession(const back_channel: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; out  session: TFRE_DB_UserSession; const old_session_id: string;  const interactive_session: boolean):boolean;

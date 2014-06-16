@@ -557,6 +557,7 @@ type
 
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
   public
+    property        ExtensionTag                       : Pointer  read FExtensionTag write FExtensionTag;
     procedure       _InternalGuidNullCheck;
     procedure       Finalize                           ;
     class procedure  GenerateAnObjChangeList(const first_obj, second_obj: TFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator);
@@ -1557,7 +1558,7 @@ type
   private
    type
      TDC_Mode      = (dc_None,dc_Map2RealCollection);
-     TDC_TransMode = (trans_Insert,trans_Update);
+     TDC_TransMode = (trans_Insert,trans_Update,trans_SingleInsert);
    var
     FDCollFilters      : TFRE_DB_DC_FILTER_DEFINITION_BASE;
     FDCMode            : TDC_Mode;
@@ -1638,9 +1639,10 @@ type
     destructor   Destroy;override;
     function     GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
 
-    procedure    MyTransForm                   (const in_object : TFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var idx : NativeInt ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode);
-    procedure    TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure    TransformSingleUpdate         (const in_object : IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean ; var upd_idx: NativeInt);
+    procedure    MyTransForm                   (const in_objects : array of IFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode ; const update_idx : NativeInt=-1);
+    procedure    TransformAllTo                (const transdata  : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
+    procedure    TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt);
+    procedure    TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean);
 
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -1695,6 +1697,7 @@ type
 
     function   GetDisplayDescription   : TFRE_DB_CONTENT_DESC;
     function   GetDisplayDescriptionFunction (const FilterEventKey:TFRE_DB_String): TFRE_DB_SERVER_FUNC_DESC;
+    procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
   published
     function   WEB_GET_GRID_DATA       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_CLEAR_QUERY_RESULTS (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -2245,6 +2248,7 @@ type
 
   TFRE_DB=class(TObject,IFRE_DB)
   private
+    FNetServer                              : IFRE_DB_NetServer;
     FWeakMediatorLock                       : IFOS_Lock;
     FLocalZone                              : TFRE_DB_String;
     FFormatSettings                         : TFormatSettings;
@@ -2257,6 +2261,7 @@ type
     FSysClientFieldValidators               : Array of TFRE_DB_ClientFieldValidator;
     FAppArray                               : TFRE_DB_APPLICATION_ARRAY;
     FSysObjectList                          : ARRAY of TFRE_RSysObjects;
+    function        NetServ                 : IFRE_DB_NetServer;
     function        GetFormatSettings       : TFormatSettings;
     function        GetLocalZone            : TFRE_DB_String;
     procedure       SetFormatSettings       (const AValue: TFormatSettings);
@@ -2420,7 +2425,7 @@ type
     procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
 
-
+    property    NetServer              : IFRE_DB_NetServer read NetServ write FNetServer;
     procedure   ClearGUID              (var uid:TGUID);
     function    Get_A_Guid             : TGUID;
     function    Get_A_Guid_HEX         : Ansistring;
@@ -6395,120 +6400,133 @@ begin
 end;
 
 { record cnt includes transformed childs}
-procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const in_object: TFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; var idx: NativeInt; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode);
-var tr_obj        : TFRE_DB_Object;
-    refd_uids     : TFRE_DB_GUIDArray;
-    refd_objs     : IFRE_DB_ObjectArray;
-    fld           : TFRE_DB_FIELD;
-    len_chld      : NativeInt;
-    in_chld_obj   : IFRE_DB_Object;
-    parentpath    : TFRE_DB_GUIDArray;
-    depth         : NativeInt;
-    upconn        : TFRE_DB_CONNECTION;
-    childs        : TFRE_DB_TRANSFORMED_ARRAY_BASE;
+procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const in_objects: array of IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode; const update_idx: NativeInt);
+var
+  in_object     : IFRE_DB_Object;
+  tr_obj        : TFRE_DB_Object;
+  len_chld      : NativeInt;
+  upconn        : TFRE_DB_CONNECTION;
 
-    procedure SetSpecialFields;
+    procedure SetSpecialFields(const tro,ino:IFRE_DB_Object);
+    var fld : IFRE_DB_FIELD;
     begin
-      tr_obj.Field('_menufunc_').AsString      := 'Menu';
-      tr_obj.Field('_contentfunc_').AsString   := 'Content';
-      if in_object.FieldOnlyExisting('icon',fld) then // icon in source
-        tr_obj.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
+      tro.Field('_menufunc_').AsString      := 'Menu';
+      tro.Field('_contentfunc_').AsString   := 'Content';
+      //tro.Field('children').AsString        := 'UNCHECKED';
+      //if ino.FieldOnlyExisting('icon',fld) then // icon in source
+      //  tro.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
     end;
 
     procedure TransFormChildsForUid(const parent_tr_obj : IFRE_DB_Object ; const parentpath : string ; const depth : NativeInt ; const in_uid : TFRE_DB_GUID);
-    var j : NativeInt;
+    var j          : NativeInt;
+        refd_uids  : TFRE_DB_GUIDArray;
+        refd_objs  : IFRE_DB_ObjectArray;
+        len_chld      : NativeInt;
+        in_chld_obj   : IFRE_DB_Object;
+        childs        : TFRE_DB_CHILD_LEVEL_BASE;
+        ppart         : string;
     begin
+     inc(G_DEBUG_COUNTER);
+     writeln('::::::::>> ',parentpath);
      refd_uids     := upconn.GetReferencesNoRightCheck(in_uid,FParentLinksChild,FParentChildScheme,FParentChildField);
      len_chld      := length(refd_uids);
+     //parent_tr_obj.Field('children').AsString        := 'UNCHECKED';
      parent_tr_obj.Field('_children_count_').AsInt32 := len_chld;
      if len_chld>0 then
        begin
-         childs                      := transdata.CreateChildArrayData(len_chld);
+         childs := transdata.CreateChildLevel;
          (parent_tr_obj.Implementor as TFRE_DB_Object).FExtensionTag := childs;
          parent_tr_obj.Field('children').AsString        := 'UNCHECKED';
          inc(rec_cnt,len_chld); { record cnt includes transformed childs}
          CheckDbResult(upconn.BulkFetchNoRightCheck(refd_uids,refd_objs),'transform childs');
+         childs.AddChildLevel(parentpath,refd_uids);
          for j:=0 to high(refd_objs) do
            begin
              in_chld_obj  := refd_objs[j];
              try
                tr_obj    := FTransform.TransformInOut(upconn,in_chld_obj);
-               SetSpecialFields;
-               tr_obj.Field(cFRE_DB_SYS_PARENT_PATH).AsString := parentpath;
-               childs.SetTransformedObject(j,tr_obj);
+               SetSpecialFields(tr_obj,in_chld_obj);
+               tr_obj.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString := parentpath;
+               ppart := GFRE_BT.SepRight(parentpath,',');
+               if ppart='' then
+                 ppart := parentpath;
+               tr_obj.Field(cFRE_DB_SYS_PARENT_PATH_PART).AsString := ppart;
+               transdata.SetTransformedObject(tr_obj);
+               TransFormChildsForUid(tr_obj,parentpath+','+FREDB_G2H(refd_uids[j]),depth+1,refd_uids[j]); { recurse }
              finally
-               in_chld_obj.Finalize;
+               refd_objs[j].Finalize;
              end;
            end;
          SetLength(refd_objs,0);
-         for j:=0 to childs.GetDataCnt-1 do
-           TransFormChildsForUid(childs.GetTransformedObject(j),parentpath+'-'+FREDB_G2H(refd_uids[j]),depth+1,refd_uids[j]);
        end;
     end;
 
 begin
   try
-    upconn          := FConnection.UpcastDBC;
-    tr_obj          := FTransform.TransformInOut(upconn,in_object);
-    case mode of
-      trans_Insert:
-          transdata.SetTransformedObject(idx,tr_obj);
-      trans_Update:
-          transdata.UpdateTransformedObject(idx,tr_obj);
-    end;
-    inc(idx);
-    if HasParentChildRefRelationDefined then { next step transfrom children recursive }
+    upconn := FConnection.UpcastDBC;
+    for in_object in in_objects do
       begin
-        SetSpecialFields;
-        if false and lazy_child_expand then
-          begin
-            abort; // bad , rework
-            len_chld := upconn.GetReferencesCountNoRightCheck(in_object.UID,FParentLinksChild,FParentChildScheme,FParentChildField);
-            tr_obj.Field('_children_count_').AsInt32 := len_chld;
-            if len_chld>0 then
-              begin
-                tr_obj.Field('children').AsString        := 'UNCHECKED';
-              end;
-          end
-        else
-          begin
-            SetLength(parentpath,1);
-            depth             := 0;
-            TransFormChildsForUid(tr_obj,in_object.UID_String,depth,in_object.UID);
-          end;
-      end
+        tr_obj := FTransform.TransformInOut(upconn,in_object);
+        case mode of
+          trans_Insert:
+            begin
+              transdata.SetTransformedObject(tr_obj);
+              if HasParentChildRefRelationDefined then
+                begin
+                  SetSpecialFields(tr_obj,in_object);
+                  TransFormChildsForUid(tr_obj,tr_obj.UID_String,0,tr_obj.UID); { this is the initial fill case, next step transfrom children recursive }
+                end;
+            end;
+          trans_SingleInsert:
+            begin
+              if HasParentChildRefRelationDefined then
+                begin
+                  SetSpecialFields(tr_obj,in_object); { do not transfrom children recursive, these will come as single add updates, when inserted in a transaction }
+                end;
+              transdata.UpdateInsertTransformedObject(tr_obj);
+            end;
+          trans_Update:
+            begin
+              SetSpecialFields(tr_obj,in_object);
+              transdata.UpdateUpdateTransformedObject(tr_obj,update_idx);
+              { do not handle child updates now, the will get handled on field update event of the parent }
+            end;
+        end;
+      end;
   finally
-    in_object.Finalize;
+    for in_object in in_objects do
+      in_object.Finalize;
   end;
 end;
 
 
 procedure TFRE_DB_DERIVED_COLLECTION.TransformAllTo(const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; var record_cnt: NativeInt);
-var cnt        : NativeInt;
-    upconn     : TFRE_DB_CONNECTION;
+var upconn     : TFRE_DB_CONNECTION;
     uids       : TFRE_DB_GUIDArray;
     objs       : IFRE_DB_ObjectArray;
-    oidx       : NativeInt;
 
 begin
   MustBeInitialized;
   transdata.CleanUp; { retransform ? }
-  oidx       := 0;
   upconn     := FConnection.UpcastDBC;
   record_cnt := FParentCollection.Count;
-  transdata.SetDataCnt(record_cnt);
   (FParentCollection.Implementor_HC as TFRE_DB_COLLECTION).GetAllUids(uids); // ForAllNoRightChk(@TransForm);
   upconn.BulkFetchNoRightCheck(uids,objs);
   if record_cnt<>Length(objs) then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'recordcount mismatch / collcount vs bulkfetch (%d<>%d)',[record_cnt,Length(objs)]);
-  for cnt := 0 to high(objs) do
-    MyTransForm(objs[cnt].Implementor as TFRE_DB_Object,transdata,oidx,record_cnt,lazy_child_expand,trans_Insert);
+  MyTransForm(objs,transdata,record_cnt,lazy_child_expand,trans_Insert);
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; var upd_idx: NativeInt);
+procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean ; const upd_idx : NativeInt);
 var rec_cnt:NativeInt;
 begin
-  MyTransForm(in_object.Implementor AS TFRE_DB_Object,transdata,upd_idx,rec_cnt,lazy_child_expand,trans_Update);
+  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_Update,upd_idx);
+end;
+
+procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleInsert(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean);
+var rec_cnt:NativeInt;
+begin
+  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_SingleInsert,-1);
 end;
 
 //procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPageI(const page_info: TFRE_DB_DC_PAGING_INFO; const iterator: IFRE_DB_Obj_Iterator);
@@ -6766,9 +6784,9 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
   case FDisplaytype of
-    cdt_Listview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_GRID_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName);
-    cdt_Treeview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName);
-    cdt_Chartview:  result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHART_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName);
+    cdt_Listview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_GRID_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
+    cdt_Treeview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
+    cdt_Chartview:  result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHART_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
     else
       raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
   end
@@ -6886,6 +6904,22 @@ begin
   end;
 end;
 
+procedure TFRE_DB_DERIVED_COLLECTION.FinalRightTransform(const ses: IFRE_DB_UserSession; const transformed_filtered_cloned_obj: IFRE_DB_Object);
+var conn : IFRE_DB_CONNECTION;
+begin
+  conn := ses.GetDBConnection;
+  if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
+      and assigned(TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform) then
+        try
+          TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserToken,transformed_filtered_cloned_obj,ses.GetSessionGlobalData);
+        except
+          on e:exception do
+            begin
+              GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
+            end;
+        end;
+end;
+
 function TFRE_DB_DERIVED_COLLECTION.WEB_GET_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
     //sortfilterkeys : TFRE_DB_DC_STRINGFIELDKEY_LIST;
@@ -6905,16 +6939,7 @@ var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
 
       procedure GetData(const transformed_filtered_cloned_obj:IFRE_DB_Object);
       begin
-        if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
-            and assigned(TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform) then
-              try
-                TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserToken,transformed_filtered_cloned_obj,ses.GetSessionGlobalData);
-              except
-                on e:exception do
-                  begin
-                    GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
-                  end;
-              end;
+        FinalRightTransform(ses,transformed_filtered_cloned_obj);
         TFRE_DB_STORE_DATA_DESC(result).addEntry(transformed_filtered_cloned_obj);
       end;
 
@@ -6970,7 +6995,7 @@ var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
 
 begin
   try
-    //writeln('GEDTATA INPUT : ',input.DumpToString());
+    writeln('GEDTATA INPUT : ',input.DumpToString());
     qry_ok := false;
     MustBeInitialized;
 
@@ -6993,8 +7018,11 @@ begin
         GFRE_DB_TCDM.UnlockManager;
       end;
       try
-        query.SetBaseOrderedData(query_base_data);
+        query.SetBaseOrderedData(query_base_data,ses.GetSessionID);
         result := GetGridDataDescription;
+        writeln('----GDD');
+        writeln(result.DumpToString());
+        writeln('----GDD');
         qry_ok := true;
       finally
         query_base_data.UnlockBase;
@@ -11359,6 +11387,11 @@ begin
   result:=SetDirSeparators(GFRE_BT.GetUserDir+'.fre/db/');
 end;
 
+function TFRE_DB.NetServ: IFRE_DB_NetServer;
+begin
+  result := FNetServer;
+end;
+
 function TFRE_DB.GetFormatSettings: TFormatSettings;
 begin
   result := FFormatSettings;
@@ -11374,7 +11407,7 @@ begin
   FFormatSettings := AValue;
 end;
 
-constructor TFRE_DB.create;
+constructor TFRE_DB.Create;
 begin
   FFormatSettings := DefaultFormatSettings;
   GFRE_TF.Get_Lock(FWeakMediatorLock);

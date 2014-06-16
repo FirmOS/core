@@ -42,7 +42,7 @@ unit fre_db_core_transdata;
 interface
 
 uses
-     Classes,contnrs, SysUtils,fos_sparelistgen,fre_db_interface,fre_db_core,fos_art_tree,fos_basis_tools,fos_tool_interfaces,fos_arraygen,fre_db_persistance_common,strutils;
+     Classes,contnrs, SysUtils,fos_sparelistgen,fre_db_interface,fre_db_core,fos_art_tree,fos_basis_tools,fos_tool_interfaces,fos_arraygen,fre_db_common,fre_db_persistance_common,strutils;
 var
     cFRE_INT_TUNE_SYSFILTEXTENSION_SZ : NativeUint = 128;
 
@@ -65,8 +65,8 @@ type
   private
     FOrderList          : array of TFRE_DB_DC_ORDER;
     FKey                : TFRE_DB_TRANS_COLL_DATA_KEY;
-    FKeyPartMaj         : TFRE_DB_NameType; { may be a Parentcollectionname or an starting uid }
-    FKeyPartMin         : TFRE_DB_NameType; { may be a dc name or a ReflinkDefinition }
+    FKeyPartMaj         : TFRE_DB_NameType; { Parentcollectionname }
+    FKeyPartMin         : TFRE_DB_NameType; { DerivedCollname }
     FKeyPartParentChild : TFRE_DB_NameTypeRL;
     function    IsSealed : Boolean;
   public
@@ -79,6 +79,7 @@ type
     function    GetBaseKeyPart    : TFRE_DB_TRANS_COLL_DATA_KEY;
     function    GetFullKeyDef     : TFRE_DB_TRANS_COLL_DATA_KEY;
     procedure   ForAllOrders      (const orderiterator : TFRE_DB_DC_ORDER_ITERATOR);
+    procedure   SetupBinaryKey    (const obj : TFRE_DB_Object ; const Key : PByteArray ; var max_key_len : NativeInt); { setup a binary key according to this order }
   end;
 
   { TFRE_DB_FILTER_STRING }
@@ -308,7 +309,8 @@ type
      FQueryDeliveredCount    : NativeInt;
      FQueryPotentialCount    : NativeInt;
 
-     FQCreationTime : TFRE_DB_DateTime64;
+     FQCreationTime          : TFRE_DB_DateTime64;
+     FSessionID              : String;
 
      procedure               StartQueryRun;
      procedure               EndQueryRun;
@@ -324,14 +326,64 @@ type
      property    Filterdef            : TFRE_DB_DC_FILTER_DEFINITION read GetFilterDefinition; { lazy create on access}
      function    GetBaseTransDataKey  : TFRE_DB_TRANS_COLL_DATA_KEY;
      function    GetFullQueryOrderKey : TFRE_DB_TRANS_COLL_DATA_KEY;
-     procedure   SetBaseOrderedData   (const basedata   : TFRE_DB_TRANS_RESULT_BASE);override;
+     procedure   SetBaseOrderedData   (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);override;
      procedure   SetMaxResultDBOLen   ;
      procedure   SetResultUID         (const idx: NativeInt; const uid: TFRE_DB_GUID);
      procedure   AddjustResultDBOLen  ;
      function    Execute              (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;override; { execute the query, determine count and array of result dbo's }
+     function    GetStoreID           : TFRE_DB_NameType;
   end;
 
+
+  { TFRE_DB_SESSION_UPO }
+
+  TFRE_DB_SESSION_UPO = class
+  private
+     FStoreList : TFPHashObjectList;
+     FSessid    : TFRE_DB_NameType;
+  public
+     constructor Create                   (const session_id : TFRE_DB_NameType);
+     destructor  Destroy                  ; override;
+     procedure   AddStoreUpdate           (const store_id : TFRE_DB_NameType ; const upo : IFRE_DB_Object);
+     procedure   AddStoreInsert           (const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const parent_id, reference_id: TFRE_DB_String; const before: boolean);
+     procedure   DispatchAllNotifications ;
+  end;
+
+  { TFRE_DB_TRANSDATA_CHANGE_NOTIFIER }
+
   TFRE_DB_TRANSDATA_CHANGE_NOTIFIER=class(IFRE_DB_TRANSDATA_CHANGE_NOTIFIER)
+  private
+     FSessionUpdateList : TFPHashObjectList;
+  public
+     constructor Create                       ;
+     destructor  Destroy                      ;override;
+     procedure   AddDirectSessionUpdateEntry  (const update_dbo : IFRE_DB_Object); { add a dbo update for sessions dbo's (forms) }
+     procedure   AddGridInplaceUpdate         (const sessionid: TFRE_DB_NameType ; const store_id: TFRE_DB_NameType ; const query_id : TFRE_DB_NameType ; const upo: IFRE_DB_Object); { inplace update entry for the store }
+     procedure   AddGridInsertUpdate          (const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const parent_id, reference_id: TFRE_DB_String; const before: boolean);
+     procedure   NotifyAll;
+  end;
+
+  { TFRE_DB_CHILD_PATH_UIDS }
+
+  TFRE_DB_CHILD_PATH_UIDS=class
+  private
+    FParentPath : String;
+    FChildUids  : TFRE_DB_GUIDArray;
+  public
+    property Parentpath : String read FParentPath write FParentPath;
+    property ChildUids  : TFRE_DB_GUIDArray read FChildUids write FChildUids;
+  end;
+
+  { TFRE_DB_CHILD_LEVEL }
+
+  TFRE_DB_CHILD_LEVEL=class(TFRE_DB_CHILD_LEVEL_BASE)
+  private
+    FLevels : TFPObjectList;
+    function Exist(const up_parentpath:string):NativeInt;
+  public
+    constructor Create;
+    destructor  Destroy; override;
+    procedure   AddChildLevel    (parentpath : String ; const child_uids : TFRE_DB_GUIDArray);override;
   end;
 
   { TFRE_DB_TRANFORMED_DATA }
@@ -340,28 +392,33 @@ type
   private
     FBaseKey              : TFRE_DB_NameTypeRL;   { CN/DCN/CHILD RL SPEC }
     FTransformKey         : QWord;
-    FTransformeddata      : IFRE_DB_ObjectArray;
+    FTransformedData      : TFPHashObjectList;
+    FOrderings            : TFPObjectList;
     FTDCreationTime       : TFRE_DB_DateTime64;
-    FIncludesChildData    : Boolean; { the query is a tree query}
+    FIncludesChildData    : Boolean; { the query is a tree query, thus the objects contain extension pointers to TFRE_DB_TRANFORMED_DATA objects}
     FChildDataIsLazy      : Boolean; { the child data is lazy : UNSUPPORTED }
-    FIsChildata           : Boolean; { this is a childdata array }
     FDC                   : IFRE_DB_DERIVED_COLLECTION;
   public
-    procedure   Cleanup                  ; override;
-    procedure   SetDataCnt               (const rcnt : NativeInt) ; override ;
-    function    GetDataCnt               : NativeInt ; override ;
-    procedure   SetTransformedObject     (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);override;
-    function    GetTransformedObject     (const idx : NativeInt) : IFRE_DB_Object ; override;
-    procedure   UpdateTransformedObject  (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);override;
+    procedure   Cleanup                       ; override;
+    procedure   UpdateObjectByNotify          (const obj : IFRE_DB_Object); { notify step 1 }
+    procedure   InsertObjectByNotify          (const obj : IFRE_DB_Object); { notify step 1 }
+    procedure   RemoveObjectByNotify          (const obj : IFRE_DB_Object); { notify step 2 }
 
-    function    IsObjectInDataIdx        (const obj : IFRE_DB_Object ; var idx :NativeInt):boolean;
-    function    GetTransFormKey          : TFRE_DB_NameTypeRL;
-    function    GetDataArray             : PFRE_DB_ObjectArray;
+    function    ExistsObj                     (const uid:TFRE_DB_GUID):NativeInt;
+    procedure   SetTransformedObject          (const tr_obj : IFRE_DB_Object);override;                           { inital fill }
+    procedure   SetTransObjectSingleInsert    (const tr_obj : IFRE_DB_Object);override;                           { single fill from notify }
+    procedure   UpdateUpdateTransformedObject (const tr_obj: IFRE_DB_Object; const upd_idx: NativeInt); override; { notify update, step 2 }
+    procedure   UpdateInsertTransformedObject (const tr_obj : IFRE_DB_Object);override;                           { notify update, step 2 }
+
     procedure   TransformAll             (var rcnt : NativeInt);       { transform all objects of the parent collection }
-    procedure   TransformSingle          (const obj : IFRE_DB_Object ; const cn : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER ; const idx : NativeInt); { transform a single object }
     constructor Create                   (const base_key : TFRE_DB_NameTypeRL ; const child_data_lazy,includes_child_data : boolean ; const dc : IFRE_DB_DERIVED_COLLECTION);
-    function    CreateChildArrayData     (const len_child : NativeInt): TFRE_DB_TRANSFORMED_ARRAY_BASE;override;
-    function    IsChildData              : Boolean;
+    destructor  Destroy                  ; override;
+    function    CreateChildLevel         : TFRE_DB_CHILD_LEVEL_BASE;override;
+    procedure   ForAllObjs              (const forall : TFRE_DB_Obj_Iterator);
+
+    procedure   AddOrdering             (const ordering : TFRE_DB_TRANS_COLL_DATA);
+    procedure   RemoveOrdering          (const ordering : TFRE_DB_TRANS_COLL_DATA);
+    function    GetTransFormKey               : TFRE_DB_NameTypeRL;
   end;
 
   { TFRE_DB_OrderContainer }
@@ -369,31 +426,37 @@ type
   TFRE_DB_OrderContainer=class
   private
     FOBJArray : OFRE_SL_TFRE_DB_Object;
-    function AddObject(const obj : TFRE_DB_Object):boolean;
-    function Exists   (const obj : TFRE_DB_Object):boolean;
   public
-    procedure   ForAllBreak(const iter : IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
-    constructor Create;
+    function    AddObject     (const obj : TFRE_DB_Object):boolean;
+    function    Exists        (const obj : TFRE_DB_Object):boolean;
+    procedure   ReplaceObject (const old_obj,new_obj : TFRE_DB_Object);
+    function    RemoveObject  (const old_obj : TFRE_DB_Object):boolean; { true if this was the last value in the container }
+    procedure   ForAllBreak   (const iter : IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
+    constructor Create        ;
   end;
 
   { TFRE_DB_FilterContainer }
 
   TFRE_DB_FilterContainer=class
   private
-    FOBJArray : Array of IFRE_DB_Object;
-    FCnt      : NativeUint;
-    FFilled   : Boolean;
+    FOBJArray        : Array of IFRE_DB_Object;
+    FCnt             : NativeUint;
+    FFilled          : Boolean;
     FFCCreationTime  : TFRE_DB_DateTime64;
     FFilters         : TFRE_DB_DC_FILTER_DEFINITION;
     procedure SetFilled(AValue: boolean);
   public
-    property    IsFilled         : boolean read FFilled write SetFilled;
-    procedure   Execute          (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY);
-    procedure   CheckFilteredAdd (const obj : IFRE_DB_Object);
-    procedure   AdjustLength     ;
-    constructor Create           ;
-    destructor  Destroy          ;override;
-    function    Filters          : TFRE_DB_DC_FILTER_DEFINITION;
+    property    IsFilled                     : boolean read FFilled write SetFilled;
+    procedure   Execute                      (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY);
+    procedure   CheckFilteredAdd             (const obj : IFRE_DB_Object);
+    procedure   Notify_CheckFilteredUpdate   (const td  : TFRE_DB_TRANS_COLL_DATA ; const old_obj,new_obj : IFRE_DB_Object); { invoke session update, in ordered place }
+    procedure   Notify_CheckFilteredDelete   (const td  : TFRE_DB_TRANS_COLL_DATA ; const old_obj         : IFRE_DB_Object); { invoke session update }
+    procedure   Notify_CheckFilteredInsert   (const td  : TFRE_DB_TRANS_COLL_DATA ; const new_obj         : IFRE_DB_Object); { invoke session update }
+    function    DoesObjectPassFilters        (const obj : IFRE_DB_Object):boolean;
+    procedure   AdjustLength                 ;
+    constructor Create                       ; //(const filtkey : TFRE_DB_TRANS_COLL_DATA_KEY);
+    destructor  Destroy                      ; override;
+    function    Filters                      : TFRE_DB_DC_FILTER_DEFINITION;
   end;
 
 
@@ -407,14 +470,23 @@ type
     FArtTreeKeyToObj   : TFRE_ART_TREE; { store the Pointer to the Transformed Data Entry}
     FArtTreeFilterKey  : TFRE_ART_TREE; { store a filtering based on the order }
     FTOCreationTime    : TFRE_DB_DateTime64;
+    procedure          InsertIntoTree (const insert_obj : TFRE_DB_Object);
+
+    procedure          Notify_UpdateIntoTree (const old_obj,new_obj : TFRE_DB_Object);
+    procedure          Notify_InsertIntoTree (const new_obj : TFRE_DB_Object);
+    procedure          Notify_InsertIntoTree (const key: PByte; const keylen: NativeInt; const new_obj: TFRE_DB_Object);
+    procedure          Notify_DeleteFromTree (const old_obj : TFRE_DB_Object);
+    procedure          Notify_DeleteFromTree (const key: PByte; const keylen: NativeInt; const old_obj: TFRE_DB_Object);
   public
-    procedure    LockBase      ; override;
-    procedure    UnlockBase    ; override;
-    constructor  Create        (const orderdef : TFRE_DB_DC_ORDER_DEFINITION ; base_trans_data : TFRE_DB_TRANFORMED_DATA);
-    procedure    OrderTheData  ;
-    destructor   Destroy       ; override;
-    function     GetFullKeyDef : TFRE_DB_TRANS_COLL_DATA_KEY;
-    procedure    Execute       (const iter : IFRE_DB_Obj_Iterator ; const qry_context : TFRE_DB_QUERY);
+    procedure    LockBase                ; override;
+    procedure    UnlockBase              ; override;
+    constructor  Create                  (const orderdef : TFRE_DB_DC_ORDER_DEFINITION ; base_trans_data : TFRE_DB_TRANFORMED_DATA);
+    destructor   Destroy                 ; override;
+    function     GetFullKeyDef           : TFRE_DB_TRANS_COLL_DATA_KEY;
+    procedure    Execute                 (const iter : IFRE_DB_Obj_Iterator ; const qry_context : TFRE_DB_QUERY);
+    procedure    OrderTheData            ;
+    procedure    UpdateTransformedobject (const old_obj,new_object : IFRE_DB_Object);
+    procedure    InsertTransformedobject (const new_object : IFRE_DB_Object);
   end;
 
   OFRE_DB_TransCollTransformedDataList = specialize OGFOS_Array<TFRE_DB_TRANFORMED_DATA>; { list of transformed collections }
@@ -427,12 +499,18 @@ type
 
   TFRE_DB_TRANSDATA_MANAGER=class(TFRE_DB_TRANSDATA_MANAGER_BASE,IFRE_DB_DBChangedNotification)
   private
+  type
+       TFRE_DB_QueryIterator = procedure(const query : TFRE_DB_QUERY) is nested;
+  var
     FTransformKey  : QWord;
     FStatCleaner   : TFRE_DB_TDM_STATS_CLEANER;
     FArtQueryStore : TFRE_ART_TREE;
     FTransLock     : IFOS_LOCK;
     FTransList     : OFRE_DB_TransCollTransformedDataList; { List of base transformed data}
     FOrders        : OFRE_DB_TransCollOrderedDataList;     { List of orderings of base transforms}
+    FCurrentNotify : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER;    { gather list of notifications for a notification block (transaction) }
+
+    procedure   ForAllQueries          (const query_iter : TFRE_DB_QueryIterator);
     function    GetBaseTransformedData (base_key : TFRE_DB_NameTypeRL ; out base_data : TFRE_DB_TRANFORMED_DATA) : boolean;
     procedure   AddBaseTransformedData (const base_data : TFRE_DB_TRANFORMED_DATA);
     procedure   TL_StatsTimer;
@@ -489,6 +567,14 @@ type
     procedure   DropAllQuerys             (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); override; { can be dc wide, or session wide dc_name='' }
     function    FormQueryID               (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : shortstring):TFRE_DB_NameType;override;
     procedure   InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); override;
+
+    { --- Notify gathering }
+    procedure   CN_AddDirectSessionUpdateEntry       (const update_dbo : IFRE_DB_Object); { add a dbo update for sessions dbo's (forms) }
+    procedure   CN_AddGridInplaceUpdate              (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : TFRE_DB_NameType ; const upo : IFRE_DB_Object);
+    procedure   CN_AddGridInsertUpdate               (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : TFRE_DB_NameType ; const upo : IFRE_DB_Object ;  const parent_id,reference_id: TFRE_DB_String ; const before : boolean);
+    procedure   UpdateObjectInFilterKey              (const td : TFRE_DB_TRANS_COLL_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt); { in place update }
+    procedure   RemoveUpdateObjectInFilterKey        (const td : TFRE_DB_TRANS_COLL_DATA ; const filtercont : TFRE_DB_FilterContainer ; const old_obj : IFRE_DB_Object ; const idx : NativeInt);
+    procedure   InsertUpdateObjectInFilterKey        (const td : TFRE_DB_TRANS_COLL_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt);
   end;
 
   { TFRE_DB_TDM_STATS_CLEANER }
@@ -510,6 +596,12 @@ procedure  FinalizeTransformManager;
 
 implementation
 
+function G_TCDM : TFRE_DB_TRANSDATA_MANAGER;
+begin
+  result := GFRE_DB_TCDM as TFRE_DB_TRANSDATA_MANAGER;
+end;
+
+
 procedure InitTransfromManager;
 begin
   if not assigned(GFRE_DB_TCDM) then
@@ -523,6 +615,145 @@ begin
       GFRE_DB_TCDM.Free;
       GFRE_DB_TCDM:=nil;
     end;
+end;
+
+{ TFRE_DB_SESSION_UPO }
+
+constructor TFRE_DB_SESSION_UPO.Create(const session_id: TFRE_DB_NameType);
+begin
+  FStoreList := TFPHashObjectList.Create(false);
+  FSessid    := session_id;
+end;
+
+destructor TFRE_DB_SESSION_UPO.Destroy;
+begin
+  FStoreList.Free;
+  inherited Destroy;
+end;
+
+procedure TFRE_DB_SESSION_UPO.AddStoreUpdate(const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object);
+var update_st : TFRE_DB_UPDATE_STORE_DESC;
+begin
+  update_st :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
+  if not Assigned(update_st) then
+    begin
+      update_st := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
+      FStoreList.Add(store_id,update_st);
+    end;
+  update_st.addUpdatedEntry(upo);
+end;
+
+procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const parent_id,reference_id: TFRE_DB_String; const before: boolean);
+var update_st : TFRE_DB_UPDATE_STORE_DESC;
+begin
+  update_st :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
+  if not Assigned(update_st) then
+    begin
+      update_st := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
+      FStoreList.Add(store_id,update_st);
+    end;
+  update_st.addNewEntry(upo,reference_id,parent_id,not before);
+end;
+
+procedure TFRE_DB_SESSION_UPO.DispatchAllNotifications;
+var i  : NativeInt;
+    ct : TFRE_DB_CONTENT_DESC;
+begin
+  for i := 0 to FStoreList.Count-1 do
+     begin
+       ct := FStoreList.Items[i] as TFRE_DB_CONTENT_DESC;
+       GFRE_DBI.NetServ.SendDelegatedContentToClient(FSessid,ct);
+     end;
+  //ses.DispatchCoroutine(@ses.COR_SendContentOnBehalf,update_st);
+    //end;
+end;
+
+{ TFRE_DB_TRANSDATA_CHANGE_NOTIFIER }
+
+constructor TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.Create;
+begin
+  FSessionUpdateList := TFPHashObjectList.Create(true);
+end;
+
+destructor TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.Destroy;
+begin
+  FSessionUpdateList.free;
+end;
+
+procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddDirectSessionUpdateEntry(const update_dbo: IFRE_DB_Object);
+var halt : boolean;
+  //procedure AllSessions
+begin
+  halt := false;
+  { todo session should register update dbo's here ...}
+  //GFRE_DBI.NetServ.ForAllSessionsLocked(@AllSessions,halt);
+end;
+
+procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridInplaceUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const query_id: TFRE_DB_NameType; const upo: IFRE_DB_Object);
+var session_upo : TFRE_DB_SESSION_UPO;
+begin
+  session_upo := FSessionUpdateList.Find(sessionid) as TFRE_DB_SESSION_UPO;
+  if not assigned(session_upo) then
+    begin
+      session_upo := TFRE_DB_SESSION_UPO.Create(sessionid);
+      FSessionUpdateList.Add(sessionid,session_upo);
+    end;
+  session_upo.AddStoreUpdate(store_id,upo);
+end;
+
+procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const parent_id,reference_id: TFRE_DB_String; const before: boolean);
+var session_upo : TFRE_DB_SESSION_UPO;
+begin
+  session_upo := FSessionUpdateList.Find(sessionid) as TFRE_DB_SESSION_UPO;
+  if not assigned(session_upo) then
+    begin
+      session_upo := TFRE_DB_SESSION_UPO.Create(sessionid);
+      FSessionUpdateList.Add(sessionid,session_upo);
+    end;
+  session_upo.AddStoreInsert(store_id,upo,parent_id,reference_id,before);
+end;
+
+procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.NotifyAll;
+var i    : NativeInt;
+    supo : TFRE_DB_SESSION_UPO;
+begin
+  for i  := 0 to FSessionUpdateList.Count-1 do
+   begin
+     supo := FSessionUpdateList.Items[i] as TFRE_DB_SESSION_UPO;
+     supo.DispatchAllNotifications;
+   end;
+end;
+
+{ TFRE_DB_CHILD_LEVEL }
+
+function TFRE_DB_CHILD_LEVEL.Exist(const up_parentpath: string): NativeInt;
+begin
+  for result := 0 to FLevels.Count-1 do
+    if (FLevels.Items[result] as TFRE_DB_CHILD_PATH_UIDS).ParentPath=up_parentpath then
+      exit;
+  exit(-1);
+end;
+
+constructor TFRE_DB_CHILD_LEVEL.Create;
+begin
+  FLevels := TFPObjectList.Create(true);
+end;
+
+destructor TFRE_DB_CHILD_LEVEL.Destroy;
+begin
+  FLevels.free;
+  inherited Destroy;
+end;
+
+procedure TFRE_DB_CHILD_LEVEL.AddChildLevel(parentpath: String; const child_uids: TFRE_DB_GUIDArray);
+var ul : TFRE_DB_CHILD_PATH_UIDS;
+begin
+  parentpath := UpperCase(parentpath);
+  if Exist(parentpath)<>-1 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'childlevel for ['+parentpath+'] already exists');
+  ul := TFRE_DB_CHILD_PATH_UIDS.Create;
+  ul.Parentpath := parentpath;
+  ul.ChildUids  := Copy(child_uids);
 end;
 
 { TFRE_DB_TDM_STATS_CLEANER }
@@ -579,7 +810,7 @@ end;
 
 function TFRE_DB_FILTER_CHILD.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 begin
-  result := not obj.FieldExists(cFRE_DB_SYS_PARENT_PATH);
+  result := not obj.FieldExists(cFRE_DB_SYS_PARENT_PATH_FULL);
 end;
 
 procedure TFRE_DB_FILTER_CHILD.InitFilter;
@@ -608,13 +839,15 @@ end;
 
 function TFRE_DB_FILTER_PARENT.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var fld  : IFRE_DB_FIELD;
-    pidp : string;
+    pidp : TFRE_DB_StringArray;
+    pid  : String;
 begin
   result := false;
-  if obj.FieldOnlyExisting(cFRE_DB_SYS_PARENT_PATH,fld) then
+  if obj.FieldOnlyExisting(cFRE_DB_SYS_PARENT_PATH_PART,fld) then
     begin
-      pidp   := fld.AsString;
-      result := FAllowedParent=pidp;
+      //FREDB_SeperateString(fld.AsString,',',pidp);
+      pid    :=  fld.AsString;
+      result :=  FAllowedParent=pid; { FAllowed Parent (part) }
     end
 end;
 
@@ -1525,6 +1758,11 @@ begin
   FFilled:=AValue;
 end;
 
+function TFRE_DB_FilterContainer.DoesObjectPassFilters(const obj: IFRE_DB_Object): boolean;
+begin
+  result := FFilters.DoesObjectPassFilters(obj);
+end;
+
 procedure TFRE_DB_FilterContainer.Execute(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY);
 var i   : NativeInt;
     obj : IFRE_DB_Object;
@@ -1536,8 +1774,8 @@ begin
   for i:=qry_context.FStartIdx to High(FOBJArray) do
     begin
       obj := FOBJArray[i].CloneToNewObject();
-      obj.DeleteField(cFRE_DB_SYS_ORDER_REF_KEY); { remove order ref backlink key }
-      iter(obj.CloneToNewObject);
+      //obj.DeleteField(cFRE_DB_SYS_ORDER_REF_KEY); { remove order ref backlink key }
+      iter(obj);
       qry_context.SetResultUID(qry_context.FQueryCurrIdx,obj.UID);
       inc(qry_context.FQueryCurrIdx);
       inc(qry_context.FQueryDeliveredCount);
@@ -1548,14 +1786,139 @@ begin
 end;
 
 procedure TFRE_DB_FilterContainer.CheckFilteredAdd(const obj: IFRE_DB_Object);
+var fkey : TFRE_DB_NameType;
 begin
   if FCnt=Length(FOBJArray) then
     SetLength(FOBJArray,Length(FOBJArray)+cFRE_INT_TUNE_SYSFILTEXTENSION_SZ);
   //Test Filter Code ...
-  if FFilters.DoesObjectPassFilters(obj) then
+  if DoesObjectPassFilters(obj) then
     begin
-      FOBJArray[FCnt]:=obj;
+      FOBJArray[FCnt] := obj;
+      fkey            := Filters.GetFilterKey;
+      obj.Field(cFRE_DB_SYS_T_OBJ_FILTER_POS_I).AsObject.Field(fkey).AsInt32 := FCnt; { store filter index, for update operations }
       inc(FCnt);
+    end;
+end;
+
+procedure TFRE_DB_FilterContainer.Notify_CheckFilteredUpdate(const td: TFRE_DB_TRANS_COLL_DATA; const old_obj, new_obj: IFRE_DB_Object);
+var old_idx   : NativeInt;
+    prev_obj  : IFRE_DB_Object;
+    next_obj  : IFRE_DB_Object;
+    fkey      : TFRE_DB_NameType;
+begin
+  if DoesObjectPassFilters(new_obj) then
+    begin { Update object does pass the filters}
+      fkey    := Filters.GetFilterKey;
+      old_idx := old_obj.Field(cFRE_DB_SYS_T_OBJ_FILTER_POS_I).AsObject.Field(Fkey).AsInt32;
+      FOBJArray[old_idx] := new_obj;
+      if old_idx>0 then
+        prev_obj := FOBJArray[old_idx-1]
+      else
+        prev_obj := nil;
+      if old_idx<high(FOBJArray) then
+        next_obj := FOBJArray[old_idx+1]
+      else
+        next_obj := nil;
+      new_obj.Field(cFRE_DB_SYS_T_OBJ_FILTER_POS_I).AsObject.Field(FKey).AsInt32 := old_idx; { store filter index, for update operations }
+      G_TCDM.UpdateObjectInFilterKey(td,self,new_obj,old_idx);  { in place update }
+    end
+  else
+    begin { Update object does not pass the filters anymore -> remove it}
+      abort; { TODO: implement here}
+    end;
+end;
+
+procedure TFRE_DB_FilterContainer.Notify_CheckFilteredDelete(const td: TFRE_DB_TRANS_COLL_DATA; const old_obj: IFRE_DB_Object);
+
+  procedure RemoveOldObject;
+  var old_idx   : NativeInt;
+      fkey      : TFRE_DB_NameType;
+  begin
+    fkey      := Filters.GetFilterKey;
+    old_idx   := old_obj.Field(cFRE_DB_SYS_T_OBJ_FILTER_POS_I).AsObject.Field(Fkey).AsInt32;
+    FOBJArray := FREDB_RemoveIdxFomObjectArray(FOBJArray,old_idx);
+    dec(FCnt);
+    AdjustLength;
+    G_TCDM.RemoveUpdateObjectInFilterKey(td,self,old_obj,old_idx);  { remove an object }
+  end;
+
+begin
+  if DoesObjectPassFilters(old_obj) then
+    begin { old object is potentially in the client query present }
+      RemoveOldObject;
+    end
+  else
+    begin
+      abort;
+    end;
+end;
+
+procedure TFRE_DB_FilterContainer.Notify_CheckFilteredInsert(const td: TFRE_DB_TRANS_COLL_DATA; const new_obj: IFRE_DB_Object);
+var new_key : TFRE_DB_ByteArray;
+
+  procedure InsertNewObject;
+  var ia_idx   : NativeInt;
+      before   : NativeInt;
+
+      procedure  FindInsertAfterIndex;
+      var midx,leftx,rightx : NativeInt;
+          mkey              : TFRE_DB_ByteArray;
+          res               : NativeInt;
+
+          function Compare(key1,key2 : TFRE_DB_ByteArray):NativeInt;
+          begin
+            if Length(key1)=Length(key2) then
+              begin
+                Result := CompareByte(key1[0],key2[0],Length(key1));
+              end
+            else
+              if Length(key1)<Length(key2) then
+                result := -1
+              else
+                result := 1;
+          end;
+
+      begin
+        leftx  := 0;
+        before := 0;
+        rightx := high(FOBJArray);
+        while  leftx<=rightx do
+          begin
+             midx := leftx + ((rightx - leftx) div 2);
+             mkey := FOBJArray[midx].Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsByteArr;
+             res := Compare(mkey,new_key);
+             if res=0 then
+               begin
+                 ia_idx := midx;
+                 exit;
+               end;
+             if res>0 then
+               rightx := midx-1
+             else
+               leftx  := midx+1;
+          end;
+        before := res;  { 1 = before}
+        ia_idx := midx;
+      end;
+
+  begin
+    new_key  := new_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsByteArr;
+    FindInsertAfterIndex;
+    FOBJArray := FREDB_InsertAtIdxToObjectArray(FOBJArray,ia_idx,new_obj,before=1); { ia_idx gets adjusted }
+    inc(FCnt);
+    AdjustLength;
+    G_TCDM.InsertUpdateObjectInFilterKey(td,self,new_obj,ia_idx);  { remove an object }
+  end;
+
+begin
+  if DoesObjectPassFilters(new_obj) then
+    begin { old object is potentially in the client query present }
+      //RemoveOldObject;
+      InsertNewObject;
+    end
+  else
+    begin
+      abort;
     end;
 end;
 
@@ -1857,6 +2220,47 @@ begin
     orderiterator(order);
 end;
 
+procedure TFRE_DB_DC_ORDER_DEFINITION.SetupBinaryKey(const obj: TFRE_DB_Object; const Key: PByteArray; var max_key_len: NativeInt);
+var fld    : IFRE_DB_FIELD;
+    KeyLen : NativeInt;
+
+  procedure  Iter(const order : TFRE_DB_DC_ORDER);
+  var fld    : IFRE_DB_Field;
+      idx    : TFRE_DB_MM_IndexClass;
+  begin
+    if obj.FieldOnlyExistingI(order.order_field,fld) then
+      begin
+        if TFRE_DB_MM_Index.GetIndexClassForFieldtype(fld.FieldType,idx)=edb_UNSUPPORTED then
+          begin
+            TFRE_DB_TextIndex.TransformToBinaryComparable(nil,key[max_key_len],KeyLen,false,not order.ascending); { fallback transform the nil/unknown/unsupported fieldtype to a text null value }
+          end
+        else
+          if idx=TFRE_DB_UnsignedIndex then
+            TFRE_DB_UnsignedIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,Key[max_key_len],keylen,false,not order.ascending)
+          else
+          if idx=TFRE_DB_SignedIndex then
+            TFRE_DB_SignedIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,Key[max_key_len],keylen,false,not order.ascending)
+          else
+          if idx=TFRE_DB_TextIndex then
+            TFRE_DB_TextIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,Key[max_key_len],keylen,false,not order.ascending)
+          else
+          if idx=TFRE_DB_RealIndex then
+            TFRE_DB_RealIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,Key[max_key_len],keylen,false,not order.ascending)
+          else
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,' unknonw idx typed must be reported as unsupported ! idx='+idx.classname);
+      end
+    else
+      begin
+        TFRE_DB_TextIndex.TransformToBinaryComparable(nil,@key[max_key_len],KeyLen,false); { fallback transform the nil/unknown/unsupported fieldtype to a text null value }
+      end;
+    max_key_len := max_key_len+KeyLen;
+  end;
+
+begin
+  max_key_len := 0;
+  ForAllOrders(@iter);
+end;
+
 
 procedure TFRE_DB_DC_ORDER_DEFINITION.ClearOrders;
 begin
@@ -1904,6 +2308,23 @@ end;
 function TFRE_DB_OrderContainer.Exists(const obj: TFRE_DB_Object): boolean;
 begin
   result := FOBJArray.Exists(obj)<>-1;
+end;
+
+procedure TFRE_DB_OrderContainer.ReplaceObject(const old_obj, new_obj: TFRE_DB_Object);
+var idx : NativeInt;
+begin
+  idx := FOBJArray.Exists(old_obj);
+  if idx=-1 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'ordercontainer/replace old object not found');
+  FOBJArray.Element[idx] := new_obj;
+end;
+
+function TFRE_DB_OrderContainer.RemoveObject(const old_obj: TFRE_DB_Object): boolean;
+var idx : NativeInt;
+begin
+  if not FOBJArray.Delete(old_obj) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic / remove from ordercontainer / value not found');
+  result := FOBJArray.Count=0;
 end;
 
 procedure TFRE_DB_OrderContainer.ForAllBreak(const iter: IFRE_DB_ObjectIteratorBrk; var halt: boolean);
@@ -2010,9 +2431,10 @@ begin
   result := FOrderDef.GetFullKeyDef;
 end;
 
-procedure TFRE_DB_QUERY.SetBaseOrderedData(const basedata: TFRE_DB_TRANS_RESULT_BASE);
+procedure TFRE_DB_QUERY.SetBaseOrderedData(const basedata: TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);
 begin
-  FBaseData := basedata as TFRE_DB_TRANS_COLL_DATA;
+  FBaseData  := basedata as TFRE_DB_TRANS_COLL_DATA;
+  FSessionId := session_id;
 end;
 
 procedure TFRE_DB_QUERY.SetMaxResultDBOLen;
@@ -2040,57 +2462,104 @@ begin
   result := FQueryPotentialCount;
 end;
 
+function TFRE_DB_QUERY.GetStoreID: TFRE_DB_NameType;
+begin
+  result := FOrderDef.FKeyPartMin;
+end;
+
 
 { TFRE_DB_TRANFORMED_DATA }
 
 procedure TFRE_DB_TRANFORMED_DATA.Cleanup;
 var cnt : NativeInt;
 begin
-  for cnt :=0 to High(FTransformeddata) do
-    FTransformeddata[cnt].Finalize;
-  Setlength(FTransformeddata,0);
+  FTransformedData.Clear;
+  //for cnt :=0 to High(FTransformeddata) do
+  //  FTransformeddata[cnt].Finalize;
+  //Setlength(FTransformeddata,0);
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.SetDataCnt(const rcnt: NativeInt);
+procedure TFRE_DB_TRANFORMED_DATA.UpdateObjectByNotify(const obj: IFRE_DB_Object);
+var idx : NativeInt;
 begin
-  if Length(FTransformeddata)<>0 then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'handle cleanup of arrays');
-  SetLength(FTransformeddata,rcnt);
+  idx := ExistsObj(obj.UID);
+  if idx>=0 then
+    FDC.TransformSingleUpdate(obj,self,FChildDataIsLazy,idx)
+  else
+    raise EFRE_DB_Exception.Create(edb_ERROR,'td updateobjectbynotify failed - not found');
 end;
 
-function TFRE_DB_TRANFORMED_DATA.GetDataCnt: NativeInt;
+procedure TFRE_DB_TRANFORMED_DATA.InsertObjectByNotify(const obj: IFRE_DB_Object);
+var idx : NativeInt;
 begin
-  result := Length(FTransformeddata);
+  idx := ExistsObj(obj.UID);
+  if idx>=0 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'td updateobjectbynotify failed - not found')
+  else
+    FDC.TransformSingleInsert(obj,self,FChildDataIsLazy);
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.SetTransformedObject(const idx: NativeInt; const tr_obj: IFRE_DB_Object);
-begin
-  FTransformeddata[idx] := tr_obj;
-end;
-
-function TFRE_DB_TRANFORMED_DATA.GetTransformedObject(const idx: NativeInt): IFRE_DB_Object;
-begin
-
-end;
-
-procedure TFRE_DB_TRANFORMED_DATA.UpdateTransformedObject(const idx: NativeInt; const tr_obj: IFRE_DB_Object);
+procedure TFRE_DB_TRANFORMED_DATA.RemoveObjectByNotify(const obj: IFRE_DB_Object);
 begin
   abort;
-  FTransformeddata[idx].Finalize;
-  FTransformeddata[idx] := tr_obj;
 end;
 
-function TFRE_DB_TRANFORMED_DATA.IsObjectInDataIdx(const obj: IFRE_DB_Object; var idx: NativeInt): boolean;
-var i : NativeInt;
+function TFRE_DB_TRANFORMED_DATA.ExistsObj(const uid: TFRE_DB_GUID): NativeInt;
+var us : ShortString;
+    ob : TFRE_DB_Object;
 begin
-  for i := 0 to High(FTransformeddata) do
-    if obj.UID=FTransformeddata[i].uid then
-      begin
-        idx := i;
-        exit(true);
-      end;
-  idx    := -1;
-  result := false;
+  us := FREDB_G2SB(UID);
+  result := FTransformedData.FindIndexOf(us);
+  if result>=0 then
+    begin
+      ob := FTransformedData.Items[result] as TFRE_DB_Object;
+      if ob.UID<>FREDB_SB2G(us) then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'uid mismatch / hash collsion ?');
+    end;
+end;
+
+
+procedure TFRE_DB_TRANFORMED_DATA.SetTransformedObject(const tr_obj: IFRE_DB_Object);
+var us : ShortString;
+    ob : TFRE_DB_Object;
+begin
+  us := FREDB_G2SB(tr_obj.UID);
+  ob := FTransformedData.Find(us) as TFRE_DB_Object;
+  if assigned(ob) then
+    if ob.UID=tr_obj.UID then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'double add / transformed data')
+    else
+      raise EFRE_DB_Exception.Create(edb_ERROR,'hash collision / double add / transformed data');
+  FTransformedData.Add(us,tr_obj.Implementor);
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.SetTransObjectSingleInsert(const tr_obj: IFRE_DB_Object);
+begin
+  SetTransformedObject(tr_obj); { currently no need to diversificate }
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.UpdateUpdateTransformedObject(const tr_obj: IFRE_DB_Object ; const upd_idx : NativeInt);
+var old_o : TFRE_DB_Object;
+    i     : NativeInt;
+begin
+  old_o := FTransformeddata.Items[upd_idx] as TFRE_DB_Object; { childlevel (extension tag) dropped here < bad >}
+  try
+    FTransformedData.Delete(upd_idx);                           { all orderings now point to the dangling removed object}
+    SetTransformedObject(tr_obj);                               { new object in hashlist }
+    for i := 0 to FOrderings.Count-1 do
+      (FOrderings.Items[i] as TFRE_DB_TRANS_COLL_DATA).UpdateTransformedobject(old_o,tr_obj); { propagate old object up}
+  finally
+    old_o.Finalize;
+  end;
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.UpdateInsertTransformedObject(const tr_obj: IFRE_DB_Object);
+var old_o : TFRE_DB_Object;
+    i     : NativeInt;
+begin
+  SetTransObjectSingleInsert(tr_obj);                               { new object in hashlist }
+  for i := 0 to FOrderings.Count-1 do
+    (FOrderings.Items[i] as TFRE_DB_TRANS_COLL_DATA).InsertTransformedobject(tr_obj); { propagate new object up}
 end;
 
 function TFRE_DB_TRANFORMED_DATA.GetTransFormKey: TFRE_DB_NameTypeRL;
@@ -2098,22 +2567,11 @@ begin
   result := FBaseKey;
 end;
 
-function TFRE_DB_TRANFORMED_DATA.GetDataArray: PFRE_DB_ObjectArray;
-begin
-  result := @FTransformeddata;
-end;
-
 procedure TFRE_DB_TRANFORMED_DATA.TransformAll(var rcnt: NativeInt);
 begin
   FDC.TransformAllTo(self,FChildDataIsLazy,rcnt);
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.TransformSingle(const obj: IFRE_DB_Object; const cn: TFRE_DB_TRANSDATA_CHANGE_NOTIFIER; const idx: NativeInt);
-var uidx : NativeInt;
-begin
-  uidx := idx;
-  FDC.TransformSingleUpdate(obj,self,FChildDataIsLazy,uidx);
-end;
 
 constructor TFRE_DB_TRANFORMED_DATA.Create(const base_key: TFRE_DB_NameTypeRL; const child_data_lazy, includes_child_data: boolean; const dc: IFRE_DB_DERIVED_COLLECTION);
 begin
@@ -2121,23 +2579,43 @@ begin
   FChildDataIsLazy      := child_data_lazy;
   FIncludesChildData    := includes_child_data;
   FDC                   := dc;
-  //FParentColl     := GFRE_BT.SepLeft(base_key,'/');
   FTDCreationTime       := GFRE_DT.Now_UTC;
-  FIsChildata           := false;
+  FTransformedData      := TFPHashObjectList.Create(false);
+  FOrderings            := TFPObjectList.Create(false);
 end;
 
-function TFRE_DB_TRANFORMED_DATA.CreateChildArrayData(const len_child: NativeInt): TFRE_DB_TRANSFORMED_ARRAY_BASE;
-var cd : TFRE_DB_TRANFORMED_DATA;
+destructor TFRE_DB_TRANFORMED_DATA.Destroy;
 begin
-  cd := TFRE_DB_TRANFORMED_DATA.Create(FBaseKey,FChildDataIsLazy,FIncludesChildData,FDC);
-  cd.FIsChildata:=true;
-  cd.SetDataCnt(len_child);
-  result := cd;
+  FOrderings.Clear;
+  inherited Destroy;
 end;
 
-function TFRE_DB_TRANFORMED_DATA.IsChildData: Boolean;
+function TFRE_DB_TRANFORMED_DATA.CreateChildLevel: TFRE_DB_CHILD_LEVEL_BASE;
 begin
-  result := FIsChildata;
+  result := TFRE_DB_CHILD_LEVEL.create;
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.ForAllObjs(const forall: TFRE_DB_Obj_Iterator);
+var i : NativeInt;
+begin
+  for i:=0 to FTransformedData.Count-1 do
+    forall(FTransformedData.Items[i] as TFRE_DB_Object);
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.AddOrdering(const ordering: TFRE_DB_TRANS_COLL_DATA);
+begin
+  if FOrderings.IndexOf(ordering)<>-1 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'double add ordering');
+  FOrderings.Add(ordering);
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.RemoveOrdering(const ordering: TFRE_DB_TRANS_COLL_DATA);
+var idx : NativeInt;
+begin
+  idx := FOrderings.IndexOf(ordering);
+  if idx=-1 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'ordering not found on remove');
+  FOrderings.Delete(idx);
 end;
 
 { TFRE_DB_TRANSDATA_MANAGER }
@@ -2150,6 +2628,15 @@ end;
 function TFRE_DB_TRANSDATA_MANAGER.GetNewFilterDefinition: TFRE_DB_DC_FILTER_DEFINITION_BASE;
 begin
   result := TFRE_DB_DC_FILTER_DEFINITION.Create;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.ForAllQueries(const query_iter: TFRE_DB_QueryIterator);
+  procedure Iterate(var qptr : PtrUInt);
+  begin
+    query_iter(FREDB_PtrUIntToObject(qptr) as TFRE_DB_QUERY);
+  end;
+begin
+  FArtQueryStore.LinearScan(@Iterate);
 end;
 
 function TFRE_DB_TRANSDATA_MANAGER.GetBaseTransformedData(base_key: TFRE_DB_NameTypeRL; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
@@ -2189,12 +2676,17 @@ end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.StartNotificationBlock(const key: TFRE_DB_TransStepId);
 begin
-  abort;
+  if assigned(FCurrentNotify) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic/a notify block is currently assigned');
+  FCurrentNotify := TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.Create;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.FinishNotificationBlock(out block: IFRE_DB_Object);
 begin
-  abort;
+  if not assigned(FCurrentNotify) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic/no notify block is currently assigned');
+  FCurrentNotify.NotifyAll;
+  FreeAndNil(FCurrentNotify);
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.SendNotificationBlock(const block: IFRE_DB_Object);
@@ -2219,20 +2711,31 @@ begin
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+
+  procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
+  begin
+    tcd.InsertObjectByNotify(obj);
+  end;
+
 begin
   LockManager;
   try
-    abort;
+    FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
   finally
     UnlockManager;
   end;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.ObjectDeleted(const obj: IFRE_DB_Object);
+  procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
+  begin
+    tcd.RemoveObjectByNotify(obj);
+  end;
+
 begin
   LockManager;
   try
-    abort;
+    FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
   finally
     UnlockManager;
   end;
@@ -2241,37 +2744,16 @@ end;
 procedure TFRE_DB_TRANSDATA_MANAGER.ObjectUpdated(const obj: IFRE_DB_Object; const colls: TFRE_DB_StringArray);
 
   procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
-  var i      : NativeInt;
-      idx    : NativeInt;
-      uid_cl : TFRE_DB_GUIDArray;
-      cn     : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER;
   begin
-    if tcd.IsObjectInDataIdx(obj,idx) then
-      begin
-         cn := TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.Create;
-         //cn.Add
-         tcd.TransformSingle(obj.Implementor as TFRE_DB_Object,cn,idx);
-      end;
-    //tcd.GetDataArray;
-    //-> Check if in base transformed data
-    //---
-    //
-    //if bd.GetTransFormKey = base_key then
-    //  begin
-    //    halt      := true;
-    //    base_data := bd;
-    //  end;
+    tcd.UpdateObjectByNotify(obj);
   end;
 
 begin
   LockManager;
   try
-    writeln('UPDATE OBJ : ',FREDB_CombineString(colls,','),' ',obj.DumpToString);
-    FTransList.ForAll(@CheckIfNeeded);
-
-    //abort;
-    //inc(F
-    //FOrders.ForAll(@CheckIfNeeded);
+    //writeln('UPDATE OBJ : ',FREDB_CombineString(colls,','),' ',obj.DumpToString);
+    FCurrentNotify.AddDirectSessionUpdateEntry(obj.CloneToNewObject);
+    FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
   finally
     UnlockManager;
   end;
@@ -2816,15 +3298,290 @@ begin
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.InboundNotificationBlock(const dbname: TFRE_DB_NameType; const block: IFRE_DB_Object);
-var ln : TFRE_DB_NameType;
+var ln    : TFRE_DB_NameType;
+    dummy : IFRE_DB_Object;
+
 begin
-  FREDB_ApplyNotificationBlockToNotifIF(block,self,ln);
+  self.StartNotificationBlock(Block.Field('KEY').AsString);
+  try
+    FREDB_ApplyNotificationBlockToNotifIF(block,self,ln);
+  finally
+    self.FinishNotificationBlock(dummy);
+  end;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddDirectSessionUpdateEntry(const update_dbo: IFRE_DB_Object);
+begin
+  if not assigned(FCurrentNotify) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / direct session update entry');
+  FCurrentNotify.AddDirectSessionUpdateEntry(update_dbo);
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInplaceUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: TFRE_DB_NameType; const upo: IFRE_DB_Object);
+begin
+  if not assigned(FCurrentNotify) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid inplace update');
+  FCurrentNotify.AddGridInplaceUpdate(sessionid,store_id,qry_id,upo);
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const parent_id , reference_id: TFRE_DB_String ; const before: boolean);
+begin
+  if not assigned(FCurrentNotify) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid insert update');
+  FCurrentNotify.AddGridInsertUpdate(sessionid,store_id,qry_id,upo,parent_id,reference_id,before);
+end;
+
+{
+ QSize = 3
+ Q1 U1     Case Update      CASE 2 (DELETE)            CASE 3 (INS)               CASE 4 (INS/DEL (SPLIT UPD)
+    U2      U7  - NOP       Delete U5                  INS U2.5                   DO Case 3 and 4, but dont update
+    U3      U13 - UP Q3U13                                                        Total Query Count
+ Q2 U4                      Q1 - NOP                   Q1 REM U3,INS U2.5
+    U5	                    Q2 - REM U5 from Client    Q2 INS Q3 (Head), REM U6
+    U6                           INS U7 into Query     Q3 INS U11, REM U14
+ Q3 U12                     Q3 - REM U12
+    U13	                         INS U15 (if avail)
+    U14						DEC TOTAL QRY CNT	       INC TOTAL QRY CNT
+}
+
+procedure TFRE_DB_TRANSDATA_MANAGER.UpdateObjectInFilterKey(const td: TFRE_DB_TRANS_COLL_DATA; const filtercont: TFRE_DB_FilterContainer; const new_obj: IFRE_DB_Object; const idx: NativeInt);
+
+  procedure HandleQueryUpdate(const qry : TFRE_DB_QUERY);
+  var basekey   : TFRE_DB_TRANS_COLL_DATA_KEY;
+      filterkey : TFRE_DB_TRANS_COLL_DATA_KEY;
+      ses       : TFRE_DB_UserSession;
+      update_st : TFRE_DB_UPDATE_STORE_DESC;
+      upo       : IFRE_DB_Object;
+  begin
+    basekey   := qry.GetBaseTransDataKey;
+    filterkey := qry.Filterdef.GetFilterKey;
+    if (idx >= qry.FStartIdx) and (idx < qry.FStartIdx+qry.FQueryDeliveredCount) then
+      begin { update is in the open query page }
+        if FREDB_GuidInArray(new_obj.UID,qry.FResultDBOs)=-1 then { qry.FResultDBOs not neccessary (check)}
+          raise EFRE_DB_Exception.Create(edb_ERROR,'logic/error update not found in result set');
+        if not GFRE_DBI.NetServ.FetchSessionByIdLocked(qry.FSessionID,ses) then
+          begin
+            GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE QRY(?)',[qry.FSessionID]);
+            exit;
+          end
+        else
+          begin
+            try
+              upo := new_obj.CloneToNewObject;
+              td.FBaseTransData.FDC.FinalRightTransform(ses,upo);
+            finally
+              ses.UnlockSession;
+            end;
+            CN_AddGridInplaceUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID,upo);
+          end;
+      end;
+  end;
+
+begin
+  ForAllQueries(@HandleQueryUpdate);
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.RemoveUpdateObjectInFilterKey(const td: TFRE_DB_TRANS_COLL_DATA; const filtercont: TFRE_DB_FilterContainer; const old_obj: IFRE_DB_Object; const idx: NativeInt);
+begin
+  abort;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE_DB_TRANS_COLL_DATA; const filtercont: TFRE_DB_FilterContainer; const new_obj: IFRE_DB_Object; const idx: NativeInt);
+
+  procedure HandleQueryInsert(const qry : TFRE_DB_QUERY);
+  var basekey   : TFRE_DB_TRANS_COLL_DATA_KEY;
+      filterkey : TFRE_DB_TRANS_COLL_DATA_KEY;
+      ses       : TFRE_DB_UserSession;
+      update_st : TFRE_DB_UPDATE_STORE_DESC;
+      upo       : IFRE_DB_Object;
+      ref_uid   : TFRE_DB_Guid;
+      before    : boolean;
+  begin
+    basekey   := qry.GetBaseTransDataKey;
+    filterkey := qry.Filterdef.GetFilterKey;
+    if (idx >= qry.FStartIdx) and (idx < qry.FStartIdx+qry.FQueryDeliveredCount) then
+      begin { update is in the open query page }
+        if FREDB_GuidInArray(new_obj.UID,qry.FResultDBOs)<>-1 then { qry.FResultDBOs not neccessary (check)}
+          raise EFRE_DB_Exception.Create(edb_ERROR,'logic/error update already found in result set');
+        if not GFRE_DBI.NetServ.FetchSessionByIdLocked(qry.FSessionID,ses) then
+          begin
+            GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[qry.FSessionID]);
+            exit;
+          end
+        else
+          begin
+            try
+              upo := new_obj.CloneToNewObject;
+              td.FBaseTransData.FDC.FinalRightTransform(ses,upo);
+            finally
+              ses.UnlockSession;
+            end;
+            if (idx=qry.FStartIdx) then { = first }
+              begin
+                ref_uid := filtercont.FOBJArray[idx+1].UID;
+                before  := true;
+                CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID,upo,'',FREDB_G2H(ref_uid),before); { add the new object }
+              end
+            else
+            if (idx<qry.FStartIdx+qry.FQueryDeliveredCount) then { smaller then last deliverd, but not first}
+              begin
+                ref_uid := filtercont.FOBJArray[idx-1].UID;
+                before  := false;
+                CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID,upo,'',FREDB_G2H(ref_uid),before); { add the new object }
+              end
+            else
+            if (qry.FQueryDeliveredCount < qry.FToDeliverCount) then { qry has room to deliver additional }
+              begin
+                abort;
+              end
+            else
+              begin { qry is full }
+                abort;
+              end;
+              { OK , delivered one additional entry };
+            //CN_AddGridInplaceUpdate();
+          end;
+      end;
+  end;
+
+begin
+  ForAllQueries(@HandleQueryInsert);
 end;
 
 
+procedure TFRE_DB_TRANS_COLL_DATA.InsertIntoTree(const insert_obj: TFRE_DB_Object);
+var
+    Key      : Array [0..512] of Byte;
+    k_len    : NativeInt;
+    oc       : TFRE_DB_OrderContainer;
+    dummy    : PPtrUInt;
+    byte_arr : TFRE_DB_ByteArray;
+begin
+  FOrderDef.SetupBinaryKey(insert_obj,@key,k_len);
+  FREDB_BinaryKey2ByteArray(key,k_len,byte_arr);
+  insert_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsByteArr := byte_arr;
+  dummy := nil;
+  if FArtTreeKeyToObj.InsertBinaryKeyorFetchR(key,k_len,dummy) then
+    begin
+      oc := TFRE_DB_OrderContainer.Create;
+      dummy^ := FREDB_ObjectToPtrUInt(oc);
+    end
+  else
+    oc := FREDB_PtrUIntToObject(dummy^) as TFRE_DB_OrderContainer;
+  oc.AddObject(insert_obj);
+end;
 
 
-{ TFRE_DB_TRANS_COLL_DATA }
+procedure TFRE_DB_TRANS_COLL_DATA.Notify_InsertIntoTree(const new_obj: TFRE_DB_Object);
+var
+   keynew       : Array [0..512] of Byte;
+   keynewlen    : NativeInt;
+begin
+  FOrderDef.SetupBinaryKey(new_obj,@Keynew[0],keynewlen);
+  Notify_InsertIntoTree(@keynew[0],keynewlen,new_obj);
+end;
+
+procedure TFRE_DB_TRANS_COLL_DATA.Notify_InsertIntoTree(const key: PByte; const keylen: NativeInt; const new_obj: TFRE_DB_Object);
+var
+    oc       : TFRE_DB_OrderContainer;
+    dummy    : PPtrUInt;
+    byte_arr : TFRE_DB_ByteArray;
+
+  procedure CheckAllOpenFiltersInsert(var dummy : PtrUInt);
+  var filtercont : TFRE_DB_FilterContainer;
+  begin
+    filtercont := FREDB_PtrUIntToObject(dummy) as TFRE_DB_FilterContainer;
+    filtercont.Notify_CheckFilteredInsert(self,new_obj);
+  end;
+
+begin
+  dummy := nil;
+  if FArtTreeKeyToObj.InsertBinaryKeyorFetchR(key,keylen,dummy) then
+    begin
+      oc := TFRE_DB_OrderContainer.Create;
+      dummy^ := FREDB_ObjectToPtrUInt(oc);
+    end
+  else
+    oc := FREDB_PtrUIntToObject(dummy^) as TFRE_DB_OrderContainer;
+  oc.AddObject(new_obj);
+
+  FREDB_BinaryKey2ByteArray(key,keylen,byte_arr);
+  new_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsByteArr := byte_arr;
+
+  FArtTreeFilterKey.LinearScan(@CheckAllOpenFiltersInsert);
+end;
+
+procedure TFRE_DB_TRANS_COLL_DATA.Notify_DeleteFromTree(const old_obj: TFRE_DB_Object);
+var
+   keyold       : Array [0..512] of Byte;
+   keyoldlen    : NativeInt;
+begin
+  FOrderDef.SetupBinaryKey(old_obj,@KeyOld[0],keyoldlen);
+  Notify_DeleteFromTree(@keyold,keyoldlen,old_obj);
+end;
+
+procedure TFRE_DB_TRANS_COLL_DATA.Notify_DeleteFromTree(const key: PByte; const keylen: NativeInt ; const old_obj : TFRE_DB_Object);
+var valueptr     : PtrUInt;
+    oc           : TFRE_DB_OrderContainer;
+
+  procedure CheckAllOpenFiltersRemoveOrderChanged(var dummy : PtrUInt);
+  var filtercont : TFRE_DB_FilterContainer;
+  begin
+    filtercont := FREDB_PtrUIntToObject(dummy) as TFRE_DB_FilterContainer;
+    filtercont.Notify_CheckFilteredDelete(self,old_obj);
+  end;
+
+begin
+  if not FArtTreeKeyToObj.ExistsBinaryKey(key,keylen,valueptr) then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'notify tree update internal / value not found');
+  oc := FREDB_PtrUIntToObject(valueptr) as TFRE_DB_OrderContainer;
+  if oc.RemoveObject(old_obj) then
+    begin
+      FArtTreeKeyToObj.RemoveBinaryKey(key,keylen,valueptr);
+      assert(TFRE_DB_OrderContainer(valueptr)=oc,'internal/logic remove failed');
+      oc.free;
+    end;
+  FArtTreeFilterKey.LinearScan(@CheckAllOpenFiltersRemoveOrderChanged);
+end;
+
+
+procedure TFRE_DB_TRANS_COLL_DATA.Notify_UpdateIntoTree(const old_obj, new_obj: TFRE_DB_Object);
+var
+   keyold,
+   keynew       : Array [0..512] of Byte;
+   keyoldlen,
+   keynewlen    : NativeInt;
+   orderchanged : boolean;
+   valueptr     : PtrUInt;
+   oc           : TFRE_DB_OrderContainer;
+
+   procedure CheckAllOpenFiltersNoOrderChanged(var dummy : PtrUInt);
+   var filtercont : TFRE_DB_FilterContainer;
+   begin
+     filtercont := FREDB_PtrUIntToObject(dummy) as TFRE_DB_FilterContainer;
+     filtercont.Notify_CheckFilteredUpdate(self,old_obj,new_obj);
+   end;
+
+begin
+  FOrderDef.SetupBinaryKey(old_obj,@KeyOld[0],keyoldlen);
+  FOrderDef.SetupBinaryKey(new_obj,@keynew[0],keynewlen);
+  orderchanged := (keyoldlen <> keynewlen) or
+                  (CompareByte(keynew,keyold,keyoldlen)<>0);
+  if orderchanged then { Key has changed, thus order has possibly changed -> issue an remove, insert cycle ....}
+    begin { todo - check if order realy changed, neighbors ?}
+      Notify_DeleteFromTree(@keyold[0],keyoldlen,old_obj);
+      Notify_InsertIntoTree(@keynew[0],keynewlen,new_obj);
+      //FArtTreeFilterKey.LinearScan(@CheckAllOpenFiltersOrderHasChanged);
+    end
+  else
+    begin
+      if not FArtTreeKeyToObj.ExistsBinaryKey(keyold,keyoldlen,valueptr) then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'notify tree update internal / value not found');
+      oc := FREDB_PtrUIntToObject(valueptr) as TFRE_DB_OrderContainer;
+      oc.ReplaceObject(old_obj,new_obj);
+      FArtTreeFilterKey.LinearScan(@CheckAllOpenFiltersNoOrderChanged);
+    end;
+end;
 
 procedure TFRE_DB_TRANS_COLL_DATA.LockBase;
 begin
@@ -2844,75 +3601,31 @@ begin
   FTOCreationTime   := GFRE_DT.Now_UTC;
   GFRE_TF.Get_Lock(FTransCollDataLock);
   FBaseTransData    := base_trans_data;
+  base_trans_data.AddOrdering(self);
 end;
 
 procedure TFRE_DB_TRANS_COLL_DATA.OrderTheData;
 var i       : NativeInt;
-    Key     : Array [0..512] of Byte;
-    KeyLen  : NativeInt;
-    currpos : NativeInt;
-    oc      : TFRE_DB_OrderContainer;
-    dummy   : PPtrUInt;
-    obj     : IFRE_DB_Object;
-    tobj    : TFRE_DB_Object;
 
-    procedure SetBinaryKey(const obj : IFRE_DB_Object);
-    var fld : IFRE_DB_FIELD;
-
-      procedure  Iter(const order : TFRE_DB_DC_ORDER);
-      var fld    : IFRE_DB_Field;
-          idx    : TFRE_DB_MM_IndexClass;
-      begin
-        if obj.FieldOnlyExisting(order.order_field,fld) then
-          begin
-            if TFRE_DB_MM_Index.GetIndexClassForFieldtype(fld.FieldType,idx)=edb_UNSUPPORTED then
-              begin
-                TFRE_DB_TextIndex.TransformToBinaryComparable(nil,@key[currpos],KeyLen,false,not order.ascending); { fallback transform the nil/unknown/unsupported fieldtype to a text null value }
-              end
-            else
-              if idx=TFRE_DB_UnsignedIndex then
-                TFRE_DB_UnsignedIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false,not order.ascending)
-              else
-              if idx=TFRE_DB_SignedIndex then
-                TFRE_DB_SignedIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false,not order.ascending)
-              else
-              if idx=TFRE_DB_TextIndex then
-                TFRE_DB_TextIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false,not order.ascending)
-              else
-              if idx=TFRE_DB_RealIndex then
-                TFRE_DB_RealIndex.TransformToBinaryComparable(fld.Implementor as TFRE_DB_FIELD,@Key[currpos],keylen,false,not order.ascending)
-              else
-                raise EFRE_DB_Exception.Create(edb_INTERNAL,' unknonw idx typed must be reported as unsupported ! idx='+idx.classname);
-          end
-        else
-          begin
-            TFRE_DB_TextIndex.TransformToBinaryComparable(nil,@key[currpos],KeyLen,false); { fallback transform the nil/unknown/unsupported fieldtype to a text null value }
-          end;
-        currpos := currpos+KeyLen;
-      end;
-
+    procedure OrderArray(const tobj : TFRE_DB_Object);
     begin
-      currpos := 0;
-      FOrderDef.ForAllOrders(@iter);
+      InsertIntoTree(tobj);
+      //tobj.Field(cFRE_DB_SYS_ORDER_REF_KEY).AsObject.Field(GetFullKeyDef).AsBoolean:=true;
     end;
 
 begin
   FArtTreeKeyToObj.Clear;
-  for i := 0 to High(FBaseTransData.GetDataArray^) do
-    begin
-      obj  := FBaseTransData.GetDataArray^[i];
-      tobj := obj.Implementor as TFRE_DB_Object;
-      SetBinaryKey(obj);
-      if FArtTreeKeyToObj.InsertBinaryKeyorFetchR(key,currpos,dummy) then
-        begin
-          oc := TFRE_DB_OrderContainer.Create;
-          dummy^ := FREDB_ObjectToPtrUInt(oc);
-        end
-      else
-        oc := FREDB_PtrUIntToObject(dummy^) as TFRE_DB_OrderContainer;
-      oc.AddObject(tobj);
-      tobj.Field(cFRE_DB_SYS_ORDER_REF_KEY).AsObject.Field(GetFullKeyDef).AsBoolean:=true;
-    end;
+  FBaseTransData.ForAllObjs(@OrderArray);
+  //OrderArray(FBaseTransData.GetDataArray);
+  //for i := 0 to High(FBaseTransData.GetDataArray^) do
+  //  begin
+  //    tobj := FBaseTransData.GetDataArray^[i].Implementor as TFRE_DB_Object;
+  //    //tobj.Field(cFRE_DB_SYS_ORDER_REF_KEY).AsObject.Field(GetFullKeyDef).AsBoolean:=true;
+  //    FChildTransdata := TFRE_DB_TRANFORMED_DATA(tobj.ExtensionTag);
+  //    if assigned(FChildTransdata) then
+  //      begin
+  //      end;
+  //  end;
 end;
 
 destructor TFRE_DB_TRANS_COLL_DATA.Destroy;
@@ -2975,6 +3688,16 @@ begin
       GFRE_DBI.LogInfo(dblc_DBTDM,'<NEW FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s] DONE in %d ms',[GetFullKeyDef,filtkey,et-st]);
     end;
   filtercont.Execute(iter,qry_context);
+end;
+
+procedure TFRE_DB_TRANS_COLL_DATA.UpdateTransformedobject(const old_obj, new_object: IFRE_DB_Object);
+begin
+  Notify_UpdateIntoTree(old_obj.Implementor as TFRE_DB_Object,new_object.Implementor as TFRE_DB_Object);
+end;
+
+procedure TFRE_DB_TRANS_COLL_DATA.InsertTransformedobject(const new_object: IFRE_DB_Object);
+begin
+  Notify_InsertIntoTree(new_object.Implementor as TFRE_DB_Object);
 end;
 
 { TFRE_DB_TRANSDATA_MANAGER }

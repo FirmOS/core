@@ -151,7 +151,7 @@ type
        function    flipSign                (keyByte : Byte) : Byte; inline; // for SSE
        {$ENDIF}
        function    findChild               (n    : PFRE_ART_Node; keyByte : Byte):PPFRE_ART_Node;
-       function    findChildOrRightSibling (n    : PFRE_ART_Node; keyByte : Byte):PPFRE_ART_Node;
+       //function    findChildOrRightSibling (n    : PFRE_ART_Node; keyByte : Byte):PPFRE_ART_Node;
        function    minimum_inner           (node : PFRE_ART_Node; keyByte : Byte):PFRE_ART_Node; // Find the inner node  with smallest key, greater equal then keybyte
        function    minimum                 (node : PFRE_ART_Node):PFRE_ART_Node; // Find the leaf with smallest key
        function    maximum                 (node : PFRE_ART_Node):PFRE_ART_Node; // Find the leaf with largest key
@@ -167,7 +167,7 @@ type
        function    PrefixMismatchAtByte    (node: PFRE_ART_Node ; key : PByte; keyLength,depth : Nativeint):Nativeint; // inline ;// Compare the key with the prefix of the node, return the number matching bytes
        function    InsertInto              (node: PFRE_ART_Node; nodeRef: PPFRE_ART_Node; key: PByte; key_len, depth: NativeInt; var value: PNativeUint): boolean;
        function    LookupKey               (node: PFRE_ART_Node ; key : PByte;keyLength,depth:NativeInt):PFRE_ART_Node; // Find the node with a matching key
-       function    LookupKeyPessimistic    (node: PFRE_ART_Node ; key : PByte;keyLength,depth:NativeInt):PFRE_ART_Node; // Find the node with a matching key
+       //function    LookupKeyPessimistic    (node: PFRE_ART_Node ; key : PByte;keyLength,depth:NativeInt):PFRE_ART_Node; // Find the node with a matching key
        function    LookupKeyOrPrefix       (node: PFRE_ART_Node ; key : PByte;keyLength,depth:NativeInt):PFRE_ART_Node;
 
        function    IsALeafNode             (node: PFRE_ART_Node):boolean; inline;
@@ -194,6 +194,8 @@ type
        function    InsertBinaryKeyorFetchR (const key: PByte  ; const keylen : Nativeint ; var   value: PNativeUint):boolean;
        function    InsertBinaryKeyOrFetch  (const key: PByte  ; const keylen : Nativeint ; var   value: PtrUInt):boolean;
        function    ExistsBinaryKey         (const key: PByte  ; const keylen : Nativeint ; var   value: PtrUInt):boolean;
+       function    ExistsBinaryKeyPrevNext (const key: PByte  ; const keylen : Nativeint ; var   value,prev,next: PtrUInt):boolean;
+       function    ExistsBinaryKeyR        (const key: PByte  ; const keylen : Nativeint ; var   value: PNativeUint):boolean;
        function    RemoveBinaryKey         (const key: PByte  ; const keylen : Nativeint ; var   value: PtrUInt):boolean;
        function    InsertStringKey         (const key: string ; const value  : PtrUInt):boolean;
        function    InsertStringKeyOrFetch  (const key: string ; var   value  : PtrUInt):boolean;
@@ -1081,46 +1083,46 @@ begin
   end;
 end;
 
-function TFRE_ART_TREE.findChildOrRightSibling(n: PFRE_ART_Node; keyByte: Byte): PPFRE_ART_Node;
-var i              : NativeUint;
-
-begin
-  case n^.typ of
-    artNodeType4:
-        with PFRE_ART_Node4(n)^ do
-          begin
-            for i:=0 to count-1 do
-              if key[i] >= keyByte then
-                exit(@child[i]);
-             exit(@GFRE_ART_nullNode);
-          end;
-    artNodeType16:
-        with PFRE_ART_Node16(n)^ do
-          begin
-            for i:=0 to count-1 do
-              if key[i] >= keyByte then
-                exit(@child[i]);
-             exit(@GFRE_ART_nullNode);
-            exit;
-          end;
-    artNodeType48:
-        with PFRE_ART_Node48(n)^ do
-          begin
-            for i := keyByte to 255 do
-              if childIndex[i] <> CFREA_slot_is_empty then
-                exit(@child[childIndex[i]]);
-            exit(@GFRE_ART_nullNode);
-          end;
-    artNodeType256:
-        with PFRE_ART_Node256(n)^ do
-          begin
-            for i := keyByte to 255 do
-              if child[i]<>nil then
-                exit(@child[i]);
-            exit(@GFRE_ART_nullNode);
-          end;
-  end;
-end;
+//function TFRE_ART_TREE.findChildOrRightSibling(n: PFRE_ART_Node; keyByte: Byte): PPFRE_ART_Node;
+//var i              : NativeUint;
+//
+//begin
+//  case n^.typ of
+//    artNodeType4:
+//        with PFRE_ART_Node4(n)^ do
+//          begin
+//            for i:=0 to count-1 do
+//              if key[i] >= keyByte then
+//                exit(@child[i]);
+//             exit(@GFRE_ART_nullNode);
+//          end;
+//    artNodeType16:
+//        with PFRE_ART_Node16(n)^ do
+//          begin
+//            for i:=0 to count-1 do
+//              if key[i] >= keyByte then
+//                exit(@child[i]);
+//             exit(@GFRE_ART_nullNode);
+//            exit;
+//          end;
+//    artNodeType48:
+//        with PFRE_ART_Node48(n)^ do
+//          begin
+//            for i := keyByte to 255 do
+//              if childIndex[i] <> CFREA_slot_is_empty then
+//                exit(@child[childIndex[i]]);
+//            exit(@GFRE_ART_nullNode);
+//          end;
+//    artNodeType256:
+//        with PFRE_ART_Node256(n)^ do
+//          begin
+//            for i := keyByte to 255 do
+//              if child[i]<>nil then
+//                exit(@child[i]);
+//            exit(@GFRE_ART_nullNode);
+//          end;
+//  end;
+//end;
 
 function TFRE_ART_TREE.minimum(node : PFRE_ART_Node):PFRE_ART_Node; // Find the leaf with smallest key
 var pos : NativeInt;
@@ -1333,28 +1335,28 @@ begin
   exit(nil);
 end;
 
-function TFRE_ART_TREE.LookupKeyPessimistic(node: PFRE_ART_Node; key: PByte; keyLength, depth: NativeInt): PFRE_ART_Node;
-begin // Find the node with a matching key, alternative pessimistic version
-  while assigned(node) do
-    begin
-      if IsALeafNode(node) then
-        begin
-          if LeafMatches(node,key,keyLength,depth) then
-            exit(node);
-          exit(nil);
-        end;
-      if PrefixMismatchAtByte(node,key,keyLength,depth) <> node^.prefixLength then
-        exit(nil)
-      else
-        depth := depth + node^.prefixLength;
-      if depth<keyLength then
-        node := findChild(node,key[depth])^
-      else
-        node := findChild(node,0)^;
-      inc(depth);
-    end;
-  exit(nil);
-end;
+//function TFRE_ART_TREE.LookupKeyPessimistic(node: PFRE_ART_Node; key: PByte; keyLength, depth: NativeInt): PFRE_ART_Node;
+//begin // Find the node with a matching key, alternative pessimistic version
+//  while assigned(node) do
+//    begin
+//      if IsALeafNode(node) then
+//        begin
+//          if LeafMatches(node,key,keyLength,depth) then
+//            exit(node);
+//          exit(nil);
+//        end;
+//      if PrefixMismatchAtByte(node,key,keyLength,depth) <> node^.prefixLength then
+//        exit(nil)
+//      else
+//        depth := depth + node^.prefixLength;
+//      if depth<keyLength then
+//        node := findChild(node,key[depth])^
+//      else
+//        node := findChild(node,0)^;
+//      inc(depth);
+//    end;
+//  exit(nil);
+//end;
 
 function TFRE_ART_TREE.LookupKeyOrPrefix(node: PFRE_ART_Node; key: PByte; keyLength, depth: NativeInt): PFRE_ART_Node;
 var mm_pos : NativeInt;
@@ -1916,6 +1918,39 @@ begin
     value := PFRE_ART_LeafNode(node)^.GetStoredValue^
   else
     value := 0;
+end;
+
+function TFRE_ART_TREE.ExistsBinaryKeyPrevNext(const key: PByte; const keylen: Nativeint; var value, prev, next: PtrUInt): boolean;
+var node : PFRE_ART_Node;
+begin
+  abort; { not implemented - test code below }
+  node   := LookupKey(FArtTree,key,keylen,0);
+  result := assigned(node)
+    and (PFRE_ART_LeafNode(node)^.GetStoredKeyLen=keylen);
+  if result then
+    begin
+      value := PFRE_ART_LeafNode(node)^.GetStoredValue^
+      //node
+    end
+  else
+    begin
+      value := 0;
+      prev  := 0;
+      next  := 0;
+    end;
+end;
+
+function TFRE_ART_TREE.ExistsBinaryKeyR(const key: PByte; const keylen: Nativeint; var value: PNativeUint): boolean;
+var node : PFRE_ART_Node;
+begin
+  node   := LookupKey(FArtTree,key,keylen,0);
+  //node   := LookupKeyPessimistic(FArtTree,key,keylen,0);
+  result := assigned(node)
+    and (PFRE_ART_LeafNode(node)^.GetStoredKeyLen=keylen);
+  if result then
+    value := PFRE_ART_LeafNode(node)^.GetStoredValue
+  else
+    value := nil;
 end;
 
 function TFRE_ART_TREE.RemoveBinaryKey(const key: PByte; const keylen: Nativeint; var value: PtrUInt): boolean;

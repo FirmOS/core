@@ -132,9 +132,12 @@ const
   cFRE_DB_ST_ETAG                = '#ETG#';
   cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*';  { used to indicate a DONT CHANGE THE FIELD in translating from JSON <-> DBO }
   cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';     { used to indicate a CLEAR FIELD in translating from JSON <-> DBO  }
-  cFRE_DB_SYS_ORDER_REF_KEY      = '*$ORK*';       { used to backlink from ordered data(key) to base transformed data }
-  cFRE_DB_SYS_PARENT_PATH        = '*$_PPATH_*';   { used in a parent child transform to set the pp in the child }
+  //cFRE_DB_SYS_ORDER_REF_KEY      = '*$ORK*';     { used to backlink from ordered data(key) to base transformed data }
+  cFRE_DB_SYS_PARENT_PATH_FULL   = '*$_PPATH_F*';  { used in a parent child transform to set the pp in the child, full path }
+  cFRE_DB_SYS_PARENT_PATH_PART   = '*$_PPATH_P*';  { used in a parent child transform to set the pp in the child, immediate parent }
   cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A = '*$_TIOWA*';    { used in the transform as implicit field }
+  cFRE_DB_SYS_T_OBJ_FILTER_POS_I = '*$_TOFPI*';    { used in the transform as implicit field, store current position in filter filter is subobject key }
+  cFRE_DB_SYS_T_OBJ_TOTAL_ORDER  = '*$_TOTO*';     { used in the transform as implicit field, store total order key }
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
   CFRE_DB_EPSILON_SGL                                               = 1.192092896e-07;         // Epsiolon for Single Compare (Zero / boolean)
@@ -659,6 +662,23 @@ type
   IFRE_DB_EXTENSION_REMOVE_CB  = procedure (const dbname :string; const user,pass:string);
 
   //
+  TFRE_DB_Usersession = class;
+
+  TFRE_DB_SessionIterator = procedure (const session : TFRE_DB_UserSession ; var halt : boolean) is nested ;
+
+
+  { IFRE_DB_NetServer }
+
+  IFRE_DB_NetServer=interface
+    function       ExistsUserSessionForUserLocked            (const username:string;out other_session:TFRE_DB_UserSession):boolean;
+    function       ExistsUserSessionForKeyLocked             (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
+    function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
+    function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
+    procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
+    function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
+    function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
+    function       SendDelegatedContentToClient              (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
+  end;
 
   { IFRE_DB_EXTENSION_MNGR }
   IFRE_DB_SYS_CONNECTION = interface;
@@ -844,8 +864,6 @@ type
   TFRE_COLLECTION_TREE_DISPLAY_FLAGS  = set of TFRE_COLLECTION_TREE_DISPLAY_FLAG;
   TFRE_COLLECTION_CHART_DISPLAY_FLAGS = set of TFRE_COLLECTION_CHART_DISPLAY_FLAG;
 
-  TFRE_DB_UserSession                 = class;
-
   IFRE_DB_TRANSDATA_CHANGE_NOTIFIER   = interface
   end;
 
@@ -856,7 +874,9 @@ type
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
     procedure  TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure  TransformSingleUpdate         (const in_object : IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean ; var upd_idx: NativeInt);
+    procedure  TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt);
+    procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean);
+    procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
 
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
     procedure  BindSession                   (const session : TFRE_DB_UserSession);
@@ -1896,19 +1916,22 @@ type
 
   TFRE_DB_QUERY_BASE=class
     function  GetQueryID         : TFRE_DB_NameType; virtual; abstract;
-    procedure SetBaseOrderedData (const basedata   : TFRE_DB_TRANS_RESULT_BASE);virtual;abstract;
+    procedure SetBaseOrderedData (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);virtual;abstract;
     function  Execute            (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;virtual;abstract;
   end;
 
+  TFRE_DB_CHILD_LEVEL_BASE=class
+    function  ChildLevelsCount : NativeInt; virtual ; abstract;
+    procedure AddChildLevel    (parentpath : String ; const child_uids : TFRE_DB_GUIDArray) ; virtual ; abstract;
+  end;
 
   TFRE_DB_TRANSFORMED_ARRAY_BASE=class
-    procedure CleanUp                  ; virtual ; abstract;
-    procedure SetDataCnt               (const rcnt : NativeInt) ; virtual ; abstract;
-    function  GetDataCnt               : NativeInt ; virtual ; abstract;
-    procedure SetTransformedObject     (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);virtual; abstract;
-    function  GetTransformedObject     (const idx : NativeInt) : IFRE_DB_Object;virtual; abstract;
-    procedure UpdateTransformedObject  (const idx : NativeInt ; const tr_obj : IFRE_DB_Object);virtual; abstract;
-    function  CreateChildArrayData     (const len_child : NativeInt): TFRE_DB_TRANSFORMED_ARRAY_BASE;virtual;abstract;
+    procedure CleanUp                        ; virtual ; abstract;
+    procedure SetTransformedObject           (const tr_obj : IFRE_DB_Object);virtual; abstract;
+    procedure SetTransObjectSingleInsert     (const tr_obj : IFRE_DB_Object);virtual; abstract;
+    procedure UpdateUpdateTransformedObject  (const tr_obj : IFRE_DB_Object; const upd_idx: NativeInt);virtual; abstract;
+    procedure UpdateInsertTransformedObject  (const tr_obj : IFRE_DB_Object);virtual; abstract;
+    function  CreateChildLevel               : TFRE_DB_CHILD_LEVEL_BASE;virtual;abstract;
   end;
 
   { TFRE_DB_TRANSDATA_MANAGER_BASE }
@@ -2460,6 +2483,7 @@ type
     function    Get_A_Guid_HEX         : Ansistring;
     property    LocalZone              : TFRE_DB_String read GetLocalZone write SetLocalZone;
     property    StringFormatSettings   : TFormatSettings read GetFormatSettings write SetFormatSettings;
+    function    NetServ                : IFRE_DB_NetServer;
   end;
 
   { IFRE_DB_InputGroupSchemeDefinition }
@@ -2515,7 +2539,6 @@ type
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
 
     //Send a Server Client Message in behalv of another session (think about security)
-    function    SendDelegatedContentToClient (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
     //  ses.SendDelegatedEventToSession(sessionID,SF,input.CloneToNewObject());
 
     //Invoke a Method that another Session provides via Register, in the context of that session (feeder session)
@@ -2576,6 +2599,16 @@ type
     procedure   DispatchAnswer (const ses : IFRE_DB_UserSession);
   end;
 
+  TFRE_DB_Usersession_COR=class
+    procedure Execute(const session : TFRE_DB_Usersession);virtual;abstract;
+  end;
+
+  TFRE_DB_UC_Transformed_Update=class(TFRE_DB_Usersession_COR)
+  public
+    Content : TFRE_DB_CONTENT_DESC;
+    //procedure Execute(const session: TFRE_DB_Usersession); override;
+  end;
+
   TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession,IFRE_DB_DBChangedNotificationSession)
   private type
     TDiffFieldUpdateMode=(mode_df_add,mode_df_del,mode_df_change);
@@ -2598,12 +2631,8 @@ type
     FSessionTerminationTO : NativeInt;
     FBoundThreadID        : TThreadID;
  var
-    FOnCheckUserNamePW    : TFRE_DB_OnCheckUserNamePassword;
-    FOnExistsUserSessionL : TFRE_DB_OnExistsUserSessionForKey;
     FonExistsSesForTkKeyL : TFRE_DB_OnExistsUserSessionForKey;
-    FOnFetchPublisherSesL : TFRE_DB_OnFetchPublisherSession;
-    FOnGetImpersonatedDBC : TFRE_DB_OnGetImpersonatedConnection;
-    FOnRestoreDefaultDBC  : TFRE_DB_OnRestoreDefaultConnection;
+
     FOnWorkCommands       : TNotifyEvent;
     FUserName             : TFRE_DB_String;
     FuserDomain           : TFRE_DB_Guid;
@@ -2633,13 +2662,7 @@ type
     FIsInteractive        : Boolean;
     FBindState            : TFRE_DB_SESSIONSTATE;
 
-    procedure     SetOnCheckUserNamePW   (AValue: TFRE_DB_OnCheckUserNamePassword);
-    procedure     SetOnExistsUserSession (AValue: TFRE_DB_OnExistsUserSessionForKey);
     procedure     SetOnExistsUserSession4TakeOver(AValue: TFRE_DB_OnExistsUserSessionForKey);
-    procedure     SetOnFetchPublisherRAC(AValue: TFRE_DB_OnFetchPublisherSession);
-    procedure     SetOnFetchSessionById(AValue: TFRE_DB_OnFetchSessionByID);
-    procedure     SetOnGetImpersonatedDBC (AValue: TFRE_DB_OnGetImpersonatedConnection);
-    procedure     SetOnRestoreDefaultDBC  (AValue: TFRE_DB_OnRestoreDefaultConnection);
     procedure     SetOnWorkCommands       (AValue: TNotifyEvent);
     procedure     _FixupDCName           (var dcname:TFRE_DB_NameType);
     function      SearchSessionDC        (dc_name:TFRE_DB_String;out dc:IFRE_DB_DERIVED_COLLECTION):boolean;
@@ -2665,7 +2688,6 @@ type
     destructor  Destroy                  ;override;
     procedure   StoreSessionData         ;
     function    SearchSessionApp         (const app_key:TFRE_DB_String ; out app:TFRE_DB_APPLICATION ; out idx:integer):boolean;
-    function    SendDelegatedContentToClient (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
 
     procedure   InboundNotificationBlock (const block: IFRE_DB_Object); { Here comes an Inbound Notification block from the network/pl layer}
     procedure   COR_InboundNotifyBlock   (const data : Pointer);
@@ -2726,6 +2748,8 @@ type
     procedure   InvokeRemReqCoRoutine      (const data : Pointer);
     procedure   AnswerRemReqCoRoutine      (const data : Pointer);
     procedure   COR_SendContentOnBehalf    (const data : Pointer);
+    procedure   COR_ExecuteSessionCmd      (const data : Pointer);
+
     function    DispatchCoroutine          (const coroutine : TFRE_APSC_CoRoutine;const data : Pointer):boolean; // Call a Coroutine in this sessions thread context
 
 
@@ -2743,14 +2767,6 @@ type
 
     function    GetPublishedRemoteMeths  : TFRE_DB_RemoteReqSpecArray;
     function    GetDownLoadLink4StreamField (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
-
-    property    OnGetImpersonatedDBC     :TFRE_DB_OnGetImpersonatedConnection read FOnGetImpersonatedDBC write SetOnGetImpersonatedDBC;
-    property    OnRestoreDefaultDBC      :TFRE_DB_OnRestoreDefaultConnection read FOnRestoreDefaultDBC write SetOnRestoreDefaultDBC;
-    property    OnExistsUserSession      :TFRE_DB_OnExistsUserSessionForKey read FOnExistsUserSessionL write SetOnExistsUserSession;
-    property    OnExistsUserSession4Key  :TFRE_DB_OnExistsUserSessionForKey read FonExistsSesForTkKeyL write SetOnExistsUserSession4TakeOver;
-    property    OnCheckUserNamePW        :TFRE_DB_OnCheckUserNamePassword read FOnCheckUserNamePW write SetOnCheckUserNamePW;
-    property    OnFetchPublisherRAC      :TFRE_DB_OnFetchPublisherSession read FOnFetchPublisherSesL write SetOnFetchPublisherRAC;
-    property    OnFetchSessionById       :TFRE_DB_OnFetchSessionByID read FOnFetchSessionByIdL write SetOnFetchSessionById;
 
     { Notification interface function, the notification interface gets an update block pushed from the net/pl layer }
     procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object);           { DIFFERENTIAL STATE}
@@ -2816,6 +2832,8 @@ type
   procedure FREDB_FinalizeVarRecParams           (const vaparams : TFRE_DB_ConstArray);
   function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString;
   function  FREDB_H2G                            (const uidstr : shortstring):TFRE_DB_GUID;
+  function  FREDB_G2SB                           (const uid    : TFRE_DB_GUID):ShortString; { uid to binary shortstring }
+  function  FREDB_SB2G                           (const uid_sb : ShortString):TFRE_DB_GUID; { binary shortstring to uid}
   function  FREDB_ExtractUidsfromRightArray      (const str:TFRE_DB_StringArray;const rightname:TFRE_DB_STRING):TFRE_DB_GUIDArray;
   function  FREDB_String2GuidArray               (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Guid                    (const str:string):TGUID;
@@ -2837,6 +2855,7 @@ type
 
   function  FREDB_ObjectToPtrUInt                (const obj : TObject):PtrUInt;
   function  FREDB_PtrUIntToObject                (const obj : PtrUInt):TObject;
+  procedure FREDB_BinaryKey2ByteArray            (const key : PByte ; const k_len : NativeInt ; var bytearr : TFRE_DB_ByteArray);
 
   function  FREDB_GetGlobalTextKey                  (const key: String): String;
   function  FREDB_getThemedResource                 (const id: String): String;
@@ -2850,6 +2869,8 @@ type
   function  FREDB_GuidInArray                       (const check:TGuid;const arr:TFRE_DB_GUIDArray):NativeInt;
   function  FREDB_FindNthGuidIdx                    (n:integer;const guid:TGuid;const arr:TFRE_DB_GUIDArray):integer;inline;
   function  FREDB_CheckAllStringFieldsEmptyInObject (const obj:IFRE_DB_Object):boolean;
+  function  FREDB_RemoveIdxFomObjectArray           (const arr:IFRE_DB_ObjectArray ; const idx : NativeInt):IFRE_DB_ObjectArray;
+  function  FREDB_InsertAtIdxToObjectArray          (const arr:IFRE_DB_ObjectArray ; var at_idx : NativeInt ; const new_obj : IFRE_DB_Object ; const before : boolean):IFRE_DB_ObjectArray;
 
   function  FREDB_String2DBDisplayType           (const fts: string): TFRE_DB_DISPLAY_TYPE;
   procedure FREDB_SiteMap_AddEntry               (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : TFRE_DB_StringArray ;const x,y : integer;  const newsCount:Integer=0; const scale:Single=1; const enabled:Boolean=true);    //obsolete
@@ -2893,10 +2914,7 @@ var
   GFRE_DB_MIME_TYPES                : Array of TFRE_DB_Mimetype;
   GFRE_DB_TCDM                      : TFRE_DB_TRANSDATA_MANAGER_BASE;
 
-  //G_ADD_2_SITEMAP_CALLBACK          : TAddAppToSiteMap_Callback;
-
 implementation
-
 
 function RB_Guid_Compare(const d1, d2: TGuid): NativeInt;
 begin
@@ -3226,6 +3244,18 @@ begin
   result := GFRE_BT.GUID_2_HexString(uid);
 end;
 
+function  FREDB_G2SB(const uid    : TFRE_DB_GUID):ShortString; { uid to binary shortstring }
+begin
+  SetLength(result,16);
+  move(uid,result[1],16);
+end;
+
+function  FREDB_SB2G(const uid_sb : ShortString):TFRE_DB_GUID; { binary shortstring to uid}
+begin
+  assert(Length(uid_sb)=16,'error conversion sb2guid len '+inttostr(Length(uid_sb)));
+  move(uid_sb[1],result,16);
+end;
+
 function FREDB_H2G(const uidstr: shortstring): TFRE_DB_GUID;
 begin
   result := GFRE_BT.HexString_2_GUID(uidstr);
@@ -3469,6 +3499,12 @@ begin
   result := TObject(obj);
 end;
 
+procedure FREDB_BinaryKey2ByteArray(const key: PByte; const k_len: NativeInt; var bytearr: TFRE_DB_ByteArray);
+begin
+  SetLength(bytearr,k_len);
+  move(key^,bytearr[0],k_len);
+end;
+
 function FREDB_GetGlobalTextKey(const key: String): String;
 begin
   Result:='$TFRE_DB_GLOBAL_TEXTS_'+key;
@@ -3598,6 +3634,63 @@ begin
   Check:=true;
   obj.ForAllFieldsBreak(@CheckFunc);
   result := check;
+end;
+
+function FREDB_RemoveIdxFomObjectArray(const arr: IFRE_DB_ObjectArray; const idx: NativeInt): IFRE_DB_ObjectArray;
+var new_arr : IFRE_DB_ObjectArray;
+    cnt,i   : NativeInt;
+begin
+  if (idx<0) or (idx>High(arr)) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'FREDB_RemoveIdxFomObjectArray idx not in bounds failed -> [%d<=%d<%=d]', [0,idx,high(arr)]);
+  SetLength(new_arr,Length(arr)-1);
+  cnt := 0;
+  for i:=0 to idx-1 do
+    begin
+      new_arr[cnt] := arr[i];
+      inc(cnt)
+    end;
+  for i:=idx+1 to high(arr) do
+    begin
+      new_arr[cnt] := arr[i];
+      inc(cnt);
+    end;
+  result := new_arr;
+end;
+
+function FREDB_InsertAtIdxToObjectArray(const arr: IFRE_DB_ObjectArray; var at_idx: NativeInt; const new_obj: IFRE_DB_Object ; const before : boolean): IFRE_DB_ObjectArray;
+var cnt,i   : NativeInt;
+begin
+  SetLength(result,Length(arr)+1);
+  if (at_idx<0) or (at_idx>High(Result)) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'FREDB_RemoveIdxFomObjectArray idx not in bounds failed -> [%d<=%d<=%d]', [0,at_idx,high(arr)]);
+  cnt := 0;
+  for i:=0 to high(arr) do
+    begin
+      if i<>at_idx then
+        begin
+          result[cnt] := arr[i];
+          inc(cnt);
+        end
+      else
+        begin
+          if before then
+            begin
+              result[cnt] := new_obj;
+              at_idx := cnt;
+              inc(cnt);
+              result[cnt] := arr[i];
+              inc(cnt);
+            end
+          else
+            begin
+              result[cnt] := arr[i];
+              inc(cnt);
+              result[cnt] := new_obj;
+              at_idx := cnt;
+              inc(cnt);
+            end;
+        end;
+    end;
 end;
 
 function FREDB_String2DBDisplayType(const fts: string): TFRE_DB_DISPLAY_TYPE;
@@ -4366,35 +4459,10 @@ end;
 //
 //end;
 
-procedure TFRE_DB_UserSession.SetOnGetImpersonatedDBC(AValue: TFRE_DB_OnGetImpersonatedConnection);
-begin
-  FOnGetImpersonatedDBC:=AValue;
-end;
-
-
-procedure TFRE_DB_UserSession.SetOnRestoreDefaultDBC(AValue: TFRE_DB_OnRestoreDefaultConnection);
-begin
-  FOnRestoreDefaultDBC:=AValue;
-end;
-
-procedure TFRE_DB_UserSession.SetOnExistsUserSession(AValue: TFRE_DB_OnExistsUserSessionForKey);
-begin
-  FOnExistsUserSessionL:=AValue;
-end;
 
 procedure TFRE_DB_UserSession.SetOnExistsUserSession4TakeOver(AValue: TFRE_DB_OnExistsUserSessionForKey);
 begin
   FonExistsSesForTkKeyL:=AValue;
-end;
-
-procedure TFRE_DB_UserSession.SetOnFetchPublisherRAC(AValue: TFRE_DB_OnFetchPublisherSession);
-begin
-  FOnFetchPublisherSesL:=AValue;
-end;
-
-procedure TFRE_DB_UserSession.SetOnFetchSessionById(AValue: TFRE_DB_OnFetchSessionByID);
-begin
-  FOnFetchSessionByIdL:=AValue;
 end;
 
 procedure TFRE_DB_UserSession.LockSession;
@@ -4446,11 +4514,6 @@ begin
   finally
     FContinuationLock.Release;
   end;
-end;
-
-procedure TFRE_DB_UserSession.SetOnCheckUserNamePW(AValue: TFRE_DB_OnCheckUserNamePassword);
-begin
-  FOnCheckUserNamePW:=AValue;
 end;
 
 procedure TFRE_DB_UserSession.SetOnWorkCommands(AValue: TNotifyEvent);
@@ -4547,20 +4610,6 @@ begin
      end;
   end;
   result := false;
-end;
-
-function TFRE_DB_UserSession.SendDelegatedContentToClient(sessionID: TFRE_DB_String; const content: TFRE_DB_CONTENT_DESC): boolean;
-var session : TFRE_DB_UserSession;
-begin
-  result := OnFetchSessionById(sessionID,session);
-  if result then
-    begin
-      try
-        result := session.DispatchCoroutine(@session.COR_SendContentOnBehalf,content);
-      finally
-        session.UnlockSession;
-      end;
-    end;
 end;
 
 procedure TFRE_DB_UserSession.InboundNotificationBlock(const block: IFRE_DB_Object);
@@ -5303,10 +5352,10 @@ begin
         promres := TakeOver;
         exit(promres);
       end;
-    FOnExistsUserSessionL(user_name,existing_session);
+    GFRE_DBI.NetServ.FetchSessionByIdLocked(user_name,existing_session);
     if assigned(existing_session) then begin
       try
-        err := FOnCheckUserNamePW(user_name,password);
+        err := GFRE_DBI.NetServ.CheckUserNamePW(user_name,password);
         case err of
           edb_OK : begin
             if assigned(existing_session.FBoundSession_RA_SC) then
@@ -5338,7 +5387,7 @@ begin
       promres := TakeOver; { Auto Takeover dead web session }
       exit(promres);
     end else begin
-      err := FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
+      err := GFRE_DBI.NetServ.GetImpersonatedDatabaseConnection(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
       case err of
        edb_OK: begin
           FDBConnection.ClearUserSessionBinding;
@@ -5731,7 +5780,7 @@ var
 
 
 begin
-  if FOnFetchPublisherSesL(uppercase(rclassname),uppercase(rmethodname),ses,right) then
+  if GFRE_DBI.NetServ.FetchPublisherSessionLocked(uppercase(rclassname),uppercase(rmethodname),ses,right) then
     begin
       try
         rmethodenc := TFRE_DB_RemoteSessionInvokeEncapsulation.Create(rclassname,rmethodname,FCurrentReqID,FSessionID,input,SyncCallback,opaquedata);
@@ -5801,8 +5850,21 @@ begin
 end;
 
 procedure TFRE_DB_UserSession.COR_SendContentOnBehalf(const data: Pointer);
+var ct : TFRE_DB_CONTENT_DESC;
 begin
-  SendServerClientRequest(TFRE_DB_CONTENT_DESC(data));
+  ct := TFRE_DB_CONTENT_DESC(data);
+  SendServerClientRequest(ct);
+end;
+
+procedure TFRE_DB_UserSession.COR_ExecuteSessionCmd(const data: Pointer);
+var sc : TFRE_DB_Usersession_COR;
+begin
+  sc := TFRE_DB_Usersession_COR(data);
+  try
+    sc.Execute(self)
+  finally
+    sc.free
+  end;
 end;
 
 function TFRE_DB_UserSession.DispatchCoroutine(const coroutine: TFRE_APSC_CoRoutine; const data: Pointer):boolean;
