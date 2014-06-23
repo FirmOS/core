@@ -136,7 +136,6 @@ const
   cFRE_DB_SYS_PARENT_PATH_FULL   = '*$_PPATH_F*';  { used in a parent child transform to set the pp in the child, full path }
   cFRE_DB_SYS_PARENT_PATH_PART   = '*$_PPATH_P*';  { used in a parent child transform to set the pp in the child, immediate parent }
   cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A = '*$_TIOWA*';    { used in the transform as implicit field }
-  cFRE_DB_SYS_T_OBJ_FILTER_POS_I = '*$_TOFPI*';    { used in the transform as implicit field, store current position in filter filter is subobject key }
   cFRE_DB_SYS_T_OBJ_TOTAL_ORDER  = '*$_TOTO*';     { used in the transform as implicit field, store total order key }
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
@@ -700,6 +699,8 @@ type
    ['IFREDBO']
     function        _InternalDecodeAsField             : IFRE_DB_Field; { create a streaming only lightweight field from the encoding object }
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
+    function        UIDP                               : PByte;
+    function        PUID                               : PGuid;
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       SetReference                       (const obj : TObject);
     function        GetReference                       : TObject;
@@ -850,7 +851,18 @@ type
 
   IFRE_DB_TRANSFORMOBJECT = interface;
 
-  TFRE_DB_TRANS_COLL_DATA_KEY = shortstring;
+  TFRE_DB_TRANS_COLL_FILTER_KEY = string[31];
+
+  TFRE_DB_TRANS_COLL_DATA_KEY = record
+    key       : shortstring;
+    Collname  : TFRE_DB_NameType;
+    DC_Name   : TFRE_DB_NameType;
+    RL_Spec   : TFRE_DB_NameTypeRL;
+    RL_SpecUC : TFRE_DB_NameTypeRL;
+    orderkey  : TFRE_DB_Nametype;
+    filterkey : string[31];
+  end;
+
 
   //TFRE_DB_DC_STRINGFIELDKEY_LIST      = array of TFRE_DB_DC_STRINGFIELDKEY;
 
@@ -875,7 +887,7 @@ type
     [cFOS_IID_DERIVED_COLL]
     procedure  TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
     procedure  TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt);
-    procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean);
+    procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String);
     procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
 
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
@@ -1771,6 +1783,8 @@ type
     property        ObjectName      : TFRE_DB_String       read GetName write SetName;
     property        Description     : IFRE_DB_TEXT read GetDesc write SetDesc;
 
+    function        UIDP                               : PByte;
+    function        PUID                               : PGuid;
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
@@ -1892,7 +1906,7 @@ type
   public
     procedure LockBase   ; virtual; abstract;
     procedure UnlockBase ; virtual; abstract;
-    function  GetFullKeyDef : TFRE_DB_TRANS_COLL_DATA_KEY; virtual ; abstract;
+    function  GetFullKey : TFRE_DB_TRANS_COLL_DATA_KEY; virtual ; abstract;
   end;
 
   { TFRE_DB_DC_FILTER_DEFINITION_BASE }
@@ -1929,8 +1943,8 @@ type
     procedure CleanUp                        ; virtual ; abstract;
     procedure SetTransformedObject           (const tr_obj : IFRE_DB_Object);virtual; abstract;
     procedure SetTransObjectSingleInsert     (const tr_obj : IFRE_DB_Object);virtual; abstract;
-    procedure UpdateUpdateTransformedObject  (const tr_obj : IFRE_DB_Object; const upd_idx: NativeInt);virtual; abstract;
-    procedure UpdateInsertTransformedObject  (const tr_obj : IFRE_DB_Object);virtual; abstract;
+    procedure HandleUpdateTransformedObject  (const tr_obj : IFRE_DB_Object; const upd_idx: NativeInt);virtual; abstract;
+    procedure HandleInsertTransformedObject  (const tr_obj : IFRE_DB_Object);virtual; abstract;
     function  CreateChildLevel               : TFRE_DB_CHILD_LEVEL_BASE;virtual;abstract;
   end;
 
@@ -2899,6 +2913,9 @@ type
   procedure FREDB_ApplyNotificationBlockToNotifIF_Connection (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationConnection);
   procedure FREDB_ApplyNotificationBlockToNotifIF_Session    (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationSession);
 
+  function FREDB_CompareTransCollDataKeys                    (const a,b : TFRE_DB_TRANS_COLL_DATA_KEY):boolean;
+
+
   operator< (g1, g2: TGUID) b : boolean;
   operator> (g1, g2: TGUID) b : boolean;
   operator= (g1, g2: TGUID) b : boolean;
@@ -2934,6 +2951,8 @@ begin
    result := -1;
  end;
 end;
+
+
 
 procedure FREDB_LoadMimetypes(const filename: string);
 var cnt : NativeInt;
@@ -3641,7 +3660,7 @@ var new_arr : IFRE_DB_ObjectArray;
     cnt,i   : NativeInt;
 begin
   if (idx<0) or (idx>High(arr)) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'FREDB_RemoveIdxFomObjectArray idx not in bounds failed -> [%d<=%d<%=d]', [0,idx,high(arr)]);
+    raise EFRE_DB_Exception.Create(edb_ERROR,'FREDB_RemoveIdxFomObjectArray idx not in bounds failed -> [%d<=%d<=%d]', [0,idx,high(arr)]);
   SetLength(new_arr,Length(arr)-1);
   cnt := 0;
   for i:=0 to idx-1 do
@@ -3658,15 +3677,21 @@ begin
 end;
 
 function FREDB_InsertAtIdxToObjectArray(const arr: IFRE_DB_ObjectArray; var at_idx: NativeInt; const new_obj: IFRE_DB_Object ; const before : boolean): IFRE_DB_ObjectArray;
-var cnt,i   : NativeInt;
+var cnt,i,myat   : NativeInt;
 begin
   SetLength(result,Length(arr)+1);
   if (at_idx<0) or (at_idx>High(Result)) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'FREDB_RemoveIdxFomObjectArray idx not in bounds failed -> [%d<=%d<=%d]', [0,at_idx,high(arr)]);
-  cnt := 0;
+  cnt  := 0;
+  myat := at_idx;
+  if length(arr)=0 then
+    begin
+      result[0] := new_obj;
+      exit;
+    end;
   for i:=0 to high(arr) do
     begin
-      if i<>at_idx then
+      if i<>myat then
         begin
           result[cnt] := arr[i];
           inc(cnt);
@@ -6746,6 +6771,16 @@ begin
    raise EFRE_DB_Exception.Create(edb_ERROR,'the ex object does not support the named object interface');
 end;
 
+function TFRE_DB_ObjectEx.UIDP: PByte;
+begin
+  result := FImplementor.UIDP;
+end;
+
+function TFRE_DB_ObjectEx.PUID: PGuid;
+begin
+  result := FImplementor.PUID;
+end;
+
 function TFRE_DB_ObjectEx.ObjectRoot: IFRE_DB_Object;
 begin
   result := FImplementor.ObjectRoot;
@@ -8453,6 +8488,9 @@ var cmd   : ShortString;
     i     : NativeInt;
 
 begin
+  writeln('----DUMP NOTIFY BLOCK');
+  writeln(block.DumpToString());
+  writeln('----DUMP NOTIFY BLOCK');
   objs  := block.Field('N').AsObjectArr;
   layer := block.Field('L').AsString;
   for i:=0 to High(objs) do
@@ -8465,20 +8503,20 @@ begin
             'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
             'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
             'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
-            'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').AsObject);
-            'OU'  : deploy_if.ObjectUpdated(Field('obj').AsObject,Field('CC').AsStringArr);
-            'OD'  : deploy_if.ObjectDeleted(Field('obj').AsObject);
-            'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').AsObject);
-            'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField);
-            'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);
-            'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField);
-            'SOS' : deploy_if.SubObjectStored(Field('SO').AsObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
-            'SOD' : deploy_if.SubObjectDeleted(Field('SO').AsObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
-            'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
+            'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').CheckOutObject);
+            'OU'  : deploy_if.ObjectUpdated(Field('obj').CheckOutObject,Field('CC').AsStringArr);
+            'OD'  : deploy_if.ObjectDeleted(Field('obj').CheckOutObject);
+            'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').CheckOutObject);
+            'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField); { Field is created new .. free it in the deploy if }
+            'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);    { Field is created new .. free it in the deploy if }
+            'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField); { Field is created new .. free it in the deploy if }
+            'SOS' : deploy_if.SubObjectStored(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
+            'SOD' : deploy_if.SubObjectDeleted(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
+            'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString);
             'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
-            'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').AsObject,field('KD').AsString);
-            'DIL' : deploy_if.InboundReflinkDropped (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
-            'DUS' : deploy_if.DifferentiallUpdStarts(field('O').AsObject);
+            'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString);
+            'DIL' : deploy_if.InboundReflinkDropped (field('FO').CheckOutObject,field('TO').AsGUID,field('KD').AsString);
+            'DUS' : deploy_if.DifferentiallUpdStarts(field('O').CheckOutObject);
             'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
             else
               raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
@@ -8535,6 +8573,15 @@ begin
         //    raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
         end;
       end;
+end;
+
+function FREDB_CompareTransCollDataKeys(const a, b: TFRE_DB_TRANS_COLL_DATA_KEY): boolean;
+begin
+  result := (a.Collname  = b.Collname ) and
+            (a.DC_Name   = b.DC_Name  ) and
+            (a.filterkey = b.filterkey) and
+            (a.orderkey  = b.orderkey ) and
+            (a.RL_Spec   = b.RL_Spec  );
 end;
 
 operator<(g1, g2: TGUID)b: boolean;

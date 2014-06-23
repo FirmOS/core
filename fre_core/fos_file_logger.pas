@@ -627,8 +627,17 @@ begin
 end;
 
 procedure TFileLoggerThread.Log(const msg: String; params: array of const; cat: String; Level: TFOS_LOG_LEVEL; const target: string;const sync:boolean=false);
+var mymsg : string;
 begin
-  Log(Format(msg,params),cat,Level,target);
+  try
+    mymsg := Format(msg,params);
+  except
+    on e: exception do
+      begin
+        mymsg := 'ERROR FORMATING ('+e.Message+') '+msg;
+      end;
+  end;
+  Log(mymsg,cat,Level,target);
   if sync then Sync_Logger;
 end;
 
