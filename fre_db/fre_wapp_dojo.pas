@@ -2479,6 +2479,9 @@ implementation
       jsContentAdd('                ,class: "borderContainer firmosTransparent"');
       jsContentAdd('                ,entries: ' + entries);
       jsContentAdd('                ,subSecsId: "' + subsecs.contentId + '"');
+      if co.Field('notificationPanelId').AsString<>'' then begin
+        jsContentAdd('                ,notificationPanelId: "' + co.Field('notificationPanelId').AsString + '"');
+      end;
       jsContentAdd('});');
 
       BuildSubsectionContainer(session,command_type,subsecs,contentString,contentType,true);

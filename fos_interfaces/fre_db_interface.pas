@@ -2005,10 +2005,12 @@ type
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  published
+    function  WEB_SaveOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; override;
   public
-    procedure _getIcon       (const calc: IFRE_DB_CALCFIELD_SETTER);
-    property  isErrorStep    : Boolean      read getIsErrorStep write setIsErrorStep;
-    property  action         : TFRE_DB_GUID read getAction      write setAction;
+    procedure _getIcon          (const calc: IFRE_DB_CALCFIELD_SETTER);
+    property  isErrorStep       : Boolean      read getIsErrorStep write setIsErrorStep;
+    property  action            : TFRE_DB_GUID read getAction      write setAction;
   end;
 
   { TFRE_DB_UNCONFIGURED_MACHINE }
@@ -2561,6 +2563,7 @@ type
     function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
     function    RemoveTaskMethod         (const id:string='TIMER'):boolean;
 
+    procedure   ClearUpdatable               ;
     procedure   RegisterUpdatableContent     (const contentId: String);
     procedure   UnregisterUpdatableContent   (const contentId: String);
     procedure   RegisterUpdatableDBO         (const UID_id: TFRE_DB_GUID);
@@ -2743,6 +2746,8 @@ type
     procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const interactive_session:boolean);
     procedure   ClearServerClientInterface ;
     function    GetClientServerInterface   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
+
+    procedure   ClearUpdatable             ;
 
     procedure   RegisterUpdatableContent   (const contentId: String);
     procedure   UnregisterUpdatableContent (const contentId: String);
@@ -3832,7 +3837,7 @@ end;
 
 { TFRE_DB_WORKFLOW_STEP }
 
-function TFRE_DB_WORKFLOW_STEP.getAction: TGuid;
+function TFRE_DB_WORKFLOW_STEP.getAction: TFRE_DB_GUID;
 begin
   Result:=Field('action').AsObjectLink;
 end;
@@ -3842,7 +3847,7 @@ begin
   Result:=FieldExists('is_error_step') and Field('is_error_step').AsBoolean;
 end;
 
-procedure TFRE_DB_WORKFLOW_STEP.setAction(AValue: TGuid);
+procedure TFRE_DB_WORKFLOW_STEP.setAction(AValue: TFRE_DB_GUID);
 begin
   Field('action').AsObjectLink:=AValue;
 end;
@@ -3936,6 +3941,18 @@ begin
 
     StoreTranslateableText(conn,'scheme_error_main_group','General Information');
   end;
+end;
+
+function TFRE_DB_WORKFLOW_STEP.WEB_SaveOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  if input.FieldPathExists('data.designated_user') then begin
+    input.FieldPathCreate('data.designated_group').AsString:=cFRE_DB_SYS_CLEAR_VAL_STR
+  end else begin
+    if input.FieldPathExists('data.designated_group') then begin
+      input.FieldPathCreate('data.designated_user').AsString:=cFRE_DB_SYS_CLEAR_VAL_STR;
+    end;
+  end;
+  Result:=inherited WEB_SaveOperation(input, ses, app, conn);
 end;
 
 { TFRE_DB_UNCONFIGURED_MACHINE }
@@ -5682,6 +5699,12 @@ end;
 function TFRE_DB_UserSession.GetClientServerInterface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
 begin
   result := FBoundSession_RA_SC;
+end;
+
+procedure TFRE_DB_UserSession.ClearUpdatable;
+begin
+  FUpdateableContent.ClearAllFields;
+  FUpdateableDBOS.ClearAllFields;
 end;
 
 procedure TFRE_DB_UserSession.RegisterUpdatableContent(const contentId: String);
