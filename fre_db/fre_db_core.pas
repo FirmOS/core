@@ -1888,7 +1888,7 @@ type
     function           FetchDomainUIDbyName         (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; virtual;
 
     function           DomainCollectionExists       (const name:TFRE_DB_NameType; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType=''):boolean;
-    function           DeleteDomainCollection       (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
+    function           DeleteDomainCollection       (const name:TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType=''; const ForDomainUIDString: TFRE_DB_NameType=''):TFRE_DB_Errortype;
 
     function           GetCollection                (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
     function           CreateCollection             (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false) : IFRE_DB_COLLECTION;
@@ -10810,11 +10810,9 @@ begin
   result    := CollectionExists(DomainCollectionName(name,ForDomainName,ForDomainUIDString));
 end;
 
-function TFRE_DB_BASE_CONNECTION.DeleteDomainCollection(const name: TFRE_DB_NameType): TFRE_DB_Errortype;
-var dom_cname : TFRE_DB_NameType;
+function TFRE_DB_BASE_CONNECTION.DeleteDomainCollection(const name: TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): TFRE_DB_Errortype;
 begin
-  dom_cname := GetMyDomainID_String+name;
-  result    := DeleteCollection(name);
+  result    := DeleteCollection(DomainCollectionName(name,ForDomainName,ForDomainUIDString));
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_COLLECTION;

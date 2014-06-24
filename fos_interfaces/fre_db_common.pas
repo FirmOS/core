@@ -216,7 +216,6 @@ type
   TFRE_DB_INPUT_CHOOSER_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a chooser within a form.
-    //@ FIXXME: display type dh_chooser_check not implemented yet.
     //@ FIXXME: single_select=false not implemented yet.
     function  Describe              (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean=true; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
                                      const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
@@ -375,7 +374,7 @@ type
     procedure AddStore                (const store: TFRE_DB_STORE_DESC);virtual;
     procedure AddDBO                  (const id: String; const session: IFRE_DB_UserSession);virtual;
     function  GetStore                (const id:String): TFRE_DB_STORE_DESC;virtual;
-    function  Describe                (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
+    function  Describe                (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer; const hideEmptyGroups: Boolean): TFRE_DB_FORM_DESC;
     procedure _FillWithObjectValues   (const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession; const prefix:String);
   public
     //@ Return the form element with the given id.
@@ -500,7 +499,7 @@ type
   TFRE_DB_FORM_PANEL_DESC    = class(TFRE_DB_FORM_DESC)
   public
     //@ Describes a form content panel. See also TFRE_DB_FORM_DESC.
-    function Describe (const caption:String;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0): TFRE_DB_FORM_PANEL_DESC;
+    function Describe (const caption:String;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0; const hideEmptyGroups:Boolean=true): TFRE_DB_FORM_PANEL_DESC;
     //@ Sets the menu of the form panel. Will be displayed like a file menu in a desktop application.
     procedure SetMenu (const menu: TFRE_DB_MENU_DESC);
   end;
@@ -513,7 +512,7 @@ type
     //@ If defaultClose is true a close button will be added to the dialog which simply closes the dialog.
     //@ If defaultClose is false and no explicit close button is added the dialog will not be closable at all (e.g. force login).
     //@ sendChangedFieldsOnly true: good for data updates, false: all field values are send unconditonally, goot for new objects
-    function  Describe    (const caption:String; const width:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0): TFRE_DB_FORM_DIALOG_DESC;
+    function  Describe    (const caption:String; const width:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0; const hideEmptyGroups: Boolean=true): TFRE_DB_FORM_DIALOG_DESC;
   end;
 
   { TFRE_DB_DIALOG_DESC }
@@ -2028,12 +2027,13 @@ implementation
     end;
   end;
 
-  function TFRE_DB_FORM_DESC.Describe(const caption: String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DESC;
+  function TFRE_DB_FORM_DESC.Describe(const caption: String; const defaultClose: Boolean; const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay: Integer; const hideEmptyGroups: Boolean): TFRE_DB_FORM_DESC;
   begin
     Field('caption').AsString:=caption;
     Field('defaultClose').AsBoolean:=defaultClose;
     Field('sendChanged').AsBoolean:=sendChangedFieldsOnly;
     Field('editable').AsBoolean:=editable;
+    Field('hideEmptyGroups').AsBoolean:=hideEmptyGroups;
     if Assigned(onChangeFunc) then begin
       Field('onChangeFunc').AsObject:=onChangeFunc;
       Field('onChangeDelay').AsInt64:=onChangeDelay;
@@ -2614,9 +2614,9 @@ implementation
 
   { TFRE_DB_FORM_PANEL_DESC }
 
-  function TFRE_DB_FORM_PANEL_DESC.Describe(const caption: String;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_PANEL_DESC;
+  function TFRE_DB_FORM_PANEL_DESC.Describe(const caption: String;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer; const hideEmptyGroups: Boolean): TFRE_DB_FORM_PANEL_DESC;
   begin
-    inherited Describe(caption,false,sendChangedFieldsOnly,editable,onChangeFunc,onChangeDelay);
+    inherited Describe(caption,false,sendChangedFieldsOnly,editable,onChangeFunc,onChangeDelay,hideEmptyGroups);
     Result:=Self;
   end;
 
@@ -2627,9 +2627,9 @@ implementation
 
   { TFRE_DB_FORM_DIALOG_DESC }
 
-  function TFRE_DB_FORM_DIALOG_DESC.Describe(const caption:String;const width:Integer; const defaultClose,isDraggable:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer): TFRE_DB_FORM_DIALOG_DESC;
+  function TFRE_DB_FORM_DIALOG_DESC.Describe(const caption:String;const width:Integer; const defaultClose,isDraggable:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer; const hideEmptyGroups: Boolean): TFRE_DB_FORM_DIALOG_DESC;
   begin
-    inherited Describe('',defaultClose,sendChangedFieldsOnly,editable,onChangeFunc,onChangeDelay);
+    inherited Describe('',defaultClose,sendChangedFieldsOnly,editable,onChangeFunc,onChangeDelay,hideEmptyGroups);
     Field('dialogCaption').AsString:=caption;
     Field('width').AsInt16:=width;
     Field('draggable').AsBoolean:=isDraggable;
