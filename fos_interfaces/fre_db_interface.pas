@@ -1454,7 +1454,7 @@ type
 
     function    CollectionExists              (const name:TFRE_DB_NameType):boolean;
     function    DomainCollectionExists        (const name:TFRE_DB_NameType; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType=''):boolean;
-    function    DeleteDomainCollection        (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
+    function    DeleteDomainCollection        (const name:TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType=''; const ForDomainUIDString: TFRE_DB_NameType=''):TFRE_DB_Errortype;
 
     function    DeleteCollection              (const name:TFRE_DB_NameType):TFRE_DB_Errortype;
     function    Delete                        (const ouid: TGUID): TFRE_DB_Errortype;

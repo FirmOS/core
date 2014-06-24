@@ -66,7 +66,7 @@ type
    procedure _BuildInputFile           (const session:TFRE_DB_UserSession; const co:TFRE_DB_INPUT_FILE_DESC);
    procedure _BuildInputBool           (const co:TFRE_DB_INPUT_BOOL_DESC);
    procedure _BuildInputChooser        (const session:TFRE_DB_UserSession; const co:TFRE_DB_INPUT_CHOOSER_DESC;const stores: IFRE_DB_ObjectArray);
-   procedure _handleFormElement        (const session: TFRE_DB_UserSession; const elem: TFRE_DB_CONTENT_DESC; const formName:String; const stores:IFRE_DB_ObjectArray; var hiddenFields: IFRE_DB_ObjectArray; const groupId: String='';const hidden: Boolean=false);
+   procedure _handleFormElement        (const session: TFRE_DB_UserSession; const elem: TFRE_DB_CONTENT_DESC; const formName:String; const stores:IFRE_DB_ObjectArray; var hiddenFields: IFRE_DB_ObjectArray; const groupId: String; const hidden: Boolean; const hideEmptyGroups: Boolean);
    function  _BuildParamsObject        (const co:IFRE_DB_ObjectArray; const keyProp: String='key'; const valueProp: String='value'):String;
    function  _BuildJSArray             (const arr:TFRE_DB_StringArray):String;
    function  _AddParams                (const jsVarName:String;const co:IFRE_DB_ObjectArray;const keyProp:String='key';const valueProp:String='value'):String;
@@ -318,7 +318,7 @@ implementation
 
     jsContentAdd('"<table class=''firmosFormTable'' style=''width:100%''>"+');
     for i:=0 to co.Field('elements').ValueCount-1 do begin
-      _handleFormElement(session,co.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,co.Field('id').AsString,stores,hiddenFields);
+      _handleFormElement(session,co.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,co.Field('id').AsString,stores,hiddenFields,'',false,co.Field('hideEmptyGroups').AsBoolean);
     end;
 
     hasCloseButton:=false;
@@ -571,6 +571,21 @@ implementation
   begin
      store:=_getStoreById(co.FieldPath('store.id').AsString,stores);
      case String2DBChooserDH(co.Field('displayHint').AsString) of
+       dh_chooser_check: begin
+                           jsContentAdd('"<select id='''+co.Field('id').AsString+''' name='''+co.Field('field').AsString+''' multiple=''true'' data-dojo-type=''dojox.form.CheckedMultiSelect''  style=''width:100%''"+');
+                           if co.Field('disabled').AsBoolean then begin
+                             jsContentAdd('" disabled "+');
+                           end;
+                           jsContentAdd('"  data-dojo-props=''"+');
+                           if co.Field('defaultValue').AsString<>'' then begin
+                             jsContentAdd('" value: \"'+ _EscapeValueString(co.Field('defaultValue').AsString) +'\""+');
+                           end;
+                           jsContentAdd('"''>"+');
+                           for i := 0 to store.Field('entries').ValueCount - 1 do begin
+                             jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+store.Field('entries').AsObjectItem[i].Field('caption').AsString+'</option>"+');
+                           end;
+                           jsContentAdd('"</select>"+');
+                         end;
        dh_chooser_radio: begin
                            jsContentAdd('"<select id='''+co.Field('id').AsString+''' name='''+co.Field('field').AsString+''' data-dojo-type=''dojox.form.CheckedMultiSelect''  style=''width:100%''"+');
                            if co.Field('disabled').AsBoolean then begin
@@ -657,7 +672,7 @@ implementation
      end;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO._handleFormElement(const session: TFRE_DB_UserSession; const elem: TFRE_DB_CONTENT_DESC; const formName: String; const stores: IFRE_DB_ObjectArray; var hiddenFields: IFRE_DB_ObjectArray;const groupId:String; const hidden:Boolean);
+  procedure TFRE_DB_WAPP_DOJO._handleFormElement(const session: TFRE_DB_UserSession; const elem: TFRE_DB_CONTENT_DESC; const formName: String; const stores: IFRE_DB_ObjectArray; var hiddenFields: IFRE_DB_ObjectArray;const groupId:String; const hidden:Boolean; const hideEmptyGroups: Boolean);
   var
     i             : Integer;
     classl,classr : String;
@@ -668,35 +683,37 @@ implementation
       jsContentAdd('"<tr id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
       for i := 0 to elem.Field('elements').ValueCount - 1 do begin
         jsContentAdd('"<div style=''width:'+FloatToStrF(Trunc(elem.Field('elements').AsObjectItem[i].Field('relSize').AsInt16 / elem.Field('sizeSum').AsInt16 * 10000) / 100,ffFixed,3,2)+'%; float:left;''><table class=''firmosFormTable'' style=''width:100%''>"+');
-        _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields);
+        _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId,hidden,hideEmptyGroups);
         jsContentAdd('"</table></div>"+');
       end;
       jsContentAdd('"</td></tr>"+');
     end else begin
       if elem is TFRE_DB_INPUT_GROUP_DESC then begin
-        //elem.FieldExists('loadFunc')
-        if elem.Field('collapsible').AsBoolean then begin
-          jsContentAdd('"<tr class=''firmosFormGroupHeaderCollapsible'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2 onclick=''G_UI_COM.toggleFormGroupStatus(\"'+formName+'\",\"'+elem.UID_String+'\");''>"+');
-          if groupId<>'' then addGroupId:=' ';
-          addGroupId:=addGroupId + elem.UID_String;
-          if elem.Field('collapsed').AsBoolean then begin
-            classl:='firmosFormGroupShowLeft';
-            classr:='firmosFormGroupShowRight';
-          end else begin
-            classl:='firmosFormGroupHideLeft';
-            classr:='firmosFormGroupHideRight';
-          end;
-          jsContentAdd('"<div id='''+elem.UID_String+'_tl'' class='''+classl+'''></div><div id='''+elem.UID_String+'_tr'' class='''+classr+'''></div><div class=''firmosFormGroupHeaderElementCollapsible''>'+elem.Field('caption').AsString+'</div>"+');
-          jsContentAdd('"</td></tr>"+');
-        end else begin
-          if elem.Field('caption').AsString<>'' then begin
-            jsContentAdd('"<tr class=''firmosFormGroupHeader'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
-            jsContentAdd('"<div class=''firmosFormGroupHeaderElement''>'+elem.Field('caption').AsString+'</div>"+');
+        if not hideEmptyGroups or (elem.Field('elements').ValueCount>0) then begin
+          //elem.FieldExists('loadFunc')
+          if elem.Field('collapsible').AsBoolean then begin
+            jsContentAdd('"<tr class=''firmosFormGroupHeaderCollapsible'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2 onclick=''G_UI_COM.toggleFormGroupStatus(\"'+formName+'\",\"'+elem.UID_String+'\");''>"+');
+            if groupId<>'' then addGroupId:=' ';
+            addGroupId:=addGroupId + elem.UID_String;
+            if elem.Field('collapsed').AsBoolean then begin
+              classl:='firmosFormGroupShowLeft';
+              classr:='firmosFormGroupShowRight';
+            end else begin
+              classl:='firmosFormGroupHideLeft';
+              classr:='firmosFormGroupHideRight';
+            end;
+            jsContentAdd('"<div id='''+elem.UID_String+'_tl'' class='''+classl+'''></div><div id='''+elem.UID_String+'_tr'' class='''+classr+'''></div><div class=''firmosFormGroupHeaderElementCollapsible''>'+elem.Field('caption').AsString+'</div>"+');
             jsContentAdd('"</td></tr>"+');
+          end else begin
+            if elem.Field('caption').AsString<>'' then begin
+              jsContentAdd('"<tr class=''firmosFormGroupHeader'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
+              jsContentAdd('"<div class=''firmosFormGroupHeaderElement''>'+elem.Field('caption').AsString+'</div>"+');
+              jsContentAdd('"</td></tr>"+');
+            end;
           end;
-        end;
-        for i := 0 to elem.Field('elements').ValueCount - 1 do begin
-          _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId+addGroupId,elem.Field('collapsed').AsBoolean or hidden);
+          for i := 0 to elem.Field('elements').ValueCount - 1 do begin
+            _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId+addGroupId,elem.Field('collapsed').AsBoolean or hidden,hideEmptyGroups);
+          end;
         end;
       end else begin
         if elem.Field('hidden').AsBoolean then begin
