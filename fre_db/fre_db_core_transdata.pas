@@ -292,6 +292,8 @@ type
     function    GetFilterKey                 : TFRE_DB_TRANS_COLL_FILTER_KEY;
     function    DoesObjectPassFilters        (const obj : IFRE_DB_Object) : boolean;
     procedure   CheckDBReevaluationFilters   ;
+    procedure   CheckAutoDependencyFilter    (const key_description : TFRE_DB_NameTypeRL);
+    //procedure
   end;
 
   { TFRE_DB_QUERY }
@@ -784,14 +786,16 @@ end;
 function TFRE_DB_FILTER_AUTO_DEPENDENCY.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_AUTO_DEPENDENCY;
 begin
-  fClone              := TFRE_DB_FILTER_AUTO_DEPENDENCY.Create(FKey);
-  fClone.FNegate      := FNegate;
-  fClone.FAllowNull   := FAllowNull;
-  fClone.FStartValues := Copy(FStartValues);
-  fClone.FValues      := Copy(FValues);
-  fClone.FRL_Spec     := Copy(FRL_Spec);
-  fClone.FDBName      := FDBName;
-  result              := fClone;
+  fClone                  := TFRE_DB_FILTER_AUTO_DEPENDENCY.Create(FKey);
+  fClone.FNegate          := FNegate;
+  fClone.FFieldname       := FFieldname;
+  fClone.FAllowNull       := FAllowNull;
+  fClone.FStartValues     := Copy(FStartValues);
+  fClone.FValues          := Copy(FValues);
+  fClone.FRL_Spec         := Copy(FRL_Spec);
+  fClone.FDBName          := FDBName;
+  fClone.FNeedsReEvaluate := FNeedsReEvaluate;
+  result                  := fClone;
 end;
 
 function TFRE_DB_FILTER_AUTO_DEPENDENCY.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
@@ -856,6 +860,7 @@ end;
 procedure TFRE_DB_FILTER_AUTO_DEPENDENCY.ExpandReferences(const dbc: IFRE_DB_CONNECTION);
 begin
   (dbc.Implementor as TFRE_DB_CONNECTION).ExpandReferencesNoRightCheck(FStartValues,FRL_Spec,FValues);
+  //(dbc.Implementor as TFRE_DB_CONNECTION).ExpandReferences(FStartValues,FRL_Spec,FValues);
 end;
 
 procedure TFRE_DB_FILTER_AUTO_DEPENDENCY.InitFilter(const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean; const dbname: TFRE_DB_NameType);
@@ -866,6 +871,7 @@ begin
   FAllowNull       := include_null_values;
   FDBName          := dbname;
   FNeedsReEvaluate := true;
+  FFieldname       := 'UID';
 end;
 
 procedure TFRE_DB_FILTER_AUTO_DEPENDENCY.ReEvaluateFilter;
@@ -2471,6 +2477,17 @@ begin
     end;
 end;
 
+procedure TFRE_DB_DC_FILTER_DEFINITION.CheckAutoDependencyFilter(const key_description: TFRE_DB_NameTypeRL);
+var i : NativeInt;
+    f : TFRE_DB_FILTER_BASE;
+begin
+  for i := 0 to FKeyList.Count-1 do
+    begin
+      f := FKeyList.Items[i] as TFRE_DB_FILTER_BASE;
+      f.CheckReflinkUpdateEvent(key_description);
+    end;
+end;
+
 { TFRE_DB_DC_ORDER_DEFINITION }
 
 function TFRE_DB_DC_ORDER_DEFINITION.IsSealed: Boolean;
@@ -3279,10 +3296,16 @@ procedure TFRE_DB_TRANSDATA_MANAGER.SetupOutboundRefLink(const from_obj: TGUID; 
     tcd.SetupOutboundReflink(from_obj,to_obj.CloneToNewObject,key_description);
   end;
 
+  procedure CheckAutoFilterUpdates(const qry : TFRE_DB_QUERY);
+  begin
+    qry.GetFilterDefinition.CheckAutoDependencyFilter(key_description);
+  end;
+
 begin
   LockManager;
   try
-    FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
+    FTransList.ForAll(@CheckIfNeeded);      { search all base transforms for needed updates ... }
+    ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
   finally
     UnlockManager;
   end;
@@ -4274,7 +4297,6 @@ begin
       et := GFRE_BT.Get_Ticks_ms;
       GFRE_DBI.LogInfo(dblc_DBTDM,'<NEW FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s] DONE in %d ms',[GetFullKey.key,filtkey,et-st]);
     end;
-  filtercont.CheckDBReevaluation; { check if the filter was updated and needs db, reevaluation }
   filtercont.Execute(iter,qry_context);
 end;
 

@@ -1897,14 +1897,15 @@ type
     FNeedsReEvaluate : Boolean; { the filter must be reevaluated }
     FDBName          : TFRE_DB_NameType;
   public
-    function    GetKeyName           : TFRE_DB_NameType;                   { get a reproducable unique key, depending on the filter field, values and settings}
-    function    GetDefinitionKey     : TFRE_DB_NameType;virtual;abstract;  { return true if the filter hits }
-    function    CheckFilterHit       (const obj : IFRE_DB_Object ; var flt_errors : Int64):boolean;virtual;abstract;
-    function    FilterNeedsDbUpdate  : boolean;
-    procedure   ReEvaluateFilter     ; virtual ; abstract ;                { update the filter against db changes (dependency filter type (rl changed) }
-    procedure   SetFilterNeedsUpdate ;
-    constructor Create               (const key : TFRE_DB_NameType);
-    function    Clone                : TFRE_DB_FILTER_BASE;virtual; abstract;
+    function    GetKeyName              : TFRE_DB_NameType;                     { get a reproducable unique key, depending on the filter field, values and settings}
+    function    GetDefinitionKey        : TFRE_DB_NameType;virtual;abstract;    { return true if the filter hits }
+    function    CheckFilterHit          (const obj : IFRE_DB_Object ; var flt_errors : Int64):boolean;virtual;abstract;
+    function    FilterNeedsDbUpdate     : boolean;
+    procedure   ReEvaluateFilter        ; virtual ; abstract ;                  { update the filter against db changes (dependency filter type (rl changed) }
+    procedure   SetFilterNeedsUpdate    ;
+    constructor Create                  (const key : TFRE_DB_NameType);
+    function    Clone                   : TFRE_DB_FILTER_BASE;virtual; abstract;
+    procedure   CheckReflinkUpdateEvent (const key_descr : TFRE_DB_NameTypeRL); virtual ;{ check if a given qry filter, needs to send updates on RL changes }
   end;
 
 
@@ -3835,6 +3836,11 @@ constructor TFRE_DB_FILTER_BASE.Create(const key: TFRE_DB_NameType);
 begin
   FKey             := key;
   FNeedsReEvaluate := false;
+end;
+
+procedure TFRE_DB_FILTER_BASE.CheckReflinkUpdateEvent(const key_descr: TFRE_DB_NameTypeRL);
+begin
+
 end;
 
 { TFRE_DB_AUDIT_ENTRY }
