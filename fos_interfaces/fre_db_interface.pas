@@ -675,6 +675,7 @@ type
     function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
     function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
+    function       GetDBWithServerRights                     (const dbname:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
     function       SendDelegatedContentToClient              (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
   end;
@@ -886,7 +887,7 @@ type
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
     procedure  TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure  TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt);
+    procedure  TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String);
     procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String);
     procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
 
@@ -910,7 +911,11 @@ type
     procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
     procedure  SetDisplayTypeChart           (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean; const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
     procedure  SetParentToChildLinkField     (const fieldname : TFRE_DB_NameTypeRL); { Define a Child/Parent Parent/Child relation via Reflinks syntax is FROMFIELD>TOSCHEME or FROMSCHEME<FROMFIELD, the scheme could be empty }
+
     function   HasParentChildRefRelationDefined : boolean;
+    function   IsDependencyFilteredCollection   : boolean;
+    function   HasReflinksInTransformation      : boolean; { a potential reflink dependency is in the transforms }
+
 
     function   GetDisplayDescription         : TFRE_DB_CONTENT_DESC;
     function   GetStoreDescription           : TFRE_DB_CONTENT_DESC;
@@ -1885,18 +1890,21 @@ type
 
   TFRE_DB_FILTER_BASE=class
   protected
-    FKey       : TFRE_DB_NameType;
-    FFieldname : TFRE_DB_NameType;
-    FNegate    : Boolean;
-    FAllowNull : Boolean;
+    FKey             : TFRE_DB_NameType;
+    FFieldname       : TFRE_DB_NameType;
+    FNegate          : Boolean;
+    FAllowNull       : Boolean;
+    FNeedsReEvaluate : Boolean; { the filter must be reevaluated }
+    FDBName          : TFRE_DB_NameType;
   public
-    function    GetKeyName       : TFRE_DB_NameType;
-    { get a reproducable unique key, depending on the filter field, values and settings}
-    function    GetDefinitionKey : TFRE_DB_NameType;virtual;abstract;
-    { return true if the filter hits }
-    function    CheckFilterHit   (const obj : IFRE_DB_Object ; var flt_errors : Int64):boolean;virtual;abstract;
-    constructor Create           (const key : TFRE_DB_NameType);
-    function    Clone            : TFRE_DB_FILTER_BASE;virtual; abstract;
+    function    GetKeyName           : TFRE_DB_NameType;                   { get a reproducable unique key, depending on the filter field, values and settings}
+    function    GetDefinitionKey     : TFRE_DB_NameType;virtual;abstract;  { return true if the filter hits }
+    function    CheckFilterHit       (const obj : IFRE_DB_Object ; var flt_errors : Int64):boolean;virtual;abstract;
+    function    FilterNeedsDbUpdate  : boolean;
+    procedure   ReEvaluateFilter     ; virtual ; abstract ;                { update the filter against db changes (dependency filter type (rl changed) }
+    procedure   SetFilterNeedsUpdate ;
+    constructor Create               (const key : TFRE_DB_NameType);
+    function    Clone                : TFRE_DB_FILTER_BASE;virtual; abstract;
   end;
 
 
@@ -1924,6 +1932,7 @@ type
     procedure  AddStdRightObjectFilter (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=false);virtual;abstract;
     procedure  AddChildFilter          (const key:          TFRE_DB_NameType); virtual ; abstract;
     procedure  AddParentFilter         (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); virtual ; abstract ;
+    procedure  AddAutoDependencyFilter (const key:          TFRE_DB_NameType ; const RL_Spec : TFRE_DB_NameTypeRLArray ;  const StartDependecyValues : TFRE_DB_GUIDArray ; const negate:boolean=false ; const include_null_values : boolean=false ; const dbname : TFRE_DB_NameType='');virtual; abstract;
     function   RemoveFilter            (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
     function   FilterExists            (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
   end;
@@ -1945,7 +1954,6 @@ type
     procedure SetTransObjectSingleInsert     (const tr_obj : IFRE_DB_Object);virtual; abstract;
     procedure HandleUpdateTransformedObject  (const tr_obj : IFRE_DB_Object; const upd_idx: NativeInt);virtual; abstract;
     procedure HandleInsertTransformedObject  (const tr_obj : IFRE_DB_Object);virtual; abstract;
-    function  CreateChildLevel               : TFRE_DB_CHILD_LEVEL_BASE;virtual;abstract;
   end;
 
   { TFRE_DB_TRANSDATA_MANAGER_BASE }
@@ -3813,9 +3821,20 @@ begin
   result := FKey;
 end;
 
+function TFRE_DB_FILTER_BASE.FilterNeedsDbUpdate: boolean;
+begin
+  result := FNeedsReEvaluate;
+end;
+
+procedure TFRE_DB_FILTER_BASE.SetFilterNeedsUpdate;
+begin
+  FNeedsReEvaluate := true;
+end;
+
 constructor TFRE_DB_FILTER_BASE.Create(const key: TFRE_DB_NameType);
 begin
-  FKey := key;
+  FKey             := key;
+  FNeedsReEvaluate := false;
 end;
 
 { TFRE_DB_AUDIT_ENTRY }
@@ -8511,46 +8530,50 @@ var cmd   : ShortString;
     i     : NativeInt;
 
 begin
-  writeln('----DUMP NOTIFY BLOCK');
-  writeln(block.DumpToString());
-  writeln('----DUMP NOTIFY BLOCK');
+  //writeln('----DUMP NOTIFY BLOCK');
+  //writeln(block.DumpToString());
+  //writeln('----DUMP NOTIFY BLOCK');
   objs  := block.Field('N').AsObjectArr;
   layer := block.Field('L').AsString;
-  for i:=0 to High(objs) do
-    with objs[i] do
-      begin
-        cmd   := Field('C').AsString;
-        try
-          case cmd of
-            'CC'  : deploy_if.CollectionCreated(Field('CC').AsString);
-            'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
-            'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
-            'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
-            'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').CheckOutObject);
-            'OU'  : deploy_if.ObjectUpdated(Field('obj').CheckOutObject,Field('CC').AsStringArr);
-            'OD'  : deploy_if.ObjectDeleted(Field('obj').CheckOutObject);
-            'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').CheckOutObject);
-            'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField); { Field is created new .. free it in the deploy if }
-            'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);    { Field is created new .. free it in the deploy if }
-            'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField); { Field is created new .. free it in the deploy if }
-            'SOS' : deploy_if.SubObjectStored(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
-            'SOD' : deploy_if.SubObjectDeleted(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
-            'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString);
-            'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
-            'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString);
-            'DIL' : deploy_if.InboundReflinkDropped (field('FO').CheckOutObject,field('TO').AsGUID,field('KD').AsString);
-            'DUS' : deploy_if.DifferentiallUpdStarts(field('O').CheckOutObject);
-            'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
-            else
-              raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
-          end;
-        except on
-          e:exception do
-            begin
-              GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'APPLYNOTIFBLOCK [%s] failed due to [%s] on Step [%d of %d]',[cmd,e.Message,i,High(objs)]);
+  try
+    for i:=0 to High(objs) do
+      with objs[i] do
+        begin
+          cmd   := Field('C').AsString;
+          try
+            case cmd of
+              'CC'  : deploy_if.CollectionCreated(Field('CC').AsString);
+              'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
+              'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
+              'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
+              'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').CheckOutObject);
+              'OU'  : deploy_if.ObjectUpdated(Field('obj').CheckOutObject,Field('CC').AsStringArr);
+              'OD'  : deploy_if.ObjectDeleted(Field('obj').CheckOutObject);
+              'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').CheckOutObject);
+              'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField); { Field is created new .. free it in the deploy if }
+              'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);    { Field is created new .. free it in the deploy if }
+              'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField); { Field is created new .. free it in the deploy if }
+              'SOS' : deploy_if.SubObjectStored(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
+              'SOD' : deploy_if.SubObjectDeleted(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
+              'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString);
+              'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
+              'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString);
+              'DIL' : deploy_if.InboundReflinkDropped (field('FO').CheckOutObject,field('TO').AsGUID,field('KD').AsString);
+              'DUS' : deploy_if.DifferentiallUpdStarts(field('O').CheckOutObject);
+              'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
+              else
+                raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
             end;
+          except on
+            e:exception do
+              begin
+                GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'APPLYNOTIFBLOCK [%s] failed due to [%s] on Step [%d of %d]',[cmd,e.Message,i,High(objs)]);
+              end;
+          end;
         end;
-      end;
+  finally
+    layer := '';
+  end;
 end;
 
 procedure FREDB_ApplyNotificationBlockToNotifIF_Connection(const block: IFRE_DB_Object; const deploy_if: IFRE_DB_DBChangedNotificationConnection);

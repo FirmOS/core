@@ -1569,9 +1569,7 @@ type
     FParentIds         : TFRE_DB_GUIDArray;
 
     FUseDepAsLinkFilt  : Boolean;
-    FUseDepFiltInvert  : Boolean;
     FSelectionDepEvents: Array of TFRE_DB_SelectionDependencyEvents;
-
 
     FParentChldLinkFldSpec : TFRE_DB_NameTypeRL;
 
@@ -1642,7 +1640,7 @@ type
 
     procedure    MyTransForm                   (const in_objects : array of IFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode ; const update_idx : NativeInt ; const rl_ins: boolean; const parentpath: TFRE_DB_String);
     procedure    TransformAllTo                (const transdata  : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure    TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt);
+    procedure    TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String);
     procedure    TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String);
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -2210,6 +2208,7 @@ type
     function    GetReferencesDetailed          (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;override;
     function    FetchDomainUIDbyName           (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
 
+    procedure   ExpandReferencesNoRightCheck   (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray); { TODO: BulkFetch }
     procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_ObjectArray); { TODO: BulkFetch, UserToken usage}
     procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);   { TODO: BulkFetch, UserToken usage}
     procedure   ExpandReferences               (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray); { TODO: BulkFetch, UserToken usage}
@@ -6417,6 +6416,17 @@ var
       //  tro.Field('icon').AsString:= FREDB_getThemedResource(fld.AsString); // icon in transformed
     end;
 
+    procedure SetParentPath(const pp:string);
+    var
+        ppart : string;
+    begin
+      tr_obj.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString := pp;
+      ppart := GFRE_BT.SepRight(pp,',');
+      if ppart='' then
+        ppart := pp;
+      tr_obj.Field(cFRE_DB_SYS_PARENT_PATH_PART).AsString := ppart;
+    end;
+
     procedure TransFormChildsForUid(const parent_tr_obj : IFRE_DB_Object ; const parentpath : string ; const depth : NativeInt ; const in_uid : TFRE_DB_GUID);
     var j          : NativeInt;
         refd_uids  : TFRE_DB_GUIDArray;
@@ -6424,10 +6434,9 @@ var
         len_chld      : NativeInt;
         in_chld_obj   : IFRE_DB_Object;
         //childs        : TFRE_DB_CHILD_LEVEL_BASE;
-        ppart         : string;
     begin
-     inc(G_DEBUG_COUNTER);
-     writeln('::::::::>> ',parentpath);
+     //inc(G_DEBUG_COUNTER);
+     //writeln('::::::::>> ',parentpath);
      refd_uids     := upconn.GetReferencesNoRightCheck(in_uid,FParentLinksChild,FParentChildScheme,FParentChildField);
      len_chld      := length(refd_uids);
      //parent_tr_obj.Field('children').AsString        := 'UNCHECKED';
@@ -6446,11 +6455,7 @@ var
              try
                tr_obj    := FTransform.TransformInOut(upconn,in_chld_obj);
                SetSpecialFields(tr_obj,in_chld_obj);
-               tr_obj.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString := parentpath;
-               ppart := GFRE_BT.SepRight(parentpath,',');
-               if ppart='' then
-                 ppart := parentpath;
-               tr_obj.Field(cFRE_DB_SYS_PARENT_PATH_PART).AsString := ppart;
+               SetParentPath(parentpath);
                transdata.SetTransformedObject(tr_obj);
                TransFormChildsForUid(tr_obj,parentpath+','+FREDB_G2H(refd_uids[j]),depth+1,refd_uids[j]); { recurse }
              finally
@@ -6483,11 +6488,13 @@ begin
                 begin
                   SetSpecialFields(tr_obj,in_object); { do not transfrom children recursive, these will come as single add updates, when inserted in a transaction }
                 end;
+              SetParentPath(parentpath);
               transdata.HandleInsertTransformedObject(tr_obj);
             end;
           trans_Update:
             begin
               SetSpecialFields(tr_obj,in_object);
+              SetParentPath(parentpath);
               transdata.HandleUpdateTransformedObject(tr_obj,update_idx);
               { do not handle child updates now, the will get handled on field update event of the parent }
             end;
@@ -6514,13 +6521,13 @@ begin
   upconn.BulkFetchNoRightCheck(uids,objs);
   if record_cnt<>Length(objs) then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'recordcount mismatch / collcount vs bulkfetch (%d<>%d)',[record_cnt,Length(objs)]);
-  MyTransForm(objs,transdata,record_cnt,lazy_child_expand,trans_Insert,-1,false,CFRE_DB_NullGUID);
+  MyTransForm(objs,transdata,record_cnt,lazy_child_expand,trans_Insert,-1,false,'');
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean ; const upd_idx : NativeInt);
+procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt; const parentpath_full: TFRE_DB_String);
 var rec_cnt:NativeInt;
 begin
-  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_Update,upd_idx,false,CFRE_DB_NullGUID);
+  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_Update,upd_idx,false,parentpath_full);
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleInsert(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String);
@@ -10276,6 +10283,48 @@ end;
 function TFRE_DB_CONNECTION.FetchDomainUIDbyName(const name: TFRE_DB_NameType; var domain_uid: TFRE_DB_GUID): boolean;
 begin
   result := FSysConnection.FetchDomainUIDbyName(name,domain_uid);
+end;
+
+procedure TFRE_DB_CONNECTION.ExpandReferencesNoRightCheck(ObjectList: TFRE_DB_GUIDArray; ref_constraints: TFRE_DB_NameTypeRLArray; var expanded_refs: TFRE_DB_GUIDArray);
+var i        : NativeInt;
+    obj      : TFRE_DB_Object;
+    comparef : TFRE_DB_NameType;
+    count    : NativeInt;
+
+  procedure FetchChained(uid:TGuid ; field_chain : TFRE_DB_NameTypeRLArray ; depth : NativeInt);
+  var obrefs   : TFRE_DB_GUIDArray; //TFRE_DB_ObjectReferences;
+      i,k      : NativeInt;
+      scheme   : TFRE_DB_NameType;
+      field    : TFRE_DB_NameType;
+      outbound : Boolean;
+      spos     : NativeInt;
+  begin
+    if depth<length(field_chain) then
+      begin
+        outbound := FREDB_SplitRefLinkDescription(field_chain[depth],field,scheme);
+        obrefs   := GetReferencesNoRightCheck(uid,outbound,scheme,field); // GetReferencesDetailed(uid,outbound,scheme,field);
+        for i := 0 to  high(obrefs) do
+          begin
+              FetchChained(obrefs[i],field_chain,depth+1);
+          end;
+      end
+    else
+      begin
+        if Length(expanded_refs) = count then
+          SetLength(expanded_refs,Length(expanded_refs)+256);
+        if FREDB_GuidInArray(uid,expanded_refs)=-1 then
+          begin
+            expanded_refs[count] := uid;
+            inc(count);
+          end;
+      end;
+  end;
+begin
+  SetLength(expanded_refs,0);
+  count := 0;
+  for i := 0 to High(ObjectList) do
+    FetchChained(ObjectList[i],ref_constraints,0);
+  SetLength(expanded_refs,count);
 end;
 
 procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints : TFRE_DB_NameTypeRLArray ; var expanded_refs: TFRE_DB_ObjectArray);
