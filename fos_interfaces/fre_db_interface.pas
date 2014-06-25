@@ -1905,7 +1905,7 @@ type
     procedure   SetFilterNeedsUpdate    ;
     constructor Create                  (const key : TFRE_DB_NameType);
     function    Clone                   : TFRE_DB_FILTER_BASE;virtual; abstract;
-    procedure   CheckReflinkUpdateEvent (const key_descr : TFRE_DB_NameTypeRL); virtual ;{ check if a given qry filter, needs to send updates on RL changes }
+    function    CheckReflinkUpdateEvent (const key_descr : TFRE_DB_NameTypeRL) : boolean; virtual ;{ check if a given qry filter, needs to send updates on RL changes }
   end;
 
 
@@ -1941,7 +1941,7 @@ type
   TFRE_DB_QUERY_BASE=class
     function  GetQueryID         : TFRE_DB_NameType; virtual; abstract;
     procedure SetBaseOrderedData (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);virtual;abstract;
-    function  Execute            (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;virtual;abstract;
+    function  ExecuteQuery       (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;virtual;abstract;
   end;
 
   TFRE_DB_CHILD_LEVEL_BASE=class
@@ -3838,9 +3838,9 @@ begin
   FNeedsReEvaluate := false;
 end;
 
-procedure TFRE_DB_FILTER_BASE.CheckReflinkUpdateEvent(const key_descr: TFRE_DB_NameTypeRL);
+function TFRE_DB_FILTER_BASE.CheckReflinkUpdateEvent(const key_descr: TFRE_DB_NameTypeRL): boolean;
 begin
-
+  result := false;
 end;
 
 { TFRE_DB_AUDIT_ENTRY }

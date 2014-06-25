@@ -35,7 +35,11 @@ unit fre_db_core_transdata;
 (§LIC_END)
 }
 
-{ TODO - Repeat check Filterings for long not used ones, prune them }
+{
+  TODO:
+  *) Repeat check Filterings for long not used ones, prune them
+  *) CRITICAL: (!) Update ResultDBO Array of Query on Notification !
+}
 
 {$mode objfpc}{$H+}
 {$modeswitch nestedprocvars}
@@ -194,12 +198,13 @@ type
     FRL_Spec      : TFRE_DB_NameTypeRLArray;
     FStartValues  : TFRE_DB_GUIDArray;
   public
-    function  Clone            : TFRE_DB_FILTER_BASE;override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
-    function  GetDefinitionKey : TFRE_DB_NameType; override;
-    procedure ExpandReferences (const dbc : IFRE_DB_CONNECTION);
-    procedure InitFilter       (const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean ;  const dbname: TFRE_DB_NameType);
-    procedure ReEvaluateFilter ; override;
+    function  Clone                   : TFRE_DB_FILTER_BASE;override;
+    function  CheckFilterHit          (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  GetDefinitionKey        : TFRE_DB_NameType; override;
+    procedure ExpandReferences        (const dbc : IFRE_DB_CONNECTION);
+    procedure InitFilter              (const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean ;  const dbname: TFRE_DB_NameType);
+    procedure ReEvaluateFilter        ; override;
+    function  CheckReflinkUpdateEvent (const key_descr: TFRE_DB_NameTypeRL) : boolean; override;
   end;
 
 
@@ -292,7 +297,7 @@ type
     function    GetFilterKey                 : TFRE_DB_TRANS_COLL_FILTER_KEY;
     function    DoesObjectPassFilters        (const obj : IFRE_DB_Object) : boolean;
     procedure   CheckDBReevaluationFilters   ;
-    procedure   CheckAutoDependencyFilter    (const key_description : TFRE_DB_NameTypeRL);
+    function    CheckAutoDependencyFilter    (const key_description : TFRE_DB_NameTypeRL):boolean;
     //procedure
   end;
 
@@ -300,8 +305,8 @@ type
 
   TFRE_DB_QUERY=class(TFRE_DB_QUERY_BASE)
   private
-    function GetFilterDefinition: TFRE_DB_DC_FILTER_DEFINITION;
-    function GetOrderDefinition: TFRE_DB_DC_ORDER_DEFINITION;
+    function  GetFilterDefinition: TFRE_DB_DC_FILTER_DEFINITION;
+    function  GetOrderDefinition: TFRE_DB_DC_ORDER_DEFINITION;
   protected
      FBaseData               : TFRE_DB_TRANS_COLL_DATA;      { assigned transformed and ordered data }
      FConnection             : IFRE_DB_CONNECTION;           { used for right profile check (implicit righfilter) }
@@ -322,7 +327,8 @@ type
      FFullTextFilter         : TFRE_DB_String;               { use this on all string fields, if set}
      FStartIdx               : NativeInt;                    { }
      FToDeliverCount         : NativeInt;                    { }
-     //FResultDBOs             : TFRE_DB_GUIDArray;            { remember all uids of this query }
+     FResultDBOs             : IFRE_DB_ObjectArray;          { remember all objs of this query, need to update that list by notify updates, need to hold that list to check against changes in filterchanges }
+     FResultDBOsCompare      : IFRE_DB_ObjectArray;          { due to a filter update rerun the query - store in compare array, compare, send updates, switch the arrays }
 
      FQueryRunning           : boolean;
      FQueryStartTime         : NativeInt;
@@ -334,26 +340,27 @@ type
      FQCreationTime          : TFRE_DB_DateTime64;
      FSessionID              : String;
 
-     procedure               StartQueryRun;
-     procedure               EndQueryRun;
      function                GetReflinkSpec        (const upper_refid : TFRE_DB_NameType):TFRE_DB_NameTypeRLArray;
      function                GetReflinkStartValues (const upper_refid : TFRE_DB_NameType):TFRE_DB_GUIDArray; { start values for the RL expansion }
-     //function                TestObjAgainstQueryFilterAndIncIdx (const obj : IFRE_DB_Object): Boolean; { filter must match and start condition must match, true=add to result }
   public
+     procedure   SetResultObject                   (const idx: NativeInt; const obj: IFRE_DB_Object ; const compare_run : boolean);
+     procedure   AddjustResultDBOLen               (const compare_run : boolean);
+     procedure   SetMaxResultDBOLen                (const compare_run : boolean);
+     procedure   StartQueryRun                     (const compare_run : boolean);
+     procedure   EndQueryRun                       (const compare_run : boolean);
+
      constructor Create;
-     destructor  Destroy              ; override;
-     function    GetQueryID           : TFRE_DB_NameType; override;
-     function    HasOrderDefinition   : boolean;
-     property    Orderdef             : TFRE_DB_DC_ORDER_DEFINITION  read GetOrderDefinition;  { lazy create on access}
-     property    Filterdef            : TFRE_DB_DC_FILTER_DEFINITION read GetFilterDefinition; { lazy create on access}
-     function    GetBaseTransDataKey  : TFRE_DB_TRANS_COLL_DATA_KEY;
-     function    GetFullQueryOrderKey : TFRE_DB_TRANS_COLL_DATA_KEY;
-     procedure   SetBaseOrderedData   (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);override;
-     //procedure   SetMaxResultDBOLen   ;
-     //procedure   SetResultUID         (const idx: NativeInt; const uid: TFRE_DB_GUID);
-     //procedure   AddjustResultDBOLen  ;
-     function    Execute              (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;override; { execute the query, determine count and array of result dbo's }
-     function    GetStoreID           : TFRE_DB_NameType;
+     destructor  Destroy                           ; override;
+     function    GetQueryID                        : TFRE_DB_NameType; override;
+     function    HasOrderDefinition                : boolean;
+     property    Orderdef                          : TFRE_DB_DC_ORDER_DEFINITION  read GetOrderDefinition;  { lazy create on access}
+     property    Filterdef                         : TFRE_DB_DC_FILTER_DEFINITION read GetFilterDefinition; { lazy create on access}
+     function    GetBaseTransDataKey               : TFRE_DB_TRANS_COLL_DATA_KEY;
+     function    GetFullQueryOrderKey              : TFRE_DB_TRANS_COLL_DATA_KEY;
+     procedure   SetBaseOrderedData                (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);override;
+     function    ExecuteQuery                      (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;override; { execute the query, determine count and array of result dbo's }
+     procedure   ProcessFilterChangeBasedUpdates   ;
+     function    GetStoreID                        : TFRE_DB_NameType;
   end;
 
 
@@ -460,7 +467,7 @@ type
   public
     property    IsFilled                      : boolean read FFilled write SetFilled;
     procedure   CheckDBReevaluation           ;
-    procedure   Execute                       (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY);
+    procedure   Execute                       (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY ; const compare_run : boolean); { compare run = second run on filter updates }
     procedure   CheckFilteredAdd              (const obj : IFRE_DB_Object);
     procedure   Notify_CheckFilteredUpdate    (const td  : TFRE_DB_TRANS_COLL_DATA ; const old_obj,new_obj : IFRE_DB_Object ; const order_changed : boolean); { invoke session update }
     function    Notify_CheckFilteredDelete    (const td  : TFRE_DB_TRANS_COLL_DATA ; const old_obj         : IFRE_DB_Object ; const do_qry_proc : boolean=true) : NativeInt; { invoke session update }
@@ -495,7 +502,7 @@ type
     procedure    UnlockBase              ; override;
     constructor  Create                  (const orderdef : TFRE_DB_DC_ORDER_DEFINITION ; base_trans_data : TFRE_DB_TRANFORMED_DATA);
     destructor   Destroy                 ; override;
-    procedure    Execute                 (const iter : IFRE_DB_Obj_Iterator ; const qry_context : TFRE_DB_QUERY);
+    procedure    Execute                 (const iter : IFRE_DB_Obj_Iterator ; const qry_context : TFRE_DB_QUERY ; const compare_run : boolean);
     procedure    OrderTheData            ;
     function     GetFullKey              : TFRE_DB_TRANS_COLL_DATA_KEY; override;
     procedure    UpdateTransformedobject (const old_obj,new_object : IFRE_DB_Object);
@@ -879,6 +886,23 @@ var db : IFRE_DB_CONNECTION;
 begin
   db := G_TCDM.DBC(FDBName);
   ExpandReferences(db);
+end;
+
+function TFRE_DB_FILTER_AUTO_DEPENDENCY.CheckReflinkUpdateEvent(const key_descr: TFRE_DB_NameTypeRL): boolean;
+var
+  i: NativeInt;
+begin
+  result := false;
+  for i := 0 to high(FRL_Spec) do
+     begin
+       if key_descr=FRL_Spec[i] then
+         begin
+           result := true;
+           break;
+         end;
+     end;
+  if result then
+    ReEvaluateFilter;
 end;
 
 
@@ -2039,26 +2063,26 @@ begin
   result := FFilters.DoesObjectPassFilters(obj);
 end;
 
-procedure TFRE_DB_FilterContainer.Execute(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY);
+procedure TFRE_DB_FilterContainer.Execute(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY; const compare_run: boolean);
 var i   : NativeInt;
     obj : IFRE_DB_Object;
 begin
   //if qry_context.FStartIdx > High(FOBJArray) then
   //  raise EFRE_DB_Exception.Create(edb_MISMATCH,'query start point too high');
   qry_context.FQueryPotentialCount := FCnt;
-  //qry_context.SetMaxResultDBOLen;
+  qry_context.SetMaxResultDBOLen(compare_run);
   for i:=qry_context.FStartIdx to High(FOBJArray) do
     begin
       obj := FOBJArray[i].CloneToNewObject();
-      //obj.DeleteField(cFRE_DB_SYS_ORDER_REF_KEY); { remove order ref backlink key }
-      iter(obj);
-      //qry_context.SetResultUID(qry_context.FQueryCurrIdx,obj.UID);
+      if assigned(iter) then { compare run does not need the objects }
+        iter(obj);
+      qry_context.SetResultObject(qry_context.FQueryCurrIdx,obj,compare_run);
       inc(qry_context.FQueryCurrIdx);
       inc(qry_context.FQueryDeliveredCount);
       if qry_context.FQueryDeliveredCount=qry_context.FToDeliverCount then
         break;
     end;
-  //qry_context.AddjustResultDBOLen;
+  qry_context.AddjustResultDBOLen(compare_run);
 end;
 
 procedure TFRE_DB_FilterContainer.CheckFilteredAdd(const obj: IFRE_DB_Object);
@@ -2477,14 +2501,17 @@ begin
     end;
 end;
 
-procedure TFRE_DB_DC_FILTER_DEFINITION.CheckAutoDependencyFilter(const key_description: TFRE_DB_NameTypeRL);
-var i : NativeInt;
-    f : TFRE_DB_FILTER_BASE;
+function TFRE_DB_DC_FILTER_DEFINITION.CheckAutoDependencyFilter(const key_description: TFRE_DB_NameTypeRL): boolean;
+var i    : NativeInt;
+    f    : TFRE_DB_FILTER_BASE;
+    need : boolean;
 begin
+ result := false;
   for i := 0 to FKeyList.Count-1 do
     begin
-      f := FKeyList.Items[i] as TFRE_DB_FILTER_BASE;
-      f.CheckReflinkUpdateEvent(key_description);
+      f      := FKeyList.Items[i] as TFRE_DB_FILTER_BASE;
+      need   := f.CheckReflinkUpdateEvent(key_description);
+      result := result or need;
     end;
 end;
 
@@ -2688,19 +2715,25 @@ begin
   result := FOrderDef;
 end;
 
-procedure TFRE_DB_QUERY.StartQueryRun;
+procedure TFRE_DB_QUERY.StartQueryRun(const compare_run: boolean);
 begin
   FQueryRunning   := true;
   FQueryCurrIdx   := 0;
   FQueryStartTime := GFRE_BT.Get_Ticks_ms;
-  GFRE_DBI.LogDebug(dblc_QUERY,'QUERY ID [%s] start',[FQueryId]);
+  if not compare_run then
+    GFRE_DBI.LogDebug(dblc_QUERY,'QUERY ID [%s] start',[FQueryId])
+  else
+    GFRE_DBI.LogDebug(dblc_QUERY,'COMPARE/QUERY ID [%s] start',[FQueryId])
 end;
 
-procedure TFRE_DB_QUERY.EndQueryRun;
+procedure TFRE_DB_QUERY.EndQueryRun(const compare_run: boolean);
 begin
   FQueryEndTime := GFRE_BT.Get_Ticks_ms;
   FQueryRunning := False;
-  GFRE_DBI.LogInfo(dblc_QUERY,'QUERY ID [%s] finished in %d ms',[FQueryId,FQueryEndTime-FQueryStartTime]);
+  if not compare_run then
+    GFRE_DBI.LogInfo(dblc_QUERY,'QUERY ID [%s] finished in %d ms',[FQueryId,FQueryEndTime-FQueryStartTime])
+  else
+    GFRE_DBI.LogInfo(dblc_QUERY,'COMPARE/QUERY ID [%s] finished in %d ms',[FQueryId,FQueryEndTime-FQueryStartTime]);
 end;
 
 function TFRE_DB_QUERY.GetReflinkSpec(const upper_refid: TFRE_DB_NameType): TFRE_DB_NameTypeRLArray;
@@ -2768,29 +2801,52 @@ begin
   FSessionId := session_id;
 end;
 
-//procedure TFRE_DB_QUERY.SetMaxResultDBOLen;
-//begin
-//  SetLength(FResultDBOs,FToDeliverCount);
-//end;
+procedure TFRE_DB_QUERY.SetMaxResultDBOLen(const compare_run: boolean);
+begin
+  if not compare_run then
+    SetLength(FResultDBOs,FToDeliverCount)
+  else
+    SetLength(FResultDBOsCompare,FToDeliverCount);
+end;
 
-//procedure TFRE_DB_QUERY.SetResultUID(const idx: NativeInt; const uid: TFRE_DB_GUID);
-//begin
-//  FResultDBOs[idx] := uid;
-//end;
+procedure TFRE_DB_QUERY.SetResultObject(const idx: NativeInt; const obj: IFRE_DB_Object; const compare_run: boolean);
+begin
+  if not compare_run then
+    FResultDBOs[idx] := obj
+  else
+    FResultDBOsCompare[idx] := obj;
+end;
 
-//procedure TFRE_DB_QUERY.AddjustResultDBOLen;
-//begin
-//  SetLength(FResultDBOs,FQueryDeliveredCount);
-//end;
+procedure TFRE_DB_QUERY.AddjustResultDBOLen(const compare_run: boolean);
+begin
+  if not compare_run then
+    SetLength(FResultDBOs,FQueryDeliveredCount)
+  else
+    SetLength(FResultDBOsCompare,FQueryDeliveredCount);
+end;
 
-function TFRE_DB_QUERY.Execute(const iterator: IFRE_DB_Obj_Iterator): NativeInt;
+function TFRE_DB_QUERY.ExecuteQuery(const iterator: IFRE_DB_Obj_Iterator): NativeInt;
 begin
   if not assigned(FBaseData) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'no base data available');
-  StartQueryRun;
-  FBaseData.Execute(iterator,self);
-  EndQueryRun;
+  StartQueryRun(false);
+  FBaseData.Execute(iterator,self,false);
+  EndQueryRun(false);
   result := FQueryPotentialCount;
+end;
+
+procedure TFRE_DB_QUERY.ProcessFilterChangeBasedUpdates;
+var diff,d1,d2 : NativeInt;
+begin
+  if not assigned(FBaseData) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'compare run - no base data available');
+  StartQueryRun(true);
+  FBaseData.Execute(nil,self,true);
+  EndQueryRun(true);
+  d1 := Length(FResultDBOsCompare);
+  d2 := Length(FResultDBOs);
+  diff := d1 - d2;
+  //result := FQueryPotentialCount;
 end;
 
 function TFRE_DB_QUERY.GetStoreID: TFRE_DB_NameType;
@@ -3298,7 +3354,8 @@ procedure TFRE_DB_TRANSDATA_MANAGER.SetupOutboundRefLink(const from_obj: TGUID; 
 
   procedure CheckAutoFilterUpdates(const qry : TFRE_DB_QUERY);
   begin
-    qry.GetFilterDefinition.CheckAutoDependencyFilter(key_description);
+    if qry.GetFilterDefinition.CheckAutoDependencyFilter(key_description) then
+        qry.ProcessFilterChangeBasedUpdates;
   end;
 
 begin
@@ -3318,10 +3375,18 @@ procedure TFRE_DB_TRANSDATA_MANAGER.SetupInboundRefLink(const from_obj: IFRE_DB_
     tcd.SetupInboundRefLink(from_obj.CloneToNewObject,to_obj,key_description);
   end;
 
+  procedure CheckAutoFilterUpdates(const qry : TFRE_DB_QUERY);
+  begin
+    if qry.GetFilterDefinition.CheckAutoDependencyFilter(key_description) then
+        qry.ProcessFilterChangeBasedUpdates;
+  end;
+
+
 begin
   LockManager;
   try
     FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
+    ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
   finally
     UnlockManager;
   end;
@@ -3334,10 +3399,18 @@ procedure TFRE_DB_TRANSDATA_MANAGER.InboundReflinkDropped(const from_obj: IFRE_D
     tcd.InboundReflinkDropped(from_obj.CloneToNewObject,to_obj,key_description);
   end;
 
+  procedure CheckAutoFilterUpdates(const qry : TFRE_DB_QUERY);
+  begin
+    if qry.GetFilterDefinition.CheckAutoDependencyFilter(key_description) then
+        qry.ProcessFilterChangeBasedUpdates;
+  end;
+
+
 begin
   LockManager;
   try
     FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
+    ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
   finally
     UnlockManager;
   end;
@@ -3350,10 +3423,18 @@ procedure TFRE_DB_TRANSDATA_MANAGER.OutboundReflinkDropped(const from_obj: TGUID
     tcd.OutboundReflinkDropped(from_obj,to_obj.CloneToNewObject,key_description);
   end;
 
+  procedure CheckAutoFilterUpdates(const qry : TFRE_DB_QUERY);
+  begin
+    if qry.GetFilterDefinition.CheckAutoDependencyFilter(key_description) then
+        qry.ProcessFilterChangeBasedUpdates;
+  end;
+
+
 begin
   LockManager;
   try
     FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
+    ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
   finally
     UnlockManager;
   end;
@@ -4249,7 +4330,7 @@ begin
 end;
 
 
-procedure TFRE_DB_TRANS_COLL_DATA.Execute(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY);
+procedure TFRE_DB_TRANS_COLL_DATA.Execute(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY; const compare_run: boolean);
 var brk        : boolean;
     filtkey    : TFRE_DB_TRANS_COLL_FILTER_KEY;
     filtercont : TFRE_DB_FilterContainer;
@@ -4297,7 +4378,7 @@ begin
       et := GFRE_BT.Get_Ticks_ms;
       GFRE_DBI.LogInfo(dblc_DBTDM,'<NEW FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s] DONE in %d ms',[GetFullKey.key,filtkey,et-st]);
     end;
-  filtercont.Execute(iter,qry_context);
+  filtercont.Execute(iter,qry_context,compare_run);
 end;
 
 procedure TFRE_DB_TRANS_COLL_DATA.UpdateTransformedobject(const old_obj, new_object: IFRE_DB_Object);

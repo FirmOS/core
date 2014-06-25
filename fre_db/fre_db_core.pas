@@ -6953,9 +6953,8 @@ var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
     begin
       cnt := 0;
       result := TFRE_DB_STORE_DATA_DESC.create;
-      cnt := query.Execute(@GetData);
+      cnt := query.ExecuteQuery(@GetData);
       TFRE_DB_STORE_DATA_DESC(Result).Describe(cnt);
-
 
      //if lOrderChanged or (not FInitialDerived)  then begin
      //   FInitialDerived := true;
