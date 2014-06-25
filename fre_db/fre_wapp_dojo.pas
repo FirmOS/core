@@ -568,6 +568,7 @@ implementation
     store_res_descr: TFRE_DB_STORE_DATA_DESC;
     serverFunc     : TFRE_DB_SERVER_FUNC_DESC;
     caption        : String;
+    defValue       : String;
   begin
      store:=_getStoreById(co.FieldPath('store.id').AsString,stores);
      case String2DBChooserDH(co.Field('displayHint').AsString) of
@@ -577,8 +578,14 @@ implementation
                              jsContentAdd('" disabled "+');
                            end;
                            jsContentAdd('"  data-dojo-props=''"+');
-                           if co.Field('defaultValue').AsString<>'' then begin
-                             jsContentAdd('" value: \"'+ _EscapeValueString(co.Field('defaultValue').AsString) +'\""+');
+                           if co.Field('defaultValue').ValueCount>0 then begin
+                             defValue:='[';
+                             for i := 0 to co.Field('defaultValue').ValueCount - 1 do begin
+                               if i>0 then defValue:=defValue+',';
+                               defValue:=defValue+'\"'+ _EscapeValueString(co.Field('defaultValue').AsStringItem[i]) +'\"';
+                             end;
+                             defValue:=defValue+']';
+                             jsContentAdd('" value: '+defValue+'"+');
                            end;
                            jsContentAdd('"''>"+');
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin

@@ -2173,8 +2173,8 @@ begin
   g.AddNumber.Describe('Number','number');
   g.AddNumber.Describe('Real','real1',false,false,false,false,'',2);
   g.AddChooser.Describe('Chooser','chooser1',store);
-  g.AddChooser.Describe('Chooser CHECK','chooser2',store,false,dh_chooser_check);
-  g.AddChooser.Describe('Chooser RADIO','chooser3',store,true,dh_chooser_radio);
+  g.AddChooser.Describe('Chooser CHECK','chooser2',store,dh_chooser_check);
+  g.AddChooser.Describe('Chooser RADIO','chooser3',store,dh_chooser_radio);
   g.AddRecurrence.Describe('Recurrence','recurrence');
 
   g:=res.AddGroup.Describe('GROUP COLLAPSIBLE',true,false);
@@ -2184,8 +2184,8 @@ begin
   g.AddNumber.Describe('Number','g2.number');
   g.AddNumber.Describe('Real','g2.real',false,false,false,false,'',2);
   g.AddChooser.Describe('Chooser','g2.chooser1',store);
-  g.AddChooser.Describe('Chooser CHECK','g2.chooser2',store,false,dh_chooser_check);
-  g.AddChooser.Describe('Chooser RADIO','g2.chooser3',store,true,dh_chooser_radio);
+  g.AddChooser.Describe('Chooser CHECK','g2.chooser2',store,dh_chooser_check);
+  g.AddChooser.Describe('Chooser RADIO','g2.chooser3',store,dh_chooser_radio);
 
   g:=res.AddGroup.Describe('GROUP COLLAPSED - GROUP REQUIRED',true,true);
   g.AddInput.Describe('Text','g3.text',false,true);
@@ -2193,8 +2193,8 @@ begin
   g.AddDate.Describe('Date','g3.date',false,true);
   g.AddNumber.Describe('Number','g3.number',false,true);
   g.AddNumber.Describe('Real','g3.real',false,true,false,false,'',2);
-  g.AddChooser.Describe('Chooser','g3.chooser3',store,true,dh_chooser_combo,false,true);
-  g.AddChooser.Describe('Chooser CHECK','g3.chooser3',store,false,dh_chooser_check,false,true);
+  g.AddChooser.Describe('Chooser','g3.chooser3',store,dh_chooser_combo,false,true);
+  g.AddChooser.Describe('Chooser CHECK','g3.chooser3',store,dh_chooser_check,false,true);
 
   res.AddButton.Describe('Save',CWSF(@WEB_HelloWorld),fdbbt_submit);
   Result:=res;
@@ -2219,9 +2219,9 @@ begin
   g.AddDate.Describe('Date','date',false,false,false,false,'1344937865215');
   g.AddNumber.Describe('Number','number',false,false,false,false,'3');
   g.AddNumber.Describe('Real','real1',false,false,false,false,'3.5',2);
-  g.AddChooser.Describe('Chooser','chooser1',store,false,dh_chooser_combo,false,false,false,false,'v4');
-  g.AddChooser.Describe('Chooser CHECK','chooser2',store,false,dh_chooser_check,false,false,false,false,'v5');
-  g.AddChooser.Describe('Chooser RADIO','chooser3',store,true,dh_chooser_radio,false,false,false,false,'v6');
+  g.AddChooser.Describe('Chooser','chooser1',store,dh_chooser_combo,false,false,false,false,'v4');
+  g.AddChooser.Describe('Chooser CHECK','chooser2',store,dh_chooser_check,false,false,false,false,'v5');
+  g.AddChooser.Describe('Chooser RADIO','chooser3',store,dh_chooser_radio,false,false,false,false,'v6');
 
   g:=res.AddGroup.Describe('GROUP COLLAPSIBLE',true,false);
   g.AddInput.Describe('Text','g2.text');
@@ -2230,8 +2230,8 @@ begin
   g.AddNumber.Describe('Number','g2.number');
   g.AddNumber.Describe('Real','g2.real',false,false,false,false,'',2);
   g.AddChooser.Describe('Chooser','g2.chooser1',store);
-  g.AddChooser.Describe('Chooser CHECK','g2.chooser2',store,false,dh_chooser_check);
-  g.AddChooser.Describe('Chooser RADIO','g2.chooser3',store,true,dh_chooser_radio);
+  g.AddChooser.Describe('Chooser CHECK','g2.chooser2',store,dh_chooser_check);
+  g.AddChooser.Describe('Chooser RADIO','g2.chooser3',store,dh_chooser_radio);
 
   g:=res.AddGroup.Describe('GROUP COLLAPSED - GROUP REQUIRED',true,true);
   g.AddInput.Describe('Text','g3.text',false,true);
@@ -2239,8 +2239,8 @@ begin
   g.AddDate.Describe('Date','g3.date',false,true);
   g.AddNumber.Describe('Number','g3.number',false,true);
   g.AddNumber.Describe('Real','g3.real',false,true,false,false,'',2);
-  g.AddChooser.Describe('Chooser','g3.chooser3',store,true,dh_chooser_combo,false,true);
-  g.AddChooser.Describe('Chooser CHECK','g3.chooser3',store,false,dh_chooser_check,false,true);
+  g.AddChooser.Describe('Chooser','g3.chooser3',store,dh_chooser_combo,false,true);
+  g.AddChooser.Describe('Chooser CHECK','g3.chooser3',store,dh_chooser_check,false,true);
 
   Result:=res;
 end;
