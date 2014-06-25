@@ -87,7 +87,7 @@ type
   TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_MISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
   TFRE_DB_FILTERTYPE          = (dbf_TEXT,dbf_SIGNED,dbf_UNSIGNED,dbf_DATETIME,dbf_BOOLEAN,dbf_CURRENCY,dbf_REAL64,dbf_GUID,dbf_SCHEME,dbf_RIGHT,dbf_EMPTY);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART); { currently only the first value of the filter is uses in this modes }
-  TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter);
+  TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
   TFRE_DB_SchemeType          = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
   TFRE_DB_COMMANDTYPE         = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
   TFRE_DB_SUBSEC_DISPLAY_TYPE = (sec_dt_tab,sec_dt_vertical,sec_dt_hiddentab);
@@ -120,7 +120,7 @@ const
   CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','MISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
   CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','C','R','G','X','Z','E');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
-  CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','LE','LEQ','GT','GEQ','REXB','RWIB','AVFF','OVFV');
+  CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','LE','LEQ','GT','GEQ','REXB','RWIB','AVFF','OVFV','NVFF');
   CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM','QUERY','DBTDM');
   CFRE_DB_LOGCATEGORY_INI_IDENT  : Array[TFRE_DB_LOGCATEGORY]             of String = ('NONE','PERSISTANCE','PERSISTANCE_NOTIFY','DB','MEMORY','REFERENCES','EXCEPTION','SERVER','HTTP_REQ','HTTP_RES','WEBSOCK','APPLICATION','SESSION','FLEXCOM','SERVER_DATA','WS_JSON','FLEX_IO','APSCOMM','HTTP_ZIP','HTTP_CACHE','STREAMING','QUERY','DBTM');
   CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');

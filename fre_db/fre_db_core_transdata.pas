@@ -1218,6 +1218,12 @@ var multivalfield : boolean;
     inc(flt_errors); { not implemented }
   end;
 
+  procedure NoValue;
+  begin
+    error_fld:=true;
+    inc(flt_errors); { not implemented }
+  end;
+
 begin
   error_fld := false;
   if obj.FieldOnlyExisting(FFieldname,fld) then
@@ -1235,6 +1241,7 @@ begin
           dbnf_IN_RANGE_WITH_BOUNDS: DoWithBounds;
           dbnf_AllValuesFromFilter:  AllValues;
           dbnf_OneValueFromFilter:   OneValue;
+          dbnf_NoValueInFilter:      NoValue;
         end;
       except { invalid conversion }
         error_fld := true;
@@ -1269,6 +1276,7 @@ begin
       if Length(filtervalues)<>2 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the real64 filter with numfiltertype %s, needs exactly two bounding values',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_AllValuesFromFilter,
+    dbnf_NoValueInFilter,
     dbnf_OneValueFromFilter:
       if Length(filtervalues)=0 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the real64 filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
@@ -1338,6 +1346,13 @@ var multivalfield : boolean;
     inc(flt_errors); { not implemented }
   end;
 
+  procedure NoValue;
+  begin
+    error_fld:=true;
+    inc(flt_errors); { not implemented }
+  end;
+
+
 begin
   error_fld := false;
   if obj.FieldOnlyExisting(FFieldname,fld) then
@@ -1355,6 +1370,7 @@ begin
           dbnf_IN_RANGE_WITH_BOUNDS: DoWithBounds;
           dbnf_AllValuesFromFilter:  AllValues;
           dbnf_OneValueFromFilter:   OneValue;
+          dbnf_NoValueInFilter:      NoValue;
         end;
       except { invalid conversion }
         error_fld := true;
@@ -1389,6 +1405,7 @@ begin
       if Length(filtervalues)<>2 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the datetime filter with numfiltertype %s, needs exactly two bounding values',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_AllValuesFromFilter,
+    dbnf_NoValueInFilter,
     dbnf_OneValueFromFilter:
       if Length(filtervalues)=0 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the datetime filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
@@ -1458,6 +1475,12 @@ var multivalfield : boolean;
     inc(flt_errors); { not implemented }
   end;
 
+  procedure NoValue;
+  begin
+    error_fld:=true;
+    inc(flt_errors); { not implemented }
+  end;
+
 begin
   error_fld := false;
   if obj.FieldOnlyExisting(FFieldname,fld) then
@@ -1475,7 +1498,8 @@ begin
           dbnf_IN_RANGE_WITH_BOUNDS: DoWithBounds;
           dbnf_AllValuesFromFilter:  AllValues;
           dbnf_OneValueFromFilter:   OneValue;
-        end;
+          dbnf_NoValueInFilter:      NoValue;
+      end;
       except { invalid conversion }
         error_fld := true;
         inc(flt_errors);
@@ -1509,6 +1533,7 @@ begin
       if Length(filtervalues)<>2 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the currency filter with numfiltertype %s, needs exactly two bounding values',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_AllValuesFromFilter,
+    dbnf_NoValueInFilter,
     dbnf_OneValueFromFilter:
       if Length(filtervalues)=0 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the currency filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
@@ -1645,44 +1670,43 @@ begin
             end;
           dbnf_OneValueFromFilter:  {}
             begin
-              if not fnegate then
-                begin
-                  result := false;
-                  for i:=0 to high(fieldvals) do
-                   for j:=0 to high(FValues) do
-                     if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
-                       begin
-                         result := true;
-                         break;
-                       end;
-                end
-              else
-                begin
-                  if length(FValues)=0 then
-                    exit;
-                  result := true;
-                  for i:=0 to high(fieldvals) do
-                   for j:=0 to high(FValues) do
-                     if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
-                       begin
-                         result := false;
-                         break;
-                       end;
-              //dbnf_NoValueInFilter:    begin
-              //                           add := true;
-              //                           if length(guid_filt_vals)=0 then
-              //                             exit;
-              //                           for i:=0 to high(guid_field_vals) do begin
-              //                             for j:=0 to high(guid_filt_vals) do begin
-              //                               if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
-              //                                 add := false;
-              //                                 exit;
-              //                               end;
-              //                             end;
-              //                           end;
-              //                         end;
-                end;
+              result := false;
+              for i:=0 to high(fieldvals) do
+               for j:=0 to high(FValues) do
+                 if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
+                   begin
+                     result := true;
+                     break;
+                   end;
             end;
+          dbnf_NoValueInFilter:
+            begin
+              if length(FValues)=0 then
+                  exit;
+                result := true;
+                for i:=0 to high(fieldvals) do
+                 for j:=0 to high(FValues) do
+                   if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
+                     begin
+                       result := false;
+                       break;
+                     end;
+            end;
+
+          //dbnf_NoValueInFilter:    begin
+          //                           add := true;
+          //                           if length(guid_filt_vals)=0 then
+          //                             exit;
+          //                           for i:=0 to high(guid_field_vals) do begin
+          //                             for j:=0 to high(guid_filt_vals) do begin
+          //                               if FREDB_Guids_Same(guid_field_vals[i],guid_filt_vals[j]) then begin
+          //                                 add := false;
+          //                                 exit;
+          //                               end;
+          //                             end;
+          //                           end;
+          //                         end;
+
           dbnf_AllValuesFromFilter: { all fieldvalues must be in filter}
             begin
               error_fld:=true;
@@ -1696,7 +1720,7 @@ begin
     end
   else { fld is null }
     result := FAllowNull;
-  result := result or error_fld; { invert result, or filter error results }
+  result := (result xor fnegate) or error_fld; { invert result, or filter error results }
 end;
 
 function TFRE_DB_FILTER_UID.GetDefinitionKey: TFRE_DB_NameType;
@@ -1728,6 +1752,7 @@ begin
         raise EFRE_DB_Exception.Create(edb_ERROR,'the uid filter with numfiltertype %s, needs exactly one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_AllValuesFromFilter,
     dbnf_OneValueFromFilter: ; { empty array is allowed }
+    dbnf_NoValueInFilter: ; { empty array is allowed }
       //if Length(filtervalues)=0 then
       //  raise EFRE_DB_Exception.Create(edb_ERROR,'the uid filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_LESSER,
@@ -1853,6 +1878,7 @@ begin
       if Length(filtervalues)<>2 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the unsigned filter with numfiltertype %s, needs exactly two bounding values',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_AllValuesFromFilter,
+    dbnf_NoValueInFilter,
     dbnf_OneValueFromFilter:
       if Length(filtervalues)=0 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the unsigned filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
@@ -1916,6 +1942,12 @@ var multivalfield : boolean;
     inc(flt_errors); { not implemented }
   end;
 
+  procedure NoValue;
+  begin
+    error_fld:=true;
+    inc(flt_errors); { not implemented }
+  end;
+
   procedure OneValue;
   begin
     error_fld:=true;
@@ -1939,6 +1971,7 @@ begin
           dbnf_IN_RANGE_WITH_BOUNDS: DoWithBounds;
           dbnf_AllValuesFromFilter:  AllValues;
           dbnf_OneValueFromFilter:   OneValue;
+          dbnf_NoValueInFilter:      NoValue;
         end;
       except { invalid conversion }
         error_fld := true;
@@ -1973,6 +2006,7 @@ begin
       if Length(filtervalues)<>2 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the signed filter with numfiltertype %s, needs exactly two bounding values',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
     dbnf_AllValuesFromFilter,
+    dbnf_NoValueInFilter,
     dbnf_OneValueFromFilter:
       if Length(filtervalues)=0 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'the signed filter with numfiltertype %s, needs at least one value',[CFRE_DB_NUM_FILTERTYPE[numfiltertype]]);
@@ -3682,8 +3716,11 @@ var fld : IFRE_DB_FIELD;
                  refl_spec := qry.GetReflinkSpec(ffn);
                  refl_vals := qry.GetReflinkStartValues(ffn);
                  session.GetDBConnection.ExpandReferences(refl_vals,refl_spec,expanded_uid);
-                 //qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_OneValueFromFilter,dependency_negate,fallownull);
-                 qry.Filterdef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,dependency_negate,fallownull,session.GetDBConnection.GetDatabaseName);
+                 if not dependency_negate then  here - make auto dependency filter working ! like no value}
+                   qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_OneValueFromFilter,dependency_negate,fallownull)
+                 else
+                   qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_NoValueInFilter,dependency_negate,fallownull);
+                 //qry.Filterdef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,dependency_negate,fallownull,session.GetDBConnection.GetDatabaseName);
                end
              else
                begin { "normal" UID Filter}
