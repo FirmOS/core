@@ -1372,7 +1372,7 @@ implementation
     inherited Describe(caption,field_reference,required,groupRequired,disabled,hidden,defaultValue);
     Field('digits').AsInt16:=digits;
     if Assigned(minMax) then begin
-      if Field('minMax').ValueCount<>2 then raise EFRE_DB_Exception.Create(edb_ERROR,'minMax definition Array has to be of length 2');
+      if Length(minMax)<>2 then raise EFRE_DB_Exception.Create(edb_ERROR,'minMax definition Array has to be of length 2');
       Field('minMax').AsReal64Arr:=minMax;
     end;
     Field('steps').AsInt16:=-1;

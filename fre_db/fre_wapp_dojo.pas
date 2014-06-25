@@ -582,7 +582,7 @@ implementation
                            end;
                            jsContentAdd('"''>"+');
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
-                             jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+store.Field('entries').AsObjectItem[i].Field('caption').AsString+'</option>"+');
+                             jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
                            end;
                            jsContentAdd('"</select>"+');
                          end;
@@ -597,7 +597,7 @@ implementation
                            end;
                            jsContentAdd('"''>"+');
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
-                             jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+store.Field('entries').AsObjectItem[i].Field('caption').AsString+'</option>"+');
+                             jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
                            end;
                            jsContentAdd('"</select>"+');
                          end;
@@ -646,7 +646,7 @@ implementation
                              jsContentAdd('"  <option value=''''></option>"+');
                            end;
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
-                             jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+store.Field('entries').AsObjectItem[i].Field('caption').AsString+'</option>"+');
+                             jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
                            end;
                            if store.FieldExists('serverFunc') then begin
                              serverFunc:=store.Field('serverFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC;
@@ -746,7 +746,7 @@ implementation
           jsContentAdd('"class=''firmosFormInputTD''>"+');
           case elem.ClassName of
             'TFRE_DB_INPUT_DESCRIPTION_DESC': begin
-                                                jsContentAdd('"'+ _EscapeValueString(elem.Field('defaultValue').AsString) +'"+');
+                                                jsContentAdd('"<div class=''firmosFormDescriptionField''>'+ _EscapeValueString(elem.Field('defaultValue').AsString) +'</div>"+');
                                               end;
             'TFRE_DB_INPUT_DESC': begin
                                     _BuildInput(elem.Implementor_HC as TFRE_DB_INPUT_DESC);
