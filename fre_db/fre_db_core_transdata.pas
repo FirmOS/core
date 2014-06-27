@@ -287,7 +287,7 @@ type
     procedure   AddStdRightObjectFilter      (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=false);override;
     procedure   AddChildFilter               (const key:          TFRE_DB_NameType); override ;
     procedure   AddParentFilter              (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); override ;
-    procedure   AddAutoDependencyFilter      (const key:          TFRE_DB_NameType ; const RL_Spec : TFRE_DB_NameTypeRLArray ;  const StartDependecyValues : TFRE_DB_GUIDArray  ; const negate:boolean=false ; const include_null_values : boolean=false ; const dbname : TFRE_DB_NameType='');override;
+    procedure   AddAutoDependencyFilter      (const key:          TFRE_DB_NameType ; const RL_Spec : TFRE_DB_NameTypeRLArray ;  const StartDependecyValues : TFRE_DB_GUIDArray  ; const one_value:boolean=true ; const include_null_values : boolean=false ; const dbname : TFRE_DB_NameType='');override;
 
     function    RemoveFilter                 (const key:          TFRE_DB_NameType):boolean;override;
     function    FilterExists                 (const key:          TFRE_DB_NameType):boolean;override;
@@ -2457,11 +2457,11 @@ begin
   AddFilter(filt,false);
 end;
 
-procedure TFRE_DB_DC_FILTER_DEFINITION.AddAutoDependencyFilter(const key: TFRE_DB_NameType; const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean; const dbname: TFRE_DB_NameType);
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddAutoDependencyFilter(const key: TFRE_DB_NameType; const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const one_value: boolean; const include_null_values: boolean; const dbname: TFRE_DB_NameType);
 var filt : TFRE_DB_FILTER_AUTO_DEPENDENCY;
 begin
   filt := TFRE_DB_FILTER_AUTO_DEPENDENCY.Create(key);
-  filt.InitFilter(RL_Spec,StartDependecyValues,negate,include_null_values,dbname);
+  filt.InitFilter(RL_Spec,StartDependecyValues,one_value,include_null_values,dbname);
   AddFilter(filt,false);
 end;
 
@@ -3716,11 +3716,15 @@ var fld : IFRE_DB_FIELD;
                  refl_spec := qry.GetReflinkSpec(ffn);
                  refl_vals := qry.GetReflinkStartValues(ffn);
                  session.GetDBConnection.ExpandReferences(refl_vals,refl_spec,expanded_uid);
-                 if not dependency_negate then  here - make auto dependency filter working ! like no value}
-                   qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_OneValueFromFilter,dependency_negate,fallownull)
+                 if not dependency_negate then
+                   //qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_OneValueFromFilter,false,fallownull)
+                   qry.Filterdef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,true,fallownull,session.GetDBConnection.GetDatabaseName)
                  else
-                   qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_NoValueInFilter,dependency_negate,fallownull);
-                 //qry.Filterdef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,dependency_negate,fallownull,session.GetDBConnection.GetDatabaseName);
+                   //qry.Filterdef.AddUIDFieldFilter(filter_key,'UID',expanded_uid,dbnf_NoValueInFilter,false,fallownull);
+                   qry.Filterdef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,false,fallownull,session.GetDBConnection.GetDatabaseName);
+
+                 //here - make auto dependency filter working ! like no value}
+                // qry.Filterdef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,dependency_negate,fallownull,session.GetDBConnection.GetDatabaseName);
                end
              else
                begin { "normal" UID Filter}

@@ -2950,6 +2950,7 @@ var
   i       : Integer;
   userUid : String;
   group_id: TGuid;
+  res     : TFRE_DB_Errortype;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
@@ -2968,8 +2969,9 @@ begin
     group_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchGroupById(group_id,group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
-    if conn.sys.ModifyUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id),true)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+    res:=conn.sys.ModifyUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id),true);
+    if res<>edb_OK then
+      raise EFRE_DB_Exception.Create(res,StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
