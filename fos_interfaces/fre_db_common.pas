@@ -216,9 +216,10 @@ type
   TFRE_DB_INPUT_CHOOSER_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a chooser within a form.
-    //@ FIXXME: single_select=false not implemented yet.
-    function  Describe              (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean=true; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
+    function  Describe              (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
                                      const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
+    function  DescribeMultiValue    (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_radio;
+                                     const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:TFRE_DB_StringArray=nil): TFRE_DB_INPUT_CHOOSER_DESC;
     //@ FIXXME: only implemented for dh_chooser_combo.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
     //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
@@ -1826,12 +1827,11 @@ implementation
     end;
   end;
 
-  function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const single_select:Boolean; const display_hint:TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue:String): TFRE_DB_INPUT_CHOOSER_DESC;
+  function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint: TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue: String): TFRE_DB_INPUT_CHOOSER_DESC;
   var
-    obj: IFRE_DB_Object;
+    obj   : IFRE_DB_Object;
   begin
     inherited Describe(caption,field_reference,required,groupRequired,disabled,false,defaultValue);
-    Field('singleSelect').AsBoolean:=true;
     Field('displayHint').AsString:=CFRE_DB_CHOOSER_DH[display_hint];
     Field('addEmptyForRequired').AsBoolean:=add_empty_for_required;
     obj:=GFRE_DBI.NewObject;
@@ -1840,7 +1840,24 @@ implementation
     Field('store').AsObject:=obj;
     Field('cce').AsBoolean:=false;
     (Parent.Parent.Implementor_HC as TFRE_DB_FORM_DESC).AddStore(store);
-    result :=  self;
+    Result:=Self;
+  end;
+
+  function TFRE_DB_INPUT_CHOOSER_DESC.DescribeMultiValue(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue:TFRE_DB_StringArray): TFRE_DB_INPUT_CHOOSER_DESC;
+  var
+    defVal: String;
+    i     : Integer;
+  begin
+    if Assigned(defaultValue) then begin
+      defVal:=defaultValue[0];
+    end else begin
+      defVal:='';
+    end;
+    Describe(caption,field_reference,store,display_hint,required,groupRequired,add_empty_for_required,disabled,defVal);
+    for i := 1 to High(defaultValue) do begin
+      Field('defaultValue').AddString(defaultValue[i]);
+    end;
+    Result:=Self;
   end;
 
   procedure TFRE_DB_INPUT_CHOOSER_DESC.addFilterEvent(const filteredStoreId,refId: String);
@@ -2272,7 +2289,7 @@ implementation
           begin
             store:=TFRE_DB_STORE_DESC.create.Describe();
             coll.ForAll(@addObjects);
-            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
             chooserField.captionCompareEnabled(true);
             obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
             obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
@@ -2290,7 +2307,7 @@ implementation
           if obj^.hideSingle and (domainEntries=1) then begin
             group.AddInput.Describe('',prefix+obj^.field,false,false,false,true,domainValue);
           end else begin
-            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
             obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
             obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
           end;
@@ -2301,7 +2318,7 @@ implementation
             for i := 0 to Length(enumVals) - 1 do begin
               store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
             end;
-            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,true,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
             obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
             obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
           end else begin
