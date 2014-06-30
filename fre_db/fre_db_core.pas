@@ -2910,13 +2910,26 @@ procedure TFRE_DB_ONEONE_FT.TransformField(const conn: IFRE_DB_CONNECTION; const
 var sa        : TFRE_DB_StringArray;
     i         : nativeint;
     transbase : IFRE_DB_Object;
+    enum      : IFRE_DB_Enum;
+    enumVals  : IFRE_DB_ObjectArray;
 begin
   //if input.FieldExists(FInFieldName) then
     transbase := input;
   //else
   //  transbase := output;
   if transbase.FieldExists(FInFieldName) then begin
-    output.field(uppercase(FOutFieldName)).CloneFromField(transbase.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
+    if transbase.GetScheme().GetSchemeField(FInFieldName).getEnum(enum) then begin
+
+      enumVals:=enum.getEntries;
+      for i := 0 to Length(enumVals) - 1 do begin
+        if transbase.Field(FInFieldName).AsString=enumVals[i].Field('v').AsString then begin
+          output.field(uppercase(FOutFieldName)).AsString:=conn.FetchTranslateableTextShort(enumVals[i].Field('c').AsString);
+          break;
+        end;
+      end;
+    end else begin
+      output.field(uppercase(FOutFieldName)).CloneFromField(transbase.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
+    end;
   end else begin
     if FDefaultValue<>'' then begin
       output.field(uppercase(FOutFieldName)).AsString:=FDefaultValue;
