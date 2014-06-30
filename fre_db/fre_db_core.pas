@@ -2907,18 +2907,20 @@ begin
 end;
 
 procedure TFRE_DB_ONEONE_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object; const dependency_object: IFRE_DB_Object);
-var sa        : TFRE_DB_StringArray;
-    i         : nativeint;
-    transbase : IFRE_DB_Object;
-    enum      : IFRE_DB_Enum;
-    enumVals  : IFRE_DB_ObjectArray;
+var sa          : TFRE_DB_StringArray;
+    i           : nativeint;
+    transbase   : IFRE_DB_Object;
+    enum        : IFRE_DB_Enum;
+    enumVals    : IFRE_DB_ObjectArray;
+    scheme_field: IFRE_DB_FieldSchemeDefinition;
 begin
   //if input.FieldExists(FInFieldName) then
     transbase := input;
   //else
   //  transbase := output;
   if transbase.FieldExists(FInFieldName) then begin
-    if transbase.GetScheme().GetSchemeField(FInFieldName).getEnum(enum) then begin
+    if transbase.GetScheme().GetSchemeField(FInFieldName,scheme_field) and
+       scheme_field.getEnum(enum) then begin
 
       enumVals:=enum.getEntries;
       for i := 0 to Length(enumVals) - 1 do begin
