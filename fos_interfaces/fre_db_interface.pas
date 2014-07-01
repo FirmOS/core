@@ -134,9 +134,13 @@ const
   cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';     { used to indicate a CLEAR FIELD in translating from JSON <-> DBO  }
   //cFRE_DB_SYS_ORDER_REF_KEY      = '*$ORK*';     { used to backlink from ordered data(key) to base transformed data }
   cFRE_DB_SYS_PARENT_PATH_FULL   = '*$_PPATH_F*';  { used in a parent child transform to set the pp in the child, full path }
-  cFRE_DB_SYS_PARENT_PATH_PART   = '*$_PPATH_P*';  { used in a parent child transform to set the pp in the child, immediate parent }
+  //cFRE_DB_SYS_PARENT_PATH_PART   = '*$_PPATH_P*';  { used in a parent child transform to set the pp in the child, immediate parent }
   cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A = '*$_TIOWA*';    { used in the transform as implicit field }
   cFRE_DB_SYS_T_OBJ_TOTAL_ORDER  = '*$_TOTO*';     { used in the transform as implicit field, store total order key }
+
+  cFRE_DB_CLN_CHILD_CNT          = '_children_count_';
+  cFRE_DB_CLN_CHILD_FLD          = 'children';
+  cFRE_DB_CLN_CHILD_FLG          = 'UNCHECKED';
 
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
   CFRE_DB_EPSILON_SGL                                               = 1.192092896e-07;         // Epsiolon for Single Compare (Zero / boolean)
@@ -888,7 +892,7 @@ type
     [cFOS_IID_DERIVED_COLL]
     procedure  TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
     procedure  TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String);
-    procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String);
+    procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object);
     procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
 
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
@@ -1954,7 +1958,7 @@ type
     procedure SetTransformedObject           (const tr_obj : IFRE_DB_Object);virtual; abstract;
     procedure SetTransObjectSingleInsert     (const tr_obj : IFRE_DB_Object);virtual; abstract;
     procedure HandleUpdateTransformedObject  (const tr_obj : IFRE_DB_Object; const upd_idx: NativeInt);virtual; abstract;
-    procedure HandleInsertTransformedObject  (const tr_obj : IFRE_DB_Object);virtual; abstract;
+    procedure HandleInsertTransformedObject  (const tr_obj : IFRE_DB_Object ; const parent_object : IFRE_DB_Object);virtual; abstract;
   end;
 
   { TFRE_DB_TRANSDATA_MANAGER_BASE }
@@ -2856,7 +2860,7 @@ type
   function  FREDB_Bool2String                    (const bool:boolean):String;
   function  FREDB_EncodeTranslatableWithParams   (const translation_key:TFRE_DB_String  ; params : array of const):TFRE_DB_String;
   function  FREDB_TranslatableHasParams          (var   translation_key:TFRE_DB_String  ; var params : TFRE_DB_StringArray):boolean;
-  procedure FREDB_DecodeVarRecParams             (const params   : TFRE_DB_StringArray    ; var vaparams : TFRE_DB_ConstArray);
+  procedure FREDB_DecodeVarRecParams             (const params   : TFRE_DB_StringArray  ; var vaparams : TFRE_DB_ConstArray);
   procedure FREDB_FinalizeVarRecParams           (const vaparams : TFRE_DB_ConstArray);
   function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString;
   function  FREDB_H2G                            (const uidstr : shortstring):TFRE_DB_GUID;
@@ -2927,7 +2931,13 @@ type
   procedure FREDB_ApplyNotificationBlockToNotifIF_Connection (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationConnection);
   procedure FREDB_ApplyNotificationBlockToNotifIF_Session    (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationSession);
 
-  function FREDB_CompareTransCollDataKeys                    (const a,b : TFRE_DB_TRANS_COLL_DATA_KEY):boolean;
+  function  FREDB_CompareTransCollDataKeys                    (const a,b : TFRE_DB_TRANS_COLL_DATA_KEY):boolean;
+
+  function  FREDB_PP_GetParentIDHelper_Hack                   (const obj : IFRE_DB_Object ; var   pid : string): boolean;
+  function  FREDB_PP_ObjectInParentPath                       (const obj : IFRE_DB_Object ; const pp  : string): boolean;
+  function  FREDB_PP_ObjectInParentPathLastParent             (const obj : IFRE_DB_Object ; const pp  : string): boolean;
+  procedure FREDB_PP_AddParentPathToObj                       (const obj : IFRE_DB_Object ; const pp  : string);
+  function  FREDB_PP_GetParentPaths                           (const obj : IFRE_DB_Object):TFRE_DB_StringArray;
 
 
   operator< (g1, g2: TGUID) b : boolean;
@@ -8634,6 +8644,88 @@ begin
             (a.filterkey = b.filterkey) and
             (a.orderkey  = b.orderkey ) and
             (a.RL_Spec   = b.RL_Spec  );
+end;
+
+
+function FREDB_PP_GetParentIDHelper_Hack(const obj: IFRE_DB_Object; var pid: string): boolean;
+var ppa : TFRE_DB_StringArray;
+    l   : NativeInt;
+begin
+  result := false;
+  ppa := FREDB_PP_GetParentPaths(obj);
+  l   := Length(ppa);
+  if l<>1 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'expected parent path lenght=1 not %d',[l]);
+  pid := GFRE_BT.SepRight(ppa[0],',');
+  if pid='' then
+    pid := ppa[0];
+  if pid<>'' then
+    exit(true);
+end;
+
+function FREDB_PP_ObjectInParentPath(const obj: IFRE_DB_Object; const pp: string): boolean;
+var ppa : TFRE_DB_StringArray;
+    fld : IFRE_DB_Field;
+begin
+  if obj.FieldOnlyExisting(cFRE_DB_SYS_PARENT_PATH_FULL,fld) then
+    begin
+      ppa    := fld.AsStringArr;
+      result := FREDB_StringInArray(pp,ppa);
+    end
+  else
+    result := false;
+end;
+
+function FREDB_PP_ObjectInParentPathLastParent(const obj: IFRE_DB_Object; const pp: string): boolean;
+var ppa   : TFRE_DB_StringArray;
+    fld   : IFRE_DB_Field;
+    ppart : TFRE_DB_String;
+    i     : NativeInt;
+begin
+  result := false;
+  if obj.FieldOnlyExisting(cFRE_DB_SYS_PARENT_PATH_FULL,fld) then
+    begin
+      ppa    := fld.AsStringArr;
+      for i := 0 to high(ppa) do
+        begin
+          ppart := GFRE_BT.SepRight(ppa[i],',');
+          if ppart='' then
+            ppart := ppa[i];
+          if pp=ppart then
+            exit(true);
+        end;
+    end;
+end;
+
+procedure FREDB_PP_AddParentPathToObj(const obj: IFRE_DB_Object; const pp: string);
+var ppa   : TFRE_DB_StringArray;
+    fld   : IFRE_DB_Field;
+    ppart : string;
+
+begin
+  ppa := obj.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsStringArr;
+  if FREDB_StringInArray(pp,ppa) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'double add to parentpath try - failed');
+  SetLength(ppa,Length(ppa)+1);
+
+  ppa[high(ppa)] := pp;
+  obj.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsStringArr := ppa;
+
+  //var
+  //    tr_obj.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString := pp;
+  //    ppart := GFRE_BT.SepRight(pp,',');
+  //    if ppart='' then
+  //      ppart := pp;
+  //    tr_obj.Field(cFRE_DB_SYS_PARENT_PATH_PART).AsString := ppart;
+end;
+
+function FREDB_PP_GetParentPaths(const obj: IFRE_DB_Object): TFRE_DB_StringArray;
+var fld : IFRE_DB_Field;
+begin
+  if obj.FieldOnlyExisting(cFRE_DB_SYS_PARENT_PATH_FULL,fld) then
+    result := fld.AsStringArr
+  else
+    result := nil;
 end;
 
 operator<(g1, g2: TGUID)b: boolean;
