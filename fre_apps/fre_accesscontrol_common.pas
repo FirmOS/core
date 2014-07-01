@@ -333,14 +333,14 @@ begin
   if input_object.Field('protected').AsBoolean or not conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,input_object.DomainID) then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
   end;
 end;
 
 procedure TFRE_COMMON_DOMAIN_MOD.CalculateUserIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
   end else begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
@@ -929,7 +929,7 @@ begin
     if input_object.Field('protected').AsBoolean then begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
     end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
     end;
   end;
 end;
@@ -937,7 +937,7 @@ end;
 procedure TFRE_COMMON_ROLE_MOD.CalculateUserIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
   end else begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
@@ -1564,7 +1564,7 @@ begin
       if input_object.Field('protected').AsBoolean then begin
         transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
       end else begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
       end;
     end;
   end;
@@ -1573,7 +1573,7 @@ end;
 procedure TFRE_COMMON_GROUP_MOD.CalculateUserIcon(const conn: IFRE_DB_CONNECTION; const dependency_input: IFRE_DB_Object; const input_object: IFRE_DB_Object; const transformed_object: IFRE_DB_Object);
 begin
   if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,input_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
   end else begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
@@ -2521,7 +2521,7 @@ begin
     if input_object.Field('protected').AsBoolean then begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
     end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
     end;
     transformed_object.Field('_disabledrag_').AsBoolean:=false;
   end else begin
@@ -2536,7 +2536,7 @@ begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
   end else begin
     if conn.SYS.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,input_object.DomainID) then begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
     end else begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
     end;
