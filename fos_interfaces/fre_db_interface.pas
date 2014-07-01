@@ -2021,7 +2021,6 @@ type
   published
     function  WEB_SaveOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; override;
   public
-    procedure _getIcon          (const calc: IFRE_DB_CALCFIELD_SETTER);
     property  isErrorStep       : Boolean      read getIsErrorStep write setIsErrorStep;
     property  action            : TFRE_DB_GUID read getAction      write setAction;
   end;
@@ -3892,15 +3891,6 @@ begin
   Field('is_error_step').AsBoolean:=AValue;
 end;
 
-procedure TFRE_DB_WORKFLOW_STEP._getIcon(const calc: IFRE_DB_CALCFIELD_SETTER);
-begin
-   if getIsErrorStep then begin
-     calc.SetAsString('images_apps/share/wf_step_error.svg');
-   end else begin
-     calc.SetAsString('images_apps/share/wf_step.svg');
-   end;
-end;
-
 class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 var
   group: IFRE_DB_InputGroupSchemeDefinition;
@@ -3938,8 +3928,6 @@ begin
   scheme.AddSchemeField('sys_progress',fdbft_String);                   { system progress string, filled in by a (feeder) or the system }
   scheme.AddSchemeField('user_progress',fdbft_String);                  { progress text that is presented to the end user (webuser), which hides detail of the actual progress, may be the same text for several steps or changing percent values / translation key ? .}
   scheme.AddSchemeField('action',fdbft_ObjLink);                        { action }
-
-  scheme.AddCalcSchemeField('icon',fdbft_String,@_getIcon);
 
   group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));

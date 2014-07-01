@@ -338,14 +338,14 @@ begin
   if transformed_object.Field('protected').AsBoolean or not ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,transformed_object.DomainID) then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
   end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
   end;
 end;
 
 procedure TFRE_COMMON_DOMAIN_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
 begin
   if ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,transformed_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
   end else begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
@@ -726,7 +726,7 @@ end;
 
 class procedure TFRE_COMMON_ROLE_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.0';
+  newVersionId:='1.1';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
 
@@ -757,7 +757,11 @@ begin
     CreateModuleText(conn,'error_add_role_msg','Could not add role %role% to group %group%');
     CreateModuleText(conn,'error_remove_role_msg','Could not remove role %role% from group %group%');
   end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
 
+    CreateModuleText(conn,'gc_domain','Domain');
+  end;
 end;
 
 procedure TFRE_COMMON_ROLE_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -779,6 +783,7 @@ var role_Grid     : IFRE_DB_DERIVED_COLLECTION;
     app           : TFRE_DB_APPLICATION;
     conn          : IFRE_DB_CONNECTION;
     grid_column_cap: TFRE_DB_String;
+    show_domains   : Boolean;
 
 begin
   inherited MySessionInitializeModule(session);
@@ -786,8 +791,10 @@ begin
     app  := GetEmbeddingApp;
     conn := session.GetDBConnection;
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
+    show_domains:=(app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn);
+
     with tr_Role do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
+      if show_domains then begin
         grid_column_cap:=FetchModuleTextShort(session,'gc_domain_role');
       end else begin
         grid_column_cap:=FetchModuleTextShort(session,'gc_role');
@@ -800,7 +807,7 @@ begin
    end;
     role_Grid := session.NewDerivedCollection('ROLEMOD_ROLE_GRID');
     with role_Grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
+      if show_domains then begin
         SetDeriveParent           (session.GetDBConnection.AdmGetDomainCollection);
         SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',nil,nil,CWSF(@WEB_RoleNotification));
         SetParentToChildLinkField ('TFRE_DB_ROLE<DOMAINIDLINK');
@@ -820,6 +827,9 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_GRID');
@@ -840,6 +850,9 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userout_Grid := session.NewDerivedCollection('ROLEMOD_USEROUT_GRID');
@@ -862,6 +875,9 @@ begin
       AddOneToOnescheme('protected','','',dt_string,False);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateGroupIcon);
     end;
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
@@ -881,10 +897,13 @@ begin
     with tr_GroupOut do begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
       AddOneToOnescheme('protected','','',dt_string,False);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
+      SetFinalRightTransformFunction(@CalculateGroupIcon);
     end;
     groupout_Grid := session.NewDerivedCollection('ROLEMOD_GROUPOUT_GRID');
     with groupout_Grid do begin
@@ -922,7 +941,7 @@ begin
     if transformed_object.Field('protected').AsBoolean then begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
     end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
     end;
   end;
 end;
@@ -930,7 +949,7 @@ end;
 procedure TFRE_COMMON_ROLE_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object ; const session_data : IFRE_DB_Object);
 begin
   if ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,transformed_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
   end else begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
@@ -1314,7 +1333,7 @@ end;
 
 class procedure TFRE_COMMON_GROUP_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.0';
+  newVersionId:='1.1';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
 
@@ -1379,7 +1398,11 @@ begin
     CreateModuleText(conn,'error_add_group_msg','Could not add user %user% to group %group%');
     CreateModuleText(conn,'error_remove_group_msg','Could not remove user %user% from group %group%');
   end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
 
+    CreateModuleText(conn,'gc_domain','Domain');
+  end;
 end;
 
 procedure TFRE_COMMON_GROUP_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
@@ -1401,6 +1424,7 @@ var group_Grid    : IFRE_DB_DERIVED_COLLECTION;
     app           : TFRE_DB_APPLICATION;
     conn          : IFRE_DB_CONNECTION;
     grid_column_cap: TFRE_DB_String;
+    show_domains   : Boolean;
 
 begin
   inherited MySessionInitializeModule(session);
@@ -1408,8 +1432,10 @@ begin
   conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
+    show_domains:=(app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn);
+
     with tr_Grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
+      if show_domains then begin
         grid_column_cap:=FetchModuleTextShort(session,'gc_domain_group');
       end else begin
         grid_column_cap:=FetchModuleTextShort(session,'gc_group');
@@ -1423,7 +1449,7 @@ begin
     end;
     group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_GRID');
     with group_Grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
+      if show_domains then begin
         SetDeriveParent           (session.GetDBConnection.AdmGetDomainCollection);
         SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
         SetParentToChildLinkField ('TFRE_DB_GROUP<DOMAINIDLINK');
@@ -1443,6 +1469,9 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_GRID');
@@ -1463,6 +1492,9 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
     userout_Grid := session.NewDerivedCollection('GROUPMOD_USEROUT_GRID');
@@ -1484,6 +1516,9 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateRoleFields);
     end;
     rolein_Grid := session.NewDerivedCollection('GROUPMOD_ROLEIN_GRID');
@@ -1505,6 +1540,9 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateRoleFields);
     end;
     roleout_Grid := session.NewDerivedCollection('GROUPMOD_ROLEOUT_GRID');
@@ -1544,7 +1582,7 @@ begin
       if transformed_object.Field('protected').AsBoolean then begin
         transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
       end else begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
       end;
     end;
   end;
@@ -1553,7 +1591,7 @@ end;
 procedure TFRE_COMMON_GROUP_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
 begin
   if ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,transformed_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
   end else begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
@@ -2276,7 +2314,7 @@ end;
 
 class procedure TFRE_COMMON_USER_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.0';
+  newVersionId:='1.1';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
 
@@ -2327,6 +2365,11 @@ begin
     CreateModuleText(conn,'error_add_group_msg','Could not add user %user% to group %group%');
     CreateModuleText(conn,'error_remove_group_msg','Could not remove user %user% from group %group%');
   end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
+
+    CreateModuleText(conn,'gc_domain','Domain');
+  end;
 
 end;
 
@@ -2349,15 +2392,17 @@ var user_Grid     : IFRE_DB_DERIVED_COLLECTION;
     app           : TFRE_DB_APPLICATION;
     conn          : IFRE_DB_CONNECTION;
     grid_column_cap: TFRE_DB_String;
+    show_domains   : Boolean;
 begin
   inherited;
   app  := GetEmbeddingApp;
   conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
+    show_domains:=(app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn);
 
     with tr_Grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
+      if show_domains then begin
         grid_column_cap:=FetchModuleTextShort(session,'gc_domain_user');
       end else begin
         grid_column_cap:=FetchModuleTextShort(session,'gc_user');
@@ -2371,7 +2416,7 @@ begin
 
     user_grid := session.NewDerivedCollection('USERMOD_USER_GRID');
     with user_grid do begin
-      if (app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn) then begin
+      if show_domains then begin
         SetDeriveParent           (session.GetDBConnection.AdmGetDomainCollection);
         SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
         SetParentToChildLinkField ('TFRE_DB_USER<DOMAINIDLINK');
@@ -2393,6 +2438,9 @@ begin
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       AddOneToOnescheme('protected','','',dt_string,False);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
 
@@ -2416,6 +2464,9 @@ begin
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       AddOneToOnescheme('protected','','',dt_string,False);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
 
@@ -2437,6 +2488,9 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateRoleIcon);
     end;
 
@@ -2458,6 +2512,9 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_string,False);
+      if show_domains then begin
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+      end;
       SetFinalRightTransformFunction(@CalculateRoleIcon);
     end;
     roleout_Grid := session.NewDerivedCollection('USERMOD_ROLEOUT_GRID');
@@ -2490,7 +2547,7 @@ begin
     if transformed_object.Field('protected').AsBoolean then begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
     end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico.svg');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
     end;
     transformed_object.Field('_disabledrag_').AsBoolean:=false;
   end else begin
@@ -2505,7 +2562,7 @@ begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
   end else begin
     if ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,transformed_object.DomainID) then begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico.svg');
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
     end else begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
     end;
