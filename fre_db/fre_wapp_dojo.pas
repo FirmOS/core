@@ -1284,7 +1284,7 @@ implementation
       separator:=',';
     end;
     if co.FieldExists('deleted') then begin
-      data:=data+separator+'deleted:'+_BuildJSArray(co.Field('deleted').AsStringArr);
+      data:=data+separator+'deleted:'+co.Field('deleted').AsObjectArrayJSONString;
       separator:=',';
     end;
     data:=data+'}';
