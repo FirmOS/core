@@ -885,6 +885,7 @@ type
   end;
 
   TFRE_DB_TRANSFORMED_ARRAY_BASE      = class;
+  TFRE_DB_DC_FILTER_DEFINITION_BASE   = class;
 
   { IFRE_DB_DERIVED_COLLECTION }
 
@@ -936,6 +937,7 @@ type
     function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:array of TFRE_DB_String;const negate:boolean=false):TFRE_DB_Errortype;
     function   RemoveFilter                  (const filter_key           :TFRE_DB_String):TFRE_DB_Errortype;
 
+    function   Filters                 : TFRE_DB_DC_FILTER_DEFINITION_BASE;
     //function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
