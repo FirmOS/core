@@ -1940,6 +1940,8 @@ type
     procedure  AddAutoDependencyFilter (const key:          TFRE_DB_NameType ; const RL_Spec : TFRE_DB_NameTypeRLArray ;  const StartDependecyValues : TFRE_DB_GUIDArray ; const negate:boolean=false ; const include_null_values : boolean=false ; const dbname : TFRE_DB_NameType='');virtual; abstract;
     function   RemoveFilter            (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
     function   FilterExists            (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
+    procedure  RemoveAllFilters        ;virtual;abstract;
+    procedure  RemoveAllFiltersPrefix  (const key_prefix:   TFRE_DB_NameType);virtual;abstract;
   end;
 
   TFRE_DB_QUERY_BASE=class

@@ -1667,6 +1667,8 @@ type
     procedure  RemoveAllFilterFields   ;
     procedure  RemoveAllFiltersPrefix  (const prefix:string);
 
+    function   Filters                 : TFRE_DB_DC_FILTER_DEFINITION_BASE;
+
     function   Store                           (var obj: TFRE_DB_Object)     :TFRE_DB_Errortype; override;
     function   Remove                          (const ouid:TGUID)            :TFRE_DB_Errortype; override;
     function   Update                          (const dbo:TFRE_DB_Object)    :TFRE_DB_Errortype; override;
@@ -6655,12 +6657,17 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFilterFields;
 begin
-  abort;
+  Filters.RemoveAllFilters;
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFiltersPrefix(const prefix: string);
 begin
-  abort;
+  Filters.RemoveAllFiltersPrefix(prefix);
+end;
+
+function TFRE_DB_DERIVED_COLLECTION.Filters: TFRE_DB_DC_FILTER_DEFINITION_BASE;
+begin
+  result := FDCollFilters;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Store(var obj: TFRE_DB_Object): TFRE_DB_Errortype;

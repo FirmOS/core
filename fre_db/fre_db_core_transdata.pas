@@ -291,6 +291,9 @@ type
 
     function    RemoveFilter                 (const key:          TFRE_DB_NameType):boolean;override;
     function    FilterExists                 (const key:          TFRE_DB_NameType):boolean;override;
+    procedure   RemoveAllFilters             ;override;
+    procedure   RemoveAllFiltersPrefix       (const key_prefix:   TFRE_DB_NameType);override;
+
     procedure   MustNotBeSealed              ;
     procedure   MustBeSealed                 ;
     procedure   Seal                         ;
@@ -2540,6 +2543,38 @@ var idx : Integer;
 begin
   idx    := FKeyList.FindIndexOf(key);
   result := idx<>-1;
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.RemoveAllFilters;
+begin
+  FKeyList.Clear;
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.RemoveAllFiltersPrefix(const key_prefix: TFRE_DB_NameType);
+var idx : NativeInt;
+
+    function findprefix:boolean;
+    var i    : NativeInt;
+        filt : TFRE_DB_FILTER_BASE;
+        key  : TFRE_DB_NameType;
+    begin
+      for i:= 0 to FKeyList.Count-1 do
+        begin
+          filt := FKeyList.Items[i] as TFRE_DB_FILTER_BASE;
+          key  := filt.GetKeyName;
+          if pos(key_prefix,key)=1 then
+            begin
+              idx:=i;
+              exit(true);
+            end;
+        end;
+      idx:=-1;
+      result := false;
+    end;
+
+begin
+  while findprefix do
+    FKeyList.Delete(idx);
 end;
 
 procedure TFRE_DB_DC_FILTER_DEFINITION.MustNotBeSealed;
