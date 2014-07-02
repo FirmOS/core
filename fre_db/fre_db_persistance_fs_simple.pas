@@ -1080,9 +1080,9 @@ begin
       G_DB_TX_Number := StrToIntDef(GSTRING,0);
     end
   else
-    GFRE_DBI.LogWarning(dblc_PERSISTANCE,'>>NO GLOBAL TRANSACTION COUNTER FILE FOUND');
+    writeln('>>NO GLOBAL TRANSACTION COUNTER FILE FOUND'); { todo: log WARNING}
   if G_DB_TX_Number=0 then
-    GFRE_DBI.LogWarning(dblc_PERSISTANCE,'>> GLOBAL TRANSACTION COUNTER IS ZERO - MAYBE BAD/NO FILE');
+    writeln('>> GLOBAL TRANSACTION COUNTER IS ZERO - MAYBE BAD/NO FILE'); { todo: log WARNING}
 end;
 
 
