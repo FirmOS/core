@@ -317,7 +317,7 @@ type
      FFilterContainer        : TFRE_DB_FilterContainer;          { the filtercontainer of the ordering   }
      FConnection             : IFRE_DB_CONNECTION;               { used for right profile check (implicit righfilter) }
      FQueryId                : TFRE_DB_NameType;                 { ID of this specific Query }
-     FQueryClientID          : TFRE_DB_NameType;
+     FQueryClientID          : Int64;
      FQueryDescr             : string;
      //FCollTransfromKey      : TFRE_DB_NameTypeRL;              { an order is created and diversificated by the transformation(dc name) and the parent collection }
      //FReferenceMode          : Boolean;                        { true if reference query, false if collection query }
@@ -366,6 +366,7 @@ type
      constructor Create;
      destructor  Destroy                           ; override;
      function    GetQueryID                        : TFRE_DB_NameType; override;
+     function    GetQueryID_ClientPart             : Int64;
      function    HasOrderDefinition                : boolean;
      property    Orderdef                          : TFRE_DB_DC_ORDER_DEFINITION  read GetOrderDefinition;  { lazy create on access}
      property    Filterdef                         : TFRE_DB_DC_FILTER_DEFINITION read GetFilterDefinition; { lazy create on access}
@@ -610,7 +611,7 @@ type
     procedure   RemoveQuery               (const qry_id : TFRE_DB_NameType);override;
     { forget all querys for the session/dc }
     procedure   DropAllQuerys             (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); override; { can be dc wide, or session wide dc_name='' }
-    function    FormQueryID               (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : shortstring):TFRE_DB_NameType;override;
+    function    FormQueryID               (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType;override;
     procedure   ApplyInboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object);
     procedure   InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); override;
 
@@ -2938,6 +2939,11 @@ begin
   result := FQueryId;
 end;
 
+function TFRE_DB_QUERY.GetQueryID_ClientPart: Int64;
+begin
+  result := FQueryClientID;
+end;
+
 function TFRE_DB_QUERY.HasOrderDefinition: boolean;
 begin
   result := assigned(FOrderDef);
@@ -4163,9 +4169,9 @@ var fld : IFRE_DB_FIELD;
 
    procedure SetQueryID;
    begin
-     qry.FQueryClientID := input.Field('QUERYID').AsString;
+     qry.FQueryClientID := strtoint(input.Field('QUERYID').AsString);
      qry.FQueryId       := FormQueryID(session,dc_name,qry.FQueryClientID);
-     qry.FQueryDescr    := Format('QRY(%s) DC(%s) CLID(%s)',[qry.FQueryId,dc_name,qry.FQueryClientID]);
+     qry.FQueryDescr    := Format('QRY(%s) DC(%s) CLID(%d)',[qry.FQueryId,dc_name,qry.FQueryClientID]);
    end;
 
 begin
@@ -4248,7 +4254,7 @@ var qryid:TFRE_DB_NameType;
 begin
   LockManager;
   try
-    qryid := FormQueryID(session,dc_name,'');
+    qryid := FormQueryID(session,dc_name,0);
     if dc_name<>'' then
       DC_Clear
     else
@@ -4258,13 +4264,13 @@ begin
   end;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.FormQueryID(const session: IFRE_DB_UserSession; const dc_name: TFRE_DB_NameTypeRL; const client_part: shortstring): TFRE_DB_NameType;
+function TFRE_DB_TRANSDATA_MANAGER.FormQueryID(const session: IFRE_DB_UserSession; const dc_name: TFRE_DB_NameTypeRL; const client_part: int64): TFRE_DB_NameType;
 begin
   result := session.GetSessionID;
   if dc_name<>'' then
     result := result + '/'+GFRE_BT.HashFast32_Hex(dc_name);
-  if client_part<>'' then
-    result := result+'#'+client_part;
+  if client_part<>0 then
+    result := result+'#'+inttostr(client_part);
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.ApplyInboundNotificationBlock(const dbname: TFRE_DB_NameType; const block: IFRE_DB_Object);
@@ -4407,7 +4413,7 @@ procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE
       begin
         inc(qry.FQueryDeliveredCount);
         inc(qry.FQueryPotentialCount);
-        CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID,upo,parent_id,'',before); { add the first object }
+        CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID,upo,parent_id,ref_id,before); { add the first object }
       end;
 
       procedure InsertFirst;

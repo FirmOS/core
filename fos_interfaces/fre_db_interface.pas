@@ -1979,7 +1979,7 @@ type
     procedure   StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;
     procedure   RemoveQuery              (const qry_id: TFRE_DB_NameType); virtual; abstract;
     procedure   DropAllQuerys            (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
-    function    FormQueryID              (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : shortstring):TFRE_DB_NameType; virtual; abstract;
+    function    FormQueryID              (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
     procedure   InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
   end;
 
