@@ -2936,7 +2936,6 @@ type
 
   function  FREDB_CompareTransCollDataKeys                    (const a,b : TFRE_DB_TRANS_COLL_DATA_KEY):boolean;
 
-  function  FREDB_PP_GetParentIDHelper_Hack                   (const obj : IFRE_DB_Object ; var   pid : string): boolean;
   function  FREDB_PP_ObjectInParentPath                       (const obj : IFRE_DB_Object ; const pp  : string): boolean;
   function  FREDB_PP_ObjectInParentPathLastParent             (const obj : IFRE_DB_Object ; const pp  : string): boolean;
   procedure FREDB_PP_AddParentPathToObj                       (const obj : IFRE_DB_Object ; const pp  : string);
@@ -8636,23 +8635,6 @@ begin
             (a.filterkey = b.filterkey) and
             (a.orderkey  = b.orderkey ) and
             (a.RL_Spec   = b.RL_Spec  );
-end;
-
-
-function FREDB_PP_GetParentIDHelper_Hack(const obj: IFRE_DB_Object; var pid: string): boolean;
-var ppa : TFRE_DB_StringArray;
-    l   : NativeInt;
-begin
-  result := false;
-  ppa := FREDB_PP_GetParentPaths(obj);
-  l   := Length(ppa);
-  if l<>1 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'expected parent path lenght=1 not %d',[l]);
-  pid := GFRE_BT.SepRight(ppa[0],',');
-  if pid='' then
-    pid := ppa[0];
-  if pid<>'' then
-    exit(true);
 end;
 
 function FREDB_PP_ObjectInParentPath(const obj: IFRE_DB_Object; const pp: string): boolean;

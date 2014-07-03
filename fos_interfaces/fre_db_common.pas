@@ -654,7 +654,7 @@ type
     //@ Adds a new entry.
     //@ parentId is only useful for tree grids. If not parentId is given the new item is added as root item.
     //@ use nextItemId = '' to insert the new item at the end of the query.
-    procedure addNewEntry     (const entry: IFRE_DB_Object; const queryId: Int64; const nextItemId: String=''; const parentId: String='');
+    procedure addNewEntry     (const entry: IFRE_DB_Object; const queryId: Int64; const nextItemId: String='');
     //@ Sets the new total count.
     procedure setTotalCount   (const count: Integer);
     function  hasChanges      : Boolean;
@@ -1368,13 +1368,12 @@ implementation
     Field('deleted').AddObject(obj);
   end;
 
-    procedure TFRE_DB_UPDATE_STORE_DESC.addNewEntry(const entry: IFRE_DB_Object; const queryId: Int64; const nextItemId: String; const parentId: String);
+    procedure TFRE_DB_UPDATE_STORE_DESC.addNewEntry(const entry: IFRE_DB_Object; const queryId: Int64; const nextItemId: String);
   var
     obj: IFRE_DB_Object;
   begin
     obj:=GFRE_DBI.NewObject;
     obj.Field('revid').AsString:=nextItemId;
-    obj.Field('parentid').AsString:=parentId;
     obj.Field('item').AsObject:=entry.CloneToNewObject();
     obj.Field('qid').AsInt64:=queryId;
     Field('new').AddObject(obj);

@@ -392,7 +392,7 @@ type
      constructor Create                   (const session_id : TFRE_DB_NameType);
      destructor  Destroy                  ; override;
      procedure   AddStoreUpdate           (const store_id: TFRE_DB_NameType; const qid: Int64; const upo: IFRE_DB_Object);
-     procedure   AddStoreInsert           (const store_id: TFRE_DB_NameType; const qid: Int64; const upo: IFRE_DB_Object; const parent_id, reference_id: TFRE_DB_String);
+     procedure   AddStoreInsert           (const store_id: TFRE_DB_NameType; const qid: Int64; const upo: IFRE_DB_Object; const reference_id: TFRE_DB_String);
      procedure   AddStoreDelete           (const store_id: TFRE_DB_NameType; const qid: Int64; const id: TFRE_DB_String);
      procedure   DispatchAllNotifications ;
   end;
@@ -408,7 +408,7 @@ type
      destructor  Destroy                      ;override;
      procedure   AddDirectSessionUpdateEntry  (const update_dbo : IFRE_DB_Object); { add a dbo update for sessions dbo's (forms) }
      procedure   AddGridInplaceUpdate         (const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64 ; const upo: IFRE_DB_Object); { inplace update entry for the store }
-     procedure   AddGridInsertUpdate          (const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64; const upo: IFRE_DB_Object; const parent_id, reference_id: TFRE_DB_String);
+     procedure   AddGridInsertUpdate          (const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64; const upo: IFRE_DB_Object; const reference_id: TFRE_DB_String);
      procedure   AddGridRemoveUpdate          (const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64; const del_id: TFRE_DB_String);
      procedure   NotifyAll;
   end;
@@ -620,10 +620,10 @@ type
     procedure   CN_AddDirectSessionUpdateEntry       (const update_dbo : IFRE_DB_Object); { add a dbo update for sessions dbo's (forms) }
     procedure   CN_AddGridInplaceUpdate              (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const upo : IFRE_DB_Object);
     procedure   CN_AddGridInplaceDelete              (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const del_id: TFRE_DB_String);
-    procedure   CN_AddGridInsertUpdate               (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const upo : IFRE_DB_Object ;  const parent_id,reference_id: TFRE_DB_String);
+    procedure   CN_AddGridInsertUpdate               (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const upo : IFRE_DB_Object ;  const reference_id: TFRE_DB_String);
     procedure   UpdateObjectInFilterKey              (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt); { in place update }
     procedure   RemoveUpdateObjectInFilterKey        (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const old_obj : IFRE_DB_Object ; const idx : NativeInt);
-    procedure   InsertUpdateObjectInFilterKey        (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt ; const parent_id : string);
+    procedure   InsertUpdateObjectInFilterKey        (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt);
     procedure   UpdateChildCount_QRY                 (const qry : TFRE_DB_QUERY ; const idx : NativeInt);
   end;
 
@@ -961,7 +961,7 @@ begin
   update_st.addUpdatedEntry(upo,qid);
 end;
 
-procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id: TFRE_DB_NameType; const qid: Int64; const upo: IFRE_DB_Object; const parent_id, reference_id: TFRE_DB_String);
+procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id: TFRE_DB_NameType; const qid: Int64; const upo: IFRE_DB_Object; const reference_id: TFRE_DB_String);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
   update_st :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
@@ -970,7 +970,7 @@ begin
       update_st := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
       FStoreList.Add(store_id,update_st);
     end;
-  update_st.addNewEntry(upo,qid,reference_id,parent_id);
+  update_st.addNewEntry(upo,qid,reference_id);
 end;
 
 procedure TFRE_DB_SESSION_UPO.AddStoreDelete(const store_id: TFRE_DB_NameType; const qid: Int64; const id: TFRE_DB_String);
@@ -1034,9 +1034,9 @@ begin
   GetSessionUPO(sessionid).AddStoreUpdate(store_id,qry_id,upo);
 end;
 
-procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64; const upo: IFRE_DB_Object; const parent_id,reference_id: TFRE_DB_String);
+procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64; const upo: IFRE_DB_Object; const reference_id: TFRE_DB_String);
 begin
-  GetSessionUPO(sessionid).AddStoreInsert(store_id,qry_id,upo,parent_id,reference_id);
+  GetSessionUPO(sessionid).AddStoreInsert(store_id,qry_id,upo,reference_id);
 end;
 
 procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridRemoveUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64; const del_id: TFRE_DB_String);
@@ -2181,7 +2181,6 @@ procedure TFRE_DB_FilterContainer.Notify_CheckFilteredUpdate(const td: TFRE_DB_T
 var old_idx   : NativeInt;
     new_idx   : NativeInt;
     before    : NativeInt;
-    pid       : string;
     exists    : boolean;
     ppa       : TFRE_DB_StringArray;
     i         : NativeInt;
@@ -2213,8 +2212,8 @@ begin
                   ppa := FREDB_PP_GetParentPaths(new_obj);
                   for i := 0 to high(ppa) do
                     begin
-                      pid := ppa[i];
-                      G_TCDM.InsertUpdateObjectInFilterKey(td,self,new_obj,new_idx,pid);  { insert an object in filtering, now check queries }
+                      //pid := ppa[i]; //FIXXME Heli
+                      G_TCDM.InsertUpdateObjectInFilterKey(td,self,new_obj,new_idx);  { insert an object in filtering, now check queries }
                     end;
                 end;
             end;
@@ -2276,7 +2275,6 @@ var new_key : TFRE_DB_ByteArray;
   var ia_idx   : NativeInt;
       before   : NativeInt;
       exists   : boolean;
-      pid      : String;
       ppa      : TFRE_DB_StringArray;
       i        : NativeInt;
 
@@ -2300,8 +2298,8 @@ var new_key : TFRE_DB_ByteArray;
         ppa := FREDB_PP_GetParentPaths(new_obj);
         for i := 0 to high(ppa) do
           begin
-            pid := ppa[i];
-            G_TCDM.InsertUpdateObjectInFilterKey(td,self,new_obj,ia_idx,pid);  { insert an object in filtering, now check queries }
+            //pid := ppa[i];  //FIXXME Heli
+            G_TCDM.InsertUpdateObjectInFilterKey(td,self,new_obj,ia_idx);  { insert an object in filtering, now check queries }
           end;
 
       end;
@@ -3023,7 +3021,6 @@ var diff,d1,d2 : NativeInt;
       curr_idx   : NativeInt;
       ins_before : NativeInt;
       found      : boolean;
-      pid        : string;
       fld        : IFRE_DB_Field;
   begin
     curr_idx   := 0;
@@ -3054,8 +3051,7 @@ var diff,d1,d2 : NativeInt;
              end
            else
              begin { must insert }
-               FREDB_PP_GetParentIDHelper_Hack(FResultDBOsCompare[i],pid);
-               G_TCDM.InsertUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOsCompare[i],curr_idx+ins_before,pid);
+               G_TCDM.InsertUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOsCompare[i],curr_idx+ins_before);
                inc(ins_before); { if the previous array is exhausted, no match occurs and ins_before is incremented ...}
              end;
      end;
@@ -4321,11 +4317,11 @@ begin
   FCurrentNotify.AddGridRemoveUpdate(sessionid,store_id,qry_id,del_id);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64; const upo: IFRE_DB_Object; const parent_id , reference_id: TFRE_DB_String);
+procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const qry_id: Int64; const upo: IFRE_DB_Object; const reference_id: TFRE_DB_String);
 begin
   if not assigned(FCurrentNotify) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid insert update');
-  FCurrentNotify.AddGridInsertUpdate(sessionid,store_id,qry_id,upo,parent_id,reference_id);
+  FCurrentNotify.AddGridInsertUpdate(sessionid,store_id,qry_id,upo,reference_id);
 end;
 
 {
@@ -4407,7 +4403,7 @@ begin
   ForAllQueries(@HandleQueryRemove);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const filtercont: TFRE_DB_FilterContainer; const new_obj: IFRE_DB_Object; const idx: NativeInt; const parent_id: string);
+procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const filtercont: TFRE_DB_FilterContainer; const new_obj: IFRE_DB_Object; const idx: NativeInt);
 
   procedure HandleQueryInsert(const qry : TFRE_DB_QUERY);
   var full_data_key : TFRE_DB_TRANS_COLL_DATA_KEY;
@@ -4420,7 +4416,7 @@ procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE
       begin
         inc(qry.FQueryDeliveredCount);
         inc(qry.FQueryPotentialCount);
-        CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,upo,parent_id,ref_id); { add the first object }
+        CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,upo,ref_id); { add the first object }
       end;
 
       procedure InsertFirst;
