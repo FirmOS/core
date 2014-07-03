@@ -6406,7 +6406,7 @@ end;
 constructor TFRE_DB_DERIVED_COLLECTION.Create(const connection: TFRE_DB_BASE_CONNECTION; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
 begin
   inherited;
-  FDCollFilters  := GFRE_DB_TCDM.GetNewFilterDefinition;
+  FDCollFilters  := GFRE_DB_TCDM.GetNewFilterDefinition(connection.FDBName);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetCollectionTransformKey: TFRE_DB_NameTypeRL;
