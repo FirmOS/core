@@ -288,7 +288,7 @@ type
     procedure   AddStdRightObjectFilter      (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );override;
     procedure   AddChildFilter               (const key:          TFRE_DB_NameType); override ;
     procedure   AddParentFilter              (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); override ;
-    procedure   AddAutoDependencyFilter      (const key:          TFRE_DB_NameType ; const RL_Spec : TFRE_DB_NameTypeRLArray ;  const StartDependecyValues : TFRE_DB_GUIDArray  ; const one_value:boolean=true ; const include_null_values : boolean=false);override;
+    procedure   AddAutoDependencyFilter      (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID  ; const one_value:boolean=true ; const include_null_values : boolean=false);override;
 
     function    RemoveFilter                 (const key:          TFRE_DB_NameType):boolean;override;
     function    FilterExists                 (const key:          TFRE_DB_NameType):boolean;override;
@@ -2434,11 +2434,20 @@ begin
   AddFilter(filt,false);
 end;
 
-procedure TFRE_DB_DC_FILTER_DEFINITION.AddAutoDependencyFilter(const key: TFRE_DB_NameType; const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const one_value: boolean; const include_null_values: boolean);
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddAutoDependencyFilter(const key: TFRE_DB_NameType; const RL_Spec: array of TFRE_DB_NameTypeRL; const StartDependecyValues: array of TFRE_DB_GUID; const one_value: boolean; const include_null_values: boolean);
 var filt : TFRE_DB_FILTER_AUTO_DEPENDENCY;
+    rla  : TFRE_DB_NameTypeRLArray;
+    ga   : TFRE_DB_GUIDArray;
+    i    : NativeInt;
 begin
   filt := TFRE_DB_FILTER_AUTO_DEPENDENCY.Create(key);
-  filt.InitFilter(RL_Spec,StartDependecyValues,not one_value,include_null_values,FFiltDefDBname);
+  SetLength(rla,Length(RL_Spec));
+  for i := 0 to high(RL_Spec) do
+    rla[i] := RL_Spec[i];
+  SetLength(ga,Length(StartDependecyValues));
+  for i := 0 to high(StartDependecyValues) do
+    ga[i] := StartDependecyValues[i];
+  filt.InitFilter(rla,ga,not one_value,include_null_values,FFiltDefDBname);
   AddFilter(filt,false);
 end;
 

@@ -1939,7 +1939,7 @@ type
     procedure  AddStdRightObjectFilter (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );virtual;abstract;
     procedure  AddChildFilter          (const key:          TFRE_DB_NameType); virtual ; abstract;
     procedure  AddParentFilter         (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); virtual ; abstract ;
-    procedure  AddAutoDependencyFilter (const key:          TFRE_DB_NameType ; const RL_Spec : TFRE_DB_NameTypeRLArray    ;  const StartDependecyValues : TFRE_DB_GUIDArray ; const negate:boolean=true  ; const include_null_values : boolean=false);virtual; abstract;
+    procedure  AddAutoDependencyFilter (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID ; const negate:boolean=true  ; const include_null_values : boolean=false);virtual; abstract;
     function   RemoveFilter            (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
     function   FilterExists            (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
     procedure  RemoveAllFilters        ;virtual;abstract;
