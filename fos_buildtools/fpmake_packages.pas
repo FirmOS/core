@@ -18,6 +18,9 @@ program fpmake_packages;
        Dependencies.Add('fcl-json');
        Dependencies.Add('fcl-xml');
        with targets do begin
+         addunit('jsonparser.pp');
+         addunit('fpjson.pp');
+         addunit('fpjsonrtti.pp');
          AddUnit('fos_tool_interfaces.pas');
          AddUnit('fos_fcom_interfaces.pas');
          addunit('fos_redblacktree_gen.pas');
@@ -185,6 +188,7 @@ program fpmake_packages;
         AddUnit('../fre_apps/fre_dbbusiness.pas');
         AddUnit('fre_configuration.pas');
         AddUnit('../fre_core/fre_process.pas');
+        addunit('fre_db_core_transdata.pas');
      end;
     end;
     P := AddPackage('FRE_BLKCOM');
