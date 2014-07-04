@@ -2226,7 +2226,10 @@ begin
   SetLength(values,cnt);
   SetLength(keys,cnt);
   for cnt := 0 to high(keys) do
-    assert(RemoveBinaryKey(@keys[cnt][1],length(keys[cnt]),values[cnt]),'internal implementation error arttree prefixscanclear');
+    begin
+      RemoveBinaryKey(@keys[cnt][1],length(keys[cnt]),values[cnt]);
+      assert(values[cnt]<>0,'internal implementation error arttree prefixscanclear');
+    end;
   for cnt := 0 to high(values) do
     nested_node_proc(values[cnt]);
 end;
