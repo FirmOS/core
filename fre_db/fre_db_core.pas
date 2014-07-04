@@ -13686,14 +13686,14 @@ begin
     begin
       m := Getmem(ns);
       CopyToMemory(m);
-      result := TFRE_DB_Object.CreateFromMemory(m);
+      result := TFRE_DB_Object.CreateFromMemory(m,generate_new_uids);
       Freemem(m);
     end
   else
     begin
       m := @a;
       CopyToMemory(m);
-      result := TFRE_DB_Object.CreateFromMemory(m);
+      result := TFRE_DB_Object.CreateFromMemory(m,generate_new_uids);
     end;
 end;
 
