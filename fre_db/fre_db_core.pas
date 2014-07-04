@@ -1519,6 +1519,7 @@ type
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
     function  GetViewCollectionDescription   : TFRE_DB_CONTENT_DESC;
     procedure SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
+    procedure AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const display:Boolean=true;const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
   end;
 
   { TFRE_DB_TREE_TRANSFORM }
@@ -6272,6 +6273,11 @@ end;
 procedure TFRE_DB_SIMPLE_TRANSFORM.SetFinalRightTransformFunction(const func: IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION);
 begin
   FFinalRightTransform := func;
+end;
+
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddReferencedFieldQuery(const func: IFRE_DB_QUERY_SELECTOR_FUNCTION; const ref_field_chain: array of TFRE_DB_NameTypeRL; const output_fields: array of TFRE_DB_String; const output_titles: array of TFRE_DB_String; const display: Boolean; const gui_display_type: array of TFRE_DB_DISPLAY_TYPE; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const hide_in_output: boolean);
+begin
+  abort; //FIXXME Heli
 end;
 
 
