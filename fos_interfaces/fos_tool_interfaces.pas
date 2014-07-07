@@ -360,6 +360,8 @@ type
     function  SHA1String                (const input:string):ShortString;
     function  Base64Encode              (const input:string):String;
     function  Base64Decode              (const input:string):String;
+    function  CalcSaltedSH1Password     (const pw:String ; const salt : string):string;
+    function  VerifySaltedSHA1Password  (const pw:string;const ssha_scheme:string):boolean;
 
     procedure ActivateJack              (const timeout:NativeInt=10000);
     procedure DeactivateJack            ;

@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
     <Version Value="9"/>
@@ -33,7 +33,7 @@
         <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
       </local>
     </RunParams>
-    <Units Count="31">
+    <Units Count="32">
       <Unit0>
         <Filename Value="test_basis_tools.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -41,9 +41,9 @@
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
-        <CursorPos X="13" Y="22"/>
-        <UsageCount Value="106"/>
+        <TopLine Value="77"/>
+        <CursorPos X="122" Y="106"/>
+        <UsageCount Value="108"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit0>
@@ -74,11 +74,11 @@
         <UnitName Value="fos_basis_tools"/>
         <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="19"/>
-        <CursorPos X="99" Y="102"/>
-        <UsageCount Value="53"/>
+        <TopLine Value="27"/>
+        <CursorPos X="1" Y="118"/>
+        <UsageCount Value="54"/>
         <Bookmarks Count="2">
-          <Item0 X="1" Y="2613" ID="2"/>
+          <Item0 X="1" Y="2638" ID="2"/>
           <Item1 X="156" Y="90" ID="3"/>
         </Bookmarks>
         <Loaded Value="True"/>
@@ -118,7 +118,7 @@
         <UnitName Value="UnitIF_TestB"/>
         <TopLine Value="1"/>
         <CursorPos X="22" Y="15"/>
-        <UsageCount Value="106"/>
+        <UsageCount Value="108"/>
       </Unit9>
       <Unit10>
         <Filename Value="UnitIF_TestC.pas"/>
@@ -126,7 +126,7 @@
         <UnitName Value="UnitIF_TestC"/>
         <TopLine Value="1"/>
         <CursorPos X="128" Y="6"/>
-        <UsageCount Value="106"/>
+        <UsageCount Value="108"/>
       </Unit10>
       <Unit11>
         <Filename Value="iftest.pas"/>
@@ -267,99 +267,152 @@
       <Unit30>
         <Filename Value="../upascaltz.pas"/>
         <UnitName Value="upascaltz"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="3"/>
         <WindowIndex Value="0"/>
         <TopLine Value="40"/>
         <CursorPos X="35" Y="59"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit30>
+      <Unit31>
+        <Filename Value="../../fos_interfaces/fos_tool_interfaces.pas"/>
+        <UnitName Value="fos_tool_interfaces"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="316"/>
+        <CursorPos X="1" Y="365"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit31>
     </Units>
-    <JumpHistory Count="20" HistoryIndex="19">
+    <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="9" Column="36" TopLine="1"/>
+        <Caret Line="117" Column="1" TopLine="85"/>
       </Position1>
       <Position2>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="117" Column="16" TopLine="91"/>
+        <Caret Line="118" Column="1" TopLine="85"/>
       </Position2>
       <Position3>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="7" Column="17" TopLine="1"/>
+        <Caret Line="117" Column="1" TopLine="85"/>
       </Position3>
       <Position4>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="122" Column="12" TopLine="90"/>
+        <Caret Line="118" Column="1" TopLine="85"/>
       </Position4>
       <Position5>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="122" Column="12" TopLine="90"/>
+        <Caret Line="114" Column="10" TopLine="85"/>
       </Position5>
       <Position6>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="25" Column="14" TopLine="13"/>
+        <Caret Line="104" Column="13" TopLine="71"/>
       </Position6>
       <Position7>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="9" Column="66" TopLine="1"/>
+        <Caret Line="73" Column="33" TopLine="23"/>
       </Position7>
       <Position8>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="18" Column="1" TopLine="1"/>
+        <Caret Line="116" Column="14" TopLine="80"/>
       </Position8>
       <Position9>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="15" Column="1" TopLine="1"/>
+        <Caret Line="81" Column="43" TopLine="44"/>
       </Position9>
       <Position10>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="110" Column="9" TopLine="83"/>
+        <Caret Line="89" Column="35" TopLine="72"/>
       </Position10>
       <Position11>
-        <Filename Value="../upascaltz.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="68" Column="76" TopLine="55"/>
       </Position11>
       <Position12>
-        <Filename Value="../upascaltz.pas"/>
-        <Caret Line="59" Column="20" TopLine="1"/>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="66" Column="80" TopLine="38"/>
       </Position12>
       <Position13>
-        <Filename Value="../fos_basis_tools.pas"/>
-        <Caret Line="42" Column="25" TopLine="40"/>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="135" Column="1" TopLine="94"/>
       </Position13>
       <Position14>
-        <Filename Value="../fos_basis_tools.pas"/>
-        <Caret Line="46" Column="8" TopLine="303"/>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="134" Column="14" TopLine="104"/>
       </Position14>
       <Position15>
-        <Filename Value="../fos_basis_tools.pas"/>
-        <Caret Line="42" Column="25" TopLine="34"/>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="132" Column="21" TopLine="78"/>
       </Position15>
       <Position16>
-        <Filename Value="../fos_basis_tools.pas"/>
-        <Caret Line="1164" Column="78" TopLine="1153"/>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="87" Column="59" TopLine="68"/>
       </Position16>
       <Position17>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="12" Column="74" TopLine="105"/>
+        <Caret Line="129" Column="20" TopLine="106"/>
       </Position17>
       <Position18>
-        <Filename Value="../fos_basis_tools.pas"/>
-        <Caret Line="31" Column="85" TopLine="27"/>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="140" Column="1" TopLine="105"/>
       </Position18>
       <Position19>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="12" Column="26" TopLine="113"/>
+        <Caret Line="129" Column="1" TopLine="106"/>
       </Position19>
       <Position20>
         <Filename Value="test_basis_tools.lpr"/>
-        <Caret Line="9" Column="75" TopLine="1"/>
+        <Caret Line="75" Column="1" TopLine="47"/>
       </Position20>
+      <Position21>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="76" Column="1" TopLine="47"/>
+      </Position21>
+      <Position22>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="77" Column="1" TopLine="47"/>
+      </Position22>
+      <Position23>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="79" Column="1" TopLine="47"/>
+      </Position23>
+      <Position24>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="80" Column="1" TopLine="47"/>
+      </Position24>
+      <Position25>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <Caret Line="116" Column="41" TopLine="72"/>
+      </Position25>
+      <Position26>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <Caret Line="117" Column="41" TopLine="89"/>
+      </Position26>
+      <Position27>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="65" Column="1" TopLine="52"/>
+      </Position27>
+      <Position28>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="105" Column="18" TopLine="77"/>
+      </Position28>
+      <Position29>
+        <Filename Value="../fos_basis_tools.pas"/>
+        <Caret Line="118" Column="1" TopLine="27"/>
+      </Position29>
+      <Position30>
+        <Filename Value="test_basis_tools.lpr"/>
+        <Caret Line="105" Column="19" TopLine="77"/>
+      </Position30>
     </JumpHistory>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
+    <Target>
+      <Filename Value="../../../bin/test_basis_tools"/>
+    </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value="..;../../fre_aps;../../fre_fcom;../../fre_db;../../fos_interfaces"/>
@@ -391,15 +444,6 @@
     </Other>
   </CompilerOptions>
   <Debugging>
-    <BreakPoints Count="1">
-      <Item1>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="test_basis_tools.lpr"/>
-        <Line Value="114"/>
-      </Item1>
-    </BreakPoints>
     <Exceptions Count="3">
       <Item1>
         <Name Value="EAbort"/>
@@ -412,4 +456,5 @@
       </Item3>
     </Exceptions>
   </Debugging>
+  <EditorMacros Count="0"/>
 </CONFIG>

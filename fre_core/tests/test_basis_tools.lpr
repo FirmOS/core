@@ -102,6 +102,10 @@ begin
  TestAES('f58c4c04d6e5f1ba779eabfb5f7bfbd69cfc4e967edb808d679f777bc6702c7d39f23369a9d9bacfa530e26304231461b2eb05e2c39be9fcda6c19078c6a9d1b',
          '6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c46a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710',false,2);
 
+ writeln('SHA1 PASS :',GFRE_BT.CalcSaltedSH1Password('secretone','salt1233'));
+ writeln('SHA1 PASS :',GFRE_BT.VerifySaltedSHA1Password('secretone','e1NTSEF9amQ1TGtuVkpnTkZRN0lEV2svcmZIV2ozQUQ1ellXeDA='));
+ writeln('SHA1 PASS :',GFRE_BT.VerifySaltedSHA1Password('secretone','e1NTSEF9blBxWmhYclEwWmlSTU1wQXJHUE5UeExOVWpsellXeDBNVEl6TXc9PQ=='));
+ halt;
 end;
 
 var test:string;

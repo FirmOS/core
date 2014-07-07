@@ -113,6 +113,10 @@ type
     function  Base64Encode              (const input:string):String;
     function  Base64Decode              (const input:string):String;
 
+    function  CalcSaltedSH1Password     (const pw:String ; const salt : string):string;
+    function  VerifySaltedSHA1Password  (const pw:string;const ssha_scheme:string):boolean;
+
+
     procedure EncryptAESStreamCBC128    (const Source: ansistring;const Key,InitVector: ansistring; out Dest: ansistring); overload;
     procedure EncryptAESStreamCBC192    (const Source: ansistring;const Key,InitVector: ansistring; out Dest: ansistring); overload;
     procedure EncryptAESStreamCBC256    (const Source: ansistring;const Key,InitVector: ansistring; out Dest: ansistring); overload;
@@ -1115,6 +1119,27 @@ end;
 function TFOS_DEFAULT_BASISTOOLS.Base64Decode(const input: string): String;
 begin
  result := base64.DecodeStringBase64(input);
+end;
+
+function TFOS_DEFAULT_BASISTOOLS.CalcSaltedSH1Password(const pw: String; const salt: string): string;
+begin
+   result := Base64Encode('{SSHA}'+Base64Encode(SHA1String(pw+salt)+salt));
+end;
+
+function TFOS_DEFAULT_BASISTOOLS.VerifySaltedSHA1Password(const pw: string; const ssha_scheme: string): boolean;
+var dec      : string;
+    deco     : string;
+    saltlen  : NativeInt;
+begin
+  dec := Base64Decode(ssha_scheme);
+  if pos('{SSHA}',dec)<>1 then
+    raise Exception.Create('not a ssha scheme salted password');
+  dec     := copy(dec,7,MaxInt);
+  deco    := Base64Decode(dec);
+  saltlen := Length(deco)-20;
+  dec     := copy(deco,1,4);
+  deco    := copy(deco,21,maxint);
+  result  := CalcSaltedSH1Password(pw,deco)=ssha_scheme;
 end;
 
 procedure TFOS_DEFAULT_BASISTOOLS.EncryptAESStreamCBC128(const Source: ansistring; const Key, InitVector: ansistring; out Dest: ansistring);
