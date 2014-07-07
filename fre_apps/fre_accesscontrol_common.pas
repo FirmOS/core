@@ -803,7 +803,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateRoleIcon);
-      AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
+      AddFulltextFilterOnTransformed(['displayname']);
    end;
     role_Grid := session.NewDerivedCollection('ROLEMOD_ROLE_GRID');
     with role_Grid do begin
@@ -1445,7 +1445,7 @@ begin
       AddOneToOnescheme('protected','','',dt_string,False);
       AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
-      AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
+      AddFulltextFilterOnTransformed(['displayname']);
     end;
     group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_GRID');
     with group_Grid do begin
@@ -2411,7 +2411,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_string,False);
       SetFinalRightTransformFunction(@CalculateUserIcon);
-      AddFulltextFilterOnTransformed(TFRE_DB_StringArray.create('displayname'));
+      AddFulltextFilterOnTransformed(['displayname']);
     end;
 
     user_grid := session.NewDerivedCollection('USERMOD_USER_GRID');
