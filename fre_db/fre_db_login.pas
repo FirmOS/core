@@ -53,6 +53,7 @@ type
   TFRE_DB_LOGIN = class (TFRE_DB_APPLICATION)
   protected
     class procedure InstallDBObjects     (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    procedure MySessionInitialize  (const session: TFRE_DB_UserSession); override;
   public
     procedure  SetupApplicationStructure ; override;
     procedure  InternalSetup             ; override;
@@ -68,6 +69,8 @@ type
     function WEB_BuildAppList    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_TakeOverSession (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function WEB_SendPageReload  (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_NotificationMenu(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_NotificationSC  (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -79,7 +82,7 @@ implementation
 class procedure TFRE_DB_LOGIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
-  newVersionId:='1.0';
+  newVersionId:='1.1';
 
   if (currentVersionId='') then begin
     currentVersionId:='1.0';
@@ -115,6 +118,35 @@ begin
     CreateAppText(conn,'login_takeover_failed','The takeover of the existing session failed, try again');
     CreateAppText(conn,'login_faild_access','Invalid Username/Domain/Passsword combination');
     CreateAppText(conn,'login_faild_suspended','Currently the domain is suspended, no login is possible.');
+  end;
+  if (currentVersionId='1.0') then begin
+    currentVersionId:='1.1';
+
+    CreateAppText(conn,'notif_grid_caption','Notification');
+  end;
+end;
+
+procedure TFRE_DB_LOGIN.MySessionInitialize(const session: TFRE_DB_UserSession);
+var
+  transform        : IFRE_DB_SIMPLE_TRANSFORM;
+  notification_grid: IFRE_DB_DERIVED_COLLECTION;
+  conn             : IFRE_DB_CONNECTION;
+begin
+  inherited MySessionInitialize(session);
+
+  if session.IsInteractiveSession then begin
+    conn := session.GetDBConnection;
+    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
+    with transform do begin
+      AddOneToOnescheme('name','',FetchAppTextShort(session,'notif_grid_caption'),dt_string,true,true);
+    end;
+    notification_grid := session.NewDerivedCollection('NOTIFICATION_GRID');
+    with notification_grid do begin
+      SetDeriveParent(conn.CreateCollection('NOTIFICATION',true));
+      SetDeriveTransformation(transform);
+      SetDisplayType(cdt_Listview,[],'','','',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
+      SetDefaultOrderField('name',true);
+    end;
   end;
 end;
 
@@ -174,6 +206,7 @@ var
   dlg           : TFRE_DB_LAYOUT_DESC;
   serverFunc    : TFRE_DB_SERVER_FUNC_DESC;
   apps          : IFRE_DB_APPLICATION_ARRAY;
+  loginapp      : IFRE_DB_APPLICATION;
 
 
   res           : TFRE_DB_TOPMENU_DESC;
@@ -183,10 +216,11 @@ var
   var res    : TFRE_DB_TOPMENU_DESC;
       subids : TFRE_DB_StringArray;
       i      : integer;
-      profile_caption: String;
+      profile_caption  : String;
   begin
     ses.ClearUpdatable;
-    res := TFRE_DB_TOPMENU_DESC.create.Describe(); // .Describe('FirmOSNotifications');
+
+    res := TFRE_DB_TOPMENU_DESC.create.Describe(ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
     res.AddJiraDialogEntry.Describe(app.FetchAppTextShort(ses,'top_messages'),'images_apps/login/messages.svg');
     res.AddEntry.Describe(app.FetchAppTextShort(ses,'top_home'),'images_apps/login/home.svg',
                           TFRE_DB_SERVER_FUNC_DESC_ARRAY.Create(
@@ -214,7 +248,7 @@ begin
     sta_ActiveNew,
     sta_ReUsed:
       begin
-        conn.FetchApplications(apps);
+        conn.FetchApplications(apps,loginapp);
         if Length(apps)=0 then begin
           result := No_Apps_ForGuests(input,ses,app,conn); // => Apps for Guests or Login
           exit;
@@ -364,6 +398,7 @@ function TFRE_DB_LOGIN.WEB_BuildAppList(const input: IFRE_DB_Object; const ses: 
 var
   res     : TFRE_DB_SUBSECTIONS_DESC;
   apps    : IFRE_DB_APPLICATION_ARRAY;
+  loginapp: IFRE_DB_APPLICATION;
   i       : Integer;
   sf      : TFRE_DB_SERVER_FUNC_DESC;
   session       : TFRE_DB_UserSession;
@@ -371,7 +406,7 @@ var
 
 begin
   session := GetSession(input);
-  session.GetDBConnection.FetchApplications(apps);
+  session.GetDBConnection.FetchApplications(apps,loginapp);
   res := TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
   res.OnUIChange(TFRE_DB_SERVER_FUNC_DESC.Create.Describe(self,'OnUIChange'));
   for i := 0 to high(apps) do begin
@@ -409,6 +444,19 @@ end;
 function TFRE_DB_LOGIN.WEB_SendPageReload(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   result := TFRE_DB_OPEN_NEW_LOCATION_DESC.create.Describe('/',false);
+end;
+
+function TFRE_DB_LOGIN.WEB_NotificationMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res: TFRE_DB_MENU_DESC;
+begin
+  res:=TFRE_DB_MENU_DESC.create.Describe;
+  Result:=res;
+end;
+
+function TFRE_DB_LOGIN.WEB_NotificationSC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=GFRE_DB_NIL_DESC;
 end;
 
 

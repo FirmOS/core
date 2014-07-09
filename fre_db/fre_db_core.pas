@@ -1874,8 +1874,8 @@ type
     function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
     function           Update                       (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;virtual;
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
-    function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual;
-    function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY)                                   : TFRE_DB_Errortype;virtual; // with user rights
+    function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION): TFRE_DB_Errortype;virtual;
+    function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION): TFRE_DB_Errortype;virtual; // with user rights
     procedure          DrawScheme                   (const datastream:TStream;const classfile:string)                        ; virtual;
   end;
 
@@ -2195,7 +2195,7 @@ type
 
     destructor  Destroy                   ;override;
 
-    function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY):TFRE_DB_Errortype;override;
+    function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION):TFRE_DB_Errortype;override;
     function    InvokeMethod              (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
     function    CreateschemeUniqueKeyDefinition (const schemeClass,FieldName:TFRE_DB_String ; const FieldType:TFRE_DB_FIELDTYPE):TFRE_DB_Errortype;
@@ -2303,7 +2303,7 @@ type
     function    NewScheme                   (const Scheme_Name: TFRE_DB_String;const typ : TFRE_DB_SchemeType) : TFRE_DB_SchemeObject;
     procedure   SafeFinalize                (intf : IFRE_DB_BASE);
     function    NewDBCommand                : IFRE_DB_COMMAND;
-    function    FetchApplications           (var apps : IFRE_DB_APPLICATION_ARRAY):TFRE_DB_Errortype;
+    function    FetchApplications           (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION):TFRE_DB_Errortype;
     function    NewObjectIntf               (const InterfaceSpec:ShortString;out Intf;const mediator : TFRE_DB_ObjectEx=nil;const fail_on_non_existent:boolean=true) : Boolean;
     function    NewObjectI                  : IFRE_DB_Object;
     function    CreateFromFileI             (const filename:TFRE_DB_String):IFRE_DB_Object;
@@ -6149,26 +6149,39 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB_BASE_CONNECTION.FetchApplications(var apps:TFRE_DB_APPLICATION_ARRAY): TFRE_DB_Errortype;
-var cnt:NativeInt=0;
+function TFRE_DB_BASE_CONNECTION.FetchApplications(var apps:TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION): TFRE_DB_Errortype;
+var l_apps : TFRE_DB_APPLICATION_ARRAY;
+    cnt,i  : integer;
 begin
-  SetLength(apps,0);
   _ConnectCheck;
-  apps := GFRE_DB.GetApps;
+  l_apps := GFRE_DB.GetApps;
+  SetLength(apps,length(l_apps));
+  cnt := 0;
+  for i := 0 to high(l_apps) do begin
+    if l_apps[i].AppClassName='TFRE_DB_LOGIN' then begin
+      loginapp:=l_apps[i];
+      continue;
+    end;
+    apps[cnt] := l_apps[i];
+    inc(cnt);
+  end;
+  setlength(apps,cnt);
   result := edb_OK;
 end;
 
-function TFRE_DB_BASE_CONNECTION.FetchApplicationsI(var apps: IFRE_DB_APPLICATION_ARRAY): TFRE_DB_Errortype;
+function TFRE_DB_BASE_CONNECTION.FetchApplicationsI(var apps: IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION): TFRE_DB_Errortype;
 var appa :TFRE_DB_APPLICATION_ARRAY;
+    loginappt: TFRE_DB_APPLICATION;
   i: Integer;
 begin //nl
-  result := FetchApplications(appa);
+  result := FetchApplications(appa,loginappt);
   if result = edb_OK then begin
     setlength(apps,length(appa));
     for i:=0 to high(apps) do begin
       apps[i] := appa[i];
     end;
   end;
+  loginapp:=loginappt;
 end;
 
 
@@ -9921,7 +9934,7 @@ begin
   inherited Destroy;
 end;
 
-function  TFRE_DB_CONNECTION.FetchApplications(var apps: TFRE_DB_APPLICATION_ARRAY):TFRE_DB_Errortype;
+function  TFRE_DB_CONNECTION.FetchApplications(var apps: TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION):TFRE_DB_Errortype;
 var l_apps : TFRE_DB_APPLICATION_ARRAY;
     cnt,i  : integer;
 begin
@@ -9929,12 +9942,10 @@ begin
     exit(edb_NOT_CONNECTED);
   if not assigned(FSysConnection) then
     Exit(edb_ACCESS);
-  result := FSysConnection.FetchApplications(l_apps);
+  result := FSysConnection.FetchApplications(l_apps, loginapp);
   SetLength(apps,length(l_apps));
   cnt := 0;
   for i := 0 to high(l_apps) do begin
-    if l_apps[i].AppClassName='TFRE_DB_LOGIN' then
-      continue;
     if FSysConnection.CheckClassRight4MyDomain(sr_FETCH,l_apps[i].ClassType)
        or (FSysConnection.CheckClassRight4AnyDomain(sr_FETCH,l_apps[i].ClassType) and l_apps[i].isMultiDomainApp) then
          begin
@@ -10804,7 +10815,7 @@ begin
   result := TFRE_DB_COMMAND.Create;
 end;
 
-function TFRE_DB.FetchApplications(var apps: IFRE_DB_APPLICATION_ARRAY): TFRE_DB_Errortype;
+function TFRE_DB.FetchApplications(var apps: IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION): TFRE_DB_Errortype;
 var i     : integer;
     lapps : TFRE_DB_APPLICATION_ARRAY;
 begin

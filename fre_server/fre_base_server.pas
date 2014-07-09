@@ -479,18 +479,17 @@ procedure TFRE_BASE_SERVER.Setup;
      end;
 
      procedure _ServerInitializeApps;
-     var apps : IFRE_DB_APPLICATION_ARRAY;
-            i : Integer;
-          dbs : IFRE_DB_CONNECTION;
+     var    apps : IFRE_DB_APPLICATION_ARRAY;
+         loginapp: IFRE_DB_APPLICATION;
+               i : Integer;
+             dbs : IFRE_DB_CONNECTION;
      begin
-       GFRE_DBI.FetchApplications(apps);
+       GFRE_DBI.FetchApplications(apps,loginapp);
        for i:=0 to high(apps) do begin
-         if apps[i].AppClassName<>'TFRE_DB_LOGIN' then begin
-           if GetDBWithServerRights(DefaultDatabase,dbs)=edb_OK then begin // May be an array with db per app
-             (apps[i].Implementor_HC as TFRE_DB_APPLICATION).ServerInitialize(dbs);
-           end else begin
-             GFRE_BT.CriticalAbort('CANNOT SERVERINITIALIZE APPLICATION [APP:%s DB: %s]',[apps[i].AppClassName,DefaultDatabase]);
-           end;
+         if GetDBWithServerRights(DefaultDatabase,dbs)=edb_OK then begin // May be an array with db per app
+           (apps[i].Implementor_HC as TFRE_DB_APPLICATION).ServerInitialize(dbs);
+         end else begin
+           GFRE_BT.CriticalAbort('CANNOT SERVERINITIALIZE APPLICATION [APP:%s DB: %s]',[apps[i].AppClassName,DefaultDatabase]);
          end;
        end;
      end;

@@ -1505,7 +1505,7 @@ type
 
     function    SYS                           : IFRE_DB_SYS_CONNECTION;
 
-    function    FetchApplications             (var apps : IFRE_DB_APPLICATION_ARRAY)  : TFRE_DB_Errortype; // with user rights
+    function    FetchApplications             (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION)  : TFRE_DB_Errortype; // with user rights
     function    FetchTranslateableTextOBJ     (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean; // Warning: finalize the TEXTOBJ!
     function    FetchTranslateableTextShort   (const translation_key:TFRE_DB_String):TFRE_DB_String;
     function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String):TFRE_DB_String;
@@ -2445,7 +2445,7 @@ type
   IFRE_DB=interface
     procedure   GenerateAnObjChangeList         (const first_obj, second_obj: IFRE_DB_Object ; const InsertCB,DeleteCB : IFRE_DB_Obj_Iterator ; const UpdateCB : IFRE_DB_UpdateChange_Iterator);
     function    NewDBCommand                    : IFRE_DB_COMMAND;
-    function    FetchApplications               (var apps : IFRE_DB_APPLICATION_ARRAY):TFRE_DB_Errortype;
+    function    FetchApplications               (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION):TFRE_DB_Errortype;
     function    GetFormatSettings               : TFormatSettings;
     function    GetLocalZone                    : TFRE_DB_String;
     procedure   SetFormatSettings               (const AValue: TFormatSettings);
@@ -2689,6 +2689,7 @@ type
     FPromoted             : Boolean;
 
     FAppArray             : Array of IFRE_DB_APPLICATION;
+    FLoginApp             : IFRE_DB_APPLICATION;
     FDC_Array             : Array of IFRE_DB_DERIVED_COLLECTION;
     FcurrentApp           : TFRE_DB_String;
     FConnDesc             : String;
@@ -4692,7 +4693,7 @@ end;
 
 procedure TFRE_DB_UserSession._FetchAppsFromDB;
 begin
-  FDBConnection.FetchApplications(FAppArray);
+  FDBConnection.FetchApplications(FAppArray,FLoginApp);
 end;
 
 procedure TFRE_DB_UserSession._InitApps;
@@ -5338,6 +5339,7 @@ var err                : TFRE_DB_Errortype;
     lStoredSessionData : IFRE_DB_Object;
     promres            : TFRE_DB_PromoteResult;
     existing_session   : TFRE_DB_UserSession;
+    app                : TFRE_DB_APPLICATION;
 
     procedure ReinitializeApps;
     var i:integer;
@@ -5446,6 +5448,7 @@ begin
           result      := pr_OK;
           _FetchAppsFromDB;
           try
+            (FLoginApp.Implementor_HC as TFRE_DB_APPLICATION).SessionInitialize(self);
             _InitApps;
           except
             GFRE_DBI.LogEmergency(dblc_SERVER,'LOGIN APPLICATION INITIALIZATION FAILED [%s]',[FSessionData.UID_String]);
