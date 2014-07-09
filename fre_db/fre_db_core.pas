@@ -4633,6 +4633,7 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
   end;
 
   procedure CheckStandardUsers;
+  var upuser : TFRE_DB_USER;
   begin
     if not UserExists('admin',DomainID(CFRE_DB_SYS_DOMAIN_NAME)) then begin
       GFRE_DB.LogWarning(dblc_DB,'Adding initial db admin/admin account');
@@ -4644,6 +4645,15 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
         CheckDbResult(_AddUser('guest',DomainID(CFRE_DB_SYS_DOMAIN_NAME),'','Initial','FRE DB Guest',true),'initial creation of guest user failed');
       end;
     end;
+    if cFRE_DB_RESET_ADMIN=true then
+      begin
+        CheckDbResult(FetchUser('admin',FSysDomainUID,upuser));
+        upuser.SetPassword('admin');
+        CheckDbResult(Update(upuser));
+        CheckDbResult(FetchUser('guest',FSysDomainUID,upuser));
+        upuser.SetPassword('');
+        CheckDbResult(Update(upuser));
+      end;
   end;
 
 begin
@@ -18056,13 +18066,25 @@ begin
 end;
 
 procedure TFRE_DB_USER.SetPassword(const pw: TFRE_DB_String);
+var salt : string;
+    i    : integer;
+    s    : string;
 begin
-  Field('passwordMD5').AsString:=GFRE_BT.HashString_MD5_HEX(pw);
+  //Field('passwordMD5').AsString:=GFRE_BT.HashString_MD5_HEX(pw);
+ SetLength(salt,8);
+ For i:=1 to 8 do
+     salt[i]:=char(Random(256));
+ s := GFRE_BT.CalcSaltedSH1Password(pw,salt);
+ Field('passwordSHA1').AsString:=s;
 end;
 
 function TFRE_DB_USER.Checkpassword(const pw: TFRE_DB_String): boolean;
 begin
-  result :=  Field('passwordMD5').AsString=GFRE_BT.HashString_MD5_HEX(pw);
+  try
+    result := GFRE_BT.VerifySaltedSHA1Password(pw,Field('passwordSHA1').AsString);
+  except
+    result := false;
+  end;
 end;
 
 

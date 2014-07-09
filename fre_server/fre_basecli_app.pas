@@ -300,6 +300,7 @@ begin
   AddCheckOption('*','testlogcfg'    ,'                | --testlogcfg                   : do an endless logging test');
   AddHelpOutLine;
   AddCheckOption('*','setasyncwt:'   ,'                | --setasyncwt=<on/off>          : in write through mode do the writes sync or async');
+  AddCheckOption('*','resetadmin'    ,'                | --resetadmin                   : reset the admin@system and the guest@system accounts to default. => (admin and "")');
 end;
 
 procedure TFRE_CLISRV_APP.SetDefaultExtensions(AValue: String);
@@ -559,6 +560,8 @@ begin
   result := false;
   if HasOption('*','testlogcfg') then
     EndlessLogTest;
+  if HasOption('*','resetadmin') then
+    cFRE_DB_RESET_ADMIN:=true;
 end;
 
 function TFRE_CLISRV_APP.AfterStartupTerminatingCommands: boolean; { if true then shutdown, don't start }

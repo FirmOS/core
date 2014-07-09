@@ -101,6 +101,7 @@ var
       cFRE_DB_ALLOW_WEAKMEDIATORS     :boolean=true;
       cFRE_DB_LOGIN_APP_UID           :TGuid;
       cFRE_DB_LOGIN_APP               :TObject;
+      cFRE_DB_RESET_ADMIN             :boolean=false;
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;
