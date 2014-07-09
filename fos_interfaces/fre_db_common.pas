@@ -563,7 +563,7 @@ type
   TFRE_DB_TOPMENU_DESC  = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes a top menu.
-    function  Describe          (const notificationPanelId: String=''): TFRE_DB_TOPMENU_DESC;
+    function  Describe          (const notificationPanel: TFRE_DB_CONTENT_DESC=nil): TFRE_DB_TOPMENU_DESC;
     //@ Creates a new top menu entry description and adds it.
     function  AddEntry          : TFRE_DB_TOPMENU_ENTRY_DESC;
     //@ Creates a new top menu dialog entry description and adds it.
@@ -1190,9 +1190,11 @@ implementation
 
   { TFRE_DB_TOPMENU_DESC }
 
-  function TFRE_DB_TOPMENU_DESC.Describe(const notificationPanelId: String): TFRE_DB_TOPMENU_DESC;
+    function TFRE_DB_TOPMENU_DESC.Describe(const notificationPanel: TFRE_DB_CONTENT_DESC): TFRE_DB_TOPMENU_DESC;
   begin
-    Field('notificationPanelId').AsString:=notificationPanelId;
+    if Assigned(notificationPanel) then begin
+      Field('notificationPanel').AsObject:=notificationPanel;
+    end;
     if not FieldExists('id') then begin
       Field('id').AsString:='id'+UID_String;
     end;

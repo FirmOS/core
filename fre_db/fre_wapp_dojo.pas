@@ -2450,6 +2450,8 @@ implementation
     subsubsecs     : TFRE_DB_SUBSECTIONS_DESC;
     entries        : String;
     serverfuncs    : IFRE_DB_ObjectArray;
+    tmpContent     : TFRE_DB_RawByteString;
+    tmpContentType : string;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -2498,13 +2500,16 @@ implementation
         entries:=entries+',caption: "'+FREDB_String2EscapedJSString(entry.Field('caption').AsString)+'"}';
       end;
       entries:=entries+']';
+      if co.FieldExists('notificationPanel') then begin
+        TransformInvocation(session,command_type,co.Field('notificationPanel').AsObject,tmpContent,tmpContentType,true);
+      end;
       jsContentAdd('var '+co.Field('id').AsString + ' = new FIRMOS.TopMenu({');
       jsContentAdd('                 id: "'+co.Field('id').AsString+'"');
       jsContentAdd('                ,class: "borderContainer firmosTransparent"');
       jsContentAdd('                ,entries: ' + entries);
       jsContentAdd('                ,subSecsId: "' + subsecs.contentId + '"');
-      if co.Field('notificationPanelId').AsString<>'' then begin
-        jsContentAdd('                ,notificationPanelId: "' + co.Field('notificationPanelId').AsString + '"');
+      if co.FieldExists('notificationPanel') then begin
+        jsContentAdd('                ,notificationPanel: ' + co.Field('notificationPanel').AsObject.Field('id').AsString);
       end;
       jsContentAdd('});');
 
