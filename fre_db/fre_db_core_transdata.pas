@@ -386,6 +386,7 @@ type
   private
      FStoreList : TFPHashObjectList;
      FSessid    : TFRE_DB_NameType;
+     function   GetUpdateStore            (const store_id: shortstring): TFRE_DB_UPDATE_STORE_DESC;
   public
      constructor Create                   (const session_id : TFRE_DB_NameType);
      destructor  Destroy                  ; override;
@@ -899,6 +900,16 @@ end;
 
 { TFRE_DB_SESSION_UPO }
 
+function TFRE_DB_SESSION_UPO.GetUpdateStore(const store_id: shortstring): TFRE_DB_UPDATE_STORE_DESC;
+begin
+  result :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
+  if not Assigned(result) then
+    begin
+      result := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
+      FStoreList.Add(store_id,result);
+    end;
+end;
+
 constructor TFRE_DB_SESSION_UPO.Create(const session_id: TFRE_DB_NameType);
 begin
   FStoreList := TFPHashObjectList.Create(false);
@@ -914,36 +925,21 @@ end;
 procedure TFRE_DB_SESSION_UPO.AddStoreUpdate(const store_id: TFRE_DB_NameType; const qid: Int64; const upo: IFRE_DB_Object);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
-  update_st :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
-  if not Assigned(update_st) then
-    begin
-      update_st := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
-      FStoreList.Add(store_id,update_st);
-    end;
+  update_st := GetUpdateStore(store_id);
   update_st.addUpdatedEntry(upo,qid);
 end;
 
 procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id: TFRE_DB_NameType; const qid: Int64; const upo: IFRE_DB_Object; const reference_id: TFRE_DB_String);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
-  update_st :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
-  if not Assigned(update_st) then
-    begin
-      update_st := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
-      FStoreList.Add(store_id,update_st);
-    end;
+  update_st := GetUpdateStore(store_id);
   update_st.addNewEntry(upo,qid,reference_id);
 end;
 
 procedure TFRE_DB_SESSION_UPO.AddStoreDelete(const store_id: TFRE_DB_NameType; const qid: Int64; const id: TFRE_DB_String);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
-  update_st :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
-  if not Assigned(update_st) then
-    begin
-      update_st := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
-      FStoreList.Add(store_id,update_st);
-    end;
+  update_st := GetUpdateStore(store_id);
   update_st.addDeletedEntry(id,qid);
 end;
 
@@ -2969,9 +2965,10 @@ var diff,d1,d2 : NativeInt;
     for i:=0 to high(FResultDBOsCompare) do
      begin
        if (Length(FResultDBOs)>0) and
+           (curr_idx<=high(FResultDBOs)) and
            (FResultDBOsCompare[i].UID=FResultDBOs[curr_idx].UID) then
              begin
-               if curr_idx<high(FResultDBOs) then { stick on last item }
+               if curr_idx<=high(FResultDBOs) then
                  inc(curr_idx);
                continue;
              end
@@ -4189,6 +4186,8 @@ procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddDirectSessionUpdateEntry(const update_
 begin
   if not assigned(FCurrentNotify) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / direct session update entry');
+  GFRE_DBI.LogDebug(dblc_DBTDM,'         >CN_DIRECT SESSION UPDATE',[]);
+  GFRE_DBI.LogDebug(dblc_DBTDM,'           >%s',[update_dbo.DumpToString(15)]);
   FCurrentNotify.AddDirectSessionUpdateEntry(update_dbo);
 end;
 
@@ -4196,6 +4195,8 @@ procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInplaceUpdate(const sessionid: TFR
 begin
   if not assigned(FCurrentNotify) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid inplace update');
+  GFRE_DBI.LogDebug(dblc_DBTDM,'         >CN_INPLACE UPDATE SES[%s]  STORE[%s] CQID [%d]',[sessionid,store_id,qry_id]);
+  GFRE_DBI.LogDebug(dblc_DBTDM,'           >%s',[upo.DumpToString(15)]);
   FCurrentNotify.AddGridInplaceUpdate(sessionid,store_id,qry_id,upo);
 end;
 
@@ -4203,6 +4204,7 @@ procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInplaceDelete(const sessionid: TFR
 begin
   if not assigned(FCurrentNotify) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid delete');
+  GFRE_DBI.LogDebug(dblc_DBTDM,'         >CN_DELETE UPDATE SES[%s]  STORE[%s] CQID [%d] DEL ID [%s]',[sessionid,store_id,qry_id,del_id]);
   FCurrentNotify.AddGridRemoveUpdate(sessionid,store_id,qry_id,del_id);
 end;
 
@@ -4210,6 +4212,8 @@ procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInsertUpdate(const sessionid: TFRE
 begin
   if not assigned(FCurrentNotify) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid insert update');
+  GFRE_DBI.LogDebug(dblc_DBTDM,'         >CN_INSERT UPDATE SES[%s]  STORE[%s] CQID [%d] REF ID [%s]',[sessionid,store_id,qry_id,reference_id]);
+  GFRE_DBI.LogDebug(dblc_DBTDM,'           >%s',[upo.DumpToString(15)]);
   FCurrentNotify.AddGridInsertUpdate(sessionid,store_id,qry_id,upo,reference_id);
 end;
 
@@ -4257,6 +4261,10 @@ procedure TFRE_DB_TRANSDATA_MANAGER.UpdateObjectInFilterKey(const td: TFRE_DB_TR
             end;
             CN_AddGridInplaceUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,upo);
           end;
+      end
+    else
+      begin
+
       end;
   end;
 
