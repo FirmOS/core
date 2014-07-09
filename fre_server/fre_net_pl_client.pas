@@ -29,6 +29,7 @@ type
       FCollClassn : Shortstring;
       FIsVolatile : Boolean;
       Flayer      : TPLNet_Layer;
+      function        GetFirstLastIdx            (const mode: NativeInt; const index: UInt64=0): IFRE_DB_Object;
     public
       constructor     Create                     (const collname : TFRE_DB_NameType ; const CollectionClassname: Shortstring; const isVolatile : Boolean ; const layer : TPLNet_Layer);
       function        SendCycleColl              (const cmd : IFRE_DB_Object ; out answer : IFRE_DB_Object) : boolean;
@@ -49,13 +50,13 @@ type
       function        GetItem                    (const num:uint64) : IFRE_DB_Object;
       function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
 
-      function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_Object;const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype
-      function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean;
-      function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-      function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-      function        GetIndexedUIDSigned        (const query_value : int64            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-      function        GetIndexedUIDUnsigned      (const query_value : QWord            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-      function        GetIndexedUIDReal          (const query_value : Double           ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+      function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_Object        ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype
+      function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_ObjectArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean;
+      function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID                 ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+      function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray     ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+      function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TGUID                 ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+      function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TGUID                 ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+      function        GetIndexedUIDReal          (const query_value : Double         ; out obj_uid     : TGUID                 ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
 
       function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
       function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
@@ -217,6 +218,30 @@ end;
 
 { TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection }
 
+function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetFirstLastIdx(const mode: NativeInt; const index: UInt64): IFRE_DB_Object;
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
+    res        : boolean;
+begin
+  cmd :=  Flayer.NewPersistenceLayerCommand('CFILAIX');
+  cmd.Field('T').AsInt32:=mode; { 0 = first, 1=last, 2= idx }
+  if mode=2 then
+    cmd.Field('IX').AsUint64 := index;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    res := answer.Field('A').AsBoolean;
+    if res then
+      result := answer.Field('O').CheckOutObject
+    else
+      result := nil;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
+end;
+
 constructor TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(const collname: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: Boolean; const layer: TPLNet_Layer);
 begin
   FName       := collname;
@@ -261,13 +286,35 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Count: int64;
+var cmd,answer : IFRE_DB_Object;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CGC');
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    result := answer.Field('C').AsInt64;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Exists(const ouid: TGUID): boolean;
+var cmd,answer : IFRE_DB_Object;
+    dba        : TFRE_DB_StringArray;
 begin
-  abort;
+  cmd :=  Flayer.NewPersistenceLayerCommand('CE');
+  cmd.Field('G').AsGUID:=ouid;
+  SendCycleColl(cmd,answer);
+  try
+    FLayer.CheckRaiseAnswerError(answer);
+    result := answer.Field('A').AsBoolean;
+    Flayer.FLasterror     := '';
+    FLayer.FLastErrorCode := edb_OK;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetAllUIDS(var uids: TFRE_DB_GUIDArray);
@@ -325,17 +372,17 @@ end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.First: IFRE_DB_Object;
 begin
-  abort;
+  result := GetFirstLastIdx(0);
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Last: IFRE_DB_Object;
 begin
-  abort;
+  result := GetFirstLastIdx(1);
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetItem(const num: uint64): IFRE_DB_Object;
 begin
-  abort;
+  result := GetFirstLastIdx(2,num);
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_Errortype;
@@ -1098,8 +1145,23 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.BulkFetch(const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
+var cmd,answer : IFRE_DB_Object;
 begin
-  abort;
+  if FGlobal then
+    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
+  cmd := NewPersistenceLayerCommand('BF');
+  cmd.Field('G').AsGUIDArr := obj_uids;
+  SendCycle(cmd,answer);
+  try
+    CheckRaiseAnswerError(answer,true);
+    result         := FLastErrorCode;
+    if result=edb_OK then
+      objects := answer.Field('O').CheckOutObjectArray
+    else
+      objects := nil;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.StoreOrUpdateObject(const obj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean): TFRE_DB_TransStepId;

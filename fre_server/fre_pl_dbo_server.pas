@@ -55,10 +55,9 @@ type
 
   { TFRE_DB_Connected_Layer }
 
-  TFRE_DB_Connected_Layer=class
+  TFRE_DB_Connected_Layer=class(IFRE_DB_DBChangedNotificationBlock)
   private
     FLayer   : IFRE_DB_PERSISTANCE_LAYER;
-    FNotifIf : IFRE_DB_DBChangedNotification;
     FServer  : TFRE_PL_DBO_SERVER;
   public
     procedure   SendNotificationBlock (const block : IFRE_DB_Object);
@@ -68,9 +67,10 @@ type
 
   TFRE_PL_DBO_SERVER=class(TFRE_DBO_SERVER)
   private
-    FDataTimer : IFRE_APSC_TIMER;
-    FLayers    : Array of TFRE_DB_Connected_Layer;
-    FLayerLock : IFOS_LOCK;
+    FDataTimer        : IFRE_APSC_TIMER;
+    FLayers           : Array of TFRE_DB_Connected_Layer;
+    FLayerLock        : IFOS_LOCK;
+    FSystemConnection : TFRE_DB_SYSTEM_CONNECTION;
   protected
     procedure   SetupPersistanceLayers;
     procedure   WatchDog              (const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
@@ -123,12 +123,12 @@ end;
 constructor TFRE_DB_Connected_Layer.Create(const server: TFRE_PL_DBO_SERVER ; const layerdbname : TFRE_DB_NameType);
 begin
   FServer  := server;
-  FNotifIf := TFRE_DB_DBChangedNotificationProxy.Create(nil,layerdbname,@SendNotificationBlock);
+  //FNotifIf := TFRE_DB_DBChangedNotificationProxy.Create(nil,layerdbname,@SendNotificationBlock);
 end;
 
 destructor TFRE_DB_Connected_Layer.Destroy;
 begin
-  FNotifIf.FinalizeNotif;
+  //FNotifIf.FinalizeNotif;
   inherited Destroy;
 end;
 
@@ -436,6 +436,30 @@ var CID : ShortString;
       __SendOK;
     end;
 
+    procedure _GetCount;
+    var arra  : TFRE_DB_GUIDArray;
+        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+    begin
+      coll := __GetColl(dbo);
+      dbo.ClearAllFields;
+      dbo.Field('C').AsInt64 := coll.Count;
+      __SendOK;
+    end;
+
+
+    procedure _GetAllObjects;
+    var arra  : IFRE_DB_ObjectArray;
+        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+    begin
+      coll := __GetColl(dbo);
+      dbo.ClearAllFields;
+      arra:=nil;
+      coll.GetAllObjects(arra);
+      dbo.Field('G').AsObjectArr := arra;
+      __SendOK;
+    end;
+
+
     procedure _CollForallIndexed;
     var arra  : TFRE_DB_GUIDArray;
         coll  : IFRE_DB_PERSISTANCE_COLLECTION;
@@ -568,6 +592,41 @@ var CID : ShortString;
       __SendOK;
     end;
 
+    procedure _CollUidExists;
+    var qv    : TFRE_DB_GUID;
+        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        res   : boolean;
+    begin
+      qv  := dbo.Field('G').AsGUID;
+      coll := __GetColl(dbo);
+      dbo.ClearAllFields;
+      res := coll.Exists(qv);
+      dbo.Field('A').AsBoolean := res;
+      __SendOK;
+    end;
+
+    procedure _CollFirstLastIndex;
+    var qv    : TFRE_DB_GUID;
+        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        res   : IFRE_DB_Object;
+        m     : Integer;
+        ix    : UInt64;
+    begin
+      qv   := dbo.Field('G').AsGUID;
+      coll := __GetColl(dbo);
+      m    := dbo.Field('T').AsInt32;
+      ix   := dbo.Field('IX').AsUint64;
+      dbo.ClearAllFields;
+      case m of
+        0 : res := coll.First;
+        1 : res := coll.Last;
+        2 : res := coll.GetItem(ix);
+      end;
+      dbo.Field('A').AsBoolean := assigned(res);
+      if assigned(res) then
+        dbo.Field('O').AsObject:=res;
+      __SendOK;
+    end;
 
     procedure _StoreOrUpdate;
     var obj  : IFRE_DB_Object;
@@ -590,12 +649,33 @@ var CID : ShortString;
     begin
       g   := dbo.Field('G').AsGUID;
       dbo.ClearAllFields;
-      res := myLayer.Fetch(g,obj,false);
+      res := myLayer.Fetch(g,obj);
       dbo.Field('EC').AsInt16 := ord(res);
       if res=edb_OK then
         begin
           dbo.Field('ES').AsString := '';
           dbo.Field('O').AsObject  := obj;
+        end
+      else
+        begin
+          dbo.Field('ES').AsString := myLayer.GetLastError;
+        end;
+      SendAnswer(dbo);
+    end;
+
+    procedure _GlobBulkFetch;
+    var obj  : IFRE_DB_ObjectArray;
+        g    : TFRE_DB_GUIDArray;
+        res  : TFRE_DB_Errortype;
+    begin
+      g   := dbo.Field('G').AsGUIDArr;
+      dbo.ClearAllFields;
+      res := myLayer.BulkFetch(g,obj);
+      dbo.Field('EC').AsInt16 := ord(res);
+      if res=edb_OK then
+        begin
+          dbo.Field('ES').AsString   := '';
+          dbo.Field('O').AsObjectArr := obj;
         end
       else
         begin
@@ -670,33 +750,38 @@ begin
   try
     cid := dbo.Field('CID').AsString;
     case cid of
-       'GLE'   : _GetLastError;
-       'DL'    : _DatabaseList;
-       'DE'    : _DatabaseExists;
-       'CD'    : _CreateDatabase;
-       'DD'    : _DeleteDatabase;
-       'EC'    : _ExistsCollection;
-       'GC'    : _ExistsCollection;
-       'NC'    : _NewCollection;
-       'DC'    : _DeleteCollection;
-       'DIF'   : _DefineIndexOnField;
-       'CGIUS' : _GetIndexedUid(true);
-       'CGIU'  : _GetIndexedUid(false);
-       'SOU'   : _StoreOrUpdate;
-       'CGIO'  : _GetIndexedObj(false);
-       'CHIOS' : _GetIndexedObj(true);
-       'CGAU'  : _GetAllGuids;
-       'CFAI'  : _CollForallIndexed;
-       'CFAISR': _CollForAllIndexedRange(0);
-       'CFAIUR': _CollForAllIndexedRange(1);
-       'CFAISS': _CollForAllIndexedRange(2);
-       'CFAIPS': _CollForAllIndexedRange(3);
-       'CF'    : _CollFetch(false);
-       'F'     : _GlobFetch;
-       'D'     : _GlobDelete;
-       'GR'    : _GetReferences(0);
-       'GRC'   : _GetReferences(1);
-       'GRD'   : _GetReferences(2);
+       'GLE'     : _GetLastError;
+       'DL'      : _DatabaseList;
+       'DE'      : _DatabaseExists;
+       'CD'      : _CreateDatabase;
+       'DD'      : _DeleteDatabase;
+       'EC'      : _ExistsCollection;
+       'GC'      : _ExistsCollection;
+       'NC'      : _NewCollection;
+       'DC'      : _DeleteCollection;
+       'DIF'     : _DefineIndexOnField;
+       'CGC'     : _GetCount;
+       'CGIUS'   : _GetIndexedUid(true);
+       'CGIU'    : _GetIndexedUid(false);
+       'SOU'     : _StoreOrUpdate;
+       'CGIO'    : _GetIndexedObj(false);
+       'CHIOS'   : _GetIndexedObj(true);
+       'CGAU'    : _GetAllGuids;
+       'CGAO'    : _GetAllObjects;
+       'CFAI'    : _CollForallIndexed;
+       'CFAISR'  : _CollForAllIndexedRange(0);
+       'CFAIUR'  : _CollForAllIndexedRange(1);
+       'CFAISS'  : _CollForAllIndexedRange(2);
+       'CFAIPS'  : _CollForAllIndexedRange(3);
+       'CF'      : _CollFetch(false);
+       'CE'      : _CollUidExists;
+       'CFILAIX' : _CollFirstLastIndex;
+       'F'       : _GlobFetch;
+       'BF'      : _GlobBulkFetch;
+       'D'       : _GlobDelete;
+       'GR'      : _GetReferences(0);
+       'GRC'     : _GetReferences(1);
+       'GRD'     : _GetReferences(2);
       else
         raise EFRE_DB_Exception.Create(edb_ERROR,'UNKNOWN PERSISTANCE NETCMD [%s] ON LAYER [%s]',[cid,FlayerID]);
     end;
@@ -735,22 +820,36 @@ end;
 procedure TFRE_PL_DBO_SERVER.SetupPersistanceLayers;
 
   procedure _ConnectAllDatabases;
-  var i       : Integer;
+  var i,lc    : Integer;
       dblist  : IFOS_STRINGS;
       dbname  : string;
       layer   : IFRE_DB_PERSISTANCE_LAYER;
-      clayer  : TFRE_DB_Connected_Layer;
+      res     : TFRE_DB_Errortype;
+
+      procedure Connect(const idx:NativeInt ; const dbname : TFRE_DB_NameType);
+      var clayer  : TFRE_DB_Connected_Layer;
+      begin
+        clayer := TFRE_DB_Connected_Layer.Create(self,dbname);
+        CheckDbResult(GFRE_DB_PS_LAYER.Connect(dbname,clayer.FLayer,false,clayer),'FAIL STARTUP PLDB : '+dbname);
+        FLayers[idx] := clayer;
+        GFRE_DB.LogNotice(dblc_PERSISTANCE,'STARTUP CONNECT [%s]',[clayer.FLayer.GetConnectedDB]);
+      end;
+
   begin
     dblist := GFRE_DB_PS_LAYER.DatabaseList;
     SetLength(FLayers,dblist.Count);
+    lc := 0;
+    Connect(lc,'SYSTEM');
+    inc(lc);
     GFRE_DB.LogInfo(dblc_SERVER,'START SERVING DATABASES [%s]',[dblist.Commatext]);
     for i:= 0 to dblist.Count-1 do
       begin
         dbname := dblist[i];
-        clayer := TFRE_DB_Connected_Layer.Create(self,dbname);
-        CheckDbResult(GFRE_DB_PS_LAYER.Connect(dbname,clayer.FLayer,false,clayer.FNotifIf),'FAIL STARTUP PLDB : '+dbname);
-        FLayers[i] := clayer;
-        GFRE_DB.LogNotice(dblc_PERSISTANCE,'STARTUP CONNECT [%s]',[clayer.FLayer.GetConnectedDB]);
+        if dbname<>'SYSTEM' then
+          begin
+            Connect(lc,dbname);
+            inc(lc)
+          end;
       end;
   end;
 begin

@@ -2667,8 +2667,6 @@ type
     FSessionTerminationTO : NativeInt;
     FBoundThreadID        : TThreadID;
  var
-    FonExistsSesForTkKeyL : TFRE_DB_OnExistsUserSessionForKey;
-
     FOnWorkCommands       : TNotifyEvent;
     FUserName             : TFRE_DB_String;
     FuserDomain           : TFRE_DB_Guid;
@@ -2698,7 +2696,6 @@ type
     FIsInteractive        : Boolean;
     FBindState            : TFRE_DB_SESSIONSTATE;
 
-    procedure     SetOnExistsUserSession4TakeOver(AValue: TFRE_DB_OnExistsUserSessionForKey);
     procedure     SetOnWorkCommands       (AValue: TNotifyEvent);
     procedure     _FixupDCName           (var dcname:TFRE_DB_NameType);
     function      SearchSessionDC        (dc_name:TFRE_DB_String;out dc:IFRE_DB_DERIVED_COLLECTION):boolean;
@@ -4517,24 +4514,6 @@ begin
   exit;
 end;
 
-{ TFRE_DB_NIL_DESC }
-
-
-{ TFRE_DB_GUID_MANAGER }
-
-
-{ TFRE_DB_BE_THREAD }
-
-//procedure TFRE_DB_BE_THREAD.Execute;
-//begin
-//
-//end;
-
-
-procedure TFRE_DB_UserSession.SetOnExistsUserSession4TakeOver(AValue: TFRE_DB_OnExistsUserSessionForKey);
-begin
-  FonExistsSesForTkKeyL:=AValue;
-end;
 
 procedure TFRE_DB_UserSession.LockSession;
 begin
@@ -5347,23 +5326,6 @@ begin
   end;
 end;
 
-//function TFRE_DB_UserSession.CloneSession(const connectiond_desc: string): TFRE_DB_UserSession;
-//var dbc : IFRE_DB_CONNECTION;
-//begin
-//  if FOnGetImpersonatedDBC(FDBConnection.GetDatabaseName,FUserName,FPassMD5,dbc)<>edb_OK then
-//    GFRE_BT.CriticalAbort('UNEXPECTED, HANDLE');
-//  result := TFRE_DB_UserSession.Create(FUserName,FPassMD5,FDefaultApp,FDefaultUID,dbc);
-//  result.OnGetImpersonatedDBC    := FOnGetImpersonatedDBC;
-//  result.OnExistsUserSession     := FOnExistsUserSessionL;
-//  result.OnExistsUserSession4Key := FonExistsSesForTkKeyL;
-//  result.OnRestoreDefaultDBC     := FOnRestoreDefaultDBC;
-//  result.OnCheckUserNamePW       := FOnCheckUserNamePW;
-//  result.OnFetchPublisherRAC     := FOnFetchPublisherSesL;
-//  result.OnFetchSessionById      := FOnFetchSessionByIdL;
-//  result.FSessionData            := GFRE_DBI.NewObject;
-//  result.FConnDesc               := connectiond_desc;
-//end;
-
 type
    TCOR_TakeOverData=class
      New_RA_SC          : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
@@ -5389,7 +5351,7 @@ var err                : TFRE_DB_Errortype;
     var tod : TCOR_TakeOverData;
     begin
       GFRE_DBI.LogInfo(dblc_SERVER,'>TAKEOVERSESSION SESSION [%s] USER [%s]',[FSessionID,FUserName]);
-      if FonExistsSesForTkKeyL(FConnDesc,existing_session) then
+      if GFRE_DBI.NetServ.ExistsUserSessionForKeyLocked(FConnDesc,existing_session) then
         begin
           try
             assert(existing_session<>self);
@@ -5423,7 +5385,7 @@ begin
         promres := TakeOver;
         exit(promres);
       end;
-    GFRE_DBI.NetServ.FetchSessionByIdLocked(user_name,existing_session);
+    GFRE_DBI.NetServ.ExistsUserSessionForUserLocked(user_name,existing_session);
     if assigned(existing_session) then begin
       try
         err := GFRE_DBI.NetServ.CheckUserNamePW(user_name,password);
