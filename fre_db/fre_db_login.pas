@@ -144,7 +144,7 @@ begin
     with notification_grid do begin
       SetDeriveParent(conn.CreateCollection('NOTIFICATION',true));
       SetDeriveTransformation(transform);
-      SetDisplayType(cdt_Listview,[],'','','',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
+      SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
       SetDefaultOrderField('name',true);
     end;
   end;
