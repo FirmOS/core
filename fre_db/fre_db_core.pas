@@ -1959,6 +1959,7 @@ type
     FSysWorkflow         : TFRE_DB_COLLECTION; { the steps, may be with additional hierarchic levels }
     FSysWorkflowScheme   : TFRE_DB_COLLECTION; { the schemes, hierarchic }
     FSysWorkflowMethods  : TFRE_DB_COLLECTION; { the automatic steps }
+    FSysNotifications    : TFRE_DB_COLLECTION;
     FSysAudit            : TFRE_DB_COLLECTION;
 
     FCurrentUserToken    : TFRE_DB_USER_RIGHT_TOKEN;
@@ -2218,6 +2219,7 @@ type
     function    AdmGetWorkFlowCollection    :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowSchemeCollection :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowMethCollection :IFRE_DB_COLLECTION;
+    function    AdmGetNotificationCollection :IFRE_DB_COLLECTION;
 
     function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -4607,6 +4609,16 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
     FSysAudit := Collection('SysAudit');
   end;
 
+  procedure SetupNotificationCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysNotifications') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysNotifications');
+      coll := Collection('SysNotifications');
+    end;
+    FSysNotifications := Collection('SysNotifications');
+  end;
+
   procedure SetupSingletonCollection;
   var coll : TFRE_DB_COLLECTION;
   begin
@@ -4669,6 +4681,7 @@ begin
   SetupNoteCollection;
   SetupAuditCollection;
   SetupWorkflowCollection;
+  SetupNotificationCollection;
   CheckStandardUsers;
 end;
 
@@ -10320,6 +10333,11 @@ end;
 function TFRE_DB_CONNECTION.AdmGetWorkFlowMethCollection: IFRE_DB_COLLECTION;
 begin
  result := FSysConnection.FSysWorkflowMethods;
+end;
+
+function TFRE_DB_CONNECTION.AdmGetNotificationCollection: IFRE_DB_COLLECTION;
+begin
+  result := FSysConnection.FSysNotifications;
 end;
 
 

@@ -138,14 +138,15 @@ begin
     conn := session.GetDBConnection;
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
     with transform do begin
-      AddOneToOnescheme('name','',FetchAppTextShort(session,'notif_grid_caption'),dt_string,true,true);
+      AddOneToOnescheme('caption','',FetchAppTextShort(session,'notif_grid_caption'),dt_string,true,true);
     end;
     notification_grid := session.NewDerivedCollection('NOTIFICATION_GRID');
     with notification_grid do begin
-      SetDeriveParent(conn.CreateCollection('NOTIFICATION',true));
+      SetDeriveParent(conn.AdmGetNotificationCollection);
       SetDeriveTransformation(transform);
       SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
       SetDefaultOrderField('name',true);
+      Filters.AddAutoDependencyFilter('USER',['TFRE_DB_NOTIFICATION<USER'],[(conn.SYS.GetCurrentUserToken.User.Implementor_HC as IFRE_DB_Object).UID]);
     end;
   end;
 end;
@@ -221,6 +222,7 @@ var
     ses.ClearUpdatable;
 
     res := TFRE_DB_TOPMENU_DESC.create.Describe(ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
+
     res.AddJiraDialogEntry.Describe(app.FetchAppTextShort(ses,'top_messages'),'images_apps/login/messages.svg');
     res.AddEntry.Describe(app.FetchAppTextShort(ses,'top_home'),'images_apps/login/home.svg',
                           TFRE_DB_SERVER_FUNC_DESC_ARRAY.Create(

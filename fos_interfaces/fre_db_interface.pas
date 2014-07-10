@@ -1519,6 +1519,7 @@ type
     function    AdmGetWorkFlowCollection        :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowSchemeCollection  :IFRE_DB_COLLECTION;
     function    AdmGetWorkFlowMethCollection    :IFRE_DB_COLLECTION;
+    function    AdmGetNotificationCollection    :IFRE_DB_COLLECTION;
     function    GetSysDomainUID                 :TGUID;
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
@@ -1994,6 +1995,14 @@ type
   public
   protected
     class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
+  { TFRE_DB_NOTIFICATION }
+
+  TFRE_DB_NOTIFICATION=class(TFRE_DB_ObjectEx)
+  protected
+    class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
@@ -3791,6 +3800,20 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_NOTIFICATION }
+
+class procedure TFRE_DB_NOTIFICATION.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.AddSchemeField('user',fdbft_ObjLink).required:=true;
+  scheme.AddSchemeField('caption',fdbft_String).required:=true;
+end;
+
+class procedure TFRE_DB_NOTIFICATION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+end;
 
 { TFRE_DB_WORKFLOW_ACTION }
 
