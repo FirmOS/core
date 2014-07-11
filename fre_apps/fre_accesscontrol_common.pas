@@ -3085,7 +3085,7 @@ class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects(const conn: IFRE_
 begin
   inherited;
 
-  newVersionId:='1.0';
+  newVersionId:='1.1';
 
   if (currentVersionId='') then begin
     currentVersionId:='1.0';
@@ -3100,6 +3100,10 @@ begin
     CreateAppText(conn,'sitemap_groups','Groups','','Groups');
     CreateAppText(conn,'sitemap_roles','Roles','','Roles');
     CreateAppText(conn,'sitemap_domains','Domains','','Domains');
+  end;
+  if (currentVersionId='1.0') then begin
+    currentVersionId:='1.1';
+
   end;
 
 end;
@@ -3155,6 +3159,72 @@ begin
     CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles for group Admins');
     CheckDbResult(conn.AddSysRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACVIEWSYSTEM')),'could not add roles for group Admins');
   end;
+  if currentVersionId='1.0' then begin
+    currentVersionId:='1.1';
+
+    CheckDbResult(conn.AddRole('ADMINUSER','Allowed to create, modify and delete Users','',domainUID,true),'could not add role ADMINUSER');
+
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSER',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_USER_MOD.GetClassRoleNameFetch
+    )));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSER',domainUID,TFRE_DB_USER.GetClassStdRoles));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSER',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSER',domainUID,TFRE_DB_NOTE.GetClassStdRoles));
+
+    CheckDbResult(conn.AddRole('ADMINGROUP','Allowed to create, modify and delete Groups','',domainUID,true),'could not add role ADMINGROUP');
+
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINGROUP',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch,
+      TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch
+    )));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINGROUP',domainUID,TFRE_DB_GROUP.GetClassStdRoles));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINGROUP',domainUID,TFRE_DB_StringArray.Create(TFRE_DB_ROLE.GetClassRoleName('assignRole'))));
+
+    CheckDbResult(conn.AddRole('ADMINUSERGROUP','Allowed to modify Users and assign Groups to Users','',domainUID),'could not add role ADMINUSERGROUP');
+
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSERGROUP',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_USER_MOD.GetClassRoleNameFetch,
+      TFRE_COMMON_GROUP_MOD.GetClassRoleNameFetch,
+      TFRE_COMMON_ROLE_MOD.GetClassRoleNameFetch
+    )));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSERGROUP',domainUID,TFRE_DB_USER.GetClassStdRoles(false,true,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSERGROUP',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSERGROUP',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSERGROUP',domainUID,TFRE_DB_DOMAIN.GetClassStdRoles(false,false,false,true)));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSERGROUP',domainUID,TFRE_DB_NOTE.GetClassStdRoles));
+    CheckDbResult(conn.AddRoleRightsToRole('ADMINUSERGROUP',domainUID,TFRE_DB_StringArray.Create(TFRE_DB_GROUP.GetClassRoleName('assignGroup'))));
+
+    CheckDbResult(conn.RemoveAllRolesFromGroup('ACADMINS',domainUID));
+
+    CheckDbResult(conn.DeleteRole('ACADMINUSER',domainUID));
+    CheckDbResult(conn.DeleteRole('ACADMINGROUP',domainUID));
+    CheckDbResult(conn.DeleteRole('ACADMINUSERGROUP',domainUID));
+
+    CheckDbResult(conn.AddRole('ACADMINUSER','Allowed to create, modify and delete Users','',domainUID),'could not add role ACADMINUSER');
+    CheckDbResult(conn.AddRole('ACADMINGROUP','Allowed to create, modify and delete Groups','',domainUID),'could not add role ACADMINGROUP');
+    CheckDbResult(conn.AddRole('ACADMINUSERGROUP','Allowed to modify Users and assign Groups to Users','',domainUID),'could not add role ACADMINUSERGROUP');
+
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSER',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
+      'ADMINUSER'
+    )));
+
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINGROUP',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
+      'ADMINGROUP'
+    )));
+
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSERGROUP',domainUID,TFRE_DB_StringArray.Create(
+      TFRE_COMMON_ACCESSCONTROL_APP.GetClassRoleNameFetch,
+      'ADMINUSERGROUP'
+    )));
+
+    CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles for group Admins');
+    CheckDbResult(conn.AddSysRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACVIEWSYSTEM')),'could not add roles for group Admins');
+  end;
+
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4SysDomain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
