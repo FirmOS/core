@@ -2675,6 +2675,7 @@ type
     FOnFetchSessionByIdL  : TFRE_DB_OnFetchSessionByID;
     FSessionTerminationTO : NativeInt;
     FBoundThreadID        : TThreadID;
+    FModuleInitialized    : TFPHashList;
  var
     FOnWorkCommands       : TNotifyEvent;
     FUserName             : TFRE_DB_String;
@@ -2766,6 +2767,9 @@ type
     procedure   SetClientDetails         (const net_conn_desc:String);
     function    GetTakeOverKey           : String;
     function    GetSessionAppArray       : IFRE_DB_APPLICATION_ARRAY;
+    function    HasFeature               (const feature_name:shortstring):Boolean;
+    function    GetModuleInitialized     (const modulename:ShortString):Boolean;
+    function    SetModuleInitialized     (const modulename:ShortString):Boolean;
 
     function    FetchOrInitFeederMachines  (const MachineNames : TFRE_DB_StringArray):TFRE_DB_GUIDArray; { Initialize or deliver Machine Objects in the Session DB }
 
@@ -4616,6 +4620,7 @@ begin
   FUpdateableDBOS       := GFRE_DBI.NewObject;
   FDifferentialUpdates  := GFRE_DBI.NewObject;
   FUpdateableContent    := GFRE_DBI.NewObject;
+  FModuleInitialized    := TFPHashList.Create;
 
   _FetchAppsFromDB;
   _InitApps;
@@ -4662,6 +4667,7 @@ begin
   FUpdateableContent.Finalize;
   FDifferentialUpdates.Finalize;
   FUpdateableDBOS.Finalize;
+  FModuleInitialized.Free;
   FSessionLock.Finalize;
   if assigned(FSessionData) then
     FSessionData.Finalize;
@@ -5664,6 +5670,26 @@ begin
   for i:=0 to high(FAppArray) do begin
     result[i] := FAppArray[i];
   end;
+end;
+
+function TFRE_DB_UserSession.HasFeature(const feature_name: shortstring): Boolean;
+begin
+  if feature_name='DOMAIN' then
+    exit(true)
+  else
+    exit(false);
+end;
+
+function TFRE_DB_UserSession.GetModuleInitialized(const modulename: ShortString): Boolean;
+begin
+  result := NativeInt(FModuleInitialized.Find(modulename))=1;
+end;
+
+function TFRE_DB_UserSession.SetModuleInitialized(const modulename: ShortString): Boolean;
+begin
+  if GetModuleInitialized(modulename) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'double initialization tagging of '+modulename);
+  FModuleInitialized.Add(modulename,Pointer(1));
 end;
 
 function TFRE_DB_UserSession.FetchOrInitFeederMachines(const MachineNames: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
@@ -7538,11 +7564,27 @@ end;
 procedure TFRE_DB_APPLICATION.SessionInitialize(const session: TFRE_DB_UserSession);
 
   function  _initSubModules(const field: IFRE_DB_FIELD):boolean;
+  var module : TFRE_DB_APPLICATION_MODULE;
   begin
     result := false;
     if (field.FieldType=fdbft_Object) and  field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE) then
       begin
-        (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionInitializeModule(session);
+        try
+          module := field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE;
+          if not session.GetModuleInitialized(module.ClassName) then
+            begin
+              try
+                (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionInitializeModule(session);
+              finally
+                session.SetModuleInitialized(module.ClassName);
+              end;
+            end;
+        except
+          on e:Exception do
+            begin
+              GFRE_DBI.LogError(dblc_SESSION,'APP/MODULE SESSION INITIALIZATION FAILED SESS(%s) %s : %s ',[session.GetSessionID,classname,e.Message]);
+            end;
+        end;
       end;
   end;
 
@@ -8016,14 +8058,23 @@ procedure TFRE_DB_APPLICATION_MODULE.MySessionInitializeModule(const session: TF
 
   procedure _initSubModules(const field: IFRE_DB_FIELD);
   var app_module : IFRE_DB_APPLICATION_MODULE;
+      module     : TFRE_DB_APPLICATION_MODULE;
   begin
     if field.IsObjectField and field.AsObject.Supports(IFRE_DB_APPLICATION_MODULE,app_module) then begin
       try
-        (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionInitializeModule(session);
+        module := field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE;
+        if not session.GetModuleInitialized(module.ClassName) then
+          begin
+            try
+              (field.AsObject.Implementor_HC as TFRE_DB_APPLICATION_MODULE).MySessionInitializeModule(session);
+            finally
+              session.SetModuleInitialized(module.ClassName);
+            end;
+          end;
       except
         on e:Exception do
           begin
-            GFRE_DBI.LogError(dblc_SESSION,'SESSION INITIALIZATION FAILED SESS(%s) %s : %s ',[session.GetSessionID,classname,e.Message]);
+            GFRE_DBI.LogError(dblc_SESSION,'MODULE SESSION INITIALIZATION FAILED SESS(%s) %s : %s ',[session.GetSessionID,classname,e.Message]);
           end;
       end;
     end;

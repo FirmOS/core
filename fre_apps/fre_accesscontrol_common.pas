@@ -13,7 +13,6 @@ uses
   ;
 
 const
-  CDOMAIN_FEATURE = true;
   CHIDE_INTERNAL  = true;
 
 type
@@ -30,7 +29,6 @@ type
     class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
     class procedure InstallDBObjects4SysDomain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
-    function        ShowDomains                   (const conn:IFRE_DB_CONNECTION): Boolean;
   public
     class procedure RegisterSystemScheme          (const scheme:IFRE_DB_SCHEMEOBJECT); override;
     function        isMultiDomainApp             : Boolean; override;
@@ -791,7 +789,8 @@ begin
     app  := GetEmbeddingApp;
     conn := session.GetDBConnection;
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
-    show_domains:=(app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn);
+
+    show_domains := session.HasFeature('DOMAIN') and conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD);
 
     with tr_Role do begin
       if show_domains then begin
@@ -1432,7 +1431,7 @@ begin
   conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
-    show_domains:=(app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn);
+    show_domains := session.HasFeature('DOMAIN') and conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD);
 
     with tr_Grid do begin
       if show_domains then begin
@@ -2399,7 +2398,7 @@ begin
   conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
-    show_domains:=(app as TFRE_COMMON_ACCESSCONTROL_APP).ShowDomains(conn);
+    show_domains := session.HasFeature('DOMAIN') and conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD);
 
     with tr_Grid do begin
       if show_domains then begin
@@ -3054,7 +3053,7 @@ begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppTextShort(session,'sitemap_main'),'images_apps/accesscontrol/accesscontrol.svg','',0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ACCESSCONTROL_APP));
-  if ShowDomains(conn) then begin
+  if session.HasFeature('DOMAIN') and conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD) then begin
     FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppTextShort(session,'sitemap_domains'),'images_apps/accesscontrol/domain.svg',TFRE_COMMON_DOMAIN_MOD.ClassName);
     pos:=-45;
   end else begin
@@ -3172,11 +3171,6 @@ begin
     CheckDbResult(conn.AddRoleRightsToRole('ACVIEWSYSTEM',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACVIEWSYSTEM',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
   end;
-end;
-
-function TFRE_COMMON_ACCESSCONTROL_APP.ShowDomains(const conn: IFRE_DB_CONNECTION): Boolean;
-begin
-  Result:=CDOMAIN_FEATURE and conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD);
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.RegisterSystemScheme( const scheme: IFRE_DB_SCHEMEOBJECT);
