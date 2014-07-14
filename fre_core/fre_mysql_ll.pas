@@ -2,24 +2,33 @@ unit fre_mysql_ll;
 
 {$mode objfpc}{$H+}
 
+{$IFDEF DARWIN}
+  {$DEFINE FREMYSQL}
+{$ENDIF}
+
 interface
 
 uses
-  Classes, SysUtils,mysql55dyn,mysql55conn;
+  Classes, SysUtils
+  {$IFDEF FREMYSQL}
+  ,mysql55dyn,mysql55conn
+  {$ENDIF}
+  ;
 
+{$IFDEF FREMYSQL}
 type
 
   { TFOSMySqlConn }
-
   TFOSMySqlConn=class(TMySQL55Connection)
     procedure DoInternalConnect; override;
   end;
+{$ENDIF}
 
 
 implementation
 
+{$IFDEF FREMYSQL}
 { TFOSMySqlConn }
-
 procedure TFOSMySqlConn.DoInternalConnect;
 var
   FullVersion,
@@ -33,6 +42,7 @@ begin
   ConnectToServer;
   SelectDatabase;
 end;
+{$ENDIF}
 
 end.
 
