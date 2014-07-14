@@ -41,6 +41,7 @@ program fpmake_packages;
        Dependencies.Add('FRE_INTF');
        Dependencies.Add('paszlib');
        Dependencies.Add('fcl-base');
+       Dependencies.Add('fcl-db');
        Dependencies.Add('syslog');
        with targets do begin
          addunit('fos_arraygen.pas');
@@ -74,6 +75,7 @@ program fpmake_packages;
          addunit('fre_binary_buffer.pas');
          addunit('fos_sparelistgen.pas');
          addunit('fos_art_tree.pas');
+         addunit('fre_mysql_ll.pas');
 
 
          //TODO: CORE PACKAGE KILL
@@ -182,6 +184,7 @@ program fpmake_packages;
         AddUnit('fre_db_embedded_impl.pas');
         AddUnit('fre_db_web_styling.pas');
         AddUnit('fre_db_login.pas');
+        AddUnit('fre_db_tasker.pas');
         AddUnit('fre_wapp_dojo.pas');
         AddUnit('fre_json_action.pas');
         AddUnit('../fre_apps/fre_dbbase.pas');

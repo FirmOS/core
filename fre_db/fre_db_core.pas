@@ -4647,15 +4647,19 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
   procedure CheckStandardUsers;
   var upuser : TFRE_DB_USER;
   begin
-    if not UserExists('admin',DomainID(CFRE_DB_SYS_DOMAIN_NAME)) then begin
-      GFRE_DB.LogWarning(dblc_DB,'Adding initial db admin/admin account');
-      CheckDbResult(_AddUser('admin',DomainID(CFRE_DB_SYS_DOMAIN_NAME),'admin','Initial','FRE DB Admin',true),'initial creation of admin user failed');
+    if not UserExists('admin',FSysDomainUID) then begin
+      GFRE_DB.LogWarning(dblc_DB,'Adding initial db admin account');
+      CheckDbResult(_AddUser('admin',FSysDomainUID,'admin','Initial','FRE DB Admin',true),'initial creation of admin user failed');
     end;
     if CFRE_DB_SYS_DOMAIN_NAME = CFRE_DB_SYS_DOMAIN_NAME then begin
-      if not UserExists('guest',DomainID(CFRE_DB_SYS_DOMAIN_NAME)) then begin
+      if not UserExists('guest',FSysDomainUID) then begin
         GFRE_DB.LogWarning(dblc_DB,'Adding initial db guest account');
-        CheckDbResult(_AddUser('guest',DomainID(CFRE_DB_SYS_DOMAIN_NAME),'','Initial','FRE DB Guest',true),'initial creation of guest user failed');
+        CheckDbResult(_AddUser('guest',FSysDomainUID,'','Initial','FRE DB Guest',true),'initial creation of guest user failed');
       end;
+    end;
+    if not UserExists('tasker',FSysDomainUID) then begin
+      GFRE_DB.LogWarning(dblc_DB,'Adding initial db takser account');
+      CheckDbResult(_AddUser('tasker',FSysDomainUID,'tasker','Initial','FRE DB Admin',true),'initial creation of takser user failed');
     end;
     if cFRE_DB_RESET_ADMIN=true then
       begin
@@ -4663,6 +4667,8 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
         upuser.SetPassword('admin');
         CheckDbResult(Update(upuser));
         CheckDbResult(FetchUser('guest',FSysDomainUID,upuser));
+        upuser.SetPassword('');
+        CheckDbResult(FetchUser('tasker',FSysDomainUID,upuser));
         upuser.SetPassword('');
         CheckDbResult(Update(upuser));
       end;

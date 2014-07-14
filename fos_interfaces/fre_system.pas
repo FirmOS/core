@@ -76,6 +76,7 @@ var
       cG_OVERRIDE_PASS                :string = '';
       cFRE_ADMIN_USER                 :string = 'admin@system';
       cFRE_ADMIN_PASS                 :string = 'admin';
+      cFRE_TASKER_PASS                :string = 'tasker';
       cFRE_MONITORING_HOST            :string = '';
       cFRE_MONITORING_USER            :string = '';
       cFRE_MONITORING_KEY_FILE        :string = 'monitoring_id';

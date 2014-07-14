@@ -47,7 +47,7 @@ uses  classes, sysutils,fre_aps_interface,fos_fcom_types,fos_tool_interfaces,bas
       fre_http_srvhandler,fre_db_interface,fre_system,fos_interlocked,
       fre_db_core,fre_webssocket_baseserver,fre_db_common,fre_fcom_ssl,
       fre_http_tools,fos_redblacktree_gen,fre_sys_base_cs,zstream,fos_art_tree,
-      fre_wapp_dojo;
+      fre_wapp_dojo,fre_db_tasker,fre_db_login;
 
 procedure RegisterLogin;
 
@@ -70,6 +70,7 @@ type
     FTotalBytesCached  : NativeInt;
     FTotalZFilesCache  : NativeInt;
     FTotalPFilesCache  : NativeInt;
+    FTaskerSession     : TFRE_DB_UserSession;
 
     cont               : boolean;
     Foutput            : String;
@@ -78,7 +79,6 @@ type
     FSystemConnection  : TFRE_DB_SYSTEM_CONNECTION;
 
     FSSL_CTX             : PSSL_CTX;
-    //FDefaultSession      : TFRE_DB_UserSession;
     FTerminating         : boolean;
 
     procedure      _SetupHttpBaseServer                      ;
@@ -127,7 +127,7 @@ type
 
 implementation
 
-uses FRE_DB_LOGIN;
+//uses FRE_DB_LOGIN;
 { TFRE_BASE_SERVER }
 
 
@@ -405,7 +405,6 @@ begin
   FDispatcher.Free;
   FUserSessionsTree.Free;
   FSessionTreeLock.Finalize;
-  //FDefaultSession.Free;
 
   FSystemConnection.Free;
   FSystemConnection:=nil;
@@ -517,6 +516,14 @@ procedure TFRE_BASE_SERVER.Setup;
        FSSL_CTX := FRE_Setup_SSL_Context(@fre_ssl_i);
      end;
 
+     procedure InitializeTaskerSession; { the tasker session is not in the session tree  (unbound - free at server terminate ) }
+     var res : TFRE_DB_Errortype;
+     begin
+       res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'tasker@'+CFRE_DB_SYS_DOMAIN_NAME,cFRE_TASKER_PASS,'',nil,'NONET',FTaskerSession);
+       if res<>edb_OK then
+         GFRE_BT.CriticalAbort('could not initialize tasker session : '+CFRE_DB_Errortype[res]);
+     end;
+
 begin
   TransFormFunc     := @FRE_WAPP_DOJO.TransformInvocation;
   FOpenDatabaseList.init;
@@ -531,6 +538,8 @@ begin
   _ServerinitializeApps;
   _SetupSSL_Ctx;
   _SetupHttpBaseServer;
+
+  InitializeTaskerSession;
 
   GFRE_SC.SetNewListenerCB(@APSC_NewListener);
   GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
