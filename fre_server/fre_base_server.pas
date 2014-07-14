@@ -65,12 +65,16 @@ type
     FDispatcher        : TFRE_HTTP_URL_DISPATCHER;
     FSessionTreeLock   : IFOS_LOCK;
     FSessiontimer      : IFRE_APSC_TIMER;
+    FTaskerTimer       : IFRE_APSC_TIMER;
     FStaticHTTPMeta    : TFRE_ART_TREE;
     FTotalZippedFiles  : NativeInt;
     FTotalBytesCached  : NativeInt;
     FTotalZFilesCache  : NativeInt;
     FTotalPFilesCache  : NativeInt;
     FTaskerSession     : TFRE_DB_UserSession;
+    FTaskerApp         : TFRE_DB_TASKER;
+    FTaskerAPP_UID     : TGuid;
+    FTaskerAPP_Class   : Shortstring;
 
     cont               : boolean;
     Foutput            : String;
@@ -88,6 +92,7 @@ type
     function       GetImpersonatedDatabaseConnectionSession  (const dbname,username,pass,default_app : string;const default_uid_path : TFRE_DB_GUIDArray ; const session_net_desc : String ; out dbs:TFRE_DB_UserSession):TFRE_DB_Errortype;
     function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
     procedure      TIM_SessionHandler                        (const timer : IFRE_APSC_TIMER;const flaf1,flag2:boolean);
+    procedure      TIM_TaskerHandler                         (const timer : IFRE_APSC_TIMER;const flag1,flag2:boolean);
     function       ExistsUserSessionForUserLocked            (const username:string;out other_session:TFRE_DB_UserSession):boolean;
     function       ExistsUserSessionForKeyLocked             (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
@@ -105,7 +110,7 @@ type
     HTTPSWSS_Listener            : IFRE_APSC_LISTENER;
     FLEX_Listener                : IFRE_APSC_LISTENER;
 
-    constructor create           (const defaultdbname : string);
+    constructor Create           (const defaultdbname : string);
     destructor  Destroy           ; override;
     procedure   HandleSignals     (const signum : NativeUint);
     procedure   Setup             ;
@@ -452,11 +457,23 @@ procedure TFRE_BASE_SERVER.Setup;
        end;
 
        if not GFRE_DB.GetAppInstanceByClass(TFRE_DB_LOGIN,app) then
-         GFRE_BT.CriticalAbort('cannot fetch login app');
-       FDefaultAPP_UID   := app.UID;
-       FDefaultAPP_Class := app.ClassName;
-       cFRE_DB_LOGIN_APP_UID := FDefaultAPP_UID;
-       cFRE_DB_LOGIN_APP := app;
+         GFRE_BT.CriticalAbort('cannot fetch login app')
+       else
+         begin
+           FDefaultAPP_UID       := app.UID;
+           FDefaultAPP_Class     := app.ClassName;
+           cFRE_DB_LOGIN_APP_UID := FDefaultAPP_UID;
+           cFRE_DB_LOGIN_APP     := app;
+         end;
+       if not GFRE_DB.GetAppInstanceByClass(TFRE_DB_TASKER,app) then
+         GFRE_BT.CriticalAbort('cannot fetch tasker app')
+       else
+         begin
+           FTaskerApp       := app as TFRE_DB_TASKER;
+           FTaskerAPP_UID   := app.UID;
+           FTaskerAPP_Class := app.ClassName;
+         end;
+
        for i := 0 to dblist.Count-1 do begin
          dbname := Uppercase(dblist[i]);
          if dbname='SYSTEM' then begin
@@ -519,9 +536,10 @@ procedure TFRE_BASE_SERVER.Setup;
      procedure InitializeTaskerSession; { the tasker session is not in the session tree  (unbound - free at server terminate ) }
      var res : TFRE_DB_Errortype;
      begin
-       res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'tasker@'+CFRE_DB_SYS_DOMAIN_NAME,cFRE_TASKER_PASS,'',nil,'NONET',FTaskerSession);
+       res := GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'tasker@'+CFRE_DB_SYS_DOMAIN_NAME,cFRE_TASKER_PASS,FTaskerAPP_Class,TFRE_DB_GUIDArray.create(FTaskerAPP_UID),'NONET',FTaskerSession);
        if res<>edb_OK then
          GFRE_BT.CriticalAbort('could not initialize tasker session : '+CFRE_DB_Errortype[res]);
+       FTaskerApp.InitSession(FTaskerSession); { HACK: Session Initialization should have happened 3 lines above due to proper rights}
      end;
 
 begin
@@ -554,6 +572,7 @@ begin
   GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
 
   FSessiontimer := GFRE_SC.AddTimer('SESSION',1000,@TIM_SessionHandler);
+  FTaskerTimer  := GFRE_SC.AddTimer('TASKER',1000,@TIM_TaskerHandler);
 end;
 
 
@@ -1025,6 +1044,19 @@ begin
     end;
 end;
 
+procedure TFRE_BASE_SERVER.TIM_TaskerHandler(const timer: IFRE_APSC_TIMER; const flag1, flag2: boolean);
+begin
+  FTaskerSession.LockSession;
+  try
+    if (flag1 or flag2) then
+      FTaskerApp.TASKER_REQUEST(FTaskerSession,flag1,flag2)
+    else
+      FTaskerApp.TASKER_METHOD(FTaskerSession);
+  finally
+    FTaskerSession.UnlockSession;
+  end;
+end;
+
 procedure TFRE_BASE_SERVER.ForAllSessionsLocked(const iterator : TFRE_DB_SessionIterator ; var halt : boolean);
 
   function Iterate(const ses : TFRE_DB_UserSession):boolean;
@@ -1095,7 +1127,7 @@ begin
   result := GFRE_BT.HashString_MD5_HEX(filename+':'+inttostr(filesize)+':'+inttostr(moddate));
 end;
 
-constructor TFRE_BASE_SERVER.create(const defaultdbname: string);
+constructor TFRE_BASE_SERVER.Create(const defaultdbname: string);
 begin
   DefaultDatabase   := defaultdbname;
   FStaticHTTPMeta   := TFRE_ART_TREE.Create;
@@ -1202,6 +1234,7 @@ end;
 procedure RegisterLogin;
 begin
   GFRE_DB.RegisterObjectClassEx(TFRE_DB_LOGIN);
+  GFRE_DB.RegisterObjectClassEx(TFRE_DB_TASKER);
   GFRE_DBI.Initialize_Extension_Objects;
 end;
 

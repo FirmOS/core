@@ -53,7 +53,8 @@ type
   TFRE_DB_LOGIN = class (TFRE_DB_APPLICATION)
   protected
     class procedure InstallDBObjects     (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-    procedure MySessionInitialize  (const session: TFRE_DB_UserSession); override;
+    procedure       MySessionInitialize  (const session: TFRE_DB_UserSession); override;
+    procedure       MyServerInitialize   (const admin_dbc: IFRE_DB_CONNECTION); override;
   public
     procedure  SetupApplicationStructure ; override;
     procedure  InternalSetup             ; override;
@@ -149,6 +150,11 @@ begin
       Filters.AddAutoDependencyFilter('USER',['TFRE_DB_NOTIFICATION<USER'],[(conn.SYS.GetCurrentUserToken.User.Implementor_HC as IFRE_DB_Object).UID]);
     end;
   end;
+end;
+
+procedure TFRE_DB_LOGIN.MyServerInitialize(const admin_dbc: IFRE_DB_CONNECTION);
+begin
+  inherited MyServerInitialize(admin_dbc);
 end;
 
 procedure TFRE_DB_LOGIN.SetupApplicationStructure;

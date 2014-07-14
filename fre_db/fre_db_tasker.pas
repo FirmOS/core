@@ -44,9 +44,68 @@ interface
 uses
   Classes, SysUtils,FRE_SYSTEM, FRE_DB_COMMON,FRE_DB_CORE,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE,FRE_DB_WEB_STYLING;
 
+type
+
+  { TFRE_DB_TASKER }
+
+  TFRE_DB_TASKER = class (TFRE_DB_APPLICATION)
+  protected
+    class procedure InstallDBObjects     (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    procedure       MySessionInitialize  (const session: TFRE_DB_UserSession); override;
+    procedure       MyServerInitialize   (const admin_dbc: IFRE_DB_CONNECTION); override;
+  public
+    procedure       TASKER_METHOD        (const ses: IFRE_DB_Usersession);    { gets called every second }
+    procedure       TASKER_REQUEST       (const ses: IFRE_DB_Usersession ; const flag1,flag2 : boolean); { called on request }
+    procedure       InitSession          (const session:TFRE_DB_UserSession); { HACK : Should be done with Rights, in general session initialice (session creation) }
+  published
+    //function WEB_Content         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+  end;
 
 
 implementation
+
+{ TFRE_DB_TASKER }
+
+class procedure TFRE_DB_TASKER.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  newVersionId:='1.0';
+  if (currentVersionId='') then begin
+    currentVersionId:='1.0';
+    //CreateAppText(conn,'profile_diag_cap','Profile');
+  end;
+  if (currentVersionId='1.0') then begin
+    //currentVersionId:='1.1';
+  end;
+end;
+
+procedure TFRE_DB_TASKER.MySessionInitialize(const session: TFRE_DB_UserSession);
+begin
+  inherited MySessionInitialize(session);
+end;
+
+procedure TFRE_DB_TASKER.MyServerInitialize(const admin_dbc: IFRE_DB_CONNECTION);
+begin
+  inherited MyServerInitialize(admin_dbc);
+end;
+
+procedure TFRE_DB_TASKER.TASKER_METHOD(const ses: IFRE_DB_Usersession);
+var wf_coll : IFRE_DB_COLLECTION;
+begin
+  writeln('> TASKER START ');
+  wf_coll :=  ses.GetDBConnection.AdmGetWorkFlowCollection;
+  writeln('< TASKER END   ');
+end;
+
+procedure TFRE_DB_TASKER.TASKER_REQUEST(const ses: IFRE_DB_Usersession; const flag1, flag2: boolean);
+begin
+
+end;
+
+procedure TFRE_DB_TASKER.InitSession(const session: TFRE_DB_UserSession);
+begin
+  MySessionInitialize(session);
+end;
 
 end.
 
