@@ -1,0 +1,3 @@
+if TargetOS= 'solaris' then
+   CustomOptions := '-k-rpath=$ORIGIN/../lib/lib64rel/solaris';
+
