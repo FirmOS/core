@@ -175,10 +175,82 @@ type
     function        WEB_DGNotification        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
+  { TFRE_COMMON_WF_MOD }
+
+  TFRE_COMMON_WF_MOD = class (TFRE_DB_APPLICATION_MODULE)
+  private
+  protected
+    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    procedure       SetupAppModuleStructure   ; override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  public
+    procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
+  published
+    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+  end;
 
 procedure Register_DB_Extensions;
 
 implementation
+
+{ TFRE_COMMON_WF_MOD }
+
+class procedure TFRE_COMMON_WF_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName('TFRE_DB_APPLICATION_MODULE');
+end;
+
+procedure TFRE_COMMON_WF_MOD.SetupAppModuleStructure;
+begin
+  inherited SetupAppModuleStructure;
+  InitModuleDesc('wf_description')
+end;
+
+class procedure TFRE_COMMON_WF_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='0.9';
+  if currentVersionId='' then begin
+    currentVersionId:='0.9';
+    CreateModuleText(conn,'gc_wf_caption','Caption');
+  end;
+end;
+
+procedure TFRE_COMMON_WF_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
+var
+  app       : TFRE_DB_APPLICATION;
+  conn      : IFRE_DB_CONNECTION;
+  transform : IFRE_DB_SIMPLE_TRANSFORM;
+  dc        : IFRE_DB_DERIVED_COLLECTION;
+begin
+  inherited MySessionInitializeModule(session);
+  app  := GetEmbeddingApp;
+  conn := session.GetDBConnection;
+  if session.IsInteractiveSession then begin
+    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
+    with transform do begin
+      AddOneToOnescheme('step_caption','step_caption',FetchModuleTextShort(session,'gc_wf_caption'));
+      AddOneToOnescheme('step_parent','step_parent','PARENT');
+      AddOneToOnescheme('uid','uid','UID');
+      AddMatchingReferencedField('STEP_PARENT>TFRE_DB_WORKFLOW_STEP','step_caption','step_caption_parent','PARENT CAP');
+    end;
+    dc := session.NewDerivedCollection('WFMOD_WF_GRID');
+    with dc do begin
+      SetDeriveParent(session.GetDBConnection.AdmGetWorkFlowCollection);
+      SetDeriveTransformation(transform);
+      SetDisplayType(cdt_Listview,[cdgf_Children],'');//,nil,'',CWSF(@WEB_DGMenu),nil,CWSF(@WEB_DGNotification));
+      SetParentToChildLinkField('TFRE_DB_WORKFLOW_STEP<STEP_PARENT');
+      SetDefaultOrderField('uid',true);
+    end;
+  end;
+end;
+
+function TFRE_COMMON_WF_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  CheckClassVisibility4AnyDomain(ses);
+
+  Result:=ses.FetchDerivedCollection('WFMOD_WF_GRID').GetDisplayDescription;
+end;
 
 { TFRE_COMMON_DOMAIN_MOD }
 
@@ -3041,6 +3113,7 @@ begin
   AddApplicationModule(TFRE_COMMON_USER_MOD.create);
   AddApplicationModule(TFRE_COMMON_GROUP_MOD.create);
   AddApplicationModule(TFRE_COMMON_ROLE_MOD.create);
+  AddApplicationModule(TFRE_COMMON_WF_MOD.create);
 end;
 
 
@@ -3055,13 +3128,14 @@ begin
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status',FetchAppTextShort(session,'sitemap_main'),'images_apps/accesscontrol/accesscontrol.svg','',0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ACCESSCONTROL_APP));
   if session.HasFeature('DOMAIN') and conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD) then begin
     FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Domains',FetchAppTextShort(session,'sitemap_domains'),'images_apps/accesscontrol/domain.svg',TFRE_COMMON_DOMAIN_MOD.ClassName);
-    pos:=-45;
-  end else begin
     pos:=0;
+  end else begin
+    pos:=-45;
   end;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/User',FetchAppTextShort(session,'sitemap_users'),'images_apps/accesscontrol/user.svg',TFRE_COMMON_USER_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_USER_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Groups',FetchAppTextShort(session,'sitemap_groups'),'images_apps/accesscontrol/group.svg',TFRE_COMMON_GROUP_MOD.Classname,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_GROUP_MOD));
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/Roles',FetchAppTextShort(session,'sitemap_roles'),'images_apps/accesscontrol/role.svg',TFRE_COMMON_ROLE_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_ROLE_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/WFs',FetchAppTextShort(session,'sitemap_wfs'),'images_apps/accesscontrol/wf.svg',TFRE_COMMON_WF_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_WF_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData,pos);
   session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
 end;
@@ -3103,9 +3177,9 @@ begin
   end;
   if (currentVersionId='1.0') then begin
     currentVersionId:='1.1';
-
+    CreateAppText(conn,'wf_description','Workflows','Workflows','Workflows');
+    CreateAppText(conn,'sitemap_wfs','WFs','','WFs');
   end;
-
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
@@ -3260,6 +3334,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_USER_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_GROUP_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_ROLE_MOD);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_WF_MOD);
 
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_ACCESSCONTROL_APP);
   GFRE_DBI.Initialize_Extension_Objects;

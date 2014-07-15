@@ -92,9 +92,9 @@ end;
 procedure TFRE_DB_TASKER.TASKER_METHOD(const ses: IFRE_DB_Usersession);
 var wf_coll : IFRE_DB_COLLECTION;
 begin
-  writeln('> TASKER START ');
+  //writeln('> TASKER START ');
   wf_coll :=  ses.GetDBConnection.AdmGetWorkFlowCollection;
-  writeln('< TASKER END   ');
+  //writeln('< TASKER END   ');
 end;
 
 procedure TFRE_DB_TASKER.TASKER_REQUEST(const ses: IFRE_DB_Usersession; const flag1, flag2: boolean);
