@@ -232,6 +232,7 @@ begin
     with transform do begin
       AddMultiToOnescheme(TFRE_DB_NameTypeArray.create('caption','step_caption'),'caption',FetchModuleTextShort(session,'gc_wf_caption'));
       AddOneToOnescheme('step_id','step_id',FetchModuleTextShort(session,'gc_wf_id'));
+      AddOneToOnescheme('state','state','STATE');
     end;
     dc := session.NewDerivedCollection('WFMOD_WF_GRID');
     with dc do begin

@@ -2023,31 +2023,46 @@ type
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
+  { TFRE_DB_WORKFLOW_BASE }
+
+  TFRE_DB_WORKFLOW_BASE=class(TFRE_DB_ObjectEx)
+  private
+    function  _hasFaildChild (const conn: IFRE_DB_CONNECTION): Boolean;
+    procedure update     (const conn: IFRE_DB_CONNECTION; const andInit: Boolean=false);
+  public
+    function  getState   : UInt32;
+    procedure setState   (const conn: IFRE_DB_CONNECTION; const state: UInt32); virtual;
+  end;
+
   { TFRE_DB_WORKFLOW }
-  TFRE_DB_WORKFLOW=class(TFRE_DB_ObjectEx)
+  TFRE_DB_WORKFLOW=class(TFRE_DB_WORKFLOW_BASE)
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
-    procedure        InternalSetup          ; override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  public
+    procedure        setState               (const conn: IFRE_DB_CONNECTION; const state: UInt32); virtual;
+    procedure        start                  (const conn: IFRE_DB_CONNECTION);
   end;
 
   { TFRE_DB_WORKFLOW_STEP }
 
-  TFRE_DB_WORKFLOW_STEP=class(TFRE_DB_ObjectEx)
+  TFRE_DB_WORKFLOW_STEP=class(TFRE_DB_WORKFLOW_BASE)
   private
     function         getAction     : TFRE_DB_GUID;
     function         getIsErrorStep: Boolean;
+    function         getStepId     : UInt32;
     procedure        setAction     (AValue: TFRE_DB_GUID);
     procedure        setIsErrorStep(AValue: Boolean);
+    procedure        setStepId     (AValue: UInt32);
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-    procedure        InternalSetup          ; override;
   published
     function  WEB_SaveOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; override;
   public
     property  isErrorStep       : Boolean      read getIsErrorStep write setIsErrorStep;
     property  action            : TFRE_DB_GUID read getAction      write setAction;
+    property  stepId            : UInt32       read getStepId      write setStepId;
   end;
 
   { TFRE_DB_UNCONFIGURED_MACHINE }
@@ -3814,19 +3829,122 @@ type
 
    pmethodnametable =  ^tmethodnametable;
 
+{ TFRE_DB_WORKFLOW_BASE }
+
+function TFRE_DB_WORKFLOW_BASE.getState: UInt32;
+begin
+  Result:=Field('state').AsUInt32;
+end;
+
+procedure TFRE_DB_WORKFLOW_BASE.setState(const conn: IFRE_DB_CONNECTION; const state: UInt32);
+begin
+  Field('state').AsUInt32:=state;
+end;
+
+function TFRE_DB_WORKFLOW_BASE._hasFaildChild(const conn: IFRE_DB_CONNECTION): Boolean;
+var
+  refs  : TFRE_DB_GUIDArray;
+  child : TFRE_DB_WORKFLOW_STEP;
+  i     : Integer;
+begin
+  refs:=conn.GetReferences(UID,false,'TFRE_DB_WORKFLOW_STEP','step_parent');
+  Result:=false;
+  for i := 0 to High(refs) do begin
+    CheckDbResult(conn.FetchAs(refs[i],TFRE_DB_WORKFLOW_STEP,child));
+     if child.isErrorStep then begin
+       continue; //skip error steps
+     end;
+    if child.getState=5 then begin
+      Result:=true;
+      exit;
+    end;
+  end;
+end;
+
+procedure TFRE_DB_WORKFLOW_BASE.update(const conn: IFRE_DB_CONNECTION; const andInit: Boolean);
+var
+  refs           : TFRE_DB_GUIDArray;
+  lowestIdChilds : IFRE_DB_ObjectArray;
+  lowestId       : UInt32;
+  i              : Integer;
+  child          : TFRE_DB_WORKFLOW_STEP;
+  hasFaildChild  : Boolean;
+begin
+  refs:=conn.GetReferences(UID,false,'TFRE_DB_WORKFLOW_STEP','step_parent');
+  SetLength(lowestIdChilds,0);
+  hasFaildChild:=false;
+  for i := 0 to High(refs) do begin
+    CheckDbResult(conn.FetchAs(refs[i],TFRE_DB_WORKFLOW_STEP,child));
+    if child.isErrorStep then begin
+      continue; //skip error steps
+    end;
+    if andInit then begin
+      child.setState(conn,1);
+      CheckDbResult(conn.Update(child));
+      CheckDbResult(conn.FetchAs(refs[i],TFRE_DB_WORKFLOW_STEP,child));
+    end else begin
+      if child.getState=4 then begin
+        continue; //skip done
+      end;
+      if child.getState=5 then begin
+        hasFaildChild:=true;
+        continue; //skip faild steps
+      end;
+      if (child.getState=2) or (child.getState=3) then begin
+        exit; //do nothing - at least one child is still in progress
+      end;
+    end;
+    //state = 1 waiting
+    if Length(lowestIdChilds)=0 then begin
+      SetLength(lowestIdChilds,1);
+      lowestIdChilds[0]:=child;
+      lowestId:=child.stepId;
+    end else begin
+      if lowestId=child.stepId then begin
+        SetLength(lowestIdChilds,Length(lowestIdChilds)+1);
+        lowestIdChilds[Length(lowestIdChilds)-1]:=child;
+      end;
+      if lowestId>child.stepId then begin
+        SetLength(lowestIdChilds,1);
+        lowestIdChilds[0]:=child;
+        lowestId:=child.stepId;
+      end;
+    end;
+  end;
+  if Length(lowestIdChilds)=0 then begin //no children or all children done
+    setState(conn,3); //IN PROGRESS
+    CheckDbResult(conn.Update(Self));
+  end else begin
+    if getState=1 then begin
+      setState(conn,2); //CHILD IN PROGRESS
+      CheckDbResult(conn.Update(Self));
+    end;
+    for i := 0 to High(lowestIdChilds) do begin
+      (lowestIdChilds[i].Implementor_HC as TFRE_DB_WORKFLOW_BASE).update(conn,andInit);
+    end;
+  end;
+end;
+
 { TFRE_DB_WORKFLOW }
+
+procedure TFRE_DB_WORKFLOW.setState(const conn: IFRE_DB_CONNECTION; const state: UInt32);
+begin
+  if state=3 then begin
+    if _hasFaildChild(conn) then begin
+      inherited setState(conn,5);
+    end else begin
+      inherited setState(conn,4);
+    end;
+  end else begin
+    inherited setState(conn,state);
+  end;
+end;
 
 class procedure TFRE_DB_WORKFLOW.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.AddSchemeField('wf_caption',fdbft_String).required:=true;    { caption of the workflow step }
-  scheme.AddSchemeField('wf_state',fdbft_UInt32).required:=true;      { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
-end;
-
-procedure TFRE_DB_WORKFLOW.InternalSetup;
-begin
-  inherited InternalSetup;
-  Field('wf_state').AsUInt32:=0;
+  scheme.AddSchemeField('state',fdbft_UInt32).required:=true;         { should be an enum : -> 1-> WAITING, 2-> CHILD IN PROGRESS, 3-> IN PROGRESS, 4-> DONE, 5 -> FAILED }
 end;
 
 class procedure TFRE_DB_WORKFLOW.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -3837,6 +3955,12 @@ begin
     currentVersionId:='0.1';
 
   end;
+end;
+
+procedure TFRE_DB_WORKFLOW.start(const conn: IFRE_DB_CONNECTION);
+begin
+  setState(conn,1);
+  update(conn,true);
 end;
 
 { TFRE_DB_NOTIFICATION }
@@ -3946,6 +4070,11 @@ begin
   Result:=FieldExists('is_error_step') and Field('is_error_step').AsBoolean;
 end;
 
+function TFRE_DB_WORKFLOW_STEP.getStepId: UInt32;
+begin
+  Result:=Field('step_id').AsUInt32;
+end;
+
 procedure TFRE_DB_WORKFLOW_STEP.setAction(AValue: TFRE_DB_GUID);
 begin
   Field('action').AsObjectLink:=AValue;
@@ -3954,6 +4083,11 @@ end;
 procedure TFRE_DB_WORKFLOW_STEP.setIsErrorStep(AValue: Boolean);
 begin
   Field('is_error_step').AsBoolean:=AValue;
+end;
+
+procedure TFRE_DB_WORKFLOW_STEP.SetstepId(AValue: UInt32);
+begin
+  Field('step_id').AsUInt32:=AValue;
 end;
 
 class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -3974,7 +4108,7 @@ begin
   scheme.AddSchemeField('step_id',fdbft_UInt32).required:=true;         { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
   scheme.AddSchemeField('is_error_step',fdbft_Boolean);                 { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
   scheme.AddSchemeField('error_idx',fdbft_String);                      { index for the error step }
-  scheme.AddSchemeField('step_state',fdbft_UInt32).required:=true;      { should be an enum : -> 1-> WAITING, 2-> CHILD IN PROGRESS, 3-> IN PROGRESS, 4-> DONE, 5 -> FAILED }
+  scheme.AddSchemeField('state',fdbft_UInt32).required:=true;           { should be an enum : -> 1-> WAITING, 2-> CHILD IN PROGRESS, 3-> IN PROGRESS, 4-> DONE, 5 -> FAILED }
   du:=scheme.AddSchemeField('designated_user',fdbft_ObjLink);           { this user should do the step }
   du.required:=true;
   dg:=scheme.AddSchemeField('designated_group',fdbft_ObjLink);          { exor this group should do the step }
@@ -4029,12 +4163,6 @@ begin
 
     StoreTranslateableText(conn,'scheme_error_main_group','General Information');
   end;
-end;
-
-procedure TFRE_DB_WORKFLOW_STEP.InternalSetup;
-begin
-  inherited InternalSetup;
-  Field('step_state').AsUInt32:=0;
 end;
 
 function TFRE_DB_WORKFLOW_STEP.WEB_SaveOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
