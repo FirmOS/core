@@ -374,7 +374,7 @@ type
      procedure   SetBaseOrderedData                (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);override;
      function    ExecuteQuery                      (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;override; { execute the query, determine count and array of result dbo's }
      function    CheckAutoDependencyFilterChanges  (const key_description : TFRE_DB_NameTypeRL):boolean;
-     procedure   ProcessFilterChangeBasedUpdates   ; { compare query }
+     procedure   ProcessFilterChangeBasedUpdates   ; { compare query invokation }
      procedure   ProcessChildObjCountChange        (const obj : IFRE_DB_Object);
      function    GetStoreID                        : TFRE_DB_NameType;
   end;
@@ -623,9 +623,11 @@ type
     procedure   CN_AddGridInplaceUpdate              (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const upo : IFRE_DB_Object);
     procedure   CN_AddGridInplaceDelete              (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const del_id: TFRE_DB_String);
     procedure   CN_AddGridInsertUpdate               (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const upo : IFRE_DB_Object ;  const reference_id: TFRE_DB_String);
+
     procedure   UpdateObjectInFilterKey              (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt); { in place update }
     procedure   RemoveUpdateObjectInFilterKey        (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const old_obj : IFRE_DB_Object ; const idx : NativeInt);
     procedure   InsertUpdateObjectInFilterKey        (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt);
+
     procedure   UpdateChildCount_QRY                 (const qry : TFRE_DB_QUERY ; const idx : NativeInt);
   end;
 
@@ -2954,6 +2956,29 @@ end;
 
 procedure TFRE_DB_QUERY.ProcessFilterChangeBasedUpdates;
 var diff,d1,d2 : NativeInt;
+    upo        : IFRE_DB_Object;
+
+  function FinalTransFormUPO(const new_obj : IFRE_DB_Object):boolean;
+  var ses : TFRE_DB_UserSession;
+  begin
+    result := false;
+    if not GFRE_DBI.NetServ.FetchSessionByIdLocked(FSessionID,ses) then
+      begin
+        GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[FSessionID]);
+        exit;
+      end
+    else
+      begin
+        try
+          upo := new_obj.CloneToNewObject;
+          FBaseData.FBaseTransData.FDC.FinalRightTransform(ses,upo);
+          result := true;
+        finally
+          ses.UnlockSession;
+        end;
+      end;
+  end;
+
 
   procedure Inserted;
   var i          : NativeInt;
@@ -2961,40 +2986,70 @@ var diff,d1,d2 : NativeInt;
       ins_before : NativeInt;
       found      : boolean;
       fld        : IFRE_DB_Field;
+      curr_old_idx : NativeInt;
+      ref_id       : string;
+
   begin
     curr_idx   := 0;
     ins_before := 0;
+                        for i:=0 to high(FResultDBOsCompare) do
+                         begin
+                           writeln('COMPARE POS ',i);
+                           writeln(FResultDBOsCompare[i].DumpToString());
+                           writeln('------');
+                         end;
+                        for i:=0 to high(FResultDBOs) do
+                         begin
+                           writeln('Original POS ',i);
+                           writeln(FResultDBOs[i].DumpToString());
+                           writeln('------');
+                         end;
+                        //halt;
 
     //for i:=0 to high(FResultDBOsCompare) do
     // begin
-    //   writeln('COMPARE POS ',i);
-    //   writeln(FResultDBOsCompare[i].DumpToString());
-    //   writeln('------');
+    //   if (Length(FResultDBOs)>0) and
+    //       (curr_idx<=high(FResultDBOs)) and
+    //       (FResultDBOsCompare[i].UID=FResultDBOs[curr_idx].UID) then
+    //         begin
+    //           if curr_idx<=high(FResultDBOs) then
+    //             inc(curr_idx);
+    //           continue;
+    //         end
+    //       else
+    //         begin { must insert }
+    //           G_TCDM.InsertUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOsCompare[i],curr_idx+ins_before);
+    //           inc(ins_before); { if the previous array is exhausted, no match occurs and ins_before is incremented ...}
+    //         end;
     // end;
-    //for i:=0 to high(FResultDBOs) do
-    // begin
-    //   writeln('Original POS ',i);
-    //   writeln(FResultDBOs[i].DumpToString());
-    //   writeln('------');
-    // end;
-    //halt;
 
-    for i:=0 to high(FResultDBOsCompare) do
+    curr_old_idx := high(FResultDBOs);
+    for i:=high(FResultDBOsCompare) downto 0 do
      begin
        if (Length(FResultDBOs)>0) and
-           (curr_idx<=high(FResultDBOs)) and
-           (FResultDBOsCompare[i].UID=FResultDBOs[curr_idx].UID) then
+           (curr_old_idx>=0) and
+           (FResultDBOsCompare[i].UID=FResultDBOs[curr_old_idx].UID) then
              begin
-               if curr_idx<=high(FResultDBOs) then
-                 inc(curr_idx);
+               dec(curr_old_idx);
                continue;
              end
            else
              begin { must insert }
-               G_TCDM.InsertUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOsCompare[i],curr_idx+ins_before);
+               if FinalTransFormUPO(FResultDBOsCompare[i]) then
+                 begin
+                   inc(FQueryDeliveredCount);
+                   inc(FQueryPotentialCount);
+                   if curr_old_idx<High(FResultDBOs) then
+                     ref_id := FResultDBOs[curr_old_idx+1].UID_String
+                   else
+                    ref_id := '';
+                   G_TCDM.CN_AddGridInsertUpdate(FSessionID,GetStoreID,GetQueryID_ClientPart,upo,ref_id);
+                 end;
+               //G_TCDM.InsertUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOsCompare[i],curr_old_idx);
                inc(ins_before); { if the previous array is exhausted, no match occurs and ins_before is incremented ...}
              end;
      end;
+
   end;
 
   procedure Removed;
@@ -3011,8 +3066,12 @@ var diff,d1,d2 : NativeInt;
             found := true;
         if not found then
           begin
-            G_TCDM.RemoveUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOs[i],i-deleted_before);
-            inc(deleted_before); { adjust offset index of client query position }
+            dec(FQueryDeliveredCount);
+            dec(FQueryPotentialCount);
+            //G_TCDM.CN_AddGridInplaceDelete(FSessionID,GetStoreID,GetQueryID_ClientPart,FResultDBOsCompare[j].UID_String);
+            G_TCDM.CN_AddGridInplaceDelete(FSessionID,GetStoreID,GetQueryID_ClientPart,FResultDBOs[i].UID_String);
+            //G_TCDM.RemoveUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOs[i],i-deleted_before);
+            //inc(deleted_before); { adjust offset index of client query position }
           end;
       end;
   end;
@@ -3020,6 +3079,7 @@ var diff,d1,d2 : NativeInt;
   var i : integer;
 
 begin
+  { the query is executed and the filter gets populated with 'new' dbos  }
   d2 := Length(FResultDBOs);
   d1 := Length(FResultDBOsCompare);
   if not assigned(FBaseData) then
@@ -4326,15 +4386,17 @@ procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE
       upo           : IFRE_DB_Object;
       ref_uid       : TFRE_DB_Guid;
 
-      procedure CN_Insert(const ref_id : string);
+      procedure CN_Insert(ref_id : string);
       begin
+        //ref_id:=''; { hack ...}
         inc(qry.FQueryDeliveredCount);
         inc(qry.FQueryPotentialCount);
-        CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,upo,ref_id); { add the first object }
+        CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,upo,ref_id);
       end;
 
-      procedure InsertFirst;
+      function FinalTransFormUPO:boolean;
       begin
+        result := false;
         if not GFRE_DBI.NetServ.FetchSessionByIdLocked(qry.FSessionID,ses) then
           begin
             GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[qry.FSessionID]);
@@ -4345,10 +4407,10 @@ procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE
             try
               upo := new_obj.CloneToNewObject;
               td.FBaseTransData.FDC.FinalRightTransform(ses,upo);
+              result := true;
             finally
               ses.UnlockSession;
             end;
-            CN_Insert('');
           end;
       end;
 
@@ -4358,55 +4420,45 @@ procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE
     if not (FREDB_CompareTransCollDataKeys(full_data_key,qry.GetFullQueryOrderKey)) then
          exit; { query does not match the delivered update spec }
     GFRE_DBI.LogDebug(dblc_DBTDM,'       >QRY MATCH INSERT OBJECT [%s] IN QRY [%s]',[new_obj.UID_String,qry.GetFullQueryOrderKey.key]);
+    if not FinalTransFormUPO then
+      exit;
     if qry.FQueryDeliveredCount=0 then
       begin
-        InsertFirst;
+        CN_Insert(''); { first }
         exit;
       end;
     if (idx >= qry.FStartIdx) and (idx < qry.FStartIdx+qry.FToDeliverCount) then
       begin { update is in the open query page }
         //if FREDB_GuidInArray(new_obj.UID,qry.FResultDBOs)<>-1 then { qry.FResultDBOs not neccessary (check)}
         //  raise EFRE_DB_Exception.Create(edb_ERROR,'logic/error update already found in result set');
-        if not GFRE_DBI.NetServ.FetchSessionByIdLocked(qry.FSessionID,ses) then
+        if (idx=qry.FStartIdx) then { = first }
           begin
-            GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[qry.FSessionID]);
-            exit;
+            ref_uid := filtercont.FOBJArray[idx].UID;
+            CN_Insert(FREDB_G2H(ref_uid));
           end
         else
+        if (idx<qry.FStartIdx+qry.FQueryDeliveredCount) then { smaller then last deliverd, but not first}
           begin
-            try
-              upo := new_obj.CloneToNewObject;
-              td.FBaseTransData.FDC.FinalRightTransform(ses,upo);
-            finally
-              ses.UnlockSession;
+            if (idx=qry.FStartIdx+qry.FQueryDeliveredCount-1) then begin
+              CN_Insert(''); { = last }
+            end else begin
+              ref_uid := filtercont.FOBJArray[idx+1].UID;
+              CN_Insert(FREDB_G2H(ref_uid)); { somewhere in the middle }
             end;
-            if (idx=qry.FStartIdx) then { = first }
-              begin
-                ref_uid := filtercont.FOBJArray[idx+1].UID;
-                CN_Insert(FREDB_G2H(ref_uid));
-              end
-            else
-            if (idx<qry.FStartIdx+qry.FQueryDeliveredCount) then { smaller then last deliverd, but not first}
-              begin
-                if (idx=qry.FStartIdx+qry.FQueryDeliveredCount-1) then begin
-                  CN_Insert(''); { = last }
-                end else begin
-                  ref_uid := filtercont.FOBJArray[idx+1].UID;
-                  CN_Insert(FREDB_G2H(ref_uid)); { somewhere in the middle }
-                end;
-              end
-            else
-            if (qry.FQueryDeliveredCount < qry.FToDeliverCount) then { qry has room to deliver additional }
-              begin { = last }
-                CN_Insert(''); { add the new object, idx-1 = the element the client had at this position }
-              end
-            else
-              begin { qry is full ? }
-                abort;
-              end;
-              { OK , delivered one additional entry };
+          end
+        else
+        if (qry.FQueryDeliveredCount < qry.FToDeliverCount) then { qry has room to deliver additional }
+          begin { = last }
+            CN_Insert(''); { add the new object, idx-1 = the element the client had at this position }
+          end
+        else
+          begin { qry is full ? }
+            abort;
           end;
-      end;
+          { OK , delivered one additional entry };
+      end
+    else
+      raise EFRE_DB_Exception.Create(edb_ERROR,'critical handle this');
   end;
 
 begin
