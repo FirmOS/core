@@ -482,6 +482,9 @@ type
     ForderKey        : TFRE_DB_NameType;
     procedure        SetFilled(AValue: boolean);
     procedure        ClearDataInFilter;
+    function         UnconditionalRemoveOldObject (const td: TFRE_DB_TRANSFORMED_ORDERED_DATA ; const old_obj: IFRE_DB_Object ; const do_qry_proc: boolean ; const ignore_non_existing: boolean):NativeInt;
+    function         UnconditionalInsertNewObject (const td: TFRE_DB_TRANSFORMED_ORDERED_DATA ; const new_obj: IFRE_DB_Object ; const do_qry_proc: boolean ; const ignore_non_existing: boolean):NativeInt;
+
   public
     property    IsFilled                      : boolean read FFilled write SetFilled;
     procedure   CheckDBReevaluation           ;
@@ -755,7 +758,7 @@ begin
        midx := leftx + ((rightx - leftx) div 2);
        mkey := object_array[midx].Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(order_Key).AsByteArr;
        if Length(mkey)=0 then
-         raise EFRE_DB_Exception.Create(edb_ERROR,'invalid order key len 0  ');
+         raise EFRE_DB_Exception.Create(edb_ERROR,'invalid order key len 0');
        res := Compare(mkey,search_key);
        if res=0 then
          begin
@@ -818,16 +821,21 @@ begin
           end
         else
           begin
-            if length(FValues)=0 then
-              exit;
-            result := true;
-            for i:=0 to high(fieldvals) do
-             for j:=0 to high(FValues) do
-               if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
-                 begin
-                   result := false;
-                   break;
-                 end;
+            if length(FStartValues)=0 then
+              begin
+                result := false;
+              end
+            else
+              begin
+                result := true;
+                for i:=0 to high(fieldvals) do
+                 for j:=0 to high(FValues) do
+                   if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
+                     begin
+                       result := false;
+                       break;
+                     end;
+              end;
           end;
       except { invalid conversion }
         error_fld := true;
@@ -2045,6 +2053,52 @@ begin
   FCnt    := 0;
 end;
 
+function TFRE_DB_FilterContainer.UnconditionalRemoveOldObject(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const old_obj: IFRE_DB_Object; const do_qry_proc: boolean ; const ignore_non_existing : boolean): NativeInt;
+var old_idx   : NativeInt;
+    before    : NativeInt;
+    old_key   : TFRE_DB_ByteArray;
+    exists    : boolean;
+begin
+  old_key  := old_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(ForderKey).AsByteArr;
+  old_idx  := FREDB_BinaryFindIndexInSorted(old_key,ForderKey,before,FOBJArray,exists,old_obj.PUID);
+  result   := old_idx;
+  if exists then
+    begin
+      FOBJArray := FREDB_RemoveIdxFomObjectArray(FOBJArray,old_idx);
+      dec(FCnt);
+      AdjustLength;
+      if do_qry_proc then
+        G_TCDM.RemoveUpdateObjectInFilterKey(td,self,old_obj,old_idx);  { remove an object }
+    end
+  else
+    if ignore_non_existing=false then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'notify filtered delete / not found');
+end;
+
+function TFRE_DB_FilterContainer.UnconditionalInsertNewObject(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const new_obj: IFRE_DB_Object; const do_qry_proc: boolean; const ignore_non_existing: boolean): NativeInt;
+var ia_idx   : NativeInt;
+    before   : NativeInt;
+    exists   : boolean;
+    i        : NativeInt;
+    new_key  : TFRE_DB_ByteArray;
+
+begin
+  new_key  := new_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(ForderKey).AsByteArr;
+  if Length(new_key)=0 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'total order key / binary key not found in insert');
+  ia_idx := FREDB_BinaryFindIndexInSorted(new_key,ForderKey,before,FOBJArray,exists);
+  if exists then
+    begin
+      if ignore_non_existing=false then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'notify_checkfiltered insert -> exists');
+    end;
+  FOBJArray := FREDB_InsertAtIdxToObjectArray(FOBJArray,ia_idx,new_obj,before>0); { ia_idx gets adjusted }
+  result := ia_idx;
+  inc(FCnt);
+  if do_qry_proc then
+     G_TCDM.InsertUpdateObjectInFilterKey(td,self,new_obj,ia_idx);  { insert an object in filtering, now check queries }
+end;
+
 procedure TFRE_DB_FilterContainer.CheckDBReevaluation;
 begin
   if FFilters.CheckDBReevaluationFilters then
@@ -2147,43 +2201,31 @@ begin
           GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH UPDATE OBJECT ORDER NOT CHANGED [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
           old_idx := FREDB_BinaryFindIndexInSorted(old_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(ForderKey).AsByteArr,Forderkey,before,FOBJArray,exists);
           if exists=false then
-            raise EFRE_DB_Exception.Create(edb_ERROR,'could not find the object notify_checkfiltered update');
-          FOBJArray[old_idx] := new_obj;
-          G_TCDM.UpdateObjectInFilterKey(td,self,new_obj,old_idx);  { in place update }
+            begin
+              { the object passes the filter but is not in the filter, add it }
+              UnconditionalInsertNewObject(td,new_obj,true,false);
+            end
+          else
+            begin
+              FOBJArray[old_idx] := new_obj;
+              G_TCDM.UpdateObjectInFilterKey(td,self,new_obj,old_idx);  { in place update }
+            end;
         end;
     end
   else
     begin { Update object does not pass the filters anymore -> remove it}
       GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER REJECT UPDATE OBJECT [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
+      old_idx := UnconditionalRemoveOldObject(td,old_obj,true,true);
     end;
 end;
 
 function TFRE_DB_FilterContainer.Notify_CheckFilteredDelete(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const old_obj: IFRE_DB_Object; const do_qry_proc: boolean): NativeInt;
-
-  procedure RemoveOldObject;
-  var old_idx   : NativeInt;
-      before    : NativeInt;
-      old_key   : TFRE_DB_ByteArray;
-      exists    : boolean;
-  begin
-    old_key  := old_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(ForderKey).AsByteArr;
-    old_idx  := FREDB_BinaryFindIndexInSorted(old_key,ForderKey,before,FOBJArray,exists,old_obj.PUID);
-    result   := old_idx;
-    if exists=false then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'notify filtered delete / not found');
-    FOBJArray := FREDB_RemoveIdxFomObjectArray(FOBJArray,old_idx);
-    dec(FCnt);
-    AdjustLength;
-    if do_qry_proc then
-      G_TCDM.RemoveUpdateObjectInFilterKey(td,self,old_obj,old_idx);  { remove an object }
-  end;
-
 begin
   result := -1;
   if DoesObjectPassFilterContainer(old_obj) then
     begin { old object is potentially in the client query present }
       GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH DELETE OBJECT [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
-      RemoveOldObject;
+      result := UnconditionalRemoveOldObject(td,old_obj,do_qry_proc,false);
     end
   else
     begin
@@ -2193,37 +2235,12 @@ end;
 
 
 function TFRE_DB_FilterContainer.Notify_CheckFilteredInsert(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const new_obj: IFRE_DB_Object; const do_qry_proc: boolean): NativeInt;
-var new_key : TFRE_DB_ByteArray;
-
-  procedure InsertNewObject;
-  var ia_idx   : NativeInt;
-      before   : NativeInt;
-      exists   : boolean;
-      i        : NativeInt;
-
-  begin
-    new_key  := new_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(ForderKey).AsByteArr;
-    if Length(new_key)=0 then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'total order key / binary key not found in insert');
-    ia_idx := FREDB_BinaryFindIndexInSorted(new_key,ForderKey,before,FOBJArray,exists);
-    if exists then
-      begin
-        exit;
-        raise EFRE_DB_Exception.Create(edb_ERROR,'notify_checkfiltered insert -> exists');
-      end;
-    FOBJArray := FREDB_InsertAtIdxToObjectArray(FOBJArray,ia_idx,new_obj,before>0); { ia_idx gets adjusted }
-    result := ia_idx;
-    inc(FCnt);
-    if do_qry_proc then
-       G_TCDM.InsertUpdateObjectInFilterKey(td,self,new_obj,ia_idx);  { insert an object in filtering, now check queries }
-  end;
-
 begin
   result := -1;
   if DoesObjectPassFilterContainer(new_obj) then
     begin { old object is potentially in the client query present }
       GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH INSERT OBJECT [%s] IN ORDER/FILTER [%s / %s]',[new_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
-      InsertNewObject;
+      result := UnconditionalInsertNewObject(td,new_obj,do_qry_proc,false);
     end
   else
     begin
@@ -3014,9 +3031,11 @@ begin
   d2 := Length(FResultDBOs);
   diff := d1 - d2;
   if diff>0 then
-    Inserted
-  else
+    Inserted;
+  if diff<0 then
     Removed;
+  if diff=0 then
+    ; // ?
   { update query to comparequery }
   SwapCompareQueryQry;
 end;
@@ -3200,10 +3219,10 @@ end;
 procedure TFRE_DB_TRANFORMED_DATA.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
 var idx : NativeInt;
 
-    function DependcyMatchesKey : boolean;
-    begin
-      FDC.IsDependencyFilteredCollection;
-    end;
+    //function DependcyMatchesKey : boolean;
+    //begin
+    //  FDC.IsDependencyFilteredCollection;
+    //end;
 
 begin
   if IncludesChildData and
@@ -3648,7 +3667,7 @@ procedure TFRE_DB_TRANSDATA_MANAGER.SetupInboundRefLink(const from_obj: IFRE_DB_
 begin
   LockManager;
   try
-    FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
+    FTransList.ForAll(@CheckIfNeeded);      { search all base transforms for needed updates ... }
     ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
   finally
     UnlockManager;
@@ -3672,7 +3691,7 @@ procedure TFRE_DB_TRANSDATA_MANAGER.InboundReflinkDropped(const from_obj: IFRE_D
 begin
   LockManager;
   try
-    FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
+    FTransList.ForAll(@CheckIfNeeded);      { search all base transforms for needed updates ... }
     ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
   finally
     UnlockManager;
@@ -3696,7 +3715,7 @@ procedure TFRE_DB_TRANSDATA_MANAGER.OutboundReflinkDropped(const from_obj: TGUID
 begin
   LockManager;
   try
-    FTransList.ForAll(@CheckIfNeeded); { search all base transforms for needed updates ... }
+    FTransList.ForAll(@CheckIfNeeded);      { search all base transforms for needed updates ... }
     ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
   finally
     UnlockManager;
@@ -3959,7 +3978,7 @@ var fld : IFRE_DB_FIELD;
                begin { dependency ref UID Filter}
                  refl_spec := qry.GetReflinkSpec(ffn);
                  refl_vals := qry.GetReflinkStartValues(ffn);
-                 session.GetDBConnection.ExpandReferences(refl_vals,refl_spec,expanded_uid);
+                 //session.GetDBConnection.ExpandReferences(refl_vals,refl_spec,expanded_uid);
                  if not dependency_negate then
                    qry.Filterdef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,true,fallownull)
                  else
@@ -4503,7 +4522,7 @@ begin
   if not FArtTreeKeyToObj.ExistsBinaryKey(key,keylen,valueptr) then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'notify tree update internal / value not found');
   oc := FREDB_PtrUIntToObject(valueptr) as TFRE_DB_OrderContainer;
-  if oc.RemoveObject(old_obj) then
+  if oc.RemoveObject(old_obj) then { true = remove the (empty) ordercontaienr now }
     begin
       FArtTreeKeyToObj.RemoveBinaryKey(key,keylen,valueptr);
       assert(TFRE_DB_OrderContainer(valueptr)=oc,'internal/logic remove failed');

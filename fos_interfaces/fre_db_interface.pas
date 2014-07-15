@@ -8693,10 +8693,11 @@ begin
 end;
 
 function FREDB_PP_ObjectInParentPathLastParent(const obj: IFRE_DB_Object; const pp: string): boolean;
-var ppa   : TFRE_DB_StringArray;
-    fld   : IFRE_DB_Field;
-    ppart : TFRE_DB_String;
-    i     : NativeInt;
+var ppa    : TFRE_DB_StringArray;
+    fld    : IFRE_DB_Field;
+    pparta : TFRE_DB_StringArray;
+    ppart  : string;
+    i      : NativeInt;
 begin
   result := false;
   if obj.FieldOnlyExisting(cFRE_DB_SYS_PARENT_PATH_FULL,fld) then
@@ -8704,9 +8705,11 @@ begin
       ppa    := fld.AsStringArr;
       for i := 0 to high(ppa) do
         begin
-          ppart := GFRE_BT.SepRight(ppa[i],',');
-          if ppart='' then
-            ppart := ppa[i];
+          FREDB_SeperateString(ppa[i],',',pparta);
+          if Length(pparta)>0 then
+            ppart := pparta[high(pparta)]
+          else
+            ppart := '';
           if pp=ppart then
             exit(true);
         end;

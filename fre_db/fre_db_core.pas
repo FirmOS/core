@@ -6653,27 +6653,41 @@ var
        end;
     end;
 
-
+    var rc : NativeInt;
 
 begin
   try
     upconn := FConnection.UpcastDBC;
     for in_object in in_objects do
       begin
-        tr_obj := FTransform.TransformInOut(upconn,in_object);
         case mode of
           trans_Insert:
             begin
-              transdata.SetTransformedObject(tr_obj);
-              SetParentPath(''); { this is a root node }
               if HasParentChildRefRelationDefined then
                 begin
-                  SetSpecialFields(tr_obj,in_object);
-                  TransFormChildsForUid(tr_obj,tr_obj.UID_String,0,tr_obj.UID); { this is the initial fill case, next step transfrom children recursive }
+                  rc := upconn.GetReferencesCountNoRightCheck(in_object.UID,not FParentLinksChild,FParentChildScheme,FParentChildField);
+                  if rc=0 then
+                    begin
+                      tr_obj := FTransform.TransformInOut(upconn,in_object);
+                      transdata.SetTransformedObject(tr_obj);
+                      SetParentPath(''); { this is a root node }
+                      if HasParentChildRefRelationDefined then
+                        begin
+                          SetSpecialFields(tr_obj,in_object);
+                          TransFormChildsForUid(tr_obj,tr_obj.UID_String,0,tr_obj.UID); { this is the initial fill case, next step transfrom children recursive }
+                        end;
+                    end;
+                end
+              else
+                begin
+                  tr_obj := FTransform.TransformInOut(upconn,in_object);
+                  transdata.SetTransformedObject(tr_obj);
+                  SetParentPath(''); { this is a root node }
                 end;
             end;
           trans_SingleInsert:
             begin
+              tr_obj := FTransform.TransformInOut(upconn,in_object);
               if HasParentChildRefRelationDefined then
                 begin
                   SetSpecialFields(tr_obj,in_object); { do not transfrom children recursive, these will come as single add updates, when inserted in a transaction }
@@ -6683,6 +6697,7 @@ begin
             end;
           trans_Update:
             begin
+              tr_obj := FTransform.TransformInOut(upconn,in_object);
               SetSpecialFields(tr_obj,in_object);
               SetParentPath(parentpath);
               transdata.HandleUpdateTransformedObject(tr_obj,update_idx);
