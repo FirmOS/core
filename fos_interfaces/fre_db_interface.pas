@@ -2023,6 +2023,14 @@ type
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
+  { TFRE_DB_WORKFLOW }
+  TFRE_DB_WORKFLOW=class(TFRE_DB_ObjectEx)
+  protected
+    class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    procedure        InternalSetup          ; override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
   { TFRE_DB_WORKFLOW_STEP }
 
   TFRE_DB_WORKFLOW_STEP=class(TFRE_DB_ObjectEx)
@@ -2034,6 +2042,7 @@ type
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    procedure        InternalSetup          ; override;
   published
     function  WEB_SaveOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; override;
   public
@@ -3805,6 +3814,31 @@ type
 
    pmethodnametable =  ^tmethodnametable;
 
+{ TFRE_DB_WORKFLOW }
+
+class procedure TFRE_DB_WORKFLOW.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.AddSchemeField('wf_caption',fdbft_String).required:=true;    { caption of the workflow step }
+  scheme.AddSchemeField('wf_state',fdbft_UInt32).required:=true;      { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
+end;
+
+procedure TFRE_DB_WORKFLOW.InternalSetup;
+begin
+  inherited InternalSetup;
+  Field('wf_state').AsUInt32:=0;
+end;
+
+class procedure TFRE_DB_WORKFLOW.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  newVersionId:='0.1';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+
+  end;
+end;
+
 { TFRE_DB_NOTIFICATION }
 
 class procedure TFRE_DB_NOTIFICATION.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -3940,7 +3974,7 @@ begin
   scheme.AddSchemeField('step_id',fdbft_UInt32).required:=true;         { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
   scheme.AddSchemeField('is_error_step',fdbft_Boolean);                 { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
   scheme.AddSchemeField('error_idx',fdbft_String);                      { index for the error step }
-  scheme.AddSchemeField('step_state',fdbft_UInt32);                     { should be an enum : -> 1-> WAITING, 2-> IN PROGRESS, 3-> DONE, 4 -> FAILED }
+  scheme.AddSchemeField('step_state',fdbft_UInt32).required:=true;      { should be an enum : -> 1-> WAITING, 2-> CHILD IN PROGRESS, 3-> IN PROGRESS, 4-> DONE, 5 -> FAILED }
   du:=scheme.AddSchemeField('designated_user',fdbft_ObjLink);           { this user should do the step }
   du.required:=true;
   dg:=scheme.AddSchemeField('designated_group',fdbft_ObjLink);          { exor this group should do the step }
@@ -3995,6 +4029,12 @@ begin
 
     StoreTranslateableText(conn,'scheme_error_main_group','General Information');
   end;
+end;
+
+procedure TFRE_DB_WORKFLOW_STEP.InternalSetup;
+begin
+  inherited InternalSetup;
+  Field('step_state').AsUInt32:=0;
 end;
 
 function TFRE_DB_WORKFLOW_STEP.WEB_SaveOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;

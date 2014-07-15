@@ -213,6 +213,7 @@ begin
   if currentVersionId='' then begin
     currentVersionId:='0.9';
     CreateModuleText(conn,'gc_wf_caption','Caption');
+    CreateModuleText(conn,'gc_wf_id','Id');
   end;
 end;
 
@@ -229,18 +230,16 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
     with transform do begin
-      AddOneToOnescheme('step_caption','step_caption',FetchModuleTextShort(session,'gc_wf_caption'));
-      AddOneToOnescheme('step_parent','step_parent','PARENT');
-      AddOneToOnescheme('uid','uid','UID');
-      AddMatchingReferencedField('STEP_PARENT>TFRE_DB_WORKFLOW_STEP','step_caption','step_caption_parent','PARENT CAP');
+      AddMultiToOnescheme(TFRE_DB_NameTypeArray.create('caption','step_caption'),'caption',FetchModuleTextShort(session,'gc_wf_caption'));
+      AddOneToOnescheme('step_id','step_id',FetchModuleTextShort(session,'gc_wf_id'));
     end;
     dc := session.NewDerivedCollection('WFMOD_WF_GRID');
     with dc do begin
       SetDeriveParent(session.GetDBConnection.AdmGetWorkFlowCollection);
       SetDeriveTransformation(transform);
       SetDisplayType(cdt_Listview,[cdgf_Children],'');//,nil,'',CWSF(@WEB_DGMenu),nil,CWSF(@WEB_DGNotification));
-      SetParentToChildLinkField('TFRE_DB_WORKFLOW_STEP<STEP_PARENT');
-      SetDefaultOrderField('uid',true);
+      SetParentToChildLinkField('<STEP_PARENT');
+      SetDefaultOrderField('step_id',true);
     end;
   end;
 end;
