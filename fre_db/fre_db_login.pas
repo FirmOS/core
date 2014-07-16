@@ -465,16 +465,22 @@ end;
 
 function TFRE_DB_LOGIN.WEB_NotificationMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  res: TFRE_DB_MENU_DESC;
-  sf : TFRE_DB_SERVER_FUNC_DESC;
+  res            : TFRE_DB_MENU_DESC;
+  sf             : TFRE_DB_SERVER_FUNC_DESC;
+  notificationObj: TFRE_DB_NOTIFICATION;
+  dbo            : IFRE_DB_Object;
 begin
-  res:=TFRE_DB_MENU_DESC.create.Describe;
-  if conn.sys.CheckClassRight4MyDomain(sr_DELETE,TFRE_DB_NOTIFICATION) then begin
-    sf:=CWSF(@WEB_NotificationDelete);
-    sf.AddParam.Describe('selected',input.Field('selected').AsString);
-    res.AddEntry.Describe(FetchAppTextShort(ses,'cm_delete_notification'),'',sf);
+  conn.FetchAs(FREDB_H2G(input.Field('selected').AsString),TFRE_DB_NOTIFICATION,notificationObj);
+  Result:=notificationObj.getMenu(input,ses,app,conn);
+  if not assigned(Result) then begin
+    res:=TFRE_DB_MENU_DESC.create.Describe;
+    if conn.sys.CheckClassRight4MyDomain(sr_DELETE,TFRE_DB_NOTIFICATION) then begin
+      sf:=CWSF(@WEB_NotificationDelete);
+      sf.AddParam.Describe('selected',input.Field('selected').AsString);
+      res.AddEntry.Describe(FetchAppTextShort(ses,'cm_delete_notification'),'',sf);
+    end;
+    Result:=res;
   end;
-  Result:=res;
 end;
 
 function TFRE_DB_LOGIN.WEB_NotificationSC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;

@@ -2001,6 +2001,9 @@ type
   { TFRE_DB_NOTIFICATION }
 
   TFRE_DB_NOTIFICATION=class(TFRE_DB_ObjectEx)
+  public
+    procedure setMenuFunc  (const menuFunc: TFRE_DB_NameType; const objGuid: TGuid);
+    function  getMenu      (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
@@ -2060,7 +2063,9 @@ type
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
-    function  WEB_SaveOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; override;
+    function  WEB_Done             (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+    function  WEB_SaveOperation    (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; override;
+    function  WEB_NotificationMenu (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   public
     procedure setState          (const conn: IFRE_DB_CONNECTION; const state: UInt32); override;
     property  isErrorStep       : Boolean      read getIsErrorStep write setIsErrorStep;
@@ -3910,11 +3915,9 @@ begin
   end;
   if Length(lowestIdChilds)=0 then begin //no children or all children done
     setState(conn,3); //IN PROGRESS
-    CheckDbResult(conn.Update(Self.CloneToNewObject()));
   end else begin
     if getState=1 then begin
       setState(conn,2); //CHILD IN PROGRESS
-      CheckDbResult(conn.Update(Self.CloneToNewObject()));
     end;
     for i := 0 to High(lowestIdChilds) do begin
       (lowestIdChilds[i].Implementor_HC as TFRE_DB_WORKFLOW_BASE).update(conn);
@@ -3984,6 +3987,23 @@ end;
 
 { TFRE_DB_NOTIFICATION }
 
+procedure TFRE_DB_NOTIFICATION.setMenuFunc(const menuFunc: TFRE_DB_NameType; const objGuid: TGuid);
+begin
+  Field('menuFunc').AsString:=menuFunc;
+  Field('menuObjGuid').AsGUID:=objGuid;
+end;
+
+function TFRE_DB_NOTIFICATION.getMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  dbo: IFRE_DB_Object;
+begin
+  Result:=nil;
+  CheckDbResult(conn.Fetch(Field('menuObjGuid').AsGUID,dbo));
+  if dbo.MethodExists(Field('menuFunc').AsString) then begin
+    Result:=dbo.Invoke(Field('menuFunc').AsString,input,ses,app,conn);
+  end;
+end;
+
 class procedure TFRE_DB_NOTIFICATION.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 var
   u,g : IFRE_DB_FieldSchemeDefinition;
@@ -3991,6 +4011,8 @@ begin
   inherited RegisterSystemScheme(scheme);
   scheme.AddSchemeField('caption',fdbft_String).required:=true;
   scheme.AddSchemeField('for',fdbft_ObjLink).required:=true;
+  scheme.AddSchemeField('menuFunc',fdbft_String);
+  scheme.AddSchemeField('menuObjGuid',fdbft_GUID);
 end;
 
 class procedure TFRE_DB_NOTIFICATION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -4187,7 +4209,28 @@ begin
     StoreTranslateableText(conn,'scheme_action','Action');
 
     StoreTranslateableText(conn,'scheme_error_main_group','General Information');
+    StoreTranslateableText(conn,'cm_notification_done','Done');
   end;
+  StoreTranslateableText(conn,'cm_notification_done','Done');
+end;
+
+function TFRE_DB_WORKFLOW_STEP.WEB_NotificationMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res: TFRE_DB_MENU_DESC;
+  sf : TFRE_DB_SERVER_FUNC_DESC;
+begin
+  res:=TFRE_DB_MENU_DESC.create.Describe;
+  sf:=CWSF(@WEB_Done);
+  sf.AddParam.Describe('selected',input.Field('selected').AsString);
+  res.AddEntry.Describe(GetTranslateableTextShort(conn,'cm_notification_done'),'',sf);
+  Result:=res;
+end;
+
+function TFRE_DB_WORKFLOW_STEP.WEB_Done(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  CheckDbResult(conn.Delete(FREDB_H2G(input.Field('selected').AsString)));
+  setState(conn,4);
+  Result:=GFRE_DB_NIL_DESC;
 end;
 
 function TFRE_DB_WORKFLOW_STEP.WEB_SaveOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -4204,13 +4247,16 @@ end;
 
 procedure TFRE_DB_WORKFLOW_STEP.setState(const conn: IFRE_DB_CONNECTION; const state: UInt32);
 var
-  notiObj: TFRE_DB_NOTIFICATION;
+  notiObj  : TFRE_DB_NOTIFICATION;
+  wfParent : TFRE_DB_WORKFLOW_BASE;
 begin
   inherited setState(conn,state);
+  CheckDbResult(conn.Update(self.CloneToNewObject()));
   if state=3 then begin
     //create notification object
     notiObj:=TFRE_DB_NOTIFICATION.CreateForDB;
     notiObj.Field('caption').AsString:=Field('step_caption').AsString;
+    notiObj.setMenuFunc('NotificationMenu',Self.UID);
     if FieldExists('designated_user') then begin
       notiObj.Field('for').AsObjectLink:=Field('designated_user').AsObjectLink;
     end else begin
@@ -4221,6 +4267,10 @@ begin
       end;
     end;
     CheckDbResult(conn.AdmGetNotificationCollection.Store(notiObj));
+  end;
+  if state=4 then begin
+    CheckDbResult(conn.FetchAs(Field('step_parent').AsObjectLink,TFRE_DB_WORKFLOW_BASE,wfParent));
+    wfParent.update(conn);
   end;
 end;
 

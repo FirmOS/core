@@ -231,7 +231,7 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
     with transform do begin
-      AddMultiToOnescheme(TFRE_DB_NameTypeArray.create('caption','step_caption'),'caption',FetchModuleTextShort(session,'gc_wf_caption'));
+      AddMultiToOnescheme(TFRE_DB_NameTypeArray.create('caption','step_caption'),'caption',FetchModuleTextShort(session,'gc_wf_caption'),dt_string,true,true);
       AddOneToOnescheme('step_id','step_id',FetchModuleTextShort(session,'gc_wf_id'));
       AddOneToOnescheme('state','state',FetchModuleTextShort(session,'gc_wf_state'));
     end;
