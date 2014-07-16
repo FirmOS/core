@@ -50,9 +50,11 @@ type
 
   TFRE_DB_TASKER = class (TFRE_DB_APPLICATION)
   protected
-    class procedure InstallDBObjects     (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-    procedure       MySessionInitialize  (const session: TFRE_DB_UserSession); override;
-    procedure       MyServerInitialize   (const admin_dbc: IFRE_DB_CONNECTION); override;
+    class procedure InstallDBObjects        (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    procedure       MySessionInitialize     (const session: TFRE_DB_UserSession); override;
+    procedure       MySessionPromotion      (const session: TFRE_DB_UserSession); override;
+    procedure       MyServerInitialize      (const admin_dbc: IFRE_DB_CONNECTION); override;
+    function        ShowInApplicationChooser(const session:IFRE_DB_UserSession): Boolean;override;
   public
     procedure       TASKER_METHOD        (const ses: IFRE_DB_Usersession);    { gets called every second }
     procedure       TASKER_REQUEST       (const ses: IFRE_DB_Usersession ; const flag1,flag2 : boolean); { called on request }
@@ -84,9 +86,19 @@ begin
 
 end;
 
+procedure TFRE_DB_TASKER.MySessionPromotion(const session: TFRE_DB_UserSession);
+begin
+
+end;
+
 procedure TFRE_DB_TASKER.MyServerInitialize(const admin_dbc: IFRE_DB_CONNECTION);
 begin
   inherited MyServerInitialize(admin_dbc);
+end;
+
+function TFRE_DB_TASKER.ShowInApplicationChooser(const session: IFRE_DB_UserSession): Boolean;
+begin
+  Result:=false;
 end;
 
 procedure TFRE_DB_TASKER.TASKER_METHOD(const ses: IFRE_DB_Usersession);
