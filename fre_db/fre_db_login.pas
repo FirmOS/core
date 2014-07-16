@@ -61,17 +61,19 @@ type
     procedure  InternalFinalize          ; override;
     function   No_Apps_ForGuests         (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   published
-    function WEB_OnUIChange      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_Content         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_LoginDlg        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_doLogin         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_doLogout        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_BuildSiteMap    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_BuildAppList    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_TakeOverSession (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_SendPageReload  (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_NotificationMenu(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function WEB_NotificationSC  (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_OnUIChange                  (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_Content                     (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_LoginDlg                    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_doLogin                     (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_doLogout                    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_BuildSiteMap                (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_BuildAppList                (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_TakeOverSession             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_SendPageReload              (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_NotificationMenu            (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_NotificationSC              (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_NotificationDelete          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function WEB_NotificationDeleteConfirmed (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -124,6 +126,10 @@ begin
     currentVersionId:='1.1';
 
     CreateAppText(conn,'notif_grid_caption','Notification');
+    CreateAppText(conn,'cm_delete_notification','Remove');
+    CreateAppText(conn,'error_delete_single_select','Exactly one object has to be selected for deletion.');
+    CreateAppText(conn,'notification_delete_diag_cap','Remove Notification');
+    CreateAppText(conn,'notification_delete_diag_msg','Remove Notification "%notification_str%"?');
   end;
 end;
 
@@ -147,7 +153,6 @@ begin
       SetDeriveParent(conn.AdmGetNotificationCollection);
       SetDeriveTransformation(transform);
       SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
-      SetDefaultOrderField('name',true);
       uids:=conn.SYS.GetCurrentUserToken.User.GetUserGroupIDS;
       SetLength(uids,Length(uids)+1);
       uids[Length(uids)-1]:=conn.SYS.GetCurrentUserToken.User.UID;
@@ -461,14 +466,55 @@ end;
 function TFRE_DB_LOGIN.WEB_NotificationMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   res: TFRE_DB_MENU_DESC;
+  sf : TFRE_DB_SERVER_FUNC_DESC;
 begin
   res:=TFRE_DB_MENU_DESC.create.Describe;
+  if conn.sys.CheckClassRight4MyDomain(sr_DELETE,TFRE_DB_NOTIFICATION) then begin
+    sf:=CWSF(@WEB_NotificationDelete);
+    sf.AddParam.Describe('selected',input.Field('selected').AsString);
+    res.AddEntry.Describe(FetchAppTextShort(ses,'cm_delete_notification'),'',sf);
+  end;
   Result:=res;
 end;
 
 function TFRE_DB_LOGIN.WEB_NotificationSC(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   Result:=GFRE_DB_NIL_DESC;
+end;
+
+function TFRE_DB_LOGIN.WEB_NotificationDelete(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  sf          : TFRE_DB_SERVER_FUNC_DESC;
+  cap,msg     : String;
+  notification: IFRE_DB_Object;
+begin
+  if not conn.sys.CheckClassRight4MyDomain(sr_DELETE,TFRE_DB_NOTIFICATION) then
+     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
+
+  if input.Field('selected').ValueCount<>1 then raise EFRE_DB_Exception.Create(FetchAppTextShort(ses,'error_delete_single_select'));
+
+  sf:=CWSF(@WEB_NotificationDeleteConfirmed);
+  sf.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+  cap:=FetchAppTextShort(ses,'notification_delete_diag_cap');
+
+  CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsStringArr[0]),notification));
+  msg:=StringReplace(FetchAppTextShort(ses,'notification_delete_diag_msg'),'%notification_str%',notification.Field('caption').AsString,[rfReplaceAll]);
+  Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_confirm,sf);
+end;
+
+function TFRE_DB_LOGIN.WEB_NotificationDeleteConfirmed(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  i : NativeInt;
+begin
+  if not conn.sys.CheckClassRight4MyDomain(sr_DELETE,TFRE_DB_NOTIFICATION) then
+     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
+
+  if input.field('confirmed').AsBoolean then begin
+    for i:= 0 to input.Field('selected').ValueCount-1 do begin
+      CheckDbResult(conn.Delete(FREDB_String2Guid(input.Field('selected').AsStringArr[i])));
+    end;
+  end;
+  Result := GFRE_DB_NIL_DESC;
 end;
 
 

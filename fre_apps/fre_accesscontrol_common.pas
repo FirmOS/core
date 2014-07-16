@@ -214,6 +214,7 @@ begin
     currentVersionId:='0.9';
     CreateModuleText(conn,'gc_wf_caption','Caption');
     CreateModuleText(conn,'gc_wf_id','Id');
+    CreateModuleText(conn,'gc_wf_state','State');
   end;
 end;
 
@@ -232,7 +233,7 @@ begin
     with transform do begin
       AddMultiToOnescheme(TFRE_DB_NameTypeArray.create('caption','step_caption'),'caption',FetchModuleTextShort(session,'gc_wf_caption'));
       AddOneToOnescheme('step_id','step_id',FetchModuleTextShort(session,'gc_wf_id'));
-      AddOneToOnescheme('state','state','STATE');
+      AddOneToOnescheme('state','state',FetchModuleTextShort(session,'gc_wf_state'));
     end;
     dc := session.NewDerivedCollection('WFMOD_WF_GRID');
     with dc do begin
