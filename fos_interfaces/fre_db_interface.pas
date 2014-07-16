@@ -2028,7 +2028,7 @@ type
   TFRE_DB_WORKFLOW_BASE=class(TFRE_DB_ObjectEx)
   private
     function  _hasFaildChild (const conn: IFRE_DB_CONNECTION): Boolean;
-    procedure update     (const conn: IFRE_DB_CONNECTION; const andInit: Boolean=false);
+    procedure update     (const conn: IFRE_DB_CONNECTION);
   public
     function  getState   : UInt32;
     procedure setState   (const conn: IFRE_DB_CONNECTION; const state: UInt32); virtual;
@@ -2036,6 +2036,8 @@ type
 
   { TFRE_DB_WORKFLOW }
   TFRE_DB_WORKFLOW=class(TFRE_DB_WORKFLOW_BASE)
+  private
+    procedure        _init                  (const conn: IFRE_DB_CONNECTION);
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
@@ -2060,6 +2062,7 @@ type
   published
     function  WEB_SaveOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; override;
   public
+    procedure setState          (const conn: IFRE_DB_CONNECTION; const state: UInt32); override;
     property  isErrorStep       : Boolean      read getIsErrorStep write setIsErrorStep;
     property  action            : TFRE_DB_GUID read getAction      write setAction;
     property  stepId            : UInt32       read getStepId      write setStepId;
@@ -3861,7 +3864,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_WORKFLOW_BASE.update(const conn: IFRE_DB_CONNECTION; const andInit: Boolean);
+procedure TFRE_DB_WORKFLOW_BASE.update(const conn: IFRE_DB_CONNECTION);
 var
   refs           : TFRE_DB_GUIDArray;
   lowestIdChilds : IFRE_DB_ObjectArray;
@@ -3878,27 +3881,21 @@ begin
     if child.isErrorStep then begin
       continue; //skip error steps
     end;
-    if andInit then begin
-      child.setState(conn,1);
-      CheckDbResult(conn.Update(child));
-      CheckDbResult(conn.FetchAs(refs[i],TFRE_DB_WORKFLOW_STEP,child));
-    end else begin
-      if child.getState=4 then begin
-        continue; //skip done
-      end;
-      if child.getState=5 then begin
-        hasFaildChild:=true;
-        continue; //skip faild steps
-      end;
-      if (child.getState=2) or (child.getState=3) then begin
-        exit; //do nothing - at least one child is still in progress
-      end;
+    if child.getState=4 then begin
+      continue; //skip done
+    end;
+    if child.getState=5 then begin
+      hasFaildChild:=true;
+      continue; //skip faild steps
+    end;
+    if (child.getState=2) or (child.getState=3) then begin
+      exit; //do nothing - at least one child is still in progress
     end;
     //state = 1 waiting
     if Length(lowestIdChilds)=0 then begin
       SetLength(lowestIdChilds,1);
-      lowestIdChilds[0]:=child;
       lowestId:=child.stepId;
+      lowestIdChilds[0]:=child;
     end else begin
       if lowestId=child.stepId then begin
         SetLength(lowestIdChilds,Length(lowestIdChilds)+1);
@@ -3913,14 +3910,14 @@ begin
   end;
   if Length(lowestIdChilds)=0 then begin //no children or all children done
     setState(conn,3); //IN PROGRESS
-    CheckDbResult(conn.Update(Self));
+    CheckDbResult(conn.Update(Self.CloneToNewObject()));
   end else begin
     if getState=1 then begin
       setState(conn,2); //CHILD IN PROGRESS
-      CheckDbResult(conn.Update(Self));
+      CheckDbResult(conn.Update(Self.CloneToNewObject()));
     end;
     for i := 0 to High(lowestIdChilds) do begin
-      (lowestIdChilds[i].Implementor_HC as TFRE_DB_WORKFLOW_BASE).update(conn,andInit);
+      (lowestIdChilds[i].Implementor_HC as TFRE_DB_WORKFLOW_BASE).update(conn);
     end;
   end;
 end;
@@ -3938,6 +3935,27 @@ begin
   end else begin
     inherited setState(conn,state);
   end;
+end;
+
+procedure TFRE_DB_WORKFLOW._init(const conn: IFRE_DB_CONNECTION);
+
+  procedure _initChilds(const objGuid: TGuid);
+  var
+    refs : TFRE_DB_GUIDArray;
+    child: TFRE_DB_WORKFLOW_STEP;
+    i    : Integer;
+  begin
+    refs:=conn.GetReferences(objGuid,false,'TFRE_DB_WORKFLOW_STEP','step_parent');
+    for i := 0 to High(refs) do begin
+      CheckDbResult(conn.FetchAs(refs[i],TFRE_DB_WORKFLOW_STEP,child));
+      child.setState(conn,1);
+      _initChilds(child.UID);
+      CheckDbResult(conn.Update(child));
+    end;
+  end;
+
+begin
+  _initChilds(UID);
 end;
 
 class procedure TFRE_DB_WORKFLOW.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -3960,21 +3978,33 @@ end;
 procedure TFRE_DB_WORKFLOW.start(const conn: IFRE_DB_CONNECTION);
 begin
   setState(conn,1);
-  update(conn,true);
+  _init(conn);
+  update(conn);
 end;
 
 { TFRE_DB_NOTIFICATION }
 
 class procedure TFRE_DB_NOTIFICATION.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+var
+  u,g : IFRE_DB_FieldSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
-  scheme.AddSchemeField('user',fdbft_ObjLink).required:=true;
+  u:=scheme.AddSchemeField('user',fdbft_ObjLink);
+  u.required:=true;
+  g:=scheme.AddSchemeField('group',fdbft_ObjLink);
+  g.required:=true;
+  g.addDepField('user');
+  u.addDepField('group');
   scheme.AddSchemeField('caption',fdbft_String).required:=true;
 end;
 
 class procedure TFRE_DB_NOTIFICATION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
   inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  newVersionId:='0.1';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+  end;
 end;
 
 { TFRE_DB_WORKFLOW_ACTION }
@@ -4085,7 +4115,7 @@ begin
   Field('is_error_step').AsBoolean:=AValue;
 end;
 
-procedure TFRE_DB_WORKFLOW_STEP.SetstepId(AValue: UInt32);
+procedure TFRE_DB_WORKFLOW_STEP.setStepId(AValue: UInt32);
 begin
   Field('step_id').AsUInt32:=AValue;
 end;
@@ -4175,6 +4205,28 @@ begin
     end;
   end;
   Result:=inherited WEB_SaveOperation(input, ses, app, conn);
+end;
+
+procedure TFRE_DB_WORKFLOW_STEP.setState(const conn: IFRE_DB_CONNECTION; const state: UInt32);
+var
+  notiObj: TFRE_DB_NOTIFICATION;
+begin
+  inherited setState(conn,state);
+  if state=3 then begin
+    //create notification object
+    notiObj:=TFRE_DB_NOTIFICATION.CreateForDB;
+    notiObj.Field('caption').AsString:=Field('step_caption').AsString;
+    if FieldExists('designated_user') then begin
+      notiObj.Field('user').AsObjectLink:=Field('designated_user').AsObjectLink;
+    end else begin
+      if FieldExists('designated_user') then begin
+        notiObj.Field('group').AsObjectLink:=Field('designated_group').AsObjectLink;
+      end else begin
+        raise EFRE_DB_Exception.Create(edb_ERROR,'Cannot create notification object. WF Step has no designated User or Group set.');
+      end;
+    end;
+    CheckDbResult(conn.AdmGetNotificationCollection.Store(notiObj));
+  end;
 end;
 
 { TFRE_DB_UNCONFIGURED_MACHINE }
