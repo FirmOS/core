@@ -132,6 +132,7 @@ var
   transform        : IFRE_DB_SIMPLE_TRANSFORM;
   notification_grid: IFRE_DB_DERIVED_COLLECTION;
   conn             : IFRE_DB_CONNECTION;
+  uids             : TFRE_DB_ObjLinkArray;
 begin
   inherited MySessionInitialize(session);
 
@@ -147,7 +148,10 @@ begin
       SetDeriveTransformation(transform);
       SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
       SetDefaultOrderField('name',true);
-      Filters.AddAutoDependencyFilter('USER',['TFRE_DB_NOTIFICATION<USER'],[(conn.SYS.GetCurrentUserToken.User.Implementor_HC as IFRE_DB_Object).UID]);
+      uids:=conn.SYS.GetCurrentUserToken.User.GetUserGroupIDS;
+      SetLength(uids,Length(uids)+1);
+      uids[Length(uids)-1]:=conn.SYS.GetCurrentUserToken.User.UID;
+      Filters.AddAutoDependencyFilter('FOR',['TFRE_DB_NOTIFICATION<FOR'],uids);
     end;
   end;
 end;

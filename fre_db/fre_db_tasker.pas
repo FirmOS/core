@@ -81,7 +81,7 @@ end;
 
 procedure TFRE_DB_TASKER.MySessionInitialize(const session: TFRE_DB_UserSession);
 begin
-  inherited MySessionInitialize(session);
+
 end;
 
 procedure TFRE_DB_TASKER.MyServerInitialize(const admin_dbc: IFRE_DB_CONNECTION);

@@ -3989,13 +3989,8 @@ var
   u,g : IFRE_DB_FieldSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
-  u:=scheme.AddSchemeField('user',fdbft_ObjLink);
-  u.required:=true;
-  g:=scheme.AddSchemeField('group',fdbft_ObjLink);
-  g.required:=true;
-  g.addDepField('user');
-  u.addDepField('group');
   scheme.AddSchemeField('caption',fdbft_String).required:=true;
+  scheme.AddSchemeField('for',fdbft_ObjLink).required:=true;
 end;
 
 class procedure TFRE_DB_NOTIFICATION.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -4217,10 +4212,10 @@ begin
     notiObj:=TFRE_DB_NOTIFICATION.CreateForDB;
     notiObj.Field('caption').AsString:=Field('step_caption').AsString;
     if FieldExists('designated_user') then begin
-      notiObj.Field('user').AsObjectLink:=Field('designated_user').AsObjectLink;
+      notiObj.Field('for').AsObjectLink:=Field('designated_user').AsObjectLink;
     end else begin
-      if FieldExists('designated_user') then begin
-        notiObj.Field('group').AsObjectLink:=Field('designated_group').AsObjectLink;
+      if FieldExists('designated_group') then begin
+        notiObj.Field('for').AsObjectLink:=Field('designated_group').AsObjectLink;
       end else begin
         raise EFRE_DB_Exception.Create(edb_ERROR,'Cannot create notification object. WF Step has no designated User or Group set.');
       end;
