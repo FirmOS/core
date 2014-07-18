@@ -4211,7 +4211,6 @@ begin
     StoreTranslateableText(conn,'scheme_error_main_group','General Information');
     StoreTranslateableText(conn,'cm_notification_done','Done');
   end;
-  StoreTranslateableText(conn,'cm_notification_done','Done');
 end;
 
 function TFRE_DB_WORKFLOW_STEP.WEB_NotificationMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
