@@ -1679,7 +1679,7 @@ begin
   arr := FDelObj.__InternalGetCollectionList;
   if CollName='' then
     begin // Delete from all
-      SetLength(FDelFromCollections,high(arr));
+      SetLength(FDelFromCollections,Length(arr));
       for i := 0 to high(arr) do
         begin
           FDelFromCollections[i] := arr[i].CollectionName(false);
