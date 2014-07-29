@@ -4043,6 +4043,7 @@ var
 begin
   inherited RegisterSystemScheme(scheme);
   scheme.AddSchemeField('caption',fdbft_String).required:=true;
+  scheme.AddSchemeField('details',fdbft_String);
   scheme.AddSchemeField('for',fdbft_ObjLink).required:=true;
   scheme.AddSchemeField('menuFunc',fdbft_String);
   scheme.AddSchemeField('menuObjGuid',fdbft_GUID);
@@ -4186,6 +4187,7 @@ begin
   scheme.AddSchemeField('step_caption',fdbft_String).required:=true;    { caption of the workflow step }
   scheme.AddSchemeField('step_parent',fdbft_ObjLink);                   { parent of this step }
   scheme.AddSchemeField('step_id',fdbft_UInt32).required:=true;         { order/prio in this wf level, all steps with the same prio are done parallel, all step childs are done before this step }
+  scheme.AddSchemeField('step_details',fdbft_String);                   { details of the wf step instance }
   scheme.AddSchemeField('is_error_step',fdbft_Boolean);                 { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
   scheme.AddSchemeField('error_idx',fdbft_String);                      { index for the error step }
   scheme.AddSchemeField('state',fdbft_UInt32).required:=true;           { should be an enum : -> 1-> WAITING, 2-> CHILD IN PROGRESS, 3-> IN PROGRESS, 4-> DONE, 5 -> FAILED }
@@ -4288,6 +4290,7 @@ begin
     //create notification object
     notiObj:=TFRE_DB_NOTIFICATION.CreateForDB;
     notiObj.Field('caption').AsString:=Field('step_caption').AsString;
+    notiObj.Field('details').AsString:=Field('step_details').AsString;
     notiObj.setMenuFunc('NotificationMenu',Self.UID);
     if FieldExists('designated_user') then begin
       notiObj.Field('for').AsObjectLink:=Field('designated_user').AsObjectLink;

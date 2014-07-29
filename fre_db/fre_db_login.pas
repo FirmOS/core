@@ -147,6 +147,7 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
     with transform do begin
       AddOneToOnescheme('caption','',FetchAppTextShort(session,'notif_grid_caption'),dt_string,true,true);
+      AddOneToOnescheme('details','','',dt_description);
     end;
     notification_grid := session.NewDerivedCollection('NOTIFICATION_GRID');
     with notification_grid do begin
