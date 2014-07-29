@@ -1663,10 +1663,10 @@ type
     destructor   Destroy;override;
     function     GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
 
-    procedure    MyTransForm                   (const in_objects : array of IFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode ; const update_idx : NativeInt ; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const in_parent_tr_obj : IFRE_DB_Object);
+    procedure    MyTransForm                   (const in_objects : array of IFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode ; const update_idx : NativeInt ; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const in_parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
     procedure    TransformAllTo                (const transdata  : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure    TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String);
-    procedure    TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object);
+    procedure    TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
+    procedure    TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
 
@@ -1782,10 +1782,11 @@ type
     { Notification Interface - Block }
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
     { Notification Interface - Connection }
-    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
-    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
-    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
-    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType  ; const tsid : TFRE_DB_TransStepId) ;
+    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType  ; const tsid : TFRE_DB_TransStepId) ;
+    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean;
+                                       const index_name: TFRE_DB_NameType ; const allow_null_value: boolean; const unique_null_values: boolean; const tsid : TFRE_DB_TransStepId);
+    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId);
     { Notification Interface - End }
 
     function            GetDatabaseObjectCount       (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
@@ -2439,6 +2440,13 @@ type
     procedure   ForAllEnums                  (const iterator:TFRE_DB_Enum_Iterator)                                   ;
     procedure   ForAllClientFieldValidators  (const iterator:TFRE_DB_ClientFieldValidator_Iterator)                   ;
     procedure   ForAllApps                   (const iterator:TFRE_DB_Apps_Iterator)                   ;
+
+    procedure   LogDebugIf             (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogInfoIf              (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogWarningIf           (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogErrorIf             (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogNoticeIf            (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogEmergencyIf         (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
 
     procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
@@ -5981,6 +5989,8 @@ var FUser : TFRE_DB_USER;
     domain: TFRE_DB_String;
 begin //nln
   FREDB_SplitLocalatDomain(loginatdomain,login,domain);
+  if not DomainExists(domain) then
+    exit(edb_NOT_FOUND);
   result := FetchUser(login,DomainID(domain),FUser);
   if result<>edb_OK then
     exit;
@@ -6599,12 +6609,17 @@ begin
 end;
 
 { record cnt includes transformed childs}
-procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const in_objects: array of IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode; const update_idx: NativeInt; const rl_ins: boolean; const parentpath: TFRE_DB_String; const in_parent_tr_obj: IFRE_DB_Object);
+procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const in_objects: array of IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode; const update_idx: NativeInt; const rl_ins: boolean; const parentpath: TFRE_DB_String; const in_parent_tr_obj: IFRE_DB_Object; const transkey: TFRE_DB_TransStepId);
 var
   in_object     : IFRE_DB_Object;
   tr_obj        : TFRE_DB_Object;
   len_chld      : NativeInt;
   upconn        : TFRE_DB_CONNECTION;
+
+    procedure SetInternalFields(const tro,ino:IFRE_DB_Object);
+    begin
+      tro.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString := ino.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString;
+    end;
 
     procedure SetSpecialFields(const tro,ino:IFRE_DB_Object);
     var fld : IFRE_DB_FIELD;
@@ -6641,6 +6656,7 @@ var
              in_chld_obj  := refd_objs[j];
              try
                tr_obj    := FTransform.TransformInOut(upconn,in_chld_obj);
+               SetInternalFields(tr_obj,in_chld_obj);
                SetSpecialFields(tr_obj,in_chld_obj);
                SetParentPath(parentpath);
                transdata.SetTransformedObject(tr_obj);
@@ -6666,11 +6682,12 @@ begin
               if HasParentChildRefRelationDefined then
                 begin
                   rc := upconn.GetReferencesCountNoRightCheck(in_object.UID,not FParentLinksChild,FParentChildScheme,FParentChildField);
-                  if rc=0 then
+                  if rc=0 then { ROOT NODE}
                     begin
                       tr_obj := FTransform.TransformInOut(upconn,in_object);
                       transdata.SetTransformedObject(tr_obj);
                       SetParentPath(''); { this is a root node }
+                      SetInternalFields(tr_obj,in_object);
                       if HasParentChildRefRelationDefined then
                         begin
                           SetSpecialFields(tr_obj,in_object);
@@ -6683,16 +6700,16 @@ begin
                   tr_obj := FTransform.TransformInOut(upconn,in_object);
                   transdata.SetTransformedObject(tr_obj);
                   SetParentPath(''); { this is a root node }
+                  SetInternalFields(tr_obj,in_object);
                 end;
             end;
           trans_SingleInsert:
             begin
               tr_obj := FTransform.TransformInOut(upconn,in_object);
               if HasParentChildRefRelationDefined then
-                begin
-                  SetSpecialFields(tr_obj,in_object); { do not transfrom children recursive, these will come as single add updates, when inserted in a transaction }
-                end;
+                SetSpecialFields(tr_obj,in_object); { do not transfrom children recursive, these will come as single add updates, when inserted in a transaction }
               SetParentPath(parentpath);
+              SetInternalFields(tr_obj,in_object);
               transdata.HandleInsertTransformedObject(tr_obj,in_parent_tr_obj);
             end;
           trans_Update:
@@ -6700,6 +6717,14 @@ begin
               tr_obj := FTransform.TransformInOut(upconn,in_object);
               SetSpecialFields(tr_obj,in_object);
               SetParentPath(parentpath);
+              SetInternalFields(tr_obj,in_object);
+              if HasParentChildRefRelationDefined then
+                begin
+                  len_chld := upconn.GetReferencesCountNoRightCheck(in_object.UID,FParentLinksChild,FParentChildScheme,FParentChildField);
+                  tr_obj.Field(cFRE_DB_CLN_CHILD_CNT).AsInt32 := len_chld;
+                  if len_chld>0 then
+                    tr_obj.Field(cFRE_DB_CLN_CHILD_FLD).AsString := cFRE_DB_CLN_CHILD_FLG;
+                end;
               transdata.HandleUpdateTransformedObject(tr_obj,update_idx);
               { do not handle child updates now, the will get handled on field update event of the parent }
             end;
@@ -6728,19 +6753,19 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'objects double in collection');
   if record_cnt<>Length(objs) then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'recordcount mismatch / collcount vs bulkfetch (%d<>%d)',[record_cnt,Length(objs)]);
-  MyTransForm(objs,transdata,record_cnt,lazy_child_expand,trans_Insert,-1,false,'',nil);
+  MyTransForm(objs,transdata,record_cnt,lazy_child_expand,trans_Insert,-1,false,'',nil,'-');
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt; const parentpath_full: TFRE_DB_String);
+procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt; const parentpath_full: TFRE_DB_String; const transkey: TFRE_DB_TransStepId);
 var rec_cnt:NativeInt;
 begin
-  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_Update,upd_idx,false,parentpath_full,nil);
+  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_Update,upd_idx,false,parentpath_full,nil,transkey);
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleInsert(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String; const parent_tr_obj: IFRE_DB_Object);
+procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleInsert(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String; const parent_tr_obj: IFRE_DB_Object; const transkey: TFRE_DB_TransStepId);
 var rec_cnt:NativeInt;
 begin
-  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_SingleInsert,-1,rl_ins,parentpath,parent_tr_obj);
+  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_SingleInsert,-1,rl_ins,parentpath,parent_tr_obj,transkey);
 end;
 
 //procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPageI(const page_info: TFRE_DB_DC_PAGING_INFO; const iterator: IFRE_DB_Obj_Iterator);
@@ -7213,29 +7238,15 @@ var // order_def      : TFRE_DB_DC_ORDER_DEFINITION;
 
 begin
   try
-    //writeln('GEDTATA INPUT : ',input.DumpToString());
     qry_ok := false;
     MustBeInitialized;
-
-    //FParentLinksChild
-    //FParentChildField
-    //FParentChildScheme;
-
     query := GFRE_DB_TCDM.GenerateQueryFromRawInput(input,FDependencyRef,FDepRefConstraint,FDepObjectsRefNeg,FParentChldLinkFldSpec,nil,CollectionName(true),FParentCollection.CollectionName(true),FDCollFilters,
                                                     FDefaultOrderField,FDefaultOrderAsc,ses);
+    GFRE_DB_TCDM.LockManager;
     try
-      //_CheckObserverAdded(true);
-      //FDependencyObject :=  input.FieldOnlyExistingObj('DEPENDENCY');
-      //FDepObjectList    :=  _GET_DC_ReferenceList(input);
-
-      //order_def := _Get_DC_Order(input,'');
       try
         if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base_data) then
           GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base_data);
-      finally
-        GFRE_DB_TCDM.UnlockManager;
-      end;
-      try
         query.SetBaseOrderedData(query_base_data,ses.GetSessionID);
         result := GetGridDataDescription;
         //writeln('----GDD');
@@ -7244,6 +7255,7 @@ begin
         qry_ok := true;
       finally
         query_base_data.UnlockBase;
+        GFRE_DB_TCDM.UnlockManager;
       end;
     finally
       if not qry_ok then
@@ -7253,34 +7265,6 @@ begin
           GFRE_DB_TCDM.StoreQuery(query);
         end;
     end;
-        //dc_ReferentialLinkCollection:
-        //    begin
-        //      FInitialDerived := false; // force it
-        //      assert(length(FExpandedRefs)=0);
-        //      //if Length(FDepObjectList)>0 then
-        //      //  FConnection.UpcastDBC.ExpandReferences(FDepObjectList,FDepRefConstraint,FExpandedRefs);
-        //    end;
-      //if input.FieldExists('parentid') then { this is a child query }
-      //  begin
-      //    FParentIds   :=FREDB_String2GuidArray(input.Field('parentid').AsString);
-      //    if Length(FParentIds)>0 then
-      //      begin
-      //        FParentIds[0] := FParentIds[high(FParentIds)];
-      //        SetLength(FParentIds,1);
-      //      end;
-      //    //FConnection.UpcastDBC.ExpandReferences(FParentIds,TFRE_DB_NameTypeRLArray.create(FParentChldLinkFldSpec),FExpandedRefs);
-      //  end
-      //else
-      //  SetLength(FParentIds,0);
-
-      //if (cdgf_Children in FGridDisplayFlags)
-      //   or FUseDepAsLinkFilt then
-      //     FInitialDerived := false; // force refresh
-
-      //pageinfo       := _Get_DC_PageingInfo(input);
-      //sortfilterkeys := _Get_DC_StringfieldKeys(input);
-      //QueryID        := _Get_DC_QueryID(input);
-      //childcall      := length(FParentIds)>0;
   except
     writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
     raise;
@@ -9585,7 +9569,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const coll_name: TFRE_DB_NameType);
+procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 var persColl : IFRE_DB_PERSISTANCE_COLLECTION;
 begin
   if not FPersistance_Layer.GetCollection(coll_name,persColl) then
@@ -9593,17 +9577,17 @@ begin
   _AddCollectionToStore(persColl);
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.CollectionDeleted(const coll_name: TFRE_DB_NameType);
+procedure TFRE_DB_BASE_CONNECTION.CollectionDeleted(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 begin
   //abort;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+procedure TFRE_DB_BASE_CONNECTION.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const tsid: TFRE_DB_TransStepId);
 begin
   //abort;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
+procedure TFRE_DB_BASE_CONNECTION.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 begin
 
 end;
@@ -12281,6 +12265,36 @@ begin
  for i := 0 to high(FAppArray) do begin
    iterator(FAppArray[i]);
  end;
+end;
+
+procedure TFRE_DB.LogDebugIf(const category: TFRE_DB_LOGCATEGORY; const logcallback: TFRE_SimpleCallbackNested);
+begin
+  logcallback;
+end;
+
+procedure TFRE_DB.LogInfoIf(const category: TFRE_DB_LOGCATEGORY; const logcallback: TFRE_SimpleCallbackNested);
+begin
+  logcallback;
+end;
+
+procedure TFRE_DB.LogWarningIf(const category: TFRE_DB_LOGCATEGORY; const logcallback: TFRE_SimpleCallbackNested);
+begin
+  logcallback;
+end;
+
+procedure TFRE_DB.LogErrorIf(const category: TFRE_DB_LOGCATEGORY; const logcallback: TFRE_SimpleCallbackNested);
+begin
+  logcallback;
+end;
+
+procedure TFRE_DB.LogNoticeIf(const category: TFRE_DB_LOGCATEGORY; const logcallback: TFRE_SimpleCallbackNested);
+begin
+  logcallback;
+end;
+
+procedure TFRE_DB.LogEmergencyIf(const category: TFRE_DB_LOGCATEGORY; const logcallback: TFRE_SimpleCallbackNested);
+begin
+  logcallback;
 end;
 
 procedure TFRE_DB.LogDebug(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String);

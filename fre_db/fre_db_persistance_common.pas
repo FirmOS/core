@@ -404,19 +404,19 @@ type
     function     GetOutBoundRefLinks        (const from_obj : TGUID): TFRE_DB_ObjectReferences;
     function     GetInboundRefLinks         (const to_obj   : TGUID): TFRE_DB_ObjectReferences;
 
-    procedure    __RemoveInboundReflink     (const from_uid,to_uid : TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; const notifif : IFRE_DB_DBChangedNotification);
-    procedure    __RemoveOutboundReflink    (const from_uid,to_uid : TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; const notifif : IFRE_DB_DBChangedNotification);
-    procedure    __RemoveRefLink            (const from_uid,to_uid:TGUID;const upper_from_schemename,upper_fieldname,upper_to_schemename : TFRE_DB_NameType ; const notifif : IFRE_DB_DBChangedNotification);
+    procedure    __RemoveInboundReflink     (const from_uid,to_uid : TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; const notifif : IFRE_DB_DBChangedNotification ; const tsid : TFRE_DB_TransStepId);
+    procedure    __RemoveOutboundReflink    (const from_uid,to_uid : TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; const notifif : IFRE_DB_DBChangedNotification ; const tsid : TFRE_DB_TransStepId);
+    procedure    __RemoveRefLink            (const from_uid,to_uid:TGUID;const upper_from_schemename,upper_fieldname,upper_to_schemename : TFRE_DB_NameType ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
 
     procedure    __SetupOutboundLinkKey     (const from_uid,to_uid: TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; var refoutkey : RFRE_DB_GUID_RefLink_InOut_Key); //inline;
     procedure    __SetupInboundLinkKey      (const from_uid,to_uid: TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; var refinkey  : RFRE_DB_GUID_RefLink_InOut_Key); //inline;
-    procedure    __SetupInitialRefLink      (const from_key : TFRE_DB_Object ; FromFieldToSchemename,LinkFromSchemenameField: TFRE_DB_NameTypeRL ; const references_to : TFRE_DB_GUID ; const notifif : IFRE_DB_DBChangedNotification);
-    procedure    _SetupInitialRefLinks      (const from_key : TFRE_DB_Object ; const references_to_list : TFRE_DB_ObjectReferences ; const schemelink_arr : TFRE_DB_NameTypeRLArray ; const notifif : IFRE_DB_DBChangedNotification);
-    procedure    _RemoveAllRefLinks         (const from_key : TFRE_DB_Object ; const notifif : IFRE_DB_DBChangedNotification);
+    procedure    __SetupInitialRefLink      (const from_key : TFRE_DB_Object ; FromFieldToSchemename,LinkFromSchemenameField: TFRE_DB_NameTypeRL ; const references_to : TFRE_DB_GUID ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
+    procedure    _SetupInitialRefLinks      (const from_key : TFRE_DB_Object ; const references_to_list : TFRE_DB_ObjectReferences ; const schemelink_arr : TFRE_DB_NameTypeRLArray ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
+    procedure    _RemoveAllRefLinks         (const from_key : TFRE_DB_Object ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
     function     __RefLinkOutboundExists    (const from_uid: TFRE_DB_GUID;const  fieldname: TFRE_DB_NameType; to_object: TFRE_DB_GUID; const scheme_link: TFRE_DB_NameTypeRL):boolean;
     function     __RefLinkInboundExists     (const from_uid: TFRE_DB_GUID;const  fieldname: TFRE_DB_NameType; to_object: TFRE_DB_GUID; const scheme_link: TFRE_DB_NameTypeRL):boolean;
     procedure    __CheckReferenceLink       (const obj: TFRE_DB_Object; fieldname: TFRE_DB_NameType; link: TFRE_DB_GUID ; var scheme_link : TFRE_DB_NameTypeRL;const allow_existing_links : boolean=false);
-    procedure    _ChangeRefLink             (const from_obj: TFRE_DB_Object; const upper_schemename: TFRE_DB_NameType; const upper_fieldname: TFRE_DB_NameType; const old_links, new_links: TFRE_DB_GUIDArray ; const notifif : IFRE_DB_DBChangedNotification);
+    procedure    _ChangeRefLink             (const from_obj: TFRE_DB_Object; const upper_schemename: TFRE_DB_NameType; const upper_fieldname: TFRE_DB_NameType; const old_links, new_links: TFRE_DB_GUIDArray ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
 
     // Check full referential integrity, check if to objects exist
     procedure    _CheckRefIntegrityForObject (const obj:TFRE_DB_Object ; var ref_array : TFRE_DB_ObjectReferences ; var schemelink_arr : TFRE_DB_NameTypeRLArray);
@@ -443,8 +443,8 @@ type
 
     function    ExistsObject          (const obj_uid : TGuid ) : Boolean;
     function    FetchObject           (const obj_uid : TGuid ; var obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
-    procedure   StoreObject           (const obj     : TFRE_DB_Object  ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification);
-    procedure   DeleteObject          (const obj_uid : TGuid ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification);
+    procedure   StoreObject           (const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
+    procedure   DeleteObject          (const obj_uid : TGuid ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
     procedure   ForAllObjectsInternal (const pers,volatile:boolean ; const iter:TFRE_DB_ObjectIteratorBrk); // No Clone
     function    MasterColls           : TFRE_DB_CollectionManageTree;
     procedure   ApplyWAL              (const WALStream : TStream);
@@ -592,6 +592,7 @@ type
     FDelObj                : TFRE_DB_Object;
     CollName               : TFRE_DB_NameType;
     FWouldNeedMasterDelete : Boolean;
+    FDelFromCollections    : TFRE_DB_NameTypeArray;
   public
     constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const del_obj : TFRE_DB_Object ; const from_coll : TFRE_DB_NameType ; const is_store : boolean); // all collections or a single collection
     function    Needs_WAL: Boolean            ; override;
@@ -684,25 +685,27 @@ type
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId); virtual;
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object); virtual;
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object); virtual;
-    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ; virtual ;
-    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ; virtual ;
-    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);virtual;
-    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);virtual;
-    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object) ; virtual;
-    procedure  ObjectDeleted          (const obj : IFRE_DB_Object)  ; virtual;
-    procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); virtual;
-    procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray);virtual;    { FULL STATE }
-    procedure  DifferentiallUpdStarts (const obj       : IFRE_DB_Object); virtual;            { DIFFERENTIAL STATE}
-    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID); virtual;             { DIFFERENTIAL STATE}
-    procedure  FieldDelete            (const old_field : IFRE_DB_Field); virtual;
-    procedure  FieldAdd               (const new_field : IFRE_DB_Field); virtual;
-    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field); virtual;
-    procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray); virtual ;
-    procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray); virtual ;
-    procedure  SetupOutboundRefLink   (const from_obj : TGUID           ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL); virtual;
-    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object  ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL); virtual;
-    procedure  InboundReflinkDropped  (const from_obj : IFRE_DB_Object  ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL); virtual;
-    procedure  OutboundReflinkDropped (const from_obj : TGUID           ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL); virtual ;
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId) ; virtual ;
+    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId) ; virtual ;
+    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean;
+                                       const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean;
+                                       const tsid : TFRE_DB_TransStepId);virtual;
+    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId);virtual;
+    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object; const tsid : TFRE_DB_TransStepId) ; virtual;
+    procedure  ObjectDeleted          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object; const tsid : TFRE_DB_TransStepId)  ; virtual;
+    procedure  ObjectRemoved          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object ; const is_a_full_delete : boolean ; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray; const tsid : TFRE_DB_TransStepId);virtual;    { FULL STATE }
+    procedure  DifferentiallUpdStarts (const obj       : IFRE_DB_Object; const tsid : TFRE_DB_TransStepId); virtual;            { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID; const tsid : TFRE_DB_TransStepId); virtual;             { DIFFERENTIAL STATE}
+    procedure  FieldDelete            (const old_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  FieldAdd               (const new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray; const tsid : TFRE_DB_TransStepId); virtual ;
+    procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray; const tsid : TFRE_DB_TransStepId); virtual ;
+    procedure  SetupOutboundRefLink   (const from_obj : TGUID           ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object  ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  InboundReflinkDropped  (const from_obj : IFRE_DB_Object  ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  OutboundReflinkDropped (const from_obj : TGUID           ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual ;
     procedure  FinalizeNotif          ;
   end;
 
@@ -719,31 +722,34 @@ type
     procedure   CheckBlockStarted      ;
     procedure   CheckBlockNotStarted   ;
     procedure   AddNotificationEntry   (const entry:IFRE_DB_Object);
+    procedure   AssertCheckTransactionID (const obj : IFRE_DB_Object ; const transid : TFRE_DB_TransStepId);
   public
     constructor Create                 (const real_interface : IFRE_DB_DBChangedNotificationBlock ; const db_name : TFRE_DB_NameType ; const BlocksendMethod : IFRE_DB_InvokeProcedure=nil);
     destructor  Destroy                ;override;
     procedure   StartNotificationBlock (const key      : TFRE_DB_TransStepId); override;
     procedure   FinishNotificationBlock(out   block    : IFRE_DB_Object); override;
-    procedure   SendNotificationBlock  (const block    : IFRE_DB_Object); override;
-    procedure   CollectionCreated      (const coll_name: TFRE_DB_NameType) ; override;
-    procedure   CollectionDeleted      (const coll_name: TFRE_DB_NameType) ; override ;
-    procedure   IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);override;
-    procedure   IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);override;
-    procedure   ObjectStored           (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object) ; override;
-    procedure   ObjectDeleted          (const obj : IFRE_DB_Object)  ; override;
-    procedure   ObjectRemoved          (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); override;
-    procedure   ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray);override;
-    procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object); override;
-    procedure   DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID); override;
-    procedure   FieldDelete            (const old_field : IFRE_DB_Field); override;
-    procedure   FieldAdd               (const new_field : IFRE_DB_Field); override;
-    procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field); override;
-    procedure   SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray); override ;
-    procedure   SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray); override ;
-    procedure   SetupOutboundRefLink   (const from_obj : TGUID          ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);override;
-    procedure   SetupInboundRefLink    (const from_obj : IFRE_DB_Object ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); override;
-    procedure   InboundReflinkDropped  (const from_obj : IFRE_DB_Object ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL); override;
-    procedure   OutboundReflinkDropped (const from_obj : TGUID          ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);override;
+    procedure   SendNotificationBlock  (const block    : IFRE_DB_Object);override;
+    procedure   CollectionCreated      (const coll_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId) ; override;
+    procedure   CollectionDeleted      (const coll_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId) ; override ;
+    procedure   IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean;
+                                        const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean;
+                                        const tsid : TFRE_DB_TransStepId);override;
+    procedure   IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId);override;
+    procedure   ObjectStored           (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object; const tsid : TFRE_DB_TransStepId) ; override;
+    procedure   ObjectDeleted          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object; const tsid : TFRE_DB_TransStepId)  ; override;
+    procedure   ObjectRemoved          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object; const is_a_full_delete : boolean ; const tsid : TFRE_DB_TransStepId); override;
+    procedure   ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray; const tsid : TFRE_DB_TransStepId);override;
+    procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object; const tsid : TFRE_DB_TransStepId); override;
+    procedure   DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID; const tsid : TFRE_DB_TransStepId); override;
+    procedure   FieldDelete            (const old_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); override;
+    procedure   FieldAdd               (const new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); override;
+    procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); override;
+    procedure   SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray; const tsid : TFRE_DB_TransStepId); override ;
+    procedure   SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray; const tsid : TFRE_DB_TransStepId); override ;
+    procedure   SetupOutboundRefLink   (const from_obj : TGUID          ; const  to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);override;
+    procedure   SetupInboundRefLink    (const from_obj : IFRE_DB_Object ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); override;
+    procedure   InboundReflinkDropped  (const from_obj : IFRE_DB_Object ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); override;
+    procedure   OutboundReflinkDropped (const from_obj : TGUID          ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);override;
   end;
 
 implementation
@@ -929,7 +935,7 @@ procedure TFRE_DB_DefineIndexOnFieldStep.MasterStore(const check: boolean);
 begin
   if not check then
     begin
-      FLayer.GetNotificationRecordIF.IndexDefinedOnField(FCollname,FFieldName,FFieldType,FUnique,FIgnoreCC,FindexName,Fallownull,FUniqueNull);
+      FLayer.GetNotificationRecordIF.IndexDefinedOnField(FCollname,FFieldName,FFieldType,FUnique,FIgnoreCC,FindexName,Fallownull,FUniqueNull,GetTransActionStepID);
       CheckWriteThroughColl(FCollection);
     end;
 end;
@@ -961,6 +967,14 @@ end;
 procedure TFRE_DB_DBChangedNotificationProxy.AddNotificationEntry(const entry: IFRE_DB_Object);
 begin
   FBlockList.Field('N').AddObject(entry);
+end;
+
+procedure TFRE_DB_DBChangedNotificationProxy.AssertCheckTransactionID(const obj: IFRE_DB_Object; const transid: TFRE_DB_TransStepId);
+var ttag : TFRE_DB_TransStepId;
+begin
+  ttag := obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString;
+  if ttag <>transid then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'NOTPROXY : transaction id mismatch OBJ=[%s] NOTIFY=[%s]',[ttag,transid]);
 end;
 
 constructor TFRE_DB_DBChangedNotificationProxy.Create(const real_interface: IFRE_DB_DBChangedNotificationBlock; const db_name: TFRE_DB_NameType; const BlocksendMethod: IFRE_DB_InvokeProcedure);
@@ -1026,15 +1040,16 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.CollectionCreated(const coll_name: TFRE_DB_NameType);
+procedure TFRE_DB_DBChangedNotificationProxy.CollectionCreated(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString  := 'CC';
-    newe.Field('CC').AsString := coll_name;
+    newe.Field('C').AsString    := 'CC';
+    newe.Field('CC').AsString   := coll_name;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1042,15 +1057,16 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.CollectionDeleted(const coll_name: TFRE_DB_NameType);
+procedure TFRE_DB_DBChangedNotificationProxy.CollectionDeleted(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
    Inherited; { log }
    CheckBlockStarted;
    newe := GFRE_DBI.NewObject;
-   newe.Field('C').AsString  := 'CD';
-   newe.Field('CC').AsString := coll_name;
+   newe.Field('C').AsString    := 'CD';
+   newe.Field('CC').AsString   := coll_name;
+   newe.Field('TSID').AsString := tsid;
    AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1058,22 +1074,23 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+procedure TFRE_DB_DBChangedNotificationProxy.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
    Inherited; { log }
    CheckBlockStarted;
    newe := GFRE_DBI.NewObject;
-   newe.Field('C').AsString   := 'IC';
-   newe.Field('CC').AsString  := coll_name;
-   newe.Field('IN').AsString  := index_name;
-   newe.Field('FN').AsString  := FieldName;
-   newe.Field('FT').AsString  := CFRE_DB_FIELDTYPE_SHORT[FieldType];
-   newe.Field('UI').AsBoolean := unique;
-   newe.Field('AN').AsBoolean := allow_null_value;
-   newe.Field('UN').AsBoolean := unique_null_values;
-   newe.Field('IC').AsBoolean := ignore_content_case;
+   newe.Field('C').AsString    := 'IC';
+   newe.Field('CC').AsString   := coll_name;
+   newe.Field('IN').AsString   := index_name;
+   newe.Field('FN').AsString   := FieldName;
+   newe.Field('FT').AsString   := CFRE_DB_FIELDTYPE_SHORT[FieldType];
+   newe.Field('UI').AsBoolean  := unique;
+   newe.Field('AN').AsBoolean  := allow_null_value;
+   newe.Field('UN').AsBoolean  := unique_null_values;
+   newe.Field('IC').AsBoolean  := ignore_content_case;
+   newe.Field('TSID').AsString := tsid;
    AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1081,7 +1098,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
+procedure TFRE_DB_DBChangedNotificationProxy.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1091,6 +1108,7 @@ begin
      newe.Field('C').AsString   := 'ID';
      newe.Field('CC').AsString  := coll_name;
      newe.Field('IN').AsString  := index_name;
+     newe.Field('TSID').AsString := tsid;
      AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1098,7 +1116,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1108,6 +1126,7 @@ begin
     newe.Field('C').AsString    := 'OS';
     newe.Field('CC').AsString   := coll_name;
     newe.Field('OBJ').AsObject  := obj.CloneToNewObject;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1115,15 +1134,17 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.ObjectDeleted(const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectDeleted(const coll_names: TFRE_DB_NameTypeArray; const obj: IFRE_DB_Object; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'OD';
-    newe.Field('OBJ').AsObject := obj.CloneToNewObject;
+    newe.Field('C').AsString    := 'OD';
+    newe.Field('CC').AsStringArr := FREDB_NametypeArray2StringArray(coll_names);
+    newe.Field('OBJ').AsObject  := obj; //Is already cloned .CloneToNewObject;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1131,16 +1152,18 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectRemoved(const coll_names: TFRE_DB_NameTypeArray; const obj: IFRE_DB_Object; const is_a_full_delete: boolean; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'OR';
-    newe.Field('CC').AsString   := coll_name;
-    newe.Field('OBJ').AsObject := obj.CloneToNewObject;
+    newe.Field('C').AsString     := 'OR';
+    newe.Field('CC').AsStringArr := FREDB_NametypeArray2StringArray(coll_names);
+    newe.Field('FD').AsBoolean   := is_a_full_delete;
+    newe.Field('OBJ').AsObject   := obj.CloneToNewObject;
+    newe.Field('TSID').AsString  := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1148,7 +1171,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.ObjectUpdated(const obj: IFRE_DB_Object; const colls: TFRE_DB_StringArray);
+procedure TFRE_DB_DBChangedNotificationProxy.ObjectUpdated(const obj: IFRE_DB_Object; const colls: TFRE_DB_StringArray; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1158,22 +1181,25 @@ begin
     newe.Field('C').AsString    := 'OU';
     newe.Field('CC').AsStringArr:= colls;
     newe.Field('OBJ').AsObject  := obj.CloneToNewObject;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
+    AssertCheckTransactionID(obj,tsid);
   except on
     e:Exception do
       GFRE_DBI.LogError(dblc_PERSISTANCE_NOTIFY,'notification error: ObjectUpdated '+e.Message);
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationProxy.DifferentiallUpdStarts(const obj: IFRE_DB_Object; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString := 'DUS';
-    newe.Field('O').AsObject := obj;
+    newe.Field('C').AsString    := 'DUS';
+    newe.Field('O').AsObject    := obj;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1181,15 +1207,16 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
+procedure TFRE_DB_DBChangedNotificationProxy.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString := 'DUE';
-    newe.Field('O').AsGUID   := obj_uid;
+    newe.Field('C').AsString    := 'DUE';
+    newe.Field('O').AsGUID      := obj_uid;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1197,15 +1224,16 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.FieldDelete(const old_field: IFRE_DB_Field);
+procedure TFRE_DB_DBChangedNotificationProxy.FieldDelete(const old_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'FD';
-    newe.Field('FLD').AsObject := old_field.CloneToNewStreamableObj;
+    newe.Field('C').AsString    := 'FD';
+    newe.Field('FLD').AsObject  := old_field.CloneToNewStreamableObj;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1213,15 +1241,16 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.FieldAdd(const new_field: IFRE_DB_Field);
+procedure TFRE_DB_DBChangedNotificationProxy.FieldAdd(const new_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'FA';
-    newe.Field('FLD').AsObject := new_field.CloneToNewStreamableObj;
+    newe.Field('C').AsString    := 'FA';
+    newe.Field('FLD').AsObject  := new_field.CloneToNewStreamableObj;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1229,16 +1258,17 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.FieldChange(const old_field, new_field: IFRE_DB_Field);
+procedure TFRE_DB_DBChangedNotificationProxy.FieldChange(const old_field, new_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'FC';
+    newe.Field('C').AsString    := 'FC';
     newe.Field('FLDO').AsObject := old_field.CloneToNewStreamableObj;
     newe.Field('FLDN').AsObject := new_field.CloneToNewStreamableObj;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1246,7 +1276,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.SubObjectStored(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
+procedure TFRE_DB_DBChangedNotificationProxy.SubObjectStored(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1257,6 +1287,7 @@ begin
     newe.Field('SO').AsObject    := obj.CloneToNewObject;
     newe.Field('SOFN').AsString  := parent_field_name;
     newe.Field('SOUP').AsGUIDArr := ParentObjectUIDPath;
+    newe.Field('TSID').AsString  := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1264,7 +1295,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
+procedure TFRE_DB_DBChangedNotificationProxy.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1275,6 +1306,7 @@ begin
     newe.Field('SO').AsObject    := obj.CloneToNewObject;
     newe.Field('SOFN').AsString  := parent_field_name;
     newe.Field('SOUP').AsGUIDArr := ParentObjectUIDPath;
+    newe.Field('TSID').AsString  := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1282,17 +1314,18 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'SOL';
-    newe.Field('FO').AsGUID    := from_obj;
-    newe.Field('TO').AsObject  := to_obj.CloneToNewObject;
-    newe.Field('KD').AsString  := key_description;
+    newe.Field('C').AsString    := 'SOL';
+    newe.Field('FO').AsGUID     := from_obj;
+    newe.Field('TO').AsObject   := to_obj.CloneToNewObject;
+    newe.Field('KD').AsString   := key_description;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1300,17 +1333,18 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'SIL';
-    newe.Field('FO').AsObject  := from_obj.CloneToNewObject;
-    newe.Field('TO').AsGUID    := to_obj;
-    newe.Field('KD').AsString  := key_description;
+    newe.Field('C').AsString    := 'SIL';
+    newe.Field('FO').AsObject   := from_obj.CloneToNewObject;
+    newe.Field('TO').AsGUID     := to_obj;
+    newe.Field('KD').AsString   := key_description;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1318,17 +1352,18 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationProxy.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'DIL';
-    newe.Field('FO').AsObject  := from_obj.CloneToNewObject;
-    newe.Field('TO').AsGUID    := to_obj;
-    newe.Field('KD').AsString  := key_description;
+    newe.Field('C').AsString    := 'DIL';
+    newe.Field('FO').AsObject   := from_obj.CloneToNewObject;
+    newe.Field('TO').AsGUID     := to_obj;
+    newe.Field('KD').AsString   := key_description;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1336,17 +1371,18 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationProxy.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
     Inherited; { log }
     CheckBlockStarted;
     newe := GFRE_DBI.NewObject;
-    newe.Field('C').AsString   := 'DOL';
-    newe.Field('FO').AsGUID    := from_obj;
-    newe.Field('TO').AsObject  := to_obj.CloneToNewObject;
-    newe.Field('KD').AsString  := key_description;
+    newe.Field('C').AsString    := 'DOL';
+    newe.Field('FO').AsGUID     := from_obj;
+    newe.Field('TO').AsObject   := to_obj.CloneToNewObject;
+    newe.Field('KD').AsString   := key_description;
+    newe.Field('TSID').AsString := tsid;
     AddNotificationEntry(newe);
   except on
     e:Exception do
@@ -1382,99 +1418,99 @@ begin
   GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> NOTIFICATION BLOCK SEND',[FLayerDB]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.CollectionCreated(const coll_name: TFRE_DB_NameType);
+procedure TFRE_DB_DBChangedNotificationBase.CollectionCreated(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> COLLECTION CREATED : [%s]',[FLayerDB,coll_name]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> COLLECTION CREATED : [%s]',[FLayerDB,tsid,coll_name]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.CollectionDeleted(const coll_name: TFRE_DB_NameType);
+procedure TFRE_DB_DBChangedNotificationBase.CollectionDeleted(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> COLLECTION DELETED : [%s]',[FLayerDB,coll_name]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> COLLECTION DELETED : [%s]',[FLayerDB,tsid,coll_name]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
+procedure TFRE_DB_DBChangedNotificationBase.IndexDefinedOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> INDEX [%s] ON COLLECTION CREATED : [%s] (%s)',[FLayerDB,index_name,coll_name,FieldName+'/'+CFRE_DB_FIELDTYPE[FieldType]]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> INDEX [%s] ON COLLECTION CREATED : [%s] (%s)',[FLayerDB,tsid,index_name,coll_name,FieldName+'/'+CFRE_DB_FIELDTYPE[FieldType]]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType);
+procedure TFRE_DB_DBChangedNotificationBase.IndexDroppedOnField(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> INDEX [%s] ON COLLECTION DROPPED : [%s]',[FLayerDB,index_name,coll_name]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> INDEX [%s] ON COLLECTION DROPPED : [%s]',[FLayerDB,tsid,index_name,coll_name]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationBase.ObjectStored(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT STORE IN [%s] -> %s',[FLayerDB,coll_name,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> OBJECT STORE IN [%s] -> %s',[FLayerDB,tsid,coll_name,obj.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.ObjectDeleted(const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationBase.ObjectDeleted(const coll_names: TFRE_DB_NameTypeArray; const obj: IFRE_DB_Object; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT FINAL DELETE -> %s',[FLayerDB,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> OBJECT FINAL DELETE FROM [%s] -> %s',[FLayerDB,tsid,FREDB_CombineString(FREDB_NametypeArray2StringArray(coll_names),','),obj.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.ObjectRemoved(const coll_name: TFRE_DB_NameType; const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationBase.ObjectRemoved(const coll_names: TFRE_DB_NameTypeArray; const obj: IFRE_DB_Object; const is_a_full_delete: boolean; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT REMOVED FROM [%s] -> %s',[FLayerDB,coll_name,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> OBJECT REMOVED FROM [%s] -> %s (%s)',[FLayerDB,tsid,FREDB_CombineString(FREDB_NametypeArray2StringArray(coll_names),','),obj.GetDescriptionID,BoolToStr(is_a_full_delete,'FULL DELETE','COLLECTION REMOVE')]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.ObjectUpdated(const obj: IFRE_DB_Object; const colls: TFRE_DB_StringArray);
+procedure TFRE_DB_DBChangedNotificationBase.ObjectUpdated(const obj: IFRE_DB_Object; const colls: TFRE_DB_StringArray; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> OBJECT UPDATED -> %s in [%s]',[FLayerDB,obj.GetDescriptionID,FREDB_CombineString(colls,',')]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> OBJECT UPDATED -> %s in [%s]',[FLayerDB,tsid,obj.GetDescriptionID,FREDB_CombineString(colls,',')]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
+procedure TFRE_DB_DBChangedNotificationBase.DifferentiallUpdStarts(const obj: IFRE_DB_Object; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> DIFFERENTIAL UPDATE START -> %s',[FLayerDB,obj.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> DIFFERENTIAL UPDATE START -> %s',[FLayerDB,tsid,obj.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
+procedure TFRE_DB_DBChangedNotificationBase.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> DIFFERENTIAL UPDATE END [UID: %s]',[FLayerDB,FREDB_G2H(obj_uid)]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> DIFFERENTIAL UPDATE END [UID: %s]',[FLayerDB,tsid,FREDB_G2H(obj_uid)]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.FieldDelete(const old_field: IFRE_DB_Field);
+procedure TFRE_DB_DBChangedNotificationBase.FieldDelete(const old_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] DELETED FROM OBJECT -> %s',[FLayerDB,old_field.FieldName,old_field.FieldTypeAsString,old_field.ParentObject.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> FIELD [%s/(%s)] DELETED FROM OBJECT -> %s',[FLayerDB,tsid,old_field.FieldName,old_field.FieldTypeAsString,old_field.ParentObject.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.FieldAdd(const new_field: IFRE_DB_Field);
+procedure TFRE_DB_DBChangedNotificationBase.FieldAdd(const new_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] ADDED TO OBJECT -> %s',[FLayerDB,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> FIELD [%s/(%s)] ADDED TO OBJECT -> %s',[FLayerDB,tsid,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.FieldChange(const old_field, new_field: IFRE_DB_Field);
+procedure TFRE_DB_DBChangedNotificationBase.FieldChange(const old_field, new_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> FIELD [%s/(%s)] CHANGED IN OBJECT -> %s',[FLayerDB,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> FIELD [%s/(%s)] CHANGED IN OBJECT -> %s',[FLayerDB,tsid,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.SubObjectStored(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
+procedure TFRE_DB_DBChangedNotificationBase.SubObjectStored(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> SUB OBJECT STORE -> %s / %s ',[FLayerDB,obj.GetDescriptionID,parent_field_name,FREDB_GuidArray2StringStream(ParentObjectUIDPath)]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> SUB OBJECT STORE -> %s / %s ',[FLayerDB,tsid,obj.GetDescriptionID,parent_field_name,FREDB_GuidArray2StringStream(ParentObjectUIDPath)]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray);
+procedure TFRE_DB_DBChangedNotificationBase.SubObjectDeleted(const obj: IFRE_DB_Object; const parent_field_name: TFRE_DB_NameType; const ParentObjectUIDPath: TFRE_DB_GUIDArray; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> SUB OBJECT FINAL DELETE -> %s / %s',[FLayerDB,obj.GetDescriptionID,parent_field_name]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> SUB OBJECT FINAL DELETE -> %s / %s',[FLayerDB,tsid,obj.GetDescriptionID,parent_field_name]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationBase.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 begin
-    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationBase.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 begin
-    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationBase.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 begin
-    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> DROPPED INBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> DROPPED INBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_DBChangedNotificationBase.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s]> DROPPED OUTBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> DROPPED OUTBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.FinalizeNotif;
@@ -1534,10 +1570,10 @@ end;
 
 procedure TFRE_DB_InsertSubStep.MasterStore(const check: boolean);
 begin
-  master.StoreObject(FNewObj,check,FLayer.GetNotificationRecordIF);
+  master.StoreObject(FNewObj,check,FLayer.GetNotificationRecordIF,GetTransActionStepID);
   if not check then
     begin
-      FLayer.GetNotificationRecordIF.SubObjectStored(FNewObj,FNewObj.ParentField.FieldName,FNewObj.Parent.GetUIDPathUA);
+      FLayer.GetNotificationRecordIF.SubObjectStored(FNewObj,FNewObj.ParentField.FieldName,FNewObj.Parent.GetUIDPathUA,GetTransActionStepID);
       CheckWriteThroughObj(FNewObj.ObjectRoot);
       if assigned(Fcoll) then
         CheckWriteThroughColl(FColl);
@@ -1582,7 +1618,7 @@ begin
       res := Master.MasterColls.DeleteCollection(FCollname);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to delete new collection [%s] in transaction step',[FCollname]);
-      GetNotificationRecordIF.CollectionDeleted(FCollname);
+      GetNotificationRecordIF.CollectionDeleted(FCollname,GetTransActionStepID);
       if not FVolatile then
         CheckWriteThroughDeleteColl(FCollname);
     end;
@@ -1643,15 +1679,19 @@ begin
   arr := FDelObj.__InternalGetCollectionList;
   if CollName='' then
     begin // Delete from all
+      SetLength(FDelFromCollections,high(arr));
       for i := 0 to high(arr) do
         begin
+          FDelFromCollections[i] := arr[i].CollectionName(false);
           arr[i].GetPersLayerIntf.DeleteFromThisColl(FDelObj,check);
           if not check then
             begin
-              GetNotificationRecordIF.ObjectRemoved(arr[i].CollectionName(false),FDelObj);
+              FDelObj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=GetTransActionStepID;
               CheckWriteThroughColl(arr[i]);
             end;
         end;
+      if not check then
+        GetNotificationRecordIF.ObjectRemoved(FDelFromCollections,FDelObj,true,GetTransActionStepID);
     end
   else
     begin
@@ -1661,30 +1701,38 @@ begin
       if check
          and (Length(FDelObj.__InternalGetCollectionList)=1) then
            FWouldNeedMasterDelete:=true;
+      SetLength(FDelFromCollections,1);
+      FDelFromCollections[0] := arr[idx].CollectionName(false);
       if not check then
         begin
-          GetNotificationRecordIF.ObjectRemoved(CollName, FDelObj);
+          FDelObj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=GetTransActionStepID;
+          GetNotificationRecordIF.ObjectRemoved(FDelFromCollections, FDelObj,FWouldNeedMasterDelete,GetTransActionStepID);
           CheckWriteThroughColl(arr[idx]);
         end;
     end;
 end;
 
 procedure TFRE_DB_DeleteObjectStep.MasterStore(const check: boolean);
+var notify_delob : IFRE_DB_Object;
 begin
   assert(IsInsert=false);
   try
     if check
        and FWouldNeedMasterDelete then { this is the check phase, the internalcount is >1}
          begin
-           master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF);
+           master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF,GetTransActionStepID);
          end
     else
       begin
         if length(FDelObj.__InternalGetCollectionList)=0 then
           begin
-            GetNotificationRecordIF.ObjectDeleted(FDelObj); { Notify before delete }
+            notify_delob := FDelObj.CloneToNewObject;
+            //FDelObj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=GetTransActionStepID;
+            notify_delob.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=GetTransActionStepID;
+            //GetNotificationRecordIF.ObjectDeleted(FDelObj,GetTransActionStepID); { Notify before delete }
             CheckWriteThroughDeleteObj(FDelObj);
-            master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF);
+            master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF,GetTransActionStepID);
+            GetNotificationRecordIF.ObjectDeleted(FDelFromCollections,notify_delob,GetTransActionStepID); { Notify after delete }
           end;
       end;
   except { Only in Exception case, lock the object and raise}
@@ -1730,7 +1778,7 @@ begin
       res := Master.MasterColls.NewCollection(FCollname,FCClassname,FNewCollection,FVolatile,Master.FLayer);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
-      GetNotificationRecordIF.CollectionCreated(FCollname);
+      GetNotificationRecordIF.CollectionCreated(FCollname,GetTransActionStepID);
       CheckWriteThroughColl(FNewCollection);
     end;
 end;
@@ -2425,13 +2473,13 @@ var i,j         : NativeInt;
           to_upd_obj.Set_Store_Locked(false);
           try
             if not check then
-              GetNotificationRecordIF.FieldDelete(oldfield); { Notify before delete }
+              GetNotificationRecordIF.FieldDelete(oldfield,GetTransActionStepID); { Notify before delete }
             case oldfield.FieldType of
               fdbft_Object:
                 begin
                   writeln('MASTERSTORE ABORT 1'); {TODOD: Make a testcase }
                   abort;
-                  master.DeleteObject(newfield.AsObject.UID,check,GetNotificationRecordIF);
+                  master.DeleteObject(newfield.AsObject.UID,check,GetNotificationRecordIF,GetTransActionStepID);
                 end;
               fdbft_ObjLink:
                 begin
@@ -2439,7 +2487,7 @@ var i,j         : NativeInt;
                      // new links are nil
                   else
                     begin
-                      master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(oldfield.FieldName),oldfield.AsObjectLinkArray,nil,GetNotificationRecordIF);
+                      master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(oldfield.FieldName),oldfield.AsObjectLinkArray,nil,GetNotificationRecordIF,GetTransActionStepID);
                       inmemobject.Field(oldfield.FieldName).Clear;
                     end;
                 end;
@@ -2458,12 +2506,13 @@ var i,j         : NativeInt;
     var sc,fn : TFRE_DB_NameType;
         j     : nativeint;
     begin
+      assert(assigned(inmemobject),'internal, logic');
       with FSublist[i] do
         begin
           to_upd_obj.Set_Store_Locked(false);
           try
             if not check then
-              GetNotificationRecordIF.FieldAdd(newfield);
+              GetNotificationRecordIF.FieldAdd(newfield,GetTransActionStepID);
             case newfield.FieldType of
               fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
               fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
@@ -2493,7 +2542,7 @@ var i,j         : NativeInt;
                     for j:=0 to high(newfield.AsObjectLinkArray) do
                       begin
                         master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
-                        master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j],GetNotificationRecordIF);
+                        master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j],GetNotificationRecordIF,GetTransActionStepID);
                       end;
                     //inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                   end;
@@ -2511,11 +2560,12 @@ var i,j         : NativeInt;
     begin
       with FSublist[i] do
         begin
+          assert(up_obj.ObjectRoot = to_upd_obj,'internal, logic');
           to_upd_obj.Set_Store_Locked(false); { Parent }
           try
             if (not check) then
               begin
-                GetNotificationRecordIF.FieldChange(oldfield, newfield);
+                GetNotificationRecordIF.FieldChange(oldfield, newfield,GetTransActionStepID);
               end;
             case newfield.FieldType of
               fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
@@ -2544,7 +2594,7 @@ var i,j         : NativeInt;
                   begin
                     oldlinks := oldfield.AsObjectLinkArray;
                     inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
-                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldlinks,newfield.AsObjectLinkArray,GetNotificationRecordIF);
+                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldlinks,newfield.AsObjectLinkArray,GetNotificationRecordIF,GetTransActionStepID);
                   end;
             end;
           finally
@@ -2570,11 +2620,12 @@ begin
     begin
       to_upd_obj.Set_Store_Locked(false);
       try
+        to_upd_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString := GetTransActionStepID;
         diffupdo := to_upd_obj.CloneToNewObject; { TODO: replace with a more efficient solution, new object (streaming/weak ...)}
         diffupdo.ClearAllFields;
         diffupdo.Field('uid').AsGUID      := to_upd_obj.UID;
         diffupdo.Field('domainid').AsGUID := to_upd_obj.DomainID;
-        GetNotificationRecordIF.DifferentiallUpdStarts(diffupdo);
+        GetNotificationRecordIF.DifferentiallUpdStarts(diffupdo,GetTransActionStepID);
       finally
         to_upd_obj.Set_Store_Locked(true);
       end;
@@ -2583,35 +2634,22 @@ begin
     begin
       with FSublist[i] do
         begin
+          inmemobject := up_obj; { a object in to_upd_obj, or = to_upd_obj }
           case updtyp of
-            cev_FieldDeleted:
-              begin
-                inmemobject := up_obj;
-               _DeletedField;
-             end;
-            cev_FieldAdded:
-              begin
-                 inmemobject := up_obj;
-                 assert(assigned(inmemobject),'internal, logic');
-                _AddedField;
-              end;
-            cev_FieldChanged:
-              begin
-                inmemobject := up_obj;
-                assert(up_obj.ObjectRoot = to_upd_obj,'internal, logic');
-                _ChangedField;
-              end;
+            cev_FieldDeleted: _DeletedField;
+            cev_FieldAdded:   _AddedField;
+            cev_FieldChanged: _ChangedField;
           end;
         end;
     end;
   if not check then
-    GetNotificationRecordIF.DifferentiallUpdEnds(to_upd_obj.UID); { Notifications will be transmitted on block level -> no special handling here, block get deleted on error }
-
+    GetNotificationRecordIF.DifferentiallUpdEnds(to_upd_obj.UID,GetTransActionStepID); { Notifications will be transmitted on block level -> no special handling here, block get deleted on error }
   if not check then
     begin
       to_upd_obj.Set_Store_Locked(false);
       try
-        GetNotificationRecordIF.ObjectUpdated(to_upd_obj,to_upd_obj.__InternalGetCollectionListUSL);
+        to_upd_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString := GetTransActionStepID;
+        GetNotificationRecordIF.ObjectUpdated(to_upd_obj,to_upd_obj.__InternalGetCollectionListUSL,GetTransActionStepID);
       finally
         to_upd_obj.Set_Store_Locked(true);
       end;
@@ -2783,11 +2821,11 @@ begin
       begin
         //FDelObj.Pa Assert_CheckStoreLocked;
         try
-          GetNotificationRecordIF.SubObjectDeleted(FDelObj,FDelObj.ParentField.FieldName,FDelObj.Parent.GetUIDPathUA); { Notify before delete }
+          GetNotificationRecordIF.SubObjectDeleted(FDelObj,FDelObj.ParentField.FieldName,FDelObj.Parent.GetUIDPathUA,GetTransActionStepID); { Notify before delete }
         finally
         end;
       end;
-    master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF);
+    master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF,GetTransActionStepID);
   except { Only in Exception case, lock the object and raise}
     FDelObj.Set_Store_Locked(true);
     raise;
@@ -3098,10 +3136,10 @@ procedure TFRE_DB_InsertStep.MasterStore(const check: boolean);
 begin
   assert((check=true) or (length(FNewObj.__InternalGetCollectionList)>0));
   if not FThisIsAnAddToAnotherColl then
-    master.StoreObject(FNewObj,check,GetNotificationRecordIF);
+    master.StoreObject(FNewObj,check,GetNotificationRecordIF,GetTransActionStepID);
   if not check then
     begin
-      GetNotificationRecordIF.ObjectStored(FColl.CollectionName, FNewObj);
+      GetNotificationRecordIF.ObjectStored(FColl.CollectionName, FNewObj,GetTransActionStepID);
       CheckWriteThroughObj(FNewObj);
       CheckWriteThroughColl(FColl);
     end;
@@ -3383,7 +3421,7 @@ begin
   SetLength(result,cnt);
 end;
 
-procedure TFRE_DB_Master_Data.__RemoveInboundReflink(const from_uid, to_uid: TFRE_DB_GUID; const scheme_link_key: TFRE_DB_NameTypeRL; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data.__RemoveInboundReflink(const from_uid, to_uid: TFRE_DB_GUID; const scheme_link_key: TFRE_DB_NameTypeRL; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var
   refinkey   : RFRE_DB_GUID_RefLink_InOut_Key;
   exists     : boolean;
@@ -3406,14 +3444,14 @@ begin
     begin
       from_obj.Set_Store_LockedUnLockedIf(false,lock_state);
       try
-        notifif.InboundReflinkDropped(from_obj,to_uid,scheme_link_key);
+        notifif.InboundReflinkDropped(from_obj,to_uid,scheme_link_key,tsid);
       finally
         from_obj.Set_Store_LockedUnLockedIf(true,lock_state);
       end;
     end;
 end;
 
-procedure TFRE_DB_Master_Data.__RemoveOutboundReflink(const from_uid, to_uid: TFRE_DB_GUID; const scheme_link_key: TFRE_DB_NameTypeRL; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data.__RemoveOutboundReflink(const from_uid, to_uid: TFRE_DB_GUID; const scheme_link_key: TFRE_DB_NameTypeRL; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var
   refoutkey  : RFRE_DB_GUID_RefLink_InOut_Key;
   exists     : boolean;
@@ -3433,21 +3471,21 @@ begin
     begin
       to_obj.Set_Store_LockedUnLockedIf(false,lock_state);
       try
-        notifif.OutboundReflinkDropped(from_uid,to_obj,scheme_link_key);
+        notifif.OutboundReflinkDropped(from_uid,to_obj,scheme_link_key,tsid);
       finally
         to_obj.Set_Store_LockedUnLockedIf(true,lock_state);
       end;
     end;
 end;
 
-procedure TFRE_DB_Master_Data.__RemoveRefLink(const from_uid, to_uid: TGUID; const upper_from_schemename, upper_fieldname, upper_to_schemename: TFRE_DB_NameType; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data.__RemoveRefLink(const from_uid, to_uid: TGUID; const upper_from_schemename, upper_fieldname, upper_to_schemename: TFRE_DB_NameType; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var
    scheme_link_key    : TFRE_DB_NameTypeRL;
 begin
   scheme_link_key := upper_from_schemename+'<'+upper_fieldname;
-  __RemoveInboundRefLink(from_uid,to_uid,scheme_link_key,notifif);
+  __RemoveInboundRefLink(from_uid,to_uid,scheme_link_key,notifif,tsid);
   scheme_link_key := upper_fieldname+'>'+upper_to_schemename;
-  __RemoveOutboundReflink(from_uid,to_uid,scheme_link_key,notifif);
+  __RemoveOutboundReflink(from_uid,to_uid,scheme_link_key,notifif,tsid);
 end;
 
 procedure TFRE_DB_Master_Data.__SetupOutboundLinkKey(const from_uid, to_uid: TFRE_DB_GUID; const scheme_link_key: TFRE_DB_NameTypeRL; var refoutkey: RFRE_DB_GUID_RefLink_InOut_Key);
@@ -3512,7 +3550,7 @@ end;
 // Setup the "to_list" for KEY-UID,Field,(Subkeys)
 // For every in the "to_list" referenced object set an inbound link, from KEY-UID
 
-procedure TFRE_DB_Master_Data.__SetupInitialRefLink(const from_key: TFRE_DB_Object; FromFieldToSchemename, LinkFromSchemenameField: TFRE_DB_NameTypeRL; const references_to: TFRE_DB_GUID; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data.__SetupInitialRefLink(const from_key: TFRE_DB_Object; FromFieldToSchemename, LinkFromSchemenameField: TFRE_DB_NameTypeRL; const references_to: TFRE_DB_GUID; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var refoutkey     : RFRE_DB_GUID_RefLink_InOut_Key;
     refinkey      : RFRE_DB_GUID_RefLink_InOut_Key;
     ref_obj       : TFRE_DB_Object;
@@ -3549,15 +3587,15 @@ begin
     begin
       ref_obj.Set_Store_LockedUnLockedIf(false,was_locked);
       try
-        notifif.SetupOutboundRefLink(from_key.UID,ref_obj,FromFieldToSchemename);
+        notifif.SetupOutboundRefLink(from_key.UID,ref_obj,FromFieldToSchemename,tsid);
       finally
         ref_obj.Set_Store_LockedUnLockedIf(true,was_locked);
       end;
-      notifif.SetupInboundRefLink(from_key,references_to,LinkFromSchemenameField);
+      notifif.SetupInboundRefLink(from_key,references_to,LinkFromSchemenameField,tsid);
     end;
 end;
 
-procedure TFRE_DB_Master_Data._ChangeRefLink(const from_obj: TFRE_DB_Object; const upper_schemename: TFRE_DB_NameType; const upper_fieldname: TFRE_DB_NameType; const old_links, new_links: TFRE_DB_GUIDArray; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data._ChangeRefLink(const from_obj: TFRE_DB_Object; const upper_schemename: TFRE_DB_NameType; const upper_fieldname: TFRE_DB_NameType; const old_links, new_links: TFRE_DB_GUIDArray; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var
     inserted_list     : TFRE_DB_GUIDArray;
     removed_list      : TFRE_DB_GUIDArray;
@@ -3612,27 +3650,27 @@ begin
   for i:= 0 to high(removed_list) do
     begin
       FREDB_GetToUidSchemeclassfromReferences(object_references,upper_fieldname,removed_list[i],to_scheme_name);
-      __RemoveRefLink(from_obj.UID,removed_list[i],upper_schemename,upper_fieldname,to_scheme_name,notifif);
+      __RemoveRefLink(from_obj.UID,removed_list[i],upper_schemename,upper_fieldname,to_scheme_name,notifif,tsid);
     end;
 
   for i:= 0 to high(inserted_list) do
     begin
       __CheckReferenceLink(from_obj,upper_fieldname,inserted_list[i],schemelink,false);
-      __SetupInitialRefLink(from_obj,schemelink,upper_schemename+'<'+upper_fieldname,inserted_list[i],notifif);
+      __SetupInitialRefLink(from_obj,schemelink,upper_schemename+'<'+upper_fieldname,inserted_list[i],notifif,tsid);
     end;
 end;
 
-procedure TFRE_DB_Master_Data._SetupInitialRefLinks(const from_key: TFRE_DB_Object; const references_to_list: TFRE_DB_ObjectReferences; const schemelink_arr: TFRE_DB_NameTypeRLArray; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data._SetupInitialRefLinks(const from_key: TFRE_DB_Object; const references_to_list: TFRE_DB_ObjectReferences; const schemelink_arr: TFRE_DB_NameTypeRLArray; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var
   i: NativeInt;
 
 begin
   assert(Length(references_to_list)=Length(schemelink_arr),'internal error');
   for i:=0 to high(references_to_list) do
-    __SetupInitialRefLink(from_key,schemelink_arr[i],uppercase(from_key.SchemeClass+'<'+references_to_list[i].fieldname),references_to_list[i].linked_uid,notifif);
+    __SetupInitialRefLink(from_key,schemelink_arr[i],uppercase(from_key.SchemeClass+'<'+references_to_list[i].fieldname),references_to_list[i].linked_uid,notifif,tsid);
 end;
 
-procedure TFRE_DB_Master_Data._RemoveAllRefLinks(const from_key: TFRE_DB_Object; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data._RemoveAllRefLinks(const from_key: TFRE_DB_Object; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var object_references  : TFRE_DB_ObjectReferences;
     refoutkey          : RFRE_DB_GUID_RefLink_InOut_Key;
     refinkey           : RFRE_DB_GUID_RefLink_InOut_Key;
@@ -3654,7 +3692,7 @@ begin
   sc_from  := uppercase(from_key.SchemeClass);
   object_references := GetOutBoundRefLinks(from_key.UID);
   for i:=0 to high(object_references) do
-    __RemoveRefLink(from_uid,object_references[i].linked_uid,sc_from,object_references[i].fieldname,object_references[i].schemename,notifif);
+    __RemoveRefLink(from_uid,object_references[i].linked_uid,sc_from,object_references[i].fieldname,object_references[i].schemename,notifif,tsid);
 end;
 
 procedure TFRE_DB_Master_Data._CheckRefIntegrityForObject(const obj: TFRE_DB_Object; var ref_array: TFRE_DB_ObjectReferences; var schemelink_arr: TFRE_DB_NameTypeRLArray);
@@ -3723,7 +3761,7 @@ function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
   begin
     _CheckRefIntegrityForObject(obj,references_to_list,scheme_links); // Todo Check inbound From Links (unique?)
     if Length(references_to_list)>0 then
-      _SetupInitialRefLinks(obj,references_to_list,scheme_links,nil);
+      _SetupInitialRefLinks(obj,references_to_list,scheme_links,nil,'BOOT');
   end;
 
 begin
@@ -4066,7 +4104,7 @@ begin
       end;
 end;
 
-procedure TFRE_DB_Master_Data.StoreObject(const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data.StoreObject(const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var references_to_list : TFRE_DB_ObjectReferences;
     key                : TGuid;
     dummy              : PtrUInt;
@@ -4119,16 +4157,19 @@ begin
             end;
         end
       else
-        begin
+        begin { non check - do it}
+          if tsid='' then
+            raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'transation id not set on store OBJ(%s)',[obj.UID_String]);
+          obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=tsid;
           if not FMasterPersistentObjStore.InsertBinaryKeyOrFetch(@key,sizeof(tguid),dummy) then
             raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store persistent object [%s]',[obj.InternalUniqueDebugKey]);
           if Length(references_to_list)>0 then
-            _SetupInitialRefLinks(obj,references_to_list,scheme_links,notifif);
+            _SetupInitialRefLinks(obj,references_to_list,scheme_links,notifif,tsid);
         end;
     end;
 end;
 
-procedure TFRE_DB_Master_Data.DeleteObject(const obj_uid: TGuid; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification);
+procedure TFRE_DB_Master_Data.DeleteObject(const obj_uid: TGuid; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var dummy   : PtrUInt;
     obj     : TFRE_DB_Object;
     ex_vol  : boolean;
@@ -4156,7 +4197,7 @@ begin
   if ex_pers then
     begin
       obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;
-      _RemoveAllRefLinks(obj,notifif);
+      _RemoveAllRefLinks(obj,notifif,tsid);
       if not FMasterPersistentObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TGuid),dummy) then
         raise EFRE_DB_Exception.Create(edb_INTERNAL,'cannot remove existing');
       obj.Free;

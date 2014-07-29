@@ -130,13 +130,15 @@ const
   CFRE_DB_SYS_DOMAIN_NAME        = 'SYSTEM';
   cFRE_DB_STKEY                  = '#ST#';
   cFRE_DB_ST_ETAG                = '#ETG#';
-  cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*';  { used to indicate a DONT CHANGE THE FIELD in translating from JSON <-> DBO }
-  cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';     { used to indicate a CLEAR FIELD in translating from JSON <-> DBO  }
-  //cFRE_DB_SYS_ORDER_REF_KEY      = '*$ORK*';     { used to backlink from ordered data(key) to base transformed data }
-  cFRE_DB_SYS_PARENT_PATH_FULL   = '*$_PPATH_F*';  { used in a parent child transform to set the pp in the child, full path }
-  //cFRE_DB_SYS_PARENT_PATH_PART   = '*$_PPATH_P*';  { used in a parent child transform to set the pp in the child, immediate parent }
-  cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A = '*$_TIOWA*';    { used in the transform as implicit field }
-  cFRE_DB_SYS_T_OBJ_TOTAL_ORDER  = '*$_TOTO*';     { used in the transform as implicit field, store total order key }
+  cFRE_DB_SYS_NOCHANGE_VAL_STR   = '*$NOCHANGE*';   { used to indicate a DONT CHANGE THE FIELD in translating from JSON <-> DBO }
+  cFRE_DB_SYS_CLEAR_VAL_STR      = '*$CLEAR*';      { used to indicate a CLEAR FIELD in translating from JSON <-> DBO  }
+  //cFRE_DB_SYS_ORDER_REF_KEY      = '*$ORK*';      { used to backlink from ordered data(key) to base transformed data }
+  cFRE_DB_SYS_PARENT_PATH_FULL   = '*$_PPATH_F*';   { used in a parent child transform to set the pp in the child, full path }
+  //cFRE_DB_SYS_PARENT_PATH_PART   = '*$_PPATH_P*'; { used in a parent child transform to set the pp in the child, immediate parent }
+  cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A = '*$_TIOWA*';     { used in the transform as implicit field }
+  cFRE_DB_SYS_T_OBJ_TOTAL_ORDER  = '*$_TOTO*';      { used in the transform as implicit field, store total order key }
+  cFRE_DB_SYS_T_LMO_TRANSID      = '*$_LMOTID*';    { used in the persistence layer to mark the last id that modified the object }
+  cFRE_DB_SYS_TAG_ORDER_CHANGED  = '*$_TAGOC*';     { used in the compare qry algorithm to mark an order change }
 
   cFRE_DB_CLN_CHILD_CNT          = '_children_count_';
   cFRE_DB_CLN_CHILD_FLD          = 'children';
@@ -892,8 +894,8 @@ type
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
     procedure  TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure  TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String);
-    procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object);
+    procedure  TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
+    procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
     procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
 
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
@@ -1399,25 +1401,27 @@ type
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object);
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
-    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
-    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
-    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
-    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
-    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object); { FULL STATE }
-    procedure  ObjectDeleted          (const obj : IFRE_DB_Object);                                      { FULL STATE }
-    procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray);    { FULL STATE }
-    procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
-    procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray);
-    procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object);           { DIFFERENTIAL STATE}
-    procedure  FieldDelete            (const old_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
-    procedure  FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
-    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field);  { DIFFERENTIAL STATE}
-    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
-    procedure  ObjectRemoved          (const coll_name: TFRE_DB_NameType ; const obj : IFRE_DB_Object);
-    procedure  SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  InboundReflinkDropped  (const from_obj: IFRE_DB_Object    ; const to_obj   : TGUID       ; const key_description : TFRE_DB_NameTypeRL);
-    procedure  OutboundReflinkDropped (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description: TFRE_DB_NameTypeRL);
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType ; const tsid : TFRE_DB_TransStepId);
+    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType ; const tsid : TFRE_DB_TransStepId) ;
+    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE;
+                                       const unique: boolean; const ignore_content_case: boolean;
+                                       const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean ; const tsid : TFRE_DB_TransStepId);
+    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType ; const tsid : TFRE_DB_TransStepId);
+    procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object ; const tsid : TFRE_DB_TransStepId); { FULL STATE }
+    procedure  ObjectDeleted          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object ; const tsid : TFRE_DB_TransStepId);                                      { FULL STATE }
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray ; const tsid : TFRE_DB_TransStepId);    { FULL STATE }
+    procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray; const tsid : TFRE_DB_TransStepId);
+    procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray; const tsid : TFRE_DB_TransStepId);
+    procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object; const tsid : TFRE_DB_TransStepId);           { DIFFERENTIAL STATE}
+    procedure  FieldDelete            (const old_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure  FieldAdd               (const new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId);  { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID; const tsid : TFRE_DB_TransStepId);             { DIFFERENTIAL STATE}
+    procedure  ObjectRemoved          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object ; const is_a_full_delete : boolean ; const tsid : TFRE_DB_TransStepId);
+    procedure  SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);
+    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);
+    procedure  InboundReflinkDropped  (const from_obj: IFRE_DB_Object    ; const to_obj   : TGUID       ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);
+    procedure  OutboundReflinkDropped (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description: TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);
     procedure  FinalizeNotif          ;
   end;
 
@@ -1426,19 +1430,21 @@ type
   end;
 
   IFRE_DB_DBChangedNotificationConnection = interface { handle metadata changes }
-    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType) ;
-    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType) ;
-    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean);
-    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType);
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId) ;
+    procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType; const tsid : TFRE_DB_TransStepId) ;
+    procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean;
+                                       const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean ;
+                                       const tsid : TFRE_DB_TransStepId);
+    procedure  IndexDroppedOnField    (const coll_name: TFRE_DB_NameType  ; const index_name: TFRE_DB_NameType ; const tsid : TFRE_DB_TransStepId);
   end;
 
 
   IFRE_DB_DBChangedNotificationSession = interface
-    procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object);           { DIFFERENTIAL STATE}
-    procedure  FieldDelete            (const old_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
-    procedure  FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
-    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field);  { DIFFERENTIAL STATE}
-    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure  FieldDelete            (const old_field : IFRE_DB_Field  ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure  FieldAdd               (const new_field : IFRE_DB_Field  ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field ; const tsid : TFRE_DB_TransStepId);   { DIFFERENTIAL STATE}
+    procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID ; const tsid : TFRE_DB_TransStepId);              { DIFFERENTIAL STATE}
   end;
 
 
@@ -1900,18 +1906,18 @@ type
 
   TFRE_DB_FILTER_BASE=class
   protected
-    FKey             : TFRE_DB_NameType;
-    FFieldname       : TFRE_DB_NameType;
-    FNegate          : Boolean;
-    FAllowNull       : Boolean;
-    FNeedsReEvaluate : Boolean; { the filter must be reevaluated }
-    FDBName          : TFRE_DB_NameType;
+    FKey               : TFRE_DB_NameType;
+    FFieldname         : TFRE_DB_NameType;
+    FNegate            : Boolean;
+    FAllowNull         : Boolean;
+    FNeedsDBReEvaluate : Boolean; { the filter must be reevaluated }
+    FDBName            : TFRE_DB_NameType;
   public
     function    GetKeyName              : TFRE_DB_NameType;                     { get a reproducable unique key, depending on the filter field, values and settings}
     function    GetDefinitionKey        : TFRE_DB_NameType;virtual;abstract;    { return true if the filter hits }
     function    CheckFilterHit          (const obj : IFRE_DB_Object ; var flt_errors : Int64):boolean;virtual;abstract;
     function    FilterNeedsDbUpdate     : boolean;
-    procedure   ReEvaluateFilter        ; virtual ; abstract ;                  { update the filter against db changes (dependency filter type (rl changed) }
+    procedure   ReEvalFilterStartVals   ; virtual ; abstract ;                  { update the filter against db changes (dependency filter type (rl changed) }
     procedure   SetFilterNeedsUpdate    ;
     constructor Create                  (const key : TFRE_DB_NameType);
     function    Clone                   : TFRE_DB_FILTER_BASE;virtual; abstract;
@@ -2553,6 +2559,12 @@ type
     procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
     procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
+    procedure   LogDebugIf             (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogInfoIf              (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogWarningIf           (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogErrorIf             (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogNoticeIf            (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
+    procedure   LogEmergencyIf         (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
 
     procedure   ClearGUID              (var uid:TGUID);
     function    Get_A_Guid             : TGUID;
@@ -2850,11 +2862,11 @@ type
     function    GetDownLoadLink4StreamField (const obj_uid: TGUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
 
     { Notification interface function, the notification interface gets an update block pushed from the net/pl layer }
-    procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object);           { DIFFERENTIAL STATE}
-    procedure   DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID);             { DIFFERENTIAL STATE}
-    procedure   FieldDelete            (const old_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
-    procedure   FieldAdd               (const new_field : IFRE_DB_Field);            { DIFFERENTIAL STATE}
-    procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field);  { DIFFERENTIAL STATE}
+    procedure   DifferentiallUpdStarts (const obj       : IFRE_DB_Object ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure   DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID   ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure   FieldDelete            (const old_field : IFRE_DB_Field  ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure   FieldAdd               (const new_field : IFRE_DB_Field  ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
+    procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field ; const tsid : TFRE_DB_TransStepId);   { DIFFERENTIAL STATE}
     procedure   FinalizeNotif          ;
     {Helper}
     procedure   HandleDiffField        (const mode : TDiffFieldUpdateMode ; const fld : IFRE_DB_Field);
@@ -2943,6 +2955,8 @@ type
   function  FREDB_RightSetString2RightSet           (const rightstr:ShortString):TFRE_DB_STANDARD_RIGHT_SET;
   function  FREDB_StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
   function  FREDB_StringArray2Upper                 (const sa : TFRE_DB_StringArray):TFRE_DB_StringArray;
+  function  FREDB_StringArray2NametypeArray         (const sa : TFRE_DB_StringArray):TFRE_DB_NameTypeArray;
+  function  FREDB_NametypeArray2StringArray         (const sa : TFRE_DB_NameTypeArray):TFRE_DB_StringArray;
   function  FREDB_StringInArrayIdx                  (const src:string;const arr:TFRE_DB_StringArray):NativeInt;
   function  FREDB_PrefixStringInArray               (const pfx:string;const arr:TFRE_DB_StringArray):boolean;
   procedure FREDB_ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
@@ -2981,6 +2995,7 @@ type
   procedure FREDB_ApplyNotificationBlockToNotifIF_Session    (const block: IFRE_DB_Object ; const deploy_if : IFRE_DB_DBChangedNotificationSession);
 
   function  FREDB_CompareTransCollDataKeys                    (const a,b : TFRE_DB_TRANS_COLL_DATA_KEY):boolean;
+  function  FREDB_CompareTransCollDataKeysOrderOnly           (const a,b : TFRE_DB_TRANS_COLL_DATA_KEY):boolean;
 
   function  FREDB_PP_ObjectInParentPath                       (const obj : IFRE_DB_Object ; const pp  : string): boolean;
   function  FREDB_PP_ObjectInParentPathLastParent             (const obj : IFRE_DB_Object ; const pp  : string): boolean;
@@ -3625,6 +3640,24 @@ begin
     result[i] := uppercase(sa[i]);
 end;
 
+function FREDB_StringArray2NametypeArray(const sa: TFRE_DB_StringArray): TFRE_DB_NameTypeArray;
+var
+  i: NativeInt;
+begin
+  SetLength(result,Length(sa));
+  for i:=0 to high(result) do
+    result[i] := sa[i];
+end;
+
+function FREDB_NametypeArray2StringArray(const sa: TFRE_DB_NameTypeArray): TFRE_DB_StringArray;
+var
+  i: NativeInt;
+begin
+  SetLength(result,Length(sa));
+  for i:=0 to high(result) do
+    result[i] := sa[i];
+end;
+
 function FREDB_StringInArrayIdx(const src: string; const arr: TFRE_DB_StringArray): NativeInt;
 var  i: NativeInt;
 begin
@@ -4069,18 +4102,18 @@ end;
 
 function TFRE_DB_FILTER_BASE.FilterNeedsDbUpdate: boolean;
 begin
-  result := FNeedsReEvaluate;
+  result := FNeedsDBReEvaluate;
 end;
 
 procedure TFRE_DB_FILTER_BASE.SetFilterNeedsUpdate;
 begin
-  FNeedsReEvaluate := true;
+  FNeedsDBReEvaluate := true;
 end;
 
 constructor TFRE_DB_FILTER_BASE.Create(const key: TFRE_DB_NameType);
 begin
-  FKey             := key;
-  FNeedsReEvaluate := false;
+  FKey               := key;
+  FNeedsDBReEvaluate := false;
 end;
 
 function TFRE_DB_FILTER_BASE.CheckReflinkUpdateEvent(const key_descr: TFRE_DB_NameTypeRL): boolean;
@@ -6330,7 +6363,7 @@ begin
 end;
 
 
-procedure TFRE_DB_UserSession.FieldDelete(const old_field: IFRE_DB_Field);
+procedure TFRE_DB_UserSession.FieldDelete(const old_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 begin
   HandleDiffField(mode_df_del,old_field);
   //if FCurrentNotificationBlockLayer='SYSTEM' then
@@ -6339,7 +6372,7 @@ begin
   //  FDBConnection.GetNotif.FieldDelete(old_field);
 end;
 
-procedure TFRE_DB_UserSession.FieldAdd(const new_field: IFRE_DB_Field);
+procedure TFRE_DB_UserSession.FieldAdd(const new_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 begin
   HandleDiffField(mode_df_add,new_field);
   //if FCurrentNotificationBlockLayer='SYSTEM' then
@@ -6348,7 +6381,7 @@ begin
   //  FDBConnection.GetNotif.FieldAdd(new_field);
 end;
 
-procedure TFRE_DB_UserSession.FieldChange(const old_field, new_field: IFRE_DB_Field);
+procedure TFRE_DB_UserSession.FieldChange(const old_field, new_field: IFRE_DB_Field; const tsid: TFRE_DB_TransStepId);
 begin
   HandleDiffField(mode_df_change,new_field);
   //if FCurrentNotificationBlockLayer='SYSTEM' then
@@ -6357,7 +6390,7 @@ begin
   //  FDBConnection.GetNotif.FieldChange(old_field,new_field);
 end;
 
-procedure TFRE_DB_UserSession.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID);
+procedure TFRE_DB_UserSession.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID; const tsid: TFRE_DB_TransStepId);
 var upo : IFRE_DB_Object;
     key : shortstring;
     fld : IFRE_DB_Field;
@@ -6374,7 +6407,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_UserSession.DifferentiallUpdStarts(const obj: IFRE_DB_Object);
+procedure TFRE_DB_UserSession.DifferentiallUpdStarts(const obj: IFRE_DB_Object; const tsid: TFRE_DB_TransStepId);
 begin
   FDifferentialUpdates.Field(obj.UID_String).AsObject := obj.CloneToNewObject;
 end;
@@ -8841,6 +8874,7 @@ procedure FREDB_ApplyNotificationBlockToNotifIF(const block: IFRE_DB_Object; con
 var cmd   : ShortString;
     objs  : IFRE_DB_ObjectArray;
     i     : NativeInt;
+    tsid  : TFRE_DB_TransStepId;
 
 begin
   //writeln('----DUMP NOTIFY BLOCK');
@@ -8853,27 +8887,29 @@ begin
       with objs[i] do
         begin
           cmd   := Field('C').AsString;
+          tsid  := Field('TSID').AsString;
+          assert(tsid<>'transaction id step must be set');
           try
             case cmd of
-              'CC'  : deploy_if.CollectionCreated(Field('CC').AsString);
-              'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
-              'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
-              'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
-              'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').CheckOutObject);
-              'OU'  : deploy_if.ObjectUpdated(Field('obj').CheckOutObject,Field('CC').AsStringArr);
-              'OD'  : deploy_if.ObjectDeleted(Field('obj').CheckOutObject);
-              'OR'  : deploy_if.ObjectRemoved(Field('CC').AsString,Field('obj').CheckOutObject);
-              'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField); { Field is created new .. free it in the deploy if }
-              'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);    { Field is created new .. free it in the deploy if }
-              'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField); { Field is created new .. free it in the deploy if }
-              'SOS' : deploy_if.SubObjectStored(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
-              'SOD' : deploy_if.SubObjectDeleted(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr);
-              'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString);
-              'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString);
-              'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString);
-              'DIL' : deploy_if.InboundReflinkDropped (field('FO').CheckOutObject,field('TO').AsGUID,field('KD').AsString);
-              'DUS' : deploy_if.DifferentiallUpdStarts(field('O').CheckOutObject);
-              'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
+              'CC'  : deploy_if.CollectionCreated(Field('CC').AsString,tsid);
+              'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString,tsid);
+              'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean,tsid);
+              'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString,tsid);
+              'OS'  : deploy_if.ObjectStored(Field('CC').AsString,Field('obj').CheckOutObject,tsid);
+              'OU'  : deploy_if.ObjectUpdated(Field('obj').CheckOutObject,Field('CC').AsStringArr,tsid);
+              'OD'  : deploy_if.ObjectDeleted(FREDB_StringArray2NametypeArray(Field('CC').AsStringArr),Field('obj').CheckOutObject,tsid);
+              'OR'  : deploy_if.ObjectRemoved(FREDB_StringArray2NametypeArray(Field('CC').AsStringArr),Field('obj').CheckOutObject,Field('fd').AsBoolean,tsid);
+              'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField,tsid); { Field is created new .. free it in the deploy if }
+              'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField,tsid);    { Field is created new .. free it in the deploy if }
+              'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField,tsid); { Field is created new .. free it in the deploy if }
+              'SOS' : deploy_if.SubObjectStored(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr,tsid);
+              'SOD' : deploy_if.SubObjectDeleted(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr,tsid);
+              'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString,tsid);
+              'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString,tsid);
+              'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString,tsid);
+              'DIL' : deploy_if.InboundReflinkDropped (field('FO').CheckOutObject,field('TO').AsGUID,field('KD').AsString,tsid);
+              'DUS' : deploy_if.DifferentiallUpdStarts(field('O').CheckOutObject,tsid);
+              'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID,tsid);
               else
                 raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
             end;
@@ -8894,6 +8930,7 @@ var cmd   : ShortString;
     key   : TFRE_DB_String;
     objs  : IFRE_DB_ObjectArray;
     i     : NativeInt;
+    tsid  : TFRE_DB_TransStepId;
 
 begin
   objs  := block.Field('N').AsObjectArr;
@@ -8902,11 +8939,13 @@ begin
     with objs[i] do
       begin
         cmd   := Field('C').AsString;
+        tsid  := Field('TSID').AsString;
+        assert(tsid<>'transaction id step must be set');
         case cmd of
-          'CC'  : deploy_if.CollectionCreated(Field('CC').AsString);
-          'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString);
-          'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean);
-          'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString);
+          'CC'  : deploy_if.CollectionCreated(Field('CC').AsString,tsid);
+          'CD'  : deploy_if.CollectionDeleted(Field('CC').AsString,tsid);
+          'IC'  : deploy_if.IndexDefinedOnField(Field('CC').AsString,Field('FN').AsString,FREDB_FieldtypeShortString2Fieldtype(Field('FT').AsString),Field('UI').AsBoolean,Field('IC').AsBoolean,Field('IN').AsString,Field('AN').AsBoolean,Field('UN').AsBoolean,tsid);
+          'ID'  : deploy_if.IndexDroppedOnField(Field('CC').AsString,Field('IN').AsString,tsid);
         end;
       end;
 end;
@@ -8915,6 +8954,7 @@ procedure FREDB_ApplyNotificationBlockToNotifIF_Session(const block: IFRE_DB_Obj
 var cmd   : ShortString;
     objs  : IFRE_DB_ObjectArray;
     i     : NativeInt;
+    tsid  : TFRE_DB_TransStepId;
 
 begin
   objs  := block.Field('N').AsObjectArr;
@@ -8922,12 +8962,14 @@ begin
     with objs[i] do
       begin
         cmd   := Field('C').AsString;
+        tsid  := Field('TSID').AsString;
+        assert(tsid<>'transaction id step must be set');
         case cmd of
-          'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField);
-          'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField);
-          'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField);
-          'DUS' : deploy_if.DifferentiallUpdStarts(field('O').AsObject);
-          'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID);
+          'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField,tsid);
+          'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField,tsid);
+          'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField,tsid);
+          'DUS' : deploy_if.DifferentiallUpdStarts(field('O').AsObject,tsid);
+          'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID,tsid);
         //  else
         //    raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
         end;
@@ -8939,6 +8981,14 @@ begin
   result := (a.Collname  = b.Collname ) and
             (a.DC_Name   = b.DC_Name  ) and
             (a.filterkey = b.filterkey) and
+            (a.orderkey  = b.orderkey ) and
+            (a.RL_Spec   = b.RL_Spec  );
+end;
+
+function FREDB_CompareTransCollDataKeysOrderOnly(const a, b: TFRE_DB_TRANS_COLL_DATA_KEY): boolean;
+begin
+  result := (a.Collname  = b.Collname ) and
+            (a.DC_Name   = b.DC_Name  ) and
             (a.orderkey  = b.orderkey ) and
             (a.RL_Spec   = b.RL_Spec  );
 end;

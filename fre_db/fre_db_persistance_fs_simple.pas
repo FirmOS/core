@@ -394,6 +394,8 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
         try
           m.LoadFromFile(FMasterCollDir+file_name);
           obj:= TFRE_DB_Object.CreateFromMemory(m.Memory);
+          if not obj.FieldExists(cFRE_DB_SYS_T_LMO_TRANSID) then
+            obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:='RESTORE_'+inttostr(G_DB_TX_Number);
         finally
           m.free;
         end;
