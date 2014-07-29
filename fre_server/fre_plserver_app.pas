@@ -48,7 +48,8 @@ uses
   FRE_DB_CORE,fre_aps_comm_impl,
   FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,
-  fre_basedbo_server
+  fre_basedbo_server,
+  fre_basecli_app
   ;
 
 type
@@ -56,7 +57,7 @@ type
 
   { TFRE_PLSERVER_APP }
 
-  TFRE_PLSERVER_APP = class(TCustomApplication)
+  TFRE_PLSERVER_APP = class(TFRE_CLISRV_APP)
   protected
     FSFServer : TFRE_DBO_SERVER;
     procedure   DoRun; override;
@@ -65,9 +66,8 @@ type
     constructor Create      (TheOwner: TComponent ; const Server : TFRE_DBO_SERVER) ; reintroduce ;
     destructor  Destroy     ;override;
     procedure   WriteHelp   ; virtual;
-    procedure   WriteVersion; virtual;
     procedure   TestMethod  ; virtual;
-    procedure   CfgTestLog  ;
+    procedure   CfgTestLog  ; override;
   end;
 
 
@@ -155,9 +155,6 @@ begin
   writeln('                  --testlog              : enable console test-log');
 end;
 
-procedure TFRE_PLSERVER_APP.WriteVersion;
-begin
-end;
 
 procedure TFRE_PLSERVER_APP.TestMethod;
 begin
@@ -165,19 +162,74 @@ begin
 end;
 
 procedure TFRE_PLSERVER_APP.CfgTestLog;
+
+    procedure Setup_HTTP_Request_Logging;
+    begin
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_ZIP],fll_Debug,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_CACHE],fll_Debug,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_REQ],fll_Info,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_REQ],fll_Debug,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_RES],fll_Info,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTP_RES],fll_Debug,'*',flra_DropEntry);
+    end;
+
+    procedure Setup_DB_Logging;
+    begin
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Warning,'*',flra_DropEntry);
+    end;
+
+    procedure Setup_Server_Logging;
+    begin
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry);     // DROP : Server / DEBUG
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER_DATA],fll_Debug,'*',flra_DropEntry);// DROP : Server / Dispatch / Input Output
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Info,'*',flra_DropEntry);      // DROP : Server / INFO
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Notice,'*',flra_DropEntry);    // DROP : Server / NOTICE
+    end;
+
+    procedure Setup_WS_Session_Logging;
+    begin
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry);    // DROP : Websock / JSON / IN / OUT
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WS_JSON],fll_Debug,'*',flra_DropEntry);    // DROP : JSON
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Debug,'*',flra_DropEntry);    // DROP SESSION  DEBUG
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SESSION],fll_Info,'*',flra_DropEntry);     // DROP SESSION INFO
+    end;
+
+    procedure Setup_APS_COMM_Logging;
+    begin
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Info,'*',flra_DropEntry);     // DROP APSCOMM INFO
+      GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Debug,'*',flra_DropEntry);    // DROP APSCOMM DEBUG
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Notice,'*',flra_DropEntry);
+    end;
+
+    procedure Setup_Persistance_Layer_Logging;
+    begin
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Info,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Debug,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE_NOTIFY],fll_Info,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE_NOTIFY],fll_Debug,'*',flra_DropEntry);
+    end;
+
+    procedure Setup_FlexcomLogging;
+    begin
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_FLEXCOM],fll_Debug,'*',flra_DropEntry);
+      //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_FLEX_IO],fll_Debug,'*',flra_DropEntry);
+    end;
+
 begin
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry);  // Server / Connection Start/Close
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Info,'*',flra_DropEntry); // Http/Header / Content
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_HTTPSRV],fll_Debug,'*',flra_DropEntry); // Http/Header / Content
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_SERVER],fll_Debug,'*',flra_DropEntry); // Server / Dispatch / Input Output
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_WEBSOCK],fll_Debug,'*',flra_DropEntry); // Websock / JSON / IN / OUT
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_PERSISTANCE],fll_Debug,'*',flra_DropEntry); // Persistance Layer Debugging
-  //GFRE_Log.AddRule(CFRE_DB_LOGCATEGORY[dblc_DB],fll_Debug,'*',flra_DropEntry); // Database /Filter / Layer Debugging
+  Setup_DB_Logging;
+  Setup_HTTP_Request_Logging;
+  Setup_Server_Logging;
+  Setup_WS_Session_Logging;
+  Setup_APS_COMM_Logging;
+  Setup_Persistance_Layer_Logging;
+  Setup_FlexcomLogging;
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
   GFRE_LOG.DisableSyslog;
-  GFRE_LOG.Log('TESTENTRY','START');
 end;
+
+
 
 end.
 

@@ -82,7 +82,6 @@
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsStabs"/>
-        <UseHeaptrc Value="True"/>
       </Debugging>
     </Linking>
     <Other>

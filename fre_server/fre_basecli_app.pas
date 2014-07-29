@@ -119,7 +119,7 @@ type
     procedure   VerifyExtensions   ;
     procedure   ListExtensions     ;
     procedure   PrepareStartup     ;
-    procedure   CfgTestLog         ;
+    procedure   CfgTestLog         ; virtual;
     procedure   EndlessLogTest     ;
     procedure   SchemeDump         (const filename:string;const classfile:string);
     procedure   DumpAll            (const filterstring: string);

@@ -94,6 +94,7 @@ type
       FHost           : ShortString;
       FChannel        : IFRE_APSC_CHANNEL;
       FConnLock       : IFOS_Lock;
+      FCmdLock        : IFOS_LOCK;
       FLayerWait      : IFOS_E;
       FLasterror      : String;
       FLastErrorCode  : TFRE_DB_Errortype;
@@ -660,12 +661,14 @@ begin
   FNETPL       := nclient;
   FCollections := TList.Create;
   GFRE_TF.Get_Lock(FConnLock);
+  GFRE_TF.Get_Lock(FCmdLock);
   GFRE_TF.Get_Event(FLayerWait);
 end;
 
 destructor TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Destroy;
 begin
   FConnLock.Finalize;
+  FCmdlock.Finalize;
   FLayerWait.Finalize;
   FCollections.free;
   inherited Destroy;
@@ -720,13 +723,19 @@ end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.SendCycle(const cmd: IFRE_DB_Object; out answer: IFRE_DB_Object): boolean;
 begin
-  assert(FCommandPending=false,'double send cycle!');
-  FCommandPending := true;
-  FChannel.GetChannelManager.ScheduleCoRoutine(@self.COR_SendDBO,cmd.Implementor);
-  FLayerWait.WaitFor;
-  answer := FAnswer;
-  FAnswer:=nil;
-  FCommandPending:=false;
+  FCmdLock.Acquire;
+  try
+    if FCommandPending=true then
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'double send cycle!');
+    FCommandPending := true;
+    FChannel.GetChannelManager.ScheduleCoRoutine(@self.COR_SendDBO,cmd.Implementor);
+    FLayerWait.WaitFor;
+    answer := FAnswer;
+    FAnswer:=nil;
+    FCommandPending:=false;
+  finally
+    FCmdLock.Release;
+  end;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CheckRaiseAnswerError(const answer: IFRE_DB_Object; const dont_raise: boolean);
@@ -1101,10 +1110,19 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.ObjectExists(const obj_uid: TGUID): boolean;
+var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
-  abort;
+  cmd := NewPersistenceLayerCommand('E');
+  cmd.Field('G').AsGUID    := obj_uid;
+  SendCycle(cmd,answer);
+  try
+    CheckRaiseAnswerError(answer,false);
+    result := answer.Field('E').AsBoolean;
+  finally
+    answer.Finalize;
+  end;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeleteObject(const obj_uid: TGUID; const collection_name: TFRE_DB_NameType): TFRE_DB_TransStepId;
@@ -1459,7 +1477,8 @@ begin
     end
   else
     begin {It's an answer}
-      assert(pls.FCommandPending=true,'sequencing error cmd not pending!');
+      if pls.FCommandPending=false then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'sequencing error cmd not pending!');
       pls.FAnswer := dbo;
       pls.FLayerWait.SetEvent;
     end;

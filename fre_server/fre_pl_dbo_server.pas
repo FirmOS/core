@@ -663,6 +663,20 @@ var CID : ShortString;
       SendAnswer(dbo);
     end;
 
+    procedure _GlobExists;
+    var obj  : IFRE_DB_Object;
+        g    : TFRE_DB_GUID;
+        res  : Boolean;
+    begin
+      g   := dbo.Field('G').AsGUID;
+      dbo.ClearAllFields;
+      res := myLayer.ObjectExists(g);
+      dbo.Field('EC').AsInt16 := ord(edb_OK);
+      dbo.Field('ES').AsString := '';
+      dbo.Field('E').AsBoolean := res;
+      SendAnswer(dbo);
+    end;
+
     procedure _GlobBulkFetch;
     var obj  : IFRE_DB_ObjectArray;
         g    : TFRE_DB_GUIDArray;
@@ -779,6 +793,7 @@ begin
        'F'       : _GlobFetch;
        'BF'      : _GlobBulkFetch;
        'D'       : _GlobDelete;
+       'E'       : _GlobExists;
        'GR'      : _GetReferences(0);
        'GRC'     : _GetReferences(1);
        'GRD'     : _GetReferences(2);
