@@ -1869,6 +1869,8 @@ type
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object;const without_right_check:boolean=false) : TFRE_DB_Errortype; virtual;
     function           BulkFetchNoRightCheck        (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; virtual;
+    function           BulkFetch                    (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; virtual;
+
 
     function           FetchAccessRightTest         (const ouid: TGUID): boolean; { fetch the object, check rights and free / USE CASE ONLY GUID IS KNOWN }
     function           DeleteAccessRightTest        (const ouid: TGUID): boolean; { fetch the object, check rights and free / USE CASE ONLY GUID IS KNOWN }
@@ -2207,6 +2209,7 @@ type
     function    Fetch                       (const ouid:TGUID;out dbo:TFRE_DB_Object ; const without_right_check:boolean=false) : TFRE_DB_Errortype; override;
     function    FetchAs                     (const ouid:TGUID;const classref : TFRE_DB_BaseClass ; var outobj) : TFRE_DB_Errortype;
     function    BulkFetchNoRightCheck       (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; override;
+    function    BulkFetch                   (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; override; { uids must be from one db }
 
     //Warning Fetching from DB, and then from system can have undesired side effects ...
     //function    FetchInternal               (const ouid:TGUID;out dbo:TFRE_DB_Object) : boolean; override;
@@ -2573,7 +2576,7 @@ begin
   conn.ExpandReferences(TFRE_DB_GUIDArray.create(input.UID),FRefFieldChain,expanded);
   try
     if Length(expanded)>0 then
-      res := conn.BulkFetchNoRightCheck(expanded,objo);
+      res := (conn.Implementor_HC as TFRE_DB_CONNECTION).BulkFetchNoRightCheck(expanded,objo);
     FRQ_func(objo,input,output,FRQO_Langres);
   finally
     For obj in objo do
@@ -10183,6 +10186,32 @@ begin
   end;
 end;
 
+function TFRE_DB_BASE_CONNECTION.BulkFetch(const uids: TFRE_DB_GUIDArray; out dbos: IFRE_DB_ObjectArray): TFRE_DB_Errortype; { todo -> move to PL Layer }
+var all_dbos : IFRE_DB_ObjectArray;
+    cnt,i    : NativeInt;
+begin
+  try
+    dbos := nil;
+    result := FPersistance_Layer.BulkFetch(uids,all_dbos);
+    if result=edb_OK then
+      begin
+        SetLength(dbos,Length(all_dbos));
+        cnt    := 0;
+        for i  := 0 to high(all_dbos) do
+          begin
+            if CheckAccessRightAndCondFinalize(all_dbos[i],sr_FETCH)=edb_OK then
+              begin
+                dbos[cnt] := all_dbos[i];
+                inc(cnt);
+              end;
+          end;
+        SetLength(dbos,cnt);
+      end;
+  except
+    result := FPersistance_Layer.GetLastErrorCode;
+  end;
+end;
+
 function TFRE_DB_BASE_CONNECTION.FetchAccessRightTest(const ouid: TGUID): boolean;
 var dbo : TFRE_DB_Object;
     res : TFRE_DB_Errortype;
@@ -10297,6 +10326,14 @@ begin
  Result:=inherited BulkFetchNoRightCheck(uids, dbos);
  if result=edb_NOT_FOUND then
    result := FSysConnection.BulkFetchNoRightCheck(uids,dbos);
+end;
+
+function TFRE_DB_CONNECTION.BulkFetch(const uids: TFRE_DB_GUIDArray; out dbos: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
+begin
+  dbos   := nil;
+  Result := inherited BulkFetch(uids, dbos);
+  if result=edb_NOT_FOUND then
+    result := FSysConnection.BulkFetch(uids,dbos);
 end;
 
 
