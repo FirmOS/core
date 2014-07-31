@@ -1018,7 +1018,7 @@ end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Finalize;
 begin
-  abort;
+//  abort;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;

@@ -429,6 +429,7 @@ begin
     SIGHUP  : ReInit;
     SIGUSR1 : DeploymentDump;
     SIGINT  : Interrupt;
+    SIGALRM : Interrupt;
     else
       writeln('UNHANDLED CATCHED SIGNAL ',signum);
   end;

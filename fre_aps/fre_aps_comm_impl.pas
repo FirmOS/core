@@ -2317,6 +2317,7 @@ begin
   FPSigaction(SIGUSR2, @na, @dummy);
   FPsigaction(SIGINT,  @na, @dummy);
   FPSigaction(SIGHUP,  @na, @dummy);
+  FPSigaction(SIGALRM, @na, @dummy);
   FPSigaction(SIGTERM, @na, @dummy);
 end;
 
