@@ -48,7 +48,7 @@ unit fre_db_core_transdata;
 interface
 
 uses
-     Classes,contnrs, SysUtils,fos_sparelistgen,fre_db_interface,fre_db_core,fos_art_tree,fos_basis_tools,fos_tool_interfaces,fos_arraygen,fre_db_common,fre_db_persistance_common,strutils,fre_aps_interface,math;
+     Classes,contnrs, SysUtils,fos_sparelistgen,fre_db_interface,fre_db_core,fos_art_tree,fos_basis_tools,fos_tool_interfaces,fos_arraygen,fre_db_common,fre_db_persistance_common,strutils,fre_aps_interface,math,fre_system;
 var
     cFRE_INT_TUNE_SYSFILTEXTENSION_SZ : NativeUint =  128;
     cFRE_INT_TUNE_FILTER_PURGE_TO     : NativeUint =  0; // 5*1000; // 0 DONT PURGE
@@ -234,8 +234,8 @@ type
 
   TFRE_DB_FILTER_RIGHT=class(TFRE_DB_FILTER_BASE)
   protected
-    FRight     : TFRE_DB_STANDARD_RIGHT_SET;
-    FUserToken : IFRE_DB_USER_RIGHT_TOKEN;
+    FRight          : TFRE_DB_STANDARD_RIGHT_SET;
+    FUserTokenClone : IFRE_DB_USER_RIGHT_TOKEN;
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType; override;
@@ -391,6 +391,7 @@ type
      procedure   TagForUpInsDelRLC                 (const TransID : TFRE_DB_TransStepId);
      procedure   ClearTransactionTag               ;
      function    GetTransactionStepID              : TFRE_DB_TransStepId;
+     property    QryDBName                         : TFRE_DB_NameType read FQryDBName;
   end;
 
 
@@ -432,6 +433,7 @@ type
 
   TFRE_DB_TRANFORMED_DATA=class(TFRE_DB_TRANSFORMED_ARRAY_BASE)
   private
+    FTDDBName             : TFRE_DB_NameType;
     FKey                  : TFRE_DB_TRANS_COLL_DATA_KEY;   { CN/DCN/CHILD RL SPEC }
     FTransformKey         : QWord;
     FTransformedData      : TFPHashObjectList;
@@ -465,13 +467,14 @@ type
     procedure   HandleDeleteTransformedObject (const del_idx : NativeInt     ; const parent_object : IFRE_DB_Object ; transtag : TFRE_DB_TransStepId); { notify update, step 2 }
 
     procedure   TransformAll                  (var rcnt : NativeInt);                                             { transform all objects of the parent collection }
-    constructor Create                        (const key : TFRE_DB_TRANS_COLL_DATA_KEY ; const dc : IFRE_DB_DERIVED_COLLECTION);
+    constructor Create                        (const key : TFRE_DB_TRANS_COLL_DATA_KEY ; const dc : IFRE_DB_DERIVED_COLLECTION ; const db_name : TFRE_DB_NameType);
     destructor  Destroy                       ; override;
     procedure   ForAllObjs                    (const forall : TFRE_DB_Obj_Iterator);
 
     procedure   AddOrdering                   (const ordering : TFRE_DB_TRANSFORMED_ORDERED_DATA);
     procedure   RemoveOrdering                (const ordering : TFRE_DB_TRANSFORMED_ORDERED_DATA);
     function    GetTransFormKey               : TFRE_DB_TRANS_COLL_DATA_KEY;
+    procedure   CheckIntegrity                ;
   end;
 
   { TFRE_DB_OrderContainer }
@@ -517,6 +520,7 @@ type
     destructor  Destroy                       ; override;
     function    Filters                       : TFRE_DB_DC_FILTER_DEFINITION;
     function    PurgeFilterDataDueToTimeout   : boolean;
+    procedure   Checkintegrity                ;
   end;
 
 
@@ -551,6 +555,7 @@ type
     function     GetFiltersCount         : NativeInt;
     function     GetFilledFiltersCount   : NativeInt;
     procedure    CheckDoFilterPurge      ;
+    procedure    DebugCheckintegrity     ;
   end;
 
   OFRE_DB_TransCollTransformedDataList = specialize OGFOS_Array<TFRE_DB_TRANFORMED_DATA>; { list of transformed collections }
@@ -640,7 +645,7 @@ type
     procedure   RemoveQuery               (const qry_id : TFRE_DB_NameType);override;
     { forget all querys for the session/dc }
     procedure   DropAllQuerys             (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); override; { can be dc wide, or session wide dc_name='' }
-    function    FormQueryID               (const session : IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType;override;
+    function    FormQueryID               (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType;override;
     procedure   ApplyInboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object);
     procedure   InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); override;
 
@@ -841,6 +846,7 @@ begin
   FTM := tm;
   GFRE_TF.Get_TimedEvent(FNotifyEvent);
   GFRE_TF.Get_LFQ(FQ);
+   GFRE_LOG.RegisterThread('TDM_NT');
   Inherited create(false);
 end;
 
@@ -1138,6 +1144,7 @@ constructor TFRE_DB_TDM_STATS_CLEANER.Create(const tm: TFRE_DB_TRANSDATA_MANAGER
 begin
   FTM := tm;
   GFRE_TF.Get_TimedEvent(FStatEvent);
+  GFRE_LOG.RegisterThread('TDM_S');
   inherited Create(false);
 end;
 
@@ -1613,11 +1620,11 @@ end;
 function TFRE_DB_FILTER_RIGHT.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_RIGHT;
 begin
-  fClone             := TFRE_DB_FILTER_RIGHT.Create(FKey);
-  fClone.FRight      := FRight;
-  fClone.FNegate     := FNegate;
-  fClone.FUserToken  := FUserToken;
-  result             := fClone;
+  fClone                 := TFRE_DB_FILTER_RIGHT.Create(FKey);
+  fClone.FRight          := FRight;
+  fClone.FNegate         := FNegate;
+  fClone.FUserTokenClone := FUserTokenClone;
+  result                 := fClone;
 end;
 
 function TFRE_DB_FILTER_RIGHT.GetDefinitionKey: TFRE_DB_NameType;
@@ -1635,23 +1642,23 @@ begin
     result:=result+'1'
   else
     result:=result+'0';
-  result:=result+FUserToken.GetUniqueTokenKey;
+  result:=result+FUserTokenClone.GetUniqueTokenKey;
 end;
 
 function TFRE_DB_FILTER_RIGHT.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var cn:ShortString;
 begin
   cn := obj.PreTransformedScheme;
-  result := FUserToken.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,cn,FRight)=edb_OK;
+  result := FUserTokenClone.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,cn,FRight)=edb_OK;
 end;
 
 procedure TFRE_DB_FILTER_RIGHT.InitFilter(stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
 begin
   if stdrightset=[] then
     raise EFRE_DB_Exception.Create(edb_ERROR,'at least one right must be specified for the filter');
-  FRight     := stdrightset;
-  FUserToken := usertoken;
-  FNegate    := negate;
+  FRight          := stdrightset;
+  FUserTokenClone := usertoken;
+  FNegate         := negate;
 end;
 
 { TFRE_DB_FILTER_SCHEME }
@@ -2369,6 +2376,28 @@ begin
   result := false;
 end;
 
+procedure TFRE_DB_FilterContainer.Checkintegrity;
+var  i   : NativeInt;
+     obj : IFRE_DB_Object;
+begin
+  try
+    for i := 0 to high(FOBJArray) do
+      begin
+        obj := FOBJArray[i].CloneToNewObject();
+        obj.Finalize;
+        obj := FOBJArray[i].CloneToNewObject();
+        obj.Finalize;
+        obj := FOBJArray[i].CloneToNewObject();
+        obj.Finalize;
+      end;
+  except
+    on E:Exception do
+      begin
+        writeln('--- FILTER INTEGRITY CHECK FAILED ',e.Message,' ',ForderKey,' ',FFilters.GetFilterKey);
+      end;
+  end;
+end;
+
 
 { TFRE_DB_DC_FILTER_DEFINITION }
 
@@ -2966,6 +2995,7 @@ destructor TFRE_DB_QUERY.Destroy;
 begin
   FQueryFilters.free;
   {FOrderDef.Free; dont free orderdef it's used in the orders TODO: CHECK}
+  GFRE_DBI.LogDebug(dblc_DBTDM,'  <> FINALIZE QRY [%s]',[GetQueryID]);
   inherited Destroy;
 end;
 
@@ -3019,10 +3049,18 @@ end;
 
 procedure TFRE_DB_QUERY.SetResultObject(const idx: NativeInt; const obj: IFRE_DB_Object; const compare_run: boolean);
 begin
-  if not compare_run then
-    FResultDBOs[idx] := obj.CloneToNewObject { objects will be freed on updated/inser/deleted -> references are invalid then }
-  else
-    FResultDBOsCompare[idx] := obj.CloneToNewObject
+  try
+    if not compare_run then
+      FResultDBOs[idx] := obj.CloneToNewObject { objects will be freed on updated/inser/deleted -> references are invalid then }
+    else
+      FResultDBOsCompare[idx] := obj.CloneToNewObject
+  except
+    on e:exception do
+      begin
+        GFRE_DBI.LogError(dblc_DBTDM,'INTERNAL - SetResultObject Failed '+e.Message);
+        raise;
+      end;
+  end;
 end;
 
 procedure TFRE_DB_QUERY.AddjustResultDBOLen(const compare_run: boolean);
@@ -3476,7 +3514,7 @@ begin
       tupo := FTransformedData.Items[idx] as TFRE_DB_Object;
       ppf  := tupo.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString;
       GFRE_DBI.LogDebug(dblc_DBTDM,'   >NOTIFY UPDATE OBJECT [%s] AGAINST TRANSDATA [%s] PARENTPATH [%s]',[obj.GetDescriptionID,FKey.key,ppf]);
-      FDC.TransformSingleUpdate(obj.CloneToNewObject(),self,FChildDataIsLazy,idx,ppf,transkey);
+      FDC.TransformSingleUpdate(G_TCDM.DBC(FTDDBName),obj.CloneToNewObject(),self,FChildDataIsLazy,idx,ppf,transkey);
     end
   else
     begin
@@ -3503,7 +3541,7 @@ begin
             ppf := par.UID_String
           else
             ppf := ppf+','+par.UID_String;
-          FDC.TransformSingleInsert(obj.CloneToNewObject(),self,FChildDataIsLazy,true,ppf,par,transkey); { Frees the object }
+          FDC.TransformSingleInsert(G_TCDM.DBC(FTDDBName),obj.CloneToNewObject(),self,FChildDataIsLazy,true,ppf,par,transkey); { Frees the object }
         end
       else
         begin { root insert }
@@ -3520,7 +3558,7 @@ begin
           else
             begin
               GFRE_DBI.LogDebug(dblc_DBTDM,' >NOTIFY INSERT OBJECT [%s] AGAINST TRANSDATA [%s] COLL [%s] IS A COLLECTION UPDATE',[obj.GetDescriptionID,FKey.key,coll_name]);
-              FDC.TransformSingleInsert(obj.CloneToNewObject(),self,FChildDataIsLazy,false,'',nil,transkey); { Frees the object }
+              FDC.TransformSingleInsert(G_TCDM.DBC(FTDDBName),obj.CloneToNewObject(),self,FChildDataIsLazy,false,'',nil,transkey); { Frees the object }
             end;
         end;
     end
@@ -3799,13 +3837,38 @@ begin
   result := FKey;
 end;
 
+procedure TFRE_DB_TRANFORMED_DATA.CheckIntegrity;
+
+  procedure CheckInt(const ino : TFRE_DB_Object);
+  var obj : IFRE_DB_Object;
+  begin
+   try
+    obj := ino.CloneToNewObject();
+    obj.Finalize;
+    obj := ino.CloneToNewObject();
+    obj.Finalize;
+    obj := ino.CloneToNewObject();
+    obj.Finalize;
+   except
+     on e : exception do
+      begin
+        writeln('TD Integrity Check Failed ',e.Message,' ',FKey.key);
+        halt;
+      end;
+   end;
+  end;
+
+begin
+  ForAllObjs(@CheckInt);
+end;
+
 procedure TFRE_DB_TRANFORMED_DATA.TransformAll(var rcnt: NativeInt);
 begin
-  FDC.TransformAllTo(self,FChildDataIsLazy,rcnt);
+  FDC.TransformAllTo(G_TCDM.DBC(FTDDBName),self,FChildDataIsLazy,rcnt);
 end;
 
 
-constructor TFRE_DB_TRANFORMED_DATA.Create(const key: TFRE_DB_TRANS_COLL_DATA_KEY; const dc: IFRE_DB_DERIVED_COLLECTION);
+constructor TFRE_DB_TRANFORMED_DATA.Create(const key: TFRE_DB_TRANS_COLL_DATA_KEY; const dc: IFRE_DB_DERIVED_COLLECTION; const db_name: TFRE_DB_NameType);
 begin
   FKey                    := key;
   Fkey.orderkey           := ''; { this is unordered, the orderkey comes from the frist query generating the data }
@@ -3814,6 +3877,7 @@ begin
   FTDCreationTime         := GFRE_DT.Now_UTC;
   FTransformedData        := TFPHashObjectList.Create(false);
   FOrderings              := TFPObjectList.Create(false);
+  FTDDBName               := db_name;
 end;
 
 destructor TFRE_DB_TRANFORMED_DATA.Destroy;
@@ -3902,12 +3966,18 @@ var cnt  : NativeInt;
     order.CheckDoFilterPurge;
   end;
 
+  procedure Debug_Checkup(const order : TFRE_DB_TRANSFORMED_ORDERED_DATA);
+  begin
+    order.DebugCheckintegrity;
+  end;
+
 begin
   LockManager;
   try
     cnt  := 0;
     fcnt := 0;
     FOrders.ForAll(@CountFilters);
+    //FOrders.ForAll(@Debug_Checkup);
     //GFRE_DB.LogDebug(dblc_DBTDM,'> TM STATS Queries (%d) Transforms (%d) Orders (%d) Filters/FilledFilters (%d/%d)',[FArtQueryStore.GetValueCount,FTransList.Count,FOrders.Count,cnt,fcnt]);
   finally
     UnlockManager;
@@ -3938,8 +4008,9 @@ procedure TFRE_DB_TRANSDATA_MANAGER.FinishNotificationBlock(out block: IFRE_DB_O
     try
       if qry.GetTransactionStepID<>'' then
         begin
-          GFRE_DBI.LogDebug(dblc_DBTDM,'  > PROCESSING TAGGED QRY [%s] TRANSID [%s]',[orderkey,qry.GetTransactionStepID]);
+          GFRE_DBI.LogDebug(dblc_DBTDM,'  > PROCESSING TAGGED QRY QID[%S] OK[%s] TRANSID [%s]',[qry.GetQueryID,orderkey,qry.GetTransactionStepID]);
           qry.ProcessFilterChangeBasedUpdates;
+          GFRE_DBI.LogDebug(dblc_DBTDM,'  < PROCESSING TAGGED QRY QID[%S] OK[%s] TRANSID [%s] DONE',[qry.GetQueryID,orderkey,qry.GetTransactionStepID]);
         end;
     finally
       qry.ClearTransactionTag;
@@ -4013,7 +4084,6 @@ var logcolls : string;
   end;
 
   procedure LogLeave;
-  var logcolls : string;
   begin
     GFRE_DBI.LogDebug(dblc_DBTDM,'<- NOTIFY : END   OBJECT DELETED [%s] in Collections [%s]',[obj.GetDescriptionID,logcolls]);
   end;
@@ -4241,7 +4311,7 @@ begin
           GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[basekey.key]);
           st        := GFRE_BT.Get_Ticks_ms;
           inc(FTransformKey);
-          transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey,dc);  { the transform data is identified by the basekey }
+          transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey,dc,QryDBName);  { the transform data is identified by the basekey }
           transdata.TransFormAll(rcnt);
           AddBaseTransformedData(transdata);
           et        := GFRE_BT.Get_Ticks_ms;
@@ -4498,13 +4568,13 @@ var fld : IFRE_DB_FIELD;
            dbf_BOOLEAN:   qry.Filterdef.AddBooleanFieldFilter(filter_key,ffn,filterdef.field('FILTERVALUES').AsBoolean,fnegate,fallownull);
            dbf_GUID:      ProcessUIDFilter;
            dbf_SCHEME:    qry.Filterdef.AddSchemeObjectFilter(filter_key,filterdef.field('FILTERVALUES').AsStringArr,fnegate);
-           dbf_RIGHT:     qry.Filterdef.AddStdRightObjectFilter(filter_key,FREDB_RightSetString2RightSet(filterdef.field('FILTERVALUES').AsString),session.GetDBConnection.SYS.GetCurrentUserToken,fnegate);
+           dbf_RIGHT:     qry.Filterdef.AddStdRightObjectFilter(filter_key,FREDB_RightSetString2RightSet(filterdef.field('FILTERVALUES').AsString),session.GetDBConnection.SYS.GetCurrentUserTokenClone,fnegate);
            else raise EFRE_DB_Exception.Create(edb_ERROR,'unhandled filter type');
          end;
        end;
 
    begin
-     qry.Filterdef.AddStdRightObjectFilter('*SRF*',[sr_FETCH],session.GetDBConnection.SYS.GetCurrentUserToken,false);
+     qry.Filterdef.AddStdRightObjectFilter('*SRF*',[sr_FETCH],session.GetDBConnection.SYS.GetCurrentUserTokenClone,false);
      qry.Filterdef.AddFilters(dc_static_filters,true);
      if input.FieldOnlyExistingObject('DEPENDENCY',dop) then
        begin
@@ -4516,7 +4586,7 @@ var fld : IFRE_DB_FIELD;
    procedure SetQueryID;
    begin
      qry.FQueryClientID := strtoint(input.Field('QUERYID').AsString);
-     qry.FQueryId       := FormQueryID(session,dc_name,qry.FQueryClientID);
+     qry.FQueryId       := FormQueryID(session.GetSessionID,dc_name,qry.FQueryClientID);
      qry.FQueryDescr    := Format('QRY(%s) DC(%s) CLID(%d)',[qry.FQueryId,dc_name,qry.FQueryClientID]);
    end;
 
@@ -4575,7 +4645,7 @@ var qryid:TFRE_DB_NameType;
   var qry:TFRE_DB_QUERY;
   begin
     qry := FREDB_PtrUIntToObject(val) as TFRE_DB_QUERY;
-    GFRE_DBI.LogDebug(dblc_DBTDM,'REMOVING CLIENT QUERY ID [%s]',[qry.GetQueryID]);
+    GFRE_DBI.LogDebug(dblc_DBTDM,'  REMOVING CLIENT QUERY ID [%s]',[qry.GetQueryID]);
     qry.free;
   end;
 
@@ -4586,7 +4656,7 @@ var qryid:TFRE_DB_NameType;
     GFRE_DBI.LogDebug(dblc_DBTDM,'<REMOVED DC QUERYS ID [%s] TOTAL Q COUNT=%d',[qryid,FArtQueryStore.GetValueCount]);
   end;
 
-  procedure Session_Clear;
+  procedure Session_Clear;  { TODO : HACKY / UNDERSTAND }
   begin
     GFRE_DBI.LogDebug(dblc_DBTDM,'>START REMOVING SESSION QUERYS ID [%s] TOTAL Q COUNT=%d',[qryid,FArtQueryStore.GetValueCount]);
     FArtQueryStore.PrefixStringScanClear(qryid,@clearit);
@@ -4596,7 +4666,7 @@ var qryid:TFRE_DB_NameType;
 begin
   LockManager;
   try
-    qryid := FormQueryID(session,dc_name,0);
+    qryid := FormQueryID(session.GetSessionID,dc_name,0);
     if dc_name<>'' then
       DC_Clear
     else
@@ -4606,9 +4676,9 @@ begin
   end;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.FormQueryID(const session: IFRE_DB_UserSession; const dc_name: TFRE_DB_NameTypeRL; const client_part: int64): TFRE_DB_NameType;
+function TFRE_DB_TRANSDATA_MANAGER.FormQueryID(const session_id: TFRE_DB_String; const dc_name: TFRE_DB_NameTypeRL; const client_part: int64): TFRE_DB_NameType;
 begin
-  result := session.GetSessionID;
+  result := session_id;
   if dc_name<>'' then
     result := result + '/'+GFRE_BT.HashFast32_Hex(dc_name);
   if client_part<>0 then
@@ -5165,7 +5235,7 @@ end;
 
 function TFRE_DB_TRANSFORMED_ORDERED_DATA.GetFilledFiltersCount: NativeInt;
 
-   procedure CheckPurge(var f : NativeUint);
+   procedure GetCount(var f : NativeUint);
    var filter : TFRE_DB_FilterContainer;
    begin
      filter := FREDB_PtrUIntToObject(f) as TFRE_DB_FilterContainer;
@@ -5175,18 +5245,34 @@ function TFRE_DB_TRANSFORMED_ORDERED_DATA.GetFilledFiltersCount: NativeInt;
 
  begin
    result := 0;
-   FArtTreeFilterKey.LinearScan(@CheckPurge);
+   FArtTreeFilterKey.LinearScan(@GetCount);
  end;
 
 procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.CheckDoFilterPurge;
+
   procedure CheckPurge(var f : NativeUint);
   var filter : TFRE_DB_FilterContainer;
   begin
     filter := FREDB_PtrUIntToObject(f) as TFRE_DB_FilterContainer;
     filter.PurgeFilterDataDueToTimeout;
   end;
+
 begin
   FArtTreeFilterKey.LinearScan(@CheckPurge);
+end;
+
+procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.DebugCheckintegrity;
+
+  procedure CheckIntegrity(var f : NativeUint);
+  var filter : TFRE_DB_FilterContainer;
+  begin
+    filter := FREDB_PtrUIntToObject(f) as TFRE_DB_FilterContainer;
+    filter.Checkintegrity;
+  end;
+
+begin
+  FBaseTransData.CheckIntegrity;
+  FArtTreeFilterKey.LinearScan(@CheckIntegrity);
 end;
 
 { TFRE_DB_TRANSDATA_MANAGER }

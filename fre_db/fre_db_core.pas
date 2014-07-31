@@ -1282,7 +1282,7 @@ type
 
   TFRE_DB_COLLECTION=class(TFRE_DB_Object,IFRE_DB_COLLECTION)
   private
-    FConnection            : TFRE_DB_BASE_CONNECTION;
+    FCollConnection        : TFRE_DB_BASE_CONNECTION;
     FIsTemporary           : Boolean;
     FObjectLinkStore       : IFRE_DB_PERSISTANCE_COLLECTION; //? Necessary to be referenced here
     FName                  : TFRE_DB_NameType;
@@ -1659,14 +1659,14 @@ type
     function IFRE_DB_DERIVED_COLLECTION.GetIndexedObj            = GetIndexedObjI;
 
   public
-    constructor  Create                        (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);override;
-    destructor   Destroy;override;
+    constructor  Create                        (const dbname: TFRE_DB_NameType; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
+    destructor   Destroy                       ; override;
     function     GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
 
-    procedure    MyTransForm                   (const in_objects : array of IFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode ; const update_idx : NativeInt ; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const in_parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
-    procedure    TransformAllTo                (const transdata  : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure    TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
-    procedure    TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
+    procedure    MyTransForm                   (const connection : TFRE_DB_CONNECTION ; const in_objects : array of IFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode ; const update_idx : NativeInt ; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const in_parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
+    procedure    TransformAllTo                (const connection : IFRE_DB_CONNECTION ; const transdata  : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
+    procedure    TransformSingleUpdate         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
+    procedure    TransformSingleInsert         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
 
@@ -1861,7 +1861,8 @@ type
     function           GetLastError                 : TFRE_DB_String;
     function           GetLastErrorcode             : TFRE_DB_Errortype;
 
-    function           GetCurrentUserToken          : IFRE_DB_USER_RIGHT_TOKEN;virtual;abstract;
+    function           GetCurrentUserTokenClone     : IFRE_DB_USER_RIGHT_TOKEN;virtual;abstract;
+    function           GetCurrentUserTokenRef       : IFRE_DB_USER_RIGHT_TOKEN;virtual;abstract;
     function           GetMyDomainID                : TFRE_DB_GUID; virtual;abstract;
     function           GetMyDomainID_String         : TFRE_DB_GUID_String;
     function           GetSystemDomainID_String     : TFRE_DB_GUID_String;
@@ -1942,6 +1943,7 @@ type
     function    GetMyDomainID               : TFRE_DB_GUID;
     function    GetSysDomainID              : TFRE_DB_GUID;
     function    GetUniqueTokenKey           : TFRE_DB_NameType;
+    function    Clone                       : TFRE_DB_USER_RIGHT_TOKEN;
   end;
 
   { TFRE_DB_SYSTEM_CONNECTION }
@@ -2149,7 +2151,8 @@ type
     function    GetMyDomainID                : TFRE_DB_GUID;override;
     procedure   ReloadUserandRights          (const useruid : TFRE_DB_GUID);
     function    APP                          : IFRE_DB_CONNECTION;
-    function    GetCurrentUserToken          : IFRE_DB_USER_RIGHT_TOKEN;override;
+    function    GetCurrentUserTokenClone     : IFRE_DB_USER_RIGHT_TOKEN;override;
+    function    GetCurrentUserTokenRef       : IFRE_DB_USER_RIGHT_TOKEN;override;
   end;
 
 
@@ -2255,7 +2258,8 @@ type
     function    AddDomain                      (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
 
     procedure   DrawScheme                   (const datastream:TStream;const classfile:string) ; override ;
-    function    GetCurrentUserToken            :IFRE_DB_USER_RIGHT_TOKEN;override;
+    function    GetCurrentUserTokenClone     :IFRE_DB_USER_RIGHT_TOKEN;override;
+    function    GetCurrentUserTokenRef       :IFRE_DB_USER_RIGHT_TOKEN;override;
   end;
 
   TFRE_RInterfaceImplementor =record
@@ -2798,24 +2802,30 @@ begin
   FAllDomainsUids   := domainids;
   fukey             := user.DomainLoginKey;
   hsh               := GFRE_BT.HashFast32(@fukey[1],Length(fukey),0);
+  for i:=0 to high(FAllDomainNames) do
+    FAllDomainNames[i]:=UpperCase(FAllDomainNames[i]);
   sl := TStringList.Create;
   try
     sl.Duplicates:=dupIgnore;
-    for i := 0 to high(rights) do begin
+    for i := 0 to high(rights) do
       sl.add(rights[i]);
-    end;
     sl.Sort;
     SetLength(FConnectionRights,sl.Count);
     for i:=0 to sl.Count-1 do begin
       FConnectionRights[i] := sl[i];
       hsh                  := GFRE_BT.HashFast32(@FConnectionRights[i][1],Length(FConnectionRights[i]),hsh);
     end;
+    sl.Clear;
+    for i := 0 to high(FAllDomainNames) do
+      sl.Add(FAllDomainNames[i]);
+    sl.Sort;
+    for i:=0 to sl.Count-1 do begin
+      hsh                  := GFRE_BT.HashFast32(@sl[i][1],Length(sl[i]),hsh);
+    end;
   finally
     sl.free;
   end;
   FUniqueToken           := GFRE_BT.Mem2HexStr(@hsh,4);
-  for i:=0 to high(FAllDomainNames) do
-    FAllDomainNames[i]:=UpperCase(FAllDomainNames[i]);
 end;
 
 destructor TFRE_DB_USER_RIGHT_TOKEN.Destroy;
@@ -2952,6 +2962,13 @@ end;
 function TFRE_DB_USER_RIGHT_TOKEN.GetUniqueTokenKey: TFRE_DB_NameType;
 begin
   result := FUniqueToken;
+end;
+
+function TFRE_DB_USER_RIGHT_TOKEN.Clone: TFRE_DB_USER_RIGHT_TOKEN;
+begin
+  result := TFRE_DB_USER_RIGHT_TOKEN.Create(FConnectedUser.CloneToNewObject.Implementor as TFRE_DB_USER,FConnectionRights,FIsSysAdmin,FSysDomainUID,FMyDomainID,FAllDomainsUids,FAllDomainNames);
+  if Result.FUniqueToken<>FUniqueToken then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'unique user token clone / failure / internal logic');
 end;
 
 { TFRE_DB_OBJECTLIST }
@@ -5918,9 +5935,14 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'operation not valid on a system only connection');
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.GetCurrentUserToken: IFRE_DB_USER_RIGHT_TOKEN;
+function TFRE_DB_SYSTEM_CONNECTION.GetCurrentUserTokenClone: IFRE_DB_USER_RIGHT_TOKEN;
 begin
-  result := FCurrentUserToken;
+  result := FCurrentUserToken.Clone;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.GetCurrentUserTokenRef: IFRE_DB_USER_RIGHT_TOKEN;
+begin
+ result := FCurrentUserToken;
 end;
 
 
@@ -6599,10 +6621,10 @@ begin
   FSession := session;
 end;
 
-constructor TFRE_DB_DERIVED_COLLECTION.Create(const connection: TFRE_DB_BASE_CONNECTION; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
+constructor TFRE_DB_DERIVED_COLLECTION.Create(const dbname:TFRE_DB_NameType ; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
 begin
-  inherited;
-  FDCollFilters  := GFRE_DB_TCDM.GetNewFilterDefinition(connection.FDBName);
+  inherited Create(nil,name,pers_coll);
+  FDCollFilters  := GFRE_DB_TCDM.GetNewFilterDefinition(DBName);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetCollectionTransformKey: TFRE_DB_NameTypeRL;
@@ -6612,7 +6634,7 @@ begin
 end;
 
 { record cnt includes transformed childs}
-procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const in_objects: array of IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode; const update_idx: NativeInt; const rl_ins: boolean; const parentpath: TFRE_DB_String; const in_parent_tr_obj: IFRE_DB_Object; const transkey: TFRE_DB_TransStepId);
+procedure TFRE_DB_DERIVED_COLLECTION.MyTransForm(const connection: TFRE_DB_CONNECTION; const in_objects: array of IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; var rec_cnt: NativeInt; const lazy_child_expand: boolean; const mode: TDC_TransMode; const update_idx: NativeInt; const rl_ins: boolean; const parentpath: TFRE_DB_String; const in_parent_tr_obj: IFRE_DB_Object; const transkey: TFRE_DB_TransStepId);
 var
   in_object     : IFRE_DB_Object;
   tr_obj        : TFRE_DB_Object;
@@ -6676,7 +6698,7 @@ var
 
 begin
   try
-    upconn := FConnection.UpcastDBC;
+    upconn := Connection;
     for in_object in in_objects do
       begin
         case mode of
@@ -6740,7 +6762,7 @@ begin
 end;
 
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformAllTo(const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; var record_cnt: NativeInt);
+procedure TFRE_DB_DERIVED_COLLECTION.TransformAllTo(const connection: IFRE_DB_CONNECTION; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; var record_cnt: NativeInt);
 var upconn     : TFRE_DB_CONNECTION;
     uids       : TFRE_DB_GUIDArray;
     objs       : IFRE_DB_ObjectArray;
@@ -6748,7 +6770,7 @@ var upconn     : TFRE_DB_CONNECTION;
 begin
   MustBeInitialized;
   transdata.CleanUp; { retransform ? }
-  upconn     := FConnection.UpcastDBC;
+  upconn     := Connection.Implementor_HC as TFRE_DB_CONNECTION;
   record_cnt := FParentCollection.Count;
   (FParentCollection.Implementor_HC as TFRE_DB_COLLECTION).GetAllUids(uids); // ForAllNoRightChk(@TransForm);
   upconn.BulkFetchNoRightCheck(uids,objs);
@@ -6756,19 +6778,23 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'objects double in collection');
   if record_cnt<>Length(objs) then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'recordcount mismatch / collcount vs bulkfetch (%d<>%d)',[record_cnt,Length(objs)]);
-  MyTransForm(objs,transdata,record_cnt,lazy_child_expand,trans_Insert,-1,false,'',nil,'-');
+  MyTransForm(upconn,objs,transdata,record_cnt,lazy_child_expand,trans_Insert,-1,false,'',nil,'-');
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt; const parentpath_full: TFRE_DB_String; const transkey: TFRE_DB_TransStepId);
-var rec_cnt:NativeInt;
+procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleUpdate(const connection: IFRE_DB_CONNECTION; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt; const parentpath_full: TFRE_DB_String; const transkey: TFRE_DB_TransStepId);
+var rec_cnt : NativeInt;
+    upconn  : TFRE_DB_CONNECTION;
 begin
-  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_Update,upd_idx,false,parentpath_full,nil,transkey);
+  upconn := connection.Implementor_HC as TFRE_DB_CONNECTION;
+  MyTransForm(upconn,in_object,transdata,rec_cnt,lazy_child_expand,trans_Update,upd_idx,false,parentpath_full,nil,transkey);
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleInsert(const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String; const parent_tr_obj: IFRE_DB_Object; const transkey: TFRE_DB_TransStepId);
+procedure TFRE_DB_DERIVED_COLLECTION.TransformSingleInsert(const connection: IFRE_DB_CONNECTION; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String; const parent_tr_obj: IFRE_DB_Object; const transkey: TFRE_DB_TransStepId);
 var rec_cnt:NativeInt;
+    upconn  : TFRE_DB_CONNECTION;
 begin
-  MyTransForm(in_object,transdata,rec_cnt,lazy_child_expand,trans_SingleInsert,-1,rl_ins,parentpath,parent_tr_obj,transkey);
+ upconn     := connection.Implementor_HC as TFRE_DB_CONNECTION;
+  MyTransForm(upconn,in_object,transdata,rec_cnt,lazy_child_expand,trans_SingleInsert,-1,rl_ins,parentpath,parent_tr_obj,transkey);
 end;
 
 //procedure TFRE_DB_DERIVED_COLLECTION.ApplyToPageI(const page_info: TFRE_DB_DC_PAGING_INFO; const iterator: IFRE_DB_Obj_Iterator);
@@ -7015,7 +7041,7 @@ begin
     dc_Map2RealCollection:
     //dc_ReferentialLinkCollection:
       begin
-          result := FConnection.Fetch(ouid,dbo)=edb_OK;
+          //result := FConnection.Fetch(ouid,dbo)=edb_OK;
       end;
     else
       raise EFRE_DB_Exception.Create(edb_ERROR,'Unsuported fetch for derived collection '+FName);
@@ -7158,7 +7184,7 @@ begin
   if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
       and assigned(TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform) then
         try
-          TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserToken,transformed_filtered_cloned_obj,ses.GetSessionGlobalData);
+          TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,ses.GetSessionGlobalData);
         except
           on e:exception do
             begin
@@ -7353,7 +7379,7 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.WEB_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var qid : TFRE_DB_NameType;
 begin
-  qid := GFRE_DB_TCDM.FormQueryID(ses,CollectionName(true),strtoint(input.Field('QUERYID').AsString));
+  qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true),strtoint(input.Field('QUERYID').AsString));
   GFRE_DB_TCDM.RemoveQuery(qid);
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -8812,8 +8838,7 @@ begin
   FObjectLinkStore := pers_coll;
   FName            := name;
   FUniqueName      := uppercase(name);
-  //FObservers.Init;
-  FConnection      := connection;
+  FCollConnection  := connection;
 end;
 
 
@@ -8883,9 +8908,9 @@ begin //nl
   suid   := new_obj.UID;
   result := edb_OK;
   try
-    FConnection.FPersistance_Layer.StoreOrUpdateObject(new_obj,FName,true);
+    FCollConnection.FPersistance_Layer.StoreOrUpdateObject(new_obj,FName,true);
   except
-    result := FConnection.FPersistance_Layer.GetLastErrorCode;
+    result := FCollConnection.FPersistance_Layer.GetLastErrorCode;
   end;
   new_obj:=nil;
 end;
@@ -8898,7 +8923,7 @@ begin
    begin
      if not FObjectLinkStore.Fetch(guids[i],obj) then
        raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
-     if FConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
+     if FCollConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
        iter(obj,halt);
      if halt then
        break;
@@ -8913,7 +8938,7 @@ begin
    begin
      if not FObjectLinkStore.Fetch(guids[i],obj) then
        raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
-     if FConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
+     if FCollConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
        iter(obj.Implementor as TFRE_DB_Object,halt);
      if halt then
        break;
@@ -8935,7 +8960,7 @@ function TFRE_DB_COLLECTION.Exists(const ouid: TGUID): boolean;
 var dbo : TFRE_DB_Object;
 begin //nl
   //result := FObjectLinkStore.Exists(ouid);
-  result := FConnection.FetchAccessRightTest(ouid);
+  result := FCollConnection.FetchAccessRightTest(ouid);
   if result=false then
     exit;
   dbo.Finalize;
@@ -8953,7 +8978,7 @@ begin //nl
     begin
        if not FObjectLinkStore.Fetch(uids[i],obj) then
          raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(uids[i]));
-       if FConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
+       if FCollConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
          func(obj.Implementor as TFRE_DB_Object);
     end;
 end;
@@ -8986,15 +9011,15 @@ function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): TFRE_DB_Errortype;
 var ncolls : TFRE_DB_StringArray;
 begin //nl
   try
-    if FConnection.DeleteAccessRightTest(ouid) then
+    if FCollConnection.DeleteAccessRightTest(ouid) then
       begin
-        FConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
+        FCollConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
         result := edb_OK;
       end
     else
       exit(edb_ACCESS);
   except
-    result := FConnection.FPersistance_Layer.GetLastErrorCode;
+    result := FCollConnection.FPersistance_Layer.GetLastErrorCode;
   end;
 end;
 
@@ -9004,8 +9029,8 @@ begin //nl
   try
      //objclass := new_obj.Implementor_HC.ClassType; { TODO -> Use Connection Right Check}
      if new_obj.DomainID=CFRE_DB_NullGUID then
-       new_obj.SetDomainID(FConnection.GetMyDomainID);
-     Result := FConnection.CheckAccessRightAndCondFinalize(new_obj,sr_STORE,false,false);
+       new_obj.SetDomainID(FCollConnection.GetMyDomainID);
+     Result := FCollConnection.CheckAccessRightAndCondFinalize(new_obj,sr_STORE,false,false);
      if Result<>edb_OK then
        exit;
         //((FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,new_obj.DomainID))
@@ -9032,8 +9057,8 @@ begin //nl
   // TODO Check if in collection
    //objclass := dbo.Implementor_HC.ClassType;
    if dbo.DomainID=CFRE_DB_NullGUID then
-     dbo.SetDomainID(FConnection.GetMyDomainID);
-   result := FConnection.CheckAccessRightAndCondFinalize(dbo,sr_UPDATE);
+     dbo.SetDomainID(FCollConnection.GetMyDomainID);
+   result := FCollConnection.CheckAccessRightAndCondFinalize(dbo,sr_UPDATE);
    if result <>edb_OK then
      exit;
    //if not
@@ -9041,7 +9066,7 @@ begin //nl
    //     or FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,FConnection.GetSysDomainUID)
    //     or FConnection.IsCurrentUserSystemAdmin) then
    //       exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+dbo.DomainID_String);
-    result := FConnection.Update(dbo,CollectionName(true));
+    result := FCollConnection.Update(dbo,CollectionName(true));
 end;
 
 function TFRE_DB_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
@@ -9105,7 +9130,7 @@ begin //nl
     exit;
   for i:=0 to high(uidarr) do
     begin
-       if FConnection.FetchAccessRightTest(uidarr[i]) then
+       if FCollConnection.FetchAccessRightTest(uidarr[i]) then
          inc(cnt);
     end;
   result := cnt>0;
@@ -10247,7 +10272,7 @@ function TFRE_DB_BASE_CONNECTION.CheckAccessRightAndCondFinalize(const dbi: IFRE
 var
     ut     : IFRE_DB_USER_RIGHT_TOKEN;
 begin
-  ut := GetCurrentUserToken;
+  ut := GetCurrentUserTokenRef;
   if not assigned(ut) then
     exit(edb_OK)
   else
@@ -10259,7 +10284,7 @@ var objclass : TClass;
     ut       : IFRE_DB_USER_RIGHT_TOKEN;
 begin
   objclass := dbo.Implementor_HC.ClassType;
-  ut       := GetCurrentUserToken;
+  ut       := GetCurrentUserTokenRef;
   if not
      ((not assigned(ut))
       or (ut.CheckStdRightAndCondFinalize(dbo,sr_UPDATE)=edb_OK))
@@ -10714,27 +10739,12 @@ begin
     expanded_refs[i] := exrefs[i];
 end;
 
-//function TFRE_DB_CONNECTION.GetDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
-//var coll : TFRE_DB_COLLECTION;
-//begin
-//  coll := Collection(collection_name,false);
-//  if not assigned(coll) then
-//    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the derived collection [%s] does not exist',[collection_name]);
-//  if not (coll is TFRE_DB_DERIVED_COLLECTION) then
-//    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the collection [%s] is not a derived collection but a [%s]',[collection_name,coll.ClassName]);
-//  result := coll as TFRE_DB_DERIVED_COLLECTION;
-//end;
 
 function TFRE_DB_CONNECTION.CreateDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 var lcollection : TFRE_DB_DERIVED_COLLECTION;
 begin
-  lcollection := TFRE_DB_DERIVED_COLLECTION.Create(self,collection_name,nil);
+  lcollection := TFRE_DB_DERIVED_COLLECTION.Create(FDBName,collection_name,nil);
   result      := lcollection;
-
-  //if CollectionExists(collection_name) then
-  //  raise EFRE_DB_Exception.Create(edb_EXISTS,'a collection named [%s] already exists',[collection_name]);
-  ////result := DerivedCollection(collection_name,true);
-  //result := CollectionCC(collection_name,TFRE_DB_DERIVED_COLLECTION,true,true) as TFRE_DB_DERIVED_COLLECTION;
 end;
 
 
@@ -10775,14 +10785,19 @@ begin
   FSysConnection.ReloadUserAndRights(CFRE_DB_NullGUID);
 end;
 
-function TFRE_DB_CONNECTION.GetCurrentUserToken: IFRE_DB_USER_RIGHT_TOKEN;
+function TFRE_DB_CONNECTION.GetCurrentUserTokenRef: IFRE_DB_USER_RIGHT_TOKEN;
 begin
-  result := FSysConnection.GetCurrentUserToken;
+  result := FSysConnection.GetCurrentUserTokenRef;
 end;
 
 procedure TFRE_DB_CONNECTION.DrawScheme(const datastream: TStream; const classfile: string);
 begin
    inherited DrawScheme(datastream, classfile);
+end;
+
+function TFRE_DB_CONNECTION.GetCurrentUserTokenClone: IFRE_DB_USER_RIGHT_TOKEN;
+begin
+  result := FSysConnection.GetCurrentUserTokenClone;
 end;
 
 

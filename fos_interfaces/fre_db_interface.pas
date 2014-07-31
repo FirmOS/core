@@ -893,9 +893,9 @@ type
 
   IFRE_DB_DERIVED_COLLECTION=interface(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
-    procedure  TransformAllTo                (const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure  TransformSingleUpdate         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
-    procedure  TransformSingleInsert         (const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
+    procedure  TransformAllTo                (const connection : IFRE_DB_CONNECTION ; const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
+    procedure  TransformSingleUpdate         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
+    procedure  TransformSingleInsert         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
     procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
 
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
@@ -1639,7 +1639,8 @@ type
     function    DumpUserRights              :TFRE_DB_String;
     function    GetSysDomainUID             :TGUID;
     //procedure   ReloadUserandRights         (const useruid : TFRE_DB_GUID);
-    function    GetCurrentUserToken         : IFRE_DB_USER_RIGHT_TOKEN;
+    function    GetCurrentUserTokenClone    : IFRE_DB_USER_RIGHT_TOKEN;
+    function    GetCurrentUserTokenRef      : IFRE_DB_USER_RIGHT_TOKEN;
   end;
 
 
@@ -1992,7 +1993,7 @@ type
     procedure   StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;
     procedure   RemoveQuery              (const qry_id: TFRE_DB_NameType); virtual; abstract;
     procedure   DropAllQuerys            (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
-    function    FormQueryID              (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
+    function    FormQueryID              (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
     procedure   InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
   end;
 
@@ -5773,7 +5774,7 @@ begin
             GFRE_DBI.LogDebug(dblc_SERVER,'FORCED USING EMPTY/DEFAULT SESSION DATA [%s]',[FSessionData.UID_String]);
           end;
           FUserName   := user_name;
-          FUserdomain := l_NDBC.SYS.GetCurrentUserToken.User.DomainID;
+          FUserdomain := l_NDBC.SYS.GetCurrentUserTokenClone.User.DomainID;
           FPromoted   := true;
           result      := pr_OK;
           _FetchAppsFromDB;
