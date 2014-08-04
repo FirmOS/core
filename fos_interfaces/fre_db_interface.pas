@@ -1518,16 +1518,17 @@ type
     function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String):TFRE_DB_String;
     function    FetchTranslateableTextHint    (const translation_key:TFRE_DB_String):TFRE_DB_String;
 
-    function    AdmGetUserCollection            :IFRE_DB_COLLECTION;
-    function    AdmGetRoleCollection            :IFRE_DB_COLLECTION;
-    function    AdmGetGroupCollection           :IFRE_DB_COLLECTION;
-    function    AdmGetDomainCollection          :IFRE_DB_COLLECTION;
-    function    AdmGetAuditCollection           :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowSchemeCollection  :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowMethCollection    :IFRE_DB_COLLECTION;
-    function    AdmGetNotificationCollection    :IFRE_DB_COLLECTION;
-    function    GetSysDomainUID                 :TGUID;
+    function    AdmGetUserCollection             :IFRE_DB_COLLECTION;
+    function    AdmGetRoleCollection             :IFRE_DB_COLLECTION;
+    function    AdmGetGroupCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetDomainCollection           :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection         :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection   :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowMethCollection     :IFRE_DB_COLLECTION;
+    function    AdmGetNotificationCollection     :IFRE_DB_COLLECTION;
+    function    AdmGetApplicationConfigCollection:IFRE_DB_COLLECTION;
+    function    GetSysDomainUID                  :TGUID;
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     procedure   DrawScheme                    (const datastream:TStream; const classfile:string);
@@ -2012,6 +2013,14 @@ type
   public
     procedure setMenuFunc  (const menuFunc: TFRE_DB_NameType; const objGuid: TGuid);
     function  getMenu      (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+  protected
+    class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
+  { TFRE_DB_APPLICATION_CONFIG }
+
+  TFRE_DB_APPLICATION_CONFIG=class(TFRE_DB_ObjectEx)
   protected
     class procedure  RegisterSystemScheme   (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
@@ -3871,6 +3880,22 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_APPLICATION_CONFIG }
+
+class procedure TFRE_DB_APPLICATION_CONFIG.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+end;
+
+class procedure TFRE_DB_APPLICATION_CONFIG.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  inherited InstallDBObjects(conn, currentVersionId, newVersionId);
+  newVersionId:='0.1';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+  end;
+end;
 
 { TFRE_DB_WORKFLOW_BASE }
 

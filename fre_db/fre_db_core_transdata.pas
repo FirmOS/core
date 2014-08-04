@@ -2111,7 +2111,7 @@ begin
       try
         fieldval      := fld.AsString;
         case FFilterType of
-          dbft_EXACT:      result := not AnsiContainsText(fieldval,FValues[0]) and (length(fieldval)=length(FValues[0]));
+          dbft_EXACT:      result := not (AnsiContainsText(fieldval,FValues[0]) and (length(fieldval)=length(FValues[0])));
           dbft_PART:       result := not AnsiContainsText(fieldval,FValues[0]);
           dbft_STARTPART:  result := not AnsiStartsText  (FValues[0],fieldval);
           dbft_ENDPART:    result := not AnsiEndsText    (FValues[0],fieldval);

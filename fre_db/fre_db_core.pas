@@ -1965,6 +1965,7 @@ type
     FSysWorkflowScheme   : TFRE_DB_COLLECTION; { the schemes, hierarchic }
     FSysWorkflowMethods  : TFRE_DB_COLLECTION; { the automatic steps }
     FSysNotifications    : TFRE_DB_COLLECTION;
+    FSysAppConfigs       : TFRE_DB_COLLECTION;
     FSysAudit            : TFRE_DB_COLLECTION;
 
     FCurrentUserToken    : TFRE_DB_USER_RIGHT_TOKEN;
@@ -2218,15 +2219,16 @@ type
     //function    FetchInternal               (const ouid:TGUID;out dbo:TFRE_DB_Object) : boolean; override;
 
 
-    function    AdmGetUserCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetRoleCollection        :IFRE_DB_COLLECTION;
-    function    AdmGetGroupCollection       :IFRE_DB_COLLECTION;
-    function    AdmGetDomainCollection      :IFRE_DB_COLLECTION;
-    function    AdmGetAuditCollection       :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowCollection    :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowSchemeCollection :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowMethCollection :IFRE_DB_COLLECTION;
-    function    AdmGetNotificationCollection :IFRE_DB_COLLECTION;
+    function    AdmGetUserCollection             :IFRE_DB_COLLECTION;
+    function    AdmGetRoleCollection             :IFRE_DB_COLLECTION;
+    function    AdmGetGroupCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetDomainCollection           :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection         :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection   :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowMethCollection     :IFRE_DB_COLLECTION;
+    function    AdmGetNotificationCollection     :IFRE_DB_COLLECTION;
+    function    AdmGetApplicationConfigCollection:IFRE_DB_COLLECTION;
 
     function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -3312,7 +3314,7 @@ begin
   //else
   //  transbase := output;
   if transbase.FieldExists(FInFieldName) then begin
-    if transbase.GetScheme().GetSchemeField(FInFieldName,scheme_field) and
+    if FDisplay and transbase.GetScheme().GetSchemeField(FInFieldName,scheme_field) and
        scheme_field.getEnum(enum) then begin
 
       enumVals:=enum.getEntries;
@@ -4647,6 +4649,17 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
     FSysNotifications := Collection('SysNotifications');
   end;
 
+  procedure SetupAppConfigCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysAppConfigs') then begin
+      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysAppConfigs');
+      coll := Collection('SysAppConfigs');
+      coll.DefineIndexOnField('id',fdbft_String,true,true);
+    end;
+    FSysAppConfigs := Collection('SysAppConfigs');
+  end;
+
   procedure SetupSingletonCollection;
   var coll : TFRE_DB_COLLECTION;
   begin
@@ -4716,6 +4729,7 @@ begin
   SetupAuditCollection;
   SetupWorkflowCollection;
   SetupNotificationCollection;
+  SetupAppConfigCollection;
   CheckStandardUsers;
 end;
 
@@ -10405,6 +10419,11 @@ end;
 function TFRE_DB_CONNECTION.AdmGetNotificationCollection: IFRE_DB_COLLECTION;
 begin
   result := FSysConnection.FSysNotifications;
+end;
+
+function TFRE_DB_CONNECTION.AdmGetApplicationConfigCollection: IFRE_DB_COLLECTION;
+begin
+  Result := FSysConnection.FSysAppConfigs;
 end;
 
 
