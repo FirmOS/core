@@ -1725,6 +1725,7 @@ type
     procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
   published
     function   WEB_GET_GRID_DATA       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+    function   WEB_GET_CHOOSER_DATA    (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_CLEAR_QUERY_RESULTS (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_DESTROY_STORE       (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_GET_CHART_DATA      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -7072,6 +7073,7 @@ function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
   case FDisplaytype of
     cdt_Listview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_GRID_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
+    cdt_Chooser:    result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHOOSER_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
     cdt_Treeview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
     cdt_Chartview:  result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHART_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
     else
@@ -7177,6 +7179,7 @@ function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
 begin
   case FDisplaytype of
     cdt_Listview:  result := GetListviewDescription;
+    cdt_Chooser:   raise EFRE_DB_Exception.Create(edb_ERROR,'getDisplayDescription not available for type Chooser');
     cdt_Treeview:  result := GetTreeViewDescription;
     cdt_Chartview: result := GetChartDescription;
     else raise EFRE_DB_Exception.Create(edb_ERROR,'DERIVED COLLECTION [%s] HAS AN INVALID DISPLAYTYPE SET [%d]',[CollectionName,ord(FDisplaytype)]);
@@ -7312,6 +7315,11 @@ begin
     writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
     raise;
   end;
+end;
+
+function TFRE_DB_DERIVED_COLLECTION.WEB_GET_CHOOSER_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  Result:=WEB_GET_GRID_DATA(input,ses,app,conn);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_GET_CHART_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;

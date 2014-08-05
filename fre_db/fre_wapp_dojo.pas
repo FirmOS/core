@@ -659,6 +659,7 @@ implementation
                              serverFunc:=store.Field('serverFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC;
                              serverFunc.AddParam.Describe('start','0');
                              serverFunc.AddParam.Describe('count','1000'); //FIXXME - define "ALL" parameter
+                             serverFunc.AddParam.Describe('queryid','0');
                              store_res_descr:=serverFunc.InternalInvoke(session).Implementor_HC as TFRE_DB_STORE_DATA_DESC;
                              if (store.Field('labelFields').ValueCount=0) then begin
                                store.Field('labelFields').AsStringArr:=TFRE_DB_StringArray.create('text','objname');
@@ -672,6 +673,10 @@ implementation
                                  caption:=store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('idField').AsString).AsString;
                                end;
                                jsContentAdd('"  <option value='''+store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('idField').AsString).AsString+'''>'+caption+'</option>"+');
+                             end;
+                             if store.FieldExists('destroyFunc') then begin
+                               serverFunc:=store.Field('destroyFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC;
+                               serverFunc.InternalInvoke(session);
                              end;
                            end;
                            jsContentAdd('"</select>"+');
