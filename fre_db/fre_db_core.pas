@@ -852,12 +852,11 @@ type
     function  IFRE_DB_ClientFieldValidator.getConfigParams = getConfigParamsI;
     function  IFRE_DB_ClientFieldValidator.setConfigParams = setConfigParamsI;
   public
-    function  Setup            (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const helpText: IFRE_DB_TEXT=nil; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
+    function  Setup            (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
     function  getRegExp        :TFRE_DB_String;
     function  getInfoText      :TFRE_DB_TEXT;
     function  getInfoTextI     :IFRE_DB_TEXT;
-    function  getHelpText      :TFRE_DB_TEXT;
-    function  getHelpTextI     :IFRE_DB_TEXT;
+    function  getHelpTextKey   :TFRE_DB_String;
     function  getAllowedChars  :TFRE_DB_String;
     function  CheckField       (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean):boolean; virtual;
   end;
@@ -3584,12 +3583,12 @@ begin
   Result:=true;
 end;
 
-function TFRE_DB_ClientFieldValidator.Setup(const regExp: TFRE_DB_String; const infoText: IFRE_DB_TEXT; const helpText: IFRE_DB_TEXT; const allowedChars: TFRE_DB_String): IFRE_DB_ClientFieldValidator;
+function TFRE_DB_ClientFieldValidator.Setup(const regExp: TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String; const allowedChars: TFRE_DB_String): IFRE_DB_ClientFieldValidator;
 begin
   Field('regExp').AsString:=regExp;
   Field('allowedChars').AsString := allowedChars;
-  Field('helpText').AsObject  := helpText.Implementor as TFRE_DB_Object;
   Description                 := infoText.Implementor as TFRE_DB_TEXT;
+  Field('helpText').AsString  := help_trans_key;
   Result:=Self;
 end;
 
@@ -3608,14 +3607,9 @@ begin
  result := getInfoText;
 end;
 
-function TFRE_DB_ClientFieldValidator.getHelpText: TFRE_DB_TEXT;
+function TFRE_DB_ClientFieldValidator.getHelpTextKey: TFRE_DB_String;
 begin
- Result:=Field('helpText').AsObject as TFRE_DB_TEXT
-end;
-
-function TFRE_DB_ClientFieldValidator.getHelpTextI: IFRE_DB_TEXT;
-begin
- result := getHelpText;
+ Result:=Field('helpText').AsString;
 end;
 
 function TFRE_DB_ClientFieldValidator.getAllowedChars: TFRE_DB_String;
@@ -18476,15 +18470,15 @@ begin
 
  GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('image').Setup('(.+(\.(?i)(jpg|png|gif|bmp))$)',
                                                      GFRE_DBI.CreateText('$validator_image','Image File Validator'),
-                                                     GFRE_DBI.CreateText('$validator_help_image','Please select an image file.'),
+                                                     FREDB_GetGlobalTextKey('validator_image_help'),
                                                      '\d\.\/'));
  GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('ip').Setup('^([1-9][0-9]{0,1}|1[013-9][0-9]|12[0-689]|2[01][0-9]|22[0-3])([.]([1-9]{0,1}[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){2}[.]([1-9][0-9]{0,1}|[1-9]{0,1}[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-4])(\/([89]|[12][0-9]|3[0-2])|$)$',
                                                    GFRE_DBI.CreateText('$validator_ip','IP Validator'),
-                                                   GFRE_DBI.CreateText('$validator_help_ip','1.0.0.1 - 223.255.255.254 excluding 127.x.x.x'),
+                                                   FREDB_GetGlobalTextKey('validator_ip_help'),
                                                    '\d\.\/'));
  GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('mac').Setup('^([0-9a-fA-F]{2}(:|$)){6}$',
-                                                    GFRE_DBI.CreateText('$validator_help_mac','MAC Validator'),
-                                                    GFRE_DBI.CreateText('$validator_mac','00:01:02:03:04:05'),
+                                                    GFRE_DBI.CreateText('$validator_mac','MAC Validator'),
+                                                    FREDB_GetGlobalTextKey('validator_mac_help'),
                                                     '\da-fA-F:'));
  //if not nosys then GFRE_DB.RegisterSystemSchemes;
  if not nosys then GFRE_DB.Initialize_System_Objects;

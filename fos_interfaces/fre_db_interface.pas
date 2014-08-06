@@ -1205,9 +1205,9 @@ type
     ['IFDBCV']
     function  getRegExp       :TFRE_DB_String;
     function  getInfoText     :IFRE_DB_TEXT;
-    function  getHelpText     :IFRE_DB_TEXT;
+    function  getHelpTextKey  :TFRE_DB_String;
     function  getAllowedChars :TFRE_DB_String;
-    function  Setup           (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const helpText: IFRE_DB_TEXT=nil; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
+    function  Setup           (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
   end;
 
   IFRE_DB_InputGroupSchemeDefinition = interface;

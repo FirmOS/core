@@ -59,7 +59,7 @@ type
    function  _EscapeValueString        (const value: String): String;
    procedure _BuildForm                (const session: TFRE_DB_UserSession; const co:TFRE_DB_FORM_DESC;const isDialog:Boolean; var hasCloseButton: Boolean);
    procedure _BuildButton              (const co:TFRE_DB_BUTTON_DESC; const hiddenFields: IFRE_DB_ObjectArray; const isDialog:Boolean; var hasCloseButton: Boolean);
-   procedure _BuildInput               (const co:TFRE_DB_INPUT_DESC);
+   procedure _BuildInput               (const session: TFRE_DB_UserSession; const co:TFRE_DB_INPUT_DESC);
    procedure _BuildInputNumber         (const co:TFRE_DB_INPUT_NUMBER_DESC);
    procedure _BuildInputDate           (const co:TFRE_DB_INPUT_DATE_DESC);
    procedure _BuildInputRecurrence     (const co:TFRE_DB_INPUT_RECURRENCE_DESC);
@@ -367,10 +367,12 @@ implementation
     jsContentAdd('">'+co.Field('caption').AsString+'</button>"');
   end;
 
-  procedure TFRE_DB_WAPP_DOJO._BuildInput(const co: TFRE_DB_INPUT_DESC);
+  procedure TFRE_DB_WAPP_DOJO._BuildInput(const session: TFRE_DB_UserSession; const co: TFRE_DB_INPUT_DESC);
   var
     fieldtype: String;
+    conn     : IFRE_DB_CONNECTION;
   begin
+    conn:=session.GetDBConnection;
     if co.Field('isPass').AsBoolean then begin
       fieldtype:='password';
     end else begin
@@ -399,11 +401,12 @@ implementation
       end;
     end;
     if co.FieldExists('vtype') then begin
+      jsContentAdd('" placeholder='''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
       if (co.FieldPath('vtype.allowedChars').AsString<>'') then begin
         jsContentAdd('" forbiddenchars= ''/[^' + StringReplace(co.FieldPath('vtype.allowedChars').AsString,'\','\\',[rfReplaceAll])+']/g''"+');
       end;
       jsContentAdd('" regExp= '''+co.FieldPath('vtype.regExp').AsString+'''"+');
-      jsContentAdd('" invalidMessage= '''+co.FieldPath('vtype.helpText').AsString+'''"+');
+      jsContentAdd('" invalidMessage= '''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
     end;
     jsContentAdd('" >"+');
   end;
@@ -761,7 +764,7 @@ implementation
                                                 jsContentAdd('"<div class=''firmosFormDescriptionField''>'+ _EscapeValueString(elem.Field('defaultValue').AsString) +'</div>"+');
                                               end;
             'TFRE_DB_INPUT_DESC': begin
-                                    _BuildInput(elem.Implementor_HC as TFRE_DB_INPUT_DESC);
+                                    _BuildInput(session,elem.Implementor_HC as TFRE_DB_INPUT_DESC);
                                   end;
             'TFRE_DB_INPUT_NUMBER_DESC': begin
                                            _BuildInputNumber(elem.Implementor_HC as TFRE_DB_INPUT_NUMBER_DESC);
