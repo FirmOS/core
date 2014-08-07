@@ -1407,7 +1407,7 @@ implementation
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridIcon"');
                         end;
             dt_boolean: begin
-                          //jsContentAdd('      ,widgetClass: dijit.form.CheckBox');
+                          jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderBool(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridBoolean"');
                         end;
           end;
