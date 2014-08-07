@@ -4201,7 +4201,6 @@ end;
 class procedure TFRE_DB_WORKFLOW_STEP.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 var
   group: IFRE_DB_InputGroupSchemeDefinition;
-  du,dg: IFRE_DB_FieldSchemeDefinition;
 begin
   inherited RegisterSystemScheme(scheme);
   {
@@ -4218,12 +4217,7 @@ begin
   scheme.AddSchemeField('is_error_step',fdbft_Boolean);                 { if set to true this is the ERROR catcher step of this level, it's triggered when a step fails }
   scheme.AddSchemeField('error_idx',fdbft_String);                      { index for the error step }
   scheme.AddSchemeField('state',fdbft_UInt32).required:=true;           { should be an enum : -> 1-> WAITING, 2-> CHILD IN PROGRESS, 3-> IN PROGRESS, 4-> DONE, 5 -> FAILED }
-  du:=scheme.AddSchemeField('designated_user',fdbft_ObjLink);           { this user should do the step }
-  du.required:=true;
-  dg:=scheme.AddSchemeField('designated_group',fdbft_ObjLink);          { exor this group should do the step }
-  dg.required:=true;
-  dg.addDepField('designated_user');
-  du.addDepField('designated_group');
+  scheme.AddSchemeField('designated_group',fdbft_ObjLink).required:=true;{ exor this group should do the step }
   scheme.AddSchemeField('done_by_user',fdbft_ObjLink);                  { who has done the step }
   scheme.AddSchemeField('auth_group',fdbft_ObjLink);                    { step needs auth by this group }
   scheme.AddSchemeField('auth_by_user',fdbft_ObjLink);                  { if the action was required to be authorized, by whom it was authorized}
@@ -4241,7 +4235,6 @@ begin
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
   group.AddInput('step_id',GetTranslateableTextKey('scheme_step_id'));
   group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP,true);
-  group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER,true);
   group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'',false,dh_chooser_combo,coll_GROUP);
   group.AddInput('allowed_time',GetTranslateableTextKey('scheme_allowed_time'));
   group.AddInput('action',GetTranslateableTextKey('scheme_action'),false,false,'',false,dh_chooser_combo,coll_WFACTION,true);
@@ -4249,7 +4242,6 @@ begin
   group:=scheme.AddInputGroup('error_main').Setup(GetTranslateableTextKey('scheme_error_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
   group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP,true);
-  group.AddInput('designated_user',GetTranslateableTextKey('scheme_designated_user'),false,false,'',false,dh_chooser_combo,coll_USER,true);
   group.AddInput('action',GetTranslateableTextKey('scheme_action'),false,false,'',false,dh_chooser_combo,coll_WFACTION,true);
 end;
 
@@ -4265,7 +4257,6 @@ begin
     StoreTranslateableText(conn,'scheme_step_caption','Caption');
     StoreTranslateableText(conn,'scheme_step_id','Order');
     StoreTranslateableText(conn,'scheme_designated_user','Assigned User');
-    StoreTranslateableText(conn,'scheme_designated_group','Assigned Group');
     StoreTranslateableText(conn,'scheme_auth_group','Authorizing Group');
     StoreTranslateableText(conn,'scheme_allowed_time','Allowed time (seconds)');
     StoreTranslateableText(conn,'scheme_action','Action');
