@@ -2081,7 +2081,6 @@ type
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   published
     function  WEB_Done             (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function  WEB_SaveOperation    (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; override;
     function  WEB_NotificationMenu (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   public
     procedure setState          (const conn: IFRE_DB_CONNECTION; const state: UInt32); override;
@@ -4256,7 +4255,7 @@ begin
     StoreTranslateableText(conn,'scheme_main_group','General Information');
     StoreTranslateableText(conn,'scheme_step_caption','Caption');
     StoreTranslateableText(conn,'scheme_step_id','Order');
-    StoreTranslateableText(conn,'scheme_designated_user','Assigned User');
+    StoreTranslateableText(conn,'scheme_designated_group','Assigned Group');
     StoreTranslateableText(conn,'scheme_auth_group','Authorizing Group');
     StoreTranslateableText(conn,'scheme_allowed_time','Allowed time (seconds)');
     StoreTranslateableText(conn,'scheme_action','Action');
@@ -4285,18 +4284,6 @@ begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_WORKFLOW_STEP.WEB_SaveOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-begin
-  if input.FieldPathExists('data.designated_user') then begin
-    input.FieldPathCreate('data.designated_group').AsString:=cFRE_DB_SYS_CLEAR_VAL_STR
-  end else begin
-    if input.FieldPathExists('data.designated_group') then begin
-      input.FieldPathCreate('data.designated_user').AsString:=cFRE_DB_SYS_CLEAR_VAL_STR;
-    end;
-  end;
-  Result:=inherited WEB_SaveOperation(input, ses, app, conn);
-end;
-
 procedure TFRE_DB_WORKFLOW_STEP.setState(const conn: IFRE_DB_CONNECTION; const state: UInt32);
 var
   notiObj  : TFRE_DB_NOTIFICATION;
@@ -4310,15 +4297,7 @@ begin
     notiObj.Field('caption').AsString:=Field('step_caption').AsString;
     notiObj.Field('details').AsString:=Field('step_details').AsString;
     notiObj.setMenuFunc('NotificationMenu',Self.UID);
-    if FieldExists('designated_user') then begin
-      notiObj.Field('for').AsObjectLink:=Field('designated_user').AsObjectLink;
-    end else begin
-      if FieldExists('designated_group') then begin
-        notiObj.Field('for').AsObjectLink:=Field('designated_group').AsObjectLink;
-      end else begin
-        raise EFRE_DB_Exception.Create(edb_ERROR,'Cannot create notification object. WF Step has no designated User or Group set.');
-      end;
-    end;
+    notiObj.Field('for').AsObjectLink:=Field('designated_group').AsObjectLink;
     CheckDbResult(conn.AdmGetNotificationCollection.Store(notiObj));
   end;
   if state=4 then begin
