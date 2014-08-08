@@ -302,7 +302,7 @@ begin
     CheckDbResult(conn.Fetch((conn.SYS.GetCurrentUserTokenRef.User.Implementor_HC as IFRE_DB_Object).UID,user));
     dialog.FillWithObjectValues(user,ses);
     dialog.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
-    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_logout'),CWSF(@WEB_doLogout),fdbbt_submit);
+    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_logout'),CWSF(@WEB_doLogout),fdbbt_button);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_abort'),nil,fdbbt_close);
     user.Finalize;
   end else begin
