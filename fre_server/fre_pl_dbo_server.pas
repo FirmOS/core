@@ -877,7 +877,7 @@ begin
   SetupPersistanceLayers;
   FDBO_Srv_Cfg.SpecialFile := cFRE_UX_SOCKS_DIR+cFRE_PS_LAYER_UXSOCK_NAME;
   FDBO_Srv_Cfg.Id          := 'FRE:PLServer';
-  FDBO_Srv_Cfg.Port        := '44010';
+  FDBO_Srv_Cfg.Port        := '44004';
   FDBO_Srv_Cfg.IP          := '0.0.0.0';
   FDBO_Srv_Cfg.FDontSendId := true;
   inherited Setup;
