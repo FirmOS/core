@@ -1383,6 +1383,9 @@ implementation
           jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
           jsContentAdd('      ,sortable: '+BoolToStr(elem.Field('sortable').AsBoolean,'true','false'));
           jsContentAdd('      ,filterable: '+BoolToStr(elem.Field('filterable').AsBoolean,'true','false'));
+          if elem.FieldExists('filterValues') then begin
+            jsContentAdd('      ,filterValues: '+_BuildJSArray(elem.Field('filterValues').AsStringArr));
+          end;
           jsContentAdd('      ,dataType: "' + elem.Field('displayType').AsString + '"');
           case FREDB_String2DBDisplayType(elem.Field('displayType').AsString) of
             dt_string : begin
