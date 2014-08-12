@@ -517,7 +517,7 @@ begin
   tob.AddOneToOnescheme ('CUSTOMERNUMBER');
 
   tob.AddCollectorscheme('%s %s | %5.5s (%s)',GFRE_DB.ConstructStringArray(['MAINADDRESS.STREET','MAINADDRESS.NR','MAINADDRESS.CITY','MAINADDRESS.ZIP']),'ADRESS');
-  tob.AddCollectorscheme('%s-%s-%s-%s-%s-%s',GFRE_DB.ConstructStringArray(['COMPANY','CUSTOMERNUMBER','MAINADDRESS.STREET','MAINADDRESS.NR','MAINADDRESS.CITY','MAINADDRESS.ZIP']),'FTX_SEARCH',true);
+  tob.AddFulltextFilterOnTransformed(['COMPANY','CUSTOMERNUMBER','ADRESS']);
 
 //  tob.SetupViewFields(GFRE_DB.ConstructStringArray(['COMPANY','CUSTOMERNUMBER','ADRESS','MAINADDRESS']);
   derived := Conn.CollectionCC('customer#page',TFRE_DB_DERIVED_COLLECTION) as TFRE_DB_DERIVED_COLLECTION;

@@ -1464,6 +1464,17 @@ type
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
+  { TFRE_DB_OUTCOLLECTOR_FT }
+
+  TFRE_DB_OUTCOLLECTOR_FT=class(TFRE_DB_FIELD_TRANSFORM)
+  protected
+    FFormatString : TFRE_DB_String;
+    FInfieldList  : TFRE_DB_NameTypeArray;
+  public
+    constructor Create         (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1);
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
+  end;
+
   { TFRE_DB_REFERERENCE_CHAIN_FT }
 
   TFRE_DB_REFERERENCE_CHAIN_FT=class(TFRE_DB_FIELD_TRANSFORM)
@@ -2543,6 +2554,35 @@ implementation
       result:=result+_ToChar(s[i]);
     end;
   end;
+
+{ TFRE_DB_OUTCOLLECTOR_FT }
+
+constructor TFRE_DB_OUTCOLLECTOR_FT.Create(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer);
+begin
+ FFormatString   := format;
+ FInfieldList    := in_fieldlist;
+ FOutFieldName   := lowercase(out_field);
+ FOutFieldTitle  := output_title;
+ FGuiDisplaytype := gui_display_type;
+ FDisplay        := display;
+ FSortable       := sortable;
+ FFilterable     := filterable;
+ FFilterValues   := nil;
+ FFieldSize      := fieldSize;
+end;
+
+procedure TFRE_DB_OUTCOLLECTOR_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
+var data : TFRE_DB_String;
+begin
+  try
+    data := output.FieldPathListFormat(FInfieldList,FFormatString,'');
+  except on e:exception do
+    begin
+      data := 'Transform Error: '+e.Message;
+    end;
+  end;
+  output.field(FOutFieldName).Asstring := data;
+end;
 
 { TFRE_DB_REFERERENCE_QRY_FT }
 
@@ -6412,8 +6452,21 @@ begin
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddFulltextFilterOnTransformed(const fieldlist: array of TFRE_DB_NameType);
+var
+  format : String;
+  fields : TFRE_DB_NameTypeArray;
+  i      : Integer;
 begin
- // abort; FIXXME
+  format:='%s';
+  for i := 1 to Length(fieldlist) - 1 do begin
+    format:=format+' %s';
+  end;
+  SetLength(fields,Length(fieldlist));
+  for i := 0 to High(fieldlist) do begin
+    fields[i]:=fieldlist[i];
+  end;
+
+  FTransformList.Add(TFRE_DB_OUTCOLLECTOR_FT.Create(format,fields,'FTX_SEARCH','',dt_string,false));
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddOneToOnescheme(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID: String; const openIconID: String; const default_value: TFRE_DB_String; const filterValues: TFRE_DB_StringArray; const hide_in_output: boolean);
