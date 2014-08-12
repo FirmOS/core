@@ -180,7 +180,7 @@ begin
   end;
 end;
 
-procedure OFRE_GenericSorter._merge_sort(const dst: PSortType; const size: NativeInt);nostackframe;
+procedure OFRE_GenericSorter._merge_sort(const dst: PSortType; const size: NativeInt);
 var middle,lout,i,j : NativeInt;
     newdst          : PSortType;
 begin
