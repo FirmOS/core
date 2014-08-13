@@ -161,11 +161,13 @@ type
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     procedure       CalculateDomainIcon       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
     procedure       CalculateGroupIcon        (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
+    procedure       CalculateRoleIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
     procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
   published
     function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentGroups         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_ContentRoles          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_AddDomain             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_CreateDomain          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ModifyDomain          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -313,6 +315,9 @@ var domain_Grid   : IFRE_DB_DERIVED_COLLECTION;
     groupin_Grid  : IFRE_DB_DERIVED_COLLECTION;
     tr_GroupIn    : IFRE_DB_SIMPLE_TRANSFORM;
 
+    rolein_Grid   : IFRE_DB_DERIVED_COLLECTION;
+    tr_RoleIn     : IFRE_DB_SIMPLE_TRANSFORM;
+
     app           : TFRE_DB_APPLICATION;
     conn          : IFRE_DB_CONNECTION;
 
@@ -380,6 +385,26 @@ begin
       SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_GinD'));
       SetDefaultOrderField('displayname',true);
     end;
+
+    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
+    with tr_RoleIn do begin
+      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
+      AddOneToOnescheme('icon','','',dt_string,false);
+      AddOneToOnescheme('internal','','',dt_string,False);
+      SetFinalRightTransformFunction(@CalculateRoleIcon);
+    end;
+    rolein_Grid := session.NewDerivedCollection('DOMAINMOD_ROLEIN_GRID');
+    with rolein_Grid do begin
+      SetDeriveParent(session.GetDBConnection.AdmGetRoleCollection);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_ROLE<DOMAINIDLINK'],false);
+      domain_Grid.AddSelectionDependencyEvent(CollectionName);
+      if CHIDE_INTERNAL then begin
+        AddBooleanFieldFilter('internal','internal',false);
+      end;
+      SetDeriveTransformation(tr_RoleIn);
+      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_RinD'));
+      SetDefaultOrderField('displayname',true);
+    end;
   end;
 end;
 
@@ -410,6 +435,15 @@ begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
   end else begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
+  end;
+end;
+
+procedure TFRE_COMMON_DOMAIN_MOD.CalculateRoleIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
+begin
+  if ut.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,transformed_object.DomainID) then begin
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
+  end else begin
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_lck.svg');
   end;
 end;
 
@@ -463,13 +497,16 @@ begin
     sec     := TFRE_DB_SUBSECTIONS_DESC.create.Describe;
 
     if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then begin
-      sec.AddSection.Describe(CWSF(@WEB_ContentUsers),FetchModuleTextShort(ses,'users_tab'),2);
+      sec.AddSection.Describe(CWSF(@WEB_ContentUsers),FetchModuleTextShort(ses,'users_tab'),1);
     end;
 
     if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
-      sec.AddSection.Describe(CWSF(@WEB_ContentGroups),FetchModuleTextShort(ses,'groups_tab'),1);
+      sec.AddSection.Describe(CWSF(@WEB_ContentGroups),FetchModuleTextShort(ses,'groups_tab'),2);
     end;
 
+    if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
+      sec.AddSection.Describe(CWSF(@WEB_ContentRoles),FetchModuleTextShort(ses,'roles_tab'),3);
+    end;
     Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(domaingrid,sec,nil,nil,nil,true);
   end else begin
     Result:=domaingrid;
@@ -504,6 +541,21 @@ begin
   groupingrid := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   Result  := groupingrid;
+end;
+
+function TFRE_COMMON_DOMAIN_MOD.WEB_ContentRoles(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  dc_rolesin    : IFRE_DB_DERIVED_COLLECTION;
+  rolesingrid   : TFRE_DB_VIEW_LIST_DESC;
+
+begin
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP)) then
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
+
+  dc_rolesin  := ses.FetchDerivedCollection('DOMAINMOD_ROLEIN_GRID');
+  rolesingrid := dc_rolesin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+
+  Result  := rolesingrid;
 end;
 
 function TFRE_COMMON_DOMAIN_MOD.WEB_AddDomain(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;

@@ -1218,6 +1218,7 @@ type
   private
     function  GetDomainIDLink     : TGUID;
     function  GetIsInternal       : Boolean;
+    function  GetIsDisabled       : Boolean;
     function  GetIsProtected      : Boolean;
     procedure SetDomainIDLink     (AValue: TGUID);
     function  GetRoleIDs          : TFRE_DB_ObjLinkArray;
@@ -1225,6 +1226,7 @@ type
     function  IFRE_DB_GROUP.SetDesc          = SetDescI;
     procedure SetIsInternal (AValue: Boolean);
     procedure SetIsProtected(AValue: Boolean);
+    procedure SetIsDisabled (AValue: Boolean);
     procedure SetRoleIDs(AValue: TFRE_DB_ObjLinkArray);
     procedure _UpdateDomainGroupKey;
   protected
@@ -1242,6 +1244,7 @@ type
     property  RoleIDs                      :TFRE_DB_ObjLinkArray read GetRoleIDs write SetRoleIDs;
     property  isProtected                  :Boolean read GetIsProtected write SetIsProtected;
     property  isInternal                   :Boolean read GetIsInternal write SetIsInternal;
+    property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;
   end;
 
   { TFRE_DB_ROLE }
@@ -1253,8 +1256,10 @@ type
     function  GetDomain                     (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
     function  GetDomainIDLink               : TGUID;
     function  GetIsInternal                 : Boolean;
+    function  GetIsDisabled                 : Boolean;
     procedure SetDomainIDLink               (AValue: TGUID);
     procedure SetIsInternal                 (AValue: Boolean);
+    procedure SetIsDisabled                 (AValue: Boolean);
   protected
     procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
@@ -1269,6 +1274,7 @@ type
     function  GetRightNames                 :TFRE_DB_StringArray;
     procedure AddRightsFromRole             (const role : IFRE_DB_ROLE);
     property  isInternal                    : Boolean read GetIsInternal write SetIsInternal;
+    property  isDisabled                    : Boolean read GetIsDisabled write SetIsDisabled;
   end;
 
   procedure          ForAllObjectsDo (const object_array:TFRE_DB_ObjectArray ; const iterator:TFRE_DB_Obj_Iterator);
@@ -4133,6 +4139,11 @@ begin
   Result:=Field('internal').AsBoolean;
 end;
 
+function TFRE_DB_GROUP.GetIsDisabled: Boolean;
+begin
+  Result:=Field('disabled').AsBoolean;
+end;
+
 function TFRE_DB_GROUP.GetIsProtected: Boolean;
 begin
   Result:=Field('protected').AsBoolean;
@@ -4152,6 +4163,11 @@ end;
 procedure TFRE_DB_GROUP.SetIsProtected(AValue: Boolean);
 begin
   Field('protected').AsBoolean:=AValue;
+end;
+
+procedure TFRE_DB_GROUP.SetIsDisabled(AValue: Boolean);
+begin
+  Field('disabled').AsBoolean:=AValue;
 end;
 
 procedure TFRE_DB_GROUP.SetDomainIDLink(AValue: TGUID);
@@ -4414,6 +4430,11 @@ begin
   Result:=Field('internal').AsBoolean;
 end;
 
+function TFRE_DB_ROLE.GetIsDisabled: Boolean;
+begin
+  Result:=Field('disabled').AsBoolean;
+end;
+
 procedure TFRE_DB_ROLE.SetDomainIDLink(AValue: TGUID);
 begin
  Field('domainidlink').AsObjectLink := AValue;
@@ -4423,6 +4444,11 @@ end;
 procedure TFRE_DB_ROLE.SetIsInternal(AValue: Boolean);
 begin
   Field('internal').AsBoolean:=AValue;
+end;
+
+procedure TFRE_DB_ROLE.SetIsDisabled(AValue: Boolean);
+begin
+  Field('disabled').AsBoolean:=AValue;
 end;
 
 procedure TFRE_DB_ROLE._calcDisplayName(const calc: IFRE_DB_CALCFIELD_SETTER);

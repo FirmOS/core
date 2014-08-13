@@ -1106,10 +1106,13 @@ type
     function  GetDomain                    (const conn  : IFRE_DB_CONNECTION): TFRE_DB_NameType;
     procedure AddRight                     (const right : IFRE_DB_RIGHT);
     function  GetIsInternal                : Boolean;
+    function  GetIsDisabled                : Boolean;
     function  GetRightNames                : TFRE_DB_StringArray;
     procedure AddRightsFromRole            (const role : IFRE_DB_ROLE);
     procedure SetIsInternal                (AValue: Boolean);
+    procedure SetIsDisabled                (AValue: Boolean);
     property  isInternal                   : Boolean read GetIsInternal write SetIsInternal;
+    property  isDisabled                   : Boolean read GetIsDisabled write SetIsDisabled;
   end;
 
   IFRE_DB_USER=interface;
@@ -1194,10 +1197,13 @@ type
     function  DomainID                     : TGUID;
     function  GetIsInternal                : Boolean;
     function  GetIsProtected               : Boolean;
+    function  GetIsDisabled                : Boolean;
     procedure SetIsInternal                (AValue: Boolean);
     procedure SetIsProtected               (AValue: Boolean);
+    procedure SetIsDisabled                (AValue: Boolean);
     property  isProtected                  :Boolean read GetIsProtected write SetIsProtected;
     property  isInternal                   :Boolean read GetIsInternal write SetIsInternal;
+    property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;
   end;
 
 
