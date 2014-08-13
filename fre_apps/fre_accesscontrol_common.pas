@@ -160,9 +160,6 @@ type
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     procedure       CalculateDomainIcon       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateGroupIcon        (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateRoleIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
   published
     function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -192,6 +189,7 @@ type
   end;
 
 procedure Register_DB_Extensions;
+function  _getDomainDisplayValues(const conn: IFRE_DB_CONNECTION; const domainIds: TFRE_DB_GUIDArray): TFRE_DB_StringArray;
 
 implementation
 
@@ -330,8 +328,8 @@ begin
     with tr_domain do begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_domain'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('suspended','','',dt_string,False);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('suspended','','',dt_boolean,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
       SetFinalRightTransformFunction(@CalculateDomainIcon);
     end;
     domain_Grid := session.NewDerivedCollection('DOMAINMOD_DOMAIN_GRID');
@@ -348,9 +346,8 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserIn);
     with tr_UserIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
-      SetFinalRightTransformFunction(@CalculateUserIcon);
+      AddConstString('icon',FREDB_getThemedResource('images_apps/share/user_ico.svg'));
+      AddOneToOnescheme('internal','','',dt_boolean,False);
     end;
     userin_Grid := session.NewDerivedCollection('DOMAINMOD_USERIN_GRID');
     with userin_Grid do begin
@@ -368,10 +365,9 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
     with tr_groupIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('protected','','',dt_string,False);
-      AddOneToOnescheme('internal','','',dt_string,False);
-      SetFinalRightTransformFunction(@CalculateGroupIcon);
+      AddConstString('icon',FREDB_getThemedResource('images_apps/share/group_ico.svg'));
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
     end;
     groupin_Grid := session.NewDerivedCollection('DOMAINMOD_GROUPIN_GRID');
     with groupin_Grid do begin
@@ -381,6 +377,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_GinD'));
       SetDefaultOrderField('displayname',true);
@@ -389,9 +386,9 @@ begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
     with tr_RoleIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
-      SetFinalRightTransformFunction(@CalculateRoleIcon);
+      AddConstString('icon',FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg'));
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
     end;
     rolein_Grid := session.NewDerivedCollection('DOMAINMOD_ROLEIN_GRID');
     with rolein_Grid do begin
@@ -401,6 +398,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_RinD'));
       SetDefaultOrderField('displayname',true);
@@ -426,33 +424,6 @@ begin
         transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_lck.svg');
       end;
     end;
-  end;
-end;
-
-procedure TFRE_COMMON_DOMAIN_MOD.CalculateGroupIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
-begin
-  if transformed_object.Field('protected').AsBoolean or not ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,transformed_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
-  end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
-  end;
-end;
-
-procedure TFRE_COMMON_DOMAIN_MOD.CalculateRoleIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
-begin
-  if ut.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,transformed_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
-  end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_lck.svg');
-  end;
-end;
-
-procedure TFRE_COMMON_DOMAIN_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
-begin
-  if ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,transformed_object.DomainID) then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
-  end else begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/user_ico_lck.svg');
   end;
 end;
 
@@ -925,7 +896,8 @@ begin
       end;
       AddOneToOnescheme('displayname','displayname',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       SetFinalRightTransformFunction(@CalculateRoleIcon);
       AddFulltextFilterOnTransformed(['displayname']);
    end;
@@ -942,6 +914,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDefaultOrderField('displayname',true);
       SetDeriveTransformation(tr_role);
     end;
@@ -950,7 +923,7 @@ begin
     with tr_UserIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
       if show_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
@@ -973,9 +946,9 @@ begin
     with tr_UserOut do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_USER)));
       end;
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -996,9 +969,10 @@ begin
     with tr_groupIn do begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('protected','','',dt_string,False);
+      AddOneToOnescheme('protected','','',dt_boolean,False);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
@@ -1012,6 +986,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_groupIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,CWSF(@WEB_GIRNotification),nil,CWSF(@WEB_AddToRole));
       SetDefaultOrderField('displayname',true);
@@ -1022,10 +997,11 @@ begin
       AddOneToOnescheme('displayname','displayname',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
-      AddOneToOnescheme('protected','','',dt_string,False);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('protected','','',dt_boolean,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_GROUP)));
       end;
       SetFinalRightTransformFunction(@CalculateGroupIcon);
     end;
@@ -1037,6 +1013,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_groupOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,CWSF(@WEB_GORNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
@@ -1566,8 +1543,9 @@ begin
       end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('protected','','',dt_string,False);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('protected','','',dt_boolean,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       SetFinalRightTransformFunction(@CalculateGroupIcon);
       AddFulltextFilterOnTransformed(['displayname']);
     end;
@@ -1584,6 +1562,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_Grid);
       SetDefaultOrderField('displayname',true);
     end;
@@ -1592,7 +1571,7 @@ begin
     with tr_UserIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
       if show_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
@@ -1615,9 +1594,9 @@ begin
     with tr_UserOut do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_USER)));
       end;
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -1639,7 +1618,8 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
@@ -1653,6 +1633,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,CWSF(@WEB_RIGNotification),nil,CWSF(@WEB_AddToRole));
       SetDefaultOrderField('displayname',true);
@@ -1663,9 +1644,10 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,6,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_ROLE)));
       end;
       SetFinalRightTransformFunction(@CalculateRoleFields);
     end;
@@ -1677,6 +1659,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_RoleOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,CWSF(@WEB_ROGNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
@@ -2533,7 +2516,7 @@ begin
       end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
       SetFinalRightTransformFunction(@CalculateUserIcon);
       AddFulltextFilterOnTransformed(['displayname']);
     end;
@@ -2560,8 +2543,9 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
-      AddOneToOnescheme('protected','','',dt_string,False);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('protected','','',dt_boolean,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
@@ -2576,6 +2560,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_GridIn);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddToGroup));
       SetDefaultOrderField('displayname',true);
@@ -2586,10 +2571,11 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
-      AddOneToOnescheme('protected','','',dt_string,False);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('protected','','',dt_boolean,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_GROUP)));
       end;
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
@@ -2602,6 +2588,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_GridOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveFromGroup));
       SetDefaultOrderField('displayname',true);
@@ -2611,7 +2598,8 @@ begin
     with tr_RoleIn do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
@@ -2626,6 +2614,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_RoleIn);
       SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UhasR'));
       SetDefaultOrderField('displayname',true);
@@ -2635,9 +2624,10 @@ begin
     with tr_RoleOut do begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_string,False);
+      AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_ROLE)));
       end;
       SetFinalRightTransformFunction(@CalculateRoleIcon);
     end;
@@ -2649,6 +2639,7 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
+      AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_RoleOut);
       SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UnotR'));
       SetDefaultOrderField('displayname',true);
@@ -3391,6 +3382,18 @@ begin
 
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_ACCESSCONTROL_APP);
   GFRE_DBI.Initialize_Extension_Objects;
+end;
+
+function _getDomainDisplayValues(const conn: IFRE_DB_CONNECTION; const domainIds: TFRE_DB_GUIDArray): TFRE_DB_StringArray;
+var
+  i        : Integer;
+  domainObj: IFRE_DB_Object;
+begin
+  SetLength(Result,Length(domainIds));
+  for i := 0 to High(domainIds) do begin
+    CheckDbResult(conn.Fetch(domainIds[i],domainObj));
+    Result[i]:=domainObj.Field('displayname').AsString;
+  end;
 end;
 
 
