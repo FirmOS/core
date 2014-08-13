@@ -52,7 +52,7 @@ unit fre_db_core;
 
 interface
 
-uses Sysutils,Classes,strutils,fpjson,jsonparser,fos_sparelistgen,
+uses Sysutils,Classes,fpjson,jsonparser,fos_sparelistgen,
      FRE_DB_INTERFACE,zstream,base64,math,fos_art_tree,
      FRE_SYSTEM,FOS_ARRAYGEN,
      FOS_TOOL_INTERFACES,FOS_REDBLACKTREE_GEN,
@@ -621,7 +621,7 @@ type
     function        AsString                           :TFRE_DB_String;
     function        FieldI                             (const name:TFRE_DB_NameType):IFRE_DB_FIELD;
     function        Field                              (const name:TFRE_DB_NameType):TFRE_DB_FIELD;virtual;
-    function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;var fld:TFRE_DB_FIELD):boolean;
+    function        FieldOnlyExisting                  (const name:TFRE_DB_NameType;out fld:TFRE_DB_FIELD):boolean;
     function        FieldOnlyExistingI                 (const name:TFRE_DB_NameType;var fld:IFRE_DB_FIELD):boolean;
     function        FieldOnlyExistingObj               (const name:TFRE_DB_NameType):TFRE_DB_Object;
     function        FieldOnlyExistingObjI              (const name:TFRE_DB_NameType):IFRE_DB_Object;
@@ -2043,7 +2043,6 @@ type
     function    UpdateGroupI                 (var   group: IFRE_DB_GROUP): TFRE_DB_Errortype;
     function    StoreTranslateableTextI      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
   protected
-    //function    IsCurrentUserSystemAdmin     : boolean; override;
     function    GetRoleIDArray               (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_GUIDArray;
     function    _GetRightsArrayForRoles       (const roleids      : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
     function    _GetRightsArrayForGroups      (const usergroupids : TFRE_DB_GUIDArray) : TFRE_DB_StringArray;
@@ -2800,40 +2799,6 @@ begin
     exit;
   result := FREDB_StringInArray(_GetStdRightName(std_right,rclassname,domain),FConnectionRights);
 end;
-
-//function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4DomainKey(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainKey: TGuid): boolean;
-//
-//  function IntCheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainuid: TGuid): boolean;
-//  begin
-//    result := IsCurrentUserSystemAdmin;
-//    if result then
-//      exit;
-//    result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,domainuid),FConnectionRights);
-//    if result then
-//      exit;
-//    result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,FSysDomainUID),FConnectionRights);  // check in system domain
-//  end;
-//
-//begin
-//  result := IsCurrentUserSystemAdmin;
-//  if result then
-//    exit;
-//  result := IntCheckClassRight4Domain(std_right,ClassTyp,domainKey);
-//  if result then
-//    exit;
-//  result := IntCheckClassRight4Domain(std_right,ClassTyp,FSysDomainUID);  // check in system domain
-//end;
-
-//function TFRE_DB_USER_RIGHT_TOKEN.IntCheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainuid: TGuid): boolean;
-//begin
-//  result := IsCurrentUserSystemAdmin;
-//  if result then
-//    exit;
-//  result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,domainuid),FConnectionRights);
-//  if result then
-//    exit;
-//  result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,FSysDomainUID),FConnectionRights);  // check in system domain
-//end;
 
 constructor TFRE_DB_USER_RIGHT_TOKEN.Create(const user: TFRE_DB_USER; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
 var sl    : TStringList;
@@ -4140,8 +4105,12 @@ begin
 end;
 
 function TFRE_DB_GROUP.GetIsDisabled: Boolean;
+var f : TFRE_DB_Field;
 begin
-  Result:=Field('disabled').AsBoolean;
+  if FieldOnlyExisting('disabled',f) then
+    Result:=f.AsBoolean
+  else
+    result := false;
 end;
 
 function TFRE_DB_GROUP.GetIsProtected: Boolean;
@@ -4431,8 +4400,12 @@ begin
 end;
 
 function TFRE_DB_ROLE.GetIsDisabled: Boolean;
+var f : TFRE_DB_FIELD;
 begin
-  Result:=Field('disabled').AsBoolean;
+  if FieldOnlyExisting('disabled',f) then
+    Result := f.AsBoolean
+  else
+    result := false;
 end;
 
 procedure TFRE_DB_ROLE.SetDomainIDLink(AValue: TGUID);
@@ -6201,24 +6174,20 @@ begin //nl
   result := StoreTranslateableText(ttxt);
 end;
 
-//function TFRE_DB_SYSTEM_CONNECTION.IsCurrentUserSystemAdmin: boolean;
-//begin
-//  if not assigned(FCurrentUserToken) then  // System Startup Case - RIGHTS GRANTED !
-//    exit(true);
-//  result := FCurrentUserToken.IsCurrentUserSystemAdmin;
-//end;
-
 function TFRE_DB_SYSTEM_CONNECTION.GetRoleIDArray(const usergroupids: TFRE_DB_GUIDArray): TFRE_DB_GUIDArray;
 var i            : integer;
     lUserGroup   : TFRE_DB_GROUP;
     lRoleIDs     : TFRE_DB_ObjLinkArray;
 begin
+  lUserGroup := nil;
+  lRoleIDs   := nil;
   for i:=0 to high(UserGroupIDs) do begin
     if FetchGroupbyID(UserGroupIDs[i],lUserGroup,true)<>edb_OK then begin
       raise EFRE_DB_Exception.Create('Could not fetch group by id '+GFRE_BT.GUID_2_HexString(UserGroupIDs[i]));
     end else begin
       try
-        FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
+        if not lUserGroup.isDisabled then
+          FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
       finally
         lUserGroup.Finalize;
       end;
@@ -6237,7 +6206,8 @@ begin
       raise EFRE_DB_Exception.Create('Could not fetch role by id '+GFRE_BT.GUID_2_HexString(roleids[i]));
     end else begin
       try
-        FREDB_ConcatStringArrays(lAllRights,lRole.GetRightNames);
+        if not lRole.isDisabled then
+          FREDB_ConcatStringArrays(lAllRights,lRole.GetRightNames);
       finally
         lrole.Finalize;
       end;
@@ -13654,7 +13624,7 @@ begin
   result := _Field(name);
 end;
 
-function TFRE_DB_Object.FieldOnlyExisting(const name: TFRE_DB_NameType; var fld: TFRE_DB_FIELD): boolean;
+function TFRE_DB_Object.FieldOnlyExisting(const name: TFRE_DB_NameType; out fld: TFRE_DB_FIELD): boolean;
 begin
   _InAccessibleCheck;
   fld    := _FieldOnlyExisting(name);
@@ -13668,7 +13638,9 @@ begin
   ofld   := _FieldOnlyExisting(name);
   result := assigned(ofld);
   if result then
-    fld := ofld;
+    fld := ofld
+  else
+    fld := nil;
 end;
 
 
