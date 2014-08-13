@@ -1488,7 +1488,7 @@ type
     FRefFieldChain : TFRE_DB_NameTypeRLArray;
   public
     function    RefLinkSpec         : TFRE_DB_NameTypeRLArray;override;
-    constructor Create              (const ref_field_chain: TFRE_DB_NameTypeRLArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false; const fieldSize: Integer=1;const iconID:String='');
+    constructor Create              (const ref_field_chain: TFRE_DB_NameTypeRLArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false; const fieldSize: Integer=1;const iconID:String='';const filterValues: TFRE_DB_StringArray=nil);
     procedure   TransformField      (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
@@ -1556,8 +1556,8 @@ type
     procedure   AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure   AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure   AddDBTextToOne                 (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
-    procedure   AddMatchingReferencedField     (const ref_field_chain: array of TFRE_DB_NameTypeRL;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const hide_in_output : boolean=false);
-    procedure   AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameTypeRL     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const hide_in_output : boolean=false);
+    procedure   AddMatchingReferencedField     (const ref_field_chain: array of TFRE_DB_NameTypeRL;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false);
+    procedure   AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameTypeRL     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false);
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
     function    GetViewCollectionDescription   : TFRE_DB_CONTENT_DESC;
     procedure   SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
@@ -3103,7 +3103,7 @@ begin
   Result:=FRefFieldChain;
 end;
 
-constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeRLArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID:String);
+constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeRLArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID:String; const filterValues: TFRE_DB_StringArray=nil);
 begin
   FRefFieldChain  := ref_field_chain;
   FInFieldName    := target_field;
@@ -3113,7 +3113,7 @@ begin
   FDisplay        := display;
   FSortable       := sortable;
   FFilterable     := filterable;
-  FFilterValues   := nil;
+  FFilterValues   := filterValues;
   FFieldSize      := fieldSize;
   FIconIdField    := iconID;
   if FOutFieldName='' then
@@ -6572,25 +6572,25 @@ begin
  FHasReflinkTransforms:=true;
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field_chain: array of TFRE_DB_NameTypeRL; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display:Boolean; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer;const iconID:String='';const hide_in_output : boolean=false);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field_chain: array of TFRE_DB_NameTypeRL; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display:Boolean; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer;const iconID:String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false);
 var rfc : TFRE_DB_NameTypeRLArray;
     i   : NativeInt;
 begin
   setlength(rfc,Length(ref_field_chain));
   for i:=0 to high(ref_field_chain) do
     rfc[i] := ref_field_chain[i];
-  FTransformList.Add(TFRE_DB_REFERERENCE_CHAIN_FT.Create(rfc,target_field,output_field,output_title,gui_display_type,display,sortable,filterable,fieldSize));
+  FTransformList.Add(TFRE_DB_REFERERENCE_CHAIN_FT.Create(rfc,target_field,output_field,output_title,gui_display_type,display,sortable,filterable,fieldSize,iconID,filterValues));
   FHasReflinkTransforms:=true;
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field: TFRE_DB_NameTypeRL; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display:Boolean;const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer;const iconID:String='';const hide_in_output : boolean=false);
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field: TFRE_DB_NameTypeRL; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display:Boolean;const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer;const iconID:String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false);
 var rf:TFRE_DB_NameTypeRL;
 begin
   rf := ref_field;
   if (pos('>',rf)=0) and
      (pos('<',rf)=0) then
        rf := rf+'>';
-  AddMatchingReferencedField([rf],target_field,output_field,output_title,display,gui_display_type,sortable,filterable,fieldSize,iconID,hide_in_output);
+  AddMatchingReferencedField([rf],target_field,output_field,output_title,display,gui_display_type,sortable,filterable,fieldSize,iconID,filterValues,hide_in_output);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.HasParentChildRefRelationDefined: boolean;
