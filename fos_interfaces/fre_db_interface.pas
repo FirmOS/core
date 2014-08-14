@@ -1112,7 +1112,8 @@ type
     procedure SetIsInternal                (AValue: Boolean);
     procedure SetIsDisabled                (AValue: Boolean);
     property  isInternal                   : Boolean read GetIsInternal write SetIsInternal;  { This role is used internally, and should not be or specially be presented to the user }
-    property  isDisabled                   : Boolean read GetIsDisabled write SetIsDisabled;  { This role is disabled, after a new instatiation of a user right token, the user gets not the rights of this role }
+    property  isDisabled                   : Boolean read GetIsDisabled write SetIsDisabled;  { This role is disabled,for users where the userdomain=the role domain
+                                                                                                after a new instatiation of a user right token, the user gets not the rights of this role }
   end;
 
   IFRE_DB_USER=interface;
@@ -1203,7 +1204,8 @@ type
     procedure SetIsDisabled                (AValue: Boolean);
     property  isProtected                  :Boolean read GetIsProtected write SetIsProtected;
     property  isInternal                   :Boolean read GetIsInternal write SetIsInternal;      { should not be shown in to the User, because the Group is not directly usable for the user }
-    property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;      { This group is disabled, after a new instatiation of a right token, the user gets not the roles of this group }
+    property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;      { This group is disabled for users where the userdomain=the group domain
+                                                                                                   ,after a new instatiation of a right token, the user gets not the roles of this group }
   end;
 
 

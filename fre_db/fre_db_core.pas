@@ -6186,8 +6186,9 @@ begin
       raise EFRE_DB_Exception.Create('Could not fetch group by id '+GFRE_BT.GUID_2_HexString(UserGroupIDs[i]));
     end else begin
       try
-        if not lUserGroup.isDisabled then
-          FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
+        if not ((lUserGroup.isDisabled) and
+           (lUserGroup.DomainID=FCurrentUserToken.GetMyDomainID)) then
+             FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
       finally
         lUserGroup.Finalize;
       end;
@@ -6206,7 +6207,8 @@ begin
       raise EFRE_DB_Exception.Create('Could not fetch role by id '+GFRE_BT.GUID_2_HexString(roleids[i]));
     end else begin
       try
-        if not lRole.isDisabled then
+        if not ((lRole.isDisabled) and
+                (lRole.DomainID=FCurrentUserToken.GetMyDomainID)) then
           FREDB_ConcatStringArrays(lAllRights,lRole.GetRightNames);
       finally
         lrole.Finalize;
