@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
     <Version Value="9"/>
@@ -38,12 +38,10 @@
       <Unit0>
         <Filename Value="con_apstest.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="con_apstest"/>
       </Unit0>
       <Unit1>
         <Filename Value="FRE_APS_INTERFACE.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="FRE_APS_INTERFACE"/>
       </Unit1>
       <Unit2>
         <Filename Value="fre_aps_test.pas"/>
@@ -53,7 +51,6 @@
       <Unit3>
         <Filename Value="../../fre.jsonrest/FRE_REST_SERVER.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="FRE_REST_SERVER"/>
       </Unit3>
       <Unit4>
         <Filename Value="../fre_libevent_core.pas"/>
@@ -73,7 +70,7 @@
       <Filename Value="../../../bin/con_apstest"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="$(ProjOutDir);../../fos_include"/>
       <OtherUnitFiles Value="..;../../fre_fcom;../../fre_core;../../fre_db;../../fre_server;../../fos_interfaces"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
@@ -87,7 +84,7 @@ if TargetOS = 'solaris' then
       </SyntaxOptions>
     </Parsing>
     <CodeGeneration>
-      <TargetCPU Value="i386"/>
+      <TargetCPU Value="x86_64"/>
     </CodeGeneration>
     <Linking>
       <Debugging>
@@ -99,10 +96,6 @@ if TargetOS = 'solaris' then
       <ConfigFile>
         <StopAfterErrCount Value="2"/>
       </ConfigFile>
-      <CompilerMessages>
-        <UseMsgFile Value="True"/>
-      </CompilerMessages>
-      <CompilerPath Value="$(CompPath)"/>
     </Other>
   </CompilerOptions>
 </CONFIG>

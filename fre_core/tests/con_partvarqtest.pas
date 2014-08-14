@@ -36,7 +36,7 @@ var C       : TFOS_PARTVARQ;
 
   function Popstring(const qkey:integer;out data1:pointer;var mfp:pointer):string; overload;forward;
 
-  function Popstring(var mfp:pointer=nil;const qk:integer=0):string;
+  function Popstring(var mfp:pointer;const qk:integer=0):string;
   var data1:pointer;
   begin
     result:=Popstring(qk,data1,mfp);

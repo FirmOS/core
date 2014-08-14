@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
     <Version Value="9"/>
@@ -10,7 +10,6 @@
       <MainUnit Value="0"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
-      <ActiveWindowIndexAtStart Value="0"/>
     </General>
     <i18n>
       <EnableI18N LFM="False"/>
@@ -38,10 +37,8 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="CON_PARTVARQTEST"/>
         <IsVisibleTab Value="True"/>
-        <EditorIndex Value="0"/>
-        <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
-        <CursorPos X="1" Y="1"/>
+        <TopLine Value="14"/>
+        <CursorPos X="37" Y="39"/>
         <UsageCount Value="28"/>
         <Bookmarks Count="2">
           <Item0 X="35" Y="393" ID="2"/>
@@ -51,56 +48,42 @@
       </Unit0>
       <Unit1>
         <Filename Value="../FOS_CPU_TOOLS.pas"/>
-        <UnitName Value="FOS_CPU_TOOLS"/>
-        <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
         <CursorPos X="52" Y="11"/>
         <UsageCount Value="13"/>
       </Unit1>
       <Unit2>
         <Filename Value="../FOS_PARTVARQ.pas"/>
-        <UnitName Value="FOS_PARTVARQ"/>
-        <WindowIndex Value="0"/>
         <TopLine Value="181"/>
         <CursorPos X="17" Y="201"/>
         <UsageCount Value="13"/>
       </Unit2>
       <Unit3>
         <Filename Value="../../../flux_opt/engine/FOS_FLUX_ENGINE.pas"/>
-        <UnitName Value="FOS_FLUX_ENGINE"/>
-        <WindowIndex Value="0"/>
         <TopLine Value="1801"/>
         <CursorPos X="23" Y="1818"/>
         <UsageCount Value="10"/>
       </Unit3>
       <Unit4>
         <Filename Value="../../../fpc-2.4.0/rtl/objpas/classes/classesh.inc"/>
-        <WindowIndex Value="0"/>
         <TopLine Value="1396"/>
         <CursorPos X="17" Y="1429"/>
         <UsageCount Value="10"/>
       </Unit4>
       <Unit5>
         <Filename Value="../../../../fre/fre.chriko/fre_core/FOS_INTERLOCKED.pas"/>
-        <UnitName Value="FOS_INTERLOCKED"/>
-        <WindowIndex Value="0"/>
         <TopLine Value="332"/>
         <CursorPos X="19" Y="351"/>
         <UsageCount Value="10"/>
       </Unit5>
       <Unit6>
         <Filename Value="../fpmake.pas"/>
-        <UnitName Value="fpmake"/>
-        <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
         <CursorPos X="5" Y="5"/>
         <UsageCount Value="10"/>
       </Unit6>
       <Unit7>
         <Filename Value="../fos_basis_tools.pas"/>
-        <UnitName Value="FOS_BASIS_TOOLS"/>
+        <UnitName Value="fos_basis_tools"/>
         <EditorIndex Value="1"/>
-        <WindowIndex Value="0"/>
         <TopLine Value="24"/>
         <CursorPos X="25" Y="42"/>
         <UsageCount Value="10"/>
@@ -182,15 +165,14 @@
       </Position18>
       <Position19>
         <Filename Value="CON_PARTVARQTEST.pas"/>
-        <Caret Line="6" Column="25" TopLine="1"/>
+        <Caret Line="6" Column="25"/>
       </Position19>
       <Position20>
         <Filename Value="../fos_basis_tools.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
       </Position20>
       <Position21>
         <Filename Value="con_partvarqtest.pas"/>
-        <Caret Line="1" Column="74" TopLine="1"/>
+        <Caret Column="74"/>
       </Position21>
       <Position22>
         <Filename Value="con_partvarqtest.pas"/>
@@ -202,7 +184,7 @@
       </Position23>
       <Position24>
         <Filename Value="con_partvarqtest.pas"/>
-        <Caret Line="44" Column="1" TopLine="21"/>
+        <Caret Line="44" TopLine="21"/>
       </Position24>
       <Position25>
         <Filename Value="con_partvarqtest.pas"/>
@@ -218,11 +200,10 @@
       </Position27>
       <Position28>
         <Filename Value="con_partvarqtest.pas"/>
-        <Caret Line="44" Column="1" TopLine="27"/>
+        <Caret Line="44" TopLine="27"/>
       </Position28>
       <Position29>
         <Filename Value="con_partvarqtest.pas"/>
-        <Caret Line="39" Column="25" TopLine="736"/>
       </Position29>
     </JumpHistory>
   </ProjectOptions>
@@ -238,9 +219,6 @@
         <OptimizationLevel Value="0"/>
       </Optimizations>
     </CodeGeneration>
-    <Other>
-      <CompilerPath Value="$(CompPath)"/>
-    </Other>
   </CompilerOptions>
   <Debugging>
     <BreakPoints Count="2">

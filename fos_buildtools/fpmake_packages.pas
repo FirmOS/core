@@ -17,6 +17,7 @@ program fpmake_packages;
        Directory:=cFOS_BUILD_PREFIX+'fos_interfaces';
        Dependencies.Add('fcl-json');
        Dependencies.Add('fcl-xml');
+       Dependencies.Add('rtl-extra');
        with targets do begin
          addunit('jsonparser.pp');
          addunit('fpjson.pp');
