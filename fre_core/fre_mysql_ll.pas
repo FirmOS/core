@@ -2,9 +2,7 @@ unit fre_mysql_ll;
 
 {$mode objfpc}{$H+}
 
-{$IFDEF DARWIN}
-  {$DEFINE FREMYSQL}
-{$ENDIF}
+{$DEFINE FREMYSQL}
 
 interface
 
