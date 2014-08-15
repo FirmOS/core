@@ -2301,7 +2301,15 @@ var ign,dummy: SigactionRec;
   end;
 
 begin
-  SetupSSL_Ctx;
+  try
+    SetupSSL_Ctx;
+  except
+    on e:Exception do
+      begin
+        FSSL_CTX:=nil;
+        writeln('SSL Setup Failed '+e.Message);
+      end;
+  end;
   FMainThread:=TFRE_APS_COMM_MAIN_THREAD.Create;
 
   na.sa_Handler:=SigActionHandler(@DoSig);
