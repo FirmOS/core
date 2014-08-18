@@ -1659,7 +1659,8 @@ begin
       if CHIDE_INTERNAL then begin
         AddBooleanFieldFilter('internal','internal',false);
       end;
-      AddBooleanFieldFilter('disabled','disabled',false);
+      Filters.AddBooleanFieldFilter('disabled','disabled',false);
+      Filters.AddUIDFieldFilter('domainidlink','domainidlink',[],dbnf_OneValueFromFilter);
       SetDeriveTransformation(tr_RoleOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,CWSF(@WEB_ROGNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
@@ -2029,6 +2030,7 @@ var
   notEditable   : Boolean;
   domainUid     : TGuid;
   groupProtected: Boolean;
+  roleout_Grid: IFRE_DB_DERIVED_COLLECTION;
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then
@@ -2073,6 +2075,9 @@ begin
   end else begin
     if IsContentUpdateVisible(ses,'GROUPMOD_ROLEOUT_GRID') then begin
       ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('GROUPMOD_ROLEOUT_GRID',notEditable or groupProtected));
+      roleout_Grid:=ses.FetchDerivedCollection('GROUPMOD_ROLEOUT_GRID');
+      roleout_Grid.Filters.RemoveFilter('domainidlink');
+      roleout_Grid.Filters.AddUIDFieldFilter('domainidlink','domainidlink',[domainUid],dbnf_OneValueFromFilter);
     end;
     if IsContentUpdateVisible(ses,'GROUPMOD_ROLEIN_GRID') then begin
       ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('GROUPMOD_ROLEIN_GRID',notEditable or groupProtected));
@@ -3203,7 +3208,7 @@ class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects(const conn: IFRE_
 begin
   inherited;
 
-  newVersionId:='1.1';
+  newVersionId:='1.2';
 
   if (currentVersionId='') then begin
     currentVersionId:='1.0';
@@ -3223,6 +3228,9 @@ begin
     currentVersionId:='1.1';
     CreateAppText(conn,'wf_description','Workflows','Workflows','Workflows');
     CreateAppText(conn,'sitemap_wfs','WFs','','WFs');
+  end;
+  if (currentVersionId='1.1') then begin
+    currentVersionId:='1.2';
   end;
 end;
 
@@ -3359,6 +3367,15 @@ begin
     CheckDbResult(conn.AddRoleRightsToRole('ACVIEWSYSTEM',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,false,false,true)));
     CheckDbResult(conn.AddRoleRightsToRole('ACVIEWSYSTEM',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
   end;
+  if currentVersionId='1.0' then begin
+    currentVersionId:='1.1';
+  end;
+  if currentVersionId='1.1' then begin
+    currentVersionId:='1.2';
+    CheckDbResult(conn.RemoveRoleFromAllGroups('ACVIEWSYSTEM',domainUID));
+    CheckDbResult(conn.DeleteRole('ACVIEWSYSTEM',domainUID));
+  end;
+
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.RegisterSystemScheme( const scheme: IFRE_DB_SCHEMEOBJECT);

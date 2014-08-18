@@ -2105,6 +2105,7 @@ type
     function    RemoveRolesFromGroupById    (const group:TFRE_DB_String;const domainUID: TGUID;const role_ids: TFRE_DB_GUIDArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    RemoveAllRolesFromGroup     (const group:TFRE_DB_String;const domainUID: TGUID): TFRE_DB_Errortype;
+    function    RemoveRoleFromAllGroups     (const role:TFRE_DB_String;const domainUID: TGUID): TFRE_DB_Errortype;
     function    ModifyUserGroupsById        (const user_id:TGuid; const user_group_ids:TFRE_DB_GUIDArray;const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroupsById        (const user_id:TGuid; const user_group_ids:TFRE_DB_GUIDArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const login:TFRE_DB_String; const domainUID: TGUID;const oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
@@ -4218,7 +4219,7 @@ end;
 
 class procedure TFRE_DB_GROUP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.0';
+  newVersionId:='1.1';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
 
@@ -4226,6 +4227,9 @@ begin
     conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_group_domain','Domain'));
     conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_name','Name'));
     conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_domainid','Domain'));
+  end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
   end;
 end;
 
@@ -4240,6 +4244,13 @@ begin
     role := CreateClassRole('assignGroup','Assign Group','Allowed to assign Groups');
     role.AddRight(GetRight4Domain(GetClassRightName('assignGroup'),domainUID));
     CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.assignGroup role');
+  end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
+
+    role := CreateClassRole('disableGroup','Disable Group','Allowed to disable Groups');
+    role.AddRight(GetRight4Domain(GetClassRightName('disableGroup'),domainUID));
+    CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.disableGroup role');
   end;
 end;
 
@@ -4441,11 +4452,13 @@ end;
 
 class procedure TFRE_DB_ROLE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.0';
+  newVersionId:='1.1';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
-
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
+  end;
 end;
 
 class procedure TFRE_DB_ROLE.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
@@ -4459,6 +4472,13 @@ begin
     role := CreateClassRole('assignRole','Assign Role','Allowed to assign Roles');
     role.AddRight(GetRight4Domain(GetClassRightName('assignRole'),domainUID));
     CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.assignRole role');
+  end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
+
+    role := CreateClassRole('disableRole','Disable Role','Allowed to disable Roles');
+    role.AddRight(GetRight4Domain(GetClassRightName('disableRole'),domainUID));
+    CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.disableRole role');
   end;
 end;
 
@@ -5400,6 +5420,30 @@ begin
 
   l_Group.RoleIDs := TFRE_DB_GUIDArray.create;
   result := Update(l_Group);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.RemoveRoleFromAllGroups(const role: TFRE_DB_String; const domainUID: TGUID): TFRE_DB_Errortype;
+var
+  roleObj  : TFRE_DB_ROLE;
+  groupIds : TFRE_DB_GUIDArray;
+  i        : Integer;
+  group    : TFRE_DB_GROUP;
+begin
+  if not CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,domainUID) then
+    exit(edb_ACCESS);
+
+  FetchRole(role,domainUID,roleObj);
+  groupIds:=GetReferences(roleObj.UID,false,'TFRE_DB_GROUP');
+  for i := 0 to High(groupIds) do begin
+    Result:=FetchGroupById(groupIds[i],group);
+    if result<>edb_OK then
+      exit;
+    group.Field('roleids').RemoveObjectLinkByUID(roleObj.UID);
+    Result:=Update(group);
+    if result<>edb_OK then
+      exit;
+  end;
+  Result := edb_OK;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.ModifyUserGroupsById(const user_id:TGuid; const user_group_ids:TFRE_DB_GUIDArray; const keep_existing_groups: boolean): TFRE_DB_Errortype;
