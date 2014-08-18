@@ -1954,7 +1954,7 @@ type
 
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
 
-    function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
+    function    CheckObjectRight            (const right_name : TFRE_DB_String ; const uid : TGUID ):boolean;
     function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean;
     function    DumpUserRights              :TFRE_DB_String;
     function    User                        :IFRE_DB_USER;
@@ -2922,12 +2922,15 @@ begin
   result := IsCurrentUserSystemAdmin;
   if result then
     exit;
-  result := FREDB_StringInArray('OBR:'+uppercase(GFRE_BT.GUID_2_HexString(uid))+right_name,FConnectionRights);
+  result := FREDB_StringInArray(TFRE_DB_Base.GetObjectRightName(right_name,uid),FConnectionRights);
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.CheckObjectRight(const std_right: TFRE_DB_STANDARD_RIGHT; const uid: TGUID): boolean;
 begin
-  result := CheckObjectRight(TFRE_DB_Base.GetStdObjectRightPart(std_right),uid);
+  result := IsCurrentUserSystemAdmin;
+  if result then
+    exit;
+  result := FREDB_StringInArray(TFRE_DB_Base.GetStdObjectRightName(std_right,uid),FConnectionRights);
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.DumpUserRights: TFRE_DB_String;
@@ -5672,14 +5675,6 @@ begin
   result := FCurrentUserToken.CheckClassRight4DomainId(std_right,classtyp,domain);
 end;
 
-//function TFRE_DB_SYSTEM_CONNECTION.IntCheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainuid: TGuid): boolean;
-//begin
-//  result := IsCurrentUserSystemAdmin;
-//  if result then
-//    exit;
-//  result := FREDB_StringInArray(_GetStdRightName(std_right,classtyp,domainuid),FConnectionRights);
-//end;
-
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
 begin
   result := FCurrentUserToken.GetDomainsForClassRight(std_right,classtyp);
@@ -6225,26 +6220,18 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION._GetRightsArrayForUser(const user: IFRE_DB_USER): TFRE_DB_StringArray;
 
-  function FakeLogin:String;
-  begin
-    result := '$O_R_'+uppercase('TFRE_DB_LOGIN_fetch'+'@'+GetSystemDomainID_String);
-  end;
-
   function OwnUserRights : TFRE_DB_StringArray;
   var uid:TFRE_DB_GUID;
   begin
     uid := (user.Implementor as TFRE_DB_Object).UID;
     SetLength(result,3);
-    result[0] := 'OBR_S:'+uppercase(FREDB_G2H(uid));
-    result[1] := 'OBR_U:'+uppercase(FREDB_G2H(uid));
-    result[2] := 'OBR_F:'+uppercase(FREDB_G2H(uid));
-    //result[3] := 'OBR_D:'+uppercase(GFRE_BT.GUID_2_HexString(uid);
+    result[0] := TFRE_DB_Base.GetStdObjectRightName(sr_STORE,uid);
+    result[1] := TFRE_DB_Base.GetStdObjectRightName(sr_UPDATE,uid);
+    result[2] := TFRE_DB_Base.GetStdObjectRightName(sr_FETCH,uid);
   end;
 
-//nl
 begin
   result := _GetRightsArrayForGroups(user.GetUserGroupIDs);
-  FREDB_ConcatStringArrays(result,TFRE_DB_StringArray.Create(FakeLogin));
   FREDB_ConcatStringArrays(result,OwnUserRights);
 end;
 

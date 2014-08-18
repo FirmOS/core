@@ -1725,7 +1725,8 @@ type
     procedure        GetSession                 (const input: IFRE_DB_Object; out session: TFRE_DB_UserSession; const no_error_on_no_session: boolean); deprecated; //DEPRECATED DONT USE
     function         GetSession                 (const input: IFRE_DB_Object):TFRE_DB_UserSession; deprecated; //DEPRECATED DONT USE
 
-    class function   GetStdObjectRightPart      (const std_right: TFRE_DB_STANDARD_RIGHT):TFRE_DB_String;
+    class function   GetStdObjectRightName      (const std_right: TFRE_DB_STANDARD_RIGHT;const uid : TFRE_DB_GUID):TFRE_DB_String;
+    class function   GetObjectRightName         (const right: TFRE_DB_NameType ; const uid : TFRE_DB_GUID):TFRE_DB_String;
     class function   _GetClassRight             (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
     class function   GetRight4Domain            (const right: TFRE_DB_NameType; const domainUID:TGUID): IFRE_DB_RIGHT;
     class function   GetClassRightName          (const rclassname:ShortString ; const right: TFRE_DB_NameType): TFRE_DB_String;
@@ -6576,16 +6577,21 @@ begin
   GetSession(input,result,false);
 end;
 
-class function TFRE_DB_Base.GetStdObjectRightPart(const std_right: TFRE_DB_STANDARD_RIGHT): TFRE_DB_String;
+class function TFRE_DB_Base.GetStdObjectRightName(const std_right: TFRE_DB_STANDARD_RIGHT; const uid: TFRE_DB_GUID): TFRE_DB_String;
 begin
   case std_right of
-    sr_STORE  : result:=':STR';
-    sr_UPDATE : result:=':UPD';
-    sr_DELETE : result:=':DEL';
-    sr_FETCH  : result:=':FET';
+    sr_STORE  : result := GetObjectRightName('S',uid);
+    sr_UPDATE : result := GetObjectRightName('U',uid);
+    sr_DELETE : result := GetObjectRightName('D',uid);
+    sr_FETCH  : result := GetObjectRightName('F',uid);
   else
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'rightname for standard right is not defined!');
   end;
+end;
+
+class function TFRE_DB_Base.GetObjectRightName(const right: TFRE_DB_NameType; const uid: TFRE_DB_GUID): TFRE_DB_String;
+begin
+  result := 'O#'+uppercase(right)+'%'+uppercase(GFRE_BT.GUID_2_HexString(uid));
 end;
 
 class function TFRE_DB_Base._GetClassRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
