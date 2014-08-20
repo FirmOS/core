@@ -6,6 +6,14 @@ program fpmake_packages;
 
  uses fpmkunit,classes,sysutils,fos_buildtools;
 
+ function EnableOldRTLStructure: boolean;
+ var env: string;
+ begin
+   env := {$I %FOSOLDFPCRTL%};
+   writeln('FOSOLDFPCRTL:',env);
+   result := env<>'';
+ end;
+
  Var
    P   : TPackage;
 
@@ -17,7 +25,10 @@ program fpmake_packages;
        Directory:=cFOS_BUILD_PREFIX+'fos_interfaces';
        Dependencies.Add('fcl-json');
        Dependencies.Add('fcl-xml');
-       Dependencies.Add('rtl-extra');
+       if not EnableOldRTLStructure then 
+         begin
+           Dependencies.Add('rtl-extra');
+         end;
        with targets do begin
          addunit('jsonparser.pp');
          addunit('fpjson.pp');
