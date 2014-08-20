@@ -481,7 +481,7 @@ begin
     if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
       sec.AddSection.Describe(CWSF(@WEB_ContentRoles),FetchModuleTextShort(ses,'roles_tab'),3);
     end;
-    Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(domaingrid,sec,nil,nil,nil,true);
+    Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(domaingrid,sec,nil,nil,nil,true,1,2);
   end else begin
     Result:=domaingrid;
   end;
@@ -1094,7 +1094,7 @@ begin
 
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) or
      conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
-    Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(rolegrid,_getNoRoleDetails(input,ses,app,conn),nil,nil,nil,true);
+    Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(rolegrid,_getNoRoleDetails(input,ses,app,conn),nil,nil,nil,true,1,2);
   end else begin
     Result:=rolegrid;
   end;
@@ -1876,7 +1876,7 @@ begin
   end;
 
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) or conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then begin
-    Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(groupgrid,_getNoGroupDetails(input,ses,app,conn),nil,nil,nil,true);
+    Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(groupgrid,_getNoGroupDetails(input,ses,app,conn),nil,nil,nil,true,1,2);
   end else begin
     Result:=groupgrid;
   end;
@@ -2917,7 +2917,7 @@ begin
     usergrid.AddButton.DescribeManualType('tb_delete_user',CWSF(@WEB_DeleteUser),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
-  Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(usergrid,_getNoUserDetails(input,ses,app,conn),nil,nil,nil,true);
+  Result:=TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(usergrid,_getNoUserDetails(input,ses,app,conn),nil,nil,nil,true,1,2);
 end;
 
 function TFRE_COMMON_USER_MOD.WEB_UserSelected(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
