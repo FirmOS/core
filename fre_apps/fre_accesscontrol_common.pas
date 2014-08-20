@@ -102,6 +102,7 @@ type
     function        WEB_SaveGroup             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_DeleteGroup           (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_DeleteGroupConfirmed  (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_DisableEnableGroup    (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GGMenu                (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GGNotification        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_UIGMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -141,12 +142,14 @@ type
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentGroups         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_RoleNotification      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_RoleMenu              (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_AddToRole             (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GIRMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GORMenu               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GIRNotification       (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_GORNotification       (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_RemoveFromRole        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_DisableEnableRole     (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_COMMON_DOMAIN_MOD }
@@ -820,7 +823,7 @@ end;
 
 class procedure TFRE_COMMON_ROLE_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.1';
+  newVersionId:='1.2';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
 
@@ -855,6 +858,14 @@ begin
     currentVersionId := '1.1';
 
     CreateModuleText(conn,'gc_domain','Domain');
+  end;
+  if currentVersionId='1.1' then begin
+    currentVersionId := '1.2';
+
+    CreateModuleText(conn,'tb_disable_role','Disable','','Disable Role');
+    CreateModuleText(conn,'tb_enable_role','Enable','','Enable Role');
+    CreateModuleText(conn,'cm_disable_role','Disable','','Disable Role');
+    CreateModuleText(conn,'cm_enable_role','Enable','','Enable Role');
   end;
 end;
 
@@ -907,11 +918,11 @@ begin
     with role_Grid do begin
       if show_domains then begin
         SetDeriveParent           (session.GetDBConnection.AdmGetDomainCollection);
-        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',nil,nil,CWSF(@WEB_RoleNotification));
+        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
         SetParentToChildLinkField ('TFRE_DB_ROLE<DOMAINIDLINK');
       end else begin
         SetDeriveParent           (session.GetDBConnection.AdmGetRoleCollection);
-        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',nil,nil,CWSF(@WEB_RoleNotification));
+        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
       end;
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
@@ -1044,7 +1055,6 @@ procedure TFRE_COMMON_ROLE_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT
 begin
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_disabled.svg');
-    transformed_object.Field('_disabledrag_').AsBoolean:=true;
   end else begin
     if not ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,transformed_object.DomainID) then begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
@@ -1070,11 +1080,17 @@ end;
 function TFRE_COMMON_ROLE_MOD.WEB_Content(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   rolegrid    : TFRE_DB_VIEW_LIST_DESC;
+  txt         : IFRE_DB_TEXT;
 begin
   CheckClassVisibility4AnyDomain(ses);
   ses.GetSessionModuleData(ClassName).DeleteField('selectedRoles');
 
   rolegrid := ses.FetchDerivedCollection('ROLEMOD_ROLE_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  if conn.sys.CheckClassRight4AnyDomain('disableRole',TFRE_DB_ROLE) then begin
+    txt:=FetchModuleTextFull(ses,'tb_disable_role');
+    rolegrid.AddButton.DescribeManualType('tb_disable_enable_role',CWSF(@WEB_DisableEnableRole),'',txt.Getshort,txt.GetHint,true);
+    txt.Finalize;
+  end;
 
   if conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) or
      conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then begin
@@ -1158,14 +1174,18 @@ end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_RoleNotification(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  sel_guid     : TGUID;
-  selObj       : IFRE_DB_Object;
-  oldSelIsRole : Boolean;
-  newSelIsRole : Boolean;
-  notEditable  : Boolean;
-  groupout_Grid: IFRE_DB_DERIVED_COLLECTION;
-  groupin_Grid : IFRE_DB_DERIVED_COLLECTION;
-  domainUid    : TGuid;
+  sel_guid         : TGUID;
+  selObj           : IFRE_DB_Object;
+  oldSelIsRole     : Boolean;
+  newSelIsRole     : Boolean;
+  notEditable      : Boolean;
+  groupout_Grid    : IFRE_DB_DERIVED_COLLECTION;
+  groupin_Grid     : IFRE_DB_DERIVED_COLLECTION;
+  domainUid        : TGuid;
+  disableEnableRole: Boolean;
+  caption          : TFRE_DB_String;
+  hint             : TFRE_DB_String;
+  roleDisabled     : Boolean;
 
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE)) then raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
@@ -1178,6 +1198,7 @@ begin
     if selObj.IsA('TFRE_DB_ROLE') then begin
       ses.GetSessionModuleData(ClassName).Field('selectedRoles').AsString:=input.Field('SELECTED').AsString;
       domainUid:=selObj.DomainID;
+      roleDisabled:=(selObj.Implementor_HC as IFRE_DB_ROLE).isDisabled;
       notEditable:=not conn.sys.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,domainUid);
       selObj.Finalize;
     end else begin
@@ -1188,6 +1209,23 @@ begin
   end;
 
   newSelIsRole:=ses.GetSessionModuleData(ClassName).FieldExists('selectedRoles');
+
+  if conn.sys.CheckClassRight4AnyDomain('disableRole',TFRE_DB_ROLE) then begin
+    disableEnableRole:=not (newSelIsRole and conn.sys.CheckClassRight4DomainId('disableRole',TFRE_DB_ROLE,domainUid));
+    if disableEnableRole then begin
+      caption:=FetchModuleTextShort(ses,'tb_disable_role');
+      hint:=FetchModuleTextHint(ses,'tb_disable_role');
+    end else begin
+      if roleDisabled then begin
+        caption:=FetchModuleTextShort(ses,'tb_enable_role');
+        hint:=FetchModuleTextHint(ses,'tb_enable_role');
+      end else begin
+        caption:=FetchModuleTextShort(ses,'tb_disable_role');
+        hint:=FetchModuleTextHint(ses,'tb_disable_role');
+      end;
+    end;
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_disable_enable_role',disableEnableRole,caption,hint));
+  end;
 
   if newSelIsRole<>oldSelIsRole then begin
     if newSelIsRole then begin
@@ -1212,6 +1250,39 @@ begin
         groupin_Grid.Filters.AddBooleanFieldFilter('disabled','disabled',false);
       end;
     end;
+    Result:=GFRE_DB_NIL_DESC;
+  end;
+end;
+
+function TFRE_COMMON_ROLE_MOD.WEB_RoleMenu(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  res       : TFRE_DB_MENU_DESC;
+  func      : TFRE_DB_SERVER_FUNC_DESC;
+  dbo       : IFRE_DB_Object;
+begin
+  if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_ROLE) then begin
+    if input.Field('selected').ValueCount<>1 then begin
+      Result:=GFRE_DB_NIL_DESC;
+      exit;
+    end;
+    CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsString),dbo));
+    if not dbo.IsA('TFRE_DB_ROLE') then begin
+      Result:=GFRE_DB_NIL_DESC;
+      exit;
+    end;
+
+    res:=TFRE_DB_MENU_DESC.create.Describe;
+    if conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_ROLE,dbo.DomainID) and conn.sys.CheckClassRight4DomainId('disableRole',TFRE_DB_ROLE,dbo.DomainID) then begin
+      func:=CWSF(@WEB_DisableEnableRole);
+      func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+      if (dbo.Implementor_HC as IFRE_DB_ROLE).isDisabled then begin
+        res.AddEntry.Describe(FetchModuleTextShort(ses,'cm_enable_role'),'',func);
+      end else begin
+        res.AddEntry.Describe(FetchModuleTextShort(ses,'cm_disable_role'),'',func);
+      end;
+    end;
+    Result:=res;
+  end else begin
     Result:=GFRE_DB_NIL_DESC;
   end;
 end;
@@ -1315,6 +1386,23 @@ function TFRE_COMMON_ROLE_MOD.WEB_RemoveFromRole(const input:IFRE_DB_Object; con
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
   Result:=_addremoverole(input,ses,app,conn,false);
+end;
+
+function TFRE_COMMON_ROLE_MOD.WEB_DisableEnableRole(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  role: IFRE_DB_ROLE;
+begin
+  CheckDbResult(conn.FetchAsIntf(FREDB_String2Guid(input.Field('selected').AsString),IFRE_DB_ROLE,role));
+  if not (conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_ROLE,role.DomainID) and conn.sys.CheckClassRight4DomainId('disableRole',TFRE_DB_ROLE,role.DomainID)) then
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
+
+  role.isDisabled:=not role.isDisabled;
+  if role.isDisabled then begin
+    Result:=TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_disable_enable_role',false,FetchModuleTextShort(ses,'tb_enable_role'),FetchModuleTextHint(ses,'tb_enable_role'));
+  end else begin
+    Result:=TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_disable_enable_role',false,FetchModuleTextShort(ses,'tb_disable_role'),FetchModuleTextHint(ses,'tb_disable_role'));
+  end;
+  CheckDbResult(conn.sys.UpdateRole(role));
 end;
 
 { TFRE_COMMON_GROUP_MOD }
@@ -1470,7 +1558,7 @@ end;
 
 class procedure TFRE_COMMON_GROUP_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.1';
+  newVersionId:='1.2';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
 
@@ -1539,6 +1627,14 @@ begin
     currentVersionId := '1.1';
 
     CreateModuleText(conn,'gc_domain','Domain');
+  end;
+  if currentVersionId='1.1' then begin
+    currentVersionId := '1.2';
+
+    CreateModuleText(conn,'tb_disable_group','Disable','','Disable Group');
+    CreateModuleText(conn,'tb_enable_group','Enable','','Enable Group');
+    CreateModuleText(conn,'cm_disable_group','Disable','','Disable Group');
+    CreateModuleText(conn,'cm_enable_group','Enable','','Enable Group');
   end;
 end;
 
@@ -1701,17 +1797,15 @@ end;
 
 procedure TFRE_COMMON_GROUP_MOD.CalculateRoleFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
 begin
+  if ut.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,transformed_object.DomainID) then begin
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
+    transformed_object.Field('_disabledrag_').AsBoolean:=false;
+  end else begin
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_lck.svg');
+    transformed_object.Field('_disabledrag_').AsBoolean:=true;
+  end;
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_disabled.svg');
-    transformed_object.Field('_disabledrag_').AsBoolean:=true;
-  end else begin
-    if ut.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,transformed_object.DomainID) then begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
-      transformed_object.Field('_disabledrag_').AsBoolean:=false;
-    end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_lck.svg');
-      transformed_object.Field('_disabledrag_').AsBoolean:=true;
-    end;
   end;
 end;
 
@@ -1773,6 +1867,11 @@ begin
   if conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then begin
     txt:=FetchModuleTextFull(ses,'tb_delete_group');
     groupgrid.AddButton.DescribeManualType('tb_delete_group',CWSF(@WEB_DeleteGroup),'',txt.Getshort,txt.GetHint,true);
+    txt.Finalize;
+  end;
+  if conn.sys.CheckClassRight4AnyDomain('disableGroup',TFRE_DB_GROUP) then begin
+    txt:=FetchModuleTextFull(ses,'tb_disable_group');
+    groupgrid.AddButton.DescribeManualType('tb_disable_enable_group',CWSF(@WEB_DisableEnableGroup),'',txt.Getshort,txt.GetHint,true);
     txt.Finalize;
   end;
 
@@ -2035,42 +2134,62 @@ begin
   end;
 end;
 
+function TFRE_COMMON_GROUP_MOD.WEB_DisableEnableGroup(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  group: IFRE_DB_GROUP;
+begin
+  CheckDbResult(conn.FetchAsIntf(FREDB_String2Guid(input.Field('selected').AsString),IFRE_DB_GROUP,group));
+  if not (conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,group.DomainID) and conn.sys.CheckClassRight4DomainId('disableGroup',TFRE_DB_GROUP,group.DomainID)) then
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
+
+  group.isDisabled:=not group.isDisabled;
+  if group.isDisabled then begin
+    Result:=TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_disable_enable_group',false,FetchModuleTextShort(ses,'tb_enable_group'),FetchModuleTextHint(ses,'tb_enable_group'));
+  end else begin
+    Result:=TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_disable_enable_group',false,FetchModuleTextShort(ses,'tb_disable_group'),FetchModuleTextHint(ses,'tb_disable_group'));
+  end;
+  CheckDbResult(conn.sys.UpdateGroup(group));
+end;
+
 function TFRE_COMMON_GROUP_MOD.WEB_GGMenu(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   res       : TFRE_DB_MENU_DESC;
   func      : TFRE_DB_SERVER_FUNC_DESC;
-  dtxt,mtxt : TFRE_DB_String;
-  i         : Integer;
   dbo       : IFRE_DB_Object;
+  np        : Boolean;
 begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) or conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_GROUP) then begin
-    for i := 0 to input.Field('selected').ValueCount - 1 do begin
-      CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsStringItem[i]),dbo));
-      if not dbo.IsA('TFRE_DB_GROUP') or ((dbo.Implementor_HC as IFRE_DB_GROUP).isProtected) then begin
-        Result:=GFRE_DB_NIL_DESC;
-        exit;
-      end;
+    if input.Field('selected').ValueCount<>1 then begin
+      Result:=GFRE_DB_NIL_DESC;
+      exit;
     end;
-    if input.Field('selected').ValueCount=1 then begin
-      mtxt:=FetchModuleTextShort(ses,'cm_modify_group');
-      dtxt:=FetchModuleTextShort(ses,'cm_delete_group');
-    end else begin
-      mtxt:=FetchModuleTextShort(ses,'cm_modify_group');
-      dtxt:=FetchModuleTextShort(ses,'cm_delete_groups');
+    CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsString),dbo));
+    if not dbo.IsA('TFRE_DB_GROUP') then begin
+      Result:=GFRE_DB_NIL_DESC;
+      exit;
     end;
+
+    np:=not (dbo.Implementor_HC as IFRE_DB_GROUP).isProtected;
     res:=TFRE_DB_MENU_DESC.create.Describe;
-    if conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,dbo.DomainID) then
-      begin
-        func:=CWSF(@WEB_ModifyGroup);
-        func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-        res.AddEntry.Describe(mtxt,'',func,input.Field('selected').ValueCount>1);
+    if np and conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,dbo.DomainID) then begin
+      func:=CWSF(@WEB_ModifyGroup);
+      func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+      res.AddEntry.Describe(FetchModuleTextShort(ses,'cm_modify_group'),'',func,input.Field('selected').ValueCount>1);
+    end;
+    if np and conn.sys.CheckClassRight4DomainId(sr_DELETE,TFRE_DB_GROUP,dbo.DomainID) then begin
+      func:=CWSF(@WEB_DeleteGroup);
+      func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+      res.AddEntry.Describe(FetchModuleTextShort(ses,'cm_delete_group'),'',func);
+    end;
+    if conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,dbo.DomainID) and conn.sys.CheckClassRight4DomainId('disableGroup',TFRE_DB_GROUP,dbo.DomainID) then begin
+      func:=CWSF(@WEB_DisableEnableGroup);
+      func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
+      if (dbo.Implementor_HC as IFRE_DB_GROUP).isDisabled then begin
+        res.AddEntry.Describe(FetchModuleTextShort(ses,'cm_enable_group'),'',func);
+      end else begin
+        res.AddEntry.Describe(FetchModuleTextShort(ses,'cm_disable_group'),'',func);
       end;
-    if conn.sys.CheckClassRight4DomainId(sr_DELETE,TFRE_DB_GROUP,dbo.DomainID) then
-      begin
-        func:=CWSF(@WEB_DeleteGroup);
-        func.AddParam.Describe('selected',input.Field('selected').AsStringArr);
-        res.AddEntry.Describe(dtxt,'',func);
-      end;
+    end;
     Result:=res;
   end else begin
     Result:=GFRE_DB_NIL_DESC;
@@ -2088,6 +2207,10 @@ var
   groupProtected: Boolean;
   roleout_Grid  : IFRE_DB_DERIVED_COLLECTION;
   rolein_Grid   : IFRE_DB_DERIVED_COLLECTION;
+  disableEnableGroup: Boolean;
+  caption: String;
+  hint: String;
+  groupDisabled: Boolean;
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then
@@ -2101,6 +2224,7 @@ begin
     if selObj.IsA('TFRE_DB_GROUP') then begin
       ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsString:=input.Field('SELECTED').AsString;
       domainUid:=selObj.DomainID;
+      groupDisabled:=(selObj.Implementor_HC as IFRE_DB_GROUP).isDisabled;
       groupProtected:=(selObj.Implementor_HC as IFRE_DB_GROUP).isProtected;
       notEditable:=not conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,domainUid);
       selObj.Finalize;
@@ -2118,6 +2242,22 @@ begin
   end;
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
     ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_group',not newSelIsGroup or notEditable or groupProtected));
+  end;
+  if conn.sys.CheckClassRight4AnyDomain('disableGroup',TFRE_DB_GROUP) then begin
+    disableEnableGroup:=not newSelIsGroup or notEditable or not conn.sys.CheckClassRight4DomainId('disableGroup',TFRE_DB_GROUP,domainUid);
+    if disableEnableGroup then begin
+      caption:=FetchModuleTextShort(ses,'tb_disable_group');
+      hint:=FetchModuleTextHint(ses,'tb_disable_group');
+    end else begin
+      if groupDisabled then begin
+        caption:=FetchModuleTextShort(ses,'tb_enable_group');
+        hint:=FetchModuleTextHint(ses,'tb_enable_group');
+      end else begin
+        caption:=FetchModuleTextShort(ses,'tb_disable_group');
+        hint:=FetchModuleTextHint(ses,'tb_disable_group');
+      end;
+    end;
+    ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_disable_enable_group',disableEnableGroup,caption,hint));
   end;
   if newSelIsGroup<>oldSelIsGroup then begin
     if IsContentUpdateVisible(ses,'GROUP_DETAILS') then begin
@@ -2727,21 +2867,19 @@ end;
 
 procedure TFRE_COMMON_USER_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
 begin
+  if ut.CheckClassRight4DomainId('assignGroup',TFRE_DB_GROUP,transformed_object.DomainID) then begin
+    if transformed_object.Field('protected').AsBoolean then begin
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
+    end else begin
+      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
+    end;
+    transformed_object.Field('_disabledrag_').AsBoolean:=false;
+  end else begin
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
+    transformed_object.Field('_disabledrag_').AsBoolean:=true;
+  end;
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_disabled.svg');
-    transformed_object.Field('_disabledrag_').AsBoolean:=true;
-  end else begin
-    if ut.CheckClassRight4DomainId('assignGroup',TFRE_DB_GROUP,transformed_object.DomainID) then begin
-      if transformed_object.Field('protected').AsBoolean then begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
-      end else begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
-      end;
-      transformed_object.Field('_disabledrag_').AsBoolean:=false;
-    end else begin
-      transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
-      transformed_object.Field('_disabledrag_').AsBoolean:=true;
-    end;
   end;
 end;
 
