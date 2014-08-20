@@ -1037,7 +1037,7 @@ begin
     if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
       if ut.CheckClassRight4DomainId('disableRole',TFRE_DB_GROUP,FREDB_H2G(transformed_object.Field('domainidlink').AsString)) then begin
         transformed_object.Field('hidden').AsBoolean:=false;
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_disabled.svg');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_dis.svg');
       end else begin
         transformed_object.Field('hidden').AsBoolean:=true;
       end;
@@ -1054,7 +1054,7 @@ end;
 procedure TFRE_COMMON_ROLE_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object ; const session_data : IFRE_DB_Object);
 begin
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_disabled.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_dis.svg');
   end else begin
     if not ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,transformed_object.DomainID) then begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_lck.svg');
@@ -1805,7 +1805,7 @@ begin
     transformed_object.Field('_disabledrag_').AsBoolean:=true;
   end;
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_disabled.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_dis.svg');
   end;
 end;
 
@@ -1817,7 +1817,7 @@ begin
     if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
       if ut.CheckClassRight4DomainId('disableGroup',TFRE_DB_GROUP,FREDB_H2G(transformed_object.Field('domainidlink').AsString)) then begin
         transformed_object.Field('hidden').AsBoolean:=false;
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_disabled.svg');
+        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_dis.svg');
       end else begin
         transformed_object.Field('hidden').AsBoolean:=true;
       end;
@@ -2855,7 +2855,7 @@ end;
 procedure TFRE_COMMON_USER_MOD.CalculateRoleIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
 begin
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_disabled.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_dis.svg');
   end else begin
     if ut.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,transformed_object.DomainID) then begin
       transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
@@ -2879,7 +2879,7 @@ begin
     transformed_object.Field('_disabledrag_').AsBoolean:=true;
   end;
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
-    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_disabled.svg');
+    transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_dis.svg');
   end;
 end;
 
