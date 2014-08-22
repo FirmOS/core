@@ -209,6 +209,8 @@ type
                         const digits: Integer=-1; const minMax: TFRE_DB_Real64Array=nil) : TFRE_DB_INPUT_NUMBER_DESC;
     //@ Describes a number slider within a form.
     function  DescribeSlider (const caption,field_reference : String; const min,max: Real; const showValueField: Boolean=true; const defaultValue:String=''; const digits: Integer=0; const steps: Integer=-1) : TFRE_DB_INPUT_NUMBER_DESC;
+    //@ sets the min and max of the input element
+    procedure setMinMax      (const min,max: Real);
   end;
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
@@ -1414,6 +1416,11 @@ implementation
     Field('minMax').AsReal64Arr:=TFRE_DB_Real64Array.create(min,max);
     Field('steps').AsInt16:=steps;
     Result:=Self;
+  end;
+
+  procedure TFRE_DB_INPUT_NUMBER_DESC.setMinMax(const min, max: Real);
+  begin
+    Field('minMax').AsReal64Arr:=TFRE_DB_Real64Array.create(min,max);
   end;
 
   { TFRE_DB_INPUT_DESCRIPTION_DESC }

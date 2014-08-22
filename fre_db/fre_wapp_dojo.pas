@@ -661,7 +661,7 @@ implementation
                            if store.FieldExists('serverFunc') then begin
                              serverFunc:=store.Field('serverFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC;
                              serverFunc.AddParam.Describe('start','0');
-                             serverFunc.AddParam.Describe('count','1000'); //FIXXME - define "ALL" parameter
+                             serverFunc.AddParam.Describe('count','10000'); //FIXXME - define "ALL" parameter
                              serverFunc.AddParam.Describe('queryid','0');
                              store_res_descr:=serverFunc.InternalInvoke(session).Implementor_HC as TFRE_DB_STORE_DATA_DESC;
                              if (store.Field('labelFields').ValueCount=0) then begin
@@ -670,7 +670,7 @@ implementation
                              for i:=0 to store_res_descr.Field('data').ValueCount - 1 do begin
                                for j:=0 to store.Field('labelFields').ValueCount -1 do begin
                                  if (store_res_descr.Field('data').AsObjectItem[i].FieldExists(store.Field('labelFields').AsStringArr[j])) then begin
-                                   caption:=store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('labelFields').AsStringArr[j]).AsString;
+                                   caption:=_EscapeValueString(store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('labelFields').AsStringArr[j]).AsString);
                                    Break;
                                  end;
                                  caption:=store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('idField').AsString).AsString;

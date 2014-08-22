@@ -2103,18 +2103,21 @@ var fieldval       : TFRE_DB_String;
      fld           : IFRE_DB_Field;
      multivalfield : boolean;
      error_fld     : boolean;
+     filterVal     : TFRE_DB_String;
 begin
   error_fld := false;
+  filterVal := FValues[0];
+
   if obj.FieldOnlyExisting(FFieldname,fld) then
     begin
       multivalfield := fld.ValueCount>1;
       try
         fieldval      := fld.AsString;
         case FFilterType of
-          dbft_EXACT:      result := not (AnsiContainsText(fieldval,FValues[0]) and (length(fieldval)=length(FValues[0])));
-          dbft_PART:       result := not AnsiContainsText(fieldval,FValues[0]);
-          dbft_STARTPART:  result := not AnsiStartsText  (FValues[0],fieldval);
-          dbft_ENDPART:    result := not AnsiEndsText    (FValues[0],fieldval);
+          dbft_EXACT:      result := not (((length(fieldval)=0) or AnsiContainsText(fieldval,filterVal)) and (length(fieldval)=length(filterVal)));
+          dbft_PART:       result := not AnsiContainsText(fieldval,filterVal);
+          dbft_STARTPART:  result := not AnsiStartsText  (filterVal,fieldval);
+          dbft_ENDPART:    result := not AnsiEndsText    (filterVal,fieldval);
         end;
       except { invalid conversion }
         error_fld := true;
