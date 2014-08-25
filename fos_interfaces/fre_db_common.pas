@@ -305,7 +305,9 @@ type
                                    const displayFlags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS=[cdgf_ShowSearchbox,cdgf_Editable];
                                    const detailsFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const selectionDepFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const saveFunc:TFRE_DB_SERVER_FUNC_DESC=nil;
                                    const dropFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const dragFunc: TFRE_DB_SERVER_FUNC_DESC=nil): TFRE_DB_VIEW_LIST_DESC;
-    //@ Sets the menu of the form panel. Will be displayed like a file menu in a desktop application.
+    //@ Sets the title of the list view,
+    procedure SetTitle            (const title: String);
+    //@ Sets the menu of the list view. Will be displayed like a file menu in a desktop application.
     procedure SetMenu (const menu: TFRE_DB_MENU_DESC);
     //@ Creates a new list view button and adds it.
     function  AddButton           :TFRE_DB_VIEW_LIST_BUTTON_DESC;
@@ -1956,6 +1958,11 @@ implementation
     Result:=Self;
   end;
 
+  procedure TFRE_DB_VIEW_LIST_DESC.SetTitle(const title: String);
+  begin
+    Field('title').AsString:=title;
+  end;
+
   procedure TFRE_DB_VIEW_LIST_DESC.SetMenu(const menu: TFRE_DB_MENU_DESC);
   begin
     Field('menu').AsObject:=menu;
@@ -1972,7 +1979,7 @@ implementation
     Field('filteredStore').AddObject(obj);
   end;
 
-  procedure TFRE_DB_VIEW_LIST_DESC.SetDropGrid(const grid: TFRE_DB_VIEW_LIST_DESC; const DnDclassesMultiple:TFRE_DB_StringArray; const DnDClassesSingle:TFRE_DB_StringArray);
+    procedure TFRE_DB_VIEW_LIST_DESC.SetDropGrid(const grid: TFRE_DB_VIEW_LIST_DESC; const DnDClassesMultiple: TFRE_DB_StringArray; const DnDClassesSingle: TFRE_DB_StringArray);
   var
     i,j  : Integer;
     isnew: Boolean;
