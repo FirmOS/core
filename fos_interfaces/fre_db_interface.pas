@@ -2464,6 +2464,8 @@ type
     function  DescribeDBO      (const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
     //@ Describes an update of a form. The form with the given id will be updated be the given object.
     function  Describe         (const formId: String; const updateObj:IFRE_DB_Object):TFRE_DB_UPDATE_FORM_DESC;
+    //@ Describes an update of a form. The form with the given id will be updated be the given object.
+    function  DescribeReset    (const formId: String):TFRE_DB_UPDATE_FORM_DESC;
   end;
 
   { TFRE_DB_SITEMAP_ENTRY_DESC }
@@ -4347,6 +4349,12 @@ function TFRE_DB_UPDATE_FORM_DESC.Describe(const formId: String; const updateObj
 begin
   Field('formId').AsString:=formId;
   Field('obj').AsObject:=updateObj;
+  Result:=Self;
+end;
+
+function TFRE_DB_UPDATE_FORM_DESC.DescribeReset(const formId: String): TFRE_DB_UPDATE_FORM_DESC;
+begin
+  Field('formId').AsString:=formId;
   Result:=Self;
 end;
 

@@ -1205,10 +1205,14 @@ implementation
     JsonAction := TFRE_JSON_ACTION.Create;
 
     JsonAction.ActionType := jat_jsexecute;
-    if co.FieldExists('formId') then begin
+    if co.FieldExists('formId') and co.FieldExists('obj') then begin
       JsonAction.Action     := 'G_UI_COM.updateForm("'+co.Field('formId').AsString+'",'+co.Field('obj').AsObject.GetAsJSONString()+');';
     end else begin
-      JsonAction.Action     := 'G_UI_COM.updateFormDBO('+co.Field('obj').AsObject.GetAsJSONString()+');';
+      if co.FieldExists('formId') then begin
+        JsonAction.Action     := 'G_UI_COM.resetForm("'+co.Field('formId').AsString+'");';
+      end else begin
+        JsonAction.Action     := 'G_UI_COM.updateFormDBO('+co.Field('obj').AsObject.GetAsJSONString()+');';
+      end;
     end;
 
     contentString := JsonAction.AsString;
