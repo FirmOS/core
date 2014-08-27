@@ -831,6 +831,7 @@ type
     function  getEntries  :TFRE_DB_ObjectArray;
     function  getEntriesI :IFRE_DB_ObjectArray;
     function  getCaptions (const conn: IFRE_DB_CONNECTION):TFRE_DB_StringArray;
+    function  getCaption  (const conn: IFRE_DB_CONNECTION; const value: TFRE_DB_String):TFRE_DB_String;
     function  CheckField  (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean):boolean; virtual;
     function  CheckFieldI (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean):boolean; virtual;
   end;
@@ -3608,6 +3609,21 @@ begin
   SetLength(Result,Field('e').ValueCount);
   for i := 0 to Field('e').ValueCount - 1 do begin
     Result[i]:=conn.FetchTranslateableTextShort(Field('e').AsObjectItem[i].Field('c').AsString);
+  end;
+end;
+
+function TFRE_DB_Enum.getCaption(const conn: IFRE_DB_CONNECTION; const value: TFRE_DB_String): TFRE_DB_String;
+var
+  i     : Integer;
+  uvalue: TFRE_DB_String;
+begin
+  Result:='';
+  uvalue:=UpperCase(value);
+  for i := 0 to Field('e').ValueCount - 1 do begin
+    if UpperCase(Field('e').AsObjectItem[i].Field('v').AsString)=uvalue then begin
+      Result:=conn.FetchTranslateableTextShort(Field('e').AsObjectItem[i].Field('c').AsString);
+      exit;
+    end;
   end;
 end;
 
