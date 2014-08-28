@@ -173,7 +173,7 @@ begin
          fp  := ExtractFilePath(file_name);
          fn  := ExtractFileName(file_name);
          fn  := copy(fn,1,Length(fn)-Length(ExtractFileExt(fn)));
-         fn  := fp+DirectorySeparator+fn+'.dbo';
+         fn  := fp+DirectorySeparator+fn+'.fdbo';
          if FileExists(fn) and
             not DeleteFile(fn) then
               raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not delete convert file : '+fn);
