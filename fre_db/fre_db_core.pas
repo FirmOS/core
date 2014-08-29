@@ -1274,6 +1274,7 @@ type
     function  GetSubFormattedDisplay        (indent: integer=4): TFRE_DB_String; override;
     function  GetRightNames                 :TFRE_DB_StringArray;
     procedure AddRightsFromRole             (const role : IFRE_DB_ROLE);
+    procedure RemoveRights                  (const rights : TFRE_DB_StringArray);
     property  isInternal                    : Boolean read GetIsInternal write SetIsInternal;
     property  isDisabled                    : Boolean read GetIsDisabled write SetIsDisabled;
   end;
@@ -2098,6 +2099,7 @@ type
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;const is_internal:Boolean;var role:TFRE_DB_ROLE):TFRE_DB_Errortype;
     function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean;const is_internal:Boolean;var user_group:TFRE_DB_GROUP):TFRE_DB_Errortype;
     function    AddRoleRightsToRole         (const rolename:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
+    function    RemoveRightsFromRole        (const rolename:TFRE_DB_String;const rights:TFRE_DB_StringArray; const domainUID: TGUID):TFRE_DB_Errortype;
     function    AddRole                     (const rolename,txt,txt_short:TFRE_DB_String;const domainUID:TGUID; const is_internal:Boolean=false):TFRE_DB_Errortype;
     function    AddRolesToGroupById         (const group:TFRE_DB_String;const domainUID: TGUID;const role_ids: TFRE_DB_GUIDArray):TFRE_DB_Errortype;
     function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TGUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
@@ -4552,6 +4554,27 @@ begin
   //TODO: MakeRightstringsUnique
 end;
 
+procedure TFRE_DB_ROLE.RemoveRights(const rights: TFRE_DB_StringArray);
+var
+  my_rights  : TFRE_DB_StringArray;
+  keep_right : Boolean;
+  i,j        : Integer;
+begin
+  my_rights:=Field('rights').AsStringArr;
+  DeleteField('rights');
+  for i := 0 to High(my_rights) do begin
+    keep_right:=true;
+    for j := 0 to High(rights) do begin
+      if my_rights[i]=rights[j] then begin
+        keep_right:=false;
+      end;
+      if keep_right then begin
+        AddRight(my_rights[i]);
+      end;
+    end;
+  end;
+end;
+
 class procedure TFRE_DB_ROLE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
@@ -5250,6 +5273,17 @@ begin
     if Result<>edb_OK then exit;
     role.AddRightsFromRole(source_role);
   end;
+  Result:=Update(role);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.RemoveRightsFromRole(const rolename: TFRE_DB_String; const rights: TFRE_DB_StringArray; const domainUID: TGUID): TFRE_DB_Errortype;
+var
+  role: TFRE_DB_ROLE;
+begin
+  Result:=FetchRole(rolename,domainUID,role);
+  if Result<>edb_OK then exit;
+
+  role.RemoveRights(rights);
   Result:=Update(role);
 end;
 
@@ -10099,6 +10133,8 @@ end;
 
 function TFRE_DB_CONNECTION.Update(const dbo: TFRE_DB_Object; const collection_name: TFRE_DB_NameType): TFRE_DB_Errortype;
 begin
+  if dbo.DomainID=CFRE_DB_NullGUID then
+    dbo.SetDomainID(GetMyDomainID);
   if FSysConnection.Exists(dbo.UID) then
     Result:=FSysConnection.Update(dbo, collection_name)
   else
