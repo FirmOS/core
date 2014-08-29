@@ -1376,7 +1376,6 @@ type
     procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
     procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
     procedure WT_TransactionID              (const number:qword);
-    function  WT_GetSysLayer                : IFRE_DB_PERSISTANCE_LAYER;
 
     function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
     procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
@@ -1529,7 +1528,7 @@ type
     //procedure   ExpandReferencesNoRightCheck  (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : TFRE_DB_GUIDArray);   { TODO: BulkFetch }
     procedure   ExpandReferences              (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray);
 
-    function    IsReferenced                  (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;//without right check
+    function    IsReferenced                  (const obj_uid:TGuid;                     const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;//without right check
     function    GetReferences                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
     function    GetReferencesCount            (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
     function    GetReferencesDetailed         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
@@ -3001,6 +3000,7 @@ type
   function  FREDB_PrefixStringInArray               (const pfx:string;const arr:TFRE_DB_StringArray):boolean;
   procedure FREDB_ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
   procedure FREDB_ConcatGuidArrays                  (var TargetArr:TFRE_DB_GuidArray;const add_array:TFRE_DB_GuidArray);
+  procedure FREDB_ConcatReferenceArrays             (var TargetArr:TFRE_DB_ObjectReferences ; const add_array : TFRE_DB_ObjectReferences);
   function  FREDB_GuidInArray                       (const check:TGuid;const arr:TFRE_DB_GUIDArray):NativeInt;
   function  FREDB_FindNthGuidIdx                    (n:integer;const guid:TGuid;const arr:TFRE_DB_GUIDArray):integer;inline;
   function  FREDB_CheckAllStringFieldsEmptyInObject (const obj:IFRE_DB_Object):boolean;
@@ -3745,6 +3745,21 @@ begin
          TargetArr[len_target+cnt] := add_array[i];
          inc(cnt);
        end;
+   SetLength(TargetArr,len_target+cnt);
+end;
+
+procedure FREDB_ConcatReferenceArrays(var TargetArr: TFRE_DB_ObjectReferences; const add_array: TFRE_DB_ObjectReferences);
+var i,len_target,high_add_array,cnt :integer;
+begin
+   len_target     := Length(TargetArr);
+   SetLength(TargetArr,len_target+Length(add_array));
+   high_add_array := high(add_array);
+   cnt := 0;
+   for i:= 0 to high_add_array do
+     begin
+       TargetArr[len_target+cnt] := add_array[i];
+       inc(cnt);
+     end;
    SetLength(TargetArr,len_target+cnt);
 end;
 

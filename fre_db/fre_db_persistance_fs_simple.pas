@@ -113,7 +113,6 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
    private
      FGlobalLayer          : TFRE_DB_PS_FILE;     { Always point to the GLOBAL Layer (or self) }
      FMaster               : TFRE_DB_Master_Data; // Global, Volatile, Per DB, at least one for system, NIL in GLOBAL LAYER
-     FSystemMaster         : TFRE_DB_Master_Data; // The Masterdata of the System Connection, only (! )set in global layer
      FBasedirectory        : TFRE_DB_String;
      FMasterCollDir        : TFRE_DB_String;
      FLocalConnDir         : TFRE_DB_String;
@@ -136,7 +135,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure    _SetupDirs                (const db_name:TFRE_DB_String);
      function     EscapeDBName              (const name:string):string;
      function     UnEsacpeDBName            (const name:string):string;
-     constructor  InternalCreate            (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype; const sysmasterdata: TFRE_DB_Master_Data);
+     constructor  InternalCreate            (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
 
      function     GetCollection             (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
      function     ExistCollection           (const coll_name : TFRE_DB_NameType) : Boolean;
@@ -154,7 +153,6 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
      function    INT_Fetch                     (const ouid    :  TGUID  ; out   dbi:IFRE_DB_Object):boolean; { unlocked internal fetch }
-     function    WT_GetSysLayer                : IFRE_DB_PERSISTANCE_LAYER;
 
      {< Backup Functionality}
      function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
@@ -381,7 +379,7 @@ begin
   result := GFRE_BT.HexStr2Str(name);
 end;
 
-constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype ;  const sysmasterdata : TFRE_DB_Master_Data);
+constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
 
     procedure _BuildMasterCollection;
 
@@ -502,7 +500,7 @@ begin
   if FileExists(FWalFilename)
      and (File_Size(FWalFilename)=0) then
        _ClearWAL;
-  FMaster := TFRE_DB_Master_Data.Create(FConnectedDB,self,sysmasterdata);
+  FMaster := TFRE_DB_Master_Data.Create(FConnectedDB,self);
   FBlockWALWrites:=true;
   _BuildMasterCollection;
   _BuildCollections;
@@ -739,14 +737,6 @@ begin
     dbi:=nil;
 end;
 
-function TFRE_DB_PS_FILE.WT_GetSysLayer: IFRE_DB_PERSISTANCE_LAYER;
-begin
-  if FMaster.IsSystemMasterData then
-    exit(self)
-  else
-    exit(FMaster.SysLayer);
-end;
-
 function TFRE_DB_PS_FILE.FDB_GetObjectCount(const coll: boolean; const SchemesFilter: TFRE_DB_StringArray): Integer;
 begin
   if coll then
@@ -931,8 +921,6 @@ begin
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fail');
   //if clean_master_data then       { BAD 23.5.14 GLOBAL LAYER SHOULD NOT HAVE A MASTER...}
   //  FMaster.FDB_CleanUpMasterData;
-  if uppercase(DB)='SYSTEM' then
-    FSystemMaster := nil;
   l := _InternalFetchConnectedLayer(db,idx);
   l.Free;
   FConnectedLayers[idx] := nil;
@@ -1514,7 +1502,7 @@ begin
       myuser      := FRE_DB_CORE.TFRE_DB_USER(obj);
       try
         myuser.Set_Store_Locked(false);
-        if not FMaster.SysMaster.MasterColls.GetCollection('SysDomain',FSysDomains) then
+        if not G_SysMaster.MasterColls.GetCollection('SysDomain',FSysDomains) then
           raise EFRE_DB_Exception.Create(edb_MISMATCH,'cannot fetch pl collection "SysDomain"');
         if not FSysDomains.GetPersLayerIntf.GetIndexedObjInternal('SYSTEM',iobj,'def') then
           raise EFRE_DB_Exception.Create(edb_MISMATCH,'cannot fetch system domain object');
@@ -2172,17 +2160,30 @@ begin
         exit(FLastErrorCode);
       end;
     up_dbname := uppercase(db_name);
+    if (up_dbname<>'SYSTEM')
+       and not assigned(G_SysMaster)
+         then raise EFRE_DB_Exception.Create(edb_ERROR,'the first connect must be made to SYSTEM');
     dblayer_o  := _InternalFetchConnectedLayer(db_name,idx);
     if not assigned(dblayer_o) then
       begin
         SetLength(FConnectedLayers,Length(FConnectedLayers)+1);
-        FConnectedLayers[high(FConnectedLayers)] := TFRE_DB_PS_FILE.InternalCreate(FBasedirectory,up_dbname,result,FSystemMaster);
+        FConnectedLayers[high(FConnectedLayers)] := TFRE_DB_PS_FILE.InternalCreate(FBasedirectory,up_dbname,result);
         if result<>edb_OK then
-          exit;
+          begin
+            SetLength(FConnectedLayers,Length(FConnectedLayers)-1);
+            exit;
+          end;
         dblayer_o := FConnectedLayers[high(FConnectedLayers)];
         if dblayer_o.FConnectedDB='SYSTEM' then
-          FSystemMaster := dblayer_o.FMaster; { copy SYSTEM Masterdata reference to global layer}
-        db_layer  := dblayer_o;
+          begin
+            G_SysMaster := dblayer_o.FMaster; { copy SYSTEM Masterdata reference to global layer}
+          end
+        else
+          begin
+            SetLength(G_AllNonsysMasters,Length(G_AllNonsysMasters)+1);
+            G_AllNonsysMasters[high(G_AllNonsysMasters)] := dblayer_o.FMaster;
+          end;
+        db_layer       := dblayer_o;
         UpdateNotifyIF;
         result         := edb_OK;
         FLastErrorCode := edb_OK;

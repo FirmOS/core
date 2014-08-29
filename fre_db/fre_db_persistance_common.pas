@@ -302,7 +302,6 @@ type
     function      BackupToObject     : IFRE_DB_Object;
     procedure     RestoreFromObject  (const obj:IFRE_DB_Object);
     { Do all streaming changes for this section >}
-
     function    CollectionName     (const unique:boolean):TFRE_DB_NameType;
     function    GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
     function    UniqueName         : PFRE_DB_NameType;
@@ -392,9 +391,14 @@ type
   end;
   PFRE_DB_GUID_RefLink_In_Key = ^RFRE_DB_GUID_RefLink_InOut_Key;
 
+  type
+    TFRE_DB_Master_Data=class;
+
   var
-    G_DB_TX_Number    : Qword;
-    G_UserTokens      : TFPHashList;
+    G_DB_TX_Number      : Qword;
+    G_UserTokens        : TFPHashList;
+    G_AllNonsysMasters  : Array of TFRE_DB_Master_Data;
+    G_SysMaster         : TFRE_DB_Master_Data;
 
 
   function     G_FetchNewTransactionID : QWord;
@@ -408,8 +412,8 @@ type
 
   TFRE_DB_Master_Data=class(TObject)
   private
-    FSystemMasterData          : TFRE_DB_Master_Data;
     FMyMastername              : String;
+    FIsSysMaster               : Boolean;
     FMasterPersistentObjStore  : TFRE_ART_TREE;
     FMasterVolatileObjStore    : TFRE_ART_TREE;
     FMasterRefLinks            : TFRE_ART_TREE;
@@ -438,10 +442,7 @@ type
     procedure    _CheckExistingReferencelinksAndRemoveMissingFromObject   (const obj:TFRE_DB_Object); { auto repair function, use with care }
 
   public
-    function     SysLayer                   : IFRE_DB_PERSISTANCE_LAYER;
-    function     SysMaster                  : TFRE_DB_Master_Data;
-    function     IsSystemMasterData         : Boolean; { is nil in the system master data layer}
-
+    function     MyLayer                : IFRE_DB_PERSISTANCE_LAYER;
     function     GetPersistantRootObjectCount (const UppercaseSchemesFilter: TFRE_DB_StringArray=nil): Integer;
 
     function     InternalStoreObjectFromStable (const obj : TFRE_DB_Object) : TFRE_DB_Errortype;
@@ -451,7 +452,7 @@ type
 
     procedure    FDB_CleanUpMasterData                                    ;
 
-    constructor Create                (const master_name: string; const Layer: IFRE_DB_PERSISTANCE_LAYER; const SystemMasterData: TFRE_DB_Master_Data);
+    constructor Create                (const master_name: string; const Layer: IFRE_DB_PERSISTANCE_LAYER);
     destructor  Destroy               ; override;
 
     function    GetReferences         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
@@ -2281,7 +2282,7 @@ begin
         layer := FLayer;
         if (obj.Implementor as TFRE_DB_Object).IsSystemDB then
           begin
-            layer := FLayer.WT_GetSysLayer;
+            layer := G_SysMaster.MyLayer;
             layer.WT_StoreObjectPersistent(obj,no_store_locking)
           end
         else
@@ -2307,7 +2308,7 @@ begin
        layer := FLayer;
        if (obj.Implementor as TFRE_DB_Object).IsSystemDB then
          begin
-           layer := FLayer.WT_GetSysLayer;
+           layer := G_SysMaster.MyLayer;
            Layer.WT_DeleteObjectPersistent(obj);
          end
        else
@@ -3623,7 +3624,7 @@ begin
   FREDB_SplitRefLinkDescription(FromFieldToSchemename,fieldname,schemename);
 
   if not FetchObject(references_to,ref_obj,true) then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,GFRE_BT.GUID_2_HexString(references_to)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[from_key.GetDescriptionID,FromFieldToSchemename,FREDB_G2H(references_to)]);
   if not ref_obj.IsObjectRoot then
     begin
       writeln('SSSLL :::');
@@ -3788,25 +3789,30 @@ begin
     end;
 end;
 
-function TFRE_DB_Master_Data.SysLayer: IFRE_DB_PERSISTANCE_LAYER;
+function TFRE_DB_Master_Data.MyLayer: IFRE_DB_PERSISTANCE_LAYER;
 begin
-  if not assigned(FSystemMasterData) then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'fail - only use on system masterdata');
-  result := FSystemMasterData.FLayer;
+  result := FLayer;
 end;
 
-function TFRE_DB_Master_Data.SysMaster: TFRE_DB_Master_Data;
-begin
-  if IsSystemMasterData then
-    exit(self)
-  else
-    exit(FSystemMasterData);
-end;
+//function TFRE_DB_Master_Data.SysLayer: IFRE_DB_PERSISTANCE_LAYER;
+//begin
+//  if not assigned(FSystemMasterData) then
+//    raise EFRE_DB_Exception.Create(edb_INTERNAL,'fail - only use on system masterdata');
+//  result := FSystemMasterData.FLayer;
+//end;
 
-function TFRE_DB_Master_Data.IsSystemMasterData: Boolean;
-begin
-  result := FSystemMasterData=nil; { only in the SYSTEM db layer}
-end;
+//function TFRE_DB_Master_Data.SysMaster: TFRE_DB_Master_Data;
+//begin
+//  if IsSystemMasterData then
+//    exit(self)
+//  else
+//    exit(FSystemMasterData);
+//end;
+
+//function TFRE_DB_Master_Data.IsSystemMasterData: Boolean;
+//begin
+//  result := FSystemMasterData=nil; { only in the SYSTEM db layer}
+//end;
 
 
 function TFRE_DB_Master_Data.GetPersistantRootObjectCount(const UppercaseSchemesFilter: TFRE_DB_StringArray): Integer;
@@ -4050,23 +4056,16 @@ end;
 //end;
 //
 
-constructor TFRE_DB_Master_Data.Create(const master_name: string ; const Layer : IFRE_DB_PERSISTANCE_LAYER ; const SystemMasterData : TFRE_DB_Master_Data);
+constructor TFRE_DB_Master_Data.Create(const master_name: string ; const Layer : IFRE_DB_PERSISTANCE_LAYER);
 begin
   FMasterPersistentObjStore := TFRE_ART_TREE.Create;
   FMasterVolatileObjStore   := TFRE_ART_TREE.Create;
   FMasterRefLinks           := TFRE_ART_TREE.Create;
   FMasterCollectionStore    := TFRE_DB_CollectionManageTree.Create;
   FMyMastername             := master_name;
-  FSystemMasterData         := SystemMasterData;
   FLayer                    := Layer;
   if (uppercase(master_name)='SYSTEM') then
-    begin
-      if (SystemMasterData<>nil) then
-        raise EFRE_DB_Exception.Create(edb_INTERNAL,'BAD SYSTEM MASTER SHOULD NOT REFERENCE SYSTEM MASTER!!!');
-    end
-  else
-    if (SystemMasterData=nil) then
-      raise EFRE_DB_Exception.Create(edb_INTERNAL,'BAD NON SYSTEM MASTER SHOULD REFERENCE A SYSTEM MASTER!!!');
+    FIsSysMaster:=true;
   if FMyMastername='' then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'BAD NO NAME');
 end;
@@ -4082,16 +4081,30 @@ begin
 end;
 
 function TFRE_DB_Master_Data.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
-var obr   : TFRE_DB_ObjectReferences;
-    i,cnt : NativeInt;
-    add   : boolean;
-    spf   : TFRE_DB_NameType;
-    fef   : TFRE_DB_NameType;
+var obr     : TFRE_DB_ObjectReferences;
+    obrc    : TFRE_DB_ObjectReferences;
+    i,j,cnt : NativeInt;
+    add     : boolean;
+    spf     : TFRE_DB_NameType;
+    fef     : TFRE_DB_NameType;
+
+
 begin
   if from then
     obr := GetOutBoundRefLinks(obj_uid)
   else
-    obr := GetInboundRefLinks(obj_uid);
+    begin
+      obr := GetInboundRefLinks(obj_uid);
+      if FIsSysMaster then { there possibly exist non system reflinks to the system db, gather them too }
+        begin
+          for j := 0 to high(G_AllNonsysMasters) do
+            begin
+              obrc := G_AllNonsysMasters[j].GetInboundRefLinks(obj_uid);
+              if Length(obrc)>0 then
+                FREDB_ConcatReferenceArrays(obr,obrc);
+            end;
+        end;
+    end;
   SetLength(result,length(obr));
 
   spf := uppercase(scheme_prefix_filter);
@@ -4109,15 +4122,26 @@ end;
 
 function TFRE_DB_Master_Data.GetReferencesCount(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
 var obr   : TFRE_DB_ObjectReferences;
-    i     : NativeInt;
-    add   : boolean;
+    obrc  : TFRE_DB_ObjectReferences;
+    i,j   : NativeInt;
     spf   : TFRE_DB_NameType;
     fef   : TFRE_DB_NameType;
 begin
   if from then
     obr := GetOutBoundRefLinks(obj_uid)
   else
-    obr := GetInboundRefLinks(obj_uid);
+    begin
+      obr := GetInboundRefLinks(obj_uid);
+      if FIsSysMaster then { there possibly exist non system reflinks to the system db, gather them too }
+        begin
+          for j := 0 to high(G_AllNonsysMasters) do
+            begin
+              obrc := G_AllNonsysMasters[j].GetInboundRefLinks(obj_uid);
+              if Length(obrc)>0 then
+                FREDB_ConcatReferenceArrays(obr,obrc);
+            end;
+        end;
+    end;
 
   spf := uppercase(scheme_prefix_filter);
   fef := uppercase(field_exact_filter);
@@ -4129,16 +4153,28 @@ begin
 end;
 
 function TFRE_DB_Master_Data.GetReferencesDetailed(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_ObjectReferences;
-var obr   : TFRE_DB_ObjectReferences;
-    i,cnt : NativeInt;
-    add   : boolean;
-    spf   : TFRE_DB_NameType;
-    fef   : TFRE_DB_NameType;
+var obr     : TFRE_DB_ObjectReferences;
+    obrc    : TFRE_DB_ObjectReferences;
+    i,j,cnt : NativeInt;
+    add     : boolean;
+    spf     : TFRE_DB_NameType;
+    fef     : TFRE_DB_NameType;
 begin
   if from then
     obr := GetOutBoundRefLinks(obj_uid)
   else
-    obr := GetInboundRefLinks(obj_uid);
+    begin
+      obr := GetInboundRefLinks(obj_uid);
+      if FIsSysMaster then { there possibly exist non system reflinks to the system db, gather them too }
+        begin
+          for j := 0 to high(G_AllNonsysMasters) do
+            begin
+              obrc := G_AllNonsysMasters[j].GetInboundRefLinks(obj_uid);
+              if Length(obrc)>0 then
+                FREDB_ConcatReferenceArrays(obr,obrc);
+            end;
+        end;
+    end;
   SetLength(result,length(obr));
 
   spf := uppercase(scheme_prefix_filter);
@@ -4194,7 +4230,7 @@ begin
      else
        //writeln(' FAILED !!!!!!');
     end;
-  if result and IsSystemMasterData then
+  if result and FIsSysMaster then
     obj.Set_SystemDB; { set internal flag that this object comes from the sys layer ( update/wt) }
   if result and
      not internal_obj then
@@ -4212,11 +4248,9 @@ begin
          end;
          obj := clobj;
        end;
-   if not result then { not found here, search in system master data }
-    if assigned(FSystemMasterData) then
-      begin
-        result := FSystemMasterData.FetchObject(obj_uid,obj,internal_obj);
-      end;
+   if not result then { not found here, search in system master data, but not the other way round }
+     if not FIsSysMaster then
+       result := G_SysMaster.FetchObject(obj_uid,obj,internal_obj);
 end;
 
 procedure TFRE_DB_Master_Data.StoreObject(const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);

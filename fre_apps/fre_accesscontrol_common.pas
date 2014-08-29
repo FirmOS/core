@@ -2079,7 +2079,7 @@ begin
     dbo_uid:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
     CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'DeleteGroup');
     if group.isProtected then raise EFRE_DB_Exception.Create('You cannot delete a protected group.');
-    if conn.IsReferenced(group.UID,false,'TFRE_DB_USER') and not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
+    if conn.IsReferenced(group.UID,'TFRE_DB_USER') and not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
       Result:=TFRE_DB_MESSAGE_DESC.create.Describe(FetchModuleTextShort(ses,'delete_not_empty_group_error_diag_cap'),FetchModuleTextShort(ses,'delete_not_empty_group_error_diag_msg'),fdbmt_error);
       exit;
     end;

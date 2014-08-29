@@ -1816,7 +1816,7 @@ type
 
     function            GetDatabaseObjectCount       (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
     procedure           ForAllDatabaseObjectsDo      (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil); { Warning may take some time, delivers a clone }
-    function            IsReferenced                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;virtual;
+    function            IsReferenced                 (const obj_uid:TGuid; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;virtual;
     function            GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;virtual;
     function            GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;virtual;
     function            GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;virtual;
@@ -2267,7 +2267,6 @@ type
     function    FetchTranslateableTextLong     (const translation_key:TFRE_DB_String):TFRE_DB_String;
     function    FetchTranslateableTextHint     (const translation_key:TFRE_DB_String):TFRE_DB_String;
 
-    function    IsReferenced                   (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;override;
     function    GetReferences                  (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;override;
     function    GetReferencesCountNoRightCheck (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
     function    GetReferencesNoRightCheck      (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
@@ -9716,9 +9715,9 @@ begin
   FPersistance_Layer.FDB_ForAllObjects(@local,schemes);
 end;
 
-function TFRE_DB_BASE_CONNECTION.IsReferenced(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
+function TFRE_DB_BASE_CONNECTION.IsReferenced(const obj_uid: TGuid; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
 begin
-  result := FPersistance_Layer.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter)>0;
+  result := FPersistance_Layer.GetReferencesCount(obj_uid,false,scheme_prefix_filter,field_exact_filter)>0;
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
@@ -10389,7 +10388,13 @@ begin
   dbo := nil;
   Result:=inherited Fetch(ouid, dbo);
   if result=edb_NOT_FOUND then
-    result := FSysConnection.Fetch(ouid,dbo);
+    begin
+      result := FSysConnection.Fetch(ouid,dbo);
+      if Assigned(dbo) then
+        begin
+          E_FOS_TestNosey; { should not be necessary anymore}
+        end;
+    end;
   if assigned(dbo) and
      (not dbo.IsObjectRoot) then
       begin
@@ -10549,11 +10554,6 @@ begin //nl
     Result := translation_key;
 end;
 
-function TFRE_DB_CONNECTION.IsReferenced(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
-begin
-  Result:=(inherited IsReferenced(obj_uid, from, scheme_prefix_filter, field_exact_filter)) or FSysConnection.IsReferenced(obj_uid, from, scheme_prefix_filter, field_exact_filter);
-end;
-
 function TFRE_DB_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
 var result_with_rights : TFRE_DB_GUIDArray;
     i,cnt              : NativeInt;
@@ -10574,22 +10574,15 @@ end;
 function TFRE_DB_CONNECTION.GetReferencesCountNoRightCheck(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
 begin
   Result:=inherited GetReferencesCount(obj_uid, from,scheme_prefix_filter,field_exact_filter);
-  if Result=0 then
-    result := FSysConnection.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter);
 end;
 
 function TFRE_DB_CONNECTION.GetReferencesNoRightCheck(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
 begin
   Result:=inherited GetReferences(obj_uid, from,scheme_prefix_filter,field_exact_filter);
-  if not assigned(Result) then
-    result := FSysConnection.GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter);
 end;
 
 function TFRE_DB_CONNECTION.GetReferencesCount(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
 begin
-  //Result:=inherited GetReferencesCount(obj_uid, from,scheme_prefix_filter,field_exact_filter);
-  //if Result=0 then
-  //  result := FSysConnection.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter);
   result := Length(GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter)); { with respect to rights }
 end;
 
@@ -10599,8 +10592,6 @@ var i,cnt           : NativeInt;
     res_with_rights : TFRE_DB_ObjectReferences;
 begin
   Result:=inherited GetReferencesDetailed(obj_uid, from,scheme_prefix_filter,field_exact_filter);
-  if not assigned(Result) then
-    result := FSysConnection.GetReferencesDetailed(obj_uid,from,scheme_prefix_filter,field_exact_filter);
   SetLength(res_with_rights,Length(Result));
   cnt := 0;
   for i:=0 to High(Result) do
@@ -10661,28 +10652,9 @@ begin
 end;
 
 procedure TFRE_DB_CONNECTION.ExpandReferences(ObjectList: TFRE_DB_GUIDArray; ref_constraints : TFRE_DB_NameTypeRLArray ; var expanded_refs: TFRE_DB_ObjectArray);
-//var i        : NativeInt;
-//    FReflist : TFRE_DB_GUIDArray;
-//    cnt      : NativeInt;
-//    res      : TFRE_DB_Errortype;
-//begin //nl
-//  ExpandReferences(ObjectList,ref_constraints,FReflist);
-//  SetLength(expanded_refs,Length(FReflist));
-//  cnt := 0;
-//  for i := 0 to high(expanded_refs) do
-//    begin
-//      res := Fetch(FReflist[i],expanded_refs[cnt]);
-//      if res=edb_ACCESS then
-//        continue; { skip object with no access rights }
-//      if res<>edb_OK then
-//        raise EFRE_DB_Exception.Create(edb_INTERNAL,'FAILED TO FETCH EXPANDED REFERENCED;CHAINED OBJECT');
-//      inc(cnt);
-//    end;
-//  SetLength(expanded_refs,cnt);
-//end;
 var i        : NativeInt;
     obj      : TFRE_DB_Object;
-    comparef : TFRE_DB_NameType;
+    //comparef : TFRE_DB_NameType;
     count    : NativeInt;
     res      : TFRE_DB_Errortype;
 
