@@ -154,9 +154,9 @@ begin
       SetDeriveParent(conn.AdmGetNotificationCollection);
       SetDeriveTransformation(transform);
       SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
-      uids:=conn.SYS.GetCurrentUserTokenRef.User.GetUserGroupIDS;
+      uids:=conn.SYS.GetCurrentUserTokenRef.GetUserGroupIDS;
       SetLength(uids,Length(uids)+1);
-      uids[Length(uids)-1]:=conn.SYS.GetCurrentUserTokenRef.User.UID;
+      uids[Length(uids)-1]:=conn.SYS.GetCurrentUserTokenRef.GetUserUID;
       Filters.AddAutoDependencyFilter('FOR',['TFRE_DB_NOTIFICATION<FOR'],uids);
     end;
   end;
@@ -299,7 +299,7 @@ begin
     block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
     block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
     dialog.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
-    CheckDbResult(conn.Fetch((conn.SYS.GetCurrentUserTokenRef.User.Implementor_HC as IFRE_DB_Object).UID,user));
+    CheckDbResult(conn.Fetch(conn.sys.GetCurrentUserTokenRef.GetUserUID,user)); //conn.SYS.GetCurrentUserTokenRef.User.Implementor_HC as IFRE_DB_Object).UID
     dialog.FillWithObjectValues(user,ses);
     dialog.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CSFT('saveOperation',user.Implementor_HC as IFRE_DB_Object),fdbbt_submit);
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_logout'),CWSF(@WEB_doLogout),fdbbt_button);

@@ -46,7 +46,7 @@ unit fre_db_persistance_common;
 interface
 
 uses
-  Classes, SysUtils,FRE_SYSTEM,FRE_DB_COMMON,FRE_DB_INTERFACE,FRE_DB_CORE,FOS_ARRAYGEN,FOS_GENERIC_SORT,FOS_TOOL_INTERFACES,FOS_AlignedArray,FOS_REDBLACKTREE_GEN,
+  Classes,contnrs,SysUtils,FRE_SYSTEM,FRE_DB_COMMON,FRE_DB_INTERFACE,FRE_DB_CORE,FOS_ARRAYGEN,FOS_GENERIC_SORT,FOS_TOOL_INTERFACES,FOS_AlignedArray,FOS_REDBLACKTREE_GEN,
   fos_art_tree,fos_sparelistgen;
 
 type
@@ -282,6 +282,8 @@ type
     function      CloneOutArray    (const objarr : TFRE_DB_GUIDArray):TFRE_DB_ObjectArray;
     function      CloneOutArrayOI  (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
 
+    function      FetchInternalArrOI(const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
+    procedure     ForAllInternalI   (const iter : IFRE_DB_Obj_Iterator);
 
     function      DefineIndexOnFieldReal (const checkonly : boolean;const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
 
@@ -318,6 +320,10 @@ type
 
     function    FetchO             (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
     function    Fetch              (const uid:TGUID ; var iobj : IFRE_DB_Object) : boolean;
+    function    FetchInternal      (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
+    function    FetchInternalI     (const uid:TGUID ; var obj : IFRE_DB_Object) : boolean;
+
+
     function    First              : IFRE_DB_Object;
     function    Last               : IFRE_DB_Object;
     function    GetItem            (const num:uint64) : IFRE_DB_Object;
@@ -325,6 +331,10 @@ type
 
     function    GetIndexedObj         (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype
     function    GetIndexedObj         (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+
+    function    GetIndexedObjInternal (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype, dont clone
+    function    GetIndexedObjInternal (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; { dont clone}
+
     function    GetIndexedUID         (const query_value : TFRE_DB_String   ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
     function    GetIndexedUIDSigned   (const query_value : int64            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
     function    GetIndexedUIDUnsigned (const query_value : QWord            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
@@ -383,9 +393,14 @@ type
   PFRE_DB_GUID_RefLink_In_Key = ^RFRE_DB_GUID_RefLink_InOut_Key;
 
   var
-    G_DB_TX_Number             : Qword;
+    G_DB_TX_Number    : Qword;
+    G_UserTokens      : TFPHashList;
+
 
   function     G_FetchNewTransactionID : QWord;
+  procedure    G_UpdateUserToken   (const user_uid : TFRE_DB_GUID ; const uti : TFRE_DB_USER_RIGHT_TOKEN);
+  function     G_GetUserToken      (const user_uid : TFRE_DB_GUID ; var uti : TFRE_DB_USER_RIGHT_TOKEN):boolean;
+
 
 
   type
@@ -394,7 +409,7 @@ type
   TFRE_DB_Master_Data=class(TObject)
   private
     FSystemMasterData          : TFRE_DB_Master_Data;
-    FMyMastername                : String;
+    FMyMastername              : String;
     FMasterPersistentObjStore  : TFRE_ART_TREE;
     FMasterVolatileObjStore    : TFRE_ART_TREE;
     FMasterRefLinks            : TFRE_ART_TREE;
@@ -423,7 +438,8 @@ type
 
   public
     function     SysLayer                   : IFRE_DB_PERSISTANCE_LAYER;
-    function     IsSystemMasterData         : Boolean;
+    function     SysMaster                  : TFRE_DB_Master_Data;
+    function     IsSystemMasterData         : Boolean; { is nil in the system master data layer}
 
     function     GetPersistantRootObjectCount (const UppercaseSchemesFilter: TFRE_DB_StringArray=nil): Integer;
 
@@ -758,6 +774,40 @@ function G_FetchNewTransactionID : QWord;
 begin
   inc(G_DB_TX_Number);
   result := G_DB_TX_Number;
+end;
+
+procedure G_UpdateUserToken(const user_uid: TFRE_DB_GUID; const uti: TFRE_DB_USER_RIGHT_TOKEN);
+var suti  : TFRE_DB_USER_RIGHT_TOKEN;
+    idx   : Integer;
+    hname : ShortString;
+begin
+  hname := FREDB_G2SB(user_uid);
+  idx :=G_UserTokens.FindIndexOf(hname);
+  if idx>=0 then
+    begin
+      suti := TFRE_DB_USER_RIGHT_TOKEN(G_UserTokens.Items[idx]);
+      hname := suti.GetFullUserLogin;
+      G_UserTokens.Delete(idx);
+      suti.Finalize;
+    end;
+  G_UserTokens.add(hname,uti);
+end;
+
+function G_GetUserToken(const user_uid: TFRE_DB_GUID; var uti: TFRE_DB_USER_RIGHT_TOKEN): boolean;
+var suti  : TFRE_DB_USER_RIGHT_TOKEN;
+    idx   : Integer;
+    hname : ShortString;
+begin
+  hname := FREDB_G2SB(user_uid);
+  idx :=G_UserTokens.FindIndexOf(hname);
+  if idx>=0 then
+    begin
+      suti := TFRE_DB_USER_RIGHT_TOKEN(G_UserTokens.Items[idx]);
+      hname := suti.GetDomainLoginKey;
+      G_UserTokens.Delete(idx);
+      suti.Finalize;
+    end;
+  G_UserTokens.add(hname,uti);
 end;
 
 { TFRE_DB_RealIndex }
@@ -1549,7 +1599,7 @@ end;
 procedure TFRE_DB_InsertSubStep.CheckExistence;
 begin
   if master.ExistsObject(FNewObj.UID) then
-    raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored subobject [%s] does already exist in master data as subobject or rootobject.')
+    raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored subobject [%s / %s] does already exist in master data as subobject or rootobject. (it is (currently) not possible to store an object with subobjects in multiple collections)',[FNewObj.UID_String,FNewObj.SchemeClass])
 end;
 
 procedure TFRE_DB_InsertSubStep.ChangeInCollectionCheckOrDo(const check: boolean);
@@ -1602,6 +1652,8 @@ procedure TFRE_DB_DeleteCollectionStep.CheckExistence;
 begin
   if not Master.MasterColls.GetCollection(FCollname,FPersColl) then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'collection [%s] does not exists!',[FCollname]);
+  if FPersColl.Count<>0 then
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'collection [%s] is not empty (%d) - only empty collections may be deleted!',[FCollname,FPersColl.Count]);
   FVolatile := FPersColl.IsVolatile;
 end;
 
@@ -3116,7 +3168,7 @@ begin
     begin
       FCollName:=FCollName;
       if existing_object.__InternalCollectionExistsName(FCollName)<>-1 then
-        raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, and in teh specified collection [%s]',[FNewObj.UID_String,FCollName]);
+        raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, and in the specified collection [%s]',[FNewObj.UID_String,FCollName]);
       FThisIsAnAddToAnotherColl := true;
     end;
 end;
@@ -3136,7 +3188,14 @@ procedure TFRE_DB_InsertStep.MasterStore(const check: boolean);
 begin
   assert((check=true) or (length(FNewObj.__InternalGetCollectionList)>0));
   if not FThisIsAnAddToAnotherColl then
-    master.StoreObject(FNewObj,check,GetNotificationRecordIF,GetTransActionStepID);
+    begin
+       master.StoreObject(FNewObj,check,GetNotificationRecordIF,GetTransActionStepID);
+    end
+  else
+    begin
+      if not check then
+        FNewObj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=GetTransActionStepID;
+    end;
   if not check then
     begin
       GetNotificationRecordIF.ObjectStored(FColl.CollectionName, FNewObj,GetTransActionStepID);
@@ -3711,10 +3770,19 @@ begin
   result := FSystemMasterData.FLayer;
 end;
 
+function TFRE_DB_Master_Data.SysMaster: TFRE_DB_Master_Data;
+begin
+  if IsSystemMasterData then
+    exit(self)
+  else
+    exit(FSystemMasterData);
+end;
+
 function TFRE_DB_Master_Data.IsSystemMasterData: Boolean;
 begin
   result := FSystemMasterData=nil; { only in the SYSTEM db layer}
 end;
+
 
 function TFRE_DB_Master_Data.GetPersistantRootObjectCount(const UppercaseSchemesFilter: TFRE_DB_StringArray): Integer;
 var brk:integer;
@@ -5285,6 +5353,28 @@ begin
       raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'cloneout failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
 end;
 
+function TFRE_DB_Persistance_Collection.FetchInternalArrOI(const objarr: TFRE_DB_GUIDArray): IFRE_DB_ObjectArray;
+var i:NativeInt;
+begin
+  SetLength(result,length(objarr));
+  for i:=0 to high(objarr) do
+    if not FetchInternalI(objarr[i],result[i]) then
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'fetchinternalarr failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
+end;
+
+procedure TFRE_DB_Persistance_Collection.ForAllInternalI(const iter: IFRE_DB_Obj_Iterator);
+
+  procedure ForAll(var val:PtrUInt);
+  var newobj : TFRE_DB_Object;
+  begin
+    newobj    := FREDB_PtrUIntToObject(val) as TFRE_DB_Object;
+    iter(newobj);
+  end;
+
+begin
+  FGuidObjStore.LinearScan(@ForAll);
+end;
+
 procedure TFRE_DB_Persistance_Collection.StreamToThis(const stream: TStream);
 var i,cnt,vcnt : nativeint;
 
@@ -5432,6 +5522,30 @@ begin
     iobj := CloneOutObject(FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object)
   else
     iobj := nil;
+end;
+
+function TFRE_DB_Persistance_Collection.FetchInternal(const uid: TGUID; var obj: TFRE_DB_Object): boolean;
+var  dummy : PtrUInt;
+begin
+  result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TGuid),dummy);
+  if result then
+    begin
+      obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;
+      obj.Assert_CheckStoreLocked;
+      if Length(obj.__InternalGetCollectionList)<1 then
+        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
+    end
+  else
+    obj := nil;
+end;
+
+function TFRE_DB_Persistance_Collection.FetchInternalI(const uid: TGUID; var obj: IFRE_DB_Object): boolean;
+var o : TFRE_DB_Object;
+begin
+  obj := nil;
+  result := FetchInternal(uid,o);
+  if Result then
+    obj := o;
 end;
 
 function TFRE_DB_Persistance_Collection.First: IFRE_DB_Object;
@@ -5611,15 +5725,18 @@ begin
 end;
 
 function TFRE_DB_Persistance_Collection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var arr   : IFRE_DB_ObjectArray;
+var arr   : TFRE_DB_GUIDArray;
 begin
   obj := nil;
-  result := GetIndexedObj(query_value,arr,index_name,true,val_is_null);
+  //result := GetIndexedObj(query_value,arr,index_name,true,val_is_null);
+  result := _GetIndexedObjUids(query_value,arr,index_name,true,val_is_null);
   if result then
     begin
       if Length(arr)<>1 then
         raise EFRE_DB_PL_Exception.create(edb_INTERNAL,'a unique index internal store contains [%d] elements!',[length(arr)]);
-      obj := arr[0];
+      result := Fetch(arr[0],obj);
+      if not result then
+        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, the index uid cannot be fetched as object');
     end;
 end;
 
@@ -5629,6 +5746,27 @@ begin
   result := _GetIndexedObjUids(query_value,arr,index_name,check_is_unique,val_is_null);
   if result then
     obj := CloneOutArrayOI(arr);
+end;
+
+function TFRE_DB_Persistance_Collection.GetIndexedObjInternal(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
+var arr : TFRE_DB_GUIDArray;
+begin
+  result := _GetIndexedObjUids(query_value,arr,index_name,true,val_is_null);
+  if not result then
+    exit;
+  if Length(arr)<>1 then
+    raise EFRE_DB_PL_Exception.create(edb_INTERNAL,'a unique index internal store contains [%d] elements!',[length(arr)]);
+  result := FetchInternalI(arr[0],obj);
+  if not result then
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, the index uid cannot be fetched as object');
+end;
+
+function TFRE_DB_Persistance_Collection.GetIndexedObjInternal(const query_value: TFRE_DB_String; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
+var arr : TFRE_DB_GUIDArray;
+begin
+  result := _GetIndexedObjUids(query_value,arr,index_name,check_is_unique,val_is_null);
+  if result then
+    obj := FetchInternalArrOI(arr);
 end;
 
 function TFRE_DB_Persistance_Collection._GetIndexedObjUids(const query_value: TFRE_DB_String; out arr: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const is_null: boolean): boolean;

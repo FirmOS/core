@@ -2017,7 +2017,7 @@ begin
   writeln(input.Field('SELECTED').AsString);
   selg := GFRE_BT.HexString_2_GUID(input.Field('SELECTED').AsString);
   col    := GetDBConnection(input).GetCollection('COLL_TEST_A2');
-  if col.Fetch(selg,new) then begin
+  if col.FetchExists(selg,new) then begin
     num := new.Field('number').AsUint32-1;
     new.Finalize;
     writeln('-NEW OBJECT BEFOR NUM : ',num);
@@ -2042,7 +2042,7 @@ begin
   writeln(input.Field('SELECTED').AsString);
   selg := GFRE_BT.HexString_2_GUID(input.Field('SELECTED').AsString);
   col    := GetDBConnection(input).GetCollection('COLL_TEST_A2');
-  if col.Fetch(selg,new) then begin
+  if col.FetchExists(selg,new) then begin
     num := new.Field('number').AsUint32+1;
     new.Finalize;
     writeln('-NEW OBJECT BEFOR NUM : ',num);
@@ -2083,7 +2083,7 @@ begin
   col       := GetDBConnection(input).GetCollection('COLL_TEST_A2');
   upd_guids :=  GFRE_DBI.StringArray2GuidArray(input.Field('SELECTED').AsStringArr);
   for i:=0 to high(upd_guids) do begin
-    if col.Fetch(upd_guids[i],obj) then begin
+    if col.FetchExists(upd_guids[i],obj) then begin
       if not obj.IsA(TFRE_DB_TEST_A.ClassName) then begin
         writeln('FETCHED OBJ ',obj.UID_String,' IS BAD!');
       end else begin

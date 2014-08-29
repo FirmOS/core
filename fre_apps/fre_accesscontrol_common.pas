@@ -2396,7 +2396,7 @@ begin
     if conn.sys.FetchUserById(user_id,user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.RemoveUserGroupsById(user_id,TFRE_DB_GUIDArray.Create(group.UID))<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.GetLoginAtDomain(conn.sys),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 
@@ -2430,7 +2430,7 @@ begin
     if conn.sys.FetchUserById(user_id,user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.ModifyUserGroupsById(user_id,TFRE_DB_GUIDArray.Create(group.UID),true)<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.GetLoginAtDomain(conn.sys),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -3367,7 +3367,7 @@ begin
     if conn.sys.FetchGroupById(group_id,group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.RemoveUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id))<>edb_OK then
-      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(StringReplace(StringReplace(FetchModuleTextShort(ses,'error_remove_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.GetLoginAtDomain(conn.sys),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -3400,7 +3400,7 @@ begin
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     res:=conn.sys.ModifyUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id),true);
     if res<>edb_OK then
-      raise EFRE_DB_Exception.Create(res,StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.login+'@'+user.getdomain(conn),[rfReplaceAll]));
+      raise EFRE_DB_Exception.Create(res,StringReplace(StringReplace(FetchModuleTextShort(ses,'error_add_group_msg'),'%group%',group.ObjectName+'@'+group.GetDomain(conn),[rfReplaceAll]),'%user%',user.GetLoginAtDomain(conn.sys),[rfReplaceAll]));
   end;
   Result:=GFRE_DB_NIL_DESC;
 end;
