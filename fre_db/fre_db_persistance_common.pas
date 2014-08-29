@@ -3757,10 +3757,25 @@ function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
 
   procedure BuildRef(const obj:TFRE_DB_Object ; var break : boolean);
   var references_to_list : TFRE_DB_ObjectReferences;
-     scheme_links        : TFRE_DB_NameTypeRLArray;
+      scheme_links        : TFRE_DB_NameTypeRLArray;
+      dont_setup          : boolean;
   begin
-    _CheckRefIntegrityForObject(obj,references_to_list,scheme_links); // Todo Check inbound From Links (unique?)
-    if Length(references_to_list)>0 then
+    try
+      dont_setup := false;
+      _CheckRefIntegrityForObject(obj,references_to_list,scheme_links); // Todo Check inbound From Links (unique?)
+    except
+      on e:exception do
+        begin
+          if GDBPS_SKIP_STARTUP_CHECKS then
+            begin
+              writeln('SKIP STARTUP ERROR:> '+e.Message);
+              dont_setup := true;
+            end
+          else
+            raise;
+        end;
+    end;
+    if (not dont_setup) and (Length(references_to_list)>0) then
       _SetupInitialRefLinks(obj,references_to_list,scheme_links,nil,'BOOT');
   end;
 
