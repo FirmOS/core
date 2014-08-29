@@ -419,7 +419,8 @@ type
     procedure    _ChangeRefLink             (const from_obj: TFRE_DB_Object; const upper_schemename: TFRE_DB_NameType; const upper_fieldname: TFRE_DB_NameType; const old_links, new_links: TFRE_DB_GUIDArray ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
 
     // Check full referential integrity, check if to objects exist
-    procedure    _CheckRefIntegrityForObject (const obj:TFRE_DB_Object ; var ref_array : TFRE_DB_ObjectReferences ; var schemelink_arr : TFRE_DB_NameTypeRLArray);
+    procedure    _CheckRefIntegrityForObject                              (const obj:TFRE_DB_Object ; var ref_array : TFRE_DB_ObjectReferences ; var schemelink_arr : TFRE_DB_NameTypeRLArray);
+    procedure    _CheckExistingReferencelinksAndRemoveMissingFromObject   (const obj:TFRE_DB_Object); { auto repair function, use with care }
 
   public
     function     SysLayer                   : IFRE_DB_PERSISTANCE_LAYER;
@@ -3663,7 +3664,6 @@ end;
 procedure TFRE_DB_Master_Data._SetupInitialRefLinks(const from_key: TFRE_DB_Object; const references_to_list: TFRE_DB_ObjectReferences; const schemelink_arr: TFRE_DB_NameTypeRLArray; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var
   i: NativeInt;
-
 begin
   assert(Length(references_to_list)=Length(schemelink_arr),'internal error');
   for i:=0 to high(references_to_list) do
@@ -3702,6 +3702,31 @@ begin
   SetLength(schemelink_arr,Length(ref_array));
   for i:=0 to high(ref_array) do
     __CheckReferenceLink(obj,ref_array[i].fieldname,ref_array[i].linked_uid,schemelink_arr[i]);
+end;
+
+procedure TFRE_DB_Master_Data._CheckExistingReferencelinksAndRemoveMissingFromObject(const obj: TFRE_DB_Object);
+var  i              : NativeInt;
+     ref_array      : TFRE_DB_ObjectReferences;
+     schemelink_arr : TFRE_DB_NameTypeRLArray;
+     rls            : TFRE_DB_GUIDArray;
+begin
+  ref_array := obj.ReferencesFromData;
+  SetLength(schemelink_arr,Length(ref_array));
+  for i:=0 to high(ref_array) do
+    begin
+      try
+        __CheckReferenceLink(obj,ref_array[i].fieldname,ref_array[i].linked_uid,schemelink_arr[i]);
+      except
+        on e:exception do
+          begin
+            writeln('>RECOVERY EXCEPTION : ',e.Message);
+            writeln(format('> TRY REMOVING REF LINK : [%s.%s -> %s (%s)]',[obj.GetDescriptionID,ref_array[i].fieldname,FREDB_G2H(ref_array[i].linked_uid),schemelink_arr[i]]));
+            obj.Field(ref_array[i].fieldname).RemoveObjectLinkByUID(ref_array[i].linked_uid);
+            writeln('REMOVED -> RECURSE');
+            _CheckExistingReferencelinksAndRemoveMissingFromObject(obj);
+          end;
+      end;
+    end;
 end;
 
 function TFRE_DB_Master_Data.SysLayer: IFRE_DB_PERSISTANCE_LAYER;
@@ -3758,24 +3783,31 @@ function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;
   procedure BuildRef(const obj:TFRE_DB_Object ; var break : boolean);
   var references_to_list : TFRE_DB_ObjectReferences;
       scheme_links        : TFRE_DB_NameTypeRLArray;
-      dont_setup          : boolean;
+      setup_repair        : boolean;
   begin
     try
-      dont_setup := false;
+      setup_repair := false;
       _CheckRefIntegrityForObject(obj,references_to_list,scheme_links); // Todo Check inbound From Links (unique?)
     except
       on e:exception do
         begin
           if GDBPS_SKIP_STARTUP_CHECKS then
             begin
-              writeln('SKIP STARTUP ERROR:> '+e.Message);
-              dont_setup := true;
+              setup_repair := true;
             end
           else
             raise;
         end;
     end;
-    if (not dont_setup) and (Length(references_to_list)>0) then
+    if setup_repair then
+      begin
+         _CheckExistingReferencelinksAndRemoveMissingFromObject(obj);
+        _CheckRefIntegrityForObject(obj,references_to_list,scheme_links); // Todo Check inbound From Links (unique?)
+        FLayer.WT_StoreObjectPersistent(obj);
+        writeln('WROTE THROUGH PATCHED OBJECT : ');
+        writeln(obj.DumpToString(2));
+      end;
+    if Length(references_to_list)>0 then
       _SetupInitialRefLinks(obj,references_to_list,scheme_links,nil,'BOOT');
   end;
 

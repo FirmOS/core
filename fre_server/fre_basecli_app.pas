@@ -205,6 +205,10 @@ end;
 
 procedure TFRE_CLISRV_APP.ParseSetSystemFlags;
 begin
+   if HasOption('*','tryrecovery') then
+     begin
+       GDBPS_SKIP_STARTUP_CHECKS := true;
+     end;
    if HasOption('*','setasyncwt') then
      begin
        GDBPS_TRANS_WRITE_ASYNC := GetOptionValue('*','setasyncwt')='on';
@@ -242,6 +246,8 @@ begin
    end else begin
      cFRE_JS_DEBUG := false;
    end;
+   if GDBPS_SKIP_STARTUP_CHECKS then
+     writeln('>>> !!!!  WARNING : SKIPPING STARTUP CHECKS (only possible on embedded) !!!! ');
 end;
 
 function TFRE_CLISRV_APP.GetShortCheckOptions: String;
@@ -303,7 +309,8 @@ begin
   AddCheckOption('*','jsdebug'       ,'                | --jsdebug                      : enable javascript debug/develop mode');
   AddCheckOption('*','dbo2json:'     ,'                | --dbo2json=/path2/dbo          : convert a dbo to json representation');
   AddCheckOption('*','json2dbo:'     ,'                | --json2dbo=/path2/json         : convert a json to dbo representation');
-  AddCheckOption('*','dumpdbo:'     ,'                 | --dumpdbo=uid_hex              : direct dump of a dbo');
+  AddCheckOption('*','dumpdbo:'      ,'                | --dumpdbo=uid_hex              : direct dump of a dbo');
+  AddCheckOption('*','tryrecovery'   ,'                | --tryrecovery                  : try recovery of a bad db by skipping checks / start with option / make backup / have luck');
   AddCheckOption('*','showinstalled' ,'                | --showinstalled                : show installed versions of all database objects');
   AddCheckOption('*','showrights'    ,'                | --showrights                   : show rights of specified user & and check login');
   AddCheckOption('*','backupdb:'     ,'                | --backupdb=</path2/dir>        : backup database interactive');
