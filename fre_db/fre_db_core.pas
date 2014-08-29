@@ -1284,9 +1284,6 @@ type
   procedure          ForAllGuidsDo   (const guid_array:TFRE_DB_GUIDArray   ; const iterator:TFRE_DB_Guid_Iterator);
 
 type
-
-  TFRE_DB_COLLECTIONCLASS  = class of TFRE_DB_COLLECTION;
-
   { TFRE_DB_COLLECTION }
 
   TFRE_DB_COLLECTION=class(TFRE_DB_Object,IFRE_DB_COLLECTION)
@@ -1296,12 +1293,10 @@ type
     FIsTemporary           : Boolean;
     FObjectLinkStore       : IFRE_DB_PERSISTANCE_COLLECTION; //? Necessary to be referenced here
     FName                  : TFRE_DB_NameType;
-    FUniqueName            :  TFRE_DB_NameType;
+    FUniqueName            : TFRE_DB_NameType;
 
   protected
-    class function  Forced_In_Memory               : Boolean;virtual;
-
-    function        URT_UserUid     : TFRE_DB_GUID; { returns the uid of the connection usertoken or NullGuid (all rights) if no connection is set }
+    function        URT_UserUid     : TFRE_DB_GUID;                        { returns the uid of the connection usertoken or NullGuid (all rights) if no connection is set }
     procedure       ForAllI         (const func:IFRE_DB_Obj_Iterator);
     procedure       ForAllBreakI    (const func:IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
     function        StoreI          (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -1326,7 +1321,7 @@ type
     procedure       _IterateOverGUIDArrayT   (const guids: TFRE_DB_GUIDArray; const iter: TFRE_DB_ObjectIteratorBrk; var halt: boolean);
 
   public
-    constructor     Create          (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType;const pers_coll:IFRE_DB_PERSISTANCE_COLLECTION);virtual;
+    constructor     Create          (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType);virtual;
     destructor      Destroy         ;override;
     function        Count            : QWord; virtual; {WARNING COUNT IS NOT ACCESS RIGHTS AWARE !}
 
@@ -1666,7 +1661,6 @@ type
     procedure  MustBeInitialized             ;
 
   protected
-    class function Forced_In_Memory: Boolean; override;
     procedure  BindSession              (const session : TFRE_DB_UserSession);
     function IFRE_DB_DERIVED_COLLECTION.ForAll                   = ForAllI;
     function IFRE_DB_DERIVED_COLLECTION.ForAllBreak              = ForAllBreakI;
@@ -1683,7 +1677,7 @@ type
     function IFRE_DB_DERIVED_COLLECTION.GetIndexedObj            = GetIndexedObjI;
 
   public
-    constructor  Create                        (const dbname: TFRE_DB_NameType; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
+    constructor  Create                        (const dbname: TFRE_DB_NameType; const name: TFRE_DB_NameType);
     destructor   Destroy                       ; override;
     function     GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
 
@@ -1795,7 +1789,7 @@ type
     procedure           _CloneCheck                  ;
     procedure           _CloneTrueCheck              ;
     function            Implementor                  : TObject;
-    procedure           _AddCollectionToStore        (const persColl: IFRE_DB_PERSISTANCE_COLLECTION); {from notfif or CollectionCC}
+    procedure           _AddCollectionToStore        (const coll_name : TFRE_DB_NameType); {from notfif or CollectionCC}
   protected
     procedure  AcquireConnLock;
     procedure  ReleaseConnLock;
@@ -1826,7 +1820,6 @@ type
     function           _Connect                     (const db:TFRE_DB_String ; const is_clone_connect : boolean):TFRE_DB_Errortype;virtual;
     procedure          InternalSetupConnection      ;virtual;
     function           CollectionExists             (const name:TFRE_DB_NameType):boolean;virtual;
-    function           CollectionCN                 (const collection_name:TFRE_DB_NameType;const NewCollectionClassName:ShortString):TFRE_DB_COLLECTION;virtual;
 
     function           NewObjectCC                  (const ObjClass:TFRE_DB_OBJECTCLASS)                                     : TFRE_DB_Object; virtual;
     procedure          Finalize                     ;
@@ -1839,7 +1832,7 @@ type
   public
     function           DeleteCollection             (const name:TFRE_DB_NameType):TFRE_DB_Errortype;virtual;
 
-    function           CollectionCC                 (const collection_name:TFRE_DB_NameType;const NewCollectionClass:TFRE_DB_COLLECTIONCLASS;const create_non_existing:boolean=true;const in_memory_only:boolean=false):TFRE_DB_COLLECTION;virtual;
+    function           CollectionCC                 (const collection_name:TFRE_DB_NameType ; const create_non_existing:boolean=true;const in_memory_only:boolean=false):TFRE_DB_COLLECTION;virtual;
 
     function           FetchI                       (const ouid:TGUID;out dbo:IFRE_DB_Object)                                : TFRE_DB_Errortype;
     function           FetchAsIntf                  (const ouid:TGUID;const IntfSpec:ShortString; out Intf)                  : TFRE_DB_Errortype;
@@ -6666,11 +6659,6 @@ begin
 end;
 
 
-class function TFRE_DB_DERIVED_COLLECTION.Forced_In_Memory: Boolean;
-begin
-  Result:=true;
-end;
-
 procedure TFRE_DB_DERIVED_COLLECTION.BindSession(const session: TFRE_DB_UserSession);
 begin
   if assigned(FSession) then
@@ -6678,9 +6666,9 @@ begin
   FSession := session;
 end;
 
-constructor TFRE_DB_DERIVED_COLLECTION.Create(const dbname:TFRE_DB_NameType ; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
+constructor TFRE_DB_DERIVED_COLLECTION.Create(const dbname: TFRE_DB_NameType; const name: TFRE_DB_NameType);
 begin
-  inherited Create(nil,name,pers_coll);
+  inherited Create(nil,name);
   FDCollFilters  := GFRE_DB_TCDM.GetNewFilterDefinition(DBName);
 end;
 
@@ -8890,11 +8878,6 @@ end;
 
 { TFRE_DB_COLLECTION }
 
-class function TFRE_DB_COLLECTION.Forced_In_Memory: Boolean;
-begin
-  result := false;
-end;
-
 function TFRE_DB_COLLECTION.URT_UserUid: TFRE_DB_GUID;
 begin
   if assigned(FCollConnection) then
@@ -8904,10 +8887,9 @@ begin
 end;
 
 
-constructor TFRE_DB_COLLECTION.Create(const connection: TFRE_DB_BASE_CONNECTION; const name: TFRE_DB_NameType; const pers_coll: IFRE_DB_PERSISTANCE_COLLECTION);
+constructor TFRE_DB_COLLECTION.Create(const connection: TFRE_DB_BASE_CONNECTION; const name: TFRE_DB_NameType);
 begin
   inherited Create;
-  FObjectLinkStore  := pers_coll;
   FName             := name;
   FUniqueName       := uppercase(name);
   FCollConnection   := connection;
@@ -9579,16 +9561,15 @@ begin
   result := self;
 end;
 
-procedure TFRE_DB_BASE_CONNECTION._AddCollectionToStore(const persColl: IFRE_DB_PERSISTANCE_COLLECTION);
-var
-    lcollection      : TFRE_DB_Collection;
-    lCollectionClass : TFRE_DB_COLLECTIONCLASS;
+procedure TFRE_DB_BASE_CONNECTION._AddCollectionToStore(const coll_name: TFRE_DB_NameType);
+var  lcollection      : TFRE_DB_Collection;
+     up_collname      : TFRE_DB_NameType;
 begin
- if not FCollectionStore.Exists(persColl.CollectionName(true)) then
+ up_collname := uppercase(coll_name);
+ if not FCollectionStore.Exists(up_collname) then
    begin
-     lCollectionClass := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(persColl.GetCollectionClassName));
-     lcollection      := lCollectionClass.Create(self,persColl.CollectionName(false),persColl);
-     if not FCollectionStore.Add(persColl.CollectionName(true),lcollection) then
+     lcollection := TFRE_DB_COLLECTION.Create(self,coll_name);
+     if not FCollectionStore.Add(up_collname,lcollection) then
          raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore/internal _AddCollectionTStore');
    end;
 end;
@@ -9673,11 +9654,8 @@ begin
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.CollectionCreated(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
-var persColl : IFRE_DB_PERSISTANCE_COLLECTION;
 begin
-  if not FPersistance_Layer.GetCollection(coll_name,persColl) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'notify inconsistency collection [%s] creation notification but collection not found ?',[coll_name]);
-  _AddCollectionToStore(persColl);
+   _AddCollectionToStore(coll_name);
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.CollectionDeleted(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
@@ -10092,26 +10070,13 @@ begin // Nolock IF
   result := NewScheme(Scheme_Name,parent_scheme_name);
 end;
 
-
-function TFRE_DB_BASE_CONNECTION.CollectionCN(const collection_name: TFRE_DB_NameType; const NewCollectionClassName: ShortString): TFRE_DB_COLLECTION;
-var lCollectionClass:TFRE_DB_COLLECTIONCLASS;
-    lobjClass       :TFRE_DB_OBJECTCLASS;
-    ccn             :Shortstring;
-begin
-  ccn         := NewCollectionClassName;
-  lobjClass   := TFRE_DB_COLLECTIONCLASS(GFRE_DB.GetObjectClass(ccn));
-  result      := CollectionCC(collection_name,lCollectionClass);
-end;
-
-function TFRE_DB_BASE_CONNECTION.CollectionCC(const collection_name: TFRE_DB_NameType; const NewCollectionClass: TFRE_DB_COLLECTIONCLASS; const create_non_existing: boolean; const in_memory_only: boolean): TFRE_DB_COLLECTION;
+function TFRE_DB_BASE_CONNECTION.CollectionCC(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean; const in_memory_only: boolean): TFRE_DB_COLLECTION;
 var lcollection  : TFRE_DB_Collection;
     keyp         : PFRE_DB_NameType;
     storep       : ^TFRE_DB_Collection;
     FUPcoll_name : TFRE_DB_String;
-    persColl     : IFRE_DB_PERSISTANCE_COLLECTION;
 
 begin
-  assert(NewCollectionClass<>TFRE_DB_DERIVED_COLLECTION,'dc must not reach the persistance layer');
   result:=nil;
   FUPcoll_name    := uppercase(collection_name);
   if FUPcoll_name='' then
@@ -10119,16 +10084,16 @@ begin
   if FCollectionStore.Find(FUPcoll_name,lcollection) then begin
     result := lcollection;
   end else begin
-    if FPersistance_Layer.GetCollection(collection_name,persColl) then
+    if FPersistance_Layer.ExistCollection(collection_name) then
       begin { The Layer has the Collection but it's not in my store -> add it}
-        lcollection := NewCollectionClass.Create(self,collection_name,persColl);
+        lcollection := TFRE_DB_COLLECTION.Create(self,collection_name);
         if not FCollectionStore.Add(FUPcoll_name,lcollection) then
           raise EFRE_DB_Exception.create(edb_INTERNAL,'collectionstore');
         exit(lcollection);
       end;
     if create_non_existing then begin
-      FPersistance_Layer.NewCollection(collection_name,NewCollectionClass.ClassName,persColl,in_memory_only);
-      _AddCollectionToStore(persColl);
+      FPersistance_Layer.NewCollection(collection_name,in_memory_only);
+      _AddCollectionToStore(collection_name);
       if not FCollectionStore.Find(FUPcoll_name,lcollection) then
         raise EFRE_DB_Exception.Create(edb_ERROR,'cannot fetch created collection / fail');
       exit(lcollection);
@@ -10164,7 +10129,7 @@ end;
 
 function TFRE_DB_BASE_CONNECTION.Collection(const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false):TFRE_DB_COLLECTION;
 begin
-  result:=CollectionCC(collection_name,TFRE_DB_COLLECTION,create_non_existing,in_memory);
+  result:=CollectionCC(collection_name,create_non_existing,in_memory);
 end;
 
 
@@ -10790,7 +10755,7 @@ end;
 function TFRE_DB_CONNECTION.CreateDerivedCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_DERIVED_COLLECTION;
 var lcollection : TFRE_DB_DERIVED_COLLECTION;
 begin
-  lcollection := TFRE_DB_DERIVED_COLLECTION.Create(FDBName,collection_name,nil);
+  lcollection := TFRE_DB_DERIVED_COLLECTION.Create(FDBName,collection_name);
   result      := lcollection;
 end;
 

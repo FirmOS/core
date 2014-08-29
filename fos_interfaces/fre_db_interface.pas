@@ -1391,8 +1391,8 @@ type
     function  GetLastErrorCode              : TFRE_DB_Errortype;
 
     function  ExistCollection               (const coll_name : TFRE_DB_NameType) : Boolean;
-    function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
-    function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+    //function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
+    function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
     function  DeleteCollection              (const coll_name : TFRE_DB_NameType ) : TFRE_DB_TransStepId;
     function  DefineIndexOnField            (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
 

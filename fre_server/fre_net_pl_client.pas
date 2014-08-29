@@ -159,7 +159,7 @@ type
 
       function  DefineIndexOnField            (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_TransStepId;
       function  GetLastErrorCode              : TFRE_DB_Errortype;
-      function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+      function  NewCollection                 (const coll_name : TFRE_DB_NameType ; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
 
       procedure WT_TransactionID              (const number:qword);
       procedure WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
@@ -880,7 +880,7 @@ begin
     end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.NewCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.NewCollection(const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
@@ -888,7 +888,6 @@ begin
   begin
     cmd := NewPersistenceLayerCommand('NC');
     cmd.Field('cn').AsString:=coll_name;
-    cmd.Field('ccn').AsString:=CollectionClassname;
     cmd.Field('v').AsBoolean:=volatile_in_memory;
     SendCycle(cmd,answer);
     try
@@ -896,7 +895,8 @@ begin
       result := answer.Field('TSID').AsString;
       FLasterror     := '';
       FLastErrorCode := edb_OK;
-      Collection := _AddCollection(coll_name,CollectionClassname,volatile_in_memory);
+      abort;
+      //Collection := _AddCollection(coll_name,CollectionClassname,volatile_in_memory);
     finally
       answer.Finalize;
     end;

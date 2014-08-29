@@ -200,7 +200,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
      { Transactional Operations / These operations report the last transaction step id generated, there may be more then one generated }
 
-     function    NewCollection       (const coll_name : TFRE_DB_NameType ; const CollectionClassname : Shortstring ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+     function    NewCollection       (const coll_name : TFRE_DB_NameType ; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
      function    DeleteCollection    (const coll_name : TFRE_DB_NameType) : TFRE_DB_TransStepId; // todo transaction context
      function    StoreOrUpdateObject (const   iobj:IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; { must free the iobj in every case !}
      function    DeleteObject        (const obj_uid : TGUID    ;  const collection_name: TFRE_DB_NameType = ''  ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
@@ -931,7 +931,7 @@ begin
   result := FConnectedDB;
 end;
 
-function TFRE_DB_PS_FILE.NewCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
+function TFRE_DB_PS_FILE.NewCollection(const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean): TFRE_DB_TransStepId;
 var coll                : TFRE_DB_Persistance_Collection;
     ImplicitTransaction : Boolean;
     CleanApply          : Boolean;
@@ -949,12 +949,12 @@ begin
             G_Transaction       := TFRE_DB_TransactionalUpdateList.Create('C',Fmaster,FChangeNotificationIF);
             ImplicitTransaction := True;
           end;
-        step := TFRE_DB_NewCollectionStep.Create(self,FMaster,coll_name,CollectionClassname,volatile_in_memory);
+        step := TFRE_DB_NewCollectionStep.Create(self,FMaster,coll_name,volatile_in_memory);
         G_Transaction.AddChangeStep(step);
         if ImplicitTransaction then
           G_Transaction.Commit;
         CleanApply     := true;
-        Collection     := step.GetNewCollection;
+        //Collection     := step.GetNewCollection;
         result         := step.GetTransActionStepID;
         FLastErrorCode := edb_OK;
         FLastError     := '';
