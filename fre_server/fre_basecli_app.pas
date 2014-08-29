@@ -104,6 +104,7 @@ type
 
     function    ListFromString          (const str :string) : IFOS_STRINGS;
     procedure   ConvertDbo              (const file_name:string ; const to_json:boolean);
+    procedure   DumpDBO                 (const uid_hex : string);
     procedure   PrintTimeZones     ;
     procedure   ReCreateDB         ;
     procedure   ReCreateSysDB      ;
@@ -184,8 +185,30 @@ begin
      end;
 end;
 
+procedure TFRE_CLISRV_APP.DumpDBO(const uid_hex: string);
+var conn : IFRE_DB_CONNECTION;
+    uid  : TFRE_DB_GUID;
+    dbo  : IFRE_DB_Object;
+begin
+   uid := FREDB_H2G(uid_hex);
+  _CheckDBNameSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
+  CONN := GFRE_DBI.NewConnection;
+  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
+  CheckDbResult(conn.fetch(uid,dbo));
+  writeln('');
+  writeln(dbo.DumpToString(2));
+  writeln('');
+  conn.Finalize;
+end;
+
 procedure TFRE_CLISRV_APP.ParseSetSystemFlags;
 begin
+   if HasOption('*','tryrecovery') then
+     begin
+       GDBPS_SKIP_STARTUP_CHECKS := true;
+     end;
    if HasOption('*','setasyncwt') then
      begin
        GDBPS_TRANS_WRITE_ASYNC := GetOptionValue('*','setasyncwt')='on';
@@ -223,6 +246,8 @@ begin
    end else begin
      cFRE_JS_DEBUG := false;
    end;
+   if GDBPS_SKIP_STARTUP_CHECKS then
+     writeln('>>> !!!!  WARNING : SKIPPING STARTUP CHECKS (only possible on embedded) !!!! ');
 end;
 
 function TFRE_CLISRV_APP.GetShortCheckOptions: String;
@@ -282,8 +307,10 @@ begin
   AddCheckOption('*','nozip'         ,'                | --nozip                        : don''t zip webroot files, the server still uses files that are availlable');
   AddCheckOption('*','nocache'       ,'                | --nocache                      : disable memory caching of whole webroot on startup');
   AddCheckOption('*','jsdebug'       ,'                | --jsdebug                      : enable javascript debug/develop mode');
-  AddCheckOption('*','dbo2json:'     ,'                | --dbo2json=/path2/dbo          : convert a dbo to json represantation');
-  AddCheckOption('*','json2dbo:'     ,'                | --json2dbo=/path2/json         : convert a json to dbo represantation');
+  AddCheckOption('*','dbo2json:'     ,'                | --dbo2json=/path2/dbo          : convert a dbo to json representation');
+  AddCheckOption('*','json2dbo:'     ,'                | --json2dbo=/path2/json         : convert a json to dbo representation');
+  AddCheckOption('*','dumpdbo:'      ,'                | --dumpdbo=uid_hex              : direct dump of a dbo');
+  AddCheckOption('*','tryrecovery'   ,'                | --tryrecovery                  : try recovery of a bad db by skipping checks / start with option / make backup / have luck');
   AddCheckOption('*','showinstalled' ,'                | --showinstalled                : show installed versions of all database objects');
   AddCheckOption('*','showrights'    ,'                | --showrights                   : show rights of specified user & and check login');
   AddCheckOption('*','backupdb:'     ,'                | --backupdb=</path2/dir>        : backup database interactive');
@@ -576,6 +603,11 @@ begin
     begin
       result := true;
       ConvertDbo(GetOptionValue('*','json2dbo'),false);
+    end;
+  if HasOption('*','dumpdbo') then
+    begin
+      result := true;
+      DumpDBO(GetOptionValue('*','dumpdbo'));
     end;
   if HasOption('*','backupdb') then
     begin
