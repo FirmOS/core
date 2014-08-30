@@ -756,7 +756,7 @@ implementation
           end;
           jsContentAdd('"<td "+');
           if elem.Field('caption').AsString='' then begin
-            jsContentAdd('"collspan=''2'' "+');
+            jsContentAdd('"colspan=''2'' "+');
           end;
           jsContentAdd('"class=''firmosFormInputTD''>"+');
           case elem.ClassName of
