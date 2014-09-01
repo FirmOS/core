@@ -365,7 +365,7 @@ procedure TFRE_DB_GRAPH.CollectionIterator (const coll: IFRE_DB_COLLECTION);
    else
      begin
        collname := coll.CollectionName;
-       colltype := ' [C] '+' ('+inttostr(coll.Count)+')';
+       colltype := ' [C] '+' ('+inttostr(coll.ItemCount)+')';
        scolor   := 'green';
      end;
    plotlist.Add('coll'+lowercase(collname)+' [label=<');

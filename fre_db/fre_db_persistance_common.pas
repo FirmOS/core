@@ -256,7 +256,6 @@ type
   private
     FName         : TFRE_DB_NameType;
     FUpperName    : TFRE_DB_NameType;
-    FCClassname   : Shortstring;
     FLayer        : IFRE_DB_PERSISTANCE_LAYER;
     FVolatile     : Boolean;
     FGuidObjStore : TFRE_ART_TREE;
@@ -273,17 +272,9 @@ type
 
     procedure     StoreInThisColl     (const new_iobj        : IFRE_DB_Object ; const checkphase : boolean);
     procedure     UpdateInThisColl    (const new_ifld,old_ifld : IFRE_DB_FIELD  ; const old_iobj,new_iobj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const in_child_obj : boolean ; const checkphase : boolean);
-    function      GetCollectionClassName     : ShortString;
 
 
     procedure     DeleteFromThisColl  (const del_iobj: IFRE_DB_Object ; const checkphase : boolean);
-
-    function      CloneOutObject   (const inobj:TFRE_DB_Object):TFRE_DB_Object;
-    function      CloneOutArray    (const objarr : TFRE_DB_GUIDArray):TFRE_DB_ObjectArray;
-    function      CloneOutArrayOI  (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
-
-    function      FetchInternalArrOI(const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
-    procedure     ForAllInternalI   (const iter : IFRE_DB_Obj_Iterator);
 
     function      DefineIndexOnFieldReal (const checkonly : boolean;const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
 
@@ -292,9 +283,11 @@ type
     function      _GetIndexedObjUidsUnsigned (const query_value: qword          ; out arr: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const is_null : boolean): boolean;
     function      _GetIndexedObjUidsReal     (const query_value: Double         ; out arr: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const is_null : boolean): boolean;
 
-    function      FetchIntFromColl    (const uid:TGuid ; var obj : IFRE_DB_Object):boolean;
     function      GetPersLayer        : IFRE_DB_PERSISTANCE_LAYER;
   public
+    function      CloneOutObject   (const inobj:TFRE_DB_Object):TFRE_DB_Object;
+    function      CloneOutArray    (const objarr : TFRE_DB_GUIDArray):TFRE_DB_ObjectArray;
+    function      CloneOutArrayOI  (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
 
     {< Do all streaming changes for this section }
     procedure     StreamToThis       (const stream : TStream);
@@ -305,7 +298,7 @@ type
     function    CollectionName     (const unique:boolean):TFRE_DB_NameType;
     function    GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
     function    UniqueName         : PFRE_DB_NameType;
-    constructor Create             (const coll_name: TFRE_DB_NameType;const CollectionClassname: Shortstring; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
+    constructor Create             (const coll_name: TFRE_DB_NameType ; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
     destructor  Destroy            ; override;
     function    Count              : int64;
     function    Exists             (const ouid: TGUID): boolean;
@@ -319,8 +312,13 @@ type
 
     function    FetchO             (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
     function    Fetch              (const uid:TGUID ; var iobj : IFRE_DB_Object) : boolean;
-    function    FetchInternal      (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
-    function    FetchInternalI     (const uid:TGUID ; var obj : IFRE_DB_Object) : boolean;
+
+    function    FetchIntFromColl      (const uid:TFRE_DB_GUID ; var obj : IFRE_DB_Object):boolean;
+    function    FetchIntFromCollO     (const uid:TFRE_DB_GUID ; var obj : TFRE_DB_Object):boolean;
+    function    FetchIntFromCollArrOI (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
+    function    FetchIntFromCollAll   : IFRE_DB_ObjectArray;
+    procedure   ForAllInternalI       (const iter : IFRE_DB_Obj_Iterator);
+    procedure   ForAllInternal        (const iter : TFRE_DB_Obj_Iterator);
 
 
     function    First              : IFRE_DB_Object;
@@ -375,9 +373,10 @@ type
     constructor Create;
     destructor  Destroy; override;
     procedure   Clear;
-    function    NewCollection     (const coll_name : TFRE_DB_NameType ; const CollectionClassname: Shortstring ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION ; const volatile_in_memory:boolean ; const pers_layer:IFRE_DB_PERSISTANCE_LAYER) : TFRE_DB_Errortype;
+    function    NewCollection     (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION ; const volatile_in_memory:boolean ; const pers_layer:IFRE_DB_PERSISTANCE_LAYER) : TFRE_DB_Errortype;
     function    DeleteCollection  (const coll_name : TFRE_DB_NameType):TFRE_DB_Errortype;
     function    GetCollection     (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION) : boolean;
+    function    GetCollectionInt  (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION) : boolean;
     procedure   ForAllCollections (const iter : TFRE_DB_PersColl_Iterator);
     function    GetCollectionCount   : Integer;
   end;
@@ -403,7 +402,7 @@ type
 
   function     G_FetchNewTransactionID : QWord;
   procedure    G_UpdateUserToken   (const user_uid : TFRE_DB_GUID ; const uti : TFRE_DB_USER_RIGHT_TOKEN);
-  function     G_GetUserToken      (const user_uid : TFRE_DB_GUID ; var uti : TFRE_DB_USER_RIGHT_TOKEN):boolean;
+  function     G_GetUserToken      (const user_uid : TFRE_DB_GUID ; out   uti : TFRE_DB_USER_RIGHT_TOKEN ; const raise_ex : boolean):boolean;
 
 
 
@@ -510,9 +509,8 @@ type
     FCollname       : TFRE_DB_NameType;
     FVolatile       : Boolean;
     FNewCollection  : IFRE_DB_PERSISTANCE_COLLECTION;
-    FCClassname     : Shortstring;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType;const CollectionClassname: Shortstring;const volatile_in_memory: boolean);
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType;const volatile_in_memory: boolean);
     constructor CreateAsWALReadBack          (const coll_name: TFRE_DB_NameType);
     procedure   CheckExistence               ; override;
     procedure   ChangeInCollectionCheckOrDo  (const check: boolean); override;
@@ -795,21 +793,22 @@ begin
   G_UserTokens.add(hname,uti);
 end;
 
-function G_GetUserToken(const user_uid: TFRE_DB_GUID; var uti: TFRE_DB_USER_RIGHT_TOKEN): boolean;
-var suti  : TFRE_DB_USER_RIGHT_TOKEN;
-    idx   : Integer;
+function G_GetUserToken(const user_uid: TFRE_DB_GUID; out uti: TFRE_DB_USER_RIGHT_TOKEN; const raise_ex: boolean): boolean;
+var idx   : Integer;
     hname : ShortString;
 begin
   hname := FREDB_G2SB(user_uid);
   idx :=G_UserTokens.FindIndexOf(hname);
   if idx>=0 then
     begin
-      suti := TFRE_DB_USER_RIGHT_TOKEN(G_UserTokens.Items[idx]);
-      hname := suti.GetDomainLoginKey;
-      G_UserTokens.Delete(idx);
-      suti.Finalize;
+      uti := TFRE_DB_USER_RIGHT_TOKEN(G_UserTokens.Items[idx]);
+    end
+  else
+    uti := nil;
+  if raise_ex and (not assigned(uti)) then
+    begin
+      raise EFRE_DB_Exception.Create(edb_ERROR,'the specified user [%s] does not exist',[FREDB_G2H(user_uid)]);
     end;
-  G_UserTokens.add(hname,uti);
 end;
 
 { TFRE_DB_RealIndex }
@@ -1798,12 +1797,11 @@ end;
 { TFRE_DB_NewCollectionStep }
 
 
-constructor TFRE_DB_NewCollectionStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const volatile_in_memory: boolean);
+constructor TFRE_DB_NewCollectionStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean);
 begin
   inherited Create(layer,masterdata);
   FCollname      := coll_name;
   FVolatile      := volatile_in_memory;
-  FCClassname    := CollectionClassname;
 end;
 
 constructor TFRE_DB_NewCollectionStep.CreateAsWALReadBack(const coll_name: TFRE_DB_NameType);
@@ -1829,7 +1827,7 @@ var res:TFRE_DB_Errortype;
 begin
   if not check then
     begin
-      res := Master.MasterColls.NewCollection(FCollname,FCClassname,FNewCollection,FVolatile,Master.FLayer);
+      res := Master.MasterColls.NewCollection(FCollname,FNewCollection,FVolatile,Master.FLayer);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
       GetNotificationRecordIF.CollectionCreated(FCollname,GetTransActionStepID);
@@ -5098,7 +5096,7 @@ begin
   FCollTree.Clear;
 end;
 
-function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
+function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
 var coll     : TFRE_DB_Persistance_Collection;
     safename : TFRE_DB_NameType;
 begin
@@ -5110,7 +5108,7 @@ begin
     end
   else
     begin
-      coll := TFRE_DB_Persistance_Collection.Create(coll_name,CollectionClassname,volatile_in_memory,pers_layer);
+      coll := TFRE_DB_Persistance_Collection.Create(coll_name,volatile_in_memory,pers_layer);
       if FCollTree.InsertBinaryKey(@coll.UniqueName^[1],length(coll.UniqueName^),FREDB_ObjectToPtrUInt(coll)) then
         begin
           Collection := coll;
@@ -5144,7 +5142,14 @@ end;
 
 function TFRE_DB_CollectionManageTree.GetCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION): boolean;
 var coll     : TFRE_DB_Persistance_Collection;
-    safename : TFRE_DB_NameType;
+begin
+  result := GetCollectionInt(coll_name,coll);
+  if result then
+    Collection := coll;
+end;
+
+function TFRE_DB_CollectionManageTree.GetCollectionInt(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION): boolean;
+var safename : TFRE_DB_NameType;
 begin
   safename:=uppercase(coll_name);
   if FCollTree.ExistsBinaryKey(@safename[1],length(safename),dummy) then
@@ -5227,14 +5232,13 @@ begin
     FIndexStore[i].IndexDelCheck(del_obj,nil,check_only);
 end;
 
-constructor TFRE_DB_Persistance_Collection.Create(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
+constructor TFRE_DB_Persistance_Collection.Create(const coll_name: TFRE_DB_NameType; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
 begin
   FGuidObjStore := TFRE_ART_TREE.Create;
   FName         := coll_name;
   FVolatile     := Volatile;
   FLayer        := pers_layer;
   FUpperName    := UpperCase(FName);
-  FCClassname   := CollectionClassname;
 end;
 
 destructor TFRE_DB_Persistance_Collection.Destroy;
@@ -5371,11 +5375,6 @@ begin
    { indices must not be defined on child objects}
 end;
 
-function TFRE_DB_Persistance_Collection.GetCollectionClassName: ShortString;
-begin
-  result := FCClassname;
-end;
-
 procedure TFRE_DB_Persistance_Collection.DeleteFromThisColl(const del_iobj: IFRE_DB_Object; const checkphase: boolean);
 var    cnt   : NativeInt;
      del_obj : TFRE_DB_Object;
@@ -5434,24 +5433,40 @@ begin
       raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'cloneout failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
 end;
 
-function TFRE_DB_Persistance_Collection.FetchInternalArrOI(const objarr: TFRE_DB_GUIDArray): IFRE_DB_ObjectArray;
+function TFRE_DB_Persistance_Collection.FetchIntFromCollArrOI(const objarr: TFRE_DB_GUIDArray): IFRE_DB_ObjectArray;
 var i:NativeInt;
 begin
   SetLength(result,length(objarr));
   for i:=0 to high(objarr) do
-    if not FetchInternalI(objarr[i],result[i]) then
+    if not FetchIntFromColl(objarr[i],result[i]) then
       raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'fetchinternalarr failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
 end;
 
-procedure TFRE_DB_Persistance_Collection.ForAllInternalI(const iter: IFRE_DB_Obj_Iterator);
+function TFRE_DB_Persistance_Collection.FetchIntFromCollAll: IFRE_DB_ObjectArray;
+var uids : TFRE_DB_GUIDArray;
+begin
+  GetAllUIDS(uids);
+  result := FetchIntFromCollArrOI(uids)
+end;
 
+procedure TFRE_DB_Persistance_Collection.ForAllInternalI(const iter: IFRE_DB_Obj_Iterator);
   procedure ForAll(var val:PtrUInt);
   var newobj : TFRE_DB_Object;
   begin
     newobj    := FREDB_PtrUIntToObject(val) as TFRE_DB_Object;
     iter(newobj);
   end;
+begin
+  FGuidObjStore.LinearScan(@ForAll);
+end;
 
+procedure TFRE_DB_Persistance_Collection.ForAllInternal(const iter: TFRE_DB_Obj_Iterator);
+  procedure ForAll(var val:PtrUInt);
+  var newobj : TFRE_DB_Object;
+  begin
+    newobj    := FREDB_PtrUIntToObject(val) as TFRE_DB_Object;
+    iter(newobj);
+  end;
 begin
   FGuidObjStore.LinearScan(@ForAll);
 end;
@@ -5475,7 +5490,7 @@ begin
   stream.Position:=0;
   stream.WriteAnsiString('FDBC');
   stream.WriteAnsiString(FName);
-  stream.WriteAnsiString(FCClassname);
+  stream.WriteAnsiString('*');
   cnt  := FGuidObjStore.GetValueCount;
   vcnt := 0;
   stream.WriteQWord(cnt);
@@ -5499,7 +5514,7 @@ begin
   in_txt := stream.ReadAnsiString;
   if in_txt<>FName then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION STREAM INVALID NAME DIFFERS: [%s <> %s]',[in_txt,FName]);
-  FCClassname := stream.ReadAnsiString;
+  stream.ReadAnsiString; // deprecated collectionclassname
 
   cnt := stream.ReadQWord;
   //writeln('RELOADING COLLECTION ',in_txt,' / ',cnt);
@@ -5541,7 +5556,7 @@ begin
     abort;
   obj := GFRE_DBI.NewObject;
   obj.Field('CollectionName').AsString := FName;
-  obj.Field('ClassName').AsString      := FCClassname;
+  obj.Field('ClassName').AsString      := '*';
   cnt  := FGuidObjStore.GetValueCount;
   vcnt := 0;
   SetLength(arr,cnt);
@@ -5562,7 +5577,7 @@ var in_txt : String;
     dbo    : TFRE_DB_Object;
     arr    : TFRE_DB_GUIDArray;
 begin
-  FCClassname := obj.Field('ClassName').AsString;
+  //FCClassname := obj.Field('ClassName').AsString;
   arr         :=  obj.Field('ObjectUids').AsGUIDArr;
   for i := 0 to high(arr) do
     begin
@@ -5603,30 +5618,6 @@ begin
     iobj := CloneOutObject(FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object)
   else
     iobj := nil;
-end;
-
-function TFRE_DB_Persistance_Collection.FetchInternal(const uid: TGUID; var obj: TFRE_DB_Object): boolean;
-var  dummy : PtrUInt;
-begin
-  result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TGuid),dummy);
-  if result then
-    begin
-      obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;
-      obj.Assert_CheckStoreLocked;
-      if Length(obj.__InternalGetCollectionList)<1 then
-        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
-    end
-  else
-    obj := nil;
-end;
-
-function TFRE_DB_Persistance_Collection.FetchInternalI(const uid: TGUID; var obj: IFRE_DB_Object): boolean;
-var o : TFRE_DB_Object;
-begin
-  obj := nil;
-  result := FetchInternal(uid,o);
-  if Result then
-    obj := o;
 end;
 
 function TFRE_DB_Persistance_Collection.First: IFRE_DB_Object;
@@ -5837,7 +5828,7 @@ begin
     exit;
   if Length(arr)<>1 then
     raise EFRE_DB_PL_Exception.create(edb_INTERNAL,'a unique index internal store contains [%d] elements!',[length(arr)]);
-  result := FetchInternalI(arr[0],obj);
+  result := FetchIntFromColl(arr[0],obj);
   if not result then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, the index uid cannot be fetched as object');
 end;
@@ -5847,7 +5838,7 @@ var arr : TFRE_DB_GUIDArray;
 begin
   result := _GetIndexedObjUids(query_value,arr,index_name,check_is_unique,val_is_null);
   if result then
-    obj := FetchInternalArrOI(arr);
+    obj := FetchIntFromCollArrOI(arr);
 end;
 
 function TFRE_DB_Persistance_Collection._GetIndexedObjUids(const query_value: TFRE_DB_String; out arr: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const is_null: boolean): boolean;
@@ -5934,12 +5925,27 @@ begin
   result := index.FetchIndexedValsTransformedKey(arr,key,keylen);
 end;
 
-function TFRE_DB_Persistance_Collection.FetchIntFromColl(const uid: TGuid; var obj: IFRE_DB_Object): boolean;
-var dummy : PtrUInt;
+function TFRE_DB_Persistance_Collection.FetchIntFromColl(const uid: TFRE_DB_GUID; var obj: IFRE_DB_Object): boolean;
+var objo : TFRE_DB_Object;
+begin
+  result := FetchIntFromCollO(uid,objo);
+  if result then
+    obj := objo
+  else
+    obj := nil;
+end;
+
+function TFRE_DB_Persistance_Collection.FetchIntFromCollO(const uid: TFRE_DB_GUID; var obj: TFRE_DB_Object): boolean;
+var  dummy : PtrUInt;
 begin
   result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TGuid),dummy);
   if result then
-    obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object
+    begin
+      obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;
+      obj.Assert_CheckStoreLocked;
+      if Length(obj.__InternalGetCollectionList)<1 then
+        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
+    end
   else
     obj := nil;
 end;

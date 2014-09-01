@@ -697,7 +697,7 @@ implementation
     if elem is TFRE_DB_INPUT_BLOCK_DESC then begin
       jsContentAdd('"<tr id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
       for i := 0 to elem.Field('elements').ValueCount - 1 do begin
-        jsContentAdd('"<div style=''width:'+FloatToStrF(Trunc(elem.Field('elements').AsObjectItem[i].Field('relSize').AsInt16 / elem.Field('sizeSum').AsInt16 * 10000) / 100,ffFixed,3,2)+'%; float:left;''><table class=''firmosFormTable'' style=''width:100%''>"+');
+        jsContentAdd('"<div style=''width:'+FloatToStrF(Trunc(elem.Field('elements').AsObjectItem[i].Field('relSize').AsInt16 / elem.Field('sizeSum').AsInt16 * 10000) / 100,ffFixed,3,2)+'%; float:left;''><table class=''firmosFormTableIB'' style=''width:100%''>"+');
         _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId,hidden,hideEmptyGroups);
         jsContentAdd('"</table></div>"+');
       end;

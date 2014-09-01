@@ -176,6 +176,15 @@ type
       procedure FDB_PrepareDBRestore          (const phase:integer);
       procedure FDB_SendObject                (const obj:IFRE_DB_Object);
       procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
+
+      { Collection Interface }
+      function  ExistsInCollection            (const coll_name: TFRE_DB_NameType; const check_uid: TGUID; const has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
+      function  FetchInCollection             (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+      function  CollectionBulkFetch           (const coll_name: TFRE_DB_NameType; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
+      function  CollectionBulkFetchUIDS       (const coll_name: TFRE_DB_NameType; const user_context : PFRE_DB_GUID=nil): TFRE_DB_GUIDArray;
+      procedure CollectionClearCollection     (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil);
+
+
       function  GetNotificationRecordIF    : IFRE_DB_DBChangedNotification; { to record changes }
     end;
   var
@@ -1316,6 +1325,31 @@ begin
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendCollection(const obj: IFRE_DB_Object);
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.ExistsInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TGUID; const has_fetch_rights: boolean; const user_context: PFRE_DB_GUID): boolean;
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FetchInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TGUID; out dbo: IFRE_DB_Object; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionBulkFetch(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): IFRE_DB_ObjectArray;
+begin
+  aborT;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionBulkFetchUIDS(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_GUIDArray;
+begin
+  abort;
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionClearCollection(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID);
 begin
   abort;
 end;

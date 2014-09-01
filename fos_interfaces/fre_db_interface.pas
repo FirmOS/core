@@ -807,14 +807,14 @@ type
   IFRE_DB_COLLECTION=interface(IFRE_DB_COMMON)
     [cFOS_IID_COLLECTION]
     function        UID                 : TGuid;
-    function        Count               : QWord;
-    function        Exists              (const ouid:TGUID ; const has_fetch_rights : boolean=true):boolean;  { only reports true for objects in where the fetch access is granted }
+    function        ExistsInCollection  (const ouid:TGUID ; const has_fetch_rights : boolean=true):boolean;
     procedure       ForAll              (const func:IFRE_DB_Obj_Iterator);
     procedure       ForAllBreak         (const func:IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
     function        Remove              (const ouid:TGUID):TFRE_DB_Errortype;
     function        Store               (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
     function        Update              (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
-    function        FetchExists         (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
+    function        Fetch               (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean; deprecated ; { deprectated naming }
+    function        FetchInCollection   (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
     function        CollectionName      (const unique:boolean=false): TFRE_DB_NameType;
     function        DomainCollName      (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
     function        IsADomainCollection : Boolean;
@@ -824,7 +824,7 @@ type
     function        First               : IFRE_DB_Object;
     function        Last                : IFRE_DB_Object;
     function        GetItem             (const num:uint64):IFRE_DB_Object;
-    function        ClearCollection     : TFRE_DB_Errortype;
+    procedure       ClearCollection     ; { clear with respect to userid }
     //Define a basic index according to fieldtype
     function        DefineIndexOnField  (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
     function        IndexExists         (const index_name:TFRE_DB_NameType):boolean;
@@ -847,8 +847,6 @@ type
     function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
     function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
     function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
-
-
     // skip_first = number of different index values to skip, max_count = number of different index values to deliver
     procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
@@ -906,7 +904,6 @@ type
     procedure  SetDefaultOrderField          (const field_name:TFRE_DB_String ; const ascending : boolean);
     procedure  RemoveAllFilterFields         ;
     procedure  RemoveAllFiltersPrefix        (const prefix:string);
-    function   Count                         : QWord;
 
     procedure  SetDeriveParent               (const coll:IFRE_DB_COLLECTION;  const idField: String='uid');
     procedure  SetDeriveTransformation       (const tob:IFRE_DB_TRANSFORMOBJECT);
@@ -1131,6 +1128,7 @@ type
     function    GetUserUID                   : TFRE_DB_GUID;
     function    GetDomainLoginKey            : TFRE_DB_String;
 
+
     function    CheckStdRightAndCondFinalize (const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
     function    CheckStdRightSetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
     { Safe case, use for single domain use cases }
@@ -1318,7 +1316,6 @@ type
     function        GetPersLayerIntf           : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
     function        GetPersLayer               : IFRE_DB_PERSISTANCE_LAYER;
 
-    function        GetCollectionClassName     : ShortString;
     function        IsVolatile                 : boolean;
     function        CollectionName             (const unique:boolean=true):TFRE_DB_NameType;
     function        Count                      : int64;
@@ -1418,6 +1415,14 @@ type
     function  BulkFetch                     (const obj_uids : TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
     function  DeleteObject                  (const obj_uid  : TGUID  ; const collection_name: TFRE_DB_NameType = '' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_TransStepId;
     function  StoreOrUpdateObject           (const obj      : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
+
+    { Collection Interface }
+
+    function  ExistsInCollection            (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; const and_has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
+    function  FetchInCollection             (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+    function  CollectionBulkFetch           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
+    function  CollectionBulkFetchUIDS       (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_GUIDArray;
+    procedure CollectionClearCollection     (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil);
 
     procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
     procedure SyncSnapshot                  (const final : boolean=false);
@@ -1529,6 +1534,7 @@ type
     procedure   ExpandReferences              (ObjectList : TFRE_DB_GUIDArray ; ref_constraints : TFRE_DB_NameTypeRLArray ;  var expanded_refs : IFRE_DB_ObjectArray);
 
     function    IsReferenced                  (const obj_uid:TGuid;                     const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;//without right check
+    function    IsReferenced                  (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean; deprecated;
     function    GetReferences                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
     function    GetReferencesCount            (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
     function    GetReferencesDetailed         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;

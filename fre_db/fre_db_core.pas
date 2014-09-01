@@ -505,8 +505,6 @@ type
     FFieldStore        : _TFRE_DB_FieldTree;
     FCacheSchemeObj    : TFRE_DB_SchemeObject;          // Cache ; TFRE_DB_SchemeObject; only link to ... (dont free)
     FParentDBO         : TFRE_DB_FIELD;
-    fuidPath           : TFRE_DB_StringArray;
-    fuidPathUA         : TFRE_DB_GUIDArray;
     FObjectProps       : TFRE_DB_Object_PropertySet; // Runtime Properties
     FInCollectionarr   : array of IFRE_DB_PERSISTANCE_COLLECTION;
     FExtensionTag      : Pointer;
@@ -1292,19 +1290,19 @@ type
     FCollConnection        : TFRE_DB_BASE_CONNECTION;
     FCollUserTokenRef      : IFRE_DB_USER_RIGHT_TOKEN; { reference to the user token of the connection }
     FIsTemporary           : Boolean;
-    FObjectLinkStore       : IFRE_DB_PERSISTANCE_COLLECTION; //? Necessary to be referenced here
+    //FObjectLinkStore       : IFRE_DB_PERSISTANCE_COLLECTION; //? Necessary to be referenced here
     FName                  : TFRE_DB_NameType;
     FUniqueName            : TFRE_DB_NameType;
 
   protected
-    function        URT_UserUid     : TFRE_DB_GUID;                        { returns the uid of the connection usertoken or NullGuid (all rights) if no connection is set }
-    procedure       ForAllI         (const func:IFRE_DB_Obj_Iterator);
-    procedure       ForAllBreakI    (const func:IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
-    function        StoreI          (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
-    function        UpdateI         (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
-    function        FetchI          (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
-    function        FirstI          : IFRE_DB_Object;
-    function        LastI           : IFRE_DB_Object;
+    function        URT_UserUid        : TFRE_DB_GUID;                        { returns the uid of the connection usertoken or NullGuid (all rights) if no connection is set }
+    procedure       ForAllI            (const func:IFRE_DB_Obj_Iterator);
+    procedure       ForAllBreakI       (const func:IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
+    function        StoreI             (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
+    function        UpdateI            (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
+    function        FetchInCollectionI (const ouid:TGUID;out dbo:IFRE_DB_Object): boolean;
+    function        FirstI             : IFRE_DB_Object;
+    function        LastI              : IFRE_DB_Object;
     //procedure       Clear           ;
 
     function IFRE_DB_COLLECTION.ForAll        = ForAllI;
@@ -1314,28 +1312,29 @@ type
     function IFRE_DB_COLLECTION.Update        = UpdateI;
     function IFRE_DB_COLLECTION.First         = FirstI;
     function IFRE_DB_COLLECTION.Last          = LastI;
-    function IFRE_DB_COLLECTION.FetchExists   = FetchI;
+    function IFRE_DB_COLLECTION.Fetch         = FetchInCollectionI;
+    function IFRE_DB_COLLECTION.FetchInCollection = FetchInCollectionI;
     function IFRE_DB_COLLECTION.GetIndexedObj = GetIndexedObjI;
 
     function        _InternalStore           (var   new_obj:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
+    procedure       _IterateOverObjects      (const objs : IFRE_DB_ObjectArray ; const func: TFRE_DB_Obj_Iterator);
     procedure       _IterateOverGUIDArray    (const guids: TFRE_DB_GUIDArray; const iter: IFRE_DB_ObjectIteratorBrk; var halt: boolean);
     procedure       _IterateOverGUIDArrayT   (const guids: TFRE_DB_GUIDArray; const iter: TFRE_DB_ObjectIteratorBrk; var halt: boolean);
 
   public
-    constructor     Create          (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType);virtual;
-    destructor      Destroy         ;override;
-    function        Count            : QWord; virtual; {WARNING COUNT IS NOT ACCESS RIGHTS AWARE !}
+    constructor     Create                     (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType);virtual;
+    destructor      Destroy                    ; override;
 
-    function        Exists          (const ouid:TGUID ; const has_fetch_rights : boolean=true):boolean;
-    procedure       ForAll          (const func:TFRE_DB_Obj_Iterator);
-    procedure       ForAllNoRightChk(const func:TFRE_DB_Obj_Iterator);
-    procedure       ForAllBreak     (const func:TFRE_DB_ObjectIteratorBrk ; var halt : boolean);
-    function        Remove          (const ouid:TGUID):TFRE_DB_Errortype; virtual;
-    function        Store           (var   new_obj:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
-    function        Update          (const dbo:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
-    function        Fetch           (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;virtual;
+    function        ExistsInCollection         (const ouid:TGUID ; const has_fetch_rights : boolean=true):boolean;
+    procedure       ForAll                     (const func:TFRE_DB_Obj_Iterator);
+    procedure       ForAllNoRightChk           (const func:TFRE_DB_Obj_Iterator);
+    procedure       ForAllBreak                (const func:TFRE_DB_ObjectIteratorBrk ; var halt : boolean);
+    function        Remove                     (const ouid:TGUID):TFRE_DB_Errortype; virtual;
+    function        Store                      (var   new_obj:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
+    function        Update                     (const dbo:TFRE_DB_Object):TFRE_DB_Errortype;virtual;
+    function        FetchInCollection          (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;virtual;
 
-    function        ClearCollection : TFRE_DB_Errortype;
+    procedure       ClearCollection            ;
 
     function        CollectionName (const unique:boolean=false):TFRE_DB_NameType;
     function        DomainCollName (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
@@ -1376,10 +1375,11 @@ type
     function        IsVolatile          : Boolean;
     function        IsADomainCollection : Boolean;
 
-    function        ItemCount      : Int64         ; virtual;
     function        First          : TFRE_DB_Object; virtual;
     function        Last           : TFRE_DB_Object; virtual;
     function        GetItem        (const num:uint64):IFRE_DB_Object; virtual;
+    function        ItemCount      : Int64; virtual;
+
     { not right aware end}
   end;
 
@@ -1670,7 +1670,8 @@ type
     function IFRE_DB_DERIVED_COLLECTION.Update                   = UpdateI;
     function IFRE_DB_DERIVED_COLLECTION.First                    = FirstI;
     function IFRE_DB_DERIVED_COLLECTION.Last                     = LastI;
-    function IFRE_DB_DERIVED_COLLECTION.FetchExists              = FetchI;
+    function IFRE_DB_DERIVED_COLLECTION.Fetch                    = FetchInCollectionI;
+    function IFRE_DB_DERIVED_COLLECTION.FetchInCollection        = FetchInCollectionI;
     function IFRE_DB_DERIVED_COLLECTION.FetchFromParent          = FetchFromParentI;
     function IFRE_DB_DERIVED_COLLECTION.ApplyToPage              = ApplyToPageI;
     function IFRE_DB_DERIVED_COLLECTION.SetDeriveParent          = SetDeriveParentI;
@@ -1726,11 +1727,10 @@ type
     procedure  SetDeriveTransformation (const tob:TFRE_DB_TRANSFORMOBJECT);
     procedure  SetDeriveTransformationI(const tob:IFRE_DB_TRANSFORMOBJECT);
     function   ItemCount               : Int64; override;
-    function   Count                   : QWord; override;
     function   First                   : TFRE_DB_Object   ; override;
     function   Last                    : TFRE_DB_Object   ; override;
     function   GetItem                 (const num:uint64):IFRE_DB_Object; override;
-    function   Fetch                   (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;override; deprecated;  //Directly fetch in the Parent, or use a temp Collection as Parent.
+    function   FetchInCollection       (const ouid:TGUID;out dbo:TFRE_DB_Object): boolean;override;
     procedure  RemoveAllEntries        ;
 
     function   GetStoreDescription        : TFRE_DB_CONTENT_DESC;
@@ -1812,6 +1812,7 @@ type
     function            GetDatabaseObjectCount       (const Schemes:TFRE_DB_StringArray=nil):NativeInt;
     procedure           ForAllDatabaseObjectsDo      (const dbo:IFRE_DB_ObjectIteratorBrkProgress ; const Schemes:TFRE_DB_StringArray=nil); { Warning may take some time, delivers a clone }
     function            IsReferenced                 (const obj_uid:TGuid; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;virtual;
+    function            IsReferenced                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):Boolean;virtual; deprecated;
     function            GetReferences                (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;virtual;
     function            GetReferencesCount           (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;virtual;
     function            GetReferencesDetailed        (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;virtual;
@@ -1887,6 +1888,7 @@ type
     function           GetSystemDomainID_String     : TFRE_DB_GUID_String;
     function           GetSysDomainUID              : TFRE_DB_GUID; virtual;abstract;
     function           GetUserUID                   : TFRE_DB_GUID; virtual;abstract;
+    function           GetUserUIDP                  : PFRE_DB_GUID; virtual;abstract;
 
     function           Fetch                        (const ouid:TGUID;out dbo:TFRE_DB_Object;const without_right_check:boolean=false) : TFRE_DB_Errortype; virtual;
     function           BulkFetchNoRightCheck        (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; virtual;
@@ -2238,9 +2240,6 @@ type
     function    FetchAs                     (const ouid:TGUID;const classref : TFRE_DB_BaseClass ; var outobj) : TFRE_DB_Errortype;
     function    BulkFetchNoRightCheck       (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; override;
     function    BulkFetch                   (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; override; { uids must be from one db }
-
-    //Warning Fetching from DB, and then from system can have undesired side effects ...
-    //function    FetchInternal               (const ouid:TGUID;out dbo:TFRE_DB_Object) : boolean; override;
 
 
     function    AdmGetUserCollection             :IFRE_DB_COLLECTION;
@@ -6850,7 +6849,7 @@ begin
   MustBeInitialized;
   transdata.CleanUp; { retransform ? }
   upconn     := Connection.Implementor_HC as TFRE_DB_CONNECTION;
-  record_cnt := FParentCollection.Count;
+  record_cnt := FParentCollection.ItemCount;
   (FParentCollection.Implementor_HC as TFRE_DB_COLLECTION).GetAllUids(uids); // ForAllNoRightChk(@TransForm);
   upconn.BulkFetchNoRightCheck(uids,objs);
   if not FREDB_CheckGuidsUnique(uids) then
@@ -7078,11 +7077,6 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'cannot access itemcount of a dc (maybe filtered, different user ..)');
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.Count: QWord;
-begin //nl
-  result := ItemCount;
-end;
-
 function TFRE_DB_DERIVED_COLLECTION.First: TFRE_DB_Object;
 var obj  : TFRE_DB_Object;
     item : boolean;
@@ -7112,7 +7106,7 @@ begin
   abort;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
+function TFRE_DB_DERIVED_COLLECTION.FetchInCollection(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
 var idbo : IFRE_DB_Object;
 begin
   abort; { TODO : Necessary Where ? Right Check missing}
@@ -8972,10 +8966,10 @@ begin //nl
   {$ENDIF}
 end;
 
-function TFRE_DB_COLLECTION.FetchI(const ouid: TGUID; out dbo: IFRE_DB_Object): boolean;
+function TFRE_DB_COLLECTION.FetchInCollectionI(const ouid: TGUID; out dbo: IFRE_DB_Object): boolean;
 var ldbo : TFRE_DB_Object;
 begin //nl
-  result := Fetch(ouid,ldbo);
+  result := FetchInCollection(ouid,ldbo);
   dbo := ldbo;
 end;
 
@@ -9003,34 +8997,43 @@ begin //nl
   new_obj:=nil;
 end;
 
+procedure TFRE_DB_COLLECTION._IterateOverObjects(const objs: IFRE_DB_ObjectArray; const func: TFRE_DB_Obj_Iterator);
+var i : NativeInt;
+begin
+  for i:=0 to high(objs) do
+    func(objs[i].Implementor as TFRE_DB_Object);
+end;
+
 procedure TFRE_DB_COLLECTION._IterateOverGUIDArray(const guids: TFRE_DB_GUIDArray; const iter: IFRE_DB_ObjectIteratorBrk; var halt:boolean);
 var i   : NativeInt;
     obj : IFRE_DB_Object;
 begin
- for i := 0 to high(guids) do
-   begin
-     if not FObjectLinkStore.Fetch(guids[i],obj) then
-       raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
-     if FCollConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
-       iter(obj,halt);
-     if halt then
-       break;
-   end;
+ abort;
+ //for i := 0 to high(guids) do
+ //  begin
+ //    if not FObjectLinkStore.Fetch(guids[i],obj) then
+ //      raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
+ //    if FCollConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
+ //      iter(obj,halt);
+ //    if halt then
+ //      break;
+ //  end;
 end;
 
 procedure TFRE_DB_COLLECTION._IterateOverGUIDArrayT(const guids: TFRE_DB_GUIDArray; const iter: TFRE_DB_ObjectIteratorBrk; var halt: boolean);
 var i   : NativeInt;
     obj : IFRE_DB_Object;
 begin
- for i := 0 to high(guids) do
-   begin
-     if not FObjectLinkStore.Fetch(guids[i],obj) then
-       raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
-     if FCollConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
-       iter(obj.Implementor as TFRE_DB_Object,halt);
-     if halt then
-       break;
-   end;
+ abort;
+ //for i := 0 to high(guids) do
+ //  begin
+ //    if not FObjectLinkStore.Fetch(guids[i],obj) then
+ //      raise EFRE_DB_Exception.Create(edb_INTERNAL,'forallindexed logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(guids[i]));
+ //    if FCollConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
+ //      iter(obj.Implementor as TFRE_DB_Object,halt);
+ //    if halt then
+ //      break;
+   //end;
 end;
 
 destructor TFRE_DB_COLLECTION.Destroy;
@@ -9039,58 +9042,45 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB_COLLECTION.Count: QWord;
+function TFRE_DB_COLLECTION.ExistsInCollection(const ouid: TGUID; const has_fetch_rights: boolean): boolean;
 begin //nl
-  result := ItemCount;
-end;
-
-function TFRE_DB_COLLECTION.Exists(const ouid: TGUID; const has_fetch_rights: boolean): boolean;
-var dbo : TFRE_DB_Object;
-begin //nl
-  //result := FObjectLinkStore.Exists(ouid);
-  result := FCollConnection.FetchAccessRightTest(ouid);
-  if result=false then
-    exit;
-  dbo.Finalize;
+  result := FCollConnection.FPersistance_Layer.ExistsInCollection(FName,ouid,has_fetch_rights,FCollConnection.GetUserUIDP);
 end;
 
 
 procedure TFRE_DB_COLLECTION.ForAll(const func: TFRE_DB_Obj_Iterator);
-var uids : TFRE_DB_GUIDArray;
-       i : NativeInt;
-     obj : IFRE_DB_Object;
-
-begin //nl
-  FObjectLinkStore.GetAllUIDS(uids);
-  for i:=0 to high(uids) do
-    begin
-       if not FObjectLinkStore.Fetch(uids[i],obj) then
-         raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(uids[i]));
-       if FCollConnection.CheckAccessRightAndCondFinalize(obj,sr_FETCH)=edb_OK then
-         func(obj.Implementor as TFRE_DB_Object);
-    end;
+var  objs : IFRE_DB_ObjectArray;
+begin
+  objs := FCollConnection.FPersistance_Layer.CollectionBulkFetch(FName,FCollConnection.GetUserUIDP);
+  _IterateOverObjects(objs,func);
 end;
 
 procedure TFRE_DB_COLLECTION.ForAllNoRightChk(const func: TFRE_DB_Obj_Iterator);
-var uids : TFRE_DB_GUIDArray;
-       i : NativeInt;
-     obj : IFRE_DB_Object;
-
-begin //nl
-  FObjectLinkStore.GetAllUIDS(uids);
-  for i:=0 to high(uids) do
-    begin
-       if not FObjectLinkStore.Fetch(uids[i],obj) then
-         raise EFRE_DB_Exception.Create(edb_INTERNAL,'logic / cannot fetch existing object '+GFRE_BT.GUID_2_HexString(uids[i]));
-       func(obj.Implementor as TFRE_DB_Object);
-    end;
+var  objs : IFRE_DB_ObjectArray;
+begin
+  objs := FCollConnection.FPersistance_Layer.CollectionBulkFetch(FName);
+  _IterateOverObjects(objs,func);
 end;
 
 procedure TFRE_DB_COLLECTION.ForAllBreak(const func: TFRE_DB_ObjectIteratorBrk; var halt: boolean);
-var uids : TFRE_DB_GUIDArray;
-begin //nl
-  FObjectLinkStore.GetAllUIDS(uids);
-  _IterateOverGUIDArrayT(uids,func,halt);
+var  objs     : IFRE_DB_ObjectArray;
+     ishalted : boolean;
+
+    procedure Local(const obj : TFRE_DB_Object);
+    begin
+      if not ishalted then
+        func(obj,halt)  { give chance to iterate the first object }
+      else
+        obj.Finalize;   { finalize all objects that are not iterated }
+      if halt=true then
+        ishalted := true;
+    end;
+
+begin
+  E_FOS_TestNosey;
+  ishalted := false;
+  objs     := FCollConnection.FPersistance_Layer.CollectionBulkFetch(FName);
+  _IterateOverObjects(objs,@Local);
 end;
 
 
@@ -9099,32 +9089,21 @@ function TFRE_DB_COLLECTION.Remove(const ouid: TGUID): TFRE_DB_Errortype;
 var ncolls : TFRE_DB_StringArray;
 begin //nl
   try
-    if FCollConnection.DeleteAccessRightTest(ouid) then
-      begin
-        FCollConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
-        result := edb_OK;
-      end
-    else
-      exit(edb_ACCESS);
+    FCollConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
+    exit(edb_OK);
   except
     result := FCollConnection.FPersistance_Layer.GetLastErrorCode;
   end;
 end;
 
 function TFRE_DB_COLLECTION.Store(var new_obj: TFRE_DB_Object):TFRE_DB_Errortype;
-//var objclass : TClass;
 begin //nl
   try
-     //objclass := new_obj.Implementor_HC.ClassType; { TODO -> Use Connection Right Check}
      if new_obj.DomainID=CFRE_DB_NullGUID then
        new_obj.SetDomainID(FCollConnection.GetMyDomainID);
      Result := FCollConnection.CheckAccessRightAndCondFinalize(new_obj,sr_STORE,false,false);
      if Result<>edb_OK then
        exit;
-        //((FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,new_obj.DomainID))
-        //  or FConnection.IntCheckClassRight4Domain(sr_STORE,objclass,FConnection.GetSysDomainUID) // if user has right in system domain, access is granted for all domains
-        //  or FConnection.IsCurrentUserSystemAdmin) then
-        //    exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+new_obj.DomainID_String);
      result := _InternalStore(new_obj);
   finally
     try
@@ -9140,46 +9119,28 @@ end;
 
 
 function TFRE_DB_COLLECTION.Update(const dbo: TFRE_DB_Object): TFRE_DB_Errortype;
-//var objclass : TClass;
 begin //nl
-  // TODO Check if in collection
-   //objclass := dbo.Implementor_HC.ClassType;
    if dbo.DomainID=CFRE_DB_NullGUID then
      dbo.SetDomainID(FCollConnection.GetMyDomainID);
    result := FCollConnection.CheckAccessRightAndCondFinalize(dbo,sr_UPDATE);
    if result <>edb_OK then
      exit;
-   //if not
-   //   ((FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,dbo.DomainID))
-   //     or FConnection.IntCheckClassRight4Domain(sr_UPDATE,objclass,FConnection.GetSysDomainUID)
-   //     or FConnection.IsCurrentUserSystemAdmin) then
-   //       exit(edb_ACCESS); //raise EFRE_DB_Exception.Create(edb_ERROR,'you are not allowed to store objects in the specified domain : '+dbo.DomainID_String);
     result := FCollConnection.Update(dbo,CollectionName(true));
 end;
 
-function TFRE_DB_COLLECTION.Fetch(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
-var dboi : IFRE_DB_Object;
-begin //nl -> TODO: Check if in collection
-  abort; {check necessary and right check}
-  result := FObjectLinkStore.Fetch(ouid,dboi);
-  if result then
-    dbo := dboi.Implementor as TFRE_DB_Object
-  else
-    dbo := nil;
+function TFRE_DB_COLLECTION.FetchInCollection(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
+var dbi : IFRE_DB_Object;
+begin
+  if FCollConnection.FPersistance_Layer.FetchInCollection(FName,ouid,dbi,FCollConnection.GetUserUIDP)=edb_OK then
+    begin
+      dbo    := dbi.Implementor as TFRE_DB_Object;
+      result := true;
+    end
 end;
 
-function TFRE_DB_COLLECTION.ClearCollection: TFRE_DB_Errortype;
-
-  procedure RemoveIt(const obj:TFRE_DB_Object) ;
-  begin
-    result := Remove(obj.UID);
-    if result<>edb_OK then
-      exit;
-  end;
-
-begin //nl
-  result := edb_OK;
-  ForAll(@RemoveIt);
+procedure TFRE_DB_COLLECTION.ClearCollection;
+begin
+  FCollConnection.FPersistance_Layer.CollectionClearCollection(FName,FCollConnection.GetUserUIDP);
 end;
 
 function TFRE_DB_COLLECTION.CollectionName(const unique: boolean): TFRE_DB_NameType;
@@ -9198,33 +9159,37 @@ end;
 
 procedure TFRE_DB_COLLECTION.GetAllUids(var uids: TFRE_DB_GUIDArray);
 begin
-  FObjectLinkStore.GetAllUIDS(uids);
+ abort;
+  //FObjectLinkStore.GetAllUIDS(uids);
 end;
 
 function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false): TFRE_DB_Errortype;
 begin //nl
-  result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name,allow_null_value,unique_null_values);
+  abort;
+  //result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name,allow_null_value,unique_null_values);
 end;
 
 function TFRE_DB_COLLECTION.IndexExists(const index_name: TFRE_DB_NameType): boolean;
 begin
-  result := FObjectLinkStore.IndexExists(index_name)<>-1;
+  abort;
+  //result := FObjectLinkStore.IndexExists(index_name)<>-1;
 end;
 
 function TFRE_DB_COLLECTION.ExistsIndexed(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType): Boolean;
 var uidarr : TFRE_DB_GUIDArray;
     cnt,i  : NativeInt;
 begin //nl
-  result := FObjectLinkStore.GetIndexedUID(query_value,uidarr,index_name);
-  cnt := 0;
-  if not result then
-    exit;
-  for i:=0 to high(uidarr) do
-    begin
-       if FCollConnection.FetchAccessRightTest(uidarr[i]) then
-         inc(cnt);
-    end;
-  result := cnt>0;
+ abort;
+  //result := FObjectLinkStore.GetIndexedUID(query_value,uidarr,index_name);
+  //cnt := 0;
+  //if not result then
+  //  exit;
+  //for i:=0 to high(uidarr) do
+  //  begin
+  //     if FCollConnection.FetchAccessRightTest(uidarr[i]) then
+  //       inc(cnt);
+  //  end;
+  //result := cnt>0;
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedObjI(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): boolean;
@@ -9240,46 +9205,54 @@ end;
 function TFRE_DB_COLLECTION.GetIndexedObj(const query_value: TFRE_DB_String; out obj: TFRE_DB_Object; const index_name: TFRE_DB_NameType): boolean;
 var obi : IFRE_DB_Object;
 begin //nl
-  result := FObjectLinkStore.GetIndexedObj(query_value,obi,index_name);
-  if result then
-    obj := obi.Implementor as TFRE_DB_Object
-  else
-    obj := nil;
+  abort;
+  //result := FObjectLinkStore.GetIndexedObj(query_value,obi,index_name);
+  //if result then
+  //  obj := obi.Implementor as TFRE_DB_Object
+  //else
+  //  obj := nil;
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean): boolean;
 begin //nl
-  result := FObjectLinkStore.GetIndexedUID(query_value,obj_uid,index_name,val_is_null);
+  abort;
+  //result := FObjectLinkStore.GetIndexedUID(query_value,obj_uid,index_name,val_is_null);
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
 begin
- result := FObjectLinkStore.GetIndexedUIDSigned(query_value,obj_uid,index_name,val_is_null);
+ abort;
+ //result := FObjectLinkStore.GetIndexedUIDSigned(query_value,obj_uid,index_name,val_is_null);
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
 begin
- result := FObjectLinkStore.GetIndexedUIDUnsigned(query_value,obj_uid,index_name,val_is_null);
+ abort;
+ //result := FObjectLinkStore.GetIndexedUIDUnsigned(query_value,obj_uid,index_name,val_is_null);
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedObjs(const query_value: TFRE_DB_String; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType): boolean;
 begin //nl
-  result := FObjectLinkStore.GetIndexedObj(query_value,obj,index_name);
+  abort;
+  //result := FObjectLinkStore.GetIndexedObj(query_value,obj,index_name);
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType ; const check_is_unique : boolean ; const val_is_null : boolean): boolean;
 begin
-  result := FObjectLinkStore.GetIndexedUID(query_value,obj_uid,index_name,check_is_unique,val_is_null);
+  abort;
+  //result := FObjectLinkStore.GetIndexedUID(query_value,obj_uid,index_name,check_is_unique,val_is_null);
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
 begin
- result := FObjectLinkStore.GetIndexedUIDSigned(query_value,obj_uid,index_name,check_is_unique,val_is_null);
+ abort;
+ //result := FObjectLinkStore.GetIndexedUIDSigned(query_value,obj_uid,index_name,check_is_unique,val_is_null);
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
 begin
- result := FObjectLinkStore.GetIndexedUIDUnsigned(query_value,obj_uid,index_name,check_is_unique,val_is_null);
+ abort;
+ //result := FObjectLinkStore.GetIndexedUIDUnsigned(query_value,obj_uid,index_name,check_is_unique,val_is_null);
 end;
 
 procedure TFRE_DB_COLLECTION.ForAllIndexed(const func: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean);
@@ -9287,56 +9260,65 @@ var guids : TFRE_DB_GUIDArray;
         i : integer;
       obj : TFRE_DB_Object;
 begin //nl
-  FObjectLinkStore.ForAllIndexed(guids,index_name,ascending);
-  _IterateOverGUIDArray(guids,func,halt);
+  abort;
+  //FObjectLinkStore.ForAllIndexed(guids,index_name,ascending);
+  //_IterateOverGUIDArray(guids,func,halt);
 end;
 
 procedure TFRE_DB_COLLECTION.ForAllIndexedSignedRange(const min_value, max_value: int64; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
 begin //nl
-  FObjectLinkStore.ForAllIndexedSignedRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
-  _IterateOverGUIDArray(guids,iterator,halt);
+  abort;
+  //FObjectLinkStore.ForAllIndexedSignedRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
+  //_IterateOverGUIDArray(guids,iterator,halt);
 end;
 
 procedure TFRE_DB_COLLECTION.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
 begin //nl
-  FObjectLinkStore.ForAllIndexedUnsignedRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
-  _IterateOverGUIDArray(guids,iterator,halt);
+  abort;
+  //FObjectLinkStore.ForAllIndexedUnsignedRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
+  //_IterateOverGUIDArray(guids,iterator,halt);
 end;
 
 procedure TFRE_DB_COLLECTION.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
 begin //nl
-  FObjectLinkStore.ForAllIndexedStringRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
-  _IterateOverGUIDArray(guids,iterator,halt);
+   abort;
+  //FObjectLinkStore.ForAllIndexedStringRange(min_value,max_value,guids,index_name,ascending,min_is_null,max_is_max,max_count,skipfirst);
+  //_IterateOverGUIDArray(guids,iterator,halt);
 end;
 
 procedure TFRE_DB_COLLECTION.ForAllIndexPrefixString(const prefix: TFRE_DB_String; const iterator: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
 begin //nl
-  FObjectLinkStore.ForAllIndexPrefixString(prefix,guids,index_name,ascending,max_count,skipfirst);
-  _IterateOverGUIDArray(guids,iterator,halt);
+  abort;
+  //FObjectLinkStore.ForAllIndexPrefixString(prefix,guids,index_name,ascending,max_count,skipfirst);
+  //_IterateOverGUIDArray(guids,iterator,halt);
 end;
 
 function TFRE_DB_COLLECTION.RemoveIndexedString(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
 begin
-  result := FObjectLinkStore.RemoveIndexedString(query_value,index_name,val_is_null)
+   abort;
+  //result := FObjectLinkStore.RemoveIndexedString(query_value,index_name,val_is_null)
 end;
 
 function TFRE_DB_COLLECTION.RemoveIndexedSigned(const query_value: int64; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
 begin
- result := FObjectLinkStore.RemoveIndexedSigned(query_value,index_name,val_is_null)
+ abort;
+ //result := FObjectLinkStore.RemoveIndexedSigned(query_value,index_name,val_is_null)
 end;
 
 function TFRE_DB_COLLECTION.RemoveIndexedUnsigned(const query_value: QWord; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
 begin
- result := FObjectLinkStore.RemoveIndexedUnsigned(query_value,index_name,val_is_null)
+ abort;
+ //result := FObjectLinkStore.RemoveIndexedUnsigned(query_value,index_name,val_is_null)
 end;
 
 function TFRE_DB_COLLECTION.IsVolatile: Boolean;
 begin
-  result := FObjectLinkStore.IsVolatile;
+  abort;
+  //result := FObjectLinkStore.IsVolatile;
 end;
 
 function TFRE_DB_COLLECTION.IsADomainCollection: Boolean;
@@ -9354,41 +9336,45 @@ end;
 
 function TFRE_DB_COLLECTION.ItemCount: Int64;
 begin
-  result := FObjectLinkStore.Count;
+  abort;
+  //result := FObjectLinkStore.Count;
 end;
 
 function TFRE_DB_COLLECTION.First: TFRE_DB_Object;
 var obi : IFRE_DB_Object;
 begin
-  obi := FObjectLinkStore.First;
-  if assigned(obi) then
-    result := obi.Implementor as TFRE_DB_Object
-  else
-    result := nil;
+  abort;
+  //obi := FObjectLinkStore.First;
+  //if assigned(obi) then
+  //  result := obi.Implementor as TFRE_DB_Object
+  //else
+  //  result := nil;
 end;
 
 function TFRE_DB_COLLECTION.Last: TFRE_DB_Object;
 var obi : IFRE_DB_Object;
 begin
-  obi := FObjectLinkStore.Last;
-  if assigned(obi) then
-    result := obi.Implementor as TFRE_DB_Object
-  else
-    result := nil;
+  abort;
+  //obi := FObjectLinkStore.Last;
+  //if assigned(obi) then
+  //  result := obi.Implementor as TFRE_DB_Object
+  //else
+  //  result := nil;
 end;
 
 function TFRE_DB_COLLECTION.GetItem(const num: uint64): IFRE_DB_Object;
 var obj : IFRE_DB_Object;
 begin
-  obj := FObjectLinkStore.GetItem(num);
-  if assigned(obj) then
-    begin
-      result := obj;
-    end
-  else
-    begin
-      result:=nil;
-    end;
+  abort;
+  //obj := FObjectLinkStore.GetItem(num);
+  //if assigned(obj) then
+  //  begin
+  //    result := obj;
+  //  end
+  //else
+  //  begin
+  //    result:=nil;
+  //  end;
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllColls(const iterator: TFRE_DB_Coll_Iterator);
@@ -9730,6 +9716,11 @@ end;
 function TFRE_DB_BASE_CONNECTION.IsReferenced(const obj_uid: TGuid; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
 begin
   result := FPersistance_Layer.GetReferencesCount(obj_uid,false,scheme_prefix_filter,field_exact_filter)>0;
+end;
+
+function TFRE_DB_BASE_CONNECTION.IsReferenced(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
+begin
+  result := IsReferenced(obj_uid,false,scheme_prefix_filter,field_exact_filter);
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;

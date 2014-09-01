@@ -219,6 +219,13 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    GetLastErrorCode    : TFRE_DB_Errortype;
      function    GetNotificationRecordIF : IFRE_DB_DBChangedNotification;
      function    LayerLock           : IFOS_LOCK;
+
+     { Collection Interface }
+     function    ExistsInCollection            (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; const and_has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
+     function    FetchInCollection             (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+     function    CollectionBulkFetch           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
+     function    CollectionBulkFetchUIDS       (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_GUIDArray;
+     procedure   CollectionClearCollection     (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil);
    end;
 
 implementation
@@ -426,7 +433,7 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
         GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD COLLECTION [%s]',[name]);
         f :=  TFileStream.Create(FCollectionsDir+file_name,fmOpenRead);
         try
-          res := FMaster.MasterColls.NewCollection(name,'*',coll,false,self);
+          res := FMaster.MasterColls.NewCollection(name,coll,false,self);
           if res <> edb_OK then
             raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
           coll.GetPersLayerIntf.LoadFromThis(f);
@@ -862,7 +869,7 @@ var res  : TFRE_DB_Errortype;
     name : TFRE_DB_NameType;
 begin
   name := obj.Field('CollectionName').AsString;
-  res := FMaster.MasterColls.NewCollection(name,'*',coll,false,self);
+  res := FMaster.MasterColls.NewCollection(name,coll,false,self);
   if res <> edb_OK then
     raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM BACKUP FAILED FOR [%s]',[name]);
   coll.GetPersLayerIntf.RestoreFromObject(obj);
@@ -1584,6 +1591,7 @@ var
     i                   : NativeInt;
     step                : TFRE_DB_ChangeStep;
     arr                 : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+    ut                  : TFRE_DB_USER_RIGHT_TOKEN;
 
 begin
   LayerLock.Acquire;
@@ -1598,10 +1606,16 @@ begin
           end;
           if not _FetchO(obj_uid,delete_object,true) then
             raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[GFRE_BT.GUID_2_HexString(obj_uid)]);
-          //if (collection_name<>'') then
-          //  if FDelObj.__InternalCollectionExistsName(CollName)=-1 then
-          //    raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the request to delete object [%s] from collection [%s] could not be completed, the object is not stored in the requested collection',[FDelObj.UID_String,CollName]);
-
+          if (collection_name<>'') then
+            if delete_object.__InternalCollectionExistsName(collection_name)=-1 then
+              raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the request to delete object [%s] from collection [%s] could not be completed, the object is not stored in the requested collection',[delete_object.UID_String,collection_name]);
+          E_FOS_TestNosey;
+          if assigned(user_context) then
+            begin
+              G_GetUserToken(user_context^,ut,true);
+              if ut.CheckStdRightSetUIDAndClass(delete_object.UID,delete_object.DomainID,delete_object.SchemeClass,[sr_DELETE])<>edb_OK then
+                raise EFRE_DB_Exception.Create(edb_ACCESS,'no right to delete object [%s]',[FREDB_G2H(obj_uid)]);
+            end;
           delete_object.Set_Store_Locked(false);
           if delete_object.IsObjectRoot then
              step := TFRE_DB_DeleteObjectStep.Create(self,FMaster,delete_object,collection_name,false)
@@ -2121,6 +2135,299 @@ function TFRE_DB_PS_FILE.LayerLock: IFOS_LOCK;
 begin
   result := G_GlobalLayerLock;
 end;
+
+function TFRE_DB_PS_FILE.ExistsInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TGUID; const and_has_fetch_rights: boolean; const user_context: PFRE_DB_GUID): boolean;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+begin
+  E_FOS_TestNosey;
+  LayerLock.Acquire;
+  try
+    try
+      result := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not result then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      result := collection.FetchIntFromCollO(check_uid,obj);
+      if and_has_fetch_rights then
+        if assigned(user_context) then
+          begin
+            G_GetUserToken(user_context^,ut,true);
+            if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])=edb_OK then
+              exit(true)
+            else
+              exit(false);
+          end;
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.FetchInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TGUID; out dbo: IFRE_DB_Object; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+    res        : boolean;
+begin
+  E_FOS_TestNosey;
+  LayerLock.Acquire;
+  try
+    try
+      dbo := nil;
+      res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      res := collection.FetchIntFromCollO(check_uid,obj);
+      if not res then
+        exit(edb_NOT_FOUND);
+      if assigned(user_context) then
+        begin
+          G_GetUserToken(user_context^,ut,true);
+          if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])<>edb_OK then
+            exit(edb_ACCESS)
+        end;
+      dbo    := collection.CloneOutObject(obj);
+      result := edb_OK;
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.CollectionBulkFetch(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): IFRE_DB_ObjectArray;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+    res        : boolean;
+    cnt        : NativeInt;
+
+    procedure GatherWithRights(const obj : TFRE_DB_Object);
+    begin
+      if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])=edb_OK then
+        begin
+          result[cnt] := obj.CloneToNewObject;
+          inc(cnt);
+        end;
+    end;
+
+begin
+  E_FOS_TestNosey;
+  LayerLock.Acquire;
+  try
+    try
+      res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      if not assigned(user_context) then
+        collection.GetAllObjects(result)
+      else
+        begin
+          G_GetUserToken(user_context^,ut,true);
+          SetLength(result,collection.Count);
+          cnt := 0;
+          collection.ForAllInternal(@GatherWithRights);
+          SetLength(result,cnt);
+        end;
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.CollectionBulkFetchUIDS(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_GUIDArray;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+    res        : boolean;
+    cnt        : NativeInt;
+
+    procedure GatherWithRights(const obj : TFRE_DB_Object);
+    begin
+      if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])=edb_OK then
+        begin
+          result[cnt] := obj.UID;
+          inc(cnt);
+        end;
+    end;
+
+begin
+  E_FOS_TestNosey;
+  LayerLock.Acquire;
+  try
+    try
+      res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      if not assigned(user_context) then
+        collection.GetAllUIDS(result)
+      else
+        begin
+          G_GetUserToken(user_context^,ut,true);
+          SetLength(result,collection.Count);
+          cnt := 0;
+          collection.ForAllInternal(@GatherWithRights);
+          SetLength(result,cnt);
+        end;
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+procedure TFRE_DB_PS_FILE.CollectionClearCollection(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID);
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+    res        : boolean;
+    cnt        : NativeInt;
+    uidlist    : TFRE_DB_GUIDArray;
+
+    procedure GatherWithRights(const obj : TFRE_DB_Object);
+    begin
+      if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])=edb_OK then
+        begin
+          result[cnt] := obj.UID;
+          inc(cnt);
+        end;
+    end;
+
+begin
+  E_FOS_TestNosey;
+  LayerLock.Acquire;
+  try
+    try
+      res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      if not assigned(user_context) then
+        collection.GetAllUIDS(result)
+      else
+        begin
+          G_GetUserToken(user_context^,ut,true);
+          SetLength(result,collection.Count);
+          cnt := 0;
+          collection.ForAllInternal(@GatherWithRights);
+          SetLength(result,cnt);
+        end;
+      for i:=0 to high(uidlist) do
+        DeleteObject();
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
 
 function TFRE_DB_PS_FILE.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotificationBlock): TFRE_DB_Errortype;
 var up_dbname : TFRE_DB_String;
