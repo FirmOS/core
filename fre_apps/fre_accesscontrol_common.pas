@@ -192,7 +192,6 @@ type
   end;
 
 procedure Register_DB_Extensions;
-function  _getDomainDisplayValues(const conn: IFRE_DB_CONNECTION; const domainIds: TFRE_DB_GUIDArray): TFRE_DB_StringArray;
 
 implementation
 
@@ -961,7 +960,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_USER)));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
       end;
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -1665,7 +1664,7 @@ begin
   conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
-    show_domains := session.HasFeature('DOMAIN') and conn.SYS.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_DOMAIN_MOD);
+    show_domains := session.HasFeature('DOMAIN') and (Length(conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_GROUP))>0);
 
     with tr_Grid do begin
       if show_domains then begin
@@ -1696,7 +1695,7 @@ begin
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
       end;
-      Filters.AddBooleanFieldFilter('hidden','hidden',true,false);
+      Filters.AddBooleanFieldFilter('hidden','hidden',false);
       SetDeriveTransformation(tr_Grid);
       SetDefaultOrderField('displayname',true);
     end;
@@ -1730,7 +1729,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_USER)));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
       end;
       SetFinalRightTransformFunction(@CalculateUserIcon);
     end;
@@ -2783,7 +2782,7 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_GROUP)));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_GROUP));
       end;
       SetFinalRightTransformFunction(@CalculateGroupFields);
     end;
@@ -2833,7 +2832,7 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,False);
       if show_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',_getDomainDisplayValues(conn,conn.SYS.GetDomainsForClassRight(sr_FETCH,TFRE_DB_ROLE)));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_ROLE));
       end;
       SetFinalRightTransformFunction(@CalculateRoleIcon);
     end;
@@ -3660,8 +3659,12 @@ var
 begin
   SetLength(Result,Length(domainIds));
   for i := 0 to High(domainIds) do begin
-    CheckDbResult(conn.Fetch(domainIds[i],domainObj));
-    Result[i]:=domainObj.Field('displayname').AsString;
+    if conn.sys.CheckClassRight4DomainId(sr_FETCH,TFRE_DB_DOMAIN,domainIds[i]) then begin
+      CheckDbResult(conn.Fetch(domainIds[i],domainObj));
+      Result[i]:=domainObj.Field('displayname').AsString;
+    end else begin
+      Result[i]:='-';
+    end;
   end;
 end;
 

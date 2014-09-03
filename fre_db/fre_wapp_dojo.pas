@@ -1645,9 +1645,9 @@ implementation
       if co.Field('showSearch').AsBoolean then begin
         jsContentAdd('var input = new FIRMOS.GridSearch({id: "'+co.Field('id').AsString+'_search",');
         jsContentAdd('   grid: '+co.Field('id').AsString+'_grid');
+        jsContentAdd('  ,placeholder: "'+_getText(conn,'search_label')+'"');
         jsContentAdd('  ,style: "float: right; margin: 0 4px;"});');
         jsContentAdd('toolbar.addChild(input);');
-        jsContentAdd('dojo.place("<label for='''+co.Field('id').AsString+'_search'' style=''margin: 4px 0 0; float: right;''>'+_getText(conn,'search_label')+'</label>", input.domNode, "after");');
       end;
     end;
 
