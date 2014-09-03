@@ -1336,20 +1336,36 @@ type
 
     procedure       ClearCollection            ;
 
-    function        CollectionName (const unique:boolean=false):TFRE_DB_NameType;
-    function        DomainCollName (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
+    function        CollectionName             (const unique:boolean=false):TFRE_DB_NameType;
+    function        DomainCollName             (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
 
-    procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray); { without right check }
+    procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray);
 
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
     function        IndexExists                (const index_name:TFRE_DB_NameType):boolean;
 
-    function        ExistsIndexed              (const query_value : TFRE_DB_String;const index_name:TFRE_DB_NameType='def'):Boolean; // for the string fieldtype
+    function        ExistsIndexed              (const query_value : TFRE_DB_String ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'): Boolean; deprecated ;
 
-    { not right aware }
-    function        GetIndexedObjI             (const query_value : TFRE_DB_String; out obj     : IFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
-    function        GetIndexedObj              (const query_value : TFRE_DB_String; out obj     : TFRE_DB_Object;const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
-    function        GetIndexedObjs             (const query_value : TFRE_DB_String; out obj     : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def'):boolean;
+    function        ExistsIndexedFieldval      (const fld : IFRE_DB_Field ; const index_name:TFRE_DB_NameType='def'):NativeInt; // for all index types
+    function        ExistsIndexedText          (const query_value : TFRE_DB_String ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'):NativeInt; // for the string   fieldtype
+    function        ExistsIndexedSigned        (const query_value : int64          ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'):NativeInt; // for the signed   fieldtypes
+    function        ExistsIndexedUnsigned      (const query_value : UInt64         ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'):NativeInt; // for the unsigned fieldtypes
+    function        ExistsIndexedReal          (const query_value : Double         ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'):NativeInt; // for the floating point fieldtypes
+
+    function        GetIndexedObj              (const query_value : TFRE_DB_String ; out obj     : TFRE_DB_Object      ; const index_name:TFRE_DB_NameType='def'):boolean;   // for the string fieldtype, index must be fully (null,non null or no null allowed) unique
+    function        GetIndexedObjFieldval      (const fld         : IFRE_DB_Field  ; out obj     : IFRE_DB_Object      ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+    function        GetIndexedObjText          (const query_value : TFRE_DB_String ; out obj     : IFRE_DB_Object      ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+    function        GetIndexedObjSigned        (const query_value : int64          ; out obj     : IFRE_DB_Object      ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+    function        GetIndexedObjUnsigned      (const query_value : Uint64         ; out obj     : IFRE_DB_Object      ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+    function        GetIndexedObjReal          (const query_value : Double         ; out obj     : IFRE_DB_Object      ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+
+    function        GetIndexedObjI             (const query_value : TFRE_DB_String ; out obj     : IFRE_DB_Object      ; const index_name:TFRE_DB_NameType='def'):boolean; // for the string fieldtype
+    function        GetIndexedObjs             (const query_value : TFRE_DB_String ; out obj     : IFRE_DB_ObjectArray ; const index_name:TFRE_DB_NameType='def'):boolean;
+    function        GetIndexedObjsFieldval     (const fld : IFRE_DB_Field          ; out obj     : IFRE_DB_ObjectArray ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+    function        GetIndexedObjsText         (const query_value : TFRE_DB_String ; out obj     : IFRE_DB_ObjectArray ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+    function        GetIndexedObjsSigned       (const query_value : int64          ; out obj     : IFRE_DB_ObjectArray ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+    function        GetIndexedObjsUnsigned     (const query_value : Uint64         ; out obj     : IFRE_DB_ObjectArray ; const index_name:TFRE_DB_NameType='def'):NativeInt;
+    function        GetIndexedObjsReal         (const query_value : Double         ; out obj     : IFRE_DB_ObjectArray ; const index_name:TFRE_DB_NameType='def'):NativeInt;
 
     function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
     function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
@@ -1358,7 +1374,6 @@ type
     function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
     function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
     function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-    { not right aware end}
 
     procedure       ForAllIndexed              (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
 
@@ -1367,7 +1382,6 @@ type
     procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
-    { not right aware }
     function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
     function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
     function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
@@ -1379,6 +1393,8 @@ type
     function        Last           : TFRE_DB_Object; virtual;
     function        GetItem        (const num:uint64):IFRE_DB_Object; virtual;
     function        ItemCount      : Int64; virtual;
+    function        Count          : Int64; deprecated ; { replaced by ItemCount }
+
 
     { not right aware end}
   end;
@@ -1945,7 +1961,8 @@ type
     function    GetFullUserLogin             : TFRE_DB_String; { login@domainname }
 
     function    CheckStdRightAndCondFinalize (const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
-    function    CheckStdRightSetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
+    function    CheckStdRightsetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
+    function    CheckStdRightsetInternalObj  (const obj : TFRE_DB_Object ; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
 
     { Safe case, use for single domain use cases }
     function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean; { and systemuser and systemdomain}
@@ -2945,6 +2962,11 @@ begin
       if not res then
         exit(edb_ACCESS);
     end;
+end;
+
+function TFRE_DB_USER_RIGHT_TOKEN.CheckStdRightSetInternalObj(const obj: TFRE_DB_Object; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
+begin
+  result := CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,sr);
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
@@ -9044,7 +9066,7 @@ end;
 
 function TFRE_DB_COLLECTION.ExistsInCollection(const ouid: TGUID; const has_fetch_rights: boolean): boolean;
 begin //nl
-  result := FCollConnection.FPersistance_Layer.ExistsInCollection(FName,ouid,has_fetch_rights,FCollConnection.GetUserUIDP);
+  result := FCollConnection.FPersistance_Layer.CollectionExistsInCollection(FName,ouid,has_fetch_rights,FCollConnection.GetUserUIDP);
 end;
 
 
@@ -9131,7 +9153,7 @@ end;
 function TFRE_DB_COLLECTION.FetchInCollection(const ouid: TGUID; out dbo: TFRE_DB_Object): boolean;
 var dbi : IFRE_DB_Object;
 begin
-  if FCollConnection.FPersistance_Layer.FetchInCollection(FName,ouid,dbi,FCollConnection.GetUserUIDP)=edb_OK then
+  if FCollConnection.FPersistance_Layer.CollectionFetchInCollection(FName,ouid,dbi,FCollConnection.GetUserUIDP)=edb_OK then
     begin
       dbo    := dbi.Implementor as TFRE_DB_Object;
       result := true;
@@ -9159,38 +9181,84 @@ end;
 
 procedure TFRE_DB_COLLECTION.GetAllUids(var uids: TFRE_DB_GUIDArray);
 begin
- abort;
-  //FObjectLinkStore.GetAllUIDS(uids);
+  uids := FCollConnection.FPersistance_Layer.CollectionBulkFetchUIDS(FName,FCollConnection.GetUserUIDP);
 end;
 
 function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false): TFRE_DB_Errortype;
 begin //nl
-  abort;
-  //result := FObjectLinkStore.DefineIndexOnField(FieldName,FieldType,unique,ignore_content_case, index_name,allow_null_value,unique_null_values);
+  FCollConnection.FPersistance_Layer.CollectionDefineIndexOnField(Fname,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
+  result := edb_OK;
 end;
 
 function TFRE_DB_COLLECTION.IndexExists(const index_name: TFRE_DB_NameType): boolean;
 begin
-  abort;
-  //result := FObjectLinkStore.IndexExists(index_name)<>-1;
+  result := FCollConnection.FPersistance_Layer.CollectionIndexExists(FName,index_name,FCollConnection.GetUserUIDP);
 end;
 
-function TFRE_DB_COLLECTION.ExistsIndexed(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType): Boolean;
-var uidarr : TFRE_DB_GUIDArray;
-    cnt,i  : NativeInt;
-begin //nl
- abort;
-  //result := FObjectLinkStore.GetIndexedUID(query_value,uidarr,index_name);
-  //cnt := 0;
-  //if not result then
-  //  exit;
-  //for i:=0 to high(uidarr) do
-  //  begin
-  //     if FCollConnection.FetchAccessRightTest(uidarr[i]) then
-  //       inc(cnt);
-  //  end;
-  //result := cnt>0;
+function TFRE_DB_COLLECTION.ExistsIndexed(const query_value: TFRE_DB_String; const val_is_null: boolean; const index_name: TFRE_DB_NameType): Boolean;
+begin
+  result := ExistsIndexedText(query_value,val_is_null,index_name)<>0;
 end;
+
+function TFRE_DB_COLLECTION.ExistsIndexedFieldval(const fld: IFRE_DB_Field; const index_name: TFRE_DB_NameType): NativeInt;
+var qry_val : IFRE_DB_Object;
+begin
+  qry_val := FREDB_NewIndexFldValForObjectEncoding(fld);
+  result := FCollConnection.FPersistance_Layer.CollectionGetIndexedValueCount(FName,qry_val,index_name,FCollConnection.GetUserUIDP);
+end;
+
+function TFRE_DB_COLLECTION.ExistsIndexedText(const query_value: TFRE_DB_String; const val_is_null: boolean; const index_name: TFRE_DB_NameType): NativeInt;
+var dummy : IFRE_DB_Object;
+begin
+  if val_is_null then
+    exit(ExistsIndexedFieldval(nil,index_name));
+  dummy := GFRE_DBI.NewObject;
+  try
+    dummy.Field('f').AsString := query_value;
+    result := ExistsIndexedFieldval(dummy.Field('f'),index_name);
+  finally
+    dummy.Finalize;
+  end;
+end;
+
+function TFRE_DB_COLLECTION.ExistsIndexedSigned(const query_value: int64; const val_is_null: boolean; const index_name: TFRE_DB_NameType): NativeInt;
+var dummy : IFRE_DB_Object;
+begin
+ if val_is_null then
+   exit(ExistsIndexedFieldval(nil,index_name));
+ dummy := GFRE_DBI.NewObject;
+ try
+   dummy.Field('f').asInt64 := query_value;
+   result := ExistsIndexedFieldval(dummy.Field('f'),index_name);
+ finally
+   dummy.Finalize;
+ end;
+end;
+
+function TFRE_DB_COLLECTION.ExistsIndexedUnsigned(const query_value: UInt64; const val_is_null: boolean; const index_name: TFRE_DB_NameType): NativeInt;
+var dummy : IFRE_DB_Object;
+begin
+ dummy := GFRE_DBI.NewObject;
+ try
+   dummy.Field('f').AsUInt64 := query_value;
+   result := ExistsIndexedFieldval(dummy.Field('f'),index_name);
+ finally
+   dummy.Finalize;
+ end;
+end;
+
+function TFRE_DB_COLLECTION.ExistsIndexedReal(const query_value: Double; const val_is_null: boolean; const index_name: TFRE_DB_NameType): NativeInt;
+var dummy : IFRE_DB_Object;
+begin
+ dummy := GFRE_DBI.NewObject;
+ try
+   dummy.Field('f').AsReal64 := query_value;
+   result := ExistsIndexedFieldval(dummy.Field('f'),index_name);
+ finally
+   dummy.Finalize;
+ end;
+end;
+
 
 function TFRE_DB_COLLECTION.GetIndexedObjI(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): boolean;
 var oobj:TFRE_DB_Object;
@@ -9211,6 +9279,31 @@ begin //nl
   //  obj := obi.Implementor as TFRE_DB_Object
   //else
   //  obj := nil;
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjFieldval(const fld: IFRE_DB_Field; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjText(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjSigned(const query_value: int64; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjUnsigned(const query_value: Uint64; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjReal(const query_value: Double; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean): boolean;
@@ -9235,6 +9328,33 @@ function TFRE_DB_COLLECTION.GetIndexedObjs(const query_value: TFRE_DB_String; ou
 begin //nl
   abort;
   //result := FObjectLinkStore.GetIndexedObj(query_value,obj,index_name);
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjsFieldval(const fld: IFRE_DB_Field; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType): NativeInt;
+var qry_val : IFRE_DB_Object;
+begin
+  qry_val := FREDB_NewIndexFldValForObjectEncoding(fld);
+  result := FCollConnection.FPersistance_Layer.CollectionGetIndexedObjsFieldval(FName,qry_val,obj,false,index_name,FCollConnection.GetUserUIDP);
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjsText(const query_value: TFRE_DB_String; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjsSigned(const query_value: int64; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjsUnsigned(const query_value: Uint64; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
+end;
+
+function TFRE_DB_COLLECTION.GetIndexedObjsReal(const query_value: Double; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType): NativeInt;
+begin
+
 end;
 
 function TFRE_DB_COLLECTION.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType ; const check_is_unique : boolean ; const val_is_null : boolean): boolean;
@@ -9338,6 +9458,11 @@ function TFRE_DB_COLLECTION.ItemCount: Int64;
 begin
   abort;
   //result := FObjectLinkStore.Count;
+end;
+
+function TFRE_DB_COLLECTION.Count: Int64;
+begin
+  result := ItemCount;
 end;
 
 function TFRE_DB_COLLECTION.First: TFRE_DB_Object;
@@ -9970,7 +10095,7 @@ end;
 
 function TFRE_DB_BASE_CONNECTION.CollectionExists(const name: TFRE_DB_NameType): boolean;
 begin
-  result := FPersistance_Layer.ExistCollection(name);
+  result := FPersistance_Layer.CollectionExistCollection(name);
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.Finalize;
@@ -10111,7 +10236,7 @@ begin
   if FCollectionStore.Find(FUPcoll_name,lcollection) then begin
     result := lcollection;
   end else begin
-    if FPersistance_Layer.ExistCollection(collection_name) then
+    if FPersistance_Layer.CollectionExistCollection(collection_name) then
       begin { The Layer has the Collection but it's not in my store -> add it}
         lcollection := TFRE_DB_COLLECTION.Create(self,collection_name);
         if not FCollectionStore.Add(FUPcoll_name,lcollection) then
@@ -10119,7 +10244,7 @@ begin
         exit(lcollection);
       end;
     if create_non_existing then begin
-      FPersistance_Layer.NewCollection(collection_name,in_memory_only);
+      FPersistance_Layer.CollectionNewCollection(collection_name,in_memory_only);
       _AddCollectionToStore(collection_name);
       if not FCollectionStore.Find(FUPcoll_name,lcollection) then
         raise EFRE_DB_Exception.Create(edb_ERROR,'cannot fetch created collection / fail');
@@ -10140,7 +10265,7 @@ begin
   if not FCollectionStore.Find(c_name,lcollection) then
     exit(edb_NOT_FOUND);
   try
-    FPersistance_Layer.DeleteCollection(name);
+    FPersistance_Layer.CollectionDeleteCollection(name);
   except
     exit(FPersistance_Layer.GetLastErrorCode);
   end;

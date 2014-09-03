@@ -89,7 +89,6 @@ type
     FFieldname       : TFRE_DB_NameType;
     FUniqueFieldname : TFRE_DB_NameType;
     FFieldType       : TFRE_DB_FIELDTYPE;
-    //FFixedKeylen     : NativeInt;
     FUnique          : Boolean;
     FAllowNull       : Boolean;
     FUniqueNullVals  : Boolean;
@@ -102,7 +101,6 @@ type
 
 
     function       GetStringRepresentationOfTransientKey (const isnullvalue:boolean ; const key: PByte ; const keylen: Nativeint ): String;
-    //procedure      SetTranformedKeyDBS               (const value : TFRE_DB_String ; const update_key : boolean ; const is_null_value : Boolean); virtual ;
 
     function        FetchIndexedValsTransformedKey    (var obj : TFRE_DB_GUIDArray ; const key: PByte ; const keylen : Nativeint):boolean;
     procedure       TransformToBinaryComparable       (fld:TFRE_DB_FIELD ; const key: PByte ; var keylen : Nativeint); virtual; abstract;
@@ -130,13 +128,14 @@ type
     procedure   IndexUpdCheck                        (const new_obj,old_obj : TFRE_DB_Object; const check_only : boolean); virtual; // Object gets changed
     procedure   IndexDelCheck                        (const obj,new_obj     : TFRE_DB_Object; const check_only : boolean); virtual; // Object gets deleted
     function    SupportsDataType                     (const typ : TFRE_DB_FIELDTYPE):boolean; virtual ; abstract;
+    function    SupportsIndexType                    (const ix_type : TFRE_DB_INDEX_TYPE):boolean;
     function    SupportsStringQuery                  : boolean; virtual ; abstract;
     function    SupportsSignedQuery                  : boolean; virtual ; abstract;
     function    SupportsUnsignedQuery                : boolean; virtual ; abstract;
     function    SupportsRealQuery                    : boolean; virtual ; abstract;
     function    IsUnique                             : Boolean;
     procedure   AppendAllIndexedUids                 (var guids : TFRE_DB_GUIDArray ; const ascending: boolean ; const max_count: NativeInt; skipfirst: NativeInt);
-    function    IndexTypeTxt                         : String ; virtual; abstract;
+    function    IndexTypeTxt                         : String;
     function    IndexedCount                         (const unique_values : boolean): NativeInt;
     function    IndexIsFullyUnique                   : Boolean;
   end;
@@ -160,7 +159,6 @@ type
     procedure         FieldTypeIndexCompatCheck   (fld:TFRE_DB_FIELD ); override;
     function          NullvalueExists             (var vals: TFRE_DB_IndexValueStore): boolean; override;
     function          SupportsDataType            (const typ: TFRE_DB_FIELDTYPE): boolean; override;
-    function          IndexTypeTxt                : String; override;
     procedure         ForAllIndexedUnsignedRange  (const min, max: QWord; var guids :  TFRE_DB_GUIDArray ; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0);
     function          SupportsSignedQuery         : boolean; override;
     function          SupportsUnsignedQuery       : boolean; override;
@@ -190,7 +188,6 @@ type
     function          SupportsUnsignedQuery       : boolean; override;
     function          SupportsStringQuery         : boolean; override;
     function          SupportsRealQuery           : boolean; override;
-    function          IndexTypeTxt                : String; override;
     procedure         ForAllIndexedSignedRange    (const min, max: int64; var guids :  TFRE_DB_GUIDArray ; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0);
   end;
 
@@ -216,7 +213,6 @@ type
     function          SupportsUnsignedQuery       : boolean; override;
     function          SupportsStringQuery         : boolean; override;
     function          SupportsRealQuery           : boolean; override;
-    function          IndexTypeTxt                : String; override;
     procedure         ForAllIndexedRealRange      (const min, max: Double; var guids :  TFRE_DB_GUIDArray ; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0);
   end;
 
@@ -245,7 +241,6 @@ type
     function          SupportsUnsignedQuery       : boolean; override;
     function          SupportsStringQuery         : boolean; override;
     function          SupportsRealQuery           : boolean; override;
-    function          IndexTypeTxt                : String; override;
     function          ForAllIndexedTextRange      (const min, max: TFRE_DB_String; var guids :  TFRE_DB_GUIDArray ; const ascending: boolean ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=-1 ; skipfirst : NativeInt=0  ; const only_count_unique_vals : boolean = false):boolean;
     function          ForAllIndexPrefixString     (const prefix  : TFRE_DB_String; var guids :  TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0):boolean;
   end;
@@ -263,7 +258,6 @@ type
 
     function      IsVolatile         : boolean;
 
-    function      IndexExists      (const idx_name : TFRE_DB_NameType):NativeInt;
     procedure     AddIndex         (const idx : TFRE_DB_MM_Index);
 
     procedure     IndexAddCheck    (const obj              : TFRE_DB_Object;const check_only : boolean);
@@ -285,9 +279,14 @@ type
 
     function      GetPersLayer        : IFRE_DB_PERSISTANCE_LAYER;
   public
-    function      CloneOutObject   (const inobj:TFRE_DB_Object):TFRE_DB_Object;
-    function      CloneOutArray    (const objarr : TFRE_DB_GUIDArray):TFRE_DB_ObjectArray;
-    function      CloneOutArrayOI  (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
+    function      GetIndexedValueCount (const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType ; const user_context: PFRE_DB_GUID): NativeInt;
+    function      GetIndexedUids       (const qry_val: IFRE_DB_Object; out uids : TFRE_DB_GUIDArray    ;  const index_must_be_fullyunique : boolean ; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+    function      GetIndexedObjs       (const qry_val: IFRE_DB_Object; out objs : TFRE_DB_ObjectArray  ;  const index_must_be_fullyunique : boolean ; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+
+    function      IndexExists          (const idx_name : TFRE_DB_NameType):NativeInt;
+    function      CloneOutObject       (const inobj:TFRE_DB_Object):TFRE_DB_Object;
+    function      CloneOutArray        (const objarr : TFRE_DB_GUIDArray):TFRE_DB_ObjectArray;
+    function      CloneOutArrayOI      (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
 
     {< Do all streaming changes for this section }
     procedure     StreamToThis       (const stream : TStream);
@@ -324,7 +323,7 @@ type
     function    First              : IFRE_DB_Object;
     function    Last               : IFRE_DB_Object;
     function    GetItem            (const num:uint64) : IFRE_DB_Object;
-    function    DefineIndexOnField (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
+    //function    DefineIndexOnField (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
 
     function    GetIndexedObj         (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype
     function    GetIndexedObj         (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
@@ -918,11 +917,6 @@ end;
 function TFRE_DB_RealIndex.SupportsRealQuery: boolean;
 begin
   result := true;
-end;
-
-function TFRE_DB_RealIndex.IndexTypeTxt: String;
-begin
-  result := 'real';
 end;
 
 procedure TFRE_DB_RealIndex.ForAllIndexedRealRange(const min, max: Double; var guids: TFRE_DB_GUIDArray; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
@@ -1962,11 +1956,6 @@ begin
   result := false;
 end;
 
-function TFRE_DB_SignedIndex.IndexTypeTxt: String;
-begin
-  result := 'signed'
-end;
-
 procedure TFRE_DB_SignedIndex.ForAllIndexedSignedRange(const min, max: int64; var guids: TFRE_DB_GUIDArray; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var lokey,hikey       : Array [0..8] of Byte;
     lokeylen,hikeylen : NativeInt;
@@ -2154,17 +2143,6 @@ end;
 function TFRE_DB_UnsignedIndex.SupportsRealQuery: boolean;
 begin
   result := false;
-end;
-
-function TFRE_DB_UnsignedIndex.IndexTypeTxt: String;
-begin
-  if (FFieldType=fdbft_GUID) then
-    result := 'uid'
-  else
-  if (FFieldType=fdbft_ObjLink) then
-    result := 'objlink'
-  else
-    result := 'unsigned';
 end;
 
 procedure TFRE_DB_UnsignedIndex.ForAllIndexedUnsignedRange(const min, max: QWord; var guids: TFRE_DB_GUIDArray; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
@@ -4526,11 +4504,6 @@ begin
   result := false;
 end;
 
-function TFRE_DB_TextIndex.IndexTypeTxt: String;
-begin
-  result := 'text';
-end;
-
 function TFRE_DB_TextIndex.ForAllIndexedTextRange(const min, max: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt; const only_count_unique_vals: boolean): boolean;
 var lokey,hikey       : Array [0..8] of Byte;
     lokeylen,hikeylen : NativeInt;
@@ -4722,6 +4695,17 @@ begin
       IndexAddCheck(new_obj,check_only); // Need to Transform Null Value
 end;
 
+function TFRE_DB_MM_Index.SupportsIndexType(const ix_type: TFRE_DB_INDEX_TYPE): boolean;
+begin
+  case ix_type of
+    fdbit_Unsupported: raise EFRE_DB_Exception.Create(edb_MISMATCH,'an unsupported index type is unsupported by definition, so dont query for support');
+    fdbit_Unsigned: result := SupportsUnsignedQuery;
+    fdbit_Signed:   result := SupportsSignedQuery;
+    fdbit_Real:     result := SupportsRealQuery;
+    fdbit_Text:     result := SupportsStringQuery;
+  end;
+end;
+
 function TFRE_DB_MM_Index.IsUnique: Boolean;
 begin
   result := FUnique;
@@ -4748,6 +4732,11 @@ begin
     FIndex.LinearScanBreak(@NodeProc,halt)
   else
     FIndex.LinearScanBreak(@NodeProc,halt,true);
+end;
+
+function TFRE_DB_MM_Index.IndexTypeTxt: String;
+begin
+  result := CFRE_DB_INDEX_TYPE[FREDB_GetIndexTypeForFieldType(FFieldType)];
 end;
 
 function TFRE_DB_MM_Index.IndexedCount(const unique_values: boolean): NativeInt;
@@ -5715,11 +5704,6 @@ begin
     AddIndex(index);
 end;
 
-function TFRE_DB_Persistance_Collection.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_Errortype;
-begin
-  FLayer.DefineIndexOnField(self.CollectionName(false),FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
-  exit(edb_OK);
-end;
 
 // Check if a field can be removed safely from an object stored in this collection, or if an index exists on that field
 //TODO -> handle indexed field change
@@ -5953,6 +5937,57 @@ end;
 function TFRE_DB_Persistance_Collection.GetPersLayer: IFRE_DB_PERSISTANCE_LAYER;
 begin
   result := FLayer;
+end;
+
+function TFRE_DB_Persistance_Collection.GetIndexedValueCount(const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+var ix,i     : NativeInt;
+    ix_type  : TFRE_DB_INDEX_TYPE;
+    idx      : TFRE_DB_MM_Index;
+    valf     : IFRE_DB_Field;
+    key      : Array [0..CFREA_maxKeyLen] of Byte;
+    keylen   : NativeInt;
+    uids     : TFRE_DB_GUIDArray;
+    uti      : TFRE_DB_USER_RIGHT_TOKEN;
+    err      : TFRE_DB_Errortype;
+    obj      : TFRE_DB_Object;
+begin
+  if assigned(user_context) then
+    G_GetUserToken(user_context^,uti,true);
+  ix := IndexExists(index_name);
+  if ix=-1 then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the index named[%s] does not exist',[index_name]);
+  ix_type  := FREDB_GetIndexTypeFromObjectEncoding(qry_val);
+  valf     := FREDB_GetIndexFldValFromObjectEncoding(qry_val);
+  idx      := FIndexStore[ix];
+  idx.IndexTypeTxt;
+  if not idx.SupportsIndexType(ix_type) then
+    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'the index named[%s] does not support the requested index type[%s], but index type[%s]',[index_name,CFRE_DB_INDEX_TYPE[ix_type],idx.IndexTypeTxt]);
+  idx.TransformToBinaryComparable(valf.Implementor as TFRE_DB_FIELD,@key,keylen);
+  idx.FetchIndexedValsTransformedKey(uids,@key,keylen);
+  if not assigned(uti) then
+    result := Length(uids)
+  else
+    begin
+      result := 0;
+      for i := 0 to high(uids) do
+        begin
+          if not FetchIntFromCollO(uids[i],obj) then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not fetch collection object while evaluating index value count');
+          err := uti.CheckStdRightsetInternalObj(obj,[sr_FETCH]);
+          if err=edb_OK then
+            inc(Result);
+        end;
+    end;
+end;
+
+function TFRE_DB_Persistance_Collection.GetIndexedUids(const qry_val: IFRE_DB_Object; out uids: TFRE_DB_GUIDArray; const index_must_be_fullyunique: boolean; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+begin
+
+end;
+
+function TFRE_DB_Persistance_Collection.GetIndexedObjs(const qry_val: IFRE_DB_Object; out objs: TFRE_DB_ObjectArray; const index_must_be_fullyunique: boolean; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+begin
+
 end;
 
 function TFRE_DB_Persistance_Collection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
