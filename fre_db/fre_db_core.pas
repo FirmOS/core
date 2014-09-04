@@ -1955,6 +1955,7 @@ type
     function    CheckClassRight4DomainId    (const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString; const domain: TGuid): boolean;
 
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+    function    GetDomainNamesForClassRight (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
 
     function    CheckObjectRight            (const right_name : TFRE_DB_String ; const uid : TGUID ):boolean;
     function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean;
@@ -2802,7 +2803,7 @@ begin
   result := IsCurrentUserSystemAdmin;
   if result then
     exit;
-  result := FREDB_StringInArray(_GetStdRightName(std_right,rclassname,domain),FConnectionRights);
+  result := (domain<>CFRE_DB_NullGUID) and FREDB_StringInArray(_GetStdRightName(std_right,rclassname,domain),FConnectionRights);
 end;
 
 constructor TFRE_DB_USER_RIGHT_TOKEN.Create(const user: TFRE_DB_USER; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
@@ -2922,6 +2923,16 @@ begin
   result := GetDomainsForRight(_GetStdRightName(std_right,classtyp));
 end;
 
+function TFRE_DB_USER_RIGHT_TOKEN.GetDomainNamesForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_StringArray;
+var uids : TFRE_DB_GUIDArray;
+       i : NativeInt;
+begin
+  uids := GetDomainsForClassRight(std_right,classtyp);
+  SetLength(result,Length(uids));
+  for i:=0 to high(Result) do
+    result[i] := GetDomainNameByUid(uids[i]);
+end;
+
 function TFRE_DB_USER_RIGHT_TOKEN.CheckObjectRight(const right_name: TFRE_DB_String; const uid: TGUID): boolean;
 begin
   result := IsCurrentUserSystemAdmin;
@@ -2935,7 +2946,7 @@ begin
   result := IsCurrentUserSystemAdmin;
   if result then
     exit;
-  result := FREDB_StringInArray(TFRE_DB_Base.GetStdObjectRightName(std_right,uid),FConnectionRights);
+  result :=  (uid<>CFRE_DB_NullGUID) and FREDB_StringInArray(TFRE_DB_Base.GetStdObjectRightName(std_right,uid),FConnectionRights);
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.DumpUserRights: TFRE_DB_String;
@@ -5778,7 +5789,7 @@ end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainNamesForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_StringArray;
 begin
-  SetLength(Result,0);
+  result := FCurrentUserToken.GetDomainNamesForClassRight(std_right,classtyp);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckObjectRight(const right_name: TFRE_DB_String; const uid: TGUID): boolean;

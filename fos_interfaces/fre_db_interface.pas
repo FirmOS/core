@@ -1134,7 +1134,6 @@ type
     function    CheckClassRight4Domain       (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
     function    GetDomainsForRight           (const right_name:TFRE_DB_String): TFRE_DB_GUIDArray;
     function    GetDomainsForClassRight      (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
-
     { Stdrights Many domain case, add additional checks for the specific domain }
     function    CheckClassRight4MyDomain     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
     function    CheckClassRight4AnyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
@@ -1965,7 +1964,7 @@ type
     procedure  AddUIDFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);virtual;abstract;
     procedure  AddSchemeObjectFilter   (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=true );virtual;abstract;
     procedure  AddStdRightObjectFilter (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );virtual;abstract;
-    procedure  AddStdClassRightFilter  (const key:          TFRE_DB_NameType ; domainidfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType;  stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );virtual;abstract;
+    procedure  AddStdClassRightFilter  (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=false); virtual;abstract;
     procedure  AddChildFilter          (const key:          TFRE_DB_NameType); virtual ; abstract;
     procedure  AddParentFilter         (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); virtual ; abstract ;
     procedure  AddAutoDependencyFilter (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID ; const negate:boolean=true  ; const include_null_values : boolean=false);virtual; abstract;
