@@ -624,6 +624,7 @@ type
     datacollection   : TFRE_DB_NameType;
     standardcoll     : TFRE_DB_STANDARD_COLL;
     dc_isdomainc     : Boolean;
+    dc_isderivedc    : Boolean;
     caption_key      : TFRE_DB_NameType;
     chooser_type     : TFRE_DB_CHOOSER_DH;
     chooser_add_empty: Boolean;
@@ -1160,7 +1161,6 @@ type
     function    CheckClassRight4Domain       (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
     function    GetDomainsForRight           (const right_name:TFRE_DB_String): TFRE_DB_GUIDArray;
     function    GetDomainsForClassRight      (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
-
     { Stdrights Many domain case, add additional checks for the specific domain }
     function    CheckClassRight4MyDomain     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
     function    CheckClassRight4AnyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
@@ -1649,6 +1649,7 @@ type
     function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String):boolean;
     function    CheckClassRight4DomainId    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domain:TGuid):boolean;
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+    function    GetDomainNamesForClassRight (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
 
     function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
     function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is sensless
@@ -1970,6 +1971,7 @@ type
     procedure  AddUIDFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);virtual;abstract;
     procedure  AddSchemeObjectFilter   (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=true );virtual;abstract;
     procedure  AddStdRightObjectFilter (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );virtual;abstract;
+    procedure  AddStdClassRightFilter  (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=false); virtual;abstract;
     procedure  AddChildFilter          (const key:          TFRE_DB_NameType); virtual ; abstract;
     procedure  AddParentFilter         (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); virtual ; abstract ;
     procedure  AddAutoDependencyFilter (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID ; const negate:boolean=true  ; const include_null_values : boolean=false);virtual; abstract;
@@ -2616,7 +2618,7 @@ type
     //procedure SetInputGroupID    (AValue: TFRE_DB_String);
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
-    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE; const chooserAddEmptyForRequired: Boolean=false);
+    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionsIsDerivedCollection:Boolean=false; const fbCollectionIsDomainCollection:boolean=false;const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE; const chooserAddEmptyForRequired: Boolean=false);
     procedure AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
@@ -4338,15 +4340,15 @@ begin
   group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
   group.AddInput('step_id',GetTranslateableTextKey('scheme_step_id'));
-  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP,true);
-  group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'',false,dh_chooser_combo,coll_GROUP);
+  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,false,dh_chooser_combo,coll_GROUP,true);
+  group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'',false,false,dh_chooser_combo,coll_GROUP);
   group.AddInput('allowed_time',GetTranslateableTextKey('scheme_allowed_time'));
-  group.AddInput('action',GetTranslateableTextKey('scheme_action'),false,false,'',false,dh_chooser_combo,coll_WFACTION,true);
+  group.AddInput('action',GetTranslateableTextKey('scheme_action'),false,false,'',false,false,dh_chooser_combo,coll_WFACTION,true);
 
   group:=scheme.AddInputGroup('error_main').Setup(GetTranslateableTextKey('scheme_error_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
-  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,dh_chooser_combo,coll_GROUP,true);
-  group.AddInput('action',GetTranslateableTextKey('scheme_action'),false,false,'',false,dh_chooser_combo,coll_WFACTION,true);
+  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',false,false,dh_chooser_combo,coll_GROUP,true);
+  group.AddInput('action',GetTranslateableTextKey('scheme_action'),false,false,'',false,false,dh_chooser_combo,coll_WFACTION,true);
 end;
 
 class procedure TFRE_DB_WORKFLOW_STEP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);

@@ -82,7 +82,7 @@ end;
 
 class procedure TFRE_DB_GLOBAL_TEXTS.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.1';
+  newVersionId:='1.2';
 
   if (currentVersionId='') then begin
     currentVersionId:='1.0';
@@ -146,6 +146,12 @@ begin
     StoreTranslateableText(conn,'validator_image_help','Please select an image file.');
     StoreTranslateableText(conn,'validator_ip_help','1.0.0.1 - 223.255.255.254 excluding 127.x.x.x');
     StoreTranslateableText(conn,'validator_mac_help','00:01:02:03:04:05');
+  end;
+  if (currentVersionId='1.1') then begin
+    currentVersionId:='1.2';
+
+    DeleteTranslateableText(conn,'search_label');
+    StoreTranslateableText(conn,'search_label','Search...');
   end;
 end;
 
