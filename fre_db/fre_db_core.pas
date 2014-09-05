@@ -1936,6 +1936,7 @@ type
 
     function    CheckStdRightAndCondFinalize (const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
     function    CheckStdRightSetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
+    function    CheckGenRightSetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_StringArray): TFRE_DB_Errortype;
 
     { Safe case, use for single domain use cases }
     function    CheckClassRight4MyDomain    (const right_name:TFRE_DB_String;const classtyp: TClass):boolean; { and systemuser and systemdomain}
@@ -1949,10 +1950,11 @@ type
     function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
     function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
 
-    function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean; { specific domain }
-    function    CheckClassRight4DomainId    (const right_name: TFRE_DB_String; const classtyp: TClass; const domain: TGuid): boolean;
-    function    CheckClassRight4DomainId    (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domain: TGuid): boolean;
-    function    CheckClassRight4DomainId    (const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString; const domain: TGuid): boolean;
+    function    CheckClassRight4Domain      (const std_right : TFRE_DB_STANDARD_RIGHT ; const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean; { specific domain }
+    function    CheckClassRight4DomainId    (const right_name: TFRE_DB_String         ; const classtyp: TClass; const domain: TGuid): boolean;
+    function    CheckClassRight4DomainId    (const right_name: TFRE_DB_String         ; const rclassname: ShortString; const domain: TGuid): boolean;
+    function    CheckClassRight4DomainId    (const std_right : TFRE_DB_STANDARD_RIGHT ; const classtyp: TClass; const domain: TGuid): boolean;
+    function    CheckClassRight4DomainId    (const std_right : TFRE_DB_STANDARD_RIGHT ; const rclassname: ShortString; const domain: TGuid): boolean;
 
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
     function    GetDomainNamesForClassRight (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
@@ -2790,6 +2792,14 @@ begin
   result := FREDB_StringInArray((TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name)+'@'+uppercase(GFRE_BT.GUID_2_HexString(domain))),FConnectionRights); // DomainIDasString has to be uppercase!
 end;
 
+function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4DomainId(const right_name: TFRE_DB_String; const rclassname: ShortString; const domain: TGuid): boolean;
+begin
+ result := IsCurrentUserSystemAdmin;
+ if result then
+   exit;
+ result := FREDB_StringInArray((TFRE_DB_Base.GetClassRightName(rclassname,right_name)+'@'+uppercase(GFRE_BT.GUID_2_HexString(domain))),FConnectionRights); // DomainIDasString has to be uppercase!
+end;
+
 function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4DomainId(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domain: TGuid): boolean;
 begin
   result := IsCurrentUserSystemAdmin;
@@ -2915,6 +2925,32 @@ begin
   if sr_DELETE in sr then
     begin
       res := res AND IntCheck(sr_DELETE);
+      if not res then
+        exit(edb_ACCESS);
+    end;
+end;
+
+function TFRE_DB_USER_RIGHT_TOKEN.CheckGenRightSetUIDAndClass(const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_StringArray): TFRE_DB_Errortype;
+var classt : ShortString;
+    res    : boolean;
+    i      : integer;
+
+    function IntCheckGen(const rt : TFRE_DB_String):boolean;
+    begin
+      result := ((classt='TFRE_DB_OBJECT')
+                  or CheckClassRight4DomainId(rt,classt,obj_domuid)
+                  or CheckObjectRight(rt,obj_uid));
+    end;
+
+begin
+  if (obj_uid=CFRE_DB_NullGUID) and (obj_domuid=CFRE_DB_NullGUID) then
+    exit(edb_ACCESS);
+  classt := uppercase(check_classname);
+  res    := true;
+  result := edb_OK;
+  for i:= 0 to high(sr) do
+    begin
+      res := res AND IntCheckGen(sr[i]);
       if not res then
         exit(edb_ACCESS);
     end;

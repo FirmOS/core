@@ -235,7 +235,7 @@ type
   TFRE_DB_FILTER_RIGHT=class(TFRE_DB_FILTER_BASE)
   private
     type
-      TFRE_DB_FILTER_RIGHT_FILTER_MODE=(fm_ObjectRightFilter,fm_ReferedRightFilter);
+      TFRE_DB_FILTER_RIGHT_FILTER_MODE=(fm_ObjectRightFilter,fm_ReferedRightFilter,fm_ObjectRightFilterGeneric,fm_ReferedRightFilterGeneric);
   protected
     FRight            : TFRE_DB_STANDARD_RIGHT_SET;
     FMode             : TFRE_DB_FILTER_RIGHT_FILTER_MODE;
@@ -244,12 +244,15 @@ type
     FDomIDField       : TFRE_DB_Nametype;
     FObjUidField      : TFRE_DB_NameType;
     FSchemeClassField : TFRE_DB_NameType;
+    FRightSet         : TFRE_DB_StringArray;
   public
-    function  Clone            : TFRE_DB_FILTER_BASE;override;
-    function  GetDefinitionKey : TFRE_DB_NameType; override;
-    function  CheckFilterHit    (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
-    procedure InitFilter        (stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
-    procedure InitFilterRefered (domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
+    function  Clone                    : TFRE_DB_FILTER_BASE;override;
+    function  GetDefinitionKey         : TFRE_DB_NameType; override;
+    function  CheckFilterHit           (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    procedure InitFilter               (stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
+    procedure InitFilterRefered        (domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
+    procedure InitFilterGenRights      (const stdrightset  : array of TFRE_DB_String ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
+    procedure InitFilterGenRightsRefrd (const domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType ; stdrightset  : array of TFRE_DB_String ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
   end;
 
   { TFRE_DB_FILTER_PARENT }
@@ -306,6 +309,8 @@ type
     procedure   AddSchemeObjectFilter        (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=true );override;
     procedure   AddStdRightObjectFilter      (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );override;
     procedure   AddStdClassRightFilter       (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true); override;
+    procedure   AddObjectRightFilter         (const key:          TFRE_DB_NameType ; rightset  : Array of TFRE_DB_String  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );override;
+    procedure   AddClassRightFilter          (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: Array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true);override;
     procedure   AddChildFilter               (const key:          TFRE_DB_NameType); override ;
     procedure   AddParentFilter              (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); override ;
     procedure   AddAutoDependencyFilter      (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID  ; const one_value:boolean=true ; const include_null_values : boolean=false);override;
@@ -1640,12 +1645,15 @@ begin
   fClone.FSchemeClassField := FSchemeClassField;
   fClone.FObjUidField      := FObjUidField;
   fClone.FDomIDField       := FDomIDField;
+  fClone.FRightSet         := copy(FRightSet);
   result                   := fClone;
 end;
 
 function TFRE_DB_FILTER_RIGHT.GetDefinitionKey: TFRE_DB_NameType;
+var hsh : cardinal;
+      i : NativeInt;
 begin
-  result := 'Z:';
+  result :='';
   if sr_STORE in FRight then
     result:=result+'S';
   if sr_UPDATE in FRight then
@@ -1658,14 +1666,17 @@ begin
     result:=result+'1'
   else
     result:=result+'0';
-  result := result+GFRE_BT.HashFast32_Hex(inttostr(ord(FMode))+FSchemeclass+'-'+FDomIDField+'-'+FObjUidField+'-'+FSchemeClassField,0);
-  result:=result+FUserTokenClone.GetUniqueTokenKey;
+  result := result+inttostr(ord(FMode))+':'+FSchemeclass+'-'+FDomIDField+'-'+FObjUidField+'-'+FSchemeClassField+':'+FUserTokenClone.GetUniqueTokenKey;
+  hsh := GFRE_BT.HashFast32(@result[1],length(result),0);
+  for i:= 0 to high(FRightSet) do
+    hsh := GFRE_BT.HashFast32(@FRightSet[i][1],Length(FRightSet[i]),hsh);
+  result := 'Z:'+GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
 function TFRE_DB_FILTER_RIGHT.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var cn:ShortString;
 
-    function ReferedDomainCheck:boolean;
+    function ReferedDomainCheck(const std : boolean):boolean;
     var domid  : TFRE_DB_GUID;
         objuid : TFRE_DB_GUID;
         fld    : IFRE_DB_Field;
@@ -1681,10 +1692,13 @@ var cn:ShortString;
           objuid := CFRE_DB_NullGUID; { skip object right tests to false (no right)}
         if (FSchemeClassField<>'') then
           FSchemeclass := uppercase(obj.Field(FSchemeClassField).AsString);
-        result := FUserTokenClone.CheckStdRightSetUIDAndClass(objuid,domid,FSchemeclass,FRight)<>edb_OK;
+        if std then
+          result := FUserTokenClone.CheckStdRightSetUIDAndClass(objuid,domid,FSchemeclass,FRight)<>edb_OK { use negative (!) check in filters }
+        else
+          result := FUserTokenClone.CheckGenRightSetUIDAndClass(objuid,domid,FSchemeclass,FRightSet)<>edb_OK; { use negative (!) check in filters }
       except
         inc(flt_errors);
-        result := false;
+        result := true;
       end;
     end;
 
@@ -1694,12 +1708,23 @@ var cn:ShortString;
       result := FUserTokenClone.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,cn,FRight)<>edb_OK;
     end;
 
+    function ObjectRightcheckGeneric:boolean;
+    begin
+      cn := obj.PreTransformedScheme;
+      result := FUserTokenClone.CheckGenRightSetUIDAndClass(obj.UID,obj.DomainID,cn,FRightSet)<>edb_OK;
+    end;
+
+
 begin
   case FMode of
     fm_ObjectRightFilter:
       result := ObjectRightcheck;
     fm_ReferedRightFilter:
-      result := ReferedDomainCheck;
+      result := ReferedDomainCheck(true);
+    fm_ObjectRightFilterGeneric:
+      result := ObjectRightcheckGeneric;
+    fm_ReferedRightFilterGeneric:
+      result := ReferedDomainCheck(false);
   end;
   result := (result xor FNegate); { invert result }
 end;
@@ -1731,6 +1756,43 @@ begin
   FObjUidField      := objuidfield;
   FSchemeClassField := schemeclassfield;
 end;
+
+procedure TFRE_DB_FILTER_RIGHT.InitFilterGenRights(const stdrightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+var i : NativeInt;
+begin
+  if Length(stdrightset)=0 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'at least one right must be specified for the filter');
+  SetLength(FRightSet,Length(stdrightset));
+  for i := 0 to high(stdrightset) do
+    FRightSet[i] := stdrightset[i];
+  if not assigned(usertoken) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'a usertoken must be specified for the filter');
+  FRight          := [];
+  FUserTokenClone := usertoken;
+  FNegate         := negate;
+  FMode           := fm_ObjectRightFilterGeneric;
+end;
+
+procedure TFRE_DB_FILTER_RIGHT.InitFilterGenRightsRefrd(const domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+var i : NativeInt;
+begin
+  if Length(stdrightset)=0 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'at least one right must be specified for the filter');
+  SetLength(FRightSet,Length(stdrightset));
+  for i := 0 to high(stdrightset) do
+    FRightSet[i] := stdrightset[i];
+  if not assigned(usertoken) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'a usertoken must be specified for the filter');
+  FRight            := [];
+  FUserTokenClone   := usertoken;
+  FNegate           := negate;
+  FMode             := fm_ReferedRightFilterGeneric;
+  FSchemeclass      := schemeclass;
+  FDomIDField       := domainidfield;
+  FObjUidField      := objuidfield;
+  FSchemeClassField := schemeclassfield;
+end;
+
 
 { TFRE_DB_FILTER_SCHEME }
 
@@ -2635,6 +2697,22 @@ var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
   filt.InitFilterRefered(domainidfield,objuidfield,schemeclassfield,schemeclass,stdrightset,usertoken,negate);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddObjectRightFilter(const key: TFRE_DB_NameType; rightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+var filt : TFRE_DB_FILTER_RIGHT;
+begin
+  filt := TFRE_DB_FILTER_RIGHT.Create(key);
+  filt.InitFilterGenRights(rightset,usertoken,negate);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddClassRightFilter(const key: TFRE_DB_NameType; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+var filt : TFRE_DB_FILTER_RIGHT;
+begin
+  filt := TFRE_DB_FILTER_RIGHT.Create(key);
+  filt.InitFilterGenRightsRefrd(domainidfield,objuidfield,schemeclassfield,schemeclass,rightset,usertoken,negate);
   AddFilter(filt,false);
 end;
 

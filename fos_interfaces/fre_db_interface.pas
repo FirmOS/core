@@ -1127,6 +1127,8 @@ type
     function    GetMyDomainID                : TFRE_DB_GUID;
     function    CheckStdRightAndCondFinalize (const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
     function    CheckStdRightSetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
+    function    CheckGenRightSetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_StringArray): TFRE_DB_Errortype;
+
     { Safe case, use for single domain use cases }
     function    CheckClassRight4MyDomain     (const right_name:TFRE_DB_String;const classtyp: TClass):boolean; { and systemuser and systemdomain}
     { Many domain case, add additional checks for the specific domain }
