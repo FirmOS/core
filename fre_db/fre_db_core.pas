@@ -2889,6 +2889,8 @@ var classt : ShortString;
     end;
 
 begin
+  if (obj_uid=CFRE_DB_NullGUID) and (obj_domuid=CFRE_DB_NullGUID) then
+    exit(edb_ACCESS);
   classt := uppercase(check_classname);
   res    := true;
   result := edb_OK;
@@ -2900,19 +2902,19 @@ begin
     end;
   if sr_STORE in sr then
     begin
-      res := res AND IntCheck(sr_FETCH);
+      res := res AND IntCheck(sr_STORE);
       if not res then
         exit(edb_ACCESS);
     end;
   if sr_UPDATE in sr then
     begin
-      res := res AND IntCheck(sr_FETCH);
+      res := res AND IntCheck(sr_UPDATE);
       if not res then
         exit(edb_ACCESS);
     end;
   if sr_DELETE in sr then
     begin
-      res := res AND IntCheck(sr_FETCH);
+      res := res AND IntCheck(sr_DELETE);
       if not res then
         exit(edb_ACCESS);
     end;

@@ -305,7 +305,7 @@ type
     procedure   AddUIDFieldFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
     procedure   AddSchemeObjectFilter        (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=true );override;
     procedure   AddStdRightObjectFilter      (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );override;
-    procedure   AddStdClassRightFilter       (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean); override;
+    procedure   AddStdClassRightFilter       (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true); override;
     procedure   AddChildFilter               (const key:          TFRE_DB_NameType); override ;
     procedure   AddParentFilter              (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); override ;
     procedure   AddAutoDependencyFilter      (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID  ; const one_value:boolean=true ; const include_null_values : boolean=false);override;
@@ -1681,7 +1681,7 @@ var cn:ShortString;
           objuid := CFRE_DB_NullGUID; { skip object right tests to false (no right)}
         if (FSchemeClassField<>'') then
           FSchemeclass := uppercase(obj.Field(FSchemeClassField).AsString);
-        result := FUserTokenClone.CheckStdRightSetUIDAndClass(objuid,domid,FSchemeclass,FRight)=edb_OK;
+        result := FUserTokenClone.CheckStdRightSetUIDAndClass(objuid,domid,FSchemeclass,FRight)<>edb_OK;
       except
         inc(flt_errors);
         result := false;
@@ -1691,7 +1691,7 @@ var cn:ShortString;
     function ObjectRightcheck:boolean;
     begin
       cn := obj.PreTransformedScheme;
-      result := FUserTokenClone.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,cn,FRight)=edb_OK;
+      result := FUserTokenClone.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,cn,FRight)<>edb_OK;
     end;
 
 begin
@@ -1701,6 +1701,7 @@ begin
     fm_ReferedRightFilter:
       result := ReferedDomainCheck;
   end;
+  result := (result xor FNegate); { invert result }
 end;
 
 procedure TFRE_DB_FILTER_RIGHT.InitFilter(stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
@@ -4655,7 +4656,7 @@ var fld : IFRE_DB_FIELD;
        end;
 
    begin
-     qry.Filterdef.AddStdRightObjectFilter('*SRF*',[sr_FETCH],session.GetDBConnection.SYS.GetCurrentUserTokenClone,false);
+     qry.Filterdef.AddStdRightObjectFilter('*SRF*',[sr_FETCH],session.GetDBConnection.SYS.GetCurrentUserTokenClone);
      qry.Filterdef.AddFilters(dc_static_filters,true);
      if input.FieldOnlyExistingObject('DEPENDENCY',dop) then
        begin
