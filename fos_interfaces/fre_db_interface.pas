@@ -1169,6 +1169,7 @@ type
     function    CheckClassRight4DomainId     (const right_name: TFRE_DB_String; const classtyp: TClass; const domain: TGuid): boolean;
     function    CheckClassRight4DomainId     (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domain: TGuid): boolean;
     function    GetDomainsForClassRight      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+    function    GetDomainNamesForClassRight  (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
 
     function    CheckObjectRight             (const right_name : TFRE_DB_String         ; const uid : TGUID ):boolean;
     function    CheckObjectRight             (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TGUID ):boolean; // New is senseless
@@ -1312,7 +1313,7 @@ type
     procedure     LoadFromThis        (const stream          : TStream);
     procedure     RestoreFromObject   (const obj:IFRE_DB_Object);
 
-    function      FetchIntFromColl      (const uid:TGuid ; var obj : IFRE_DB_Object):boolean;
+    function      FetchIntFromColl      (const uid:TGuid ; out obj : IFRE_DB_Object):boolean;
     function      GetIndexedObjInternal (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype, dont clone
     function      GetIndexedObjInternal (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; { dont clone}
     procedure     ForAllInternalI       (const iter : IFRE_DB_Obj_Iterator);

@@ -2484,7 +2484,7 @@ begin
       res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
       if not res then
         raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
-      result := collection.GetIndexedValueCount(qry_val,index_name,user_context);
+      result := collection.GetIndexedValueCountRC(qry_val,index_name,user_context);
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -2514,8 +2514,45 @@ begin
 end;
 
 function TFRE_DB_PS_FILE.CollectionGetIndexedObjsFieldval(const coll_name: TFRE_DB_NameType; const qry_val: IFRE_DB_Object; out objs: IFRE_DB_ObjectArray; const index_must_be_full_unique: boolean; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+    res        : boolean;
 begin
-
+  E_FOS_TestNosey;
+  LayerLock.Acquire;
+  try
+    try
+      res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      result := collection.GetIndexedObjsClonedRC(qry_val,objs,index_must_be_full_unique,index_name,user_context);
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
 end;
 
 function TFRE_DB_PS_FILE.CollectionGetIndexedUidsFieldval(const coll_name: TFRE_DB_NameType; const qry_val: IFRE_DB_Object; out objs: TFRE_DB_GUIDArray; const index_must_be_full_unique: boolean; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
@@ -2531,7 +2568,7 @@ begin
       res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
       if not res then
         raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
-      result := collection.GetIndexedUids(qry_val,index_name,objs,index_must_be_full_unique,user_context);
+      result := collection.GetIndexedUidsRC(qry_val,objs,index_must_be_full_unique,index_name,user_context);
     except
       on e:EFRE_DB_PL_Exception do
         begin
