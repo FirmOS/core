@@ -103,7 +103,7 @@ type
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType;override;
-    function  CheckFilterHit   (const obj : IFRE_DB_Object; var flt_errors : Int64):boolean; override;
+    function  CheckFilterMiss  (const obj : IFRE_DB_Object; var flt_errors : Int64):boolean; override;
     procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String ; const stringfiltertype : TFRE_DB_STR_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
   end;
 
@@ -116,7 +116,7 @@ type
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType;override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of Int64 ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
   end;
 
@@ -130,7 +130,7 @@ type
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType; override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of UInt64 ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
   end;
 
@@ -143,7 +143,7 @@ type
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType;override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of Currency ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
   end;
 
@@ -156,7 +156,7 @@ type
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType;override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_DateTime64 ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
   end;
 
@@ -169,7 +169,7 @@ type
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType;override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of Double ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
   end;
 
@@ -182,7 +182,7 @@ type
     FFilterType : TFRE_DB_NUM_FILTERTYPE;
   public
     function  Clone           : TFRE_DB_FILTER_BASE;override;
-    function  CheckFilterHit  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     function  GetDefinitionKey: TFRE_DB_NameType; override;
     procedure InitFilter      (const fieldname : TFRE_DB_NameType ; const value: boolean ; const include_null_values : boolean);
   end;
@@ -195,7 +195,7 @@ type
     FFilterType : TFRE_DB_NUM_FILTERTYPE;
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     function  GetDefinitionKey : TFRE_DB_NameType; override;
     procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
   end;
@@ -209,7 +209,7 @@ type
     FStartValues  : TFRE_DB_GUIDArray;
   public
     function  Clone                   : TFRE_DB_FILTER_BASE;override;
-    function  CheckFilterHit          (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss         (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     function  GetDefinitionKey        : TFRE_DB_NameType; override;
     procedure ExpandReferences        (const dbc : IFRE_DB_CONNECTION);
     procedure InitFilter              (const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean ;  const dbname: TFRE_DB_NameType);
@@ -225,7 +225,7 @@ type
     FValues     : Array of TFRE_DB_NameType;
   public
     function  Clone            : TFRE_DB_FILTER_BASE ; override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     function  GetDefinitionKey : TFRE_DB_NameType; override;
     procedure InitFilter       (filtervalues : Array of TFRE_DB_String ; const negate:boolean);
   end;
@@ -245,14 +245,16 @@ type
     FObjUidField      : TFRE_DB_NameType;
     FSchemeClassField : TFRE_DB_NameType;
     FRightSet         : TFRE_DB_StringArray;
+    FIgnoreField      : TFRE_DB_NameType;   { specify a fieldname }
+    FIgnoreValue      : TFRE_DB_NameType;   { and a value that ignore field contains, the filter should NOT Filter values that are to be ignored (ignorefield.asstring=value)}
   public
     function  Clone                    : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey         : TFRE_DB_NameType; override;
-    function  CheckFilterHit           (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
-    procedure InitFilter               (stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
-    procedure InitFilterRefered        (domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
-    procedure InitFilterGenRights      (const stdrightset  : array of TFRE_DB_String ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
-    procedure InitFilterGenRightsRefrd (const domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType ; stdrightset  : array of TFRE_DB_String ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean);
+    function  CheckFilterMiss          (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    procedure InitFilter               (stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean ; const ignoreFieldname , ignoreFieldValue : TFRE_DB_String);
+    procedure InitFilterRefered        (domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean; const ignoreFieldname , ignoreFieldValue : TFRE_DB_String);
+    procedure InitFilterGenRights      (const stdrightset  : array of TFRE_DB_String ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean; const ignoreFieldname , ignoreFieldValue : TFRE_DB_String);
+    procedure InitFilterGenRightsRefrd (const domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType ; stdrightset  : array of TFRE_DB_String ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN ; const negate:boolean; const ignoreFieldname , ignoreFieldValue : TFRE_DB_String);
   end;
 
   { TFRE_DB_FILTER_PARENT }
@@ -263,7 +265,7 @@ type
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType; override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     procedure InitFilter       (const allowed_parent_path: TFRE_DB_GUIDArray);
   end;
 
@@ -274,7 +276,7 @@ type
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  GetDefinitionKey : TFRE_DB_NameType; override;
-    function  CheckFilterHit   (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
+    function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override; { definition OK ? (miss) }
     procedure InitFilter       ;
   end;
 
@@ -929,7 +931,7 @@ begin
   result                    := fClone;
 end;
 
-function TFRE_DB_FILTER_AUTO_DEPENDENCY.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_AUTO_DEPENDENCY.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var fieldvals      : TFRE_DB_GUIDArray;
      fld           : IFRE_DB_Field;
      error_fld     : boolean;
@@ -1206,7 +1208,7 @@ begin
   result := 'CF';
 end;
 
-function TFRE_DB_FILTER_CHILD.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_CHILD.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 begin
   result := FREDB_PP_ObjectInParentPath(obj,''); { is root (no parent) in array ?}
 end;
@@ -1235,7 +1237,7 @@ begin
   result := 'PF:'+ GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-function TFRE_DB_FILTER_PARENT.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_PARENT.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 begin
   result := FREDB_PP_ObjectInParentPathLastParent(obj,FAllowedParent);
 end;
@@ -1272,7 +1274,7 @@ begin
   result := 'R:'+GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-function TFRE_DB_FILTER_REAL64.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_REAL64.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var multivalfield : boolean;
     fieldval      : Double;
     fieldisnull   : boolean;
@@ -1400,7 +1402,7 @@ begin
   result := 'D:'+GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-function TFRE_DB_FILTER_DATETIME.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_DATETIME.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var multivalfield : boolean;
     fieldval      : TFRE_DB_DateTime64;
     fieldisnull   : boolean;
@@ -1472,7 +1474,7 @@ begin
   result := (result xor FNegate) or error_fld; { invert result, or filter error results }
 end;
 
-procedure TFRE_DB_FILTER_DATETIME.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of Int64; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+procedure TFRE_DB_FILTER_DATETIME.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_DateTime64; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
 var i:integer;
 begin
   FFieldname  := fieldname;
@@ -1529,7 +1531,7 @@ begin
   result := 'C:'+GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-function TFRE_DB_FILTER_CURRENCY.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_CURRENCY.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var multivalfield : boolean;
     fieldval      : Currency;
     fieldisnull   : boolean;
@@ -1666,20 +1668,21 @@ begin
     result:=result+'1'
   else
     result:=result+'0';
-  result := result+inttostr(ord(FMode))+':'+FSchemeclass+'-'+FDomIDField+'-'+FObjUidField+'-'+FSchemeClassField+':'+FUserTokenClone.GetUniqueTokenKey;
+  result := result+inttostr(ord(FMode))+':'+FSchemeclass+'-'+FDomIDField+'-'+FObjUidField+'-'+FSchemeClassField+':'+FUserTokenClone.GetUniqueTokenKey+'.'+FIgnoreField+'.'+FIgnoreValue;
   hsh := GFRE_BT.HashFast32(@result[1],length(result),0);
   for i:= 0 to high(FRightSet) do
     hsh := GFRE_BT.HashFast32(@FRightSet[i][1],Length(FRightSet[i]),hsh);
   result := 'Z:'+GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-function TFRE_DB_FILTER_RIGHT.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
-var cn:ShortString;
+function TFRE_DB_FILTER_RIGHT.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+var cn     : ShortString;
+    fld    : IFRE_DB_Field;
+    ivalue : TFRE_DB_String;
 
     function ReferedDomainCheck(const std : boolean):boolean;
     var domid  : TFRE_DB_GUID;
         objuid : TFRE_DB_GUID;
-        fld    : IFRE_DB_Field;
     begin
       try
         if (FDomIDField<>'') and obj.FieldOnlyExisting(FDomIDField,fld) then
@@ -1716,6 +1719,16 @@ var cn:ShortString;
 
 
 begin
+  if (FIgnoreValue<>'') and obj.FieldOnlyExisting(FIgnoreField,fld) then
+    begin
+      try
+        if FIgnoreValue=fld.AsString then
+          exit(true); { do not respect negate }
+      except
+        inc(flt_errors);
+        result := true; { get's negated }
+      end;
+    end;
   case FMode of
     fm_ObjectRightFilter:
       result := ObjectRightcheck;
@@ -1729,7 +1742,7 @@ begin
   result := (result xor FNegate); { invert result }
 end;
 
-procedure TFRE_DB_FILTER_RIGHT.InitFilter(stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+procedure TFRE_DB_FILTER_RIGHT.InitFilter(stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean; const ignoreFieldname, ignoreFieldValue: TFRE_DB_String);
 begin
   if stdrightset=[] then
     raise EFRE_DB_Exception.Create(edb_ERROR,'at least one right must be specified for the filter');
@@ -1739,9 +1752,11 @@ begin
   FUserTokenClone := usertoken;
   FNegate         := negate;
   FMode           := fm_ObjectRightFilter;
+  FIgnoreField    := ignoreFieldname;
+  FIgnoreValue    := ignoreFieldValue;
 end;
 
-procedure TFRE_DB_FILTER_RIGHT.InitFilterRefered(domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+procedure TFRE_DB_FILTER_RIGHT.InitFilterRefered(domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean; const ignoreFieldname, ignoreFieldValue: TFRE_DB_String);
 begin
   if stdrightset=[] then
     raise EFRE_DB_Exception.Create(edb_ERROR,'at least one right must be specified for the filter');
@@ -1755,9 +1770,11 @@ begin
   FDomIDField       := domainidfield;
   FObjUidField      := objuidfield;
   FSchemeClassField := schemeclassfield;
+  FIgnoreField      := ignoreFieldname;
+  FIgnoreValue      := ignoreFieldValue;
 end;
 
-procedure TFRE_DB_FILTER_RIGHT.InitFilterGenRights(const stdrightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+procedure TFRE_DB_FILTER_RIGHT.InitFilterGenRights(const stdrightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean; const ignoreFieldname, ignoreFieldValue: TFRE_DB_String);
 var i : NativeInt;
 begin
   if Length(stdrightset)=0 then
@@ -1771,9 +1788,11 @@ begin
   FUserTokenClone := usertoken;
   FNegate         := negate;
   FMode           := fm_ObjectRightFilterGeneric;
+  FIgnoreField    := ignoreFieldname;
+  FIgnoreValue    := ignoreFieldValue;
 end;
 
-procedure TFRE_DB_FILTER_RIGHT.InitFilterGenRightsRefrd(const domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+procedure TFRE_DB_FILTER_RIGHT.InitFilterGenRightsRefrd(const domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean; const ignoreFieldname, ignoreFieldValue: TFRE_DB_String);
 var i : NativeInt;
 begin
   if Length(stdrightset)=0 then
@@ -1791,6 +1810,8 @@ begin
   FDomIDField       := domainidfield;
   FObjUidField      := objuidfield;
   FSchemeClassField := schemeclassfield;
+  FIgnoreField      := ignoreFieldname;
+  FIgnoreValue      := ignoreFieldValue;
 end;
 
 
@@ -1806,7 +1827,7 @@ begin
   result             := fClone;
 end;
 
-function TFRE_DB_FILTER_SCHEME.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_SCHEME.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 begin
   result := false;
   inc(flt_errors); // Scheme Filter not implemented
@@ -1848,7 +1869,7 @@ begin
   result             := fClone;
 end;
 
-function TFRE_DB_FILTER_UID.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_UID.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var fieldvals      : TFRE_DB_GUIDArray;
      fld           : IFRE_DB_Field;
      error_fld     : boolean;
@@ -1970,7 +1991,7 @@ begin
   result             := fClone;
 end;
 
-function TFRE_DB_FILTER_BOOLEAN.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_BOOLEAN.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var fieldval       : boolean;
      fld           : IFRE_DB_Field;
      multivalfield : boolean;
@@ -2040,7 +2061,7 @@ begin
   result := 'U:'+GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-function TFRE_DB_FILTER_UNSIGNED.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_UNSIGNED.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 begin
   result := false;
   inc(flt_errors); // Unsigned Filter not implemented
@@ -2103,7 +2124,7 @@ begin
   result := 'S:'+GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-function TFRE_DB_FILTER_SIGNED.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_SIGNED.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var multivalfield : boolean;
     fieldval      : int64;
     fieldisnull   : boolean;
@@ -2231,7 +2252,7 @@ begin
   result := 'T:'+GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-function TFRE_DB_FILTER_STRING.CheckFilterHit(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+function TFRE_DB_FILTER_STRING.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
 var fieldval       : TFRE_DB_String;
      fld           : IFRE_DB_Field;
      multivalfield : boolean;
@@ -2562,7 +2583,7 @@ begin
     exit;
   tob         := TFRE_DB_Object(arg);
   flt         := obj as TFRE_DB_FILTER_BASE;
-  FFilterMiss := not flt.CheckFilterHit(tob,FFilterErr);
+  FFilterMiss := not flt.CheckFilterMiss(tob,FFilterErr);
 end;
 
 constructor TFRE_DB_DC_FILTER_DEFINITION.Create(const filter_dbname: TFRE_DB_NameType);
@@ -2688,7 +2709,7 @@ procedure TFRE_DB_DC_FILTER_DEFINITION.AddStdRightObjectFilter(const key: TFRE_D
 var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
-  filt.InitFilter(stdrightset,usertoken,negate);
+  filt.InitFilter(stdrightset,usertoken,negate,ignoreField,ignoreValue);
   AddFilter(filt,false);
 end;
 
@@ -2696,7 +2717,7 @@ procedure TFRE_DB_DC_FILTER_DEFINITION.AddStdClassRightFilter(const key: TFRE_DB
 var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
-  filt.InitFilterRefered(domainidfield,objuidfield,schemeclassfield,schemeclass,stdrightset,usertoken,negate);
+  filt.InitFilterRefered(domainidfield,objuidfield,schemeclassfield,schemeclass,stdrightset,usertoken,negate,ignoreField,ignoreValue);
   AddFilter(filt,false);
 end;
 
@@ -2704,7 +2725,7 @@ procedure TFRE_DB_DC_FILTER_DEFINITION.AddObjectRightFilter(const key: TFRE_DB_N
 var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
-  filt.InitFilterGenRights(rightset,usertoken,negate);
+  filt.InitFilterGenRights(rightset,usertoken,negate,ignoreField,ignoreValue);
   AddFilter(filt,false);
 end;
 
@@ -2712,7 +2733,7 @@ procedure TFRE_DB_DC_FILTER_DEFINITION.AddClassRightFilter(const key: TFRE_DB_Na
 var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
-  filt.InitFilterGenRightsRefrd(domainidfield,objuidfield,schemeclassfield,schemeclass,rightset,usertoken,negate);
+  filt.InitFilterGenRightsRefrd(domainidfield,objuidfield,schemeclassfield,schemeclass,rightset,usertoken,negate,ignoreField,ignoreValue);
   AddFilter(filt,false);
 end;
 

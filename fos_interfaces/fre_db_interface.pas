@@ -1934,7 +1934,7 @@ type
   public
     function    GetKeyName              : TFRE_DB_NameType;                     { get a reproducable unique key, depending on the filter field, values and settings}
     function    GetDefinitionKey        : TFRE_DB_NameType;virtual;abstract;    { return true if the filter hits }
-    function    CheckFilterHit          (const obj : IFRE_DB_Object ; var flt_errors : Int64):boolean;virtual;abstract;
+    function    CheckFilterMiss         (const obj : IFRE_DB_Object ; var flt_errors : Int64):boolean;virtual;abstract; { return TRUE, when the filter misses the value (!) }
     function    FilterNeedsDbUpdate     : boolean;
     procedure   ReEvalFilterStartVals   ; virtual ; abstract ;                  { update the filter against db changes (dependency filter type (rl changed) }
     procedure   SetFilterNeedsUpdate    ;
