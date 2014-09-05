@@ -307,10 +307,10 @@ type
     procedure   AddBooleanFieldFilter        (const key,fieldname:TFRE_DB_NameType ; filtervalue  : boolean                                                                       ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
     procedure   AddUIDFieldFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
     procedure   AddSchemeObjectFilter        (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=true );override;
-    procedure   AddStdRightObjectFilter      (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );override;
-    procedure   AddStdClassRightFilter       (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true); override;
-    procedure   AddObjectRightFilter         (const key:          TFRE_DB_NameType ; rightset  : Array of TFRE_DB_String  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true );override;
-    procedure   AddClassRightFilter          (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: Array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true);override;
+    procedure   AddStdRightObjectFilter      (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true ; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
+    procedure   AddStdClassRightFilter       (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String=''); override;
+    procedure   AddObjectRightFilter         (const key:          TFRE_DB_NameType ; rightset  : Array of TFRE_DB_String  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true ; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
+    procedure   AddClassRightFilter          (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: Array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
     procedure   AddChildFilter               (const key:          TFRE_DB_NameType); override ;
     procedure   AddParentFilter              (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); override ;
     procedure   AddAutoDependencyFilter      (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID  ; const one_value:boolean=true ; const include_null_values : boolean=false);override;
@@ -2684,7 +2684,7 @@ begin
   AddFilter(filt,false);
 end;
 
-procedure TFRE_DB_DC_FILTER_DEFINITION.AddStdRightObjectFilter(const key: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddStdRightObjectFilter(const key: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');
 var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
@@ -2692,7 +2692,7 @@ begin
   AddFilter(filt,false);
 end;
 
-procedure TFRE_DB_DC_FILTER_DEFINITION.AddStdClassRightFilter(const key: TFRE_DB_NameType; domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddStdClassRightFilter(const key: TFRE_DB_NameType; domainidfield,objuidfield,schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');
 var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
@@ -2700,7 +2700,7 @@ begin
   AddFilter(filt,false);
 end;
 
-procedure TFRE_DB_DC_FILTER_DEFINITION.AddObjectRightFilter(const key: TFRE_DB_NameType; rightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddObjectRightFilter(const key: TFRE_DB_NameType; rightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');
 var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
@@ -2708,7 +2708,7 @@ begin
   AddFilter(filt,false);
 end;
 
-procedure TFRE_DB_DC_FILTER_DEFINITION.AddClassRightFilter(const key: TFRE_DB_NameType; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean);
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddClassRightFilter(const key: TFRE_DB_NameType; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');
 var filt : TFRE_DB_FILTER_RIGHT;
 begin
   filt := TFRE_DB_FILTER_RIGHT.Create(key);
