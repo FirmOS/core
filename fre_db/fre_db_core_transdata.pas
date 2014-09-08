@@ -1648,6 +1648,8 @@ begin
   fClone.FObjUidField      := FObjUidField;
   fClone.FDomIDField       := FDomIDField;
   fClone.FRightSet         := copy(FRightSet);
+  fClone.FIgnoreField      := FIgnoreField;
+  fClone.FIgnoreValue      := FIgnoreValue;
   result                   := fClone;
 end;
 
