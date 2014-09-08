@@ -506,7 +506,7 @@ type
     FCacheSchemeObj    : TFRE_DB_SchemeObject;          // Cache ; TFRE_DB_SchemeObject; only link to ... (dont free)
     FParentDBO         : TFRE_DB_FIELD;
     FObjectProps       : TFRE_DB_Object_PropertySet; // Runtime Properties
-    FInCollectionarr   : array of IFRE_DB_PERSISTANCE_COLLECTION;
+    FInCollectionarr   : array of TFRE_DB_PERSISTANCE_COLLECTION_BASE;
     FExtensionTag      : Pointer;
 
     procedure      _RestoreUIDandDomainID              ;
@@ -563,11 +563,11 @@ type
 
   type
     TFRE_DB_ObjCompareCallback  = procedure(const obj:TFRE_DB_Object ; const compare_event : TFRE_DB_ObjCompareEventType ; const new_fld,old_field:TFRE_DB_FIELD) is nested;
-    procedure       __InternalCollectionAdd            (const coll     : IFRE_DB_PERSISTANCE_COLLECTION);
-    function        __InternalCollectionRemove         (const coll     : IFRE_DB_PERSISTANCE_COLLECTION):NativeInt; // result = new cnt
-    function        __InternalCollectionExists         (const coll     : IFRE_DB_PERSISTANCE_COLLECTION):NativeInt; // -1 = not found, else index
+    procedure       __InternalCollectionAdd            (const coll     : TFRE_DB_PERSISTANCE_COLLECTION_BASE);
+    function        __InternalCollectionRemove         (const coll     : TFRE_DB_PERSISTANCE_COLLECTION_BASE):NativeInt; // result = new cnt
+    function        __InternalCollectionExists         (const coll     : TFRE_DB_PERSISTANCE_COLLECTION_BASE):NativeInt; // -1 = not found, else index
     function        __InternalCollectionExistsName     (const collname : TFRE_DB_NameType):NativeInt; // -1 = not found, else index
-    function        __InternalGetCollectionList        :IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+    function        __InternalGetCollectionList        :TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
     function        __InternalGetCollectionListUSL     :TFRE_DB_StringArray; { unique (uppercase) names }
     procedure       __InternalGetFullObjectList        (var list: OFRE_SL_TFRE_DB_Object);
     procedure       __InternalCompareToObj             (const compare_obj : TFRE_DB_Object ; callback : TFRE_DB_ObjCompareCallback);
@@ -1376,25 +1376,27 @@ type
     function        GetIndexedUIDsUnsigned     (const query_value : Uint64         ; out fuids   : TFRE_DB_GUIDArray   ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'):NativeInt;
     function        GetIndexedUIDsReal         (const query_value : Double         ; out fuids   : TFRE_DB_GUIDArray   ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'):NativeInt;
 
-    procedure       ForAllIndexed              (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true);
+    function        RemoveIndexedFieldval      (const fld : IFRE_DB_Field          ; const index_name:TFRE_DB_NameType='def') : NativeInt;
+    function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
+    function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
+    function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
+
+    procedure       ForAllIndexed              (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
     procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
-    function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
-    function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
-    function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
 
-    function        IsVolatile          : Boolean;
-    function        IsADomainCollection : Boolean;
+    function        IsVolatile                 : Boolean;
+    function        IsADomainCollection        : Boolean;
 
-    function        First          : TFRE_DB_Object; virtual;
-    function        Last           : TFRE_DB_Object; virtual;
-    function        GetItem        (const num:uint64):IFRE_DB_Object; virtual;
-    function        ItemCount      : Int64; virtual;
-    function        Count          : Int64; deprecated ; { replaced by ItemCount }
+    function        First                      : TFRE_DB_Object; virtual;
+    function        Last                       : TFRE_DB_Object; virtual;
+    function        GetItem                    (const num:uint64):IFRE_DB_Object; virtual;
+    function        ItemCount                  : Int64; virtual;
+    function        Count                      : Int64; deprecated ; { replaced by ItemCount }
 
 
     { not right aware end}
@@ -9607,13 +9609,22 @@ begin
   end;
 end;
 
+function TFRE_DB_COLLECTION.RemoveIndexedFieldval(const fld: IFRE_DB_Field; const index_name: TFRE_DB_NameType): NativeInt;
+var qry_val : IFRE_DB_Object;
+begin
+  E_FOS_TestNosey;
+  qry_val := FREDB_NewIndexFldValForObjectEncoding(fld);
+  result  := FCollConnection.FPersistance_Layer.CollectionRemoveIndexedUidsFieldval(FName,qry_val,index_name,FCollConnection.GetUserUIDP);
+end;
 
-procedure TFRE_DB_COLLECTION.ForAllIndexed(const func: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean);
+
+procedure TFRE_DB_COLLECTION.ForAllIndexed(const func: IFRE_DB_ObjectIteratorBrk; var halt: boolean; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
 var guids : TFRE_DB_GUIDArray;
         i : integer;
       obj : TFRE_DB_Object;
 begin //nl
   abort;
+  //FCollConnection.FPersistance_Layer.CollectionGetIndexedUidsFieldval(FName,qry_val,fuids,false,index_name,FCollConnection.GetUserUIDP);
   //FObjectLinkStore.ForAllIndexed(guids,index_name,ascending);
   //_IterateOverGUIDArray(guids,func,halt);
 end;
@@ -13561,7 +13572,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_Object.__InternalCollectionAdd(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+procedure TFRE_DB_Object.__InternalCollectionAdd(const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE);
 begin
   if __InternalCollectionExists(coll)<>-1 then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'try internal add object [%s] to collection [%s], but its already existing',[self.InternalUniqueDebugKey,coll.CollectionName]);
@@ -13569,8 +13580,8 @@ begin
   FInCollectionarr[High(FInCollectionarr)] := coll;
 end;
 
-function TFRE_DB_Object.__InternalCollectionRemove(const coll: IFRE_DB_PERSISTANCE_COLLECTION): NativeInt;
-var new_coll_array : array of IFRE_DB_PERSISTANCE_COLLECTION;
+function TFRE_DB_Object.__InternalCollectionRemove(const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE): NativeInt;
+var new_coll_array : array of TFRE_DB_PERSISTANCE_COLLECTION_BASE;
     i,cnt          : NativeInt;
 begin
   if __InternalCollectionExists(coll)=-1 then
@@ -13594,7 +13605,7 @@ begin
   result := Length(FInCollectionarr);
 end;
 
-function TFRE_DB_Object.__InternalCollectionExists(const coll: IFRE_DB_PERSISTANCE_COLLECTION): NativeInt;
+function TFRE_DB_Object.__InternalCollectionExists(const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE): NativeInt;
 var i : NativeInt;
 begin
   result := -1;
@@ -13614,7 +13625,7 @@ begin
       exit(i);
 end;
 
-function TFRE_DB_Object.__InternalGetCollectionList: IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+function TFRE_DB_Object.__InternalGetCollectionList: TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
 begin
   result := FInCollectionarr;
 end;

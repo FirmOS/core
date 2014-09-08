@@ -247,7 +247,7 @@ type
 
   { TFRE_DB_Persistance_Collection }
 
-  TFRE_DB_Persistance_Collection=class(TObject,IFRE_DB_PERSISTANCE_COLLECTION,IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER)
+  TFRE_DB_Persistance_Collection=class(TFRE_DB_PERSISTANCE_COLLECTION_BASE,IFRE_DB_PERSISTANCE_COLLECTION,IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER)
   private
     FName         : TFRE_DB_NameType;
     FUpperName    : TFRE_DB_NameType;
@@ -325,7 +325,6 @@ type
     function    First              : IFRE_DB_Object;
     function    Last               : IFRE_DB_Object;
     function    GetItem            (const num:uint64) : IFRE_DB_Object;
-    //function    DefineIndexOnField (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
 
     function    GetIndexedObj         (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype
     function    GetIndexedObj         (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
@@ -333,15 +332,15 @@ type
     function    GetIndexedObjInternal (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype, dont clone
     function    GetIndexedObjInternal (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_ObjectArray ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; { dont clone}
 
-    function    GetIndexedUID         (const query_value : TFRE_DB_String   ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-    function    GetIndexedUIDSigned   (const query_value : int64            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-    function    GetIndexedUIDUnsigned (const query_value : QWord            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-    function    GetIndexedUIDReal     (const query_value : Double           ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-
-    function    GetIndexedUID         (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-    function    GetIndexedUIDSigned   (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-    function    GetIndexedUIDUnsigned (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-    function    GetIndexedUIDReal     (const query_value : Double         ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    //function    GetIndexedUID         (const query_value : TFRE_DB_String   ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    //function    GetIndexedUIDSigned   (const query_value : int64            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    //function    GetIndexedUIDUnsigned (const query_value : QWord            ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    //function    GetIndexedUIDReal     (const query_value : Double           ; out obj_uid     : TGUID               ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
+    //
+    //function    GetIndexedUID         (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    //function    GetIndexedUIDSigned   (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    //function    GetIndexedUIDUnsigned (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
+    //function    GetIndexedUIDReal     (const query_value : Double         ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
 
     procedure   ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
@@ -351,10 +350,10 @@ type
     procedure   ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
     procedure   ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
-    function    RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
-    function    RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
-    function    RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
-    function    RemoveIndexedReal          (const query_value : Double         ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all real     fieldtypes
+    //function    RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string   fieldtype
+    //function    RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all signed   fieldtypes
+    //function    RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all unsigned fieldtype
+    //function    RemoveIndexedReal          (const query_value : Double         ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for all real     fieldtypes
 
     procedure   CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean ; old_obj,new_obj : TFRE_DB_Object);
   end;
@@ -374,9 +373,9 @@ type
     constructor Create;
     destructor  Destroy; override;
     procedure   Clear;
-    function    NewCollection     (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION ; const volatile_in_memory:boolean ; const pers_layer:IFRE_DB_PERSISTANCE_LAYER) : TFRE_DB_Errortype;
+    function    NewCollection     (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION_BASE ; const volatile_in_memory:boolean ; const pers_layer:IFRE_DB_PERSISTANCE_LAYER) : TFRE_DB_Errortype;
     function    DeleteCollection  (const coll_name : TFRE_DB_NameType):TFRE_DB_Errortype;
-    function    GetCollection     (const coll_name : TFRE_DB_NameType ; out Collection:IFRE_DB_PERSISTANCE_COLLECTION) : boolean;
+    function    GetCollection     (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION_BASE) : boolean;
     function    GetCollectionInt  (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION) : boolean;
     procedure   ForAllCollections (const iter : TFRE_DB_PersColl_Iterator);
     function    GetCollectionCount   : Integer;
@@ -483,7 +482,7 @@ type
     procedure      InternalWriteObject         (const m : TMemoryStream;const obj : TFRE_DB_Object);
     procedure      InternalReadObject          (const m : TStream ; var obj : TFRE_DB_Object);
   protected
-    procedure      CheckWriteThroughColl       (Coll : IFRE_DB_PERSISTANCE_COLLECTION);
+    procedure      CheckWriteThroughColl       (Coll : TFRE_DB_PERSISTANCE_COLLECTION_BASE);
     procedure      CheckWriteThroughDeleteColl (Collname : TFRE_DB_NameType);
     procedure      CheckWriteThroughObj        (obj: IFRE_DB_Object; const no_store_locking: boolean=true);
     procedure      CheckWriteThroughDeleteObj  (obj  : IFRE_DB_Object);
@@ -509,7 +508,7 @@ type
   private
     FCollname       : TFRE_DB_NameType;
     FVolatile       : Boolean;
-    FNewCollection  : IFRE_DB_PERSISTANCE_COLLECTION;
+    FNewCollection  : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
   public
     constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType;const volatile_in_memory: boolean);
     constructor CreateAsWALReadBack          (const coll_name: TFRE_DB_NameType);
@@ -518,7 +517,7 @@ type
     procedure   MasterStore                  (const check: boolean); override;
     function    Needs_WAL                    : Boolean; override;
     procedure   WriteToWAL                   (const m: TMemoryStream); override;
-    function    GetNewCollection             : IFRE_DB_PERSISTANCE_COLLECTION;
+    function    GetNewCollection             : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
   end;
 
     { TFRE_DB_NewCollectionStep }
@@ -529,7 +528,7 @@ type
   private
     FCollname        : TFRE_DB_NameType;
     FVolatile        : Boolean;
-    FCollection      : IFRE_DB_PERSISTANCE_COLLECTION;
+    FCollection      : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
     FindexName       : TFRE_DB_NameType;
 
     Fcoll_name        : TFRE_DB_NameType;
@@ -554,7 +553,7 @@ type
   TFRE_DB_DeleteCollectionStep=class(TFRE_DB_ChangeStep)
   private
     FCollname       : TFRE_DB_NameType;
-    FPersColl       : IFRE_DB_PERSISTANCE_COLLECTION;
+    FPersColl       : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
     FVolatile       : boolean;
   public
     constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType);
@@ -572,11 +571,11 @@ type
   TFRE_DB_InsertStep=class(TFRE_DB_ChangeStep)
   private
     FNewObj                   : TFRE_DB_Object;
-    FColl                     : IFRE_DB_PERSISTANCE_COLLECTION;
+    FColl                     : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
     FCollName                 : TFRE_DB_NameType;
     FThisIsAnAddToAnotherColl : Boolean;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean);  { ? is_store is used to differentiate the store from the update case}
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;new_obj : TFRE_DB_Object ; const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE ; const is_store : boolean);  { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
     function    Needs_WAL: Boolean           ; override;
     procedure   CheckExistence               ; override;
@@ -590,10 +589,10 @@ type
   TFRE_DB_InsertSubStep=class(TFRE_DB_ChangeStep)
   protected
     FNewObj   : TFRE_DB_Object;
-    FColl     : IFRE_DB_PERSISTANCE_COLLECTION;
+    FColl     : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
     FCollName : TFRE_DB_NameType;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;new_obj : TFRE_DB_Object ; const coll:IFRE_DB_PERSISTANCE_COLLECTION ; const is_store : boolean); { ? is_store is used to differentiate the store from the update case}
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;new_obj : TFRE_DB_Object ; const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE ; const is_store : boolean); { ? is_store is used to differentiate the store from the update case}
     constructor CreateAsWalReadBack          (new_obj : TGuid ; const coll:TFRE_DB_NameType ; const is_store : boolean ; const ws:TStream);
     function    Needs_WAL: Boolean           ; override;
     procedure   CheckExistence               ; override;
@@ -1568,7 +1567,7 @@ end;
 
 { TFRE_DB_InsertSubStep }
 
-constructor TFRE_DB_InsertSubStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_store: boolean);
+constructor TFRE_DB_InsertSubStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; new_obj: TFRE_DB_Object; const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE; const is_store: boolean);
 var cn:string;
 begin
   inherited Create(layer,masterdata);
@@ -1714,7 +1713,7 @@ begin
 end;
 
 procedure TFRE_DB_DeleteObjectStep.ChangeInCollectionCheckOrDo(const check: boolean);
-var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+var arr : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
       i : NativeInt;
      idx: NativeInt;
 begin
@@ -1807,7 +1806,7 @@ begin
 end;
 
 procedure TFRE_DB_NewCollectionStep.CheckExistence;
-var coll : IFRE_DB_PERSISTANCE_COLLECTION;
+var coll : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
 begin
   if Master.MasterColls.GetCollection(FCollname,coll) then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'collection [%s] already exists!',[FCollname]);
@@ -1841,7 +1840,7 @@ begin
   m.WriteAnsiString(CFRE_DB_WAL_Step_Type[fdb_WAL_NEW_COLLECTION]+FCollname);
 end;
 
-function TFRE_DB_NewCollectionStep.GetNewCollection: IFRE_DB_PERSISTANCE_COLLECTION;
+function TFRE_DB_NewCollectionStep.GetNewCollection: TFRE_DB_PERSISTANCE_COLLECTION_BASE;
 begin
   result := FNewCollection;
 end;
@@ -2213,7 +2212,7 @@ begin
    end;
 end;
 
-procedure TFRE_DB_ChangeStep.CheckWriteThroughColl(Coll: IFRE_DB_PERSISTANCE_COLLECTION);
+procedure TFRE_DB_ChangeStep.CheckWriteThroughColl(Coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE);
 var layer : IFRE_DB_PERSISTANCE_LAYER;
 begin
   if coll.IsVolatile then
@@ -2495,7 +2494,7 @@ end;
 
 procedure TFRE_DB_UpdateStep.InternallApplyChanges(const check: boolean);
 var i,j         : NativeInt;
-    collarray   : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+    collarray   : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
     inmemobject : TFRE_DB_Object;
 
     procedure _DeletedField;
@@ -2636,7 +2635,7 @@ var i,j         : NativeInt;
     end;
 
     procedure CheckWriteThrough;
-    var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+    var arr : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
           i : NativeInt;
     begin
       CheckWriteThroughObj(to_upd_obj,false);
@@ -2787,7 +2786,7 @@ end;
 //Check what has to be done at master level, (reflinks)
 procedure TFRE_DB_UpdateStep.ChangeInCollectionCheckOrDo(const check: boolean);
 var i,j       : NativeInt;
-    collarray : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+    collarray : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
 begin
   for i:=0 to FCnt-1 do
     with FSublist[i] do
@@ -2828,7 +2827,7 @@ begin
 end;
 
 procedure TFRE_DB_DeleteSubObjectStep.ChangeInCollectionCheckOrDo(const check: boolean);
-var arr : IFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
+var arr : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
       i : NativeInt;
 begin
   assert(IsInsert=false);
@@ -3113,7 +3112,7 @@ end;
 
 { TFRE_DB_InsertStep }
 
-constructor TFRE_DB_InsertStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; new_obj: TFRE_DB_Object; const coll: IFRE_DB_PERSISTANCE_COLLECTION; const is_store: boolean);
+constructor TFRE_DB_InsertStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; new_obj: TFRE_DB_Object; const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE; const is_store: boolean);
 var cn:string;
 begin
   inherited Create(layer,masterdata);
@@ -5087,7 +5086,7 @@ begin
   FCollTree.Clear;
 end;
 
-function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
+function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION_BASE; const volatile_in_memory: boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
 var coll     : TFRE_DB_Persistance_Collection;
     safename : TFRE_DB_NameType;
 begin
@@ -5131,12 +5130,9 @@ begin
     end;
 end;
 
-function TFRE_DB_CollectionManageTree.GetCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION): boolean;
-var coll     : TFRE_DB_Persistance_Collection;
+function TFRE_DB_CollectionManageTree.GetCollection(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION_BASE): boolean;
 begin
-  result := GetCollectionInt(coll_name,coll);
-  if result then
-    Collection := coll;
+  result := GetCollectionInt(coll_name,TFRE_DB_PERSISTANCE_COLLECTION(Collection));
 end;
 
 function TFRE_DB_CollectionManageTree.GetCollectionInt(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION): boolean;
@@ -6058,57 +6054,57 @@ begin
   SetLength(objs,result);
 end;
 
-function TFRE_DB_Persistance_Collection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var ouidarr : TFRE_DB_GUIDArray;
-begin
-  result:=GetIndexedUID(query_value,ouidarr,index_name,true,val_is_null);
-  if result then
-    obj_uid := ouidarr[0];
-end;
-
-function TFRE_DB_Persistance_Collection.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var ouidarr : TFRE_DB_GUIDArray;
-begin
-  result:=GetIndexedUIDSigned(query_value,ouidarr,index_name,true,val_is_null);
-  if result then
-    obj_uid := ouidarr[0];
-end;
-
-function TFRE_DB_Persistance_Collection.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var ouidarr : TFRE_DB_GUIDArray;
-begin
-  result:=GetIndexedUIDUnsigned(query_value,ouidarr,index_name,true,val_is_null);
-  if result then
-    obj_uid := ouidarr[0];
-end;
-
-function TFRE_DB_Persistance_Collection.GetIndexedUIDReal(const query_value: Double; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
-var ouidarr : TFRE_DB_GUIDArray;
-begin
-  result:=GetIndexedUIDReal(query_value,ouidarr,index_name,true,val_is_null);
-  if result then
-    obj_uid := ouidarr[0];
-end;
-
-function TFRE_DB_Persistance_Collection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
-begin
-  result:=_GetIndexedObjUids(query_value,obj_uid,index_name,check_is_unique,val_is_null);
-end;
-
-function TFRE_DB_Persistance_Collection.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
-begin
-  result:=_GetIndexedObjUidsSigned(query_value,obj_uid,index_name,check_is_unique,val_is_null);
-end;
-
-function TFRE_DB_Persistance_Collection.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
-begin
-  result := _GetIndexedObjUidsUnsigned(query_value,obj_uid,index_name,check_is_unique,val_is_null);
-end;
-
-function TFRE_DB_Persistance_Collection.GetIndexedUIDReal(const query_value: Double; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
-begin
-  result := _GetIndexedObjUidsReal(query_value,obj_uid,index_name,check_is_unique,val_is_null);
-end;
+//function TFRE_DB_Persistance_Collection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//var ouidarr : TFRE_DB_GUIDArray;
+//begin
+//  result:=GetIndexedUID(query_value,ouidarr,index_name,true,val_is_null);
+//  if result then
+//    obj_uid := ouidarr[0];
+//end;
+//
+//function TFRE_DB_Persistance_Collection.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//var ouidarr : TFRE_DB_GUIDArray;
+//begin
+//  result:=GetIndexedUIDSigned(query_value,ouidarr,index_name,true,val_is_null);
+//  if result then
+//    obj_uid := ouidarr[0];
+//end;
+//
+//function TFRE_DB_Persistance_Collection.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//var ouidarr : TFRE_DB_GUIDArray;
+//begin
+//  result:=GetIndexedUIDUnsigned(query_value,ouidarr,index_name,true,val_is_null);
+//  if result then
+//    obj_uid := ouidarr[0];
+//end;
+//
+//function TFRE_DB_Persistance_Collection.GetIndexedUIDReal(const query_value: Double; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
+//var ouidarr : TFRE_DB_GUIDArray;
+//begin
+//  result:=GetIndexedUIDReal(query_value,ouidarr,index_name,true,val_is_null);
+//  if result then
+//    obj_uid := ouidarr[0];
+//end;
+//
+//function TFRE_DB_Persistance_Collection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
+//begin
+//  result:=_GetIndexedObjUids(query_value,obj_uid,index_name,check_is_unique,val_is_null);
+//end;
+//
+//function TFRE_DB_Persistance_Collection.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
+//begin
+//  result:=_GetIndexedObjUidsSigned(query_value,obj_uid,index_name,check_is_unique,val_is_null);
+//end;
+//
+//function TFRE_DB_Persistance_Collection.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
+//begin
+//  result := _GetIndexedObjUidsUnsigned(query_value,obj_uid,index_name,check_is_unique,val_is_null);
+//end;
+//
+//function TFRE_DB_Persistance_Collection.GetIndexedUIDReal(const query_value: Double; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
+//begin
+//  result := _GetIndexedObjUidsReal(query_value,obj_uid,index_name,check_is_unique,val_is_null);
+//end;
 
 procedure TFRE_DB_Persistance_Collection.ForAllIndexed(var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean ; const max_count: NativeInt; skipfirst: NativeInt);
 var idx   : NativeInt;
@@ -6187,61 +6183,61 @@ begin
   TFRE_DB_TextIndex(index).ForAllIndexPrefixString(prefix,guids,index_name,ascending,max_count,skipfirst);
 end;
 
-function TFRE_DB_Persistance_Collection.RemoveIndexedString(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var uids :TFRE_DB_GUIDArray;
-      u  :TFRE_DB_GUID;
-begin
-  result := GetIndexedUID(query_value,uids,index_name,false,val_is_null);
-  if result then
-    begin
-      for u in uids do
-        CheckDbResult(Remove(u));
-      exit(true);
-    end;
-  exit;
-end;
-
-function TFRE_DB_Persistance_Collection.RemoveIndexedSigned(const query_value: int64; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var uids :TFRE_DB_GUIDArray;
-      u  :TFRE_DB_GUID;
-begin
-  result := GetIndexedUIDSigned(query_value,uids,index_name,false,val_is_null);
-  if result then
-    begin
-      for u in uids do
-        CheckDbResult(Remove(u));
-      exit(true);
-    end;
-  exit;
-end;
-
-function TFRE_DB_Persistance_Collection.RemoveIndexedUnsigned(const query_value: QWord; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var uids :TFRE_DB_GUIDArray;
-      u  :TFRE_DB_GUID;
-begin
-  result := GetIndexedUIDUnsigned(query_value,uids,index_name,false,val_is_null);
-  if result then
-    begin
-      for u in uids do
-        CheckDbResult(Remove(u));
-      exit(true);
-    end;
-  exit;
-end;
-
-function TFRE_DB_Persistance_Collection.RemoveIndexedReal(const query_value: Double; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
-var uids :TFRE_DB_GUIDArray;
-      u  :TFRE_DB_GUID;
-begin
-  result := GetIndexedUIDReal(query_value,uids,index_name,false,val_is_null);
-  if result then
-    begin
-      for u in uids do
-        CheckDbResult(Remove(u));
-      exit(true);
-    end;
-  exit;
-end;
+//function TFRE_DB_Persistance_Collection.RemoveIndexedString(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//var uids :TFRE_DB_GUIDArray;
+//      u  :TFRE_DB_GUID;
+//begin
+//  result := GetIndexedUID(query_value,uids,index_name,false,val_is_null);
+//  if result then
+//    begin
+//      for u in uids do
+//        CheckDbResult(Remove(u));
+//      exit(true);
+//    end;
+//  exit;
+//end;
+//
+//function TFRE_DB_Persistance_Collection.RemoveIndexedSigned(const query_value: int64; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//var uids :TFRE_DB_GUIDArray;
+//      u  :TFRE_DB_GUID;
+//begin
+//  result := GetIndexedUIDSigned(query_value,uids,index_name,false,val_is_null);
+//  if result then
+//    begin
+//      for u in uids do
+//        CheckDbResult(Remove(u));
+//      exit(true);
+//    end;
+//  exit;
+//end;
+//
+//function TFRE_DB_Persistance_Collection.RemoveIndexedUnsigned(const query_value: QWord; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//var uids :TFRE_DB_GUIDArray;
+//      u  :TFRE_DB_GUID;
+//begin
+//  result := GetIndexedUIDUnsigned(query_value,uids,index_name,false,val_is_null);
+//  if result then
+//    begin
+//      for u in uids do
+//        CheckDbResult(Remove(u));
+//      exit(true);
+//    end;
+//  exit;
+//end;
+//
+//function TFRE_DB_Persistance_Collection.RemoveIndexedReal(const query_value: Double; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
+//var uids :TFRE_DB_GUIDArray;
+//      u  :TFRE_DB_GUID;
+//begin
+//  result := GetIndexedUIDReal(query_value,uids,index_name,false,val_is_null);
+//  if result then
+//    begin
+//      for u in uids do
+//        CheckDbResult(Remove(u));
+//      exit(true);
+//    end;
+//  exit;
+//end;
 
 function TFRE_DB_Persistance_Collection.UniqueName: PFRE_DB_NameType;
 begin

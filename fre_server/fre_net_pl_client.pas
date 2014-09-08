@@ -158,7 +158,7 @@ type
       function  GetLastErrorCode              : TFRE_DB_Errortype;
 
       procedure WT_TransactionID              (const number:qword);
-      procedure WT_StoreCollectionPersistent  (const coll:IFRE_DB_PERSISTANCE_COLLECTION);
+      procedure WT_StoreCollectionPersistent  (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE);
       procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
       procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
       procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
@@ -174,20 +174,20 @@ type
       procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
 
       { Collection Interface }
-      function  CollectionExistCollection         (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
-      function  CollectionExistsInCollection      (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID; const has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
-      function  CollectionDeleteCollection        (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
-      function  CollectionNewCollection           (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
-      function  CollectionDefineIndexOnField      (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
-      function  CollectionFetchInCollection       (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
-      function  CollectionBulkFetch               (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
-      function  CollectionBulkFetchUIDS           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_GUIDArray;
-      procedure CollectionClearCollection         (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil);
-      function  CollectionIndexExists             (const coll_name: TFRE_DB_NameType ; const index_name   : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):boolean;
-      function  CollectionGetIndexedValueCount    (const coll_name: TFRE_DB_NameType; const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID=nil): NativeInt;
-      function  CollectionGetIndexedObjsFieldval  (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; out objs : IFRE_DB_ObjectArray ; const index_must_be_full_unique : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
-      function  CollectionGetIndexedUidsFieldval  (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; out objs : TFRE_DB_GUIDArray   ; const index_must_be_full_unique : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
-
+      function  CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
+      function  CollectionExistsInCollection        (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID; const has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
+      function  CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
+      function  CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+      function  CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+      function  CollectionFetchInCollection         (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+      function  CollectionBulkFetch                 (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
+      function  CollectionBulkFetchUIDS             (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_GUIDArray;
+      procedure CollectionClearCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil);
+      function  CollectionIndexExists               (const coll_name: TFRE_DB_NameType ; const index_name   : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):boolean;
+      function  CollectionGetIndexedValueCount      (const coll_name: TFRE_DB_NameType; const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID=nil): NativeInt;
+      function  CollectionGetIndexedObjsFieldval    (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; out objs : IFRE_DB_ObjectArray ; const index_must_be_full_unique : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
+      function  CollectionGetIndexedUidsFieldval    (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; out objs : TFRE_DB_GUIDArray   ; const index_must_be_full_unique : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
+      function  CollectionRemoveIndexedUidsFieldval (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
 
       function  GetNotificationRecordIF    : IFRE_DB_DBChangedNotification; { to record changes }
     end;
@@ -1271,7 +1271,7 @@ begin
   result := FLastErrorCode;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_StoreCollectionPersistent(const coll: IFRE_DB_PERSISTANCE_COLLECTION);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_StoreCollectionPersistent(const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE);
 begin
   if FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer');
@@ -1369,6 +1369,11 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionGetIndexedUidsFieldval(const coll_name: TFRE_DB_NameType; const qry_val: IFRE_DB_Object; out objs: TFRE_DB_GUIDArray; const index_must_be_full_unique: boolean; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionRemoveIndexedUidsFieldval(const coll_name: TFRE_DB_NameType; const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
 begin
   abort;
 end;
