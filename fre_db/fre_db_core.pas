@@ -3395,6 +3395,7 @@ begin
        scheme_field.getEnum(enum) then begin
 
       enumVals:=enum.getEntries;
+      output.field(uppercase(FOutFieldName)).AsString:=transbase.Field(FInFieldName).AsString; //FALLBACK
       for i := 0 to Length(enumVals) - 1 do begin
         if transbase.Field(FInFieldName).AsString=enumVals[i].Field('v').AsString then begin
           output.field(uppercase(FOutFieldName)).AsString:=conn.FetchTranslateableTextShort(enumVals[i].Field('c').AsString);
