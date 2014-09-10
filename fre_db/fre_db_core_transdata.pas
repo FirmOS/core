@@ -613,7 +613,7 @@ type
     procedure  StartNotificationBlock (const key : TFRE_DB_TransStepId);
     procedure  FinishNotificationBlock(out block : IFRE_DB_Object);
     procedure  SendNotificationBlock  (const block : IFRE_DB_Object);
-    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType  ; const tsid : TFRE_DB_TransStepId);
+    procedure  CollectionCreated      (const coll_name: TFRE_DB_NameType  ; const in_memory_only : boolean ; const tsid : TFRE_DB_TransStepId);
     procedure  CollectionDeleted      (const coll_name: TFRE_DB_NameType  ; const tsid : TFRE_DB_TransStepId) ;
     procedure  IndexDefinedOnField    (const coll_name: TFRE_DB_NameType  ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean;
                                        const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean;
@@ -4215,7 +4215,7 @@ begin
   abort;
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.CollectionCreated(const coll_name: TFRE_DB_NameType; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANSDATA_MANAGER.CollectionCreated(const coll_name: TFRE_DB_NameType; const in_memory_only: boolean; const tsid: TFRE_DB_TransStepId);
 begin
 end;
 

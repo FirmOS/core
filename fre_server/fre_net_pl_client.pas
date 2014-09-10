@@ -20,65 +20,6 @@ type
     TPL_CONN_CSTATE  = (sfc_NOT_CONNECTED,sfc_TRYING,sfc_NEGOTIATE_LAYER,sfc_OK,sfc_Failed);
     TPL_CMD_STATE    = (cs_READ_LEN,cs_READ_DATA);
 
-    { TPLNet_PersistanceCollection }
-    TPLNet_Layer = class;
-    TPLNet_PersistanceCollection=class(IFRE_DB_PERSISTANCE_COLLECTION)
-    private
-      FName       : TFRE_DB_NameType;
-      FUppername  : TFRE_DB_NameType;
-      FCollClassn : Shortstring;
-      FIsVolatile : Boolean;
-      Flayer      : TPLNet_Layer;
-      function        GetFirstLastIdx            (const mode: NativeInt; const index: UInt64=0): IFRE_DB_Object;
-    public
-      constructor     Create                     (const collname : TFRE_DB_NameType ; const CollectionClassname: Shortstring; const isVolatile : Boolean ; const layer : TPLNet_Layer);
-      function        SendCycleColl              (const cmd : IFRE_DB_Object ; out answer : IFRE_DB_Object) : boolean;
-      function        GetPersLayerIntf           : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
-      function        GetPersLayer               : IFRE_DB_PERSISTANCE_LAYER;
-      function        GetCollectionClassName     : ShortString;
-
-      function        IsVolatile                 : boolean;
-      function        CollectionName             (const unique:boolean=true):TFRE_DB_NameType;
-      function        Count                      : int64;
-      function        Exists                     (const ouid: TGUID): boolean;
-      procedure       GetAllUIDS                 (var uids : TFRE_DB_GUIDArray);
-      procedure       GetAllObjects              (var objs : IFRE_DB_ObjectArray);
-
-      function        Fetch                      (const uid:TGUID ; var obj : IFRE_DB_Object) : boolean;
-      function        First                      : IFRE_DB_Object;
-      function        Last                       : IFRE_DB_Object;
-      function        GetItem                    (const num:uint64) : IFRE_DB_Object;
-      function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
-
-      function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_Object        ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype
-      function        GetIndexedObj              (const query_value : TFRE_DB_String ; out   obj       : IFRE_DB_ObjectArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean;
-      function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TGUID                 ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-      function        GetIndexedUID              (const query_value : TFRE_DB_String ; out obj_uid     : TFRE_DB_GUIDArray     ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-      function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TGUID                 ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-      function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TGUID                 ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-      function        GetIndexedUIDReal          (const query_value : Double         ; out obj_uid     : TGUID                 ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false): boolean;
-
-      function        GetIndexedUIDSigned        (const query_value : int64          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-      function        GetIndexedUIDUnsigned      (const query_value : QWord          ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-      function        GetIndexedUIDReal          (const query_value : Double         ; out obj_uid     : TFRE_DB_GUIDArray   ; const index_name : TFRE_DB_NameType='def' ; const check_is_unique : boolean=false ; const val_is_null : boolean = false):boolean; overload ;
-
-
-      procedure       ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-      function        IndexExists                (const idx_name : TFRE_DB_NameType):NativeInt;
-
-      procedure       ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-      procedure       ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-      procedure       ForAllIndexedRealRange     (const min_value,max_value : Double         ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-      procedure       ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-      procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-
-      function        Remove                     (const ouid    : TGUID):TFRE_DB_Errortype; { from this collection }
-      function        RemoveIndexedString        (const query_value : TFRE_DB_String ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;
-      function        RemoveIndexedSigned        (const query_value : int64          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;
-      function        RemoveIndexedUnsigned      (const query_value : QWord          ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;
-      function        RemoveIndexedReal          (const query_value : Double         ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean;
-    end;
-
     { TPLNet_Layer }
     TPLNet_Layer = class(IFRE_DB_PERSISTANCE_LAYER)
       FNETPL          : TFRE_DB_PL_NET_CLIENT;
@@ -116,9 +57,9 @@ type
       function    SendCycle                  (const cmd : IFRE_DB_Object ; out answer : IFRE_DB_Object) : boolean;
       procedure   CheckRaiseAnswerError      (const answer : IFRE_DB_Object;const dont_raise : boolean=false);
 
-      function    _CollectionExists          (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION):Boolean;
-      function    _AddCollection             (const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: boolean): IFRE_DB_PERSISTANCE_COLLECTION;
-      function    _RemoveCollection          (const coll_name: TFRE_DB_NameType):boolean;
+      //function    _CollectionExists          (const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION):Boolean;
+      //function    _AddCollection             (const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: boolean): IFRE_DB_PERSISTANCE_COLLECTION;
+      //function    _RemoveCollection          (const coll_name: TFRE_DB_NameType):boolean;
 
       {PS Layer Interface }
 
@@ -126,7 +67,7 @@ type
 
       function  GetConnectedDB                : TFRE_DB_NameType;
       function  GetLastError                  : TFRE_DB_String;
-      function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
+      //function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
 
       function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
       function  Disconnect                    : TFRE_DB_Errortype;
@@ -188,6 +129,8 @@ type
       function  CollectionGetIndexedObjsFieldval    (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; out objs : IFRE_DB_ObjectArray ; const index_must_be_full_unique : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
       function  CollectionGetIndexedUidsFieldval    (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; out objs : TFRE_DB_GUIDArray   ; const index_must_be_full_unique : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
       function  CollectionRemoveIndexedUidsFieldval (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
+      function  CollectionGetIndexedObjsRange       (const coll_name: TFRE_DB_NameType ; const min,max : IFRE_DB_Object ; const ascending: boolean ; const max_count,skipfirst : NativeInt ; out objs : IFRE_DB_ObjectArray ; const min_val_is_a_prefix : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
+      function  CollectionGetFirstLastIdxCnt        (const coll_name: TFRE_DB_NameType ; const idx : Nativeint ; out obj : IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
 
       function  GetNotificationRecordIF    : IFRE_DB_DBChangedNotification; { to record changes }
     end;
@@ -232,437 +175,437 @@ begin
 end;
 
 
-{ TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection }
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetFirstLastIdx(const mode: NativeInt; const index: UInt64): IFRE_DB_Object;
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-    res        : boolean;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CFILAIX');
-  cmd.Field('T').AsInt32:=mode; { 0 = first, 1=last, 2= idx }
-  if mode=2 then
-    cmd.Field('IX').AsUint64 := index;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    res := answer.Field('A').AsBoolean;
-    if res then
-      result := answer.Field('O').CheckOutObject
-    else
-      result := nil;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-constructor TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(const collname: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: Boolean; const layer: TPLNet_Layer);
-begin
-  FName       := collname;
-  FUppername  := uppercase(FName);
-  FIsVolatile := isVolatile;
-  FCollClassn := CollectionClassname;
-  Flayer      := layer;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.SendCycleColl(const cmd: IFRE_DB_Object; out answer: IFRE_DB_Object): boolean;
-begin
-  cmd.Field('CN').AsString:=FName;
-  result := Flayer.SendCycle(cmd,answer);
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetPersLayerIntf: IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetPersLayer: IFRE_DB_PERSISTANCE_LAYER;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetCollectionClassName: ShortString;
-begin
-  result := FCollClassn;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.IsVolatile: boolean;
-begin
-  result := FIsVolatile;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.CollectionName(const unique: boolean): TFRE_DB_NameType;
-begin
-  if unique then
-    result := FUppername
-  else
-    result := FName;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Count: int64;
-var cmd,answer : IFRE_DB_Object;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CGC');
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    result := answer.Field('C').AsInt64;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Exists(const ouid: TGUID): boolean;
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CE');
-  cmd.Field('G').AsGUID:=ouid;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    result := answer.Field('A').AsBoolean;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetAllUIDS(var uids: TFRE_DB_GUIDArray);
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CGAU');
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    uids := answer.Field('G').AsGUIDArr;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetAllObjects(var objs: IFRE_DB_ObjectArray);
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CGAO');
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    objs := answer.Field('O').AsObjectArr;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Fetch(const uid: TGUID; var obj: IFRE_DB_Object): boolean;
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CF');
-  cmd.Field('G').AsGUID:=uid;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    result := answer.Field('A').AsBoolean;
-    if result then
-      obj := answer.Field('O').CheckOutObject
-    else
-      obj := nil;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.First: IFRE_DB_Object;
-begin
-  result := GetFirstLastIdx(0);
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Last: IFRE_DB_Object;
-begin
-  result := GetFirstLastIdx(1);
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetItem(const num: uint64): IFRE_DB_Object;
-begin
-  result := GetFirstLastIdx(2,num);
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_Errortype;
-begin
-  //FLayer.DefineIndexOnField(self.CollectionName(false),FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
-  //result := edb_OK;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CGIO');
-  cmd.Field('Q').AsString  := query_value;
-  cmd.Field('IN').AsString := index_name;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    result         := answer.Field('A').AsBoolean;
-    if result then
-      obj  := answer.Field('O').CheckOutObject;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CGIOS');
-  cmd.Field('Q').AsString  := query_value;
-  cmd.Field('IN').AsString := index_name;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    result         := answer.Field('A').AsBoolean;
-    obj            := answer.Field('O').CheckOutObjectArray;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CGIU');
-  cmd.Field('Q').AsString  := query_value;
-  cmd.Field('IN').AsString := index_name;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    result         := answer.Field('A').AsBoolean;
-    obj_uid        := answer.Field('G').AsGUID;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CGIUS');
-  cmd.Field('Q').AsString    := query_value;
-  cmd.Field('IN').AsString   := index_name;
-  cmd.Field('CIU').AsBoolean := check_is_unique;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    result         := answer.Field('A').AsBoolean;
-    obj_uid        := answer.Field('G').AsGUIDArr;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDReal(const query_value: Double; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDReal(const query_value: Double; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
-begin
-  abort;
-end;
-
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexed(var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CFAI');
-  cmd.Field('IN').AsString := index_name;
-  cmd.Field('A').AsBoolean := ascending;
-  cmd.Field('M').AsInt64   := max_count;
-  cmd.Field('S').AsInt64   := skipfirst;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    guids := answer.Field('G').AsGUIDArr;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.IndexExists(const idx_name: TFRE_DB_NameType): NativeInt;
-begin
-  abort;
-end;
-
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedSignedRange(const min_value, max_value: int64; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CFAISR');
-  cmd.Field('IN').AsString  := index_name;
-  cmd.Field('MIV').AsInt64  := min_value;
-  cmd.Field('MAV').AsInt64  := max_value;
-  cmd.Field('A').AsBoolean  := ascending;
-  cmd.Field('MN').AsBoolean := min_is_null;
-  cmd.Field('MM').AsBoolean := max_is_max;
-  cmd.Field('M').AsInt64    := max_count;
-  cmd.Field('S').AsInt64    := skipfirst;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    guids := answer.Field('G').AsGUIDArr;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CFAIUR');
-  cmd.Field('IN').AsString  := index_name;
-  cmd.Field('MIV').AsUInt64 := min_value;
-  cmd.Field('MAV').AsUInt64 := max_value;
-  cmd.Field('A').AsBoolean  := ascending;
-  cmd.Field('MN').AsBoolean := min_is_null;
-  cmd.Field('MM').AsBoolean := max_is_max;
-  cmd.Field('M').AsInt64    := max_count;
-  cmd.Field('S').AsInt64    := skipfirst;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    guids := answer.Field('G').AsGUIDArr;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedRealRange(const min_value, max_value: Double; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-begin
-  abort;
-end;
-
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CFAISS');
-  cmd.Field('IN').AsString  := index_name;
-  cmd.Field('MIV').AsString := min_value;
-  cmd.Field('MAV').AsString := max_value;
-  cmd.Field('A').AsBoolean  := ascending;
-  cmd.Field('MN').AsBoolean := min_is_null;
-  cmd.Field('MM').AsBoolean := max_is_max;
-  cmd.Field('M').AsInt64    := max_count;
-  cmd.Field('S').AsInt64    := skipfirst;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    guids := answer.Field('G').AsGUIDArr;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexPrefixString(const prefix: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-var cmd,answer : IFRE_DB_Object;
-    dba        : TFRE_DB_StringArray;
-begin
-  cmd :=  Flayer.NewPersistenceLayerCommand('CFAIPS');
-  cmd.Field('IN').AsString  := index_name;
-  cmd.Field('MIV').AsString := prefix;
-  cmd.Field('A').AsBoolean  := ascending;
-  cmd.Field('M').AsInt64    := max_count;
-  cmd.Field('S').AsInt64    := skipfirst;
-  SendCycleColl(cmd,answer);
-  try
-    FLayer.CheckRaiseAnswerError(answer);
-    guids := answer.Field('G').AsGUIDArr;
-    Flayer.FLasterror     := '';
-    FLayer.FLastErrorCode := edb_OK;
-  finally
-    answer.Finalize;
-  end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Remove(const ouid: TGUID): TFRE_DB_Errortype;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.RemoveIndexedString(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.RemoveIndexedSigned(const query_value: int64; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.RemoveIndexedUnsigned(const query_value: QWord; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-begin
-  abort;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.RemoveIndexedReal(const query_value: Double; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
-begin
-  abort;
-end;
+//{ TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection }
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetFirstLastIdx(const mode: NativeInt; const index: UInt64): IFRE_DB_Object;
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//    res        : boolean;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CFILAIX');
+//  cmd.Field('T').AsInt32:=mode; { 0 = first, 1=last, 2= idx }
+//  if mode=2 then
+//    cmd.Field('IX').AsUint64 := index;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    res := answer.Field('A').AsBoolean;
+//    if res then
+//      result := answer.Field('O').CheckOutObject
+//    else
+//      result := nil;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//constructor TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(const collname: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: Boolean; const layer: TPLNet_Layer);
+//begin
+//  FName       := collname;
+//  FUppername  := uppercase(FName);
+//  FIsVolatile := isVolatile;
+//  FCollClassn := CollectionClassname;
+//  Flayer      := layer;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.SendCycleColl(const cmd: IFRE_DB_Object; out answer: IFRE_DB_Object): boolean;
+//begin
+//  cmd.Field('CN').AsString:=FName;
+//  result := Flayer.SendCycle(cmd,answer);
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetPersLayerIntf: IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetPersLayer: IFRE_DB_PERSISTANCE_LAYER;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetCollectionClassName: ShortString;
+//begin
+//  result := FCollClassn;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.IsVolatile: boolean;
+//begin
+//  result := FIsVolatile;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.CollectionName(const unique: boolean): TFRE_DB_NameType;
+//begin
+//  if unique then
+//    result := FUppername
+//  else
+//    result := FName;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Count: int64;
+//var cmd,answer : IFRE_DB_Object;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CGC');
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    result := answer.Field('C').AsInt64;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Exists(const ouid: TGUID): boolean;
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CE');
+//  cmd.Field('G').AsGUID:=ouid;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    result := answer.Field('A').AsBoolean;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetAllUIDS(var uids: TFRE_DB_GUIDArray);
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CGAU');
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    uids := answer.Field('G').AsGUIDArr;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetAllObjects(var objs: IFRE_DB_ObjectArray);
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CGAO');
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    objs := answer.Field('O').AsObjectArr;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Fetch(const uid: TGUID; var obj: IFRE_DB_Object): boolean;
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CF');
+//  cmd.Field('G').AsGUID:=uid;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    result := answer.Field('A').AsBoolean;
+//    if result then
+//      obj := answer.Field('O').CheckOutObject
+//    else
+//      obj := nil;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.First: IFRE_DB_Object;
+//begin
+//  result := GetFirstLastIdx(0);
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Last: IFRE_DB_Object;
+//begin
+//  result := GetFirstLastIdx(1);
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetItem(const num: uint64): IFRE_DB_Object;
+//begin
+//  result := GetFirstLastIdx(2,num);
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_Errortype;
+//begin
+//  //FLayer.DefineIndexOnField(self.CollectionName(false),FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
+//  //result := edb_OK;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: IFRE_DB_Object; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CGIO');
+//  cmd.Field('Q').AsString  := query_value;
+//  cmd.Field('IN').AsString := index_name;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    result         := answer.Field('A').AsBoolean;
+//    if result then
+//      obj  := answer.Field('O').CheckOutObject;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedObj(const query_value: TFRE_DB_String; out obj: IFRE_DB_ObjectArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CGIOS');
+//  cmd.Field('Q').AsString  := query_value;
+//  cmd.Field('IN').AsString := index_name;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    result         := answer.Field('A').AsBoolean;
+//    obj            := answer.Field('O').CheckOutObjectArray;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TGUID; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CGIU');
+//  cmd.Field('Q').AsString  := query_value;
+//  cmd.Field('IN').AsString := index_name;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    result         := answer.Field('A').AsBoolean;
+//    obj_uid        := answer.Field('G').AsGUID;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUID(const query_value: TFRE_DB_String; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean ; const val_is_null : boolean = false): boolean;
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CGIUS');
+//  cmd.Field('Q').AsString    := query_value;
+//  cmd.Field('IN').AsString   := index_name;
+//  cmd.Field('CIU').AsBoolean := check_is_unique;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    result         := answer.Field('A').AsBoolean;
+//    obj_uid        := answer.Field('G').AsGUIDArr;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDReal(const query_value: Double; out obj_uid: TGUID; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDSigned(const query_value: int64; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDUnsigned(const query_value: QWord; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.GetIndexedUIDReal(const query_value: Double; out obj_uid: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const check_is_unique: boolean; const val_is_null: boolean): boolean;
+//begin
+//  abort;
+//end;
+//
+//procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexed(var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CFAI');
+//  cmd.Field('IN').AsString := index_name;
+//  cmd.Field('A').AsBoolean := ascending;
+//  cmd.Field('M').AsInt64   := max_count;
+//  cmd.Field('S').AsInt64   := skipfirst;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    guids := answer.Field('G').AsGUIDArr;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.IndexExists(const idx_name: TFRE_DB_NameType): NativeInt;
+//begin
+//  abort;
+//end;
+//
+//procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedSignedRange(const min_value, max_value: int64; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CFAISR');
+//  cmd.Field('IN').AsString  := index_name;
+//  cmd.Field('MIV').AsInt64  := min_value;
+//  cmd.Field('MAV').AsInt64  := max_value;
+//  cmd.Field('A').AsBoolean  := ascending;
+//  cmd.Field('MN').AsBoolean := min_is_null;
+//  cmd.Field('MM').AsBoolean := max_is_max;
+//  cmd.Field('M').AsInt64    := max_count;
+//  cmd.Field('S').AsInt64    := skipfirst;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    guids := answer.Field('G').AsGUIDArr;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CFAIUR');
+//  cmd.Field('IN').AsString  := index_name;
+//  cmd.Field('MIV').AsUInt64 := min_value;
+//  cmd.Field('MAV').AsUInt64 := max_value;
+//  cmd.Field('A').AsBoolean  := ascending;
+//  cmd.Field('MN').AsBoolean := min_is_null;
+//  cmd.Field('MM').AsBoolean := max_is_max;
+//  cmd.Field('M').AsInt64    := max_count;
+//  cmd.Field('S').AsInt64    := skipfirst;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    guids := answer.Field('G').AsGUIDArr;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedRealRange(const min_value, max_value: Double; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+//begin
+//  abort;
+//end;
+//
+//procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CFAISS');
+//  cmd.Field('IN').AsString  := index_name;
+//  cmd.Field('MIV').AsString := min_value;
+//  cmd.Field('MAV').AsString := max_value;
+//  cmd.Field('A').AsBoolean  := ascending;
+//  cmd.Field('MN').AsBoolean := min_is_null;
+//  cmd.Field('MM').AsBoolean := max_is_max;
+//  cmd.Field('M').AsInt64    := max_count;
+//  cmd.Field('S').AsInt64    := skipfirst;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    guids := answer.Field('G').AsGUIDArr;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//procedure TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.ForAllIndexPrefixString(const prefix: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
+//var cmd,answer : IFRE_DB_Object;
+//    dba        : TFRE_DB_StringArray;
+//begin
+//  cmd :=  Flayer.NewPersistenceLayerCommand('CFAIPS');
+//  cmd.Field('IN').AsString  := index_name;
+//  cmd.Field('MIV').AsString := prefix;
+//  cmd.Field('A').AsBoolean  := ascending;
+//  cmd.Field('M').AsInt64    := max_count;
+//  cmd.Field('S').AsInt64    := skipfirst;
+//  SendCycleColl(cmd,answer);
+//  try
+//    FLayer.CheckRaiseAnswerError(answer);
+//    guids := answer.Field('G').AsGUIDArr;
+//    Flayer.FLasterror     := '';
+//    FLayer.FLastErrorCode := edb_OK;
+//  finally
+//    answer.Finalize;
+//  end;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Remove(const ouid: TGUID): TFRE_DB_Errortype;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.RemoveIndexedString(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.RemoveIndexedSigned(const query_value: int64; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.RemoveIndexedUnsigned(const query_value: QWord; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
+//begin
+//  abort;
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.RemoveIndexedReal(const query_value: Double; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
+//begin
+//  abort;
+//end;
 
 constructor TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Create(nclient: TFRE_DB_PL_NET_CLIENT; id: NativeInt; host, ip, port, specfile, layername: Shortstring);
 begin
@@ -780,55 +723,55 @@ begin
        raise EFRE_DB_Exception.Create(ec,es);
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._CollectionExists(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION): Boolean;
-var i   : NativeInt;
-    cnu : TFRE_DB_NameType;
-    cns : TFRE_DB_NameType;
-begin
-  cnu := UpperCase(coll_name);
-  for i := 0 to FCollections.Count-1 do
-    begin
-      cns := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]).CollectionName(true);
-      if  cns=cnu then
-        begin
-          Collection := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]);
-          exit(true);
-        end;
-    end;
-  exit(false);
-end;
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._CollectionExists(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION): Boolean;
+//var i   : NativeInt;
+//    cnu : TFRE_DB_NameType;
+//    cns : TFRE_DB_NameType;
+//begin
+//  cnu := UpperCase(coll_name);
+//  for i := 0 to FCollections.Count-1 do
+//    begin
+//      cns := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]).CollectionName(true);
+//      if  cns=cnu then
+//        begin
+//          Collection := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]);
+//          exit(true);
+//        end;
+//    end;
+//  exit(false);
+//end;
+//
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._AddCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: boolean): IFRE_DB_PERSISTANCE_COLLECTION;
+//var x : TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection;
+//begin
+// if not _CollectionExists(coll_name,result) then
+//   begin
+//     x := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(coll_name,CollectionClassname,isVolatile,self);
+//     FCollections.Add(x);
+//     result := x;
+//   end;
+//end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._AddCollection(const coll_name: TFRE_DB_NameType; const CollectionClassname: Shortstring; const isVolatile: boolean): IFRE_DB_PERSISTANCE_COLLECTION;
-var x : TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection;
-begin
- if not _CollectionExists(coll_name,result) then
-   begin
-     x := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection.Create(coll_name,CollectionClassname,isVolatile,self);
-     FCollections.Add(x);
-     result := x;
-   end;
-end;
-
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._RemoveCollection(const coll_name: TFRE_DB_NameType): boolean;
-var i   : NativeInt;
-    cnu : TFRE_DB_NameType;
-    cns : TFRE_DB_NameType;
-      x : TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection;
-begin
-  cnu := UpperCase(coll_name);
-  for i := FCollections.Count-1 downto 0 do
-    begin
-      cns := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]).CollectionName(true);
-      if  cns=cnu then
-        begin
-          x := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]);
-          x.Free;
-          FCollections.Delete(i);
-          exit(true);
-        end;
-    end;
-  exit(false);
-end;
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer._RemoveCollection(const coll_name: TFRE_DB_NameType): boolean;
+//var i   : NativeInt;
+//    cnu : TFRE_DB_NameType;
+//    cns : TFRE_DB_NameType;
+//      x : TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection;
+//begin
+//  cnu := UpperCase(coll_name);
+//  for i := FCollections.Count-1 downto 0 do
+//    begin
+//      cns := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]).CollectionName(true);
+//      if  cns=cnu then
+//        begin
+//          x := TFRE_DB_PL_NET_CLIENT.TPLNet_PersistanceCollection(FCollections[i]);
+//          x.Free;
+//          FCollections.Delete(i);
+//          exit(true);
+//        end;
+//    end;
+//  exit(false);
+//end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DEBUG_DisconnectLayer(const db: TFRE_DB_String; const clean_master_data: boolean);
 begin
@@ -869,8 +812,8 @@ begin
       try
         CheckRaiseAnswerError(answer);
         result := answer.Field('A').AsBoolean;
-        if result then
-          _AddCollection(coll_name,answer.Field('CCN').AsString,answer.Field('V').AsBoolean);
+        //if result then
+        //  _AddCollection(coll_name,answer.Field('CCN').AsString,answer.Field('V').AsBoolean);
         FLasterror     := '';
         FLastErrorCode := edb_OK;
       finally
@@ -881,16 +824,16 @@ end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionExistsInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TGUID; const has_fetch_rights: boolean; const user_context: PFRE_DB_GUID): boolean;
 begin
-
+  abort;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION): Boolean;
-begin
-  if FGlobal then
-    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer')
-  else
-    result := CollectionExistCollection(coll_name);
-end;
+//function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetCollection(const coll_name: TFRE_DB_NameType; out Collection: IFRE_DB_PERSISTANCE_COLLECTION): Boolean;
+//begin
+//  if FGlobal then
+//    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is not allowed in then global layer')
+//  else
+//    result := CollectionExistCollection(coll_name);
+//end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionNewCollection(const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
@@ -939,7 +882,7 @@ begin
       result := answer.Field('TSID').AsString;
       FLasterror     := '';
       FLastErrorCode := edb_OK;
-      _RemoveCollection(coll_name);
+      //_RemoveCollection(coll_name);
     finally
       answer.Finalize;
     end;
@@ -1374,6 +1317,16 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionRemoveIndexedUidsFieldval(const coll_name: TFRE_DB_NameType; const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionGetIndexedObjsRange(const coll_name: TFRE_DB_NameType; const min, max: IFRE_DB_Object; const ascending: boolean; const max_count, skipfirst: NativeInt; out objs: IFRE_DB_ObjectArray; const min_val_is_a_prefix: boolean; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+begin
+  aborT;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionGetFirstLastIdxCnt(const coll_name: TFRE_DB_NameType; const idx: Nativeint; out obj: IFRE_DB_Object; const user_context: PFRE_DB_GUID): NativeInt;
 begin
   abort;
 end;

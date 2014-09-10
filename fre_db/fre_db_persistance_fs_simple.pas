@@ -131,26 +131,26 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FLastErrorCode        : TFRE_DB_Errortype;
      FChangeNotificationIF : IFRE_DB_DBChangedNotification;
 
-     procedure    _ConnectCheck             ;
-     procedure    _SetupDirs                (const db_name:TFRE_DB_String);
-     function     EscapeDBName              (const name:string):string;
-     function     UnEsacpeDBName            (const name:string):string;
-     constructor  InternalCreate            (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
+     procedure    _ConnectCheck                     ;
+     procedure    _SetupDirs                        (const db_name:TFRE_DB_String);
+     function     EscapeDBName                      (const name:string):string;
+     function     UnEsacpeDBName                    (const name:string):string;
+     constructor  InternalCreate                    (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
 
-     function     _GetCollection            (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION_BASE) : Boolean;
+     function     _GetCollection                    (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION_BASE) : Boolean;
 
-     procedure   _OpenWAL                   ;
-     procedure   _CloseWAL                  ;
-     procedure   _ClearWAL                  ;
-     procedure   _StoreCollectionPersistent (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE ; const no_storelocking : boolean=false);
-     procedure   _StoreObjectPersistent     (const obj:TFRE_DB_Object ; const no_storelocking : boolean=false);
+     procedure   _OpenWAL                           ;
+     procedure   _CloseWAL                          ;
+     procedure   _ClearWAL                          ;
+     procedure   _StoreCollectionPersistent         (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE ; const no_storelocking : boolean=false);
+     procedure   _StoreObjectPersistent             (const obj:TFRE_DB_Object ; const no_storelocking : boolean=false);
 
      procedure   WT_TransactionID              (const number:qword);
      procedure   WT_StoreCollectionPersistent  (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE);
      procedure   WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
      procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
-     function    INT_Fetch                     (const ouid    :  TGUID  ; out   dbi:IFRE_DB_Object):boolean; { unlocked internal fetch }
+     function    INT_Fetch                     (const ouid    :  TFRE_DB_GUID  ; out   dbi:IFRE_DB_Object):boolean; { unlocked internal fetch }
 
      {< Backup Functionality}
      function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
@@ -167,60 +167,59 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function   _InternalFetchConnectedLayer   (db_name:TFRE_DB_String;var idx :NativeInt): TFRE_DB_PS_FILE;
 
      procedure   DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
-     function    _FetchO                       (const ouid:TGUID ; out dbo:TFRE_DB_Object ; const internal_object:boolean): boolean;
+     function    _FetchO                       (const ouid:TFRE_DB_GUID ; out dbo:TFRE_DB_Object ; const internal_object:boolean): boolean;
      procedure   MustNotBeGlobalLayerCheck     ;
      procedure   MustBeGlobalLayer             ;
+     function    LayerLock                           : IFOS_LOCK;
+     function    GetConnectedDB                : TFRE_DB_NameType;
 
    public
-     function    GetConnectedDB                : TFRE_DB_NameType;
 
      constructor Create                        (const basedir,name:TFRE_DB_String);
      destructor  Destroy                       ; override;
      procedure   Finalize                      ;
 
-     function    DatabaseList                  : IFOS_STRINGS;
-     function    DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
-     function    CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-     function    DeleteDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+     function    DatabaseList                       : IFOS_STRINGS;
+     function    DatabaseExists                     (const dbname:TFRE_DB_String):Boolean;
+     function    CreateDatabase                     (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+     function    DeleteDatabase                     (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
 
 
-     function    GetReferences                 (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_GUIDArray;
-     function    GetReferencesCount            (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):NativeInt;
-     function    GetReferencesDetailed         (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_ObjectReferences;
+     function    GetReferences                      (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_GUIDArray;
+     function    GetReferencesCount                 (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):NativeInt;
+     function    GetReferencesDetailed              (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_ObjectReferences;
 
-
-     function    Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
-     function    Disconnect                    : TFRE_DB_Errortype;
-     function    ObjectExists                  (const obj_uid : TGUID) : boolean;
-     function    Fetch                         (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
-     function    BulkFetch                     (const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
-     function    RebuildUserToken              (const user_uid : TFRE_DB_GUID):IFRE_DB_USER_RIGHT_TOKEN;
+     function    Connect                            (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
+     function    Disconnect                         : TFRE_DB_Errortype;
+     function    ObjectExists                       (const obj_uid : TFRE_DB_GUID) : boolean;
+     function    Fetch                              (const ouid    : TFRE_DB_GUID  ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+     function    BulkFetch                          (const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+     function    RebuildUserToken                   (const user_uid: TFRE_DB_GUID):IFRE_DB_USER_RIGHT_TOKEN;
 
      { Transactional Operations / These operations report the last transaction step id generated, there may be more then one generated }
 
-     function    StoreOrUpdateObject           (const   iobj:IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; { must free the iobj in every case !}
-     function    DeleteObject                  (const obj_uid : TGUID    ;  const collection_name: TFRE_DB_NameType = ''  ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
+     function    StoreOrUpdateObject                 (const   iobj  : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; { must free the iobj in every case !}
+     function    DeleteObject                        (const obj_uid : TFRE_DB_GUID   ; const collection_name: TFRE_DB_NameType = ''  ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
 
      { Delete Operation :  collection_name = '' delete from all ->  collectionname<>'' only remove from collection }
-     function    StartTransaction    (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType='T') : TFRE_DB_Errortype;
-     function    Commit              : boolean;
-     procedure   RollBack            ;
+     function    StartTransaction                    (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType='T') : TFRE_DB_Errortype;
+     function    Commit                              : boolean;
+     procedure   RollBack                            ;
      // Transactional Operations Done
 
-     procedure   SyncWriteWAL        (const WALMem : TMemoryStream);
-     procedure   SyncSnapshot        (const final : boolean=false);
-     function    GetLastError        : TFRE_DB_String;
-     function    GetLastErrorCode    : TFRE_DB_Errortype;
-     function    GetNotificationRecordIF : IFRE_DB_DBChangedNotification;
-     function    LayerLock           : IFOS_LOCK;
+     procedure   SyncWriteWAL                        (const WALMem : TMemoryStream);
+     procedure   SyncSnapshot                        (const final : boolean=false);
+     function    GetLastError                        : TFRE_DB_String;
+     function    GetLastErrorCode                    : TFRE_DB_Errortype;
+     function    GetNotificationRecordIF             : IFRE_DB_DBChangedNotification;
 
      { Collection Interface }
      function    CollectionExistCollection           (const coll_name : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
      function    CollectionNewCollection             (const coll_name : TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
      function    CollectionDeleteCollection          (const coll_name : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; // todo transaction context
      function    CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
-     function    CollectionExistsInCollection        (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; const and_has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
-     function    CollectionFetchInCollection         (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+     function    CollectionExistsInCollection        (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID ; const and_has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
+     function    CollectionFetchInCollection         (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
      function    CollectionBulkFetch                 (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
      function    CollectionBulkFetchUIDS             (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_GUIDArray;
      procedure   CollectionClearCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil); { TODO: Create implicit transaction }
@@ -229,6 +228,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    CollectionGetIndexedObjsFieldval    (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; out objs : IFRE_DB_ObjectArray ; const index_must_be_full_unique : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
      function    CollectionGetIndexedUidsFieldval    (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; out objs : TFRE_DB_GUIDArray   ; const index_must_be_full_unique : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
      function    CollectionRemoveIndexedUidsFieldval (const coll_name: TFRE_DB_NameType ; const qry_val : IFRE_DB_Object ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
+     function    CollectionGetIndexedObjsRange       (const coll_name: TFRE_DB_NameType ; const min,max : IFRE_DB_Object ; const ascending: boolean ; const max_count,skipfirst : NativeInt ; out objs : IFRE_DB_ObjectArray ; const min_val_is_a_prefix : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
+     function    CollectionGetFirstLastIdxCnt        (const coll_name: TFRE_DB_NameType ; const idx : Nativeint ; out obj : IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
    end;
 
 implementation
@@ -394,7 +395,7 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
     procedure _BuildMasterCollection;
 
       procedure add_guid(file_name:AnsiString);
-      var g          : TGUID;
+      var g          : TFRE_DB_GUID;
           obj        : TFRE_DB_Object;
           m          : TMemorystream;
           uid_string : TFRE_DB_String;
@@ -737,7 +738,7 @@ begin
     end;
 end;
 
-function TFRE_DB_PS_FILE.INT_Fetch(const ouid: TGUID; out dbi: IFRE_DB_Object): boolean;
+function TFRE_DB_PS_FILE.INT_Fetch(const ouid: TFRE_DB_GUID; out dbi: IFRE_DB_Object): boolean;
 var dbo : TFRE_DB_Object;
 begin
   result := _FetchO(ouid,dbo,true);
@@ -1106,7 +1107,7 @@ end;
 
 constructor TFRE_DB_PS_FILE.Create(const basedir,name: TFRE_DB_String);
 var GSTRING   : String;
-    //MAX_GUID  : TGuid;
+    //MAX_GUID  : TFRE_DB_GUID;
 begin
   GFRE_TF.Get_Lock(G_GlobalLayerLock,True);
   G_UserTokens := TFPHashList.Create;
@@ -1262,7 +1263,7 @@ end;
 //end;
 
 
-//function TFRE_DB_PS_FILE.DeleteObject(const UID: TGuid): TFRE_DB_Errortype;
+//function TFRE_DB_PS_FILE.DeleteObject(const UID: TFRE_DB_GUID): TFRE_DB_Errortype;
 //var filename  :TFRE_DB_String;
 //    uid_string:TFRE_DB_String;
 //_ConnectCheck;
@@ -1278,7 +1279,7 @@ end;
 //begin
 //end;
 
-function TFRE_DB_PS_FILE.Fetch(const ouid: TGUID; out dbo: IFRE_DB_Object; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.Fetch(const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
 var dboo : TFRE_DB_Object;
 begin
   LayerLock.Acquire;
@@ -1459,7 +1460,7 @@ var sys_admin   : boolean;
               lUserGroup := obj as FRE_DB_CORE.TFRE_DB_GROUP;
               if not ((lUserGroup.isDisabled) and
                  (lUserGroup.DomainID=users_domainid)) then
-                   FREDB_ConcatGuidArrays(lRoleIDs,lUserGroup.RoleIDs);
+                   FREDB_ConcatGUIDArrays(lRoleIDs,lUserGroup.RoleIDs);
             finally
               obj.Set_Store_Locked(true);
             end;
@@ -1531,7 +1532,7 @@ begin
           FSysDomains.GetPersLayerIntf.ForAllInternalI(@IterateDomains);
           tokeno := TFRE_DB_USER_RIGHT_TOKEN.Create(myuser.UID,myuser.Login,myuser.GetUserGroupIDS,_GetRightsArrayForUser(myUser),sys_admin,FSysDomain.UID,myuser.DomainID,domuids,domnames);
           G_UpdateUserToken(myuser.UID,tokeno);
-          Result := tokeno;
+          Result := tokeno.CloneToNewUserToken;
         finally
           FSysDomainO.Set_Store_Locked(true);
         end;
@@ -1567,7 +1568,7 @@ begin
 end;
 
 
-function TFRE_DB_PS_FILE._FetchO(const ouid: TGUID; out dbo: TFRE_DB_Object; const internal_object: boolean): boolean;
+function TFRE_DB_PS_FILE._FetchO(const ouid: TFRE_DB_GUID; out dbo: TFRE_DB_Object; const internal_object: boolean): boolean;
 begin
   result := FMaster.FetchObject(ouid,dbo,internal_object);
 end;
@@ -1584,7 +1585,7 @@ begin
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'-Operation only allowed on global layer!-');
 end;
 
-function TFRE_DB_PS_FILE.DeleteObject(const obj_uid: TGUID; const collection_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+function TFRE_DB_PS_FILE.DeleteObject(const obj_uid: TFRE_DB_GUID; const collection_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
 var
     ImplicitTransaction : Boolean;
     CleanApply          : Boolean;
@@ -1611,10 +1612,9 @@ begin
           if (collection_name<>'') then
             if delete_object.__InternalCollectionExistsName(collection_name)=-1 then
               raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the request to delete object [%s] from collection [%s] could not be completed, the object is not stored in the requested collection',[delete_object.UID_String,collection_name]);
-          E_FOS_TestNosey;
           if assigned(user_context) then
             begin
-              G_GetUserToken(user_context^,ut,true);
+              G_GetUserToken(user_context,ut,true);
               if ut.CheckStdRightSetUIDAndClass(delete_object.UID,delete_object.DomainID,delete_object.SchemeClass,[sr_DELETE])<>edb_OK then
                 raise EFRE_DB_Exception.Create(edb_ACCESS,'no right to delete object [%s]',[FREDB_G2H(obj_uid)]);
             end;
@@ -2138,7 +2138,7 @@ begin
   result := G_GlobalLayerLock;
 end;
 
-function TFRE_DB_PS_FILE.CollectionExistsInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TGUID; const and_has_fetch_rights: boolean; const user_context: PFRE_DB_GUID): boolean;
+function TFRE_DB_PS_FILE.CollectionExistsInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TFRE_DB_GUID; const and_has_fetch_rights: boolean; const user_context: PFRE_DB_GUID): boolean;
 var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     ut         : TFRE_DB_USER_RIGHT_TOKEN;
     obj        : TFRE_DB_Object;
@@ -2154,7 +2154,7 @@ begin
       if and_has_fetch_rights then
         if assigned(user_context) then
           begin
-            G_GetUserToken(user_context^,ut,true);
+            G_GetUserToken(user_context,ut,true);
             if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])=edb_OK then
               exit(true)
             else
@@ -2165,21 +2165,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionExistsInCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionExistsInCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionExistsInCollection',e.Message]);
           raise;
         end;
     end;
@@ -2188,7 +2188,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.CollectionFetchInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TGUID; out dbo: IFRE_DB_Object; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.CollectionFetchInCollection(const coll_name: TFRE_DB_NameType; const check_uid: TFRE_DB_GUID; out dbo: IFRE_DB_Object; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
 var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     ut         : TFRE_DB_USER_RIGHT_TOKEN;
     obj        : TFRE_DB_Object;
@@ -2207,7 +2207,7 @@ begin
         exit(edb_NOT_FOUND);
       if assigned(user_context) then
         begin
-          G_GetUserToken(user_context^,ut,true);
+          G_GetUserToken(user_context,ut,true);
           if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])<>edb_OK then
             exit(edb_ACCESS)
         end;
@@ -2218,21 +2218,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionFetchInCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionFetchInCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionFetchInCollection',e.Message]);
           raise;
         end;
     end;
@@ -2244,57 +2244,37 @@ end;
 function TFRE_DB_PS_FILE.CollectionBulkFetch(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): IFRE_DB_ObjectArray;
 var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     ut         : TFRE_DB_USER_RIGHT_TOKEN;
-    obj        : TFRE_DB_Object;
     res        : boolean;
-    cnt        : NativeInt;
-
-    procedure GatherWithRights(const obj : TFRE_DB_Object);
-    begin
-      if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])=edb_OK then
-        begin
-          result[cnt] := obj.CloneToNewObject;
-          inc(cnt);
-        end;
-    end;
 
 begin
-  E_FOS_TestNosey;
+
   LayerLock.Acquire;
   try
     try
       res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
       if not res then
         raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
-      if not assigned(user_context) then
-        collection.GetAllObjects(result)
-      else
-        begin
-          G_GetUserToken(user_context^,ut,true);
-          SetLength(result,collection.Count);
-          cnt := 0;
-          collection.ForAllInternal(@GatherWithRights);
-          SetLength(result,cnt);
-        end;
+      collection.GetAllObjectsRC(result,user_context);
     except
       on e:EFRE_DB_PL_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetch',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetch',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetch',e.Message]);
           raise;
         end;
     end;
@@ -2308,55 +2288,34 @@ var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     ut         : TFRE_DB_USER_RIGHT_TOKEN;
     obj        : TFRE_DB_Object;
     res        : boolean;
-    cnt        : NativeInt;
-
-    procedure GatherWithRights(const obj : TFRE_DB_Object);
-    begin
-      if ut.CheckStdRightSetUIDAndClass(obj.UID,obj.DomainID,obj.SchemeClass,[sr_FETCH])=edb_OK then
-        begin
-          result[cnt] := obj.UID;
-          inc(cnt);
-        end;
-    end;
-
 begin
-  E_FOS_TestNosey;
   LayerLock.Acquire;
   try
     try
       res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
       if not res then
         raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
-      if not assigned(user_context) then
-        collection.GetAllUIDS(result)
-      else
-        begin
-          G_GetUserToken(user_context^,ut,true);
-          SetLength(result,collection.Count);
-          cnt := 0;
-          collection.ForAllInternal(@GatherWithRights);
-          SetLength(result,cnt);
-        end;
+      collection.GetAllUIDsRC(result,user_context);
     except
       on e:EFRE_DB_PL_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetchUIDS',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetchUIDS',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetchUIDS',e.Message]);
           raise;
         end;
     end;
@@ -2384,7 +2343,6 @@ var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     end;
 
 begin
-  E_FOS_TestNosey;
   LayerLock.Acquire;
   try
     try
@@ -2395,34 +2353,34 @@ begin
         collection.GetAllUIDS(uidlist)
       else
         begin
-          G_GetUserToken(user_context^,ut,true);
+          G_GetUserToken(user_context,ut,true);
           SetLength(uidlist,collection.Count);
           cnt := 0;
           collection.ForAllInternal(@GatherWithRights);
           SetLength(uidlist,cnt);
         end;
       for i:=0 to high(uidlist) do
-        DeleteObject(uidlist[i]);
+        DeleteObject(uidlist[i],coll_name);
     except
       on e:EFRE_DB_PL_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionClearCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionClearCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionClearCollection',e.Message]);
           raise;
         end;
     end;
@@ -2449,21 +2407,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
     end;
@@ -2478,7 +2436,6 @@ var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     obj        : TFRE_DB_Object;
     res        : boolean;
 begin
-  E_FOS_TestNosey;
   LayerLock.Acquire;
   try
     try
@@ -2491,21 +2448,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedValueCount',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedValueCount',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedValueCount',e.Message]);
           raise;
         end;
     end;
@@ -2520,7 +2477,6 @@ var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     obj        : TFRE_DB_Object;
     res        : boolean;
 begin
-  E_FOS_TestNosey;
   LayerLock.Acquire;
   try
     try
@@ -2533,21 +2489,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsFieldval',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsFieldval',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsFieldval',e.Message]);
           raise;
         end;
     end;
@@ -2562,7 +2518,6 @@ var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     obj        : TFRE_DB_Object;
     res        : boolean;
 begin
-  E_FOS_TestNosey;
   LayerLock.Acquire;
   try
     try
@@ -2575,21 +2530,21 @@ begin
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedUidsFieldval',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           FLastErrorCode := E.ErrorType;
           FLastError     := E.Message;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedUidsFieldval',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           FLastErrorCode := edb_INTERNAL;
           FLastError     := E.Message;
-          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedUidsFieldval',e.Message]);
           raise;
         end;
     end;
@@ -2599,8 +2554,131 @@ begin
 end;
 
 function TFRE_DB_PS_FILE.CollectionRemoveIndexedUidsFieldval(const coll_name: TFRE_DB_NameType; const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+    res        : boolean;
+    uidlist    : TFRE_DB_GUIDArray;
+    i          : NativeInt;
 begin
-  abort;
+  LayerLock.Acquire;
+  try
+    try
+      res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      result := collection.GetIndexedUidsRC(qry_val,uidlist,false,index_name,user_context);
+      for i:=0 to high(uidlist) do
+         DeleteObject(uidlist[i],coll_name);
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionRemoveIndexedUidsFieldval',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionRemoveIndexedUidsFieldval',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionRemoveIndexedUidsFieldval',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.CollectionGetIndexedObjsRange(const coll_name: TFRE_DB_NameType; const min, max: IFRE_DB_Object; const ascending: boolean; const max_count, skipfirst: NativeInt; out objs: IFRE_DB_ObjectArray; const min_val_is_a_prefix: boolean; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+    res        : boolean;
+begin
+  E_FOS_TestNosey;
+  LayerLock.Acquire;
+  try
+    try
+      res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      result := collection.GetIndexedObjsClonedRCRange(min,max,ascending,max_count,skipfirst,objs,min_val_is_a_prefix,index_name,user_context);
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsRange',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsRange',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsRange',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.CollectionGetFirstLastIdxCnt(const coll_name: TFRE_DB_NameType; const idx: Nativeint; out obj: IFRE_DB_Object; const user_context: PFRE_DB_GUID): NativeInt;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    //objo       : TFRE_DB_Object;
+    res        : boolean;
+begin
+  LayerLock.Acquire;
+  try
+    try
+      res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      result := collection.GetFirstLastIdxCnt(idx,obj,user_context);
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetFirstLastIdxCnt',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetFirstLastIdxCnt',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetFirstLastIdxCnt',e.Message]);
+          raise;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
 end;
 
 
@@ -2820,11 +2898,12 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.GetReferences(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_GUIDArray;
+function TFRE_DB_PS_FILE.GetReferences(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_GUIDArray;
+var system_refs : TFRE_DB_GUIDArray;
 begin
   LayerLock.Acquire;
   try
-    result := FMaster.GetReferences(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+    result := FMaster.GetReferencesRC(obj_uid,from,scheme_prefix_filter,field_exact_filter,user_context,false);
     FLastErrorCode := edb_OK;
     FLastError     := '';
   finally
@@ -2832,11 +2911,11 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.GetReferencesCount(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+function TFRE_DB_PS_FILE.GetReferencesCount(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
 begin
   LayerLock.Acquire;
   try
-    result := FMaster.GetReferencesCount(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+    result := FMaster.GetReferencesCountRC(obj_uid,from,scheme_prefix_filter,field_exact_filter,user_context);
     FLastErrorCode := edb_OK;
     FLastError     := '';
   finally
@@ -2844,11 +2923,11 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.GetReferencesDetailed(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_ObjectReferences;
+function TFRE_DB_PS_FILE.GetReferencesDetailed(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_ObjectReferences;
 begin
   LayerLock.Acquire;
   try
-    result := FMaster.GetReferencesDetailed(obj_uid,from,scheme_prefix_filter,field_exact_filter);
+    result := FMaster.GetReferencesDetailedRC(obj_uid,from,scheme_prefix_filter,field_exact_filter,user_context);
     FLastErrorCode := edb_OK;
     FLastError     := '';
   finally
@@ -2856,7 +2935,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.ObjectExists(const obj_uid: TGUID): boolean;
+function TFRE_DB_PS_FILE.ObjectExists(const obj_uid: TFRE_DB_GUID): boolean;
 begin
   LayerLock.Acquire;
   try
