@@ -1648,6 +1648,8 @@ begin
   fClone.FObjUidField      := FObjUidField;
   fClone.FDomIDField       := FDomIDField;
   fClone.FRightSet         := copy(FRightSet);
+  fClone.FIgnoreField      := FIgnoreField;
+  fClone.FIgnoreValue      := FIgnoreValue;
   result                   := fClone;
 end;
 
@@ -1828,9 +1830,19 @@ begin
 end;
 
 function TFRE_DB_FILTER_SCHEME.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
+var
+  cn: ShortString;
+  i : NativeInt;
 begin
-  result := false;
-  inc(flt_errors); // Scheme Filter not implemented
+  cn := obj.PreTransformedScheme;
+  result := true;
+  for i:= 0 to high(FValues) do begin //self
+    if cn=FValues[i] then begin
+      Result:=false;
+      break;
+    end;
+  end;
+  result := (result xor FNegate); { invert result }
 end;
 
 function TFRE_DB_FILTER_SCHEME.GetDefinitionKey: TFRE_DB_NameType;
@@ -1851,7 +1863,7 @@ begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'at least one scheme must be specified for the filter');
   SetLength(FValues,length(filtervalues));
   for i:=0 to high(filtervalues) do
-    FValues[i] := filtervalues[i];
+    FValues[i] := UpperCase(filtervalues[i]);
   FNegate     := negate;
 end;
 
