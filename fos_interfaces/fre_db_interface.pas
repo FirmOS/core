@@ -8461,13 +8461,13 @@ end;
 procedure TFRE_DB_APPLICATION_MODULE.CheckClassVisibility4AnyDomain(const session: IFRE_DB_UserSession);
 begin
   if not session.GetDBConnection.sys.CheckClassRight4AnyDomain(sr_FETCH,ClassType) then
-    raise EFRE_DB_Exception.Create(GetEmbeddingapp.FetchAppTextShort(session,'error_no_access'));
+    raise EFRE_DB_Exception.Create(session.GetDBConnection.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 end;
 
 procedure TFRE_DB_APPLICATION_MODULE.CheckClassVisibility4MyDomain(const session: IFRE_DB_UserSession);
 begin
   if not session.GetDBConnection.sys.CheckClassRight4MyDomain(sr_FETCH,ClassType) then
-    raise EFRE_DB_Exception.Create(GetEmbeddingapp.FetchAppTextShort(session,'error_no_access'));
+    raise EFRE_DB_Exception.Create(session.GetDBConnection.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 end;
 
 class procedure TFRE_DB_APPLICATION_MODULE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);

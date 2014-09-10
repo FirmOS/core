@@ -3513,7 +3513,6 @@ begin
     CheckDbResult(conn.AddGroup('ACADMINS','Access Control Admins','Access Control Admins',domainUID,true),'could not create admins group');
 
     CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles for group Admins');
-    CheckDbResult(conn.AddSysRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACVIEWSYSTEM')),'could not add roles for group Admins');
   end;
   if currentVersionId='1.0' then begin
     currentVersionId:='1.1';
@@ -3578,7 +3577,6 @@ begin
     )));
 
     CheckDbResult(conn.AddRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACADMINUSER','ACADMINGROUP','ACADMINUSERGROUP')),'could not add roles for group Admins');
-    CheckDbResult(conn.AddSysRolesToGroup('ACADMINS',domainUID,TFRE_DB_StringArray.Create('ACVIEWSYSTEM')),'could not add roles for group Admins');
   end;
   if (currentVersionId='1.1') then begin
     currentVersionId:='1.2';
@@ -3596,19 +3594,16 @@ begin
 
   if currentVersionId='' then begin
     currentVersionId:='1.0';
-    //ADMINS
-    CheckDbResult(conn.AddRole('ACVIEWSYSTEM','Allowed to view System Groups and Roles','',domainUID),'could not add role ACVIEWSYSTEM');
-
-    CheckDbResult(conn.AddRoleRightsToRole('ACVIEWSYSTEM',domainUID,TFRE_DB_GROUP.GetClassStdRoles(false,false,false,true)));
-    CheckDbResult(conn.AddRoleRightsToRole('ACVIEWSYSTEM',domainUID,TFRE_DB_ROLE.GetClassStdRoles(false,false,false,true)));
   end;
   if currentVersionId='1.0' then begin
     currentVersionId:='1.1';
   end;
   if currentVersionId='1.1' then begin
     currentVersionId:='1.2';
-    CheckDbResult(conn.RemoveRoleFromAllGroups('ACVIEWSYSTEM',domainUID));
-    CheckDbResult(conn.DeleteRole('ACVIEWSYSTEM',domainUID));
+    if conn.RoleExists('ACVIEWSYSTEM',domainUID) then begin
+      CheckDbResult(conn.RemoveRoleFromAllGroups('ACVIEWSYSTEM',domainUID));
+      CheckDbResult(conn.DeleteRole('ACVIEWSYSTEM',domainUID));
+    end;
   end;
 
 end;
