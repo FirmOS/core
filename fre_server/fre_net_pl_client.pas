@@ -113,6 +113,7 @@ type
       procedure FDB_PrepareDBRestore          (const phase:integer);
       procedure FDB_SendObject                (const obj:IFRE_DB_Object);
       procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
+      function  FDB_TryGetIndexStream         (const collname : TFRE_DB_NameType ; const ix_name : TFRE_DB_Nametype ; out stream : TStream):boolean;
 
       { Collection Interface }
       function  CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
@@ -120,6 +121,8 @@ type
       function  CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
       function  CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
       function  CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+      function  CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; out   ix_def : TFRE_DB_INDEX_DEF ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+      function  CollectionGetAllIndexNames          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_NameTypeArray;
       function  CollectionFetchInCollection         (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
       function  CollectionBulkFetch                 (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
       function  CollectionBulkFetchUIDS             (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_GUIDArray;
@@ -1207,6 +1210,16 @@ begin
   end;
 end;
 
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionGetIndexDefinition(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; out ix_def: TFRE_DB_INDEX_DEF; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionGetAllIndexNames(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_NameTypeArray;
+begin
+  abort;
+end;
+
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetLastErrorCode: TFRE_DB_Errortype;
 begin
   if FGlobal then
@@ -1276,6 +1289,11 @@ begin
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendCollection(const obj: IFRE_DB_Object);
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_TryGetIndexStream(const collname: TFRE_DB_NameType; const ix_name: TFRE_DB_Nametype; out stream: TStream): boolean;
 begin
   abort;
 end;

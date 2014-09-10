@@ -209,11 +209,6 @@ begin
      begin
        GDBPS_SKIP_STARTUP_CHECKS := true;
      end;
-   if HasOption('*','setasyncwt') then
-     begin
-       GDBPS_TRANS_WRITE_ASYNC := GetOptionValue('*','setasyncwt')='on';
-       writeln('SETTING GDBPS_TRANS_WRITE_ASYNC TO : ',GDBPS_TRANS_WRITE_ASYNC);
-     end;
    if HasOption('*','dropwal') then
      begin
        writeln('REQUESTED TO FORCE DROP WAL');
@@ -326,7 +321,6 @@ begin
   AddCheckOption('*','testlog'       ,'                | --testlog                      : enable fixed (debug-cfg) logging to console');
   AddCheckOption('*','testlogcfg'    ,'                | --testlogcfg                   : do an endless logging test');
   AddHelpOutLine;
-  AddCheckOption('*','setasyncwt:'   ,'                | --setasyncwt=<on/off>          : in write through mode do the writes sync or async');
   AddCheckOption('*','resetadmin'    ,'                | --resetadmin                   : reset the admin@system and the guest@system accounts to default. => (admin and "")');
 end;
 
@@ -501,7 +495,6 @@ begin
   end;
 
   GDBPS_TRANS_WRITE_THROUGH := TRUE;
-  GDBPS_TRANS_WRITE_ASYNC   := FALSE; { ASYNC Writethrough may be error prone (!) and unsave }
   GDISABLE_WAL              := TRUE;
   GDISABLE_SYNC             := TRUE;
   GDROP_WAL                 := TRUE;

@@ -39,6 +39,7 @@ unit fre_db_interface;
 
 {$mode objfpc}{$H+}
 {$modeswitch nestedprocvars}
+{$modeswitch advancedrecords}
 {$interfaces corba}
 
 //TFRE_DB_String is a AnsiString with CodePage(UTF8)
@@ -225,6 +226,22 @@ type
     schemename : TFRE_DB_NameType;
     linked_uid : TFRE_DB_GUID;
   end;
+
+  { TFRE_DB_INDEX_DEF }
+
+  TFRE_DB_INDEX_DEF=record
+     IndexClass    : Shortstring;
+     IndexName     : TFRE_DB_NameType;
+     FieldName     : TFRE_DB_NameType;
+     FieldType     : TFRE_DB_FIELDTYPE;
+     Unique        : boolean;
+     AllowNulls    : boolean;
+     UniqueNull    : boolean;
+     IgnoreCase    : boolean;
+     function IndexDescription : TFRE_DB_String;
+  end;
+
+  TFRE_DB_INDEX_DEF_ARRAY=array of TFRE_DB_INDEX_DEF;
 
   TFRE_DB_Mimetype=record
     extension : string[32];
@@ -1316,14 +1333,19 @@ type
 
 
   IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER=interface
-    procedure     StoreInThisColl     (const new_obj         : IFRE_DB_Object ; const checkphase : boolean);
-    procedure     UpdateInThisColl    (const new_fld,old_fld : IFRE_DB_FIELD  ; const old_obj,new_obj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const in_child_obj : boolean ; const checkphase : boolean);
+    procedure     StoreInThisColl        (const new_obj         : IFRE_DB_Object ; const checkphase : boolean);
+    procedure     UpdateInThisColl       (const new_fld,old_fld : IFRE_DB_FIELD  ; const old_obj,new_obj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const in_child_obj : boolean ; const checkphase : boolean);
     function      DefineIndexOnFieldReal (const checkonly : boolean;const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
+    function      IndexNames             : TFRE_DB_NameTypeArray;
 
     procedure     DeleteFromThisColl  (const del_obj         : IFRE_DB_Object ; const checkphase : boolean);
     procedure     StreamToThis        (const stream          : TStream);
-    procedure     LoadFromThis        (const stream          : TStream);
-    procedure     RestoreFromObject   (const obj:IFRE_DB_Object);
+    procedure     StreamIndexToThis   (const name : TFRE_DB_NameType ; const stream : TStream);
+
+    function      GetIndexDefObject      : IFRE_DB_Object;
+    procedure     CreateIndexDefsFromObj (const obj : IFRE_DB_Object);
+    procedure     LoadFromThis           (const stream          : TStream);
+    procedure     RestoreFromObject      (const obj:IFRE_DB_Object);
 
     function      FetchIntFromColl      (const uid:TFRE_DB_GUID ; out obj : IFRE_DB_Object):boolean;
     function      GetIndexedObjInternal (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; { usertoken, to fetch SYSTEM Domain }
@@ -1378,6 +1400,7 @@ type
     procedure FDB_PrepareDBRestore          (const phase:integer);
     procedure FDB_SendObject                (const obj:IFRE_DB_Object);
     procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
+    function  FDB_TryGetIndexStream         (const collname : TFRE_DB_NameType ; const ix_name : TFRE_DB_Nametype ; out stream : TStream):boolean;
     function  INT_Fetch                     (const ouid    :  TFRE_DB_GUID  ; out   dbo:IFRE_DB_Object):boolean;
 
     function  GetConnectedDB                : TFRE_DB_NameType;
@@ -1413,6 +1436,8 @@ type
     function  CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
     function  CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
     function  CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+    function  CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; out   ix_def : TFRE_DB_INDEX_DEF ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+    function  CollectionGetAllIndexNames          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_NameTypeArray;
     function  CollectionExistsInCollection        (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID ; const and_has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
     function  CollectionFetchInCollection         (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
     function  CollectionBulkFetch                 (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
@@ -2961,6 +2986,7 @@ type
 
   function  FREDB_FindStringIndexInArray         (const text:TFRE_DB_String;const strings:TFRE_DB_StringArray):integer;
   function  FREDB_CombineString                  (const strings: TFRE_DB_StringArray; const sep: TFRE_DB_String): TFRE_DB_String;
+  function  FREDB_CombineNametypes               (const strings: TFRE_DB_NameTypeArray; const sep: TFRE_DB_String): TFRE_DB_String;
   procedure FREDB_SeperateString                 (const value,sep : TFRE_DB_String; var Strings: TFRE_DB_StringArray); //TODO UNICODE
 
   function  FREDB_DBNameType_Compare             (const S1, S2: TFRE_DB_NameType): NativeInt;
@@ -3060,6 +3086,8 @@ type
   procedure FREDB_PP_AddParentPathToObj                       (const obj : IFRE_DB_Object ; const pp  : string);
   function  FREDB_PP_GetParentPaths                           (const obj : IFRE_DB_Object):TFRE_DB_StringArray;
 
+  function  FREDB_CreateIndexDefFromObject (const ix_def_o : IFRE_DB_Object): TFRE_DB_INDEX_DEF;
+  function  FREDB_CreateIndexDefArrayFromObject (const ix_def_ao : IFRE_DB_Object): TFRE_DB_INDEX_DEF_ARRAY;
 
   operator< (g1, g2: TFRE_DB_GUID) b : boolean;
   operator> (g1, g2: TFRE_DB_GUID) b : boolean;
@@ -3077,6 +3105,41 @@ var
   GFRE_DB_TCDM                      : TFRE_DB_TRANSDATA_MANAGER_BASE;
 
 implementation
+
+function FREDB_CreateIndexDefFromObject (const ix_def_o : IFRE_DB_Object): TFRE_DB_INDEX_DEF;
+begin
+  result := Default(TFRE_DB_INDEX_DEF);
+  with result do
+    begin
+      IndexClass    := ix_def_o.Field('IX_CLASS').AsString;
+      IndexName     := ix_def_o.Field('IX_NAM').AsString;
+      FieldName     := ix_def_o.Field('IX_FN').AsString;
+      FieldType     := FREDB_FieldtypeShortString2Fieldtype(ix_def_o.Field('IX_FT').AsString);
+      Unique        := ix_def_o.Field('IX_UNQ').AsBoolean;
+      AllowNulls    := ix_def_o.Field('IX_ANULL').AsBoolean;
+      UniqueNull    := ix_def_o.Field('IX_UNQN').AsBoolean;
+      if ix_def_o.FieldExists('IXT_CSENS') then
+        IgnoreCase := ix_def_o.Field('IXT_CSENS').AsBoolean
+      else
+        IgnoreCase := false;
+    end;
+end;
+
+function FREDB_CreateIndexDefArrayFromObject (const ix_def_ao : IFRE_DB_Object): TFRE_DB_INDEX_DEF_ARRAY;
+var nta   : TFRE_DB_NameTypeArray;
+    i     : NativeInt;
+    ido   : IFRE_DB_Object;
+begin
+  nta := FREDB_StringArray2NametypeArray(ix_def_ao.Field('IndexNames').AsStringArr);
+  SetLength(result,Length(nta));
+  for i:=0 to high(nta) do
+    begin
+      ido       := ix_def_ao.Field('ID_'+nta[i]).AsObject;
+      result[i] := FREDB_CreateIndexDefFromObject(ido);
+    end;
+end;
+
+
 
 function RB_Guid_Compare(const d1, d2: TFRE_DB_GUID): NativeInt;
 begin
@@ -3164,6 +3227,18 @@ begin
 end;
 
 function FREDB_CombineString(const strings: TFRE_DB_StringArray; const sep: TFRE_DB_String): TFRE_DB_String;
+var i:integer;
+begin
+  result := '';
+  for i:=0 to high(strings)-1 do begin
+    result := result+strings[i]+sep;
+  end;
+  if High(strings)>=0 then begin
+    result := result + strings[high(strings)];
+  end;
+end;
+
+function FREDB_CombineNametypes(const strings: TFRE_DB_NameTypeArray; const sep: TFRE_DB_String): TFRE_DB_String;
 var i:integer;
 begin
   result := '';
@@ -4004,6 +4079,14 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_INDEX_DEF }
+
+function TFRE_DB_INDEX_DEF.IndexDescription: TFRE_DB_String;
+begin
+  result := IndexClass+' ['+IndexName+'] on Field ['+FieldName+'/'+CFRE_DB_FIELDTYPE[FieldType]+'] is '+BoolToStr(Unique,'unique','not unique')+','+BoolToStr(AllowNulls,'allows nulls','does not allow nulls')
+            +', is '+BoolToStr(UniqueNull,'null unique','not null unique')+' and '+BoolToStr(IgnoreCase,'case insensitive','case Sensitive');
+end;
 
 { TFRE_DB_APPLICATION_CONFIG }
 

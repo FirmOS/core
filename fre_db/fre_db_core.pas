@@ -1339,7 +1339,13 @@ type
     procedure       GetAllObjs                 (out objs:IFRE_DB_ObjectArray);
     procedure       GetAllObjsNoRC             (out objs:IFRE_DB_ObjectArray);
 
-    function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
+    function        DefineIndexOnField         (const FieldName  : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
+    function        DefineIndexOnField         (const IndexDef   : TFRE_DB_INDEX_DEF) :TFRE_DB_Errortype;
+    function        GetIndexDefinition         (const index_name : TFRE_DB_NameType ; out ix_def :TFRE_DB_INDEX_DEF):TFRE_DB_Errortype;
+    function        DropIndex                  (const index_name : TFRE_DB_NameType):TFRE_DB_Errortype;
+    function        GetAllIndexNames           : TFRE_DB_NameTypeArray;
+    function        GetAllIndexDefinitions     : TFRE_DB_INDEX_DEF_ARRAY;
+
     function        IndexExists                (const index_name:TFRE_DB_NameType):boolean;
 
     function        ExistsIndexed              (const query_value : TFRE_DB_String ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'): Boolean; deprecated ;
@@ -2113,7 +2119,6 @@ type
     function    FetchRoleI                  (const rolename:TFRE_DB_String;const domainUID: TFRE_DB_GUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id: TFRE_DB_GUID; var role: TFRE_DB_ROLE; const without_right_check: boolean=false): TFRE_DB_Errortype;
     function    FetchRoleByIdI              (const role_id:TFRE_DB_GUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
-    procedure   ForAllColls                 (const iterator:TFRE_DB_Coll_Iterator) ;override;
     function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
     function    FetchDomain                 (const name :TFRE_DB_NameType; var domain:TFRE_DB_DOMAIN):boolean;
     function    FetchDomainUIDbyName        (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
@@ -2551,7 +2556,6 @@ var
   GDISABLE_WAL              : boolean;
   GDISABLE_SYNC             : boolean;
   GDBPS_TRANS_WRITE_THROUGH : boolean;
-  GDBPS_TRANS_WRITE_ASYNC   : boolean;
   GDBPS_SKIP_STARTUP_CHECKS : boolean;
 
   procedure GFRE_DB_Init_Check;
@@ -5211,11 +5215,6 @@ var
 begin
   Result:=FetchRoleById(role_id,trole);
   role:=trole;
-end;
-
-procedure TFRE_DB_SYSTEM_CONNECTION.ForAllColls(const iterator: TFRE_DB_Coll_Iterator);
-begin //nolcock req
-  inherited ForAllColls(iterator);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.FetchAllDomainUids: TFRE_DB_GUIDArray;
@@ -9281,8 +9280,39 @@ end;
 
 function TFRE_DB_COLLECTION.DefineIndexOnField(const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false): TFRE_DB_Errortype;
 begin //nl
-  FCollConnection.FPersistance_Layer.CollectionDefineIndexOnField(Fname,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values);
+  FCollConnection.FPersistance_Layer.CollectionDefineIndexOnField(Fname,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values,FCollConnection.GetUserUIDP);
   result := edb_OK;
+end;
+
+function TFRE_DB_COLLECTION.DefineIndexOnField(const IndexDef: TFRE_DB_INDEX_DEF): TFRE_DB_Errortype;
+begin
+  with IndexDef do
+    result := DefineIndexOnField(FieldName,FieldType,Unique,IgnoreCase,IndexName,AllowNulls,UniqueNull);
+end;
+
+function TFRE_DB_COLLECTION.GetIndexDefinition(const index_name: TFRE_DB_NameType; out ix_def: TFRE_DB_INDEX_DEF): TFRE_DB_Errortype;
+begin
+  result := FCollConnection.FPersistance_Layer.CollectionGetIndexDefinition(Fname,index_name,ix_def,FCollConnection.GetUserUIDP);
+end;
+
+function TFRE_DB_COLLECTION.DropIndex(const index_name: TFRE_DB_NameType): TFRE_DB_Errortype;
+begin
+  result := edb_INTERNAL;
+end;
+
+function TFRE_DB_COLLECTION.GetAllIndexNames: TFRE_DB_NameTypeArray;
+begin
+  result := FCollConnection.FPersistance_Layer.CollectionGetAllIndexNames(Fname,FCollConnection.GetUserUIDP);
+end;
+
+function TFRE_DB_COLLECTION.GetAllIndexDefinitions: TFRE_DB_INDEX_DEF_ARRAY;
+var nta : TFRE_DB_NameTypeArray;
+    i   : NativeInt;
+begin
+  nta := GetAllIndexNames;
+  SetLength(result,Length(nta));
+  for i := 0 to high(nta) do
+    CheckDbResult(GetIndexDefinition(nta[i],result[i]));
 end;
 
 function TFRE_DB_COLLECTION.IndexExists(const index_name: TFRE_DB_NameType): boolean;
@@ -9961,14 +9991,14 @@ end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllColls(const iterator: TFRE_DB_Coll_Iterator);
 
-  procedure DoAllCollections_Iterate(const collection :TFRE_DB_COLLECTION);//const key:TFRE_DB_String;const manage:TFRE_DB_Collection_ManageInfo;const data:Pointer);
+  procedure DoAllCollections_Iterate(const collection :IFRE_DB_COLLECTION);
   begin
-    iterator(collection);
+    iterator(collection.Implementor as TFRE_DB_COLLECTION);
   end;
 
 begin
   _ConnectCheck;
-  FCollectionStore.ForAllItems(@DoAllCollections_Iterate);
+  ForAllCollsI(@DoAllCollections_Iterate);
 end;
 
 procedure TFRE_DB_BASE_CONNECTION.ForAllSchemes(const iterator: TFRE_DB_Scheme_Iterator);

@@ -56,58 +56,11 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
    // there exists one system database, and n user databases
    // masterdata is global volatile shared, system persistent shared, and per db shared
 
-  type TFRE_DB_ASYNC_WT_THREAD=class;
-
   var  G_Transaction     : TFRE_DB_TransactionalUpdateList;
-       GAsyncWT          : TFRE_DB_ASYNC_WT_THREAD;
        G_GlobalLayerLock : IFOS_LOCK;
 
 
   type
-
-   { TFRE_DB_ASYNC_WRITE_BLOCK }
-   TFRE_DB_ASYNC_CMD=class
-     procedure DoOperation ;virtual;abstract;
-   end;
-
-   { TFRE_DB_ASYNC_DEL_CMD }
-
-   TFRE_DB_ASYNC_DEL_CMD=class(TFRE_DB_ASYNC_CMD)
-   private
-     FFilename :  String;
-   public
-     constructor Create(const filename : String);
-     procedure   DoOperation; override;
-   end;
-
-   TFRE_DB_ASYNC_WRITE_BLOCK=class(TFRE_DB_ASYNC_CMD)
-   private
-     FFilename :  String;
-     m         : TMemoryStream;
-   public
-     constructor Create(const filename : String);
-     function    Stream : TMemoryStream;
-     procedure   DoOperation; override;
-     destructor  Destroy;override;
-   end;
-
-   { TFRE_DB_ASYNC_WT_THREAD }
-
-   TFRE_DB_ASYNC_WT_THREAD=class(TThread)
-   private
-     Flfq : IFOS_LFQ;
-     FWte : IFOS_TE;
-     QC   : NativeUInt;
-     procedure EmptyTheQ;
-   public
-     constructor Create;
-     destructor  Destroy;override;
-     procedure   Execute;override;
-     procedure   PushWrite(const wb : TFRE_DB_ASYNC_CMD);
-     procedure   Terminate;
-   end;
-
-
 
    TFRE_DB_PS_FILE = class(TObject,IFRE_DB_PERSISTANCE_LAYER)
    private
@@ -157,6 +110,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
      procedure   FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
      function    FDB_GetAllCollsNames          :TFRE_DB_NameTypeArray;
+     function    FDB_TryGetIndexStream         (const collname : TFRE_DB_NameType ; const ix_name : TFRE_DB_Nametype ; out stream : TStream):boolean;
      procedure   FDB_PrepareDBRestore          (const phase:integer);     { used for various preparations and checks }
      procedure   FDB_SendObject                (const obj:IFRE_DB_Object);
      procedure   FDB_SendCollection            (const obj:IFRE_DB_Object);
@@ -214,10 +168,13 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    GetNotificationRecordIF             : IFRE_DB_DBChangedNotification;
 
      { Collection Interface }
-     function    CollectionExistCollection           (const coll_name : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
-     function    CollectionNewCollection             (const coll_name : TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
-     function    CollectionDeleteCollection          (const coll_name : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; // todo transaction context
+     function    CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
+     function    CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+     function    CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; // todo transaction context
      function    CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+     function    CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; out   ix_def : TFRE_DB_INDEX_DEF ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+     function    CollectionDropIndex                 (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+     function    CollectionGetAllIndexNames          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_NameTypeArray;
      function    CollectionExistsInCollection        (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID ; const and_has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
      function    CollectionFetchInCollection         (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
      function    CollectionBulkFetch                 (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
@@ -240,128 +197,6 @@ begin
   l_Persistance_Layer := TFRE_DB_PS_FILE.Create(basedir,'BASE');
   result              := l_Persistance_Layer;
 end;
-
-{ TFRE_DB_ASYNC_DEL_CMD }
-
-constructor TFRE_DB_ASYNC_DEL_CMD.Create(const filename: String);
-begin
-  FFilename := filename;
-end;
-
-procedure TFRE_DB_ASYNC_DEL_CMD.DoOperation;
-begin
-  if not DeleteFile(FFileName) then
-    begin
-      writeln('------------------------>>>>>>>>>>>>> DELETE EMERGENCY   ',FFilename);
-      GFRE_DBI.LogEmergency(dblc_PERSISTANCE,'>>DELETE ASYNC [%s] FAILED!',[FFilename]);
-    end
-  else
-    begin
-       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE ASYNC [%s]',[FFilename]);
-    end;
-end;
-
-{ TFRE_DB_ASYNC_WT_THREAD }
-
-procedure TFRE_DB_ASYNC_WT_THREAD.EmptyTheQ;
-var WB : TFRE_DB_ASYNC_CMD;
-begin
-  repeat
-    WB :=TFRE_DB_ASYNC_CMD(Flfq.Pop);
-    if assigned(wb) then
-      begin
-        FOS_IL_DEC_NATIVE(QC);
-        try
-          wb.DoOperation;
-        except
-          on e:Exception do
-            begin
-              GFRE_DBI.LogEmergency(dblc_PERSISTANCE,'>>ASYNC WT OPERATION ASYNC FAILED / [%s]',[WB.ClassName]);
-            end;
-        end;
-        wb.free;
-        Sleep(0);
-      end;
-  until WB=nil;
-end;
-
-constructor TFRE_DB_ASYNC_WT_THREAD.Create;
-begin
-  GFRE_TF.Get_LFQ(Flfq);
-  GFRE_TF.Get_TimedEvent(FWte);
-  Inherited Create(False);
-end;
-
-destructor TFRE_DB_ASYNC_WT_THREAD.Destroy;
-begin
-  EmptyTheQ;
-  Flfq.Finalize;
-  FwTe.Finalize;
-  inherited Destroy;
-end;
-
-procedure TFRE_DB_ASYNC_WT_THREAD.Execute;
-begin
-  try
-    while not Terminated do
-      begin
-        FWte.WaitFor(1000);
-        EmptyTheQ;
-      end;
-  except
-    on e:exception do
-    begin
-    end;
-  end;
-end;
-
-procedure TFRE_DB_ASYNC_WT_THREAD.PushWrite(const wb: TFRE_DB_ASYNC_CMD);
-begin
-  FOS_IL_INC_NATIVE(QC);
-  Flfq.Push(wb);
-  FWte.SetEvent;
-end;
-
-procedure TFRE_DB_ASYNC_WT_THREAD.Terminate;
-begin
-  inherited Terminate;
-end;
-
-{ TFRE_DB_ASYNC_WRITE_BLOCK }
-
-constructor TFRE_DB_ASYNC_WRITE_BLOCK.Create(const filename: String);
-begin
-  FFilename := filename;
-  m         := TMemoryStream.Create;
-end;
-
-function TFRE_DB_ASYNC_WRITE_BLOCK.Stream: TMemoryStream;
-begin
-  result := m;
-end;
-
-procedure TFRE_DB_ASYNC_WRITE_BLOCK.DoOperation;
-var msg : string;
-begin
-     try
-       m.SaveToFile(FFilename);
-       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE ASYNC : '+FFilename+' DONE');
-     except on e:exception do
-       begin
-         writeln('----------------------------------------->>>>> EXC - ASYNC WRITE ',FFilename,' ',e.Message);
-         msg := '<<STORE ASYNC : '+FFilename+' FAILED -> NOT DONE (!!!) '+e.Message;
-         GFRE_DBI.LogError(dblc_PERSISTANCE,msg);
-         GFRE_DBI.LogEmergency(dblc_PERSISTANCE,msg);
-       end;
-     end;
-end;
-
-destructor TFRE_DB_ASYNC_WRITE_BLOCK.Destroy;
-begin
-  m.Free;
-  inherited Destroy;
-end;
-
 
 procedure TFRE_DB_PS_FILE._ConnectCheck;
 begin
@@ -428,21 +263,61 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
     procedure _BuildCollections;
 
       procedure add_collection(file_name:AnsiString);
-      var f    : TFileStream;
-          res  : TFRE_DB_Errortype;
-          coll : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
-          name : TFRE_DB_NameType;
+      var f     : TFileStream;
+          res   : TFRE_DB_Errortype;
+          coll  : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
+          name  : TFRE_DB_String;
+          ename : TFRE_DB_String;
+          ext   : TFRE_DB_String;
+
+          procedure LoadCollection;
+          begin
+            GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD COLLECTION [%s]',[name]);
+            f :=  TFileStream.Create(FCollectionsDir+file_name,fmOpenRead);
+            try
+              res := FMaster.MasterColls.NewCollection(name,coll,false,self);
+              if res <> edb_OK then
+                raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
+              coll.GetPersLayerIntf.LoadFromThis(f);
+            finally
+              f.free;
+            end;
+          end;
+
+          procedure LoadIndexDef;
+          var obj : IFRE_DB_Object;
+              fni : TFRE_DB_String;
+          begin
+            fni := FCollectionsDir+DirectorySeparator+ename+'.idd';
+            if FileExists(fni) then
+              begin
+                GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD IDX DEF COLLECTION [%s - %s]',[name,name+'.idd']);
+                obj := GFRE_DBI.CreateFromFile(fni);
+                try
+                  coll.GetPersLayerIntf.CreateIndexDefsFromObj(obj);
+                finally
+                  obj.Finalize;
+                end;
+              end;
+          end;
+
       begin
-        name := GFRE_BT.HexStr2Str(Copy(file_name,1,Length(file_name)-4));
-        GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD COLLECTION [%s]',[name]);
-        f :=  TFileStream.Create(FCollectionsDir+file_name,fmOpenRead);
-        try
-          res := FMaster.MasterColls.NewCollection(name,coll,false,self);
-          if res <> edb_OK then
-            raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
-          coll.GetPersLayerIntf.LoadFromThis(f);
-        finally
-          f.free;
+        ext   := uppercase(GFRE_BT.SepRight(file_name,'.'));
+        ename := GFRE_BT.SepLeft(file_name,'.');
+        name  := GFRE_BT.HexStr2Str(ename);
+        case ext of
+          'IDX' : { load after idd load };
+          'IDD' : { load after collectionload };
+          'COL' :
+            begin
+              LoadCollection;
+              LoadIndexDef;
+            end;
+          else
+            begin
+              GFRE_DBI.LogError(dblc_PERSISTANCE,'>> COLLECTIONLOAD / IGNORE INVALID EXTENSION FILE [%s]',[file_name]);
+              writeln('>> COLLECTIONLOAD / IGNORE INVALID EXTENSION FILE ',file_name);
+            end;
         end;
       end;
 
@@ -592,25 +467,36 @@ begin
 end;
 
 procedure TFRE_DB_PS_FILE._StoreCollectionPersistent(const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE; const no_storelocking: boolean);
-var f  : TFileStream;
-    m  : TFRE_DB_ASYNC_WRITE_BLOCK;
-    fn : string;
+var f   : TFileStream;
+    fnb : string;
+    ixo : IFRE_DB_Object;
+    nta : TFRE_DB_NameTypeArray;
+    i   : NativeInt;
 begin
   if not coll.IsVolatile then
     begin
-      fn := FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false))+'.col';
-      if GDBPS_TRANS_WRITE_ASYNC then
+      fnb := FCollectionsDir+GFRE_BT.Str2HexStr(coll.CollectionName(false));
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
+      f :=  TFileStream.Create(fnb+'.col',fmCreate+fmOpenReadWrite);
+      try
+        coll.GetPersLayerIntf.StreamToThis(f);
+      finally
+        f.free;
+      end;
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION IDD [%s]',[coll.CollectionName]);
+      try
+        ixo := coll.GetPersLayerIntf.GetIndexDefObject;
+        ixo.SaveToFile(fnb+'.idd');
+      finally
+        ixo.Finalize;
+      end;
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION IDX [%s]',[coll.CollectionName]);
+      nta := coll.GetPersLayerIntf.IndexNames;
+      for i:=0 to high(nta) do
         begin
-          m :=  TFRE_DB_ASYNC_WRITE_BLOCK.Create(fn);
-          coll.GetPersLayerIntf.StreamToThis(m.Stream);
-          GAsyncWT.PushWrite(m);
-        end
-      else
-        begin
-          GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
-          f :=  TFileStream.Create(fn,fmCreate+fmOpenReadWrite);
+          f :=  TFileStream.Create(fnb+'-'+GFRE_BT.Str2HexStr(nta[i])+'.idx',fmCreate+fmOpenReadWrite);
           try
-            coll.GetPersLayerIntf.StreamToThis(f);
+            coll.GetPersLayerIntf.StreamIndexToThis(nta[i],f);
           finally
             f.free;
           end;
@@ -620,9 +506,7 @@ end;
 
 procedure TFRE_DB_PS_FILE._StoreObjectPersistent(const obj: TFRE_DB_Object; const no_storelocking: boolean);
 var  FileName : string;
-     m        : TMemoryStream;
-     w        : TFRE_DB_ASYNC_WRITE_BLOCK;
-
+     //m        : TMemoryStream;
 begin
   if obj.IsVolatile then
     exit;
@@ -636,25 +520,16 @@ begin
       try
         obj._InternalGuidNullCheck;
         filename    := FMasterCollDir+GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
-        if GDBPS_TRANS_WRITE_ASYNC then
-          begin
-            w := TFRE_DB_ASYNC_WRITE_BLOCK.Create(FileName);
-            w.Stream.Size:=obj.NeededSize;
-            obj.CopyToMemory(w.Stream.Memory);
-            GAsyncWT.PushWrite(w);
-          end
-        else
-          begin
-            m:=TMemoryStream.Create;
-            try
-              m.Size:=obj.NeededSize;
-              obj.CopyToMemory(m.Memory);
-              m.SaveToFile(filename);
-            finally
-              m.free;
-            end;
-            GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
-          end;
+        obj.SaveToFile(FileName);
+        //m:=TMemoryStream.Create;
+        //try
+        //  m.Size:=obj.NeededSize;
+        //  obj.CopyToMemory(m.Memory);
+        //  m.SaveToFile(filename);
+        //finally
+        //  m.free;
+        //end;
+        GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
       finally
         if not no_storelocking then
           begin
@@ -681,31 +556,19 @@ begin
 end;
 
 procedure TFRE_DB_PS_FILE.WT_DeleteCollectionPersistent(const collname: TFRE_DB_NameType);
-var wd : TFRE_DB_ASYNC_DEL_CMD;
-    fn : String;
+var fn : String;
 begin
-  //if not coll.IsVolatile then
-    //begin
-      fn := FCollectionsDir+GFRE_BT.Str2HexStr(collname)+'.col';
-      if GDBPS_TRANS_WRITE_ASYNC then
-        begin
-          wd := TFRE_DB_ASYNC_DEL_CMD.Create(fn);
-          GAsyncWT.PushWrite(wd);
-        end
-      else
-        begin
-          if FileExists(fn) then
-            begin
-              GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[collname]);
-              if not DeleteFile(fn) then
-                raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+collname);
-            end
-          else
-            begin
-              GFRE_DBI.LogError(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s] FAILED / FILE NOT FOUND (%s)',[collname,fn]);
-            end;
-        end;
-    //end;
+  fn := FCollectionsDir+GFRE_BT.Str2HexStr(collname)+'.col';
+  if FileExists(fn) then
+    begin
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s]',[collname]);
+      if not DeleteFile(fn) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete collection '+collname);
+    end
+  else
+    begin
+      GFRE_DBI.LogError(dblc_PERSISTANCE,'>>DELETE COLLECTION [%s] FAILED / FILE NOT FOUND (%s)',[collname,fn]);
+    end;
 end;
 
 procedure TFRE_DB_PS_FILE.WT_StoreObjectPersistent(const obj: IFRE_DB_Object ; const no_store_locking : boolean=true);
@@ -717,24 +580,14 @@ procedure TFRE_DB_PS_FILE.WT_DeleteObjectPersistent(const iobj: IFRE_DB_Object);
 var  FileName : shortstring;
      m        : TMemoryStream;
      obj      : TFRE_DB_Object;
-     wd       : TFRE_DB_ASYNC_DEL_CMD;
-
 begin
   if iobj.IsObjectRoot then
     begin
       obj := iobj.Implementor as TFRE_DB_Object;
       filename    := FMasterCollDir+GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
-      if GDBPS_TRANS_WRITE_ASYNC then
-        begin
-          wd := TFRE_DB_ASYNC_DEL_CMD.Create(FileName);
-          GAsyncWT.PushWrite(wd);
-        end
-      else
-        begin
-          if not DeleteFile(FileName) then
-            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete file '+FileName);
-          GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<FINAL DELETE  OBJECT : '+obj.UID_String+' DONE');
-        end;
+      if not DeleteFile(FileName) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete file '+FileName);
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<FINAL DELETE  OBJECT : '+obj.UID_String+' DONE');
     end;
 end;
 
@@ -828,6 +681,21 @@ begin
   SetLength(Result,cnt);
 end;
 
+function TFRE_DB_PS_FILE.FDB_TryGetIndexStream(const collname: TFRE_DB_NameType; const ix_name: TFRE_DB_Nametype; out stream: TStream): boolean;
+var fn : string;
+begin
+  fn := GFRE_BT.Str2HexStr(collname)+'-'+GFRE_BT.Str2HexStr(ix_name)+'.idx';
+  result := false;
+  if FileExists(FCollectionsDir+fn) then
+    begin
+      try
+        stream := TFileStream.Create(FCollectionsDir+fn,fmOpenRead);
+        result := true;
+      except
+      end;
+    end;
+end;
+
 procedure TFRE_DB_PS_FILE.FDB_PrepareDBRestore(const phase: integer);
 var result : TFRE_DB_Errortype;
 begin
@@ -898,7 +766,6 @@ begin
       GFRE_DBI.LogNotice(dblc_PERSISTANCE,'<<SKIPPING SYNC OF DB [%s] / WRITE THROUGH MODE',[FConnectedDB]);
       exit;
     end;
-
   FMaster.MasterColls.ForAllCollections(@WriteColls);
   FMaster.ForAllObjectsInternal(true,false,@StoreObjects);
   if assigned(FWalStream) then
@@ -1123,8 +990,6 @@ begin
 
   FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(FConnectedDB);
   FDontFinalizeNotif    := false;
-  if GDBPS_TRANS_WRITE_ASYNC then
-    GAsyncWT := TFRE_DB_ASYNC_WT_THREAD.Create;
   if FileExists(FBasedirectory+DirectorySeparator+'transaction') then
     begin
       GSTRING := GFRE_BT.StringFromFile(FBasedirectory+DirectorySeparator+'transaction');
@@ -1143,18 +1008,8 @@ var
 begin
   if FIsGlobalLayer then
     begin
-      if GDBPS_TRANS_WRITE_ASYNC then
-        begin
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'>> TERMINATING ASYNC WT WAIT');
-          GAsyncWT.Terminate;
-          GAsyncWT.WaitFor;
-          GAsyncWT.Free;
-          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'>> TERMINATING ASYNC WT DONE');
-        end;
       for i:=0 to high(FConnectedLayers) do
-        begin
-          FConnectedLayers[i].Free;
-        end;
+        FConnectedLayers[i].Free;
       G_GlobalLayerLock.Finalize;
     end
   else
@@ -1946,6 +1801,58 @@ begin
         begin
           G_Transaction.Free;
           G_Transaction := nil;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.CollectionGetIndexDefinition(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; out ix_def: TFRE_DB_INDEX_DEF; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+begin
+
+end;
+
+function TFRE_DB_PS_FILE.CollectionDropIndex(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+begin
+
+end;
+
+function TFRE_DB_PS_FILE.CollectionGetAllIndexNames(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_NameTypeArray;
+var collection : TFRE_DB_PERSISTANCE_COLLECTION;
+    ut         : TFRE_DB_USER_RIGHT_TOKEN;
+    obj        : TFRE_DB_Object;
+    res        : boolean;
+begin
+  E_FOS_TestNosey;
+  LayerLock.Acquire;
+  try
+    try
+      Res := FMaster.MasterColls.GetCollectionInt(coll_name,Collection);
+      if not Res then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
+      result := collection.IndexNames;
+    except
+      on e:EFRE_DB_PL_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
+          raise;
+        end;
+      on e:EFRE_DB_Exception do
+        begin
+          FLastErrorCode := E.ErrorType;
+          FLastError     := E.Message;
+          GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
+          raise;
+        end;
+      on e:Exception do
+        begin
+          FLastErrorCode := edb_INTERNAL;
+          FLastError     := E.Message;
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
+          raise;
         end;
     end;
   finally

@@ -114,6 +114,7 @@ type
     function        GetIndexDefinitionObject          : IFRE_DB_Object ;virtual ;
     procedure       LoadIndex                         (const stream: TStream ; const coll : TFRE_DB_PERSISTANCE_COLLECTION_BASE);virtual;
     class function  CreateFromStream                  (const stream: TStream ; const coll : TFRE_DB_PERSISTANCE_COLLECTION_BASE):TFRE_DB_MM_Index;
+    class function  CreateFromDef                     (const def   : TFRE_DB_INDEX_DEF ; const coll : TFRE_DB_PERSISTANCE_COLLECTION_BASE):TFRE_DB_MM_Index;
     class procedure InitializeNullKey                 ; virtual ; abstract;
     function       _IndexIsFullUniqe                 : Boolean;
     function       _GetIndexStringSpec               : String;
@@ -141,6 +142,8 @@ type
     function    IndexTypeTxt                         : String;
     function    IndexedCount                         (const unique_values : boolean): NativeInt;
     function    IndexIsFullyUnique                   : Boolean;
+    procedure   FullClearIndex                       ;
+    procedure   FullReindex                          ;
   end;
 
 
@@ -297,17 +300,22 @@ type
     procedure     GetAllObjectsRC              (var objs : IFRE_DB_ObjectArray ; const user_context: PFRE_DB_GUID);
 
     function      IndexExists                  (const idx_name : TFRE_DB_NameType):NativeInt;
+    function      IndexNames                   : TFRE_DB_NameTypeArray;
     function      CloneOutObject               (const inobj:TFRE_DB_Object):TFRE_DB_Object;
     function      CloneOutArray                (const objarr : TFRE_DB_GUIDArray):TFRE_DB_ObjectArray;
     function      CloneOutArrayOI              (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
     function      CloneOutArrayII              (const objarr : IFRE_DB_ObjectArray):IFRE_DB_ObjectArray;
 
     {< Do all streaming changes for this section }
-    procedure     StreamToThis       (const stream : TStream);
-    procedure     LoadFromThis       (const stream : TStream);
-    function      BackupToObject     : IFRE_DB_Object;
-    procedure     RestoreFromObject  (const obj:IFRE_DB_Object);
+    procedure     StreamToThis           (const stream : TStream);
+    procedure     StreamIndexToThis      (const ix_name : TFRE_DB_NameType ; const stream : TStream);
+    function      GetIndexDefObject      : IFRE_DB_Object;
+    procedure     CreateIndexDefsFromObj (const obj     : IFRE_DB_Object);
+    procedure     LoadFromThis           (const stream  : TStream);
+    function      BackupToObject         : IFRE_DB_Object;
+    procedure     RestoreFromObject      (const obj:IFRE_DB_Object);
     { Do all streaming changes for this section >}
+
     function    CollectionName     (const unique:boolean):TFRE_DB_NameType; override ;
 
     function    GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER; override;
@@ -335,19 +343,6 @@ type
     procedure   ForAllInternalI       (const iter : IFRE_DB_Obj_Iterator);
     procedure   ForAllInternal        (const iter : TFRE_DB_Obj_Iterator);
     procedure   ForAllInternalBreak   (const iter: TFRE_DB_ObjectIteratorBrk; var halt: boolean; const descending: boolean);
-
-
-    //function    First              : IFRE_DB_Object;
-    //function    Last               : IFRE_DB_Object;
-    //function    GetItem            (const num:uint64) : IFRE_DB_Object;
-
-    //procedure   ForAllIndexed              (var guids : TFRE_DB_GUIDArray ; const index_name:TFRE_DB_NameType='def'; const ascending:boolean=true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    //procedure   ForAllIndexedSignedRange   (const min_value,max_value : int64          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    //procedure   ForAllIndexedUnsignedRange (const min_value,max_value : QWord          ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    //procedure   ForAllIndexedRealRange     (const min_value,max_value : Double         ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    //procedure   ForAllIndexedStringRange   (const min_value,max_value : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const min_is_null : boolean = false ; const max_is_max : boolean = false ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-    //procedure   ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; var   guids    : TFRE_DB_GUIDArray ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
-
     procedure   CheckFieldChangeAgainstIndex (const oldfield,newfield : TFRE_DB_FIELD ; const change_type : TFRE_DB_ObjCompareEventType ; const check : boolean ; old_obj,new_obj : TFRE_DB_Object);
   end;
 
@@ -4631,14 +4626,8 @@ begin
 end;
 
 destructor TFRE_DB_MM_Index.Destroy;
-
-  procedure ClearIndex(var dummy : NativeUint);
-  begin
-    TFRE_DB_IndexValueStore(FREDB_PtrUIntToObject(dummy)).free;
-  end;
-
 begin
-  FIndex.LinearScan(@ClearIndex);
+  FullClearIndex;
   FIndex.Free;
 end;
 
@@ -4823,6 +4812,34 @@ end;
 function TFRE_DB_MM_Index.IndexIsFullyUnique: Boolean;
 begin
   result := _IndexIsFullUniqe;
+end;
+
+procedure TFRE_DB_MM_Index.FullClearIndex;
+
+  procedure ClearIndex(var dummy : NativeUint);
+  begin
+    TFRE_DB_IndexValueStore(FREDB_PtrUIntToObject(dummy)).free;
+  end;
+
+begin
+  FIndex.LinearScan(@ClearIndex);
+end;
+
+procedure TFRE_DB_MM_Index.FullReindex;
+
+  procedure Add(const obj : TFRE_DB_Object);
+  begin
+    obj.Set_Store_Locked(false);
+    try
+      IndexAddCheck(obj,false);
+    finally
+      obj.Set_Store_Locked(true);
+    end;
+  end;
+
+begin
+  FullClearIndex;
+  (FCollection as TFRE_DB_Persistance_Collection).ForAllInternal(@Add);
 end;
 
 procedure TFRE_DB_MM_Index._InternalCheckAdd(const key: PByte; const keylen: Nativeint; const isNullVal, isUpdate: Boolean; const obj_uid: TGUID);
@@ -5081,6 +5098,18 @@ begin
   end;
 end;
 
+class function TFRE_DB_MM_Index.CreateFromDef(const def: TFRE_DB_INDEX_DEF; const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE): TFRE_DB_MM_Index;
+begin
+  with def do
+    case IndexClass of
+      'TFRE_DB_TextIndex'     : result := TFRE_DB_TextIndex.Create    (IndexName,FieldName,FieldType,Unique,IgnoreCase,coll,AllowNulls,UniqueNull);
+      'TFRE_DB_SignedIndex'   : result := TFRE_DB_SignedIndex.Create  (IndexName,FieldName,FieldType,Unique           ,coll,AllowNulls,UniqueNull);
+      'TFRE_DB_UnsignedIndex' : result := TFRE_DB_UnsignedIndex.Create(IndexName,FieldName,FieldType,Unique           ,coll,AllowNulls,UniqueNull);
+      else
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'Unsupported streaming index class [%s]',[IndexClass]);
+    end;
+end;
+
 function TFRE_DB_MM_Index._IndexIsFullUniqe: Boolean;
 begin
   result := (FUnique=true) and ((FUniqueNullVals=true) or (FAllowNull=false));
@@ -5269,6 +5298,14 @@ begin
   for i := 0 to high(FIndexStore) do
     if FIndexStore[i].Uniquename^=FUniqueName then
       exit(i);
+end;
+
+function TFRE_DB_Persistance_Collection.IndexNames: TFRE_DB_NameTypeArray;
+var  i : Integer;
+begin
+  SetLength(result,Length(FIndexStore));
+  for i := 0 to high(FIndexStore) do
+    result[i] := FIndexStore[i].Indexname;
 end;
 
 procedure TFRE_DB_Persistance_Collection.AddIndex(const idx: TFRE_DB_MM_Index);
@@ -5604,9 +5641,71 @@ begin
   stream.WriteQWord(cnt);
   FGuidObjStore.LinearScanKeyVals(@AllGuids);
   assert(vcnt=cnt);
-  stream.WriteQWord(length(FIndexStore));
+  //stream.WriteQWord(length(FIndexStore));
+  //for i:=0 to high(FIndexStore) do
+  //  FIndexStore[i].StreamToThis(stream);
+  stream.WriteQWord(0); { index stream is not in the collection stream anymore }
+end;
+
+procedure TFRE_DB_Persistance_Collection.StreamIndexToThis(const ix_name: TFRE_DB_NameType; const stream: TStream);
+var ix : NativeInt;
+begin
+  ix :=IndexExists(ix_name);
+  if ix=-1 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not fetch index by name [%s]',[ix_name]);
+  FIndexStore[ix].StreamToThis(stream);
+end;
+
+function TFRE_DB_Persistance_Collection.GetIndexDefObject: IFRE_DB_Object;
+var obj : IFRE_DB_Object;
+    i   : NativeInt;
+begin
+  obj := GFRE_DBI.NewObject;
+  obj.Field('IndexNames').AsStringArr := FREDB_NametypeArray2StringArray(IndexNames);
   for i:=0 to high(FIndexStore) do
-    FIndexStore[i].StreamToThis(stream);
+    obj.Field('ID_'+FIndexStore[i].Uniquename^).AsObject := FIndexStore[i].GetIndexDefinitionObject;
+  result := obj;
+end;
+
+procedure TFRE_DB_Persistance_Collection.CreateIndexDefsFromObj(const obj: IFRE_DB_Object);
+var ido    : IFRE_DB_Object;
+    stream : TStream;
+    loaded : boolean;
+    ixdef  : TFRE_DB_INDEX_DEF_ARRAY;
+    i      : NativeInt;
+
+begin
+  if Length(FIndexStore)<>0 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'index definitions could only be created on an empty index store(!)');
+  ixdef := FREDB_CreateIndexDefArrayFromObject(obj);
+  SetLength(FIndexStore,Length(ixdef));
+  for i:=0 to high(ixdef) do
+    begin
+      loaded := false;
+      if FLayer.FDB_TryGetIndexStream(CollectionName(false),ixdef[i].IndexName,stream) then
+        begin
+          try
+            GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD STREAM FOR DEF [%s]',[ixdef[i].IndexDescription]);
+            FIndexStore[i] := TFRE_DB_MM_Index.CreateFromStream(stream,self);
+            loaded := true;
+            stream.Free;
+          except
+            on e:Exception do
+              begin
+                 GFRE_DBI.LogError(dblc_PERSISTANCE,'FAILURE LOADING INDEX STREAM [%s/%s] (%s)',[CollectionName(false),ixdef[i].IndexName,e.Message]);
+                 loaded := false;
+              end;
+          end;
+        end;
+      if not loaded then
+        begin
+          GFRE_DBI.LogError(dblc_PERSISTANCE,'COULD NOT LOAD INDEX STREAM FOR [%s/%s]',[CollectionName(false),ixdef[i].IndexName]);
+          FIndexStore[i] := TFRE_DB_MM_Index.CreateFromDef(ixdef[i],self);
+          GFRE_DBI.LogWarning(dblc_PERSISTANCE,'REINDEXING [%s] (%s)',[CollectionName(false),ixdef[i].IndexDescription]);
+          FIndexStore[i].FullReindex;
+          GFRE_DBI.LogWarning(dblc_PERSISTANCE,'REINDEXING [%s/%s] DONE',[CollectionName(false),ixdef[i].IndexName]);
+        end;
+    end;
 end;
 
 procedure TFRE_DB_Persistance_Collection.LoadFromThis(const stream: TStream);
@@ -5642,7 +5741,12 @@ begin
   cnt := stream.ReadQWord;
   SetLength(FIndexStore,cnt);
   for i := 0 to high(FIndexStore) do
-    FIndexStore[i] := TFRE_DB_MM_Index.CreateFromStream(stream,self);
+    begin
+      FIndexStore[i] := TFRE_DB_MM_Index.CreateFromStream(stream,self);
+      writeln('>>> WARNING');
+      writeln('>>>   LOADING OLD FORMAT / INPLACE INDEX STREAM >>',FIndexStore[i].Indexname,'<<');
+      writeln('>>> WARNING');
+    end;
 end;
 
 function TFRE_DB_Persistance_Collection.BackupToObject: IFRE_DB_Object;
@@ -5673,10 +5777,8 @@ begin
   obj.Field('ObjectUids').AsGUIDArr := arr;
   obj.Field('IndexCount').AsInt32   := length(FIndexStore);
   for i:=0 to high(FIndexStore) do
-    begin
-      FIndexStore[i].StreamToThis(obj.Field('Index_'+inttostr(i)).AsStream);
-      obj.Field('IndexDef_'+inttostr(i)).AsObject := FIndexStore[i].GetIndexDefinitionObject;
-    end;
+    FIndexStore[i].StreamToThis(obj.Field('Index_'+inttostr(i)).AsStream);
+  obj.Field('Indexes').AsObject := GetIndexDefObject;
   result := obj;
 end;
 
@@ -5730,60 +5832,6 @@ begin
   else
     iobj := nil;
 end;
-
-//function TFRE_DB_Persistance_Collection.First: IFRE_DB_Object;
-//var obj : TFRE_DB_Object;
-//
-//  procedure SetIt(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
-//  begin
-//    obj := TFRE_DB_Object(value);
-//  end;
-//
-//begin
-// result := nil;
-// obj    := nil;
-// FGuidObjStore.FirstKeyVal(@SetIt);
-// if assigned(obj) then
-//   result := CloneOutObject(obj)
-// else
-//   result := nil;
-//end;
-//
-//function TFRE_DB_Persistance_Collection.Last: IFRE_DB_Object;
-//var obj : TFRE_DB_Object;
-//
-//  procedure SetIt(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
-//  begin
-//    obj := TFRE_DB_Object(value);
-//  end;
-//
-//begin
-//  result := nil;
-//  obj    := nil;
-//  FGuidObjStore.LastKeyVal(@SetIt);
-//  if assigned(obj) then
-//    result := CloneOutObject(obj)
-//  else
-//    result := nil;
-// end;
-//
-//function TFRE_DB_Persistance_Collection.GetItem(const num: uint64): IFRE_DB_Object;
-//var obj : TFRE_DB_Object;
-//
-//  procedure SetIt(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
-//  begin
-//    obj := TFRE_DB_Object(value);
-//  end;
-//
-//begin
-// result := nil;
-// obj    := nil;
-// FGuidObjStore.ScanItemIdxKeyVal(num,@SetIt);
-// if assigned(obj) then
-//   result := CloneOutObject(obj)
-// else
-//   result := nil;
-//end;
 
 function TFRE_DB_Persistance_Collection.DefineIndexOnFieldReal(const checkonly: boolean; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean): TFRE_DB_Errortype;
 var index    : TFRE_DB_MM_Index;
@@ -6332,125 +6380,6 @@ begin
   objs := CloneOutArrayII(iobjs);
 end;
 
-//procedure TFRE_DB_Persistance_Collection.ForAllIndexed(var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean ; const max_count: NativeInt; skipfirst: NativeInt);
-//var idx   : NativeInt;
-//    index : TFRE_DB_MM_Index;
-//begin
-//  idx := IndexExists(index_name);
-//  if idx=-1 then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
-//  SetLength(guids,0);
-//  index := FIndexStore[idx];
-//  index.AppendAllIndexedUids(guids,ascending,max_count,skipfirst);
-//end;
-//
-//procedure TFRE_DB_Persistance_Collection.ForAllIndexedSignedRange(const min_value, max_value: int64; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-//var idx   : NativeInt;
-//    index : TFRE_DB_MM_Index;
-//begin
-//  idx := IndexExists(index_name);
-//  if idx=-1 then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
-//  index := FIndexStore[idx];
-//  if not (index is TFRE_DB_SignedIndex) then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an signed query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
-//  TFRE_DB_SignedIndex(index).ForAllIndexedSignedRange(min_value,max_value,guids,ascending,min_is_null,max_is_max,max_count,skipfirst)
-//end;
-//
-//procedure TFRE_DB_Persistance_Collection.ForAllIndexedUnsignedRange(const min_value, max_value: QWord; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-//var idx   : NativeInt;
-//    index : TFRE_DB_MM_Index;
-//begin
-//  idx := IndexExists(index_name);
-//  if idx=-1 then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
-//  index := FIndexStore[idx];
-//  if not (index is TFRE_DB_UnsignedIndex) then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an unsigned query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
-//  TFRE_DB_UnsignedIndex(index).ForAllIndexedUnsignedRange(min_value,max_value,guids,ascending,min_is_null,max_is_max,max_count,skipfirst)
-//end;
-//
-//procedure TFRE_DB_Persistance_Collection.ForAllIndexedRealRange(const min_value, max_value: Double; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-//var idx   : NativeInt;
-//    index : TFRE_DB_MM_Index;
-//begin
-//  idx := IndexExists(index_name);
-//  if idx=-1 then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
-//  index := FIndexStore[idx];
-//  if not (index is TFRE_DB_RealIndex) then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an real query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
-//  TFRE_DB_RealIndex(index).ForAllIndexedRealRange(min_value,max_value,guids,ascending,min_is_null,max_is_max,max_count,skipfirst)
-//end;
-//
-//procedure TFRE_DB_Persistance_Collection.ForAllIndexedStringRange(const min_value, max_value: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const min_is_null: boolean; const max_is_max: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-//var idx   : NativeInt;
-//    index : TFRE_DB_MM_Index;
-//begin
-//  idx := IndexExists(index_name);
-//  if idx=-1 then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
-//  index := FIndexStore[idx];
-//  if not (index is TFRE_DB_TextIndex) then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an text query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
-//  TFRE_DB_TextIndex(index).ForAllIndexedTextRange(min_value,max_value,guids,ascending,min_is_null,max_is_max,max_count,skipfirst)
-//end;
-//
-//procedure TFRE_DB_Persistance_Collection.ForAllIndexPrefixString(const prefix: TFRE_DB_String; var guids: TFRE_DB_GUIDArray; const index_name: TFRE_DB_NameType; const ascending: boolean; const max_count: NativeInt; skipfirst: NativeInt);
-//var idx   : NativeInt;
-//    index : TFRE_DB_MM_Index;
-//begin
-//  idx := IndexExists(index_name);
-//  if idx=-1 then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] does not exist on collection [%s]',[index_name,FName]);
-//  index := FIndexStore[idx];
-//  if not (index is TFRE_DB_TextIndex) then
-//    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'the requested index named [%s] cannot be used for an text query, it is a [%s] index type on collection [%s]',[index_name,index.IndexTypeTxt,FName]);
-//  TFRE_DB_TextIndex(index).ForAllIndexPrefixString(prefix,guids,index_name,ascending,max_count,skipfirst);
-//end;
-
-//function TFRE_DB_Persistance_Collection.RemoveIndexedString(const query_value: TFRE_DB_String; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-//var uids :TFRE_DB_GUIDArray;
-//      u  :TFRE_DB_GUID;
-//begin
-//  result := GetIndexedUID(query_value,uids,index_name,false,val_is_null);
-//  if result then
-//    begin
-//      for u in uids do
-//        CheckDbResult(Remove(u));
-//      exit(true);
-//    end;
-//  exit;
-//end;
-//
-//
-//function TFRE_DB_Persistance_Collection.RemoveIndexedUnsigned(const query_value: QWord; const index_name: TFRE_DB_NameType ; const val_is_null : boolean = false): boolean;
-//var uids :TFRE_DB_GUIDArray;
-//      u  :TFRE_DB_GUID;
-//begin
-//  result := GetIndexedUIDUnsigned(query_value,uids,index_name,false,val_is_null);
-//  if result then
-//    begin
-//      for u in uids do
-//        CheckDbResult(Remove(u));
-//      exit(true);
-//    end;
-//  exit;
-//end;
-//
-//function TFRE_DB_Persistance_Collection.RemoveIndexedReal(const query_value: Double; const index_name: TFRE_DB_NameType; const val_is_null: boolean): boolean;
-//var uids :TFRE_DB_GUIDArray;
-//      u  :TFRE_DB_GUID;
-//begin
-//  result := GetIndexedUIDReal(query_value,uids,index_name,false,val_is_null);
-//  if result then
-//    begin
-//      for u in uids do
-//        CheckDbResult(Remove(u));
-//      exit(true);
-//    end;
-//  exit;
-//end;
 
 function TFRE_DB_Persistance_Collection.UniqueName: PFRE_DB_NameType;
 begin
