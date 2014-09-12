@@ -118,9 +118,11 @@ type
  procedure  FOS_N_LockEnterSpin (var N_LOCK:TFOS_NATIVE_LOCK;out   N_LOCK_KEY:NativeUint);
 
 implementation
-{$IFDEF CPU64}
+{.$IFDEF CPU64}
 uses FOS_LOCKING;
-{$ENDIF}
+{.$ENDIF}
+
+var LOCK:TFOS_LOCK;
 
 function FOS_IL_CAS_NATIVE(var Destination: NativeUInt; Comparand, Exchange: NativeUInt):boolean;
 begin
@@ -314,114 +316,164 @@ end;
 {$ENDIF}
 
 {$IFDEF CPU32}
-function  FOS_IL_Exchange64(var Target: Int64; Value: Int64): Int64; assembler;
-asm
-{     ->          EAX     Target }
-{                 ESP+4   Value  }
-{     <-          EDX:EAX Result }
-          PUSH    EDI
-          PUSH    EBX
+  {$IFDEF CPUARM}
+  function  FOS_IL_Exchange64(var Target: Int64; Value: Int64): Int64;
+  begin
+    abort;
+  end;
 
-          MOV     EDI, EAX
+  {$ELSE}
+  function  FOS_IL_Exchange64(var Target: Int64; Value: Int64): Int64; assembler;
+  asm
+  {     ->          EAX     Target }
+  {                 ESP+4   Value  }
+  {     <-          EDX:EAX Result }
+            PUSH    EDI
+            PUSH    EBX
 
-          MOV     EBX, DWORD PTR [Value]
-          MOV     ECX, DWORD PTR [Value+4]
+            MOV     EDI, EAX
 
-          MOV     EAX, [EDI]
-          MOV     EDX, [EDI+4]
-@@1:
-LOCK      CMPXCHG8B [EDI]
-          JNZ     @@1
-          POP     EBX
-          POP     EDI
-end;
+            MOV     EBX, DWORD PTR [Value]
+            MOV     ECX, DWORD PTR [Value+4]
+
+            MOV     EAX, [EDI]
+            MOV     EDX, [EDI+4]
+  @@1:
+  LOCK      CMPXCHG8B [EDI]
+            JNZ     @@1
+            POP     EBX
+            POP     EDI
+  end;
+  {$ENDIF}
 {$ENDIF}
 
 {$IFDEF CPU32}
-function  FOS_IL_CompareExchange64(var Destination: Int64; Exchange, Comparand: Int64): Int64; assembler;
-asm
-{     ->          EAX     Destination }
-{                 ESP+4   Exchange    }
-{                 ESP+12  Comparand   }
-{     <-          EDX:EAX Result      }
-          PUSH    EBX
-          PUSH    EDI
+  {$IFDEF CPUARM}
+  function  FOS_IL_CompareExchange64(var Destination: Int64; Exchange, Comparand: Int64): Int64;
+  begin
+    if not assigned(lock) then begin
+      lock:=TFOS_LOCK.Create;
+    end;
+    LOCK.Acquire;
+     result := Destination;
+     if Destination=Comparand then
+       begin
+         Destination := Exchange;
+       end;
+    LOCK.Release;
+  end;
+  {$ELSE}
+  function  FOS_IL_CompareExchange64(var Destination: Int64; Exchange, Comparand: Int64): Int64; assembler;
+    asm
+    {     ->          EAX     Destination }
+    {                 ESP+4   Exchange    }
+    {                 ESP+12  Comparand   }
+    {     <-          EDX:EAX Result      }
+              PUSH    EBX
+              PUSH    EDI
 
-          MOV     EDI, EAX
+              MOV     EDI, EAX
 
-          MOV     EBX, DWORD PTR [Exchange]
-          MOV     ECX, DWORD PTR [Exchange+4]
+              MOV     EBX, DWORD PTR [Exchange]
+              MOV     ECX, DWORD PTR [Exchange+4]
 
-          MOV     EAX, DWORD PTR [Comparand]
-          MOV     EDX, DWORD PTR [Comparand+4]
+              MOV     EAX, DWORD PTR [Comparand]
+              MOV     EDX, DWORD PTR [Comparand+4]
 
-LOCK      CMPXCHG8B [EDI]
-          POP     EDI
-          POP     EBX
-end;
+    LOCK      CMPXCHG8B [EDI]
+              POP     EDI
+              POP     EBX
+    end;
+  {$ENDIF}
 {$ENDIF}
 
 
 {$IFDEF CPU32}
-function  FOS_IL_Increment64(var Addend: Int64): Int64;
-asm
-{     ->          EAX     Addend }
-{     <-          EDX:EAX Result }
-          PUSH    EDI
-          PUSH    EBX
+  {$IFDEF CPUARM}
+  function  FOS_IL_Increment64(var Addend: Int64): Int64;
+  begin
+    if not assigned(lock) then begin
+      lock:=TFOS_LOCK.Create;
+    end;
+    LOCK.Acquire;
+    inc(Addend);
+    result := Addend;
+    LOCK.Release;
+  end;
+  {$ELSE}
+  function  FOS_IL_Increment64(var Addend: Int64): Int64;
+  asm
+  {     ->          EAX     Addend }
+  {     <-          EDX:EAX Result }
+            PUSH    EDI
+            PUSH    EBX
 
-          MOV     EDI, EAX
+            MOV     EDI, EAX
 
-          MOV     EAX, [EDI]    // Fetch original Int64 at memory location
-          MOV     EDX, [EDI+4]
-@@1:
-          MOV     ECX, EDX
-          MOV     EBX, EAX
+            MOV     EAX, [EDI]    // Fetch original Int64 at memory location
+            MOV     EDX, [EDI+4]
+  @@1:
+            MOV     ECX, EDX
+            MOV     EBX, EAX
 
-          ADD     EBX, 1
-          ADC     ECX, 0
+            ADD     EBX, 1
+            ADC     ECX, 0
 
-LOCK      CMPXCHG8B [EDI]
-          JNZ     @@1
-          // Returns updated value of Addend
+  LOCK      CMPXCHG8B [EDI]
+            JNZ     @@1
+            // Returns updated value of Addend
 
-          MOV     EAX, EBX
-          MOV     EDX, ECX
+            MOV     EAX, EBX
+            MOV     EDX, ECX
 
-          POP     EBX
-          POP     EDI
-end;
+            POP     EBX
+            POP     EDI
+  end;
+  {$ENDIF}
 {$ENDIF}
 
 {$IFDEF CPU32}
-function  FOS_IL_Decrement64(var Addend: Int64): Int64;
-asm
-{     ->          EAX     Addend }
-{     <-          EDX:EAX Result }
-          PUSH    EDI
-          PUSH    EBX
+  {$IFDEF CPUARM}
+  function  FOS_IL_Decrement64(var Addend: Int64): Int64;
+  begin
+    if not assigned(lock) then begin
+      lock:=TFOS_LOCK.Create;
+    end;
+    LOCK.Acquire;
+    dec(Addend);
+    result := Addend;
+    LOCK.Release;
+  end;
+  {$ELSE}
+  function  FOS_IL_Decrement64(var Addend: Int64): Int64;
+  asm
+  {     ->          EAX     Addend }
+  {     <-          EDX:EAX Result }
+            PUSH    EDI
+            PUSH    EBX
 
-          MOV     EDI, EAX
+            MOV     EDI, EAX
 
-          MOV     EAX, [EDI]    // Fetch original Int64 at memory location
-          MOV     EDX, [EDI+4]
-@@1:
-          MOV     ECX, EDX
-          MOV     EBX, EAX
+            MOV     EAX, [EDI]    // Fetch original Int64 at memory location
+            MOV     EDX, [EDI+4]
+  @@1:
+            MOV     ECX, EDX
+            MOV     EBX, EAX
 
-          SUB     EBX, 1
-          SBB     ECX, 0
+            SUB     EBX, 1
+            SBB     ECX, 0
 
-LOCK      CMPXCHG8B [EDI]
-          JNZ     @@1
-          // Returns updated value of Addend
+  LOCK      CMPXCHG8B [EDI]
+            JNZ     @@1
+            // Returns updated value of Addend
 
-          MOV     EAX, EBX
-          MOV     EDX, ECX
+            MOV     EAX, EBX
+            MOV     EDX, ECX
 
-          POP     EBX
-          POP     EDI
-end;
+            POP     EBX
+            POP     EDI
+  end;
+  {$ENDIF}
 {$ENDIF}
 
 function  FOS_IL_Exchange(var Target: longword; Value: longword): longword;
@@ -453,40 +505,47 @@ end;
 
 
 {$IFDEF CPU32}
-{$WARNINGS OFF}
-function  FOS_IL_ExchangeAdd64(var Addend: Int64; Value: Int64): Int64;
-asm
-{     ->          EAX     Addend }
-{                 ESP+4   Value  }
-{     <-          EDX:EAX Result }
-          PUSH    EDI
-          PUSH    ESI
-          PUSH    EBP
-          PUSH    EBX
+  {$IFDEF CPUARM}
+  function  FOS_IL_ExchangeAdd64(var Addend: Int64; Value: Int64): Int64;
+  begin
+    abort;
+  end;
+  {$ELSE}
+  {$WARNINGS OFF}
+  function  FOS_IL_ExchangeAdd64(var Addend: Int64; Value: Int64): Int64;
+  asm
+  {     ->          EAX     Addend }
+  {                 ESP+4   Value  }
+  {     <-          EDX:EAX Result }
+            PUSH    EDI
+            PUSH    ESI
+            PUSH    EBP
+            PUSH    EBX
 
-          MOV     ESI, DWORD PTR [Value]    // EDI:ESI = Value
-          MOV     EDI, DWORD PTR [Value+4]
-          MOV     EBP, EAX
+            MOV     ESI, DWORD PTR [Value]    // EDI:ESI = Value
+            MOV     EDI, DWORD PTR [Value+4]
+            MOV     EBP, EAX
 
-          MOV     EAX, [EBP]    // EDX:EAX = Addend (fetch original Int64 value)
-          MOV     EDX, [EBP+4]
-@@1:
-          MOV     ECX, EDX      // ECX:EBX = Addend
-          MOV     EBX, EAX
+            MOV     EAX, [EBP]    // EDX:EAX = Addend (fetch original Int64 value)
+            MOV     EDX, [EBP+4]
+  @@1:
+            MOV     ECX, EDX      // ECX:EBX = Addend
+            MOV     EBX, EAX
 
-          ADD     EBX, ESI
-          ADC     ECX, EDI
+            ADD     EBX, ESI
+            ADC     ECX, EDI
 
-LOCK      CMPXCHG8B [EBP]
-          JNZ     @@1
-          // Returns initial value in Addend
+  LOCK      CMPXCHG8B [EBP]
+            JNZ     @@1
+            // Returns initial value in Addend
 
-          POP     EBX
-          POP     EBP
-          POP     ESI
-          POP     EDI
-end;
-{$WARNINGS ON}
+            POP     EBX
+            POP     EBP
+            POP     ESI
+            POP     EDI
+  end;
+  {$WARNINGS ON}
+  {$ENDIF}
 {$ENDIF}
 
 
@@ -506,7 +565,6 @@ begin
 end;
 
 {$IFDEF CPU64}
-var LOCK:TFOS_LOCK;
 
 function  FOS_IL_CAS128(var Destination: Int128Rec;  Comparand,Exchange: Int128Rec): boolean;
 var test:Int128Rec;
@@ -582,10 +640,7 @@ initialization
  assert(testp_c.val=$1122334554332211,'critical architecture problem FOS_IL_CompareExchange64 failed (B)');
 {$ENDIF}
 finalization
- {$IFDEF CPU64}
    if assigned(lock) then
      lock.Finalize;
- {$ENDIF}
-
 
 end.

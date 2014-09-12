@@ -265,10 +265,17 @@ uses
                 {$linklib libevent_openssl_fos32_linux_rel.a}
                 {$linklib libevent_extra_fos32_linux_rel.a}
               {$ELSE}
-                {$linklib libevent_core_fos32_linux_rel-fosdev}
-                {$linklib libevent_pthreads_fos32_linux_rel-fosdev}
-                {$linklib libevent_openssl_fos32_linux_rel-fosdev}
-                {$linklib libevent_extra_fos32_linux_rel-fosdev}
+                {$IFDEF CPUARM}
+                  {$linklib libevent_core_fosarmhf32_linux_rel-fosdev}
+                  {$linklib libevent_pthreads_fosarmhf32_linux_rel-fosdev}
+                  {$linklib libevent_openssl_fosarmhf32_linux_rel-fosdev}
+                  {$linklib libevent_extra_fosarmhf32_linux_rel-fosdev}
+                {$ELSE}
+                  {$linklib libevent_core_fos32_linux_rel-fosdev}
+                  {$linklib libevent_pthreads_fos32_linux_rel-fosdev}
+                  {$linklib libevent_openssl_fos32_linux_rel-fosdev}
+                  {$linklib libevent_extra_fos32_linux_rel-fosdev}
+                {$ENDIF}
               {$ENDIF FOS_LINK_STATIC}
             {$ENDIF}
           {$ENDIF CPU63/32}

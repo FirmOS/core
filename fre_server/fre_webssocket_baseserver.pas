@@ -62,7 +62,12 @@ var cnt:integer=0;
     G_PROXY_ADDRESS : String;
     G_PROXY_PORT    : integer;
 
-
+const
+    {$IFDEF CPUARM}
+      C_USE_LIBEVENT_FILEBUFFER=FALSE;
+    {$ELSE}
+      C_USE_LIBEVENT_FILEBUFFER=TRUE;
+    {$ENDIF}
 type
   TFRE_VNC_DECODE_State         = (fbu_IDLE,fbu_READ_MSG_TYPE,fbu_READ_MSG_FULL,fbu_CheckRectCntFull);
   TFRE_VNC_SUB_DECODE_State     = (fbuss_READ_RECT_DEF,fbuss_READ_RECT,fbuss_DO_CHECK_HEXTILE_COUNT);
@@ -1384,6 +1389,7 @@ end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE.__SendHttpFile(const lfilename: string; const ispartial: boolean; const isAttachment: boolean; const offset: NativeUint; const len: NativeUint ; const accept_range_request : boolean = false);
 var fh : THandle;
+    m  : TMemoryStream;
 
   procedure _OpenFile;
   begin
@@ -1415,7 +1421,18 @@ var fh : THandle;
     _OpenFile;
     SetResponseStatusLine(206,format('Partial Content',[]));
     SetCommonFields(len);
-    FChannel.CH_WriteOpenedFile(fh,offset,len);
+    if C_USE_LIBEVENT_FILEBUFFER then
+      begin
+        FChannel.CH_WriteOpenedFile(fh,offset,len);
+      end
+    else
+      begin
+        FileClose(fh);
+        m:=TMemoryStream.Create;
+        m.LoadFromFile(lfilename);
+        FChannel.CH_WriteBuffer(m.Memory+offset,len);
+        m.free;
+      end;
   end;
 
   procedure _SendFull;
@@ -1432,7 +1449,18 @@ var fh : THandle;
     SetResponseStatusLine(200,format('OK',[]));
     SetETagandLastModified(lfilename,info.st_size,GFRE_DT.DateTimeToDBDateTime64(FileDateToDateTime(info.st_mtime)));
     SetCommonFields(flength);
-    FChannel.CH_WriteOpenedFile(fh,0,flength);
+    if C_USE_LIBEVENT_FILEBUFFER then
+      begin
+       FChannel.CH_WriteOpenedFile(fh,0,flength);
+      end
+    else
+      begin
+        FileClose(fh);
+        m:=TMemoryStream.Create;
+        m.LoadFromFile(lfilename);
+        FChannel.CH_WriteBuffer(m.Memory,m.Size);
+        m.free;
+      end;
   end;
 
 begin

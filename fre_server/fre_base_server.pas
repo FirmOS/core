@@ -361,6 +361,7 @@ var dummy:TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY;
     CheckDbResult(GetImpersonatedDatabaseConnectionSession(DefaultDatabase,'GUEST'+'@'+CFRE_DB_SYS_DOMAIN_NAME,'',FDefaultAPP_Class,TFRE_DB_GUIDArray.Create(FDefaultAPP_UID),'NONET',FDefaultSession));
     TransFormFunc(FDefaultSession,fct_SyncReply,res_main,FHull_HTML,FHull_CT,false,fdbtt_get2html);
     FDefaultsession.Free;
+    ForceDirectories(cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator);
     GFRE_BT.StringToFile(cFRE_SERVER_WWW_ROOT_DIR+DirectorySeparator+cFRE_SERVER_WWW_ROOT_FILENAME,FHull_HTML);
   end;
 
@@ -555,7 +556,10 @@ begin
 
   _ConnectAllDatabases;
   _ServerinitializeApps;
-  _SetupSSL_Ctx;
+  try
+    _SetupSSL_Ctx;
+  except
+  end;
   _SetupHttpBaseServer;
 
   InitializeTaskerSession;
@@ -568,9 +572,12 @@ begin
   GFRE_SC.SetNewListenerCB(@APSC_NewListener);
   GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
 
-  GFRE_SC.AddListener_TCP ('*','44003','HTTPS/WSS');
-  GFRE_SC.SetNewListenerCB(@APSC_NewListener);
-  GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
+  if assigned(FSSL_CTX) then
+    begin
+      GFRE_SC.AddListener_TCP ('*','44003','HTTPS/WSS');
+      GFRE_SC.SetNewListenerCB(@APSC_NewListener);
+      GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
+    end;
 
   FSessiontimer := GFRE_SC.AddTimer('SESSION',1000,@TIM_SessionHandler);
   FTaskerTimer  := GFRE_SC.AddTimer('TASKER',1000,@TIM_TaskerHandler);

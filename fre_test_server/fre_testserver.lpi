@@ -36,37 +36,30 @@
       <Unit0>
         <Filename Value="fre_testserver.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_testserver"/>
       </Unit0>
       <Unit1>
         <Filename Value="../fre_apps/fre_db_bbb_mod.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_db_bbb_mod"/>
       </Unit1>
       <Unit2>
         <Filename Value="../fre_apps/fre_db_bbbapp.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_db_bbbapp"/>
       </Unit2>
       <Unit3>
         <Filename Value="../fre_core/fre_binary_buffer.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_binary_buffer"/>
       </Unit3>
       <Unit4>
         <Filename Value="../fre_db/fre_db_persistance_common.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_db_persistance_common"/>
       </Unit4>
       <Unit5>
         <Filename Value="../fos_corebox/fos_dbcorebox_machine.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fos_dbcorebox_machine"/>
       </Unit5>
       <Unit6>
         <Filename Value="../fre_server/fre_basecli_app.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_basecli_app"/>
       </Unit6>
     </Units>
   </ProjectOptions>
@@ -82,15 +75,25 @@
     </SearchPaths>
     <Conditionals Value="if TargetOS = 'darwin' then
    CustomOptions := '-WM10.6 -dFOS_LINK_STATIC';
-   if TargetOS = 'solaris' then
-   CustomOptions := '-k-rpath=$ORIGIN/../lib/lib64rel/solaris';"/>
+if TargetOS = 'solaris' then
+   if TargetCPU='i386' then
+     CustomOptions := '-k-rpath=$ORIGIN/../lib/lib32rel/solaris';
+   if TargetCPU='i86_64' then
+     CustomOptions := '-k-rpath=$ORIGIN/../lib/lib64rel/solaris';
+if TargetOS = 'linux' then
+   if TargetCPU='arm' then
+     CustomOptions := '-k-rpath=$ORIGIN/../lib/libarmhf32rel/linux';
+   if TargetCPU='i386' then
+     CustomOptions := '-k-rpath=$ORIGIN/../lib/lib32rel/linux';
+   if TargetCPU='i86_64' then
+     CustomOptions := '-k-rpath=$ORIGIN/../lib/lib64rel/linux';"/>
     <Parsing>
       <SyntaxOptions>
         <IncludeAssertionCode Value="True"/>
       </SyntaxOptions>
     </Parsing>
     <CodeGeneration>
-      <TargetCPU Value="x86_64"/>
+      <TargetCPU Value="arm"/>
     </CodeGeneration>
     <Linking>
       <Debugging>
@@ -98,11 +101,7 @@
       </Debugging>
     </Linking>
     <Other>
-      <CompilerMessages>
-        <MsgFileName Value=""/>
-      </CompilerMessages>
       <CustomOptions Value="-gt"/>
-      <CompilerPath Value="$(CompPath)"/>
     </Other>
   </CompilerOptions>
   <Debugging>
