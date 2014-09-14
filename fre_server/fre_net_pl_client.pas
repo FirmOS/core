@@ -95,6 +95,7 @@ type
       function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
       procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
       procedure SyncSnapshot                  (const final : boolean=false);
+      procedure DEBUG_InternalFunction        (const func:NativeInt);
 
       function  GetLastErrorCode              : TFRE_DB_Errortype;
 
@@ -121,7 +122,8 @@ type
       function  CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
       function  CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
       function  CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
-      function  CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; out   ix_def : TFRE_DB_INDEX_DEF ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+      function  CollectionDropIndex                 (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_TransStepId;
+      function  CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_INDEX_DEF;
       function  CollectionGetAllIndexNames          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_NameTypeArray;
       function  CollectionFetchInCollection         (const coll_name: TFRE_DB_NameType ; const check_uid: TGUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
       function  CollectionBulkFetch                 (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil): IFRE_DB_ObjectArray;
@@ -700,14 +702,14 @@ begin
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CheckRaiseAnswerError(const answer: IFRE_DB_Object; const dont_raise: boolean);
-var ec : TFRE_DB_Errortype;
+var ec : TFRE_DB_Errortype_EC;
     es : String;
 begin
   try
-    ec := TFRE_DB_Errortype(answer.Field('EC').AsInt16);
+    ec := TFRE_DB_Errortype_EC(answer.Field('EC').AsInt16);
     es := answer.Field('ES').AsString;
-    if (ord(ec)<ord(low(TFRE_DB_Errortype))) or
-        (ord(ec)>ord(High(TFRE_DB_Errortype))) then
+    if (ord(ec)<ord(low(TFRE_DB_Errortype_EC))) or
+        (ord(ec)>ord(High(TFRE_DB_Errortype_EC))) then
           begin
             FLastErrorCode := edb_INTERNAL;
             FLasterror     := es+' and the errorcode is out of bounds(!!)'+inttostr(ord(ec));
@@ -1184,6 +1186,11 @@ begin
   ; { Silent ignore, until WAL Mode is implemented }
 end;
 
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DEBUG_InternalFunction(const func: NativeInt);
+begin
+  abort;
+end;
+
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionDefineIndexOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
     dba        : TFRE_DB_StringArray;
@@ -1210,7 +1217,12 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionGetIndexDefinition(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; out ix_def: TFRE_DB_INDEX_DEF; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionDropIndex(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionGetIndexDefinition(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_INDEX_DEF;
 begin
   abort;
 end;

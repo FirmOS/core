@@ -4338,7 +4338,6 @@ begin
   { if an object is only removed from a collection the reflinks from the objects stay the same }
   if not is_a_full_delete then
     begin
-      writeln('--->>>>>>>>> COLLECTION ONLY REMOVE NOT HANDLED BY NOTIFY ? / TEST IT');
       GFRE_DBI.LogDebug(dblc_DBTDM,'--->>>>>>>>> COLLECTION ONLY REMOVE NOT HANDLED BY NOTIFY ? / TEST IT // NOTIFY : START OBJECT REMOVED [%s] in Collection [%s]',[obj.GetDescriptionID,FREDB_CombineString(FREDB_NametypeArray2StringArray(coll_names),',')]);
     end;
 end;

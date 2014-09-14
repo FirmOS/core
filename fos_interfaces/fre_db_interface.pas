@@ -86,7 +86,7 @@ type
 
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,
                                  dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING,dblc_QUERY,dblc_DBTDM);
-  TFRE_DB_Errortype           = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_MISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
+  TFRE_DB_Errortype_EC         = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_MISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
   TFRE_DB_FILTERTYPE          = (dbf_TEXT,dbf_SIGNED,dbf_UNSIGNED,dbf_DATETIME,dbf_BOOLEAN,dbf_CURRENCY,dbf_REAL64,dbf_GUID,dbf_SCHEME,dbf_RIGHT,dbf_EMPTY);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART); { currently only the first value of the filter is uses in this modes }
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
@@ -100,11 +100,16 @@ type
   TFRE_DB_STANDARD_COLL       = (coll_NONE,coll_USER,coll_GROUP,coll_DOMAIN,coll_WFACTION);
 
 
+  TFRE_DB_Errortype           = record
+    Code : TFRE_DB_Errortype_EC;
+    Msg  : ShortString;
+  end;
+
   EFRE_DB_Exception=class(EFRE_Exception)
     ErrorType : TFRE_DB_Errortype;
     constructor Create(const msg : TFRE_DB_String);
-    constructor Create(const et:TFRE_DB_Errortype;msg:TFRE_DB_String='');
-    constructor Create(const et:TFRE_DB_Errortype;msg:TFRE_DB_String;params:array of const);
+    constructor Create(const et:TFRE_DB_Errortype_EC;msg:TFRE_DB_String='');
+    constructor Create(const et:TFRE_DB_Errortype_EC;msg:TFRE_DB_String;params:array of const);
   end;
 
   EFRE_DB_PL_Exception=class(EFRE_DB_Exception)
@@ -121,7 +126,7 @@ const
   CFRE_DB_FIELDTYPE_SHORT        : Array[TFRE_DB_FIELDTYPE]               of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
   CFRE_DB_INDEX_TYPE             : Array[TFRE_DB_INDEX_TYPE]              of String = ('UNSUPPORTED','UNSIGNED','SIGNED','REAL','TEXT','SPECIAL');
   CFRE_DB_STANDARD_RIGHT         : Array[TFRE_DB_STANDARD_RIGHT]          of String = ('BAD','STORE','UPDATE','DELETE','FETCH');
-  CFRE_DB_Errortype              : Array[TFRE_DB_Errortype]               of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','MISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
+  CFRE_DB_Errortype              : Array[TFRE_DB_Errortype_EC]            of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','MISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
   CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','C','R','G','X','Z','E');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','LE','LEQ','GT','GEQ','REXB','RWIB','AVFF','OVFV','NVFF');
@@ -238,7 +243,8 @@ type
      AllowNulls    : boolean;
      UniqueNull    : boolean;
      IgnoreCase    : boolean;
-     function IndexDescription : TFRE_DB_String;
+     function IndexDescription      : TFRE_DB_String;
+     function IndexDescriptionShort : TFRE_DB_String;
   end;
 
   TFRE_DB_INDEX_DEF_ARRAY=array of TFRE_DB_INDEX_DEF;
@@ -845,6 +851,9 @@ type
     function        GetItem                    (const num:uint64):IFRE_DB_Object;
     procedure       ClearCollection            ; { clear with respect to userid }
     function        DefineIndexOnField         (const FieldName   : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
+    function        DefineIndexOnField         (const IndexDef   : TFRE_DB_INDEX_DEF):TFRE_DB_Errortype;
+    function        GetIndexDefinition         (const index_name : TFRE_DB_NameType):TFRE_DB_INDEX_DEF;
+    function        DropIndex                  (const index_name : TFRE_DB_NameType):TFRE_DB_Errortype;
     function        IndexExists                (const index_name:TFRE_DB_NameType):boolean;
 
     function        ExistsIndexed              (const query_value : TFRE_DB_String ; const val_is_null : boolean=false ; const index_name:TFRE_DB_NameType='def'):Boolean; deprecated ; // for the string   fieldtype
@@ -890,6 +899,7 @@ type
     function        RemoveIndexedReal          (const query_value : Double         ; const index_name:TFRE_DB_NameType='def' ; const val_is_null : boolean = false):NativeInt;
 
     procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray);
+    procedure       GetAllObjs                 (out objs:IFRE_DB_ObjectArray);
 
     procedure       ForAllIndexed              (const func        : IFRE_DB_ObjectIteratorBrk ; var halt : boolean ; const index_name:TFRE_DB_NameType='def';const ascending:boolean=true; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
@@ -1336,6 +1346,7 @@ type
     procedure     StoreInThisColl        (const new_obj         : IFRE_DB_Object ; const checkphase : boolean);
     procedure     UpdateInThisColl       (const new_fld,old_fld : IFRE_DB_FIELD  ; const old_obj,new_obj : IFRE_DB_Object ; const update_typ : TFRE_DB_ObjCompareEventType ; const in_child_obj : boolean ; const checkphase : boolean);
     function      DefineIndexOnFieldReal (const checkonly : boolean;const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false): TFRE_DB_Errortype;
+    function      DropIndexReal          (const checkonly : boolean;const index_name : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID) : TFRE_DB_Errortype;
     function      IndexNames             : TFRE_DB_NameTypeArray;
 
     procedure     DeleteFromThisColl  (const del_obj         : IFRE_DB_Object ; const checkphase : boolean);
@@ -1386,6 +1397,7 @@ type
 
   IFRE_DB_PERSISTANCE_LAYER=interface
     procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
+    procedure DEBUG_InternalFunction        (const func:NativeInt);
 
     procedure WT_StoreCollectionPersistent  (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE);
     procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
@@ -1436,7 +1448,8 @@ type
     function  CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
     function  CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
     function  CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
-    function  CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; out   ix_def : TFRE_DB_INDEX_DEF ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+    function  CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_INDEX_DEF;
+    function  CollectionDropIndex                 (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_TransStepId;
     function  CollectionGetAllIndexNames          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_NameTypeArray;
     function  CollectionExistsInCollection        (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID ; const and_has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
     function  CollectionFetchInCollection         (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
@@ -2977,8 +2990,8 @@ type
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
 
-  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const conn:IFRE_DB_CONNECTION=nil ; const tolerate_no_change : boolean=true);
-  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const ; const conn:IFRE_DB_CONNECTION=nil ; const tolerate_no_change : boolean=true );
+  procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const tolerate_no_change : boolean=true);
+  procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const ; const tolerate_no_change : boolean=true );
   function  RB_Guid_Compare                      (const d1, d2: TFRE_DB_GUID): NativeInt; inline;
 
   procedure FREDB_LoadMimetypes                  (const filename:string);
@@ -3089,9 +3102,13 @@ type
   function  FREDB_CreateIndexDefFromObject (const ix_def_o : IFRE_DB_Object): TFRE_DB_INDEX_DEF;
   function  FREDB_CreateIndexDefArrayFromObject (const ix_def_ao : IFRE_DB_Object): TFRE_DB_INDEX_DEF_ARRAY;
 
-  operator< (g1, g2: TFRE_DB_GUID) b : boolean;
-  operator> (g1, g2: TFRE_DB_GUID) b : boolean;
-  operator= (g1, g2: TFRE_DB_GUID) b : boolean;
+  operator<  (g1, g2: TFRE_DB_GUID) b : boolean;
+  operator>  (g1, g2: TFRE_DB_GUID) b : boolean;
+  operator=  (g1, g2: TFRE_DB_GUID) b : boolean;
+  operator=  (e1 : TFRE_DB_Errortype   ; e2 : TFRE_DB_Errortype_EC) b : boolean;
+  operator=  (e1 : TFRE_DB_Errortype_EC; e2 : TFRE_DB_Errortype) b : boolean;
+  operator:= (e1 : TFRE_DB_Errortype) r : TFRE_DB_Errortype_EC;
+  operator:= (e1 : TFRE_DB_Errortype_EC) r : TFRE_DB_Errortype;
 
 type
   TAddAppToSiteMap_Callback = procedure (const app : TFRE_DB_APPLICATION ; const session: TFRE_DB_UserSession; const parent_entry: TFRE_DB_CONTENT_DESC);
@@ -3771,7 +3788,10 @@ function FREDB_GetIndexTypeFromObjectEncoding(const obj_enc: IFRE_DB_Object): TF
 var fld : IFRE_DB_Field;
 begin
   if not obj_enc.FieldOnlyExisting('IXT',fld) then
-    result := fdbit_Unsupported;
+    begin
+      result := fdbit_SpecialValue;
+      exit;
+    end;
   if not (fld.FieldType=fdbft_Byte) then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'invalid index value encoding/field type');
   case fld.AsByte of
@@ -3887,7 +3907,7 @@ begin
   SetLength(TargetArr,len_target+cnt);
 end;
 
-procedure FREDB_ConcatGuidArrays(var TargetArr: TFRE_DB_GuidArray; const add_array: TFRE_DB_GuidArray);
+procedure FREDB_ConcatGUIDArrays(var TargetArr: TFRE_DB_GuidArray; const add_array: TFRE_DB_GuidArray);
 var i,len_target,high_add_array,cnt :integer;
 begin
    len_target     := Length(TargetArr);
@@ -4049,20 +4069,19 @@ begin
   raise EFRE_DB_Exception.Create(edb_ERROR,'invalid short fieldtype specifier : ['+fts+']');
 end;
 
-procedure CheckDbResult(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const conn:IFRE_DB_CONNECTION=nil ; const tolerate_no_change : boolean=true);
+procedure CheckDbResult(const res: TFRE_DB_Errortype; const error_string: TFRE_DB_String; const tolerate_no_change: boolean);
 begin
-  CheckDbResultFmt(res,error_string,[],conn,tolerate_no_change);
+  CheckDbResultFmt(res,error_string,[],tolerate_no_change);
 end;
 
-procedure CheckDbResultFmt(const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ; const params:array of const ; const conn:IFRE_DB_CONNECTION ; const tolerate_no_change : boolean );
+procedure CheckDbResultFmt(const res: TFRE_DB_Errortype; const error_string: TFRE_DB_String; const params: array of const; const tolerate_no_change: boolean);
 var str : string;
 begin
  if (res=edb_OK) or
     ((res=edb_NO_CHANGE) and tolerate_no_change) then
       exit;
  str := Format(error_string,params);
- if assigned(conn) then
-   str:=str+LineEnding+conn.GetLastError;
+ str:=str+LineEnding+res.Msg;
  raise EFRE_DB_Exception.Create(res,str);
 end;
 
@@ -4086,6 +4105,11 @@ function TFRE_DB_INDEX_DEF.IndexDescription: TFRE_DB_String;
 begin
   result := IndexClass+' ['+IndexName+'] on Field ['+FieldName+'/'+CFRE_DB_FIELDTYPE[FieldType]+'] is '+BoolToStr(Unique,'unique','not unique')+','+BoolToStr(AllowNulls,'allows nulls','does not allow nulls')
             +', is '+BoolToStr(UniqueNull,'null unique','not null unique')+' and '+BoolToStr(IgnoreCase,'case insensitive','case Sensitive');
+end;
+
+function TFRE_DB_INDEX_DEF.IndexDescriptionShort: TFRE_DB_String;
+begin
+  result := Format('%s@%s(%s/%s) U/UN/AN/CS(%s,%s,%s,%s)',[IndexName,FieldName,CFRE_DB_FIELDTYPE[FieldType],IndexClass,BoolToStr(Unique,'1','0'),BoolToStr(UniqueNull,'1','0'),BoolToStr(AllowNulls,'1','0'),BoolToStr(IgnoreCase,'0','1')]);
 end;
 
 { TFRE_DB_APPLICATION_CONFIG }
@@ -5931,7 +5955,7 @@ begin
     if assigned(existing_session) then begin
       try
         err := GFRE_DBI.NetServ.CheckUserNamePW(user_name,password);
-        case err of
+        case err.Code of
           edb_OK : begin
             if assigned(existing_session.FBoundSession_RA_SC) then
               begin
@@ -5963,7 +5987,7 @@ begin
       exit(promres);
     end else begin
       err := GFRE_DBI.NetServ.GetImpersonatedDatabaseConnection(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
-      case err of
+      case err.Code of
        edb_OK: begin
           FDBConnection.ClearUserSessionBinding;
           FDBConnection.Finalize;
@@ -7883,10 +7907,11 @@ begin
   Create(edb_ERROR,msg);
 end;
 
-constructor EFRE_DB_Exception.Create(const et: TFRE_DB_Errortype; msg: TFRE_DB_String);
+constructor EFRE_DB_Exception.Create(const et: TFRE_DB_Errortype_EC; msg: TFRE_DB_String);
 begin
-  ErrorType := et;
-  if (et<low(TFRE_DB_Errortype)) or (et>High(TFRE_DB_Errortype)) then begin
+  ErrorType.Code := et;
+  ErrorType.Msg  := msg;
+  if (et<low(TFRE_DB_Errortype_EC)) or (et>High(TFRE_DB_Errortype_EC)) then begin
     GFRE_BT.CriticalAbort('internal fault - EDB Exception Range Check');
   end;
   case et of
@@ -7898,7 +7923,7 @@ begin
   inherited create(msg);
 end;
 
-constructor EFRE_DB_Exception.Create(const et: TFRE_DB_Errortype; msg: TFRE_DB_String; params: array of const);
+constructor EFRE_DB_Exception.Create(const et: TFRE_DB_Errortype_EC; msg: TFRE_DB_String; params: array of const);
 begin
   Create(et,Format(msg,params));
 end;
@@ -9294,6 +9319,27 @@ end;
 operator=(g1, g2: TFRE_DB_GUID)b: boolean;
 begin
   b := RB_Guid_Compare(g1,g2) = 0;
+end;
+
+operator=(e1: TFRE_DB_Errortype; e2: TFRE_DB_Errortype_EC)b: boolean;
+begin
+  result := e1.Code = e2;
+end;
+
+operator=(e1: TFRE_DB_Errortype_EC; e2: TFRE_DB_Errortype)b: boolean;
+begin
+  result := e1 = e2.Code;
+end;
+
+operator:=(e1: TFRE_DB_Errortype)r: TFRE_DB_Errortype_EC;
+begin
+  result := e1.Code;
+end;
+
+operator:=(e1: TFRE_DB_Errortype_EC)r: TFRE_DB_Errortype;
+begin
+  result.Code:=e1;
+  result.Msg:='';
 end;
 
 type

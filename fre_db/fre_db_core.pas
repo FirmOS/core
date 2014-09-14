@@ -580,6 +580,7 @@ type
     procedure       Set_Store_Locked                   (const locked:boolean=true); // Obj is as original in Persistent/MemoryStore Do not read or write it!
     procedure       Set_Store_LockedUnLockedIf         (const locked:boolean ; var lock_state : boolean);
     procedure       Assert_CheckStoreLocked            ;
+    procedure       Assert_CheckStoreUnLocked          ;
     procedure       Free                               ;
     procedure       ForAllFields                       (const iter:TFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:TFRE_DB_FieldIteratorBrk);
@@ -1294,8 +1295,6 @@ type
     FUniqueName            : TFRE_DB_NameType;
   protected
     function        URT_UserUid        : TFRE_DB_GUID; { returns the uid of the connection usertoken or NullGuid (all rights) if no connection is set }
-    procedure       ForAllI            (const func:IFRE_DB_Obj_Iterator);
-    procedure       ForAllBreakI       (const func:IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
     function        StoreI             (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
     function        UpdateI            (const dbo:IFRE_DB_Object):TFRE_DB_Errortype;
     function        FetchInCollectionI (const ouid:TFRE_DB_GUID;out dbo:IFRE_DB_Object): boolean;
@@ -1317,6 +1316,9 @@ type
     procedure       _IterateOverObjectsBrk     (const objs : IFRE_DB_ObjectArray ; const func: IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
     procedure       _IterateOverObjects        (const objs : IFRE_DB_ObjectArray ; const func: TFRE_DB_Obj_Iterator);
   public
+    procedure       ForAllI                    (const func:IFRE_DB_Obj_Iterator);
+    procedure       ForAllBreakI               (const func:IFRE_DB_ObjectIteratorBrk ; var halt : boolean);
+
     constructor     Create                     (const connection:TFRE_DB_BASE_CONNECTION;const name:TFRE_DB_NameType ; const in_memory_only: boolean);virtual;
     destructor      Destroy                    ; override;
 
@@ -1340,8 +1342,8 @@ type
     procedure       GetAllObjsNoRC             (out objs:IFRE_DB_ObjectArray);
 
     function        DefineIndexOnField         (const FieldName  : TFRE_DB_NameType;const FieldType:TFRE_DB_FIELDTYPE;const unique:boolean; const ignore_content_case:boolean=false;const index_name:TFRE_DB_NameType='def' ; const allow_null_value : boolean=true ; const unique_null_values : boolean=false):TFRE_DB_Errortype;
-    function        DefineIndexOnField         (const IndexDef   : TFRE_DB_INDEX_DEF) :TFRE_DB_Errortype;
-    function        GetIndexDefinition         (const index_name : TFRE_DB_NameType ; out ix_def :TFRE_DB_INDEX_DEF):TFRE_DB_Errortype;
+    function        DefineIndexOnField         (const IndexDef   : TFRE_DB_INDEX_DEF):TFRE_DB_Errortype;
+    function        GetIndexDefinition         (const index_name : TFRE_DB_NameType):TFRE_DB_INDEX_DEF;
     function        DropIndex                  (const index_name : TFRE_DB_NameType):TFRE_DB_Errortype;
     function        GetAllIndexNames           : TFRE_DB_NameTypeArray;
     function        GetAllIndexDefinitions     : TFRE_DB_INDEX_DEF_ARRAY;
@@ -9109,7 +9111,15 @@ begin //nl
   try
     FCollConnection.FPersistance_Layer.StoreOrUpdateObject(new_obj,FName,true);
   except
-    result := FCollConnection.FPersistance_Layer.GetLastErrorCode;
+    on E:EFRE_DB_Exception do
+      begin
+        result := e.ErrorType; //FCollConnection.FPersistance_Layer.GetLastErrorCode;
+      end;
+    on e:Exception do
+      begin
+        result.code := edb_INTERNAL;
+        result.msg  := e.Message;
+      end;
   end;
   new_obj:=nil;
 end;
@@ -9290,14 +9300,15 @@ begin
     result := DefineIndexOnField(FieldName,FieldType,Unique,IgnoreCase,IndexName,AllowNulls,UniqueNull);
 end;
 
-function TFRE_DB_COLLECTION.GetIndexDefinition(const index_name: TFRE_DB_NameType; out ix_def: TFRE_DB_INDEX_DEF): TFRE_DB_Errortype;
+function TFRE_DB_COLLECTION.GetIndexDefinition(const index_name: TFRE_DB_NameType): TFRE_DB_INDEX_DEF;
 begin
-  result := FCollConnection.FPersistance_Layer.CollectionGetIndexDefinition(Fname,index_name,ix_def,FCollConnection.GetUserUIDP);
+  result := FCollConnection.FPersistance_Layer.CollectionGetIndexDefinition(Fname,index_name,FCollConnection.GetUserUIDP);
 end;
 
 function TFRE_DB_COLLECTION.DropIndex(const index_name: TFRE_DB_NameType): TFRE_DB_Errortype;
 begin
-  result := edb_INTERNAL;
+  FCollConnection.FPersistance_Layer.CollectionDropIndex(Fname,index_name,FCollConnection.GetUserUIDP);
+  result := edb_OK;
 end;
 
 function TFRE_DB_COLLECTION.GetAllIndexNames: TFRE_DB_NameTypeArray;
@@ -9312,7 +9323,7 @@ begin
   nta := GetAllIndexNames;
   SetLength(result,Length(nta));
   for i := 0 to high(nta) do
-    CheckDbResult(GetIndexDefinition(nta[i],result[i]));
+    result[i]:=GetIndexDefinition(nta[i]);
 end;
 
 function TFRE_DB_COLLECTION.IndexExists(const index_name: TFRE_DB_NameType): boolean;
@@ -9916,13 +9927,24 @@ var
     min_val : IFRE_DB_Object;
     max_val : IFRE_DB_Object;
     objs    : IFRE_DB_ObjectArray;
-    cnt     : NativeInt;
+    cnt,i   : NativeInt;
+    myhalt  : boolean;
 
 begin
   min_val := FREDB_NewIndexFldValForObjectEncoding(min_field);
   max_val := FREDB_NewIndexFldValForObjectEncoding(max_field);
-  E_FOS_TestNosey;
   cnt     := FCollConnection.FPersistance_Layer.CollectionGetIndexedObjsRange(FName,min_val,max_val,ascending,max_count,skipfirst,objs,false,index_name,FCollConnection.GetUserUIDP);
+  myhalt  := false;
+  for i:=0 to cnt-1 do
+    begin
+      if not myhalt then
+        begin
+          iterator(objs[i],halt);
+          myhalt:=halt;
+        end
+      else
+        objs[i].Finalize;
+    end;
 end;
 
 function TFRE_DB_COLLECTION.IsVolatile: Boolean;
@@ -10749,8 +10771,8 @@ begin
   c_name := uppercase(name);
   if (c_name='MASTER') or (c_name='SCHEME') then // TODO - Check /
     exit(edb_RESERVED);
-  if not FCollectionStore.Find(c_name,lcollection) then
-    exit(edb_NOT_FOUND);
+  //if not FCollectionStore.Find(c_name,lcollection) then
+  //  exit(edb_NOT_FOUND);
   try
     FPersistance_Layer.CollectionDeleteCollection(name);
   except
@@ -13840,7 +13862,7 @@ begin
     begin
       SetLength(new_coll_array,Length(FInCollectionarr)-1);
       cnt := 0;
-      for i := 0 to length(FInCollectionarr) do
+      for i := 0 to high(FInCollectionarr) do
         begin
           if coll.CollectionName(true) <> FInCollectionarr[i].CollectionName(true) then
             begin
@@ -13867,7 +13889,7 @@ var i         : NativeInt;
     lCollname : TFRE_DB_NameType;
 begin
   result    := -1;
-  lCollname := UpperCase(collname);
+  lCollname := UpperCase(collname); //self.FInCollectionarr
   for i := 0 to high(FInCollectionarr) do
     if lcollname = FInCollectionarr[i].CollectionName(true) then
       exit(i);
@@ -13982,6 +14004,15 @@ begin
   else
     if not (fop_STORED_IMMUTABLE in FObjectProps) then
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'FAILURE NOT STORELOCKED : '+InternalUniqueDebugKey);
+end;
+
+procedure TFRE_DB_Object.Assert_CheckStoreUnLocked;
+begin
+  if assigned(FParentDBO) then
+    _ObjectRoot.Assert_CheckStoreUnLocked
+  else
+    if (fop_STORED_IMMUTABLE in FObjectProps) then
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'FAILURE OBJECT IS STORELOCKED BUT SHOULD NOT BE : '+InternalUniqueDebugKey);
 end;
 
 
