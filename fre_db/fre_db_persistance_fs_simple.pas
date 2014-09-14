@@ -1570,49 +1570,16 @@ var coll                : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
       end;
   end;
 
-  procedure GenDelete(const del_obj : IFRE_DB_Object);
-  begin
-    if not store then
-      begin
-        writeln('THIS IS NOT ALLOWED 2');
-        halt;
-      end;
-    assert(not del_obj.IsObjectRoot); { this must be a subobject delete }
-    G_Transaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(self,FMaster,del_obj.Implementor as TFRE_DB_Object,collection_name,store,user_context));
-  end;
-
-  procedure GenUpdate(const is_child_update : boolean ; const up_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_ifield, old_ifield: IFRE_DB_Field);
-  var child                    : TFRE_DB_Object;
-      new_object               : TFRE_DB_Object;
-      old_fld,
-      new_fld                  : TFRE_DB_FIELD;
-      s                        : string;
-
-  begin
-    if assigned(old_ifield) then
-      begin
-        old_fld := old_ifield.Implementor as TFRE_DB_FIELD;
-        s:=old_fld.FieldName;
-      end
-    else
-      old_fld := nil;
-    if assigned(new_ifield) then
-      begin
-        new_fld := new_ifield.Implementor as TFRE_DB_FIELD;
-        s:=new_fld.FieldName;
-      end
-    else
-      new_fld := nil;
-
-    case update_type of
-      cev_FieldDeleted:
-          updatestep.addsubstep(cev_FieldDeleted,nil,old_fld,is_child_update,up_obj.Implementor as TFRE_DB_Object);
-      cev_FieldAdded:
-          updatestep.addsubstep(cev_FieldAdded,new_fld,nil,is_child_update,up_obj.Implementor as TFRE_DB_Object);
-      cev_FieldChanged :
-          updatestep.addsubstep(cev_FieldChanged,new_fld,old_fld,is_child_update,up_obj.Implementor as TFRE_DB_Object);
-    end;
-  end;
+  //procedure GenDelete(const del_obj : IFRE_DB_Object);
+  //begin
+  //  if not store then
+  //    begin
+  //      writeln('THIS IS NOT ALLOWED 2');
+  //      halt;
+  //    end;
+  //  assert(not del_obj.IsObjectRoot); { this must be a subobject delete }
+  //  G_Transaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(self,FMaster,del_obj.Implementor as TFRE_DB_Object,collection_name,store,user_context));
+  //end;
 
 begin
   LayerLock.Acquire;
@@ -1671,7 +1638,6 @@ begin
             if length(to_update_obj.__InternalGetCollectionList)=0 then
               begin
                 writeln('::: OFFENDING OBJECT ', to_update_obj.DumpToString());
-                //halt;
                 if not GDBPS_SKIP_STARTUP_CHECKS then
                   raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fetched to update ubj must have internal collections(!)');
               end;
@@ -1689,7 +1655,6 @@ begin
                 G_DEBUG_TRIGGER_1:=true;
               end;
             updatestep := TFRE_DB_UpdateStep.Create(self,FMaster,obj,to_update_obj,false,user_context);
-            TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,nil,nil,@GenUpdate);
             if updatestep.HasNoChanges then
               updatestep.Free
             else

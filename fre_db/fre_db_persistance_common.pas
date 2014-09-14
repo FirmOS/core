@@ -2296,6 +2296,39 @@ end;
 { TFRE_DB_UpdateStep }
 
 constructor TFRE_DB_UpdateStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; obj, to_update_obj: TFRE_DB_Object; const is_insert: boolean; const user_context: PFRE_DB_GUID);
+
+   procedure GenUpdate(const is_child_update : boolean ; const up_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_ifield, old_ifield: IFRE_DB_Field);
+   var child                    : TFRE_DB_Object;
+       new_object               : TFRE_DB_Object;
+       old_fld,
+       new_fld                  : TFRE_DB_FIELD;
+       s                        : string;
+
+   begin
+     if assigned(old_ifield) then
+       begin
+         old_fld := old_ifield.Implementor as TFRE_DB_FIELD;
+         s:=old_fld.FieldName;
+       end
+     else
+       old_fld := nil;
+     if assigned(new_ifield) then
+       begin
+         new_fld := new_ifield.Implementor as TFRE_DB_FIELD;
+         s:=new_fld.FieldName;
+       end
+     else
+       new_fld := nil;
+     case update_type of
+       cev_FieldDeleted:
+           addsubstep(cev_FieldDeleted,nil,old_fld,is_child_update,up_obj.Implementor as TFRE_DB_Object);
+       cev_FieldAdded:
+           addsubstep(cev_FieldAdded,new_fld,nil,is_child_update,up_obj.Implementor as TFRE_DB_Object);
+       cev_FieldChanged :
+           addsubstep(cev_FieldChanged,new_fld,old_fld,is_child_update,up_obj.Implementor as TFRE_DB_Object);
+     end;
+   end;
+
 begin
   inherited Create(layer,masterdata,user_context);
   SetLength(FSublist,25);
@@ -2303,6 +2336,8 @@ begin
   upobj         := obj;
   to_upd_obj    := to_update_obj;
   FIsStore      := is_insert;
+  G_Transaction.Record_And_UnlockObject(to_update_obj);
+  TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,nil,nil,@GenUpdate);
 end;
 
 procedure TFRE_DB_UpdateStep.AddSubStep(const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD; const is_a_child_field: boolean; const update_obj: TFRE_DB_Object);
@@ -2329,34 +2364,29 @@ var i,j         : NativeInt;
     begin
       with FSublist[i] do
         begin
-          to_upd_obj.Set_Store_Locked(false);
-          try
-            if not check then
-              GetNotificationRecordIF.FieldDelete(oldfield,GetTransActionStepID); { Notify before delete }
-            case oldfield.FieldType of
-              fdbft_Object:
-                begin
-                  writeln('MASTERSTORE ABORT 1'); {TODOD: Make a testcase }
-                  abort;
-                  master.DeleteObject(newfield.AsObject.UID,check,GetNotificationRecordIF,GetTransActionStepID);
-                end;
-              fdbft_ObjLink:
-                begin
-                  if check then
-                     // new links are nil
-                  else
-                    begin
-                      master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(oldfield.FieldName),oldfield.AsObjectLinkArray,nil,GetNotificationRecordIF,GetTransActionStepID);
-                      inmemobject.Field(oldfield.FieldName).Clear;
-                    end;
-                end;
-              else begin
-                if not check then
-                  inmemobject.DeleteField(oldfield.FieldName);
-              end; // ok
-            end;
-          finally
-            to_upd_obj.Set_Store_Locked(true);
+          if not check then
+            GetNotificationRecordIF.FieldDelete(oldfield,GetTransActionStepID); { Notify before delete }
+          case oldfield.FieldType of
+            fdbft_Object:
+              begin
+                writeln('MASTERSTORE ABORT 1'); {TODOD: Make a testcase }
+                abort;
+                master.DeleteObject(newfield.AsObject.UID,check,GetNotificationRecordIF,GetTransActionStepID);
+              end;
+            fdbft_ObjLink:
+              begin
+                if check then
+                   // new links are nil
+                else
+                  begin
+                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(oldfield.FieldName),oldfield.AsObjectLinkArray,nil,GetNotificationRecordIF,GetTransActionStepID);
+                    inmemobject.Field(oldfield.FieldName).Clear;
+                  end;
+              end;
+            else begin
+              if not check then
+                inmemobject.DeleteField(oldfield.FieldName);
+            end; // ok
           end;
         end;
     end;
@@ -2368,47 +2398,42 @@ var i,j         : NativeInt;
       assert(assigned(inmemobject),'internal, logic');
       with FSublist[i] do
         begin
-          to_upd_obj.Set_Store_Locked(false);
-          try
-            if not check then
-              GetNotificationRecordIF.FieldAdd(newfield,GetTransActionStepID);
-            case newfield.FieldType of
-              fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
-              fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
-                begin
-                  if check then
-                    exit;
-                  inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
-                end;
-              fdbft_Object:
-                begin
-                  if check then
-                    exit;
-                  inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject(); { subobject insert}  { TODO - GENERATE SUBOBJECT INSERTS !!!! Try to fetch a new subobject by UID}
-                end;
-              fdbft_ObjLink:
+          if not check then
+            GetNotificationRecordIF.FieldAdd(newfield,GetTransActionStepID);
+          case newfield.FieldType of
+            fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
+            fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
+              begin
                 if check then
-                  begin
-                    if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
-                      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
-                    for j:=0 to high(newfield.AsObjectLinkArray) do
+                  exit;
+                inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
+              end;
+            fdbft_Object:
+              begin
+                if check then
+                  exit;
+                inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject(); { subobject insert}  { TODO - GENERATE SUBOBJECT INSERTS !!!! Try to fetch a new subobject by UID}
+              end;
+            fdbft_ObjLink:
+              if check then
+                begin
+                  if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
+                    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
+                  for j:=0 to high(newfield.AsObjectLinkArray) do
+                    master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
+                end
+              else
+                begin
+                  fn := uppercase(inmemobject.SchemeClass)+'<'+ uppercase(newfield.FieldName);
+                  inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                  for j:=0 to high(newfield.AsObjectLinkArray) do
+                    begin
                       master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
-                  end
-                else
-                  begin
-                    fn := uppercase(inmemobject.SchemeClass)+'<'+ uppercase(newfield.FieldName);
-                    inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
-                    for j:=0 to high(newfield.AsObjectLinkArray) do
-                      begin
-                        master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
-                        master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j],GetNotificationRecordIF,GetTransActionStepID);
-                      end;
-                    //inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
-                  end;
-            end;
-        finally
-          to_upd_obj.Set_Store_Locked(true);
-        end;
+                      master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j],GetNotificationRecordIF,GetTransActionStepID);
+                    end;
+                  //inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                end;
+          end;
       end;
     end;
 
@@ -2420,44 +2445,39 @@ var i,j         : NativeInt;
       with FSublist[i] do
         begin
           assert(up_obj.ObjectRoot = to_upd_obj,'internal, logic');
-          to_upd_obj.Set_Store_Locked(false); { Parent }
-          try
-            if (not check) then
-              begin
-                GetNotificationRecordIF.FieldChange(oldfield, newfield,GetTransActionStepID);
-              end;
-            case newfield.FieldType of
-              fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
-              fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
-                begin
-                  if check then
-                    exit;
-                    inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
-                end;
-              fdbft_Object:
-                begin
-                  if check then
-                    exit;
-                  //writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
-                  //inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject;
-                end;
-              fdbft_ObjLink:
-                if check then
-                  begin
-                    if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
-                      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
-                    for j:=0 to high(newfield.AsObjectLinkArray) do
-                      master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc,true);
-                  end
-                else
-                  begin
-                    oldlinks := oldfield.AsObjectLinkArray;
-                    inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
-                    master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldlinks,newfield.AsObjectLinkArray,GetNotificationRecordIF,GetTransActionStepID);
-                  end;
+          if (not check) then
+            begin
+              GetNotificationRecordIF.FieldChange(oldfield, newfield,GetTransActionStepID);
             end;
-          finally
-            to_upd_obj.Set_Store_Locked(true); { Parent }
+          case newfield.FieldType of
+            fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
+            fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
+              begin
+                if check then
+                  exit;
+                  inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
+              end;
+            fdbft_Object:
+              begin
+                if check then
+                  exit;
+                //writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
+                //inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject;
+              end;
+            fdbft_ObjLink:
+              if check then
+                begin
+                  if not FREDB_CheckGuidsUnique(newfield.AsObjectLinkArray) then
+                    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'objectlink array field is not unique Field[%s] Object[%s]',[newfield.FieldName,newfield.ParentObject.UID_String]);
+                  for j:=0 to high(newfield.AsObjectLinkArray) do
+                    master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc,true);
+                end
+              else
+                begin
+                  oldlinks := oldfield.AsObjectLinkArray;
+                  inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
+                  master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(newfield.FieldName),oldlinks,newfield.AsObjectLinkArray,GetNotificationRecordIF,GetTransActionStepID);
+                end;
           end;
         end;
     end;
@@ -2477,17 +2497,12 @@ var i,j         : NativeInt;
 begin
   if not check then
     begin
-      to_upd_obj.Set_Store_Locked(false);
-      try
-        to_upd_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString := GetTransActionStepID;
-        diffupdo := to_upd_obj.CloneToNewObject; { TODO: replace with a more efficient solution, new object (streaming/weak ...)}
-        diffupdo.ClearAllFields;
-        diffupdo.Field('uid').AsGUID      := to_upd_obj.UID;
-        diffupdo.Field('domainid').AsGUID := to_upd_obj.DomainID;
-        GetNotificationRecordIF.DifferentiallUpdStarts(diffupdo,GetTransActionStepID);
-      finally
-        to_upd_obj.Set_Store_Locked(true);
-      end;
+      to_upd_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString := GetTransActionStepID;
+      diffupdo := to_upd_obj.CloneToNewObject; { TODO: replace with a more efficient solution, new object (streaming/weak ...)}
+      diffupdo.ClearAllFields;
+      diffupdo.Field('uid').AsGUID      := to_upd_obj.UID;
+      diffupdo.Field('domainid').AsGUID := to_upd_obj.DomainID;
+      GetNotificationRecordIF.DifferentiallUpdStarts(diffupdo,GetTransActionStepID);
     end;
   for i:=0 to FCnt-1 do
     begin
@@ -2505,13 +2520,8 @@ begin
     GetNotificationRecordIF.DifferentiallUpdEnds(to_upd_obj.UID,GetTransActionStepID); { Notifications will be transmitted on block level -> no special handling here, block get deleted on error }
   if not check then
     begin
-      to_upd_obj.Set_Store_Locked(false);
-      try
-        to_upd_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString := GetTransActionStepID;
-        GetNotificationRecordIF.ObjectUpdated(to_upd_obj,to_upd_obj.__InternalGetCollectionListUSL,GetTransActionStepID);
-      finally
-        to_upd_obj.Set_Store_Locked(true);
-      end;
+      to_upd_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString := GetTransActionStepID;
+      GetNotificationRecordIF.ObjectUpdated(to_upd_obj,to_upd_obj.__InternalGetCollectionListUSL,GetTransActionStepID);
       CheckWriteThrough;
     end;
 end;
@@ -2792,6 +2802,7 @@ begin
   finally
     Lock_Unlocked_Objects;
   end;
+  GFRE_DB_PS_LAYER.DEBUG_InternalFunction(1); { Full Storelocking Check }
 end;
 
 procedure TFRE_DB_TransactionalUpdateList.Rollback;
@@ -5541,28 +5552,24 @@ end;
 procedure TFRE_DB_Persistance_Collection.CheckFieldChangeAgainstIndex(const oldfield, newfield: TFRE_DB_FIELD; const change_type: TFRE_DB_ObjCompareEventType; const check: boolean; old_obj, new_obj: TFRE_DB_Object);
 var i             : NativeInt;
     nullValExists : boolean;
-    //oldobj        : TFRE_DB_Object;
-    //newobj        : TFRE_DB_Object;
     fieldname     : TFRE_DB_NameType;
     idummy        : IFRE_DB_Object;
 begin
   //newobj := nil;      {TODO - Think about child object index check ? ->user desc}
-  //oldobj := nil;
   if assigned(newfield) then
     begin
-      //newobj    := newfield.ParentObject;
       fieldname := uppercase(newfield.FieldName);
     end;
   if assigned(oldfield) then
     begin
       //oldobj  := oldfield.ParentObject;
-      old_obj.Assert_CheckStoreLocked;
-      old_obj.Set_Store_Locked(false);
-      try
+      //old_obj.Assert_CheckStoreLocked;
+      //old_obj.Set_Store_Locked(false);
+      //try
         fieldname := uppercase(oldfield.FieldName);
-      finally
-        old_obj.Set_Store_Locked(true);
-      end;
+      //finally
+      //  old_obj.Set_Store_Locked(true);
+      //end;
     end;
   for i := 0 to high(FIndexStore) do
     if FIndexStore[i].FUniqueFieldname=fieldname then
@@ -5570,13 +5577,13 @@ begin
         case change_type of
           cev_FieldDeleted:
             begin
-              old_obj.Assert_CheckStoreLocked;
-              try
-                old_obj.Set_Store_Locked(false);
+              //old_obj.Assert_CheckStoreLocked;
+              //try
+              //  old_obj.Set_Store_Locked(false);
                 FIndexStore[i].IndexDelCheck(old_obj,new_obj,check);
-              finally
-                old_obj.Set_Store_Locked(true);
-              end;
+              //finally
+              //  old_obj.Set_Store_Locked(true);
+              //end;
             end;
           cev_FieldAdded:
             begin
@@ -5586,26 +5593,26 @@ begin
                   if not FetchIntFromColl(new_obj.UID,idummy) then
                     raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'FIELDCHANGE Internal an object should be updated but was not found [%s]',[new_obj.UID_String]);
                   old_obj := idummy.Implementor as TFRE_DB_Object;
-                  old_obj.Assert_CheckStoreLocked;
-                  try
-                    old_obj.Set_Store_Locked(false);
+                  //old_obj.Assert_CheckStoreLocked;
+                  //try
+                  //  old_obj.Set_Store_Locked(false);
                     FIndexStore[i].IndexUpdCheck(new_obj,old_obj,check);
-                  finally
-                    old_obj.Set_Store_Locked(true);
-                  end;
+                  //finally
+                  //  old_obj.Set_Store_Locked(true);
+                  //end;
                 end
               else
                 FIndexStore[i].IndexAddCheck(new_obj,check);
             end;
           cev_FieldChanged:
             begin
-              old_obj.Assert_CheckStoreLocked;
-              try
-                old_obj.Set_Store_Locked(false);
+              //old_obj.Assert_CheckStoreLocked;
+              //try
+              //  old_obj.Set_Store_Locked(false);
                 FIndexStore[i].IndexUpdCheck(new_obj,old_obj,check);
-              finally
-                old_obj.Set_Store_Locked(true);
-              end;
+              //finally
+              //  old_obj.Set_Store_Locked(true);
+              //end;
             end;
         end;
       end;
