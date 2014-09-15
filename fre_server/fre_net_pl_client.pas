@@ -101,7 +101,7 @@ type
 
       procedure WT_TransactionID              (const number:qword);
       procedure WT_StoreCollectionPersistent  (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE);
-      procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
+      procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object);
       procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
       procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
       function  INT_Fetch                     (const ouid    :  TGUID  ; out   dbo:IFRE_DB_Object):boolean;
@@ -1246,7 +1246,7 @@ begin
   abort;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_StoreObjectPersistent(const obj: IFRE_DB_Object; const no_store_locking: boolean);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_StoreObjectPersistent(const obj: IFRE_DB_Object);
 begin
 
 end;

@@ -95,12 +95,12 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   _CloseWAL                          ;
      procedure   _ClearWAL                          ;
      procedure   _StoreCollectionPersistent         (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE ; const no_storelocking : boolean=false);
-     procedure   _StoreObjectPersistent             (const obj:TFRE_DB_Object ; const no_storelocking : boolean=false);
+     procedure   _StoreObjectPersistent             (const obj:TFRE_DB_Object);
 
      procedure   WT_TransactionID              (const number:qword);
      procedure   WT_StoreCollectionPersistent  (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE);
      procedure   WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
-     procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
+     procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
      function    INT_Fetch                     (const ouid    :  TFRE_DB_GUID  ; out   dbi:IFRE_DB_Object):boolean; { unlocked internal fetch }
 
@@ -494,39 +494,20 @@ begin
     end;
 end;
 
-procedure TFRE_DB_PS_FILE._StoreObjectPersistent(const obj: TFRE_DB_Object; const no_storelocking: boolean);
+procedure TFRE_DB_PS_FILE._StoreObjectPersistent(const obj: TFRE_DB_Object);
 var  FileName : string;
-     //m        : TMemoryStream;
 begin
   if obj.IsVolatile then
     exit;
   if obj.IsObjectRoot then
     begin
-      if not no_storelocking then
-        begin
-          obj.Assert_CheckStoreLocked;
-          obj.Set_Store_Locked(false);
-        end;
-      try
-        obj._InternalGuidNullCheck;
-        filename    := FMasterCollDir+GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
-        obj.SaveToFile(FileName);
-        //m:=TMemoryStream.Create;
-        //try
-        //  m.Size:=obj.NeededSize;
-        //  obj.CopyToMemory(m.Memory);
-        //  m.SaveToFile(filename);
-        //finally
-        //  m.free;
-        //end;
-        GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
-      finally
-        if not no_storelocking then
-          begin
-            obj.Set_Store_Locked(true);
-          end;
-      end;
-    end;
+      obj._InternalGuidNullCheck;
+      filename    := FMasterCollDir+GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
+      obj.SaveToFile(FileName);
+      GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
+    end
+  else
+    raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'invalid try to do a persistent subobject store');
 end;
 
 procedure TFRE_DB_PS_FILE.WT_TransactionID(const number: qword);
@@ -561,9 +542,9 @@ begin
     end;
 end;
 
-procedure TFRE_DB_PS_FILE.WT_StoreObjectPersistent(const obj: IFRE_DB_Object ; const no_store_locking : boolean=true);
+procedure TFRE_DB_PS_FILE.WT_StoreObjectPersistent(const obj: IFRE_DB_Object);
 begin
-  _StoreObjectPersistent(obj.Implementor as TFRE_DB_Object,no_store_locking);
+  _StoreObjectPersistent(obj.Implementor as TFRE_DB_Object);
 end;
 
 procedure TFRE_DB_PS_FILE.WT_DeleteObjectPersistent(const iobj: IFRE_DB_Object);
@@ -721,7 +702,7 @@ procedure TFRE_DB_PS_FILE.FDB_SendObject(const obj: IFRE_DB_Object);
 var result : TFRE_DB_Errortype;
 begin
   result := FMaster.InternalStoreObjectFromStable(obj.Implementor as TFRE_DB_Object);
-  WT_StoreObjectPersistent(obj,true);
+  WT_StoreObjectPersistent(obj);
   if result<>edb_OK then
     raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RESTORE OBJECT FROM BACKUP at [%s]',[obj.GetDescriptionID]);
 end;
@@ -1483,11 +1464,11 @@ begin
               if ut.CheckStdRightSetUIDAndClass(delete_object.UID,delete_object.DomainID,delete_object.SchemeClass,[sr_DELETE])<>edb_OK then
                 raise EFRE_DB_Exception.Create(edb_ACCESS,'no right to delete object [%s]',[FREDB_G2H(obj_uid)]);
             end;
-          //delete_object.Set_Store_Locked(false);
           if delete_object.IsObjectRoot then
-             step := TFRE_DB_DeleteObjectStep.Create(self,FMaster,delete_object,collection_name,false,user_context)
+            step := TFRE_DB_DeleteObjectStep.Create(self,FMaster,delete_object,collection_name,false,user_context)
           else
-             step := TFRE_DB_DeleteSubObjectStep.Create(self,FMaster,delete_object,collection_name,false,user_context);
+            raise EFRE_DB_Exception.Create(edb_ERROR,'a delete of a subobject is only allowed via an update of an root object');
+            //step := TFRE_DB_DeleteSubObjectStep.Create(self,FMaster,delete_object,collection_name,false,user_context);
           G_Transaction.AddChangeStep(step);
           result := step.GetTransActionStepID;
           if ImplicitTransaction then
@@ -1565,21 +1546,10 @@ var coll                : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
       G_Transaction.AddChangeStep(TFRE_DB_InsertStep.Create(self,FMaster,insert_obj.Implementor as TFRE_DB_Object,coll,store,user_context))
     else
       begin
-        if not IsAddToAnotherCollection then { initial add }
-          G_Transaction.AddChangeStep(TFRE_DB_InsertSubStep.Create(self,FMaster,insert_obj.Implementor as TFRE_DB_Object,coll,store,user_context));
+        //if not IsAddToAnotherCollection then { initial add }
+          //G_Transaction.AddChangeStep(TFRE_DB_InsertSubStep.Create(self,FMaster,insert_obj.Implementor as TFRE_DB_Object,coll,store,user_context));
       end;
   end;
-
-  //procedure GenDelete(const del_obj : IFRE_DB_Object);
-  //begin
-  //  if not store then
-  //    begin
-  //      writeln('THIS IS NOT ALLOWED 2');
-  //      halt;
-  //    end;
-  //  assert(not del_obj.IsObjectRoot); { this must be a subobject delete }
-  //  G_Transaction.AddChangeStep(TFRE_DB_DeleteSubObjectStep.Create(self,FMaster,del_obj.Implementor as TFRE_DB_Object,collection_name,store,user_context));
-  //end;
 
 begin
   LayerLock.Acquire;
@@ -1598,30 +1568,26 @@ begin
               raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
             if not _GetCollection(collection_name,coll) then
               raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
-
-            if _FetchO(obj.UID,existing_obj,true) then { this is an existing object, check if the objects are the same, collectionname differs -> todo add UID only parameter to feature multi clollection store easier }
-              begin
-                try
-                  existing_obj.Set_Store_Locked(False);
-                  if existing_obj.__InternalCollectionExistsName(collection_name)<>-1 then
-                    raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, and in the specified collection [%s]',[obj.UID_String,collection_name]);
-                    if not TFRE_DB_Object.CompareObjectsEqual(obj,existing_obj) then
-                      raise EFRE_DB_PL_Exception.Create(edb_MISMATCH,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, it is requested to store in the new collection [%s], but the insert object is not exactly the same as the existing object (better use uid mode)',[obj.UID_String,collection_name]);
-                    IsAddToAnotherCollection := true;
-                finally
-                  existing_obj.Set_Store_Locked(true);
-                end;
-              end;
+            //if _FetchO(obj.UID,existing_obj,true) then { this is an existing object, check if the objects are the same, collectionname differs -> todo add UID only parameter to feature multi collection store easier }
+            //  begin
+            //    try
+            //      existing_obj.Set_Store_Locked(False);
+            //      if existing_obj.__InternalCollectionExistsName(collection_name)<>-1 then
+            //        raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, and in the specified collection [%s]',[obj.UID_String,collection_name]);
+            //        if not TFRE_DB_Object.CompareObjectsEqual(obj,existing_obj) then
+            //          raise EFRE_DB_PL_Exception.Create(edb_MISMATCH,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, it is requested to store in the new collection [%s], but the insert object is not exactly the same as the existing object (better use uid mode)',[obj.UID_String,collection_name]);
+            //        IsAddToAnotherCollection := true;
+            //    finally
+            //      existing_obj.Set_Store_Locked(true);
+            //    end;
+            //  end;
             if not assigned(G_Transaction) then
               begin
                 G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('S',Fmaster,FChangeNotificationIF);
                 ImplicitTransaction := True;
               end;
             to_update_obj := nil;
-            if coll.IsVolatile then
-              obj.Set_Volatile;
-            TFRE_DB_Object.GenerateAnObjChangeList(obj,nil,@GenInsert,nil,nil); { there must not be updates or delets in STORE case}
-            //obj := nil;
+            G_Transaction.AddChangeStep(TFRE_DB_InsertStep.Create(self,FMaster,iobj.Implementor as TFRE_DB_Object,coll,store,user_context));
             result := G_Transaction.GetTransLastStepTransId;
             if ImplicitTransaction then
               G_Transaction.Commit;

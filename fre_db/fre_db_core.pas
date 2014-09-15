@@ -671,6 +671,7 @@ type
     function        FetchObjByUID                      (const childuid:TFRE_DB_GUID):TFRE_DB_Object; // fetches also root
 
     function        ForAllObjectsBreakHierarchicI      (const iter:IFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
+    function        GetFullHierarchicObjectList        (const include_self : boolean=false):TFRE_DB_ObjectArray;
     function        FetchObjByUIDI                     (const childuid:TFRE_DB_GUID ; var obj : IFRE_DB_Object):boolean;
     function        FetchObjWithStringFieldValue       (const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString=''): boolean;
     procedure       SetAllSimpleObjectFieldsFromObject (const source_object : IFRE_DB_Object); // only first level, no uid, domid, obj, objlink fields
@@ -14885,6 +14886,32 @@ function TFRE_DB_Object.ForAllObjectsBreakHierarchicI(const iter: IFRE_DB_Object
 begin
   result := ForAllObjectsBreakHierarchic(@iterat);
 end;
+
+function TFRE_DB_Object.GetFullHierarchicObjectList(const include_self: boolean): TFRE_DB_ObjectArray;
+var cnt  : NativeInt;
+    skip : Boolean;
+
+  procedure BuildList(const obj : TFRE_DB_Object ; var halt : boolean);
+  begin
+    if not skip then
+      begin
+        skip := false;
+        if Length(result)=cnt then
+          begin
+            SetLength(result,Length(result)+25);
+            result[cnt] := obj;
+            inc(cnt);
+          end;
+      end;
+  end;
+
+begin
+  cnt := 0;
+  skip := not include_self;
+  ForAllObjectsBreakHierarchic(@BuildList);
+  SetLength(result,cnt);
+end;
+
 
 function TFRE_DB_Object.FetchObjByUID(const childuid: TFRE_DB_GUID): TFRE_DB_Object;
 

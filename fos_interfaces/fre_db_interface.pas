@@ -1400,7 +1400,7 @@ type
     procedure DEBUG_InternalFunction        (const func:NativeInt);
 
     procedure WT_StoreCollectionPersistent  (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE);
-    procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object; const no_store_locking: boolean=true);
+    procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object);
     procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
     procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
     procedure WT_TransactionID              (const number:qword);
@@ -1482,8 +1482,6 @@ type
     procedure  ObjectStored           (const coll_name: TFRE_DB_NameType  ; const obj : IFRE_DB_Object ; const tsid : TFRE_DB_TransStepId); { FULL STATE }
     procedure  ObjectDeleted          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object ; const tsid : TFRE_DB_TransStepId);                                      { FULL STATE }
     procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray ; const tsid : TFRE_DB_TransStepId);    { FULL STATE }
-    procedure  SubObjectStored        (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray; const tsid : TFRE_DB_TransStepId);
-    procedure  SubObjectDeleted       (const obj : IFRE_DB_Object ; const parent_field_name : TFRE_DB_NameType ; const ParentObjectUIDPath : TFRE_DB_GUIDArray; const tsid : TFRE_DB_TransStepId);
     procedure  DifferentiallUpdStarts (const obj_uid   : IFRE_DB_Object; const tsid : TFRE_DB_TransStepId);           { DIFFERENTIAL STATE}
     procedure  FieldDelete            (const old_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
     procedure  FieldAdd               (const new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
@@ -9147,8 +9145,6 @@ begin
               'FD'  : deploy_if.FieldDelete(Field('FLD').AsObject._InternalDecodeAsField,tsid); { Field is created new .. free it in the deploy if }
               'FA'  : deploy_if.FieldAdd(Field('FLD').AsObject._InternalDecodeAsField,tsid);    { Field is created new .. free it in the deploy if }
               'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField,tsid); { Field is created new .. free it in the deploy if }
-              'SOS' : deploy_if.SubObjectStored(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr,tsid);
-              'SOD' : deploy_if.SubObjectDeleted(Field('SO').CheckOutObject,Field('SOFN').AsString,Field('SOUP').AsGUIDArr,tsid);
               'SOL' : deploy_if.SetupOutboundRefLink  (field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString,tsid);
               'SIL' : deploy_if.SetupInboundRefLink   (field('FO').AsObject,field('TO').AsGUID,field('KD').AsString,tsid);
               'DOL' : deploy_if.OutboundReflinkDropped(field('FO').AsGUID,field('TO').CheckOutObject,field('KD').AsString,tsid);
