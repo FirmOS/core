@@ -1930,7 +1930,6 @@ begin
   if result then
     begin
       value := PFRE_ART_LeafNode(node)^.GetStoredValue^
-      //node
     end
   else
     begin

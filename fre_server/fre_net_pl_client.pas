@@ -63,13 +63,13 @@ type
 
       {PS Layer Interface }
 
-      procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
+      procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String);
 
       function  GetConnectedDB                : TFRE_DB_NameType;
       function  GetLastError                  : TFRE_DB_String;
       //function  GetCollection                 (const coll_name : TFRE_DB_NameType ; out Collection: IFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
 
-      function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
+      function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ;  const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
       function  Disconnect                    : TFRE_DB_Errortype;
 
       function  DatabaseList                  : IFOS_STRINGS;
@@ -94,7 +94,7 @@ type
       function  BulkFetch                     (const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
       function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
       procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
-      procedure SyncSnapshot                  (const final : boolean=false);
+      procedure SyncSnapshot                  ;
       procedure DEBUG_InternalFunction        (const func:NativeInt);
 
       function  GetLastErrorCode              : TFRE_DB_Errortype;
@@ -778,7 +778,7 @@ end;
 //  exit(false);
 //end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DEBUG_DisconnectLayer(const db: TFRE_DB_String; const clean_master_data: boolean);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DEBUG_DisconnectLayer(const db: TFRE_DB_String);
 begin
   ; // abort;
 end;
@@ -894,7 +894,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER; const drop_wal: boolean; const NotifIF: IFRE_DB_DBChangedNotificationBlock): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Connect(const db_name: TFRE_DB_String; out db_layer: IFRE_DB_PERSISTANCE_LAYER ; const NotifIF: IFRE_DB_DBChangedNotificationBlock): TFRE_DB_Errortype;
 begin
   if not FGlobal then
     raise EFRE_DB_Exception.Create(edb_PERSISTANCE_ERROR,'operation is only allowed in then global layer');
@@ -1181,7 +1181,7 @@ begin
   abort;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.SyncSnapshot(const final: boolean);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.SyncSnapshot;
 begin
   ; { Silent ignore, until WAL Mode is implemented }
 end;

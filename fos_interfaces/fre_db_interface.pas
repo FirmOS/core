@@ -1396,7 +1396,7 @@ type
   IFRE_DB_DBChangedNotification      = interface; { recording changes in the transaction }
 
   IFRE_DB_PERSISTANCE_LAYER=interface
-    procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String;const clean_master_data :boolean = false);
+    procedure DEBUG_DisconnectLayer         (const db:TFRE_DB_String);
     procedure DEBUG_InternalFunction        (const func:NativeInt);
 
     procedure WT_StoreCollectionPersistent  (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE);
@@ -1419,7 +1419,7 @@ type
     function  GetLastError                  : TFRE_DB_String;
     function  GetLastErrorCode              : TFRE_DB_Errortype;
 
-    function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const drop_wal : boolean=false ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
+    function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
     function  Disconnect                    : TFRE_DB_Errortype;
     function  DatabaseList                  : IFOS_STRINGS;
     function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
@@ -1464,9 +1464,8 @@ type
     function  CollectionGetIndexedObjsRange       (const coll_name: TFRE_DB_NameType ; const min,max : IFRE_DB_Object ; const ascending: boolean ; const max_count,skipfirst : NativeInt ; out objs : IFRE_DB_ObjectArray ; const min_val_is_a_prefix : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
     function  CollectionGetFirstLastIdxCnt        (const coll_name: TFRE_DB_NameType ; const idx : Nativeint ; out obj : IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
 
-    procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
-    procedure SyncSnapshot                  (const final : boolean=false);
-    function  GetNotificationRecordIF       : IFRE_DB_DBChangedNotification; { to record changes }
+    procedure SyncSnapshot                        ;
+    function  GetNotificationRecordIF             : IFRE_DB_DBChangedNotification; { to record changes }
   end;
 
   IFRE_DB_DBChangedNotification = interface

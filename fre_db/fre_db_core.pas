@@ -578,7 +578,7 @@ type
     procedure       Set_SystemDB                       ;
     procedure       Set_System                         ;
     procedure       Set_Store_Locked                   (const locked:boolean=true); // Obj is as original in Persistent/MemoryStore Do not read or write it!
-    procedure       Set_Store_LockedUnLockedIf         (const locked:boolean ; var lock_state : boolean);
+    procedure       Set_Store_LockedUnLockedIf         (const locked:boolean ; out lock_state : boolean);
     procedure       Assert_CheckStoreLocked            ;
     procedure       Assert_CheckStoreUnLocked          ;
     procedure       Free                               ;
@@ -2555,8 +2555,6 @@ type
 var
   GFRE_DB                   : TFRE_DB;
   GFRE_DB_PS_LAYER          : IFRE_DB_PERSISTANCE_LAYER;
-  GDROP_WAL                 : boolean;
-  GDISABLE_WAL              : boolean;
   GDISABLE_SYNC             : boolean;
   GDBPS_TRANS_WRITE_THROUGH : boolean;
   GDBPS_SKIP_STARTUP_CHECKS : boolean;
@@ -10163,9 +10161,9 @@ begin
         exit(edb_ALREADY_CONNECTED);
     end;
   if is_clone_connect then
-    result :=   GFRE_DB_PS_LAYER.Connect(db,FPersistance_Layer,false,nil) { don't set a notif if on cloned connect}
+    result :=   GFRE_DB_PS_LAYER.Connect(db,FPersistance_Layer,nil) { don't set a notif if on cloned connect}
   else
-    result :=   GFRE_DB_PS_LAYER.Connect(db,FPersistance_Layer,false,self);
+    result :=   GFRE_DB_PS_LAYER.Connect(db,FPersistance_Layer,self);
   if result=edb_OK then
     begin
       FConnected         := true;
@@ -13981,7 +13979,7 @@ begin
     Exclude(FObjectProps,fop_STORED_IMMUTABLE);
 end;
 
-procedure TFRE_DB_Object.Set_Store_LockedUnLockedIf(const locked: boolean; var lock_state: boolean);
+procedure TFRE_DB_Object.Set_Store_LockedUnLockedIf(const locked: boolean; out lock_state: boolean);
 begin
   if Assigned(FParentDBO) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'trying to store lock/unlock a sub object -> logic failure');

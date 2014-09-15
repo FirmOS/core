@@ -415,7 +415,7 @@ begin
   FSystemConnection.Free;
   FSystemConnection:=nil;
   GFRE_DBI.LogInfo(dblc_SERVER,'SERVER SHUTDOWN DONE');
-  GFRE_DB_PS_LAYER.SyncSnapshot(true);
+  GFRE_DB_PS_LAYER.SyncSnapshot;
 
   GFRE_DBI.LogDebug(dblc_SERVER,'DATABASE COUNT [%d]',[FOpenDatabaseList.Count]);
   FOpenDatabaseList.ForAllBrk(@CloseAll);
@@ -592,7 +592,7 @@ end;
 
 procedure TFRE_BASE_SERVER.ReInit;
 begin
-  GFRE_DB_PS_LAYER.SyncSnapshot(false);
+  GFRE_DB_PS_LAYER.SyncSnapshot;
 end;
 
 procedure TFRE_BASE_SERVER.DeploymentDump;

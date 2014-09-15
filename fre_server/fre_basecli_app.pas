@@ -209,12 +209,6 @@ begin
      begin
        GDBPS_SKIP_STARTUP_CHECKS := true;
      end;
-   if HasOption('*','dropwal') then
-     begin
-       writeln('REQUESTED TO FORCE DROP WAL');
-       GDROP_WAL := true;
-     end;
-
    FLimittransfer := 0;
    if HasOption('*','limittransfer') then
      begin
@@ -461,7 +455,7 @@ var ErrorMsg : String;
         begin
           FOnlyInitDB:=true;
           InitExtensions;
-          GFRE_DB_PS_LAYER.SyncSnapshot(true);
+          GFRE_DB_PS_LAYER.SyncSnapshot;
         end;
       if HasOption('t','testdata') then
         begin
@@ -495,9 +489,7 @@ begin
   end;
 
   GDBPS_TRANS_WRITE_THROUGH := TRUE;
-  GDISABLE_WAL              := TRUE;
   GDISABLE_SYNC             := TRUE;
-  GDROP_WAL                 := TRUE;
   GDBPS_SKIP_STARTUP_CHECKS := FALSE;
 
   ParsePersistanceLayerParams;

@@ -42,6 +42,8 @@ unit fre_db_persistance_common;
 
 // VOLATILE Objects are not in WAL (or Cluster) (node local)
 
+{.$DEFINE DEBUG_STORELOCK} // Debug Storelock on Commit
+
 interface
 
 uses
@@ -448,7 +450,7 @@ type
     function    GetReferencesDetailedRC (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): TFRE_DB_ObjectReferences;
 
     function    ExistsObject            (const obj_uid : TGuid ) : Boolean;
-    function    FetchObject             (const obj_uid : TGuid ; var obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
+    function    FetchObject             (const obj_uid : TGuid ; out obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
     procedure   StoreObject             (const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
     procedure   DeleteObject            (const obj_uid : TGuid ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
     procedure   ForAllObjectsInternal   (const pers,volatile:boolean ; const iter:TFRE_DB_ObjectIteratorBrk); // No Clone
@@ -2671,7 +2673,9 @@ begin
   finally
     Lock_Unlocked_Objects;
   end;
+  {$IFDEF DEBUG_STORELOCK}
   GFRE_DB_PS_LAYER.DEBUG_InternalFunction(1); { Full Storelocking Check }
+  {$ENDIF}
 end;
 
 procedure TFRE_DB_TransactionalUpdateList.Rollback;
@@ -3668,12 +3672,11 @@ begin
   exit(false);
 end;
 
-function TFRE_DB_Master_Data.FetchObject(const obj_uid: TGuid; var obj: TFRE_DB_Object ; const internal_obj : boolean): boolean;
+function TFRE_DB_Master_Data.FetchObject(const obj_uid: TGuid; out obj: TFRE_DB_Object; const internal_obj: boolean): boolean;
 var dummy : NativeUint;
     clobj : TFRE_DB_Object;
 begin
   obj := nil;
-  //write('TRY MASTER FETCH ',gfre_bt.GUID_2_HexString(obj_uid));
   result := FMasterVolatileObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TGuid),dummy);
   if result then
     begin
