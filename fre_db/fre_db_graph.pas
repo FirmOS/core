@@ -356,18 +356,9 @@ procedure TFRE_DB_GRAPH.CollectionIterator (const coll: IFRE_DB_COLLECTION);
    end;
 
  begin
-   if coll.IsADomainCollection then
-     begin
-       collname := coll.DomainCollName;
-       colltype := ' [D]';
-       scolor   := 'orange';
-     end
-   else
-     begin
-       collname := coll.CollectionName;
-       colltype := ' [C] '+' ('+inttostr(coll.ItemCount)+')';
-       scolor   := 'green';
-     end;
+   collname := coll.CollectionName;
+   colltype := ' [C] '+' ('+inttostr(coll.ItemCount)+')';
+   scolor   := 'green';
    plotlist.Add('coll'+lowercase(collname)+' [label=<');
    plotlist.Add('<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">');
    plotlist.Add('<tr><td align="left" colspan="2" PORT="sn" bgcolor="'+scolor+'"><u>'+lowercase(collname)+colltype+'</u></td></tr>');

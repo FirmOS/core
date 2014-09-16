@@ -960,7 +960,7 @@ type
     Fields       : OFRE_SL_TFRE_InputFieldDef4Group;
     groupid      : TFRE_DB_NameType;
     FCaption_Key : TFRE_DB_NameType;
-    procedure   _addInput        (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean;const hidden:Boolean; const field_backing_collection: TFRE_DB_String;const fbCollectionIsDerivedCollection:boolean;const fbCollectionIsDomainCollection:boolean; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired:Boolean=false);
+    procedure   _addInput        (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean;const hidden:Boolean; const field_backing_collection: TFRE_DB_String;const fbCollectionIsDerivedCollection:boolean; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired:Boolean=false);
   protected
     function  GetInputGroupID    : TFRE_DB_String;
     procedure SetCaptionKey      (AValue: TFRE_DB_String);
@@ -977,7 +977,7 @@ type
     constructor Create             (const gid : TFRE_DB_NameType ; scheme : TFRE_DB_SchemeObject);
     destructor  Destroy            ; override;
     function    Setup              (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
-    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDerivedCollection:Boolean=false; const fbCollectionIsDomainCollection:boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo;const standard_coll:TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired: Boolean=false);
+    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo;const standard_coll:TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired: Boolean=false);
     procedure   AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
     procedure   UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     function    GroupFields        : PFRE_InputFieldDef4GroupArr;
@@ -1335,7 +1335,6 @@ type
     procedure       ClearCollection            ;
 
     function        CollectionName             (const unique:boolean=false):TFRE_DB_NameType;
-    function        DomainCollName             (const unique:boolean=false): TFRE_DB_NameType; {cut off the domain uid prefix string}
 
     procedure       GetAllUids                 (var uids:TFRE_DB_GUIDArray);
     procedure       GetAllUidsNoRC             (var uids:TFRE_DB_GUIDArray);
@@ -1406,9 +1405,7 @@ type
 
     procedure       ForAllIndexPrefixString    (const prefix              : TFRE_DB_String ; const iterator : IFRE_DB_ObjectIteratorBrk ; var halt:boolean ; const index_name : TFRE_DB_NameType ; const ascending: boolean = true ; const max_count : NativeInt=0 ; skipfirst : NativeInt=0);
 
-
     function        IsVolatile                 : Boolean;
-    function        IsADomainCollection        : Boolean;
 
     function        First                      : TFRE_DB_Object; virtual;
     function        Last                       : TFRE_DB_Object; virtual;
@@ -1881,15 +1878,7 @@ type
     function           ConnectedName                : TFRE_DB_String;
     function           CollectionList               (const with_classes:boolean=false):IFOS_STRINGS                          ; virtual;
 
-    function           DomainCollection             (const collection_name: TFRE_DB_NameType;const create_non_existing:boolean=true;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
-    function           GetDomainCollection          (const collection_name: TFRE_DB_NameType;const ForDomainID : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : IFRE_DB_COLLECTION;
-    function           CreateDomainCollection       (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='')  : IFRE_DB_COLLECTION;
-
-    function           DomainCollectionName         (const collection_name: TFRE_DB_NameType;const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType='') : TFRE_DB_NameType; { the uid is given as string because a GUID cannot be used as default parameter }
     function           FetchDomainUIDbyName         (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; virtual;
-
-    function           DomainCollectionExists       (const name:TFRE_DB_NameType; const ForDomainName : TFRE_DB_NameType='' ; const ForDomainUIDString: TFRE_DB_NameType=''):boolean;
-    function           DeleteDomainCollection       (const name:TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType=''; const ForDomainUIDString: TFRE_DB_NameType=''):TFRE_DB_Errortype;
 
     function           GetCollection                (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
     function           CreateCollection             (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false) : IFRE_DB_COLLECTION;
@@ -3823,7 +3812,7 @@ begin
   result := FCaption_Key;// Field('cap_key').AsString;
 end;
 
-procedure TFRE_DB_InputGroupSchemeDefinition._addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean;const hidden:Boolean; const field_backing_collection: TFRE_DB_String;const fbCollectionIsDerivedCollection:boolean;const fbCollectionIsDomainCollection:boolean; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired:Boolean);
+procedure TFRE_DB_InputGroupSchemeDefinition._addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean;const hidden:Boolean; const field_backing_collection: TFRE_DB_String;const fbCollectionIsDerivedCollection:boolean;const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired:Boolean);
 var
   obj      : OFRE_InputFieldDef4Group;
   path     : TFRE_DB_StringArray;
@@ -3869,7 +3858,6 @@ begin
     obj.caption_key    := '$'+fieldDef.FScheme.DefinedSchemeName+'_scheme_'+schemefield;
   obj.datacollection   := field_backing_collection;
   obj.standardcoll     := standard_coll;
-  obj.dc_isdomainc     := fbCollectionIsDomainCollection;
   obj.dc_isderivedc    := fbCollectionIsDerivedCollection;
   obj.chooser_type     := chooser_type;
   obj.chooser_add_empty:= chooserAddEmptyForRequired;
@@ -3895,14 +3883,14 @@ begin
   result := Setup(caption);
 end;
 
-procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: Boolean; const fbCollectionIsDomainCollection: boolean;const chooser_type:TFRE_DB_CHOOSER_DH;const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired: Boolean);
+procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH;const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired: Boolean);
 begin
-  _addInput(schemefield,cap_trans_key,disabled,hidden,field_backing_collection,fbCollectionIsDerivedCollection,fbCollectionIsDomainCollection,sr_BAD,nil,false,chooser_type,standard_coll,chooserAddEmptyForRequired);
+  _addInput(schemefield,cap_trans_key,disabled,hidden,field_backing_collection,fbCollectionIsDerivedCollection,sr_BAD,nil,false,chooser_type,standard_coll,chooserAddEmptyForRequired);
 end;
 
 procedure TFRE_DB_InputGroupSchemeDefinition.AddDomainChooser(const schemefield: TFRE_DB_String;  const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String);
 begin
-  _addInput(schemefield,cap_trans_key,false,false,'',false,false,std_right,rightClasstype,hideSingle,dh_chooser_combo);
+  _addInput(schemefield,cap_trans_key,false,false,'',false,std_right,rightClasstype,hideSingle,dh_chooser_combo);
 end;
 
 procedure TFRE_DB_InputGroupSchemeDefinition.UseInputGroup(const scheme, group: TFRE_DB_String; const addPrefix: TFRE_DB_String; const as_gui_subgroup: boolean; const collapsible: Boolean; const collapsed: Boolean);
@@ -9261,12 +9249,6 @@ begin
     result := FName;
 end;
 
-function TFRE_DB_COLLECTION.DomainCollName(const unique: boolean): TFRE_DB_NameType;
-begin
-  result := CollectionName(unique);
-  result := Copy(result,33,maxint);
-end;
-
 procedure TFRE_DB_COLLECTION.GetAllUids(var uids: TFRE_DB_GUIDArray);
 begin
   uids := FCollConnection.FPersistance_Layer.CollectionBulkFetchUIDS(FName,FCollConnection.GetUserUIDP);
@@ -9951,19 +9933,6 @@ begin
   result := FIsVolatile;
 end;
 
-function TFRE_DB_COLLECTION.IsADomainCollection: Boolean;
-var domuid : TFRE_DB_GUID;
-begin
-  if Length(FName)<=32 then { this solution is (c) by HellySoft }
-    exit(false);
-  try
-    domuid := FREDB_H2G(copy(FName,1,32));
-    exit(true);
-  except
-    exit(false);
-  end;
-end;
-
 function TFRE_DB_COLLECTION.ItemCount: Int64;
 var obi : IFRE_DB_Object;
 begin
@@ -10526,64 +10495,9 @@ begin
   Result := sl;
 end;
 
-function TFRE_DB_BASE_CONNECTION.DomainCollection(const collection_name: TFRE_DB_NameType; const create_non_existing: boolean; const in_memory: boolean; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): IFRE_DB_COLLECTION;
-begin
-  result    := Collection(DomainCollectionName(collection_name,ForDomainName,ForDomainUIDString),create_non_existing,in_memory);
-end;
-
-function TFRE_DB_BASE_CONNECTION.GetDomainCollection(const collection_name: TFRE_DB_NameType; const ForDomainID: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): IFRE_DB_COLLECTION;
-begin
-  result := DomainCollection(collection_name,false,false,ForDomainID,ForDomainUIDString);
-  if not assigned(Result) then
-    raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'there is no domain uid prefixed collection named [%s]',[collection_name]);
-end;
-
-function TFRE_DB_BASE_CONNECTION.CreateDomainCollection(const collection_name: TFRE_DB_NameType; const in_memory: boolean; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): IFRE_DB_COLLECTION;
-begin
- if DomainCollectionExists(collection_name,ForDomainName,ForDomainUIDString) then
-   raise EFRE_DB_Exception.Create(edb_ERROR,'there is already a domain uid prefixed collection named [%s]',[collection_name]);
- result := DomainCollection(collection_name,true,in_memory,ForDomainName,ForDomainUIDString);
-end;
-
-function TFRE_DB_BASE_CONNECTION.DomainCollectionName(const collection_name: TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): TFRE_DB_NameType;
-var dom_cname : string;
-    dom_uid   : TFRE_DB_GUID;
-begin
-  if (ForDomainUIDString<>'') and
-     (ForDomainName<>'') then
-       raise EFRE_DB_Exception.Create(edb_ERROR,'use only one fordomain variant');
-  if (ForDomainUIDString='') and
-     (ForDomainName='') then
-       dom_cname := GetMyDomainID_String+collection_name
-  else
-    begin
-      if ForDomainUIDString<>'' then
-        dom_cname := ForDomainUIDString+collection_name
-      else
-        begin
-          if not FetchDomainUIDbyName(ForDomainName,dom_uid) then
-            raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find a domain named [%s]',[ForDomainName]);
-           dom_cname := FREDB_G2H(dom_uid)+collection_name;
-        end;
-    end;
-  result := dom_cname;
-  if length(dom_cname)>=SizeOf(TFRE_DB_NameType) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'name for collection too long : [%s] maxlen=',[dom_cname,SizeOf(TFRE_DB_NameType)]);
-end;
-
 function TFRE_DB_BASE_CONNECTION.FetchDomainUIDbyName(const name: TFRE_DB_NameType; var domain_uid: TFRE_DB_GUID): boolean;
 begin
   abort;
-end;
-
-function TFRE_DB_BASE_CONNECTION.DomainCollectionExists(const name: TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): boolean;
-begin
-  result    := CollectionExists(DomainCollectionName(name,ForDomainName,ForDomainUIDString));
-end;
-
-function TFRE_DB_BASE_CONNECTION.DeleteDomainCollection(const name: TFRE_DB_NameType; const ForDomainName: TFRE_DB_NameType; const ForDomainUIDString: TFRE_DB_NameType): TFRE_DB_Errortype;
-begin
-  result    := DeleteCollection(DomainCollectionName(name,ForDomainName,ForDomainUIDString));
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_COLLECTION;

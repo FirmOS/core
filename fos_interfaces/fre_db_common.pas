@@ -2260,7 +2260,6 @@ implementation
       itext              : IFRE_DB_TEXT;
       dataCollectionName : TFRE_DB_NameType;
       dataCollIsDerived  : Boolean;
-      dataCollIsDomain   : Boolean;
       standardColl       : TFRE_DB_STANDARD_COLL;
       chooserField       : TFRE_DB_INPUT_CHOOSER_DESC;
       domainEntries      : Integer;
@@ -2301,7 +2300,6 @@ implementation
     begin
       required           := requiredParent and obj^.required;
       dataCollectionName := obj^.datacollection;
-      dataCollIsDomain   := obj^.dc_isdomainc;
       dataCollIsDerived  := obj^.dc_isderivedc;
       standardColl       := obj^.standardcoll;
       store              := nil;
@@ -2317,17 +2315,10 @@ implementation
                              if not assigned(dcoll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking derived collection was not found : ['+dataCollectionName+']');
                              store:=dcoll.GetStoreDescription as TFRE_DB_STORE_DESC;
                            end else begin
-                             if dataCollIsDomain then begin
-                               coll := session.GetDBConnection.GetCollection(session.GetDBConnection.DomainCollectionName(dataCollectionName));
-                               if not assigned(coll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking domain collection was not found : ['+dataCollectionName+']');
-                               store:=TFRE_DB_STORE_DESC.create.Describe();
-                               coll.ForAll(@addObjects);
-                             end else begin
-                               coll := session.GetDBConnection.GetCollection(dataCollectionName);
-                               if not assigned(coll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
-                               store:=TFRE_DB_STORE_DESC.create.Describe();
-                               coll.ForAll(@addObjects);
-                             end;
+                             coll := session.GetDBConnection.GetCollection(dataCollectionName);
+                             if not assigned(coll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
+                             store:=TFRE_DB_STORE_DESC.create.Describe();
+                             coll.ForAll(@addObjects);
                            end;
                          end;
         end;

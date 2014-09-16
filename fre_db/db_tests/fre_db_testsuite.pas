@@ -459,15 +459,10 @@ end;
 
 procedure TFRE_DB_PersistanceTests.SetupTestCollections;
 var coll_v,coll_p : IFRE_DB_COLLECTION;
-    name          : TFRE_DB_NameType;
 begin
   GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM',true);
   GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('WORKTEST');
   ConnectDB('test1@system','test1');
-  coll_v := FWorkConn.CreateDomainCollection('TeSsT');
-  assert(FWorkConn.DomainCollectionExists('tesst'),'cannot find domaincoll');
-  name := coll_v.CollectionName(false);
-  name := coll_v.DomainCollName(true);
 
   coll_v := FWorkConn.CreateCollection('TEST_1_VOL',true);
   coll_p := FWorkConn.CreateCollection('TEST_1_PERS',false);
