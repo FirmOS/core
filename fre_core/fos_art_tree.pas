@@ -176,6 +176,8 @@ type
        procedure   ForAllLvlLeafsAndInner  (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_DUMP_PROC;const level:Nativeint); // Head Recursion
 
        procedure   ForAllNodeLeafs         (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC ; var halt : boolean);
+       procedure   ForAllNodeLeafsReverse  (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC ; var halt : boolean);
+
        procedure   ForAllLeafsAndInner     (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC);
        procedure   ForAllNodeLeafsRange    (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC ; var halt : boolean ; lmismatch, hmismatch : boolean ; const lo_key,hi_key: PByte ; depth : Nativeint);
        procedure   ForAllNodeLeafsRangeReverse (node: PFRE_ART_Node; const node_proc : TFRE_ART_NODE_PROC ; var halt : boolean ; lmismatch, hmismatch : boolean ; const lo_key,hi_key: PByte ; depth : Nativeint);
@@ -218,6 +220,7 @@ type
        function    LastKeyValString        (var key_string: String ; var out_val : PtrUInt) : Boolean;
 
        function    PrefixScan              (const prefix_key : PByte  ; key_len : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback):boolean;
+       function    PrefixScanReverse       (const prefix_key : PByte  ; key_len : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallback):boolean;
        function    PrefixStringScan        (const prefix_key : string ; const nested_node_proc : TFRE_ART_NodeBreakCallback):boolean;
        procedure   PrefixStringScanClear   (const prefix_key : string ; const nested_node_proc : TFRE_ART_NodeValueProc);
 
@@ -562,6 +565,53 @@ begin
                           end;
     artNodeType256: with PFRE_ART_Node256(node)^ do
                       for i:=0 to 255 do
+                        if assigned(child[i]) then
+                          begin
+                            ForAllNodeLeafs(PFRE_ART_Node256(node)^.child[i],node_proc,halt);
+                            if halt then
+                              exit;
+                          end;
+    artNodeTypeLeaf:
+        begin
+          node_proc(node);
+          if halt then
+            exit;
+        end;
+  end;
+end;
+
+procedure TFRE_ART_TREE.ForAllNodeLeafsReverse(node: PFRE_ART_Node; const node_proc: TFRE_ART_NODE_PROC; var halt: boolean);
+var i:NativeInt;
+begin
+  if node=nil then
+    exit;
+  if halt then
+    exit;
+  case node^.typ of
+    artNodeType4:   with PFRE_ART_Node4(node)^ do
+                      for i:=node^.count-1 downto 0 do
+                        begin
+                          ForAllNodeLeafs(child[i],node_proc,halt);
+                          if halt then
+                            exit;
+                        end;
+    artNodeType16:  with PFRE_ART_Node16(node)^ do
+                      for i:=node^.count-1 downto 0 do
+                        begin
+                          ForAllNodeLeafs(child[i],node_proc,halt);
+                          if halt then
+                            exit;
+                        end;
+    artNodeType48:  with PFRE_ART_Node48(node)^ do
+                      for i:=255 downto 0 do
+                        if childIndex[i]<>CFREA_slot_is_empty then
+                          begin
+                            ForAllNodeLeafs(child[childIndex[i]],node_proc,halt);
+                            if halt then
+                              exit;
+                          end;
+    artNodeType256: with PFRE_ART_Node256(node)^ do
+                      for i:=255 downto 0 do
                         if assigned(child[i]) then
                           begin
                             ForAllNodeLeafs(PFRE_ART_Node256(node)^.child[i],node_proc,halt);
@@ -2175,6 +2225,7 @@ end;
 
 function TFRE_ART_TREE.PrefixScan(const prefix_key: PByte; key_len: NativeUint; const nested_node_proc: TFRE_ART_NodeBreakCallback): boolean;
 var node  : PFRE_ART_Node;
+
   procedure CheckNode(const node :PFRE_ART_Node);
   begin
     with PFRE_ART_LeafNode(node)^ do
@@ -2196,6 +2247,33 @@ begin
   else
     begin
       ForAllNodeLeafs(node,@CheckNode,result);
+    end;
+end;
+
+function TFRE_ART_TREE.PrefixScanReverse(const prefix_key: PByte; key_len: NativeUint; const nested_node_proc: TFRE_ART_NodeBreakCallback): boolean;
+var node  : PFRE_ART_Node;
+
+  procedure CheckNode(const node :PFRE_ART_Node);
+  begin
+    with PFRE_ART_LeafNode(node)^ do
+      nested_node_proc(GetStoredValue^,GetStoredKey,GetStoredKeyLen,result);
+  end;
+
+begin
+  result := false;
+  node := LookupKeyOrPrefix(FArtTree,prefix_key,key_len,0);
+  if not assigned(node) then
+    exit;
+  if node^.typ=artNodeTypeLeaf then
+    begin
+      with PFRE_ART_LeafNode(node)^ do
+        nested_node_proc(stored_value,GetStoredKey,GetStoredKeyLen,result);
+      if Result then
+        exit;
+    end
+  else
+    begin
+      ForAllNodeLeafsReverse(node,@CheckNode,result);
     end;
 end;
 

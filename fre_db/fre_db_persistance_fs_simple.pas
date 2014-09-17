@@ -83,9 +83,9 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function     EscapeDBName                 (const name:string):string;
      function     UnEsacpeDBName               (const name:string):string;
 
-     function     _GetCollection               (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION_BASE) : Boolean;
+     function     _GetCollection               (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
 
-     procedure   _StoreCollectionPersistent    (const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE);
+     procedure   _StoreCollectionPersistent    (const coll:TFRE_DB_PERSISTANCE_COLLECTION);
      procedure   _StoreObjectPersistent        (const obj:TFRE_DB_Object);
 
      procedure   WT_TransactionID              (const number:qword);
@@ -161,7 +161,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
      function    CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
      function    CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; // todo transaction context
-     function    CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean ; const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+     function    CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean;
+                                                      const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const is_a_domain_index: boolean = false; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
      function    CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_INDEX_DEF;
      function    CollectionDropIndex                 (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_TransStepId;
      function    CollectionGetAllIndexNames          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_NameTypeArray;
@@ -254,7 +255,7 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
       procedure add_collection(file_name:AnsiString);
       var f     : TFileStream;
           res   : TFRE_DB_Errortype;
-          coll  : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
+          coll  : TFRE_DB_PERSISTANCE_COLLECTION;
           name  : TFRE_DB_String;
           ename : TFRE_DB_String;
           ext   : TFRE_DB_String;
@@ -267,7 +268,7 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
               res := FMaster.MasterColls.NewCollection(name,coll,false,self);
               if res <> edb_OK then
                 raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
-              coll.GetPersLayerIntf.LoadFromThis(f);
+              (coll as TFRE_DB_Persistance_Collection).LoadFromThis(f);
             finally
               f.free;
             end;
@@ -283,7 +284,7 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
                 GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD IDX DEF COLLECTION [%s - %s]',[name,name+'.idd']);
                 obj := GFRE_DBI.CreateFromFile(fni);
                 try
-                  coll.GetPersLayerIntf.CreateIndexDefsFromObj(obj);
+                  coll.CreateIndexDefsFromObj(obj);
                 finally
                   obj.Finalize;
                 end;
@@ -369,19 +370,19 @@ begin
   FIsGlobalLayer := false;
 end;
 
-function TFRE_DB_PS_FILE._GetCollection(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION_BASE): Boolean;
+function TFRE_DB_PS_FILE._GetCollection(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION): Boolean;
 begin
   result := FMaster.MasterColls.GetCollection(coll_name,Collection);
 end;
 
 function TFRE_DB_PS_FILE.CollectionExistCollection(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): Boolean;
-var dummy : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
+var dummy : TFRE_DB_PERSISTANCE_COLLECTION;
 begin
   result := FMaster.MasterColls.GetCollection(coll_name,dummy);
 end;
 
 
-procedure TFRE_DB_PS_FILE._StoreCollectionPersistent(const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE);
+procedure TFRE_DB_PS_FILE._StoreCollectionPersistent(const coll: TFRE_DB_PERSISTANCE_COLLECTION);
 var f   : TFileStream;
     fnb : string;
     ixo : IFRE_DB_Object;
@@ -394,24 +395,24 @@ begin
       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION [%s]',[coll.CollectionName]);
       f :=  TFileStream.Create(fnb+'.col',fmCreate+fmOpenReadWrite);
       try
-        coll.GetPersLayerIntf.StreamToThis(f);
+        coll.StreamToThis(f);
       finally
         f.free;
       end;
       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION IDD [%s]',[coll.CollectionName]);
       try
-        ixo := coll.GetPersLayerIntf.GetIndexDefObject;
+        ixo := coll.GetIndexDefObject;
         ixo.SaveToFile(fnb+'.idd');
       finally
         ixo.Finalize;
       end;
       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>STORE COLLECTION IDX [%s]',[coll.CollectionName]);
-      nta := coll.GetPersLayerIntf.IndexNames;
+      nta := coll.IndexNames;
       for i:=0 to high(nta) do
         begin
           f :=  TFileStream.Create(fnb+'-'+GFRE_BT.Str2HexStr(nta[i])+'.idx',fmCreate+fmOpenReadWrite);
           try
-            coll.GetPersLayerIntf.StreamIndexToThis(nta[i],f);
+            coll.StreamIndexToThis(nta[i],f);
           finally
             f.free;
           end;
@@ -448,7 +449,7 @@ end;
 
 procedure TFRE_DB_PS_FILE.WT_StoreCollectionPersistent(const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE);
 begin
-  _StoreCollectionPersistent(coll);
+  _StoreCollectionPersistent(coll as TFRE_DB_PERSISTANCE_COLLECTION);
 end;
 
 procedure TFRE_DB_PS_FILE.WT_DeleteCollectionPersistent(const collname: TFRE_DB_NameType);
@@ -633,14 +634,14 @@ end;
 
 procedure TFRE_DB_PS_FILE.FDB_SendCollection(const obj: IFRE_DB_Object);
 var res  : TFRE_DB_Errortype;
-    coll : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
+    coll : TFRE_DB_PERSISTANCE_COLLECTION;
     name : TFRE_DB_NameType;
 begin
   name := obj.Field('CollectionName').AsString;
   res := FMaster.MasterColls.NewCollection(name,coll,false,self);
   if res <> edb_OK then
     raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM BACKUP FAILED FOR [%s]',[name]);
-  coll.GetPersLayerIntf.RestoreFromObject(obj);
+  coll.RestoreFromObject(obj);
   WT_StoreCollectionPersistent(coll);
 end;
 
@@ -1015,7 +1016,7 @@ var sys_admin   : boolean;
     domnames    : TFRE_DB_NameTypeArray;
     obj         : TFRE_DB_Object;
     myuser      : FRE_DB_CORE.TFRE_DB_USER;
-    FSysDomains : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
+    FSysDomains : TFRE_DB_PERSISTANCE_COLLECTION;
     FSysDomain  : IFRE_DB_DOMAIN;
     FSysDomainO : TFRE_DB_Object;
     iobj        : IFRE_DB_Object;
@@ -1122,7 +1123,7 @@ begin
         myuser.Set_Store_Locked(false);
         if not G_SysMaster.MasterColls.GetCollection('SysDomain',FSysDomains) then
           raise EFRE_DB_Exception.Create(edb_MISMATCH,'cannot fetch pl collection "SysDomain"');
-        if not FSysDomains.GetPersLayerIntf.GetIndexedObjInternal('SYSTEM',iobj,'def') then
+        if not FSysDomains.GetIndexedObjInternal('SYSTEM',iobj,'def') then
           raise EFRE_DB_Exception.Create(edb_MISMATCH,'cannot fetch system domain object');
         if not iobj.Supports(IFRE_DB_DOMAIN,FSysDomain) then
           raise EFRE_DB_Exception.Create(edb_MISMATCH,'invalid system domain object');
@@ -1137,7 +1138,7 @@ begin
           SetLength(domuids,domcnt);
           SetLength(domnames,domcnt);
           idx := 0;
-          FSysDomains.GetPersLayerIntf.ForAllInternalI(@IterateDomains);
+          FSysDomains.ForAllInternalI(@IterateDomains);
           tokeno := TFRE_DB_USER_RIGHT_TOKEN.Create(myuser.UID,myuser.Login,myuser.GetUserGroupIDS,_GetRightsArrayForUser(myUser),sys_admin,FSysDomain.UID,myuser.DomainID,domuids,domnames);
           G_UpdateUserToken(myuser.UID,tokeno);
           Result := tokeno.CloneToNewUserToken;
@@ -1268,7 +1269,7 @@ end;
 
 // This is always the first entry into the store and update chain
 function TFRE_DB_PS_FILE.StoreOrUpdateObject(const iobj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
-var coll                : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
+var coll                : TFRE_DB_PERSISTANCE_COLLECTION;
     to_update_obj       : TFRE_DB_Object;
     ImplicitTransaction : Boolean;
     changes             : Boolean;
@@ -1385,7 +1386,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.CollectionDefineIndexOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+function TFRE_DB_PS_FILE.CollectionDefineIndexOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const is_a_domain_index: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
 var ImplicitTransaction : Boolean;
     step                : TFRE_DB_DefineIndexOnFieldStep;
 
@@ -1396,10 +1397,10 @@ begin
       try
         if not assigned(G_Transaction) then
           begin
-            G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DIOF',Fmaster,FChangeNotificationIF);
+            G_Transaction       := TFRE_DB_TransactionalUpdateList.Create('DIOF',Fmaster,FChangeNotificationIF);
             ImplicitTransaction := True;
           end;
-        step := TFRE_DB_DefineIndexOnFieldStep.Create(self,FMaster,coll_name,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values,user_context);
+        step := TFRE_DB_DefineIndexOnFieldStep.Create(self,FMaster,coll_name,FieldName,FieldType,unique,ignore_content_case,index_name,allow_null_value,unique_null_values,is_a_domain_index,user_context);
         G_Transaction.AddChangeStep(step);
         if ImplicitTransaction then
           G_Transaction.Commit;

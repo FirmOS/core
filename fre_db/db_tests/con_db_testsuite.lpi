@@ -37,7 +37,6 @@
       <Unit0>
         <Filename Value="con_db_testsuite.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="con_db_testsuite"/>
       </Unit0>
       <Unit1>
         <Filename Value="fre_db_testsuite.pas"/>
@@ -47,12 +46,10 @@
       <Unit2>
         <Filename Value="mikrotest.pp"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="mikrotest"/>
       </Unit2>
       <Unit3>
         <Filename Value="fos_sparelistgen.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fos_sparelistgen"/>
       </Unit3>
       <Unit4>
         <Filename Value="../../fre_server/fre_net_pl_client.pas"/>
@@ -90,9 +87,6 @@
         <UseExternalDbgSyms Value="True"/>
       </Debugging>
     </Linking>
-    <Other>
-      <CompilerPath Value="$(CompPath)"/>
-    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="5">
