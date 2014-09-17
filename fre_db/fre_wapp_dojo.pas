@@ -1347,7 +1347,7 @@ implementation
     sizeSum:=0;
     for i:=0 to layout.Field('data').ValueCount - 1 do begin
       elem:=layout.Field('data').AsObjectItem[i];
-      if elem.Field('display').AsBoolean then begin
+      if elem.Field('display').AsBoolean and (FREDB_String2DBDisplayType(elem.Field('displayType').AsString)<>dt_description) then begin
         if elem.FieldExists('size') then begin
           sizeSum:=sizeSum+elem.Field('size').AsInt16;
         end else begin

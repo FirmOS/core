@@ -49,9 +49,9 @@ type
     class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    procedure       CalculateRoleIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
+    procedure       CalculateRoleIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
+    procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
+    procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
   published
     function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_UserSelected          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -88,9 +88,9 @@ type
     class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    procedure       CalculateRoleFields       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
+    procedure       CalculateRoleFields       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
+    procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
+    procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
   published
     function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentNoGroupSel     (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -133,9 +133,9 @@ type
     class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    procedure       CalculateRoleFields       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
-    procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
+    procedure       CalculateRoleFields       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
+    procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
+    procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
   published
     function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentNoRoleSel      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -162,7 +162,7 @@ type
     class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    procedure       CalculateDomainIcon       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object);
+    procedure       CalculateDomainIcon       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object; const langres: array of TFRE_DB_String);
   published
     function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -332,7 +332,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('suspended','','',dt_boolean,False);
       AddOneToOnescheme('internal','','',dt_boolean,False);
-      SetFinalRightTransformFunction(@CalculateDomainIcon);
+      SetFinalRightTransformFunction(@CalculateDomainIcon,[]);
     end;
     domain_Grid := session.NewDerivedCollection('DOMAINMOD_DOMAIN_GRID');
     with domain_Grid do begin
@@ -408,7 +408,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_DOMAIN_MOD.CalculateDomainIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
+procedure TFRE_COMMON_DOMAIN_MOD.CalculateDomainIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if transformed_object.DomainID=ut.GetSysDomainID then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico_lck.svg');
@@ -911,7 +911,7 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
-      SetFinalRightTransformFunction(@CalculateRoleFields);
+      SetFinalRightTransformFunction(@CalculateRoleFields,[]);
       AddFulltextFilterOnTransformed(['displayname']);
    end;
     role_Grid := session.NewDerivedCollection('ROLEMOD_ROLE_GRID');
@@ -940,7 +940,7 @@ begin
       if show_user_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
-      SetFinalRightTransformFunction(@CalculateUserIcon);
+      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
     userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_GRID');
     with userin_Grid do begin
@@ -963,7 +963,7 @@ begin
       if show_user_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
       end;
-      SetFinalRightTransformFunction(@CalculateUserIcon);
+      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
     userout_Grid := session.NewDerivedCollection('ROLEMOD_USEROUT_GRID');
     with userout_Grid do begin
@@ -986,7 +986,7 @@ begin
       AddOneToOnescheme('protected','_disabledrag_','',dt_boolean,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,False);
-      SetFinalRightTransformFunction(@CalculateGroupFields);
+      SetFinalRightTransformFunction(@CalculateGroupFields,[]);
     end;
     groupin_Grid := session.NewDerivedCollection('ROLEMOD_GROUPIN_GRID');
     with groupin_Grid do begin
@@ -1011,7 +1011,7 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,False);
       AddOneToOnescheme('domainidlink','','',dt_string,False);
-      SetFinalRightTransformFunction(@CalculateGroupFields);
+      SetFinalRightTransformFunction(@CalculateGroupFields,[]);
     end;
     groupout_Grid := session.NewDerivedCollection('ROLEMOD_GROUPOUT_GRID');
     with groupout_Grid do begin
@@ -1029,7 +1029,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_ROLE_MOD.CalculateRoleFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object ; const session_data : IFRE_DB_Object);
+procedure TFRE_COMMON_ROLE_MOD.CalculateRoleFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if transformed_object.PreTransformedWasA('TFRE_DB_DOMAIN') then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
@@ -1046,7 +1046,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_ROLE_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object ; const session_data : IFRE_DB_Object);
+procedure TFRE_COMMON_ROLE_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_dis.svg');
@@ -1063,7 +1063,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_ROLE_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object ; const session_data : IFRE_DB_Object);
+procedure TFRE_COMMON_ROLE_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,transformed_object.DomainID) then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
@@ -1676,7 +1676,7 @@ begin
       AddOneToOnescheme('protected','','',dt_boolean,False);
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,False,false,false,1,'','','false');
-      SetFinalRightTransformFunction(@CalculateGroupFields);
+      SetFinalRightTransformFunction(@CalculateGroupFields,[]);
       AddFulltextFilterOnTransformed(['displayname']);
     end;
     group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_GRID');
@@ -1705,7 +1705,7 @@ begin
       if show_user_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
-      SetFinalRightTransformFunction(@CalculateUserIcon);
+      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
     userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_GRID');
     with userin_Grid do begin
@@ -1728,7 +1728,7 @@ begin
       if show_user_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
       end;
-      SetFinalRightTransformFunction(@CalculateUserIcon);
+      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
     userout_Grid := session.NewDerivedCollection('GROUPMOD_USEROUT_GRID');
     with userout_Grid do begin
@@ -1750,7 +1750,7 @@ begin
       AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,False);
-      SetFinalRightTransformFunction(@CalculateRoleFields);
+      SetFinalRightTransformFunction(@CalculateRoleFields,[]);
     end;
     rolein_Grid := session.NewDerivedCollection('GROUPMOD_ROLEIN_GRID');
     with rolein_Grid do begin
@@ -1773,7 +1773,7 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,False);
       AddOneToOnescheme('domainidlink','','',dt_string,False);
-      SetFinalRightTransformFunction(@CalculateRoleFields);
+      SetFinalRightTransformFunction(@CalculateRoleFields,[]);
     end;
     roleout_Grid := session.NewDerivedCollection('GROUPMOD_ROLEOUT_GRID');
     with roleout_Grid do begin
@@ -1791,7 +1791,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_GROUP_MOD.CalculateRoleFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
+procedure TFRE_COMMON_GROUP_MOD.CalculateRoleFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if ut.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,transformed_object.DomainID) then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico.svg');
@@ -1805,7 +1805,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_GROUP_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
+procedure TFRE_COMMON_GROUP_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if transformed_object.PreTransformedWasA('TFRE_DB_DOMAIN') then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');
@@ -1826,7 +1826,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_GROUP_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
+procedure TFRE_COMMON_GROUP_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if ut.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,transformed_object.DomainID) then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/user_ico.svg');
@@ -2721,7 +2721,7 @@ begin
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
-      SetFinalRightTransformFunction(@CalculateUserIcon);
+      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
       AddFulltextFilterOnTransformed(['displayname']);
     end;
 
@@ -2754,7 +2754,7 @@ begin
       if show_group_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
-      SetFinalRightTransformFunction(@CalculateGroupFields);
+      SetFinalRightTransformFunction(@CalculateGroupFields,[]);
     end;
 
     groupin_Grid := session.NewDerivedCollection('USERMOD_GROUPIN_GRID');
@@ -2783,7 +2783,7 @@ begin
       if show_group_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_GROUP));
       end;
-      SetFinalRightTransformFunction(@CalculateGroupFields);
+      SetFinalRightTransformFunction(@CalculateGroupFields,[]);
     end;
 
     groupout_Grid := session.NewDerivedCollection('USERMOD_GROUPOUT_GRID');
@@ -2810,7 +2810,7 @@ begin
       if show_role_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
       end;
-      SetFinalRightTransformFunction(@CalculateRoleIcon);
+      SetFinalRightTransformFunction(@CalculateRoleIcon,[]);
     end;
 
     rolein_Grid := session.NewDerivedCollection('USERMOD_ROLEIN_GRID');
@@ -2837,7 +2837,7 @@ begin
       if show_role_domains then begin
         AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_ROLE));
       end;
-      SetFinalRightTransformFunction(@CalculateRoleIcon);
+      SetFinalRightTransformFunction(@CalculateRoleIcon,[]);
     end;
     roleout_Grid := session.NewDerivedCollection('USERMOD_ROLEOUT_GRID');
     with roleout_Grid do begin
@@ -2855,7 +2855,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_USER_MOD.CalculateRoleIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
+procedure TFRE_COMMON_USER_MOD.CalculateRoleIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if transformed_object.FieldExists('disabled') and transformed_object.Field('disabled').AsBoolean then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/role_ico_dis.svg');
@@ -2868,7 +2868,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_USER_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
+procedure TFRE_COMMON_USER_MOD.CalculateGroupFields(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if ut.CheckClassRight4DomainId('assignGroup',TFRE_DB_GROUP,transformed_object.DomainID) then begin
     if transformed_object.Field('protected').AsBoolean then begin
@@ -2886,7 +2886,7 @@ begin
   end;
 end;
 
-procedure TFRE_COMMON_USER_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object);
+procedure TFRE_COMMON_USER_MOD.CalculateUserIcon(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object;const langres: array of TFRE_DB_String);
 begin
   if transformed_object.PreTransformedWasA('TFRE_DB_DOMAIN') then begin
     transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/domain_ico.svg');

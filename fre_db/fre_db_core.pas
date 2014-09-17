@@ -1579,6 +1579,7 @@ type
   TFRE_DB_SIMPLE_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_SIMPLE_TRANSFORM)
   private
     FFinalRightTransform  : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
+    FFRTLangres           : TFRE_DB_StringArray;
   public
     constructor Create                         ; override;
     function    TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; override;
@@ -1596,7 +1597,7 @@ type
     procedure   AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameTypeRL     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false);
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
     function    GetViewCollectionDescription   : TFRE_DB_CONTENT_DESC;
-    procedure   SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
+    procedure   SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
     procedure   AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String; const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
   end;
 
@@ -6612,9 +6613,14 @@ begin
   result := vcd;
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.SetFinalRightTransformFunction(const func: IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION);
+procedure TFRE_DB_SIMPLE_TRANSFORM.SetFinalRightTransformFunction(const func: IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String);
+var
+  i: Integer;
 begin
   FFinalRightTransform := func;
+  SetLength(FFRTLangres,length(langres));
+  for i := 0 to high(langres) do
+    FFRTLangres[i] := langres[i];
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddReferencedFieldQuery(const func: IFRE_DB_QUERY_SELECTOR_FUNCTION; const ref_field_chain: array of TFRE_DB_NameTypeRL; const output_fields: array of TFRE_DB_String; const output_titles: array of TFRE_DB_String; const langres: array of TFRE_DB_String; const gui_display_type: array of TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const hide_in_output: boolean);
@@ -7364,7 +7370,7 @@ begin
   if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
       and assigned(TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform) then
         try
-          TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,ses.GetSessionGlobalData);
+          TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,ses.GetSessionGlobalData,TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFRTLangres);
         except
           on e:exception do
             begin
