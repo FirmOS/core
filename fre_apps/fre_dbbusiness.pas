@@ -47,6 +47,10 @@ uses
   FRE_DB_COMMON,
   FRE_DB_INTERFACE;
 
+const
+
+    CFOS_DB_CUSTOMERS_COLLECTION                         = 'customers';
+
 procedure Register_DB_Extensions;
 
 type

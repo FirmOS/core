@@ -951,8 +951,8 @@ type
   IFRE_DB_DERIVED_COLLECTION=interface//(IFRE_DB_COLLECTION)
     [cFOS_IID_DERIVED_COLL]
     function   UID                           : TFRE_DB_GUID;
-    function   Count                         : NAtiveInt;
-    function   ItemCount                     : NativeInt;
+    function   Count                         : Int64;
+    function   ItemCount                     : Int64;
     function   First                         : IFRE_DB_Object;
     function   Last                          : IFRE_DB_Object;
     procedure  ForAll                        (const func:IFRE_DB_Obj_Iterator); deprecated ; { dont use }

@@ -88,6 +88,7 @@ program fpmake_packages;
          addunit('fos_sparelistgen.pas');
          addunit('fos_art_tree.pas');
          addunit('fre_mysql_ll.pas');
+         addunit('fos_strutils.pas');
 
 
          //TODO: CORE PACKAGE KILL
