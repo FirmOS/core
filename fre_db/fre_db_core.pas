@@ -10329,7 +10329,7 @@ end;
 
 function TFRE_DB_BASE_CONNECTION.IsReferenced(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): Boolean;
 begin
-  result := IsReferenced(obj_uid,false,scheme_prefix_filter,field_exact_filter);
+  result := IsReferenced(obj_uid,scheme_prefix_filter,field_exact_filter);
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetReferences(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
