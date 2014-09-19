@@ -569,7 +569,6 @@ type
 
   TFRE_DB_InsertStep=class(TFRE_DB_ChangeStep)
   private
-    //FNewObj                   : TFRE_DB_Object;
     FInsertList               : TFRE_DB_ObjectArray;
     FColl                     : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
     FCollName                 : TFRE_DB_NameType;
@@ -2282,6 +2281,18 @@ var i,j         : NativeInt;
     procedure _AddedField;
     var sc,fn : TFRE_DB_NameType;
         j     : nativeint;
+
+        procedure SubObjectInsert;
+        var FInsertList : TFRE_DB_ObjectArray;
+            k           : NativeInt;
+        begin
+          FInsertList := FSublist[i].newfield.AsObject.GetFullHierarchicObjectList(true);
+          for k:=0 to high(FInsertList) do
+            master.StoreObject(FInsertList[k],check,GetNotificationRecordIF,GetTransActionStepID);
+          if not check then
+            inmemobject.Field(FSublist[i].newfield.FieldName).AsObject := FSublist[i].newfield.AsObject.CloneToNewObject(); { subobject insert}  { TODO - GENERATE SUBOBJECT INSERTS !!!! Try to fetch a new subobject by UID}
+        end;
+
     begin
       assert(assigned(inmemobject),'internal, logic');
       with FSublist[i] do
@@ -2298,9 +2309,7 @@ var i,j         : NativeInt;
               end;
             fdbft_Object:
               begin
-                if check then
-                  exit;
-                inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject(); { subobject insert}  { TODO - GENERATE SUBOBJECT INSERTS !!!! Try to fetch a new subobject by UID}
+                SubObjectInsert;
               end;
             fdbft_ObjLink:
               if check then
