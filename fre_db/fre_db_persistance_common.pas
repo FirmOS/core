@@ -1638,7 +1638,7 @@ begin
           notify_delob := FDeleteList[0].CloneToNewObject;
           notify_delob.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=GetTransActionStepID;
           CheckWriteThroughDeleteObj(FDeleteList[0]); { the changes must only be recorded persistent when the object is finally deleted, the internal collection assosciation is not stored persistent }
-          for i := 0 to high(FDeleteList) do
+          for i := high(FDeleteList) downto 0 do { the list is build recursive top down, only free the root object, bt remove the childs too !}
             begin
               master.DeleteObject(FDeleteList[i].UID,false,GetNotificationRecordIF,GetTransActionStepID);
             end;
@@ -3795,6 +3795,7 @@ var dummyv  : PtrUInt;
     ex_vol  : boolean;
     ex_pers : boolean;
     isroot  : boolean;
+    cn      : shortstring;
 begin
   if check_only then
     begin
@@ -3820,7 +3821,11 @@ begin
     end;
   if ex_pers then
     begin
-      obj := FREDB_PtrUIntToObject(dummyp) as TFRE_DB_Object;
+      try
+        obj := FREDB_PtrUIntToObject(dummyp) as TFRE_DB_Object;
+      except
+        cn := TObject(dummyp).ClassName;
+      end;
       _RemoveAllRefLinks(obj,notifif,tsid);
       if not FMasterPersistentObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TGuid),dummyp) then
         raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'cannot remove existing');
