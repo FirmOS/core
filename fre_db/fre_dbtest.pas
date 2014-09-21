@@ -129,12 +129,12 @@ type
     procedure        SetupApplicationStructure     ; override;
 
     class procedure  InstallDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;  { system specific data inits go here}
-    class procedure  InstallDBObjects4SysDomain  (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;                       { system domain specific data inits go here}
+    class procedure  InstallDBObjects4SysDomain  (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TFRE_DB_GUID); override;                       { system domain specific data inits go here}
     class procedure  InstallUserDBObjects        (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType); override;                                             { app db specific data inits goes here }
-    class procedure  InstallUserDBObjects4Domain (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID); override;                           { app db domain specific data inits goes here }
+    class procedure  InstallUserDBObjects4Domain (const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID); override;                           { app db domain specific data inits goes here }
 
     class procedure  RemoveDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType); override;
-    class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
+    class procedure  RemoveDBObjects4Domain     (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TFRE_DB_GUID); override;
   protected
     procedure        MyServerInitialize        (const admin_dbc: IFRE_DB_CONNECTION); override; { initialize in memory collections here }
   public
@@ -387,11 +387,11 @@ type _tusertype = (utguest,utuser,utadmin,utdemo);
 var conn    : IFRE_DB_CONNECTION;
     res     : TFRE_DB_Errortype;
     i       : integer;
-    domainId: TGuid;
+    domainId: TFRE_DB_GUID;
     group   : IFRE_DB_GROUP;
     userObj : IFRE_DB_USER;
 
-  procedure _AddUser(const user: string; const domain : TGuid; const usertype:_tusertype;firstname:string='';lastname: string='';passwd : string='');
+  procedure _AddUser(const user: string; const domain : TFRE_DB_GUID; const usertype:_tusertype;firstname:string='';lastname: string='';passwd : string='');
   var ims    : TFRE_DB_Stream;
   begin
     if passwd='' then begin
@@ -768,7 +768,7 @@ var
         res.AddEntry.DescribeDownload('Download','','/download'+opaquedata.Field('fileid').AsString);
         ses.SendServerClientAnswer(res,ocid);
       end else begin
-        res.AddEntry.Describe('Create ZIP','',TFRE_DB_SERVER_FUNC_DESC.create.Describe('TFRE_DB_TEST_FILEDIR',opaquedata.Field('rootGUID').AsGUID,'CreateZip'));
+        res.AddEntry.Describe('Create ZIP','',TFRE_DB_SERVER_FUNC_DESC.create.Describe('TFRE_DB_TEST_FILEDIR',opaquedata.Field('rooTFRE_DB_GUID').AsGUID,'CreateZip'));
         ses.SendServerClientAnswer(res,ocid);
       end;
     end else begin
@@ -782,7 +782,7 @@ begin
   inp := GFRE_DBI.NewObject;
   inp.Field('fileid').AsString:=copy(input.Field('selected').AsString,1,Length(input.Field('selected').AsString)-1);
   opd.Field('fileid').AsString:=inp.Field('fileid').AsString;
-  opd.Field('rootGUID').AsGUID:=UID;
+  opd.Field('rooTFRE_DB_GUID').AsGUID:=UID;
   if ses.InvokeRemoteRequest('SAMPLEFEEDER','GETFILEDIRINFO',inp,@GotAnswer,opd)=edb_OK then begin
     result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   end else begin
@@ -867,7 +867,7 @@ function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.GetToolbarMenu(const ses: IFRE_DB_U
 var
   submenu,menu : TFRE_DB_MENU_DESC;
   test         : IFRE_DB_Object;
-  myuid          : TGuid;
+  myuid          : TFRE_DB_GUID;
 
 begin
   test  := ses.GetDBConnection.GetCollection('COLL_TEST_AT').First;
@@ -2009,13 +2009,13 @@ end;
 function TFRE_DB_TEST_APP_GRID2_MOD.WEB_AddRecordBefore(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var col : IFRE_DB_COLLECTION;
     NEW : IFRE_DB_Object;
-    selg: TGUID;
+    selg: TFRE_DB_GUID;
     num : UInt32;
 begin
   Result := GFRE_DB_NIL_DESC;
   writeln('ADD BEFORE');
   writeln(input.Field('SELECTED').AsString);
-  selg := GFRE_BT.HexString_2_GUID(input.Field('SELECTED').AsString);
+  selg := FREDB_H2G(input.Field('SELECTED').AsString);
   col    := GetDBConnection(input).GetCollection('COLL_TEST_A2');
   if col.FetchInCollection(selg,new) then begin
     num := new.Field('number').AsUint32-1;
@@ -2034,13 +2034,13 @@ end;
 
 function TFRE_DB_TEST_APP_GRID2_MOD.WEB_AddRecordAfter(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var col : IFRE_DB_COLLECTION;
-    selg: TGUID;
+    selg: TFRE_DB_GUID;
     NEW : IFRE_DB_Object;
     num : UInt32;
 begin
   Result := GFRE_DB_NIL_DESC;
   writeln(input.Field('SELECTED').AsString);
-  selg := GFRE_BT.HexString_2_GUID(input.Field('SELECTED').AsString);
+  selg := FREDB_H2G(input.Field('SELECTED').AsString);
   col    := GetDBConnection(input).GetCollection('COLL_TEST_A2');
   if col.FetchInCollection(selg,new) then begin
     num := new.Field('number').AsUint32+1;
@@ -2066,9 +2066,9 @@ begin
   del_guids :=  GFRE_DBI.StringArray2GuidArray(input.Field('SELECTED').AsStringArr);
   for i:=0 to high(del_guids) do begin
     if col.Remove(del_guids[i])<>edb_OK then begin
-      writeln('Could not delete Obj uid : '+GFRE_BT.GUID_2_HexString(del_guids[i]));
+      writeln('Could not delete Obj uid : '+FREDB_G2H(del_guids[i]));
     end else begin
-      writeln('Deleted Obj uid : '+GFRE_BT.GUID_2_HexString(del_guids[i]));
+      writeln('Deleted Obj uid : '+FREDB_G2H(del_guids[i]));
     end;
   end;
   result := GFRE_DB_NIL_DESC;
@@ -2097,7 +2097,7 @@ begin
         GetDBConnection(input).Update(obj);
       end;
     end else begin
-      writeln('Could not fetch : '+GFRE_BT.GUID_2_HexString(upd_guids[i]));
+      writeln('Could not fetch : '+FREDB_G2H(upd_guids[i]));
     end;
   end;
   result := GFRE_DB_NIL_DESC;
@@ -2478,7 +2478,7 @@ begin
 end;
 
 
-class procedure TFRE_DB_TEST_APP.InstallDBObjects4SysDomain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+class procedure TFRE_DB_TEST_APP.InstallDBObjects4SysDomain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
 var group : IFRE_DB_GROUP;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
@@ -2507,7 +2507,7 @@ begin
     end;
 end;
 
-class procedure TFRE_DB_TEST_APP.InstallUserDBObjects4Domain(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+class procedure TFRE_DB_TEST_APP.InstallUserDBObjects4Domain(const conn: IFRE_DB_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
 begin
 
 end;
@@ -2517,7 +2517,7 @@ begin
   inherited RemoveDBObjects(conn, currentVersionId);
 end;
 
-class procedure TFRE_DB_TEST_APP.RemoveDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+class procedure TFRE_DB_TEST_APP.RemoveDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
 begin
   inherited RemoveDBObjects4Domain(conn, currentVersionId, domainUID);
 end;
@@ -2645,7 +2645,7 @@ var CONN    : IFRE_DB_CONNECTION;
     COLL    : IFRE_DB_COLLECTION;
     lobj    : IFRE_DB_Object;
     lo1,lo2 : IFRE_DB_Object;
-    loUID   : TGUID;
+    loUID   : TFRE_DB_GUID;
     i,t1,t2 : Integer;
     ato     : TFRE_DB_TEST_ALL_TYPES;
 begin

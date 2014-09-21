@@ -45,7 +45,7 @@ unit fre_http_srvhandler;
 interface
 
 uses
-  Classes, SysUtils,strutils,FRE_DB_INTERFACE,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS,zstream;
+  Classes, SysUtils,fos_strutils,FRE_DB_INTERFACE,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS,zstream;
 
 type
 
@@ -252,11 +252,11 @@ function TFRE_HTTP_CONNECTION_HANDLER.GetHeaderField(const fieldname: String): s
 var lStart,lEnd,lNamelen:integer;
 begin
   result:='';
-  lStart := PosEx(fieldname+':',FRequest,FHeaderPos);
+  lStart := fos_posEx(fieldname+':',FRequest,FHeaderPos);
   if lStart>0 then begin
     lNamelen := Length(fieldname)+1;
     lStart   := lStart+lNamelen;
-    lEnd     := PosEx(#13#10,FRequest,lStart); //TODO -> FOLDED HEADER FIELDS (LWS)
+    lEnd     := fos_posEx(#13#10,FRequest,lStart); //TODO -> FOLDED HEADER FIELDS (LWS)
     result   := trim(Copy(FRequest,lStart,lEnd-lStart));
   end;
 end;
@@ -420,35 +420,35 @@ var
     lLineend    := pos(#13#10,FRequest);
     if lLineend=0 then exit; //stay in state
     lActualPos   := 1 ;
-    if PosEx('GET',FRequest,lActualPos)=1 then begin
+    if fos_posEx('GET',FRequest,lActualPos)=1 then begin
        FRequestMethod := rprm_GET;
        inc(lActualPos,4);
     end else
-    if PosEx('POST',FRequest,lActualPos)=1 then begin
+    if fos_posEx('POST',FRequest,lActualPos)=1 then begin
       FRequestMethod := rprm_POST;
       inc(lActualPos,5);
     end else
-    if PosEx('PUT',FRequest,lActualPos)=1 then begin
+    if fos_posEx('PUT',FRequest,lActualPos)=1 then begin
       FRequestMethod := rprm_PUT;
       inc(lActualPos,4);
     end else
-    if PosEx('OPTIONS',FRequest,lActualPos)=1 then begin
+    if fos_posEx('OPTIONS',FRequest,lActualPos)=1 then begin
       FRequestMethod := rprm_OPTIONS;
       inc(lActualPos,8);
     end else
-    if PosEx('DELETE',FRequest,lActualPos)=1 then begin
+    if fos_posEx('DELETE',FRequest,lActualPos)=1 then begin
       FRequestMethod := rprm_DELETE;
       inc(lActualPos,7);
     end else
-    if PosEx('HEAD',FRequest,lActualPos)=1 then begin
+    if fos_posEx('HEAD',FRequest,lActualPos)=1 then begin
       FRequestMethod := rprm_HEAD;
       inc(lActualPos,5);
     end else
-    if PosEx('TRACE',FRequest,lActualPos)=1 then begin
+    if fos_posEx('TRACE',FRequest,lActualPos)=1 then begin
       FRequestMethod := rprm_TRACE;
       inc(lActualPos,6);
     end else
-    if PosEx('CONNECT',FRequest,lActualPos)=1 then begin
+    if fos_posEx('CONNECT',FRequest,lActualPos)=1 then begin
       FRequestMethod := rprm_CONNECT;
       inc(lActualPos,8);
     end else begin
@@ -456,7 +456,7 @@ var
       exit;
     end;
     //writeln('REQUEST MODE - ',FRequestMethod);
-    lSpacePos:=PosEx(' ',FRequest,lActualPos);
+    lSpacePos:=fos_posEx(' ',FRequest,lActualPos);
     if lSpacePos>1 then begin
        FRequestURIPos := lActualPos;
        FRequestURILen := lSpacePos-lActualPos;
@@ -466,7 +466,7 @@ var
       FReqErrorState := rpe_INVALID_REQUEST;
       exit;
     end;
-    lSpacePos:=PosEx(#13#10,FRequest,lActualPos);
+    lSpacePos:=fos_posEx(#13#10,FRequest,lActualPos);
     if lSpacePos>1 then begin
        FRequestVersionPos := lActualPos;
        FRequestVersionLen := lSpacePos-lActualPos;
@@ -494,11 +494,11 @@ var
   begin
    // writeln('>>PARSEHEADERS ',FHeaderPos);
     if FHeaderPos=-1 then begin
-      FHeaderPos:=Posex(#13#10,FRequest)+2;
+      FHeaderPos:=fos_posEx(#13#10,FRequest)+2;
       if FHeaderPos<=1 then GFRE_BT.CriticalAbort('LOGIC FAILURE');
     end;
     lActualPos := FHeaderPos;
-    lHeaderEndPos := PosEx(#13#10#13#10,FRequest,lActualPos);
+    lHeaderEndPos := fos_posEx(#13#10#13#10,FRequest,lActualPos);
     if lHeaderEndPos > 1 then begin
       FHeaderLen    := lHeaderEndPos-lActualPos;
       FContentStart := lHeaderEndPos+4; // Theoretical Content Start

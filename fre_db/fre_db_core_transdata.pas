@@ -469,10 +469,10 @@ type
     procedure   RemoveObjectByNotify          (const coll_name : TFRE_DB_NameType ; const obj : IFRE_DB_Object ; const rl_rem : boolean ; const parent : TFRE_DB_GUID ; const transkey : TFRE_DB_TransStepId); { notify step 1 }
 
     { The reflink operations are ordered to occur before the update,insert,delete operations (remove should not do a reflink change(!) }
-    procedure   SetupOutboundRefLink          (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL ; const transkey : TFRE_DB_TransStepId);          { notify step 1 }
-    procedure   SetupInboundRefLink           (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL ; const transkey : TFRE_DB_TransStepId);          { notify step 1 }
-    procedure   InboundReflinkDropped         (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL ; const transkey : TFRE_DB_TransStepId);          { notify step 1 }
-    procedure   OutboundReflinkDropped        (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL ; const transkey : TFRE_DB_TransStepId);          { notify step 1 }
+    procedure   SetupOutboundRefLink          (const from_obj : TFRE_DB_GUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL ; const transkey : TFRE_DB_TransStepId);          { notify step 1 }
+    procedure   SetupInboundRefLink           (const from_obj : IFRE_DB_Object   ; const to_obj: TFRE_DB_GUID          ; const key_description : TFRE_DB_NameTypeRL ; const transkey : TFRE_DB_TransStepId);          { notify step 1 }
+    procedure   InboundReflinkDropped         (const from_obj : IFRE_DB_Object   ; const to_obj: TFRE_DB_GUID          ; const key_description : TFRE_DB_NameTypeRL ; const transkey : TFRE_DB_TransStepId);          { notify step 1 }
+    procedure   OutboundReflinkDropped        (const from_obj : TFRE_DB_GUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL ; const transkey : TFRE_DB_TransStepId);          { notify step 1 }
 
 
     function    ExistsObj                     (const uid:TFRE_DB_GUID):NativeInt;
@@ -628,10 +628,10 @@ type
     procedure  FieldAdd               (const new_field : IFRE_DB_Field  ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
     procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field ; const tsid : TFRE_DB_TransStepId);   { DIFFERENTIAL STATE}
     procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID ; const tsid : TFRE_DB_TransStepId);              { DIFFERENTIAL STATE}
-    procedure  SetupOutboundRefLink   (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL ; const tsid : TFRE_DB_TransStepId);
-    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL ; const tsid : TFRE_DB_TransStepId);
-    procedure  InboundReflinkDropped  (const from_obj : IFRE_DB_Object   ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL ; const tsid : TFRE_DB_TransStepId);
-    procedure  OutboundReflinkDropped (const from_obj : TGUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL ; const tsid : TFRE_DB_TransStepId);
+    procedure  SetupOutboundRefLink   (const from_obj : TFRE_DB_GUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL ; const tsid : TFRE_DB_TransStepId);
+    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object   ; const to_obj: TFRE_DB_GUID          ; const key_description : TFRE_DB_NameTypeRL ; const tsid : TFRE_DB_TransStepId);
+    procedure  InboundReflinkDropped  (const from_obj : IFRE_DB_Object   ; const to_obj: TFRE_DB_GUID          ; const key_description : TFRE_DB_NameTypeRL ; const tsid : TFRE_DB_TransStepId);
+    procedure  OutboundReflinkDropped (const from_obj : TFRE_DB_GUID            ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL ; const tsid : TFRE_DB_TransStepId);
     procedure  FinalizeNotif          ;
     {NOFIF BLOCK INTERFACE - END}
     function   DBC                    (const dblname : TFRE_DB_NameType) : IFRE_DB_CONNECTION;
@@ -742,7 +742,7 @@ begin
     end;
 end;
 
-function  FREDB_BinaryFindIndexInSorted(const search_key : TFRE_DB_ByteArray ; const order_Key : TFRE_DB_NameType ; var before : NativeInt ; const object_array : IFRE_DB_ObjectArray ; var exists : boolean ; const exact_uid : PGuid=nil ; const ignore_non_existing : boolean=false):NativeInt;
+function  FREDB_BinaryFindIndexInSorted(const search_key : TFRE_DB_ByteArray ; const order_Key : TFRE_DB_NameType ; var before : NativeInt ; const object_array : IFRE_DB_ObjectArray ; var exists : boolean ; const exact_uid : PFRE_DB_Guid=nil ; const ignore_non_existing : boolean=false):NativeInt;
 var midx,leftx,rightx : NativeInt;
     mkey              : TFRE_DB_ByteArray;
     res               : NativeInt;
@@ -861,7 +861,6 @@ begin
   FTM := tm;
   GFRE_TF.Get_TimedEvent(FNotifyEvent);
   GFRE_TF.Get_LFQ(FQ);
-   GFRE_LOG.RegisterThread('TDM_NT');
   Inherited create(false);
 end;
 
@@ -883,6 +882,7 @@ procedure TFRE_DB_TDM_NOTIFY_APPLY.Execute;
 var shot  : Boolean;
     block : TFRE_DB_INBOUND_N_BLOCK;
 begin
+  GFRE_LOG.RegisterThread('TDM_NT');
   repeat
     FNotifyEvent.WaitFor(1000);
     if not Terminated then
@@ -1159,7 +1159,6 @@ constructor TFRE_DB_TDM_STATS_CLEANER.Create(const tm: TFRE_DB_TRANSDATA_MANAGER
 begin
   FTM := tm;
   GFRE_TF.Get_TimedEvent(FStatEvent);
-  GFRE_LOG.RegisterThread('TDM_S');
   inherited Create(false);
 end;
 
@@ -1181,6 +1180,7 @@ procedure TFRE_DB_TDM_STATS_CLEANER.Execute;
 var shot  : Boolean;
     block : TFRE_DB_INBOUND_N_BLOCK;
 begin
+  GFRE_LOG.RegisterThread('TDM_S');
   repeat
     FStatEvent.WaitFor(1000);
     if not Terminated then
@@ -3808,7 +3808,7 @@ begin
       exit(true)
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANFORMED_DATA.SetupOutboundRefLink(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
 var idx : NativeInt;
 begin
   if IncludesChildData and
@@ -3827,7 +3827,7 @@ begin
         end;
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANFORMED_DATA.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TFRE_DB_GUID; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
 var idx : NativeInt;
 begin
   if IncludesChildData and
@@ -3846,7 +3846,7 @@ begin
         end;
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANFORMED_DATA.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TFRE_DB_GUID; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
 var idx : NativeInt;
 begin
   if IncludesChildData and
@@ -3865,7 +3865,7 @@ begin
         end;
 end;
 
-procedure TFRE_DB_TRANFORMED_DATA.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANFORMED_DATA.OutboundReflinkDropped(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
 var idx : NativeInt;
 begin
   if IncludesChildData and
@@ -4330,7 +4330,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANSDATA_MANAGER.SetupOutboundRefLink(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 
   procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
   begin
@@ -4348,7 +4348,7 @@ begin
   ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANSDATA_MANAGER.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TFRE_DB_GUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 
   procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
   begin
@@ -4367,7 +4367,7 @@ begin
   ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANSDATA_MANAGER.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TFRE_DB_GUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 
   procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
   begin
@@ -4386,7 +4386,7 @@ begin
   ForAllQueries(@CheckAutoFilterUpdates); { check if a filter has changed, due to reflink changes }
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_TRANSDATA_MANAGER.OutboundReflinkDropped(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 
   procedure CheckIfNeeded(const tcd : TFRE_DB_TRANFORMED_DATA);
   begin
@@ -4561,7 +4561,7 @@ var fld : IFRE_DB_FIELD;
        if input.FieldExists('parentid') then
          begin { this is a child query }
            parents    := input.Field('parentid').AsString;
-           FParentIds := FREDB_String2GuidArray(parents);
+           FParentIds := FREDB_H2GArray(parents);
            Filterdef.AddParentFilter('*SPCF*',FParentIds); { add a parent field filter }
            FIsChildQuery := true;
          end
@@ -4791,7 +4791,7 @@ begin
     if not FArtQueryStore.InsertStringKeyOrFetch(qry.GetQueryID,qptr) then
       begin
         qry.free;
-        raise EFRE_DB_Exception.Create(edb_ERROR,'double add query try, query id''s are not unique');
+        raise EFRE_DB_Exception.Create(edb_ERROR,'double add query try, query id''s are not unique [%s]',[qry.GetQueryID]);
       end;
     GFRE_DBI.LogDebug(dblc_DBTDM,'STORE QUERY ID [%s] TOTAL Q COUNT %d',[qry.GetQueryID,FArtQueryStore.GetValueCount]);
   finally

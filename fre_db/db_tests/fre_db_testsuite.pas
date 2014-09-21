@@ -13,11 +13,11 @@ uses
   Classes, SysUtils,fpcunit,testregistry,testdecorator,fre_system,
   FRE_DB_CORE,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE;
 
-  var cFFG_SKIP_EXCEPTION_TEST : boolean = true;
+  var cFFG_SKIP_EXCEPTION_TEST : boolean = false;
 
 
   var
-      TEST_GUID_1,TEST_GUID_2,TEST_GUID_3 : TGUID;
+      TEST_GUID_1,TEST_GUID_2,TEST_GUID_3 : TFRE_DB_GUID;
 
   type
       TGUID_Access = packed record
@@ -592,7 +592,7 @@ end;
 procedure TFRE_DB_PersistanceTests.DoReflinkTests;
 var coll_p    : IFRE_DB_COLLECTION;
     n1,n2,n3  : IFRE_DB_Object;
-    u1,u2,u3  : TGuid;
+    u1,u2,u3  : TFRE_DB_Guid;
     ra        : TFRE_DB_GUIDArray;
     obr       : TFRE_DB_ObjectReferences;
 
@@ -654,7 +654,7 @@ begin
 
 end;
 
-var u1u,u2u,u3u,u4u,u10u,u11u : TGUID;
+var u1u,u2u,u3u,u4u,u10u,u11u : TFRE_DB_GUID;
 
 procedure TFRE_DB_PersistanceTests.ReftestCodeClassesStore;
 var U1  : SC_A10;
@@ -751,39 +751,39 @@ var obr : TFRE_DB_ObjectReferences;
     for i:=0 to high(obr) do
       begin
         if from then
-          result.Add(for_text+'.'+obr[i].fieldname+' -> '+obr[i].schemename+'['+GFRE_BT.GUID_2_HexString(obr[i].linked_uid)+']')
+          result.Add(for_text+'.'+obr[i].fieldname+' -> '+obr[i].schemename+'['+obr[i].linked_uid.AsHexString+']')
         else
-          result.Add(for_text+' <- '+obr[i].schemename+'['+GFRE_BT.GUID_2_HexString(obr[i].linked_uid)+'].'+obr[i].fieldname);
+          result.Add(for_text+' <- '+obr[i].schemename+'['+obr[i].linked_uid.AsHexString+'].'+obr[i].fieldname);
       end;
   end;
 
 begin
   ConnectDB('admin@system','admin');
   writeln('--- OUTBOUND EXAMPLE ---');
-  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true),true).Text);
-  writeln(FREDB_DumpObjLinks('U10(SC_A11)'+GFRE_BT.GUID_2_HexString(u10u),FWorkConn.GetReferencesDetailed(u10u,true),true).Text);
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+u1u.AsHexString,FWorkConn.GetReferencesDetailed(u1u,true),true).Text);
+  writeln(FREDB_DumpObjLinks('U10(SC_A11)'+u10u.AsHexString,FWorkConn.GetReferencesDetailed(u10u,true),true).Text);
   writeln('--- INBOUND FOR EXAMPLE ---');
-  writeln(FREDB_DumpObjLinks('U2(SC_A1)'+GFRE_BT.GUID_2_HexString(u2u),FWorkConn.GetReferencesDetailed(u2u,false),false).Text);
-  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false),false).Text);
-  writeln(FREDB_DumpObjLinks('U4(SC_C1)'+GFRE_BT.GUID_2_HexString(u4u),FWorkConn.GetReferencesDetailed(u4u,false),false).Text);
+  writeln(FREDB_DumpObjLinks('U2(SC_A1)'+u2u.AsHexString,FWorkConn.GetReferencesDetailed(u2u,false),false).Text);
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+u3u.AsHexString,FWorkConn.GetReferencesDetailed(u3u,false),false).Text);
+  writeln(FREDB_DumpObjLinks('U4(SC_C1)'+u4u.AsHexString,FWorkConn.GetReferencesDetailed(u4u,false),false).Text);
   writeln('OUTBOUND FILTER on U1: SC_A1:');
-  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true,'SC_A1',''),true).Text);
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+u1u.AsHexString,FWorkConn.GetReferencesDetailed(u1u,true,'SC_A1',''),true).Text);
   writeln('OUTBOUND FILTER on U1: SC_:');
-  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true,'SC_',''),true).Text);
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+u1u.AsHexString,FWorkConn.GetReferencesDetailed(u1u,true,'SC_',''),true).Text);
   writeln('OUTBOUND FILTER on U1: :LINK');
-  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true,'','LINK'),true).Text);
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+u1u.AsHexString,FWorkConn.GetReferencesDetailed(u1u,true,'','LINK'),true).Text);
   writeln('OUTBOUND FILTER on U1: :LINK1');
-  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+GFRE_BT.GUID_2_HexString(u1u),FWorkConn.GetReferencesDetailed(u1u,true,'','LINK1'),true).Text);
+  writeln(FREDB_DumpObjLinks('U1(SC_A10)'+u1u.AsHexString,FWorkConn.GetReferencesDetailed(u1u,true,'','LINK1'),true).Text);
 
   writeln('INBOUND FILTER on U3: SC_A10:');
-  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false,'SC_A10',''),false).Text);
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+u3u.AsHexString,FWorkConn.GetReferencesDetailed(u3u,false,'SC_A10',''),false).Text);
   writeln('INBOUND FILTER on U3: :LINK2');
-  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false,'','LINK2'),false).Text);
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+u3u.AsHexString,FWorkConn.GetReferencesDetailed(u3u,false,'','LINK2'),false).Text);
 
   writeln('INBOUND FILTER on U3: SC_A11:');
-  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false,'SC_A11',''),false).Text);
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+u3u.AsHexString,FWorkConn.GetReferencesDetailed(u3u,false,'SC_A11',''),false).Text);
   writeln('INBOUND FILTER on U3: :LINK3');
-  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+GFRE_BT.GUID_2_HexString(u3u),FWorkConn.GetReferencesDetailed(u3u,false,'','LINK3'),false).Text);
+  writeln(FREDB_DumpObjLinks('U3(SC_B1)'+u3u.AsHexString,FWorkConn.GetReferencesDetailed(u3u,false,'','LINK3'),false).Text);
 
 end;
 
@@ -861,7 +861,7 @@ var coll_v,coll_p   : IFRE_DB_COLLECTION;
     coll_vu,coll_pu : IFRE_DB_COLLECTION;
     coll_link       : IFRE_DB_COLLECTION;
     obj             : IFRE_DB_Object;
-    guid            : TGUID;
+    guid            : TFRE_DB_GUID;
     inserts         : array [0..12] of string   = ('a','aa','b','aaa','aaaa','bar','baz','bazaaar','bazaaaroni','a','b','bar','aa');
     u64inserts      : array [0..12] of Qword    = (800000000,10,1234,1,2,77,99,800000000,-1,10,11,21,-2);
     i64inserts      : array [0..12] of Int64    = (-800000000,-10,-20,0,11,22,99,800000000,-1,10,34,33,-2);
@@ -1531,7 +1531,7 @@ begin
   Check_Test_Object('TST_',TestObject);
   Check_Test_Object('TST_',Object2);
   writeln(Object2.dumpToString);
-  writeln(GFRE_BT.GUID_2_HexString(Object2.UID));
+  writeln(Object2.UID.AsHexString);
 
   Object3 := Object2.CloneToNewObject();
   Object4 := Object3.CloneToNewObject();
@@ -1566,7 +1566,7 @@ begin
   Object2:=TFRE_DB_Object.CreateFromMemory(mp);
   Check_Test_Object('TST_',Object2);
   writeln(Object2.dumpToString);
-  writeln(GFRE_BT.GUID_2_HexString(Object2.UID));
+  writeln(Object2.UID.AsHexString);
   //Object2.Finalize;
   for i := 0 to 10 do
     begin
@@ -1870,7 +1870,7 @@ begin
 end;
 
 initialization
-  //RegisterTest(TFRE_DB_ObjectTests);
+  RegisterTest(TFRE_DB_ObjectTests);
   RegisterTest(TFRE_DB_PersistanceTests);
 
 end.

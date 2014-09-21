@@ -225,8 +225,8 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
           m          : TMemorystream;
           uid_string : TFRE_DB_String;
       begin
-        g := GFRE_BT.HexString_2_GUID(Copy(file_name,1,32));
-        uid_string:=GFRE_BT.GUID_2_HexString(g);
+        g := FREDB_H2G(Copy(file_name,1,32));
+        uid_string:=FREDB_G2H(g);
         GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>RETRIEVE OBJECT [%s]',[uid_string]);
         m:=TMemoryStream.Create;
         try
@@ -240,7 +240,7 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
         GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<RETRIEVE OBJECT [%s] DONE',[uid_string]);
         result := FMaster.InternalStoreObjectFromStable(obj);
         if result<>edb_OK then
-          raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RECREATE MEMORY FROM STABLE at [%s]',[GFRE_BT.GUID_2_HexString(g)]);
+          raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RECREATE MEMORY FROM STABLE at [%s]',[FREDB_G2H(g)]);
       end;
     begin
       GFRE_BT.List_Files(FMasterCollDir,@add_guid);
@@ -428,7 +428,7 @@ begin
   if obj.IsObjectRoot then
     begin
       obj._InternalGuidNullCheck;
-      filename    := FMasterCollDir+GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
+      filename    := FMasterCollDir+FREDB_G2H(obj.UID)+'.fdbo';
       obj.SaveToFile(FileName);
       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<STORE OBJECT : '+obj.UID_String+' DONE');
     end
@@ -480,7 +480,7 @@ begin
   if iobj.IsObjectRoot then
     begin
       obj := iobj.Implementor as TFRE_DB_Object;
-      filename    := FMasterCollDir+GFRE_BT.GUID_2_HexString(obj.UID)+'.fdbo';
+      filename    := FMasterCollDir+FREDB_G2H(obj.UID)+'.fdbo';
       if not DeleteFile(FileName) then
         raise EFRE_DB_PL_Exception.Create(edb_ERROR,'cannot persistance delete file '+FileName);
       GFRE_DBI.LogDebug(dblc_PERSISTANCE,'<<FINAL DELETE  OBJECT : '+obj.UID_String+' DONE');
@@ -1060,7 +1060,7 @@ var sys_admin   : boolean;
       lRoleIDs   := nil;
       for i:=0 to high(UserGroupIDs) do begin
         if not _FetchO(UserGroupIDs[i],obj,true) then
-          raise EFRE_DB_Exception.Create('Could not fetch group by id '+GFRE_BT.GUID_2_HexString(UserGroupIDs[i]))
+          raise EFRE_DB_Exception.Create('Could not fetch group by id '+FREDB_G2H(UserGroupIDs[i]))
         else
           begin
             obj.Set_Store_Locked(false);
@@ -1086,7 +1086,7 @@ var sys_admin   : boolean;
       for i:=0 to high(roleids) do
         begin
           if not _FetchO(roleids[i],obj,true) then //FetchRolebyID(roleids[i],lRole,true)<>edb_OK then begin
-            raise EFRE_DB_Exception.Create('Could not fetch role by id '+GFRE_BT.GUID_2_HexString(roleids[i]))
+            raise EFRE_DB_Exception.Create('Could not fetch role by id '+FREDB_G2H(roleids[i]))
           else
             begin
               obj.Set_Store_Locked(false);
@@ -1212,7 +1212,7 @@ begin
             ImplicitTransaction := True;
           end;
           if not _FetchO(obj_uid,delete_object,true) then
-            raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[GFRE_BT.GUID_2_HexString(obj_uid)]);
+            raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[FREDB_G2H(obj_uid)]);
           if (collection_name<>'') then
             if delete_object.__InternalCollectionExistsName(collection_name)=-1 then
               raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the request to delete object [%s] from collection [%s] could not be completed, the object is not stored in the requested collection',[delete_object.UID_String,collection_name]);

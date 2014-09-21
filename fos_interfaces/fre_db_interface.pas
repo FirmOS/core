@@ -68,14 +68,28 @@ var
     GCFG_SESSION_UNBOUND_TO        : Integer = 600; //if this value is too low some browsers will be stuck in an endless loop
 
 type
-  TFRE_DB_GUID                = TGuid;
+
+  { TFRE_DB_GUID }
+
+  TFRE_DB_GUID_String = string[32]; { hex & lowercase}
+
+  TFRE_DB_GUID = packed record
+     D: Array [0..15] of Byte;
+     function  AsHexString : TFRE_DB_GUID_String;
+     procedure ClearGuid   ;
+  end;
+
+var
+    cFRE_DB_LOGIN_APP_UID           :TFRE_DB_Guid;
+    cFRE_DB_LOGIN_APP               :TObject;
+
+type
 
   TFRE_DB_SIZE_TYPE           = integer;
   Int16                       = Smallint;
   Int32                       = Longint;
   UInt16                      = word;
   UInt32                      = longword;
-  TFRE_DB_GUID_String         = string[sizeof(TFRE_DB_GUid)*2]; { hex & lowercase}
   TFRE_DB_String              = type AnsiString(CP_UTF8);
   PFRE_DB_String              = ^TFRE_DB_String;
   TFRE_DB_RawByteString       = RawByteString;
@@ -156,8 +170,8 @@ const
   CFRE_DB_EPSILON_DBL                                               = 2.2204460492503131e-016; // Epsiolon for Double Compare (Zero / boolean)
   CFRE_DB_EPSILON_SGL                                               = 1.192092896e-07;         // Epsiolon for Single Compare (Zero / boolean)
   CFRE_DB_SIZE_ENCODING_SIZE                                        = Sizeof(TFRE_DB_SIZE_TYPE);
-  CFRE_DB_NullGUID : TFRE_DB_GUID                                          = (data1 : 0         ; data2 : $0000 ; Data3 : $0000 ; Data4 : (  0,  0,  0,  0,  0,  0,0,0));
-  CFRE_DB_MaxGUID  : TFRE_DB_GUID                                          = (data1 : $FFFFFFFF ; data2 : $FFFF ; Data3 : $FFFF ; Data4 : ($FF,$FF,$FF,$FF,$FF,$FF,0,0));
+  CFRE_DB_NullGUID : TFRE_DB_GUID                                          = ( D : (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0) );
+  CFRE_DB_MaxGUID  : TFRE_DB_GUID                                          = ( D : ($FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ) );
 
   cFOS_IID_COLLECTION       = 'ID_COL';
   cFOS_IID_DERIVED_COLL     = 'ID_CDC';
@@ -734,7 +748,7 @@ type
     function        _InternalDecodeAsField             : IFRE_DB_Field; { create a streaming only lightweight field from the encoding object }
     procedure       _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
     function        UIDP                               : PByte;
-    function        PUID                               : PGuid;
+    function        PUID                               : PFRE_DB_Guid;
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       SetReference                       (const obj : TObject);
     function        GetReference                       : TObject;
@@ -948,17 +962,16 @@ type
 
   { IFRE_DB_DERIVED_COLLECTION }
 
-  IFRE_DB_DERIVED_COLLECTION=interface//(IFRE_DB_COLLECTION)
+  IFRE_DB_DERIVED_COLLECTION=interface
     [cFOS_IID_DERIVED_COLL]
     function   UID                           : TFRE_DB_GUID;
-    function   Count                         : Int64;
+    function   Implementor                   : TObject;
     function   ItemCount                     : Int64;
     function   First                         : IFRE_DB_Object;
     function   Last                          : IFRE_DB_Object;
-    procedure  ForAll                        (const func:IFRE_DB_Obj_Iterator); deprecated ; { dont use }
-    function   Fetch                         (const ouid:TFRE_DB_GUID;out dbo:IFRE_DB_Object): boolean; deprecated ; { deprectated naming / dont use THIS ! }
+    function   FetchInDerived                (const ouid:TFRE_DB_GUID;out dbo:IFRE_DB_Object): boolean; { honors rights and serverside filters, delivers the transformed(!) object !!}
+    procedure  ForAllDerived                 (const func:IFRE_DB_Obj_Iterator); { honors rights and serverside filters, delivers the transformed(!) object !!}
 
-    function   Implementor                   : TObject;
     function   CollectionName                (const unique:boolean=false): TFRE_DB_NameType;
     procedure  TransformAllTo                (const connection : IFRE_DB_CONNECTION ; const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
     procedure  TransformSingleUpdate         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
@@ -1860,7 +1873,7 @@ type
     property        Description     : IFRE_DB_TEXT read GetDesc write SetDesc;
 
     function        UIDP                               : PByte;
-    function        PUID                               : PGuid;
+    function        PUID                               : PFRE_DB_Guid;
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
@@ -2857,12 +2870,10 @@ type
      procedure  CLS_ForceInvalidSessionReload (rac :IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
-    //function    CloneSession             (const connectiond_desc:string): TFRE_DB_UserSession;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
     procedure   COR_FinalizeTakeOver     (const data : Pointer); // In new session binding
     procedure   AutoPromote              (const NEW_RASC:IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const conn_desc:String);
-    //procedure   Demote                   ;
     procedure   Logout                   ;
     function    LoggedIn                 : Boolean;
     function    QuerySessionDestroy      : Boolean;
@@ -2991,13 +3002,12 @@ type
   function  FREDB_TranslatableHasParams          (var   translation_key:TFRE_DB_String  ; var params : TFRE_DB_StringArray):boolean;
   procedure FREDB_DecodeVarRecParams             (const params   : TFRE_DB_StringArray  ; var vaparams : TFRE_DB_ConstArray);
   procedure FREDB_FinalizeVarRecParams           (const vaparams : TFRE_DB_ConstArray);
-  function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString;
+  function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString; { deprecated, use guid AR function  .AsHexString}
   function  FREDB_H2G                            (const uidstr : shortstring):TFRE_DB_GUID;
   function  FREDB_G2SB                           (const uid    : TFRE_DB_GUID):ShortString; { uid to binary shortstring }
   function  FREDB_SB2G                           (const uid_sb : ShortString):TFRE_DB_GUID; { binary shortstring to uid}
   function  FREDB_ExtractUidsfromRightArray      (const str:TFRE_DB_StringArray;const rightname:TFRE_DB_STRING):TFRE_DB_GUIDArray;
-  function  FREDB_String2GuidArray               (const str:string):TFRE_DB_GUIDArray;
-  function  FREDB_String2Guid                    (const str:string):TFRE_DB_GUID;
+  function  FREDB_H2GArray               (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Bool                    (const str:string):boolean;
   function  FREDB_SplitRefLinkDescription        (key_description : TFRE_DB_NameTypeRL ; var rl_field,rl_scheme : TFRE_DB_NameTypeRL):boolean; { True if outbound RL}
 
@@ -3052,8 +3062,6 @@ type
   function  FREDB_GuidArray2StringStream         (const arr:TFRE_DB_GUIDArray):String; { Caution ! - used in streaming}
   function  FREDB_StreamString2GuidArray         (str:string):TFRE_DB_GUIDArray; { Caution ! - used in streaming, must be in format of FREDB_GuidArray2String}
 
-  function  FREDB_Get_Rightname_UID              (const rightprefix: string; const id: TFRE_DB_GUID): string;
-  function  FREDB_Get_Rightname_UID_STR          (const rightprefix: string; const id_str: String): string;
   procedure FREDB_SplitLocalatDomain             (const localatdomain: TFRE_DB_String; var localpart, domainpart: TFRE_DB_String);
   function  FREDB_GetDboAsBufferLen              (const dbo: IFRE_DB_Object; var mem: Pointer): UInt32;
 
@@ -3476,7 +3484,7 @@ end;
 
 function FREDB_G2H(const uid: TFRE_DB_GUID): ShortString;
 begin
-  result := GFRE_BT.GUID_2_HexString(uid);
+  result := uid.AsHexString;
 end;
 
 function  FREDB_G2SB(const uid    : TFRE_DB_GUID):ShortString; { uid to binary shortstring }
@@ -3492,8 +3500,45 @@ begin
 end;
 
 function FREDB_H2G(const uidstr: shortstring): TFRE_DB_GUID;
+var gs:ShortString;
+    i : NativeInt;
+
+    function HexStr2Str(const Value: ShortString): ShortString;
+    var len,i,j:integer;
+            v:ansistring;
+
+        function _dig2int(const dig:ansichar):integer;inline;
+        begin
+         result:=0;
+         case dig of
+          '0','1','2','3','4','5','6','7','8','9': begin
+            result:=ord(dig)-48;
+          end;
+          'A','B','C','D','E','F':begin
+           result:=ord(dig)-55;
+          end;
+          'a','b','c','d','e','f': begin
+            result:=ord(dig)-87;
+          end;
+         end;
+        end;
+
+    begin
+     v:=value;
+     len:=length(v);
+     setlength(result,len div 2);
+     i:=1;j:=1;
+     while i<len do begin
+      result[j]:=ansichar(_dig2int(v[i])*16+_dig2int(v[i+1])); // conservative
+      inc(i,2);inc(j);
+     end;
+    end;
+
 begin
-  result := GFRE_BT.HexString_2_GUID(uidstr);
+  i := Length(uidstr);
+  if i<>32 then raise Exception.Create('a uid hexstring must be 32 chars not '+inttostr(i)+' chars');
+  gs := HexStr2Str(uidstr);
+  Move(gs[1],result.D[0],16);
 end;
 
 function FREDB_ExtractUidsfromRightArray(const str: TFRE_DB_StringArray; const rightname: TFRE_DB_STRING): TFRE_DB_GUIDArray;
@@ -3534,19 +3579,14 @@ begin
   SetLength(result,cnt);
 end;
 
-function FREDB_String2GuidArray(const str: string): TFRE_DB_GUIDArray;
+function FREDB_H2GArray(const str: string): TFRE_DB_GUIDArray;
 var sa : TFOSStringArray;
      i : NativeInt;
 begin
   GFRE_BT.SeperateString(str,',',sa);
   SetLength(result,length(sa));
   for i:= 0 to high(sa) do
-    result[i] := GFRE_BT.HexString_2_GUID(sa[i]);
-end;
-
-function FREDB_String2Guid(const str: string): TFRE_DB_GUID;
-begin
-  result := GFRE_BT.HexString_2_GUID(str);
+    result[i] := FREDB_H2G(sa[i]);
 end;
 
 function FREDB_String2Bool(const str: string): boolean;
@@ -4115,6 +4155,33 @@ type
    end;
 
    pmethodnametable =  ^tmethodnametable;
+
+{ TFRE_DB_GUID }
+
+const
+  cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
+
+function TFRE_DB_GUID.AsHexString: TFRE_DB_GUID_String;
+var  n, k, h: integer;
+     b: byte;
+begin
+  SetLength(result,32);
+  k      := 16;
+  n := 0 ; h := 0;
+  while h < k do begin
+    b := D[h];
+    Result[n + 2] := cG_Digits[b and 15];
+    b := b shr 4;
+    Result[n + 1] := cG_Digits[b];
+    Inc(n, 2);
+    Inc(h);
+  end;
+end;
+
+procedure TFRE_DB_GUID.ClearGuid;
+begin
+  FillByte(d,16,0);
+end;
 
 { TFRE_DB_INDEX_DEF }
 
@@ -6615,7 +6682,7 @@ begin
     file_name:='-';
   if force_url_etag='' then
     force_url_etag:='-';
-  result := '/FDBOSF/'+FSessionID+'/'+GFRE_BT.GUID_2_HexString(obj_uid)+'/'+BoolToStr(is_attachment,'A','N')+'/'+ GFRE_BT.Str2HexStr(mime_type)+'/'+ GFRE_BT.Str2HexStr(file_name)+'/'+GFRE_BT.Str2HexStr(force_url_etag)+'/'+GFRE_BT.Str2HexStr(fieldname);
+  result := '/FDBOSF/'+FSessionID+'/'+FREDB_G2H(obj_uid)+'/'+BoolToStr(is_attachment,'A','N')+'/'+ GFRE_BT.Str2HexStr(mime_type)+'/'+ GFRE_BT.Str2HexStr(file_name)+'/'+GFRE_BT.Str2HexStr(force_url_etag)+'/'+GFRE_BT.Str2HexStr(fieldname);
 end;
 
 
@@ -6837,7 +6904,7 @@ end;
 
 class function TFRE_DB_Base.GetObjectRightName(const right: TFRE_DB_NameType; const uid: TFRE_DB_GUID): TFRE_DB_String;
 begin
-  result := 'O#'+uppercase(right)+'%'+uppercase(GFRE_BT.GUID_2_HexString(uid));
+  result := 'O#'+uppercase(right)+'%'+uppercase(FREDB_G2H(uid));
 end;
 
 class function TFRE_DB_Base._GetClassRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
@@ -6847,7 +6914,7 @@ end;
 
 class function TFRE_DB_Base.GetRight4Domain(const right: TFRE_DB_NameType; const domainUID: TFRE_DB_GUID): IFRE_DB_RIGHT;
 begin
- result := uppercase(right+'@'+GFRE_BT.GUID_2_HexString(domainUID));
+ result := uppercase(right+'@'+FREDB_G2H(domainUID));
 end;
 
 class function TFRE_DB_Base.GetClassRightName(const rclassname: ShortString; const right: TFRE_DB_NameType): TFRE_DB_String;
@@ -7400,7 +7467,7 @@ begin
   result := FImplementor.UIDP;
 end;
 
-function TFRE_DB_ObjectEx.PUID: PGuid;
+function TFRE_DB_ObjectEx.PUID: PFRE_DB_Guid;
 begin
   result := FImplementor.PUID;
 end;
@@ -8002,7 +8069,7 @@ end;
 
 function TFRE_DB_SERVER_FUNC_DESC.Describe(const oschemeclass: String; const ouid: TFRE_DB_GUID; const func: String): TFRE_DB_SERVER_FUNC_DESC;
 begin
-  result := Describe(oschemeclass,TFRE_DB_StringArray.Create(GFRE_BT.GUID_2_HexString(ouid)),func);
+  result := Describe(oschemeclass,TFRE_DB_StringArray.Create(FREDB_G2H(ouid)),func);
 end;
 
 function TFRE_DB_SERVER_FUNC_DESC.Describe(const oschemeclass: String; const uidpath: TFRE_DB_StringArray; const func: String): TFRE_DB_SERVER_FUNC_DESC;
@@ -9040,7 +9107,7 @@ var i : NativeInt;
 begin
   result := '[';
   for i:=0 to high(arr) do
-    result:=result+GFRE_BT.GUID_2_HexString(arr[i])+',';
+    result:=result+FREDB_G2H(arr[i])+',';
   if Length(arr)>0 then
     result[Length(result)] :=']'
   else
@@ -9058,12 +9125,12 @@ begin
   GFRE_BT.SeperateString(s,',',sa);
   SetLength(result,length(sa));
   for i:= 0 to high(sa) do
-    result[i] := GFRE_BT.HexString_2_GUID(sa[i]);
+    result[i] := FREDB_H2G(sa[i]);
 end;
 
 function FREDB_Get_Rightname_UID(const rightprefix: string; const id: TFRE_DB_GUID): string;
 begin
-  result := uppercase(rightprefix)+'_'+GFRE_BT.GUID_2_HexString(id);
+  result := uppercase(rightprefix)+'_'+FREDB_G2H(id);
 end;
 
 function FREDB_Get_Rightname_UID_STR(const rightprefix: string; const id_str: String): string;

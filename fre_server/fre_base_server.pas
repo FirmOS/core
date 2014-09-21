@@ -73,12 +73,12 @@ type
     FTotalPFilesCache  : NativeInt;
     FTaskerSession     : TFRE_DB_UserSession;
     FTaskerApp         : TFRE_DB_TASKER;
-    FTaskerAPP_UID     : TGuid;
+    FTaskerAPP_UID     : TFRE_DB_Guid;
     FTaskerAPP_Class   : Shortstring;
 
     cont               : boolean;
     Foutput            : String;
-    FDefaultAPP_UID    : TGuid;
+    FDefaultAPP_UID    : TFRE_DB_Guid;
     FDefaultAPP_Class  : Shortstring;
     FSystemConnection  : TFRE_DB_SYSTEM_CONNECTION;
 
@@ -1113,11 +1113,11 @@ begin
 end;
 
 function TFRE_BASE_SERVER.FetchStreamDBO(const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString ; var stored_ct : TFRE_DB_String; var stored_etag : TFRE_DB_String): boolean;
-var fetch_uid : TGuid;
+var fetch_uid : TFRE_DB_Guid;
     ses       : TFRE_DB_UserSession;
 begin
   try
-    fetch_uid := GFRE_BT.HexString_2_GUID(enc_uid);
+    fetch_uid := FREDB_H2G(enc_uid);
   except
     exit(false);
   end;

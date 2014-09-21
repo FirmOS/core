@@ -504,7 +504,7 @@ begin
   sf.AddParam.Describe('selected',input.Field('selected').AsStringArr);
   cap:=FetchAppTextShort(ses,'notification_delete_diag_cap');
 
-  CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsStringArr[0]),notification));
+  CheckDbResult(conn.Fetch(FREDB_H2G(input.Field('selected').AsStringArr[0]),notification));
   msg:=StringReplace(FetchAppTextShort(ses,'notification_delete_diag_msg'),'%notification_str%',notification.Field('caption').AsString,[rfReplaceAll]);
   Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_confirm,sf);
 end;
@@ -518,7 +518,7 @@ begin
 
   if input.field('confirmed').AsBoolean then begin
     for i:= 0 to input.Field('selected').ValueCount-1 do begin
-      CheckDbResult(conn.Delete(FREDB_String2Guid(input.Field('selected').AsStringArr[i])));
+      CheckDbResult(conn.Delete(FREDB_H2G(input.Field('selected').AsStringArr[i])));
     end;
   end;
   Result := GFRE_DB_NIL_DESC;

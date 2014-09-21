@@ -27,8 +27,8 @@ type
     procedure       MySessionInitialize           (const session: TFRE_DB_UserSession);override;
     procedure       MySessionPromotion            (const session: TFRE_DB_UserSession); override;
     class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-    class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
-    class procedure InstallDBObjects4SysDomain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TGUID); override;
+    class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TFRE_DB_GUID); override;
+    class procedure InstallDBObjects4SysDomain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TFRE_DB_GUID); override;
   public
     class procedure RegisterSystemScheme          (const scheme:IFRE_DB_SCHEMEOBJECT); override;
     function        isMultiDomainApp             : Boolean; override;
@@ -575,7 +575,7 @@ begin
   res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'modify_domain_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
 
-  CheckDbResult(conn.sys.FetchDomainById(FREDB_String2Guid(input.Field('selected').AsString),domain),'ModifyDomain');
+  CheckDbResult(conn.sys.FetchDomainById(FREDB_H2G(input.Field('selected').AsString),domain),'ModifyDomain');
   if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
     exit(TFRE_DB_MESSAGE_DESC.create.Describe(FetchModuleTextShort(ses,'modify_domain_diag_cap'),FetchModuleTextShort(ses,'modify_domain_diag_no_system_domain_msg'),fdbmt_warning,nil));
   end;
@@ -591,14 +591,14 @@ function TFRE_COMMON_DOMAIN_MOD.WEB_DeActivateDomain(const input: IFRE_DB_Object
 var
   i        : Integer;
   domain   : IFRE_DB_DOMAIN;
-  domain_id: TGuid;
+  domain_id: TFRE_DB_GUID;
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) and conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_DOMAIN)) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
   Result:=GFRE_DB_NIL_DESC;
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    domain_id:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
+    domain_id:=FREDB_H2G(input.Field('selected').AsStringItem[i]);
     CheckDbResult(conn.SYS.FetchDomainById(domain_id,domain));
     CheckDbResult(conn.SYS.SuspendContinueDomainById(domain_id,not domain.Suspended));
     if ses.GetSessionModuleData(ClassName).FieldExists('selectedDomain') then begin
@@ -612,7 +612,7 @@ function TFRE_COMMON_DOMAIN_MOD.WEB_SaveDomain(const input:IFRE_DB_Object; const
 var dbo              : IFRE_DB_Object;
     data             : IFRE_DB_Object;
     res              : TFRE_DB_Errortype;
-    dbo_uid          : TGUID;
+    dbo_uid          : TFRE_DB_GUID;
     dn               : TFRE_DB_String;
     txt              : TFRE_DB_String;
     txt_s            : TFRE_DB_String;
@@ -626,7 +626,7 @@ begin
  FREDB_SetStringFromExistingFieldPathOrNoChange(data,'desc.txt',txt);
  FREDB_SetStringFromExistingFieldPathOrNoChange(data,'desc.txt_s',txt_s);
 
- dbo_uid := FREDB_String2Guid(input.Field('selected').Asstring);
+ dbo_uid := FREDB_H2G(input.Field('selected').Asstring);
 
  res := conn.sys.ModifyDomainById(dbo_uid,dn,txt,txt_s);
  if res=edb_OK then
@@ -641,10 +641,10 @@ var
   func     : TFRE_DB_SERVER_FUNC_DESC;
   domain   : IFRE_DB_DOMAIN;
   txt      : TFRE_DB_String;
-  domainUid: TGuid;
+  domainUid: TFRE_DB_GUID;
 begin
   if input.Field('selected').ValueCount=1 then begin
-    domainUid:=FREDB_String2Guid(input.Field('selected').AsString);
+    domainUid:=FREDB_H2G(input.Field('selected').AsString);
     CheckDbResult(conn.sys.FetchDomainById(domainUid,domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
     if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
       Result:=GFRE_DB_NIL_DESC;
@@ -678,12 +678,12 @@ function TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification(const input: IFRE_DB_Object; 
 var
   domain   : IFRE_DB_DOMAIN;
   txt      : IFRE_DB_TEXT;
-  domainUid: TGuid;
+  domainUid: TFRE_DB_GUID;
 begin
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN) then begin
     if input.Field('selected').ValueCount=1 then begin
       ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString:=input.Field('selected').AsString;
-      domainUid:=FREDB_String2Guid(input.Field('selected').AsString);
+      domainUid:=FREDB_H2G(input.Field('selected').AsString);
       CheckDbResult(conn.sys.FetchDomainById(domainUid,domain),'TFRE_COMMON_DOMAIN_MOD.WEB_DGNotification');
       if domain.Domainname(true)=CFRE_DB_SYS_DOMAIN_NAME then begin
         ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeStatus('tb_modify_domain',true));
@@ -736,11 +736,11 @@ begin
     end;
   end;
 
-  CheckDbResult(conn.sys.FetchRoleById(FREDB_String2Guid(roleUid),role),'_addremoverole');
+  CheckDbResult(conn.sys.FetchRoleById(FREDB_H2G(roleUid),role),'_addremoverole');
   if (role.GetDomain(conn)=CFRE_DB_SYS_DOMAIN_NAME) and not conn.sys.CheckClassRight4Domain('assignRole',TFRE_DB_GROUP,CFRE_DB_SYS_DOMAIN_NAME) then raise EFRE_DB_Exception.Create('You are not allowed to assigne System Roles');
 
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    if conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
+    if conn.sys.FetchGroupById(FREDB_H2G(input.Field('selected').AsStringArr[i]),group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
 
@@ -789,14 +789,14 @@ begin
   if input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
 
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(input.FieldPath('dependency.uids_ref.filtervalues').AsString),role));
+    CheckDbResult(conn.Fetch(FREDB_H2G(input.FieldPath('dependency.uids_ref.filtervalues').AsString),role));
     if not conn.sys.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,role.DomainID) then begin
       Result:=false;
       exit;
     end;
 
     for i := 0 to input.Field('SELECTED').ValueCount - 1 do begin
-      CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('SELECTED').AsStringItem[i]),group));
+      CheckDbResult(conn.sys.FetchGroupById(FREDB_H2G(input.Field('SELECTED').AsStringItem[i]),group));
       if group.isProtected or not conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,group.DomainID) then begin
         Result:=false;
         exit;
@@ -1150,7 +1150,7 @@ begin
   dc_groupout.Filters.RemoveFilter('disabled');
   dc_groupin.Filters.RemoveFilter('disabled');
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedRoles') then begin
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(ses.GetSessionModuleData(ClassName).Field('selectedRoles').AsString),role));
+    CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedRoles').AsString),role));
     dc_groupout.Filters.AddStringFieldFilter('domainidlink','domainidlink',FREDB_G2H(role.DomainID),dbft_EXACT);
     if not conn.sys.CheckClassRight4DomainId('disableGroup',TFRE_DB_GROUP,role.DomainID) then begin
       dc_groupout.Filters.AddBooleanFieldFilter('disabled','disabled',false);
@@ -1169,14 +1169,14 @@ end;
 
 function TFRE_COMMON_ROLE_MOD.WEB_RoleNotification(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  sel_guid         : TGUID;
+  sel_guid         : TFRE_DB_GUID;
   selObj           : IFRE_DB_Object;
   oldSelIsRole     : Boolean;
   newSelIsRole     : Boolean;
   notEditable      : Boolean;
   groupout_Grid    : IFRE_DB_DERIVED_COLLECTION;
   groupin_Grid     : IFRE_DB_DERIVED_COLLECTION;
-  domainUid        : TGuid;
+  domainUid        : TFRE_DB_GUID;
   disableEnableRole: Boolean;
   caption          : TFRE_DB_String;
   hint             : TFRE_DB_String;
@@ -1260,7 +1260,7 @@ begin
       Result:=GFRE_DB_NIL_DESC;
       exit;
     end;
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsString),dbo));
+    CheckDbResult(conn.Fetch(FREDB_H2G(input.Field('selected').AsString),dbo));
     if not dbo.IsA('TFRE_DB_ROLE') then begin
       Result:=GFRE_DB_NIL_DESC;
       exit;
@@ -1387,7 +1387,7 @@ function TFRE_COMMON_ROLE_MOD.WEB_DisableEnableRole(const input: IFRE_DB_Object;
 var
   role: IFRE_DB_ROLE;
 begin
-  CheckDbResult(conn.FetchAsIntf(FREDB_String2Guid(input.Field('selected').AsString),IFRE_DB_ROLE,role));
+  CheckDbResult(conn.FetchAsIntf(FREDB_H2G(input.Field('selected').AsString),IFRE_DB_ROLE,role));
   if not (conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_ROLE,role.DomainID) and conn.sys.CheckClassRight4DomainId('disableRole',TFRE_DB_ROLE,role.DomainID)) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
@@ -1409,7 +1409,7 @@ var
   group: IFRE_DB_GROUP;
 begin
   for i := 0 to Length(groups) - 1 do begin
-    CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(groups[i]),group),'_getGroupsString');
+    CheckDbResult(conn.sys.FetchGroupById(FREDB_H2G(groups[i]),group),'_getGroupsString');
     if i>0 then begin
       if i=(Length(groups) - 1) then begin
         res:=res + ' ' +FetchModuleTextShort(ses,'and')+' ';
@@ -1444,10 +1444,10 @@ begin
     end;
   end;
 
-  conn.sys.FetchGroupById(FREDB_String2Guid(groupUid),group);
+  conn.sys.FetchGroupById(FREDB_H2G(groupUid),group);
   if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    if conn.sys.FetchRoleById(FREDB_String2Guid(input.Field('selected').AsStringArr[i]),role)<>edb_OK then
+    if conn.sys.FetchRoleById(FREDB_H2G(input.Field('selected').AsStringArr[i]),role)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_role_msg'),'%role%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
 
     if (role.GetDomain(conn)=CFRE_DB_SYS_DOMAIN_NAME) and not conn.sys.CheckClassRight4Domain('assignRole',TFRE_DB_GROUP,CFRE_DB_SYS_DOMAIN_NAME) then raise EFRE_DB_Exception.Create('You are not allowed to assigne System Roles');
@@ -1496,10 +1496,10 @@ begin
   if input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
 
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(input.FieldPath('dependency.uids_ref.filtervalues').AsString),dbo));
+    CheckDbResult(conn.Fetch(FREDB_H2G(input.FieldPath('dependency.uids_ref.filtervalues').AsString),dbo));
     if conn.sys.CheckClassRight4DomainId('assignGroup',TFRE_DB_GROUP,dbo.DomainID) then begin
       for i := 0 to input.Field('selected').ValueCount - 1 do begin
-        CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsStringItem[i]),dbo));
+        CheckDbResult(conn.Fetch(FREDB_H2G(input.Field('selected').AsStringItem[i]),dbo));
         if not conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,dbo.DomainID) then begin
           Result:=false;
           exit;
@@ -1519,14 +1519,14 @@ begin
   if input.FieldPathExists('dependency.uids_ref.filtervalues') and
      (input.FieldPath('dependency.uids_ref.filtervalues').ValueCount=1) then begin
 
-    CheckDbResult(conn.SYS.FetchGroupById(FREDB_String2Guid(input.FieldPath('dependency.uids_ref.filtervalues').AsString),group));
+    CheckDbResult(conn.SYS.FetchGroupById(FREDB_H2G(input.FieldPath('dependency.uids_ref.filtervalues').AsString),group));
     if group.isProtected or not conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,group.DomainID) then begin
       Result:=false;
       exit;
     end;
 
     for i := 0 to input.Field('SELECTED').ValueCount - 1 do begin
-      CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('SELECTED').AsStringItem[i]),role));
+      CheckDbResult(conn.Fetch(FREDB_H2G(input.Field('SELECTED').AsStringItem[i]),role));
       if not conn.sys.CheckClassRight4DomainId('assignRole',TFRE_DB_ROLE,role.DomainID) then begin
         Result:=false;
         exit;
@@ -1905,7 +1905,7 @@ begin
   end;
 
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups') then begin
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsString),group));
+    CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsString),group));
     if not conn.sys.CheckClassRight4DomainId('assignGroup',TFRE_DB_GROUP,group.DomainID) then begin
       useroutgrid.disableDrag;
       useringrid.disableDrag;
@@ -1947,7 +1947,7 @@ begin
   dc_roleout.Filters.RemoveFilter('disabled');
   dc_rolein.Filters.RemoveFilter('disabled');
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups') then begin
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsString),group));
+    CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsString),group));
     dc_roleout.Filters.AddStringFieldFilter('domainidlink','domainidlink',FREDB_G2H(group.DomainID),dbft_EXACT);
     if not conn.sys.CheckClassRight4DomainId('disableRole',TFRE_DB_ROLE,group.DomainID) then begin
       dc_roleout.Filters.AddBooleanFieldFilter('disabled','disabled',false);
@@ -1985,7 +1985,7 @@ function TFRE_COMMON_GROUP_MOD.WEB_CreateGroup(const input: IFRE_DB_Object; cons
 begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP)) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
-  CheckDbResult(conn.sys.AddGroup(input.Field('data').AsObject.Field('objname').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt_s').AsString,FREDB_String2Guid(input.Field('data').AsObject.Field('DOMAINIDLINK').AsString)));
+  CheckDbResult(conn.sys.AddGroup(input.Field('data').AsObject.Field('objname').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt').AsString,input.Field('data').AsObject.Field('desc').AsObject.Field('txt_s').AsString,FREDB_H2G(input.Field('data').AsObject.Field('DOMAINIDLINK').AsString)));
   Result:=TFRE_DB_CLOSE_DIALOG_DESC.create.Describe();
 end;
 
@@ -2001,7 +2001,7 @@ begin
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
-  CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(input.Field('selected').AsString),group),'ModifyGroup');
+  CheckDbResult(conn.sys.FetchGroupById(FREDB_H2G(input.Field('selected').AsString),group),'ModifyGroup');
 
   if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
 
@@ -2024,7 +2024,7 @@ function TFRE_COMMON_GROUP_MOD.WEB_SaveGroup(const input: IFRE_DB_Object; const 
 var dbo              : IFRE_DB_Object;
     data             : IFRE_DB_Object;
     res              : TFRE_DB_Errortype;
-    dbo_uid          : TGUID;
+    dbo_uid          : TFRE_DB_GUID;
     gn               : TFRE_DB_String;
     txt              : TFRE_DB_String;
     txt_s            : TFRE_DB_String;
@@ -2040,7 +2040,7 @@ begin
   FREDB_SetStringFromExistingFieldPathOrNoChange(data,'desc.txt',txt);
   FREDB_SetStringFromExistingFieldPathOrNoChange(data,'desc.txt_s',txt_s);
 
-  dbo_uid := FREDB_String2Guid(input.Field('selected').Asstring);
+  dbo_uid := FREDB_H2G(input.Field('selected').Asstring);
 
   CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'SaveGroup');
   if group.isProtected then raise EFRE_DB_Exception.Create('You cannot modify a protected group.');
@@ -2056,7 +2056,7 @@ function TFRE_COMMON_GROUP_MOD.WEB_DeleteGroup(const input:IFRE_DB_Object; const
 var
   sf     : TFRE_DB_SERVER_FUNC_DESC;
   cap,msg: String;
-  dbo_uid: TGuid;
+  dbo_uid: TFRE_DB_GUID;
   group  : IFRE_DB_GROUP;
   i      : Integer;
 begin
@@ -2067,7 +2067,7 @@ begin
   sf.AddParam.Describe('selected',input.Field('selected').AsStringArr);
   msg:=_getGroupsString(input.Field('selected').AsStringArr,GetDBConnection(input),ses);
   for i := 0 to input.Field('selected').ValueCount-1 do begin
-    dbo_uid:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
+    dbo_uid:=FREDB_H2G(input.Field('selected').AsStringItem[i]);
     CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'DeleteGroup');
     if group.isProtected then raise EFRE_DB_Exception.Create('You cannot delete a protected group.');
     if conn.IsReferenced(group.UID,'TFRE_DB_USER') and not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
@@ -2089,7 +2089,7 @@ function TFRE_COMMON_GROUP_MOD.WEB_DeleteGroupConfirmed(const input:IFRE_DB_Obje
 var
   cap,msg: String;
   i      : NativeInt;
-  dbo_uid: TGuid;
+  dbo_uid: TFRE_DB_GUID;
   group  : IFRE_DB_GROUP;
   users  : TFRE_DB_GUIDArray;
   j      : Integer;
@@ -2108,7 +2108,7 @@ begin
       msg:=StringReplace(FetchModuleTextShort(ses,'group_deleted_diag_msg'),'%group_str%',msg,[rfReplaceAll]);
     end;
     for i := 0 to input.Field('selected').ValueCount-1 do begin
-      dbo_uid:=FREDB_String2Guid(input.Field('selected').AsStringItem[i]);
+      dbo_uid:=FREDB_H2G(input.Field('selected').AsStringItem[i]);
       CheckDbResult(conn.sys.FetchGroupById(dbo_uid,group),'DeleteGroupConfirmed');
       if group.isProtected then raise EFRE_DB_Exception.Create('You cannot delete a protected group.');
 
@@ -2129,7 +2129,7 @@ function TFRE_COMMON_GROUP_MOD.WEB_DisableEnableGroup(const input: IFRE_DB_Objec
 var
   group: IFRE_DB_GROUP;
 begin
-  CheckDbResult(conn.FetchAsIntf(FREDB_String2Guid(input.Field('selected').AsString),IFRE_DB_GROUP,group));
+  CheckDbResult(conn.FetchAsIntf(FREDB_H2G(input.Field('selected').AsString),IFRE_DB_GROUP,group));
   if not (conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,group.DomainID) and conn.sys.CheckClassRight4DomainId('disableGroup',TFRE_DB_GROUP,group.DomainID)) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
@@ -2154,7 +2154,7 @@ begin
       Result:=GFRE_DB_NIL_DESC;
       exit;
     end;
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsString),dbo));
+    CheckDbResult(conn.Fetch(FREDB_H2G(input.Field('selected').AsString),dbo));
     if not dbo.IsA('TFRE_DB_GROUP') then begin
       Result:=GFRE_DB_NIL_DESC;
       exit;
@@ -2189,12 +2189,12 @@ end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_GGNotification(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  sel_guid      : TGUID;
+  sel_guid      : TFRE_DB_GUID;
   oldSelIsGroup : Boolean;
   newSelIsGroup : Boolean;
   selObj        : IFRE_DB_Object;
   notEditable   : Boolean;
-  domainUid     : TGuid;
+  domainUid     : TFRE_DB_GUID;
   groupProtected: Boolean;
   roleout_Grid  : IFRE_DB_DERIVED_COLLECTION;
   rolein_Grid   : IFRE_DB_DERIVED_COLLECTION;
@@ -2366,7 +2366,7 @@ var
   i        : Integer;
   res      : TFRE_DB_Errortype;
   groupUid : TFRE_DB_String;
-  user_id  : TGuid;
+  user_id  : TFRE_DB_GUID;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
@@ -2381,9 +2381,9 @@ begin
     end;
   end;
 
-  CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(groupUid),group),'RemoveFromUser');
+  CheckDbResult(conn.sys.FetchGroupById(FREDB_H2G(groupUid),group),'RemoveFromUser');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    user_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
+    user_id:=FREDB_H2G(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchUserById(user_id,user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.RemoveUserGroupsById(user_id,TFRE_DB_GUIDArray.Create(group.UID))<>edb_OK then
@@ -2400,7 +2400,7 @@ var
   i        : Integer;
   res      : TFRE_DB_Errortype;
   groupUid : TFRE_DB_String;
-  user_id  : TGuid;
+  user_id  : TFRE_DB_GUID;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
@@ -2415,9 +2415,9 @@ begin
     end;
   end;
 
-  CheckDbResult(conn.sys.FetchGroupById(FREDB_String2Guid(groupUid),group),'AddToUser');
+  CheckDbResult(conn.sys.FetchGroupById(FREDB_H2G(groupUid),group),'AddToUser');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    user_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
+    user_id:=FREDB_H2G(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchUserById(user_id,user)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.ModifyUserGroupsById(user_id,TFRE_DB_GUIDArray.Create(group.UID),true)<>edb_OK then
@@ -2526,7 +2526,7 @@ var
   user: IFRE_DB_USER;
 begin
   for i := 0 to Length(logins) - 1 do begin
-    CheckDbResult(conn.sys.FetchUserById(FREDB_String2Guid(logins[i]),user),'_getUsersString');
+    CheckDbResult(conn.sys.FetchUserById(FREDB_H2G(logins[i]),user),'_getUsersString');
     if i>0 then begin
       if i=(Length(logins) - 1) then begin
         res:=res + ' ' +FetchModuleTextShort(ses,'and')+' ';
@@ -2591,14 +2591,14 @@ begin
     exit;
   end;
 
-  CheckDbResult(conn.Fetch(FREDB_String2Guid(input.FieldPath('dependency.uids_ref.filtervalues').AsString),dbo));
+  CheckDbResult(conn.Fetch(FREDB_H2G(input.FieldPath('dependency.uids_ref.filtervalues').AsString),dbo));
   if not conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,dbo.DomainID) then begin
     Result:=false;
     exit;
   end;
 
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsStringItem[i]),dbo));
+    CheckDbResult(conn.Fetch(FREDB_H2G(input.Field('selected').AsStringItem[i]),dbo));
     if not conn.sys.CheckClassRight4DomainId('assignGroup',TFRE_DB_GROUP,dbo.DomainID) then begin
       Result:=false;
       exit;
@@ -2925,11 +2925,11 @@ end;
 
 function TFRE_COMMON_USER_MOD.WEB_UserSelected(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-  sel_guid    : TGUID;
+  sel_guid    : TFRE_DB_GUID;
   selObj         : IFRE_DB_Object;
   oldSelIsUser   : Boolean;
   newSelIsUser   : Boolean;
-  domainUid      : TGuid;
+  domainUid      : TFRE_DB_GUID;
   delUserDisabled: Boolean;
   notEditable    : Boolean;
 begin
@@ -2940,7 +2940,7 @@ begin
 
   if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount=1)  then begin
     sel_guid := input.Field('SELECTED').AsGUID; // is user
-    CheckDbResult(conn.Fetch(sel_guid,selObj),StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',GUIDToString(sel_guid),[rfReplaceAll]));
+    CheckDbResult(conn.Fetch(sel_guid,selObj),StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',FREDB_G2H(sel_guid),[rfReplaceAll]));
     if selObj.IsA('TFRE_DB_USER') then begin
       ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString:=input.Field('SELECTED').AsString;
       domainUid:=selObj.DomainID;
@@ -3011,7 +3011,7 @@ var
   dc            : IFRE_DB_DERIVED_COLLECTION;
   block         : TFRE_DB_INPUT_BLOCK_DESC;
   user          : IFRE_DB_USER;
-  sel_guid      : TGUID;
+  sel_guid      : TFRE_DB_GUID;
   userEditable  : Boolean;
 
 begin
@@ -3046,7 +3046,7 @@ var
   save_func   : TFRE_DB_SERVER_FUNC_DESC;
   start_edit  : TFRE_DB_SERVER_FUNC_DESC;
   stop_edit   : TFRE_DB_SERVER_FUNC_DESC;
-  sel_guid    : TGuid;
+  sel_guid    : TFRE_DB_GUID;
   user        : IFRE_DB_USER;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then
@@ -3103,7 +3103,7 @@ begin
   dc_groupout.Filters.RemoveFilter('disabled');
   dc_groupin.Filters.RemoveFilter('disabled');
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers') then begin
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString),user));
+    CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString),user));
     if not conn.sys.CheckClassRight4DomainId('disableGroup',TFRE_DB_GROUP,user.DomainID) then begin
       dc_groupout.Filters.AddBooleanFieldFilter('disabled','disabled',false);
       dc_groupin.Filters.AddBooleanFieldFilter('disabled','disabled',false);
@@ -3140,7 +3140,7 @@ begin
   dc_roleout.Filters.RemoveFilter('disabled');
   dc_rolein.Filters.RemoveFilter('disabled');
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers') then begin
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString),user));
+    CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString),user));
     if not conn.sys.CheckClassRight4DomainId('disableRole',TFRE_DB_ROLE,user.DomainID) then begin
       dc_roleout.Filters.AddBooleanFieldFilter('disabled','disabled',false);
       dc_rolein.Filters.AddBooleanFieldFilter('disabled','disabled',false);
@@ -3211,7 +3211,7 @@ begin
     end;
     for i:=0 to input.Field('selected').ValueCount-1  do
       begin
-        if conn.sys.DeleteUserById(FREDB_String2Guid(input.Field('selected').AsStringItem[i]))<>edb_OK then
+        if conn.sys.DeleteUserById(FREDB_H2G(input.Field('selected').AsStringItem[i]))<>edb_OK then
           raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_delete_user_msg'),'%user%',input.Field('selected').AsStringItem[i],[rfReplaceAll]));
       end;
     Result:=TFRE_DB_MESSAGE_DESC.create.Describe(cap,msg,fdbmt_info);
@@ -3229,7 +3229,7 @@ var
   dbo       : IFRE_DB_Object;
 begin
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    CheckDbResult(conn.Fetch(FREDB_String2Guid(input.Field('selected').AsStringItem[i]),dbo));
+    CheckDbResult(conn.Fetch(FREDB_H2G(input.Field('selected').AsStringItem[i]),dbo));
     if not (dbo.IsA('TFRE_DB_USER') and conn.sys.CheckClassRight4DomainId(sr_DELETE,TFRE_DB_USER,dbo.DomainID)) then begin
       Result:=GFRE_DB_NIL_DESC;
       exit;
@@ -3324,7 +3324,7 @@ var
   group   : IFRE_DB_GROUP;
   i       : Integer;
   userUid : String;
-  group_id: TGuid;
+  group_id: TFRE_DB_GUID;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
@@ -3338,9 +3338,9 @@ begin
       raise EFRE_DB_Exception.Create('Exactly on user has to be passed to WEB_RemoveFromGroup!');
     end;
   end;
-  CheckDbResult(conn.sys.FetchUserById(FREDB_String2Guid(userUid),user),'RemoveFromGroup');
+  CheckDbResult(conn.sys.FetchUserById(FREDB_H2G(userUid),user),'RemoveFromGroup');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    group_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
+    group_id:=FREDB_H2G(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchGroupById(group_id,group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     if conn.sys.RemoveUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id))<>edb_OK then
@@ -3355,7 +3355,7 @@ var
   group   : IFRE_DB_GROUP;
   i       : Integer;
   userUid : String;
-  group_id: TGuid;
+  group_id: TFRE_DB_GUID;
   res     : TFRE_DB_Errortype;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then
@@ -3370,9 +3370,9 @@ begin
       raise EFRE_DB_Exception.Create('Exactly on user has to be passed to WEB_AddToGroup!');
     end;
   end;
-  CheckDbResult(conn.sys.FetchUserById(FREDB_String2Guid(userUid),user),'AddToGroup');
+  CheckDbResult(conn.sys.FetchUserById(FREDB_H2G(userUid),user),'AddToGroup');
   for i := 0 to input.Field('selected').ValueCount - 1 do begin
-    group_id:=FREDB_String2Guid(input.Field('selected').AsStringArr[i]);
+    group_id:=FREDB_H2G(input.Field('selected').AsStringArr[i]);
     if conn.sys.FetchGroupById(group_id,group)<>edb_OK then
       raise EFRE_DB_Exception.Create(StringReplace(FetchModuleTextShort(ses,'error_fetch_group_msg'),'%group%',input.Field('selected').AsStringArr[i],[rfReplaceAll]));
     res:=conn.sys.ModifyUserGroupsById(user.UID,TFRE_DB_GUIDArray.Create(group_id),true);
@@ -3463,7 +3463,7 @@ begin
   end;
 end;
 
-class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
 var
   group : IFRE_DB_GROUP;
   role  : IFRE_DB_ROLE;
@@ -3586,7 +3586,7 @@ begin
   end;
 end;
 
-class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4SysDomain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TGUID);
+class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4SysDomain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
 var
   group : IFRE_DB_GROUP;
 begin

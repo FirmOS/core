@@ -61,13 +61,13 @@ type
     FOBJArray  : TFRE_DB_GUIDArray;
     procedure  InternalCheck;
   public
-    function    Exists           (const guid   : TGUID) : boolean;
-    function    Add              (const objuid : TGuid) : boolean;
+    function    Exists           (const guid   : TFRE_DB_GUID) : boolean;
+    function    Add              (const objuid : TFRE_DB_GUID) : boolean;
     procedure   StreamToThis     (const stream:TStream);
     procedure   LoadFromThis     (const stream:TStream ; const coll: TFRE_DB_PERSISTANCE_COLLECTION);
     function    ObjectCount      : NativeInt;
     procedure   AppendObjectUIDS (var uids: TFRE_DB_GUIDArray; const ascending: boolean; var down_counter, up_counter: NativeInt; const max_count: Nativeint);
-    function    RemoveUID        (const guid : TGUID) : boolean;
+    function    RemoveUID        (const guid : TFRE_DB_GUID) : boolean;
     constructor create           ;
     destructor  Destroy          ;override;
   end;
@@ -93,10 +93,10 @@ type
     FIsADomainIndex  : Boolean;                      { the index key gets prefixed with a domain uid, thus is per domaind id unique }
     FCollection      : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
 
-    procedure      _InternalCheckAdd                 (const key: PByte ; const keylen : Nativeint ; const isNullVal,isUpdate : Boolean ; const obj_uid : TGUID);
-    procedure      _InternalCheckDel                 (const key: PByte ; const keylen : Nativeint ; const isNullVal          : Boolean ; const obj_uid : TGUID);
-    procedure      _InternalAddGuidToValstore        (const key: PByte ; const keylen: Nativeint; const isNullVal: boolean; const uid: TGUID);
-    procedure      _InternalRemoveGuidFromValstore   (const key: PByte ; const keylen: Nativeint; const isNullVal: boolean; const uid: TGUID);
+    procedure      _InternalCheckAdd                 (const key: PByte ; const keylen : Nativeint ; const isNullVal,isUpdate : Boolean ; const obj_uid : TFRE_DB_GUID);
+    procedure      _InternalCheckDel                 (const key: PByte ; const keylen : Nativeint ; const isNullVal          : Boolean ; const obj_uid : TFRE_DB_GUID);
+    procedure      _InternalAddGuidToValstore        (const key: PByte ; const keylen: Nativeint; const isNullVal: boolean; const uid: TFRE_DB_GUID);
+    procedure      _InternalRemoveGuidFromValstore   (const key: PByte ; const keylen: Nativeint; const isNullVal: boolean; const uid: TFRE_DB_GUID);
 
 
     function        GetStringRepresentationOfTransientKey (const isnullvalue:boolean ; const key: PByte ; const keylen: Nativeint ): String;
@@ -330,7 +330,7 @@ type
     constructor Create             (const coll_name: TFRE_DB_NameType ; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
     destructor  Destroy            ; override;
     function    Count              : int64; override;
-    function    Exists             (const ouid: TGUID): boolean;
+    function    Exists             (const ouid: TFRE_DB_GUID): boolean;
 
     procedure   Clear              ; // Clear Store but dont free
 
@@ -338,10 +338,10 @@ type
     procedure   GetAllObjects      (var objs : IFRE_DB_ObjectArray);
     procedure   GetAllObjectsInt   (var objs : IFRE_DB_ObjectArray);
 
-    function    Remove             (const ouid    : TGUID):TFRE_DB_Errortype;
+    function    Remove             (const ouid    : TFRE_DB_GUID):TFRE_DB_Errortype;
 
-    function    FetchO             (const uid:TGUID ; var obj : TFRE_DB_Object) : boolean;
-    function    Fetch              (const uid:TGUID ; var iobj : IFRE_DB_Object) : boolean;
+    function    FetchO             (const uid:TFRE_DB_GUID ; var obj : TFRE_DB_Object) : boolean;
+    function    Fetch              (const uid:TFRE_DB_GUID ; var iobj : IFRE_DB_Object) : boolean;
 
     function    FetchIntFromColl      (const uid:TFRE_DB_GUID ; out obj : IFRE_DB_Object):boolean;
     function    FetchIntFromCollO     (const uid:TFRE_DB_GUID ; out obj : TFRE_DB_Object):boolean;
@@ -414,12 +414,12 @@ type
     FMasterCollectionStore     : TFRE_DB_CollectionManageTree;
     FLayer                     : IFRE_DB_PERSISTANCE_LAYER;
 
-    function     GetOutBoundRefLinks        (const from_obj : TGUID): TFRE_DB_ObjectReferences;
-    function     GetInboundRefLinks         (const to_obj   : TGUID): TFRE_DB_ObjectReferences;
+    function     GetOutBoundRefLinks        (const from_obj : TFRE_DB_GUID): TFRE_DB_ObjectReferences;
+    function     GetInboundRefLinks         (const to_obj   : TFRE_DB_GUID): TFRE_DB_ObjectReferences;
 
     procedure    __RemoveInboundReflink     (const from_uid,to_uid : TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; const notifif : IFRE_DB_DBChangedNotification ; const tsid : TFRE_DB_TransStepId);
     procedure    __RemoveOutboundReflink    (const from_uid,to_uid : TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; const notifif : IFRE_DB_DBChangedNotification ; const tsid : TFRE_DB_TransStepId);
-    procedure    __RemoveRefLink            (const from_uid,to_uid:TGUID;const upper_from_schemename,upper_fieldname,upper_to_schemename : TFRE_DB_NameType ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
+    procedure    __RemoveRefLink            (const from_uid,to_uid:TFRE_DB_GUID;const upper_from_schemename,upper_fieldname,upper_to_schemename : TFRE_DB_NameType ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
 
     procedure    __SetupOutboundLinkKey     (const from_uid,to_uid: TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; var refoutkey : RFRE_DB_GUID_RefLink_InOut_Key); //inline;
     procedure    __SetupInboundLinkKey      (const from_uid,to_uid: TFRE_DB_GUID ; const scheme_link_key : TFRE_DB_NameTypeRL ; var refinkey  : RFRE_DB_GUID_RefLink_InOut_Key); //inline;
@@ -453,14 +453,14 @@ type
     destructor  Destroy                 ; override;
 
 
-    function    GetReferencesRC         (const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID              ; const concat_call: boolean=false): TFRE_DB_GUIDArray;
-    function    GetReferencesCountRC    (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): NativeInt;
-    function    GetReferencesDetailedRC (const obj_uid:TGuid;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): TFRE_DB_ObjectReferences;
+    function    GetReferencesRC         (const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID              ; const concat_call: boolean=false): TFRE_DB_GUIDArray;
+    function    GetReferencesCountRC    (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): NativeInt;
+    function    GetReferencesDetailedRC (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): TFRE_DB_ObjectReferences;
 
-    function    ExistsObject            (const obj_uid : TGuid ) : Boolean;
-    function    FetchObject             (const obj_uid : TGuid ; out obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
+    function    ExistsObject            (const obj_uid : TFRE_DB_GUID ) : Boolean;
+    function    FetchObject             (const obj_uid : TFRE_DB_GUID ; out obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
     procedure   StoreObject             (const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
-    procedure   DeleteObject            (const obj_uid : TGuid ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
+    procedure   DeleteObject            (const obj_uid : TFRE_DB_GUID ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
     procedure   ForAllObjectsInternal   (const pers,volatile:boolean ; const iter:TFRE_DB_ObjectIteratorBrk); // No Clone
     function    MasterColls             : TFRE_DB_CollectionManageTree;
   end;
@@ -678,10 +678,10 @@ type
     procedure  FieldDelete            (const old_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); virtual;
     procedure  FieldAdd               (const new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); virtual;
     procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); virtual;
-    procedure  SetupOutboundRefLink   (const from_obj : TGUID           ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
-    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object  ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
-    procedure  InboundReflinkDropped  (const from_obj : IFRE_DB_Object  ; const to_obj: TGUID          ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
-    procedure  OutboundReflinkDropped (const from_obj : TGUID           ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual ;
+    procedure  SetupOutboundRefLink   (const from_obj : TFRE_DB_GUID           ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  SetupInboundRefLink    (const from_obj : IFRE_DB_Object  ; const to_obj: TFRE_DB_GUID          ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  InboundReflinkDropped  (const from_obj : IFRE_DB_Object  ; const to_obj: TFRE_DB_GUID          ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual;
+    procedure  OutboundReflinkDropped (const from_obj : TFRE_DB_GUID           ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); virtual ;
     procedure  FinalizeNotif          ;
   end;
 
@@ -720,10 +720,10 @@ type
     procedure   FieldDelete            (const old_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); override;
     procedure   FieldAdd               (const new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); override;
     procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field; const tsid : TFRE_DB_TransStepId); override;
-    procedure   SetupOutboundRefLink   (const from_obj : TGUID          ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);override;
-    procedure   SetupInboundRefLink    (const from_obj : IFRE_DB_Object ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); override;
-    procedure   InboundReflinkDropped  (const from_obj : IFRE_DB_Object ; const to_obj: TGUID   ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); override;
-    procedure   OutboundReflinkDropped (const from_obj : TGUID          ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);override;
+    procedure   SetupOutboundRefLink   (const from_obj : TFRE_DB_GUID          ; const to_obj: IFRE_DB_Object ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);override;
+    procedure   SetupInboundRefLink    (const from_obj : IFRE_DB_Object ; const to_obj: TFRE_DB_GUID   ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); override;
+    procedure   InboundReflinkDropped  (const from_obj : IFRE_DB_Object ; const to_obj: TFRE_DB_GUID   ; const key_description : TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId); override;
+    procedure   OutboundReflinkDropped (const from_obj : TFRE_DB_GUID          ; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid : TFRE_DB_TransStepId);override;
   end;
 
 implementation
@@ -1314,7 +1314,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_DBChangedNotificationProxy.SetupOutboundRefLink(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1333,7 +1333,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_DBChangedNotificationProxy.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TFRE_DB_GUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1352,7 +1352,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_DBChangedNotificationProxy.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TFRE_DB_GUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1371,7 +1371,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DBChangedNotificationProxy.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_DBChangedNotificationProxy.OutboundReflinkDropped(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 var newe : IFRE_DB_Object;
 begin
   try
@@ -1483,24 +1483,24 @@ begin
   GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> FIELD [%s/(%s)] CHANGED IN OBJECT -> %s',[FLayerDB,tsid,new_field.FieldName,new_field.FieldTypeAsString,new_field.ParentObject.GetDescriptionID]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.SetupOutboundRefLink(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_DBChangedNotificationBase.SetupOutboundRefLink(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 begin
-    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> NEW OUTBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,FREDB_G2H(from_obj),to_obj.UID_String,key_description]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_DBChangedNotificationBase.SetupInboundRefLink(const from_obj: IFRE_DB_Object; const to_obj: TFRE_DB_GUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 begin
-    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> NEW INBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,from_obj.UID_String,FREDB_G2H(to_obj),key_description]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TGUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_DBChangedNotificationBase.InboundReflinkDropped(const from_obj: IFRE_DB_Object; const to_obj: TFRE_DB_GUID; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 begin
-    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> DROPPED INBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,from_obj.UID_String,GFRE_BT.GUID_2_HexString(to_obj),key_description]));
+    GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> DROPPED INBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,from_obj.UID_String,FREDB_G2H(to_obj),key_description]));
 end;
 
-procedure TFRE_DB_DBChangedNotificationBase.OutboundReflinkDropped(const from_obj: TGUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_DBChangedNotificationBase.OutboundReflinkDropped(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
 begin
-  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> DROPPED OUTBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,GFRE_BT.GUID_2_HexString(from_obj),to_obj.UID_String,key_description]));
+  GFRE_DBI.LogInfo(dblc_PERSISTANCE_NOTIFY,Format('[%s/%s]> DROPPED OUTBOUND REFLINK  [%s] -> [%s] (%s)',[FLayerDB,tsid,FREDB_G2H(from_obj),to_obj.UID_String,key_description]));
 end;
 
 procedure TFRE_DB_DBChangedNotificationBase.FinalizeNotif;
@@ -1841,7 +1841,7 @@ begin
 end;
 
 class procedure TFRE_DB_UnsignedIndex.TransformToBinaryComparable(fld: TFRE_DB_FIELD; const key: PByte; var keylen: Nativeint; const is_cassensitive: boolean; const invert_key: boolean);
-var guid          : TGuid;
+var guid          : TFRE_DB_GUID;
     is_null_value : boolean;
     isguid        : boolean;
     i             : NativeInt;
@@ -1868,11 +1868,11 @@ begin
     begin
       if not is_null_value then
         begin
-          move(guid,key[1],sizeof(tguid));
+          move(guid,key[1],sizeof(TFRE_DB_GUID));
           keylen:=17;
           key[0]:=1;
           if invert_key then
-            for i:=1 to sizeof(TGuid) do
+            for i:=1 to sizeof(TFRE_DB_GUID) do
               key[i] := not key[i];
         end
       else
@@ -2565,7 +2565,7 @@ begin
 end;
 
 
-function     ObjectGuidCompare     (const o1,o2 : PFRE_DB_Object):boolean;
+function     ObjecTFRE_DB_GUIDCompare     (const o1,o2 : PFRE_DB_Object):boolean;
 begin
   result := FREDB_Guids_Same(o1^.UID,o2^.UID);
 end;
@@ -2820,7 +2820,7 @@ begin
 end;
 
 
-function TFRE_DB_IndexValueStore.Exists(const guid: TGUID): boolean;
+function TFRE_DB_IndexValueStore.Exists(const guid: TFRE_DB_GUID): boolean;
 var i : NativeInt;
 begin
   for i := 0 to High(FOBJArray) do
@@ -2829,7 +2829,7 @@ begin
   result := false;
 end;
 
-function TFRE_DB_IndexValueStore.Add(const objuid: TGuid): boolean;
+function TFRE_DB_IndexValueStore.Add(const objuid: TFRE_DB_GUID): boolean;
 begin
   if Exists(objuid) then
     exit(false);
@@ -2843,22 +2843,22 @@ var i : NativeInt;
 begin
   stream.WriteQWord(Length(FOBJArray));
   for i:=0 to high(FOBJArray) do
-    stream.WriteBuffer(FOBJArray[i],SizeOf(TGuid));
+    stream.WriteBuffer(FOBJArray[i],SizeOf(TFRE_DB_GUID));
 end;
 
 procedure TFRE_DB_IndexValueStore.LoadFromThis(const stream: TStream; const coll: TFRE_DB_PERSISTANCE_COLLECTION);
 var i,cnt : NativeInt;
-    uid   : TGUID;
+    uid   : TFRE_DB_GUID;
     obj   : IFRE_DB_Object;
 begin
   cnt := stream.ReadQWord;
   SetLength(FOBJArray,cnt);
   for i:=0 to high(FOBJArray) do
     begin
-      stream.ReadBuffer(uid,SizeOf(TGuid));
+      stream.ReadBuffer(uid,SizeOf(TFRE_DB_GUID));
       FOBJArray[i] := uid;
       if not coll.FetchIntFromColl(uid,obj) then //
-        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'STREAM LOAD INDEX ERROR CANT FIND [%s] IN COLLECTION',[GFRE_BT.GUID_2_HexString(uid)]);
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'STREAM LOAD INDEX ERROR CANT FIND [%s] IN COLLECTION',[FREDB_G2H(uid)]);
     end;
 end;
 
@@ -2906,7 +2906,7 @@ begin
     SetLength(uids,pos);
 end;
 
-function TFRE_DB_IndexValueStore.RemoveUID(const guid: TGUID): boolean;
+function TFRE_DB_IndexValueStore.RemoveUID(const guid: TFRE_DB_GUID): boolean;
 var i        : NativeInt;
     newarray : TFRE_DB_GUIDArray;
     cnt      : NativeInt;
@@ -2938,7 +2938,7 @@ end;
 { TFRE_DB_Master_Data }
 
 
-function TFRE_DB_Master_Data.GetOutBoundRefLinks(const from_obj: TGUID): TFRE_DB_ObjectReferences;
+function TFRE_DB_Master_Data.GetOutBoundRefLinks(const from_obj: TFRE_DB_GUID): TFRE_DB_ObjectReferences;
 var key : RFRE_DB_GUID_RefLink_InOut_Key;
     cnt : NativeInt;
 
@@ -2967,7 +2967,7 @@ begin
   SetLength(result,cnt);
 end;
 
-function TFRE_DB_Master_Data.GetInboundRefLinks(const to_obj: TGUID): TFRE_DB_ObjectReferences;
+function TFRE_DB_Master_Data.GetInboundRefLinks(const to_obj: TFRE_DB_GUID): TFRE_DB_ObjectReferences;
 var key : RFRE_DB_GUID_RefLink_InOut_Key;
     cnt : NativeInt;
 
@@ -3013,7 +3013,7 @@ begin
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal inbound reflink structure bad, value invalid [%d]',[value]);
 
   if not FetchObject(from_uid,from_obj,true) then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove inbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove inbound reflink not found %s',[FREDB_G2H(to_uid)]);
 
   if assigned(notifif) then
     begin
@@ -3041,7 +3041,7 @@ begin
   if value<>$BAD0BEEF then
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'internal outbound reflink structure bad, value invalid [%d]',[value]);
   if not FetchObject(to_uid,to_obj,true) then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[GFRE_BT.GUID_2_HexString(to_uid)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'remove outbound reflink not found %s',[FREDB_G2H(to_uid)]);
   if assigned(notifif) then
     begin
       to_obj.Set_Store_LockedUnLockedIf(false,lock_state);
@@ -3053,7 +3053,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_Master_Data.__RemoveRefLink(const from_uid, to_uid: TGUID; const upper_from_schemename, upper_fieldname, upper_to_schemename: TFRE_DB_NameType; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_Master_Data.__RemoveRefLink(const from_uid, to_uid: TFRE_DB_GUID; const upper_from_schemename, upper_fieldname, upper_to_schemename: TFRE_DB_NameType; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var
    scheme_link_key    : TFRE_DB_NameTypeRL;
 begin
@@ -3110,16 +3110,16 @@ var j       : NativeInt;
 begin
   //writeln('TODO _ PARALLEL CHECK OF REFLINK INDEX TREE');
   if not FetchObject(link,ref_obj,true) then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the to object does not exist!',[obj.GetDescriptionID,fieldname,FREDB_G2H(link)]);
   if obj.IsVolatile or obj.IsSystem then
-    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the linking object is volatile or system!',[obj.GetDescriptionID,fieldname,GFRE_BT.GUID_2_HexString(link)]);
+    raise EFRE_DB_PL_Exception.Create(edb_ERROR,'referential link check: link from obj(%s:%s) to obj(%s) : the linking object is volatile or system!',[obj.GetDescriptionID,fieldname,FREDB_G2H(link)]);
   scheme_link := uppercase(fieldname+'>'+ref_obj.SchemeClass);
   if (not allow_existing_links) and
      __RefLinkOutboundExists(obj.UID,fieldname,link,scheme_link) then
-       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
+       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,FREDB_G2H(link),ref_obj.SchemeClass]);
   if (not allow_existing_links) and
      __RefLinkInboundExists(obj.UID,fieldname,link,uppercase(obj.SchemeClass+'<'+fieldname)) then
-       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,GFRE_BT.GUID_2_HexString(link),ref_obj.SchemeClass]);
+       raise EFRE_DB_PL_Exception.Create(edb_ERROR,'outbound reflink already existing from  from obj(%s:%s) to obj(%s:%s)',[obj.UID_String,fieldname,FREDB_G2H(link),ref_obj.SchemeClass]);
 end;
 
 // Setup the "to_list" for KEY-UID,Field,(Subkeys)
@@ -3326,7 +3326,7 @@ end;
 
 function TFRE_DB_Master_Data.InternalStoreObjectFromStable(const obj: TFRE_DB_Object): TFRE_DB_Errortype;
 var
-   key    : TGuid;
+   key    : TFRE_DB_GUID;
    dummy  : PtrUInt;
 
    procedure Store(const obj:TFRE_DB_Object; var halt:boolean);
@@ -3334,7 +3334,7 @@ var
      dummy := FREDB_ObjectToPtrUInt(obj);
      key   := obj.UID;
      //writeln('RELOAD STORE : ',obj.UID_String,' ',obj.IsObjectRoot);
-     if not FMasterPersistentObjStore.InsertBinaryKeyOrFetch(@key,sizeof(tguid),dummy) then
+     if not FMasterPersistentObjStore.InsertBinaryKeyOrFetch(@key,sizeof(TFRE_DB_GUID),dummy) then
        result := edb_EXISTS;
      if result<>edb_OK then
        halt := true
@@ -3545,7 +3545,7 @@ begin
   obj.Set_Store_Locked(true);
 end;
 
-function TFRE_DB_Master_Data.GetReferencesRC(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID ; const concat_call : boolean): TFRE_DB_GUIDArray;
+function TFRE_DB_Master_Data.GetReferencesRC(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID ; const concat_call : boolean): TFRE_DB_GUIDArray;
 var obr     : TFRE_DB_ObjectReferences;
     obrc    : TFRE_DB_ObjectReferences;
     i,j,cnt : NativeInt;
@@ -3594,7 +3594,7 @@ begin
     end;
 end;
 
-function TFRE_DB_Master_Data.GetReferencesCountRC(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID; const concat_call: boolean): NativeInt;
+function TFRE_DB_Master_Data.GetReferencesCountRC(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID; const concat_call: boolean): NativeInt;
 var obr    : TFRE_DB_ObjectReferences;
     obrc   : TFRE_DB_ObjectReferences;
     i,j    : NativeInt;
@@ -3637,7 +3637,7 @@ begin
     end;
 end;
 
-function TFRE_DB_Master_Data.GetReferencesDetailedRC(const obj_uid: TGuid; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID; const concat_call: boolean): TFRE_DB_ObjectReferences;
+function TFRE_DB_Master_Data.GetReferencesDetailedRC(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID; const concat_call: boolean): TFRE_DB_ObjectReferences;
 var obr     : TFRE_DB_ObjectReferences;
     obrc    : TFRE_DB_ObjectReferences;
     i,j,cnt : NativeInt;
@@ -3685,29 +3685,29 @@ begin
     end;
 end;
 
-function TFRE_DB_Master_Data.ExistsObject(const obj_uid: TGuid): Boolean;
+function TFRE_DB_Master_Data.ExistsObject(const obj_uid: TFRE_DB_GUID): Boolean;
 var dummy : NativeUint;
 begin
-  if FMasterVolatileObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TGuid),dummy) then
+  if FMasterVolatileObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TFRE_DB_GUID),dummy) then
     exit(true);
-  if FMasterPersistentObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TGuid),dummy) then
+  if FMasterPersistentObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TFRE_DB_GUID),dummy) then
     exit(true);
   exit(false);
 end;
 
-function TFRE_DB_Master_Data.FetchObject(const obj_uid: TGuid; out obj: TFRE_DB_Object; const internal_obj: boolean): boolean;
+function TFRE_DB_Master_Data.FetchObject(const obj_uid: TFRE_DB_GUID; out obj: TFRE_DB_Object; const internal_obj: boolean): boolean;
 var dummy : NativeUint;
     clobj : TFRE_DB_Object;
 begin
   obj := nil;
-  result := FMasterVolatileObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TGuid),dummy);
+  result := FMasterVolatileObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TFRE_DB_GUID),dummy);
   if result then
     begin
       obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;
     end
   else
     begin
-     result := FMasterPersistentObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TGuid),dummy);
+     result := FMasterPersistentObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TFRE_DB_GUID),dummy);
      if result then
        obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;
     end;
@@ -3734,7 +3734,7 @@ end;
 
 procedure TFRE_DB_Master_Data.StoreObject(const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var references_to_list : TFRE_DB_ObjectReferences;
-    key                : TGuid;
+    key                : TFRE_DB_GUID;
     dummy              : PtrUInt;
     scheme_links       : TFRE_DB_NameTypeRLArray;
 begin
@@ -3749,7 +3749,7 @@ begin
     begin
       if check_only then
         begin
-          if FMasterVolatileObjStore.ExistsBinaryKey(@key,SizeOf(TGuid),dummy) then
+          if FMasterVolatileObjStore.ExistsBinaryKey(@key,SizeOf(TFRE_DB_GUID),dummy) then
             begin
               if obj.IsObjectRoot then
                 begin
@@ -3763,7 +3763,7 @@ begin
         end
       else
         begin
-          if not FMasterVolatileObjStore.InsertBinaryKey(@key,SizeOf(TGuid),FREDB_ObjectToPtrUInt(obj)) then
+          if not FMasterVolatileObjStore.InsertBinaryKey(@key,SizeOf(TFRE_DB_GUID),FREDB_ObjectToPtrUInt(obj)) then
             raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store volatile object')
         end;
     end
@@ -3772,7 +3772,7 @@ begin
       dummy := FREDB_ObjectToPtrUInt(obj);
       if check_only then
         begin
-          if FMasterPersistentObjStore.ExistsBinaryKey(@key,SizeOf(TGuid),dummy) then
+          if FMasterPersistentObjStore.ExistsBinaryKey(@key,SizeOf(TFRE_DB_GUID),dummy) then
             begin
               if obj.IsObjectRoot then
                 begin
@@ -3789,7 +3789,7 @@ begin
           if tsid='' then
             raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'transation id not set on store OBJ(%s)',[obj.UID_String]);
           obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=tsid;
-          if not FMasterPersistentObjStore.InsertBinaryKeyOrFetch(@key,sizeof(tguid),dummy) then
+          if not FMasterPersistentObjStore.InsertBinaryKeyOrFetch(@key,sizeof(TFRE_DB_GUID),dummy) then
             raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'cannot store persistent object [%s]',[obj.InternalUniqueDebugKey]);
           if Length(references_to_list)>0 then
             _SetupInitialRefLinks(obj,references_to_list,scheme_links,notifif,tsid);
@@ -3797,7 +3797,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_Master_Data.DeleteObject(const obj_uid: TGuid; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_Master_Data.DeleteObject(const obj_uid: TFRE_DB_GUID; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var dummyv  : PtrUInt;
     dummyp  : PtrUInt;
     obj     : TFRE_DB_Object;
@@ -3809,19 +3809,19 @@ begin
   if check_only then
     begin
       if GetReferencesCountRC(obj_uid,false) > 0 then
-        raise EFRE_DB_PL_Exception.Create(edb_OBJECT_REFERENCED,'DELETE OF OBJECT [%s] FAILED, OBJECT IS REFERENCED',[GFRE_BT.GUID_2_HexString(obj_uid)]);
+        raise EFRE_DB_PL_Exception.Create(edb_OBJECT_REFERENCED,'DELETE OF OBJECT [%s] FAILED, OBJECT IS REFERENCED',[FREDB_G2H(obj_uid)]);
       exit;
     end;
 
-  ex_vol  := FMasterVolatileObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TGuid),dummyv);
-  ex_pers := FMasterPersistentObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TGuid),dummyp);
+  ex_vol  := FMasterVolatileObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TFRE_DB_GUID),dummyv);
+  ex_pers := FMasterPersistentObjStore.ExistsBinaryKey(@obj_uid,SizeOf(TFRE_DB_GUID),dummyp);
   if (ex_vol=false) and
      (ex_pers=false) then
-       raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'DELETE OF OBJECT [%s] FAILED, OBJECT NOT FOUND',[GFRE_BT.GUID_2_HexString(obj_uid)]);
+       raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'DELETE OF OBJECT [%s] FAILED, OBJECT NOT FOUND',[FREDB_G2H(obj_uid)]);
   if ex_vol then
     begin
       obj := FREDB_PtrUIntToObject(dummyv) as TFRE_DB_Object;
-      if not FMasterVolatileObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TGuid),dummyv) then
+      if not FMasterVolatileObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TFRE_DB_GUID),dummyv) then
         raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'cannot remove existing');
       if obj.IsObjectRoot then
         obj.Free
@@ -3836,7 +3836,7 @@ begin
         cn := TObject(dummyp).ClassName;
       end;
       _RemoveAllRefLinks(obj,notifif,tsid);
-      if not FMasterPersistentObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TGuid),dummyp) then
+      if not FMasterPersistentObjStore.RemoveBinaryKey(@obj_uid,SizeOf(TFRE_DB_GUID),dummyp) then
         raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'cannot remove existing');
       if obj.IsObjectRoot then
         obj.Free
@@ -4138,7 +4138,7 @@ end;
 procedure TFRE_DB_MM_Index.IndexUpdCheck(const new_obj, old_obj: TFRE_DB_Object; const check_only: boolean);
 var
     oldfld,newfld  : TFRE_DB_FIELD;
-    obj_uid        : TGUID;
+    obj_uid        : TFRE_DB_GUID;
     dummy          : NativeUint;
     values         : TFRE_DB_IndexValueStore;
     isNullValue    : boolean;
@@ -4195,7 +4195,7 @@ end;
 
 procedure TFRE_DB_MM_Index.IndexDelCheck(const obj, new_obj: TFRE_DB_Object; const check_only: boolean);
 var oldfld         : TFRE_DB_FIELD;
-    obj_uid        : TGuid;
+    obj_uid        : TFRE_DB_GUID;
     OldIsNullValue : boolean;
     key            : Array [0..CFREA_maxKeyLen] of Byte;
     keylen         : NativeInt;
@@ -4348,7 +4348,7 @@ begin
   (FCollection as TFRE_DB_Persistance_Collection).ForAllInternal(@Add);
 end;
 
-procedure TFRE_DB_MM_Index._InternalCheckAdd(const key: PByte; const keylen: Nativeint; const isNullVal, isUpdate: Boolean; const obj_uid: TGUID);
+procedure TFRE_DB_MM_Index._InternalCheckAdd(const key: PByte; const keylen: Nativeint; const isNullVal, isUpdate: Boolean; const obj_uid: TFRE_DB_GUID);
 var dummy  : NativeUint;
     values : TFRE_DB_IndexValueStore;
 begin
@@ -4381,7 +4381,7 @@ begin
     end
 end;
 
-procedure TFRE_DB_MM_Index._InternalCheckDel(const key: PByte; const keylen: Nativeint; const isNullVal: Boolean; const obj_uid: TGUID);
+procedure TFRE_DB_MM_Index._InternalCheckDel(const key: PByte; const keylen: Nativeint; const isNullVal: Boolean; const obj_uid: TFRE_DB_GUID);
 var dummy        : NativeUint;
     values       : TFRE_DB_IndexValueStore;
     nullvalExist : Boolean;
@@ -4406,7 +4406,7 @@ begin
     raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'for the unique index [%s] the key to delete does not exists [ %s]',[_GetIndexStringSpec,GetStringRepresentationOfTransientKey(isNullVal,key,keylen)])
 end;
 
-procedure TFRE_DB_MM_Index._InternalAddGuidToValstore(const key: PByte; const keylen: Nativeint ; const isNullVal : boolean ; const uid: TGUID);
+procedure TFRE_DB_MM_Index._InternalAddGuidToValstore(const key: PByte; const keylen: Nativeint ; const isNullVal : boolean ; const uid: TFRE_DB_GUID);
 var
     dummy : NativeUint;
    values : TFRE_DB_IndexValueStore;
@@ -4446,7 +4446,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_MM_Index._InternalRemoveGuidFromValstore(const key: PByte; const keylen: Nativeint; const isNullVal: boolean; const uid: TGUID);
+procedure TFRE_DB_MM_Index._InternalRemoveGuidFromValstore(const key: PByte; const keylen: Nativeint; const isNullVal: boolean; const uid: TFRE_DB_GUID);
 var
     dummy : NativeUint;
    values : TFRE_DB_IndexValueStore;
@@ -4455,11 +4455,11 @@ begin
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old value?',[_GetIndexStringSpec]);
   values := FREDB_PtrUIntToObject(dummy) as TFRE_DB_IndexValueStore;
   if not values.RemoveUID(uid) then
-    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old obj uid [%s] value in indexvaluestore?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot find old obj uid [%s] value in indexvaluestore?',[_GetIndexStringSpec,FREDB_G2H(uid)]);
   if values.ObjectCount=0 then
     begin
       if not FIndex.RemoveBinaryKey(key,keylen,dummy) then
-        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot remove the index node entry for old obj uid [%s] in indextree?',[_GetIndexStringSpec,GFRE_BT.GUID_2_HexString(uid)]);
+        raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'index/field [%s] update, cannot remove the index node entry for old obj uid [%s] in indextree?',[_GetIndexStringSpec,FREDB_G2H(uid)]);
       values.free;
     end;
 end;
@@ -4928,22 +4928,22 @@ begin
   result := FGuidObjStore.GetValueCount;
 end;
 
-function TFRE_DB_Persistance_Collection.Exists(const ouid: TGUID): boolean;
+function TFRE_DB_Persistance_Collection.Exists(const ouid: TFRE_DB_GUID): boolean;
 var  dummy : PtrUInt;
 begin
   result := FGuidObjStore.ExistsBinaryKey(@ouid,SizeOf(ouid),dummy);
 end;
 
-function TFRE_DB_Persistance_Collection.Remove(const ouid: TGUID): TFRE_DB_Errortype;
+function TFRE_DB_Persistance_Collection.Remove(const ouid: TFRE_DB_GUID): TFRE_DB_Errortype;
 begin
   FLayer.DeleteObject(ouid,CollectionName(true));
   exit(edb_OK);
 end;
 
-function TFRE_DB_Persistance_Collection.FetchO(const uid: TGUID; var obj: TFRE_DB_Object): boolean;
+function TFRE_DB_Persistance_Collection.FetchO(const uid: TFRE_DB_GUID; var obj: TFRE_DB_Object): boolean;
 var  dummy : PtrUInt;
 begin
-  result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TGuid),dummy);
+  result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TFRE_DB_GUID),dummy);
   if result then
     obj := CloneOutObject(FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object)
   else
@@ -5025,14 +5025,14 @@ begin
   new_obj := new_iobj.Implementor as TFRE_DB_Object;
   if checkphase then
     begin
-      if FGuidObjStore.ExistsBinaryKey(new_obj.UIDP,SizeOf(TGuid),dummy) then
+      if FGuidObjStore.ExistsBinaryKey(new_obj.UIDP,SizeOf(TFRE_DB_GUID),dummy) then
         raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'object [%s] already exists on store in collection [%s]',[new_obj.UID_String,FName]);
       IndexAddCheck(new_obj,true);
     end
   else
     begin
         IndexAddCheck(new_obj,false);
-        if not FGuidObjStore.InsertBinaryKey(new_obj.UIDP,SizeOf(TGUID),FREDB_ObjectToPtrUInt(new_obj)) then
+        if not FGuidObjStore.InsertBinaryKey(new_obj.UIDP,SizeOf(TFRE_DB_GUID),FREDB_ObjectToPtrUInt(new_obj)) then
           raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'store of object [%s] in collection [%s] failed -> already exists on store after exist check ?',[new_obj.UID_String,FName]);
         new_obj.__InternalCollectionAdd(self); // Add The Colection Reference to a directly stored master or child object
         assert(length(new_obj.__InternalGetCollectionList)>0);
@@ -5073,14 +5073,14 @@ begin
   del_obj := del_iobj.Implementor as TFRE_DB_Object;
   if checkphase then
     begin
-      if not FGuidObjStore.ExistsBinaryKey(del_obj.UIDP,SizeOf(TGuid),dummy) then
+      if not FGuidObjStore.ExistsBinaryKey(del_obj.UIDP,SizeOf(TFRE_DB_GUID),dummy) then
         raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'object [%s] does not exist on delete in collection [%s]',[del_obj.UID_String,FName]);
       IndexDelCheck(del_obj,true);
     end
   else
     begin
       IndexDelCheck(del_obj,false);
-      if not FGuidObjStore.RemoveBinaryKey(del_obj.UIDP,SizeOf(TGUID),dummy) then
+      if not FGuidObjStore.RemoveBinaryKey(del_obj.UIDP,SizeOf(TFRE_DB_GUID),dummy) then
         raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'delete of object [%s] in collection [%s] failed -> does not exists on delete after exist check ?',[del_obj.UID_String,FName]);
       cnt := del_obj.__InternalCollectionRemove(self); // Add The Colection Reference to a directly stored master or child object
       if cnt=0 then
@@ -5111,7 +5111,7 @@ begin
   SetLength(result,length(objarr));
   for i:=0 to high(objarr) do
     if not FetchO(objarr[i],result[i]) then
-      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'cloneout failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'cloneout failed uid not found [%s]',[FREDB_G2H(objarr[i])]);
 end;
 
 function TFRE_DB_Persistance_Collection.CloneOutArrayOI(const objarr: TFRE_DB_GUIDArray): IFRE_DB_ObjectArray;
@@ -5120,7 +5120,7 @@ begin
   SetLength(result,length(objarr));
   for i:=0 to high(objarr) do
     if not Fetch(objarr[i],result[i]) then
-      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'cloneout failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'cloneout failed uid not found [%s]',[FREDB_G2H(objarr[i])]);
 end;
 
 function TFRE_DB_Persistance_Collection.CloneOutArrayII(const objarr: IFRE_DB_ObjectArray): IFRE_DB_ObjectArray;
@@ -5137,7 +5137,7 @@ begin
   SetLength(result,length(objarr));
   for i:=0 to high(objarr) do
     if not FetchIntFromColl(objarr[i],result[i]) then
-      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'fetchinternalarr failed uid not found [%s]',[GFRE_BT.GUID_2_HexString(objarr[i])]);
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'fetchinternalarr failed uid not found [%s]',[FREDB_G2H(objarr[i])]);
 end;
 
 function TFRE_DB_Persistance_Collection.FetchIntFromCollAll: IFRE_DB_ObjectArray;
@@ -5277,7 +5277,7 @@ end;
 procedure TFRE_DB_Persistance_Collection.LoadFromThis(const stream: TStream);
 var in_txt : String;
     cnt,i  : NativeInt;
-    uid    : TGuid;
+    uid    : TFRE_DB_GUID;
     dbi    : IFRE_DB_Object;
     dbo    : TFRE_DB_Object;
 begin
@@ -5298,10 +5298,10 @@ begin
       move(in_txt[1],uid,16);
       if not FLayer.INT_Fetch(uid,dbi) or
          not assigned(dbi) then
-           raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION [%s] LOAD / FETCH FAILED [%s]',[CollectionName(false),GFRE_BT.GUID_2_HexString(uid)]);
+           raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION [%s] LOAD / FETCH FAILED [%s]',[CollectionName(false),FREDB_G2H(uid)]);
       dbo := dbi.Implementor as TFRE_DB_Object;
-      if not FGuidObjStore.InsertBinaryKey(dbo.UIDP,SizeOf(TGUID),FREDB_ObjectToPtrUInt(dbo)) then
-        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION [%s] LOAD / INSERT FAILED [%s] EXISTS',[CollectionName(false),GFRE_BT.GUID_2_HexString(uid)]);
+      if not FGuidObjStore.InsertBinaryKey(dbo.UIDP,SizeOf(TFRE_DB_GUID),FREDB_ObjectToPtrUInt(dbo)) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION [%s] LOAD / INSERT FAILED [%s] EXISTS',[CollectionName(false),FREDB_G2H(uid)]);
       dbo.__InternalCollectionAdd(self);
     end;
   cnt := stream.ReadQWord;
@@ -5351,7 +5351,7 @@ end;
 procedure TFRE_DB_Persistance_Collection.RestoreFromObject(const obj: IFRE_DB_Object);
 var in_txt : String;
     cnt,i  : NativeInt;
-    uid    : TGuid;
+    uid    : TFRE_DB_GUID;
     dbi    : IFRE_DB_Object;
     dbo    : TFRE_DB_Object;
     arr    : TFRE_DB_GUIDArray;
@@ -5363,10 +5363,10 @@ begin
       uid := arr[i];
       if (not FLayer.INT_Fetch(uid,dbi)) or
          not assigned(dbi) then
-           raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / FETCH FAILED [%s]',[GFRE_BT.GUID_2_HexString(uid)]);
+           raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / FETCH FAILED [%s]',[FREDB_G2H(uid)]);
       dbo := dbi.Implementor as TFRE_DB_Object;
-      if not FGuidObjStore.InsertBinaryKey(dbo.UIDP,SizeOf(TGUID),FREDB_ObjectToPtrUInt(dbo)) then
-        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / INSERT FAILED [%s] EXISTS',[GFRE_BT.GUID_2_HexString(uid)]);
+      if not FGuidObjStore.InsertBinaryKey(dbo.UIDP,SizeOf(TFRE_DB_GUID),FREDB_ObjectToPtrUInt(dbo)) then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / INSERT FAILED [%s] EXISTS',[FREDB_G2H(uid)]);
       dbo.__InternalCollectionAdd(self);
     end;
 
@@ -5384,10 +5384,10 @@ begin
     result := FName;
 end;
 
-function TFRE_DB_Persistance_Collection.Fetch(const uid: TGUID; var iobj: IFRE_DB_Object): boolean;
+function TFRE_DB_Persistance_Collection.Fetch(const uid: TFRE_DB_GUID; var iobj: IFRE_DB_Object): boolean;
 var dummy : PtrUInt;
 begin
-  result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TGuid),dummy);
+  result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TFRE_DB_GUID),dummy);
   if result then
     iobj := CloneOutObject(FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object)
   else
@@ -5580,7 +5580,7 @@ end;
 function TFRE_DB_Persistance_Collection.FetchIntFromCollO(const uid: TFRE_DB_GUID; out obj: TFRE_DB_Object): boolean;
 var  dummy : PtrUInt;
 begin
-  result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TGuid),dummy);
+  result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TFRE_DB_GUID),dummy);
   if result then
     begin
       obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;

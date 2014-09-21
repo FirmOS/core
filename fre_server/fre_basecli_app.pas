@@ -922,7 +922,7 @@ end;
 procedure TFRE_CLISRV_APP.GenerateTestdata;
 var
   conn    : IFRE_DB_CONNECTION;
-  domainId: TGuid;
+  domainId: TFRE_DB_Guid;
 begin
   _CheckDBNameSupplied;
   _CheckAdminUserSupplied;

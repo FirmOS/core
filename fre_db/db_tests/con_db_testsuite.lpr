@@ -43,9 +43,12 @@ begin
   Register_DB_Extensions;
   RegisterTestCodeClasses;
 
-  TEST_GUID_1 := StringToGUID('{00000000-0000-0000-0000-000000000001}');
-  TEST_GUID_2 := StringToGUID('{00000000-0000-0000-0000-000000000002}');
-  TEST_GUID_3 := StringToGUID('{00000000-0000-0000-0000-000000000003}');
+  TEST_GUID_1.ClearGuid;
+  TEST_GUID_2.ClearGuid;
+  TEST_GUID_3.ClearGuid;
+  TEST_GUID_1.D[15]:=1;
+  TEST_GUID_2.D[15]:=2;
+  TEST_GUID_3.D[15]:=3;
   GFRE_DB.LocalZone        := 'Europe/Vienna';
 
   App := TTestRunner.Create(nil);
