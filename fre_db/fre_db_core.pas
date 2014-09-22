@@ -19091,7 +19091,7 @@ begin
                                                    GFRE_DBI.CreateText('$validator_ip','IP Validator'),
                                                    FREDB_GetGlobalTextKey('validator_ip_help'),
                                                    '\d\.\/'));
- GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('mac').Setup('^([0-9a-fA-F]{2}(:|$)){6}$',
+ GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('mac').Setup('(^([0-9a-fA-F]{2}(:|$)){6}$|^[0-9a-fA-F]{12}$)',
                                                     GFRE_DBI.CreateText('$validator_mac','MAC Validator'),
                                                     FREDB_GetGlobalTextKey('validator_mac_help'),
                                                     '\da-fA-F:'));

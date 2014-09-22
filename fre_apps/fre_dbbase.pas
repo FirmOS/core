@@ -152,6 +152,8 @@ begin
 
     DeleteTranslateableText(conn,'search_label');
     StoreTranslateableText(conn,'search_label','Search...');
+    DeleteTranslateableText(conn,'validator_mac_help');
+    StoreTranslateableText(conn,'validator_mac_help','00:01:02:03:04:05 or 000102030405');
   end;
 end;
 
