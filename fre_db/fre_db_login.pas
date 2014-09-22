@@ -307,9 +307,9 @@ begin
     user.Finalize;
   end else begin
     if cFRE_LOGIN_OVERRIDE='' then
-      dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'login_diag_cap'),0,false,false,false)
+      dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'login_diag_cap'),0,false,false,false,true,nil,0,true,'firmosLogin')
     else
-      dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(cFRE_LOGIN_OVERRIDE,0,false,false,false);
+      dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(cFRE_LOGIN_OVERRIDE,0,false,false,false,true,nil,0,true,'firmosLogin');
     dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
     //dialog.AddButton.Describe('Abort',nil,fdbbt_close);
     dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_uname'),'uname',true);

@@ -900,6 +900,9 @@ implementation
       jsContentAdd('  ,_percHeight: '+co.Field('percHeight').AsString);
       jsContentAdd('  ,_percWidth: '+co.Field('percWidth').AsString);
     end;
+    if co.FieldExists('styleClass') then begin
+      jsContentAdd('  ,styleClass: "'+co.Field('styleClass').AsString+'"');
+    end;
     jsContentAdd('  ,closable: '+BoolToStr(hasCloseButton,'true','false'));
     jsContentAdd('});');
 

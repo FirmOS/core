@@ -516,8 +516,9 @@ type
     //@ Describes a modal dialog. See also TFRE_DB_FORM_DESC.
     //@ If defaultClose is true a close button will be added to the dialog which simply closes the dialog.
     //@ If defaultClose is false and no explicit close button is added the dialog will not be closable at all (e.g. force login).
-    //@ sendChangedFieldsOnly true: good for data updates, false: all field values are send unconditonally, goot for new objects
-    function  Describe    (const caption:String; const width:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0; const hideEmptyGroups: Boolean=true): TFRE_DB_FORM_DIALOG_DESC;
+    //@ sendChangedFieldsOnly true: good for data updates, false: all field values are send unconditonally, good for new objects
+    //@ styleClass: used to implement a non standard styling
+    function  Describe    (const caption:String; const width:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0; const hideEmptyGroups: Boolean=true; const styleClass: String=''): TFRE_DB_FORM_DIALOG_DESC;
   end;
 
   { TFRE_DB_DIALOG_DESC }
@@ -529,7 +530,8 @@ type
     //@ In case of given percWidth/Height maxWidth/Height will be ignored.
     //@ If defaultClose is true a close button will be added to the dialog which simply closes the dialog.
     //@ If defaultClose is false and no explicit close button is added the dialog will not be closable at all (e.g. force login).
-    function  Describe    (const caption:String; const content:TFRE_DB_CONTENT_DESC; const percWidth: Integer=0; const percHeight: Integer=0; const maxWidth:Integer=0; const maxHeight: Integer=0; const isDraggable:Boolean=true): TFRE_DB_DIALOG_DESC;
+    //@ styleClass: used to implement a non standard styling
+    function  Describe    (const caption:String; const content:TFRE_DB_CONTENT_DESC; const percWidth: Integer=0; const percHeight: Integer=0; const maxWidth:Integer=0; const maxHeight: Integer=0; const isDraggable:Boolean=true; const styleClass: String=''): TFRE_DB_DIALOG_DESC;
     //@ Creates a new button and adds it to the form. See also TFRE_DB_BUTTON_DESC.
     function  AddButton   : TFRE_DB_BUTTON_DESC;
   end;
@@ -879,7 +881,7 @@ implementation
 
   { TFRE_DB_DIALOG_DESC }
 
-    function TFRE_DB_DIALOG_DESC.Describe(const caption: String; const content: TFRE_DB_CONTENT_DESC; const percWidth: Integer; const percHeight: Integer; const maxWidth: Integer; const maxHeight: Integer; const isDraggable: Boolean): TFRE_DB_DIALOG_DESC;
+  function TFRE_DB_DIALOG_DESC.Describe(const caption: String; const content: TFRE_DB_CONTENT_DESC; const percWidth: Integer; const percHeight: Integer; const maxWidth: Integer; const maxHeight: Integer; const isDraggable: Boolean; const styleClass: String): TFRE_DB_DIALOG_DESC;
   begin
     Field('dialogCaption').AsString:=caption;
     Field('content').AsObject:=content;
@@ -888,6 +890,7 @@ implementation
     Field('maxWidth').AsInt16:=maxWidth;
     Field('maxHeight').AsInt16:=maxHeight;
     Field('draggable').AsBoolean:=isDraggable;
+    Field('styleClass').AsString:=styleClass;
     Result:=Self;
   end;
 
@@ -2672,12 +2675,13 @@ implementation
 
   { TFRE_DB_FORM_DIALOG_DESC }
 
-  function TFRE_DB_FORM_DIALOG_DESC.Describe(const caption:String;const width:Integer; const defaultClose,isDraggable:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer; const hideEmptyGroups: Boolean): TFRE_DB_FORM_DIALOG_DESC;
+  function TFRE_DB_FORM_DIALOG_DESC.Describe(const caption:String;const width:Integer; const defaultClose,isDraggable:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer; const hideEmptyGroups: Boolean; const styleClass: String): TFRE_DB_FORM_DIALOG_DESC;
   begin
     inherited Describe('',defaultClose,sendChangedFieldsOnly,editable,onChangeFunc,onChangeDelay,hideEmptyGroups);
     Field('dialogCaption').AsString:=caption;
     Field('width').AsInt16:=width;
     Field('draggable').AsBoolean:=isDraggable;
+    Field('styleClass').AsString:=styleClass;
     Result:=Self;
   end;
 
