@@ -297,10 +297,13 @@ begin
       dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'login_diag_cap'),0,false,false,false,true,nil,0,true,'firmosLogin')
     else
       dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(cFRE_LOGIN_OVERRIDE,0,false,false,false,true,nil,0,true,'firmosLogin');
-    dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
-    //dialog.AddButton.Describe('Abort',nil,fdbbt_close);
-    dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_uname'),'uname',true);
-    dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_pass'),'pass',true,true,false,false,'',nil,false,true);
+    dialog.AddDescription.Describe('','Please enter your Username and Password');
+    //dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
+    dialog.AddButton.Describe('>',CWSF(@WEB_doLogin),fdbbt_submit);
+    //dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_uname'),'uname',true);
+    //dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_pass'),'pass',true,true,false,false,'',nil,false,true);
+    dialog.AddInput.Describe('','uname',true);
+    dialog.AddInput.Describe('','pass',true,true,false,false,'',nil,false,true);
   end;
   Result:=dialog;
 end;
