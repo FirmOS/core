@@ -2474,14 +2474,13 @@ implementation
   procedure TFRE_DB_WAPP_DOJO.BuildTopMenu(const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co: TFRE_DB_TOPMENU_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
     JSonAction     : TFRE_JSON_ACTION;
-    entry          : TFRE_DB_CONTENT_DESC;
-    i,j            : Integer;
+    i              : Integer;
     subsecs        : TFRE_DB_SUBSECTIONS_DESC;
     subsubsecs     : TFRE_DB_SUBSECTIONS_DESC;
-    entries        : String;
-    serverfuncs    : IFRE_DB_ObjectArray;
+    sections       : String;
     tmpContent     : TFRE_DB_RawByteString;
     tmpContentType : string;
+    serverfuncs    : IFRE_DB_ObjectArray;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -2490,54 +2489,34 @@ implementation
 
     subsecs:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
     try
-      entries := '[';
-      for i := 0 to co.Field('entries').ValueCount - 1 do begin
-        entry := co.Field('entries').AsObjectArr[i].Implementor_HC as TFRE_DB_CONTENT_DESC;
-        if i>0 then begin
-          entries:=entries+',';
+      serverfuncs := co.Field('serverFuncs').CheckOutObjectArray;
+      co.Field('serverFuncs').Clear(true);
+      if Length(serverfuncs)=1 then begin
+        subsecs.AddSection.Describe(serverfuncs[0].Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',i,co.Field('sectionsIds').AsStringItem[0]);
+      end else begin
+        subsubsecs:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
+        for i := 0 to High(serverfuncs) do begin
+          subsubsecs.AddSection.Describe(serverfuncs[i].Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',i,co.Field('sectionsIds').AsStringItem[i]);
         end;
-        entries:=entries+'{isBig: '+BoolToStr(entry.Field('big').AsBoolean,'true','false');
-        entries:=entries+',entryId: "'+entry.contentId+'"';
-        entries:=entries+',icon: "'+entry.Field('icon').AsString+'"';
-        if entry is TFRE_DB_TOPMENU_ENTRY_DESC then begin
-          entries:=entries+',isDialog: false';
-          if entry.Field('serverFuncs').ValueCount=1 then begin
-            subsecs.AddSection.Describe(entry.Field('serverFuncs').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',i,entry.contentId);
-            entry.Field('serverFuncs').Clear(true);
-          end else begin
-            subsubsecs:=TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
-            serverfuncs := entry.Field('serverFuncs').CheckOutObjectArray;
-            for j := 0 to high(serverfuncs) do begin
-              subsubsecs.AddSection.Describe(serverfuncs[j].Implementor_HC as TFRE_DB_SERVER_FUNC_DESC,'',j,entry.Field('subIds').AsStringArr[j]);
-            end;
-            subsecs.AddSection._internalDescribe(subsubsecs,'',i,entry.contentId);
-            entry.Field('serverFuncs').Clear(true);
-          end;
-          if entry.Field('active').AsBoolean then begin
-            subsecs.SetActiveSection(entry.contentId);
-          end;
-        end else begin
-          entries:=entries+',isDialog: true';
-          if entry is TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC then begin
-            entries:=entries+',class: "'+entry.FieldPath('serverFunc.class').AsString+'"';
-            entries:=entries+',func: "'+entry.FieldPath('serverFunc.func').AsString+'"';
-            entries:=entries+',uidpath: '+_BuildJSArray(entry.FieldPath('serverFunc.uidPath').AsStringArr);
-            entries:=entries+',params: '+_BuildParamsObject(entry.Field('serverFunc').AsObject.Field('params').AsObjectArr);
-          end else begin//TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC;
-            entries:=entries+',isJira: true';
-          end;
-        end;
-        entries:=entries+',caption: "'+FREDB_String2EscapedJSString(entry.Field('caption').AsString)+'"}';
+        subsecs.AddSection._internalDescribe(subsubsecs,'',i,co.Field('mainSectionId').AsString);
       end;
-      entries:=entries+']';
+
       if co.FieldExists('notificationPanel') then begin
         TransformInvocation(session,command_type,co.Field('notificationPanel').AsObject,tmpContent,tmpContentType,true);
       end;
       jsContentAdd('var '+co.Field('id').AsString + ' = new FIRMOS.TopMenu({');
       jsContentAdd('                 id: "'+co.Field('id').AsString+'"');
       jsContentAdd('                ,class: "borderContainer firmosTransparent"');
-      jsContentAdd('                ,entries: ' + entries);
+      jsContentAdd('                ,homeCaption: "'+FREDB_String2EscapedJSString(co.Field('homeCaption').AsString)+'"');
+      jsContentAdd('                ,homeIcon: "'+co.Field('homeIcon').AsString+'"');
       jsContentAdd('                ,subSecsId: "' + subsecs.contentId + '"');
+      jsContentAdd('                ,mainSectionId: "' + co.Field('mainSectionId').AsString + '"');
+      jsContentAdd('                ,uname: "' + FREDB_String2EscapedJSString(co.Field('uname').AsString) + '"');
+      jsContentAdd('                ,uClass: "'+co.FieldPath('uServerFunc.class').AsString+'"');
+      jsContentAdd('                ,uFunc: "'+co.FieldPath('uServerFunc.func').AsString+'"');
+      jsContentAdd('                ,uUidPath: '+_BuildJSArray(co.FieldPath('uServerFunc.uidPath').AsStringArr));
+      jsContentAdd('                ,uParams: '+_BuildParamsObject(co.Field('uServerFunc').AsObject.Field('params').AsObjectArr));
+      jsContentAdd('                ,JIRAenabled: "' + BoolToStr(co.Field('JIRAenabled').AsBoolean,'true','false') + '"');
       if co.FieldExists('notificationPanel') then begin
         jsContentAdd('                ,notificationPanel: ' + co.Field('notificationPanel').AsObject.Field('id').AsString);
       end;

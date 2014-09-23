@@ -536,47 +536,12 @@ type
     function  AddButton   : TFRE_DB_BUTTON_DESC;
   end;
 
-  { TFRE_DB_TOPMENU_ENTRY_DESC }
-
-  TFRE_DB_TOPMENU_ENTRY_DESC  = class(TFRE_DB_CONTENT_DESC)
-  private
-    function  _Describe (const caption,icon:String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC;const sectionId:String;const big:Boolean; const active:Boolean):TFRE_DB_TOPMENU_ENTRY_DESC;
-  public
-    //@ Describes a top menu entry. See also TFRE_DB_TOPMENU_DESC.
-    function  Describe  (const caption,icon:String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC;const sectionId:String='';const big:Boolean=false; const active:Boolean=false):TFRE_DB_TOPMENU_ENTRY_DESC;
-    //@ Describes a top menu entry with multiple content. See also TFRE_DB_TOPMENU_DESC.
-    //@ sectionId defines the id of the automatic generated section and subSectionsIds the ids of the given contents.
-    //@ Describe('Caption','icons/icon.png','icons/iconH.png',serverFuncs,'home',TFRE_DB_StringArray.create('menu','app')); => ['home','menu'] defines the path to the menu content and ['home','app'] defines the path to the app content
-    function  Describe  (const caption,icon:String; const serverFuncs: TFRE_DB_SERVER_FUNC_DESC_ARRAY;const sectionId:String=''; const subSectionIds:TFRE_DB_StringArray=nil;const big:Boolean=false;const active:Boolean=false):TFRE_DB_TOPMENU_ENTRY_DESC;
-  end;
-
-  { TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC }
-
-  TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC  = class(TFRE_DB_CONTENT_DESC)
-    //@ Describes a top menu dialog entry. See also TFRE_DB_TOPMENU_DESC.
-    function  Describe  (const caption,icon:String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC;const big:Boolean=false):TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC;
-  end;
-
-  { TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC }
-
-  TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC  = class(TFRE_DB_CONTENT_DESC)
-    //@ Describes a top menu dialog entry. See also TFRE_DB_TOPMENU_DESC.
-    function  Describe  (const caption,icon:String; const big:Boolean=false):TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC;
-  end;
-
   { TFRE_DB_TOPMENU_DESC }
 
   TFRE_DB_TOPMENU_DESC  = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes a top menu.
-    function  Describe          (const notificationPanel: TFRE_DB_CONTENT_DESC=nil): TFRE_DB_TOPMENU_DESC;
-    //@ Creates a new top menu entry description and adds it.
-    function  AddEntry          : TFRE_DB_TOPMENU_ENTRY_DESC;
-    //@ Creates a new top menu dialog entry description and adds it.
-    function  AddDialogEntry    : TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC;
-    //@ Creates a new top menu jira dialog entry description and adds it.
-    //@ Jira integration has to be enabled within the TFRE_DB_MAIN_DESC.
-    function  AddJiraDialogEntry: TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC;
+    function  Describe          (const homeCaption,homeIcon: String; const serverFuncs: array of TFRE_DB_SERVER_FUNC_DESC; const mainSectionId: TFRE_DB_String; const sectionsIds: array of TFRE_DB_String; const uname: String; const uServerFunction: TFRE_DB_SERVER_FUNC_DESC; const notificationPanel: TFRE_DB_CONTENT_DESC=nil; const JIRAenabled: Boolean=false): TFRE_DB_TOPMENU_DESC;
     //@ Adds a dialog to the top menu which will be opened.
     //@ See TFRE_DB_FORM_DIALOG_DESC.
     procedure AddFormDialog     (const dialog:TFRE_DB_FORM_DIALOG_DESC);
@@ -997,21 +962,6 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC }
-
-  function TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC.Describe(const caption,icon: String; const big: Boolean): TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC;
-  begin
-    if not FieldExists('id') then begin
-      Field('id').AsString:='id'+UID_String;
-    end;
-    Field('caption').AsString:=caption;
-    if icon<>'' then begin
-      Field('icon').AsString:=FREDB_getThemedResource(icon);
-    end;
-    Field('big').AsBoolean:=big;
-    Result:=Self;
-  end;
-
   { TFRE_DB_SHELL_DESC }
 
   function TFRE_DB_SHELL_DESC.Describe(const host: String; const port: Integer; const path: String; const protocol: String): TFRE_DB_SHELL_DESC;
@@ -1107,22 +1057,6 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC }
-
-  function TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC.Describe(const caption, icon: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const big: Boolean): TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC;
-  begin
-    if not FieldExists('id') then begin
-      Field('id').AsString:='id'+UID_String;
-    end;
-    Field('caption').AsString:=caption;
-    if icon<>'' then begin
-      Field('icon').AsString:=FREDB_getThemedResource(icon);
-    end;
-    Field('serverFunc').AsObject:=serverFunc;
-    Field('big').AsBoolean:=big;
-    Result:=Self;
-  end;
-
   { TFRE_DB_INVALIDATE_SESSION_DATA_DESC }
 
   function TFRE_DB_INVALIDATE_SESSION_DATA_DESC.Describe: TFRE_DB_INVALIDATE_SESSION_DATA_DESC;
@@ -1142,88 +1076,35 @@ implementation
     Field('stores').AddObject(obj);
   end;
 
-  { TFRE_DB_TOPMENU_ENTRY_DESC }
+  { TFRE_DB_TOPMENU_DESC }
 
-    function TFRE_DB_TOPMENU_ENTRY_DESC._Describe(const caption, icon: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const sectionId: String; const big: Boolean; const active: Boolean): TFRE_DB_TOPMENU_ENTRY_DESC;
-  begin
-    if sectionId<>'' then begin
-      Field('id').AsString:=sectionId;
-    end else begin
-      if not FieldExists('id') then begin
-        Field('id').AsString:='id'+UID_String;
-      end;
-    end;
-    Field('caption').AsString:=caption;
-    if icon<>'' then begin
-      Field('icon').AsString:=FREDB_getThemedResource(icon);
-    end;
-    Field('serverFuncs').AddObject(serverFunc);
-    Field('big').AsBoolean:=big;
-    Field('active').AsBoolean:=active;
-    Result:=Self;
-  end;
-
-  function TFRE_DB_TOPMENU_ENTRY_DESC.Describe(const caption, icon: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const sectionId: String;const big,active:Boolean): TFRE_DB_TOPMENU_ENTRY_DESC;
-  begin
-    Result:=_Describe(caption,icon,serverFunc,sectionId,big,active);
-  end;
-
-  function TFRE_DB_TOPMENU_ENTRY_DESC.Describe(const caption, icon: String; const serverFuncs: TFRE_DB_SERVER_FUNC_DESC_ARRAY;const sectionId:String; const subSectionIds:TFRE_DB_StringArray;const big,active: Boolean): TFRE_DB_TOPMENU_ENTRY_DESC;
+  function TFRE_DB_TOPMENU_DESC.Describe(const homeCaption, homeIcon: String; const serverFuncs: array of TFRE_DB_SERVER_FUNC_DESC; const mainSectionId: TFRE_DB_String; const sectionsIds: array of TFRE_DB_String; const uname: String; const uServerFunction: TFRE_DB_SERVER_FUNC_DESC; const notificationPanel: TFRE_DB_CONTENT_DESC; const JIRAenabled: Boolean): TFRE_DB_TOPMENU_DESC;
   var
     i: Integer;
   begin
-   _Describe(caption,icon,serverFuncs[0],sectionId,big,active);
-    if Assigned(subSectionIds) then begin
-      for i := 0 to Length(subSectionIds) - 1 do begin
-        if subSectionIds[i]='' then begin
-          Field('subIds').AddString('id'+UID_String+IntToStr(i));
-        end else begin
-          Field('subIds').AddString(subSectionIds[i]);
-        end;
-      end;
-      for i := Length(subSectionIds) to Length(serverFuncs) - 1 do begin
-        Field('subIds').AddString('id'+UID_String+IntToStr(i));
-      end;
-    end else begin
-      for i := 0 to Length(serverFuncs) - 1 do begin
-        Field('subIds').AddString('id'+UID_String+IntToStr(i));
-      end;
-    end;
-    for i := 1 to Length(serverFuncs) - 1 do begin
-      Field('serverFuncs').AddObject(serverFuncs[i]);
-    end;
-    Result:=Self;
-  end;
-
-  { TFRE_DB_TOPMENU_DESC }
-
-    function TFRE_DB_TOPMENU_DESC.Describe(const notificationPanel: TFRE_DB_CONTENT_DESC): TFRE_DB_TOPMENU_DESC;
-  begin
-    if Assigned(notificationPanel) then begin
-      Field('notificationPanel').AsObject:=notificationPanel;
-    end;
     if not FieldExists('id') then begin
       Field('id').AsString:='id'+UID_String;
     end;
+
+    Field('homeCaption').AsString:=homeCaption;
+    Field('homeIcon').AsString:=FREDB_getThemedResource(homeIcon);
+    Field('mainSectionId').AsString:=mainSectionId;
+
+    if Length(sectionsIds)<>Length(serverFuncs) then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'serverFuncs array and sectionIds array not the same length');
+    for i := 0 to High(serverFuncs) do begin
+      Field('serverFuncs').AddObject(serverFuncs[i]);
+      Field('sectionsIds').AddString(sectionsIds[i]);
+    end;
+
+    Field('uname').AsString:=uname;
+    Field('uServerFunc').AsObject:=uServerFunction;
+
+    if Assigned(notificationPanel) then begin
+      Field('notificationPanel').AsObject:=notificationPanel;
+    end;
+    Field('JIRAenabled').AsBoolean:=JIRAenabled;
     Result:=Self;
-  end;
-
-  function TFRE_DB_TOPMENU_DESC.AddEntry: TFRE_DB_TOPMENU_ENTRY_DESC;
-  begin
-    Result := TFRE_DB_TOPMENU_ENTRY_DESC.Create;
-    Field('entries').AddObject(Result);
-  end;
-
-  function TFRE_DB_TOPMENU_DESC.AddDialogEntry: TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC;
-  begin
-    Result := TFRE_DB_TOPMENU_DIALOG_ENTRY_DESC.create;
-    Field('entries').AddObject(Result);
-  end;
-
-  function TFRE_DB_TOPMENU_DESC.AddJiraDialogEntry: TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC;
-  begin
-    Result := TFRE_DB_TOPMENU_JIRA_DIALOG_ENTRY_DESC.create;
-    Field('entries').AddObject(Result);
   end;
 
   procedure TFRE_DB_TOPMENU_DESC.AddFormDialog(const dialog: TFRE_DB_FORM_DIALOG_DESC);

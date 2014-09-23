@@ -225,35 +225,22 @@ var
   apps          : IFRE_DB_APPLICATION_ARRAY;
   loginapp      : IFRE_DB_APPLICATION;
 
-
-  res           : TFRE_DB_TOPMENU_DESC;
-  homefuncs     : TFRE_DB_SERVER_FUNC_DESC_ARRAY;
-
   function BuildCollapsedSiteMap : IFRE_DB_Object;
   var res    : TFRE_DB_TOPMENU_DESC;
       subids : TFRE_DB_StringArray;
       i      : integer;
-      profile_caption  : String;
+      uname  : String;
   begin
     ses.ClearUpdatable;
 
-    res := TFRE_DB_TOPMENU_DESC.create.Describe(ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
-
-    res.AddJiraDialogEntry.Describe(app.FetchAppTextShort(ses,'top_messages'),'images_apps/login/messages.svg');
-    res.AddEntry.Describe(app.FetchAppTextShort(ses,'top_home'),'images_apps/login/home.svg',
-                          TFRE_DB_SERVER_FUNC_DESC_ARRAY.Create(
-                            CWSF(@WEB_BuildSiteMap),
-                            CWSF(@WEB_BuildAppList)
-                          ),'Home',TFRE_DB_StringArray.Create('SiteMap','AppContainer'),
-                          true,true);
+    if ses.LoggedIn then begin
+      uname:=app.FetchAppTextShort(ses,'top_profile');
+    end else begin
+      uname:=app.FetchAppTextShort(ses,'top_login');
+    end;
+    res := TFRE_DB_TOPMENU_DESC.create.Describe(app.FetchAppTextShort(ses,'top_home'),'images_apps/login/home.svg',[CWSF(@WEB_BuildSiteMap),CWSF(@WEB_BuildAppList)],'Home',['SiteMap','AppContainer'],uname,CWSF(@WEB_LoginDlg),ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
     res.updateId:='FirmOSViewport';
     res.windowCaption:=app.FetchAppTextShort(ses,'window_cap');
-    if ses.LoggedIn then begin
-      profile_caption:=app.FetchAppTextShort(ses,'top_profile');
-    end else begin
-      profile_caption:=app.FetchAppTextShort(ses,'top_login');
-    end;
-    res.AddDialogEntry.Describe(profile_caption,'images_apps/login/profile.svg',CWSF(@WEB_LoginDlg));
     result :=  res;
   end;
 
