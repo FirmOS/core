@@ -294,6 +294,10 @@ type
     function  WEB_DelRecord             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_UpdRecord             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_UpdateCS              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdateCS_First        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdateCS_Last         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdateCS_Index        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdateCS_UID          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
 
@@ -1206,8 +1210,9 @@ end;
 
 function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_Content(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var test : IFRE_DB_Object;
+      s : string;
 begin
-  test := conn.GetCollection('COLL_TEST_AT').First;
+  test := conn.GetCollection('COLL_TEST_AT').Last;
   if assigned(test) then
     begin
       result := test.Invoke('Content',input,ses,app,conn);
@@ -1221,7 +1226,7 @@ function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_UPDATE_FORM_DBO(const input: IFRE_DB_
 var test : IFRE_DB_Object;
     allt : TFRE_DB_TEST_ALL_TYPES;
 begin
-  test := conn.GetCollection('COLL_TEST_AT').First;
+  test := conn.GetCollection('COLL_TEST_AT').Last;
   if assigned(test) then
     begin
       if test.IsA(TFRE_DB_TEST_ALL_TYPES,allt) then
@@ -1239,7 +1244,7 @@ function TFRE_DB_TEST_APP_FORMTEST_MOD.WEB_UPDATE_FORM_BYTE_FIELD(const input: I
 var test : IFRE_DB_Object;
     allt : TFRE_DB_TEST_ALL_TYPES;
 begin
-  test := conn.GetCollection('COLL_TEST_AT').First;
+  test := conn.GetCollection('COLL_TEST_AT').Last;
   if assigned(test) then
     begin
       if test.IsA(TFRE_DB_TEST_ALL_TYPES,allt) then
@@ -1904,11 +1909,11 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
-      AddOneToOnescheme    ('number','','Number',dt_number);
-      AddProgressTransform ('number_pb','','Number PB','number_pb','',10000);
-      AddOneToOnescheme    ('string','','String');
+      AddOneToOnescheme    ('number','','Number',dt_number,true,true);
+      AddProgressTransform ('number_pb','','Number PB','number_pb','',10000,true);
+      AddOneToOnescheme    ('string','','String',dt_string,true,true);
       AddOneToOnescheme    ('boolean','','Boolean',dt_boolean);
-      AddOneToOnescheme    ('date','','Date',dt_date);
+      AddOneToOnescheme    ('date','','Date',dt_date,true,true);
       AddOneToOnescheme    ('icon','','Icon',dt_icon);
     end;
 
@@ -1936,6 +1941,10 @@ begin
   submenu.AddEntry.Describe('SEAS7','',CWSF(@WEB_HelloWorld));
   submenu.AddEntry.Describe('SEAS8','images_apps/test/cog.png',CWSF(@WEB_HelloWorld));
   menu.AddEntry.Describe('Update Content Section','',CWSF(@WEB_UpdateCS));
+  menu.AddEntry.Describe('Up DC/CS First','',CWSF(@WEB_UpdateCS_First));
+  menu.AddEntry.Describe('Up DC/CS Last','',CWSF(@WEB_UpdateCS_Last));
+  menu.AddEntry.Describe('Up DC/CS Idx','',CWSF(@WEB_UpdateCS_Index));
+  menu.AddEntry.Describe('Up DC/CS UID','',CWSF(@WEB_UpdateCS_UID));
   Result:=menu;
 end;
 
@@ -1999,9 +2008,7 @@ var
 begin
   Result:=GFRE_DB_NIL_DESC;
   session := GetSession(input);
-  //html:=TFRE_DB_HTML_DESC.create.Describe('<B>'+FREDB_String2EscapedJSString(input.DumpToString())+'</B>');
   html:=TFRE_DB_HTML_DESC.create.Describe('<PRE>'+FREDB_String2EscapedJSString(input.DumpToString())+'</PRE>');
-  //html.updateId:='GRID2_HTML';
   html.contentId:='GRID2_HTML';
   session.SendServerClientRequest(html);
 end;
@@ -2114,6 +2121,87 @@ begin
   //html.updateId:='GRID2_HTML';
   html.contentId:='GRID2_HTML';
   session.SendServerClientRequest(html);
+end;
+
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_UpdateCS_First(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  session      : TFRE_DB_UserSession;
+  html         : TFRE_DB_HTML_DESC;
+  DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
+  obj          : IFRE_DB_Object;
+  ic           : NativeInt;
+begin
+  DC_Grid_Long := ses.FetchDerivedCollection('COLL_TEST_A_DERIVED2');
+  ic  := DC_Grid_Long.ItemCount;
+  obj := DC_Grid_Long.First;
+  if not assigned(obj)then
+    obj := GFRE_DBI.NewObject;
+  Result:=GFRE_DB_NIL_DESC;
+  session := GetSession(input);
+  html:=TFRE_DB_HTML_DESC.create.Describe('<h1>Count : '+inttostr(ic)+'</h1><PRE>'+FREDB_String2EscapedJSString(obj.DumpToString())+'</PRE>');
+  html.contentId:='GRID2_HTML';
+  session.SendServerClientRequest(html);
+end;
+
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_UpdateCS_Last(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  html         : TFRE_DB_HTML_DESC;
+  DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
+  obj          : IFRE_DB_Object;
+  ic           : NativeInt;
+begin
+  DC_Grid_Long := ses.FetchDerivedCollection('COLL_TEST_A_DERIVED2');
+  ic  := DC_Grid_Long.ItemCount;
+  obj := DC_Grid_Long.Last;
+  if not assigned(obj)then
+    obj := GFRE_DBI.NewObject;
+  Result:=GFRE_DB_NIL_DESC;
+  html:=TFRE_DB_HTML_DESC.create.Describe('<h1>Count : '+inttostr(ic)+'</h1><PRE>'+FREDB_String2EscapedJSString(obj.DumpToString())+'</PRE>');
+  html.contentId:='GRID2_HTML';
+  ses.SendServerClientRequest(html);
+end;
+
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_UpdateCS_Index(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  html         : TFRE_DB_HTML_DESC;
+  DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
+  obj          : IFRE_DB_Object;
+  ic           : NativeInt;
+begin
+  DC_Grid_Long := ses.FetchDerivedCollection('COLL_TEST_A_DERIVED2');
+  ic  := DC_Grid_Long.ItemCount;
+  obj := DC_Grid_Long.FetchIndexed(random(ic));
+  if not assigned(obj)then
+    obj := GFRE_DBI.NewObject;
+  Result:=GFRE_DB_NIL_DESC;
+  html:=TFRE_DB_HTML_DESC.create.Describe('<h1>Count : '+inttostr(ic)+'</h1><PRE>'+FREDB_String2EscapedJSString(obj.DumpToString())+'</PRE>');
+  html.contentId:='GRID2_HTML';
+  ses.SendServerClientRequest(html);
+end;
+
+function TFRE_DB_TEST_APP_GRID2_MOD.WEB_UpdateCS_UID(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  html         : TFRE_DB_HTML_DESC;
+  DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
+  obj          : IFRE_DB_Object;
+  obj2         : IFRE_DB_Object;
+  ic           : NativeInt;
+begin
+  DC_Grid_Long := ses.FetchDerivedCollection('COLL_TEST_A_DERIVED2');
+  ic  := DC_Grid_Long.ItemCount;
+  obj := DC_Grid_Long.FetchIndexed(random(ic));
+  if not assigned(obj)then
+    obj := GFRE_DBI.NewObject
+  else
+    begin
+      DC_Grid_Long.FetchInDerived(obj.UID,obj2);
+      if not assigned(obj)then
+        obj2 := GFRE_DBI.NewObject
+    end;
+  Result:=GFRE_DB_NIL_DESC;
+  html:=TFRE_DB_HTML_DESC.create.Describe('<h1>Count : '+inttostr(ic)+'</h1><PRE>'+FREDB_String2EscapedJSString(obj2.DumpToString())+'</PRE>');
+  html.contentId:='GRID2_HTML';
+  ses.SendServerClientRequest(html);
 end;
 
 { TFRE_DB_TEST_APP_GRID_MOD }

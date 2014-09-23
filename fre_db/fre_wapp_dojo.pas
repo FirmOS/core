@@ -659,7 +659,7 @@ implementation
                              jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
                            end;
                            if store.FieldExists('serverFunc') then begin
-                             serverFunc:=store.Field('serverFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC;
+                             serverFunc:=store.Field('serverFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC;  // FIXXME: Refactor to get DC from session by name, use a DC function to internally fetch the data
                              serverFunc.AddParam.Describe('start','0');
                              serverFunc.AddParam.Describe('count','10000'); //FIXXME - define "ALL" parameter
                              serverFunc.AddParam.Describe('queryid','0');

@@ -250,7 +250,6 @@ end;
 
 
 procedure OFRE_GenericSorter.InitData(const sort_function : TSortProc ; const data: PSortType; const size: NativeInt);
-var i:integer;
 begin
   FSort := sort_function;
   FData := data;

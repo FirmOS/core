@@ -5171,15 +5171,15 @@ end;
 
 procedure TFRE_DB_Persistance_Collection.ForAllInternalBreak(const iter: TFRE_DB_ObjectIteratorBrk;var halt : boolean ; const descending : boolean);
 
-  procedure ForAll(var val:PtrUInt);
+  procedure ForAll(var val : NativeUint ; var break : boolean);
   var newobj : TFRE_DB_Object;
   begin
     newobj    := FREDB_PtrUIntToObject(val) as TFRE_DB_Object;
-    iter(newobj,halt);
+    iter(newobj,break);
   end;
 
 begin
-  FGuidObjStore.LinearScan(@ForAll,descending);
+  FGuidObjStore.LinearScanBreak(@ForAll,halt,descending);
 end;
 
 procedure TFRE_DB_Persistance_Collection.StreamToThis(const stream: TStream);
@@ -5922,7 +5922,7 @@ var objs : IFRE_DB_ObjectArray;
 
     procedure MyGet(const myobj:TFRE_DB_Object; var halt:boolean);
     begin
-      obj := myobj;
+      obj := CloneOutObject(myobj);
     end;
 
 begin

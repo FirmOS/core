@@ -210,8 +210,21 @@ var dbs :  TFRE_DB_Stream;
     boa  : TFRE_DB_BoolArray;
     str  : string;
     i    : integer;
+    g1   : TFRE_DB_GUID;
+    g2   : TFRE_DB_GUID;
+    g3   : TFRE_DB_GUID;
+    gs   : TFRE_DB_GUID_String;
 
 begin
+  g1 := GFRE_DBI.Get_A_Guid;
+  g2 := g1;
+  if g1<>g2 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'guid assignment failure 2');
+  gs := g1.AsHexString;
+  g3.SetFromHexString(gs);
+  if g1<>g3 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'guid assignment failure 2');
+
   {$ASSERTIONS ON}
   sa := obj.Field(field_prefix+'STRING').AsStringArr;
   Assert(Length(sa)=4);

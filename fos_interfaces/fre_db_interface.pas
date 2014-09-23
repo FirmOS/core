@@ -75,8 +75,9 @@ type
 
   TFRE_DB_GUID = packed record
      D: Array [0..15] of Byte;
-     function  AsHexString : TFRE_DB_GUID_String;
-     procedure ClearGuid   ;
+     function  AsHexString      : TFRE_DB_GUID_String;
+     procedure ClearGuid        ;
+     procedure SetFromHexString (const hexs:TFRE_DB_GUID_String);
   end;
 
 var
@@ -969,6 +970,7 @@ type
     function   ItemCount                     : Int64;
     function   First                         : IFRE_DB_Object;
     function   Last                          : IFRE_DB_Object;
+    function   FetchIndexed                  (const idx:NativeInt) : IFRE_DB_Object;
     function   FetchInDerived                (const ouid:TFRE_DB_GUID;out dbo:IFRE_DB_Object): boolean; { honors rights and serverside filters, delivers the transformed(!) object !!}
     procedure  ForAllDerived                 (const func:IFRE_DB_Obj_Iterator); { honors rights and serverside filters, delivers the transformed(!) object !!}
 
@@ -1007,16 +1009,12 @@ type
     function   GetStoreDescription           : TFRE_DB_CONTENT_DESC;
     function   getDescriptionStoreId         : String;
     procedure  AddSelectionDependencyEvent   (const derived_collection_name : TFRE_DB_NameType ; const ReferenceID :TFRE_DB_NameType='uids'); {On selection change a dependency "filter" object is generated and sent to the derived collection}
-    //@
-    function   GetDisplayDescriptionFunction (const FilterEventKey:TFRE_DB_String=''): TFRE_DB_SERVER_FUNC_DESC;
+
     //@ Set a String Filter, which can be used before or after the transformation
     //@ filterkey = ID of the Filter / field_name : on which field the filter works / filtertype: how the filter works
 
-    function   AddStringFieldFilter          (const filter_key,field_name:TFRE_DB_String;const values:TFRE_DB_String ; const filtertype:TFRE_DB_STR_FILTERTYPE):TFRE_DB_Errortype;
-    function   AddBooleanFieldFilter         (const filter_key,field_name:TFRE_DB_String;const value :Boolean):TFRE_DB_Errortype;
-    function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:array of TFRE_DB_GUID ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE):TFRE_DB_Errortype;
-    function   AddSchemeFilter               (const filter_key           :TFRE_DB_String;const values:array of TFRE_DB_String;const negate:boolean=false):TFRE_DB_Errortype;
-    function   RemoveFilter                  (const filter_key           :TFRE_DB_String):TFRE_DB_Errortype;
+    //function   AddUIDFieldFilter             (const filter_key,field_name:TFRE_DB_String;const values:array of TFRE_DB_GUID ;const number_compare_type : TFRE_DB_NUM_FILTERTYPE):TFRE_DB_Errortype;
+    //function   RemoveFilter                  (const filter_key           :TFRE_DB_String):TFRE_DB_Errortype;
 
     function   Filters                 : TFRE_DB_DC_FILTER_DEFINITION_BASE;
     //function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
@@ -2027,10 +2025,50 @@ type
     procedure  RemoveAllFiltersPrefix  (const key_prefix:   TFRE_DB_NameType);virtual;abstract;
   end;
 
+  TFRE_DB_DC_ORDER_DEFINITION_BASE = class { defines a globally stored ordered and transformed set of dbo's}
+  public
+    procedure   ClearOrders       ; virtual ; abstract;
+    procedure   AddOrderDef       (const orderfield_name : TFRE_DB_NameType ; const ascending : boolean ; const case_insensitive : boolean); virtual ; abstract;
+    function    OrderCount        : NativeInt; virtual ; abstract;
+    procedure   AssignFrom        (const orderdef : TFRE_DB_DC_ORDER_DEFINITION_BASE); virtual; abstract;
+end;
+
+  { TFRE_DB_QUERY_DEF }
+
+  TFRE_DB_QUERY_DEF=record
+     ClientQueryID          : Int64;
+     StartIdx               : Int32;
+     ToDeliverCount         : Int32;
+     SessionID              : TFRE_DB_NameTypeRL;
+     DerivedCollName        : TFRE_DB_NameTypeRL;
+     ParentName             : TFRE_DB_NameTypeRL;
+     DBName                 : TFRE_DB_NameType;
+     UserTokenRef           : IFRE_DB_USER_RIGHT_TOKEN;
+     FilterDefStaticRef     : TFRE_DB_DC_FILTER_DEFINITION_BASE;
+     FilterDefDynamicRef    : TFRE_DB_DC_FILTER_DEFINITION_BASE;
+     OrderDefRef            : TFRE_DB_DC_ORDER_DEFINITION_BASE;
+     ParentIds              : TFRE_DB_GUIDArray;
+     ParentChildSpec        : TFRE_DB_NameTypeRL;
+     ParentChildSkipSchemes : TFRE_DB_NameTypeRLArray;
+     DependencyRefIds       : TFRE_DB_StringArray;
+     DepRefConstraints      : TFRE_DB_NameTypeRLArrayArray;
+     DepRefNegate           : Boolean;
+     DepFilterUids          : Array of TFRE_DB_GUIDArray;
+     FullTextFilter         : String;
+     OnlyOneUID             : TFRE_DB_GUID;
+     function               GetReflinkSpec        (const upper_refid : TFRE_DB_NameType):TFRE_DB_NameTypeRLArray;
+     function               GetReflinkStartValues (const upper_refid : TFRE_DB_NameType):TFRE_DB_GUIDArray; { start values for the RL expansion }
+  end;
+
+
+  { TFRE_DB_QUERY_BASE }
+
   TFRE_DB_QUERY_BASE=class
-    function  GetQueryID         : TFRE_DB_NameType; virtual; abstract;
-    procedure SetBaseOrderedData (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);virtual;abstract;
-    function  ExecuteQuery       (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;virtual;abstract;
+    function  GetQueryID           : TFRE_DB_NameType; virtual; abstract;
+    procedure SetBaseOrderedData   (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);virtual;abstract;
+    function  ExecuteQuery         (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;virtual;abstract;
+    procedure ExecutePointQuery    (const iterator   : IFRE_DB_Obj_Iterator);virtual;abstract;
+    procedure UnlockBaseData       ;virtual;abstract;
   end;
 
   TFRE_DB_CHILD_LEVEL_BASE=class
@@ -2051,19 +2089,16 @@ type
   TFRE_DB_TRANSDATA_MANAGER_BASE=class
     procedure  UnlockManager             ; virtual; abstract;
     procedure  LockManager               ; virtual; abstract;
+    function   GetNewOrderDefinition     : TFRE_DB_DC_ORDER_DEFINITION_BASE; virtual ; abstract;
     function   GetNewFilterDefinition    (const filter_db_name : TFRE_DB_NameType): TFRE_DB_DC_FILTER_DEFINITION_BASE; virtual; abstract;
     function   GetTransformedDataLocked  (const query: TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;
     procedure  NewTransformedDataLocked  (const qry: TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
-    function   GenerateQueryFromRawInput (const input: IFRE_DB_Object; const dependecy_reference_id: TFRE_DB_StringArray ; const dependency_reference_constraint : TFRE_DB_NameTypeRLArrayArray;
-                                          const dependency_negate : boolean ; const parent_child_spec : TFRE_DB_NameTypeRL ; const parent_child_skip_schemes : TFRE_DB_NameTypeRLArray ;
-                                          const dc_name,parent_name : TFRE_DB_NameTypeRL ; const dc_static_filters : TFRE_DB_DC_FILTER_DEFINITION_BASE ;
-                                          const DefaultOrderField: TFRE_DB_NameType; DefaultOrderAsc: Boolean;
-                                          const session : IFRE_DB_UserSession): TFRE_DB_QUERY_BASE; virtual; abstract;
-    procedure   StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;
-    procedure   RemoveQuery              (const qry_id: TFRE_DB_NameType); virtual; abstract;
-    procedure   DropAllQuerys            (const session: IFRE_DB_UserSession ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
-    function    FormQueryID              (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
-    procedure   InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
+    function   GenerateQueryFromQryDef    (const qry_def : TFRE_DB_QUERY_DEF):TFRE_DB_QUERY_BASE; virtual ; abstract;
+    procedure  StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;
+    procedure  RemoveQuery              (const qry_id: TFRE_DB_NameType); virtual; abstract;
+    procedure  DropAllQuerys            (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
+    function   FormQueryID              (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
+    procedure  InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -4161,6 +4196,27 @@ type
 const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
 
+
+{ TFRE_DB_QUERY_DEF }
+
+function TFRE_DB_QUERY_DEF.GetReflinkSpec(const upper_refid: TFRE_DB_NameType): TFRE_DB_NameTypeRLArray;
+var i:integer;
+begin
+  for i:=0 to high(DependencyRefIds) do
+    if DependencyRefIds[i]=upper_refid then
+      exit(DepRefConstraints[i]);
+  raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find a reflink spec for reference id '+upper_refid);
+end;
+
+function TFRE_DB_QUERY_DEF.GetReflinkStartValues(const upper_refid: TFRE_DB_NameType): TFRE_DB_GUIDArray;
+var i:integer;
+begin
+  for i:=0 to high(DependencyRefIds) do
+    if DependencyRefIds[i]=upper_refid then
+      exit(DepFilterUids[i]);
+  raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find the filter values for reference id '+upper_refid);
+end;
+
 function TFRE_DB_GUID.AsHexString: TFRE_DB_GUID_String;
 var  n, k, h: integer;
      b: byte;
@@ -4181,6 +4237,37 @@ end;
 procedure TFRE_DB_GUID.ClearGuid;
 begin
   FillByte(d,16,0);
+end;
+
+procedure TFRE_DB_GUID.SetFromHexString(const hexs: TFRE_DB_GUID_String);
+var i,j : NativeInt;
+
+    function _dig2int(const dig:ansichar):integer;inline;
+    begin
+     result:=0;
+     case dig of
+      '0','1','2','3','4','5','6','7','8','9': begin
+        result:=ord(dig)-48;
+      end;
+      'A','B','C','D','E','F':begin
+       result:=ord(dig)-55;
+      end;
+      'a','b','c','d','e','f': begin
+        result:=ord(dig)-87;
+      end;
+     end;
+    end;
+
+
+begin
+  i := Length(hexs);
+  if i<>32 then
+    raise Exception.Create('a uid hexstring must be 32 chars not '+inttostr(i)+' chars');
+  i:=1 ; j:=0;
+  while i<32 do begin
+    D[j] := _dig2int(hexs[i])*16+_dig2int(hexs[i+1]); // conservative
+    inc(i,2);inc(j);
+  end;
 end;
 
 { TFRE_DB_INDEX_DEF }
@@ -6344,12 +6431,12 @@ begin
   FBoundSession_RA_SC := sc_interface;
   FIsInteractive      := interactive_session;
   GFRE_DBI.LogNotice(dblc_SESSION,'SET SESSION INTERFACE (RESUE) -> SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+']');
-  GFRE_DB_TCDM.DropAllQuerys(self,'');
+  GFRE_DB_TCDM.DropAllQuerys(GetSessionID,'');
 end;
 
 procedure TFRE_DB_UserSession.ClearServerClientInterface;
 begin
-  GFRE_DB_TCDM.DropAllQuerys(self,'');
+  GFRE_DB_TCDM.DropAllQuerys(GetSessionID,'');
   RemoveAllTimers;
   if FPromoted then
     FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO

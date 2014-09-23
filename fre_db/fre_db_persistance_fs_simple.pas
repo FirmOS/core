@@ -1791,7 +1791,6 @@ var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     obj        : TFRE_DB_Object;
     res        : boolean;
 begin
-  E_FOS_TestNosey;
   LayerLock.Acquire;
   try
     try
