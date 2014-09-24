@@ -2509,6 +2509,7 @@ implementation
       jsContentAdd('                ,class: "borderContainer firmosTransparent"');
       jsContentAdd('                ,homeCaption: "'+FREDB_String2EscapedJSString(co.Field('homeCaption').AsString)+'"');
       jsContentAdd('                ,homeIcon: "'+co.Field('homeIcon').AsString+'"');
+      jsContentAdd('                ,homeIconSize: '+co.Field('homeIconSize').AsString);
       jsContentAdd('                ,subSecsId: "' + subsecs.contentId + '"');
       jsContentAdd('                ,mainSectionId: "' + co.Field('mainSectionId').AsString + '"');
       jsContentAdd('                ,uname: "' + FREDB_String2EscapedJSString(co.Field('uname').AsString) + '"');
