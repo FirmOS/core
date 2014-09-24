@@ -226,19 +226,24 @@ var
   loginapp      : IFRE_DB_APPLICATION;
 
   function BuildCollapsedSiteMap : IFRE_DB_Object;
-  var res    : TFRE_DB_TOPMENU_DESC;
-      subids : TFRE_DB_StringArray;
-      i      : integer;
-      uname  : String;
+  var res           : TFRE_DB_TOPMENU_DESC;
+      subids        : TFRE_DB_StringArray;
+      i             : integer;
+      uname         : String;
+      fl,fn,ln,desc : TFRE_DB_String;
+
+
   begin
     ses.ClearUpdatable;
-
+    ses.GetDBConnection.SYS.GetCurrentUserTokenRef.GetUserDetails(fl,fn,ln,desc);
     if ses.LoggedIn then begin
-      uname:=app.FetchAppTextShort(ses,'top_profile');
+      uname := fn+' '+ln+' |';
+      if uname=' ' then
+        uname := fl;
     end else begin
-      uname:=app.FetchAppTextShort(ses,'top_login');
+      uname := ''; //app.FetchAppTextShort(ses,'top_profile');
     end;
-    res := TFRE_DB_TOPMENU_DESC.create.Describe('','images_apps/login/home.svg',64,[CWSF(@WEB_BuildSiteMap),CWSF(@WEB_BuildAppList)],'Home',['SiteMap','AppContainer'],uname,CWSF(@WEB_LoginDlg),STYLE_Get_TopMenu_SVG_Definitions,ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
+    res := TFRE_DB_TOPMENU_DESC.create.Describe('','images/home.svg',48,[CWSF(@WEB_BuildSiteMap),CWSF(@WEB_BuildAppList)],'Home',['SiteMap','AppContainer'],uname,CWSF(@WEB_LoginDlg),STYLE_Get_TopMenu_SVG_Definitions,ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
     res.updateId:='FirmOSViewport';
     res.windowCaption:=app.FetchAppTextShort(ses,'window_cap');
     result :=  res;

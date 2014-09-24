@@ -1234,6 +1234,7 @@ type
     //function    User                         : IFRE_DB_USER;
     function    GetUniqueTokenKey            : TFRE_DB_NameType;
     function    GetFullUserLogin             : TFRE_DB_String;
+    procedure   GetUserDetails               (out fulluserlogin,firstname,lastname,description : TFRE_DB_String);
     function    DumpUserRights               : TFRE_DB_String;
     function    CloneToNewUserToken          : IFRE_DB_USER_RIGHT_TOKEN;
     procedure   Finalize                     ;
@@ -6104,8 +6105,11 @@ var err                : TFRE_DB_Errortype;
             result:=pr_Takeover;
             ClearServerClientInterface; { clear my (guest) bound session RAC };
           finally
+            try
+              GFRE_DBI.LogInfo(dblc_SERVER,'<OK : TAKEOVERSESSION FOR SESSION [%s] USER [%s]',[existing_session.FSessionID,existing_session.FUserName]);
+            except
+            end;
             existing_session.UnlockSession;
-            GFRE_DBI.LogInfo(dblc_SERVER,'<OK : TAKEOVERSESSION FOR SESSION [%s] USER [%s]',[existing_session.FSessionID,existing_session.FUserName]);
           end;
           exit;
         end

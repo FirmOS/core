@@ -1907,6 +1907,9 @@ type
     FDomainLoginKey   : TFRE_DB_String;
     FLoginAtDomain    : TFRE_DB_String;
     FUserLoginPart    : TFRE_DB_String;
+    FUserFirstName    : TFRE_DB_String;
+    FUserLastName     : TFRE_DB_String;
+    FUserDescName     : TFRE_DB_String;
     FUniqueToken      : String[8];
     FIsSysAdmin       : Boolean;
     FMyDomainID       : TFRE_DB_GUID;
@@ -1928,7 +1931,7 @@ type
     function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
 
   public
-    constructor Create                      (const user_uid: TFRE_DB_GUID; const login_part: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
+    constructor Create                      (const user_uid: TFRE_DB_GUID; const login_part,firstname,lastname,desc: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
     destructor  Destroy                     ;override;
     procedure   Finalize                    ;
 
@@ -1937,6 +1940,7 @@ type
     function    GetUserUIDP                  : PFRE_DB_GUID;
     function    GetDomainLoginKey            : TFRE_DB_String; { upper : domainuid_hex@login }
     function    GetFullUserLogin             : TFRE_DB_String; { login@domainname }
+    procedure   GetUserDetails               (out fulluserlogin,firstname,lastname,description : TFRE_DB_String);
 
     function    CheckStdRightAndCondFinalize (const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
 
@@ -1967,7 +1971,7 @@ type
 
     function    CheckObjectRight            (const right_name : TFRE_DB_String ; const uid : TFRE_DB_GUID ):boolean;
     function    CheckObjectRight            (const std_right  : TFRE_DB_STANDARD_RIGHT ; const uid : TFRE_DB_GUID ):boolean;
-    function    DumpUserRights              :TFRE_DB_String;
+    function    DumpUserRights              : TFRE_DB_String;
     function    GetMyDomainID               : TFRE_DB_GUID;
     function    GetSysDomainID              : TFRE_DB_GUID;
     function    GetUniqueTokenKey           : TFRE_DB_NameType;
@@ -2817,7 +2821,7 @@ begin
   result := (domain<>CFRE_DB_NullGUID) and FREDB_StringInArray(_GetStdRightName(std_right,rclassname,domain),FConnectionRights);
 end;
 
-constructor TFRE_DB_USER_RIGHT_TOKEN.Create(const user_uid: TFRE_DB_GUID ; const login_part:TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
+constructor TFRE_DB_USER_RIGHT_TOKEN.Create(const user_uid: TFRE_DB_GUID; const login_part, firstname, lastname, desc: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
 var sl    : TStringList;
     i     : NativeInt;
     hsh   : Cardinal;
@@ -2837,6 +2841,9 @@ begin
   FAllDomainsUids   := domainids;
   FDomainLoginKey   := TFRE_DB_USER.GetDomainLoginKey(FUserLoginPart,FMyDomainID);
   FLoginAtDomain    := FUserLoginPart+'@'+GetDomainNameByUid(user_domid);
+  FUserFirstName    := firstname;
+  FUserLastName     := lastname;
+  FUserDescName     := desc;
   hsh               := GFRE_BT.HashFast32(@FDomainLoginKey[1],Length(FDomainLoginKey),0);
   for i:=0 to high(FAllDomainNames) do
     FAllDomainNames[i]:=UpperCase(FAllDomainNames[i]);
@@ -2898,6 +2905,14 @@ end;
 function TFRE_DB_USER_RIGHT_TOKEN.GetFullUserLogin: TFRE_DB_String;
 begin
   result := FLoginAtDomain;
+end;
+
+procedure TFRE_DB_USER_RIGHT_TOKEN.GetUserDetails(out fulluserlogin, firstname, lastname, description: TFRE_DB_String);
+begin
+  fulluserlogin := lowercase(FLoginAtDomain);
+  firstname     := FUserFirstName;
+  lastname      := FUserLastName;
+  description   := FUserDescName;
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.CheckStdRightAndCondFinalize(const dbi: IFRE_DB_Object; const sr: TFRE_DB_STANDARD_RIGHT; const without_right_check: boolean; const cond_finalize: boolean): TFRE_DB_Errortype;
@@ -3078,7 +3093,7 @@ end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.Clone: TFRE_DB_USER_RIGHT_TOKEN;
 begin
-  result := TFRE_DB_USER_RIGHT_TOKEN.Create(FUserUID,FUserLoginPart,FUsergroupIDs,FConnectionRights,FIsSysAdmin,FSysDomainUID,FMyDomainID,FAllDomainsUids,FAllDomainNames);
+  result := TFRE_DB_USER_RIGHT_TOKEN.Create(FUserUID,FUserLoginPart,FUserFirstName,FUserLastName,FUserDescName,FUsergroupIDs,FConnectionRights,FIsSysAdmin,FSysDomainUID,FMyDomainID,FAllDomainsUids,FAllDomainNames);
   if Result.FUniqueToken<>FUniqueToken then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'unique user token clone / failure / internal logic');
 end;

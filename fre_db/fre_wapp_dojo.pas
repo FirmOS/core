@@ -301,7 +301,7 @@ implementation
     end else begin
       stores:=nil;
     end;
-    jsContentAdd('"<form dojoType=''FIRMOS.Form'' id='''+co.Field('id').AsString+'_form'' sendchanged='+BoolToStr(co.Field('sendChanged').AsBoolean,'true','false')+' displayonly='+BoolToStr(co.Field('editable').AsBoolean,'false','true')+'"+');
+    jsContentAdd('"<form class=''firmosForm'' dojoType=''FIRMOS.Form'' id='''+co.Field('id').AsString+'_form'' sendchanged='+BoolToStr(co.Field('sendChanged').AsBoolean,'true','false')+' displayonly='+BoolToStr(co.Field('editable').AsBoolean,'false','true')+'"+');
     jsContentAdd('"  data-dojo-props=\""+');
     if co.FieldExists('dbos') then begin
       jsContentAdd('"  dbos:'+_BuildJSArray(co.Field('dbos').AsStringArr)+'"+');
@@ -326,7 +326,7 @@ implementation
       co.Field('buttons').AddObject(TFRE_DB_BUTTON_DESC.create.Describe(_getText(conn,'close'),nil,fdbbt_close));
     end;
 
-    jsContentAdd('"<tr><td colspan=''2'' style=''text-align:center;''>"+');
+    jsContentAdd('"<tr class=''firmosFormButtonRow''><td colspan=''2'' style=''text-align:center;''>"+');
     for i := 0 to co.Field('buttons').ValueCount - 1 do begin
       _BuildButton(co.Field('buttons').AsObjectItem[i].Implementor_HC as TFRE_DB_BUTTON_DESC,hiddenFields,isDialog,hasCloseButton);
       jsContentAdd('+');
