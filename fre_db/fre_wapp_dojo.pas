@@ -2517,6 +2517,7 @@ implementation
       jsContentAdd('                ,uFunc: "'+co.FieldPath('uServerFunc.func').AsString+'"');
       jsContentAdd('                ,uUidPath: '+_BuildJSArray(co.FieldPath('uServerFunc.uidPath').AsStringArr));
       jsContentAdd('                ,uParams: '+_BuildParamsObject(co.Field('uServerFunc').AsObject.Field('params').AsObjectArr));
+      jsContentAdd('                ,defs: ' +co.Field('svgDefs').AsObjectArrayJSONString);
       jsContentAdd('                ,JIRAenabled: "' + BoolToStr(co.Field('JIRAenabled').AsBoolean,'true','false') + '"');
       if co.FieldExists('notificationPanel') then begin
         jsContentAdd('                ,notificationPanel: ' + co.Field('notificationPanel').AsObject.Field('id').AsString);

@@ -238,7 +238,7 @@ var
     end else begin
       uname:=app.FetchAppTextShort(ses,'top_login');
     end;
-    res := TFRE_DB_TOPMENU_DESC.create.Describe('','images_apps/login/home.svg',64,[CWSF(@WEB_BuildSiteMap),CWSF(@WEB_BuildAppList)],'Home',['SiteMap','AppContainer'],uname,CWSF(@WEB_LoginDlg),ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
+    res := TFRE_DB_TOPMENU_DESC.create.Describe('','images_apps/login/home.svg',64,[CWSF(@WEB_BuildSiteMap),CWSF(@WEB_BuildAppList)],'Home',['SiteMap','AppContainer'],uname,CWSF(@WEB_LoginDlg),STYLE_Get_TopMenu_SVG_Definitions,ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
     res.updateId:='FirmOSViewport';
     res.windowCaption:=app.FetchAppTextShort(ses,'window_cap');
     result :=  res;
@@ -385,7 +385,7 @@ var
 begin
   session := GetSession(input);
   apps := session.GetSessionAppArray;
-  res:=TFRE_DB_SITEMAP_DESC.create.Describe(STYLE_Get_SVG_Definitions);
+  res:=TFRE_DB_SITEMAP_DESC.create.Describe(STYLE_Get_Sitemap_SVG_Definitions);
   for i:=0 to high(apps) do begin
     //InitApp(apps[i].Implementor_HC as TFRE_DB_APPLICATION);
     if (apps[i].ShowInApplicationChooser(Session)) then begin

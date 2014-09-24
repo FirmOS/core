@@ -541,7 +541,7 @@ type
   TFRE_DB_TOPMENU_DESC  = class(TFRE_DB_CONTENT_DESC)
   public
     //@ Describes a top menu.
-    function  Describe          (const homeCaption,homeIcon: String; const homeIconSize: Integer; const serverFuncs: array of TFRE_DB_SERVER_FUNC_DESC; const mainSectionId: TFRE_DB_String; const sectionsIds: array of TFRE_DB_String; const uname: String; const uServerFunction: TFRE_DB_SERVER_FUNC_DESC; const notificationPanel: TFRE_DB_CONTENT_DESC=nil; const JIRAenabled: Boolean=false): TFRE_DB_TOPMENU_DESC;
+    function  Describe          (const homeCaption,homeIcon: String; const homeIconSize: Integer; const serverFuncs: array of TFRE_DB_SERVER_FUNC_DESC; const mainSectionId: TFRE_DB_String; const sectionsIds: array of TFRE_DB_String; const uname: String; const uServerFunction: TFRE_DB_SERVER_FUNC_DESC; const svgDefs: TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY=nil; const notificationPanel: TFRE_DB_CONTENT_DESC=nil; const JIRAenabled: Boolean=false): TFRE_DB_TOPMENU_DESC;
     //@ Adds a dialog to the top menu which will be opened.
     //@ See TFRE_DB_FORM_DIALOG_DESC.
     procedure AddFormDialog     (const dialog:TFRE_DB_FORM_DIALOG_DESC);
@@ -1078,7 +1078,7 @@ implementation
 
   { TFRE_DB_TOPMENU_DESC }
 
-  function TFRE_DB_TOPMENU_DESC.Describe(const homeCaption, homeIcon: String; const homeIconSize: Integer; const serverFuncs: array of TFRE_DB_SERVER_FUNC_DESC; const mainSectionId: TFRE_DB_String; const sectionsIds: array of TFRE_DB_String; const uname: String; const uServerFunction: TFRE_DB_SERVER_FUNC_DESC; const notificationPanel: TFRE_DB_CONTENT_DESC; const JIRAenabled: Boolean): TFRE_DB_TOPMENU_DESC;
+  function TFRE_DB_TOPMENU_DESC.Describe(const homeCaption, homeIcon: String; const homeIconSize: Integer; const serverFuncs: array of TFRE_DB_SERVER_FUNC_DESC; const mainSectionId: TFRE_DB_String; const sectionsIds: array of TFRE_DB_String; const uname: String; const uServerFunction: TFRE_DB_SERVER_FUNC_DESC; const svgDefs: TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY; const notificationPanel: TFRE_DB_CONTENT_DESC; const JIRAenabled: Boolean): TFRE_DB_TOPMENU_DESC;
   var
     i: Integer;
   begin
@@ -1103,6 +1103,11 @@ implementation
 
     if Assigned(notificationPanel) then begin
       Field('notificationPanel').AsObject:=notificationPanel;
+    end;
+    if Assigned(svgDefs) then begin
+      for i := 0 to Length(svgDefs) - 1 do begin
+        Field('svgDefs').AddObject(svgDefs[i]);
+      end;
     end;
     Field('JIRAenabled').AsBoolean:=JIRAenabled;
     Result:=Self;
