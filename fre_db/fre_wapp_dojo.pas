@@ -2521,6 +2521,7 @@ implementation
       jsContentAdd('                ,JIRAenabled: "' + BoolToStr(co.Field('JIRAenabled').AsBoolean,'true','false') + '"');
       if co.FieldExists('notificationPanel') then begin
         jsContentAdd('                ,notificationPanel: ' + co.Field('notificationPanel').AsObject.Field('id').AsString);
+        jsContentAdd('                ,notificationInitialClosed: ' + BoolToStr(co.Field('notificationInitialClosed').AsBoolean,'true','false'));
       end;
       jsContentAdd('});');
 
