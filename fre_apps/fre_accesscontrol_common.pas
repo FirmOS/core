@@ -3387,6 +3387,7 @@ end;
 procedure TFRE_COMMON_ACCESSCONTROL_APP.SetupApplicationStructure;
 begin
   inherited SetupApplicationStructure;
+  InitApp('description','images_apps/accesscontrol/accesscontrol.svg');
   AddApplicationModule(TFRE_COMMON_DOMAIN_MOD.create);
   AddApplicationModule(TFRE_COMMON_USER_MOD.create);
   AddApplicationModule(TFRE_COMMON_GROUP_MOD.create);

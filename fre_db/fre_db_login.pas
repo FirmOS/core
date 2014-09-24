@@ -395,7 +395,7 @@ begin
       end else begin
         nc:=0;
       end;
-      main.Describe(apps[i].GetCaption(ses),'',TFRE_DB_RESTORE_UI_DESC.create.Describe('FirmOSViewport',TFRE_DB_StringArray.create('Home','AppContainer',apps[i].AppClassName)),0,0,apps[i].AppClassName,nc);
+      main.Describe(apps[i].GetCaption(ses),apps[i].GetIcon,TFRE_DB_RESTORE_UI_DESC.create.Describe('FirmOSViewport',TFRE_DB_StringArray.create('Home','AppContainer',apps[i].AppClassName)),0,0,apps[i].AppClassName,nc);
       (apps[i].Implementor_HC as TFRE_DB_APPLICATION).AddAppToSiteMap(session,main);
     end;
   end;

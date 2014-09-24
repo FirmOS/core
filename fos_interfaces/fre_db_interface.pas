@@ -1722,6 +1722,7 @@ type
     function   AppClassName                 : ShortString;
     function   AsObject                     : IFRE_DB_Object;
     function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
+    function   GetIcon                      : TFRE_DB_String;
     function   IsMultiDomainApp             : Boolean;
   end;
 
@@ -2244,12 +2245,13 @@ end;
 
     function   GetSessionData               (const input:IFRE_DB_Object):IFRE_DB_Object; //global
 
-    procedure  InitAppDesc                  (const descr_translation_key:TFRE_DB_String);virtual;
+    procedure  InitApp                      (const descr_translation_key:TFRE_DB_String; const icon: TFRE_DB_String='');virtual;
 
     function   AsObject                     : IFRE_DB_Object;
     function   AppClassName                 : ShortString;
     function   IsMultiDomainApp             : Boolean; virtual;
     function   GetCaption                   (const ses : IFRE_DB_Usersession): TFRE_DB_String;
+    function   GetIcon                      : TFRE_DB_String;
 
     procedure   AddAppToSiteMap             (const session:TFRE_DB_UserSession ; const parent_entry : TFRE_DB_CONTENT_DESC);
     function    ShowInApplicationChooser    (const session:IFRE_DB_UserSession): Boolean;virtual;
@@ -8247,9 +8249,10 @@ begin
 end;
 
 
-procedure TFRE_DB_APPLICATION.InitAppDesc(const descr_translation_key: TFRE_DB_String);
+procedure TFRE_DB_APPLICATION.InitApp(const descr_translation_key: TFRE_DB_String; const icon: TFRE_DB_String);
 begin
   SetDescTranslationKey(descr_translation_key);
+  Field('icon').AsString:=icon;
 end;
 
 function TFRE_DB_APPLICATION.AsObject: IFRE_DB_Object;
@@ -8271,6 +8274,11 @@ end;
 function TFRE_DB_APPLICATION.GetCaption(const ses: IFRE_DB_Usersession): TFRE_DB_String;
 begin
   result := FetchAppTextShort(ses,'caption');
+end;
+
+function TFRE_DB_APPLICATION.GetIcon: TFRE_DB_String;
+begin
+  Result := Field('icon').AsString;
 end;
 
 
