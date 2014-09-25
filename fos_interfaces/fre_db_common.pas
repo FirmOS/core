@@ -2213,7 +2213,7 @@ implementation
                            end;
                          end;
         end;
-        chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
+        chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty,obj^.disabled);
         chooserField.captionCompareEnabled(true);
         obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
         obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
@@ -2226,7 +2226,7 @@ implementation
           if obj^.hideSingle and (domainEntries=1) then begin
             group.AddInput.Describe('',prefix+obj^.field,false,false,false,true,domainValue);
           end else begin
-            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty,obj^.disabled);
             obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
             obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
           end;
@@ -2237,7 +2237,7 @@ implementation
             for i := 0 to Length(enumVals) - 1 do begin
               store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
             end;
-            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty);
+            chooserField:=group.AddChooser.Describe(_getText(obj^.caption_key),prefix+obj^.field,store,obj^.chooser_type,required,obj^.required,obj^.chooser_add_empty,obj^.disabled);
             obj^.fieldschemdef.ForAllVisDepfields(@VisDeppIterator);
             obj^.fieldschemdef.ForAllDepfields(@DeppITeratorChooser);
           end else begin
