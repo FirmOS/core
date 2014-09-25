@@ -238,7 +238,7 @@ var
     ses.GetDBConnection.SYS.GetCurrentUserTokenRef.GetUserDetails(fl,fn,ln,desc);
     if ses.LoggedIn then begin
       uname := fn+' '+ln+' |';
-      if uname=' ' then
+      if uname='  |' then
         uname := fl;
     end else begin
       uname := ''; //app.FetchAppTextShort(ses,'top_profile');
