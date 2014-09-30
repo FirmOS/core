@@ -1384,7 +1384,6 @@ implementation
         end else begin
           jsContentAdd('    ,');
         end;
-        elem.Field('editable').AsBoolean:=true;
         cssString:=cssString+'G_UI_COM.createCSSRule("grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css","width: '+FloatToStrF(Trunc(elem.Field('size').AsInt16 / sizeSum * 10000) / 100,ffFixed,3,2)+'%;");';
         if FREDB_String2DBDisplayType(elem.Field('displayType').AsString)=dt_number_pb then begin
           jsContentAdd('     '+elem.Field('id').AsString+': FIRMOS.gridPBColumn({');
@@ -1458,7 +1457,6 @@ implementation
                              editor_event:='""';
                            end;
             end;
-            editor_event:='""';
             if chCol then begin
               chCol:=false;
               jsContentAdd('     }),'+editor_str+',"dblclick")');
