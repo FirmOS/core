@@ -3316,7 +3316,7 @@ end;
 procedure TFRE_DB_FIELD_TRANSFORM.AddToViewCollection(const vcd: TFRE_DB_VIEW_LIST_LAYOUT_DESC);
 begin
   if FDisplay then
-    vcd.AddDataElement.Describe(FOutFieldName,FOutFieldTitle,FGuiDisplaytype,FSortable,FFilterable,FFieldSize,FDisplay,false,FIconIdField,FOpenIconIDField,FFilterValues);
+    vcd.AddDataElement.Describe(FOutFieldName,FOutFieldTitle,FGuiDisplaytype,FSortable,FFilterable,FFieldSize,FDisplay,false,false,FIconIdField,FOpenIconIDField,FFilterValues);
 end;
 
 procedure TFRE_DB_FIELD_TRANSFORM.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);

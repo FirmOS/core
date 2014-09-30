@@ -1338,6 +1338,8 @@ implementation
     conn            :IFRE_DB_CONNECTION;
     isTree          :Boolean;
     descriptionField: String;
+    editor_str      : String;
+    editor_event    : String;
   begin
     conn:=session.GetDBConnection;
     if not isInnerContent then begin
@@ -1369,6 +1371,7 @@ implementation
     chCol:=co.Field('children').AsBoolean;
     isTree:=chCol;
     descriptionField:='';
+    cssString:='';
     for i := 0 to layout.Field('data').ValueCount - 1 do begin
       elem:=layout.Field('data').AsObjectItem[i];
       if elem.Field('display').AsBoolean then begin
@@ -1381,7 +1384,8 @@ implementation
         end else begin
           jsContentAdd('    ,');
         end;
-        cssString:=cssString+'G_UI_COM.createCSSRule("grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css","width: '+FloatToStrF(Trunc(elem.Field('size').AsInt16 / sizeSum * 10000) / 100,ffFixed,3,2)+'%;';
+        elem.Field('editable').AsBoolean:=true;
+        cssString:=cssString+'G_UI_COM.createCSSRule("grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css","width: '+FloatToStrF(Trunc(elem.Field('size').AsInt16 / sizeSum * 10000) / 100,ffFixed,3,2)+'%;");';
         if FREDB_String2DBDisplayType(elem.Field('displayType').AsString)=dt_number_pb then begin
           jsContentAdd('     '+elem.Field('id').AsString+': FIRMOS.gridPBColumn({');
           jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
@@ -1395,10 +1399,19 @@ implementation
           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridNumber"');
           jsContentAdd('                                                       })');
         end else begin
+          jsContentAdd('     '+elem.Field('id').AsString+':');
           if chCol then begin
-            jsContentAdd('     '+elem.Field('id').AsString+': dgrid.tree({allowDuplicates:true, unhidable: true, reorderable: false, ');
+            if elem.Field('editable').AsBoolean then begin
+              jsContentAdd('       dgrid.editor(dgrid.tree({autoSave: true, allowDuplicates:true, unhidable: true, reorderable: false, ');
+            end else begin
+              jsContentAdd('       dgrid.tree({allowDuplicates:true, unhidable: true, reorderable: false, ');
+            end;
           end else begin
-            jsContentAdd('     '+elem.Field('id').AsString+': {');
+            if elem.Field('editable').AsBoolean then begin
+              jsContentAdd('       dgrid.editor({autoSave: true,');
+            end else begin
+              jsContentAdd('       {');
+            end;
           end;
           jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
           jsContentAdd('      ,sortable: '+BoolToStr(elem.Field('sortable').AsBoolean,'true','false'));
@@ -1415,7 +1428,6 @@ implementation
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridString"');
                         end;
             dt_date   : begin
-                          //jsContentAdd('      ,type: dojox.grid.cells.DateTextBox');
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderDate(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridDate"');
                         end;
@@ -1425,7 +1437,6 @@ implementation
                            jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridNumber"');
                          end;
             dt_icon   : begin
-                          jsContentAdd('      ,editable: false');
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderIcons(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridIcon"');
                         end;
@@ -1434,14 +1445,35 @@ implementation
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridBoolean"');
                         end;
           end;
-          if chCol then begin
-            jsContentAdd('     })');
-            chCol:=false;
+          if elem.Field('editable').AsBoolean then begin
+            editor_event:='"dblclick"';
+            case FREDB_String2DBDisplayType(elem.Field('displayType').AsString) of
+              dt_string  : editor_str:='FIRMOS.GridTextBox';
+              dt_date    : editor_str:='FIRMOS.GridDateTextBox';
+              dt_number,
+              dt_currency: editor_str:='FIRMOS.GridNumberTextBox';
+              dt_icon    : editor_str:='FIRMOS.GridTextBox';
+              dt_boolean : begin
+                             editor_str:='FIRMOS.GridCheckBox';
+                             editor_event:='""';
+                           end;
+            end;
+            editor_event:='""';
+            if chCol then begin
+              chCol:=false;
+              jsContentAdd('     }),'+editor_str+',"dblclick")');
+            end else begin
+              jsContentAdd('     },'+editor_str+','+editor_event+')');
+            end;
           end else begin
-            jsContentAdd('     }');
+            if chCol then begin
+              chCol:=false;
+              jsContentAdd('     })');
+            end else begin
+              jsContentAdd('     }');
+            end;
           end;
         end;
-        cssString:=cssString+'");';
       end;
     end;
     jsContentAdd('  };');
