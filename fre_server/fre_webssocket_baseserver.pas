@@ -42,7 +42,7 @@ unit fre_webssocket_baseserver;
 interface
 
 uses
-  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS,FRE_HTTP_SRVHANDLER,strutils,math,
+  Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_HTTP_TOOLS,FRE_HTTP_SRVHANDLER,math,
   FRE_DB_INTERFACE,FRE_DB_COMMON,FRE_DB_CORE,FRE_SYSTEM,fre_binary_buffer,
   fpjson,jsonparser,
   FRE_WAPP_DOJO
@@ -195,7 +195,7 @@ type
     procedure   DeactivateSessionBinding (const from_session : boolean=false);
     procedure   UpdateSessionBinding     (const new_session : TObject);
 
-    procedure   Default_Provider           (const uri:TFRE_HTTP_URI); // default WWW Provider (not WS)
+    procedure   Default_Provider           (uri:TFRE_HTTP_URI); // default WWW Provider (not WS)
     function    GetChannel                 :IFRE_APSC_CHANNEL;
   end;
 
@@ -1007,7 +1007,7 @@ begin
 end;
 
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Default_Provider(const uri: TFRE_HTTP_URI);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Default_Provider(uri: TFRE_HTTP_URI);
 var lContent        : TFRE_DB_RawByteString;
     lFilename       : string;
     i               : Integer;
@@ -1024,6 +1024,13 @@ var lContent        : TFRE_DB_RawByteString;
     attachment_filename : string;
     if_none_match   : string;
 
+  procedure StripCacheVersionTag;//inline;
+  var idx : NativeInt;
+  begin
+    idx := POS_FOS_CACHE_TAG(uri.Document);
+    if idx>0 then
+      uri.Document:=Copy(uri.Document,1,idx-1);
+  end;
 
 begin
     ResponseHeader[rh_contentDisposition]     := '';
@@ -1034,70 +1041,75 @@ begin
     ResponseEntityHeader[reh_ContentEncoding] := '';
     ResponseHeader[rh_AcceptRanges]           := '';
 
-    if (uri.Document='') or ((length(uri.SplitPath)=0) and (ExtractFileExt(uri.Document)='')) then begin //root = application domain, except the stuff some bloke has already put into root, but at least with an extension
-      if uri.Document='FirmOS_FRE_WS' then
-        begin
-          Handle_WS_Upgrade(uri.Document,uri.Method);
-        end
-      else
-        begin
-          _SendHttpFileWithRangeCheck('/');
-        end;
-      exit;
-    end else begin
-      if (length(uri.SplitPath)>0) then
-        begin
-          lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
-          if (uri.SplitPath[0]='download') then
-            begin
-              _SendHttpFileWithRangeCheck(lFilename,true,true,true);
-            end
-          else
-          if (uri.SplitPath[0]='FDBOSF') then
-            begin
-              enc_field := uri.Document;
-              if (Length(uri.SplitPath)=7)  { /FDBOSF/FSessionID/obj_uid/is_attachment(A|N)/mime_type/file_name/force_url_etag/fieldname }
-                  and HttpBaseServer.FetchStreamDBO(uri.SplitPath[1],uri.SplitPath[2],enc_field,lContent,lContentType,lEtag) then
-                   begin
-                     is_attachment       := uri.SplitPath[3]='A';
-                     lContentType        := GFRE_BT.HexStr2Str(uri.SplitPath[4]);
-                     attachment_filename := GFRE_BT.HexStr2Str(uri.SplitPath[5]);
-                     urlEtag             := GFRE_BT.HexStr2Str(uri.SplitPath[6]);
-                     if_none_match       := GetHeaderField('If-None-Match');
-                     if (lEtag<>'') and (if_none_match=lEtag) then { for "proper" Etag processing the etag force etag must be '-' from generation side (Firefox fix=set the etag) }
-                       begin
-                         ResponseHeader[rh_ETag] := lEtag;
-                         if (if_none_match=lEtag) and (lEtag<>'') then
-                           begin
-                             _SendHttpResponse(304,'NOT CHANGED',[]);
-                           end
-                         else
-                           begin
-                             _SendHttpResponse(200,'OK',[],lContent,lContentType,is_attachment,attachment_filename);
-                           end;
-                       end
-                     else
-                       begin
-                         ResponseHeader[rh_ETag] := lEtag;
-                         _SendHttpResponse(200,'OK',[],lContent,lContentType,is_attachment,attachment_filename);
-                       end;
-                   end
-              else
-                begin
-                   _SendHttpResponse(420,'DBO STREAM FETCH FAILED',[]);
-                end;
-            end
-          else
-            begin
-              _SendHttpFileWithRangeCheck(lFilename);
-            end;
-        end
-      else
-        begin
-           lFilename:=uri.Document;
-           _SendHttpFileWithRangeCheck(lFilename);
-        end;
-    end;
+    StripCacheVersionTag;
+
+    if (uri.Document='') or ((length(uri.SplitPath)=0) and (ExtractFileExt(uri.Document)='')) then
+      begin //root = application domain, except the stuff some bloke has already put into root, but at least with an extension
+        if uri.Document='FirmOS_FRE_WS' then
+          begin
+            Handle_WS_Upgrade(uri.Document,uri.Method);
+          end
+        else
+          begin
+            _SendHttpFileWithRangeCheck('/');
+          end;
+        exit;
+      end
+    else
+      begin
+        if (length(uri.SplitPath)>0) then
+          begin
+            lFilename:=GFRE_BT.CombineString(uri.SplitPath,DirectorySeparator)+DirectorySeparator+uri.Document;
+            if (uri.SplitPath[0]='download') then
+              begin
+                _SendHttpFileWithRangeCheck(lFilename,true,true,true);
+              end
+            else
+            if (uri.SplitPath[0]='FDBOSF') then
+              begin
+                enc_field := uri.Document;
+                if (Length(uri.SplitPath)=7)  { /FDBOSF/FSessionID/obj_uid/is_attachment(A|N)/mime_type/file_name/force_url_etag/fieldname }
+                    and HttpBaseServer.FetchStreamDBO(uri.SplitPath[1],uri.SplitPath[2],enc_field,lContent,lContentType,lEtag) then
+                     begin
+                       is_attachment       := uri.SplitPath[3]='A';
+                       lContentType        := GFRE_BT.HexStr2Str(uri.SplitPath[4]);
+                       attachment_filename := GFRE_BT.HexStr2Str(uri.SplitPath[5]);
+                       urlEtag             := GFRE_BT.HexStr2Str(uri.SplitPath[6]);
+                       if_none_match       := GetHeaderField('If-None-Match');
+                       if (lEtag<>'') and (if_none_match=lEtag) then { for "proper" Etag processing the etag force etag must be '-' from generation side (Firefox fix=set the etag) }
+                         begin
+                           ResponseHeader[rh_ETag] := lEtag;
+                           if (if_none_match=lEtag) and (lEtag<>'') then
+                             begin
+                               _SendHttpResponse(304,'NOT CHANGED',[]);
+                             end
+                           else
+                             begin
+                               _SendHttpResponse(200,'OK',[],lContent,lContentType,is_attachment,attachment_filename);
+                             end;
+                         end
+                       else
+                         begin
+                           ResponseHeader[rh_ETag] := lEtag;
+                           _SendHttpResponse(200,'OK',[],lContent,lContentType,is_attachment,attachment_filename);
+                         end;
+                     end
+                else
+                  begin
+                     _SendHttpResponse(420,'DBO STREAM FETCH FAILED',[]);
+                  end;
+              end
+            else
+              begin
+                _SendHttpFileWithRangeCheck(lFilename);
+              end;
+          end
+        else
+          begin
+             lFilename:=uri.Document;
+             _SendHttpFileWithRangeCheck(lFilename);
+          end;
+      end;
 end;
 
 function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.GetChannel: IFRE_APSC_CHANNEL;

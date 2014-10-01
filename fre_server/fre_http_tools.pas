@@ -64,7 +64,7 @@ type
     //HasAuthority : Boolean;
   end;
 
-  TFRE_HTTP_ContentProvider=procedure(const uri:TFRE_HTTP_URI) of object;
+  TFRE_HTTP_ContentProvider=procedure(uri:TFRE_HTTP_URI) of object;
 
   TFRE_HTTP_DISPATCHRECORD=record
     path   : TFOSStringArray;
@@ -78,7 +78,7 @@ type
     FDomains      : Array of TFRE_HTTP_DISPATCHRECORD;
     FDefault      : TFRE_HTTP_DISPATCHRECORD;
   public
-    procedure  RegisterVirtualProvider (const domain,path:string;const method:TFRE_HTTP_ContentProvider);
+    procedure  RegisterVirtualProvider (const domain,path:string; const method:TFRE_HTTP_ContentProvider);
     procedure  RegisterDefaultProvider (const domain:string;const method:TFRE_HTTP_ContentProvider);
     procedure  DispatchRequest         (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
   end;

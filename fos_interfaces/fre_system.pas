@@ -101,6 +101,7 @@ var
       cFRE_DEFAULT_DOMAIN             :string = 'system';
       cFRE_DB_ALLOW_WEAKMEDIATORS     :boolean=true;
       cFRE_DB_RESET_ADMIN             :boolean=false;
+      cFRE_DB_CACHETAG                :NativeInt= 5;
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;
@@ -120,7 +121,20 @@ type
   TFRE_LogMsg  = procedure (msg:String) of object;
   TFRE_LogMsgN = procedure (msg:String) is nested;
 
+  function GET_FOS_CACHE_TAG:ShortString;inline;
+  function POS_FOS_CACHE_TAG(const url:string):NativeInt;inline;
+
 implementation
+
+function GET_FOS_CACHE_TAG: ShortString;
+begin
+  result :='*FCT'+IntToStr(cFRE_DB_CACHETAG);
+end;
+
+function POS_FOS_CACHE_TAG(const url: string): NativeInt;
+begin
+  result := Pos('*FCT',url);
+end;
 
 
 initialization

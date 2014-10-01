@@ -1017,6 +1017,7 @@ type
     //function   RemoveFilter                  (const filter_key           :TFRE_DB_String):TFRE_DB_Errortype;
 
     function   Filters                 : TFRE_DB_DC_FILTER_DEFINITION_BASE;
+    procedure  Finalize                ;
     //function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
@@ -6343,12 +6344,13 @@ end;
 
 procedure TFRE_DB_UserSession.FinishDerivedCollections;
 var i : integer;
-   cn  : string;
+   //cn  : string;
 begin
   for i:=0 to high(FDC_Array) do begin
     try
-      cn := FDC_Array[i].CollectionName;
-      GetDBConnection.DeleteCollection(cn);
+      //cn := FDC_Array[i].CollectionName;
+      FDC_Array[i].Finalize;
+      //GetDBConnection.DeleteCollection(cn);
     except on e:EXception do begin
       writeln('*** --- DC Clean failed -> ',e.Message);
     end;end;

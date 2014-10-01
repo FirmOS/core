@@ -2059,6 +2059,7 @@ implementation
       jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/fos_fonts.css" media="screen">');
       jsContentAdd('<link rel="stylesheet" type="text/css" href="aloha/src/css/aloha.css" media="screen">');
       jsContentAdd('<link rel="stylesheet" type="text/css" href="codemirror/lib/codemirror.css" media="screen">');
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/fosstars.css" media="screen">');
 
       jsContentAdd('<script src="d3/d3.js" ></script>');
       jsContentAdd('<script type="text/javascript" src="fre_js/config.js"></script>');
@@ -2075,8 +2076,8 @@ implementation
 //      jsContentAdd('<link rel="stylesheet" type="text/css" href="js/all.css" media="screen">');
       jsContentAdd('<link rel="stylesheet" type="text/css" href="aloha/src/css/aloha.css" media="screen">');
       jsContentAdd('<link rel="stylesheet" type="text/css" href="codemirror/lib/codemirror.css" media="screen">');
-      jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/all.css" media="screen">');
-
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/all.css'+GET_FOS_CACHE_TAG+'" media="screen">');
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/fosstars.css'+GET_FOS_CACHE_TAG+'" media="screen">');
       jsContentAdd('<script src="js/framework.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
       jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js"></script>');
     end;
@@ -2096,6 +2097,7 @@ implementation
     jsContentAdd('<body class="'+co.Field('style').AsString+'">');
     jsContentAdd('  <div id="FirmOSViewport" class="viewport"></div>');
     jsContentAdd('  <iframe id="FirmOSDownload" name="FirmOSDownload" style="width: 1px; height: 1px; visibility: hidden; display: none;"></iframe>');
+
     jsContentAdd('</body>');
     jsContentAdd('</html>');
 

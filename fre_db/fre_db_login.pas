@@ -186,28 +186,19 @@ end;
 function TFRE_DB_LOGIN.No_Apps_ForGuests(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var dlg         : TFRE_DB_LAYOUT_DESC;
     dialog      : TFRE_DB_FORM_DIALOG_DESC;
-    serverFunc  : TFRE_DB_SERVER_FUNC_DESC;
-
-    function _getUIHeader(const caption:String): String;
-    begin
-      Result:='<table style=''width: 100%; height: 29px;'' border=''0'' cellpadding=''0'' cellspacing=''0''><tbody><tr>';
-      Result:=Result+'<td style=''vertical-align: middle; text-align: left; width:145px''><img style=''width: 25px; height: 25px;'' src=''fre_css/'+cFRE_WEB_STYLE+'/images/LOGIN.png''></td>';
-      Result:=Result+'<td style=''vertical-align: middle; text-align: center;''>'+caption+'<br></td>';
-      Result:=Result+'<td style=''vertical-align: middle; text-align: right; width:145px''><img style=''width: 142px; height:25px;'' src=''fre_css/'+cFRE_WEB_STYLE+'/images/Firmos_WAPS.png''></td>';
-      Result:=Result+'</tr></tbody></table>';
-    end;
-
+    html        : TFRE_DB_HTML_DESC;
 begin
   dlg        := TFRE_DB_LAYOUT_DESC.create.Describe();
   dialog     := WEB_LoginDlg(input,ses,app,conn).Implementor_HC as TFRE_DB_FORM_DIALOG_DESC;
-  //dialog     := TFRE_DB_FORM_DIALOG_DESC.create.Describe('FirmOS WebApp Server Login',0,500,false,false,false);
-  //serverFunc := TFRE_DB_SERVER_FUNC_DESC.Create.Describe(Self,'doLogin');
-  //dialog.AddButton.Describe('Login',serverFunc,fdbbt_submit);
-  //dialog.AddHeader(TFRE_DB_HTML_DESC.create.Describe(_getUIHeader('Login'),35));
-  //dialog.AddInput.Describe('Username','uname',true);
-  //dialog.AddInput.Describe('Password','pass',true,true,false,false,'',nil,false,true);
-  dlg.AddFormDialog(dialog);
-  Result:=dlg;
+  html       := TFRE_DB_HTML_DESC.create.Describe('<div id="FirmOSSpecial" style="width: 100%; height: 100%; background-color: black; position: absolute; top: 0px; left: 0px;"> <div id="stars"></div><div id="stars2"></div><div id="stars3"></div>'+
+                                                  '<div id="title"> <span>VirtualCompany</span> <br> <span>Cockpit</span></div>');
+  //dlg.AddFormDialog(dialog);
+  //dlg.SetLayout(nil,html,nil,nil,nil,false);
+  //dlg.updateId:='FirmOSViewport';
+  //Result:=dlg;
+  ses.SendServerClientRequest(dialog);
+  html.updateId:='FirmOSViewport';
+  result := html;
 end;
 
 function TFRE_DB_LOGIN.WEB_OnUIChange(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -241,7 +232,7 @@ var
       if uname='  |' then
         uname := fl;
     end else begin
-      uname := ''; //app.FetchAppTextShort(ses,'top_profile');
+      uname := '';
     end;
     res := TFRE_DB_TOPMENU_DESC.create.Describe('','images/home.svg',48,[CWSF(@WEB_BuildSiteMap),CWSF(@WEB_BuildAppList)],'Home',['SiteMap','AppContainer'],uname,CWSF(@WEB_LoginDlg),STYLE_Get_TopMenu_SVG_Definitions,ses.FetchDerivedCollection('NOTIFICATION_GRID').GetDisplayDescription);
     res.updateId:='FirmOSViewport';
@@ -249,7 +240,21 @@ var
     result :=  res;
   end;
 
+  procedure TestUpdate;
+  var
+    session: TFRE_DB_UserSession;
+    html   : TFRE_DB_HTML_DESC;
+  begin
+    Result:=GFRE_DB_NIL_DESC;
+    session := GetSession(input);
+    html:=TFRE_DB_HTML_DESC.create.Describe('<div> UPDATE </div>');
+    html.updateId:='FirmOSSpecial';
+    //html.contentId:='FirmOSSpecial';
+    session.SendServerClientRequest(html);
+  end;
+
 begin
+  //TestUpdate;
   case ses.GetSessionState of
     sta_BAD:
       begin
@@ -283,6 +288,7 @@ var dialog     : TFRE_DB_FORM_DIALOG_DESC;
     scheme     : IFRE_DB_SchemeObject;
     block      : TFRE_DB_INPUT_BLOCK_DESC;
     user       : IFRE_DB_Object;
+    dlg        : TFRE_DB_LAYOUT_DESC;
 begin
   if ses.LoggedIn then begin
     dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'profile_diag_cap'),0,false,false);
@@ -309,6 +315,10 @@ begin
     //dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_pass'),'pass',true,true,false,false,'',nil,false,true);
     dialog.AddInput.Describe('','uname',true);
     dialog.AddInput.Describe('','pass',true,true,false,false,'',nil,false,true);
+    //dlg        := TFRE_DB_LAYOUT_DESC.create.Describe();
+    //dlg.AddFormDialog(dialog);
+    //result := dlg;
+    //exit;
   end;
   Result:=dialog;
 end;
