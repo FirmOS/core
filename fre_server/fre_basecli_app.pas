@@ -44,15 +44,15 @@ interface
 
 uses
   Classes, SysUtils, CustApp,
-  FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
-  FRE_DB_CORE,
+  fre_system,fos_default_implementation,fos_tool_interfaces,fos_fcom_types,fre_aps_interface,fre_db_interface,
+  fre_db_core,
 
   fre_dbbase,fre_openssl_cmd,
 
   fre_aps_comm_impl,
   fre_net_pl_client, { network ps layer}
   fre_db_persistance_fs_simple, { filesystem ps layer}
-  FRE_CONFIGURATION,FRE_BASE_SERVER,
+  fre_configuration,fre_base_server,
   fre_db_core_transdata
   ;
 
@@ -204,7 +204,15 @@ begin
 end;
 
 procedure TFRE_CLISRV_APP.ParseSetSystemFlags;
+  procedure SetDatetimeTag;
+  var y,m,d,hh,mm,ss,mmm : LongInt;
+  begin
+    GFRE_DT.DecodeTime(GFRE_DT.Now_UTC,y,m,d,hh,mm,ss,mmm);
+    cFRE_DB_CACHETAG := Format('%2.2d%2.2d%2.2d%2.2d%2.2d%2.2d',[hh,mm,ss,d,m,y-2000]);
+  end;
+
 begin
+   SetDatetimeTag;
    if HasOption('*','tryrecovery') then
      begin
        GDBPS_SKIP_STARTUP_CHECKS := true;

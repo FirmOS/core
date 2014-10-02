@@ -2073,13 +2073,12 @@ implementation
       jsContentAdd('<script type="text/javascript" src="codemirror/mode/javascript/javascript.js"></script>');
       jsContentAdd('<script type="text/javascript" src="codemirror/mode/pascal/pascal.js"></script>');
     end else begin
-//      jsContentAdd('<link rel="stylesheet" type="text/css" href="js/all.css" media="screen">');
-      jsContentAdd('<link rel="stylesheet" type="text/css" href="aloha/src/css/aloha.css" media="screen">');
-      jsContentAdd('<link rel="stylesheet" type="text/css" href="codemirror/lib/codemirror.css" media="screen">');
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="aloha/src/css/aloha.css'+GET_FOS_CACHE_TAG+'" media="screen">');
+      jsContentAdd('<link rel="stylesheet" type="text/css" href="codemirror/lib/codemirror.css'+GET_FOS_CACHE_TAG+'" media="screen">');
       jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/all.css'+GET_FOS_CACHE_TAG+'" media="screen">');
       jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/fosstars.css'+GET_FOS_CACHE_TAG+'" media="screen">');
-      jsContentAdd('<script src="js/framework.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
-      jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js"></script>');
+      jsContentAdd('<script src="js/framework.js'+GET_FOS_CACHE_TAG+'" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
+      jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js'+GET_FOS_CACHE_TAG+'"></script>');
     end;
 
 

@@ -101,7 +101,7 @@ var
       cFRE_DEFAULT_DOMAIN             :string = 'system';
       cFRE_DB_ALLOW_WEAKMEDIATORS     :boolean=true;
       cFRE_DB_RESET_ADMIN             :boolean=false;
-      cFRE_DB_CACHETAG                :NativeInt= 5;
+      cFRE_DB_CACHETAG                :ShortString='';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;
@@ -128,12 +128,12 @@ implementation
 
 function GET_FOS_CACHE_TAG: ShortString;
 begin
-  result :='*FCT'+IntToStr(cFRE_DB_CACHETAG);
+  result :='.*FCT'+cFRE_DB_CACHETAG;
 end;
 
 function POS_FOS_CACHE_TAG(const url: string): NativeInt;
 begin
-  result := Pos('*FCT',url);
+  result := Pos('.*FCT',url);
 end;
 
 
