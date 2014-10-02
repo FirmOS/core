@@ -244,6 +244,7 @@ program fpmake_packages;
          AddUnit('../fre_server/fre_basesubfeed_app.pas');
          AddUnit('../fre_server/fre_openssl_cmd.pas');
          AddUnit('fre_accesscontrol_common.pas');
+         AddUnit('fre_translationapp.pas');
          AddUnit('../fre_server/fre_net_pl_client.pas');
 
        end;
