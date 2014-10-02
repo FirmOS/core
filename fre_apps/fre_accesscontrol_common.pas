@@ -271,7 +271,7 @@ end;
 
 class procedure TFRE_COMMON_DOMAIN_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.0';
+  newVersionId:='1.1';
   if currentVersionId='' then begin
     currentVersionId := '1.0';
 
@@ -302,6 +302,12 @@ begin
 
     CreateModuleText(conn,'domain_modify_error_cap','Error');
     CreateModuleText(conn,'domain_modify_error_msg','Modify failed %error_msg%');
+  end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
+    CreateModuleText(conn,'roles_tab','Roles');
+    CreateModuleText(conn,'gcap_RinD','Role belongs to Domain');
+    CreateModuleText(conn,'gc_role','Role');
   end;
 end;
 

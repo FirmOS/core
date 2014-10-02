@@ -149,7 +149,7 @@ begin
   conn:=session.GetDBConnection;
   SiteMapData  := GFRE_DBI.NewObject;
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'TRANSLATION',FetchAppTextShort(session,'sitemap_main'),'images_apps/translation/main.svg','',0,conn.sys.CheckClassRight4MyDomain(sr_FETCH,TFRE_COMMON_TRANSLATION_APP));
-  FREDB_SiteMap_AddRadialEntry(SiteMapData,'TRANSLATION/Translation',FetchAppTextShort(session,'sitemap_assets'),'images_apps/translation/translation.svg',TFRE_COMMON_TRANSLATION_MOD.Classname,0,conn.sys.CheckClassRight4MyDomain(sr_FETCH,TFRE_COMMON_TRANSLATION_MOD));
+  FREDB_SiteMap_AddRadialEntry(SiteMapData,'TRANSLATION/Translation',FetchAppTextShort(session,'sitemap_translations'),'images_apps/translation/translation.svg',TFRE_COMMON_TRANSLATION_MOD.Classname,0,conn.sys.CheckClassRight4MyDomain(sr_FETCH,TFRE_COMMON_TRANSLATION_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData);
   session.GetSessionAppData(Classname).Field('SITEMAP').AsObject := SiteMapData;
 end;
@@ -184,7 +184,7 @@ begin
     currentVersionId := '0.1';
     CreateAppText(conn,'caption','Translation','Translation','Translation');
     CreateAppText(conn,'sitemap_main','Main','','Main');
-    CreateAppText(conn,'sitemap_assets','Translation','','Translation');
+    CreateAppText(conn,'sitemap_translations','Translation','','Translation');
 
     //TFRE_COMMON_TRANSLATION_MOD;
     CreateAppText(conn,'translation_description','Translation','Translation','Translation');
