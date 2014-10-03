@@ -49,6 +49,7 @@ const cFRE_GLOBAL_DIRECTORY = '/opt/local/fre';
 var
       cFRE_WEB_STYLE                  :string = 'firmos';
       cFRE_LOGIN_OVERRIDE             :string = '';
+      cFRE_TITLE_OVERRIDE             :string = '';
       cFRE_JS_DEBUG                   :Boolean= false;
       cFRE_SERVER_DEFAULT_DIR         :string = '~/.firmos/fre';
       cFRE_SERVER_DEFAULT_SSL_DIR     :string = '~/.firmos/fre/ssl/server_files/';
