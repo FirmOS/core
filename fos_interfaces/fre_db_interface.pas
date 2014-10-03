@@ -178,6 +178,8 @@ const
   cFOS_IID_DERIVED_COLL     = 'ID_CDC';
   cFOS_IID_SCHEME_COLL      = 'ID_CSC';
 
+  cFOS_RADIAL_SITEMAP_SCALE = 1.5;
+
 
 type
 
@@ -3096,7 +3098,7 @@ end;
   function  FREDB_String2DBDisplayType           (const fts: string): TFRE_DB_DISPLAY_TYPE;
   procedure FREDB_SiteMap_AddEntry               (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : TFRE_DB_StringArray ;const x,y : integer;  const newsCount:Integer=0; const scale:Single=1; const enabled:Boolean=true);    //obsolete
   procedure FREDB_SiteMap_AddRadialEntry         (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : String; const newsCount:Integer=0; const enabled:Boolean=true);
-  procedure FREDB_PositionSitemapEntry           (const angle : integer; const radius : integer; const origin_x, origin_y : integer; out x,y:integer);
+  procedure FREDB_PositionSitemapEntry           (const angle : integer; const radius : Double; const origin_x, origin_y : integer; out x,y:integer);
   procedure FREDB_SiteMap_RadialAutoposition     (const SiteMapData : IFRE_DB_Object; rootangle:integer=0);
 
   function  FREDB_GuidArray2StringStream         (const arr:TFRE_DB_GUIDArray):String; { Caution ! - used in streaming}
@@ -9107,7 +9109,7 @@ begin
   SiteMapEntry.Field('ICO').AsString    := icon;
   FREDB_SeperateString(InterAppLink,':',ial); { class:class:class }
   SiteMapEntry.Field('IAL').AsStringArr := ial;
-  SiteMapEntry.Field('SCL').AsReal32    := 1.0;
+  SiteMapEntry.Field('SCL').AsReal32    := cFOS_RADIAL_SITEMAP_SCALE;
   SiteMapEntry.Field('DIS').AsBoolean   := not enabled;
 end;
 
@@ -9116,7 +9118,7 @@ var
   SiteMapRoot  : IFRE_DB_Object;
   x,y          : integer;
   xo,yo        : integer;
-  r            : integer;
+  r            : Double;
   scale        : real;
 
   procedure PlaceChildren(const SiteMapEntry : IFRE_DB_OBject);
@@ -9176,20 +9178,20 @@ var
   end;
 
 begin
-  xo := 300; yo := 300; r := 150; scale := 0.8;
+  xo := 300; yo := 300; r := 150 * cFOS_RADIAL_SITEMAP_SCALE; scale := 0.8;
   rootangle  := 90 - rootangle;  // start at 12h, positive angle clockwise
   SiteMapRoot:=SiteMapData.Field('ENTRIES').AsObjectItem[0];
   if assigned(SiteMapRoot) then begin
     // Position RootNode
     SiteMapRoot.Field('CRD').AsInt32Arr  := TFRE_DB_Int32Array.Create(xo,yo);
-    SiteMapRoot.Field('SCL').AsReal32    := 1.0;
+    SiteMapRoot.Field('SCL').AsReal32    := cFOS_RADIAL_SITEMAP_SCALE;
     SiteMapRoot.Field('PNGL').asint32    := -1;    // Place Children in full circle
     PlaceChildren(SiteMapRoot);
   end;
 end;
 
 
-procedure FREDB_PositionSitemapEntry(const angle: integer; const radius: integer; const origin_x, origin_y: integer; out x, y: integer);
+procedure FREDB_PositionSitemapEntry(const angle: integer; const radius: double; const origin_x, origin_y: integer; out x, y: integer);
 var xr : double;
     yr : double;
     phi: double;
