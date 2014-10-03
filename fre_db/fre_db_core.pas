@@ -2245,7 +2245,7 @@ type
     function    BulkFetchNoRightCheck       (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; override;
     function    BulkFetch                   (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype; override; { uids must be from one db }
 
-
+    function    AdmGetTextResourcesCollection    :IFRE_DB_COLLECTION;
     function    AdmGetUserCollection             :IFRE_DB_COLLECTION;
     function    AdmGetRoleCollection             :IFRE_DB_COLLECTION;
     function    AdmGetGroupCollection            :IFRE_DB_COLLECTION;
@@ -2257,8 +2257,8 @@ type
     function    AdmGetNotificationCollection     :IFRE_DB_COLLECTION;
     function    AdmGetApplicationConfigCollection:IFRE_DB_COLLECTION;
 
-    function    FetchUserSessionData         (var SessionData: IFRE_DB_OBJECT):boolean;
-    function    StoreUserSessionData         (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
+    function    FetchUserSessionData           (var SessionData: IFRE_DB_OBJECT):boolean;
+    function    StoreUserSessionData           (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
 
     function    FetchTranslateableTextObj      (const trans_key:TFRE_DB_String;var text:IFRE_DB_TEXT):boolean;
     function    FetchTranslateableTextShort    (const translation_key:TFRE_DB_String):TFRE_DB_String;
@@ -11123,6 +11123,11 @@ begin
   Result := inherited BulkFetch(uids, dbos);
   if result=edb_NOT_FOUND then
     result := FSysConnection.BulkFetch(uids,dbos);
+end;
+
+function TFRE_DB_CONNECTION.AdmGetTextResourcesCollection: IFRE_DB_COLLECTION;
+begin
+ result := FSysConnection.FSysTransText; // TODO: CHECK RIGHTS
 end;
 
 

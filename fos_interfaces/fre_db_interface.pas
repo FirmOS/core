@@ -1581,6 +1581,7 @@ type
     function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String):TFRE_DB_String;
     function    FetchTranslateableTextHint    (const translation_key:TFRE_DB_String):TFRE_DB_String;
 
+    function    AdmGetTextResourcesCollection    :IFRE_DB_COLLECTION;
     function    AdmGetUserCollection             :IFRE_DB_COLLECTION;
     function    AdmGetRoleCollection             :IFRE_DB_COLLECTION;
     function    AdmGetGroupCollection            :IFRE_DB_COLLECTION;
