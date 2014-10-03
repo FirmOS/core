@@ -87,6 +87,10 @@ type
     procedure DOMAIND_Delete2;
     procedure DOMAIND_Set;
 
+    procedure SchemeclassfieldEqual;
+    procedure SC_SetWrongType;
+    procedure SC_SetString;
+
     procedure Mediator_Empty;
     procedure ObjectProperties;
     procedure FieldTypes;
@@ -1396,7 +1400,8 @@ end;
 
 procedure TFRE_DB_ObjectTests.FieldCount;
 begin
-  AssertEquals(2,TestObject.FieldCount(false)); // UID / DOMAINID
+  AssertEquals(3,TestObject.FieldCount(false,false)); // UID / DOMAINID / Schemeclass
+  AssertEquals(0,TestObject.FieldCount(false,true)); // UID / DOMAINID / Schemeclass
 end;
 
 procedure TFRE_DB_ObjectTests.UID_NotNull;
@@ -1474,6 +1479,35 @@ procedure TFRE_DB_ObjectTests.DOMAIND_Set;
 begin
   TestObject.Field('DoMaInId').AsGUID:=TEST_GUID_2;
   AssertTrue(TestObject.DomainID=TEST_GUID_2);
+end;
+
+procedure TFRE_DB_ObjectTests.SchemeclassfieldEqual;
+begin
+  Asserttrue(TestObject.SchemeClass=TestObject.Field('Schemeclass').AsString);
+end;
+
+procedure TFRE_DB_ObjectTests.SC_SetWrongType;
+begin
+  if cFFG_SKIP_EXCEPTION_TEST then
+    exit;
+  try
+    TestObject.Field('Schemeclass').AsInt16:=1;
+  except
+    exit;
+  end;
+  AssertTrue('code should have thrown exception',false);
+end;
+
+procedure TFRE_DB_ObjectTests.SC_SetString;
+begin
+  if cFFG_SKIP_EXCEPTION_TEST then
+    exit;
+  try
+    TestObject.Field('Schemeclass').AsString:='Testfail';
+  except
+    exit;
+  end;
+  AssertTrue('code should have thrown exception',false);
 end;
 
 procedure TFRE_DB_ObjectTests.Mediator_Empty;
@@ -1878,7 +1912,6 @@ begin
   GFRE_DBI.RegisterObjectClassEx(SC_B1);
   GFRE_DBI.RegisterObjectClassEx(SC_C1);
   GFRE_DBI.RegisterObjectClassEx(SC_C1);
-
   GFRE_DBI.Initialize_Extension_Objects;
 end;
 

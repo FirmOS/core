@@ -54,7 +54,6 @@
       <Unit4>
         <Filename Value="../../fre_server/fre_net_pl_client.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_net_pl_client"/>
       </Unit4>
     </Units>
   </ProjectOptions>

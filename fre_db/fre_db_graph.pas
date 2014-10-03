@@ -236,28 +236,24 @@ end;
 
 procedure TFRE_DB_GRAPH.WriteReferences;
 
-  procedure FieldIterate (const fld: IFRE_DB_Field);
+  procedure FieldIterate (const obj: IFRE_DB_Object);
   begin
-   if fld.FieldType=fdbft_Object then begin
-     plotlist.Add(lowercase(fld.AsObject.Field('reference').asstring)+ ' [color=blue] [fontcolor=blue] [label="'+fld.AsObject.Field('refcount').asstring+'"];');
-   end;
+    plotlist.Add(lowercase(obj.Field('reference').asstring)+ ' [color=blue] [fontcolor=blue] [label="'+obj.Field('refcount').asstring+'"];');
   end;
 
 begin
-  referenceobj.ForAllFields(@FieldIterate);
+  referenceobj.ForAllObjects(@FieldIterate);
 end;
 
 procedure TFRE_DB_GRAPH.WriteCollectionContains;
 
-  procedure FieldIterate (const fld: IFRE_DB_Field);
+  procedure ObjIterate (const obj: IFRE_DB_Object);
   begin
-   if fld.FieldType=fdbft_Object then begin
-     plotlist.Add(lowercase(fld.AsObject.Field('coll').asstring)+ ' [color=sandybrown] [fontcolor=sandybrown] [label="'+fld.AsObject.Field('collcount').AsString+'"];');
-   end;
+    plotlist.Add(lowercase(obj.Field('coll').asstring)+ ' [color=sandybrown] [fontcolor=sandybrown] [label="'+obj.Field('collcount').AsString+'"];');
   end;
 
 begin
-  collectionobj.ForAllFields(@FieldIterate);
+  collectionobj.ForAllObjects(@ObjIterate);
 end;
 
 function TFRE_DB_GRAPH.FormatExplanationToTable(const explanation: TFRE_DB_String): TFRE_DB_String;

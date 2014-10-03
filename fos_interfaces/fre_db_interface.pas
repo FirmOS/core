@@ -464,6 +464,7 @@ type
     function  ValueCountReal                : NativeInt; { delivers 1 if object }
     function  IsUIDField                    : boolean;
     function  IsDomainIDField               : boolean;
+    function  IsSystemField                 : boolean;
     function  IsObjectField                 : boolean;
     property  AsGUID                        : TFRE_DB_GUID read GetAsGUID write SetAsGUID;
     property  AsByte                        : Byte  read GetAsByte write SetAsByte;
@@ -756,15 +757,11 @@ type
     procedure       SetReference                       (const obj : TObject);
     function        GetReference                       : TObject;
     function        GetScheme                          (const raise_non_existing:boolean=false): IFRE_DB_SchemeObject;
-    {<Think about obsolete removal}
-    //function        GetSystemSchemeByName              (const schemename:TFRE_DB_String; var scheme: IFRE_DB_SchemeObject): Boolean;
-    //function        GetSystemScheme                    (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
-    {>Think about obsolete removal}
     function        GetAsJSON                          (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil): TJSONData;
     function        GetAsJSONString                    (const without_reserved_fields:boolean=false;const full_dump:boolean=false;const stream_cb:TFRE_DB_StreamingCallback=nil):TFRE_DB_String;
     function        CloneToNewObject                   (const create_new_uids:boolean=false): IFRE_DB_Object;
-    procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
-    procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
+    procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
+    procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
     procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
     procedure       ForAllObjectsFieldName             (const iter:IFRE_DB_Obj_NameIterator);
     function        GetDescriptionID                   : String;
@@ -775,8 +772,6 @@ type
     function        Parent                             : IFRE_DB_Object;
     function        ParentField                        : IFRE_DB_FIELD;
     function        AsString                           :TFRE_DB_String;
-    //procedure       SetAsEmptyStringArray              ;
-    //function        IsEmptyArray                       : boolean;
     function        Field                              (const name:TFRE_DB_NameType):IFRE_DB_FIELD;
     function        FieldOnlyExistingObj               (const name:TFRE_DB_NameType):IFRE_DB_Object;
     function        FieldOnlyExistingObject            (const name:TFRE_DB_NameType; var obj:IFRE_DB_Object):boolean;
@@ -786,7 +781,7 @@ type
     function        FieldPathCreate                    (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
-    function        FieldCount                         (const without_calcfields:boolean): SizeInt;
+    function        FieldCount                         (const without_calcfields,without_system_fields:boolean): SizeInt;
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
     function        FieldExists                        (const name:TFRE_DB_String):boolean;
@@ -1879,8 +1874,8 @@ type
     function        UIDP                               : PByte;
     function        PUID                               : PFRE_DB_Guid;
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
-    procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator);
-    procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk);
+    procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
+    procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
     procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
     procedure       ForAllObjectsFieldName             (const iter:IFRE_DB_Obj_NameIterator);
     function        UID                                : TFRE_DB_GUID;
@@ -1899,7 +1894,7 @@ type
     function        FieldPathCreate                    (const name:TFRE_DB_String):IFRE_DB_FIELD;
     function        FieldPathExists                    (const name:TFRE_DB_String):Boolean;
     function        FieldPathListFormat                (const field_list:TFRE_DB_NameTypeArray;const formats : TFRE_DB_String;const empty_val: TFRE_DB_String) : TFRE_DB_String;
-    function        FieldCount                         (const without_calcfields:boolean): SizeInt;
+    function        FieldCount                         (const without_calcfields,without_system_fields:boolean): SizeInt;
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
     function        FieldExists                        (const name:TFRE_DB_String):boolean;
@@ -7576,14 +7571,14 @@ begin
 end;
 
 
-procedure TFRE_DB_ObjectEx.ForAllFields(const iter: IFRE_DB_FieldIterator);
+procedure TFRE_DB_ObjectEx.ForAllFields(const iter: IFRE_DB_FieldIterator; const without_calcfields: boolean; const without_system_fields: boolean);
 begin
-  FImplementor.ForAllFields(iter);
+  FImplementor.ForAllFields(iter,without_calcfields,without_system_fields);
 end;
 
-procedure TFRE_DB_ObjectEx.ForAllFieldsBreak(const iter: IFRE_DB_FieldIteratorBrk);
+procedure TFRE_DB_ObjectEx.ForAllFieldsBreak(const iter: IFRE_DB_FieldIteratorBrk; const without_calcfields: boolean; const without_system_fields: boolean);
 begin
-  FImplementor.ForAllFieldsBreak(iter);
+  FImplementor.ForAllFieldsBreak(iter,without_calcfields,without_system_fields);
 end;
 
 procedure TFRE_DB_ObjectEx.ForAllObjects(const iter: IFRE_DB_Obj_Iterator);
@@ -7677,9 +7672,9 @@ begin
   result := FImplementor.FieldPathListFormat(field_list,formats,empty_val);
 end;
 
-function TFRE_DB_ObjectEx.FieldCount(const without_calcfields: boolean): SizeInt;
+function TFRE_DB_ObjectEx.FieldCount(const without_calcfields, without_system_fields: boolean): SizeInt;
 begin
-  result := FImplementor.FieldCount(without_calcfields);
+  result := FImplementor.FieldCount(without_calcfields,without_system_fields);
 end;
 
 function TFRE_DB_ObjectEx.DeleteField(const name: TFRE_DB_String): Boolean;
