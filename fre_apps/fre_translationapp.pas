@@ -111,7 +111,7 @@ begin
 
     translatioins := session.NewDerivedCollection('TRANSLATIONS_GRID');
     with translatioins do begin
-      SetDeriveParent(conn.GetCollection('FIXXME'));
+      SetDeriveParent(conn.AdmGetTextResourcesCollection);
       SetDeriveTransformation(transform);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox],FetchModuleTextShort(session,'grid_translation_cap'));
       SetDefaultOrderField('key',true);
