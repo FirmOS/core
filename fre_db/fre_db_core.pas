@@ -1606,12 +1606,6 @@ type
     procedure   AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String; const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
   end;
 
-  { TFRE_DB_TREE_TRANSFORM }
-
-  TFRE_DB_TREE_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_TRANSFORMOBJECT)
-    function  TransformInOut(const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; override; // todo - remove unnecessary fields
-  end;
-
   { TFRE_DB_CHART_TRANSFORM }
 
   TFRE_DB_CHART_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_TRANSFORMOBJECT) // Stores additionally the chart relevant setup
@@ -1681,7 +1675,6 @@ type
     FChartDisplayFlags : TFRE_COLLECTION_CHART_DISPLAY_FLAGS;
     FTitle             : TFRE_DB_String;
     FlabelFields       : TFRE_DB_StringArray;
-    FTreeNodeIconField : TFRE_DB_String;
 
     FInitialDerived    : Boolean;
     FDC_Session        : TFRE_DB_UserSession;
@@ -1694,7 +1687,8 @@ type
     function        HasReflinksInTransformation      : boolean; { a potential reflink dependency is in the transforms }
 
     function        ParentchildRelationIsOutbound    : boolean;
-    procedure       _CheckSetDisplayType (const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
+    procedure       _CheckSetDisplayType             (const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
+    procedure       _CheckTransformSet               ;
     procedure       _ClearMode;
 
     procedure       ForAllDerived                 (const func:IFRE_DB_Obj_Iterator);
@@ -1754,8 +1748,6 @@ type
     function   WEB_CLEAR_QUERY_RESULTS         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_DESTROY_STORE               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_GET_CHART_DATA              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function   IMI_GET_CHILDREN_DATA           (const input:IFRE_DB_Object):IFRE_DB_Object;
-    function   IMI_GET_DISPLAY_DESC            (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
 
@@ -3635,12 +3627,6 @@ begin
   inherited Destroy;
 end;
 
-{ TFRE_DB_TREE_TRANSFORM }
-
-function TFRE_DB_TREE_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const input: IFRE_DB_Object): TFRE_DB_Object;
-begin
-  Result := input.CloneToNewObject.Implementor as TFRE_DB_Object;
-end;
 
 { TFRE_DB_Enum }
 
@@ -6594,7 +6580,7 @@ var vcd : TFRE_DB_VIEW_LIST_LAYOUT_DESC;
 
 begin
   vcd := TFRE_DB_VIEW_LIST_LAYOUT_DESC.create.Describe();
-  FTransformList.ForAllBreak(@Iterate);
+  FTransformList.ForAllBreak(@Iterate);      //self
   vcd.AddDataElement.Describe('uid','UID',dt_string,false,false,1,false);
   result := vcd;
 end;
@@ -6718,6 +6704,12 @@ begin
   FDisplaytype := CollectionDisplayType;
 end;
 
+procedure TFRE_DB_DERIVED_COLLECTION._CheckTransformSet;
+begin
+  if not assigned(FTransform) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'you must set a transformation for derived collection [%s]',[FName]);
+end;
+
 procedure TFRE_DB_DERIVED_COLLECTION._ClearMode;
 begin
   FGridDisplayFlags      := [];
@@ -6735,7 +6727,7 @@ begin
   FdragFunc              := nil;
   FTransform.Free        ;
   FlabelFields           := nil;
-  FTreeNodeIconField     := '';
+  //FTreeNodeIconField     := '';
 end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.ForAllDerived(const func: IFRE_DB_Obj_Iterator);
@@ -7066,8 +7058,6 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformation(const tob: IFRE_DB_TRANSFORMOBJECT);
 begin
-  if FDisplaytype=cdt_Treeview then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'a treeview must not have a transformation set');
   FTransform.Free;
   FTransform := tob.Implementor as TFRE_DB_TRANSFORMOBJECT;
   //Set default order as first field
@@ -7446,7 +7436,6 @@ begin
   case FDisplaytype of
     cdt_Listview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_GRID_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
     cdt_Chooser:    result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHOOSER_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
-    cdt_Treeview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CSF(@IMI_GET_CHILDREN_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
     cdt_Chartview:  result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHART_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
     else
       raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
@@ -7480,11 +7469,6 @@ begin
     FlabelFields     := CaptionFields;
   end else begin
     SetLength(FlabelFields,1); FlabelFields[0]:='objname';
-  end;
-  if CollectionDisplayType=cdt_Treeview then begin
-    FTransform.Free;
-    FTransform         := TFRE_DB_TREE_TRANSFORM.Create;
-    FTreeNodeIconField := TreeNodeIconField;
   end;
 end;
 
@@ -7527,6 +7511,7 @@ function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
   var vcd : TFRE_DB_VIEW_LIST_LAYOUT_DESC;
         i : NativeInt;
   begin
+    _CheckTransformSet;
     vcd    := (FTransform as TFRE_DB_SIMPLE_TRANSFORM).GetViewCollectionDescription as TFRE_DB_VIEW_LIST_LAYOUT_DESC;
     result := TFRE_DB_VIEW_LIST_DESC.create.Describe(GetStoreDescription as TFRE_DB_STORE_DESC, vcd, FitemMenuFunc, FTitle,FGridDisplayFlags,FitemDetailsFunc,FselectionDepFunc,nil,FdropFunc,FdragFunc);
     for i := 0 to high(FSelectionDepEvents) do
@@ -7534,16 +7519,12 @@ function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
         result.AddFilterEvent(dc_name,ref_name);
   end;
 
-  function GetTreeViewDescription: TFRE_DB_VIEW_TREE_DESC;
-  begin
-    result := TFRE_DB_VIEW_TREE_DESC.create.Describe(GetStoreDescription as TFRE_DB_STORE_DESC, FTitle, FitemMenuFunc,FtreeMenuFunc);
-  end;
-
   function GetChartDescription: TFRE_DB_CHART_DESC;
   var series_ids : TFRE_DB_StringArray;
       ct         : TFRE_DB_CHART_TRANSFORM;
       i          : integer;
   begin
+    _CheckTransformSet;
     ct := FTransform as TFRE_DB_CHART_TRANSFORM; // Chart data must be Transformed now
     result := TFRE_DB_CHART_DESC.create.Describe(Ftitle,GetStoreDescription as TFRE_DB_STORE_DESC,ct.FseriesFieldNames,ct.FChartType,ct.FSeriesLabels,ct.FShowLegend,ct.FMaxValue);
   end;
@@ -7552,7 +7533,6 @@ begin
   case FDisplaytype of
     cdt_Listview:  result := GetListviewDescription;
     cdt_Chooser:   raise EFRE_DB_Exception.Create(edb_ERROR,'getDisplayDescription not available for type Chooser');
-    cdt_Treeview:  result := GetTreeViewDescription;
     cdt_Chartview: result := GetChartDescription;
     else raise EFRE_DB_Exception.Create(edb_ERROR,'DERIVED COLLECTION [%s] HAS AN INVALID DISPLAYTYPE SET [%d]',[CollectionName,ord(FDisplaytype)]);
   end;
@@ -7723,83 +7703,6 @@ begin
   Result:=GFRE_DB_NIL_DESC;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.IMI_GET_CHILDREN_DATA(const input: IFRE_DB_Object): IFRE_DB_Object;
-var //pageinfo       : TFRE_DB_DC_PAGING_INFO;
-     //order         : TFRE_DB_DC_ORDER_LIST;
-    //sortfilterkeys : TFRE_DB_DC_STRINGFIELDKEY_LIST;
-    QueryID        : String;
-
-  //function GetChildrenDataDescription:TFRE_DB_STORE_DATA_DESC;
-  //var i  : integer;
-  //    ok : string;
-  //
-  //    procedure GetData(const obj:TFRE_DB_Object);
-  //    var
-  //      entry       : IFRE_DB_Object;
-  //      i           : Integer;
-  //    begin
-  //      //entry:=GFRE_DB.NewObjectI;
-  //      //entry.Field('_icon_').AsString := obj.Field(FTreeNodeIconField).AsString;
-  //      //case FDCMode of
-  //      //  dc_None: raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DC MODE IN IMI_GET_CHILDREN_DATA');
-  //      //  dc_Map2RealCollection: begin
-  //                               //for i := 0 to Length(FlabelFields) - 1 do begin
-  //                               //  if obj.FieldExists(FlabelFields[i]) then begin
-  //                               //    entry.Field(FlabelFields[i]).AsString:=obj.Field(FlabelFields[i]).AsString;
-  //                               //  end;
-  //                               //end;
-  //                               //entry.Field('uid').AsGUID:=obj.UID;
-  //                               //entry.Field('uidpath').AsStringArr:=obj.GetUIDPath;
-  //                               //entry.Field('_funcclassname_').AsString:=obj.SchemeClass;
-  //                               //entry.Field('_childrenfunc_').AsString:='ChildrenData';
-  //                               //entry.Field('_menufunc_').AsString:='Menu';
-  //                               //entry.Field('_contentfunc_').AsString:='Content';
-  //                               //if obj.MethodExists('CHILDRENDATA') then begin
-  //                               //  entry.Field('children').AsString:='UNCHECKED';
-  //                               //end;
-  //      //                       end;
-  //      //end;
-  //      entry := obj.CloneToNewObject();
-  //      //entry.Field('_funcclassname_').AsString := obj.SchemeClass;
-  //      //entry.Field('_childrenfunc_').AsString:='ChildrenData';
-  //      //entry.Field('_menufunc_').AsString:='Menu';
-  //      //entry.Field('_contentfunc_').AsString:='Content';
-  //      //writeln('CHILDRENDATA  ',entry.DumpToString());
-  //      TFRE_DB_STORE_DATA_DESC(result).addTreeEntry(entry,true);
-  //    end;
-  //
-  //begin
-  //  GFRE_DB.LogDebug(dblc_DB,'IMI_GET_CHILDREN_DATA');
-  //  GFRE_DB.LogDebug(dblc_DB,'%s',[input.DumpToString(4)]);
-  //  //pageinfo.count:=1000;
-  //  //pageinfo.start:=0;
-  //
-  //  RemoveAllFiltersPrefix('*D_');
-  //
-  //  if input.FieldExists('DEPENDENCY') and (input.Field('DEPENDENCY').FieldType=fdbft_Object) then begin
-  //    //DC_SetFilters_From_Input(input.Field('DEPENDENCY').AsObject.Implementor as TFRE_DB_Object);
-  //  end;
-  //  //for i:=0 to Length(FlabelFields) - 1 do begin
-  //  //  AddOrderField('A',FlabelFields[i],true);
-  //  //end;
-  //  result := TFRE_DB_STORE_DATA_DESC.create;
-  //  _FilterIt(false);
-  //  //ApplyToPage(QueryID,pageinfo,@GetData);
-  //end;
-
-begin
-  abort;
-  //_CheckObserverAdded(true);
-  //result := GetChildrenDataDescription;
-end;
-
-function TFRE_DB_DERIVED_COLLECTION.IMI_GET_DISPLAY_DESC(const input: IFRE_DB_Object): IFRE_DB_Object;
-begin
-  if Assigned(input) then begin
-    writeln('GRID GET DISPLAY KEY ',input.DumpToString);
-  end;
-  result := GetDisplayDescription;
-end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_DESTROY_STORE(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin

@@ -336,18 +336,6 @@ type
     procedure disableDrag         ;
   end;
 
-  { TFRE_DB_VIEW_TREE_DESC }
-
-  TFRE_DB_VIEW_TREE_DESC    = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes a tree view representation of the given store.
-    //@ Menu:
-    //@   * Each entry has to have an uidPath or an uid defined.
-    //@   * First: If the entry has a funcClassname and a menuFunc defined funcClassname.menuFunc will be called.
-    //@   * Second: itemContextMenuFunc will be called.
-    function Describe (const store: TFRE_DB_STORE_DESC; const title:String=''; const itemContextMenuFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const contextMenuFunc:TFRE_DB_SERVER_FUNC_DESC=nil): TFRE_DB_VIEW_TREE_DESC;
-  end;
-
   { TFRE_DB_VALIDATOR_DESC }
 
   TFRE_DB_VALIDATOR_DESC = class(TFRE_DB_CONTENT_DESC)
@@ -1933,24 +1921,6 @@ implementation
   procedure TFRE_DB_VIEW_LIST_DESC.disableDrag;
   begin
     Field('disableDrag').AsBoolean:=true;
-  end;
-
-  { TFRE_DB_VIEW_TREE_DESC }
-
-  function TFRE_DB_VIEW_TREE_DESC.Describe(const store: TFRE_DB_STORE_DESC; const title: String; const itemContextMenuFunc: TFRE_DB_SERVER_FUNC_DESC; const contextMenuFunc: TFRE_DB_SERVER_FUNC_DESC): TFRE_DB_VIEW_TREE_DESC;
-  begin
-    Field('store').AsObject:=store;
-    Field('title').AsString:=title;
-    if Assigned(itemContextMenuFunc) then begin
-      Field('itemMenuFunc').AsObject:=itemContextMenuFunc;
-    end;
-    if Assigned(contextMenuFunc) then begin
-      Field('menuFunc').AsObject:=contextMenuFunc;
-    end;
-    if not FieldExists('id') then begin
-      Field('id').AsString:='id'+UID_String;
-    end;
-    Result:=Self;
   end;
 
   { TFRE_DB_FORM_DESC }

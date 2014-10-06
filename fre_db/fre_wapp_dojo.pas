@@ -88,7 +88,6 @@ type
    procedure BuildUpdateUIElement      (const co:TFRE_DB_UPDATE_UI_ELEMENT_DESC; var contentString,contentType:String);
    procedure BuildUpdateStore          (const co:TFRE_DB_UPDATE_STORE_DESC; var contentString,contentType:String);
    procedure BuildGridContainer        (const session:TFRE_DB_UserSession; const co:TFRE_DB_VIEW_LIST_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
-   procedure BuildTreeContainer        (const session:TFRE_DB_UserSession; const co:TFRE_DB_VIEW_TREE_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildLayoutContainer      (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_LAYOUT_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildSubsectionContainer  (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SUBSECTIONS_DESC; var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildMain                 (const session:TFRE_DB_UserSession; const co:TFRE_DB_MAIN_DESC; var contentString,contentType:String);
@@ -176,9 +175,6 @@ implementation
     end else
     if result_object is TFRE_DB_LAYOUT_DESC then begin
       gWAC_DOJO.BuildLayoutContainer(session,command_type,TFRE_DB_LAYOUT_DESC(result_object),lContent,lContentType,isInnerContent);
-    end else
-    if result_object is TFRE_DB_VIEW_TREE_DESC then begin
-      gWAC_DOJO.BuildTreeContainer(session,TFRE_DB_VIEW_TREE_DESC(result_object),lContent,lContentType,isInnerContent);
     end else
     if result_object is TFRE_DB_SUBSECTIONS_DESC then begin
       gWAC_DOJO.BuildSubsectionContainer(session,command_type,TFRE_DB_SUBSECTIONS_DESC(result_object),lContent,lContentType,isInnerContent);
@@ -1713,128 +1709,7 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO.BuildTreeContainer(const session:TFRE_DB_UserSession; const co: TFRE_DB_VIEW_TREE_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
-  var
-    JSonAction :TFRE_JSON_ACTION;
-    store      :TFRE_DB_STORE_DESC;
-  begin
-    if not isInnerContent then begin
-      JsonAction := TFRE_JSON_ACTION.Create;
-      jsContentClear;
-    end;
-
-    store:=co.Field('store').AsObject.Implementor_HC as TFRE_DB_STORE_DESC;
-    jsContentAdd('var '+store.Field('id').AsString+' = G_UI_COM.getStore("'+store.Field('id').AsString+'",');
-    jsContentAdd(' {');
-    jsContentAdd('   id:"'+store.FieldPath('id').AsString+'"');
-    jsContentAdd('  ,idAttribute:"'+store.Field('idField').AsString+'"');
-    if store.Field('labelFields').ValueCount>0 then begin
-      jsContentAdd('  ,labelAttributes: '+_BuildJSArray(store.Field('labelFields').AsStringArr));
-    end;
-    jsContentAdd('  ,getClassname:"'+store.FieldPath('serverFunc.class').AsString+'"');
-    jsContentAdd('  ,getFunctionname:"'+store.FieldPath('serverFunc.func').AsString+'"');
-    jsContentAdd('  ,getUidPath: '+_BuildJSArray(store.FieldPath('serverFunc.uidPath').AsStringArr));
-    jsContentAdd('  ,getParams: '+_BuildParamsObject(store.Field('serverFunc').AsObject.Field('params').AsObjectArr));
-    if store.FieldExists('clearQueryIdFunc') then begin
-      jsContentAdd('  ,clearClassname:"'+store.FieldPath('clearQueryIdFunc.class').AsString+'"');
-      jsContentAdd('  ,clearFunctionname:"'+store.FieldPath('clearQueryIdFunc.func').AsString+'"');
-      jsContentAdd('  ,clearUidPath: '+_BuildJSArray(store.FieldPath('clearQueryIdFunc.uidPath').AsStringArr));
-      jsContentAdd('  ,clearParams: '+_BuildParamsObject(store.Field('clearQueryIdFunc').AsObject.Field('params').AsObjectArr));
-    end;
-    if store.FieldExists('destroyFunc') then begin
-      jsContentAdd('  ,destroyClassname:"'+store.FieldPath('destroyFunc.class').AsString+'"');
-      jsContentAdd('  ,destroyFunctionname:"'+store.FieldPath('destroyFunc.func').AsString+'"');
-      jsContentAdd('  ,destroyUidPath: '+_BuildJSArray(store.FieldPath('destroyFunc.uidPath').AsStringArr));
-      jsContentAdd('  ,destroyParams: '+_BuildParamsObject(store.Field('destroyFunc').AsObject.Field('params').AsObjectArr));
-    end;
-    jsContentAdd(' }');
-    jsContentAdd(');');
-
-    jsContentAdd('var '+co.Field('id').AsString + '_model = new dijit.tree.TreeStoreModel({');
-    jsContentAdd('   store: ' + store.Field('id').AsString);
-    jsContentAdd('  ,root: {');
-    jsContentAdd('     text: "ROOT"');
-    jsContentAdd('    ,children: []');
-    jsContentAdd('    ,methodParams: "{functionname: '''+store.FieldPath('serverFunc.func').AsString+''', classname:'''+store.FieldPath('serverFunc.class').AsString+''', uidPath: '+_BuildJSArray(store.FieldPath('serverFunc.uidPath').AsStringArr) + ', params: '+_BuildParamsObject(store.Field('serverFunc').AsObject.Field('params').AsObjectArr)+' }"');
-    jsContentAdd('    ,'+store.Field('idField').AsString+': ''' + store.FieldPath('serverFunc.uidPath').AsString + '''');
-    jsContentAdd('    ,__id: ''' + store.FieldPath('serverFunc.uidPath').AsString + '''');
-    jsContentAdd('    ,_loadChildren: true');
-    jsContentAdd('   }');
-    jsContentAdd('  ,deferItemLoadingUntilExpand: true');
-    jsContentAdd('});');
-
-    jsContentAdd('var '+ co.Field('id').AsString + '_tree = new FIRMOS.Tree({');
-    jsContentAdd('   id: "' + co.Field('id').AsString + '_tree"');
-    jsContentAdd('  ,parentId: "' + co.Field('id').AsString + '"');
-    jsContentAdd('  ,model: ' + co.Field('id').AsString + '_model');
-    jsContentAdd('  ,showRoot: false');
-    jsContentAdd('});');
-
-    if co.Field('title').AsString<>'' then begin
-      jsContentAdd('var '+co.Field('id').AsString + '_cp = new dijit.layout.ContentPane({');
-      jsContentAdd('   title: "' + FREDB_String2EscapedJSString(co.Field('title').AsString) + '",');
-      jsContentAdd('   id: "'+co.Field('id').AsString+'_cp"');
-    end else begin
-      jsContentAdd('var '+co.Field('id').AsString + ' = new dijit.layout.ContentPane({');
-      jsContentAdd('   id: "'+co.Field('id').AsString+'"');
-      if co.FieldExists('destroyNotify') then begin
-        jsContentAdd('  ,destroyNotify: true');
-        session.registerUpdatableContent(co.Field('id').AsString);
-      end;
-    end;
-    jsContentAdd('  ,content: '+co.Field('id').AsString+'_tree');
-    jsContentAdd('});');
-
-    if co.Field('title').AsString<>'' then begin
-      jsContentAdd('var '+co.Field('id').AsString + ' = new dijit.layout.AccordionContainer({');
-      jsContentAdd('  id: "' + co.Field('id').AsString + '"');
-      if co.FieldExists('destroyNotify') then begin
-        jsContentAdd('  ,destroyNotify: true');
-        session.registerUpdatableContent(co.Field('id').AsString);
-      end;
-      jsContentAdd('});');
-      jsContentAdd(co.Field('id').AsString + '.addChild('+ co.Field('id').AsString + '_cp);');
-    end;
-
-    jsContentAdd('var '+co.Field('id').AsString+'_contextmenu_item = new FIRMOS.Menu({cType:"tree"');
-    jsContentAdd('  ,selector: ".dijitTreeNode"');
-    if co.FieldExists('itemMenuFunc') then begin
-      if co.FieldPathExists('itemMenuFunc.uidPath') then begin
-        jsContentAdd(' ,treeItemUIDPath: '+_BuildJSArray(co.FieldPath('itemMenuFunc.uidPath').AsStringArr));
-      end;
-      jsContentAdd(' ,treeItemClassname: "'+co.FieldPath('itemMenuFunc.class').AsString + '"');
-      jsContentAdd(' ,treeItemFunctionname: "'+co.FieldPath('itemMenuFunc.func').AsString + '"');
-      jsContentAdd(' ,treeItemParams: '+_BuildParamsObject(co.Field('itemMenuFunc').AsObject.Field('params').AsObjectArr));
-    end;
-    jsContentAdd('});');
-    jsContentAdd(co.Field('id').AsString + '_contextmenu_item.bindDomNode('+co.Field('id').AsString + '_tree.domNode);');
-
-    if co.FieldExists('menuFunc') then begin
-      jsContentAdd('var '+co.Field('id').AsString+'_contextmenu_tree = new FIRMOS.Menu({cType:"tree"');
-      jsContentAdd(' ,selector: "div:not(.dijitTreeNode)"');
-      jsContentAdd(' ,treeClassname: "'+co.FieldPath('menuFunc.class').AsString + '"');
-      jsContentAdd(' ,treeFunctionname: "'+co.FieldPath('menuFunc.func').AsString + '"');
-      jsContentAdd(' ,treeParams: '+_BuildParamsObject(co.Field('menuFunc').AsObject.Field('params').AsObjectArr));
-      jsContentAdd(' ,treeUidPath: ' + _BuildJSArray(co.Field('menuFunc').AsObject.Field('uidPath').AsStringArr));
-      jsContentAdd('});');
-      jsContentAdd(co.Field('id').AsString + '_contextmenu_tree.bindDomNode('+co.Field('id').AsString + '_tree.domNode.parentNode);');
-    end;
-
-    if not isInnerContent then begin
-      jsContentAdd('G_UI_COM.contentLoaded('+co.Field('id').AsString+',"'+co.Field('windowCaption').AsString+'");');
-      JsonAction.ActionType := jat_jsupdate;
-      JsonAction.Action     := jsContent;
-      JSonAction.ID         := co.Field('id').AsString;
-      JSonAction.updateID   := co.Field('updateId').AsString;
-
-      contentString := JsonAction.AsString;
-      contentType:='application/json';
-
-      JsonAction.Free;
-    end;
-  end;
-
-    procedure TFRE_DB_WAPP_DOJO.BuildLayoutContainer(const session: TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE; const co: TFRE_DB_LAYOUT_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
+  procedure TFRE_DB_WAPP_DOJO.BuildLayoutContainer(const session: TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE; const co: TFRE_DB_LAYOUT_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
     JSonAction               :TFRE_JSON_ACTION;
     sec                      :IFRE_DB_Object;
