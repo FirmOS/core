@@ -1610,6 +1610,7 @@ end;
 procedure TFRE_DB_TEST_APP_GRIDTREEFORM_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
 var DC_Grid_Long : IFRE_DB_DERIVED_COLLECTION;
     tr_Grid      : IFRE_DB_SIMPLE_TRANSFORM;
+    tr_Tree      : IFRE_DB_SIMPLE_TRANSFORM;
     DC_Tree      : IFRE_DB_DERIVED_COLLECTION;
 begin
   inherited;
@@ -1620,10 +1621,22 @@ begin
       AddOneToOnescheme ('lastname','','Lastname');
       AddOneToOnescheme ('icon','','Icon',dt_icon);
       AddCollectorscheme('%s %s',TFRE_DB_NameTypeArray.create('firstname','lastname'),'description','',true,false,false,dt_description);
-      AddConstString('_funcclassname_','TFRE_DB_TEST_B');
-      AddConstString('_childrenfunc_','CHILDRENDATA');
-      AddConstString('children','UNCHECKED');
+      //AddConstString('_funcclassname_','TFRE_DB_TEST_B');
+      //AddConstString('_childrenfunc_','CHILDRENDATA');
+      //AddConstString('children','UNCHECKED');
     end;
+
+    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Tree);
+    with tr_Grid do begin
+      AddOneToOnescheme ('firstname','','Firstname');
+      AddOneToOnescheme ('lastname','','Lastname');
+      AddOneToOnescheme ('icon','','Icon',dt_icon);
+      AddCollectorscheme('%s %s',TFRE_DB_NameTypeArray.create('firstname','lastname'),'description','',true,false,false,dt_description);
+      //AddConstString('_funcclassname_','TFRE_DB_TEST_B');
+      //AddConstString('_childrenfunc_','CHILDRENDATA');
+      //AddConstString('children','UNCHECKED');
+    end;
+
 
     DC_Grid_Long := session.NewDerivedCollection('COLL_TEST_B_DERIVED');
     with DC_Grid_Long do begin
@@ -1635,7 +1648,8 @@ begin
     DC_Tree := session.NewDerivedCollection('COLL_TEST_B_DERIVED_TREE');
     with DC_Tree do begin
       SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_B'));
-      SetDisplayType(cdt_Treeview,[cdgf_ShowSearchbox],'Tree',TFRE_DB_StringArray.create('firstname'),'icon',nil,nil,nil);//CSF('TreeMenu'));
+      SetDeriveTransformation(tr_Tree);
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox],'Tree',TFRE_DB_StringArray.create('firstname'),'icon',nil,nil,nil);//CSF('TreeMenu'));
     end;
   end;
 end;
@@ -1645,9 +1659,9 @@ var
   coll  : IFRE_DB_DERIVED_COLLECTION;
   list  : TFRE_DB_VIEW_LIST_DESC;
 begin
-  coll := GetSession(input).FetchDerivedCollection('COLL_TEST_B_DERIVED');
+  coll := ses.FetchDerivedCollection('COLL_TEST_B_DERIVED');
   list := coll.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  list.addFilterEvent(GetSession(input).FetchDerivedCollection('COLL_TEST_B_DERIVED_TREE').getDescriptionStoreId,'uid');
+  //list.addFilterEvent(GetSession(input).FetchDerivedCollection('COLL_TEST_B_DERIVED_TREE').getDescriptionStoreId,'uid');
 
   Result := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(list,TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(GetSession(input).FetchDerivedCollection('COLL_TEST_B_DERIVED_TREE').GetDisplayDescription,nil));
 end;
