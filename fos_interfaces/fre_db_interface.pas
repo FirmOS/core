@@ -623,8 +623,9 @@ type
   TFRE_DB_Guid_Iterator                 = procedure (const obj:TFRE_DB_GUID) is nested;
 
   TFRE_DB_ObjectEx                      = class;
-  TFRE_DB_OBJECTCLASSEX                 = class of TFRE_DB_ObjectEx;
+  TFRE_DB_ObjectClassEx                 = class of TFRE_DB_ObjectEx;
   TFRE_DB_BaseClass                     = class of TFRE_DB_Base;
+  TFRE_DB_ObjectClassExArray            = Array of TFRE_DB_ObjectClassEx;
 
 
   TFRE_DB_FIELD_EXPRESSION              = function(const field:IFRE_DB_Field):boolean is nested;
@@ -1350,6 +1351,7 @@ type
     property  Explanation:TFRE_DB_String read GetExplanation write SetExplanation;
   end;
 
+  IFRE_DB_SCHEMEOBJECTArray = array of IFRE_DB_SCHEMEOBJECT;
 
   TFRE_DB_TRANSACTION_TYPE=(dbt_Implicit_RD,dbt_Implicit_WR,dbt_OLTP_RD,dbt_OLTP_WR,dbt_OLAP_RD);
 
@@ -2629,7 +2631,8 @@ end;
     function    GetSystemScheme                 (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
     function    GetSystemEnum                   (const name:TFRE_DB_NameType ; out enum : IFRE_DB_Enum):boolean;
     function    GetSystemClientFieldValidator   (const name:TFRE_DB_NameType ; out clf  : IFRE_DB_ClientFieldValidator):boolean;
-
+    function    GetClassesDerivedFrom           (const SchemeClass : ShortString) : TFRE_DB_ObjectClassExArray;
+    function    GetSchemesDerivedFrom           (const SchemeClass : ShortString) : IFRE_DB_SCHEMEOBJECTArray;
 
     function    NewObjectIntf          (const InterfaceSpec:ShortString;out Intf;const mediator : TFRE_DB_ObjectEx=nil;const fail_on_non_existent:boolean=true) : Boolean;
     function    NewObject              : IFRE_DB_Object;
@@ -2659,7 +2662,6 @@ end;
     function    CreateText             (const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):IFRE_DB_TEXT;
 
     function    JSONObject2Object      (const json_string:string):IFRE_DB_Object;
-
 
     procedure   RegisterObjectClassEx   (const ExtensionObject : TFRE_DB_OBJECTCLASSEX);
     procedure   Initialize_Extension_Objects;

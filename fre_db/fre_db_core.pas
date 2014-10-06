@@ -2470,11 +2470,13 @@ type
     function    GetSystemEnum                 (const name:TFRE_DB_NameType ; out enum : IFRE_DB_Enum):boolean;
     function    GetSystemClientFieldValidator (const name:TFRE_DB_NameType ; out clf  : IFRE_DB_ClientFieldValidator):boolean;
 
-
-    procedure   ForAllSchemes                (const iterator:TFRE_DB_Scheme_Iterator)                                 ;
-    procedure   ForAllEnums                  (const iterator:TFRE_DB_Enum_Iterator)                                   ;
-    procedure   ForAllClientFieldValidators  (const iterator:TFRE_DB_ClientFieldValidator_Iterator)                   ;
+    function    GetClassesDerivedFrom        (const SchemeClass : ShortString)                        : TFRE_DB_ObjectClassExArray;
+    function    GetSchemesDerivedFrom        (const SchemeClass : ShortString)                        : IFRE_DB_SCHEMEOBJECTArray;
+    procedure   ForAllSchemes                (const iterator:TFRE_DB_Scheme_Iterator)                 ;
+    procedure   ForAllEnums                  (const iterator:TFRE_DB_Enum_Iterator)                   ;
+    procedure   ForAllClientFieldValidators  (const iterator:TFRE_DB_ClientFieldValidator_Iterator)   ;
     procedure   ForAllApps                   (const iterator:TFRE_DB_Apps_Iterator)                   ;
+
 
     procedure   LogDebugIf             (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
     procedure   LogInfoIf              (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
@@ -12945,6 +12947,41 @@ begin
     clf := oval
   else
     clf := nil;
+end;
+
+function TFRE_DB.GetClassesDerivedFrom(const SchemeClass: ShortString): TFRE_DB_ObjectClassExArray;
+var  i,c : NativeInt;
+     ocl : TFRE_DB_ObjectClassEx;
+begin
+  SetLength(result,Length(FSysSchemes));
+  c:=0;
+  for i := 0 to high(FSysSchemes) do
+    begin
+      if FSysSchemes[i].IsA(SchemeClass) then
+        if FSysSchemes[i].FHardCodeClassTyp.InheritsFrom(TFRE_DB_ObjectEx) then
+          begin
+            result[c] := TFRE_DB_ObjectClassEx(FSysSchemes[i].FHardCodeClassTyp);
+            inc(c);
+          end;
+    end;
+  SetLength(result,c);
+end;
+
+function TFRE_DB.GetSchemesDerivedFrom(const SchemeClass: ShortString): IFRE_DB_SCHEMEOBJECTArray;
+var  i,c : NativeInt;
+     ocl : TFRE_DB_ObjectClassEx;
+begin
+  SetLength(result,Length(FSysSchemes));
+  c:=0;
+  for i := 0 to high(FSysSchemes) do
+    begin
+      if FSysSchemes[i].IsA(SchemeClass) then
+        begin
+          result[c] := FSysSchemes[i];
+          inc(c);
+        end;
+    end;
+  SetLength(result,c);
 end;
 
 procedure TFRE_DB.ForAllSchemes(const iterator: TFRE_DB_Scheme_Iterator);
