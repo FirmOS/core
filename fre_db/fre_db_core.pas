@@ -1868,9 +1868,6 @@ type
     function           UpcastDBC                    : TFRE_DB_Connection;
     function           UpcastSYS                    : TFRE_DB_SYSTEM_CONNECTION;
 
-    function           GetLastError                 : TFRE_DB_String;
-    function           GetLastErrorcode             : TFRE_DB_Errortype;
-
     function           GetCurrentUserTokenClone     : IFRE_DB_USER_RIGHT_TOKEN;virtual;abstract;
     function           GetCurrentUserTokenRef       : IFRE_DB_USER_RIGHT_TOKEN;virtual;abstract;
     function           GetMyDomainID                : TFRE_DB_GUID; virtual;abstract;
@@ -9242,13 +9239,21 @@ end;
 
 
 function TFRE_DB_COLLECTION.Remove(const ouid: TFRE_DB_GUID): TFRE_DB_Errortype;
-var ncolls : TFRE_DB_StringArray;
 begin //nl
   try
     FCollConnection.FPersistance_Layer.DeleteObject(ouid,CollectionName(true));
     exit(edb_OK);
   except
-    result := FCollConnection.FPersistance_Layer.GetLastErrorCode;
+    on E:EFRE_DB_Exception do
+      begin
+        result.Code := E.ErrorType;
+        result.Msg  := E.Message;
+      end;
+    on E:Exception do
+      begin
+        result.Code := edb_ERROR;
+        result.Msg  := e.Message;
+      end;
   end;
 end;
 
@@ -10749,7 +10754,18 @@ begin
   try
     FPersistance_Layer.CollectionDeleteCollection(name);
   except
-    exit(FPersistance_Layer.GetLastErrorCode);
+    on E:EFRE_DB_Exception do
+      begin
+        result.Code := E.ErrorType;
+        result.Msg  := E.Message;
+        exit;
+      end;
+    on E:Exception do
+      begin
+        result.Code := edb_ERROR;
+        result.Msg  := e.Message;
+        exit;
+      end;
   end;
   FCollectionStore.Delete(c_name,lcollection);
   lcollection.Free;
@@ -10791,7 +10807,16 @@ begin
     else
       result:=edb_ACCESS;
   except
-    result     := FPersistance_Layer.GetLastErrorCode;
+    on E:EFRE_DB_Exception do
+      begin
+        result.Code := E.ErrorType;
+        result.Msg  := E.Message;
+      end;
+    on E:Exception do
+      begin
+        result.Code := edb_ERROR;
+        result.Msg  := e.Message;
+      end;
   end;
 end;
 
@@ -10820,16 +10845,6 @@ begin
   if self is TFRE_DB_CONNECTION then
     exit(TFRE_DB_SYSTEM_CONNECTION(TFRE_DB_CONNECTION(self)));
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'Upcast SYS failed basecass : '+self.ClassName);
-end;
-
-function TFRE_DB_BASE_CONNECTION.GetLastError: TFRE_DB_String;
-begin
-  result := FPersistance_Layer.GetLastError;
-end;
-
-function TFRE_DB_BASE_CONNECTION.GetLastErrorcode: TFRE_DB_Errortype;
-begin
- result := FPersistance_Layer.GetLastErrorCode;
 end;
 
 function TFRE_DB_BASE_CONNECTION.GetMyDomainID_String: TFRE_DB_GUID_String;
@@ -10866,7 +10881,16 @@ begin
       exit(CheckAccessRightAndCondFinalize(dbo,sr_FETCH,without_right_check));
     exit(edb_NOT_FOUND);
   except
-    result := FPersistance_Layer.GetLastErrorCode;
+    on E:EFRE_DB_Exception do
+      begin
+        result.Code := E.ErrorType;
+        result.Msg  := E.Message;
+      end;
+    on E:Exception do
+      begin
+        result.Code := edb_ERROR;
+        result.Msg  := e.Message;
+      end;
   end;
 end;
 
@@ -10875,7 +10899,16 @@ begin
   try
     result := FPersistance_Layer.BulkFetch(uids,dbos);
   except
-    result := FPersistance_Layer.GetLastErrorCode;
+    on E:EFRE_DB_Exception do
+      begin
+        result.Code := E.ErrorType;
+        result.Msg  := E.Message;
+      end;
+    on E:Exception do
+      begin
+        result.Code := edb_ERROR;
+        result.Msg  := e.Message;
+      end;
   end;
 end;
 
@@ -10901,7 +10934,16 @@ begin
         SetLength(dbos,cnt);
       end;
   except
-    result := FPersistance_Layer.GetLastErrorCode;
+    on E:EFRE_DB_Exception do
+      begin
+        result.Code := E.ErrorType;
+        result.Msg  := E.Message;
+      end;
+    on E:Exception do
+      begin
+        result.Code := edb_ERROR;
+        result.Msg  := e.Message;
+      end;
   end;
 end;
 
@@ -10962,7 +11004,16 @@ begin
     FPersistance_Layer.StoreOrUpdateObject(dbo,collection_name,false);
     result := edb_OK;
   except
-    exit(FPersistance_Layer.GetLastErrorCode);
+    on E:EFRE_DB_Exception do
+      begin
+        result.Code := E.ErrorType;
+        result.Msg  := E.Message;
+      end;
+    on E:Exception do
+      begin
+        result.Code := edb_ERROR;
+        result.Msg  := e.Message;
+      end;
   end;
 end;
 

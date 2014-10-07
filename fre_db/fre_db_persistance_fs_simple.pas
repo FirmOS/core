@@ -74,8 +74,6 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      FDontFinalizeNotif    : Boolean;
      FConnectedLayers      : Array of TFRE_DB_PS_FILE;
      FConnectedDB          : TFRE_DB_String;
-     FLastError            : TFRE_DB_String;
-     FLastErrorCode        : TFRE_DB_Errortype;
      FChangeNotificationIF : IFRE_DB_DBChangedNotification;
 
      procedure    _ConnectCheck                ;
@@ -116,8 +114,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    _FetchO                       (const ouid:TFRE_DB_GUID ; out dbo:TFRE_DB_Object ; const internal_object:boolean): boolean;
      procedure   MustNotBeGlobalLayerCheck     ;
      procedure   MustBeGlobalLayer             ;
-     function    LayerLock                           : IFOS_LOCK;
-     function    GetConnectedDB                : TFRE_DB_NameType;
+     function    LayerLock                          : IFOS_LOCK;
+     function    GetConnectedDB                     : TFRE_DB_NameType;
 
    public
      constructor InternalCreate                     (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
@@ -153,8 +151,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      // Transactional Operations Done
 
      procedure   SyncSnapshot                        ;
-     function    GetLastError                        : TFRE_DB_String;
-     function    GetLastErrorCode                    : TFRE_DB_Errortype;
+     //function    GetLastError                        : TFRE_DB_String;
+     //function    GetLastErrorCode                    : TFRE_DB_Errortype;
      function    GetNotificationRecordIF             : IFRE_DB_DBChangedNotification;
 
      { Collection Interface }
@@ -378,7 +376,12 @@ end;
 function TFRE_DB_PS_FILE.CollectionExistCollection(const coll_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): Boolean;
 var dummy : TFRE_DB_PERSISTANCE_COLLECTION;
 begin
-  result := FMaster.MasterColls.GetCollection(coll_name,dummy);
+  LayerLock.Acquire;
+  try
+    result := FMaster.MasterColls.GetCollection(coll_name,dummy);
+  finally
+     LayerLock.Release;
+  end;
 end;
 
 
@@ -736,27 +739,19 @@ begin
         if ImplicitTransaction then
           G_Transaction.Commit;
         result         := step.GetTransActionStepID;
-        FLastErrorCode := edb_OK;
-        FLastError     := '';
       except
         on e:EFRE_DB_PL_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
             raise;
           end;
         on e:EFRE_DB_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
             raise;
           end;
         on e:Exception do
           begin
-            FLastErrorCode := edb_INTERNAL;
-            FLastError     := E.Message;
             GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['NewCollection',e.Message]);
             raise;
           end;
@@ -792,27 +787,19 @@ begin
         if ImplicitTransaction then
           G_Transaction.Commit;
         result         := step.GetTransActionStepID;
-        FLastErrorCode := edb_OK;
-        FLastError     := '';
       except
         on e:EFRE_DB_PL_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
             raise;
           end;
         on e:EFRE_DB_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
             raise;
           end;
         on e:Exception do
           begin
-            FLastErrorCode := edb_INTERNAL;
-            FLastError     := E.Message;
             GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
             raise;
           end;
@@ -897,39 +884,29 @@ begin
       if _FetchO(ouid,dboo,false) then
         begin
           dbo := dboo;
-          FLastErrorCode := edb_OK;
-          FLastError     := '';
           exit(edb_OK);
         end
       else
         begin
           dbo            := nil;
-          FLastErrorCode := edb_NOT_FOUND;
-          FLastError     := '';
           exit(edb_NOT_FOUND);
         end;
     except
       on e:EFRE_DB_PL_Exception do
         begin
           dbo := nil;
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           dbo := nil;
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           dbo := nil;
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Fetch',e.Message]);
           raise;
         end;
@@ -960,8 +937,6 @@ begin
           SetLength(objects,Length(dboa));
           for i := 0 to high(objects) do
             objects[i] := dboa[i];
-          FLastErrorCode := edb_OK;
-          FLastError     := '';
           exit(edb_OK);
         end
       else
@@ -973,32 +948,24 @@ begin
             on e:exception do
               GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/PL EXCEPTION BULKFETCHFAIL/FREE EXCEPTION :  %s',['Fetch',e.Message]);
           end;
-          FLastErrorCode := edb_NOT_FOUND;
-          FLastError     := '';
           exit(edb_NOT_FOUND);
         end;
     except
       on e:EFRE_DB_PL_Exception do
         begin
           objects := nil;
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['BulkFetch',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
           objects := nil;
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['BulkFetch',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
           objects := nil;
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['BulkFetch',e.Message]);
           raise;
         end;
@@ -1151,22 +1118,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DeleteCollection',e.Message]);
           raise;
         end;
@@ -1230,27 +1191,19 @@ begin
           result := step.GetTransActionStepID;
           if ImplicitTransaction then
             Commit;
-          FLastErrorCode := edb_OK;
-          FLastError     := '';
       except
         on e:EFRE_DB_PL_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
             raise;
           end;
         on e:EFRE_DB_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
             raise;
           end;
         on e:Exception do
           begin
-            FLastErrorCode := edb_INTERNAL;
-            FLastError     := E.Message;
             GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DeleteObject',e.Message]);
             raise;
           end;
@@ -1310,8 +1263,6 @@ begin
             result := G_Transaction.GetTransLastStepTransId;
             if ImplicitTransaction then
               G_Transaction.Commit;
-            FLastErrorCode := edb_OK;
-            FLastError     := '';
           end
         else
           begin { update }
@@ -1348,28 +1299,20 @@ begin
               changes := Commit;
             if not changes then
               result := '';
-            FLastErrorCode := edb_OK;
-            FLastError     := '';
           end;
       except
         on e:EFRE_DB_PL_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
             raise;
           end;
         on e:EFRE_DB_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
             raise;
           end;
         on e:Exception do
           begin
-            FLastErrorCode := edb_INTERNAL;
-            FLastError     := E.Message;
             GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
             raise;
           end;
@@ -1405,27 +1348,19 @@ begin
         if ImplicitTransaction then
           G_Transaction.Commit;
         result     := step.GetTransActionStepID;
-        FLastErrorCode := edb_OK;
-        FLastError     := '';
       except
         on e:EFRE_DB_PL_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
             raise;
           end;
         on e:EFRE_DB_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
             raise;
           end;
         on e:Exception do
           begin
-            FLastErrorCode := edb_INTERNAL;
-            FLastError     := E.Message;
             GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
             raise;
           end;
@@ -1456,22 +1391,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
@@ -1500,27 +1429,19 @@ begin
         if ImplicitTransaction then
           G_Transaction.Commit;
         result         := step.GetTransActionStepID;
-        FLastErrorCode := edb_OK;
-        FLastError     := '';
       except
         on e:EFRE_DB_PL_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
             raise;
           end;
         on e:EFRE_DB_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
             raise;
           end;
         on e:Exception do
           begin
-            FLastErrorCode := edb_INTERNAL;
-            FLastError     := E.Message;
             GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['DefineIndexOnField',e.Message]);
             raise;
           end;
@@ -1551,22 +1472,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
@@ -1585,27 +1500,19 @@ begin
        exit(edb_EXISTS);
       G_Transaction := TFRE_DB_TransactionalUpdateList.Create(id,FMaster,FChangeNotificationIF);
       result := edb_OK;
-      FLastErrorCode := edb_OK;
-      FLastError     := '';
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Starttransaction',e.Message]);
           raise;
         end;
@@ -1622,30 +1529,19 @@ begin
     try
       try
         result := G_Transaction.Commit;
-        if result then
-         begin
-           FLastErrorCode := edb_OK;
-           FLastError     := '';
-         end;
       except
         on e:EFRE_DB_PL_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
             raise;
           end;
         on e:EFRE_DB_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
             raise;
           end;
         on e:Exception do
           begin
-            FLastErrorCode := edb_INTERNAL;
-            FLastError     := E.Message;
             GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Commit',e.Message]);
             raise;
           end;
@@ -1666,27 +1562,19 @@ begin
     try
       try
         G_Transaction.Rollback;
-        FLastErrorCode := edb_OK;
-        FLastError     := '';
       except
         on e:EFRE_DB_PL_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
             raise;
           end;
         on e:EFRE_DB_Exception do
           begin
-            FLastErrorCode := E.ErrorType;
-            FLastError     := E.Message;
             GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
             raise;
           end;
         on e:Exception do
           begin
-            FLastErrorCode := edb_INTERNAL;
-            FLastError     := E.Message;
             GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['Rollback',e.Message]);
             raise;
           end;
@@ -1713,16 +1601,6 @@ begin
     begin
       _SyncDBInternal;
     end;
-end;
-
-function TFRE_DB_PS_FILE.GetLastError: TFRE_DB_String;
-begin
-  result := FLastError;
-end;
-
-function TFRE_DB_PS_FILE.GetLastErrorCode: TFRE_DB_Errortype;
-begin
-  result := FLastErrorCode;
 end;
 
 function TFRE_DB_PS_FILE.GetNotificationRecordIF: IFRE_DB_DBChangedNotification;
@@ -1760,22 +1638,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionExistsInCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionExistsInCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionExistsInCollection',e.Message]);
           raise;
         end;
@@ -1812,22 +1684,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionFetchInCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionFetchInCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionFetchInCollection',e.Message]);
           raise;
         end;
@@ -1842,7 +1708,6 @@ var collection : TFRE_DB_PERSISTANCE_COLLECTION;
     res        : boolean;
 
 begin
-
   LayerLock.Acquire;
   try
     try
@@ -1853,22 +1718,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetch',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetch',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetch',e.Message]);
           raise;
         end;
@@ -1892,22 +1751,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetchUIDS',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetchUIDS',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionBulkFetchUIDS',e.Message]);
           raise;
         end;
@@ -1956,22 +1809,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionClearCollection',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionClearCollection',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionClearCollection',e.Message]);
           raise;
         end;
@@ -1995,22 +1842,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionIndexExists',e.Message]);
           raise;
         end;
@@ -2034,22 +1875,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedValueCount',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedValueCount',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedValueCount',e.Message]);
           raise;
         end;
@@ -2073,22 +1908,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsFieldval',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsFieldval',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsFieldval',e.Message]);
           raise;
         end;
@@ -2112,22 +1941,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedUidsFieldval',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedUidsFieldval',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedUidsFieldval',e.Message]);
           raise;
         end;
@@ -2155,22 +1978,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionRemoveIndexedUidsFieldval',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionRemoveIndexedUidsFieldval',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionRemoveIndexedUidsFieldval',e.Message]);
           raise;
         end;
@@ -2194,22 +2011,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsRange',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsRange',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetIndexedObjsRange',e.Message]);
           raise;
         end;
@@ -2234,22 +2045,16 @@ begin
     except
       on e:EFRE_DB_PL_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetFirstLastIdxCnt',e.Message]);
           raise;
         end;
       on e:EFRE_DB_Exception do
         begin
-          FLastErrorCode := E.ErrorType;
-          FLastError     := E.Message;
           GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetFirstLastIdxCnt',e.Message]);
           raise;
         end;
       on e:Exception do
         begin
-          FLastErrorCode := edb_INTERNAL;
-          FLastError     := E.Message;
           GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['CollectionGetFirstLastIdxCnt',e.Message]);
           raise;
         end;
@@ -2285,8 +2090,8 @@ begin
   try
     if db_name='' then
       begin
-        FLastErrorCode :=edb_INVALID_PARAMS;
-        exit(FLastErrorCode);
+        result.Code := edb_INVALID_PARAMS;
+        result.Msg  := 'dbname is empty';
       end;
     up_dbname := uppercase(db_name);
     if (up_dbname<>'SYSTEM')
@@ -2315,8 +2120,6 @@ begin
         db_layer       := dblayer_o;
         UpdateNotifyIF;
         result         := edb_OK;
-        FLastErrorCode := edb_OK;
-        FLastError     := '';
       end
     else
       begin
@@ -2350,8 +2153,6 @@ begin
     for i:=0 to result.Count-1 do begin
       result[i] := UnEsacpeDBName(result[i]);
     end;
-    FLastErrorCode := edb_OK;
-    FLastError     := '';
   finally
     LayerLock.Release;
   end;
@@ -2363,8 +2164,6 @@ begin
   try
     _SetupDirs(dbname);
     result :=DirectoryExists(FLocalConnDir);
-    FLastErrorCode := edb_OK;
-    FLastError     := '';
   finally
     LayerLock.Release;
   end;
@@ -2376,49 +2175,32 @@ begin
   try
     if dbname = '' then
       begin
-        FLastErrorCode := edb_NOT_FOUND;
-        exit(FLastErrorCode);
+        Result.Code:=edb_INVALID_PARAMS;
+        result.Msg:='dbname is empty';
+        exit;
       end;
     if UpperCase(dbname)='GLOBAL' then
       begin
-        FLastErrorCode := edb_RESERVED;
-        exit(FLastErrorCode);
+        Result.Code:=edb_RESERVED;
+        result.Msg:='GLOBAL is a reserved name';
+        exit;
       end;
     _SetupDirs(dbname);
-    FLastError := 'database '+dbname+'already exists';
-    if DirectoryExists(FLocalConnDir)   then
-      begin
-        FLastErrorCode:=edb_EXISTS;
-        exit(FLastErrorCode);
-      end;
-    if not ForceDirectories(FLocalConnDir) then
-      begin
-        FLastErrorCode:=edb_EXISTS;
-        exit(FLastErrorCode);
-      end;
-    if not ForceDirectories(FMasterCollDir) then
-      begin
-        FLastErrorCode:=edb_EXISTS;
-        exit(FLastErrorCode);
-      end;
-    if not ForceDirectories(FCollectionsDir) then
-      begin
-        FLastErrorCode:=edb_EXISTS;
-        exit(FLastErrorCode);
-      end;
-    if not ForceDirectories(FMetaDir) then
-      begin
-        FLastErrorCode:=edb_EXISTS;
-        exit(FLastErrorCode);
-      end;
-    if not ForceDirectories(FWalDir) then
-      begin
-        FLastErrorCode:=edb_EXISTS;
-        exit(FLastErrorCode);
-      end;
+    result.Msg  := 'database '+dbname+'already exists';
+    result.Code := edb_EXISTS;
+    if DirectoryExists(FLocalConnDir) then
+      exit;
+    if not (ForceDirectories(FLocalConnDir)) then
+      exit;
+    if not (ForceDirectories(FMasterCollDir)) then
+      exit;
+    if not (ForceDirectories(FCollectionsDir)) then
+      exit;
+    if not (ForceDirectories(FMetaDir)) then
+      exit;
+    if not (ForceDirectories(FWalDir)) then
+      exit;
     result     := edb_OK;
-    FLastErrorCode := edb_OK;
-    FLastError     := '';
   finally
     LayerLock.Release;
   end;
@@ -2430,28 +2212,26 @@ var dir: TFRE_DB_String;
 begin
   LayerLock.Acquire;
   try
-    FLastError:='';
     if dbname='' then
       begin
-        FLastErrorCode:=edb_INVALID_PARAMS;
-        exit(FLastErrorCode);
+        result.Code  := edb_INVALID_PARAMS;
+        result.Msg   := 'dbname is empty';
       end;
     if UpperCase(dbname)='GLOBAL' then
       begin
-        FLastErrorCode:=edb_RESERVED;
-        exit(FLastErrorCode);
+        result.Code  := edb_RESERVED;
+        result.Msg   := 'GLOBAL is reserved';
       end;
     dir := SetDirSeparators(FBasedirectory+'/'+EscapeDBName(dbname));
     if not DirectoryExists(dir) then
       begin
-        FLastErrorCode:=edb_NOT_FOUND;
-        exit(FLastErrorCode);
+        result.Code := edb_NOT_FOUND;
+        result.Msg  := 'the db named ['+dbname+'] is not found';
+        exit;
       end;
     if GFRE_BT.Delete_Directory(dir) then begin
       begin
         result         := edb_OK;
-        FLastErrorCode := edb_OK;
-        FLastError     := '';
         for i:=0 to high(FConnectedLayers) do
           begin
             if uppercase(FConnectedLayers[i].FConnectedDB)=uppercase(dbname) then;
@@ -2459,8 +2239,8 @@ begin
           end;
       end;
     end else begin
-      FLastErrorCode:=edb_ERROR;
-      exit(FLastErrorCode);
+      result.SetIt(edb_ERROR,'could not delete the db named ['+dbname+']');
+      exit;
     end;
   finally
     LayerLock.Release;
@@ -2472,8 +2252,6 @@ begin
   LayerLock.Acquire;
   try
     result := FMaster.GetReferencesRC(obj_uid,from,scheme_prefix_filter,field_exact_filter,user_context,false);
-    FLastErrorCode := edb_OK;
-    FLastError     := '';
   finally
     LayerLock.Release;
   end;
@@ -2484,8 +2262,6 @@ begin
   LayerLock.Acquire;
   try
     result := FMaster.GetReferencesCountRC(obj_uid,from,scheme_prefix_filter,field_exact_filter,user_context);
-    FLastErrorCode := edb_OK;
-    FLastError     := '';
   finally
     LayerLock.Release;
   end;
@@ -2496,8 +2272,6 @@ begin
   LayerLock.Acquire;
   try
     result := FMaster.GetReferencesDetailedRC(obj_uid,from,scheme_prefix_filter,field_exact_filter,user_context);
-    FLastErrorCode := edb_OK;
-    FLastError     := '';
   finally
     LayerLock.Release;
   end;
@@ -2508,8 +2282,6 @@ begin
   LayerLock.Acquire;
   try
     result := FMaster.ExistsObject(obj_uid);
-    FLastErrorCode := edb_OK;
-    FLastError     := '';
   finally
     LayerLock.Release;
   end;

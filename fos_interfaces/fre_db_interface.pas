@@ -115,9 +115,12 @@ type
   TFRE_DB_STANDARD_COLL       = (coll_NONE,coll_USER,coll_GROUP,coll_DOMAIN,coll_WFACTION);
 
 
+  { TFRE_DB_Errortype }
+
   TFRE_DB_Errortype           = record
     Code : TFRE_DB_Errortype_EC;
     Msg  : ShortString;
+    procedure SetIt(const ecode : TFRE_DB_Errortype_EC ; const message : shortstring);
   end;
 
   EFRE_DB_Exception=class(EFRE_Exception)
@@ -1413,8 +1416,8 @@ type
     function  INT_Fetch                     (const ouid    :  TFRE_DB_GUID  ; out   dbo:IFRE_DB_Object):boolean;
 
     function  GetConnectedDB                : TFRE_DB_NameType;
-    function  GetLastError                  : TFRE_DB_String;
-    function  GetLastErrorCode              : TFRE_DB_Errortype;
+    //function  GetLastError                  : TFRE_DB_String;
+    //function  GetLastErrorCode              : TFRE_DB_Errortype;
 
     function  Connect                       (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
     function  Disconnect                    : TFRE_DB_Errortype;
@@ -1528,7 +1531,6 @@ type
     procedure   BindUserSession               (const session : IFRE_DB_Usersession);
     procedure   ClearUserSessionBinding       ;
 
-    function    GetlastError                  : TFRE_DB_String;
     function    GetDatabaseName               : TFRE_DB_String;
     function    Connect                       (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
     function    CheckLogin                    (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
@@ -4199,6 +4201,14 @@ type
 
 const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
+
+{ TFRE_DB_Errortype }
+
+procedure TFRE_DB_Errortype.SetIt(const ecode: TFRE_DB_Errortype_EC; const message: shortstring);
+begin
+  Code := ecode;
+  msg  := message;
+end;
 
 
 { TFRE_DB_QUERY_DEF }

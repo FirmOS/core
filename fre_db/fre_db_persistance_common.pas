@@ -478,10 +478,11 @@ type
     procedure      InternalWriteObject         (const m : TMemoryStream;const obj : TFRE_DB_Object);
     procedure      InternalReadObject          (const m : TStream ; var obj : TFRE_DB_Object);
   protected
-    procedure      CheckWriteThroughColl       (Coll : TFRE_DB_PERSISTANCE_COLLECTION_BASE);
+    procedure      CheckWriteThroughIndexDrop  (Coll     : TFRE_DB_PERSISTANCE_COLLECTION_BASE ; const index : TFRE_DB_NameType);
+    procedure      CheckWriteThroughColl       (Coll     : TFRE_DB_PERSISTANCE_COLLECTION_BASE);
     procedure      CheckWriteThroughDeleteColl (Collname : TFRE_DB_NameType);
-    procedure      CheckWriteThroughObj        (obj: IFRE_DB_Object);
-    procedure      CheckWriteThroughDeleteObj  (obj  : IFRE_DB_Object);
+    procedure      CheckWriteThroughObj        (obj      : IFRE_DB_Object);
+    procedure      CheckWriteThroughDeleteObj  (obj      : IFRE_DB_Object);
   public
     constructor    Create                      (const layer : IFRE_DB_PERSISTANCE_LAYER ; const masterdata : TFRE_DB_Master_Data ; const user_context : PFRE_DB_GUID);
     function       IsInsert                    : Boolean;
@@ -806,7 +807,7 @@ begin
   if not check then
     begin
       FLayer.GetNotificationRecordIF.IndexDroppedOnField(FCollname,FIndexName,GetTransActionStepID);
-      CheckWriteThroughColl(FCollection);
+      CheckWriteThroughIndexDrop(FCollection,FIndexName);
     end;
 end;
 
@@ -2052,6 +2053,11 @@ begin
    end;
 end;
 
+procedure TFRE_DB_ChangeStep.CheckWriteThroughIndexDrop(Coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE; const index: TFRE_DB_NameType);
+begin
+  CheckWriteThroughColl(coll);
+end;
+
 procedure TFRE_DB_ChangeStep.CheckWriteThroughColl(Coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE);
 var layer : IFRE_DB_PERSISTANCE_LAYER;
 begin
@@ -2449,45 +2455,6 @@ begin
       raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'must have internal collections to store into');
   InternallApplyChanges(check);
 end;
-
-{ TFRE_DB_DeleteSubObjectStep }
-
-//constructor TFRE_DB_DeleteSubObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const del_obj: TFRE_DB_Object; const from_coll: TFRE_DB_NameType; const is_store: boolean; const user_context: PFRE_DB_GUID);
-//begin
-//  inherited Create(layer,masterdata,del_obj,from_coll,is_store,user_context);
-//end;
-
-//procedure TFRE_DB_DeleteSubObjectStep.ChangeInCollectionCheckOrDo(const check: boolean);
-//var arr : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
-//      i : NativeInt;
-//begin
-//  assert(IsInsert=false);
-//  if check then
-//    exit;
-//  if FDelObj.IsObjectRoot then // TDOD -> CHECK, make it working
-//    begin
-//      arr := FDelObj.__InternalGetCollectionList;
-//      for i := 0 to high(arr) do
-//        begin
-//          arr[i].GetPersLayerIntf.DeleteFromThisColl(FDelObj,check);
-//          CheckWriteThroughColl(arr[i]);
-//        end;
-//    end;
-//end;
-//
-//procedure TFRE_DB_DeleteSubObjectStep.MasterStore(const check: boolean);
-//begin
-//  assert(IsInsert=false);
-//  if not check then
-//    begin
-//      //FDelObj.Pa Assert_CheckStoreLocked;
-//      try
-//        GetNotificationRecordIF.SubObjectDeleted(FDelObj,FDelObj.ParentField.FieldName,FDelObj.Parent.GetUIDPathUA,GetTransActionStepID); { Notify before delete }
-//      finally
-//      end;
-//    end;
-//  master.DeleteObject(FDelObj.UID,check,GetNotificationRecordIF,GetTransActionStepID);
-//end;
 
 { TFRE_DB_TransactionalUpdateList }
 

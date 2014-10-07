@@ -176,7 +176,7 @@ begin
   GNET.SetConnectionDetails(host,ip,port,cFRE_PS_LAYER_UXSOCK_NAME);
   res := GNET.ConnectPLServer('GLOBAL',GLAY,nil);
   if res<>edb_OK then
-    raise EFRE_DB_Exception.Create(edb_ERROR,GLAY.GetLastError);
+    raise EFRE_DB_Exception.Create(edb_ERROR,res.Msg);
   result := GLAY;
 end;
 
