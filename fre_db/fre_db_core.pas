@@ -8538,6 +8538,8 @@ procedure TFRE_DB_SchemeObject.SetObjectFieldsWithScheme(const Raw_Object: TFRE_
       exit; // no uid updates
     if uppercase(field_name) = 'DOMAINID' then
       exit; // no uid updates
+    if uppercase(field_name) = 'SCHEMECLASS' then
+      exit; // no schemeclass updates
     if GetSchemeField(field_name,scheme_field_def) then begin
       raw_field_type     := field.FieldType;
       scheme_field_type  := scheme_field_def.FieldType;
