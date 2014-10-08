@@ -360,7 +360,7 @@ begin
       Result := TFRE_DB_MESSAGE_DESC.Create.Describe(app.FetchAppTextShort(ses,'login_faild_cap'),app.FetchAppTextShort(ses,'login_faild_suspended'),fdbmt_error);
       exit;
     end;
-  case ses.Promote(username,data.Field('pass').AsString,promotion_status,clear_session,false) of
+  case ses.Promote(username,data.Field('pass').AsString,promotion_status,clear_session,false,false,['WEBUSER']) of
     pr_OK:
       result := WEB_Content(input,ses,app,ses.GetDBConnection);
     pr_Failed:
@@ -449,7 +449,7 @@ begin
   if input.Field('confirmed').AsBoolean=true then
     begin
       GetSession(input,session,false);
-      case session.Promote('','',promotion_error,false,true) of
+      case session.Promote('','',promotion_error,false,true,false,['WEBUSER']) of
         pr_Takeover:
           begin
             result := GFRE_DB_SUPPRESS_SYNC_ANSWER; { This (guest) session is taken over, the Bound RAC is cleared, no answer will be issued, the new session sends a reload/update on the Bound RAC) }

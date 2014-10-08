@@ -730,9 +730,9 @@ type
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
-    function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
+    function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION ; const allowed_classes : TFRE_DB_StringArray):TFRE_DB_Errortype;
     function       GetDBWithServerRights                     (const dbname:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
-    function       CheckUserNamePW                           (username,pass:TFRE_DB_String) : TFRE_DB_Errortype;
+    function       CheckUserNamePW                           (username,pass:TFRE_DB_String ; const allowed_classes : TFRE_DB_StringArray) : TFRE_DB_Errortype;
     function       SendDelegatedContentToClient              (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
   end;
 
@@ -1534,7 +1534,6 @@ type
 
     function    GetDatabaseName               : TFRE_DB_String;
     function    Connect                       (const db,user,pass:TFRE_DB_String):TFRE_DB_Errortype;
-    function    CheckLogin                    (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
 
     function    CollectionExists              (const name:TFRE_DB_NameType):boolean;
 
@@ -1611,9 +1610,9 @@ type
     function    StoreClassesVersionDirectory(const version_dbo : IFRE_DB_Object) : TFRE_DB_Errortype;
     function    DelClassesVersionDirectory  : TFRE_DB_Errortype;
     function    Connect                     (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
-    function    CheckLogin                  (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
+    function    CheckLogin                  (const loginatdomain,pass:TFRE_DB_String;const allowed_classes : TFRE_DB_StringArray):TFRE_DB_Errortype;
 
-    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false;const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''):TFRE_DB_Errortype;
+    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false;const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String='' ; const userclass : TFRE_DB_STRING=''):TFRE_DB_Errortype;
     function    UserExists                  (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID):boolean;
     function    DeleteUser                  (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID):TFRE_DB_Errortype;
     function    DeleteUserById              (const user_id:TFRE_DB_GUID):TFRE_DB_Errortype;
@@ -2743,7 +2742,7 @@ end;
     function    GetDBConnection          :IFRE_DB_CONNECTION;
     function    LoggedIn                 : Boolean;
     procedure   Logout                   ;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false ; const allowed_user_classes: array of TFRE_DB_String) : TFRE_DB_PromoteResult; // Promote USER to another USER
 
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
@@ -2912,7 +2911,7 @@ end;
      procedure  CLS_ForceInvalidSessionReload (rac :IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean ; const allowed_user_classes : array of TFRE_DB_String) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
     procedure   COR_FinalizeTakeOver     (const data : Pointer); // In new session binding
     procedure   AutoPromote              (const NEW_RASC:IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const conn_desc:String);
@@ -6144,7 +6143,7 @@ type
      FClientDescription : String;
    end;
 
-function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_status: TFRE_DB_String; force_new_session_data: boolean; const session_takeover: boolean ; const auto_promote: boolean): TFRE_DB_PromoteResult;
+function TFRE_DB_UserSession.Promote(const user_name, password: TFRE_DB_String; var promotion_status: TFRE_DB_String; force_new_session_data: boolean; const session_takeover: boolean; const auto_promote: boolean ; const allowed_user_classes: array of TFRE_DB_String): TFRE_DB_PromoteResult;
 var err                : TFRE_DB_Errortype;
     l_NDBC             : IFRE_DB_CONNECTION;
     lStoredSessionData : IFRE_DB_Object;
@@ -6152,8 +6151,16 @@ var err                : TFRE_DB_Errortype;
     existing_session   : TFRE_DB_UserSession;
     app                : TFRE_DB_APPLICATION;
 
+    function ConvertAllowedUserArray : TFRE_DB_StringArray;
+    var i:NativeInt;
+    begin
+      SetLength(result,length(allowed_user_classes));
+      for i:=0 to high(allowed_user_classes) do
+        result[i] := uppercase(allowed_user_classes[i]);
+    end;
+
     procedure ReinitializeApps;
-    var i:integer;
+    var i:NativeInt;
     begin
       for i:=0 to high(FAppArray) do begin
         (FAppArray[i].Implementor_HC as TFRE_DB_APPLICATION).SessionPromotion(self);
@@ -6204,7 +6211,7 @@ begin
     GFRE_DBI.NetServ.ExistsUserSessionForUserLocked(user_name,existing_session);
     if assigned(existing_session) then begin
       try
-        err := GFRE_DBI.NetServ.CheckUserNamePW(user_name,password);
+        err := GFRE_DBI.NetServ.CheckUserNamePW(user_name,password,ConvertAllowedUserArray);
         case err.Code of
           edb_OK : begin
             if assigned(existing_session.FBoundSession_RA_SC) then
@@ -6236,7 +6243,7 @@ begin
       promres := TakeOver; { Auto Takeover dead web session }
       exit(promres);
     end else begin
-      err := GFRE_DBI.NetServ.GetImpersonatedDatabaseConnection(FDBConnection.GetDatabaseName,user_name,password,l_NDBC);
+      err := GFRE_DBI.NetServ.GetImpersonatedDatabaseConnection(FDBConnection.GetDatabaseName,user_name,password,l_NDBC,ConvertAllowedUserArray);
       case err.Code of
        edb_OK: begin
           FDBConnection.ClearUserSessionBinding;

@@ -63,7 +63,7 @@ type
     procedure   DoRun; override;
   public
     procedure   MyRunMethod;virtual;
-    constructor Create (TheOwner: TComponent;const client : TFRE_BASE_CLIENT);reintroduce;
+    constructor Create  (TheOwner: TComponent;const client : TFRE_BASE_CLIENT);reintroduce;
     procedure   WriteHelp; virtual;
     procedure   WriteVersion; virtual;
     procedure   TestMethod; virtual;

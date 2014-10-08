@@ -54,7 +54,7 @@ type
     FEED_Timer            : IFRE_APSC_TIMER;
     FFeeding              : Boolean;
     FFeedAppClass         : TFRE_DB_String;
-    FFeedAppUid           : TGUid;
+    FFeedAppUid           : TFRE_DB_GUid;
   public
     procedure  MySessionEstablished    (const chanman : IFRE_APSC_CHANNEL_MANAGER); override;
     procedure  MySessionDisconnected   (const chanman : IFRE_APSC_CHANNEL_MANAGER); override;

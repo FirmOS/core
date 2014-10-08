@@ -201,6 +201,7 @@ begin
               FChannel.Finalize;
               FChannel:=nil;
               try
+                writeln('SETUP FAIL',data.DumpToString());
                 MySessionSetupFailed(data.Field('LOGIN_TXT').AsString);
               except
               end;
@@ -383,8 +384,11 @@ begin
           sfc_NOT_CONNECTED:
             begin // Start a client
               subs.FConnectState:=sfc_TRYING;
-              if subs.FSpecfile<>'' then
-                GFRE_SC.AddClient_UX(subs.FSpecfile,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel)
+              if (subs.FSpecfile<>'') then
+                begin
+                  if FileExists(subs.FSpecfile) then
+                    GFRE_SC.AddClient_UX(subs.FSpecfile,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel)
+                end
               else
                 GFRE_SC.AddClient_TCP(subs.FIp,subs.FPort,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel);
             end;

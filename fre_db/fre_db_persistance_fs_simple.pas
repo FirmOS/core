@@ -119,6 +119,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
 
    public
      constructor InternalCreate                     (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
+
      constructor Create                             (const basedir:TFRE_DB_String);
      destructor  Destroy                            ; override;
      procedure   Finalize                           ;
@@ -151,8 +152,6 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      // Transactional Operations Done
 
      procedure   SyncSnapshot                        ;
-     //function    GetLastError                        : TFRE_DB_String;
-     //function    GetLastErrorCode                    : TFRE_DB_Errortype;
      function    GetNotificationRecordIF             : IFRE_DB_DBChangedNotification;
 
      { Collection Interface }
@@ -1106,7 +1105,7 @@ begin
           SetLength(domnames,domcnt);
           idx := 0;
           FSysDomains.ForAllInternalI(@IterateDomains);
-          tokeno := TFRE_DB_USER_RIGHT_TOKEN.Create(myuser.UID,myuser.Login,myUser.Firstname,myUser.Lastname,'',myuser.GetUserGroupIDS,_GetRightsArrayForUser(myUser),sys_admin,FSysDomain.UID,myuser.DomainID,domuids,domnames);
+          tokeno := TFRE_DB_USER_RIGHT_TOKEN.Create(myuser.UID,myuser.Login,myUser.Firstname,myUser.Lastname,'',myuser.Userclass,myuser.GetUserGroupIDS,_GetRightsArrayForUser(myUser),sys_admin,FSysDomain.UID,myuser.DomainID,domuids,domnames);
           G_UpdateUserToken(myuser.UID,tokeno);
           Result := tokeno.CloneToNewUserToken;
         finally

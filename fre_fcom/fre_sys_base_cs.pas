@@ -481,12 +481,16 @@ var myDataCount : NativeInt;
               else
                 begin
                   if cmd.Data.Field('USER').AsString<>'' then begin
-                    prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',true);
-                  end;
+                    prom_res:=FUserSession.Promote(cmd.Data.Field('USER').AsString,cmd.Data.Field('PASS').AsString,prom_err,true,sessid<>'NEW',true,['FEEDER','MIGHTYFEEDER']);
+                  end else
+                    begin
+                      prom_err := 'a username must be specified on login';
+                      prom_res := pr_Failed;
+                    end;
                   if (prom_res=pr_OK) or (prom_res=pr_Takeover) then
                     begin
                       try
-                        FMachineUIDs := FUserSession.FetchOrInitFeederMachines(cmd.Data.Field('MACHINENAME').AsStringArr);
+                        FMachineUIDs := FUserSession.FetchOrInitFeederMachines(cmd.Data.Field('MACHINENAME').AsStringArr); { in the unconfigured case the mac must be encoded in the machinename }
                       except
                         on e:Exception do
                           begin

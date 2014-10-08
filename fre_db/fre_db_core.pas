@@ -1162,41 +1162,44 @@ type
   TFRE_DB_USER=class(TFRE_DB_Object,IFRE_DB_USER)
   private
     //function  GetDomain              (const conn:IFRE_DB_CONNECTION): TFRE_DB_NameType;
-    function  GetDomainIDLink        : TFRE_DB_GUID;
-    function  GetLoginAtDomain       (conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_NameType;
-    function  GetFirstName           : TFRE_DB_String;
-    function  GetIsInternal          : Boolean;
-    function  GetLastName            : TFRE_DB_String;
-    function  GetLogin               : TFRE_DB_String;
-    procedure SetFirstName           (const AValue: TFRE_DB_String);
-    procedure SetGIDA                (AValue: TFRE_DB_ObjLinkArray);
-    procedure SetIsInternal          (AValue: Boolean);
-    procedure SetLastName            (const AValue: TFRE_DB_String);
-    procedure Setlogin               (const AValue: TFRE_DB_String);
-    procedure SetDomainIDLink        (AValue: TFRE_DB_GUID);
+    function  GetDomainIDLink                  :TFRE_DB_GUID;
+    function  GetLoginAtDomain                 (conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_NameType;
+    function  GetFirstName                     :TFRE_DB_String;
+    function  GetIsInternal                    :Boolean;
+    function  GetLastName                      :TFRE_DB_String;
+    function  GetLogin                         :TFRE_DB_String;
+    function  GetUserclass                     :TFRE_DB_String;
+    procedure SetFirstName                     (const AValue: TFRE_DB_String);
+    procedure SetGIDA                          (AValue: TFRE_DB_ObjLinkArray);
+    procedure SetIsInternal                    (AValue: Boolean);
+    procedure SetLastName                      (const AValue: TFRE_DB_String);
+    procedure Setlogin                         (const AValue: TFRE_DB_String);
+    procedure SetDomainIDLink                  (AValue: TFRE_DB_GUID);
+    procedure SetUserclass                     (AValue: TFRE_DB_String);
     procedure _UpdateDomainLoginKey;
   protected
-    procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
+    procedure _calcDisplayName                 (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
-    function  GetUserGroupIDS        : TFRE_DB_ObjLinkArray;
-    function  SubFormattedDisplayAvailable: boolean; override;
-    function  GetSubFormattedDisplay(indent: integer=4): TFRE_DB_String; override;
-    procedure SetImage           (const image_stream: TFRE_DB_Stream; const streamtype: string ; const etag : string);
-    procedure InitData           (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String;const userdomainid:TFRE_DB_GUID;const is_internal:Boolean;const long_desc,short_desc:TFRE_DB_String);
-    property  Login              :TFRE_DB_String read GetLogin write Setlogin;
-    property  Firstname          :TFRE_DB_String read GetFirstName write SetFirstName;
-    property  Lastname           :TFRE_DB_String read GetLastName write SetLastName;
-    property  UserGroupIDs       :TFRE_DB_ObjLinkArray read GetUserGroupIDS write SetGIDA;
-    procedure SetPassword        (const pw:TFRE_DB_String);
-    function  Checkpassword      (const pw:TFRE_DB_String):boolean;
-    class procedure RegisterSystemScheme     (const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    class function  GetDomainLoginKey        (const loginpart : TFRE_DB_String; const domain_id : TFRE_DB_GUID) : TFRE_DB_String;
-    function        DomainLoginKey           : TFRE_DB_String;
-    class procedure InstallDBObjects         (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-    property  isInternal                    : Boolean read GetIsInternal write SetIsInternal;
+    function  GetUserGroupIDS                  : TFRE_DB_ObjLinkArray;
+    function  SubFormattedDisplayAvailable     :boolean; override;
+    function  GetSubFormattedDisplay           (indent: integer=4): TFRE_DB_String; override;
+    procedure SetImage                         (const image_stream: TFRE_DB_Stream; const streamtype: string ; const etag : string);
+    procedure InitData                         (const nlogin,nfirst,nlast,npasswd:TFRE_DB_String;const userdomainid:TFRE_DB_GUID;const is_internal:Boolean;const long_desc,short_desc:TFRE_DB_String);
+    property  Login                            :TFRE_DB_String read GetLogin write Setlogin;
+    property  Firstname                        :TFRE_DB_String read GetFirstName write SetFirstName;
+    property  Lastname                         :TFRE_DB_String read GetLastName write SetLastName;
+    property  UserGroupIDs                     :TFRE_DB_ObjLinkArray read GetUserGroupIDS write SetGIDA;
+    procedure SetPassword                      (const pw:TFRE_DB_String);
+    function  Checkpassword                    (const pw:TFRE_DB_String):boolean;
+    class procedure RegisterSystemScheme       (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class function  GetDomainLoginKey          (const loginpart : TFRE_DB_String; const domain_id : TFRE_DB_GUID) : TFRE_DB_String;
+    function        DomainLoginKey             :TFRE_DB_String;
+    class procedure InstallDBObjects           (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    property  isInternal                       :Boolean read GetIsInternal write SetIsInternal;
+    property  Userclass                        :TFRE_DB_String read GetUserclass write SetUserclass;  { Every User has one defined class WEBUSER, FEEDER, (MIGHTYFEEDER), right checks can be OVERLAYED by the CLASS and the special class ALL }
   published
-    class     function  WBC_NewUserOperation (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function  WEB_SaveOperation              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+    class     function  WBC_NewUserOperation   (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+    function  WEB_SaveOperation                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   end;
 
   { TFRE_DB_DOMAIN }
@@ -1901,6 +1904,7 @@ type
     FDomainLoginKey   : TFRE_DB_String;
     FLoginAtDomain    : TFRE_DB_String;
     FUserLoginPart    : TFRE_DB_String;
+    FUserClass        : TFRE_DB_String;
     FUserFirstName    : TFRE_DB_String;
     FUserLastName     : TFRE_DB_String;
     FUserDescName     : TFRE_DB_String;
@@ -1925,7 +1929,7 @@ type
     function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
 
   public
-    constructor Create                      (const user_uid: TFRE_DB_GUID; const login_part,firstname,lastname,desc: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
+    constructor Create                      (const user_uid: TFRE_DB_GUID; const login_part,firstname,lastname,desc,userclass: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
     destructor  Destroy                     ;override;
     procedure   Finalize                    ;
 
@@ -1935,7 +1939,7 @@ type
     function    GetDomainLoginKey            : TFRE_DB_String; { upper : domainuid_hex@login }
     function    GetFullUserLogin             : TFRE_DB_String; { login@domainname }
     procedure   GetUserDetails               (out fulluserlogin,firstname,lastname,description : TFRE_DB_String);
-
+    function    Userclass                    : TFRE_DB_String;
     function    CheckStdRightAndCondFinalize (const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
 
     function    CheckStdRightsetUIDAndClass  (const obj_uid, obj_domuid: TFRE_DB_GUID; const check_classname: ShortString; const sr: TFRE_DB_STANDARD_RIGHT_SET): TFRE_DB_Errortype;
@@ -2007,7 +2011,7 @@ type
     function    _FetchGroupbyID             (const group_id:TFRE_DB_GUID;var ug: TFRE_DB_GROUP;const without_right_check:boolean=false):TFRE_DB_Errortype;
 
 
-    function    _AddUser(const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream=nil; const imagetype:string='' ; const etag: String='';const is_internal:Boolean=false ; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''): TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
+    function    _AddUser(const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream=nil; const imagetype:string='' ; const etag: String='';const is_internal:Boolean=false ; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''; const userclass: TFRE_DB_String=''): TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
     function    _AddRolesToGroup(const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const roles: TFRE_DB_StringArray;const rolesDomainUID: TFRE_DB_GUID):TFRE_DB_Errortype;
 
     function    IFRE_DB_SYS_CONNECTION.FetchUser                   = FetchUserI;
@@ -2056,10 +2060,10 @@ type
     destructor  Destroy                     ; override;
     procedure   DumpSystem                  ;override;
 
-    function    CheckLogin                  (const loginatdomain,pass:TFRE_DB_String):TFRE_DB_Errortype;
+    function    CheckLogin                  (const loginatdomain,pass:TFRE_DB_String;const allowed_classes : TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    Connect                     (const loginatdomain:TFRE_DB_String='';const password:TFRE_DB_String='') : TFRE_DB_Errortype;
 
-    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''):TFRE_DB_Errortype;
+    function    AddUser                     (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password,first_name,last_name:TFRE_DB_String;const image : TFRE_DB_Stream=nil; const imagetype : String='';const is_internal:Boolean=false; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String='' ; const userclass : TFRE_DB_String=''):TFRE_DB_Errortype;
     function    UserExists                  (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID):boolean;
     function    DeleteUser                  (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID):TFRE_DB_Errortype;
     function    DeleteUserById              (const user_id:TFRE_DB_GUID):TFRE_DB_Errortype;
@@ -2213,12 +2217,12 @@ type
     procedure   ClearUserSessionBinding       ;override;
 
     function    GetDatabaseName           : TFRE_DB_String;
-    function    ImpersonateClone          (const user,pass:TFRE_DB_String;out conn:TFRE_DB_CONNECTION): TFRE_DB_Errortype;
+    function    ImpersonateClone          (const user,pass:TFRE_DB_String;out conn:TFRE_DB_CONNECTION;const allowed_classes: TFRE_DB_StringArray): TFRE_DB_Errortype;
 
     function    Connect                   (const db,user,pass:TFRE_DB_String;const ProxySysConnection:TFRE_DB_SYSTEM_CONNECTION):TFRE_DB_Errortype;
     function    Connect                   (Const db:TFRE_DB_String;const user:TFRE_DB_String='';const password:TFRE_DB_String='') : TFRE_DB_Errortype;
 
-    function    CheckLogin                (const user,pass:TFRE_DB_String):TFRE_DB_Errortype;
+    function    CheckLogin                (const loginatdomain,pass:TFRE_DB_String;const allowed_classes : TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    CollectionExists          (const name:TFRE_DB_NameType):boolean;override;
     function    DeleteCollection          (const name:TFRE_DB_NameType):TFRE_DB_Errortype;override;
 
@@ -2817,7 +2821,7 @@ begin
   result := (domain<>CFRE_DB_NullGUID) and FREDB_StringInArray(_GetStdRightName(std_right,rclassname,domain),FConnectionRights);
 end;
 
-constructor TFRE_DB_USER_RIGHT_TOKEN.Create(const user_uid: TFRE_DB_GUID; const login_part, firstname, lastname, desc: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
+constructor TFRE_DB_USER_RIGHT_TOKEN.Create(const user_uid: TFRE_DB_GUID; const login_part, firstname, lastname, desc, userclass: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
 var sl    : TStringList;
     i     : NativeInt;
     hsh   : Cardinal;
@@ -2840,6 +2844,7 @@ begin
   FUserFirstName    := firstname;
   FUserLastName     := lastname;
   FUserDescName     := desc;
+  FUserClass        := userclass;
   hsh               := GFRE_BT.HashFast32(@FDomainLoginKey[1],Length(FDomainLoginKey),0);
   for i:=0 to high(FAllDomainNames) do
     FAllDomainNames[i]:=UpperCase(FAllDomainNames[i]);
@@ -2909,6 +2914,11 @@ begin
   firstname     := FUserFirstName;
   lastname      := FUserLastName;
   description   := FUserDescName;
+end;
+
+function TFRE_DB_USER_RIGHT_TOKEN.Userclass: TFRE_DB_String;
+begin
+  result := FUserClass;
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.CheckStdRightAndCondFinalize(const dbi: IFRE_DB_Object; const sr: TFRE_DB_STANDARD_RIGHT; const without_right_check: boolean; const cond_finalize: boolean): TFRE_DB_Errortype;
@@ -3043,6 +3053,7 @@ var DomainUids  : TFRE_DB_GUIDArray;
     Domainnames : TFRE_DB_StringArray;
             i,j : NativeInt;
 begin
+  result:='Userclass: '+FUserClass+LineEnding;
   Domainuids := FREDB_ExtractUidsfromRightArray(FConnectionRights,'');
   SetLength(Domainnames,Length(DomainUids));
   for i := 0 to high(DomainUids) do
@@ -3089,7 +3100,7 @@ end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.Clone: TFRE_DB_USER_RIGHT_TOKEN;
 begin
-  result := TFRE_DB_USER_RIGHT_TOKEN.Create(FUserUID,FUserLoginPart,FUserFirstName,FUserLastName,FUserDescName,FUsergroupIDs,FConnectionRights,FIsSysAdmin,FSysDomainUID,FMyDomainID,FAllDomainsUids,FAllDomainNames);
+  result := TFRE_DB_USER_RIGHT_TOKEN.Create(FUserUID,FUserLoginPart,FUserFirstName,FUserLastName,FUserDescName,FUserClass,FUsergroupIDs,FConnectionRights,FIsSysAdmin,FSysDomainUID,FMyDomainID,FAllDomainsUids,FAllDomainNames);
   if Result.FUniqueToken<>FUniqueToken then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'unique user token clone / failure / internal logic');
 end;
@@ -5048,9 +5059,9 @@ begin
   ForAllColls(@DumpAllCollections);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.AddUser(const login: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const password, first_name, last_name: TFRE_DB_String; const image: TFRE_DB_Stream; const imagetype: String; const is_internal: Boolean; const long_desc: TFRE_DB_String; const short_desc: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.AddUser(const login: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const password, first_name, last_name: TFRE_DB_String; const image: TFRE_DB_Stream; const imagetype: String; const is_internal: Boolean; const long_desc: TFRE_DB_String; const short_desc: TFRE_DB_String; const userclass: TFRE_DB_String): TFRE_DB_Errortype;
 begin //nl
-  result := _AddUser(login,domainUID,password,first_name,last_name,false,image,imagetype,'',is_internal,long_desc,short_desc);
+  result := _AddUser(login,domainUID,password,first_name,last_name,false,image,imagetype,'',is_internal,long_desc,short_desc,userclass);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.UserExists(const login: TFRE_DB_String; const domainUID: TFRE_DB_GUID): boolean;
@@ -5073,7 +5084,7 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.FetchUser(const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID; var user: TFRE_DB_USER): TFRE_DB_Errortype;
 begin
   user:=nil;
-  if not FSysUsers.GetIndexedObjTextCore(TFRE_DB_USER.GetDomainLoginKey(login,domainUID),TFRE_DB_Object(user))=0 then
+  if FSysUsers.GetIndexedObjTextCore(TFRE_DB_USER.GetDomainLoginKey(login,domainUID),TFRE_DB_Object(user))=0 then
     exit(edb_NOT_FOUND);
   result := edb_OK;
 end;
@@ -6176,13 +6187,14 @@ begin
 end;
 
 
-function TFRE_DB_SYSTEM_CONNECTION._AddUser(const login: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype: string; const etag: String; const is_internal: Boolean; const long_desc: TFRE_DB_String; const short_desc: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._AddUser(const login: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream; const imagetype: string; const etag: String; const is_internal: Boolean; const long_desc: TFRE_DB_String; const short_desc: TFRE_DB_String; const userclass: TFRE_DB_String): TFRE_DB_Errortype;
 var user       : TFRE_DB_USER;
 begin
   if Userexists(login,domainUID) then
     exit(edb_EXISTS);
   user := GFRE_DB.NewObject(TFRE_DB_USER) as TFRE_DB_USER;
   user.InitData(login,first_name,last_name,password,domainUID,is_internal,long_desc,short_desc);
+  user.Userclass:=userclass;
   if assigned(image) then
     user.SetImage(image,imagetype,etag);
   if system_start_up then
@@ -6238,10 +6250,11 @@ begin
   result := Update(l_Group);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.CheckLogin(const loginatdomain, pass: TFRE_DB_String): TFRE_DB_Errortype;
-var FUser : TFRE_DB_USER;
-    login: TFRE_DB_String;
-    domain: TFRE_DB_String;
+function TFRE_DB_SYSTEM_CONNECTION.CheckLogin(const loginatdomain, pass: TFRE_DB_String; const allowed_classes: TFRE_DB_StringArray): TFRE_DB_Errortype;
+var FUser  : TFRE_DB_USER;
+    login  : TFRE_DB_String;
+    domain : TFRE_DB_String;
+    i      : NativeInt;
 begin //nln
   FREDB_SplitLocalatDomain(loginatdomain,login,domain);
   if not DomainExists(domain) then
@@ -6252,7 +6265,15 @@ begin //nln
   try
     if not FUser.Checkpassword(pass) then
       exit(edb_ACCESS);
-    result := edb_OK;
+    if Length(allowed_classes)=0 then
+      result := edb_OK
+    else
+      begin
+        for i:=0 to High(allowed_classes) do
+          if Fuser.Userclass=allowed_classes[i] then
+            exit(edb_OK);
+        exit(edb_ACCESS);
+      end;
   finally
     Fuser.Finalize;
   end;
@@ -10489,9 +10510,9 @@ begin
 end;
 
 
-function TFRE_DB_CONNECTION.ImpersonateClone(const user, pass: TFRE_DB_String;out conn:TFRE_DB_CONNECTION): TFRE_DB_Errortype;
+function TFRE_DB_CONNECTION.ImpersonateClone(const user, pass: TFRE_DB_String; out conn: TFRE_DB_CONNECTION; const allowed_classes: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin
-  result := CheckLogin(user,pass);
+  result := CheckLogin(user,pass,allowed_classes);
   if result<>edb_OK then
     exit;
   conn := CreateAClone;
@@ -10525,11 +10546,11 @@ begin //nl
   result := Connect(db,user,password,nil);
 end;
 
-function TFRE_DB_CONNECTION.CheckLogin(const user, pass: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_CONNECTION.CheckLogin(const loginatdomain, pass: TFRE_DB_String; const allowed_classes: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin //nl
   if not FConnected then
     exit(edb_NOT_CONNECTED);
-  result := FSysConnection.CheckLogin(user,pass);
+  result := FSysConnection.CheckLogin(loginatdomain,pass,allowed_classes);
 end;
 
 
@@ -18962,6 +18983,13 @@ begin
   result := Field('login').AsString;
 end;
 
+function TFRE_DB_USER.GetUserclass: TFRE_DB_String;
+begin
+  result := uppercase(Field('userclass').AsString);
+  if result='' then
+    result := 'WEBUSER';
+end;
+
 function TFRE_DB_USER.GetLoginAtDomain(conn: IFRE_DB_SYS_CONNECTION): TFRE_DB_NameType;
 begin
   result := login+'@'+conn.FetchDomainNameById(GetDomainIDLink);
@@ -19022,6 +19050,11 @@ procedure TFRE_DB_USER.SetDomainIDLink(AValue: TFRE_DB_GUID);
 begin
   Field('domainidlink').AsObjectLink := AValue;
   _UpdateDomainLoginKey;
+end;
+
+procedure TFRE_DB_USER.SetUserclass(AValue: TFRE_DB_String);
+begin
+  Field('userclass').AsString := AValue;
 end;
 
 procedure TFRE_DB_USER._UpdateDomainLoginKey;
@@ -19237,7 +19270,7 @@ begin
           sdesc := fld.AsString;
     end;
 
- res := dbc.sys.AddUser(loginf,domlink,pw,fn,ln,image,imagetype,false,ldesc,sdesc);
+ res := dbc.sys.AddUser(loginf,domlink,pw,fn,ln,image,imagetype,false,ldesc,sdesc,'WEBUSER');
  if res=edb_OK then
    begin
      exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe());
