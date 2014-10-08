@@ -75,9 +75,10 @@ type
 
   TFRE_DB_GUID = packed record
      D: Array [0..15] of Byte;
-     function  AsHexString      : TFRE_DB_GUID_String;
-     procedure ClearGuid        ;
-     procedure SetFromHexString (const hexs:TFRE_DB_GUID_String);
+     function  AsHexString         : TFRE_DB_GUID_String;
+     procedure ClearGuid           ;
+     procedure SetFromHexString    (const hexs:TFRE_DB_GUID_String);
+     procedure SetFromRFCISOString (const isoguid:shortstring);
   end;
 
 var
@@ -4282,6 +4283,67 @@ begin
     D[j] := _dig2int(hexs[i])*16+_dig2int(hexs[i+1]); // conservative
     inc(i,2);inc(j);
   end;
+end;
+
+procedure TFRE_DB_GUID.SetFromRFCISOString(const isoguid: shortstring);
+var
+  p: PChar;
+
+  function rb: Byte;
+  var hb: Byte;
+  begin
+    case p^ of
+      '0'..'9': hb := Byte(p^) - Byte('0');
+      'a'..'f': hb := Byte(p^) - Byte('a') + 10;
+      'A'..'F': hb := Byte(p^) - Byte('A') + 10;
+      else
+        raise Exception.Create('invalid char in iso uid: '+p^);
+    end;
+    Inc(p);
+    case p^ of
+      '0'..'9': Result := Byte(p^) - Byte('0');
+      'a'..'f': Result := Byte(p^) - Byte('a') + 10;
+      'A'..'F': Result := Byte(p^) - Byte('A') + 10;
+      else
+        raise Exception.Create('invalid char in iso uid: '+p^);
+    end;
+    Inc(p);
+    Result := hb shl 4 or Result;
+  end;
+
+  procedure nextChar(c: Char); inline;
+  begin
+    if p^ <> c then
+      raise Exception.Create('invalid nextchar in iso uid: '+p^+', should be '+c);
+    Inc(p);
+  end;
+
+begin
+  if Length(isoguid)<>38 then
+    raise Exception.Create('a iso uid must be 38 chars not '+inttostr(Length(isoguid))+' chars');
+  p := PChar(@isoguid[1]);
+  nextChar('{');
+  D[0] := rb;
+  D[1] := rb;
+  D[2] := rb;
+  D[3] := rb;
+  nextChar('-');
+  D[4]  := rb;
+  D[5]  := rb;
+  nextChar('-');
+  D[6] := rb;
+  D[7] := rb;
+  nextChar('-');
+  D[8] := rb;
+  D[9] := rb;
+  nextChar('-');
+  D[10] := rb;
+  D[11] := rb;
+  D[12] := rb;
+  D[13] := rb;
+  D[14] := rb;
+  D[15] := rb;
+  nextChar('}');
 end;
 
 { TFRE_DB_INDEX_DEF }
