@@ -14261,7 +14261,11 @@ begin
       field_name := jo.Elements['N'].AsString;
       field_type := FieldtypeShortString2Fieldtype(jo.Elements['T'].AsString);
       if not CalcFieldExists(field_name,cft,cm) then
-        _Field(field_name).SetFromJSON(field_type,jo.Elements['D'] as TJSONArray,stream_cb)
+        begin
+          if uppercase(field_name)='SCHEMECLASS' then { do not set special read only field schemeclass }
+            continue;
+          _Field(field_name).SetFromJSON(field_type,jo.Elements['D'] as TJSONArray,stream_cb)
+        end
       else
         ; // skip calculated fields
     end;
@@ -14324,12 +14328,9 @@ begin
   lClassname  := (JSON.Items[0] as TJSONString).AsString;
   lFieldCount := JSON.Count-1;
   result      := GFRE_DB.NewObjectStreaming(lClassname);
-//  result.FParentDBO := parent;
   result.CopyFromJSON(JSON,lFieldCount,stream_cb);
   result.InternalSetup;
   result.AfterLoad;
-  //result.FStreamingSize:=-1; // Force recalc of streamingsize
-  //result.FStreamingSize:= result._StreamingSize;
   assert(result.FDBO_State=fdbos_StreamingCreating);
   result.FDBO_State:=fdbos_Clean;
 end;
@@ -18679,16 +18680,13 @@ procedure TFRE_DB_FIELD.SetFromJSON(const field_type: TFRE_DB_FIELDTYPE; const j
       fdbft_Real64:        AddReal64(Extended(StrToFloat(JAsString)));
       fdbft_Currency:      AddCurrency(StrToCurr(JAsString));
       fdbft_String:
-        try
-          conv := JAsString;
-          if conv<>'' then
-            AddString(DecodeStringBase64(JAsString))//,true))
-          else
-            AddString('');
-        except
-          writeln('Base64 K',JAsString);
-          halt;
-        end;
+                          begin
+                            conv := JAsString;
+                            if conv<>'' then
+                              AddString(DecodeStringBase64(JAsString))//,true))
+                            else
+                              AddString('');
+                          end;
       fdbft_Boolean:       AddBoolean(StrToBool(JAsString));
       fdbft_DateTimeUTC:   AddDateTimeUTC(StrToInt64(JAsString));
       fdbft_Stream:        begin
