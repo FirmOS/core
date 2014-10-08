@@ -105,8 +105,10 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
     with transform do begin
-      AddOneToOnescheme('key','',FetchModuleTextShort(session,'grid_translation_key'),dt_string,true,true);
-      AddFulltextFilterOnTransformed(['key']);
+      AddOneToOnescheme('uid','',FetchModuleTextShort(session,'grid_translation_key'),dt_string,true,true);
+      AddOneToOnescheme('lang_def','','LANG DEF');
+      AddOneToOnescheme('lang_trans','','LANG TRANS');
+      //AddFulltextFilterOnTransformed(['key']);
     end;
 
     translatioins := session.NewDerivedCollection('TRANSLATIONS_GRID');
@@ -114,7 +116,7 @@ begin
       SetDeriveParent(conn.AdmGetTextResourcesCollection);
       SetDeriveTransformation(transform);
       SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox],FetchModuleTextShort(session,'grid_translation_cap'));
-      SetDefaultOrderField('key',true);
+      //SetDefaultOrderField('key',true);
     end;
   end;
 end;
