@@ -1830,7 +1830,6 @@ end;
 function TFRE_DB_PS_FILE.CollectionIndexExists(const coll_name: TFRE_DB_NameType; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): Boolean; { no right for collections defined/implemented by now }
 var collection : TFRE_DB_PERSISTANCE_COLLECTION;
 begin
-  E_FOS_TestNosey;
   LayerLock.Acquire;
   try
     try
