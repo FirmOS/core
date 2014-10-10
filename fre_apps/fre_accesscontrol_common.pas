@@ -967,7 +967,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
       if show_user_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
       end;
       SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
@@ -1732,7 +1732,7 @@ begin
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
       if show_user_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
       end;
       SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
@@ -2787,7 +2787,7 @@ begin
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
       if show_group_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_GROUP));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_GROUP));
       end;
       SetFinalRightTransformFunction(@CalculateGroupFields,[]);
     end;
@@ -2841,7 +2841,7 @@ begin
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
       if show_role_domains then begin
-        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_ROLE));
+        AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_ROLE));
       end;
       SetFinalRightTransformFunction(@CalculateRoleIcon,[]);
     end;
