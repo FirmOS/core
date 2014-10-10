@@ -614,7 +614,7 @@ type
   IFRE_DB_UpdateChange_Iterator         = procedure (const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field) is nested;
   IFRE_DB_ObjUid_IteratorBreak          = procedure (const uid : TFRE_DB_GUID ; var halt : boolean) is nested;
   IFRE_DB_Scheme_Iterator               = procedure (const obj : IFRE_DB_SchemeObject) is nested;
-  IFRE_DB_SchemeFieldDef_Iterator       = procedure (const obj : IFRE_DB_FieldSchemeDefinition) is nested;
+  IFRE_DB_SchemeFieldDefIterator        = procedure (const obj : IFRE_DB_FieldSchemeDefinition) is nested;
   IFRE_DB_Enum_Iterator                 = procedure (const obj : IFRE_DB_Enum) is nested;
   IFRE_DB_ClientFieldValidator_Iterator = procedure (const obj : IFRE_DB_ClientFieldValidator) is nested;
   IFRE_DB_Coll_Iterator                 = procedure (const coll: IFRE_DB_COLLECTION) is nested;
@@ -767,7 +767,9 @@ type
     function        CloneToNewObject                   (const create_new_uids:boolean=false): IFRE_DB_Object;
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
-    procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
+   procedure        ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator;const without_calcfields:boolean=false);
+   procedure        ForAllObjectsBreak                 (const iter:IFRE_DB_ObjectIteratorBrk;const without_calcfields:boolean=false);
+
     procedure       ForAllObjectsFieldName             (const iter:IFRE_DB_Obj_NameIterator);
     function        GetDescriptionID                   : String;
     function        UID                                : TFRE_DB_GUID;
@@ -1049,23 +1051,27 @@ type
     procedure SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
   end;
 
+  TFRE_DB_Fieldproperty   = (fp_Required,fp_Multivalues,fp_PasswordField,fp_AddConfirmation);
+  TFRE_DB_Fieldproperties = set of TFRE_DB_Fieldproperty;
 
   IFRE_DB_FieldSchemeDefinition=interface //(IFRE_DB_BASE)
     ['IFDBFSD']
     function   GetFieldName        : TFRE_DB_NameType;
     function   GetFieldType        : TFRE_DB_FIELDTYPE;
     function   GetSubSchemeName    : TFRE_DB_NameType;
-    function   getMultiValues      : Boolean;
-    function   getRequired         : Boolean;
-    function   getValidator        (var validator: IFRE_DB_ClientFieldValidator):boolean;
-    function   getEnum             (var enum : IFRE_DB_Enum) : boolean;
-    procedure  setMultiValues      (AValue: Boolean);
-    procedure  setRequired         (AValue: Boolean);
-    function   getIsPass           : Boolean;
-    function   getAddConfirm       : Boolean;
+    function   GetMultiValues      : Boolean;
+    function   GetRequired         : Boolean;
+    function   GetValidator        (var validator: IFRE_DB_ClientFieldValidator):boolean;
+    function   GetEnum             (var enum : IFRE_DB_Enum) : boolean;
+    procedure  SetMultiValues      (AValue: Boolean);
+    procedure  SetRequired         (AValue: Boolean);
+    function   GetIsPass           : Boolean;
+    function   GetAddConfirm       : Boolean;
 
-    property   isPass              :Boolean read getIsPass;
-    property   addConfirm          :Boolean read getAddConfirm;
+    property   IsPass              :Boolean read GetIsPass;
+    property   AddConfirm          :Boolean read GetAddConfirm;
+    function   GetFieldProperties  : TFRE_DB_FieldProperties;
+    procedure  SetFieldProperties  (AValue: TFRE_DB_FieldProperties);
 
     function   SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
     procedure  SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
@@ -1076,11 +1082,12 @@ type
     property   FieldType         :TFRE_DB_FIELDTYPE  read GetFieldType;
     property   SubschemeName     :TFRE_DB_NameType   read GetSubSchemeName;
     function   GetSubScheme      :IFRE_DB_SchemeObject;
-    property   required          :Boolean read getRequired write setRequired;
-    property   multiValues       :Boolean read getMultiValues write setMultiValues;
+    property   Required          :Boolean read GetRequired write SetRequired;
+    property   MultiValues       :Boolean read GetMultiValues write SetMultiValues;
     function   ValidateField     (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
     procedure  ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
     procedure  ForAllVisDepfields(const depfielditerator : TFRE_DB_VisDepfielditerator);
+    property   FieldProperties   :TFRE_DB_FieldProperties read GetFieldProperties write SetFieldProperties;
   end;
 
   IFRE_DB_NAMED_OBJECT = interface(IFRE_DB_Object)
@@ -1351,7 +1358,7 @@ type
     function  ValidateObject               (const dbo : IFRE_DB_Object;const raise_errors:boolean=true):boolean;
 
     function  InvokeMethod_UID             (const suid : TFRE_DB_GUID;const methodname:TFRE_DB_String;var input:IFRE_DB_Object;const connection:IFRE_DB_CONNECTION):IFRE_DB_Object;
-    procedure ForAllFieldSchemeDefinitions (const iterator:IFRE_DB_SchemeFieldDef_Iterator);
+    procedure ForAllFieldSchemeDefinitions (const iterator:IFRE_DB_SchemeFieldDefIterator);
     property  Explanation:TFRE_DB_String read GetExplanation write SetExplanation;
   end;
 
@@ -1880,7 +1887,8 @@ type
     function        ObjectRoot                         : IFRE_DB_Object; // = the last parent with no parent
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
-    procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
+    procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator;const without_calcfields:boolean=false);
+    procedure       ForAllObjectsBreak                 (const iter:IFRE_DB_ObjectIteratorBrk;const without_calcfields:boolean=false);
     procedure       ForAllObjectsFieldName             (const iter:IFRE_DB_Obj_NameIterator);
     function        UID                                : TFRE_DB_GUID;
     function        UID_String                         : TFRE_DB_GUID_String;
@@ -7662,9 +7670,14 @@ begin
   FImplementor.ForAllFieldsBreak(iter,without_calcfields,without_system_fields);
 end;
 
-procedure TFRE_DB_ObjectEx.ForAllObjects(const iter: IFRE_DB_Obj_Iterator);
+procedure TFRE_DB_ObjectEx.ForAllObjects(const iter: IFRE_DB_Obj_Iterator; const without_calcfields: boolean);
 begin
-  FImplementor.ForAllObjects(iter);
+  FImplementor.ForAllObjects(iter,without_calcfields);
+end;
+
+procedure TFRE_DB_ObjectEx.ForAllObjectsBreak(const iter: IFRE_DB_ObjectIteratorBrk; const without_calcfields: boolean);
+begin
+  FImplementor.ForAllObjectsBreak(iter,without_calcfields);
 end;
 
 procedure TFRE_DB_ObjectEx.ForAllObjectsFieldName(const iter: IFRE_DB_Obj_NameIterator);

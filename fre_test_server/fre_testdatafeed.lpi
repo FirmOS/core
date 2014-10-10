@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
     <Version Value="9"/>
@@ -29,14 +29,13 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-u testfeeder@system -p x  -U root -H 10.220.251.10 --test-log"/>
+        <CommandLineParams Value="-u testfeeder@system -p x --test-log"/>
       </local>
     </RunParams>
     <Units Count="5">
       <Unit0>
         <Filename Value="fre_testdatafeed.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_testdatafeed"/>
       </Unit0>
       <Unit1>
         <Filename Value="../fre_server/fre_base_client.pas"/>
@@ -51,7 +50,6 @@
       <Unit3>
         <Filename Value="../fre_core/fos_stats_control_interface.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fos_stats_control_interface"/>
       </Unit3>
       <Unit4>
         <Filename Value="../fre_server/fre_basefeed_app.pas"/>
@@ -73,20 +71,13 @@
     <Conditionals Value="if TargetOS = 'darwin' then
    CustomOptions := '-WM10.6';"/>
     <CodeGeneration>
-      <TargetCPU Value="i386"/>
+      <TargetCPU Value="x86_64"/>
     </CodeGeneration>
     <Linking>
       <Debugging>
-        <DebugInfoType Value="dsStabs"/>
         <UseHeaptrc Value="True"/>
       </Debugging>
     </Linking>
-    <Other>
-      <CompilerMessages>
-        <MsgFileName Value=""/>
-      </CompilerMessages>
-      <CompilerPath Value="$(CompPath)"/>
-    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

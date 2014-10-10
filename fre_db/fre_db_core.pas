@@ -486,11 +486,12 @@ type
   end;
   _TFRE_DB_FieldTree        = specialize TGFOS_RBTree<TFRE_DB_NameType,TFRE_DB_FIELD>;
 
-  TFRE_DB_FieldSchemeDefinition   = class;
-  TFRE_DB_FieldIterator           = procedure (const obj:TFRE_DB_Field) is nested;
-  TFRE_DB_FieldIteratorBrk        = function  (const obj:TFRE_DB_Field):boolean is nested;
-  TFRE_DB_SchemeFieldDef_Iterator = procedure (const obj:TFRE_DB_FieldSchemeDefinition) is nested;
-  TFRE_DB_ObjectIteratorBrk       = procedure (const obj:TFRE_DB_Object; var halt:boolean) is nested;
+  TFRE_DB_FieldSchemeDefinition      = class;
+  TFRE_DB_FieldIterator              = procedure (const obj:TFRE_DB_Field) is nested;
+  TFRE_DB_FieldIteratorBrk           = function  (const obj:TFRE_DB_Field):boolean is nested;
+  TFRE_DB_SchemeFieldDefIterator     = procedure (const obj:TFRE_DB_FieldSchemeDefinition) is nested;
+  TFRE_DB_SchemeFieldDefIteratorBrk  = procedure (const obj:TFRE_DB_FieldSchemeDefinition ; var halt : boolean) is nested;
+  TFRE_DB_ObjectIteratorBrk          = procedure (const obj:TFRE_DB_Object; var halt:boolean) is nested;
 
   TFRE_DB_SchemeObject      = class;
   TFRE_DB_OBJECTCLASS       = class of TFRE_DB_Object;
@@ -522,7 +523,6 @@ type
     procedure      _ParentCheck                        (const newdbo : TFRE_DB_Object);
     function       _ReadOnlyCheck                      : boolean;
     procedure      _InAccessibleCheck                  ; inline ;
-    function       _ReservedFieldName                 (const upper_name:TFRE_DB_NameType):boolean;
     procedure      _InternalSetMediatorScheme         (const mediator : TFRE_DB_ObjectEx ; const scheme : IFRE_DB_SCHEMEOBJECT);
     function       _InternalDecodeAsField             : IFRE_DB_Field; { create a streaming only lightweight field from the encoding object }
   protected
@@ -560,6 +560,7 @@ type
 
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
   public
+    class function  ReservedFieldName                  (const upper_name:TFRE_DB_NameType):boolean;
     property        ExtensionTag                       : Pointer  read FExtensionTag write FExtensionTag;
     procedure       _InternalGuidNullCheck;
     procedure       Finalize                           ;
@@ -591,7 +592,9 @@ type
     procedure       ForAllFieldsBreak                  (const iter:TFRE_DB_FieldIteratorBrk;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
     procedure       ForAllFields                       (const iter:IFRE_DB_FieldIterator;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
     procedure       ForAllFieldsBreak                  (const iter:IFRE_DB_FieldIteratorBrk;const without_calcfields:boolean=false;const without_system_fields:boolean=false);
-    procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator);
+    procedure       ForAllObjects                      (const iter:IFRE_DB_Obj_Iterator;const without_calcfields:boolean=false);
+    procedure       ForAllObjectsBreak                 (const iter:IFRE_DB_ObjectIteratorBrk;const without_calcfields:boolean=false);
+
     procedure       ForAllObjectsFieldName             (const iter:IFRE_DB_Obj_NameIterator);
 
     function        ForAllObjectsBreakHierarchic       (const iter:TFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
@@ -877,31 +880,28 @@ type
 
   PFRE_DB_FieldSchemeDefinition = ^TFRE_DB_FieldSchemeDefinition;
 
-  TFRE_DB_FieldSchemeDefinition=class(TObject,IFRE_DB_FieldSchemeDefinition)
+  TFRE_DB_FieldSchemeDefinition=class(TFRE_DB_Object,IFRE_DB_FieldSchemeDefinition)
   private
-    FScheme       : TFRE_DB_SchemeObject;
-    FFieldName    : TFRE_DB_NameType;
-    FFieldType    : TFRE_DB_FIELDTYPE;
+    FFieldName       : TFRE_DB_FIELD;
+    FFieldType       : TFRE_DB_FIELD;
+    FProperties      : TFRE_DB_FIELD;
+    FValidatorParams : TFRE_DB_FIELD;
+    FSubSchemeName   : TFRE_DB_FIELD;
+    FEnumName        : TFRE_DB_FIELD;
+    FValidatorName   : TFRE_DB_FIELD;
+    FCalcmethodName  : TFRE_DB_FIELD;
+    FDepFields       : TFRE_DB_Object;
+    FVisDepFields    : TFRE_DB_Object;
 
-    FSubscheme    : TFRE_DB_NameType;
-    FSubSchemeObj : TFRE_DB_SchemeObject; // Cache;
-    Frequired     : Boolean;
-    FisPass       : Boolean;
-    FaddConfirm   : Boolean;
-    FmultiValues  : Boolean;
+    FSubSchemeObj    : TFRE_DB_SchemeObject;         { Cache, not owned }
+    FEnum            : TFRE_DB_Enum;                 { Cache, not owned}
+    FValidator       : TFRE_DB_ClientFieldValidator; { Cache, not owned }
+    FCalcMethod      : IFRE_DB_CalcMethod;           { cache }
 
-    FEnum         : TFRE_DB_Enum;
-    Fvalidator    : TFRE_DB_ClientFieldValidator;
-    FDepFields    : OFRE_SL_R_Depfield;
-    FVisDepFields : OFRE_SL_R_VisDepfield;
-
-    FvalidatorParams: TFRE_DB_Object;
-
-    FCalcMethod         : IFRE_DB_CalcMethod;
-
-    function   getAddConfirm       : Boolean;
-    function   getEnum             : TFRE_DB_Enum;
+    function   GetAddConfirm       : Boolean;
+    function   GetEnum             : TFRE_DB_Enum;
     function   GetFieldName        : TFRE_DB_NameType;
+    function   GetFieldProperties  : TFRE_DB_FieldProperties;
     function   GetFieldType        : TFRE_DB_FIELDTYPE;
     function   getIsPass           : Boolean;
     function   GetSubSchemeName    : TFRE_DB_NameType;
@@ -912,16 +912,22 @@ type
     function   getValidatorI       (var validator: IFRE_DB_ClientFieldValidator):boolean;
     function   getEnumI            (var enum : IFRE_DB_Enum) : boolean;
 
+    procedure  SetFieldName        (AValue: TFRE_DB_NameType);
+    procedure  SetFieldProperties  (AValue: TFRE_DB_FieldProperties);
+    procedure  SetFieldType        (AValue: TFRE_DB_FIELDTYPE);
     procedure  setAddConfirm       (AValue: Boolean);
     procedure  setisPass           (AValue: Boolean);
     procedure  setMultiValues      (AValue: Boolean);
     procedure  setRequired         (AValue: Boolean);
     procedure  setEnum             (AValue: TFRE_DB_Enum);
+    procedure  SetSubschemeName    (AValue: TFRE_DB_NameType);
     procedure  setValidator        (AValue: TFRE_DB_ClientFieldValidator);
-    function   getParentScheme     : TFRE_DB_SchemeObject;
+    function   GetParentScheme     : TFRE_DB_SchemeObject;
+    function   _ObjectsNeedsNoSubfieldSchemeCheck  :boolean;override;
   protected
-    function   IFRE_DB_FieldSchemeDefinition.getEnum = getEnumI;
-    function   IFRE_DB_FieldSchemeDefinition.setEnum = setEnumI;
+    procedure  InternalSetup; override;
+    function   IFRE_DB_FieldSchemeDefinition.getEnum       = getEnumI;
+    function   IFRE_DB_FieldSchemeDefinition.setEnum       = setEnumI;
     function   IFRE_DB_FieldSchemeDefinition.getValidator  = getValidatorI;
     function   IFRE_DB_FieldSchemeDefinition.setValidator  = setValidatorI;
     function   IFRE_DB_FieldSchemeDefinition.getDepFields  = getDepFieldsI;
@@ -929,28 +935,26 @@ type
     function   IFRE_DB_FieldSchemeDefinition.GetSubScheme  = GetSubSchemeI;
     function   IFRE_DB_FieldSchemeDefinition.ValidateField = ValidateFieldI;
   public
-    constructor Create;
-    destructor  Destroy; override;
-    function   IsACalcField      : Boolean;
-    function   SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false;const add_confirm:Boolean=false ; const validator_params : TFRE_DB_Object=nil):TFRE_DB_FieldSchemeDefinition;
-    function   SetupFieldDefI    (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
-    procedure  SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
-    //function   CalcField         : TFRE_DB_FIELD;
-    procedure  addDepField       (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
-    procedure  ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
-    procedure  addVisDepField    (const fieldName: TFRE_DB_String;const visibleValue:String);
-    procedure  ForAllVisDepfields(const depfielditerator : TFRE_DB_VisDepfielditerator);
-    property   FieldName         :TFRE_DB_NameType  read GetFieldName;
-    property   FieldType         :TFRE_DB_FIELDTYPE read GetFieldType;
-    property   SubschemeName     :TFRE_DB_NameType  read GetSubSchemeName;
-    function   GetSubScheme      :TFRE_DB_SchemeObject;
-    function   GetSubSchemeI     :IFRE_DB_SchemeObject;
-    property   required          :Boolean read getRequired write setRequired;
-    property   isPass            :Boolean read getIsPass write setIsPass;
-    property   addConfirm        :Boolean read getAddConfirm write setAddConfirm;
-    property   multiValues       :Boolean read getMultiValues write setMultiValues;
-    function   ValidateField     (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
-    function   ValidateFieldI    (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
+    function    IsACalcField      : Boolean;
+    function    SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false;const add_confirm:Boolean=false ; const validator_params : TFRE_DB_Object=nil):TFRE_DB_FieldSchemeDefinition;
+    function    SetupFieldDefI    (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
+    procedure   SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
+    procedure   AddDepField       (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
+    procedure   ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
+    procedure   AddVisDepField    (const fieldName: TFRE_DB_String;const visibleValue:String);
+    procedure   ForAllVisDepfields(const depfielditerator : TFRE_DB_VisDepfielditerator);
+    property    FieldName         :TFRE_DB_NameType  read GetFieldName write SetFieldName;
+    property    FieldType         :TFRE_DB_FIELDTYPE read GetFieldType write SetFieldType;
+    property    SubschemeName     :TFRE_DB_NameType  read GetSubSchemeName write SetSubschemeName;
+    function    GetSubScheme      :TFRE_DB_SchemeObject;
+    function    GetSubSchemeI     :IFRE_DB_SchemeObject;
+    property    Required          :Boolean read GetRequired write SetRequired;
+    property    IsPass            :Boolean read GetIsPass write SetIsPass;
+    property    AddConfirm        :Boolean read GetAddConfirm write SetAddConfirm;
+    property    MultiValues       :Boolean read GetMultiValues write SetMultiValues;
+    property    FieldProperties   :TFRE_DB_FieldProperties read GetFieldProperties write SetFieldProperties;
+    function    ValidateField     (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
+    function    ValidateFieldI    (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
   end;
 
   { TFRE_DB_InputGroupSchemeDefinition }
@@ -990,15 +994,13 @@ type
 
 
   OFRE_SL_InputGroups     = specialize OFOS_SpareList<TFRE_DB_InputGroupSchemeDefinition>;
-  OFRE_SL_FieldSchemeDefs = specialize OFOS_SpareList<TFRE_DB_FieldSchemeDefinition>;
   { TFRE_DB_SchemeObject }
 
-  TFRE_DB_SchemeObject=class(TObject,IFRE_DB_SCHEMEOBJECT)
+  TFRE_DB_SchemeObject=class(TFRE_DB_Object,IFRE_DB_SCHEMEOBJECT)
   private
     FSchemeClass      : TFRE_DB_NameType;
     FHasHardcodeClass : Boolean;
-    FFieldDefs        : OFRE_SL_FieldSchemeDefs;
-    FMethodDefs       : TFRE_DB_Object;
+    FFieldDefs        : TFRE_DB_Object;
     FInputGroups      : OFRE_SL_InputGroups;
     FStrict           : Boolean;             // Only defined Fields Allowed
     FParentScheme     : TFRE_DB_SchemeObject;
@@ -1027,6 +1029,7 @@ type
     function  HasHardCodeClass          : Boolean;
 
     function  GetFieldDef               (const UPPER_fieldname:TFRE_DB_NameType ; var fd : TFRE_DB_FieldSchemeDefinition) : boolean;
+    procedure SetFieldDef               (var   fd : TFRE_DB_FieldSchemeDefinition);
 
     function  IFRE_DB_SCHEMEOBJECT.InvokeMethod_UID          = InvokeMethod_UIDI;
     function  IFRE_DB_SCHEMEOBJECT.AddSchemeField            = AddSchemeFieldI;
@@ -1045,11 +1048,14 @@ type
     function  IFRE_DB_SCHEMEOBJECT.GetDBConnection           = GetDBConnectionI;
     function  IFRE_DB_SCHEMEOBJECT.UpdateSchemeField         = UpdateSchemeFieldI;
     function  IFRE_DB_SCHEMEOBJECT.ForAllFieldSchemeDefinitions = ForAllFieldSchemeDefinitionsI;
+    procedure InternalSetup                       ; override;
+    function  _ObjectsNeedsNoSubfieldSchemeCheck  :boolean;override;
   public
     constructor create;
     destructor  Destroy;override;
-    procedure ForAllFieldSchemeDefinitionsI (const iterator:IFRE_DB_SchemeFieldDef_Iterator);
-    procedure ForAllFieldSchemeDefinitions (const iterator:TFRE_DB_SchemeFieldDef_Iterator);
+    procedure ForAllFieldSchemeDefinitionsI     (const iterator:IFRE_DB_SchemeFieldDefIterator);
+    procedure ForAllFieldSchemeDefinitions      (const iterator:TFRE_DB_SchemeFieldDefIterator);
+    procedure ForAllFieldSchemeDefinitionsBreak (const iterator:TFRE_DB_SchemeFieldDefIteratorBrk);
 
     function  InvokeMethod_UID_Session  (const instance:TFRE_DB_GUIDArray;const class_name,meth_name:TFRE_DB_String;var in_params:TFRE_DB_Object;const connection:TFRE_DB_CONNECTION; const session: TFRE_DB_UserSession) : IFRE_DB_Object;
     function  InvokeMethod_UIDI         (const obj_uid : TFRE_DB_GUID;const obj_methodname:TFRE_DB_String;var input:IFRE_DB_Object;const connection:IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -1081,6 +1087,7 @@ type
     function  GetExplanation            :TFRE_DB_String;
     procedure SetExplanation            (AValue: TFRE_DB_String);
     function  GetSchemeType             : TFRE_DB_SchemeType;
+    function  GetHardcodeClass          : TClass;
     procedure SetObjectFieldsWithScheme (const Raw_Object: TFRE_DB_OBject; const Update_Object: TFRE_DB_Object;const new_object:boolean;const DBConnection:TFRE_DB_CONNECTION;const schemeType: TFRE_DB_String='');
     procedure SetObjectFieldsWithSchemeI(const Raw_Object: IFRE_DB_OBject; const Update_Object: IFRE_DB_Object;const new_object:boolean;const DBConnection:IFRE_DB_CONNECTION;const schemeType: TFRE_DB_String='');
     function  ReplaceInputGroup         (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
@@ -1177,8 +1184,6 @@ type
     procedure SetDomainIDLink                  (AValue: TFRE_DB_GUID);
     procedure SetUserclass                     (AValue: TFRE_DB_String);
     procedure _UpdateDomainLoginKey;
-  protected
-    procedure _calcDisplayName                 (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
     function  GetUserGroupIDS                  : TFRE_DB_ObjLinkArray;
     function  SubFormattedDisplayAvailable     :boolean; override;
@@ -1198,6 +1203,7 @@ type
     property  isInternal                       :Boolean read GetIsInternal write SetIsInternal;
     property  Userclass                        :TFRE_DB_String read GetUserclass write SetUserclass;  { Every User has one defined class WEBUSER, FEEDER, (MIGHTYFEEDER), right checks can be OVERLAYED by the CLASS and the special class ALL }
   published
+    procedure _calcDisplayName                 (const calc : IFRE_DB_CALCFIELD_SETTER);
     class     function  WBC_NewUserOperation   (const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function  WEB_SaveOperation                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   end;
@@ -1212,8 +1218,6 @@ type
     procedure SetIsInternal                   (AValue: Boolean);
     function  GetSuspended: boolean;
     procedure SetSuspended(AValue: boolean);
-  protected
-    procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
     class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -1221,6 +1225,8 @@ type
     function        Domainkey                 : TFRE_DB_GUID_String;
     property        isInternal                : Boolean read GetIsInternal write SetIsInternal;
     property        Suspended                 : boolean read GetSuspended write SetSuspended;
+  published
+    procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   end;
 
   { TFRE_DB_GROUP }
@@ -1240,8 +1246,6 @@ type
     procedure SetIsDisabled (AValue: Boolean);
     procedure SetRoleIDs(AValue: TFRE_DB_ObjLinkArray);
     procedure _UpdateDomainGroupKey;
-  protected
-    procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainGroupKey         (const grouppart : TFRE_DB_String; const domain_id : TFRE_DB_GUID) : TFRE_DB_String;
@@ -1256,6 +1260,8 @@ type
     property  isProtected                  :Boolean read GetIsProtected write SetIsProtected;
     property  isInternal                   :Boolean read GetIsInternal write SetIsInternal;
     property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;
+  published
+    procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   end;
 
   { TFRE_DB_ROLE }
@@ -1271,8 +1277,6 @@ type
     procedure SetDomainIDLink               (AValue: TFRE_DB_GUID);
     procedure SetIsInternal                 (AValue: Boolean);
     procedure SetIsDisabled                 (AValue: Boolean);
-  protected
-    procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   public
     class procedure InstallDBObjects        (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure InstallDBObjects4Domain   (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID); override;
@@ -1287,6 +1291,8 @@ type
     procedure RemoveRights                  (const rights : TFRE_DB_StringArray);
     property  isInternal                    : Boolean read GetIsInternal write SetIsInternal;
     property  isDisabled                    : Boolean read GetIsDisabled write SetIsDisabled;
+  published
+    procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   end;
 
   procedure          ForAllObjectsDo (const object_array:TFRE_DB_ObjectArray ; const iterator:TFRE_DB_Obj_Iterator);
@@ -2234,9 +2240,6 @@ type
     function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION):TFRE_DB_Errortype;override;
     function    InvokeMethod              (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
-    function    CreateschemeUniqueKeyDefinition (const schemeClass,FieldName:TFRE_DB_String ; const FieldType:TFRE_DB_FIELDTYPE):TFRE_DB_Errortype;
-    function    DropschemeUniqueKeyDefinition   (const schemeClass,FieldName:TFRE_DB_String ; const FieldType:TFRE_DB_FIELDTYPE):TFRE_DB_Errortype;
-
     //Warning Fetching from DB, and then from system can have undesired side effects ...
     function    Fetch                       (const ouid:TFRE_DB_GUID;out dbo:TFRE_DB_Object ; const without_right_check:boolean=false) : TFRE_DB_Errortype; override;
     function    FetchAs                     (const ouid:TFRE_DB_GUID;const classref : TFRE_DB_BaseClass ; var outobj) : TFRE_DB_Errortype;
@@ -2317,11 +2320,11 @@ type
     FWeakMediatorLock                       : IFOS_Lock;
     FLocalZone                              : TFRE_DB_String;
     FFormatSettings                         : TFormatSettings;
-    FClassArray                             : Array of  TFRE_RsysClass;
-    FExClassArray                           : Array of  TFRE_RExtensionClass;
-    FWeakExClassArray                       : Array of  TFRE_DB_WeakObjectEx;
-    FKnownInterfaces                        : Array of  TFRE_RInterfaceImplementor;
-    FSysSchemes                             : Array of  TFRE_DB_SchemeObject;
+    FClassArray                             : Array of TFRE_RsysClass;
+    FExClassArray                           : Array of TFRE_RExtensionClass;
+    FWeakExClassArray                       : Array of TFRE_DB_WeakObjectEx;
+    FKnownInterfaces                        : Array of TFRE_RInterfaceImplementor;
+    FSysSchemes                             : Array of TFRE_DB_SchemeObject;
     FSysEnums                               : Array of TFRE_DB_Enum;
     FSysClientFieldValidators               : Array of TFRE_DB_ClientFieldValidator;
     FAppArray                               : TFRE_DB_APPLICATION_ARRAY;
@@ -2839,6 +2842,8 @@ begin
   FMyDomainID_GS    := uppercase(FREDB_G2H(FMyDomainID));
   FAllDomainNames   := domain_names;
   FAllDomainsUids   := domainids;
+  if userclass='MIGHTYFEEDER' then
+    FIsSysAdmin := true;
   FDomainLoginKey   := TFRE_DB_USER.GetDomainLoginKey(FUserLoginPart,FMyDomainID);
   FLoginAtDomain    := FUserLoginPart+'@'+GetDomainNameByUid(user_domid);
   FUserFirstName    := firstname;
@@ -3838,7 +3843,7 @@ begin
   if cap_trans_key<>'' then
     obj.caption_key    := cap_trans_key
   else
-    obj.caption_key    := '$'+fieldDef.FScheme.DefinedSchemeName+'_scheme_'+schemefield;
+    obj.caption_key    := '$'+fieldDef.getParentScheme.DefinedSchemeName+'_scheme_'+schemefield;
   obj.datacollection   := field_backing_collection;
   obj.standardcoll     := standard_coll;
   obj.dc_isderivedc    := fbCollectionIsDerivedCollection;
@@ -4977,7 +4982,8 @@ procedure TFRE_DB_BASE_CONNECTION._CheckSchemeDefinitions(const obj: TFRE_DB_Obj
 var lSchemeclass : TFRE_DB_String;
     lScheme      : TFRE_DB_SchemeObject;
 begin
-  if obj._ObjectIsCodeclassOnlyAndHasNoScheme then exit;
+  if obj._ObjectIsCodeclassOnlyAndHasNoScheme then
+    exit;
   lSchemeclass := obj.SchemeClass;
   if lSchemeClass<>'' then begin
     if GFRE_DB.GetSysScheme(lSchemeclass,lscheme) then begin
@@ -7807,43 +7813,50 @@ end;
 
 function TFRE_DB_FieldSchemeDefinition.GetFieldName: TFRE_DB_NameType;
 begin
-  result := FFieldName;
+  result := FFieldName.AsString;
 end;
 
-function TFRE_DB_FieldSchemeDefinition.getEnum: TFRE_DB_Enum;
+function TFRE_DB_FieldSchemeDefinition.GetFieldProperties: TFRE_DB_FieldProperties;
+var props : UInt32;
+begin
+  props   := FProperties.AsUInt32;
+  result  := TFRE_DB_Fieldproperties(props);
+end;
+
+function TFRE_DB_FieldSchemeDefinition.GetEnum: TFRE_DB_Enum;
 begin
   result := Fenum;
 end;
 
-function TFRE_DB_FieldSchemeDefinition.getAddConfirm: Boolean;
+function TFRE_DB_FieldSchemeDefinition.GetAddConfirm: Boolean;
 begin
-  Result := FaddConfirm;
+  Result := fp_AddConfirmation in FieldProperties;
 end;
 
 function TFRE_DB_FieldSchemeDefinition.GetFieldType: TFRE_DB_FIELDTYPE;
 begin
-  result := FFieldtype;
+  result := FREDB_FieldtypeShortString2Fieldtype(FFieldtype.AsString);
 end;
 
 function TFRE_DB_FieldSchemeDefinition.getIsPass: Boolean;
 begin
-  Result := FisPass;
+  Result := fp_PasswordField in FieldProperties;
 end;
 
 function TFRE_DB_FieldSchemeDefinition.getMultiValues: Boolean;
 begin
-  Result := FmultiValues;
+  Result := fp_Multivalues in FieldProperties;
 end;
 
 function TFRE_DB_FieldSchemeDefinition.getRequired: Boolean;
 begin
-  Result := Frequired;
+  Result := fp_Required in FieldProperties;
 end;
 
 
 function TFRE_DB_FieldSchemeDefinition.GetSubSchemeName: TFRE_DB_NameType;
 begin
-  result := FSubscheme;
+  result := FSubSchemeObj.DefinedSchemeName;
 end;
 
 function TFRE_DB_FieldSchemeDefinition.getValidator: TFRE_DB_ClientFieldValidator;
@@ -7853,7 +7866,7 @@ end;
 
 function TFRE_DB_FieldSchemeDefinition.getValidatorParams: IFRE_DB_Object;
 begin
-  result := FvalidatorParams;
+  result := FvalidatorParams.AsObject;
 end;
 
 function TFRE_DB_FieldSchemeDefinition.getValidatorI(var validator: IFRE_DB_ClientFieldValidator): boolean;
@@ -7876,39 +7889,80 @@ end;
 
 procedure TFRE_DB_FieldSchemeDefinition.setAddConfirm(AValue: Boolean);
 begin
-  FaddConfirm := AValue;
+  if AValue then
+    FieldProperties := FieldProperties + [fp_AddConfirmation]
+  else
+    FieldProperties := FieldProperties - [fp_AddConfirmation];
+end;
+
+procedure TFRE_DB_FieldSchemeDefinition.SetFieldName(AValue: TFRE_DB_NameType);
+begin
+  FFieldName.AsString:=AValue;
+end;
+
+procedure TFRE_DB_FieldSchemeDefinition.SetFieldProperties(AValue: TFRE_DB_FieldProperties);
+var props : UInt32;
+begin
+  props                := UInt32(AValue);
+  FProperties.AsUInt32 := props;
+end;
+
+
+procedure TFRE_DB_FieldSchemeDefinition.SetFieldType(AValue: TFRE_DB_FIELDTYPE);
+begin
+  FFieldType.AsString:=CFRE_DB_FIELDTYPE_SHORT[AValue];
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.setisPass(AValue: Boolean);
 begin
-  FisPass := AValue;
+  if AValue then
+    FieldProperties := FieldProperties + [fp_PasswordField]
+  else
+    FieldProperties := FieldProperties - [fp_PasswordField];
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.setEnum(AValue: TFRE_DB_Enum);
 begin
   Fenum := AValue;
+  FEnumName.AsString:=AValue.ObjectName;
+end;
+
+procedure TFRE_DB_FieldSchemeDefinition.SetSubschemeName(AValue: TFRE_DB_NameType);
+begin
+  if (AValue<>'') and (FSubSchemeObj=nil) then begin
+    if GFRE_DB.GetSystemScheme(AValue,FSubSchemeObj)=false then
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'critical subscheme inconsistency cant fetch subfieldscheme '+AValue+' for '+(getParentScheme.DefinedSchemeName));
+    FSubSchemeName.AsString := AValue;
+  end;
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.setMultiValues(AValue: Boolean);
 begin
-  FmultiValues := AValue;
+  if AValue then
+    FieldProperties := FieldProperties + [fp_Multivalues]
+  else
+    FieldProperties := FieldProperties - [fp_Multivalues];
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.setRequired(AValue: Boolean);
 begin
-  Frequired :=AValue;
+  if AValue then
+    FieldProperties := FieldProperties + [fp_Required]
+  else
+    FieldProperties := FieldProperties - [fp_Required];
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.setValidator(AValue: TFRE_DB_ClientFieldValidator);
 begin
   Fvalidator := AValue;
+  FValidatorName.AsString:=AValue.ObjectName;
 end;
 
 
-procedure TFRE_DB_FieldSchemeDefinition.addDepField(const fieldName: TFRE_DB_String;const disablesField:Boolean);
+procedure TFRE_DB_FieldSchemeDefinition.AddDepField(const fieldName: TFRE_DB_String; const disablesField: Boolean);
 var
-  tmpField: TFRE_DB_FieldSchemeDefinition;
-  depObj  : R_Depfieldfield;
+  tmpField  : TFRE_DB_FieldSchemeDefinition;
+  fcnt      : NativeInt;
 begin
   if not getParentScheme.GetSchemeField(fieldName,tmpField) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Dependent field ' + fieldName + ' not found');
@@ -7916,27 +7970,31 @@ begin
   if not ((FieldType=fdbft_Boolean) or (FieldType=fdbft_ObjLink)) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Dependent fields can only be defined on boolean or objlink fields');
   end;
-
-  depObj.depFieldName  := fieldName;
-  depObj.disablesField := disablesField;
-  FDepFields.Add(depObj);
+  if FDepFields.FieldExists(fieldName) then
+    raise EFRE_DB_Exception.Create(edb_EXISTS,'a dependent fielddefinition already exists for [%s]',[fieldName]);
+  FDepFields.Field(inttostr(fcnt)).AsString:=fieldname+'.'+BoolToStr(disablesField,'1','0');
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.ForAllDepfields(const depfielditerator: TFRE_DB_Depfielditerator);
 
-  procedure iterate(var df : R_Depfieldfield ; const idx : NativeInt ; var halt : boolean);
+  procedure iterate(const field:IFRE_DB_Field);
+  var df   : R_Depfieldfield;
+      val  : TFRE_DB_String;
   begin
+    val              := field.AsString;
+    df.depFieldName  := GFRE_BT.SepLeft(val,'.');
+    df.disablesField := StrToBool(GFRE_BT.SepRight(val,'.'));
     depfielditerator(df);
   end;
 
 begin
-  FDepFields.ForAllBreak(@iterate);
+  FDepFields.ForAllFields(@iterate,true,true);
 end;
 
-procedure TFRE_DB_FieldSchemeDefinition.addVisDepField(const fieldName: TFRE_DB_String; const visibleValue: String);
+procedure TFRE_DB_FieldSchemeDefinition.AddVisDepField(const fieldName: TFRE_DB_String; const visibleValue: String);
 var
   tmpField  : TFRE_DB_FieldSchemeDefinition;
-  visDepObj : R_VisDepfieldfield;
+  fcnt      : NativeInt;
 begin
   if not getParentScheme.GetSchemeField(fieldName,tmpField) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Visibility dependent field ' + fieldName + ' not found');
@@ -7944,70 +8002,57 @@ begin
   if not Assigned(FEnum) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Visibility dependent fields can only be defined on enum fields');
   end;
-
-  visDepObj.visDepFieldName := fieldName;
-  visDepObj.visibleValue    := visibleValue;
-  FVisDepFields.Add(visDepObj);
+  if FVisDepFields.FieldExists(fieldName) then
+    raise EFRE_DB_Exception.Create(edb_EXISTS,'a dependent fielddefinition already exists for [%s]',[fieldName]);
+  fcnt := FVisDepFields.FieldCount(true,true);
+  FVisDepFields.Field(inttostr(fcnt)).AsString:=fieldname+'.'+visibleValue;
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.ForAllVisDepfields(const depfielditerator: TFRE_DB_VisDepfielditerator);
 
-  procedure iterate(var df : R_VisDepfieldfield ; const idx : NativeInt ; var halt : boolean);
+  procedure iterate(const field:IFRE_DB_Field);
+  var df   : R_VisDepfieldfield;
+      val  : TFRE_DB_String;
   begin
+    val := field.AsString;
+    df.visDepFieldName := GFRE_BT.SepLeft(val,'.');
+    df.visibleValue    := GFRE_BT.SepRight(val,'.');
     depfielditerator(df);
   end;
 
 begin
-  FVisDepFields.ForAllBreak(@iterate);
+  FVisDepFields.ForAllFields(@iterate,true,true);
 end;
 
-function TFRE_DB_FieldSchemeDefinition.getParentScheme: TFRE_DB_SchemeObject;
+function TFRE_DB_FieldSchemeDefinition.GetParentScheme: TFRE_DB_SchemeObject;
 begin
-  Result:=FScheme; //;Parent.Parent as TFRE_DB_SchemeObject;
+  result := Parent.Parent as TFRE_DB_SchemeObject;
 end;
 
-function local_DepfieldNullCompare(const df : P_Depfieldfield):boolean;
+function TFRE_DB_FieldSchemeDefinition._ObjectsNeedsNoSubfieldSchemeCheck: boolean;
 begin
-  result := df^.depFieldName='';
+  Result := true;
 end;
 
-function local_DepfieldCompare(const df1,df2 : P_Depfieldfield):boolean;
+procedure TFRE_DB_FieldSchemeDefinition.InternalSetup;
 begin
-  result := uppercase(df1^.depFieldName)=uppercase(df2^.depFieldName);
+  FFieldName           := Field('FN');
+  FFieldType           := Field('FT');
+  FProperties          := Field('FP');
+  FValidatorParams     := Field('VP');
+  FSubSchemeName       := Field('SS');
+  FEnumName            := Field('EN');
+  FValidatorName       := Field('VN');
+  FCalcmethodName      := Field('CN');
+  FDepFields           := Field('DF').AsObject;
+  FVisDepFields        := Field('VD').AsObject;
+  FCalcmethodName.AsString:='';
+  FProperties.AsUInt32 :=0 ;
 end;
-
-function local_VisDepfieldNullCompare(const df : P_VisDepfieldfield):boolean;
-begin
-  result := df^.visDepFieldName='';
-end;
-
-function local_VisDepfieldCompare(const df1,df2 : P_VisDepfieldfield):boolean;
-begin
-  result := (uppercase(df1^.visDepFieldName)=uppercase(df2^.visDepFieldName)) and (df1^.visibleValue=df2^.visibleValue);
-end;
-
-constructor TFRE_DB_FieldSchemeDefinition.Create;
-var
-  rdf  : R_Depfieldfield;
-  rvdf : R_VisDepfieldfield;
-begin
-  FillByte(rdf,sizeof(R_Depfieldfield),0);
-  FDepFields.InitSparseList(rdf,@local_DepfieldNullCompare,@local_DepfieldCompare,1);
-  FillByte(rvdf,sizeof(R_VisDepfieldfield),0);
-  FVisDepFields.InitSparseList(rvdf,@local_VisDepfieldNullCompare,@local_VisDepfieldCompare,1);
-end;
-
-destructor TFRE_DB_FieldSchemeDefinition.Destroy;
-begin
-  FvalidatorParams.Free;
-  inherited Destroy;
-end;
-
-
 
 function TFRE_DB_FieldSchemeDefinition.IsACalcField: Boolean;
 begin
-  result := assigned(FCalcMethod);
+  result := FCalcmethodName.AsString<>'';
 end;
 
 function TFRE_DB_FieldSchemeDefinition.SetupFieldDef(const is_required: boolean; const is_multivalue: boolean; const enum_key: TFRE_DB_NameType; const validator_key: TFRE_DB_NameType; const is_pass: Boolean; const add_confirm: Boolean; const validator_params: TFRE_DB_Object): TFRE_DB_FieldSchemeDefinition;
@@ -8030,10 +8075,7 @@ begin
       begin
         setValidator(lValid);
         if assigned(validator_params) then
-          begin
-            FvalidatorParams.Free;
-            FvalidatorParams := validator_params;
-          end;
+          FvalidatorParams.AsObject := validator_params;
        end
     else
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'the client field validator[%s] could not be fetched from the database',[validator_key]);
@@ -8050,8 +8092,17 @@ begin
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.SetCalcMethod(const calc_method: IFRE_DB_CalcMethod);
+var hc    : TClass;
+    mname : ShortString;
 begin
-  FCalcMethod   := calc_method;
+  hc := GetParentScheme.GetHardcodeClass;
+  if not assigned(hc) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'could not get hardcode class of scheme');
+  mname := hc.MethodName(TMethod(calc_method).Code);
+  if mname='' then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'could not get hardcode methodname of class [%s], maybe you forgot to publish your calcmethod/override missing ?',[hc.ClassName]);
+  FCalcMethod              := calc_method;
+  FCalcmethodName.AsString := mname;
 end;
 
 function TFRE_DB_FieldSchemeDefinition.GetSubScheme: TFRE_DB_SchemeObject;
@@ -8061,7 +8112,7 @@ begin
   scheme_name := SubschemeName;
   if (scheme_name<>'') and (FSubSchemeObj=nil) then begin
     if GFRE_DB.GetSystemScheme(scheme_name,FSubSchemeObj)=false then begin
-      raise EFRE_DB_Exception.Create(edb_INTERNAL,'critical subscheme inconsistency cant fetch subfieldscheme '+scheme_name+' for '+(FScheme.DefinedSchemeName));
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'critical subscheme inconsistency cant fetch subfieldscheme '+scheme_name+' for '+(getParentScheme.DefinedSchemeName));
     end;
   end;
   result := FSubSchemeObj;
@@ -8131,7 +8182,7 @@ var lFieldSchemeDefinition:TFRE_DB_FieldSchemeDefinition;
 
   procedure FieldDefExists(var fd : TFRE_DB_FieldSchemeDefinition ; const idx:NativeInt ; var halt_flag:boolean);
   begin
-    if fd.FFieldName=upnewfieldname then
+    if fd.FieldName=upnewfieldname then
       halt_flag := true;
   end;
 
@@ -8147,50 +8198,50 @@ begin
   if upnewfieldname='DOMAINID' then
     raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'It is not allowed to redefine the special DOMAIND field.');
 
+  if upnewfieldname='SCHEMECLASS' then
+    raise EFRE_DB_Exception.Create(edb_INVALID_PARAMS,'It is not allowed to redefine the special SCHEMECLASS field.');
+
   if GetFieldDef(upnewfieldname,lFieldSchemeDefinition) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'AddschemeField: schemefield '+newfieldname+' is already set');
 
   lFieldSchemeDefinition                       := TFRE_DB_FieldSchemeDefinition.Create;
-  FFieldDefs.Add(lFieldSchemeDefinition);
-  lFieldSchemeDefinition.FFieldName            := upnewfieldname;
+  lFieldSchemeDefinition.FieldName             := upnewfieldname;
+  SetFieldDef(lFieldSchemeDefinition);
   if sub_scheme='' then
     begin
-      lFieldSchemeDefinition.FFieldType            := newfieldtype;
+      lFieldSchemeDefinition.FieldType            := newfieldtype;
     end
   else
     begin
-      lFieldSchemeDefinition.FFieldType            := fdbft_Object;
-      lFieldSchemeDefinition.FSubscheme            := sub_scheme;
+      lFieldSchemeDefinition.FieldType            := fdbft_Object;
+      lFieldSchemeDefinition.SubschemeName        := sub_scheme;
     end;
-  lFieldSchemeDefinition.Frequired             := false;
-  lFieldSchemeDefinition.FisPass               := false;
-  lFieldSchemeDefinition.FaddConfirm           := false;
-  lFieldSchemeDefinition.FmultiValues          := false;
-  lFieldSchemeDefinition.FScheme               := self;
-  result                                       := lFieldSchemeDefinition;
+  lFieldSchemeDefinition.Required             := false;
+  lFieldSchemeDefinition.IsPass               := false;
+  lFieldSchemeDefinition.AddConfirm           := false;
+  lFieldSchemeDefinition.MultiValues          := false;
+  result                                      := lFieldSchemeDefinition;
   if newfieldtype=fdbft_Stream then { automagically add a stream type field (text) for a stream field definition}
     begin
-      lFieldSchemeDefinition                       := TFRE_DB_FieldSchemeDefinition.Create;
-      FFieldDefs.Add(lFieldSchemeDefinition);
-      lFieldSchemeDefinition.FFieldName            := upnewfieldname+cFRE_DB_STKEY;
-      lFieldSchemeDefinition.FFieldType            := fdbft_String;
-      lFieldSchemeDefinition.Frequired             := false;
-      lFieldSchemeDefinition.FisPass               := false;
-      lFieldSchemeDefinition.FaddConfirm           := false;
-      lFieldSchemeDefinition.FmultiValues          := false;
-      lFieldSchemeDefinition.FScheme               := self;
+      lFieldSchemeDefinition                      := TFRE_DB_FieldSchemeDefinition.Create;
+      lFieldSchemeDefinition.FieldName            := upnewfieldname+cFRE_DB_STKEY;
+      SetFieldDef(lFieldSchemeDefinition);
+      lFieldSchemeDefinition.FieldType            := fdbft_String;
+      lFieldSchemeDefinition.required             := false;
+      lFieldSchemeDefinition.isPass               := false;
+      lFieldSchemeDefinition.addConfirm           := false;
+      lFieldSchemeDefinition.multiValues          := false;
     end;
   if newfieldtype=fdbft_Stream then { automagically add a stream etag type field (text) for a stream field definition}
     begin
       lFieldSchemeDefinition                       := TFRE_DB_FieldSchemeDefinition.Create;
-      FFieldDefs.Add(lFieldSchemeDefinition);
-      lFieldSchemeDefinition.FFieldName            := upnewfieldname+cFRE_DB_ST_ETAG;
-      lFieldSchemeDefinition.FFieldType            := fdbft_String;
-      lFieldSchemeDefinition.Frequired             := false;
-      lFieldSchemeDefinition.FisPass               := false;
-      lFieldSchemeDefinition.FaddConfirm           := false;
-      lFieldSchemeDefinition.FmultiValues          := false;
-      lFieldSchemeDefinition.FScheme               := self;
+      lFieldSchemeDefinition.FieldName            := upnewfieldname+cFRE_DB_ST_ETAG;
+      SetFieldDef(lFieldSchemeDefinition);
+      lFieldSchemeDefinition.FieldType            := fdbft_String;
+      lFieldSchemeDefinition.required             := false;
+      lFieldSchemeDefinition.isPass               := false;
+      lFieldSchemeDefinition.addConfirm           := false;
+      lFieldSchemeDefinition.multiValues          := false;
     end;
 end;
 
@@ -8220,21 +8271,21 @@ end;
 
 
 function TFRE_DB_SchemeObject.GetSchemeField(const fieldname: TFRE_DB_NameType;var fieldschemedef:TFRE_DB_FieldSchemeDefinition): boolean;
-var current                : TFRE_DB_SchemeObject;
-    lFieldSchemeDefinition : TFRE_DB_FieldSchemeDefinition;
-    upfieldname            : TFRE_DB_NameType;
-
+var current    : TFRE_DB_SchemeObject;
+    ufieldname : TFRE_DB_NameType;
 begin
-  result  := false;
-  current := self;
-  if (fieldname='UID') or
-     (fieldname='DOMAINID') then
-       exit;
+  ufieldname     := uppercase(fieldname);
+  result         := false;
+  fieldschemedef := nil;
+  current        := self;
+  if ReservedFieldName(ufieldname) then
+    exit;
   repeat
-    if GetFieldDef(UpperCase(fieldname),fieldschemedef) then
+    if GetFieldDef(ufieldname,fieldschemedef) then
       exit(true);
     current := current.GetParentScheme;
-    if current=nil then break;
+    if current=nil then
+      break;
   until false;
 end;
 
@@ -8448,6 +8499,11 @@ end;
 function TFRE_DB_SchemeObject.GetSchemeType: TFRE_DB_SchemeType;
 begin
   result := FSchemeType;
+end;
+
+function TFRE_DB_SchemeObject.GetHardcodeClass: TClass;
+begin
+  result := FHardCodeClassTyp;
 end;
 
 
@@ -8740,14 +8796,17 @@ var failure:boolean;
     end;
   end;
 
-  procedure CheckSchemeField(var field_def : TFRE_DB_FieldSchemeDefinition ; const idx : NativeInt ; var halt : boolean);
+  procedure CheckSchemeField(const obj : IFRE_DB_Object ; var halt : boolean);
   var exists    : boolean;
       field_val : TFRE_DB_String;
+      field_def : TFRE_DB_FieldSchemeDefinition;
   begin
     result:=false;
-    exists := dbo.FieldExists(field_def.FieldName);
+    field_def := obj.Implementor as TFRE_DB_FieldSchemeDefinition;
+    exists    := dbo.FieldExists(field_def.FieldName);
     if (not exists) and field_def.required then begin
-      if raise_errors then raise EFRE_DB_Exception.Create(edb_ERROR,'the required field[%s], does not exist in object while validating against scheme[%s]',[field_def.FieldName,DefinedSchemeName]);
+      if raise_errors then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'the required field[%s], does not exist in object while validating against scheme[%s]',[field_def.FieldName,DefinedSchemeName]);
       failure:=true;
       halt := true;
       exit; //break;
@@ -8769,23 +8828,13 @@ begin
   failure:=false;
   if dbo.SchemeClass<>DefinedSchemeName then raise EFRE_DB_Exception.Create(edb_ERROR,'when validating an object [%s] against a schemeclass [%s], it must be of that same schemeclass',[dbo.SchemeClass,DefinedSchemeName]);
   dbo.ForAllBrk(@CheckField); // check if object satisfied by scheme
-  FFieldDefs.ForAllBreak(@CheckSchemeField);
+  FFieldDefs.ForAllObjectsBreak(@CheckSchemeField);
   result := not failure;
 end;
 
 function TFRE_DB_SchemeObject.ValidateObjectI(const dbo: IFRE_DB_Object; const raise_errors: boolean): boolean;
 begin
   result := ValidateObject(dbo.Implementor as TFRE_DB_Object,raise_errors);
-end;
-
-function SchemeFieldDefnull (const fd : PFRE_DB_FieldSchemeDefinition):boolean;
-begin
-  result := not assigned(fd^);
-end;
-
-function CompareSchemefieldDef   (const fd1,fd2 : PFRE_DB_FieldSchemeDefinition):boolean;
-begin
-  result := fd1^.FFieldName = fd2^.FFieldName;
 end;
 
 
@@ -8800,7 +8849,7 @@ begin
     if result then
       begin
         calcmethod            := lFieldSchemeDefinition.FCalcMethod;
-        calculated_field_type := lFieldSchemeDefinition.FFieldType;
+        calculated_field_type := lFieldSchemeDefinition.FieldType;
       end;
   end;
 end;
@@ -8819,14 +8868,14 @@ end;
 
 procedure TFRE_DB_SchemeObject.ForAllCalculatedFieldsBrk(const iter: TFRE_DB_FieldIteratorBrk; const obj: TFRE_DB_Object);
 
- procedure CalcIterator(var fielddef : TFRE_DB_FieldSchemeDefinition ; const idx:NativeInt ; var halt_flag:boolean);
+ procedure CalcIterator(const fielddef : TFRE_DB_FieldSchemeDefinition; var halt_flag:boolean);
  begin
    if fielddef.IsACalcField then
      halt_flag := iter(obj._field(fielddef.FieldName));
  end;
 
 begin
-  FFieldDefs.ForAllBreak(@CalcIterator);
+  ForAllFieldSchemeDefinitionsBreak(@CalcIterator);
 end;
 
 
@@ -9008,48 +9057,48 @@ begin
 end;
 
 function TFRE_DB_SchemeObject.GetFieldDef(const UPPER_fieldname: TFRE_DB_NameType; var fd: TFRE_DB_FieldSchemeDefinition): boolean;
-
-  procedure FieldDefExists(var ifd : TFRE_DB_FieldSchemeDefinition ; const idx:NativeInt ; var halt_flag:boolean);
-  begin
-  if ifd.FFieldName = UPPER_fieldname then
-    begin
-      halt_flag := true;
-      fd        := ifd;
-    end;
-  end;
-
 begin
-  fd := nil;
-  result := FFieldDefs.ForAllBreak(@FieldDefExists);
+  result := FFieldDefs.FieldOnlyExistingObjAs(UPPER_fieldname,TFRE_DB_FieldSchemeDefinition,fd);
+end;
+
+procedure TFRE_DB_SchemeObject.SetFieldDef(var fd: TFRE_DB_FieldSchemeDefinition);
+var fieldname : TFRE_DB_NameType;
+begin
+ try
+   fieldname := fd.FieldName;
+   if fieldname='' then
+     raise EFRE_DB_Exception.Create(edb_INTERNAL,'set fielddef but no fieldname set');
+   if FieldExists(fieldname) then
+     raise EFRE_DB_Exception.Create(edb_INTERNAL,'set fielddef but field exists [%s/%s]',[fieldname,DefinedSchemeName]);
+    FFieldDefs.Field(fieldname).AsObject := fd;
+  except
+    fd.Free;
+    fd:=nil;
+  end;
+end;
+
+procedure TFRE_DB_SchemeObject.InternalSetup;
+begin
+  FFieldDefs := Field('FDD').AsObject;
+end;
+
+function TFRE_DB_SchemeObject._ObjectsNeedsNoSubfieldSchemeCheck: boolean;
+begin
+  result := true;
 end;
 
 constructor TFRE_DB_SchemeObject.create;
 begin
+  Inherited Create;
   FInputGroups.InitSparseList(nil,@InputGroupNull,@CompareInputGroups,10);
-  FFieldDefs.InitSparseList(nil,@SchemeFieldDefnull,@CompareSchemefieldDef);
 end;
 
 destructor TFRE_DB_SchemeObject.Destroy;
-
-  procedure CleanupIGs(var ig : TFRE_DB_InputGroupSchemeDefinition ; const idx : NativeInt ; var halt : boolean);
-  begin
-    ig.Free;
-    ig := nil;
-  end;
-
-  procedure CleanupFDs(var fd : TFRE_DB_FieldSchemeDefinition ; const idx : NativeInt ; var halt : boolean);
-  begin
-    fd.Free;
-    fd := nil;
-  end;
-
 begin
-  FInputGroups.ForAllBreak(@CleanupIGs);
-  FFieldDefs.ForAllBreak(@CleanupFDs);
   inherited Destroy;
 end;
 
-procedure TFRE_DB_SchemeObject.ForAllFieldSchemeDefinitionsI(const iterator: IFRE_DB_SchemeFieldDef_Iterator);
+procedure TFRE_DB_SchemeObject.ForAllFieldSchemeDefinitionsI(const iterator: IFRE_DB_SchemeFieldDefIterator);
 
   procedure iter(const obj:TFRE_DB_FieldSchemeDefinition);
   begin
@@ -9060,15 +9109,31 @@ begin
   ForAllFieldSchemeDefinitions(@iter);
 end;
 
-procedure TFRE_DB_SchemeObject.ForAllFieldSchemeDefinitions(const iterator: TFRE_DB_SchemeFieldDef_Iterator);
+procedure TFRE_DB_SchemeObject.ForAllFieldSchemeDefinitions(const iterator: TFRE_DB_SchemeFieldDefIterator);
 
-  procedure iterate(var ifd : TFRE_DB_FieldSchemeDefinition ; const idx:NativeInt ; var halt_flag:boolean);
+  procedure iterate(const obj : IFRE_DB_Object);
+  var ifd : TFRE_DB_FieldSchemeDefinition;
   begin
+    ifd := obj.Implementor as TFRE_DB_FieldSchemeDefinition;
     iterator(ifd);
   end;
 
 begin
-  FFieldDefs.ForAllBreak(@Iterate);
+  FFieldDefs.ForAllObjects(@Iterate,true);
+end;
+
+procedure TFRE_DB_SchemeObject.ForAllFieldSchemeDefinitionsBreak(const iterator: TFRE_DB_SchemeFieldDefIteratorBrk);
+var fcnt : NativeInt;
+  procedure iterate(const obj : IFRE_DB_Object; var halt_flag:boolean);
+  var ifd : TFRE_DB_FieldSchemeDefinition;
+  begin
+    ifd := obj.Implementor as TFRE_DB_FieldSchemeDefinition;
+    iterator(ifd,halt_flag);
+  end;
+
+begin
+  fcnt := FFieldDefs.FieldCount(false,false);
+  FFieldDefs.ForAllObjectsBreak(@iterate,true);
 end;
 
 
@@ -11045,17 +11110,6 @@ begin //nl
   result := Update(dbo.Implementor as TFRE_DB_Object);
 end;
 
-function TFRE_DB_CONNECTION.CreateschemeUniqueKeyDefinition(const schemeClass, FieldName: TFRE_DB_String; const FieldType: TFRE_DB_FIELDTYPE): TFRE_DB_Errortype;
-begin
-  abort;
-end;
-
-function TFRE_DB_CONNECTION.DropschemeUniqueKeyDefinition(const schemeClass, FieldName: TFRE_DB_String; const FieldType: TFRE_DB_FIELDTYPE): TFRE_DB_Errortype;
-begin
-  abort;
-end;
-
-
 function TFRE_DB_CONNECTION.Fetch(const ouid: TFRE_DB_GUID; out dbo: TFRE_DB_Object; const without_right_check: boolean): TFRE_DB_Errortype;
 begin
   dbo := nil;
@@ -12112,8 +12166,6 @@ begin
         lscheme := NewScheme(cn,dbst_Extension);
         FExClassArray[i].exclass.RegisterSystemScheme(lscheme);
         RegisterSysScheme(lscheme);
-        //CheckDbResultFmt(FSystemSchemes.StoreScheme(lscheme),'error storing extension lscheme %s',[cn]);
-        //FSystemSchemes.GetScheme(cn,lscheme);
         if FExClassArray[i].exclass.InheritsFrom(TFRE_DB_APPLICATION) and (FExClassArray[i].exclass<>TFRE_DB_APPLICATION)  then begin
           app := lscheme.ConstructNewInstance.Implementor_HC as TFRE_DB_APPLICATION;
           SetLength(FAppArray,Length(FAppArray)+1);
@@ -13465,7 +13517,7 @@ begin
   ForAllBrk(@lForAll,without_calcfields,without_system_fields);
 end;
 
-procedure TFRE_DB_Object.ForAllObjects(const iter: IFRE_DB_Obj_Iterator);
+procedure TFRE_DB_Object.ForAllObjects(const iter: IFRE_DB_Obj_Iterator; const without_calcfields: boolean);
   procedure Iterate(const fld:IFRE_DB_Field);
   begin
      if fld.FieldType=fdbft_Object then
@@ -13473,7 +13525,24 @@ procedure TFRE_DB_Object.ForAllObjects(const iter: IFRE_DB_Obj_Iterator);
   end;
 
 begin
-  ForAllFields(@Iterate);
+  ForAllFields(@Iterate,without_calcfields,true);
+end;
+
+procedure TFRE_DB_Object.ForAllObjectsBreak(const iter: IFRE_DB_ObjectIteratorBrk; const without_calcfields: boolean);
+var halt : boolean;
+
+  function lForAll(const field:TFRE_DB_FIELD):boolean;
+  begin
+    if field.FieldType=fdbft_Object then
+      begin
+        iter(field.AsObject,halt);
+      end;
+  end;
+
+begin
+  _InAccessibleCheck;
+  halt := false;
+  ForAllBrk(@lForAll,without_calcfields,true);
 end;
 
 procedure TFRE_DB_Object.ForAllObjectsFieldName(const iter: IFRE_DB_Obj_NameIterator);
@@ -13638,10 +13707,17 @@ destructor TFRE_DB_Object.Destroy;
   end;
 
 begin
-  FDBO_State := fdbos_Destroying;
-  FFieldStore.ForallItems(@DoAllFinalizeFields); // plus unknown fields
-  FFieldStore.Free;
-  InternalFinalize;
+  try
+    FDBO_State := fdbos_Destroying;
+    FFieldStore.ForallItems(@DoAllFinalizeFields); // plus unknown fields
+    FFieldStore.Free;
+    InternalFinalize;
+  except
+    on e:exception do
+      begin
+        writeln('!!!> Object free of class '+ClassName+' failed : '+e.Message);
+      end;
+  end;
   inherited;
 end;
 
@@ -13758,13 +13834,15 @@ begin
   _InAccessibleCheck;
   FFieldStore.ForAllItems(@Iterate);
   scheme_object := GetScheme;
-  if (not without_calcfields) and assigned(GetScheme) then begin
-    scheme_object.ForAllCalculatedFields(@Iterate,self);
-  end;
+  if (not without_calcfields) and assigned(GetScheme) then
+    begin
+      scheme_object.ForAllCalculatedFields(@Iterate,self);
+    end;
 end;
 
 procedure TFRE_DB_Object.ForAllBrk(const iter: TFRE_DB_FieldIteratorBrk; const without_calcfields: boolean; const without_system_fields: boolean);
 var scheme_object:TFRE_DB_SchemeObject;
+
    function Iterate(const db:TFRE_DB_FIELD):boolean;
    begin
      if (db.FieldType<>fdbft_NotFound) then
@@ -13775,6 +13853,7 @@ var scheme_object:TFRE_DB_SchemeObject;
          result := iter(db);
        end;
    end;
+
 begin
   _InAccessibleCheck;
   FFieldStore.ForAllItemsBrk(@Iterate);
@@ -13906,7 +13985,7 @@ begin
       raise EFRE_DB_Exception.Create(edb_ERROR,'this object is stored, illegal modification : '+InternalUniqueDebugKey);
 end;
 
-function TFRE_DB_Object._ReservedFieldName(const upper_name: TFRE_DB_NameType): boolean;
+class function TFRE_DB_Object.ReservedFieldName(const upper_name: TFRE_DB_NameType): boolean;
 begin
   if (upper_name='UID')
      or (upper_name='DOMAINID')
@@ -14140,7 +14219,7 @@ begin
   result:=false;
   calcmethod            := nil;
   calculated_field_type := fdbft_NotFound;
-  if not _ReservedFieldName(uppercase(name)) then
+  if not ReservedFieldName(uppercase(name)) then
     begin
       scheme:=GetScheme;
       if assigned(scheme) then
@@ -14156,7 +14235,7 @@ end;
 procedure TFRE_DB_Object.SchemeFieldAccessCheck(const name: TFRE_DB_NameType);
 var scheme:TFRE_DB_SchemeObject;
 begin
-  if not _ReservedFieldName(uppercase(name)) then begin
+  if not ReservedFieldName(uppercase(name)) then begin
     scheme:=GetScheme;
     if assigned(scheme) then begin
       scheme._FieldAccessCheck(name);
@@ -14559,7 +14638,7 @@ function TFRE_DB_Object.DeleteField(const name: TFRE_DB_String): Boolean;
 var lfield:TFRE_DB_FIELD;
 begin
   _InAccessibleCheck;
-  if _ReservedFieldName(uppercase(name)) then
+  if ReservedFieldName(uppercase(name)) then
     raise EFRE_DB_Exception.Create(edb_ACCESS,'reserved fields cannot be deleted');
   result := FFieldStore.Delete(uppercase(name),lfield);
   if result then begin
@@ -15111,7 +15190,7 @@ var ro:TJSONObject;
   procedure ExportField(const Field:TFRE_DB_FIELD);
   begin
     if without_reserved_fields then begin
-      if _ReservedFieldName(uppercase(field.FieldName)) then
+      if ReservedFieldName(uppercase(field.FieldName)) then
         exit;
     end;
     ro.Add(lowercase(Field.FieldName),Field.GetAsJSON(without_reserved_fields,false,stream_cb));
@@ -15120,7 +15199,7 @@ var ro:TJSONObject;
   procedure ExportFieldFD(const Field:TFRE_DB_FIELD);
   begin
     if without_reserved_fields then begin
-      if _ReservedFieldName(uppercase(field.FieldName)) then
+      if ReservedFieldName(uppercase(field.FieldName)) then
         exit;
     end;
     ra.Add(Field.GetAsJSON(without_reserved_fields,true,stream_cb));
@@ -17000,11 +17079,11 @@ var field_type :TFRE_DB_FIELDTYPE;
       sfc              : TFRE_DB_String;
   begin
     result := false;
-    sc:=_SchemeClassOfParent;
-    if (sc<>'') and not (Fobj._ObjectsNeedsNoSubfieldSchemeCheck) then begin
+    if not (Fobj._ObjectsNeedsNoSubfieldSchemeCheck) then begin
+      sc:=_SchemeClassOfParent;
       field_type:=field_type;
       if not GFRE_DB.GetSystemScheme(sc,scheme_object) then begin
-        raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object wants to get accessed, a scheme is defined but cannot be checked. Scheme=%s Fieldname=%s',[sc,FieldName]);
+        raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object field [%s] wants to get accessed, the parent is of class [%s] but a schemeobject cannot be accessed.',[FieldName,sc]);
       end;
       if scheme_object.GetSchemeField(FieldName,scheme_field_def) then begin
         sfc := scheme_field_def.SubschemeName;

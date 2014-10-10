@@ -1612,14 +1612,19 @@ begin
   case lay.FConnectState of
     sfc_OK:
       begin
-        result     := edb_OK;
+        result.Code  := edb_OK;
+        result.Msg   := lay.FLasterror;
       end;
     sfc_Failed:
       begin
-        result := edb_ERROR;
+        result.Code  := edb_ERROR;
+        result.Msg   := lay.FLasterror;
       end
     else
-      result := edb_INTERNAL;
+      begin
+        result.Code := edb_INTERNAL;
+        result.Msg   := lay.FLasterror;
+      end;
   end;
 end;
 

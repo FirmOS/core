@@ -1195,24 +1195,27 @@ begin
 
   mydomid := FWorkConn.SYS.GetCurrentUserTokenRef.GetMyDomainID;
 
-  new_obj := GFRE_DBI.NewObject;
-  try
-    res := coll_v.Store(new_obj);
-  except
-    on e:EFRE_DB_Exception do
-      res := e.ErrorType;
-  end;
-  AssertTrue('null value field must not be stored with this index',res=edb_UNSUPPORTED);
+  if not cFFG_SKIP_EXCEPTION_TEST then
+    begin
+      new_obj := GFRE_DBI.NewObject;
+      try
+        res := coll_v.Store(new_obj);
+      except
+        on e:EFRE_DB_Exception do
+          res := e.ErrorType;
+      end;
+      AssertTrue('null value field must not be stored with this index',res=edb_UNSUPPORTED);
 
-  new_obj := GFRE_DBI.NewObject;
-  new_obj.Field('domtest').AsString := 'TestString';
-  try
-    res := coll_v.Store(new_obj);
-  except
-    on e:EFRE_DB_Exception do
-      res := e.ErrorType;
-  end;
-  AssertTrue('double index value field must not be stored with this index',res=edb_EXISTS);
+      new_obj := GFRE_DBI.NewObject;
+      new_obj.Field('domtest').AsString := 'TestString';
+      try
+        res := coll_v.Store(new_obj);
+      except
+        on e:EFRE_DB_Exception do
+          res := e.ErrorType;
+      end;
+      AssertTrue('double index value field must not be stored with this index',res=edb_EXISTS);
+    end;
   new_obj := GFRE_DBI.NewObject;
   new_obj.Field('domtest').AsString := 'TestString';
   new_obj.Field('DomainID').AsGUID:=TEST_GUID_1;
