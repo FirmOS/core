@@ -446,6 +446,7 @@ procedure TFRE_BASE_SERVER.Setup;
          res     : TFRE_DB_Errortype;
          log_txt : string;
          app     : TFRE_DB_APPLICATION;
+         fdbs    : IFRE_DB_Object;
      begin
        dblist := GFRE_DB_PS_LAYER.DatabaseList;
        GFRE_DB.LogInfo(dblc_SERVER,'START SERVING DATABASES [%s]',[dblist.Commatext]);
@@ -457,6 +458,12 @@ procedure TFRE_BASE_SERVER.Setup;
          GFRE_DB.LogError(dblc_SERVER,'SERVING SYSTEM DATABASE failed due to [%s]',[CFRE_DB_Errortype[res]]);
          GFRE_BT.CriticalAbort('CANNOT SERVE SYSTEM DB [%s]',[CFRE_DB_Errortype[res]]);
        end;
+
+       res := GFRE_DB_PS_LAYER.GetDatabaseScheme(fdbs);
+       if res = edb_OK then
+         GFRE_DB.SetDatabasescheme(fdbs)
+       else
+         raise EFRE_DB_Exception.Create(edb_ERROR,'could not fetch the database scheme [%s] ',[res.Msg]);
 
        if not GFRE_DB.GetAppInstanceByClass(TFRE_DB_LOGIN,app) then
          GFRE_BT.CriticalAbort('cannot fetch login app')
@@ -1243,7 +1250,7 @@ procedure RegisterLogin;
 begin
   GFRE_DB.RegisterObjectClassEx(TFRE_DB_LOGIN);
   GFRE_DB.RegisterObjectClassEx(TFRE_DB_TASKER);
-  GFRE_DBI.Initialize_Extension_Objects;
+  //GFRE_DBI.Initialize_Extension_Objects;
 end;
 
 

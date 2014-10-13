@@ -76,6 +76,8 @@ type
       function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
       function  CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
       function  DeleteDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+      function  DeployDatabaseScheme          (const scheme:IFRE_DB_Object):TFRE_DB_Errortype;
+      function  GetDatabaseScheme             (out   scheme:IFRE_DB_Object):TFRE_DB_Errortype;
       procedure Finalize                      ;
 
       function  GetReferences                 (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_GUIDArray;
@@ -982,6 +984,16 @@ begin
   finally
     answer.Finalize;
   end;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeployDatabaseScheme(const scheme: IFRE_DB_Object): TFRE_DB_Errortype;
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetDatabaseScheme(out scheme: IFRE_DB_Object): TFRE_DB_Errortype;
+begin
+  abort;
 end;
 
 procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Finalize;

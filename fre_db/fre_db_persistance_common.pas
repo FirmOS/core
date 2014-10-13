@@ -395,6 +395,7 @@ type
     G_AllNonsysMasters  : Array of TFRE_DB_Master_Data;
     G_SysMaster         : TFRE_DB_Master_Data;
     G_Transaction       : TFRE_DB_TransactionalUpdateList;
+    G_SysScheme         : TFRE_DB_Object;
 
 
   function     G_FetchNewTransactionID : QWord;

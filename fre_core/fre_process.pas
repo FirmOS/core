@@ -967,7 +967,7 @@ procedure Register_DB_Extensions;
 begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Process);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Multiprocess);
-  GFRE_DBI.Initialize_Extension_Objects;
+  //GFRE_DBI.Initialize_Extension_Objects;
 end;
 
 end.

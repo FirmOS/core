@@ -2851,7 +2851,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_WELCOME_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
-  GFRE_DBI.Initialize_Extension_Objects;
+  //GFRE_DBI.Initialize_Extension_Objects;
 end;
 
 procedure MetaRegister_Test;

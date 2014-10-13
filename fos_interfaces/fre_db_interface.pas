@@ -145,6 +145,7 @@ const
   CFRE_DB_FIELDTYPE_SHORT        : Array[TFRE_DB_FIELDTYPE]               of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
   CFRE_DB_INDEX_TYPE             : Array[TFRE_DB_INDEX_TYPE]              of String = ('UNSUPPORTED','UNSIGNED','SIGNED','REAL','TEXT','SPECIAL');
   CFRE_DB_STANDARD_RIGHT         : Array[TFRE_DB_STANDARD_RIGHT]          of String = ('BAD','STORE','UPDATE','DELETE','FETCH');
+  CFRE_DB_STANDARD_RIGHT_SHORT   : Array[TFRE_DB_STANDARD_RIGHT]          of String = ('B','S','U','D','F');
   CFRE_DB_Errortype              : Array[TFRE_DB_Errortype_EC]            of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','MISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
   CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','C','R','G','X','Z','E');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
@@ -657,43 +658,15 @@ type
 
   TFRE_DB_SESSIONSTATE  =(sta_BAD,sta_ActiveNew,sta_ReUsed);
 
-  OFRE_InputFieldDef4Group = record
-    typ              : TFRE_InputGroupDefType;
-    field            : TFRE_DB_NameType;
-    scheme           : string[255]; //path
-    collapsible,
-    collapsed,
-    required,
-    disabled,
-    hidden           : Boolean;
-    group            : TFRE_DB_NameType;
-    prefix           : TFRE_DB_NameType;
-    datacollection   : TFRE_DB_NameType;
-    standardcoll     : TFRE_DB_STANDARD_COLL;
-    dc_isderivedc    : Boolean;
-    caption_key      : TFRE_DB_NameType;
-    chooser_type     : TFRE_DB_CHOOSER_DH;
-    chooser_add_empty: Boolean;
-    std_right        : TFRE_DB_STANDARD_RIGHT;
-    right_classtype  : TClass;
-    hideSingle       : Boolean;
-    fieldschemdef    : IFRE_DB_FieldSchemeDefinition; // points to
-  end;
-
-  PFRE_InputFieldDef4Group    = ^OFRE_InputFieldDef4Group;
-  PFRE_InputFieldDef4GroupArr = Array of PFRE_InputFieldDef4Group;
-
   R_Depfieldfield = record
     depFieldName  : TFRE_DB_NameType;
     disablesField : Boolean;
   end;
-  P_Depfieldfield = ^R_Depfieldfield;
 
   R_VisDepfieldfield = record
     visDepFieldName  : TFRE_DB_NameType;
     visibleValue     : String;
   end;
-  P_VisDepfieldfield = ^R_VisDepfieldfield;
 
   TFRE_DB_Depfielditerator    = procedure (const depfield : R_Depfieldfield) is nested;
   TFRE_DB_VisDepfielditerator = procedure (const depfield : R_VisDepfieldfield) is nested;
@@ -1235,9 +1208,17 @@ type
     function    CheckClassRight4MyDomain     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
     function    CheckClassRight4AnyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
 
-    function    CheckClassRight4Domain       (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean; { specific domain }
-    function    CheckClassRight4DomainId     (const right_name: TFRE_DB_String; const classtyp: TClass; const domain: TFRE_DB_GUID): boolean;
-    function    CheckClassRight4DomainId     (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domain: TFRE_DB_GUID): boolean;
+    //function    CheckClassRight4Domain       (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean; { specific domain }
+    //function    CheckClassRight4DomainId     (const right_name: TFRE_DB_String; const classtyp: TClass; const domain: TFRE_DB_GUID): boolean;
+    //function    CheckClassRight4DomainId     (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domain: TFRE_DB_GUID): boolean;
+
+    function    CheckClassRight4Domain      (const std_right : TFRE_DB_STANDARD_RIGHT ; const classtyp  : TClass      ; const domainKey:TFRE_DB_String=''):boolean; { specific domain }
+    function    CheckClassRight4Domain      (const std_right : TFRE_DB_STANDARD_RIGHT ; const rclassname: ShortString ; const domainKey:TFRE_DB_String=''):boolean; { specific domain }
+    function    CheckClassRight4DomainId    (const right_name: TFRE_DB_String         ; const classtyp  : TClass      ; const domain: TFRE_DB_GUID): boolean;
+    function    CheckClassRight4DomainId    (const right_name: TFRE_DB_String         ; const rclassname: ShortString ; const domain: TFRE_DB_GUID): boolean;
+    function    CheckClassRight4DomainId    (const std_right : TFRE_DB_STANDARD_RIGHT ; const classtyp  : TClass      ; const domain: TFRE_DB_GUID): boolean;
+    function    CheckClassRight4DomainId    (const std_right : TFRE_DB_STANDARD_RIGHT ; const rclassname: ShortString ; const domain: TFRE_DB_GUID): boolean;
+
     function    GetDomainsForClassRight      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
     function    GetDomainNamesForClassRight  (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
 
@@ -1333,7 +1314,7 @@ type
     function  Implementor                 :TObject;
     function  GetExplanation              :TFRE_DB_String;
     procedure SetExplanation              (AValue: TFRE_DB_String);
-    function  GetAll_IMI_Methods          :TFRE_DB_StringArray;
+    function  GetAll_WEB_Methods          :TFRE_DB_StringArray;
     function  MethodExists                (const name:TFRE_DB_String):boolean;
     function  AddSchemeField              (const newfieldname :TFRE_DB_NameType ; const newfieldtype:TFRE_DB_FIELDTYPE ):IFRE_DB_FieldSchemeDefinition;
     function  AddCalcSchemeField          (const newfieldname :TFRE_DB_NameType ; const newfieldtype:TFRE_DB_FIELDTYPE ; const calc_method  : IFRE_DB_CalcMethod):IFRE_DB_FieldSchemeDefinition;
@@ -1435,6 +1416,8 @@ type
     function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
     function  CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
     function  DeleteDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+    function  DeployDatabaseScheme          (const scheme:IFRE_DB_Object):TFRE_DB_Errortype;
+    function  GetDatabaseScheme             (out   scheme:IFRE_DB_Object):TFRE_DB_Errortype;
     procedure Finalize                      ;
 
     function  GetReferences                 (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_GUIDArray;
@@ -1603,6 +1586,7 @@ type
     function    AdmGetNotificationCollection     :IFRE_DB_COLLECTION;
     function    AdmGetApplicationConfigCollection:IFRE_DB_COLLECTION;
     function    GetSysDomainUID                  :TFRE_DB_GUID;
+    function    URT                              (const cone:boolean=false) : IFRE_DB_USER_RIGHT_TOKEN; { get userright token reference or value }
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
     procedure   DrawScheme                    (const datastream:TStream; const classfile:string);
@@ -1672,6 +1656,8 @@ type
     function    UpdateRole                  (var role:IFRE_DB_ROLE): TFRE_DB_Errortype;
     function    UpdateDomain                (var domain:IFRE_DB_DOMAIN): TFRE_DB_Errortype;
     function    UpdateUser                  (var user:IFRE_DB_USER): TFRE_DB_Errortype;
+
+    function    DeployDatabaseScheme        (const scheme : IFRE_DB_Object):TFRE_DB_Errortype;
 
     function    StoreTranslateableText      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
     function    UpdateTranslateableText     (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
@@ -2639,10 +2625,10 @@ end;
     function    RegisterSysClientFieldValidator (const val : IFRE_DB_ClientFieldValidator):TFRE_DB_Errortype;
     function    RegisterSysEnum                 (const enu : IFRE_DB_Enum):TFRE_DB_Errortype;
 
-    function    GetSystemSchemeByName           (const schemename:TFRE_DB_NameType; var scheme: IFRE_DB_SchemeObject): Boolean;
-    function    GetSystemScheme                 (const schemename:TClass; var scheme: IFRE_DB_SchemeObject): Boolean;
-    function    GetSystemEnum                   (const name:TFRE_DB_NameType ; out enum : IFRE_DB_Enum):boolean;
-    function    GetSystemClientFieldValidator   (const name:TFRE_DB_NameType ; out clf  : IFRE_DB_ClientFieldValidator):boolean;
+    function    GetSystemSchemeByName           (const schemename:TFRE_DB_NameType; var scheme: IFRE_DB_SchemeObject ; const dont_raise : boolean=false): Boolean;
+    function    GetSystemScheme                 (const schemename:TClass; var scheme: IFRE_DB_SchemeObject ; const dont_raise : boolean=false): Boolean;
+    function    GetSystemEnum                   (const name:TFRE_DB_NameType ; out enum : IFRE_DB_Enum ; const dont_raise : boolean=false):boolean;
+    function    GetSystemClientFieldValidator   (const name:TFRE_DB_NameType ; out clf  : IFRE_DB_ClientFieldValidator ; const dont_raise : boolean=false):boolean;
     function    GetClassesDerivedFrom           (const SchemeClass : ShortString) : TFRE_DB_ObjectClassExArray;
     function    GetSchemesDerivedFrom           (const SchemeClass : ShortString) : IFRE_DB_SCHEMEOBJECTArray;
 
@@ -2676,7 +2662,7 @@ end;
     function    JSONObject2Object      (const json_string:string):IFRE_DB_Object;
 
     procedure   RegisterObjectClassEx   (const ExtensionObject : TFRE_DB_OBJECTCLASSEX);
-    procedure   Initialize_Extension_Objects;
+    //procedure   Initialize_Extension_Objects;
 
     procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
     procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
@@ -2705,21 +2691,72 @@ end;
     function    NetServ                : IFRE_DB_NetServer;
   end;
 
+  //OFRE_InputFieldDef4Group = record
+  //  typ              : TFRE_InputGroupDefType;
+  //  field            : TFRE_DB_NameType;
+  //  scheme           : string[255]; //path
+  //  collapsible,
+  //  collapsed,
+  //  required,
+  //  chooser_add_empty,
+  //  hideSingle,
+  //  disabled,
+  //  hidden           : Boolean;
+  //  caption_key      : TFRE_DB_NameType;
+  //  group            : TFRE_DB_NameType;
+  //  prefix           : TFRE_DB_NameType;
+  //  datacollection   : TFRE_DB_NameType;
+  //  standardcoll     : TFRE_DB_STANDARD_COLL;
+  //  chooser_type     : TFRE_DB_CHOOSER_DH;
+  //  std_right        : Char; //TFRE_DB_STANDARD_RIGHT;
+  //  right_class      : TFRE_DB_NameType;
+  //  fieldschemdef    : IFRE_DB_FieldSchemeDefinition; // points to
+  //end;
+  //
+  //
+  //PFRE_InputFieldDef4Group    = ^OFRE_InputFieldDef4Group;
+  //PFRE_InputFieldDef4GroupArr = Array of PFRE_InputFieldDef4Group;
+
+
+  TFRE_DB_InputGroupFieldProperty   = (gfp_Required,gfp_CollectionIsDerived,gfp_HideSingle,gfp_Hidden,gfp_ChooserAddEmptyValue,gfp_Disabled,gfp_Collapsible,gfp_Collapsed);
+  TFRE_DB_InputGroupFieldproperties = set of TFRE_DB_InputGroupFieldProperty;
+
+  IFRE_DB_FieldDef4Group=interface
+    function GetType                 : TFRE_InputGroupDefType;
+    function GetGroup                : TFRE_DB_NameType;
+    function GetPrefix               : TFRE_DB_String;
+    function GetScheme               : TFRE_DB_String;
+    function GetStdRight             : TFRE_DB_STANDARD_RIGHT; //     FREDB_String2StdRightShort(obj^.std_right)
+    function GetRightClass           : Shortstring;
+    function GetDatacollection       : TFRE_DB_NameType;
+    function GetRequired             : Boolean;
+    function GetCollectionIsDerived  : Boolean;
+    function GetHideSingle           : Boolean;
+    function GetHidden               : Boolean;
+    function GetChooserAddEmptyValue : Boolean;
+    function GetDisabled             : Boolean;
+    function GetCollapsible          : Boolean;
+    function GetCollapsed            : Boolean;
+    function GetStandardCollection   : TFRE_DB_STANDARD_COLL;
+    function GetCaptionKey           : TFRE_DB_NameType;
+    function GetfieldName            : TFRE_DB_NameType;
+    function GetChooserType          : TFRE_DB_CHOOSER_DH;
+    function FieldSchemeDefinition   : IFRE_DB_FieldSchemeDefinition;
+  end;
+
+  IFRE_DB_FieldDef4GroupArr = array of IFRE_DB_FieldDef4Group;
+
   { IFRE_DB_InputGroupSchemeDefinition }
 
   IFRE_DB_InputGroupSchemeDefinition=interface
     function  GetCaptionKey      : TFRE_DB_NameType;
-    //function  GetInputGroupID    : TFRE_DB_String;
-    //procedure SetCaptionKey      (AValue: TFRE_DB_String);
-    //procedure SetIGFields        (AValue: IFRE_DB_ObjectArray);
-    //procedure SetInputGroupID    (AValue: TFRE_DB_String);
     function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
     function  GetParentScheme    : IFRE_DB_SchemeObject;
     procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionsIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE; const chooserAddEmptyForRequired: Boolean=false);
     procedure AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
     procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
-    function  GroupFields        : PFRE_InputFieldDef4GroupArr;
+    function  GroupFields        : IFRE_DB_FieldDef4GroupArr;
   end;
 
   TFRE_DB_OnCheckUserNamePassword     = function  (username,pass:TFRE_DB_String) : TFRE_DB_Errortype of object;
@@ -3069,6 +3106,7 @@ end;
   function  FREDB_String2NumfilterType           (const str:string):TFRE_DB_NUM_FILTERTYPE;
   function  FREDB_String2StrFilterType           (const str:string):TFRE_DB_STR_FILTERTYPE;
   function  FREDB_StrFilterType2String           (const sft:TFRE_DB_STR_FILTERTYPE):String;
+  function  FREDB_String2StdRightShort           (const c:Char):TFRE_DB_STANDARD_RIGHT;
   function  FREDB_Guids_Same                     (const d1, d2 : TFRE_DB_GUID):boolean;
   function  FREDB_Guids_Compare                  (const d1, d2 : TFRE_DB_GUID):NativeInt; // 0=Same 1 = d2>d1 -1 = d1>d2
   function  FREDB_Guid_ArraysSame                (const arr1,arr2: TFRE_DB_GUIDArray):boolean;
@@ -3723,6 +3761,21 @@ end;
 function FREDB_Guid_Same(const d1, d2: TFRE_DB_GUID): boolean;
 begin
   result := RB_Guid_Compare(d1,d2)=0;
+end;
+
+function FREDB_String2StdRightShort(const c: Char): TFRE_DB_STANDARD_RIGHT;
+begin
+  if CFRE_DB_STANDARD_RIGHT_SHORT[sr_BAD]=c then
+    exit(sr_BAD);
+  if CFRE_DB_STANDARD_RIGHT_SHORT[sr_DELETE]=c then
+    exit(sr_DELETE);
+  if CFRE_DB_STANDARD_RIGHT_SHORT[sr_FETCH]=c then
+    exit(sr_FETCH);
+  if CFRE_DB_STANDARD_RIGHT_SHORT[sr_UPDATE]=c then
+    exit(sr_UPDATE);
+  if CFRE_DB_STANDARD_RIGHT_SHORT[sr_STORE]=c then
+    exit(sr_STORE);
+  raise EFRE_DB_Exception.Create(edb_ILLEGALCONVERSION,'parameter [%s] is not a stdrightshortencoding',[string(c)]);
 end;
 
 function FREDB_Guids_Same(const d1, d2: TFRE_DB_GUID): boolean;

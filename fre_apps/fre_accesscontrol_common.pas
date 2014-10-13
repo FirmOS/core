@@ -3635,7 +3635,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_WF_MOD);
 
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_ACCESSCONTROL_APP);
-  GFRE_DBI.Initialize_Extension_Objects;
+  //GFRE_DBI.Initialize_Extension_Objects;
 end;
 
 function _getDomainDisplayValues(const conn: IFRE_DB_CONNECTION; const domainIds: TFRE_DB_GUIDArray): TFRE_DB_StringArray;

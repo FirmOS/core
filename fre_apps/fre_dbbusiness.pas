@@ -426,7 +426,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Phone);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Contact);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_Tenant);
-  GFRE_DBI.Initialize_Extension_Objects;
+  //GFRE_DBI.Initialize_Extension_Objects;
 end;
 
 end.

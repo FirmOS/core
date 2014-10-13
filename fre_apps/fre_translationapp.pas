@@ -62,7 +62,6 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_TRANSLATION_MOD);
 
   GFRE_DBI.RegisterObjectClassEx(TFRE_COMMON_TRANSLATION_APP);
-  GFRE_DBI.Initialize_Extension_Objects;
 end;
 
 { TFRE_COMMON_TRANSLATION_MOD }

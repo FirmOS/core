@@ -116,6 +116,7 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   MustBeGlobalLayer             ;
      function    LayerLock                          : IFOS_LOCK;
      function    GetConnectedDB                     : TFRE_DB_NameType;
+     function    LoadScheme                         : TFRE_DB_Errortype;
 
    public
      constructor InternalCreate                     (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
@@ -128,6 +129,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    DatabaseExists                     (const dbname:TFRE_DB_String):Boolean;
      function    CreateDatabase                     (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
      function    DeleteDatabase                     (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
+     function    DeployDatabaseScheme               (const scheme:IFRE_DB_Object):TFRE_DB_Errortype;
+     function    GetDatabaseScheme                  (out   scheme:IFRE_DB_Object):TFRE_DB_Errortype;
 
      function    GetReferences                      (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_GUIDArray;
      function    GetReferencesCount                 (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):NativeInt;
@@ -361,6 +364,15 @@ begin
   FMaster := TFRE_DB_Master_Data.Create(FConnectedDB,self);
   _BuildMasterCollection;
   _BuildCollections;
+  if not Assigned(G_SysScheme) then
+    try
+      LoadScheme;
+    except
+      on E:EXCEPTION do
+      begin
+        GFRE_DB.LogEmergency(dblc_PERSISTANCE,'could not load databasescheme [%s]',[e.Message]);
+      end;
+    end;
   if not GDBPS_SKIP_STARTUP_CHECKS then
     CheckDbResult(FMaster.InternalCheckRestoredBackup,' Internal Consistency Check Failed');
   FConnected   := true;
@@ -717,6 +729,24 @@ end;
 function TFRE_DB_PS_FILE.GetConnectedDB: TFRE_DB_NameType;
 begin
   result := FConnectedDB;
+end;
+
+function TFRE_DB_PS_FILE.LoadScheme: TFRE_DB_Errortype;
+var objdir : string;
+begin
+  result := edb_OK;
+  objdir := FBasedirectory+DirectorySeparator+'fre_scheme.dbo';
+  if FileExists(objdir) then
+    try
+      G_SysScheme := TFRE_DB_Object.CreateFromFile(objdir);
+      result := edb_OK;
+    except
+      on e:exception do
+        begin
+          result.Code := edb_ERROR;
+          result.Msg  := 'Failed to load db scheme Error:'+e.Message;
+        end;
+    end;
 end;
 
 function TFRE_DB_PS_FILE.CollectionNewCollection(const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
@@ -2084,7 +2114,7 @@ var up_dbname : TFRE_DB_String;
   end;
 
 begin
-  LayerLock.Acquire;
+  LayerLock.Acquire; { self }
   try
     if db_name='' then
       begin
@@ -2240,6 +2270,41 @@ begin
       result.SetIt(edb_ERROR,'could not delete the db named ['+dbname+']');
       exit;
     end;
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.DeployDatabaseScheme(const scheme: IFRE_DB_Object): TFRE_DB_Errortype;
+var objdir : string;
+begin
+  LayerLock.Acquire;
+  try
+    MustNotBeGlobalLayerCheck;
+    objdir := FBasedirectory+DirectorySeparator+'fre_scheme.dbo';
+    scheme.SaveToFile(objdir);
+    G_SysScheme.Finalize;
+    LoadScheme;
+    result := edb_OK;
+  finally
+    LayerLock.Finalize;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.GetDatabaseScheme(out scheme: IFRE_DB_Object): TFRE_DB_Errortype;
+begin
+  LayerLock.Acquire;
+  try
+    if assigned(G_SysScheme) then
+      begin
+        scheme := G_SysScheme.CloneToNewObject;
+        result := edb_OK;
+      end
+    else
+      begin
+        result     := edb_NOT_FOUND;
+        result.Msg := 'scheme not set';
+      end;
   finally
     LayerLock.Release;
   end;

@@ -126,7 +126,7 @@ var methodarray         :      TFRE_DB_StringArray;
     lmethodname         :      TFRE_DB_String;
 begin
   skipmethodarray     := TFRE_DB_StringArray.Create('SAVEOPERATION','DELETEOPERATION','NOTELOAD','NOTESAVE','NOTESTARTEDIT','NOTESTOPEDIT');
-  methodarray         := obj.GetAll_IMI_Methods;
+  methodarray         := obj.GetAll_WEB_Methods;
   for lmethodcounter  := low (methodarray) to high (methodarray) do begin
     lmethodname       := methodarray[lmethodcounter];
     if not FREDB_StringInArray(lmethodname,skipmethodarray) then

@@ -105,30 +105,31 @@ type
     function    ListFromString          (const str :string) : IFOS_STRINGS;
     procedure   ConvertDbo              (const file_name:string ; const to_json:boolean);
     procedure   DumpDBO                 (const uid_hex : string);
-    procedure   PrintTimeZones     ;
-    procedure   ReCreateDB         ;
-    procedure   ReCreateSysDB      ;
-    procedure   BackupDB           (const adb, sdb: boolean; const dir: string);
-    procedure   RestoreDB          (const adb, sdb: boolean; const dir: string);
-    procedure   GenerateTestdata   ;
-    procedure   DoUnitTest         ;
-    procedure   InitExtensions     ;
-    procedure   ShowVersions       ;
-    procedure   ShowRights         ;
-    procedure   RemoveExtensions   ;
+    procedure   PrintTimeZones          ;
+    procedure   ReCreateDB              ;
+    procedure   ReCreateSysDB           ;
+    procedure   BackupDB                (const adb, sdb: boolean; const dir: string);
+    procedure   RestoreDB               (const adb, sdb: boolean; const dir: string);
+    procedure   GenerateTestdata        ;
+    procedure   DoUnitTest              ;
+    procedure   InitExtensions          ;
+    procedure   ShowVersions            ;
+    procedure   ShowRights              ;
+    procedure   RemoveExtensions        ;
     procedure   RegisterExtensions ;
-    procedure   VerifyExtensions   ;
-    procedure   ListExtensions     ;
-    procedure   PrepareStartup     ;
-    procedure   CfgTestLog         ; virtual;
-    procedure   EndlessLogTest     ;
-    procedure   SchemeDump         (const filename:string;const classfile:string);
-    procedure   DumpAll            (const filterstring: string);
+    procedure   DeployDatabaseScheme    ;
+    procedure   VerifyExtensions        ;
+    procedure   ListExtensions          ;
+    procedure   PrepareStartup          ;
+    procedure   CfgTestLog              ; virtual;
+    procedure   EndlessLogTest          ;
+    procedure   SchemeDump              (const filename:string;const classfile:string);
+    procedure   DumpAll                 (const filterstring: string);
   public
-    constructor Create             (TheOwner: TComponent); override;
-    destructor  Destroy            ; override;
-    property    DefaultExtensions  : String read FDefaultExtensions write SetDefaultExtensions;
-    property    DefaultStyle       : String read FDefaultStyle      write SetDefaultStyle;
+    constructor Create                  (TheOwner: TComponent); override;
+    destructor  Destroy                 ; override;
+    property    DefaultExtensions       : String read FDefaultExtensions write SetDefaultExtensions;
+    property    DefaultStyle            : String read FDefaultStyle      write SetDefaultStyle;
   end;
 
 
@@ -316,6 +317,7 @@ begin
   AddCheckOption('*','restoresys:'   ,'                | --restoresys=</path2/dir>      : restore only sys database interactive');
   AddCheckOption('*','backupapp:'    ,'                | --backupapp=</path2/dir>       : backup only app database interactive');
   AddCheckOption('*','restoreapp:'   ,'                | --restoreapp=</path2/dir>      : restore only app database interactive');
+  AddCheckOption('*','deploy'        ,'                | --deploy                       : build and deploy databasescheme for the chosen extensions to persistence layer');
   AddCheckOption('*','limittransfer:','                | --limittransfer=<10>           : sleep <x ms> during backup and restore, to limit bandwidth');
 
   AddCheckOption('*','adminuser:'    ,'                | --adminuser=<user>             : specify user for admin options');
@@ -627,6 +629,11 @@ end;
 function TFRE_CLISRV_APP.AfterInitDBTerminatingCommands: boolean;
 begin
   result := false;
+  if HasOption('*','deploy') then
+    begin
+      result := true;
+      DeployDatabaseScheme;
+    end;
   if HasOption('*','showinstalled') then
     begin
       result := true;
@@ -867,6 +874,8 @@ begin
   //s:='y'; // ignore force lazarusdebug
   if s='y' then
     begin
+      writeln('INTERNAL BUILDING SCHEMES');
+      GFRE_DB.Initialize_Extension_ObjectsBuild;
       write('RECREATING / CONNECTING ['+FDBName+'] ');
       if adb then
         begin
@@ -1022,6 +1031,23 @@ begin
   FRE_DBBASE.Register_DB_Extensions;
   GFRE_DBI_REG_EXTMGR.RegisterExtensions4DB(FChosenExtensionList);
   FRE_BASE_SERVER.RegisterLogin;
+end;
+
+procedure TFRE_CLISRV_APP.DeployDatabaseScheme;
+var conn : IFRE_DB_CONNECTION;
+begin
+  _CheckDBNameSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
+  CONN := GFRE_DBI.NewConnection;
+  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS));
+
+  writeln('>BUILDING SCHEME');
+  GFRE_DB.Initialize_Extension_ObjectsBuild;
+  writeln('>BUILDING SCHEME DONE');
+  writeln('>DEPLOYING SCHEME');
+  CheckDbResult(conn.SYS.DeployDatabaseScheme(GFRE_DB.GetDatabasescheme));
+  writeln('>DEPLOYING SCHEME DONE');
 end;
 
 procedure TFRE_CLISRV_APP.VerifyExtensions;
