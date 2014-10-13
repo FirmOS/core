@@ -62,6 +62,7 @@ type
 
   TFRE_TESTDATA_FEED = class(TFRE_BASEDATA_FEED)
     procedure TestMethod; override;
+    procedure MyRegisterClasses; override;
   end;
 
   { TFRE_Testserver }
@@ -74,6 +75,11 @@ procedure TFRE_TESTDATA_FEED.TestMethod;
 begin
   writeln('THIS IS YOUR SHINY TEST Method used with the undocumented -t option.');
   halt;
+end;
+
+procedure TFRE_TESTDATA_FEED.MyRegisterClasses;
+begin
+  inherited MyRegisterClasses;
 end;
 
 begin

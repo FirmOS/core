@@ -46,7 +46,7 @@ uses
   Classes, SysUtils,
   CustApp,
   FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
-  FRE_DB_CORE,fre_aps_comm_impl,
+  FRE_DB_CORE,fre_aps_comm_impl,fre_dbbase,
   FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,
   fre_base_client
@@ -63,6 +63,7 @@ type
     procedure   DoRun; override;
   public
     procedure   MyRunMethod;virtual;
+    procedure   MyRegisterClasses;virtual;
     constructor Create  (TheOwner: TComponent;const client : TFRE_BASE_CLIENT);reintroduce;
     procedure   WriteHelp; virtual;
     procedure   WriteVersion; virtual;
@@ -140,13 +141,16 @@ begin
     end;
 
   InitEmbedded;
+  InitMinimal();
   Init4Server;
+  fre_dbbase.Register_DB_Extensions;
   GFRE_DBI.SetLocalZone('Europe/Vienna');
   Setup_APS_Comm;
   FBaseClient.Setup;
   if HasOption('t','test') then begin
     TestMethod;
   end;
+  MyRegisterClasses;
   MyRunMethod;
   Teardown_APS_Comm;
   FBaseClient.Free;
@@ -157,6 +161,12 @@ end;
 procedure TFRE_BASEDATA_FEED.MyRunMethod;
 begin
   GFRE_SC.RunUntilTerminate;
+end;
+
+procedure TFRE_BASEDATA_FEED.MyRegisterClasses;
+begin
+  FBaseClient.MyRegisterClasses;
+  GFRE_DB.Initialize_Extension_ObjectsBuild;
 end;
 
 

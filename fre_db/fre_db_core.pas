@@ -2707,15 +2707,27 @@ function TFRE_DB_FieldDef4Group.FieldSchemeDefinition: IFRE_DB_FieldSchemeDefini
 var
     scheme      : TFRE_DB_SchemeObject;
     fieldDef    : TFRE_DB_FieldSchemeDefinition;
+    fn          : TFRE_DB_String;
+    path        : TFRE_DB_StringArray;
+    i           : NativeInt;
 begin
   if assigned(FFieldDefCache) then
     exit(FFieldDefCache)
   else
     begin
       fieldDef    := nil;
+      fn          := GetfieldName;
       scheme := Parent.Parent.Parent.Parent as TFRE_DB_SchemeObject;
-      if not scheme.GetSchemeField(GetfieldName,fieldDef) then
-         raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find scheme field: %s:(%s)',[scheme.DefinedSchemeName,GetfieldName]);
+      FREDB_SeperateString(fn,'.',path);
+      if Length(path)>1 then begin
+        for i := 0 to Length(path) - 2 do begin
+          if not scheme.GetSchemeField(path[i],fieldDef) then raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find scheme field: '+path[i]);
+          if not GFRE_DB.GetSystemScheme(fieldDef.GetSubSchemeName,scheme) then
+            raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find subscheme field: %s:(%s)',[fn,fieldDef.GetSubSchemeName]);
+        end;
+      end;
+      if not scheme.GetSchemeField(path[High(path)],fieldDef) then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'cannot find scheme field: %s:(%s)',[scheme.DefinedSchemeName,fn]);
       FFieldDefCache := fieldDef;
       result         := fieldDef;
     end;
@@ -9251,7 +9263,12 @@ begin
 end;
 
 function TFRE_DB_SchemeObject.GetFieldDef(const UPPER_fieldname: TFRE_DB_NameType; var fd: TFRE_DB_FieldSchemeDefinition): boolean;
+var fld : TFRE_DB_FIELD;
 begin
+  //if pos(UPPER_fieldname,'.')>0 then
+  //  begin
+  //    result := Fiel
+  //  end;
   result := FFieldDefs.FieldOnlyExistingObjAs(UPPER_fieldname,TFRE_DB_FieldSchemeDefinition,fd);
 end;
 
@@ -15225,7 +15242,7 @@ begin
   _InAccessibleCheck;
   cnt  := 0;
   mysn := SchemeClass;
-  ForAll(@SearchObjectLinkField);
+  ForAll(@SearchObjectLinkField,true,true);
   SetLength(result,cnt);
   for i:=0 to high(Result) do
     if Result[i].linked_uid=CFRE_DB_NullGUID then

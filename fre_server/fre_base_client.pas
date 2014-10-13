@@ -125,6 +125,7 @@ type
     constructor Create                ;
     destructor  Destroy               ; override ;
     procedure   Setup                 ; virtual;
+    procedure  MyRegisterClasses       ; virtual;
     function  Get_AppClassAndUid      (const appkey : string ; out app_classname : TFRE_DB_String ; out uid: TFRE_DB_Guid) : boolean;
     function  SendServerCommand       (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const ContinuationCB : TFRE_DB_CONT_HANDLER=nil;const timeout:integer=5000) : boolean;
     function  AnswerSyncCommand       (const command_id : QWord ; const data  : IFRE_DB_Object) : boolean;
@@ -486,6 +487,11 @@ begin
     SIGUSR1 : User1;
     SIGUSR2 : USer2;
   end;
+end;
+
+procedure TFRE_BASE_CLIENT.MyRegisterClasses;
+begin
+
 end;
 
 procedure TFRE_BASE_CLIENT.SubFeederNewSocket(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);

@@ -2884,7 +2884,6 @@ end;
   private
     FSessionLock          : IFOS_LOCK;
     FTakeoverPrepared     : String;
-    FOnFetchSessionByIdL  : TFRE_DB_OnFetchSessionByID;
     FSessionTerminationTO : NativeInt;
     FBoundThreadID        : TThreadID;
     FModuleInitialized    : TFPHashList;
@@ -5901,7 +5900,7 @@ var x           : TObject;
           end
         else
           begin
-            if FOnFetchSessionByIdL(answerencap.FSesID,ses) then
+            if GFRE_DBI.NetServ.FetchSessionByIdLocked(answerencap.FSesID,ses) then
               begin
                 try
                   input := nil ; // ! dont finalize here
