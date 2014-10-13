@@ -80,7 +80,7 @@ procedure TFRE_BASEDATA_FEED.DoRun;
 var
   ErrorMsg   : String;
 begin
-  ErrorMsg:=CheckOptions('thvDU:H:u:p:',['test','help','version','debugger','remoteuser:','remotehost:','user:','pass:','test-log','subfeederip:','mwsip:']);
+  ErrorMsg:=CheckOptions('thvDU:H:u:p:',['test','help','version','debugger','remoteuser:','remotehost:','user:','pass:','test-log','subfeederip:','mwsip:','machine:','mac:']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -119,6 +119,11 @@ begin
   if HasOption('p','pass') then begin
     cFRE_Feed_Pass := GetOptionValue('p','pass');
   end;
+
+  if HasOption('*','machine') then
+    cFRE_MACHINE_NAME := GetOptionValue('*','machine');
+  if HasOption('*','mac') then
+    cFRE_MACHINE_MAC := GetOptionValue('*','mac');
 
   if HasOption('H','remotehost') then begin
     cFRE_REMOTE_HOST:= GetOptionValue('H','remotehost');
@@ -167,16 +172,18 @@ procedure TFRE_BASEDATA_FEED.WriteHelp;
 begin
    { add your help code here }
   writeln('Usage: ',ExeName,' -h');
-  writeln('  -U            | --remoteuser           : user for remote commands');
-  writeln('  -H            | --remotehost           : host for remote commands');
-  writeln('  -h            | --help                 : print this help');
-  writeln('  -v            | --version              : print version info');
-  writeln('  -u <user>     | --user=<user>          : specify user');
-  writeln('  -p <password> | --pass=<password>      : specify password');
-  writeln('                  --debugger             : set debug flag');
-  writeln('                  --test-log             : enable console test-log');
-  writeln('                  --subfeederip=<ip>     : connect to subfeeder via ip');
-  writeln('                  --mwsip=<ip>           : connect to mws via ip');
+  writeln('  -U            | --remoteuser             : user for remote commands');
+  writeln('  -H            | --remotehost             : host for remote commands');
+  writeln('  -h            | --help                   : print this help');
+  writeln('  -v            | --version                : print version info');
+  writeln('  -u <user>     | --user=<user>            : specify user');
+  writeln('  -p <password> | --pass=<password>        : specify password');
+  writeln('                | --machine=<MachineName>  : specify machine id of this feeder same as NAME entry in [MACHINE] section in ini file');
+  writeln('                | --mac=<00:11:22:33:44:55>: specify machine id of this feeder same as MAC entry in [MACHINE] section in ini file');
+  writeln('                  --debugger               : set debug flag');
+  writeln('                  --test-log               : enable console test-log');
+  writeln('                  --subfeederip=<ip>       : connect to subfeeder via ip');
+  writeln('                  --mwsip=<ip>             : connect to mws via ip');
   writeln;
 end;
 

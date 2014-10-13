@@ -253,6 +253,7 @@ begin
           data := GFRE_DBI.NewObject;
           data.Field('SESSION_ID').AsString:=fMySessionID;
           data.Field('MACHINENAME').AsString:=cFRE_MACHINE_NAME;
+          data.Field('MACHINEMAC').AsString:=cFRE_MACHINE_MAC;
           QueryUserPass(fuser,fpass);
           if fuser<>'' then begin
             data.Field('USER').AsString:=fuser;
@@ -661,9 +662,11 @@ end;
 procedure TFRE_BASE_CLIENT.Setup;
 begin
   if cFRE_MACHINE_NAME='' then
-    begin
-      GFRE_BT.CriticalAbort('No NAME set in subsection [MACHINE] in .ini File');
-    end;
+    GFRE_BT.CriticalAbort('no MACHINE NAME set / NAME entry missing in subsection [MACHINE] in .ini File / or startparameter --machine=<> missing ');
+  if cFRE_MACHINE_MAC='' then
+    GFRE_BT.CriticalAbort('no MACHINE MAC set / MAC entry missing in subsection [MACHINE] in .ini File / or startparameter --mac=<> missing ');
+  if not FREDB_CheckMacAddress(cFRE_MACHINE_MAC) then
+    GFRE_BT.CriticalAbort('mac address format invalid use a contiguos hexstring or a colon seperated string invalid [%s]',[cFRE_MACHINE_MAC]);
   GFRE_SC.AddTimer('F_STATE',1000,@MyStateCheckTimer);
   GFRE_SC.AddTimer('F_SUB_STATE',1000,@MySubFeederStateTimer);
   GFRE_SC.SetSingnalCB(@MyHandleSignals);

@@ -459,7 +459,7 @@ var myDataCount : NativeInt;
         prom_res : TFRE_DB_PromoteResult;
         prom_err : TFRE_DB_String;
         app          : IFRE_DB_Object;
-        FMachineUIDs : TFRE_DB_GUIDArray;
+        FMachineUID  : TFRE_DB_GUID;
         sessid   : String;
     begin
       try
@@ -473,7 +473,7 @@ var myDataCount : NativeInt;
               sessid := CMD.Data.Field('SESSION_ID').AsString;
               if not FOnBindDefaultSession(self,FUserSession,sessid,false) then
                 begin
-                  CMD.Data.ClearAllFields;   {Try a new session}
+                  CMD.Data.ClearAllFields;   { Try a new session }
                   CMD.Data.Field('LOGIN_OK').AsBoolean := false;
                   CMD.Data.Field('LOGIN_TXT').AsString := 'Session ID '+sessid+' is not existing';
                   CMD.ChangeSession := 'NEW';
@@ -490,7 +490,7 @@ var myDataCount : NativeInt;
                   if (prom_res=pr_OK) or (prom_res=pr_Takeover) then
                     begin
                       try
-                        FMachineUIDs := FUserSession.FetchOrInitFeederMachines(cmd.Data.Field('MACHINENAME').AsStringArr); { in the unconfigured case the mac must be encoded in the machinename }
+                        FMachineUID := FUserSession.FetchOrInitFeederMachines(cmd.Data.Field('MACHINENAME').AsString,cmd.Data.Field('MACHINEMAC').AsString); { in the unconfigured case the mac must be encoded in the machinename }
                       except
                         on e:Exception do
                           begin
@@ -506,7 +506,7 @@ var myDataCount : NativeInt;
                         CMD.Data.Field('APPS').AsObject.Field(apps[i].AppClassName).AsObject:=app;
                         CMD.Data.Field('LOGIN_OK').AsBoolean:=true;
                         CMD.Data.Field('LOGIN_TXT').AsString := 'SESSION : '+FUserSession.GetSessionID;
-                        CMD.Data.Field('MACHINE_UID').AsGUIDArr := FMachineUIDs;
+                        CMD.Data.Field('MACHINE_UID').AsGUID := FMachineUID;
                         CMD.ChangeSession := FUserSession.GetSessionID;
                       end;
                     end

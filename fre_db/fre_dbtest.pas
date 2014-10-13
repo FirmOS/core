@@ -88,9 +88,9 @@ type
     class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure   Gamble(const id:int64);
+  published
     procedure   CALC_Uint32 (const calc : IFRE_DB_CALCFIELD_SETTER);
     procedure   CALC_String (const calc : IFRE_DB_CALCFIELD_SETTER);
-  published
     function  WEB_GetIcon   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_Content   (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;

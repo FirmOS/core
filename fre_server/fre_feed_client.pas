@@ -131,7 +131,7 @@ end;
 procedure TFRE_SAMPLE_FEED_CLIENT.MyInitialize;
 begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_FILEDIR);
-  GFRE_DBI.Initialize_Extension_Objects;
+  //GFRE_DBI.Initialize_Extension_Objects;
   FREDB_LoadMimetypes('');
   if cFRE_SUBFEEDER_IP='' then
     AddSubFeederEventViaUX('samplesub')
@@ -166,7 +166,7 @@ end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyConnectionTimer;
 begin
-  writeln('-> CONNECTION TIMER ACTIVE');
+  //writeln('-> CONNECTION TIMER ACTIVE');
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);

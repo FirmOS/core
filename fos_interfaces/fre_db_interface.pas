@@ -2981,7 +2981,7 @@ end;
     function    GetModuleInitialized     (const modulename:ShortString):Boolean;
     function    SetModuleInitialized     (const modulename:ShortString):Boolean;
 
-    function    FetchOrInitFeederMachines  (const MachineNames : TFRE_DB_StringArray):TFRE_DB_GUIDArray; { Initialize or deliver Machine Objects in the Session DB }
+    function    FetchOrInitFeederMachines  (const Machine,MachineMac : TFRE_DB_String):TFRE_DB_GUID; { Initialize or deliver Machine Objects in the Session DB }
 
     procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const interactive_session:boolean);
     procedure   ClearServerClientInterface ;
@@ -3175,8 +3175,9 @@ end;
   procedure FREDB_PP_AddParentPathToObj                       (const obj : IFRE_DB_Object ; const pp  : string);
   function  FREDB_PP_GetParentPaths                           (const obj : IFRE_DB_Object):TFRE_DB_StringArray;
 
-  function  FREDB_CreateIndexDefFromObject (const ix_def_o : IFRE_DB_Object): TFRE_DB_INDEX_DEF;
-  function  FREDB_CreateIndexDefArrayFromObject (const ix_def_ao : IFRE_DB_Object): TFRE_DB_INDEX_DEF_ARRAY;
+  function  FREDB_CreateIndexDefFromObject                    (const ix_def_o : IFRE_DB_Object): TFRE_DB_INDEX_DEF;
+  function  FREDB_CreateIndexDefArrayFromObject               (const ix_def_ao : IFRE_DB_Object): TFRE_DB_INDEX_DEF_ARRAY;
+  function  FREDB_CheckMacAddress                             (const mac:ShortString):boolean;
 
   operator<  (g1, g2: TFRE_DB_GUID) b : boolean;
   operator>  (g1, g2: TFRE_DB_GUID) b : boolean;
@@ -3230,6 +3231,19 @@ begin
       ido       := ix_def_ao.Field('ID_'+nta[i]).AsObject;
       result[i] := FREDB_CreateIndexDefFromObject(ido);
     end;
+end;
+
+function FREDB_CheckMacAddress(const mac: ShortString): boolean;
+var conv  : ShortString;
+    bytes : string;
+    binv  : Qword;
+    len   : NativeInt;
+begin
+  conv := StringReplace(mac,':','',[rfReplaceAll]);
+  if Length(conv)<>12 then
+    exit(false);
+  len    := HexToBin(@conv[1],@binv,6);
+  result := len=6;
 end;
 
 
@@ -4852,6 +4866,7 @@ end;
 class procedure TFRE_DB_UNCONFIGURED_MACHINE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
+  //'provmac' fixme setup field definition for this FIELD !!
 end;
 
 class procedure TFRE_DB_UNCONFIGURED_MACHINE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -6549,7 +6564,7 @@ begin
   FModuleInitialized.Add(modulename,Pointer(1));
 end;
 
-function TFRE_DB_UserSession.FetchOrInitFeederMachines(const MachineNames: TFRE_DB_StringArray): TFRE_DB_GUIDArray;
+function TFRE_DB_UserSession.FetchOrInitFeederMachines(const Machine, MachineMac: TFRE_DB_String): TFRE_DB_GUID;
 var  i      : Integer;
      mcoll  : IFRE_DB_COLLECTION;
      muid   : TFRE_DB_GUID;
@@ -6557,21 +6572,28 @@ var  i      : Integer;
 begin
   if not FPromoted then
     raise EFRE_DB_Exception.Create(edb_ERROR,'you not allowed the machineobjects [%s]',[FDBConnection.GetDatabaseName]);
-  SetLength(result,Length(MachineNames));
   mcoll := FDBConnection.GetCollection(CFRE_DB_MACHINE_COLLECTION);
-  for i:=0 to high(MachineNames) do
+  if mcoll.GetIndexedUIDText(MachineMac,muid,false,'pmac')>0 then
+      result := muid
+  else
     begin
-      if mcoll.GetIndexedUIDText(MachineNames[i],muid)>0 then
-        result[i] := muid
-      else
-        begin
-          unmach := TFRE_DB_UNCONFIGURED_MACHINE.CreateForDB;
-          unmach.ObjectName := MachineNames[i];
-          result[i] := unmach.UID;
-          CheckDbResult(mcoll.Store(unmach),'failed to store a unconfigured machine');
-          GFRE_DBI.LogNotice(dblc_SESSION,'CREATED UNCONFIGURED MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+MachineNames[i]+'] MACHINE_UID ['+FREDB_G2H(result[i])+']');
-        end;
+      unmach := TFRE_DB_UNCONFIGURED_MACHINE.CreateForDB;
+      unmach.ObjectName := Machine;
+      unmach.Field('provmac').AsString:=MachineMac;
+      result := unmach.UID;
+      CheckDbResult(mcoll.Store(unmach),'failed to store a unconfigured machine');
+      GFRE_DBI.LogNotice(dblc_SESSION,'CREATED UNCONFIGURED MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+Machine+'/'+MachineMac+'] MACHINE_UID ['+FREDB_G2H(result)+']');
     end;
+  //if mcoll.GetIndexedUIDText(Machine,muid)>0 then
+  //  result := muid
+  //else
+  //  begin
+  //    unmach := TFRE_DB_UNCONFIGURED_MACHINE.CreateForDB;
+  //    unmach.ObjectName := Machine;
+  //    result := unmach.UID;
+  //    CheckDbResult(mcoll.Store(unmach),'failed to store a unconfigured machine');
+  //    GFRE_DBI.LogNotice(dblc_SESSION,'CREATED UNCONFIGURED MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+Machine+'/'+MachineMac+'] MACHINE_UID ['+FREDB_G2H(result)+']');
+  //  end;
 end;
 
 procedure TFRE_DB_UserSession.SetServerClientInterface(const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const interactive_session: boolean);

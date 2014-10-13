@@ -10784,8 +10784,11 @@ procedure TFRE_DB_CONNECTION.InternalSetupConnection;
   begin
     if not CollectionExists(cFRE_DB_MACHINE_COLLECTION) then begin
       coll := Collection(cFRE_DB_MACHINE_COLLECTION); // Instance (new) Collections here with false parameter
-      coll.DefineIndexOnField('objname',fdbft_String,true,true,'def',false);
+      CheckDbResult(coll.DefineIndexOnField('objname',fdbft_String,true,true,'def',false));
     end;
+    coll := Collection(cFRE_DB_MACHINE_COLLECTION,false); // Instance (new) Collections here with false parameter
+    if not coll.IndexExists('pmac') then
+      CheckDbResult(coll.DefineIndexOnField('provmac',fdbft_String,true,true,'pmac',true));
   end;
 
 begin
@@ -11793,7 +11796,10 @@ end;
 
 function TFRE_DB_CONNECTION.GetUserUIDP: PFRE_DB_GUID;
 begin
-  result := FSysConnection.GetUserUIDP;
+  if assigned(FSysConnection) then
+    result := FSysConnection.GetUserUIDP
+  else
+    result := nil;
 end;
 
 function TFRE_DB_CONNECTION.AddDomain(const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;

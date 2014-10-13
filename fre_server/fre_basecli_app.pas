@@ -986,6 +986,8 @@ begin
   //writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
   CONN := GFRE_DBI.NewConnection;
   CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
+  writeln('INTERNAL BUILDING SCHEMES');
+  GFRE_DB.Initialize_Extension_ObjectsBuild;
   GFRE_DBI.DBInitializeAllSystemClasses(conn);
   GFRE_DBI.DBInitializeAllExClasses(conn);
   conn.Finalize;

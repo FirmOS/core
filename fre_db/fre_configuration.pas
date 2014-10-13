@@ -213,6 +213,7 @@ var cfgfile  : string;
         cFRE_MONITORING_KEY_FILE        := ini.ReadString('MONITORING','KEY_FILE'    , cFRE_MONITORING_KEY_FILE);
         cFRE_MONITORING_DEST_DIR        := ini.ReadString('MONITORING','DIRECTORY'   , cFRE_MONITORING_DEST_DIR);
         cFRE_MACHINE_NAME               := ini.ReadString('MACHINE','NAME', cFRE_MACHINE_NAME);
+        cFRE_MACHINE_MAC                := ini.ReadString('MACHINE','MAC', cFRE_MACHINE_MAC);
 
         ConfigureLogging;
       finally

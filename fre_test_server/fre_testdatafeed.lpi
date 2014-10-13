@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-u testfeeder@system -p x --test-log"/>
+        <CommandLineParams Value="-u mfeeder@system -p mighty --test-log --machine=ABCDE --mac=00:11:22:33:44:5F"/>
       </local>
     </RunParams>
     <Units Count="5">
