@@ -3665,26 +3665,38 @@ var sa          : TFRE_DB_StringArray;
     enum        : IFRE_DB_Enum;
     enumVals    : IFRE_DB_ObjectArray;
     scheme_field: IFRE_DB_FieldSchemeDefinition;
+    scheme      : IFRE_DB_SchemeObject;
+    classn      : shortstring;
+    handle_enum : boolean;
 begin
   //if input.FieldExists(FInFieldName) then
     transbase := input;
   //else
   //  transbase := output;
   if transbase.FieldExists(FInFieldName) then begin
-    if FDisplay and transbase.GetScheme().GetSchemeField(FInFieldName,scheme_field) and
-       scheme_field.getEnum(enum) then begin
-
-      enumVals:=enum.getEntries;
-      output.field(uppercase(FOutFieldName)).AsString:=transbase.Field(FInFieldName).AsString; //FALLBACK
-      for i := 0 to Length(enumVals) - 1 do begin
-        if transbase.Field(FInFieldName).AsString=enumVals[i].Field('v').AsString then begin
-          output.field(uppercase(FOutFieldName)).AsString:=conn.FetchTranslateableTextShort(enumVals[i].Field('c').AsString);
-          break;
-        end;
+    handle_enum := false;
+    scheme := transbase.GetScheme;
+    if assigned(scheme) then
+      begin
+        if scheme.GetSchemeField(FInFieldName,scheme_field) then
+          if scheme_field.GetEnum(enum) then
+            handle_enum:=true;
       end;
-    end else begin
-      output.field(uppercase(FOutFieldName)).CloneFromField(transbase.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
-    end;
+    if FDisplay and handle_enum then
+       begin
+          enumVals:=enum.getEntries;
+          output.field(uppercase(FOutFieldName)).AsString:=transbase.Field(FInFieldName).AsString; //FALLBACK
+          for i := 0 to Length(enumVals) - 1 do begin
+            if transbase.Field(FInFieldName).AsString=enumVals[i].Field('v').AsString then begin
+              output.field(uppercase(FOutFieldName)).AsString:=conn.FetchTranslateableTextShort(enumVals[i].Field('c').AsString);
+              break;
+            end;
+          end;
+       end
+    else
+      begin
+        output.field(uppercase(FOutFieldName)).CloneFromField(transbase.Field(FInFieldName).Implementor as TFRE_DB_FIELD);
+      end;
   end else begin
     if FDefaultValue<>'' then begin
       output.field(uppercase(FOutFieldName)).AsString:=FDefaultValue;
