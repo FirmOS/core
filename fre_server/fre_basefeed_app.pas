@@ -146,11 +146,11 @@ begin
   fre_dbbase.Register_DB_Extensions;
   GFRE_DBI.SetLocalZone('Europe/Vienna');
   Setup_APS_Comm;
+  MyRegisterClasses;
   FBaseClient.Setup;
   if HasOption('t','test') then begin
     TestMethod;
   end;
-  MyRegisterClasses;
   MyRunMethod;
   Teardown_APS_Comm;
   FBaseClient.Free;

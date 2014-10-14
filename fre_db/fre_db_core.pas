@@ -15134,6 +15134,8 @@ end;
 function TFRE_DB_Object.IsA(const IsSchemeclass: TFRE_DB_OBJECTCLASSEX; var obj): Boolean;
 begin
   if assigned(FMediatorExtention) then
+    if FMediatorExtention is TFRE_DB_WeakObjectEx then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'IsA is not supported for weak classes class in question is [%s]',[FMediatorExtention.SchemeClass]);
     if FMediatorExtention is IsSchemeclass then
       begin
         Pointer(obj) := FMediatorExtention as IsSchemeclass;
