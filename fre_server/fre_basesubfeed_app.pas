@@ -48,7 +48,7 @@ uses
   FRE_DB_CORE,fre_aps_comm_impl,
   FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,
-  fre_basedbo_server
+  fre_basedbo_server,ctypes
   ;
 
 type
@@ -70,16 +70,33 @@ type
     procedure   CfgTestLog  ;
   end;
 
+  {$ifdef netbsd}
+    { NetBSD has a new setlocale function defined in /usr/include/locale.h
+      that should be used }
+  function fos_setlocale(category: cint; locale: pchar): pchar; cdecl; external 'c' name '__setlocale_mb_len_max_32';
+  {$else}
+  function fos_setlocale(category: cint; locale: pchar): pchar; cdecl; external 'c' name 'setlocale';
+  {$endif}
 
 implementation
 
+const
+ __LC_CTYPE    = 0;
+ __LC_NUMERIC  = 1;
+ __LC_TIME     = 2;
+ __LC_COLLATE  = 3;
+ __LC_MONETARY = 4;
+ __LC_MESSAGES = 5;
+ __LC_ALL      = 6;
 
 { TFRE_BASESUBDATA_FEED }
 
 procedure TFRE_BASESUBDATA_FEED.DoRun;
 var
   ErrorMsg   : String;
+  loc        : String;
 begin
+  loc := fos_setlocale(__LC_ALL,'C');
   ErrorMsg:=CheckOptions('thvDU:H:T:',['test','help','version','debugger','remoteuser:','remotehost:','toolpath:','test-log']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
@@ -144,10 +161,15 @@ end;
 
 
 constructor TFRE_BASESUBDATA_FEED.Create(TheOwner: TComponent; const Server: TFRE_DBO_SERVER);
+//var s:string;
 begin
   inherited Create(TheOwner);
   StopOnException := True;
   FSFServer       := Server;
+  //s := GFRE_BT.StringFromFile('/home/fosbuild/repos/testjson.json');
+  //GFRE_DB.JSONObject2Object(s,false);
+  //TFRE_DB_Object.CreateFromJSONString(s);
+  //writeln();
 end;
 
 destructor TFRE_BASESUBDATA_FEED.Destroy;

@@ -2659,9 +2659,9 @@ end;
 
     function    CreateText             (const translation_key:TFRE_DB_String;const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):IFRE_DB_TEXT;
 
-    function    JSONObject2Object      (const json_string:string):IFRE_DB_Object;
+    function    JSONObject2Object      (const json_string: string; const fieldtype_fixed_string: boolean=true): IFRE_DB_Object;
 
-    procedure   RegisterObjectClassEx   (const ExtensionObject : TFRE_DB_OBJECTCLASSEX);
+    procedure   RegisterObjectClassEx  (const ExtensionObject : TFRE_DB_OBJECTCLASSEX);
     //procedure   Initialize_Extension_Objects;
 
     procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);

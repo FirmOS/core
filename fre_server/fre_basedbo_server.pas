@@ -152,8 +152,7 @@ var mem : pointer;
     i : Nativeint;
 begin
 //  GFRE_DBI.LogDebug(dblc_APPLICATION,'PushDataToClients[%s]',[data_object.DumpToString()]);
-
-  siz := FREDB_GetDboAsBufferLen(data_object,mem);
+  siz := FREDB_GetDboAsBufferLen(data_object,mem); {TODO LZ4 Compress}
   data_object.Finalize;
   FLock.Acquire;
   try

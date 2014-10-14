@@ -2438,7 +2438,7 @@ type
     procedure   Initialize_Extension_ObjectsBuild;
     function    GetDatabasescheme            : TFRE_DB_Object;
     procedure   SetDatabasescheme            (const scheme : IFRE_DB_Object);
-    function    JSONObject2Object            (const json_string:string):IFRE_DB_Object;
+    function    JSONObject2Object            (const json_string: string; const fieldtype_fixed_string: boolean=true): IFRE_DB_Object;
     function    DefaultDirectory             : TFRE_DB_String;
     constructor Create                       ;
     destructor  Destroy                      ; override;
@@ -11202,7 +11202,7 @@ begin
   if self is TFRE_DB_SYSTEM_CONNECTION then
     exit(TFRE_DB_SYSTEM_CONNECTION(self));
   if self is TFRE_DB_CONNECTION then
-    exit(TFRE_DB_SYSTEM_CONNECTION(TFRE_DB_CONNECTION(self)));
+    exit(TFRE_DB_SYSTEM_CONNECTION(TFRE_DB_CONNECTION(self).FSysConnection));
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'Upcast SYS failed basecass : '+self.ClassName);
 end;
 
@@ -12518,11 +12518,14 @@ end;
 
 }
 
-function TFRE_DB.JSONObject2Object(const json_string: string): IFRE_DB_Object; //TODO: Handle DomainID ?
+function TFRE_DB.JSONObject2Object(const json_string: string ; const fieldtype_fixed_string:boolean): IFRE_DB_Object; //TODO: Handle DomainID ?
 var  l_JSONParser : TJSONParser;
      l_JSONObject : TJSONObject;
+     l_JSONArray  : TJSONArray;
      l_DataObj    : IFRE_DB_Object;
+     l_arrayObj   : IFRE_DB_Object;
      jd           : TJSONData;
+     i            : NativeInt;
 
    function JSON2GUidArray(const req: string): TFRE_DB_GUIDArray;
    var ljp : TJSONParser;
@@ -12687,7 +12690,7 @@ var  l_JSONParser : TJSONParser;
       l_JSONItem  := l_JSONObject.Items[i];
       l_FieldName := l_JSONObject.Names[i];
       if l_JSONItem is TJSONObject then begin
-        l_SubDataObj := GFRE_DBI.NewObject;
+        l_SubDataObj := GFRE_DB.NewObject;
         l_DataObj.Field(l_FieldName).AsObject := l_SubDataObj;
         _ConvertObject(TJSONObject(l_JSONItem),l_SubDataObj);
       end else begin
@@ -12754,7 +12757,30 @@ var  l_JSONParser : TJSONParser;
               end
             else
               begin
-                l_DataObj.Field(l_FieldName).AsString := l_JSONItem.AsString;
+                if fieldtype_fixed_string then
+                  begin
+                    l_DataObj.Field(l_FieldName).AsString := l_JSONItem.AsString;
+                  end
+                else
+                  begin
+                    if l_JSONItem is TJSONString then
+                      l_DataObj.Field(l_FieldName).AsString := l_JSONItem.AsString
+                    else
+                    if l_JSONItem is TJSONBoolean then
+                      l_DataObj.Field(l_FieldName).AsBoolean := TJSONBoolean(l_JSONItem).AsBoolean
+                    else
+                    if l_JSONItem is TJSONNumber then
+                      begin
+                        case TJSONNumber(l_JSONItem).NumberType of
+                          ntFloat:   l_DataObj.Field(l_FieldName).AsReal64  := l_JSONItem.AsFloat;
+                          ntInteger: l_DataObj.Field(l_FieldName).AsInt32   := l_JSONItem.AsInteger;
+                          ntInt64:   l_DataObj.Field(l_FieldName).AsInt64   := l_JSONItem.AsInt64;
+                          ntQWord:   l_DataObj.Field(l_FieldName).AsUInt64  := l_JSONItem.AsQWord;
+                        end;
+                      end
+                    else
+                      l_DataObj.Field(l_FieldName).AsString := l_JSONItem.AsString;
+                  end;
               end;
           end;
         end;
@@ -12770,7 +12796,7 @@ begin
     jd           := l_JSONParser.Parse;
     if jd is TJSONObject then begin
       l_JSONObject := jd as TJSONObject;
-      l_DataObj    := GFRE_DBI.NewObject;
+      l_DataObj    := GFRE_DB.NewObject;
       result       := l_DataObj;
       if assigned(l_JSONObject) then begin
         _ConvertObject(l_JSONObject,l_DataObj);
@@ -12779,7 +12805,26 @@ begin
       end;
     end else begin
       if Assigned(jd) then begin
-        raise EFRE_DB_Exception.Create(edb_ERROR,'UNEXPECTED JSON PARSER FIELDTYPE : %s',[jd.ClassName]);
+        if jd is TJSONArray then
+          begin
+            result := GFRE_DB.NewObject;
+            l_JSONArray := jd as TJSONArray;
+            for i:=0 to l_JSONArray.Count-1 do
+              begin
+                if l_JSONArray.Types[i]=jtObject then
+                  begin
+                    l_arrayObj := GFRE_DB.NewObject;
+                    _ConvertObject(l_JSONArray[i] as TJSONObject,l_arrayObj);
+                    result.field('data').AddObject(l_arrayObj);
+                  end
+                else
+                  begin
+                    raise EFRE_DB_Exception.Create(edb_ERROR,'currently only an array of json objects is allowed at root level');
+                  end;
+              end;
+          end
+        else
+          raise EFRE_DB_Exception.Create(edb_ERROR,'UNEXPECTED JSON PARSER FIELDTYPE : %s',[jd.ClassName]);
       end else begin
         raise EFRE_DB_Exception.Create(edb_ERROR,'UNEXPECTED JSON PARSER FIELDTYPE');
       end;
