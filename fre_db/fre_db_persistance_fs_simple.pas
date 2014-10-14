@@ -883,6 +883,7 @@ begin
       for i:=0 to high(FConnectedLayers) do
         FConnectedLayers[i].Free;
       G_GlobalLayerLock.Finalize;
+      G_UserTokens.Free;
     end
   else
     begin

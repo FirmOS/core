@@ -8145,7 +8145,7 @@ begin
   if (AValue<>'') and (FSubSchemeObj=nil) then
     begin
       if GFRE_DB.GetSystemScheme(AValue,FSubSchemeObj)=false then
-        raise EFRE_DB_Exception.Create(edb_INTERNAL,'critical subscheme inconsistency cant fetch subfieldscheme '+AValue+' for '+(getParentScheme.DefinedSchemeName));
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'critical subscheme inconsistency cant fetch subfieldscheme '+AValue+' for '+(getParentScheme.DefinedSchemeName)+' maybe wrong order ?');
       FSubSchemeName.AsString := AValue;
     end;
 end;
@@ -12157,7 +12157,10 @@ var fld   : TFRE_DB_FIELD;
 begin
   fld := FDatabaseEnums.Field(enu.ObjectName);
   if fld.FieldType<>fdbft_NotFound then
-    exit(edb_EXISTS);
+   begin
+     enu.Finalize;
+     exit(edb_EXISTS);
+   end;
   fld.AsObject := enu.Implementor as TFRE_DB_Object;
   result := edb_OK;
 end;
@@ -12877,6 +12880,7 @@ begin
   for i:=0 to High(FWeakExClassArray) do
     FWeakExClassArray[i].Destroy;
   FWeakMediatorLock.Finalize;
+  FDatabaseScheme.Finalize;
   inherited Destroy;
 end;
 

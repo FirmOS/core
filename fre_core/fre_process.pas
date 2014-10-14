@@ -926,10 +926,13 @@ end;
 
 function TFRE_Process.WaitForAsyncExecution: integer;
 begin
-  thread.WaitFor;
-  thread.Free;
-  thread  :=  nil;
-  result  :=  ExitStatus;
+  if assigned(Thread) then
+    begin
+      thread.WaitFor;
+      thread.Free;
+      thread  :=  nil;
+      result  :=  ExitStatus;
+    end;
 end;
 
 function FRE_ProcessCMD(const cmd: string): integer;
