@@ -471,6 +471,7 @@ type
     function  IsDomainIDField               : boolean;
     function  IsSystemField                 : boolean;
     function  IsObjectField                 : boolean;
+    function  IsSchemeField                 : boolean;
     property  AsGUID                        : TFRE_DB_GUID read GetAsGUID write SetAsGUID;
     property  AsByte                        : Byte  read GetAsByte write SetAsByte;
     property  AsInt16                       : Smallint read GetAsInt16 write SetAsInt16;
@@ -3128,6 +3129,7 @@ end;
   function  FREDB_RightSetString2RightSet           (const rightstr:ShortString):TFRE_DB_STANDARD_RIGHT_SET;
   function  FREDB_StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
   function  FREDB_StringArray2Upper                 (const sa : TFRE_DB_StringArray):TFRE_DB_StringArray;
+  function  FREDB_StringArray2Lower                 (const sa : TFRE_DB_StringArray):TFRE_DB_StringArray;
   function  FREDB_StringArray2NametypeArray         (const sa : TFRE_DB_StringArray):TFRE_DB_NameTypeArray;
   function  FREDB_NametypeArray2StringArray         (const sa : TFRE_DB_NameTypeArray):TFRE_DB_StringArray;
   function  FREDB_StringInArrayIdx                  (const src:string;const arr:TFRE_DB_StringArray):NativeInt;
@@ -4027,6 +4029,15 @@ begin
   SetLength(result,Length(sa));
   for i:=0 to high(result) do
     result[i] := uppercase(sa[i]);
+end;
+
+function FREDB_StringArray2Lower(const sa: TFRE_DB_StringArray): TFRE_DB_StringArray;
+var
+  i: NativeInt;
+begin
+  SetLength(result,Length(sa));
+  for i:=0 to high(result) do
+    result[i] := lowercase(sa[i]);
 end;
 
 function FREDB_StringArray2NametypeArray(const sa: TFRE_DB_StringArray): TFRE_DB_NameTypeArray;

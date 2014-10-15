@@ -128,8 +128,8 @@ type
     procedure                   Process                    ;
 
   public
-    constructor                 Create (AOwner : TComponent);override;
-    function                    Terminate (AExitCode : Integer): Boolean; override;
+    constructor                 Create                     (AOwner : TComponent);override;
+    function                    Terminate                  (AExitCode : Integer): Boolean; override;
 
 
     procedure                   ConfigureRemote_SSH_Mode   (const user   : string; const host  : string; const keyfilename : string; const port : integer=22);
@@ -417,6 +417,7 @@ begin
   inherited Create(AOwner);
   fremote       := false;
   floop_enabled := false;
+  Environment.Add('LANG=C');
 end;
 
 function TFRE_Process.Terminate(AExitCode: Integer): Boolean;

@@ -15524,6 +15524,8 @@ procedure TFRE_DB_Object.SetAllSimpleObjectFieldsFromObject(const source_object:
         begin
           if fld.IsUIDField then
             exit;
+          if fld.IsDomainIDField then
+            exit;
           Field(fld.FieldName).CloneFromFieldI(fld);
         end;
       fdbft_Byte,
@@ -15536,13 +15538,20 @@ procedure TFRE_DB_Object.SetAllSimpleObjectFieldsFromObject(const source_object:
       fdbft_Real32,
       fdbft_Real64,
       fdbft_Currency,
-      fdbft_String,
+      fdbft_String:
+        begin
+          if fld.IsSchemeField then
+            exit;
+        end;
       fdbft_Boolean,
-      fdbft_DateTimeUTC,
-      fdbft_Stream:
+      fdbft_DateTimeUTC:
         begin
           Field(fld.FieldName).CloneFromFieldI(fld)
         end;
+      fdbft_Stream:
+        begin
+          Field(fld.FieldName).CloneFromFieldI(fld)
+        end
       else
         raise EFRE_DB_Exception.Create(edb_ERROR,'setsimpleobjectfieldsfromobject - not all fieldtypes handled');
     end;
@@ -18216,6 +18225,8 @@ begin
                           FFieldData.curr^[i] := Field.AsCurrencyItem[i];
                       end;
       fdbft_String: begin
+                      if not assigned(Field.FFieldData.strg) then { do not clone SCHEMEFIELD }
+                        exit;
                       New(FFieldData.strg);
                       SetLength(FFieldData.strg^,Field.ValueCount);
                       for i := 0 to Field.ValueCount-1 do
