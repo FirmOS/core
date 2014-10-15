@@ -65,7 +65,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../fos_include;$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;../fre_hal;../fre_db/create_cc_db;../fre_aps;../fre_core;../fre_fcom;../fre_blockcom;../fre_db;../fre_bullet;../fre_external;../fre_server;../fre_monsys;../fos_interfaces;../fre_apps;../fre_external/synapse;../fos_corebox;../fos_corebox/common"/>
+      <OtherUnitFiles Value="..;../../hal;../fre_aps;../fre_core;../fre_fcom;../fre_blockcom;../fre_db;../fre_external;../fre_server;../fos_interfaces;../fre_apps;../fre_external/synapse"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Conditionals Value="if TargetOS = 'darwin' then
@@ -73,11 +73,9 @@
     <CodeGeneration>
       <TargetCPU Value="x86_64"/>
     </CodeGeneration>
-    <Linking>
-      <Debugging>
-        <UseHeaptrc Value="True"/>
-      </Debugging>
-    </Linking>
+    <Other>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">
