@@ -45,7 +45,6 @@
       <Unit2>
         <Filename Value="../fre_server/fre_feed_client.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_feed_client"/>
       </Unit2>
       <Unit3>
         <Filename Value="../fre_core/fos_stats_control_interface.pas"/>
@@ -73,9 +72,6 @@
     <CodeGeneration>
       <TargetCPU Value="x86_64"/>
     </CodeGeneration>
-    <Other>
-      <CompilerPath Value="$(CompPath)"/>
-    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

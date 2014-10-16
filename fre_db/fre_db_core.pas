@@ -18225,8 +18225,10 @@ begin
                           FFieldData.curr^[i] := Field.AsCurrencyItem[i];
                       end;
       fdbft_String: begin
-                      if not assigned(Field.FFieldData.strg) then { do not clone SCHEMEFIELD }
-                        exit;
+                      //if not assigned(Field.FFieldData.strg) then { do not clone SCHEMEFIELD - CRASH }
+                      //  begin
+                      //    exit;
+                      //  end;
                       New(FFieldData.strg);
                       SetLength(FFieldData.strg^,Field.ValueCount);
                       for i := 0 to Field.ValueCount-1 do

@@ -190,7 +190,9 @@ var dlg         : TFRE_DB_LAYOUT_DESC;
 begin
   dlg        := TFRE_DB_LAYOUT_DESC.create.Describe();
   dialog     := WEB_LoginDlg(input,ses,app,conn).Implementor_HC as TFRE_DB_FORM_DIALOG_DESC;
-  html       := TFRE_DB_HTML_DESC.create.Describe('<div id="FirmOSSpecial" style="width: 100%; height: 100%; background-color: black; position: absolute; top: 0px; left: 0px;"> <div id="stars"></div><div id="stars2"></div><div id="stars3"></div>'+
+  //html       := TFRE_DB_HTML_DESC.create.Describe('<div id="FirmOSSpecial" style="width: 100%; height: 100%; background-color: black; position: absolute; top: 0px; left: 0px;"> <div id="stars"></div><div id="stars2"></div><div id="stars3"></div>'+
+  //                                                '<div id="title">'+cFRE_TITLE_OVERRIDE+'</div>');
+  html       := TFRE_DB_HTML_DESC.create.Describe('<div id="FirmOSSpecial" style="width: 100%; height: 100%; background-color: black; position: absolute; top: 0px; left: 0px;">'+
                                                   '<div id="title">'+cFRE_TITLE_OVERRIDE+'</div>');
   //dlg.AddFormDialog(dialog);
   //dlg.SetLayout(nil,html,nil,nil,nil,false);
