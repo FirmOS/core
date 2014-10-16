@@ -110,10 +110,10 @@ type
     HTTPSWSS_Listener            : IFRE_APSC_LISTENER;
     FLEX_Listener                : IFRE_APSC_LISTENER;
 
-    constructor Create           (const defaultdbname : string);
+    constructor Create            (const defaultdbname : string);
     destructor  Destroy           ; override;
     procedure   HandleSignals     (const signum : NativeUint);
-    procedure   Setup             ;
+    procedure Setup(const systemdb: TFRE_DB_SYSTEM_CONNECTION);
     procedure   Terminate         ;
     procedure   ReInit            ;
     procedure   DeploymentDump    ;
@@ -436,7 +436,7 @@ begin
   end;
 end;
 
-procedure TFRE_BASE_SERVER.Setup;
+procedure TFRE_BASE_SERVER.Setup(const systemdb: TFRE_DB_SYSTEM_CONNECTION);
 
      procedure _ConnectAllDatabases;
      var i       : Integer;
@@ -450,20 +450,6 @@ procedure TFRE_BASE_SERVER.Setup;
      begin
        dblist := GFRE_DB_PS_LAYER.DatabaseList;
        GFRE_DB.LogInfo(dblc_SERVER,'START SERVING DATABASES [%s]',[dblist.Commatext]);
-       FSystemConnection := GFRE_DB.NewDirectSysConnection;
-       res := FSystemConnection.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);  // direct admin connect
-       if res<>edb_OK then begin
-         FSystemConnection.Free;
-         FSystemConnection := nil;
-         GFRE_DB.LogError(dblc_SERVER,'SERVING SYSTEM DATABASE failed due to [%s]',[CFRE_DB_Errortype[res]]);
-         GFRE_BT.CriticalAbort('CANNOT SERVE SYSTEM DB [%s]',[CFRE_DB_Errortype[res]]);
-       end;
-
-       res := GFRE_DB_PS_LAYER.GetDatabaseScheme(fdbs);
-       if res = edb_OK then
-         GFRE_DB.SetDatabasescheme(fdbs)
-       else
-         raise EFRE_DB_Exception.Create(edb_ERROR,'could not fetch the database scheme [%s] ',[res.Msg]);
 
        if not GFRE_DB.GetAppInstanceByClass(TFRE_DB_LOGIN,app) then
          GFRE_BT.CriticalAbort('cannot fetch login app')
@@ -552,6 +538,7 @@ procedure TFRE_BASE_SERVER.Setup;
      end;
 
 begin
+  FSystemConnection := systemdb;
   TransFormFunc     := @FRE_WAPP_DOJO.TransformInvocation;
   FOpenDatabaseList.init;
 

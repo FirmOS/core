@@ -101,6 +101,7 @@ var
       cFRE_MACHINE_MAC                :string = '';
       cFRE_DB_MACHINE_COLLECTION      :string = 'SysMachineCollection';
       cFRE_DEFAULT_DOMAIN             :string = 'system';
+      cFRE_DB_ALLOWED_APPS            :string = '';
       cFRE_DB_ALLOW_WEAKMEDIATORS     :boolean=true;
       cFRE_DB_RESET_ADMIN             :boolean=false;
       cFRE_DB_CACHETAG                :ShortString='';

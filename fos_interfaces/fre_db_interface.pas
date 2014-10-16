@@ -50,7 +50,7 @@ interface
 
 uses
   Classes, SysUtils, FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_INTERLOCKED,
-  FOS_REDBLACKTREE_GEN,FRE_APS_INTERFACE,contnrs,fpjson;
+  FOS_REDBLACKTREE_GEN,FRE_APS_INTERFACE,contnrs,fpjson,math;
 
 
 type
@@ -183,7 +183,7 @@ const
   cFOS_IID_DERIVED_COLL     = 'ID_CDC';
   cFOS_IID_SCHEME_COLL      = 'ID_CSC';
 
-  cFOS_RADIAL_SITEMAP_SCALE = 1.5;
+  cFOS_RADIAL_SITEMAP_SCALE = 0.6;
 
 
 type
@@ -9249,6 +9249,7 @@ end;
 
 procedure FREDB_SiteMap_AddRadialEntry(const SiteMapData: IFRE_DB_Object; const key: string; const caption: String; const icon: String; InterAppLink: String; const newsCount: Integer; const enabled: Boolean);
 var i            : integer;
+    lvl          : NativeInt;
     ial          : TFRE_DB_StringArray;
     key_arr      : TFOSStringArray;
     nodeid       : String;
@@ -9258,6 +9259,7 @@ var i            : integer;
     newentry     : IFRE_DB_Object;
 begin
   GFRE_BT.SeperateString(key,'/',key_arr);
+  lvl := Length(key_arr);
   SiteMapEntry := SiteMapData;
   for i := 0 to high(key_arr) do begin
     nodeid    := key_arr[i];
@@ -9285,7 +9287,8 @@ begin
   SiteMapEntry.Field('ICO').AsString    := icon;
   FREDB_SeperateString(InterAppLink,':',ial); { class:class:class }
   SiteMapEntry.Field('IAL').AsStringArr := ial;
-  SiteMapEntry.Field('SCL').AsReal32    := cFOS_RADIAL_SITEMAP_SCALE;
+  SiteMapEntry.Field('SCL').AsReal32    := Power(cFOS_RADIAL_SITEMAP_SCALE,lvl);
+  SiteMapEntry.Field('LVL').AsInt32     := lvl;
   SiteMapEntry.Field('DIS').AsBoolean   := not enabled;
 end;
 

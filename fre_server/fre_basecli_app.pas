@@ -77,6 +77,7 @@ type
     FOnlyInitDB                    : boolean;
     FBaseServer                    : TFRE_BASE_SERVER;
     FLimittransfer                 : integer;
+    FSystemConnection              : TFRE_DB_SYSTEM_CONNECTION;
 
     procedure   AddCheckOption                          (const short_option,long_option,helpentry : string);
     procedure   AddHelpOutLine                          (const msg:String='');
@@ -115,6 +116,8 @@ type
     procedure   InitExtensions          ;
     procedure   ShowVersions            ;
     procedure   ShowRights              ;
+    procedure   ShowApps                ;
+    procedure   DumpScheme              ;
     procedure   RemoveExtensions        ;
     procedure   RegisterExtensions ;
     procedure   DeployDatabaseScheme    ;
@@ -244,6 +247,10 @@ begin
    end else begin
      cFRE_JS_DEBUG := false;
    end;
+   if HasOption('*','filterapps') then
+     begin
+       cFRE_DB_ALLOWED_APPS := GetOptionValue('*','filterapps');
+     end;
    if GDBPS_SKIP_STARTUP_CHECKS then
      writeln('>>> !!!!  WARNING : SKIPPING STARTUP CHECKS (only possible on embedded) !!!! ');
 end;
@@ -311,6 +318,9 @@ begin
   AddCheckOption('*','tryrecovery'   ,'                | --tryrecovery                  : try recovery of a bad db by skipping checks / start with option / make backup / have luck');
   AddCheckOption('*','showinstalled' ,'                | --showinstalled                : show installed versions of all database objects');
   AddCheckOption('*','showrights'    ,'                | --showrights                   : show rights of specified user & and check login');
+  AddCheckOption('*','showapps'      ,'                | --showapps                     : show the actual available (filtered) app classes');
+  AddCheckOption('*','filterapps:'   ,'                | --filterapps=class,class       : allow only the specified apps');
+  AddCheckOption('*','showscheme'    ,'                | --showscheme                   : dump the whole database scheme definition');
   AddCheckOption('*','backupdb:'     ,'                | --backupdb=</path2/dir>        : backup database interactive');
   AddCheckOption('*','restoredb:'    ,'                | --restoredb=</path2/dir>       : restore database interactive');
   AddCheckOption('*','backupsys:'    ,'                | --backupsys=</path2/dir>       : backup only sys database interactive');
@@ -488,6 +498,26 @@ var ErrorMsg : String;
         end;
     end;
 
+    procedure SetupSystemConnection;
+    var fdbs : IFRE_DB_Object;
+        res  : TFRE_DB_Errortype;
+    begin
+
+      FSystemConnection := GFRE_DB.NewDirectSysConnection;
+      res := FSystemConnection.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);  // direct admin connect
+      if res<>edb_OK then begin
+        FSystemConnection.Free;
+        FSystemConnection := nil;
+        GFRE_DB.LogError(dblc_SERVER,'SERVING SYSTEM DATABASE failed due to [%s]',[CFRE_DB_Errortype[res]]);
+        GFRE_BT.CriticalAbort('CANNOT SERVE SYSTEM DB [%s]',[CFRE_DB_Errortype[res]]);
+      end;
+      res := GFRE_DB_PS_LAYER.GetDatabaseScheme(fdbs);
+      if res = edb_OK then
+        GFRE_DB.SetDatabasescheme(fdbs)
+      else
+        raise EFRE_DB_Exception.Create(edb_ERROR,'could not fetch the database scheme [%s] ',[res.Msg]);
+    end;
+
 begin
   AddCommandLineOptions;
   ErrorMsg:=CheckOptions(GetShortCheckOptions,FLongOpts.AsTStrings);
@@ -522,11 +552,14 @@ begin
 
   ProcessInitRecreateOptions;
 
+  SetupSystemConnection;
+
   if AfterInitDBTerminatingCommands then
    begin
      Terminate;
      exit;
    end;
+
 
   if HasOption('*','dontstart')
      or FOnlyInitDB then
@@ -535,7 +568,7 @@ begin
       end;
 
   FBaseServer := TFRE_BASE_SERVER.create(FDBName);
-  FBaseServer.Setup;
+  FBaseServer.Setup(FSystemConnection);
   if not Terminated then
     GFRE_SC.RunUntilTerminate;
   OrderedShutDown;
@@ -643,6 +676,16 @@ begin
     begin
       result := true;
       ShowRights;
+    end;
+  if HasOption('*','showapps') then
+    begin
+      result := true;
+      ShowApps;
+    end;
+  if HasOption('*','showscheme') then
+    begin
+      result := true;
+      DumpScheme;
     end;
   if HasOption('g','graph') then
     begin
@@ -1015,6 +1058,29 @@ begin
   CheckDbResult(CONN.Connect(cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect system db');
   writeln(conn.DumpUserRights);
   conn.Finalize;
+end;
+
+procedure TFRE_CLISRV_APP.ShowApps;
+var apa : TFRE_DB_APPLICATION_ARRAY;
+    i   : Integer;
+    conn: IFRE_DB_CONNECTION;
+begin
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
+  CONN := GFRE_DBI.NewConnection;
+  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
+  conn.Finalize;
+  writeln('AVAILABLE APPS:');
+  apa := GFRE_DB.GetApps;
+  for i:=0 to high(apa) do
+    begin
+      writeln(i,' : ',apa[i].AppClassName,' ',apa[i].ObjectName);
+    end;
+end;
+
+procedure TFRE_CLISRV_APP.DumpScheme;
+begin
+  writeln(GFRE_DB.GetDatabasescheme.DumpToString);
 end;
 
 

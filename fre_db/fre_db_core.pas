@@ -12885,8 +12885,26 @@ begin
 end;
 
 function TFRE_DB.GetApps: TFRE_DB_APPLICATION_ARRAY;
+var AppClass : Shortstring;
+    count    : NativeInt;
+    i        : NativeInt;
 begin
   result := FAppArray;
+  if cFRE_DB_ALLOWED_APPS<>'' then
+    begin
+      SetLength(result,Length(FAppArray));
+      count:=0;
+      for i:=0 to high(FAppArray) do
+        begin
+          AppClass := uppercase(FAppArray[i].AppClassName);
+          if (Pos(AppClass,uppercase(cFRE_DB_ALLOWED_APPS))>0) or (AppClass='TFRE_DB_LOGIN') then
+            begin
+              Result[count] := FAppArray[i];
+              inc(count);
+            end
+        end;
+      SetLength(result,count);
+    end;
 end;
 
 function TFRE_DB.GetAppInstanceByClass(appclass: TClass; out app: TFRE_DB_APPLICATION): boolean;
