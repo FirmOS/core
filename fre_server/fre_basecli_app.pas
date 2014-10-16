@@ -559,7 +559,8 @@ begin
      exit;
    end;
 
-  SetupSystemConnection;
+  if not FOnlyInitDB then
+    SetupSystemConnection;
 
   if AfterSysDBConnectTerminatingCommands then
     begin
@@ -571,6 +572,7 @@ begin
      or FOnlyInitDB then
       begin
         Terminate;
+        exit;
       end;
 
   FBaseServer := TFRE_BASE_SERVER.create(FDBName);
@@ -1038,10 +1040,10 @@ begin
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
   //writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
+  GFRE_DB.Initialize_Extension_ObjectsBuild;
   CONN := GFRE_DBI.NewConnection;
   CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
   writeln('INTERNAL BUILDING SCHEMES');
-  GFRE_DB.Initialize_Extension_ObjectsBuild;
   GFRE_DBI.DBInitializeAllSystemClasses(conn);
   GFRE_DBI.DBInitializeAllExClasses(conn);
   conn.Finalize;

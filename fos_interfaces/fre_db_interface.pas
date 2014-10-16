@@ -183,7 +183,7 @@ const
   cFOS_IID_DERIVED_COLL     = 'ID_CDC';
   cFOS_IID_SCHEME_COLL      = 'ID_CSC';
 
-  cFOS_RADIAL_SITEMAP_SCALE = 0.6;
+  cFOS_RADIAL_SITEMAP_SCALE = 0.9;
 
 
 type
@@ -3146,7 +3146,6 @@ end;
   function  FREDB_String2DBDisplayType           (const fts: string): TFRE_DB_DISPLAY_TYPE;
   procedure FREDB_SiteMap_AddEntry               (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : TFRE_DB_StringArray ;const x,y : integer;  const newsCount:Integer=0; const scale:Single=1; const enabled:Boolean=true);    //obsolete
   procedure FREDB_SiteMap_AddRadialEntry         (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : String; const newsCount:Integer=0; const enabled:Boolean=true);
-  procedure FREDB_PositionSitemapEntry           (const angle : integer; const radius : Double; const origin_x, origin_y : integer; out x,y:integer);
   procedure FREDB_SiteMap_RadialAutoposition     (const SiteMapData : IFRE_DB_Object; rootangle:integer=0);
 
   function  FREDB_GuidArray2StringStream         (const arr:TFRE_DB_GUIDArray):String; { Caution ! - used in streaming}
@@ -9287,7 +9286,6 @@ begin
   SiteMapEntry.Field('ICO').AsString    := icon;
   FREDB_SeperateString(InterAppLink,':',ial); { class:class:class }
   SiteMapEntry.Field('IAL').AsStringArr := ial;
-  SiteMapEntry.Field('SCL').AsReal32    := Power(cFOS_RADIAL_SITEMAP_SCALE,lvl);
   SiteMapEntry.Field('LVL').AsInt32     := lvl;
   SiteMapEntry.Field('DIS').AsBoolean   := not enabled;
 end;
@@ -9299,6 +9297,23 @@ var
   xo,yo        : integer;
   r            : Double;
   scale        : real;
+  lvl          : integer;
+
+
+  procedure FREDB_PositionSitemapEntry           (const angle : integer; const radius : Double; const origin_x, origin_y : integer; out x,y:integer);
+  var xr : double;
+      yr : double;
+      phi: double;
+      correct : double;
+  begin
+    correct := 1.15;
+    phi := (angle*pi)/180;
+    xr  := radius * cos (phi);
+    yr  := radius * sin (phi);
+    x   := origin_x + round (xr * correct);
+    y   := origin_y - round (yr);
+  //  writeln ('Angle: ',angle, 'Phi:',phi, 'X: ',x, 'Y:',y);
+  end;
 
   procedure PlaceChildren(const SiteMapEntry : IFRE_DB_OBject);
   var
@@ -9312,11 +9327,39 @@ var
     ientry     : integer;
     rangeangle : integer;
     maxrange   : integer;
+    lvl      : Integer;
 
     procedure PlaceSubentry(const subentry : IFRE_DB_Object);
     var x,y      : integer;
+        scl,rad  : Double;
     begin
-      FREDB_PositionSitemapEntry(currangle, r, xp, yp, x, y);
+      lvl := subentry.Field('LVL').AsInt32;
+      case lvl of
+        2 :
+          begin
+            scl := 1.5;
+            rad := 360;
+          end;
+        3 :
+          begin
+            scl := 0.8;
+            rad := 220;
+          end;
+        4 :
+          begin
+            scl := 0.3;
+            rad := 100;
+          end;
+        5 :
+          begin
+            scl := 0.00;
+            rad := 50;
+          end
+        else
+          abort;
+      end;
+      subentry.Field('SCL').AsReal32    := scl*cFOS_RADIAL_SITEMAP_SCALE;
+      FREDB_PositionSitemapEntry(currangle, rad*cFOS_RADIAL_SITEMAP_SCALE, xp, yp, x, y);
       subentry.Field('PNGL').asint32   := currangle;
       subentry.Field('CRD').AsInt32Arr := TFRE_DB_Int32Array.Create(x,y);
       dec(currangle,partangle);
@@ -9328,15 +9371,19 @@ var
   begin
     maxrange  := 135;
     partangle := 0;
+    lvl       := SiteMapEntry.Field('LVL').AsInt32;
     subcount  := SiteMapEntry.Field('ENTRIES').ValueCount;
     if subcount>0 then begin
       parentangle := SiteMapEntry.Field('PNGL').asint32;
       if parentangle = -1 then begin   // full circle
         minangle  := rootangle;
-        maxangle  := minangle+360;
+        maxangle  := minangle+360; { 360 }
         partangle := (maxangle-minangle) div (subcount);
       end else begin
-        rangeangle := (subcount-1) * (45 div 2);
+        if (lvl>1) and (subcount>4) then
+          rangeangle := (subcount-1) * (18)
+        else
+          rangeangle := (subcount-1) * (45 div 2);
         if rangeangle > maxrange then begin
           rangeangle := maxrange;
         end;
@@ -9357,33 +9404,19 @@ var
   end;
 
 begin
-  xo := 300; yo := 300; r := 150 * cFOS_RADIAL_SITEMAP_SCALE; scale := 0.8;
+  xo := 300; yo := 300; r := 300; scale := 0.8;
   rootangle  := 90 - rootangle;  // start at 12h, positive angle clockwise
   SiteMapRoot:=SiteMapData.Field('ENTRIES').AsObjectItem[0];
-  if assigned(SiteMapRoot) then begin
-    // Position RootNode
+  if assigned(SiteMapRoot) then begin { Position RootNode }
+    lvl := SiteMapRoot.Field('LVL').AsInt32;
     SiteMapRoot.Field('CRD').AsInt32Arr  := TFRE_DB_Int32Array.Create(xo,yo);
-    SiteMapRoot.Field('SCL').AsReal32    := cFOS_RADIAL_SITEMAP_SCALE;
+    SiteMapRoot.Field('SCL').AsReal32    := 2.5 * cFOS_RADIAL_SITEMAP_SCALE;
     SiteMapRoot.Field('PNGL').asint32    := -1;    // Place Children in full circle
     PlaceChildren(SiteMapRoot);
   end;
 end;
 
 
-procedure FREDB_PositionSitemapEntry(const angle: integer; const radius: double; const origin_x, origin_y: integer; out x, y: integer);
-var xr : double;
-    yr : double;
-    phi: double;
-    correct : double;
-begin
-  correct := 1.15;
-  phi := (angle*pi)/180;
-  xr  := radius * cos (phi);
-  yr  := radius * sin (phi);
-  x   := origin_x + round (xr * correct);
-  y   := origin_y - round (yr);
-//  writeln ('Angle: ',angle, 'Phi:',phi, 'X: ',x, 'Y:',y);
-end;
 
 function FREDB_GuidArray2StringStream(const arr: TFRE_DB_GUIDArray): String;
 var i : NativeInt;
