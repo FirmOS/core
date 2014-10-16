@@ -97,6 +97,7 @@ type
     function    AfterConfigStartupTerminatingCommands:boolean ; virtual;            { cmd's that should be executed after the reading of cfg file, but before db core init}
     function    AfterStartupTerminatingCommands:boolean       ; virtual;            { cmd's that should be executed with db core init, they terminate}
     function    AfterInitDBTerminatingCommands:boolean        ; virtual;            { cmd's that should be executed with full db init, they terminate}
+    function    AfterSysDBConnectTerminatingCommands:boolean  ; virtual;            { cmd's that should be executed after the connection to the system db is done}
     procedure   ParseSetSystemFlags                           ; virtual;            { Setting of global flags before startup go here }
     procedure   AddCommandLineOptions                         ; virtual;            { override for custom options/flags/commands}
 
@@ -552,14 +553,19 @@ begin
 
   ProcessInitRecreateOptions;
 
-  SetupSystemConnection;
-
   if AfterInitDBTerminatingCommands then
    begin
      Terminate;
      exit;
    end;
 
+  SetupSystemConnection;
+
+  if AfterSysDBConnectTerminatingCommands then
+    begin
+      Terminate;
+      exit;
+    end;
 
   if HasOption('*','dontstart')
      or FOnlyInitDB then
@@ -677,16 +683,6 @@ begin
       result := true;
       ShowRights;
     end;
-  if HasOption('*','showapps') then
-    begin
-      result := true;
-      ShowApps;
-    end;
-  if HasOption('*','showscheme') then
-    begin
-      result := true;
-      DumpScheme;
-    end;
   if HasOption('g','graph') then
     begin
       result := true;
@@ -696,6 +692,21 @@ begin
     begin
       result := true;
       DumpAll(GetOptionValue('z','testdump'));
+    end;
+end;
+
+function TFRE_CLISRV_APP.AfterSysDBConnectTerminatingCommands: boolean;
+begin
+  result := false;
+  if HasOption('*','showapps') then
+    begin
+      result := true;
+      ShowApps;
+    end;
+  if HasOption('*','showscheme') then
+    begin
+      result := true;
+      DumpScheme;
     end;
 end;
 
