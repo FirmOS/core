@@ -3290,7 +3290,7 @@ begin
     end
   else
     begin
-       SetLength(GFRE_DB_MIME_TYPES,15);
+       SetLength(GFRE_DB_MIME_TYPES,16);
        cnt := 0;
        add('js','application/javascript');
        add('html','text/html');
@@ -3307,6 +3307,7 @@ begin
        add('otf','font/opentype');
        add('eot','application/vnd.ms-fontobject');
        add('zip','application/zip');
+       add('pdf','application/pdf');
     end;
 end;
 
