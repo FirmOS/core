@@ -234,24 +234,34 @@ begin
      end;
    if HasOption('*','cleanzip') then
      cFRE_FORCE_CLEAN_ZIP_HTTP_FILES := true;
+
    if HasOption('*','nozip') then
      cFRE_BUILD_ZIP_HTTP_FILES := false;
+
    if HasOption('*','nocache') then
      cFRE_USE_STATIC_CACHE := false;
-   if HasOption('s','style') then begin
-     cFRE_WEB_STYLE := GetOptionValue('s','style');
-   end else begin
+
+   if HasOption('s','style') then
+     cFRE_WEB_STYLE := GetOptionValue('s','style')
+   else
      cFRE_WEB_STYLE := FDefaultStyle;
-   end;
-   if HasOption('*','jsdebug') then begin
-     cFRE_JS_DEBUG := true;
-   end else begin
+
+   if HasOption('*','jsdebug') then
+     cFRE_JS_DEBUG := true
+   else
      cFRE_JS_DEBUG := false;
-   end;
+
+  if HasOption('*','webdev') then
+    begin
+      cFRE_JS_DEBUG                    := true;
+      cFRE_USE_STATIC_CACHE            := false;
+      cFRE_BUILD_ZIP_HTTP_FILES        := false;
+      cFRE_FORCE_CLEAN_ZIP_HTTP_FILES  := true;
+    end;
+
    if HasOption('*','filterapps') then
-     begin
-       cFRE_DB_ALLOWED_APPS := GetOptionValue('*','filterapps');
-     end;
+     cFRE_DB_ALLOWED_APPS := GetOptionValue('*','filterapps');
+
    if GDBPS_SKIP_STARTUP_CHECKS then
      writeln('>>> !!!!  WARNING : SKIPPING STARTUP CHECKS (only possible on embedded) !!!! ');
 end;
@@ -313,6 +323,7 @@ begin
   AddCheckOption('*','nozip'         ,'                | --nozip                        : don''t zip webroot files, the server still uses files that are availlable');
   AddCheckOption('*','nocache'       ,'                | --nocache                      : disable memory caching of whole webroot on startup');
   AddCheckOption('*','jsdebug'       ,'                | --jsdebug                      : enable javascript debug/develop mode');
+  AddCheckOption('*','webdev'        ,'                | --webdev                       : shortcut: cleanzip,nozip,jsdebug,nocache');
   AddCheckOption('*','dbo2json:'     ,'                | --dbo2json=/path2/dbo          : convert a dbo to json representation');
   AddCheckOption('*','json2dbo:'     ,'                | --json2dbo=/path2/json         : convert a json to dbo representation');
   AddCheckOption('*','dumpdbo:'      ,'                | --dumpdbo=uid_hex              : direct dump of a dbo');
