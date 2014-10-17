@@ -183,7 +183,7 @@ const
   cFOS_IID_DERIVED_COLL     = 'ID_CDC';
   cFOS_IID_SCHEME_COLL      = 'ID_CSC';
 
-  cFOS_RADIAL_SITEMAP_SCALE = 0.9;
+  cFOS_RADIAL_SITEMAP_SCALE = 0.8;
 
 
 type
@@ -9413,7 +9413,7 @@ begin
   if assigned(SiteMapRoot) then begin { Position RootNode }
     lvl := SiteMapRoot.Field('LVL').AsInt32;
     SiteMapRoot.Field('CRD').AsInt32Arr  := TFRE_DB_Int32Array.Create(xo,yo);
-    SiteMapRoot.Field('SCL').AsReal32    := 2.5 * cFOS_RADIAL_SITEMAP_SCALE;
+    SiteMapRoot.Field('SCL').AsReal32    :=  2 * cFOS_RADIAL_SITEMAP_SCALE;
     SiteMapRoot.Field('PNGL').asint32    := -1;    // Place Children in full circle
     PlaceChildren(SiteMapRoot);
   end;
