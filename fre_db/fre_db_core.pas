@@ -10814,10 +10814,8 @@ procedure TFRE_DB_CONNECTION.InternalSetupConnection;
     if not CollectionExists(cFRE_DB_MACHINE_COLLECTION) then begin
       coll := Collection(cFRE_DB_MACHINE_COLLECTION); // Instance (new) Collections here with false parameter
       CheckDbResult(coll.DefineIndexOnField('objname',fdbft_String,true,true,'def',false));
+      CheckDbResult(coll.DefineIndexOnField('provisioningmac',fdbft_String,true,true,'pmac',false));
     end;
-    coll := Collection(cFRE_DB_MACHINE_COLLECTION,false); // Instance (new) Collections here with false parameter
-    if not coll.IndexExists('pmac') then
-      CheckDbResult(coll.DefineIndexOnField('provmac',fdbft_String,true,true,'pmac',true));
   end;
 
 begin
@@ -14490,7 +14488,7 @@ procedure TFRE_DB_Object.__InternalCompareToObj(const compare_obj: TFRE_DB_Objec
   var cmp_fld : TFRE_DB_FIELD;
             i : NativeInt;
   begin
-    //writeln('Base FIELD : ',fld.FieldName,' ',fld.FieldType);
+    //writeln('Base FIELD : ',fld.FieldName,' ',fld.FieldType,' ',fld.IsFieldCalculated);
     cmp_fld := compare_obj._FieldOnlyExisting(fld.FieldName);
     if not assigned(cmp_fld) then
       callback(self,cev_FieldAdded,fld,nil)
@@ -14503,7 +14501,7 @@ procedure TFRE_DB_Object.__InternalCompareToObj(const compare_obj: TFRE_DB_Objec
   procedure CompareFields(const fld : TFRE_DB_FIELD);
   var cmp_fld : TFRE_DB_FIELD;
   begin
-    //writeln('Compare FIELD : ',fld.FieldName,' ',fld.FieldType);
+    //writeln('Compare FIELD : ',fld.FieldName,' ',fld.FieldType,' ',fld.IsFieldCalculated);
     cmp_fld := _FieldOnlyExisting(fld.FieldName);
     if not assigned(cmp_fld) then
       callback(self,cev_FieldDeleted,nil,fld)
@@ -14511,8 +14509,8 @@ procedure TFRE_DB_Object.__InternalCompareToObj(const compare_obj: TFRE_DB_Objec
 
 
 begin
-  ForAllFields(@BaseFields);
-  compare_obj.ForAllFields(@CompareFields);
+  ForAllFields(@BaseFields,true,false);
+  compare_obj.ForAllFields(@CompareFields,True,False);
 end;
 
 procedure TFRE_DB_Object.Set_ReadOnly;

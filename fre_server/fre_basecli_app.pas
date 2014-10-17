@@ -194,6 +194,8 @@ procedure TFRE_CLISRV_APP.DumpDBO(const uid_hex: string);
 var conn : IFRE_DB_CONNECTION;
     uid  : TFRE_DB_GUID;
     dbo  : IFRE_DB_Object;
+    refs : TFRE_DB_ObjectReferences;
+    i    : NativeInt;
 begin
    uid := FREDB_H2G(uid_hex);
   _CheckDBNameSupplied;
@@ -202,9 +204,14 @@ begin
   CONN := GFRE_DBI.NewConnection;
   CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
   CheckDbResult(conn.fetch(uid,dbo));
+  refs := conn.GetReferencesDetailed(uid,false);
   writeln('');
   writeln(dbo.DumpToString(2));
   writeln('');
+  for i:=0 to high(refs) do
+    begin
+      writeln('Scheme:',refs[i].schemename,'.',refs[i].fieldname,'(',refs[i].linked_uid.AsHexString,')');
+    end;
   conn.Finalize;
 end;
 

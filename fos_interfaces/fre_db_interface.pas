@@ -3239,6 +3239,8 @@ var conv  : ShortString;
     binv  : Qword;
     len   : NativeInt;
 begin
+  if length(mac)<>17 then
+    exit(false);
   conv := StringReplace(mac,':','',[rfReplaceAll]);
   if Length(conv)<>12 then
     exit(false);
@@ -4876,7 +4878,7 @@ end;
 class procedure TFRE_DB_UNCONFIGURED_MACHINE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
 begin
   inherited RegisterSystemScheme(scheme);
-  //'provmac' fixme setup field definition for this FIELD !!
+  //'provisioningmac' fixme setup field definition for this FIELD !!
 end;
 
 class procedure TFRE_DB_UNCONFIGURED_MACHINE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -6589,7 +6591,7 @@ begin
     begin
       unmach := TFRE_DB_UNCONFIGURED_MACHINE.CreateForDB;
       unmach.ObjectName := Machine;
-      unmach.Field('provmac').AsString:=MachineMac;
+      unmach.Field('provisioningmac').AsString:=MachineMac;
       result := unmach.UID;
       CheckDbResult(mcoll.Store(unmach),'failed to store a unconfigured machine');
       GFRE_DBI.LogNotice(dblc_SESSION,'CREATED UNCONFIGURED MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+Machine+'/'+MachineMac+'] MACHINE_UID ['+FREDB_G2H(result)+']');
