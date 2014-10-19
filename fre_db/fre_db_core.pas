@@ -15559,7 +15559,7 @@ procedure TFRE_DB_Object.SetAllSimpleObjectFieldsFromObject(const source_object:
       fdbft_DateTimeUTC,
       fdbft_Stream:
         begin
-          if (fld.IsSchemeField) or (fld.IsFieldCalculated) then
+          if (fld.IsSchemeField) then
             exit
           else
             Field(fld.FieldName).CloneFromFieldI(fld)
