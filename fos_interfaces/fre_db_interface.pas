@@ -472,6 +472,7 @@ type
     function  IsSystemField                 : boolean;
     function  IsObjectField                 : boolean;
     function  IsSchemeField                 : boolean;
+    function  IsFieldCalculated             : boolean;
     property  AsGUID                        : TFRE_DB_GUID read GetAsGUID write SetAsGUID;
     property  AsByte                        : Byte  read GetAsByte write SetAsByte;
     property  AsInt16                       : Smallint read GetAsInt16 write SetAsInt16;

@@ -15554,19 +15554,15 @@ procedure TFRE_DB_Object.SetAllSimpleObjectFieldsFromObject(const source_object:
       fdbft_Real32,
       fdbft_Real64,
       fdbft_Currency,
-      fdbft_String:
-        begin
-          if fld.IsSchemeField then
-            exit;
-        end;
+      fdbft_String,
       fdbft_Boolean,
-      fdbft_DateTimeUTC:
-        begin
-          Field(fld.FieldName).CloneFromFieldI(fld)
-        end;
+      fdbft_DateTimeUTC,
       fdbft_Stream:
         begin
-          Field(fld.FieldName).CloneFromFieldI(fld)
+          if (fld.IsSchemeField) or (fld.IsFieldCalculated) then
+            exit
+          else
+            Field(fld.FieldName).CloneFromFieldI(fld)
         end
       else
         raise EFRE_DB_Exception.Create(edb_ERROR,'setsimpleobjectfieldsfromobject - not all fieldtypes handled');
