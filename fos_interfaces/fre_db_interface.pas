@@ -704,6 +704,7 @@ type
     function       ExistsUserSessionForKeyLocked             (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchPublisherSessionLockedMachine        (const machineid: TFRE_DB_GUID ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
+    function       FetchPublisherSessionLockedMachineMac     (const machine_mac: TFRE_DB_NameType ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
     function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION ; const allowed_classes : TFRE_DB_StringArray):TFRE_DB_Errortype;
@@ -2803,8 +2804,10 @@ end;
     //  ses.SendDelegatedEventToSession(sessionID,SF,input.CloneToNewObject());
 
     //Invoke a Method that another Session provides via Register, in the context of that session (feeder session)
-    function    InvokeRemoteRequest          (const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
-    function    InvokeRemoteRequestMachine   (const machineid : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+    function    InvokeRemoteRequest           (const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+    function    InvokeRemoteRequestMachine    (const machineid   : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+    function    InvokeRemoteRequestMachineMac (const machine_mac : TFRE_DB_NameType ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+
 
     function    RegisterTaskMethod           (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
     function    RemoveTaskMethod             (const id:string='TIMER'):boolean;
@@ -3013,8 +3016,9 @@ end;
     procedure   SendServerClientCMD      (const cmd : IFRE_DB_COMMAND);
 
     //Invoke a Method that another Session provides via Register
-    function    InvokeRemoteRequest        (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
-    function    InvokeRemoteRequestMachine (const machineid : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+    function    InvokeRemoteRequest           (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
+    function    InvokeRemoteRequestMachine    (const machineid : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+    function    InvokeRemoteRequestMachineMac (const machine_mac : TFRE_DB_NameType ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
 
     procedure   InvokeRemReqCoRoutine      (const data : Pointer);
     procedure   AnswerRemReqCoRoutine      (const data : Pointer);
@@ -3049,6 +3053,7 @@ end;
     {Helper}
     procedure   HandleDiffField        (const mode : TDiffFieldUpdateMode ; const fld : IFRE_DB_Field);
     function    BoundMachineUID        : TFRE_DB_GUID;
+    function    BoundMachineMac        : TFRE_DB_NameType;
   end;
 
 
@@ -6611,7 +6616,7 @@ begin
     begin
       FBoundMachineUid := mach.UID;
       result := FBoundMachineUid;
-      FBoundMachineMac  := mach.Field('provisioningmac').AsString;
+      FBoundMachineMac  := lowercase(mach.Field('provisioningmac').AsString);
       FBoundMachineName := mach.Field('objname').AsString;
       GFRE_DBI.LogNotice(dblc_SESSION,'FEEDER BOUND MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+FBoundMachineName+'/'+FBoundMachineMac+'] MACHINE_UID ['+FBoundMachineUid.AsHexString+']');
       //writeln('>> FEEDER BOUND MACHINE ',FBoundMachineUid.AsHexString);
@@ -6624,6 +6629,7 @@ begin
       unmach.ObjectName := Machine;
       unmach.Field('provisioningmac').AsString:=MachineMac;
       result := unmach.UID;
+      FBoundMachineMac  := lowercase(unmach.Field('provisioningmac').AsString);
       CheckDbResult(mcoll.Store(unmach),'failed to store a unconfigured machine');
       GFRE_DBI.LogNotice(dblc_SESSION,'CREATED UNCONFIGURED MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+Machine+'/'+MachineMac+'] MACHINE_UID ['+FREDB_G2H(result)+']');
       FBoundMachineUid := unmach.UID;
@@ -6816,6 +6822,28 @@ var
     rmethodenc   : TFRE_DB_RemoteSessionInvokeEncapsulation;
 begin
   if GFRE_DBI.NetServ.FetchPublisherSessionLockedMachine(machineid,uppercase(rclassname),uppercase(rmethodname),ses,right) then
+    begin
+      try
+        rmethodenc := TFRE_DB_RemoteSessionInvokeEncapsulation.Create(rclassname,rmethodname,FCurrentReqID,FSessionID,input,SyncCallback,opaquedata);
+        if ses.DispatchCoroutine(@ses.InvokeRemReqCoRoutine,rmethodenc) then
+          result := edb_OK
+        else
+          Result := edb_ERROR;
+      finally
+        ses.UnlockSession;
+      end;
+    end
+  else
+    result := edb_NOT_FOUND;
+end;
+
+function TFRE_DB_UserSession.InvokeRemoteRequestMachineMac(const machine_mac: TFRE_DB_NameType; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+var
+    right        : TFRE_DB_String;
+    ses          : TFRE_DB_UserSession;
+    rmethodenc   : TFRE_DB_RemoteSessionInvokeEncapsulation;
+begin
+  if GFRE_DBI.NetServ.FetchPublisherSessionLockedMachineMac(machine_mac,uppercase(rclassname),uppercase(rmethodname),ses,right) then
     begin
       try
         rmethodenc := TFRE_DB_RemoteSessionInvokeEncapsulation.Create(rclassname,rmethodname,FCurrentReqID,FSessionID,input,SyncCallback,opaquedata);
@@ -7104,6 +7132,11 @@ end;
 function TFRE_DB_UserSession.BoundMachineUID: TFRE_DB_GUID;
 begin
   result := FBoundMachineUid;
+end;
+
+function TFRE_DB_UserSession.BoundMachineMac: TFRE_DB_NameType;
+begin
+  result := FBoundMachineMac;
 end;
 
 constructor TFOS_BASE.Create;

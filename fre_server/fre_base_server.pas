@@ -97,6 +97,7 @@ type
     function       ExistsUserSessionForKeyLocked             (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchPublisherSessionLockedMachine        (const machineid: TFRE_DB_GUID ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
+    function       FetchPublisherSessionLockedMachineMac     (const machine_mac: TFRE_DB_NameType ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
     function       SendDelegatedContentToClient              (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
@@ -961,6 +962,45 @@ function TFRE_BASE_SERVER.FetchPublisherSessionLockedMachine(const machineid: TF
       i   : NAtiveint;
   begin
     if session.BoundMachineUID=machineid then
+      begin
+        arr := session.GetPublishedRemoteMeths;
+        for i:=0 to high(arr) do
+          begin
+            if (arr[i].classname=rcall)
+               and (arr[i].methodname=rmeth) then
+                 begin
+                   right := arr[i].invokationright;
+                   ses   := session;
+                   result := true;
+                   exit;
+                 end;
+          end;
+      end;
+    result := false;
+  end;
+
+begin
+  result   := false;
+  ses      := nil;
+  FSessionTreeLock.Acquire;
+  try
+    FUserSessionsTree.ForAllItemsBrk(@SearchRac);
+    if assigned(ses) then begin
+      ses.LockSession;
+      result := true;
+    end;
+  finally
+    FSessionTreeLock.Release;
+  end;
+end;
+
+function TFRE_BASE_SERVER.FetchPublisherSessionLockedMachineMac(const machine_mac: TFRE_DB_NameType; const rcall, rmeth: TFRE_DB_NameType; out ses: TFRE_DB_UserSession; out right: TFRE_DB_String): boolean;
+
+  function SearchRAC(const session:TFRE_DB_UserSession):boolean;
+  var arr : TFRE_DB_RemoteReqSpecArray;
+      i   : NAtiveint;
+  begin
+    if session.BoundMachineMac=lowercase(machine_mac) then
       begin
         arr := session.GetPublishedRemoteMeths;
         for i:=0 to high(arr) do
