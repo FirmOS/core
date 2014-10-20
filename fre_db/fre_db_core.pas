@@ -1933,8 +1933,8 @@ type
     function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
     function           Update                       (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;virtual;
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
-    function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION): TFRE_DB_Errortype;virtual;
-    function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION): TFRE_DB_Errortype;virtual; // with user rights
+    function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION ; const interactive_session : boolean): TFRE_DB_Errortype;virtual;
+    function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION ; const interactive_session : boolean): TFRE_DB_Errortype;virtual; // with user rights
     procedure          DrawScheme                   (const datastream:TStream;const classfile:string)                        ; virtual;
   end;
 
@@ -2276,7 +2276,7 @@ type
 
     destructor  Destroy                   ;override;
 
-    function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION):TFRE_DB_Errortype;override;
+    function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION ; const interactive_session : boolean):TFRE_DB_Errortype;override;
     function    InvokeMethod              (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
     //Warning Fetching from DB, and then from system can have undesired side effects ...
@@ -2442,7 +2442,7 @@ type
     function    DefaultDirectory             : TFRE_DB_String;
     constructor Create                       ;
     destructor  Destroy                      ; override;
-    function    GetApps                      : TFRE_DB_APPLICATION_ARRAY;
+    function    GetApps                      (const disable_filter: boolean=false): TFRE_DB_APPLICATION_ARRAY;
     function    GetAppInstanceByClass        (appclass : TClass ; out app  : TFRE_DB_APPLICATION):boolean;
 
     function    GetSysEnum                   (name:TFRE_DB_NameType ; out enum   : TFRE_DB_Enum):boolean;
@@ -6584,12 +6584,12 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB_BASE_CONNECTION.FetchApplications(var apps:TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION): TFRE_DB_Errortype;
+function TFRE_DB_BASE_CONNECTION.FetchApplications(var apps: TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION; const interactive_session: boolean): TFRE_DB_Errortype;
 var l_apps : TFRE_DB_APPLICATION_ARRAY;
     cnt,i  : integer;
 begin
   _ConnectCheck;
-  l_apps := GFRE_DB.GetApps;
+  l_apps := GFRE_DB.GetApps(not interactive_session);
   SetLength(apps,length(l_apps));
   cnt := 0;
   for i := 0 to high(l_apps) do begin
@@ -6604,12 +6604,12 @@ begin
   result := edb_OK;
 end;
 
-function TFRE_DB_BASE_CONNECTION.FetchApplicationsI(var apps: IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION): TFRE_DB_Errortype;
+function TFRE_DB_BASE_CONNECTION.FetchApplicationsI(var apps: IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION; const interactive_session: boolean): TFRE_DB_Errortype;
 var appa :TFRE_DB_APPLICATION_ARRAY;
     loginappt: TFRE_DB_APPLICATION;
   i: Integer;
 begin //nl
-  result := FetchApplications(appa,loginappt);
+  result := FetchApplications(appa,loginappt,interactive_session);
   if result = edb_OK then begin
     setlength(apps,length(appa));
     for i:=0 to high(apps) do begin
@@ -11014,7 +11014,7 @@ begin
   inherited Destroy;
 end;
 
-function  TFRE_DB_CONNECTION.FetchApplications(var apps: TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION):TFRE_DB_Errortype;
+function TFRE_DB_CONNECTION.FetchApplications(var apps: TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION; const interactive_session: boolean): TFRE_DB_Errortype;
 var l_apps : TFRE_DB_APPLICATION_ARRAY;
     cnt,i  : integer;
 begin
@@ -11022,7 +11022,7 @@ begin
     exit(edb_NOT_CONNECTED);
   if not assigned(FSysConnection) then
     Exit(edb_ACCESS);
-  result := FSysConnection.FetchApplications(l_apps, loginapp);
+  result := FSysConnection.FetchApplications(l_apps, loginapp,interactive_session);
   SetLength(apps,length(l_apps));
   cnt := 0;
   for i := 0 to high(l_apps) do begin
@@ -12882,12 +12882,14 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB.GetApps: TFRE_DB_APPLICATION_ARRAY;
+function TFRE_DB.GetApps(const disable_filter : boolean=false): TFRE_DB_APPLICATION_ARRAY;
 var AppClass : Shortstring;
     count    : NativeInt;
     i        : NativeInt;
 begin
   result := FAppArray;
+  if disable_filter then
+   exit;
   if cFRE_DB_ALLOWED_APPS<>'' then
     begin
       SetLength(result,Length(FAppArray));

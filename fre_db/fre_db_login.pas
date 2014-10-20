@@ -265,7 +265,7 @@ begin
     sta_ActiveNew,
     sta_ReUsed:
       begin
-        conn.FetchApplications(apps,loginapp);
+        conn.FetchApplications(apps,loginapp,ses.IsInteractiveSession);
         if Length(apps)=0 then begin
           result := No_Apps_ForGuests(input,ses,app,conn); // => Apps for Guests or Login
           exit;
@@ -431,7 +431,7 @@ var
 
 begin
   session := GetSession(input);
-  session.GetDBConnection.FetchApplications(apps,loginapp);
+  session.GetDBConnection.FetchApplications(apps,loginapp,ses.IsInteractiveSession);
   res := TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_hiddentab);
   res.OnUIChange(TFRE_DB_SERVER_FUNC_DESC.Create.Describe(self,'OnUIChange'));
   for i := 0 to high(apps) do begin
