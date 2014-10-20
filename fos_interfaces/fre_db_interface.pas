@@ -703,6 +703,7 @@ type
     function       ExistsUserSessionForUserLocked            (const username:string;out other_session:TFRE_DB_UserSession):boolean;
     function       ExistsUserSessionForKeyLocked             (const key     :string;out other_session:TFRE_DB_UserSession):boolean;
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
+    function       FetchPublisherSessionLockedMachine        (const machineid: TFRE_DB_GUID ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
     function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION ; const allowed_classes : TFRE_DB_StringArray):TFRE_DB_Errortype;
@@ -1300,11 +1301,13 @@ type
 
   IFRE_DB_ClientFieldValidator       = interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBCV']
-    function  getRegExp       :TFRE_DB_String;
-    function  getInfoText     :IFRE_DB_TEXT;
-    function  getHelpTextKey  :TFRE_DB_String;
-    function  getAllowedChars :TFRE_DB_String;
-    function  Setup           (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
+    function  getRegExp        :TFRE_DB_String;
+    function  getInfoText      :IFRE_DB_TEXT;
+    function  getHelpTextKey   :TFRE_DB_String;
+    function  getAllowedChars  :TFRE_DB_String;
+    function  getReplaceRegExp :TFRE_DB_String;
+    function  getReplaceValue  :TFRE_DB_String;
+    function  Setup            (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''; const replaceRegExp: TFRE_DB_String=''; const replaceValue: TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
   end;
 
   IFRE_DB_InputGroupSchemeDefinition = interface;
@@ -1570,7 +1573,7 @@ type
 
     function    SYS                           : IFRE_DB_SYS_CONNECTION;
 
-    function    FetchApplications             (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION)  : TFRE_DB_Errortype; // with user rights
+    function    FetchApplications             (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION; const interactive_session : boolean)  : TFRE_DB_Errortype; // with user rights, interactive session are not filtered by appfilter
     function    FetchTranslateableTextOBJ     (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean; // Warning: finalize the TEXTOBJ!
     function    FetchTranslateableTextShort   (const translation_key:TFRE_DB_String):TFRE_DB_String;
     function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String):TFRE_DB_String;
@@ -2800,10 +2803,11 @@ end;
     //  ses.SendDelegatedEventToSession(sessionID,SF,input.CloneToNewObject());
 
     //Invoke a Method that another Session provides via Register, in the context of that session (feeder session)
-    function    InvokeRemoteRequest      (const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+    function    InvokeRemoteRequest          (const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+    function    InvokeRemoteRequestMachine   (const machineid : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
 
-    function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
-    function    RemoveTaskMethod         (const id:string='TIMER'):boolean;
+    function    RegisterTaskMethod           (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
+    function    RemoveTaskMethod             (const id:string='TIMER'):boolean;
 
     procedure   ClearUpdatable               ;
     procedure   RegisterUpdatableContent     (const contentId: String);
@@ -2812,6 +2816,7 @@ end;
     procedure   UnregisterUpdatableDBO       (const UID_id: TFRE_DB_GUID);
     function    IsUpdatableContentVisible    (const contentId: String): Boolean;
     function    IsDBOUpdatable               (const UID_id: TFRE_DB_GUID):boolean;
+    function    IsInteractiveSession         : Boolean;
     function    GetDownLoadLink4StreamField  (const obj_uid: TFRE_DB_GUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
     function    GetUserName                  : String;
     function    GetDomain                    : TFRE_DB_String;      { domainname of logged in user }
@@ -2919,6 +2924,9 @@ end;
     FBoundSession_RA_SC   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
     FIsInteractive        : Boolean;
     FBindState            : TFRE_DB_SESSIONSTATE;
+    FBoundMachineUid      : TFRE_DB_Guid;
+    FBoundMachineMac,
+    FBoundMachineName     : TFRE_DB_String;
 
     procedure     SetOnWorkCommands       (AValue: TNotifyEvent);
     procedure     _FixupDCName           (var dcname:TFRE_DB_NameType);
@@ -2941,7 +2949,7 @@ end;
     procedure   SetSessionState          (const sstate : TFRE_DB_SESSIONSTATE);
     function    GetSessionState          : TFRE_DB_SESSIONSTATE;
     function    CheckUnboundSessionForPurge : boolean;
-    constructor Create                   (const user_name,password:TFRE_DB_String;const default_app:TFRE_DB_String;const default_uid_path : TFRE_DB_GUIDArray ; conn : IFRE_DB_CONNECTION);
+    constructor Create                   (const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String; const default_uid_path: TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION; const interactive_session: boolean);
     destructor  Destroy                  ;override;
     procedure   StoreSessionData         ;
     function    SearchSessionApp         (const app_key:TFRE_DB_String ; out app:TFRE_DB_APPLICATION ; out idx:integer):boolean;
@@ -2984,7 +2992,7 @@ end;
 
     function    FetchOrInitFeederMachines  (const Machine,MachineMac : TFRE_DB_String):TFRE_DB_GUID; { Initialize or deliver Machine Objects in the Session DB }
 
-    procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC;const interactive_session:boolean);
+    procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC);
     procedure   ClearServerClientInterface ;
     function    GetClientServerInterface   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
 
@@ -3005,6 +3013,8 @@ end;
 
     //Invoke a Method that another Session provides via Register
     function    InvokeRemoteRequest        (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
+    function    InvokeRemoteRequestMachine (const machineid : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+
     procedure   InvokeRemReqCoRoutine      (const data : Pointer);
     procedure   AnswerRemReqCoRoutine      (const data : Pointer);
     procedure   COR_SendContentOnBehalf    (const data : Pointer);
@@ -3037,6 +3047,7 @@ end;
     procedure   FinalizeNotif          ;
     {Helper}
     procedure   HandleDiffField        (const mode : TDiffFieldUpdateMode ; const fld : IFRE_DB_Field);
+    function    BoundMachineUID        : TFRE_DB_GUID;
   end;
 
 
@@ -5478,7 +5489,7 @@ begin
 end;
 
 
-constructor TFRE_DB_UserSession.Create(const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String;const default_uid_path : TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION);
+constructor TFRE_DB_UserSession.Create(const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String;const default_uid_path : TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION ; const interactive_session : boolean);
 begin
   GFRE_TF.Get_Lock(FSessionLock);
   FUserName             := user_name;
@@ -5493,6 +5504,7 @@ begin
   FDifferentialUpdates  := GFRE_DBI.NewObject;
   FUpdateableContent    := GFRE_DBI.NewObject;
   FModuleInitialized    := TFPHashList.Create;
+  FIsInteractive        := interactive_session;
 
   _FetchAppsFromDB;
   _InitApps;
@@ -5594,7 +5606,7 @@ end;
 
 procedure TFRE_DB_UserSession._FetchAppsFromDB;
 begin
-  FDBConnection.FetchApplications(FAppArray,FLoginApp);
+  FDBConnection.FetchApplications(FAppArray,FLoginApp,FIsInteractive);
 end;
 
 procedure TFRE_DB_UserSession._InitApps;
@@ -6582,12 +6594,22 @@ var  i      : Integer;
      mcoll  : IFRE_DB_COLLECTION;
      muid   : TFRE_DB_GUID;
      unmach : TFRE_DB_UNCONFIGURED_MACHINE;
+     mach   : IFRE_DB_Object;
 begin
   if not FPromoted then
     raise EFRE_DB_Exception.Create(edb_ERROR,'you not allowed the machineobjects [%s]',[FDBConnection.GetDatabaseName]);
   mcoll := FDBConnection.GetCollection(CFRE_DB_MACHINE_COLLECTION);
-  if mcoll.GetIndexedUIDText(MachineMac,muid,false,'pmac')>0 then
-      result := muid
+  if mcoll.GetIndexedObjText(MachineMac,mach,false,'pmac')>0 then
+    begin
+      FBoundMachineUid := mach.UID;
+      result := FBoundMachineUid;
+      FBoundMachineMac  := mach.Field('provisioningmac').AsString;
+      FBoundMachineName := mach.Field('objname').AsString;
+      GFRE_DBI.LogNotice(dblc_SESSION,'FEEDER BOUND MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+FBoundMachineName+'/'+FBoundMachineMac+'] MACHINE_UID ['+FBoundMachineUid.AsHexString+']');
+      //writeln('>> FEEDER BOUND MACHINE ',FBoundMachineUid.AsHexString);
+      //writeln('>> ',mach.DumpToString());
+      mach.Finalize;
+    end
   else
     begin
       unmach := TFRE_DB_UNCONFIGURED_MACHINE.CreateForDB;
@@ -6596,6 +6618,7 @@ begin
       result := unmach.UID;
       CheckDbResult(mcoll.Store(unmach),'failed to store a unconfigured machine');
       GFRE_DBI.LogNotice(dblc_SESSION,'CREATED UNCONFIGURED MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+Machine+'/'+MachineMac+'] MACHINE_UID ['+FREDB_G2H(result)+']');
+      FBoundMachineUid := unmach.UID;
     end;
   //if mcoll.GetIndexedUIDText(Machine,muid)>0 then
   //  result := muid
@@ -6609,12 +6632,11 @@ begin
   //  end;
 end;
 
-procedure TFRE_DB_UserSession.SetServerClientInterface(const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const interactive_session: boolean);
+procedure TFRE_DB_UserSession.SetServerClientInterface(const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC);
 begin
   if assigned(FBoundSession_RA_SC) then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,' REUSE SESSION FAILED, ALREADY BOUND INTERFACE FOUND');
   FBoundSession_RA_SC := sc_interface;
-  FIsInteractive      := interactive_session;
   GFRE_DBI.LogNotice(dblc_SESSION,'SET SESSION INTERFACE (RESUE) -> SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+']');
   GFRE_DB_TCDM.DropAllQuerys(GetSessionID,'');
 end;
@@ -6764,6 +6786,28 @@ var
 
 begin
   if GFRE_DBI.NetServ.FetchPublisherSessionLocked(uppercase(rclassname),uppercase(rmethodname),ses,right) then
+    begin
+      try
+        rmethodenc := TFRE_DB_RemoteSessionInvokeEncapsulation.Create(rclassname,rmethodname,FCurrentReqID,FSessionID,input,SyncCallback,opaquedata);
+        if ses.DispatchCoroutine(@ses.InvokeRemReqCoRoutine,rmethodenc) then
+          result := edb_OK
+        else
+          Result := edb_ERROR;
+      finally
+        ses.UnlockSession;
+      end;
+    end
+  else
+    result := edb_NOT_FOUND;
+end;
+
+function TFRE_DB_UserSession.InvokeRemoteRequestMachine(const machineid: TFRE_DB_GUID; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+var
+    right        : TFRE_DB_String;
+    ses          : TFRE_DB_UserSession;
+    rmethodenc   : TFRE_DB_RemoteSessionInvokeEncapsulation;
+begin
+  if GFRE_DBI.NetServ.FetchPublisherSessionLockedMachine(machineid,uppercase(rclassname),uppercase(rmethodname),ses,right) then
     begin
       try
         rmethodenc := TFRE_DB_RemoteSessionInvokeEncapsulation.Create(rclassname,rmethodname,FCurrentReqID,FSessionID,input,SyncCallback,opaquedata);
@@ -7047,6 +7091,11 @@ begin
         mode_df_change : upo.Field(fldname).CloneFromField(fld);
       end;
     end;
+end;
+
+function TFRE_DB_UserSession.BoundMachineUID: TFRE_DB_GUID;
+begin
+  result := FBoundMachineUid;
 end;
 
 constructor TFOS_BASE.Create;

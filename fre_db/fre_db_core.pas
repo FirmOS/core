@@ -861,12 +861,14 @@ type
     function  IFRE_DB_ClientFieldValidator.getConfigParams = getConfigParamsI;
     function  IFRE_DB_ClientFieldValidator.setConfigParams = setConfigParamsI;
   public
-    function  Setup            (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
+    function  Setup            (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''; const replaceRegExp: TFRE_DB_String=''; const replaceValue: TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
     function  getRegExp        :TFRE_DB_String;
     function  getInfoText      :TFRE_DB_TEXT;
     function  getInfoTextI     :IFRE_DB_TEXT;
     function  getHelpTextKey   :TFRE_DB_String;
     function  getAllowedChars  :TFRE_DB_String;
+    function  getReplaceRegExp :TFRE_DB_String;
+    function  getReplaceValue  : TFRE_DB_String;
     function  CheckField       (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean):boolean; virtual;
   end;
 
@@ -1933,8 +1935,8 @@ type
     function           CheckAccessRightAndCondFinalize(const dbi : IFRE_DB_Object ; const sr : TFRE_DB_STANDARD_RIGHT ; const without_right_check: boolean=false;const cond_finalize:boolean=true) : TFRE_DB_Errortype;
     function           Update                       (const dbo:TFRE_DB_Object ; const collection_name : TFRE_DB_NameType='') : TFRE_DB_Errortype;virtual;
     function           UpdateI                      (const dbo:IFRE_DB_Object)                                               : TFRE_DB_Errortype;
-    function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION): TFRE_DB_Errortype;virtual;
-    function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION): TFRE_DB_Errortype;virtual; // with user rights
+    function           FetchApplications            (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION ; const interactive_session : boolean): TFRE_DB_Errortype;virtual;
+    function           FetchApplicationsI           (var apps : IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION ; const interactive_session : boolean): TFRE_DB_Errortype;virtual; // with user rights
     procedure          DrawScheme                   (const datastream:TStream;const classfile:string)                        ; virtual;
   end;
 
@@ -2276,7 +2278,7 @@ type
 
     destructor  Destroy                   ;override;
 
-    function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION):TFRE_DB_Errortype;override;
+    function    FetchApplications         (var apps : TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION ; const interactive_session : boolean):TFRE_DB_Errortype;override;
     function    InvokeMethod              (const class_name,method_name:TFRE_DB_String;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object;const session:TFRE_DB_UserSession):IFRE_DB_Object;
 
     //Warning Fetching from DB, and then from system can have undesired side effects ...
@@ -2442,7 +2444,7 @@ type
     function    DefaultDirectory             : TFRE_DB_String;
     constructor Create                       ;
     destructor  Destroy                      ; override;
-    function    GetApps                      : TFRE_DB_APPLICATION_ARRAY;
+    function    GetApps                      (const disable_filter: boolean=false): TFRE_DB_APPLICATION_ARRAY;
     function    GetAppInstanceByClass        (appclass : TClass ; out app  : TFRE_DB_APPLICATION):boolean;
 
     function    GetSysEnum                   (name:TFRE_DB_NameType ; out enum   : TFRE_DB_Enum):boolean;
@@ -3973,12 +3975,14 @@ begin
   Result:=true;
 end;
 
-function TFRE_DB_ClientFieldValidator.Setup(const regExp: TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String; const allowedChars: TFRE_DB_String): IFRE_DB_ClientFieldValidator;
+function TFRE_DB_ClientFieldValidator.Setup(const regExp: TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String; const allowedChars: TFRE_DB_String; const replaceRegExp: TFRE_DB_String; const replaceValue: TFRE_DB_String): IFRE_DB_ClientFieldValidator;
 begin
   Field('regExp').AsString:=regExp;
   Field('allowedChars').AsString := allowedChars;
   Description                 := infoText.Implementor as TFRE_DB_TEXT;
   Field('helpText').AsString  := help_trans_key;
+  Field('replaceRegExp').AsString:= replaceRegExp;
+  Field('replaceValue').AsString:=replaceValue;
   Result:=Self;
 end;
 
@@ -4005,6 +4009,16 @@ end;
 function TFRE_DB_ClientFieldValidator.getAllowedChars: TFRE_DB_String;
 begin
   Result:=Field('allowedChars').AsString;
+end;
+
+function TFRE_DB_ClientFieldValidator.getReplaceRegExp: TFRE_DB_String;
+begin
+ Result:=Field('replaceRegExp').AsString;
+end;
+
+function TFRE_DB_ClientFieldValidator.getReplaceValue: TFRE_DB_String;
+begin
+ Result:=Field('replaceValue').AsString;
 end;
 
 function TFRE_DB_ClientFieldValidator.CheckField(const field_to_check: TFRE_DB_FIELD; const raise_exception: boolean): boolean;
@@ -6584,12 +6598,12 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB_BASE_CONNECTION.FetchApplications(var apps:TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION): TFRE_DB_Errortype;
+function TFRE_DB_BASE_CONNECTION.FetchApplications(var apps: TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION; const interactive_session: boolean): TFRE_DB_Errortype;
 var l_apps : TFRE_DB_APPLICATION_ARRAY;
     cnt,i  : integer;
 begin
   _ConnectCheck;
-  l_apps := GFRE_DB.GetApps;
+  l_apps := GFRE_DB.GetApps(not interactive_session);
   SetLength(apps,length(l_apps));
   cnt := 0;
   for i := 0 to high(l_apps) do begin
@@ -6604,12 +6618,12 @@ begin
   result := edb_OK;
 end;
 
-function TFRE_DB_BASE_CONNECTION.FetchApplicationsI(var apps: IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION): TFRE_DB_Errortype;
+function TFRE_DB_BASE_CONNECTION.FetchApplicationsI(var apps: IFRE_DB_APPLICATION_ARRAY; var loginapp: IFRE_DB_APPLICATION; const interactive_session: boolean): TFRE_DB_Errortype;
 var appa :TFRE_DB_APPLICATION_ARRAY;
     loginappt: TFRE_DB_APPLICATION;
   i: Integer;
 begin //nl
-  result := FetchApplications(appa,loginappt);
+  result := FetchApplications(appa,loginappt,interactive_session);
   if result = edb_OK then begin
     setlength(apps,length(appa));
     for i:=0 to high(apps) do begin
@@ -11014,7 +11028,7 @@ begin
   inherited Destroy;
 end;
 
-function  TFRE_DB_CONNECTION.FetchApplications(var apps: TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION):TFRE_DB_Errortype;
+function TFRE_DB_CONNECTION.FetchApplications(var apps: TFRE_DB_APPLICATION_ARRAY; var loginapp: TFRE_DB_APPLICATION; const interactive_session: boolean): TFRE_DB_Errortype;
 var l_apps : TFRE_DB_APPLICATION_ARRAY;
     cnt,i  : integer;
 begin
@@ -11022,7 +11036,7 @@ begin
     exit(edb_NOT_CONNECTED);
   if not assigned(FSysConnection) then
     Exit(edb_ACCESS);
-  result := FSysConnection.FetchApplications(l_apps, loginapp);
+  result := FSysConnection.FetchApplications(l_apps, loginapp,interactive_session);
   SetLength(apps,length(l_apps));
   cnt := 0;
   for i := 0 to high(l_apps) do begin
@@ -12882,12 +12896,14 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB.GetApps: TFRE_DB_APPLICATION_ARRAY;
+function TFRE_DB.GetApps(const disable_filter : boolean=false): TFRE_DB_APPLICATION_ARRAY;
 var AppClass : Shortstring;
     count    : NativeInt;
     i        : NativeInt;
 begin
   result := FAppArray;
+  if disable_filter then
+   exit;
   if cFRE_DB_ALLOWED_APPS<>'' then
     begin
       SetLength(result,Length(FAppArray));
@@ -19874,7 +19890,9 @@ begin
  GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('mac').Setup('(^([0-9a-fA-F]{2}(:|$)){6}$|^[0-9a-fA-F]{12}$)',
                                                     GFRE_DBI.CreateText('$validator_mac','MAC Validator'),
                                                     FREDB_GetGlobalTextKey('validator_mac_help'),
-                                                    '\da-fA-F:'));
+                                                    '\da-fA-F:',
+                                                    '^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$',
+                                                    '$1:$2:$3:$3:$5:$6'));
  //if not nosys then
  //  GFRE_DB.Initialize_System_Objects;
 end;
