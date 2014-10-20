@@ -2887,6 +2887,7 @@ end;
   private class var
     FContinuationArray    : Array [0..100] of TDispatch_Continuation;
     FContinuationLock     : IFOS_LOCK;
+    FGlobalDebugLock      : IFOS_LOCK;
     FMyReqID              : NativeUint;
   private
     FSessionLock          : IFOS_LOCK;
@@ -5510,6 +5511,8 @@ begin
   _InitApps;
   if not assigned(FContinuationLock) then
      GFRE_TF.Get_Lock(TFRE_DB_UserSession.FContinuationLock);
+  if not assigned(FGlobalDebugLock) then
+     GFRE_TF.Get_Lock(TFRE_DB_UserSession.FGlobalDebugLock);
   GFRE_DBI.LogInfo(dblc_SESSION,'SESSION CREATE User:'+user_name+' App:'+default_app+' '+FSessionID);
 end;
 
@@ -6096,6 +6099,8 @@ var x           : TObject;
 
 
 begin
+ //FGlobalDebugLock.Acquire;
+ //try
   with cmd do
     begin
       class_name  := InvokeClass;
@@ -6170,6 +6175,9 @@ begin
     input.Finalize ;
   et := GFRE_BT.Get_Ticks_ms;
   GFRE_DBI.LogInfo(dblc_SESSION,'<<[%s/%s]-(%d/%s) %s[%s].%s [%d ms]',[FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,et-st]);
+ //finally
+ //  FGlobalDebugLock.Release;
+ //end;
 end;
 
 class procedure TFRE_DB_UserSession.CLS_ForceInvalidSessionReload(rac: IFRE_DB_COMMAND_REQUEST_ANSWER_SC; const cmd: IFRE_DB_COMMAND);

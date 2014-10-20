@@ -908,6 +908,8 @@ begin
             on e:exception do
               begin
                 GFRE_DBI.LogError(dblc_DBTDM,'APPLY INBOUND BLOCK/EVENT ERROR [%s]',[e.Message]);
+                //exit; { DEBUG EXIT & STOP THREAD }
+                break;
               end;
           end;
         until false;

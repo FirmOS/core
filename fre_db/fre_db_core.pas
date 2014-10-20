@@ -17097,7 +17097,7 @@ begin
   if (FFieldData.FieldType=expected) then begin
     exit(true);
   end else begin
-    raise EFRE_DB_Exception.Create(edb_MISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected '+CFRE_DB_FIELDTYPE[expected]+' or uninitialized field');
+    raise EFRE_DB_Exception.Create(edb_MISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected '+CFRE_DB_FIELDTYPE[expected]+' or uninitialized field ['+FFieldName^+']');
   end;
 end;
 
