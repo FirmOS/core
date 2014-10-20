@@ -14213,6 +14213,13 @@ var scheme_object:TFRE_DB_SchemeObject;
          if (without_system_fields)
             and (db.IsSystemField) then
               exit;
+           { FIXXM : overlay field hack - need to check first point in time whean a scheme is availlable }
+           if without_calcfields and
+              db.IsFieldCalculated then
+                begin
+                  inc(G_DEBUG_COUNTER);
+                  exit;
+                end;
            iter(db);
        end;
    end;
@@ -14236,6 +14243,13 @@ var scheme_object:TFRE_DB_SchemeObject;
          if (without_system_fields)
            and (db.IsSystemField) then
              exit;
+         { FIXXM : overlay field hack - need to check first point in time whean a scheme is availlable }
+         if without_calcfields and
+            db.IsFieldCalculated then
+              begin
+                inc(G_DEBUG_COUNTER);
+                exit;
+              end;
          result := iter(db);
        end;
    end;
@@ -14491,12 +14505,12 @@ procedure TFRE_DB_Object.__InternalCompareToObj(const compare_obj: TFRE_DB_Objec
     //writeln('Base FIELD : ',fld.FieldName,' ',fld.FieldType,' ',fld.IsFieldCalculated);
     cmp_fld := compare_obj._FieldOnlyExisting(fld.FieldName);
     if not assigned(cmp_fld) then
-      callback(self,cev_FieldAdded,fld,nil)
+        callback(self,cev_FieldAdded,fld,nil)
     else
       //for i:=0 to fld.ValueCount-1 do
           if not fld.CompareToFieldShallow(cmp_fld) then
-            callback(self,cev_FieldChanged,fld,cmp_fld);
-  end;
+              callback(self,cev_FieldChanged,fld,cmp_fld);
+            end;
 
   procedure CompareFields(const fld : TFRE_DB_FIELD);
   var cmp_fld : TFRE_DB_FIELD;
