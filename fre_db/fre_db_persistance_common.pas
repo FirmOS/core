@@ -344,7 +344,7 @@ type
     function    Fetch              (const uid:TFRE_DB_GUID ; var iobj : IFRE_DB_Object) : boolean;
 
     function    FetchIntFromColl      (const uid:TFRE_DB_GUID ; out obj : IFRE_DB_Object):boolean;
-    function    FetchIntFromCollO     (const uid:TFRE_DB_GUID ; out obj : TFRE_DB_Object):boolean;
+    function    FetchIntFromCollO     (const uid:TFRE_DB_GUID ; out obj : TFRE_DB_Object ; const no_store_lock_check : boolean=false):boolean;
     function    FetchIntFromCollArrOI (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
     function    FetchIntFromCollAll   : IFRE_DB_ObjectArray;
     procedure   ForAllInternalI       (const iter : IFRE_DB_Obj_Iterator);
@@ -5461,7 +5461,7 @@ procedure TFRE_DB_Persistance_Collection.CheckFieldChangeAgainstIndex(const oldf
 var i             : NativeInt;
     nullValExists : boolean;
     fieldname     : TFRE_DB_NameType;
-    idummy        : IFRE_DB_Object;
+    idummy        : TFRE_DB_Object;
 begin
   if assigned(newfield) then
     begin
@@ -5482,9 +5482,9 @@ begin
           cev_FieldAdded:
             begin
               nullValExists := FIndexStore[i].NullvalueExistsForObject(new_obj);
-              if nullValExists then // We need to to an index update if a nullvalue for this object is already indexed
+              if nullValExists then // We need to do an index update if a nullvalue for this object is already indexed
                 begin
-                  if not FetchIntFromColl(new_obj.UID,idummy) then
+                  if not FetchIntFromCollO(new_obj.UID,idummy,true) then
                     raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'FIELDCHANGE Internal an object should be updated but was not found [%s]',[new_obj.UID_String]);
                   old_obj := idummy.Implementor as TFRE_DB_Object;
                   FIndexStore[i].IndexUpdCheck(new_obj,old_obj,check);
@@ -5545,14 +5545,15 @@ begin
     obj := nil;
 end;
 
-function TFRE_DB_Persistance_Collection.FetchIntFromCollO(const uid: TFRE_DB_GUID; out obj: TFRE_DB_Object): boolean;
+function TFRE_DB_Persistance_Collection.FetchIntFromCollO(const uid: TFRE_DB_GUID; out obj: TFRE_DB_Object; const no_store_lock_check: boolean): boolean;
 var  dummy : PtrUInt;
 begin
   result := FGuidObjStore.ExistsBinaryKey(@uid,SizeOf(TFRE_DB_GUID),dummy);
   if result then
     begin
       obj := FREDB_PtrUIntToObject(dummy) as TFRE_DB_Object;
-      obj.Assert_CheckStoreLocked;
+      if not no_store_lock_check then
+        obj.Assert_CheckStoreLocked;
       if Length(obj.__InternalGetCollectionList)<1 then
         raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
     end
