@@ -342,7 +342,7 @@ type
   public
     //@ Describes a validator
     //@ Do NOT use! Used internally.
-    function Describe(const id,regExp,helpTextKey: String; const allowedChars:String=''; const configParams: IFRE_DB_Object=nil): TFRE_DB_VALIDATOR_DESC;
+    function Describe(const id,regExp,helpTextKey: String; const allowedChars:String='';const replaceRegExp:String=''; const replaceValue:String=''; const configParams: IFRE_DB_Object=nil): TFRE_DB_VALIDATOR_DESC;
   end;
 
   { TFRE_DB_BUTTON_DESC }
@@ -1375,12 +1375,14 @@ implementation
 
   { TFRE_DB_VALIDATOR_DESC }
 
-  function TFRE_DB_VALIDATOR_DESC.Describe(const id,regExp, helpTextKey: String; const allowedChars: String; const configParams: IFRE_DB_Object): TFRE_DB_VALIDATOR_DESC;
+  function TFRE_DB_VALIDATOR_DESC.Describe(const id,regExp, helpTextKey: String; const allowedChars: String; const replaceRegExp:String; const replaceValue:String; const configParams: IFRE_DB_Object): TFRE_DB_VALIDATOR_DESC;
   begin
     Field('id').AsString:=id;
     Field('regExp').AsString:=regExp;
     Field('helpTextKey').AsString:=helpTextKey;
     Field('allowedChars').AsString:=allowedChars;
+    Field('replaceRegExp').AsString:=replaceRegExp;
+    Field('replaceValue').AsString:=replaceValue;
     if Assigned(configParams) then begin
       Field('configParams').AsObject:=configParams;
     end;
@@ -1623,7 +1625,7 @@ implementation
     Field('disabled').AsBoolean      := disabled;
     Field('hidden').AsBoolean        := hidden;
     if Assigned(validator) then begin
-      Field('vtype').AsObject:=TFRE_DB_VALIDATOR_DESC.create.Describe(validator.ObjectName,validator.getRegExp,validator.getHelpTextKey,validator.getAllowedChars,validatorConfigParams);
+      Field('vtype').AsObject:=TFRE_DB_VALIDATOR_DESC.create.Describe(validator.ObjectName,validator.getRegExp,validator.getHelpTextKey,validator.getAllowedChars,validator.getReplaceRegExp,validator.getReplaceValue,validatorConfigParams);
     end;
     if not FieldExists('id') then begin
       Field('id').AsString:='id'+UID_String;

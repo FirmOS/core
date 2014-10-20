@@ -401,6 +401,12 @@ implementation
       if (co.FieldPath('vtype.allowedChars').AsString<>'') then begin
         jsContentAdd('" forbiddenchars= ''/[^' + StringReplace(co.FieldPath('vtype.allowedChars').AsString,'\','\\',[rfReplaceAll])+']/g''"+');
       end;
+      if (co.FieldPath('vtype.replaceRegExp').AsString<>'') then begin
+        jsContentAdd('" replaceregexp= ''/' + StringReplace(co.FieldPath('vtype.replaceRegExp').AsString,'\','\\',[rfReplaceAll])+'/''"+');
+      end;
+      if (co.FieldPath('vtype.replaceValue').AsString<>'') then begin
+        jsContentAdd('" replacevalue= ''' + StringReplace(co.FieldPath('vtype.replaceValue').AsString,'\','\\',[rfReplaceAll])+'''"+');
+      end;
       jsContentAdd('" regExp= '''+co.FieldPath('vtype.regExp').AsString+'''"+');
       jsContentAdd('" invalidMessage= '''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
     end;

@@ -1301,11 +1301,13 @@ type
 
   IFRE_DB_ClientFieldValidator       = interface(IFRE_DB_NAMED_OBJECT_PLAIN)
     ['IFDBCV']
-    function  getRegExp       :TFRE_DB_String;
-    function  getInfoText     :IFRE_DB_TEXT;
-    function  getHelpTextKey  :TFRE_DB_String;
-    function  getAllowedChars :TFRE_DB_String;
-    function  Setup           (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
+    function  getRegExp        :TFRE_DB_String;
+    function  getInfoText      :IFRE_DB_TEXT;
+    function  getHelpTextKey   :TFRE_DB_String;
+    function  getAllowedChars  :TFRE_DB_String;
+    function  getReplaceRegExp :TFRE_DB_String;
+    function  getReplaceValue  :TFRE_DB_String;
+    function  Setup            (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''; const replaceRegExp: TFRE_DB_String=''; const replaceValue: TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
   end;
 
   IFRE_DB_InputGroupSchemeDefinition = interface;

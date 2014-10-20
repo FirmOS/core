@@ -861,12 +861,14 @@ type
     function  IFRE_DB_ClientFieldValidator.getConfigParams = getConfigParamsI;
     function  IFRE_DB_ClientFieldValidator.setConfigParams = setConfigParamsI;
   public
-    function  Setup            (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
+    function  Setup            (const regExp:TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String=''; const allowedChars:TFRE_DB_String=''; const replaceRegExp: TFRE_DB_String=''; const replaceValue: TFRE_DB_String=''): IFRE_DB_ClientFieldValidator;
     function  getRegExp        :TFRE_DB_String;
     function  getInfoText      :TFRE_DB_TEXT;
     function  getInfoTextI     :IFRE_DB_TEXT;
     function  getHelpTextKey   :TFRE_DB_String;
     function  getAllowedChars  :TFRE_DB_String;
+    function  getReplaceRegExp :TFRE_DB_String;
+    function  getReplaceValue  : TFRE_DB_String;
     function  CheckField       (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean):boolean; virtual;
   end;
 
@@ -3973,12 +3975,14 @@ begin
   Result:=true;
 end;
 
-function TFRE_DB_ClientFieldValidator.Setup(const regExp: TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String; const allowedChars: TFRE_DB_String): IFRE_DB_ClientFieldValidator;
+function TFRE_DB_ClientFieldValidator.Setup(const regExp: TFRE_DB_String; const infoText: IFRE_DB_TEXT; const help_trans_key: TFRE_DB_String; const allowedChars: TFRE_DB_String; const replaceRegExp: TFRE_DB_String; const replaceValue: TFRE_DB_String): IFRE_DB_ClientFieldValidator;
 begin
   Field('regExp').AsString:=regExp;
   Field('allowedChars').AsString := allowedChars;
   Description                 := infoText.Implementor as TFRE_DB_TEXT;
   Field('helpText').AsString  := help_trans_key;
+  Field('replaceRegExp').AsString:= replaceRegExp;
+  Field('replaceValue').AsString:=replaceValue;
   Result:=Self;
 end;
 
@@ -4005,6 +4009,16 @@ end;
 function TFRE_DB_ClientFieldValidator.getAllowedChars: TFRE_DB_String;
 begin
   Result:=Field('allowedChars').AsString;
+end;
+
+function TFRE_DB_ClientFieldValidator.getReplaceRegExp: TFRE_DB_String;
+begin
+ Result:=Field('replaceRegExp').AsString;
+end;
+
+function TFRE_DB_ClientFieldValidator.getReplaceValue: TFRE_DB_String;
+begin
+ Result:=Field('replaceValue').AsString;
 end;
 
 function TFRE_DB_ClientFieldValidator.CheckField(const field_to_check: TFRE_DB_FIELD; const raise_exception: boolean): boolean;
@@ -19876,7 +19890,9 @@ begin
  GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('mac').Setup('(^([0-9a-fA-F]{2}(:|$)){6}$|^[0-9a-fA-F]{12}$)',
                                                     GFRE_DBI.CreateText('$validator_mac','MAC Validator'),
                                                     FREDB_GetGlobalTextKey('validator_mac_help'),
-                                                    '\da-fA-F:'));
+                                                    '\da-fA-F:',
+                                                    '^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$',
+                                                    '$1:$2:$3:$3:$5:$6'));
  //if not nosys then
  //  GFRE_DB.Initialize_System_Objects;
 end;
