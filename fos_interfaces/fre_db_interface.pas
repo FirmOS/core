@@ -168,6 +168,7 @@ const
   cFRE_DB_SYS_T_OBJ_TOTAL_ORDER  = '*$_TOTO*';      { used in the transform as implicit field, store total order key }
   cFRE_DB_SYS_T_LMO_TRANSID      = '*$_LMOTID*';    { used in the persistence layer to mark the last id that modified the object }
   cFRE_DB_SYS_TAG_ORDER_CHANGED  = '*$_TAGOC*';     { used in the compare qry algorithm to mark an order change }
+  cFRE_DB_SYS_STAT_METHODPOINTER = '*$_SMP*';       { used to call a stattransformation }
 
   cFRE_DB_CLN_CHILD_CNT          = '_children_count_';
   cFRE_DB_CLN_CHILD_FLD          = 'children';
@@ -961,6 +962,7 @@ type
     procedure  TransformSingleUpdate         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
     procedure  TransformSingleInsert         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
     procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
+    function   HasStatTransforms             : Boolean;
 
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
     procedure  BindSession                   (const session : TFRE_DB_UserSession);
@@ -1020,6 +1022,7 @@ type
     procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure AddFulltextFilterOnTransformed (const fieldlist:array of TFRE_DB_NameType);  { takes the text rep of the fields (asstring), concatenates them into 'FTX_SEARCH' }
     procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
+    procedure AddStatisticToOnescheme        (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const default_value:TFRE_DB_String='');
     procedure AddMultiToOnescheme            (const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const hide_in_output : boolean=false);
     procedure AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
@@ -2106,6 +2109,7 @@ end;
     procedure  DropAllQuerys            (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
     function   FormQueryID              (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
     procedure  InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
+    procedure  UpdateLiveStatistics     (const stats : IFRE_DB_Object);virtual ; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -3215,6 +3219,11 @@ var
   GFRE_DB_SUPPRESS_SYNC_ANSWER      : TFRE_DB_SUPPRESS_ANSWER_DESC;
   GFRE_DB_MIME_TYPES                : Array of TFRE_DB_Mimetype;
   GFRE_DB_TCDM                      : TFRE_DB_TRANSDATA_MANAGER_BASE;
+
+  G_LiveStatLock                    : IFOS_LOCK;
+  G_LiveStats                       : IFRE_DB_Object;
+  G_LiveFeeding                     : Boolean;
+
 
 implementation
 
@@ -5649,7 +5658,7 @@ begin
     end;
   FContinuationLock.Release;
   if not send_ok then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'TOO MUCH PENDING C-S Commands !');
+    raise EFRE_DB_Exception.Create(edb_ERROR,'SESSION/TOO MUCH PENDING S-C Commands !');
 end;
 
 procedure TFRE_DB_UserSession.INT_TimerCallBack(const timer: IFRE_APSC_TIMER; const flag1, flag2: boolean);
@@ -6102,6 +6111,30 @@ var x           : TObject;
       _SendSyncServerClientAnswer;
     end;
 
+    procedure _UpdateLiveStats(const input:IFRE_DB_Object);
+    var coo : IFRE_DB_Object;
+
+        procedure CheckoutUpdate(const fielname : TFRE_DB_NameType ; const obj : IFRE_DB_Object);
+        var g  : TFRE_DB_GUID;
+            no : IFRE_DB_Object;
+        begin
+         try
+           g.SetFromHexString(fielname);
+           no := obj.CloneToNewObject;
+           no.Field('statuid').AsGUID:=g;
+           G_LiveStats.Field(fielname).AsObject := no;
+         except
+         end;
+        end;
+
+    begin
+      G_LiveStatLock.Acquire;
+      try
+        input.ForAllObjectsFieldName(@CheckoutUpdate);
+      finally
+        G_LiveStatLock.Release;
+      end;
+    end;
 
 begin
  //FGlobalDebugLock.Acquire;
@@ -6161,6 +6194,11 @@ begin
                                 GFRE_DBI.LogInfo(dblc_SERVER,'>> SPECIFIC INVOKE FIRMOS.REG_REM_METH  SID[%s]',[FSessionID]);
                                 _RegisterRemoteRequestSet(input);
                                 CMD.Finalize;
+                              end
+                            else
+                            if (method_name='UPDATELIVE') then
+                              begin
+                                _UpdateLiveStats(input);
                               end
                             else
                               begin

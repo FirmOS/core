@@ -335,7 +335,7 @@ begin
     base_connection.InvokeServerCommand(InvokeClass,InvokeMethod,uidpath,data,fsendcmd_id,ContinuationCB=nil);
     inc(fsendcmd_id);
   end else begin
-    raise EFRE_DB_Exception.Create(edb_ERROR,'TOO MUCH PENDING C-S Commands !');
+    raise EFRE_DB_Exception.Create(edb_ERROR,'BASE/CLIENT TOO MUCH PENDING C-S Commands !');
   end;
 end;
 

@@ -1505,6 +1505,16 @@ type
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
+  { TFRE_DB_STATISTIC_ONE_FT }
+
+  TFRE_DB_STATISTIC_ONE_FT=class(TFRE_DB_FIELD_TRANSFORM)
+  protected
+  public
+    constructor Create         (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1 ; const defaultValue:String='');
+    procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
+  end;
+
+
   { TFRE_DB_MULTIONE_FT }
 
   TFRE_DB_MULTIONE_FT=class(TFRE_DB_FIELD_TRANSFORM)
@@ -1615,6 +1625,7 @@ type
   TFRE_DB_TRANSFORMOBJECT=class(TFOS_BASE,IFRE_DB_TRANSFORMOBJECT)
   private
     FTransformList        : OFRE_SL_TFRE_DB_FIELD_TRANSFORM;
+    FHasStatTransform     : Boolean;
     FHasReflinkTransforms : Boolean; { we need to consider reflink updates for this transform }
   protected
     procedure  Finalize;
@@ -1643,6 +1654,7 @@ type
     procedure   AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure   AddFulltextFilterOnTransformed (const fieldlist:array of TFRE_DB_NameType);  { takes the text rep of the fields (asstring), concatenates them into 'FTX_SEARCH' }
     procedure   AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues: TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
+    procedure   AddStatisticToOnescheme        (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const default_value:TFRE_DB_String='');
     procedure   AddMultiToOnescheme            (const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const hide_in_output : boolean=false);
     procedure   AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure   AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
@@ -1762,6 +1774,9 @@ type
     procedure  SetDefaultOrderField            (const field_name:TFRE_DB_String ; const ascending : boolean);
     procedure  RemoveAllFilterFields           ;
     procedure  RemoveAllFiltersPrefix          (const prefix:string);
+
+    function   HasStatTransforms               : Boolean;
+
 
     function   Filters                         : TFRE_DB_DC_FILTER_DEFINITION_BASE;
     function   Orders                          : TFRE_DB_DC_ORDER_DEFINITION_BASE;
@@ -2101,7 +2116,7 @@ type
     function    UpdateGroupI                 (var   group: IFRE_DB_GROUP): TFRE_DB_Errortype;
     function    StoreTranslateableTextI      (const txt    :IFRE_DB_TEXT) :TFRE_DB_Errortype;
   protected
-    //property    UserToken                    : IFRE_DB_USER_RIGHT_TOKEN read FCurrentUserToken implements IFRE_DB_USER_RIGHT_TOKEN;
+    //property    UserToken                    : IFRE_DB_USER_RIGHT_TOKEN read FCurrentUserToken IFRE_DB_USER_RIGHT_TOKEN;
   public
     destructor  Destroy                     ; override;
     procedure   DumpSystem                  ;override;
@@ -2612,6 +2627,36 @@ implementation
       result:=result+_ToChar(s[i]);
     end;
   end;
+
+{ TFRE_DB_STATISTIC_ONE_FT }
+
+constructor TFRE_DB_STATISTIC_ONE_FT.Create(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer; const defaultValue: String);
+begin
+ FInFieldName     := fieldname;
+ FOutFieldName    := lowercase(out_field);
+ FOutFieldTitle   := output_title;
+ FGuiDisplaytype  := gui_display_type;
+ FDisplay         := true;
+ //FSortable        := sortable;
+ //FFilterable      := filterable;
+ //FFilterValues    := filterValues;
+ FFieldSize       := fieldSize;
+ //FIconIdField     := iconID;
+ //FOpenIconIDField := openIconID;
+ if FOutFieldName='' then
+   FOutFieldName:=lowercase(FInFieldName);
+ FDefaultValue    := defaultValue;
+end;
+
+procedure TFRE_DB_STATISTIC_ONE_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
+var m : TMethod;
+begin
+   m.Code  := input.Implementor_HC.MethodAddress('STAT_TRANSFORM');  //  IFRE_DB_STATISTIC_CALC,scalc);
+   if assigned(m.Code) then
+     begin
+       output.Field(cFRE_DB_SYS_STAT_METHODPOINTER).AsUInt64 := NativeInt(m.Code)
+     end
+end;
 
 { TFRE_DB_FieldDef4Group }
 
@@ -6801,6 +6846,13 @@ begin
   FTransformList.Add(TFRE_DB_ONEONE_FT.Create(fieldname,out_field,output_title,gui_display_type,display,sortable,filterable,fieldSize,iconID,openIconID,default_value,filterValues));
 end;
 
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddStatisticToOnescheme(const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String;const gui_display_type:TFRE_DB_DISPLAY_TYPE;const display:Boolean;const fieldSize: Integer;const default_value:TFRE_DB_String);
+begin
+  FHasStatTransform := true;
+  FTransformList.Add(TFRE_DB_STATISTIC_ONE_FT.Create(fieldname,out_field,output_title,gui_display_type,fieldSize,default_value));
+end;
+
+
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddMultiToOnescheme(const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID: String; const openIconID: String;const default_value:TFRE_DB_String;const hide_in_output : boolean=false);
 begin
   FTransformList.Add(TFRE_DB_MULTIONE_FT.Create(in_fieldlist,out_field,output_title,gui_display_type,display,sortable,filterable,fieldSize,iconID,openIconID,default_value));
@@ -7253,6 +7305,11 @@ end;
 procedure TFRE_DB_DERIVED_COLLECTION.RemoveAllFiltersPrefix(const prefix: string);
 begin
   Filters.RemoveAllFiltersPrefix(prefix);
+end;
+
+function TFRE_DB_DERIVED_COLLECTION.HasStatTransforms: Boolean;
+begin
+  result := FTransform.FHasStatTransform;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Filters: TFRE_DB_DC_FILTER_DEFINITION_BASE;

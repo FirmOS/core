@@ -63,7 +63,6 @@ type
     //function WEB_Content         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
-
 implementation
 
 { TFRE_DB_TASKER }
@@ -102,11 +101,29 @@ begin
 end;
 
 procedure TFRE_DB_TASKER.TASKER_METHOD(const ses: IFRE_DB_Usersession);
-var wf_coll : IFRE_DB_COLLECTION;
+var
+   // wf_coll : IFRE_DB_COLLECTION; wf_coll :=  ses.GetDBConnection.AdmGetWorkFlowCollection;
+    live    : IFRE_DB_Object;
+    g       : TFRE_DB_GUID;
+
 begin
-  //writeln('> TASKER START ');
-  wf_coll :=  ses.GetDBConnection.AdmGetWorkFlowCollection;
-  //writeln('< TASKER END   ');
+  if not G_LiveFeeding then
+    begin
+      GFRE_TF.Get_Lock(G_LiveStatLock);
+      G_LiveStats   := GFRE_DBI.NewObject;
+      G_LiveFeeding := true;
+    end;
+  //live := GFRE_DBI.NewObject;
+  //live.Field('zpool_desc').AsString:='SCRUBBING FAST '+IntToStr(random(100))+'%';
+  //g.SetFromHexString('a35864a4d66063a6474f39ce5f27e9f9');
+  //live.Field('statuid').AsGUID := g;
+  //G_LiveStats.Field('a35864a4d66063a6474f39ce5f27e9f9').AsObject := live;
+  G_LiveStatLock.Acquire;
+  try
+    GFRE_DB_TCDM.UpdateLiveStatistics(G_LiveStats);
+  finally
+    G_LiveStatLock.Release;
+  end;
 end;
 
 procedure TFRE_DB_TASKER.TASKER_REQUEST(const ses: IFRE_DB_Usersession; const flag1, flag2: boolean);

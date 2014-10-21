@@ -666,10 +666,10 @@ type
     { forget the query as open for the session }
     procedure   RemoveQuery               (const qry_id : TFRE_DB_NameType);override;
     { forget all querys for the session/dc }
-    procedure   DropAllQuerys             (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); override; { can be dc wide, or session wide dc_name='' }
-    function    FormQueryID               (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType;override;
-    procedure   ApplyInboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object);
-    procedure   InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); override;
+    procedure   DropAllQuerys                        (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); override; { can be dc wide, or session wide dc_name='' }
+    function    FormQueryID                          (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType;override;
+    procedure   ApplyInboundNotificationBlock        (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object);
+    procedure   InboundNotificationBlock             (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); override;
 
     { --- Notify gathering }
     procedure   CN_AddDirectSessionUpdateEntry       (const update_dbo : IFRE_DB_Object); { add a dbo update for sessions dbo's (forms) }
@@ -677,11 +677,9 @@ type
     procedure   CN_AddGridInplaceDelete              (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const del_id: TFRE_DB_String);
     procedure   CN_AddGridInsertUpdate               (const sessionid : TFRE_DB_NameType ; const store_id   : TFRE_DB_NameType ; const qry_id : Int64 ; const upo : IFRE_DB_Object ;  const reference_id: TFRE_DB_String);
 
-    //procedure   UpdateObjectInFilterKey              (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt); { in place update }
-    //procedure   RemoveUpdateObjectInFilterKey        (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const old_obj : IFRE_DB_Object ; const idx : NativeInt);
-    //procedure   InsertUpdateObjectInFilterKey        (const td : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const filtercont : TFRE_DB_FilterContainer ; const new_obj : IFRE_DB_Object ; const idx : NativeInt);
     procedure   TagQueries4UpInsDel                  (const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const TransActionTag: TFRE_DB_TransStepId);
     procedure   UpdateChildCount_QRY                 (const qry : TFRE_DB_QUERY ; const idx : NativeInt);
+    procedure   UpdateLiveStatistics                 (const stats : IFRE_DB_Object);override;
   end;
 
   { TFRE_DB_TDM_STATS_CLEANER }
@@ -4873,170 +4871,6 @@ begin
   ForAllQueries(@HandleQueryUpdate);
 end;
 
-//procedure TFRE_DB_TRANSDATA_MANAGER.UpdateObjectInFilterKey(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const filtercont: TFRE_DB_FilterContainer; const new_obj: IFRE_DB_Object; const idx: NativeInt);
-//
-//  procedure HandleQueryUpdate(const qry : TFRE_DB_QUERY);
-//  var
-//      full_data_key : TFRE_DB_TRANS_COLL_DATA_KEY;
-//      ses           : TFRE_DB_UserSession;
-//      update_st     : TFRE_DB_UPDATE_STORE_DESC;
-//      upo           : IFRE_DB_Object;
-//  begin
-//    full_data_key           := td.GetFullKey;
-//    full_data_key.filterkey := filtercont.Filters.GetFilterKey;
-//    if not (FREDB_CompareTransCollDataKeys(full_data_key,qry.GetFullQueryOrderKey)) then
-//         exit; { query does not match the delivered update spec }
-//    GFRE_DBI.LogDebug(dblc_DBTDM,'       >QRY MATCH UPDATE OBJECT [%s] IN QRY [%s]',[new_obj.UID_String,qry.GetFullQueryOrderKey.key]);
-//    qry.TagForUpdate(new_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString);
-//    //qry.ProcessFilterChangeBasedUpdates;
-//    //if (idx >= qry.FStartIdx) and (idx < qry.FStartIdx+qry.FQueryDeliveredCount) then
-//    //  begin { update is in the open query page }
-//    //    if not GFRE_DBI.NetServ.FetchSessionByIdLocked(qry.FSessionID,ses) then
-//    //      begin
-//    //        GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE QRY(?)',[qry.FSessionID]);
-//    //        exit;
-//    //      end
-//    //    else
-//    //      begin
-//    //        try
-//    //          upo := new_obj.CloneToNewObject;
-//    //          td.FBaseTransData.FDC.FinalRightTransform(ses,upo);
-//    //        finally
-//    //          ses.UnlockSession;
-//    //        end;
-//    //        CN_AddGridInplaceUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,upo);
-//    //      end;
-//    //  end
-//    //else
-//    //  begin
-//    //
-//    //  end;
-//  end;
-//
-//begin
-//  ForAllQueries(@HandleQueryUpdate);
-//end;
-//
-//procedure TFRE_DB_TRANSDATA_MANAGER.RemoveUpdateObjectInFilterKey(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const filtercont: TFRE_DB_FilterContainer; const old_obj: IFRE_DB_Object; const idx: NativeInt);
-//
-//  procedure HandleQueryRemove(const qry : TFRE_DB_QUERY);
-//  var
-//      full_data_key : TFRE_DB_TRANS_COLL_DATA_KEY;
-//      ses           : TFRE_DB_UserSession;
-//      update_st     : TFRE_DB_UPDATE_STORE_DESC;
-//      upo           : IFRE_DB_Object;
-//  begin
-//    full_data_key           := td.GetFullKey;
-//    full_data_key.filterkey := filtercont.Filters.GetFilterKey;
-//    if not (FREDB_CompareTransCollDataKeys(full_data_key,qry.GetFullQueryOrderKey)) then
-//      exit; { query does not match the delivered update spec }
-//    GFRE_DBI.LogDebug(dblc_DBTDM,'       >QRY MATCH REMOVE OBJECT [%s] IN QRY [%s]',[old_obj.UID_String,qry.GetFullQueryOrderKey.key]);
-//    qry.TagForDelete(old_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString);
-//    //qry.ProcessFilterChangeBasedUpdates;
-//    //if (idx >= qry.FStartIdx) and (idx < qry.FStartIdx+qry.FQueryDeliveredCount) then
-//    //  begin { delete is in the query page }
-//    //    dec(qry.FQueryDeliveredCount);
-//    //    dec(qry.FQueryPotentialCount);
-//    //    CN_AddGridInplaceDelete(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,old_obj.UID_String);
-//    //  end;
-//  end;
-//
-//begin
-//  //if idx=-1 then
-//  //  begin
-//  //
-//  //  end;
-//  ForAllQueries(@HandleQueryRemove);
-//end;
-//
-//procedure TFRE_DB_TRANSDATA_MANAGER.InsertUpdateObjectInFilterKey(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const filtercont: TFRE_DB_FilterContainer; const new_obj: IFRE_DB_Object; const idx: NativeInt);
-//
-//  procedure HandleQueryInsert(const qry : TFRE_DB_QUERY);
-//  var full_data_key : TFRE_DB_TRANS_COLL_DATA_KEY;
-//      ses           : TFRE_DB_UserSession;
-//      update_st     : TFRE_DB_UPDATE_STORE_DESC;
-//      upo           : IFRE_DB_Object;
-//      ref_uid       : TFRE_DB_Guid;
-//
-//      procedure CN_Insert(ref_id : string);
-//      begin
-//        //ref_id:=''; { hack ...}
-//        inc(qry.FQueryDeliveredCount);
-//        inc(qry.FQueryPotentialCount);
-//        CN_AddGridInsertUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,upo,ref_id);
-//      end;
-//
-//      function FinalTransFormUPO:boolean;
-//      begin
-//        result := false;
-//        if not GFRE_DBI.NetServ.FetchSessionByIdLocked(qry.FSessionID,ses) then
-//          begin
-//            GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[qry.FSessionID]);
-//            exit;
-//          end
-//        else
-//          begin
-//            try
-//              upo := new_obj.CloneToNewObject;
-//              td.FBaseTransData.FDC.FinalRightTransform(ses,upo);
-//              result := true;
-//            finally
-//              ses.UnlockSession;
-//            end;
-//          end;
-//      end;
-//
-//  begin
-//    full_data_key           := td.GetFullKey;
-//    full_data_key.filterkey := filtercont.Filters.GetFilterKey;
-//    if not (FREDB_CompareTransCollDataKeys(full_data_key,qry.GetFullQueryOrderKey)) then
-//         exit; { query does not match the delivered update spec }
-//    GFRE_DBI.LogDebug(dblc_DBTDM,'       >QRY MATCH INSERT OBJECT [%s] IN QRY [%s]',[new_obj.UID_String,qry.GetFullQueryOrderKey.key]);
-//    if not FinalTransFormUPO then
-//      exit;
-//    qry.ProcessFilterChangeBasedUpdates;
-//    //if qry.FQueryDeliveredCount=0 then
-//    //  begin
-//    //    CN_Insert(''); { first }
-//    //    exit;
-//    //  end;
-//    //if (idx >= qry.FStartIdx) and (idx < qry.FStartIdx+qry.FToDeliverCount) then
-//    //  begin { update is in the open query page }
-//    //    //if FREDB_GuidInArray(new_obj.UID,qry.FResultDBOs)<>-1 then { qry.FResultDBOs not neccessary (check)}
-//    //    //  raise EFRE_DB_Exception.Create(edb_ERROR,'logic/error update already found in result set');
-//    //    if (idx=qry.FStartIdx) then { = first }
-//    //      begin
-//    //        ref_uid := filtercont.FOBJArray[idx].UID;
-//    //        CN_Insert(FREDB_G2H(ref_uid));
-//    //      end
-//    //    else
-//    //    if (idx<qry.FStartIdx+qry.FQueryDeliveredCount) then { smaller then last deliverd, but not first}
-//    //      begin
-//    //        if (idx=qry.FStartIdx+qry.FQueryDeliveredCount-1) then begin
-//    //          CN_Insert(''); { = last }
-//    //        end else begin
-//    //          ref_uid := filtercont.FOBJArray[idx+1].UID;
-//    //          CN_Insert(FREDB_G2H(ref_uid)); { somewhere in the middle }
-//    //        end;
-//    //      end
-//    //    else
-//    //    if (qry.FQueryDeliveredCount < qry.FToDeliverCount) then { qry has room to deliver additional }
-//    //      begin { = last }
-//    //        CN_Insert(''); { add the new object, idx-1 = the element the client had at this position }
-//    //      end
-//    //    else
-//    //      begin { qry is full ? }
-//    //        abort;
-//    //      end;
-//    //      { OK , delivered one additional entry };
-//    //  end
-//    //else
-//    //  raise EFRE_DB_Exception.Create(edb_ERROR,'critical handle this');
-//  end;
-//
-//begin
-//  ForAllQueries(@HandleQueryInsert);
-//end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.UpdateChildCount_QRY(const qry: TFRE_DB_QUERY; const idx: NativeInt);
 var ses : TFRE_DB_UserSession;
@@ -5057,6 +4891,76 @@ begin
       end;
       CN_AddGridInplaceUpdate(qry.FSessionID,qry.GetStoreID,qry.GetQueryID_ClientPart,upo);
     end;
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.UpdateLiveStatistics(const stats: IFRE_DB_Object);
+var stat_entry : IFRE_DB_Object;
+  procedure SearchStatQuery(const qry : TFRE_DB_QUERY);
+  var storeid : TFRE_DB_NameType;
+      ct      : TFRE_DB_UPDATE_STORE_DESC;
+      entry   : IFRE_DB_Object;
+      i       : Integer;
+
+      //function FinalTransFormUPO(const new_obj : IFRE_DB_Object):boolean;
+      //var ses : TFRE_DB_UserSession;
+      //begin
+      //  result := false;
+      //  if not GFRE_DBI.NetServ.FetchSessionByIdLocked(FSessionID,ses) then
+      //    begin
+      //      GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[FSessionID]);
+      //      exit;
+      //    end
+      //  else
+      //    begin
+      //      try
+      //        upo := new_obj.CloneToNewObject;
+      //        FBaseData.FBaseTransData.FDC.FinalRightTransform(ses,upo);
+      //        result := true;
+      //      finally
+      //        ses.UnlockSession;
+      //      end;
+      //    end;
+      //end;
+      var statmethod : TMethod;
+          statmfld   : IFRE_DB_Field;
+
+      type
+        tstatclassm = procedure(const transformed_output : IFRE_DB_Object ; const stat_data : IFRE_DB_Object ; const statfieldname : TFRE_DB_Nametype) of object;
+
+  begin
+    storeid := qry.GetStoreID;
+    if qry.FBaseData.FBaseTransData.FDC.HasStatTransforms then
+      begin
+        for i:=0 to high(qry.FResultDBOs) do
+          if qry.FResultDBOs[i].UID=stat_entry.Field('statuid').AsGUID then
+              begin
+                if qry.FResultDBOs[i].FieldOnlyExisting(cFRE_DB_SYS_STAT_METHODPOINTER,statmfld) then
+                  begin
+                    statmethod.Code := Pointer(statmfld.AsUint64);
+                    entry := qry.FResultDBOs[i].CloneToNewObject;
+                    tstatclassm(statmethod)(entry,stat_entry,'status');
+                    ct := TFRE_DB_UPDATE_STORE_DESC.create.Describe(storeid);
+                    ct.addUpdatedEntry(entry,qry.GetQueryID_ClientPart);
+                    GFRE_DBI.NetServ.SendDelegatedContentToClient(qry.FSessionID,ct);
+                  end;
+              end;
+      end;
+  end;
+
+  procedure MyStatsUpdate(const stat_obj:IFRE_DB_Object);
+  begin
+    stat_entry := stat_obj; { make it available through stack frame }
+    ForAllQueries(@SearchStatQuery);
+  end;
+
+begin
+  //stats := nil;
+  LockManager;
+  try
+    stats.ForAllObjects(@MyStatsUpdate);
+  finally
+    UnlockManager;
+  end;
 end;
 
 
