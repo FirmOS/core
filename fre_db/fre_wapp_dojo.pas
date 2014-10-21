@@ -380,9 +380,6 @@ implementation
       jsContentAdd('"<input id='''+co.Field('id').AsString+''' name='''+co.Field('field').AsString+''' dojoType=''FIRMOS.ValidationTextBox'' type='''+fieldtype+''' style=''width:100%''"+');
     end;
     jsContentAdd('" intermediateChanges=true"+');
-    if co.Field('disabled').AsBoolean then begin
-      jsContentAdd('" disabled"+');
-    end;
     if co.Field('defaultValue').AsString<>'' then begin
       jsContentAdd('" value= '''+ _EscapeValueString(co.Field('defaultValue').AsString) + '''"+');
     end;
@@ -396,19 +393,23 @@ implementation
         jsContentAdd('" grouprequired=true"+');
       end;
     end;
-    if co.FieldExists('vtype') then begin
-      jsContentAdd('" placeholder='''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
-      if (co.FieldPath('vtype.allowedChars').AsString<>'') then begin
-        jsContentAdd('" forbiddenchars= ''/[^' + StringReplace(co.FieldPath('vtype.allowedChars').AsString,'\','\\',[rfReplaceAll])+']/g''"+');
+    if co.Field('disabled').AsBoolean then begin
+      jsContentAdd('" disabled"+');
+    end else begin
+      if co.FieldExists('vtype') then begin
+        jsContentAdd('" placeholder='''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
+        if (co.FieldPath('vtype.allowedChars').AsString<>'') then begin
+          jsContentAdd('" forbiddenchars= ''/[^' + StringReplace(co.FieldPath('vtype.allowedChars').AsString,'\','\\',[rfReplaceAll])+']/g''"+');
+        end;
+        if (co.FieldPath('vtype.replaceRegExp').AsString<>'') then begin
+          jsContentAdd('" replaceregexp= ''/' + StringReplace(co.FieldPath('vtype.replaceRegExp').AsString,'\','\\',[rfReplaceAll])+'/''"+');
+        end;
+        if (co.FieldPath('vtype.replaceValue').AsString<>'') then begin
+          jsContentAdd('" replacevalue= ''' + StringReplace(co.FieldPath('vtype.replaceValue').AsString,'\','\\',[rfReplaceAll])+'''"+');
+        end;
+        jsContentAdd('" regExp= '''+co.FieldPath('vtype.regExp').AsString+'''"+');
+        jsContentAdd('" invalidMessage= '''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
       end;
-      if (co.FieldPath('vtype.replaceRegExp').AsString<>'') then begin
-        jsContentAdd('" replaceregexp= ''/' + StringReplace(co.FieldPath('vtype.replaceRegExp').AsString,'\','\\',[rfReplaceAll])+'/''"+');
-      end;
-      if (co.FieldPath('vtype.replaceValue').AsString<>'') then begin
-        jsContentAdd('" replacevalue= ''' + StringReplace(co.FieldPath('vtype.replaceValue').AsString,'\','\\',[rfReplaceAll])+'''"+');
-      end;
-      jsContentAdd('" regExp= '''+co.FieldPath('vtype.regExp').AsString+'''"+');
-      jsContentAdd('" invalidMessage= '''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
     end;
     jsContentAdd('" >"+');
   end;
