@@ -105,6 +105,7 @@ var
       cFRE_DB_ALLOW_WEAKMEDIATORS     :boolean=true;
       cFRE_DB_RESET_ADMIN             :boolean=false;
       cFRE_DB_CACHETAG                :ShortString='';
+      cFRE_CMDLINE_DEBUG              :ShortString='';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;

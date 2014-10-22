@@ -266,6 +266,10 @@ begin
       cFRE_FORCE_CLEAN_ZIP_HTTP_FILES  := true;
     end;
 
+  if HasOption('*','cmddebug') then
+      cFRE_CMDLINE_DEBUG := GetOptionValue('*','cmddebug');
+
+
    if HasOption('*','filterapps') then
      cFRE_DB_ALLOWED_APPS := GetOptionValue('*','filterapps');
 
@@ -355,6 +359,8 @@ begin
   AddCheckOption('*','testlogcfg'    ,'                | --testlogcfg                   : do an endless logging test');
   AddHelpOutLine;
   AddCheckOption('*','resetadmin'    ,'                | --resetadmin                   : reset the admin@system and the guest@system accounts to default. => (admin and "")');
+  AddCheckOption('*','cmddebug:'     ,'                | --cmddebug=<param>             : set an arbitrary cmd line debug option');
+
 end;
 
 procedure TFRE_CLISRV_APP.SetDefaultExtensions(AValue: String);
