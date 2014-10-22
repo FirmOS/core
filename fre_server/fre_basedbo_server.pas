@@ -153,15 +153,19 @@ var mem : pointer;
 begin
 //  GFRE_DBI.LogDebug(dblc_APPLICATION,'PushDataToClients[%s]',[data_object.DumpToString()]);
   siz := FREDB_GetDboAsBufferLen(data_object,mem); {TODO LZ4 Compress}
-  data_object.Finalize;
-  FLock.Acquire;
   try
-    for i:=0 to FChannelList.Count-1 do
-      IFRE_APSC_CHANNEL(FChannelList[i]).CH_SAFE_WriteBuffer(mem,siz);
+    data_object.Finalize;
+    FLock.Acquire;
+    try
+      for i:=0 to FChannelList.Count-1 do
+        IFRE_APSC_CHANNEL(FChannelList[i]).CH_SAFE_WriteBuffer(mem,siz);
+    finally
+      FLock.Release;
+    end;
+
   finally
-    FLock.Release;
+    Freemem(mem);
   end;
-  Freemem(mem);
 end;
 
 procedure TFRE_DBO_SERVER.ForAllChannels(const chan_iter: TFRE_APSC_CHANNEL_CB);
