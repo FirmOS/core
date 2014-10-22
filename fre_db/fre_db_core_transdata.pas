@@ -4895,32 +4895,35 @@ end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.UpdateLiveStatistics(const stats: IFRE_DB_Object);
 var stat_entry : IFRE_DB_Object;
+
   procedure SearchStatQuery(const qry : TFRE_DB_QUERY);
   var storeid : TFRE_DB_NameType;
       ct      : TFRE_DB_UPDATE_STORE_DESC;
       entry   : IFRE_DB_Object;
+      change  : IFRE_DB_Object;
       i       : Integer;
 
-      //function FinalTransFormUPO(const new_obj : IFRE_DB_Object):boolean;
-      //var ses : TFRE_DB_UserSession;
-      //begin
-      //  result := false;
-      //  if not GFRE_DBI.NetServ.FetchSessionByIdLocked(FSessionID,ses) then
-      //    begin
-      //      GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[FSessionID]);
-      //      exit;
-      //    end
-      //  else
-      //    begin
-      //      try
-      //        upo := new_obj.CloneToNewObject;
-      //        FBaseData.FBaseTransData.FDC.FinalRightTransform(ses,upo);
-      //        result := true;
-      //      finally
-      //        ses.UnlockSession;
-      //      end;
-      //    end;
-      //end;
+      function FinalTransFormUPO:boolean;
+      var ses : TFRE_DB_UserSession;
+      begin
+        result := false;
+        if not GFRE_DBI.NetServ.FetchSessionByIdLocked(qry.FSessionID,ses) then
+          begin
+            GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[qry.FSessionID]);
+            exit;
+          end
+        else
+          begin
+            try
+              change := entry.CloneToNewObject;
+              qry.FBaseData.FBaseTransData.FDC.FinalRightTransform(ses,change);
+              result := true;
+            finally
+              ses.UnlockSession;
+            end;
+          end;
+      end;
+
       var statmethod : TMethod;
           statmfld   : IFRE_DB_Field;
 
@@ -4936,12 +4939,28 @@ var stat_entry : IFRE_DB_Object;
               begin
                 if qry.FResultDBOs[i].FieldOnlyExisting(cFRE_DB_SYS_STAT_METHODPOINTER,statmfld) then
                   begin
+                    //writeln('>>>>>>>>>>>>>>>>>>>>> FOUND A STATUSUPDATE ENTRY UID  ---');
+                    //writeln(qry.FResultDBOs[i].DumpToString());
+                    //writeln('--------- CORRESPONDING STATISTIC OBJECT ');
+                    //writeln(stat_entry.DumpToString());
+                    //writeln('---------------------');
                     statmethod.Code := Pointer(statmfld.AsUint64);
-                    entry := qry.FResultDBOs[i].CloneToNewObject;
-                    tstatclassm(statmethod)(entry,stat_entry,'status');
-                    ct := TFRE_DB_UPDATE_STORE_DESC.create.Describe(storeid);
-                    ct.addUpdatedEntry(entry,qry.GetQueryID_ClientPart);
-                    GFRE_DBI.NetServ.SendDelegatedContentToClient(qry.FSessionID,ct);
+                    entry := qry.FResultDBOs[i];
+                    if FinalTransFormUPO then
+                      begin
+                        tstatclassm(statmethod)(change,stat_entry,'status'); { after final right transform, do finally the stat transform }
+                        ct := TFRE_DB_UPDATE_STORE_DESC.create.Describe(storeid);
+                        ct.addUpdatedEntry(change,qry.GetQueryID_ClientPart);
+                        GFRE_DBI.NetServ.SendDelegatedContentToClient(qry.FSessionID,ct);
+                      end;
+                  end
+                else
+                  begin
+                    writeln('>>>>>>>>>>>>>>>>>>>>> FOUND A STATUSUPDATE ENTRY UID BUT NO STATISTIC METHOD ---');
+                    writeln(qry.FResultDBOs[i].DumpToString());
+                    writeln('--------- CORRESPONDING STATISTIC OBJECT ');
+                    writeln(stat_entry.DumpToString());
+                    writeln('---------------------');
                   end;
               end;
       end;
@@ -4950,11 +4969,13 @@ var stat_entry : IFRE_DB_Object;
   procedure MyStatsUpdate(const stat_obj:IFRE_DB_Object);
   begin
     stat_entry := stat_obj; { make it available through stack frame }
+    //writeln('>>>  SEARCH FOR STATUS OBJECT : ');
+    //writeln(stat_entry.DumpToString());
+    //writeln('-----------------------');
     ForAllQueries(@SearchStatQuery);
   end;
 
 begin
-  //stats := nil;
   LockManager;
   try
     stats.ForAllObjects(@MyStatsUpdate);
