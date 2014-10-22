@@ -47,7 +47,7 @@ uses
   Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE,FOS_INTERLOCKED;
 
 const cCMD_MAXSize                        = 512*1024;
-      cFRE_DB_MAX_PENDING_CLIENT_REQUESTS = 10;
+      cFRE_DB_MAX_PENDING_CLIENT_REQUESTS = 250;
 
 var fSession_Counter : Integer=0;
 
