@@ -82,8 +82,9 @@ type
   end;
 
 var
-    cFRE_DB_LOGIN_APP_UID           :TFRE_DB_Guid;
-    cFRE_DB_LOGIN_APP               :TObject;
+    cFRE_DB_LOGIN_APP_UID            :TFRE_DB_Guid;
+    cFRE_DB_LOGIN_APP                :TObject;
+
 
 type
 
@@ -186,6 +187,7 @@ const
 
   cFOS_RADIAL_SITEMAP_SCALE = 0.8;
 
+  cFRE_DB_MAX_CLIENT_CONTINUATIONS = 500;
 
 type
 
@@ -2892,7 +2894,7 @@ end;
       opData     : IFRE_DB_Object;
     end;
   private class var
-    FContinuationArray    : Array [0..100] of TDispatch_Continuation;
+    FContinuationArray    : Array [0..cFRE_DB_MAX_CLIENT_CONTINUATIONS] of TDispatch_Continuation;
     FContinuationLock     : IFOS_LOCK;
     FGlobalDebugLock      : IFOS_LOCK;
     FMyReqID              : NativeUint;

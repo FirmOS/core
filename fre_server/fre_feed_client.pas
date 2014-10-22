@@ -42,7 +42,7 @@ unit fre_feed_client;
 interface
 
 uses
-  Classes, SysUtils,fre_base_client,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_dbbusiness,fre_hal_schemes,fre_system;
+  Classes, SysUtils,fre_base_client,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,fre_dbbusiness,fre_system;
 
 type
 
@@ -172,7 +172,7 @@ end;
 procedure TFRE_SAMPLE_FEED_CLIENT.MyRegisterClasses;
 begin
   fre_dbbusiness.Register_DB_Extensions;
-  fre_hal_schemes.Register_DB_Extensions;
+  //fre_hal_schemes.Register_DB_Extensions;
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
@@ -202,7 +202,7 @@ end;
 
 function TFRE_SAMPLE_FEED_CLIENT.ListDirLevel(const basepath: string): IFRE_DB_Object;
 var Info  : TSearchRec;
-    entry : TFRE_DB_FS_ENTRY;
+    //entry : TFRE_DB_FS_ENTRY;
     count : NativeInt;
 begin
   result := GFRE_DBI.NewObject;
@@ -213,9 +213,9 @@ begin
         begin
           if (name='.') or (name='..') then
             Continue;
-          entry := TFRE_DB_FS_ENTRY.CreateForDB;
-          entry.SetProperties(name,(Attr and faDirectory) <> faDirectory,Size,mode,Time);
-          result.Field(inttostr(count)).AsObject := entry;
+          //entry := TFRE_DB_FS_ENTRY.CreateForDB;
+          //entry.SetProperties(name,(Attr and faDirectory) <> faDirectory,Size,mode,Time);
+          //result.Field(inttostr(count)).AsObject := entry;
           inc(count);
         end;
     Until FindNext(info)<>0;
@@ -225,15 +225,15 @@ end;
 function TFRE_SAMPLE_FEED_CLIENT.GetFileDirInfo(const fileid: string): IFRE_DB_Object;
 var
   Info  : TSearchRec;
-  entry : TFRE_DB_FS_ENTRY;
+  //entry : TFRE_DB_FS_ENTRY;
 begin
   result := GFRE_DBI.NewObject;
   If FindFirst(fileid,faAnyFile and faDirectory,Info)=0 then
     With Info do
       begin
-        entry := TFRE_DB_FS_ENTRY.CreateForDB;
-        entry.SetProperties(name,(Attr and faDirectory) <> faDirectory,Size,mode,Time);
-        result.Field('info').AsObject := entry;
+        //entry := TFRE_DB_FS_ENTRY.CreateForDB;
+        //entry.SetProperties(name,(Attr and faDirectory) <> faDirectory,Size,mode,Time);
+        //result.Field('info').AsObject := entry;
       end;
   FindClose(Info);
 end;
