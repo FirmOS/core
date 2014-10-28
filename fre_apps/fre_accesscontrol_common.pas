@@ -1962,7 +1962,7 @@ begin
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_GROUP',scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'add_group_diag_cap'),600);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'add_group_diag_cap'),600,true,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CWSF(@WEB_CreateGroup),fdbbt_submit);
 
@@ -3164,7 +3164,7 @@ begin
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
   GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
-  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'add_user_diag_cap'),600);
+  res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'add_user_diag_cap'),600,true,true,false);
   block:=res.AddBlock.Describe();
   block.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses,false,false,2);
   block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
