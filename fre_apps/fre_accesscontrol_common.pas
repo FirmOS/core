@@ -8,7 +8,6 @@ uses
   Classes, SysUtils,
   FOS_TOOL_INTERFACES,
   FRE_DB_INTERFACE,
-  FRE_DBBASE,
   FRE_DB_COMMON
   ;
 
@@ -21,15 +20,15 @@ type
 
   TFRE_COMMON_ACCESSCONTROL_APP=class(TFRE_DB_APPLICATION)
   private
-    procedure       SetupApplicationStructure     ; override;
     procedure       _UpdateSitemap                (const session: TFRE_DB_UserSession);
   protected
+    procedure       SetupApplicationStructure     ; override;
     procedure       MySessionInitialize           (const session: TFRE_DB_UserSession);override;
     procedure       MySessionPromotion            (const session: TFRE_DB_UserSession); override;
+  public
     class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TFRE_DB_GUID); override;
     class procedure InstallDBObjects4SysDomain    (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TFRE_DB_GUID); override;
-  public
     class procedure RegisterSystemScheme          (const scheme:IFRE_DB_SCHEMEOBJECT); override;
     function        isMultiDomainApp             : Boolean; override;
   published
@@ -44,16 +43,16 @@ type
     function        _getNoUserDetails         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):TFRE_DB_CONTENT_DESC;
     function        _checkGGConditions        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):Boolean;
   protected
-    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
+    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     procedure       CalculateRoleIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
     procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
     procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
   published
-    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object; override;
     function        WEB_UserSelected          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentNoUserSel      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentInfo           (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -83,19 +82,20 @@ type
     function        _checkUGConditions        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):Boolean;
     function        _checkRGConditions        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):Boolean;
   protected
-    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
+    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     procedure       CalculateRoleFields       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
     procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
     procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
   published
-    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object; override;
     function        WEB_ContentNoGroupSel     (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentRoles          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_ContentGroups         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_AddGroup              (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_CreateGroup           (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ModifyGroup           (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -128,16 +128,16 @@ type
     function        _getNoRoleDetails         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):TFRE_DB_CONTENT_DESC;
     function        _checkGGConditions        (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):Boolean;
   protected
-    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
+    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     procedure       CalculateRoleFields       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
     procedure       CalculateGroupFields      (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
     procedure       CalculateUserIcon         (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String);
   published
-    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object; override;
     function        WEB_ContentNoRoleSel      (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentGroups         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -157,14 +157,14 @@ type
   TFRE_COMMON_DOMAIN_MOD = class (TFRE_DB_APPLICATION_MODULE)
   private
   protected
-    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
+    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
     procedure       CalculateDomainIcon       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object; const langres: array of TFRE_DB_String);
   published
-    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object; override;
     function        WEB_ContentUsers          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentGroups         (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function        WEB_ContentRoles          (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -182,13 +182,13 @@ type
   TFRE_COMMON_WF_MOD = class (TFRE_DB_APPLICATION_MODULE)
   private
   protected
-    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     procedure       SetupAppModuleStructure   ; override;
-    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   public
+    class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects          (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
   published
-    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function        WEB_Content               (const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object; override;
   end;
 
 procedure Register_DB_Extensions;
@@ -222,14 +222,10 @@ end;
 
 procedure TFRE_COMMON_WF_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
 var
-  app       : TFRE_DB_APPLICATION;
-  conn      : IFRE_DB_CONNECTION;
   transform : IFRE_DB_SIMPLE_TRANSFORM;
   dc        : IFRE_DB_DERIVED_COLLECTION;
 begin
   inherited MySessionInitializeModule(session);
-  app  := GetEmbeddingApp;
-  conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
     with transform do begin
@@ -324,13 +320,8 @@ var domain_Grid   : IFRE_DB_DERIVED_COLLECTION;
     rolein_Grid   : IFRE_DB_DERIVED_COLLECTION;
     tr_RoleIn     : IFRE_DB_SIMPLE_TRANSFORM;
 
-    app           : TFRE_DB_APPLICATION;
-    conn          : IFRE_DB_CONNECTION;
-
 begin
   inherited MySessionInitializeModule(session);
-  app  := GetEmbeddingApp;
-  conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_domain);
     with tr_domain do begin
@@ -440,8 +431,6 @@ var
   sec           : TFRE_DB_SUBSECTIONS_DESC;
   domaingrid    : TFRE_DB_VIEW_LIST_DESC;
   dc_domain     : IFRE_DB_DERIVED_COLLECTION;
-  dc_userin     : IFRE_DB_DERIVED_COLLECTION;
-  dc_groupin    : IFRE_DB_DERIVED_COLLECTION;
   txt           : IFRE_DB_TEXT;
 
 begin
@@ -615,13 +604,13 @@ begin
 end;
 
 function TFRE_COMMON_DOMAIN_MOD.WEB_SaveDomain(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-var dbo              : IFRE_DB_Object;
-    data             : IFRE_DB_Object;
-    res              : TFRE_DB_Errortype;
-    dbo_uid          : TFRE_DB_GUID;
-    dn               : TFRE_DB_String;
-    txt              : TFRE_DB_String;
-    txt_s            : TFRE_DB_String;
+var
+  data             : IFRE_DB_Object;
+  res              : TFRE_DB_Errortype;
+  dbo_uid          : TFRE_DB_GUID;
+  dn               : TFRE_DB_String;
+  txt              : TFRE_DB_String;
+  txt_s            : TFRE_DB_String;
 begin
  if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_DOMAIN)) then
    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
@@ -729,7 +718,6 @@ var
   role     : IFRE_DB_ROLE;
   group    : IFRE_DB_GROUP;
   i        : Integer;
-  res      : TFRE_DB_Errortype;
   roleUid  : TFRE_DB_String;
 begin
   if input.FieldExists('uids_ref') then begin
@@ -890,7 +878,6 @@ var role_Grid        : IFRE_DB_DERIVED_COLLECTION;
     groupout_Grid    : IFRE_DB_DERIVED_COLLECTION;
     tr_groupOut      : IFRE_DB_SIMPLE_TRANSFORM;
 
-    app              : TFRE_DB_APPLICATION;
     conn             : IFRE_DB_CONNECTION;
     grid_column_cap  : TFRE_DB_String;
     show_role_domains: Boolean;
@@ -899,7 +886,6 @@ var role_Grid        : IFRE_DB_DERIVED_COLLECTION;
 begin
   inherited MySessionInitializeModule(session);
   if session.IsInteractiveSession then begin
-    app  := GetEmbeddingApp;
     conn := session.GetDBConnection;
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
 
@@ -1300,9 +1286,6 @@ var
   res       : TFRE_DB_MENU_DESC;
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
-  i         : Integer;
-  group     : IFRE_DB_GROUP;
-  role      : IFRE_DB_Object;
 begin
   if _checkGGConditions(input,ses,app,conn) then begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
@@ -1326,9 +1309,6 @@ var
   res       : TFRE_DB_MENU_DESC;
   func      : TFRE_DB_SERVER_FUNC_DESC;
   txt       : TFRE_DB_String;
-  i         : Integer;
-  group     : IFRE_DB_GROUP;
-  role      : IFRE_DB_Object;
 begin
   if _checkGGConditions(input,ses,app,conn) then begin
     res:=TFRE_DB_MENU_DESC.create.Describe;
@@ -1350,9 +1330,6 @@ end;
 function TFRE_COMMON_ROLE_MOD.WEB_GIRNotification(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   buttonDisabled: Boolean;
-  group         : IFRE_DB_GROUP;
-  i             : Integer;
-  role          : IFRE_DB_Object;
 begin
   if conn.SYS.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
     if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
@@ -1368,9 +1345,6 @@ end;
 function TFRE_COMMON_ROLE_MOD.WEB_GORNotification(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
   buttonDisabled: Boolean;
-  group         : IFRE_DB_GROUP;
-  i             : Integer;
-  role          : IFRE_DB_Object;
 begin
   if conn.SYS.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
     if input.FieldExists('SELECTED') and (input.Field('SELECTED').ValueCount>0)  then begin
@@ -1414,6 +1388,7 @@ var
   res  : String;
   group: IFRE_DB_GROUP;
 begin
+  res:='';
   for i := 0 to Length(groups) - 1 do begin
     CheckDbResult(conn.sys.FetchGroupById(FREDB_H2G(groups[i]),group),'_getGroupsString');
     if i>0 then begin
@@ -1436,7 +1411,6 @@ var
   role     : IFRE_DB_ROLE;
   group    : IFRE_DB_GROUP;
   i        : Integer;
-  res      : TFRE_DB_Errortype;
   groupUid : TFRE_DB_String;
 begin
 
@@ -1655,7 +1629,6 @@ var group_Grid        : IFRE_DB_DERIVED_COLLECTION;
     roleout_Grid      : IFRE_DB_DERIVED_COLLECTION;
     tr_RoleOut        : IFRE_DB_SIMPLE_TRANSFORM;
 
-    app               : TFRE_DB_APPLICATION;
     conn              : IFRE_DB_CONNECTION;
     grid_column_cap   : TFRE_DB_String;
     show_group_domains: Boolean;
@@ -1663,7 +1636,6 @@ var group_Grid        : IFRE_DB_DERIVED_COLLECTION;
 
 begin
   inherited MySessionInitializeModule(session);
-  app  := GetEmbeddingApp;
   conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
@@ -1843,12 +1815,12 @@ end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_Content(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  sec     : TFRE_DB_SUBSECTIONS_DESC;
   groupgrid   : TFRE_DB_VIEW_LIST_DESC;
   txt         : IFRE_DB_TEXT;
 begin
   CheckClassVisibility4AnyDomain(ses);
   ses.GetSessionModuleData(ClassName).DeleteField('selectedGroups');
+  ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
 
   groupgrid := ses.FetchDerivedCollection('GROUPMOD_GROUP_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) then begin
@@ -1972,10 +1944,19 @@ begin
   Result  := role;
 end;
 
+function TFRE_COMMON_GROUP_MOD.WEB_ContentGroups(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+begin
+  if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP)) then
+    raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
+
+end;
+
 function TFRE_COMMON_GROUP_MOD.WEB_AddGroup(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  scheme: IFRE_DB_SchemeObject;
-  res   : TFRE_DB_FORM_DIALOG_DESC;
+  scheme   : IFRE_DB_SchemeObject;
+  res      : TFRE_DB_FORM_DIALOG_DESC;
+  selObj   : IFRE_DB_Object;
+  domainUid: TFRE_DB_GUID;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
@@ -1984,6 +1965,18 @@ begin
   res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(FetchModuleTextShort(ses,'add_group_diag_cap'),600);
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CWSF(@WEB_CreateGroup),fdbbt_submit);
+
+  domainUid:=CFRE_DB_NullGUID;
+  if ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups') then begin
+    CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsStringItem[0]),selObj));
+    domainUid:=(selObj.Implementor_HC as IFRE_DB_GROUP).DomainID;
+  end;
+  if ses.GetSessionModuleData(ClassName).FieldExists('selectedDomain') then begin
+    domainUid:=FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString);
+  end;
+  if (domainUid<>CFRE_DB_NullGUID) and conn.sys.CheckClassRight4DomainId(sr_STORE,TFRE_DB_GROUP,domainUid) then begin
+    res.SetElementValue('domainidlink',UpperCase(FREDB_G2H(domainUid)));
+  end;
   Result:=res;
 end;
 
@@ -2027,14 +2020,14 @@ begin
 end;
 
 function TFRE_COMMON_GROUP_MOD.WEB_SaveGroup(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var dbo              : IFRE_DB_Object;
-    data             : IFRE_DB_Object;
-    res              : TFRE_DB_Errortype;
-    dbo_uid          : TFRE_DB_GUID;
-    gn               : TFRE_DB_String;
-    txt              : TFRE_DB_String;
-    txt_s            : TFRE_DB_String;
-    group            : IFRE_DB_GROUP;
+var
+  data             : IFRE_DB_Object;
+  res              : TFRE_DB_Errortype;
+  dbo_uid          : TFRE_DB_GUID;
+  gn               : TFRE_DB_String;
+  txt              : TFRE_DB_String;
+  txt_s            : TFRE_DB_String;
+  group            : IFRE_DB_GROUP;
 
 begin
    if not (conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP)) then
@@ -2220,6 +2213,7 @@ begin
     CheckDbResult(GetDBConnection(input).Fetch(sel_guid,selObj),'group fetch failed)');
     if selObj.IsA('TFRE_DB_GROUP') then begin
       ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsString:=input.Field('SELECTED').AsString;
+      ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
       domainUid:=selObj.DomainID;
       groupDisabled:=(selObj.Implementor_HC as IFRE_DB_GROUP).isDisabled;
       groupProtected:=(selObj.Implementor_HC as IFRE_DB_GROUP).isProtected;
@@ -2227,9 +2221,11 @@ begin
       selObj.Finalize;
     end else begin
       ses.GetSessionModuleData(ClassName).DeleteField('selectedGroups');
+      ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString:=input.Field('SELECTED').AsString;
     end;
   end else begin
     ses.GetSessionModuleData(ClassName).DeleteField('selectedGroups');
+    ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
   end;
 
   newSelIsGroup:=ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups');
@@ -2370,7 +2366,6 @@ var
   user     : IFRE_DB_USER;
   group    : IFRE_DB_GROUP;
   i        : Integer;
-  res      : TFRE_DB_Errortype;
   groupUid : TFRE_DB_String;
   user_id  : TFRE_DB_GUID;
 begin
@@ -2404,7 +2399,6 @@ var
   user     : IFRE_DB_USER;
   group    : IFRE_DB_GROUP;
   i        : Integer;
-  res      : TFRE_DB_Errortype;
   groupUid : TFRE_DB_String;
   user_id  : TFRE_DB_GUID;
 begin
@@ -2531,6 +2525,7 @@ var
   res : String;
   user: IFRE_DB_USER;
 begin
+  res:='';
   for i := 0 to Length(logins) - 1 do begin
     CheckDbResult(conn.sys.FetchUserById(FREDB_H2G(logins[i]),user),'_getUsersString');
     if i>0 then begin
@@ -2702,7 +2697,6 @@ var user_Grid         : IFRE_DB_DERIVED_COLLECTION;
     roleout_Grid      : IFRE_DB_DERIVED_COLLECTION;
     tr_roleOut        : IFRE_DB_SIMPLE_TRANSFORM;
 
-    app               : TFRE_DB_APPLICATION;
     conn              : IFRE_DB_CONNECTION;
     grid_column_cap   : TFRE_DB_String;
     show_user_domains : Boolean;
@@ -2710,7 +2704,6 @@ var user_Grid         : IFRE_DB_DERIVED_COLLECTION;
     show_role_domains : Boolean;
 begin
   inherited;
-  app  := GetEmbeddingApp;
   conn := session.GetDBConnection;
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
@@ -2914,6 +2907,7 @@ begin
   CheckClassVisibility4AnyDomain(ses);
 
   ses.GetSessionModuleData(ClassName).DeleteField('selectedUsers');
+  ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
   usergrid := ses.FetchDerivedCollection('USERMOD_USER_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) then begin
@@ -2949,13 +2943,16 @@ begin
     CheckDbResult(conn.Fetch(sel_guid,selObj),StringReplace(FetchModuleTextShort(ses,'error_fetch_user_msg'),'%user%',FREDB_G2H(sel_guid),[rfReplaceAll]));
     if selObj.IsA('TFRE_DB_USER') then begin
       ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsString:=input.Field('SELECTED').AsString;
+      ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
       domainUid:=selObj.DomainID;
       selObj.Finalize;
     end else begin
       ses.GetSessionModuleData(ClassName).DeleteField('selectedUsers');
+      ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString:=input.Field('SELECTED').AsString;
     end;
   end else begin
     ses.GetSessionModuleData(ClassName).DeleteField('selectedUsers');
+    ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
   end;
 
   newSelIsUser:=ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers');
@@ -3011,10 +3008,8 @@ end;
 
 function TFRE_COMMON_USER_MOD.WEB_ContentInfo(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  html          : TFRE_DB_HTML_DESC;
   panel         : TFRE_DB_FORM_PANEL_DESC;
   scheme        : IFRE_DB_SchemeObject;
-  dc            : IFRE_DB_DERIVED_COLLECTION;
   block         : TFRE_DB_INPUT_BLOCK_DESC;
   user          : IFRE_DB_USER;
   sel_guid      : TFRE_DB_GUID;
@@ -3159,9 +3154,11 @@ end;
 
 function TFRE_COMMON_USER_MOD.WEB_AddUser(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
-  scheme: IFRE_DB_SchemeObject;
-  res   : TFRE_DB_FORM_DIALOG_DESC;
-  block : TFRE_DB_INPUT_BLOCK_DESC;
+  scheme   : IFRE_DB_SchemeObject;
+  res      : TFRE_DB_FORM_DIALOG_DESC;
+  block    : TFRE_DB_INPUT_BLOCK_DESC;
+  domainUid: TFRE_DB_GUID;
+  selObj   : IFRE_DB_Object;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
@@ -3173,6 +3170,18 @@ begin
   block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
   res.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
   res.AddButton.Describe(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('button_save')),CSCF('TFRE_DB_USER','NewUserOperation'),fdbbt_submit);
+
+  domainUid:=CFRE_DB_NullGUID;
+  if ses.GetSessionModuleData(ClassName).FieldExists('selectedUsers') then begin
+    CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedUsers').AsStringItem[0]),selObj));
+    domainUid:=(selObj.Implementor_HC as IFRE_DB_USER).DomainID;
+  end;
+  if ses.GetSessionModuleData(ClassName).FieldExists('selectedDomain') then begin
+    domainUid:=FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedDomain').AsString);
+  end;
+  if (domainUid<>CFRE_DB_NullGUID) and conn.sys.CheckClassRight4DomainId(sr_STORE,TFRE_DB_USER,domainUid) then begin
+    res.SetElementValue('domainidlink',UpperCase(FREDB_G2H(domainUid)));
+  end;
   Result:=res;
 end;
 
@@ -3200,7 +3209,6 @@ end;
 function TFRE_COMMON_USER_MOD.WEB_DeleteUserConfirmed(const input:IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
 var
   cap,msg: String;
-  block  : TFRE_DB_INPUT_BLOCK_DESC;
   i      : NativeInt;
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_DELETE,TFRE_DB_USER) then
@@ -3472,7 +3480,6 @@ end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
 var
-  group : IFRE_DB_GROUP;
   role  : IFRE_DB_ROLE;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
@@ -3594,8 +3601,6 @@ begin
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4SysDomain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
-var
-  group : IFRE_DB_GROUP;
 begin
   inherited InstallDBObjects4SysDomain(conn, currentVersionId, domainUID);
 
