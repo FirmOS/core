@@ -1292,13 +1292,16 @@ type
     function  GetDomain                    (const conn :IFRE_DB_CONNECTION): TFRE_DB_NameType;
     function  DomainID                     : TFRE_DB_GUID;
     function  GetIsInternal                : Boolean;
+    function  GetIsDelegation              : Boolean;
     function  GetIsProtected               : Boolean;
     function  GetIsDisabled                : Boolean;
     procedure SetIsInternal                (AValue: Boolean);
     procedure SetIsProtected               (AValue: Boolean);
+    procedure SetIsDelegation              (AValue: Boolean);
     procedure SetIsDisabled                (AValue: Boolean);
     property  isProtected                  :Boolean read GetIsProtected write SetIsProtected;
     property  isInternal                   :Boolean read GetIsInternal write SetIsInternal;      { should not be shown in to the User, because the Group is not directly usable for the user }
+    property  isDelegation                 :Boolean read GetIsDelegation write SetIsDelegation;  { group is used as delegation of other groups }
     property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;      { This group is disabled for users where the userdomain=the group domain
                                                                                                    ,after a new instatiation of a right token, the user gets not the roles of this group }
   end;
@@ -1634,8 +1637,8 @@ type
     function    DeleteDomainById            (const domain_id:TFRE_DB_GUID):TFRE_DB_Errortype;
     function    FetchTranslateableText      (const translation_key:TFRE_DB_String; var textObj: IFRE_DB_TEXT):Boolean;//don't finalize the object
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;const is_internal:Boolean; var role  :IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean; const is_internal:Boolean; var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TFRE_DB_GUID; const is_protected:Boolean=false;const is_internal:Boolean=false):TFRE_DB_Errortype;
+    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean; const is_internal:Boolean; const is_delegation:Boolean; var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TFRE_DB_GUID; const is_protected:Boolean=false; const is_internal:Boolean=false; const is_delegation:Boolean=false):TFRE_DB_Errortype;
     function    AddRole                     (const rolename,txt,txt_short:TFRE_DB_String;const domainUID:TFRE_DB_GUID; const is_internal:Boolean=false):TFRE_DB_Errortype;
     function    AddRolesToGroupById         (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const role_ids: TFRE_DB_GUIDArray):TFRE_DB_Errortype;
     function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
@@ -1644,6 +1647,8 @@ type
     function    RemoveRoleFromAllGroups     (const role:TFRE_DB_String;const domainUID: TFRE_DB_GUID): TFRE_DB_Errortype;
     function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype; //TODO: Remove Ignorenotset
     function    RemoveRolesFromGroupById    (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const role_ids: TFRE_DB_GUIDArray; const ignore_not_set:boolean): TFRE_DB_Errortype; //TODO: Remove Ignorenotset
+    function    AddGroupsToGroupById        (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const group_ids: TFRE_DB_GUIDArray):TFRE_DB_Errortype;
+    function    RemoveGroupsFromGroupById   (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const group_ids: TFRE_DB_GUIDArray; const ignore_not_set:boolean): TFRE_DB_Errortype; //TODO: Remove Ignorenotset
     function    AddRoleRightsToRole         (const rolename:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    RemoveRightsFromRole        (const rolename:TFRE_DB_String;const rights:TFRE_DB_StringArray; const domainUID: TFRE_DB_GUID):TFRE_DB_Errortype;
     function    ModifyUserGroupsById        (const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;

@@ -1274,16 +1274,20 @@ type
   private
     function  GetDomainIDLink     : TFRE_DB_GUID;
     function  GetIsInternal       : Boolean;
+    function  GetIsDelegation     : Boolean;
     function  GetIsDisabled       : Boolean;
     function  GetIsProtected      : Boolean;
     procedure SetDomainIDLink     (AValue: TFRE_DB_GUID);
     function  GetRoleIDs          : TFRE_DB_ObjLinkArray;
+    function  GetGroupIDs         : TFRE_DB_ObjLinkArray;
     function  IFRE_DB_GROUP.GetDesc          = GetDescI;
     function  IFRE_DB_GROUP.SetDesc          = SetDescI;
-    procedure SetIsInternal (AValue: Boolean);
-    procedure SetIsProtected(AValue: Boolean);
-    procedure SetIsDisabled (AValue: Boolean);
-    procedure SetRoleIDs(AValue: TFRE_DB_ObjLinkArray);
+    procedure SetIsInternal   (AValue: Boolean);
+    procedure SetIsDelegation (AValue: Boolean);
+    procedure SetIsProtected  (AValue: Boolean);
+    procedure SetIsDisabled   (AValue: Boolean);
+    procedure SetRoleIDs (AValue: TFRE_DB_ObjLinkArray);
+    procedure SetGroupIDs(AValue: TFRE_DB_ObjLinkArray);
     procedure _UpdateDomainGroupKey;
   public
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -1296,8 +1300,10 @@ type
     function  SubFormattedDisplayAvailable : boolean; override;
     function  GetSubFormattedDisplay       (indent: integer=4): TFRE_DB_String; override;
     property  RoleIDs                      :TFRE_DB_ObjLinkArray read GetRoleIDs write SetRoleIDs;
+    property  GroupIDs                     :TFRE_DB_ObjLinkArray read GetGroupIDs write SetGroupIDs;
     property  isProtected                  :Boolean read GetIsProtected write SetIsProtected;
     property  isInternal                   :Boolean read GetIsInternal write SetIsInternal;
+    property  isDelegation                 :Boolean read GetIsDelegation write SetIsDelegation;
     property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;
   published
     procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
@@ -2105,7 +2111,7 @@ type
     function    IFRE_DB_SYS_CONNECTION.ForAllDomains               = ForAllDomainsI;
 
     function    NewRoleI                     (const rolename,txt,txt_short:TFRE_DB_String;const is_internal:Boolean;var right_group:IFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewGroupI                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean;const is_internal:Boolean;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    NewGroupI                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean;const is_internal:Boolean;const is_delegation:Boolean;var user_group:IFRE_DB_GROUP):TFRE_DB_Errortype;
 
     function    StoreRoleI                   (var   role:IFRE_DB_ROLE; const domainUID : TFRE_DB_GUID):TFRE_DB_Errortype;
     function    UpdateRoleI                  (var   role:IFRE_DB_ROLE):TFRE_DB_Errortype;
@@ -2161,18 +2167,20 @@ type
     function    StoreUserSessionData        (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
 
     function    NewRole                     (const rolename,txt,txt_short:TFRE_DB_String;const is_internal:Boolean;var role:TFRE_DB_ROLE):TFRE_DB_Errortype;
-    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean;const is_internal:Boolean;var user_group:TFRE_DB_GROUP):TFRE_DB_Errortype;
+    function    NewGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean;const is_internal:Boolean;const is_delegation:Boolean;var user_group:TFRE_DB_GROUP):TFRE_DB_Errortype;
     function    AddRoleRightsToRole         (const rolename:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    RemoveRightsFromRole        (const rolename:TFRE_DB_String;const rights:TFRE_DB_StringArray; const domainUID: TFRE_DB_GUID):TFRE_DB_Errortype;
     function    AddRole                     (const rolename,txt,txt_short:TFRE_DB_String;const domainUID:TFRE_DB_GUID; const is_internal:Boolean=false):TFRE_DB_Errortype;
     function    AddRolesToGroupById         (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const role_ids: TFRE_DB_GUIDArray):TFRE_DB_Errortype;
     function    AddRolesToGroup             (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
     function    AddSysRolesToGroup          (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const roles: TFRE_DB_StringArray):TFRE_DB_Errortype;
-    function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TFRE_DB_GUID;const is_protected:Boolean=false;const is_internal:Boolean=false):TFRE_DB_Errortype;
+    function    AddGroup                    (const groupname,txt,txt_short:TFRE_DB_String;const domainUID:TFRE_DB_GUID;const is_protected:Boolean=false;const is_internal:Boolean=false;const is_delegation:Boolean=false):TFRE_DB_Errortype;
     function    RemoveRolesFromGroupById    (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const role_ids: TFRE_DB_GUIDArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    RemoveRolesFromGroup        (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const roles: TFRE_DB_StringArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    RemoveAllRolesFromGroup     (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID): TFRE_DB_Errortype;
     function    RemoveRoleFromAllGroups     (const role:TFRE_DB_String;const domainUID: TFRE_DB_GUID): TFRE_DB_Errortype;
+    function    AddGroupsToGroupById        (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const group_ids: TFRE_DB_GUIDArray):TFRE_DB_Errortype;
+    function    RemoveGroupsFromGroupById   (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const group_ids: TFRE_DB_GUIDArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    ModifyUserGroupsById        (const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray;const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroupsById        (const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray):TFRE_DB_Errortype;
     function    ModifyUserPassword          (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
@@ -2415,7 +2423,7 @@ type
 
     function    _NewText                        (const key,txt,txt_short:TFRE_DB_String;const hint:TFRE_DB_String=''):TFRE_DB_TEXT;
     function    _NewRole                        (const rolename,txt,txt_short:TFRE_DB_String;const is_internal:Boolean):TFRE_DB_ROLE;
-    function    _NewGroup                       (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean;const is_internal:Boolean):TFRE_DB_GROUP;
+    function    _NewGroup                       (const groupname,txt,txt_short:TFRE_DB_String;const is_protected:Boolean;const is_internal:Boolean;const is_delegation:Boolean=false):TFRE_DB_GROUP;
     function    _NewDomain                      (const domainname,txt,txt_short:TFRE_DB_String):TFRE_DB_DOMAIN;
 
     function    NewText                         (const key,txt,txt_short:TFRE_DB_String;const hint:TFRE_DB_String=''):IFRE_DB_TEXT;
@@ -4523,6 +4531,15 @@ begin
   Result:=Field('internal').AsBoolean;
 end;
 
+function TFRE_DB_GROUP.GetIsDelegation: Boolean;
+var f : TFRE_DB_Field;
+begin
+  if FieldOnlyExisting('delegation',f) then
+    Result:=f.AsBoolean
+  else
+    result := false;
+end;
+
 function TFRE_DB_GROUP.GetIsDisabled: Boolean;
 var f : TFRE_DB_Field;
 begin
@@ -4543,9 +4560,19 @@ begin
   result := Field('roleids').AsObjectLinkArray;
 end;
 
+function TFRE_DB_GROUP.GetGroupIDs: TFRE_DB_ObjLinkArray;
+begin
+  result := Field('groupids').AsObjectLinkArray;
+end;
+
 procedure TFRE_DB_GROUP.SetIsInternal(AValue: Boolean);
 begin
   Field('internal').AsBoolean:=AValue;
+end;
+
+procedure TFRE_DB_GROUP.SetIsDelegation(AValue: Boolean);
+begin
+ Field('delegation').AsBoolean:=AValue;
 end;
 
 procedure TFRE_DB_GROUP.SetIsProtected(AValue: Boolean);
@@ -4567,6 +4594,11 @@ end;
 procedure TFRE_DB_GROUP.SetRoleIDs(AValue: TFRE_DB_ObjLinkArray);
 begin
   Field('roleids').AsObjectLinkArray := AValue;
+end;
+
+procedure TFRE_DB_GROUP.SetGroupIDs(AValue: TFRE_DB_ObjLinkArray);
+begin
+  Field('groupids').AsObjectLinkArray := AValue;
 end;
 
 procedure TFRE_DB_GROUP._UpdateDomainGroupKey;
@@ -4598,15 +4630,19 @@ begin
   scheme.AddSchemeField('appdataid',fdbft_ObjLink);
   scheme.AddSchemeField('domainidlink',fdbft_ObjLink).SetupFieldDef(true,false);
   scheme.AddSchemeField('domaingroupkey',fdbft_String).SetupFieldDef(true,false);
+  scheme.AddSchemeField('delegation',fdbft_Boolean);
+  scheme.AddSchemeField('groupids',fdbft_ObjLink).SetupFieldDef(false,true);
   Scheme.SetSysDisplayField(TFRE_DB_NameTypeArray.Create('objname','$DBTEXT:desc'),'%s - (%s)');
 
   input_group:=scheme.AddInputGroup('main').Setup('$TFRE_DB_GROUP_scheme_group_group');
   input_group.AddInput('objname','$TFRE_DB_GROUP_scheme_name');
   input_group.AddDomainChooser('domainidlink',sr_STORE,TFRE_DB_GROUP,true,'$TFRE_DB_GROUP_scheme_domainid');
+  input_group.AddInput('delegation','$TFRE_DB_GROUP_scheme_delegation');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
 
   input_group:=scheme.AddInputGroup('main_edit').Setup('$TFRE_DB_GROUP_scheme_group_group');
   input_group.AddInput('objname','$TFRE_DB_GROUP_scheme_name');
+  input_group.AddInput('delegation','$TFRE_DB_GROUP_scheme_delegation',true);
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
 end;
 
@@ -4645,6 +4681,8 @@ begin
   end;
   if currentVersionId='1.0' then begin
     currentVersionId := '1.1';
+
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_GROUP_scheme_delegation','Delegation'));
   end;
 end;
 
@@ -5606,9 +5644,9 @@ begin  // NoLock necessary
   result:=edb_OK;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.NewGroup(const groupname, txt, txt_short: TFRE_DB_String;const is_protected:Boolean;const is_internal:Boolean; var user_group: TFRE_DB_GROUP): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.NewGroup(const groupname, txt, txt_short: TFRE_DB_String; const is_protected: Boolean; const is_internal: Boolean; const is_delegation: Boolean; var user_group: TFRE_DB_GROUP): TFRE_DB_Errortype;
 begin // NoLock necessary
-  user_group := GFRE_DB._NewGroup(groupname,txt,txt_short,is_protected,is_internal);
+  user_group := GFRE_DB._NewGroup(groupname,txt,txt_short,is_protected,is_internal,is_delegation);
   result:=edb_OK;
 end;
 
@@ -5660,6 +5698,8 @@ var l_Group            : TFRE_DB_GROUP;
 begin
   if not _FetchGroup(group,domainUID,l_group) then
     exit(edb_NOT_FOUND);
+  if l_Group.isDelegation then
+    exit(edb_ACCESS);
   l_NewRolesID:=role_ids;
   l_AggregatedRoleID   := l_Group.RoleIDs;
   for i:=0 to high(l_NewRolesID) do begin
@@ -5697,10 +5737,10 @@ begin
   Result:=_AddRolesToGroup(group,domainUID,roles,GetSysDomainUID);
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.AddGroup(const groupname, txt, txt_short: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const is_protected:Boolean;const is_internal:Boolean): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.AddGroup(const groupname, txt, txt_short: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const is_protected: Boolean; const is_internal: Boolean; const is_delegation: Boolean): TFRE_DB_Errortype;
 var group : IFRE_DB_GROUP;
 begin
-  result := NewGroupI(FREDB_HCV(groupname),FREDB_HCV(txt),FREDB_HCV(txt_short),is_protected,is_internal,group);
+  result := NewGroupI(FREDB_HCV(groupname),FREDB_HCV(txt),FREDB_HCV(txt_short),is_protected,is_internal,is_delegation,group);
   if result<>edb_OK then
     exit(result);
   result := StoreGroupI(group,domainUID);
@@ -5711,7 +5751,6 @@ var l_Group            : TFRE_DB_GROUP;
    l_DelRolesID       : TFRE_DB_GUIDArray;
    l_ReducedRoleID    : TFRE_DB_GUIDArray;
    l_CopyRoleID       : TFRE_DB_GUIDArray;
-   l_FetchedRoleUID   : TFRE_DB_GUID;
    i                  : NativeInt;
    j                  : NativeInt;
    l_found            : boolean;
@@ -5846,6 +5885,91 @@ begin
       exit;
   end;
   Result := edb_OK;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.AddGroupsToGroupById(const group: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const group_ids: TFRE_DB_GUIDArray): TFRE_DB_Errortype;
+var l_Group            : TFRE_DB_GROUP;
+    l_NewGroupIDs      : TFRE_DB_GUIDArray;
+    l_AggregatedGroupID: TFRE_DB_GUIDArray;
+    l_FetchedGroupUID  : TFRE_DB_GUID;
+    i                  : NativeInt;
+    j                  : NativeInt;
+    allready_in        : boolean;
+    add_group          : TFRE_DB_GROUP;
+begin
+  if not _FetchGroup(group,domainUID,l_group) then
+    exit(edb_NOT_FOUND);
+  if not l_Group.isDelegation then
+    exit(edb_ACCESS);
+  l_NewGroupIDs:=group_ids;
+  l_AggregatedGroupID   := l_Group.GroupIDs;
+  for i:=0 to high(l_NewGroupIDs) do begin
+    allready_in := false;
+    for j:=0 to high(l_AggregatedGroupID) do begin
+      if l_NewGroupIDs[i]=l_AggregatedGroupID[j] then begin
+        allready_in := true;
+        break;
+      end;
+    end;
+    if not allready_in then begin
+      //check right
+      FetchGroupById(l_NewGroupIDs[i],add_group);
+      if not CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,add_group.DomainID) then
+        exit(edb_ACCESS);
+      setLength(l_AggregatedGroupID,length(l_AggregatedGroupID)+1);
+      l_AggregatedGroupID[high(l_AggregatedGroupID)] := l_NewGroupIDs[i];
+    end;
+  end;
+  l_Group.GroupIDs := l_AggregatedGroupID;
+  result := Update(l_Group);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.RemoveGroupsFromGroupById(const group: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const group_ids: TFRE_DB_GUIDArray; const ignore_not_set: boolean): TFRE_DB_Errortype;
+var
+  l_Group            : TFRE_DB_GROUP;
+  l_DelGroupIDs      : TFRE_DB_GUIDArray;
+  l_ReducedGroupID   : TFRE_DB_GUIDArray;
+  l_CopyGroupID      : TFRE_DB_GUIDArray;
+  i                  : NativeInt;
+  j                  : NativeInt;
+  l_found            : boolean;
+  l_remove_count     : NativeInt;
+  r_group            : TFRE_DB_GROUP;
+begin
+  if not _FetchGroup(group,domainUID,l_group) then exit(edb_NOT_FOUND);
+  l_DelGroupIDs:=group_ids;
+  l_ReducedGroupID   := l_Group.GroupIDs;
+  l_remove_count    := 0;
+  for i:=0 to high(l_DelGroupIDs) do begin
+    l_found := false;
+    for j:=0 to high(l_ReducedGroupID) do begin
+      if l_DelGroupIDs[i]=l_ReducedGroupID[j] then begin
+        l_found              := true;
+        l_ReducedGroupID[j] := CFRE_DB_NullGUID;
+        inc(l_remove_count);
+        break;
+      end;
+   end;
+   if not l_found then begin
+     if not ignore_not_set then begin
+       exit(edb_NOT_FOUND);
+     end;
+   end;
+  end;
+  setlength(l_CopyGroupID,length(l_ReducedGroupID)-l_remove_count);
+  j:=0;
+  for i:=0 to high(l_ReducedGroupID) do begin
+    if l_ReducedGroupID[i]<>CFRE_DB_NullGUID then begin
+      //check right
+      FetchGroupById(l_ReducedGroupID[i],r_group);
+      if not CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,r_group.DomainID) then
+        exit(edb_ACCESS);
+      l_CopyGroupID[j] := l_ReducedGroupID[i];
+      inc(j);
+    end;
+  end;
+  l_Group.GroupIDs := l_CopyGroupID;
+  result := Update(l_Group);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.ModifyUserGroupsById(const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray; const keep_existing_groups: boolean): TFRE_DB_Errortype;
@@ -6503,6 +6627,8 @@ var l_Group            : TFRE_DB_GROUP;
 begin
   if not _FetchGroup(group,domainUID,l_group) then
     exit(edb_NOT_FOUND);
+  if l_Group.isDelegation then
+    exit(edb_ACCESS);
   l_NewRoles        := roles;
   setLength(l_NewRolesID,length(l_NewRoles));
   for i:=0 to high(l_NewRoles) do begin
@@ -6568,10 +6694,10 @@ begin //nln
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.NewGroupI(const groupname, txt, txt_short: TFRE_DB_String; const is_protected:Boolean;const is_internal:Boolean; var user_group: IFRE_DB_GROUP): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.NewGroupI(const groupname, txt, txt_short: TFRE_DB_String; const is_protected:Boolean;const is_internal:Boolean;const is_delegation:Boolean;var user_group: IFRE_DB_GROUP): TFRE_DB_Errortype;
 var lUG : TFRE_DB_GROUP;
 begin //nln
- result := NewGroup(groupname,txt,txt_short,is_protected,is_internal,lUG);
+ result := NewGroup(groupname,txt,txt_short,is_protected,is_internal,is_delegation,lUG);
   if result = edb_OK then begin
     user_group := lUG;
   end else begin
@@ -12156,7 +12282,7 @@ begin
   result.Description := _NewText('$SYST_ROLE_'+l_gname,txt,txt_short);
 end;
 
-function TFRE_DB._NewGroup(const groupname, txt, txt_short: TFRE_DB_String; const is_protected:Boolean;const is_internal:Boolean): TFRE_DB_GROUP;
+function TFRE_DB._NewGroup(const groupname, txt, txt_short: TFRE_DB_String; const is_protected: Boolean; const is_internal: Boolean; const is_delegation: Boolean): TFRE_DB_GROUP;
 var l_gname:TFRE_DB_String;
 begin
   result := _NewObject(TFRE_DB_GROUP.ClassName,true) as TFRE_DB_GROUP;
@@ -12164,6 +12290,7 @@ begin
   result.ObjectName  := l_gname;
   result.isProtected := is_protected;
   Result.isInternal  := is_internal;
+  Result.isDelegation:= is_delegation;
   result.Description := _NewText('$SYST_GROUP_'+l_gname,txt,txt_short);
 end;
 
