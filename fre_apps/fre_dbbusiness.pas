@@ -189,7 +189,7 @@ begin
   scheme.AddSchemeField('zip',fdbft_String).required:=true;
   scheme.AddSchemeFieldSubscheme('country','TFRE_DB_COUNTRY').required:=true;
 
-  group:=scheme.AddInputGroup('main').Setup('scheme');
+  group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
   group.AddInput('street',GetTranslateableTextKey('scheme_street'));
   group.AddInput('nr',GetTranslateableTextKey('scheme_nr'));
   group.AddInput('stair',GetTranslateableTextKey('scheme_stair'));
@@ -198,26 +198,29 @@ begin
   group.AddInput('co',GetTranslateableTextKey('scheme_co'));
   group.AddInput('city',GetTranslateableTextKey('scheme_city'));
   group.AddInput('zip',GetTranslateableTextKey('scheme_zip'));
-  group.AddInput('country',GetTranslateableTextKey('scheme_country'),false,false,'country');
+  //group.AddInput('country',GetTranslateableTextKey('scheme_country'),false,false,'country');
 end;
 
 class procedure TFRE_DB_ADDRESS.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='1.0';
-  if currentVersionId='' then
-    begin
-      currentVersionId:='1.0';
-      StoreTranslateableText(conn,'scheme_street','Street');
-      StoreTranslateableText(conn,'scheme_nr','Nr');
-      StoreTranslateableText(conn,'scheme_stair','Stair');
-      StoreTranslateableText(conn,'scheme_floor','Floor');
-      StoreTranslateableText(conn,'scheme_door','Door');
-      StoreTranslateableText(conn,'scheme_co','Care off');
-      StoreTranslateableText(conn,'scheme_city','City');
-      StoreTranslateableText(conn,'scheme_zip','ZIP');
-      StoreTranslateableText(conn,'scheme_country','Country');
-    end;
-   
+  newVersionId:='1.1';
+  if currentVersionId='' then begin
+    currentVersionId:='1.0';
+    StoreTranslateableText(conn,'scheme_street','Street');
+    StoreTranslateableText(conn,'scheme_nr','Nr');
+    StoreTranslateableText(conn,'scheme_stair','Stair');
+    StoreTranslateableText(conn,'scheme_floor','Floor');
+    StoreTranslateableText(conn,'scheme_door','Door');
+    StoreTranslateableText(conn,'scheme_co','Care off');
+    StoreTranslateableText(conn,'scheme_city','City');
+    StoreTranslateableText(conn,'scheme_zip','ZIP');
+    StoreTranslateableText(conn,'scheme_country','Country');
+  end;
+  if currentVersionId='1.0' then begin
+    currentVersionId:='1.1';
+    StoreTranslateableText(conn,'scheme_main_group','General Information');
+
+  end;
 end;
 
 class procedure TFRE_DB_GEOPOSITION.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
