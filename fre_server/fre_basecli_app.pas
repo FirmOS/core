@@ -1305,10 +1305,12 @@ begin
     if system then begin
       sconn := GFRE_DBI.NewSysOnlyConnection();
       sconn.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+      GFRE_DB.Initialize_Extension_ObjectsBuild;
       sconn.DrawScheme(mems,classfile);
     end else begin
       lconn := GFRE_DBI.NewConnection;
       res   := lconn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+      GFRE_DB.Initialize_Extension_ObjectsBuild;
       if res<>edb_OK then begin
         WriteLn('SCHEME DUMP CHECK CONNECT FAILED : ',CFRE_DB_Errortype[res]);
       end;
