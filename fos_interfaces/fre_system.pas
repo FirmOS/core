@@ -113,6 +113,7 @@ var
       G_DEBUG_TRIGGER_4               :boolean=false;
       G_DEBUG_TRIGGER_5               :boolean=false;
       G_DEBUG_COUNTER                 :NativeInt = 0;
+      G_DEBUG_RUNONLY_MS              :NativeInt = 0;
 
 const
       cG_Tuneable_LocalStackBuffer = 4096;
@@ -142,6 +143,8 @@ end;
 
 
 initialization
+  G_DEBUG_RUNONLY_MS := StrToIntDef(GetEnvironmentVariable('FOS_DBG_RUNONLY_MS'),0);
+
 
 end.
 

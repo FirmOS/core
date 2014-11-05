@@ -313,7 +313,8 @@ var LO:RLogObjP;
     co:TChangeObject;
 begin
   Terminate;
-  if FIsMultiThreaded then  WaitFor;
+  if FIsMultiThreaded then
+    WaitFor;
   FE.Free;
   while true do begin
    LO:=InQ.Pop;

@@ -266,9 +266,16 @@ type
  procedure SSL_CTX_set_default_passwd_cb           (ctx: PSSL_CTX; cb: SslPtr); cdecl; external;
  procedure SSL_CTX_set_default_passwd_cb_userdata  (ctx: PSSL_CTX; u: SslPtr); cdecl; external;
  function  SSL_CTX_use_certificate_chain_file      (ctx: PSSL_CTX; const _file: PChar):cInt; cdecl; external;
+ function  SSL_CTX_use_certificate_file            (ctx: PSSL_CTX; const _file: PAnsiChar; _type: Integer):Integer; cdecl;external;
  function  SSL_CTX_use_PrivateKey_file             (ctx: PSSL_CTX; const _file: PChar; _type: cInt):cInt; cdecl; external;
+ function  SSL_CTX_use_RSAPrivateKey_file          (ctx: PSSL_CTX; const _file: PChar; _type: cInt):cInt; cdecl; external; { SSL_CTX_use_PrivateKey_file does not support DER format }
+ function  SSL_CTX_use_certificate                 (ctx: PSSL_CTX; x: SslPtr):Integer; cdecl;external;
+ function  SSL_CTX_use_PrivateKey                  (ctx: PSSL_CTX; pkey: sslptr):Integer; cdecl;external;
+ function  SSL_CTX_use_certificate_ASN1            (ctx: PSSL_CTX; len: Integer; d: SslPtr):Integer; cdecl;external;
+ function  SSL_CTX_use_PrivateKey_ASN1             (pk: integer; ctx: PSSL_CTX; d: sslptr; len: integer):Integer; cdecl;external;
  function  SSL_CTX_load_verify_locations           (ctx: PSSL_CTX; const CAfile: PChar; const CApath: PChar):cInt; cdecl; external;
  function  SSL_new                                 (ctx: PSSL_CTX):PSSL; cdecl; external;
+ function  SSL_ctrl                                (ssl: PSSL; cmd: integer; larg: integer; parg: SslPtr):Integer; cdecl; external;
  procedure SSL_free                                (ssl: PSSL); cdecl; external;
  function  SSL_set_fd                              (s: PSSL; fd: cInt):cInt; cdecl; external;
  function  SSL_get_version                         (ssl: PSSL):PChar; cdecl; external;
@@ -282,6 +289,12 @@ type
  function  SSL_get_error                           (ssl: PSSL; ret_code: cInt):cInt; cdecl;external;
  function  SSL_want                                (ssl: PSSL):cInt; cdecl;external;
  function  SSL_get_shutdown                        (ssl: PSSL):cInt; cdecl;external;
+ function  SSL_get_peer_certificate                (ssl: PSSL):PX509; cdecl;external;
+ function  SSL_get_current_cipher                  (s: PSSL):SslPtr; cdecl;external;
+ function  SSL_CIPHER_get_name                     (c: Sslptr):PAnsiChar; cdecl;external;
+ function  SSL_CIPHER_get_bits                     (c: SslPtr; alg_bits: PInteger):Integer; cdecl;external;
+ function  SSL_get_verify_result                   (ssl: PSSL):Integer; cdecl;external;
+
  function  CRYPTO_num_locks                        :Cint; cdecl;external;
  procedure CRYPTO_set_locking_callback             (callback:pointer);cdecl;external;
  procedure CRYPTO_set_id_callback                  (callback:pointer);cdecl;external;
@@ -289,12 +302,60 @@ type
  procedure SSL_set_bio                             (ssl: PSSL; rbio : PBIO ; wbio : PBIO); cdecl;external;
  function  BIO_read                                (b: PBIO; Buf: PChar; Len: cInt): cInt; cdecl;external;
  function  BIO_write                               (b: PBIO; Buf: PChar; Len: cInt): cInt; cdecl;external;
- //function  BIO_flush                               (b: PBIO): cInt; cdecl;external;
  function  BIO_ctrl_pending                        (b: PBIO): cInt; cdecl;external;
  function  BIO_ctrl_wpending                       (b: PBIO): cInt; cdecl;external;
  function  BIO_ctrl_get_read_request               (b: PBIO): cint; cdecl;external;
  function  BIO_ctrl_get_write_guarantee            (b: PBIO): cint; cdecl;external;
  function  BIO_ctrl                                (b: PBIO ; cmd: cint; larg: clong; parg: Pointer): clong; cdecl;external;
+ function  BIO_new                                 (b: PBIO_METHOD): PBIO; cdecl;external;
+ procedure BIO_free_all                            (b: PBIO); cdecl;external;
+ function  BIO_s_mem                               : PBIO_METHOD; cdecl;external;
+
+ function  X509_new                                : PX509; cdecl;external;
+ procedure X509_free                               (x: PX509);  cdecl;external;
+ function  X509_NAME_oneline                       (a: PX509_NAME; buf: PAnsiChar; size: Integer):PAnsiChar; cdecl;external;
+ function  X509_get_subject_name                   (a: PX509):PX509_NAME; cdecl;external;
+ function  X509_get_issuer_name                    (a: PX509):PX509_NAME; cdecl;external;
+ function  X509_NAME_hash                          (x: PX509_NAME):Cardinal; cdecl;external;
+ function  X509_digest                             (data: PX509; _type: PEVP_MD; md: PAnsiChar; len: PInteger):Integer; cdecl;external;
+ function  X509_print                              (b: PBIO; a: PX509): integer; cdecl;external;
+ function  X509_set_version                        (x: PX509; version: integer): integer; cdecl;external;
+ function  X509_set_pubkey                         (x: PX509; pkey: EVP_PKEY): integer; cdecl;external;
+ function  X509_set_issuer_name                    (x: PX509; name: PX509_NAME): integer; cdecl;external;
+ function  X509_NAME_add_entry_by_txt              (name: PX509_NAME; field: PAnsiChar; _type: integer; bytes: PAnsiChar; len, loc, _set: integer): integer; cdecl;external;
+ function  X509_sign                               (x: PX509; pkey: EVP_PKEY; const md: PEVP_MD): integer; cdecl;external;
+ function  X509_gmtime_adj                         (s: PASN1_UTCTIME; adj: integer): PASN1_UTCTIME; cdecl;external;
+ function  X509_set_notBefore                      (x: PX509; tm: PASN1_UTCTIME): integer; cdecl;external;
+ function  X509_set_notAfter                       (x: PX509; tm: PASN1_UTCTIME): integer; cdecl;external;
+ function  X509_get_serialNumber                   (x: PX509): PASN1_INTEGER; cdecl;external;
+ function  EVP_PKEY_new                            : EVP_PKEY; cdecl;external;
+ procedure EVP_PKEY_free                           (pk: EVP_PKEY); cdecl;external;
+ function  EVP_PKEY_assign                         (pkey: EVP_PKEY; _type: integer; key: Prsa): integer; cdecl;external;
+ function  EVP_get_digestbyname                    (Name: PAnsiChar): PEVP_MD; cdecl;external;
+ procedure EVP_cleanup                             ; cdecl;external;
+ function  SSLeay_version                          (t: integer): PAnsiChar; cdecl;external;
+ procedure ERR_error_string                        (e: integer; buf: PAnsiChar; len: integer); cdecl;external;
+// function  ERR_get_error                           : integer; cdecl;external;
+// procedure ERR_clear_error                         ; cdecl;external;
+ procedure ERR_free_strings                        ; cdecl;external;
+ procedure ERR_remove_state                        (pid: integer); cdecl;external;
+ procedure OPENSSL_add_all_algorithms_noconf       ; cdecl;external;
+ procedure CRYPTO_cleanup_all_ex_data              ; cdecl;external;
+ procedure RAND_screen                             ; cdecl;external;
+ function  d2i_PKCS12_bio                          (b:PBIO; Pkcs12: SslPtr): SslPtr; cdecl;external;
+ function  PKCS12_parse                            (p12: SslPtr; pass: PAnsiChar; var pkey, cert, ca: SslPtr): integer; cdecl;external;
+ procedure PKCS12_free                             (p12: SslPtr); cdecl;external;
+ function  RSA_generate_key                        (bits, e: integer; callback: PFunction; cb_arg: SslPtr): PRSA; cdecl;external;
+ function  ASN1_UTCTIME_new                        : PASN1_UTCTIME; cdecl;external;
+ procedure ASN1_UTCTIME_free                       (a: PASN1_UTCTIME); cdecl;external;
+ function  ASN1_INTEGER_set                        (a: PASN1_INTEGER; v: integer): integer; cdecl;external;
+ function  ASN1_INTEGER_get                        (a: PASN1_INTEGER): integer; cdecl;external; {pf}
+ function  i2d_X509_bio                            (b: PBIO; x: PX509): integer; cdecl;external;
+ function  d2i_X509_bio                            (b:PBIO;  x:PX509):   PX509;   cdecl;external; {pf}
+ function  PEM_read_bio_X509                       (b:PBIO;  {var x:PX509;}x:PSslPtr; callback:PFunction; cb_arg:SslPtr): PX509;   cdecl;external; {pf}
+ procedure sk_pop_free                            (st: PSTACK; func: TSkPopFreeFunc); cdecl;external; {pf}
+ //procedure local_sk_X509_NAME_ENTRY_pop_free       (st: PSTACK; func: TSkPopFreeFunc); cdecl;external; {pf}
+ function  i2d_PrivateKey_bio                      (b: PBIO; pkey: EVP_PKEY): integer; cdecl;external;
 
  type
  TFRE_FCOM_SSL_Type = (fssl_SSLv2,fssl_SSLv3,fssl_TLSv1,fssl_SSLv23,fssl_DTLS1);
@@ -353,6 +414,17 @@ begin
  {$ENDIF}
 end;
 
+function MyBioRead(b: PBIO; var Buf: AnsiString; Len: integer): integer;
+begin
+  Result := BIO_read(b, PAnsiChar(Buf), Len)
+end;
+
+function MyBioWrite(b: PBIO; Buf: AnsiString; Len: integer): integer;
+begin
+  Result := BIO_write(b, PAnsiChar(Buf), Len)
+end;
+
+
 procedure Setup_FRE_SSL;
 var i: Integer;
 begin
@@ -369,7 +441,12 @@ begin
   CRYPTO_set_locking_callback(@locking_function);
   SSL_library_init;
   SSL_load_error_strings;
+  OPENSSL_add_all_algorithms_noconf;
+  {$IFDEF WINDOWS}
+    RAND_screen;
+  {$ENDIF}
   CRYPTO_set_id_callback(@id_function);
+  FInitialized:=true;
 end;
 
 procedure Cleanup_FRE_SSL;

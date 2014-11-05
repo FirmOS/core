@@ -47,7 +47,8 @@ unit fre_libevent_core;
 interface
 
 uses
-  Classes, SysUtils,FOS_FCOM_TYPES,cTypes,BaseUnix,Sockets,unixtype
+  Classes, SysUtils,FOS_FCOM_TYPES,
+  cTypes,BaseUnix,Sockets,unixtype
   ;
 
 {$IFDEF WINDOWS}
@@ -186,7 +187,7 @@ uses
             {$ELSE}
               {$linklib libevent_core_fos64_solaris_rel-fosdev}
               {$linklib libevent_pthreads_fos64_solaris_rel-fosdev}
-              {$linklib libevent_openssl_fos64_solaris_rel-fosdev}
+              {$linklib libevent_openssl_fos64_solaris_rel-fosdev}   {!! WARNING USES WRONG OPENSSL LIBRARIES !!!}
               {$linklib libevent_extra_fos64_solaris_rel-fosdev}
             {$ENDIF FOS_LINK_STATIC}
           {$ENDIF}
@@ -522,8 +523,8 @@ uses
   function bufferevent_ssl_renegotiate                    (const bev : Pbufferevent):cint; cdecl ; external;
 
   //dns
-  function  evdns_base_new                                (event_base:PEvent_base ; initialize_nameservers : cint):Pevdns_base ; cdecl ; external ;
-
+  function  evdns_base_new                                (event_base:PEvent_base ; initialize_nameservers : cint):Pevdns_base ; cdecl ; external;
+  procedure evdns_base_free                               (      base:Pevdns_base ; fail_requests : cint) ; cdecl ; external ;
   //util
 
   // RFC3493

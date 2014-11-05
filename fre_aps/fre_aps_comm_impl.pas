@@ -616,7 +616,7 @@ end;
 
 function  GetANewEventBase : PEvent_base;
 var cfg  : Pevent_config;
-    feat : Integer;
+    //feat : Integer;
 begin
   //cfg      := event_config_new;
   //event_config_require_features(cfg, EV_FEATURE_O1);
@@ -629,7 +629,7 @@ begin
   //    GFRE_BT.CriticalAbort('COULD NOT AQUIRE ANY EVENTBASE!');
   //end;
   result := event_base_new;
-  feat := event_base_get_features(result);
+  //feat   := event_base_get_features(result);
   //writeln('Libevent Chosen Method : ',string(event_base_get_method(result)),' Features : ',event_base_get_features(result));
 end;
 
@@ -975,7 +975,8 @@ begin
     FVerboseID  := FSocketAddr;
     if FSSL_Enabled then
       begin
-        FBufEvent := bufferevent_openssl_socket_new(base, Fsocket, FClientSSL_CTX,BUFFEREVENT_SSL_ACCEPTING,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
+        abort; { NO SSL UNTIL LIBRARY FIX}
+        //FBufEvent := bufferevent_openssl_socket_new(base, Fsocket, FClientSSL_CTX,BUFFEREVENT_SSL_ACCEPTING,BEV_OPT_CLOSE_ON_FREE+BEV_OPT_DEFER_CALLBACKS);
         //FBufEvent := bufferevent_openssl_socket_new(base, Fsocket, FClientSSL_CTX,BUFFEREVENT_SSL_ACCEPTING,BEV_OPT_CLOSE_ON_FREE); { investigate relation to dbl add }
       end
     else
@@ -1844,6 +1845,14 @@ end;
 
 destructor TFRE_APS_LL_EvBaseController.Destroy;
 begin
+  if assigned(FControlEvent) then
+    event_free(FControlEvent);
+  if assigned(FTimeoutE) then
+    event_free(FTimeoutE);
+  if assigned(FDnsBase) then
+    evdns_base_free(FDnsBase,1);
+  if assigned(FEventBase) then
+    event_base_free(FEventBase);
   FOverloadQ.Finalize;
   inherited Destroy;
 end;
@@ -2334,6 +2343,8 @@ begin
   _FinalizeMain;
   FMainThread.WaitFor;
   FMainThread.Free;
+  if assigned(FSSL_CTX) then
+    SSL_CTX_free(FSSL_CTX);
   inherited Destroy;
 end;
 

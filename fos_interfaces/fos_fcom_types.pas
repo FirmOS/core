@@ -227,13 +227,106 @@ const
    //CFOS_FCOM_SOCKSTATE : ARRAY [low(EFOS_FCOM_SOCKSTATE) ..high(EFOS_FCOM_SOCKSTATE)]  of String = ('IDLE','CONNECTING','CONNECTED','LISTENING','CLOSED','ERROR');
    CFOS_BOOL :Array [false..true] of String=('0','1');
  type
-   SslPtr        = Pointer;
-   PSslPtr       = ^SslPtr;
-   PSSL_CTX      = SslPtr;
-   PSSL          = SslPtr;
-   PSSL_METHOD   = SslPtr;
-   PBIO_METHOD   = SslPtr;
-   PBIO          = SslPtr;
+   SslPtr         = Pointer;
+   PSslPtr        = ^SslPtr;
+   PSSL_CTX       = SslPtr;
+   PSSL           = SslPtr;
+   PSSL_METHOD    = SslPtr;
+   PBIO_METHOD    = SslPtr;
+   PBIO           = SslPtr;
+   PX509          = SslPtr;
+   PX509_NAME     = SslPtr;
+   PEVP_MD	  = SslPtr;
+   PInteger       = ^Integer;
+   EVP_PKEY       = SslPtr;
+   PRSA           = SslPtr;
+   PASN1_UTCTIME  = SslPtr;
+   PASN1_INTEGER  = SslPtr;
+   PPasswdCb      = SslPtr;
+   PFunction      = procedure;
+   PSTACK         = SslPtr; {pf}
+   TSkPopFreeFunc = procedure(p:SslPtr); cdecl; {pf}
+   TX509Free      = procedure(x: PX509); cdecl; {pf}
+
+   DES_cblock = array[0..7] of Byte;
+   PDES_cblock = ^DES_cblock;
+   des_ks_struct = packed record
+     ks: DES_cblock;
+     weak_key: Integer;
+   end;
+   des_key_schedule = array[1..16] of des_ks_struct;
+
+ const
+   EVP_MAX_MD_SIZE = 16 + 20;
+
+   SSL_ERROR_NONE = 0;
+   SSL_ERROR_SSL = 1;
+   SSL_ERROR_WANT_READ = 2;
+   SSL_ERROR_WANT_WRITE = 3;
+   SSL_ERROR_WANT_X509_LOOKUP = 4;
+   SSL_ERROR_SYSCALL = 5; //look at error stack/return value/errno
+   SSL_ERROR_ZERO_RETURN = 6;
+   SSL_ERROR_WANT_CONNECT = 7;
+   SSL_ERROR_WANT_ACCEPT = 8;
+
+   SSL_OP_NO_SSLv2 = $01000000;
+   SSL_OP_NO_SSLv3 = $02000000;
+   SSL_OP_NO_TLSv1 = $04000000;
+   SSL_OP_ALL = $000FFFFF;
+   SSL_VERIFY_NONE = $00;
+   SSL_VERIFY_PEER = $01;
+
+   OPENSSL_DES_DECRYPT = 0;
+   OPENSSL_DES_ENCRYPT = 1;
+
+   X509_V_OK =	0;
+   X509_V_ILLEGAL = 1;
+   X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT = 2;
+   X509_V_ERR_UNABLE_TO_GET_CRL = 3;
+   X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE = 4;
+   X509_V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE = 5;
+   X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY = 6;
+   X509_V_ERR_CERT_SIGNATURE_FAILURE = 7;
+   X509_V_ERR_CRL_SIGNATURE_FAILURE = 8;
+   X509_V_ERR_CERT_NOT_YET_VALID = 9;
+   X509_V_ERR_CERT_HAS_EXPIRED = 10;
+   X509_V_ERR_CRL_NOT_YET_VALID = 11;
+   X509_V_ERR_CRL_HAS_EXPIRED = 12;
+   X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD = 13;
+   X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD = 14;
+   X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD = 15;
+   X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD = 16;
+   X509_V_ERR_OUT_OF_MEM = 17;
+   X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT = 18;
+   X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN = 19;
+   X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY = 20;
+   X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE = 21;
+   X509_V_ERR_CERT_CHAIN_TOO_LONG = 22;
+   X509_V_ERR_CERT_REVOKED = 23;
+   X509_V_ERR_INVALID_CA = 24;
+   X509_V_ERR_PATH_LENGTH_EXCEEDED = 25;
+   X509_V_ERR_INVALID_PURPOSE = 26;
+   X509_V_ERR_CERT_UNTRUSTED = 27;
+   X509_V_ERR_CERT_REJECTED = 28;
+   //These are 'informational' when looking for issuer cert
+   X509_V_ERR_SUBJECT_ISSUER_MISMATCH = 29;
+   X509_V_ERR_AKID_SKID_MISMATCH = 30;
+   X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH = 31;
+   X509_V_ERR_KEYUSAGE_NO_CERTSIGN = 32;
+   X509_V_ERR_UNABLE_TO_GET_CRL_ISSUER = 33;
+   X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION = 34;
+   //The application is not happy
+   X509_V_ERR_APPLICATION_VERIFICATION = 50;
+
+   SSL_FILETYPE_ASN1	= 2;
+   SSL_FILETYPE_PEM = 1;
+   EVP_PKEY_RSA = 6;
+
+   SSL_CTRL_SET_TLSEXT_HOSTNAME = 55;
+   TLSEXT_NAMETYPE_host_name = 0;
+
+type
+
    TFCOM_InAddr  = in_addr;
    TFCOM_InAddr6 = in6_addr;
 

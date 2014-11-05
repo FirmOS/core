@@ -1812,8 +1812,13 @@ begin
       SSLLibHandle := 1;
       SSLUtilHandle := 1;
 {$ELSE}
+      {$IFDEF SOLARIS}
+       SSLUtilHandle:=-3;
+       SSLLibHandle:=-3;
+      {$ELSE}
       SSLUtilHandle := LoadLib(DLLUtilName);
       SSLLibHandle := LoadLib(DLLSSLName);
+      {$ENDIF}
   {$IFDEF MSWINDOWS}
       if (SSLLibHandle = 0) then
         SSLLibHandle := LoadLib(DLLSSLName2);

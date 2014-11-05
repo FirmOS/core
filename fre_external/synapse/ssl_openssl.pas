@@ -96,7 +96,9 @@ uses
 {$IFDEF CIL}
   System.Text,
 {$ENDIF}
-  ssl_openssl_lib;
+  fos_fcom_types,
+  fre_fcom_ssl;
+  //ssl_openssl_lib;
 
 type
   {:@abstract(class implementing OpenSSL SSL plugin.)
@@ -198,7 +200,7 @@ end;
 
 function TSSLOpenSSL.LibVersion: String;
 begin
-  Result := SSLeayversion(0);
+  Result := SSLeay_version(0);
 end;
 
 function TSSLOpenSSL.LibName: String;
@@ -215,8 +217,8 @@ var
 begin
   Result := true;
   FLastErrorDesc := '';
-  FLastError := ErrGetError;
-  ErrClearError;
+  FLastError := ERR_get_error;
+  ERR_clear_error;
   if FLastError <> 0 then
   begin
     Result := False;
@@ -226,8 +228,9 @@ begin
     FLastErrorDesc := Trim(sb.ToString);
 {$ELSE}
     s := StringOfChar(#0, 256);
-    ErrErrorString(FLastError, s, Length(s));
-    FLastErrorDesc := s;
+    ERR_error_string(FLastError, @s[1], Length(s));
+    FLastErrorDesc := PAnsiChar(s);
+    abort; //check string (fosreplace ssl)
 {$ENDIF}
   end;
 end;
@@ -247,32 +250,32 @@ var
 {$ENDIF}
 begin
   Result := True;
-  pk := EvpPkeynew;
-  x := X509New;
+  pk := EVP_PKEY_new;
+  x := X509_New;
   try
-    rsa := RsaGenerateKey(1024, $10001, nil, nil);
-    EvpPkeyAssign(pk, EVP_PKEY_RSA, rsa);
-    X509SetVersion(x, 2);
-    Asn1IntegerSet(X509getSerialNumber(x), 0);
-    t := Asn1UtctimeNew;
+    rsa := RSA_generate_key(1024, $10001, nil, nil);
+    EVP_PKEY_assign(pk, EVP_PKEY_RSA, rsa);
+    X509_set_version(x, 2);
+    ASN1_INTEGER_set(X509_get_serialNumber(x), 0);
+    t := ASN1_UTCTIME_new;
     try
-      X509GmtimeAdj(t, -60 * 60 *24);
-      X509SetNotBefore(x, t);
-      X509GmtimeAdj(t, 60 * 60 * 60 *24);
-      X509SetNotAfter(x, t);
+      X509_gmtime_adj(t, -60 * 60 *24);
+      X509_set_notBefore(x, t);
+      X509_gmtime_adj(t, 60 * 60 * 60 *24);
+      X509_set_notAfter(x, t);
     finally
-      Asn1UtctimeFree(t);
+      ASN1_UTCTIME_free(t);
     end;
-    X509SetPubkey(x, pk);
-    Name := X509GetSubjectName(x);
-    X509NameAddEntryByTxt(Name, 'C', $1001, 'CZ', -1, -1, 0);
-    X509NameAddEntryByTxt(Name, 'CN', $1001, host, -1, -1, 0);
-    x509SetIssuerName(x, Name);
-    x509Sign(x, pk, EvpGetDigestByName('SHA1'));
-    b := BioNew(BioSMem);
+    X509_set_pubkey(x, pk);
+    Name := X509_get_subject_name(x);
+    X509_NAME_add_entry_by_txt(Name, 'C', $1001, 'CZ', -1, -1, 0);
+    X509_NAME_add_entry_by_txt(Name, 'CN', $1001, PChar(host), -1, -1, 0);
+    X509_set_issuer_name(x, Name);
+    x509_Sign(x, pk, EVP_get_digestbyname('SHA1'));
+    b := BIO_new(BIO_s_mem);
     try
-      i2dX509Bio(b, x);
-      xn := bioctrlpending(b);
+      i2d_X509_bio(b, x);
+      xn := BIO_ctrl_pending(b);
 {$IFDEF CIL}
       sb := StringBuilder.Create(xn);
       y := bioread(b, sb, xn);
@@ -283,18 +286,18 @@ begin
       end;
 {$ELSE}
       setlength(s, xn);
-      y := bioread(b, s, xn);
+      y := bio_read(b, PChar(s), xn);
       if y > 0 then
         setlength(s, y);
 {$ENDIF}
     finally
-      BioFreeAll(b);
+      BIO_free_all(b);
     end;
     FCertificate := s;
-    b := BioNew(BioSMem);
+    b := BIO_new(BIO_s_mem);
     try
-      i2dPrivatekeyBio(b, pk);
-      xn := bioctrlpending(b);
+      i2d_PrivateKey_bio(b, pk);
+      xn := bio_ctrl_pending(b);
 {$IFDEF CIL}
       sb := StringBuilder.Create(xn);
       y := bioread(b, sb, xn);
@@ -305,17 +308,17 @@ begin
       end;
 {$ELSE}
       setlength(s, xn);
-      y := bioread(b, s, xn);
+      y := BIO_read(b, PChar(s), xn);
       if y > 0 then
         setlength(s, y);
 {$ENDIF}
     finally
-      BioFreeAll(b);
+      BIO_free_all(b);
     end;
     FPrivatekey := s;
   finally
-    X509free(x);
-    EvpPkeyFree(pk);
+    X509_free(x);
+    Evp_Pkey_Free(pk);
   end;
 end;
 
@@ -326,10 +329,10 @@ var
   p12: SslPtr;
 begin
   Result := False;
-  b := BioNew(BioSMem);
+  b := BIO_new(BIO_s_mem);
   try
-    BioWrite(b, pfxdata, Length(PfxData));
-    p12 := d2iPKCS12bio(b, nil);
+    BIO_write(b, PAnsiChar(pfxdata), Length(PfxData));
+    p12 := d2i_PKCS12_bio(b, nil);
     if not Assigned(p12) then
       Exit;
     try
@@ -337,22 +340,23 @@ begin
       pkey := nil;
       ca := nil;
       try {pf}
-        if PKCS12parse(p12, FKeyPassword, pkey, cert, ca) > 0 then
-          if SSLCTXusecertificate(Fctx, cert) > 0 then
-            if SSLCTXusePrivateKey(Fctx, pkey) > 0 then
+        if PKCS12_parse(p12, PAnsiChar(FKeyPassword), pkey, cert, ca) > 0 then
+          if SSL_CTX_use_certificate(Fctx, cert) > 0 then
+            if SSL_CTX_use_PrivateKey(Fctx, pkey) > 0 then
               Result := True;
       {pf}
       finally
-        EvpPkeyFree(pkey);
-        X509free(cert);
-        SkX509PopFree(ca,_X509Free); // for ca=nil a new STACK was allocated...
+        EVP_PKEY_free(pkey);
+        X509_free(cert);
+        //sk_X509_pop_free(ca,X509_Free); // for ca=nil a new STACK was allocated...
+        sk_pop_free(ca,X509_Free); // for ca=nil a new STACK was allocated...
       end;
       {/pf}
     finally
-      PKCS12free(p12);
+      PKCS12_free(p12);
     end;
   finally
-    BioFreeAll(b);
+    BIO_free_all(b);
   end;
 end;
 
@@ -366,24 +370,24 @@ begin
     Exit;
   try
     if FCertificateFile <> '' then
-      if SslCtxUseCertificateChainFile(FCtx, FCertificateFile) <> 1 then
-        if SslCtxUseCertificateFile(FCtx, FCertificateFile, SSL_FILETYPE_PEM) <> 1 then
-          if SslCtxUseCertificateFile(FCtx, FCertificateFile, SSL_FILETYPE_ASN1) <> 1 then
+      if SSL_CTX_use_certificate_chain_file(FCtx, PAnsichar(FCertificateFile)) <> 1 then
+        if SSL_CTX_use_certificate_file(FCtx, Pansichar(FCertificateFile), SSL_FILETYPE_PEM) <> 1 then
+          if Ssl_Ctx_Use_Certificate_File(FCtx, PAnsichar(FCertificateFile), SSL_FILETYPE_ASN1) <> 1 then
             Exit;
     if FCertificate <> '' then
-      if SslCtxUseCertificateASN1(FCtx, length(FCertificate), FCertificate) <> 1 then
+      if Ssl_Ctx_Use_Certificate_ASN1(FCtx, length(FCertificate), PAnsichar(FCertificate)) <> 1 then
         Exit;
     SSLCheck;
     if FPrivateKeyFile <> '' then
-      if SslCtxUsePrivateKeyFile(FCtx, FPrivateKeyFile, SSL_FILETYPE_PEM) <> 1 then
-        if SslCtxUsePrivateKeyFile(FCtx, FPrivateKeyFile, SSL_FILETYPE_ASN1) <> 1 then
+      if SSL_CTX_use_RSAPrivateKey_file(FCtx, Pansichar(FPrivateKeyFile), SSL_FILETYPE_PEM) <> 1 then
+        if SSL_CTX_use_RSAPrivateKey_file(FCtx, PAnsiChar(FPrivateKeyFile), SSL_FILETYPE_ASN1) <> 1 then
           Exit;
     if FPrivateKey <> '' then
-      if SslCtxUsePrivateKeyASN1(EVP_PKEY_RSA, FCtx, FPrivateKey, length(FPrivateKey)) <> 1 then
+      if SSL_CTX_use_PrivateKey_ASN1(EVP_PKEY_RSA, FCtx, PAnsiChar(FPrivateKey), length(FPrivateKey)) <> 1 then
         Exit;
     SSLCheck;
     if FCertCAFile <> '' then
-      if SslCtxLoadVerifyLocations(FCtx, FCertCAFile, '') <> 1 then
+      if SSL_CTX_load_verify_locations(FCtx, PAnsiChar(FCertCAFile), '') <> 1 then
         Exit;
     if FPFXfile <> '' then
     begin
@@ -421,13 +425,13 @@ begin
   Fctx := nil;
   case FSSLType of
     LT_SSLv2:
-      Fctx := SslCtxNew(SslMethodV2);
+      Fctx := SSL_CTX_new(SSLv2_method);
     LT_SSLv3:
-      Fctx := SslCtxNew(SslMethodV3);
+      Fctx := SSL_CTX_new(SSLv3_method);
     LT_TLSv1:
-      Fctx := SslCtxNew(SslMethodTLSV1);
+      Fctx := Ssl_Ctx_New(TLSv1_method);
     LT_all:
-      Fctx := SslCtxNew(SslMethodV23);
+      Fctx := Ssl_Ctx_New(SSLv23_method);
   else
     Exit;
   end;
@@ -439,14 +443,14 @@ begin
   else
   begin
     s := FCiphers;
-    SslCtxSetCipherList(Fctx, s);
+    SSL_CTX_set_cipher_list(Fctx, PAnsiChar(s));
     if FVerifyCert then
-      SslCtxSetVerify(FCtx, SSL_VERIFY_PEER, nil)
+      SSL_CTX_set_verify(FCtx, SSL_VERIFY_PEER, nil)
     else
-      SslCtxSetVerify(FCtx, SSL_VERIFY_NONE, nil);
+      Ssl_Ctx_Set_Verify(FCtx, SSL_VERIFY_NONE, nil);
 {$IFNDEF CIL}
-    SslCtxSetDefaultPasswdCb(FCtx, @PasswordCallback);
-    SslCtxSetDefaultPasswdCbUserdata(FCtx, self);
+    SSL_CTX_set_default_passwd_cb(FCtx, @PasswordCallback);
+    SSL_CTX_set_default_passwd_cb_userdata(FCtx, self);
 {$ENDIF}
 
     if server and (FCertificateFile = '') and (FCertificate = '')
@@ -460,7 +464,7 @@ begin
     else
     begin
       Fssl := nil;
-      Fssl := SslNew(Fctx);
+      Fssl := Ssl_New(Fctx);
       if Fssl = nil then
       begin
         SSLCheck;
@@ -475,13 +479,13 @@ function TSSLOpenSSL.DeInit: Boolean;
 begin
   Result := True;
   if assigned (Fssl) then
-    sslfree(Fssl);
+    ssl_free(Fssl);
   Fssl := nil;
   if assigned (Fctx) then
   begin
-    SslCtxFree(Fctx);
+    Ssl_Ctx_Free(Fctx);
     Fctx := nil;
-    ErrRemoveState(0);
+    ERR_remove_state(0);
   end;
   FSSLEnabled := False;
 end;
@@ -508,15 +512,15 @@ begin
 {$IFDEF CIL}
     if sslsetfd(FSsl, FSocket.Socket.Handle.ToInt32) < 1 then
 {$ELSE}
-    if sslsetfd(FSsl, FSocket.Socket) < 1 then
+    if SSL_set_fd(FSsl, FSocket.Socket) < 1 then
 {$ENDIF}
     begin
       SSLCheck;
       Exit;
     end;
     if SNIHost<>'' then
-      SSLCtrl(Fssl, SSL_CTRL_SET_TLSEXT_HOSTNAME, TLSEXT_NAMETYPE_host_name, PAnsiChar(AnsiString(SNIHost)));
-    x := sslconnect(FSsl);
+      SSL_Ctrl(Fssl, SSL_CTRL_SET_TLSEXT_HOSTNAME, TLSEXT_NAMETYPE_host_name, PAnsiChar(AnsiString(SNIHost)));
+    x := ssl_connect(FSsl);
     if x < 1 then
     begin
       SSLcheck;
@@ -542,13 +546,13 @@ begin
 {$IFDEF CIL}
     if sslsetfd(FSsl, FSocket.Socket.Handle.ToInt32) < 1 then
 {$ELSE}
-    if sslsetfd(FSsl, FSocket.Socket) < 1 then
+    if ssl_set_fd(FSsl, FSocket.Socket) < 1 then
 {$ENDIF}
     begin
       SSLCheck;
       Exit;
     end;
-    x := sslAccept(FSsl);
+    x := ssl_Accept(FSsl);
     if x < 1 then
     begin
       SSLcheck;
@@ -562,7 +566,7 @@ end;
 function TSSLOpenSSL.Shutdown: boolean;
 begin
   if assigned(FSsl) then
-    sslshutdown(FSsl);
+    ssl_shutdown(FSsl);
   DeInit;
   Result := True;
 end;
@@ -573,11 +577,11 @@ var
 begin
   if assigned(FSsl) then
   begin
-    x := sslshutdown(FSsl);
+    x := ssl_shutdown(FSsl);
     if x = 0 then
     begin
       Synsock.Shutdown(FSocket.Socket, 1);
-      sslshutdown(FSsl);
+      ssl_shutdown(FSsl);
     end;
   end;
   DeInit;
@@ -598,9 +602,9 @@ begin
     s := StringOf(Buffer);
     Result := SslWrite(FSsl, s, Len);
 {$ELSE}
-    Result := SslWrite(FSsl, Buffer , Len);
+    Result := Ssl_Write(FSsl, Buffer , Len);
 {$ENDIF}
-    err := SslGetError(FSsl, Result);
+    err := SSL_get_error(FSsl, Result);
   until (err <> SSL_ERROR_WANT_READ) and (err <> SSL_ERROR_WANT_WRITE);
   if err = SSL_ERROR_ZERO_RETURN then
     Result := 0
@@ -630,9 +634,9 @@ begin
       System.Array.Copy(BytesOf(s), Buffer, length(s));
     end;
 {$ELSE}
-    Result := SslRead(FSsl, Buffer , Len);
+    Result := Ssl_Read(FSsl, Buffer , Len);
 {$ENDIF}
-    err := SslGetError(FSsl, Result);
+    err := Ssl_Get_Error(FSsl, Result);
   until (err <> SSL_ERROR_WANT_READ) and (err <> SSL_ERROR_WANT_WRITE);
   if err = SSL_ERROR_ZERO_RETURN then
     Result := 0
@@ -645,7 +649,7 @@ end;
 
 function TSSLOpenSSL.WaitingData: Integer;
 begin
-  Result := sslpending(Fssl);
+  Result := ssl_pending(Fssl);
 end;
 
 function TSSLOpenSSL.GetSSLVersion: string;
@@ -653,7 +657,7 @@ begin
   if not assigned(FSsl) then
     Result := ''
   else
-    Result := SSlGetVersion(FSsl);
+    Result := SSL_get_version(FSsl);
 end;
 
 function TSSLOpenSSL.GetPeerSubject: string;
@@ -669,7 +673,7 @@ begin
     Result := '';
     Exit;
   end;
-  cert := SSLGetPeerCertificate(Fssl);
+  cert := SSL_get_peer_certificate(Fssl);
   if not assigned(cert) then
   begin
     Result := '';
@@ -680,9 +684,9 @@ begin
   Result := X509NameOneline(X509GetSubjectName(cert), sb, 4096);
 {$ELSE}
   setlength(s, 4096);
-  Result := X509NameOneline(X509GetSubjectName(cert), s, Length(s));
+  Result := X509_NAME_oneline(X509_get_subject_name(cert), PAnsiChar(s), Length(s));
 {$ENDIF}
-  X509Free(cert);
+  X509_Free(cert);
 end;
 
 
@@ -696,17 +700,17 @@ begin
     Result := -1;
     Exit;
   end;
-  cert := SSLGetPeerCertificate(Fssl);
+  cert := SSL_get_peer_certificate(Fssl);
   try
     if not assigned(cert) then
     begin
       Result := -1;
       Exit;
     end;
-    SN := X509GetSerialNumber(cert);
-    Result := Asn1IntegerGet(SN);
+    SN := X509_get_serialNumber(cert);
+    Result := ASN1_INTEGER_get(SN);
   finally
-    X509Free(cert);
+    X509_Free(cert);
   end;
 end;
 
@@ -728,16 +732,16 @@ begin
     Result := 0;
     Exit;
   end;
-  cert := SSLGetPeerCertificate(Fssl);
+  cert := SSL_get_peer_certificate(Fssl);
   try
     if not assigned(cert) then
     begin
       Result := 0;
       Exit;
     end;
-    Result := X509NameHash(X509GetSubjectName(cert));
+    Result := X509_NAME_hash(X509_get_subject_name(cert));
   finally
-    X509Free(cert);
+    X509_Free(cert);
   end;
 end;
 
@@ -754,7 +758,7 @@ begin
     Result := '';
     Exit;
   end;
-  cert := SSLGetPeerCertificate(Fssl);
+  cert := SSL_get_peer_certificate(Fssl);
   if not assigned(cert) then
   begin
     Result := '';
@@ -765,9 +769,9 @@ begin
   Result := X509NameOneline(X509GetIssuerName(cert), sb, 4096);
 {$ELSE}
   setlength(s, 4096);
-  Result := X509NameOneline(X509GetIssuerName(cert), s, Length(s));
+  Result := X509_NAME_oneline(X509_get_issuer_name(cert), Pansichar(s), Length(s));
 {$ENDIF}
-  X509Free(cert);
+  X509_Free(cert);
 end;
 
 function TSSLOpenSSL.GetPeerFingerprint: string;
@@ -783,7 +787,7 @@ begin
     Result := '';
     Exit;
   end;
-  cert := SSLGetPeerCertificate(Fssl);
+  cert := SSL_get_peer_certificate(Fssl);
   if not assigned(cert) then
   begin
     Result := '';
@@ -796,10 +800,10 @@ begin
   Result := sb.ToString;
 {$ELSE}
   setlength(Result, EVP_MAX_MD_SIZE);
-  X509Digest(cert, EvpGetDigestByName('MD5'), Result, x);
+  X509_Digest(cert, EVP_get_digestbyname('MD5'), Pansichar(Result), @x);
   SetLength(Result, x);
 {$ENDIF}
-  X509Free(cert);
+  X509_Free(cert);
 end;
 
 function TSSLOpenSSL.GetCertInfo: string;
@@ -817,17 +821,17 @@ begin
     Result := '';
     Exit;
   end;
-  cert := SSLGetPeerCertificate(Fssl);
+  cert := SSL_get_peer_certificate(Fssl);
   if not assigned(cert) then
   begin
     Result := '';
     Exit;
   end;
   try {pf}
-    b := BioNew(BioSMem);
+    b := BIO_new(Bio_S_Mem);
     try
-      X509Print(b, cert);
-      x := bioctrlpending(b);
+      X509_Print(b, cert);
+      x := BIO_ctrl_pending(b);
   {$IFDEF CIL}
       sb := StringBuilder.Create(x);
       y := bioread(b, sb, x);
@@ -838,17 +842,17 @@ begin
       end;
   {$ELSE}
       setlength(s,x);
-      y := bioread(b,s,x);
+      y := bio_read(b,Pansichar(s),x);
       if y > 0 then
         setlength(s, y);
   {$ENDIF}
       Result := ReplaceString(s, LF, CRLF);
     finally
-      BioFreeAll(b);
+      BIO_free_all(b);
     end;
   {pf}
   finally
-    X509Free(cert);
+    X509_Free(cert);
   end;
   {/pf}
 end;
@@ -858,7 +862,7 @@ begin
   if not assigned(FSsl) then
     Result := ''
   else
-    Result := SslCipherGetName(SslGetCurrentCipher(FSsl));
+    Result := SSL_CIPHER_get_name(SSL_get_current_cipher(FSsl));
 end;
 
 function TSSLOpenSSL.GetCipherBits: integer;
@@ -868,7 +872,7 @@ begin
   if not assigned(FSsl) then
     Result := 0
   else
-    Result := SSLCipherGetBits(SslGetCurrentCipher(FSsl), x);
+    Result := SSL_Cipher_Get_Bits(Ssl_Get_Current_Cipher(FSsl), @x);
 end;
 
 function TSSLOpenSSL.GetCipherAlgBits: integer;
@@ -876,7 +880,7 @@ begin
   if not assigned(FSsl) then
     Result := 0
   else
-    SSLCipherGetBits(SslGetCurrentCipher(FSsl), Result);
+    SSL_Cipher_Get_Bits(Ssl_Get_Current_Cipher(FSsl), @Result);
 end;
 
 function TSSLOpenSSL.GetVerifyCert: integer;
@@ -884,13 +888,13 @@ begin
   if not assigned(FSsl) then
     Result := 1
   else
-    Result := SslGetVerifyResult(FSsl);
+    Result := SSL_get_verify_result(FSsl);
 end;
 
 {==============================================================================}
 
 initialization
-  if InitSSLInterface then
-    SSLImplementation := TSSLOpenSSL;
+  Setup_FRE_SSL;
+  SSLImplementation := TSSLOpenSSL;
 
 end.

@@ -137,6 +137,13 @@ end;
 
 procedure TFRE_BASESUBDATA_FEED.MyRunMethod;
 begin
+  if G_DEBUG_RUNONLY_MS<>0 then
+    begin
+      writeln('RUNNING ONLY FOR ',G_DEBUG_RUNONLY_MS,' ms');
+      sleep(G_DEBUG_RUNONLY_MS);
+      writeln('SLEEP DONE');
+      exit;
+    end;
   GFRE_SC.RunUntilTerminate;
 end;
 
