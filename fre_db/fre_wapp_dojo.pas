@@ -112,6 +112,7 @@ type
    procedure BuildShell                (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SHELL_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildEditor               (const session:TFRE_DB_UserSession;const co:TFRE_DB_EDITOR_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildEditorData           (const co:TFRE_DB_EDITOR_DATA_DESC;var contentString,contentType:String);
+   procedure BuildHorde                (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_HORDE_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildOpenNewLocation      (const co:TFRE_DB_OPEN_NEW_LOCATION_DESC;var contentString,contentType:String);
    //procedure BuildResource            (const co:TFRE_DB_RESOURCE_DESC;var contentString,contentType:String);
    //procedure BuildInputGroupProxyData (const co:TFRE_DB_INPUT_GROUP_PROXY_DATA_DESC;var contentString,contentType:String);
@@ -235,6 +236,9 @@ implementation
     end else
     if result_object is TFRE_DB_EDITOR_DATA_DESC then begin
       gWAC_DOJO.BuildEditorData(TFRE_DB_EDITOR_DATA_DESC(result_object),lContent,lContentType);
+    end else
+    if result_object is TFRE_DB_HORDE_DESC then begin
+      gWAC_DOJO.BuildHorde(session,command_type,TFRE_DB_HORDE_DESC(result_object),lContent,lContentType,isInnerContent);
     end else
     if result_object is TFRE_DB_OPEN_NEW_LOCATION_DESC then begin
       gWAC_DOJO.BuildOpenNewLocation(TFRE_DB_OPEN_NEW_LOCATION_DESC(result_object),lContent,lContentType);
@@ -2483,8 +2487,6 @@ implementation
   procedure TFRE_DB_WAPP_DOJO.BuildSitemap(const session: TFRE_DB_UserSession; const command_type: TFRE_DB_COMMANDTYPE; const co: TFRE_DB_SITEMAP_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
     JSonAction : TFRE_JSON_ACTION;
-    i          : Integer;
-    entry      : TFRE_DB_SITEMAP_ENTRY_DESC;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -2533,8 +2535,6 @@ implementation
   procedure TFRE_DB_WAPP_DOJO.BuildSVG(const session: TFRE_DB_UserSession; const co: TFRE_DB_SVG_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
     JSonAction : TFRE_JSON_ACTION;
-    i          : Integer;
-    entry      : TFRE_DB_SITEMAP_ENTRY_DESC;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -2584,8 +2584,6 @@ implementation
   procedure TFRE_DB_WAPP_DOJO.BuildVNC(const session: TFRE_DB_UserSession; const command_type: TFRE_DB_COMMANDTYPE; const co: TFRE_DB_VNC_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
     JSonAction : TFRE_JSON_ACTION;
-    i          : Integer;
-    entry      : TFRE_DB_SITEMAP_ENTRY_DESC;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -2621,8 +2619,6 @@ implementation
   procedure TFRE_DB_WAPP_DOJO.BuildShell(const session: TFRE_DB_UserSession; const command_type: TFRE_DB_COMMANDTYPE; const co: TFRE_DB_SHELL_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
     JSonAction : TFRE_JSON_ACTION;
-    i          : Integer;
-    entry      : TFRE_DB_SITEMAP_ENTRY_DESC;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -2660,8 +2656,6 @@ implementation
   procedure TFRE_DB_WAPP_DOJO.BuildEditor(const session:TFRE_DB_UserSession;const co: TFRE_DB_EDITOR_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
   var
     JSonAction : TFRE_JSON_ACTION;
-    i          : Integer;
-    entry      : TFRE_DB_SITEMAP_ENTRY_DESC;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -2719,6 +2713,42 @@ implementation
   begin
     contentString := '{"value": "'+FREDB_String2EscapedJSString(co.Field('value').AsString)+'"}';
     contentType   := 'application/json';
+  end;
+
+  procedure TFRE_DB_WAPP_DOJO.BuildHorde(const session: TFRE_DB_UserSession; const command_type: TFRE_DB_COMMANDTYPE; const co: TFRE_DB_HORDE_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
+  var
+    JSonAction : TFRE_JSON_ACTION;
+  begin
+    if not isInnerContent then begin
+      JsonAction := TFRE_JSON_ACTION.Create;
+      jsContentClear;
+    end;
+
+    jsContentAdd('var ' + co.Field('id').AsString + ' = new FIRMOS.Horde({');
+    jsContentAdd('  id: "' + co.Field('id').AsString + '"');
+    if co.FieldExists('destroyNotify') then begin
+      jsContentAdd(' ,destroyNotify: true');
+      session.registerUpdatableContent(co.Field('id').AsString);
+    end;
+    jsContentAdd(' ,protocol: "'+co.Field('protocol').AsString+'"');
+    jsContentAdd(' ,host: "'+co.Field('host').AsString+'"');
+    jsContentAdd(' ,port: ' +co.Field('port').AsString);
+    jsContentAdd(' ,class: "firmosHordePanel"');
+    jsContentAdd('});');
+
+    if not isInnerContent then begin
+      jsContentAdd('G_UI_COM.contentLoaded('+co.Field('id').AsString+',"'+co.Field('windowCaption').AsString+'");');
+
+      JsonAction.ActionType := jat_jsupdate;
+      JsonAction.Action     := jsContent;
+      JSonAction.ID         := co.Field('id').AsString;
+      JSonAction.updateID   := co.Field('updateId').AsString;
+
+      contentString := JsonAction.AsString;
+      contentType:='application/json';
+
+      JsonAction.Free;
+    end;
   end;
 
   procedure TFRE_DB_WAPP_DOJO.BuildOpenNewLocation(const co: TFRE_DB_OPEN_NEW_LOCATION_DESC; var contentString, contentType: String);

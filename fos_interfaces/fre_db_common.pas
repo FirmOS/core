@@ -587,6 +587,14 @@ type
     function Describe (const host:String; const port: Integer; const path: String; const protocol: String='http'): TFRE_DB_SHELL_DESC;
   end;
 
+  { TFRE_DB_HORDE_DESC }
+
+  TFRE_DB_HORDE_DESC    = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes a shell view.
+    function Describe (const host:String; const port: Integer=443; const protocol: String='https'): TFRE_DB_HORDE_DESC;
+  end;
+
   { TFRE_DB_STORE_DATA_DESC }
 
   TFRE_DB_STORE_DATA_DESC  = class(TFRE_DB_CONTENT_DESC)
@@ -830,6 +838,19 @@ implementation
        if CFRE_DB_CONTENT_TYPE[result]=fts then exit;
     end;
     raise Exception.Create('invalid short DBContentType specifier : ['+fts+']');
+  end;
+
+  { TFRE_DB_HORDE_DESC }
+
+    function TFRE_DB_HORDE_DESC.Describe(const host: String; const port: Integer; const protocol: String): TFRE_DB_HORDE_DESC;
+  begin
+    if not FieldExists('id') then begin
+      Field('id').AsString:='id'+UID_String;
+    end;
+    Field('host').AsString:=host;
+    Field('port').AsInt32:=port;
+    Field('protocol').AsString:=protocol;
+    Result:=Self;
   end;
 
   { TFRE_DB_DIALOG_DESC }
