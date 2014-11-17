@@ -2823,6 +2823,7 @@ end;
     function    RegisterTaskMethod           (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
     function    RemoveTaskMethod             (const id:string='TIMER'):boolean;
 
+    function    HasFeature                   (const feature_name:shortstring):Boolean;
     procedure   ClearUpdatable               ;
     procedure   RegisterUpdatableContent     (const contentId: String);
     procedure   UnregisterUpdatableContent   (const contentId: String);
