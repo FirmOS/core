@@ -59,6 +59,7 @@ type
    function  _EscapeValueString        (const value: String): String;
    procedure _BuildForm                (const session: TFRE_DB_UserSession; const co:TFRE_DB_FORM_DESC;const isDialog:Boolean; var hasCloseButton: Boolean);
    procedure _BuildButton              (const co:TFRE_DB_BUTTON_DESC; const hiddenFields: IFRE_DB_ObjectArray; const isDialog:Boolean; var hasCloseButton: Boolean);
+   procedure _BuildInputDep            (const co: TFRE_DB_FORM_INPUT_DESC);
    procedure _BuildInput               (const session: TFRE_DB_UserSession; const co:TFRE_DB_INPUT_DESC);
    procedure _BuildInputNumber         (const co:TFRE_DB_INPUT_NUMBER_DESC);
    procedure _BuildInputDate           (const co:TFRE_DB_INPUT_DATE_DESC);
@@ -367,10 +368,27 @@ implementation
     jsContentAdd('">'+co.Field('caption').AsString+'</button>"');
   end;
 
+  procedure TFRE_DB_WAPP_DOJO._BuildInputDep(const co: TFRE_DB_FORM_INPUT_DESC);
+  var
+    preFix: String;
+    i     : Integer;
+  begin
+    if co.FieldExists('dependentFields') then begin
+      jsContentAdd('" dependentfields={"+');
+      preFix:='';
+      for i:=0 to co.Field('dependentFields').ValueCount - 1 do begin
+        jsContentAdd('"'+preFix+'\"'+co.Field('dependentFields').AsObjectItem[i].Field('fieldName').AsString+'\":'+BoolToStr(co.Field('dependentFields').AsObjectItem[i].Field('disablesField').AsBoolean,'true','false')+'"+');
+        preFix:=',';
+      end;
+      jsContentAdd('"}"+');
+    end;
+  end;
+
   procedure TFRE_DB_WAPP_DOJO._BuildInput(const session: TFRE_DB_UserSession; const co: TFRE_DB_INPUT_DESC);
   var
     fieldtype: String;
     conn     : IFRE_DB_CONNECTION;
+    name: TFRE_DB_String;
   begin
     conn:=session.GetDBConnection;
     if co.Field('isPass').AsBoolean then begin
@@ -415,6 +433,8 @@ implementation
         jsContentAdd('" invalidMessage= '''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
       end;
     end;
+    name:=co.Field('field').AsString;
+    _BuildInputDep(co);
     jsContentAdd('" >"+');
   end;
 
@@ -460,6 +480,7 @@ implementation
         jsContentAdd('" grouprequired=true"+');
       end;
     end;
+    _BuildInputDep(co);
     jsContentAdd('" >"+');
   end;
 
@@ -476,6 +497,7 @@ implementation
     if not co.Field('required').AsBoolean and co.Field('groupRequired').AsBoolean then begin
       jsContentAdd('" grouprequired=true"+');
     end;
+    _BuildInputDep(co);
     jsContentAdd('" >"+');
   end;
 
@@ -498,6 +520,7 @@ implementation
     jsContentAdd('"riquarter:'+BoolToStr(co.Field('rIQuarter').AsBoolean,'true','false')+',"+');
     jsContentAdd('"riyear:'+BoolToStr(co.Field('rIYear').AsBoolean,'true','false')+'"+');
     jsContentAdd('"''"+');
+    _BuildInputDep(co);
     jsContentAdd('" >"+');
   end;
 
@@ -537,6 +560,7 @@ implementation
         jsContentAdd('" grouprequired=true"+');
       end;
     end;
+    _BuildInputDep(co);
     jsContentAdd('"></div>"+');
     jsContentAdd('"<input id='''+co.Field('id').AsString+''' name='''+co.Field('field').AsString+''' type=''file'' data-dojo-type=''FIRMOS.FileUpload'' label='''+_getText(conn,'in_file_select')+''' style=''width:100%''"+');
     if isImg then begin
@@ -557,15 +581,7 @@ implementation
     if co.Field('defaultValue').AsBoolean then begin
       jsContentAdd('" checked"+');
     end;
-    if co.FieldExists('dependentFields') then begin
-      jsContentAdd('" dependentfields={"+');
-      preFix:='';
-      for i:=0 to co.Field('dependentFields').ValueCount - 1 do begin
-        jsContentAdd('"'+preFix+'\"'+co.Field('dependentFields').AsObjectItem[i].Field('fieldName').AsString+'\":'+BoolToStr(co.Field('dependentFields').AsObjectItem[i].Field('disablesField').AsBoolean,'true','false')+'"+');
-        preFix:=',';
-      end;
-      jsContentAdd('"}"+');
-    end;
+    _BuildInputDep(co);
     jsContentAdd('" >"+');
   end;
 
@@ -597,6 +613,7 @@ implementation
                              defValue:=defValue+']';
                              jsContentAdd('" value: '+defValue+'"+');
                            end;
+                           _BuildInputDep(co);
                            jsContentAdd('"''>"+');
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
                              jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
@@ -612,6 +629,7 @@ implementation
                            if co.Field('defaultValue').AsString<>'' then begin
                              jsContentAdd('" value: \"'+ _EscapeValueString(co.Field('defaultValue').AsString) +'\""+');
                            end;
+                           _BuildInputDep(co);
                            jsContentAdd('"''>"+');
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
                              jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
@@ -649,15 +667,7 @@ implementation
                              end;
                              jsContentAdd('"]\""+');
                            end;
-                           if co.FieldExists('dependentFields') then begin
-                             jsContentAdd('", dependentfields:\"{"+');
-                             preFix:='';
-                             for i:=0 to co.Field('dependentFields').ValueCount - 1 do begin
-                               jsContentAdd('"'+preFix+'\\\"'+co.Field('dependentFields').AsObjectItem[i].Field('fieldName').AsString+'\\\":'+BoolToStr(co.Field('dependentFields').AsObjectItem[i].Field('disablesField').AsBoolean,'true','false')+'"+');
-                               preFix:=',';
-                             end;
-                             jsContentAdd('"}\""+');
-                           end;
+                           _BuildInputDep(co);
                            jsContentAdd('"''>"+');
                            if not co.Field('required').AsBoolean or co.Field('addEmptyForRequired').AsBoolean then begin
                              jsContentAdd('"  <option value=''''></option>"+');

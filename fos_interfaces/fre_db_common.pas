@@ -98,17 +98,6 @@ type
     function  Describe  (const entryPath: TFRE_DB_StringArray; const newsCount:Integer): TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC;
   end;
 
-  { TFRE_DB_FORM_INPUT_DESC }
-
-  //@ Base class for form input elements.
-  //@ Do NOT use! Use a derived class instead.
-  //@ E.g. TFRE_DB_INPUT_DESC instead.
-  TFRE_DB_FORM_INPUT_DESC = class(TFRE_DB_CONTENT_DESC)
-  private
-    //@ Used internally through inheritance.
-    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil ; const validatorConfigParams : IFRE_DB_Object=nil) : TFRE_DB_FORM_INPUT_DESC;virtual;
-  end;
-
   TFRE_DB_STORE_DESC = class;
 
   { TFRE_DB_DATA_ELEMENT_DESC }
@@ -142,6 +131,26 @@ type
 
     //@ Creates a new TFRE_DB_DATA_ELEMENT_DESC and adds it.
     function  AddDataElement     : TFRE_DB_DATA_ELEMENT_DESC;
+  end;
+
+  TFRE_DB_INPUT_BLOCK_DESC       = class;
+  TFRE_DB_INPUT_GROUP_DESC       = class;
+  TFRE_DB_INPUT_GROUP_PROXY_DESC = class;
+
+  { TFRE_DB_FORM_INPUT_DESC }
+
+  //@ Base class for form input elements.
+  //@ Do NOT use! Use a derived class instead.
+  //@ E.g. TFRE_DB_INPUT_DESC instead.
+  TFRE_DB_FORM_INPUT_DESC = class(TFRE_DB_CONTENT_DESC)
+  private
+    //@ Used internally through inheritance.
+    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil ; const validatorConfigParams : IFRE_DB_Object=nil) : TFRE_DB_FORM_INPUT_DESC;virtual;
+  public
+    //@ Adds a dependent field.
+    procedure AddDependence(const fieldName: String; const disablesField: Boolean=true);
+    //@ Adds all fields of the input group as dependent fields.
+    procedure AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean=true);
   end;
 
   { TFRE_DB_STORE_ENTRY_DESC }
@@ -184,20 +193,12 @@ type
     function  Describe (const caption,description_: String) : TFRE_DB_INPUT_DESCRIPTION_DESC;
   end;
 
-  TFRE_DB_INPUT_BLOCK_DESC       = class;
-  TFRE_DB_INPUT_GROUP_DESC       = class;
-  TFRE_DB_INPUT_GROUP_PROXY_DESC = class;
-
   { TFRE_DB_INPUT_BOOL_DESC }
 
   TFRE_DB_INPUT_BOOL_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a boolean input field within a form.
     function  Describe(const caption, field_reference:string; const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:Boolean=false):TFRE_DB_INPUT_BOOL_DESC;
-    //@ Adds a dependent field.
-    procedure AddDependence(const fieldName: String; const disablesField: Boolean=true);
-    //@ Adds all fields of the input group as dependent fields.
-    procedure AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean=true);
   end;
 
   { TFRE_DB_INPUT_NUMBER_DESC }
@@ -226,10 +227,6 @@ type
     procedure addFilterEvent        (const filteredStoreId,refId:String);
     //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
     procedure addDependentInput     (const inputId: String; const chooserValue: String);
-    //@ Adds a dependent field.
-    procedure AddDependence(const fieldName: String; const disablesField: Boolean=true);
-    //@ Adds all fields of the input group as dependent fields.
-    procedure AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean=true);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -1636,7 +1633,7 @@ implementation
 
   { TFRE_DB_FORM_INPUT_DESC }
 
-  function TFRE_DB_FORM_INPUT_DESC.Describe(const caption, field_reference: string; const required: boolean; const groupRequired: Boolean; const disabled: boolean; const hidden:Boolean; const defaultValue:String; const validator: IFRE_DB_ClientFieldValidator ; const validatorConfigParams : IFRE_DB_Object) : TFRE_DB_FORM_INPUT_DESC;
+    function TFRE_DB_FORM_INPUT_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator; const validatorConfigParams: IFRE_DB_Object): TFRE_DB_FORM_INPUT_DESC;
   begin
     Field('caption').AsString        := caption;
     Field('field').AsString          := LowerCase(field_reference);
@@ -1652,6 +1649,25 @@ implementation
       Field('id').AsString:='id'+UID_String;
     end;
     Result:=Self;
+  end;
+
+  procedure TFRE_DB_FORM_INPUT_DESC.AddDependence(const fieldName: String; const disablesField: Boolean);
+  var
+    obj: IFRE_DB_Object;
+  begin
+    obj:=GFRE_DBI.NewObject;
+    obj.Field('fieldName').AsString:=fieldName;
+    obj.Field('disablesField').AsBoolean:=disablesField;
+    Field('dependentFields').AddObject(obj);
+  end;
+
+  procedure TFRE_DB_FORM_INPUT_DESC.AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean);
+  var
+    i: Integer;
+  begin
+    for i := 0 to inputGroup.Field('elements').ValueCount - 1 do begin
+      AddDependence(inputGroup.Field('elements').AsObjectItem[i].Field('field').AsString,disablesFields);
+    end;
   end;
 
   { TFRE_DB_STORE_ENTRY_DESC }
@@ -1705,26 +1721,8 @@ implementation
       end;
     end;
   end;
+
   { TFRE_DB_INPUT_BOOL_DESC }
-
-  procedure TFRE_DB_INPUT_BOOL_DESC.AddDependence(const fieldName: String; const disablesField: Boolean=true);
-  var
-    obj: IFRE_DB_Object;
-  begin
-    obj:=GFRE_DBI.NewObject;
-    obj.Field('fieldName').AsString:=fieldName;
-    obj.Field('disablesField').AsBoolean:=disablesField;
-    Field('dependentFields').AddObject(obj);
-  end;
-
-  procedure TFRE_DB_INPUT_BOOL_DESC.AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean);
-  var
-    i: Integer;
-  begin
-    for i := 0 to inputGroup.Field('elements').ValueCount - 1 do begin
-      AddDependence(inputGroup.Field('elements').AsObjectItem[i].Field('field').AsString,disablesFields);
-    end;
-  end;
 
   function TFRE_DB_INPUT_BOOL_DESC.Describe(const caption, field_reference: string; const required: boolean; const groupRequired: Boolean; const disabled: boolean; const defaultValue: Boolean): TFRE_DB_INPUT_BOOL_DESC;
   begin
@@ -1742,25 +1740,6 @@ implementation
    obj.Field('inputId').AsString:=inputId;
    obj.Field('value').AsString:=chooserValue;
    Field('dependentInputFields').AddObject(obj);
-  end;
-
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.AddDependence(const fieldName: String; const disablesField: Boolean=true);
-  var
-    obj: IFRE_DB_Object;
-  begin
-    obj:=GFRE_DBI.NewObject;
-    obj.Field('fieldName').AsString:=fieldName;
-    obj.Field('disablesField').AsBoolean:=disablesField;
-    Field('dependentFields').AddObject(obj);
-  end;
-
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.AddDependence(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const disablesFields: Boolean);
-  var
-    i: Integer;
-  begin
-    for i := 0 to inputGroup.Field('elements').ValueCount - 1 do begin
-      AddDependence(inputGroup.Field('elements').AsObjectItem[i].Field('field').AsString,disablesFields);
-    end;
   end;
 
   function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint: TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue: String): TFRE_DB_INPUT_CHOOSER_DESC;
@@ -2128,8 +2107,7 @@ implementation
     group         : TFRE_DB_INPUT_GROUP_DESC;
     obj           : IFRE_DB_Object;
     val           : String;
-    iField : TFRE_DB_FORM_INPUT_DESC;
-    cField : IFRE_DB_OBJECT;
+    cField        : IFRE_DB_OBJECT;
 
     function _getText(const key:TFRE_DB_String):TFRE_DB_String;
     begin
@@ -2146,7 +2124,7 @@ implementation
       validator          : IFRE_DB_ClientFieldValidator;
       i                  : Integer;
       objArr             : IFRE_DB_ObjectArray;
-      boolField          : TFRE_DB_INPUT_BOOL_DESC;
+      inputField         : TFRE_DB_FORM_INPUT_DESC;
       itext              : IFRE_DB_TEXT;
       dataCollectionName : TFRE_DB_NameType;
       dataCollIsDerived  : Boolean;
@@ -2163,14 +2141,9 @@ implementation
         store.AddEntry.Describe(obj.GetFormattedDisplay,obj.UID_String);
     end;
 
-    procedure DeppITeratorBool(const df : R_Depfieldfield);
+    procedure DeppITerator(const df : R_Depfieldfield);
     begin
-      boolField.AddDependence(prefix+df.depFieldName,df.disablesField);
-    end;
-
-    procedure DeppITeratorChooser(const df : R_Depfieldfield);
-    begin
-      chooserField.AddDependence(prefix+df.depFieldName,df.disablesField);
+      inputField.AddDependence(prefix+df.depFieldName,df.disablesField);
     end;
 
     procedure VisDeppITerator(const vdf : R_VisDepfieldfield);
@@ -2213,9 +2186,9 @@ implementation
                          end;
         end;
         chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled);
+        inputField:=chooserField;
         chooserField.captionCompareEnabled(true);
         obj.FieldSchemeDefinition.ForAllVisDepfields(@VisDeppIterator);
-        obj.FieldSchemeDefinition.ForAllDepfields(@DeppITeratorChooser);
       end else begin
         if obj.GetRightClass<>'' then begin
           store:=TFRE_DB_STORE_DESC.create.Describe();
@@ -2223,11 +2196,11 @@ implementation
           domainValue:='';
           session.GetDBConnection.SYS.ForAllDomains(@_addDomain);
           if obj.GetHideSingle and (domainEntries=1) then begin
-            group.AddInput.Describe('',prefix+obj.GetfieldName,false,false,false,true,domainValue);
+            inputField:=group.AddInput.Describe('',prefix+obj.GetfieldName,false,false,false,true,domainValue);
           end else begin
             chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled);
+            inputField:=chooserField;
             obj.FieldSchemeDefinition.ForAllVisDepfields(@VisDeppIterator);
-            obj.FieldSchemeDefinition.ForAllDepfields(@DeppITeratorChooser);
           end;
         end else begin
           if obj.FieldSchemeDefinition.getEnum(enum) then begin
@@ -2237,8 +2210,8 @@ implementation
               store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
             end;
             chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled);
+            inputField:=chooserField;
             obj.FieldSchemeDefinition.ForAllVisDepfields(@VisDeppIterator);
-            obj.FieldSchemeDefinition.ForAllDepfields(@DeppITeratorChooser);
           end else begin
             obj.FieldSchemeDefinition.getValidator(validator);
 
@@ -2247,46 +2220,46 @@ implementation
               fdbft_UInt16,fdbft_UInt32,fdbft_UInt64,
               fdbft_Int16,fdbft_Int32,fdbft_Int64     :
                 with obj do
-                  group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',0);
+                  inputField:=group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',0);
 
               fdbft_Currency :
                 with obj do
-                  group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,Gethidden,'',2);
+                  inputField:=group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,Gethidden,'',2);
 
               fdbft_Real64 :
                  with obj do
-                   group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,obj.GetDisabled,obj.GetHidden);
+                   inputField:=group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,obj.GetDisabled,obj.GetHidden);
 
               fdbft_ObjLink,
               fdbft_String :
                 with obj do
                   begin
-                    group.AddInput.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass);
+                    inputField:=group.AddInput.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass);
                     if FieldSchemeDefinition.AddConfirm then
-                        group.AddInput.Describe(_getText(FREDB_GetGlobalTextKey('input_confirm_prefix'))+' ' + _getText(GetCaptionKey),prefix+GetfieldName + '_confirm',required,GetRequired,
+                         group.AddInput.Describe(_getText(FREDB_GetGlobalTextKey('input_confirm_prefix'))+' ' + _getText(GetCaptionKey),prefix+GetfieldName + '_confirm',required,GetRequired,
                                                GetDisabled,GetHidden,'',validator,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass,prefix+obj.GetfieldName);
                   end;
               fdbft_Boolean:
                 with obj do
                   begin
-                    boolField:=group.AddBool.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,false);
-                    FieldSchemeDefinition.ForAllDepfields(@DeppITeratorBool);
+                    inputField:=group.AddBool.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,false);
                   end;
 
               fdbft_DateTimeUTC:
                 with obj do
-                  iField:=group.AddDate.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator);
+                  inputField:=group.AddDate.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator);
 
               fdbft_Stream:
                 with obj do
-                  group.AddFile.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,Gethidden,'',validator);
+                  inputField:=group.AddFile.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,Gethidden,'',validator);
               else { String fallback }
                 with obj do
-                  group.AddInput.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,FieldSchemeDefinition.multiValues,FieldSchemeDefinition.isPass);
+                  inputField:=group.AddInput.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,FieldSchemeDefinition.multiValues,FieldSchemeDefinition.isPass);
             end;
           end;
         end;
       end;
+      obj.FieldSchemeDefinition.ForAllDepfields(@DeppITerator);
     end;
 
   procedure _addFields(const fields: IFRE_DB_FieldDef4GroupArr; const prefix:String; const groupPreFix:String; const groupRequired: Boolean);

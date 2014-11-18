@@ -8378,9 +8378,6 @@ begin
   if not getParentScheme.GetSchemeField(fieldName,tmpField) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Dependent field ' + fieldName + ' not found');
   end;
-  if not ((FieldType=fdbft_Boolean) or (FieldType=fdbft_ObjLink)) then begin
-    raise EFRE_DB_Exception.Create(edb_ERROR,'Dependent fields can only be defined on boolean or objlink fields');
-  end;
   if FDepFields.FieldExists(fieldName) then
     raise EFRE_DB_Exception.Create(edb_EXISTS,'a dependent fielddefinition already exists for [%s]',[fieldName]);
   FDepFields.Field(inttostr(fcnt)).AsString:=fieldname+'.'+BoolToStr(disablesField,'1','0');
