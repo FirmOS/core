@@ -1052,6 +1052,30 @@ var sys_admin   : boolean;
     var i            : integer;
         lUserGroup   : FRE_DB_CORE.TFRE_DB_GROUP;
         lRoleIDs     : TFRE_DB_ObjLinkArray;
+        deleg_groups : TFRE_DB_GUIDArray;
+
+        procedure ___ConcatDelegRoleIDArray;
+        var i            : integer;
+            grp          : TFRE_DB_Object;
+            lDlgUGroup   : FRE_DB_CORE.TFRE_DB_GROUP;
+        begin
+          for i:=0 to high(deleg_groups) do
+            if not _FetchO(deleg_groups[i],grp,true) then
+              raise EFRE_DB_Exception.Create('Could not fetch group by id '+FREDB_G2H(UserGroupIDs[i]))
+            else
+              begin
+                grp.Set_Store_Locked(false);
+                try
+                  lUserGroup := grp as FRE_DB_CORE.TFRE_DB_GROUP;
+                  if lUserGroup.isDelegation then
+                    raise EFRE_DB_Exception.Create('nesting delegation groups is not allowed, wrong group is '+lUserGroup.UID_String+' '+lUserGroup.ObjectName);
+                  FREDB_ConcatGUIDArrays(lRoleIDs,lUserGroup.RoleIDs);
+                finally
+                  grp.Set_Store_Locked(true);
+                end;
+              end;
+        end;
+
     begin
       lUserGroup := nil;
       lRoleIDs   := nil;
@@ -1065,7 +1089,17 @@ var sys_admin   : boolean;
               lUserGroup := obj as FRE_DB_CORE.TFRE_DB_GROUP;
               if not ((lUserGroup.isDisabled) and
                  (lUserGroup.DomainID=users_domainid)) then
-                   FREDB_ConcatGUIDArrays(lRoleIDs,lUserGroup.RoleIDs);
+                   begin
+                     if lUserGroup.isDelegation then
+                       begin
+                        deleg_groups := GetReferences(lUserGroup.UID,true,'TFRE_DB_GROUP','GROUPIDS',nil);
+                        ___ConcatDelegRoleIDArray;
+                       end
+                     else
+                       begin
+                         FREDB_ConcatGUIDArrays(lRoleIDs,lUserGroup.RoleIDs);
+                       end;
+                   end;
             finally
               obj.Set_Store_Locked(true);
             end;
