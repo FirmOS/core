@@ -81,6 +81,15 @@ type
      procedure SetFromRFCISOString (const isoguid:shortstring);
   end;
 
+  { TFOS_MAC_ADDR }
+  TFOS_MAC_ADDR = record
+     D : Array [0..5] of Byte;
+     function  SetFromString  (const mac : shortstring):boolean;
+     function  GetAsString    : ShortString;
+     procedure GenerateRandom (const universalvalid:boolean=false ; const groupaddr:boolean=false);
+     function  GetPointer     : PByte;
+  end;
+
 var
     cFRE_DB_LOGIN_APP_UID            :TFRE_DB_Guid;
     cFRE_DB_LOGIN_APP                :TObject;
@@ -3093,11 +3102,13 @@ end;
 
   type
     PGUID_Access = ^TFRE_DB_GUID_Access;
+    TFRE_DB_RANDOM_PW_MODE = (rpm_OnlyChars,rpm_OnlyDigits,rpm_DigitsCharsMixed,rpm_ExtendedPasswordChars);
 
   function  FieldtypeShortString2Fieldtype       (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
 
   procedure CheckDbResult                        (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const tolerate_no_change : boolean=true);
   procedure CheckDbResultFmt                     (const res:TFRE_DB_Errortype;const error_string : TFRE_DB_String ='' ; const params:array of const ; const tolerate_no_change : boolean=true );
+  function  FREDB_GetRandomChars                 (const len:NativeInt ; const randommode : TFRE_DB_RANDOM_PW_MODE=rpm_ExtendedPasswordChars):string;
   function  RB_Guid_Compare                      (const d1, d2: TFRE_DB_GUID): NativeInt; inline;
 
   procedure FREDB_LoadMimetypes                  (const filename:string);
@@ -3284,6 +3295,30 @@ begin
 end;
 
 
+function FREDB_GetRandomChars(const len: NativeInt; const randommode: TFRE_DB_RANDOM_PW_MODE): string;
+const only_chars ='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      only_digits='0123456789';
+      mixed      ='abc1def7ghi0jklmnopqr3stuvw6xyzABCD4EFG8HIJKLMNOP2QRSTUVWX5YZ9';
+      extended   ='abc1def7g&hi0j#klmno*pqr3stuvw6xyzABC-D4EFG8HI@JKLM+NOP2QRST$UVWX(5YZ)9';
+var src : string;
+      i : integer;
+      l : integer;
+      k : byte;
+begin
+  result:='';
+  case randommode of
+    rpm_OnlyChars:             src := only_chars;
+    rpm_OnlyDigits:            src := only_digits;
+    rpm_DigitsCharsMixed:      src := mixed;
+    rpm_ExtendedPasswordChars: src := extended;
+  end;
+  l := High(src);
+  for i:=1 to len do
+    begin
+      k := random(l)+1;
+      result := result + src[k];
+    end;
+end;
 
 function RB_Guid_Compare(const d1, d2: TFRE_DB_GUID): NativeInt;
 begin
@@ -4325,6 +4360,56 @@ type
 
 const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
+
+{ TFOS_MAC_ADDR }
+
+function TFOS_MAC_ADDR.SetFromString(const mac: shortstring): boolean;
+var conv  : ShortString;
+    bytes : string;
+    len   : NativeInt;
+begin
+  if length(mac)<>17 then
+    exit(false);
+  conv := StringReplace(mac,':','',[rfReplaceAll]);
+  if Length(conv)<>12 then
+    exit(false);
+  len    := HexToBin(@conv[1],@D[0],6);
+  result := len=6;
+end;
+
+function TFOS_MAC_ADDR.GetAsString: ShortString;
+var h:string;
+begin
+  result := GFRE_BT.Mem2HexStr(@D[0],1)+':'+
+            GFRE_BT.Mem2HexStr(@D[1],1)+':'+
+            GFRE_BT.Mem2HexStr(@D[2],1)+':'+
+            GFRE_BT.Mem2HexStr(@D[3],1)+':'+
+            GFRE_BT.Mem2HexStr(@D[4],1)+':'+
+            GFRE_BT.Mem2HexStr(@D[5],1);
+end;
+
+procedure TFOS_MAC_ADDR.GenerateRandom(const universalvalid: boolean; const groupaddr: boolean);
+begin
+  D[0] := Random(255);
+  D[1] := Random(255);
+  D[2] := Random(255);
+  D[3] := Random(255);
+  D[4] := Random(255);
+  D[5] := Random(255);
+  if groupaddr then
+    D[0] := D[0] OR 1
+  else
+    D[0] := D[0] AND $FE;
+  if universalvalid then
+    D[0] := D[0] AND $FD
+  else
+    D[0] := D[0] OR $02;
+end;
+
+function TFOS_MAC_ADDR.GetPointer: PByte;
+begin
+  result := @D[0];
+end;
 
 { TFRE_DB_Errortype }
 
