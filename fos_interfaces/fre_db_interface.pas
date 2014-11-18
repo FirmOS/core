@@ -1956,8 +1956,8 @@ type
     constructor     CreateForDB                        ;
     procedure       CopyToMemory                       (memory : Pointer);
     function        GetInstanceRight                   (const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
-    class function  StoreTranslateableText             (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String=''):TFRE_DB_Errortype;
-    class function  DeleteTranslateableText            (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_Errortype;
+    class procedure StoreTranslateableText             (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text:TFRE_DB_String;const long_text:TFRE_DB_String='';const hint_text:TFRE_DB_String='');
+    class procedure DeleteTranslateableText            (const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType);
     class function  GetTranslateableTextKey            (const key: TFRE_DB_NameType):TFRE_DB_String;
     class function  GetTranslateableTextShort          (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
     class function  GetTranslateableTextLong           (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
@@ -8253,14 +8253,14 @@ begin
   FImplementor.CopyToMemory(memory);
 end;
 
-class function TFRE_DB_ObjectEx.StoreTranslateableText(const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String): TFRE_DB_Errortype;
+class procedure TFRE_DB_ObjectEx.StoreTranslateableText(const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType; const short_text: TFRE_DB_String; const long_text: TFRE_DB_String; const hint_text: TFRE_DB_String);
 begin
-  Result:=conn.StoreTranslateableText(GFRE_DBI.CreateText(GetTranslateableTextKey(key),short_text,long_text,hint_text));
+  CheckDbResult(conn.StoreTranslateableText(GFRE_DBI.CreateText(GetTranslateableTextKey(key),short_text,long_text,hint_text)));
 end;
 
-class function TFRE_DB_ObjectEx.DeleteTranslateableText(const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_Errortype;
+class procedure TFRE_DB_ObjectEx.DeleteTranslateableText(const conn: IFRE_DB_SYS_CONNECTION; const key: TFRE_DB_NameType);
 begin
-  Result:=conn.DeleteTranslateableText(GetTranslateableTextKey(key));
+  CheckDbResult(conn.DeleteTranslateableText(GetTranslateableTextKey(key)));
 end;
 
 class function TFRE_DB_ObjectEx.GetTranslateableTextKey(const key: TFRE_DB_NameType): TFRE_DB_String;
@@ -8292,7 +8292,6 @@ end;
 //My instance gets freed on function termination (fetch, invoke method, free) tus we need to change our copy and feed the uptade with the copy of us.
 function TFRE_DB_ObjectEx.WEB_SaveOperation(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var scheme            : IFRE_DB_SCHEMEOBJECT;
-    update_object_uid : TFRE_DB_GUID;
     raw_object        : IFRE_DB_Object;
 begin
   if not conn.sys.CheckClassRight4Domain(sr_UPDATE,Self.ClassType,ses.GetDomain) then
@@ -8303,7 +8302,6 @@ begin
   end;
   result            := nil;
   scheme            := GetScheme;
-  update_object_uid := UID;
   raw_object        := input.Field('data').AsObject;
   //writeln('SAVEOP----------RAW OBJECT---------');
   //writeln(raw_object.DumpToString);

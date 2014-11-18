@@ -168,9 +168,9 @@ begin
   if currentVersionId='' then
     begin
       currentVersionId:='1.0';
-      CheckDbResult(StoreTranslateableText(conn,'scheme_country_group','Country'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_name','Country Name'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_tld','Country TLD'));
+      StoreTranslateableText(conn,'scheme_country_group','Country');
+      StoreTranslateableText(conn,'scheme_name','Country Name');
+      StoreTranslateableText(conn,'scheme_tld','Country TLD');
     end;
    
 end;
@@ -240,9 +240,9 @@ begin
   if currentVersionId='' then
     begin
       currentVersionId:='1.0';
-      CheckDbResult(StoreTranslateableText(conn,'scheme_main_group','Geoposition'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_longitude','Longitude'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_latitude','Latitude'));
+      StoreTranslateableText(conn,'scheme_main_group','Geoposition');
+      StoreTranslateableText(conn,'scheme_longitude','Longitude');
+      StoreTranslateableText(conn,'scheme_latitude','Latitude');
     end;
    
 end;
@@ -311,22 +311,22 @@ begin
   if currentVersionId='' then
     begin
       currentVersionId:='1.0';
-      CheckDbResult(StoreTranslateableText(conn,'scheme_main_group','General Information'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_address_group','Main Address'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_delivery_group','Delivery Address'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_billingadress_group','Billing Address'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_number_group','Phone Numbers'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_eaddress_group','EContact'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_company','Company'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_firstname','Firstname'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_lastname','Lastname'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_bnumber','Business'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_mnumber','Mobile'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_pnumber','Private'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_mail','EMail'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_web','Web'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_customer_group','Customer Information'));
-      CheckDbResult(StoreTranslateableText(conn,'scheme_customernumber','Customer Number'));
+      StoreTranslateableText(conn,'scheme_main_group','General Information');
+      StoreTranslateableText(conn,'scheme_address_group','Main Address');
+      StoreTranslateableText(conn,'scheme_delivery_group','Delivery Address');
+      StoreTranslateableText(conn,'scheme_billingadress_group','Billing Address');
+      StoreTranslateableText(conn,'scheme_number_group','Phone Numbers');
+      StoreTranslateableText(conn,'scheme_eaddress_group','EContact');
+      StoreTranslateableText(conn,'scheme_company','Company');
+      StoreTranslateableText(conn,'scheme_firstname','Firstname');
+      StoreTranslateableText(conn,'scheme_lastname','Lastname');
+      StoreTranslateableText(conn,'scheme_bnumber','Business');
+      StoreTranslateableText(conn,'scheme_mnumber','Mobile');
+      StoreTranslateableText(conn,'scheme_pnumber','Private');
+      StoreTranslateableText(conn,'scheme_mail','EMail');
+      StoreTranslateableText(conn,'scheme_web','Web');
+      StoreTranslateableText(conn,'scheme_customer_group','Customer Information');
+      StoreTranslateableText(conn,'scheme_customernumber','Customer Number');
 
     end;
    
