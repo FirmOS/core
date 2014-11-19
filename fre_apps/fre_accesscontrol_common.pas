@@ -923,7 +923,11 @@ begin
 
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
     with tr_Role do begin
-      grid_column_cap:=FetchModuleTextShort(session,'gc_role');
+      if _showRoleDomains(session,conn) then begin
+        grid_column_cap:=FetchModuleTextShort(session,'gc_domain_role');
+      end else begin
+        grid_column_cap:=FetchModuleTextShort(session,'gc_role');
+      end;
       AddOneToOnescheme('displayname','displayname',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
@@ -934,32 +938,14 @@ begin
    end;
     role_Grid := session.NewDerivedCollection('ROLEMOD_ROLE_GRID');
     with role_Grid do begin
-      SetDeriveParent           (conn.AdmGetRoleCollection);
-      SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
+      if _showRoleDomains(session,conn) then begin
+        SetDeriveParent           (conn.AdmGetDomainCollection);
+        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
+        SetParentToChildLinkField ('TFRE_DB_ROLE<DOMAINIDLINK');
+      end else begin
+        SetDeriveParent           (conn.AdmGetRoleCollection);
+        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
       end;
-      Filters.AddClassRightFilter('disablerole','domainidlink','','','TFRE_DB_ROLE',['disableRole'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
-      SetDefaultOrderField('displayname',true);
-      SetDeriveTransformation(tr_role);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Role);
-    with tr_Role do begin
-      grid_column_cap:=FetchModuleTextShort(session,'gc_domain_role');
-      AddOneToOnescheme('displayname','displayname',grid_column_cap,dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
-      AddOneToOnescheme('domainidlink','','',dt_string,False);
-      SetFinalRightTransformFunction(@CalculateRoleFields,[]);
-      AddFulltextFilterOnTransformed(['displayname']);
-   end;
-    role_Grid := session.NewDerivedCollection('ROLEMOD_ROLE_DOMAIN_GRID');
-    with role_Grid do begin
-      SetDeriveParent           (conn.AdmGetDomainCollection);
-      SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
-      SetParentToChildLinkField ('TFRE_DB_ROLE<DOMAINIDLINK');
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
       end;
@@ -973,6 +959,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showUserDomains(session,conn));
       SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
     userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_GRID');
@@ -993,51 +980,10 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showUserDomains(session,conn),dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
       SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
     userout_Grid := session.NewDerivedCollection('ROLEMOD_USEROUT_GRID');
-    with userout_Grid do begin
-      SetDeriveParent(conn.AdmGetUserCollection);
-      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],true);
-      role_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      SetDeriveTransformation(tr_UserOut);
-      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UnotR'));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserIn);
-    with tr_UserIn do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
-      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
-    end;
-    userin_Grid := session.NewDerivedCollection('ROLEMOD_USERIN_DOMAIN_GRID');
-    with userin_Grid do begin
-      SetDeriveParent(conn.AdmGetUserCollection);
-      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],false);
-      role_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      SetDeriveTransformation(tr_UserIn);
-      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UhasR'));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserOut);
-    with tr_UserOut do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
-      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
-    end;
-    userout_Grid := session.NewDerivedCollection('ROLEMOD_USEROUT_DOMAIN_GRID');
     with userout_Grid do begin
       SetDeriveParent(conn.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<ROLEIDS','TFRE_DB_USER<USERGROUPIDS'],true);
@@ -1154,11 +1100,7 @@ begin
   CheckClassVisibility4AnyDomain(ses);
   ses.GetSessionModuleData(ClassName).DeleteField('selectedRoles');
 
-  if _showRoleDomains(ses,conn) then begin
-    rolegrid := ses.FetchDerivedCollection('ROLEMOD_ROLE_DOMAIN_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  end else begin
-    rolegrid := ses.FetchDerivedCollection('ROLEMOD_ROLE_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  end;
+  rolegrid := ses.FetchDerivedCollection('ROLEMOD_ROLE_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   if conn.sys.CheckClassRight4AnyDomain('disableRole',TFRE_DB_ROLE) then begin
     txt:=FetchModuleTextFull(ses,'tb_disable_role');
     rolegrid.AddButton.DescribeManualType('tb_disable_enable_role',CWSF(@WEB_DisableEnableRole),'',txt.Getshort,txt.GetHint,true);
@@ -1189,17 +1131,10 @@ begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER)) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
-  if _showUserDomains(ses,conn) then begin
-    dc_userin   := ses.FetchDerivedCollection('ROLEMOD_USERIN_DOMAIN_GRID');
-    useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    dc_userout  := ses.FetchDerivedCollection('ROLEMOD_USEROUT_DOMAIN_GRID');
-    useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  end else begin
-    dc_userin   := ses.FetchDerivedCollection('ROLEMOD_USERIN_GRID');
-    useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    dc_userout  := ses.FetchDerivedCollection('ROLEMOD_USEROUT_GRID');
-    useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  end;
+  dc_userin   := ses.FetchDerivedCollection('ROLEMOD_USERIN_GRID');
+  useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  dc_userout  := ses.FetchDerivedCollection('ROLEMOD_USEROUT_GRID');
+  useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   user    := TFRE_DB_LAYOUT_DESC.create.Describe.SetLayout(nil,useroutgrid,nil,useringrid,nil,true,-1,1,-1,1);
   Result  := user;
@@ -1853,45 +1788,32 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
-      grid_column_cap:=FetchModuleTextShort(session,'gc_group');
+      if _showGroupDomains(session,conn) then begin
+        grid_column_cap:=FetchModuleTextShort(session,'gc_domain_group');
+      end else begin
+        grid_column_cap:=FetchModuleTextShort(session,'gc_group');
+      end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('domainidlink','','',dt_string,False);
       AddOneToOnescheme('protected','','',dt_boolean,False);
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,False,false,false,1,'','','false');
+      AddOneToOnescheme('delegation','','',dt_boolean,False,false,false,1,'','','false');
       SetFinalRightTransformFunction(@CalculateGroupFields,[]);
       AddFulltextFilterOnTransformed(['displayname']);
-    end;
-    group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_GRID');
-    with group_Grid do begin
-      SetDeriveParent           (conn.AdmGetGroupCollection);
-      SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
-      SetDeriveTransformation(tr_Grid);
-      SetDefaultOrderField('displayname',true);
     end;
 
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
-    with tr_Grid do begin
-      grid_column_cap:=FetchModuleTextShort(session,'gc_domain_group');
-      AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('domainidlink','','',dt_string,False);
-      AddOneToOnescheme('protected','','',dt_boolean,False);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddOneToOnescheme('disabled','','',dt_boolean,False,false,false,1,'','','false');
-      SetFinalRightTransformFunction(@CalculateGroupFields,[]);
-      AddFulltextFilterOnTransformed(['displayname']);
-    end;
-    group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_DOMAIN_GRID');
+    group_Grid := session.NewDerivedCollection('GROUPMOD_GROUP_GRID');
     with group_Grid do begin
-      SetDeriveParent           (conn.AdmGetDomainCollection);
-      SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
-      SetParentToChildLinkField ('TFRE_DB_GROUP<DOMAINIDLINK');
+      if _showGroupDomains(session,conn) then begin
+        SetDeriveParent           (conn.AdmGetDomainCollection);
+        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
+        SetParentToChildLinkField ('TFRE_DB_GROUP<DOMAINIDLINK');
+      end else begin
+        SetDeriveParent           (conn.AdmGetGroupCollection);
+        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
+      end;
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
       end;
@@ -1905,6 +1827,7 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showUserDomains(session,conn));
       SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
     userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_GRID');
@@ -1925,51 +1848,10 @@ begin
       AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showUserDomains(session,conn),dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
       SetFinalRightTransformFunction(@CalculateUserIcon,[]);
     end;
     userout_Grid := session.NewDerivedCollection('GROUPMOD_USEROUT_GRID');
-    with userout_Grid do begin
-      SetDeriveParent(conn.AdmGetUserCollection);
-      SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],true); // UserGroupIDS
-      group_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      SetDeriveTransformation(tr_UserOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_UOGMenu),nil,CWSF(@WEB_UOGNotification),nil,CWSF(@WEB_RemoveFromUser));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserIn);
-    with tr_UserIn do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
-      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
-    end;
-    userin_Grid := session.NewDerivedCollection('GROUPMOD_USERIN_DOMAIN_GRID');
-    with userin_Grid do begin
-      SetDeriveParent(conn.AdmGetUserCollection);
-      SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],false); // UserGroupIDS
-      group_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      SetDeriveTransformation(tr_UserIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_UIGMenu),nil,CWSF(@WEB_UIGNotification),nil,CWSF(@WEB_AddToUser));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_UserOut);
-    with tr_UserOut do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_user'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_USER));
-      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
-    end;
-    userout_Grid := session.NewDerivedCollection('GROUPMOD_USEROUT_DOMAIN_GRID');
     with userout_Grid do begin
       SetDeriveParent(conn.AdmGetUserCollection);
       SetUseDependencyAsRefLinkFilter(['TFRE_DB_USER<USERGROUPIDS'],true); // UserGroupIDS
@@ -2036,6 +1918,7 @@ begin
       AddOneToOnescheme('protected','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showGroupDomains(session,conn));
       SetFinalRightTransformFunction(@CalculateGroupIcon,[]);
     end;
     groupin_Grid := session.NewDerivedCollection('GROUPMOD_GROUPIN_GRID');
@@ -2059,7 +1942,9 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('protected','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
+      AddOneToOnescheme('delegation','','',dt_boolean,False,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showGroupDomains(session,conn),dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_GROUP));
       SetFinalRightTransformFunction(@CalculateGroupIcon,[]);
     end;
     groupout_Grid := session.NewDerivedCollection('GROUPMOD_GROUPOUT_GRID');
@@ -2068,58 +1953,9 @@ begin
       SetUseDependencyAsRefLinkFilter(['GROUPIDS>TFRE_DB_GROUP'],true);
       group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
+        Filters.AddBooleanFieldFilter('delegation','delegation',false);
       end;
-      Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
-      SetDeriveTransformation(tr_groupOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveGroupFromGroup));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GroupIn);
-    with tr_GroupIn do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddOneToOnescheme('protected','','',dt_boolean,False);
-      AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
-      AddOneToOnescheme('domainidlink','','',dt_string,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
-      SetFinalRightTransformFunction(@CalculateGroupIcon,[]);
-    end;
-    groupin_Grid := session.NewDerivedCollection('GROUPMOD_GROUPIN_DOMAIN_GRID');
-    with groupin_Grid do begin
-      SetDeriveParent(conn.AdmGetGroupCollection);
-      SetUseDependencyAsRefLinkFilter(['GROUPIDS>TFRE_DB_GROUP'],false);
-      group_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
-      SetDeriveTransformation(tr_GroupIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GinG'),nil,'',CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddGroupToGroup));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_groupOut);
-    with tr_groupOut do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddOneToOnescheme('protected','','',dt_boolean,False);
-      AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
-      AddOneToOnescheme('domainidlink','','',dt_string,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_GROUP));
-      SetFinalRightTransformFunction(@CalculateGroupIcon,[]);
-    end;
-    groupout_Grid := session.NewDerivedCollection('GROUPMOD_GROUPOUT_DOMAIN_GRID');
-    with groupout_Grid do begin
-      SetDeriveParent(conn.AdmGetGroupCollection);
-      SetUseDependencyAsRefLinkFilter(['GROUPIDS>TFRE_DB_GROUP'],true);
-      group_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
+      Filters.AddBooleanFieldFilter('internal','internal',false);
       Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
       SetDeriveTransformation(tr_groupOut);
       SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveGroupFromGroup));
@@ -2163,7 +1999,11 @@ begin
       if transformed_object.Field('protected').AsBoolean then begin
         transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/group_ico_prt.svg');
       end else begin
-        transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
+        if transformed_object.Field('delegation').AsBoolean then begin
+          transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/accesscontrol/dlg_group_ico.svg');
+        end else begin
+          transformed_object.Field('icon').AsString:=FREDB_getThemedResource('images_apps/share/group_ico.svg');
+        end;
       end;
     end;
   end;
@@ -2187,11 +2027,7 @@ begin
   ses.GetSessionModuleData(ClassName).DeleteField('selectedGroups');
   ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
 
-  if _showGroupDomains(ses,conn) then begin
-    groupgrid := ses.FetchDerivedCollection('GROUPMOD_GROUP_DOMAIN_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  end else begin
-    groupgrid := ses.FetchDerivedCollection('GROUPMOD_GROUP_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  end;
+  groupgrid := ses.FetchDerivedCollection('GROUPMOD_GROUP_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_GROUP) then begin
     txt:=FetchModuleTextFull(ses,'tb_add_group');
     groupgrid.AddButton.Describe(CWSF(@WEB_AddGroup),'',txt.Getshort,txt.GetHint);
@@ -2237,21 +2073,12 @@ begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER)) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
-  if _showUserDomains(ses,conn) then begin
-    dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_DOMAIN_GRID');
-    useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    useringrid.contentId:='GROUPMOD_USERIN_DOMAIN_GRID';
-    dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_DOMAIN_GRID');
-    useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    useroutgrid.contentId:='GROUPMOD_USEROUT_DOMAIN_GRID';
-  end else begin
-    dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_GRID');
-    useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    useringrid.contentId:='GROUPMOD_USERIN_GRID';
-    dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
-    useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    useroutgrid.contentId:='GROUPMOD_USEROUT_GRID';
-  end;
+  dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_GRID');
+  useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  useringrid.contentId:='GROUPMOD_USERIN_GRID';
+  dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
+  useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  useroutgrid.contentId:='GROUPMOD_USEROUT_GRID';
 
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
     useroutgrid.setDropGrid(useringrid);
@@ -2334,21 +2161,12 @@ begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER)) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
-  if _showUserDomains(ses,conn) then begin
-    dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_DOMAIN_GRID');
-    useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    useringrid.contentId:='GROUPMOD_USERIN_DOMAIN_GRID';
-    dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_DOMAIN_GRID');
-    useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    useroutgrid.contentId:='GROUPMOD_USEROUT_DOMAIN_GRID';
-  end else begin
-    dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_GRID');
-    useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    useringrid.contentId:='GROUPMOD_USERIN_GRID';
-    dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
-    useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    useroutgrid.contentId:='GROUPMOD_USEROUT_GRID';
-  end;
+  dc_userin   := ses.FetchDerivedCollection('GROUPMOD_USERIN_GRID');
+  useringrid  := dc_userin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  useringrid.contentId:='GROUPMOD_USERIN_GRID';
+  dc_userout  := ses.FetchDerivedCollection('GROUPMOD_USEROUT_GRID');
+  useroutgrid := dc_userout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  useroutgrid.contentId:='GROUPMOD_USEROUT_GRID';
 
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) then begin
     useroutgrid.setDropGrid(useringrid);
@@ -2380,21 +2198,12 @@ begin
   if not (conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP)) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
-  if _showGroupDomains(ses,conn) then begin
-    dc_groupin   := ses.FetchDerivedCollection('GROUPMOD_GROUPIN_DOMAIN_GRID');
-    groupingrid  := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    groupingrid.contentId:='GROUPMOD_GROUPIN_DOMAIN_GRID';
-    dc_groupout  := ses.FetchDerivedCollection('GROUPMOD_GROUPOUT_DOMAIN_GRID');
-    groupoutgrid := dc_groupout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    groupoutgrid.contentId:='GROUPMOD_GROUPOUT_DOMAIN_GRID';
-  end else begin
-    dc_groupin   := ses.FetchDerivedCollection('GROUPMOD_GROUPIN_GRID');
-    groupingrid  := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    groupingrid.contentId:='GROUPMOD_GROUPIN_GRID';
-    dc_groupout  := ses.FetchDerivedCollection('GROUPMOD_GROUPOUT_GRID');
-    groupoutgrid := dc_groupout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    groupoutgrid.contentId:='GROUPMOD_GROUPOUT_GRID';
-  end;
+  dc_groupin   := ses.FetchDerivedCollection('GROUPMOD_GROUPIN_GRID');
+  groupingrid  := dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  groupingrid.contentId:='GROUPMOD_GROUPIN_GRID';
+  dc_groupout  := ses.FetchDerivedCollection('GROUPMOD_GROUPOUT_GRID');
+  groupoutgrid := dc_groupout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  groupoutgrid.contentId:='GROUPMOD_GROUPOUT_GRID';
 
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_GROUP) then begin
     groupoutgrid.setDropGrid(groupingrid);
@@ -2433,6 +2242,10 @@ begin
   domainUid:=CFRE_DB_NullGUID;
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedGroups') then begin
     CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedGroups').AsStringItem[0]),selObj));
+    domainUid:=(selObj.Implementor_HC as IFRE_DB_GROUP).DomainID;
+  end;
+  if ses.GetSessionModuleData(ClassName).FieldExists('selectedDelegationGroups') then begin
+    CheckDbResult(conn.Fetch(FREDB_H2G(ses.GetSessionModuleData(ClassName).Field('selectedDelegationGroups').AsStringItem[0]),selObj));
     domainUid:=(selObj.Implementor_HC as IFRE_DB_GROUP).DomainID;
   end;
   if ses.GetSessionModuleData(ClassName).FieldExists('selectedDomain') then begin
@@ -2749,12 +2562,6 @@ begin
     end;
     if IsContentUpdateVisible(ses,'GROUPMOD_USERIN_GRID') then begin
       ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('GROUPMOD_USERIN_GRID',notEditable));
-    end;
-    if IsContentUpdateVisible(ses,'GROUPMOD_USEROUT_DOMAIN_GRID') then begin
-      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('GROUPMOD_USEROUT_DOMAIN_GRID',notEditable));
-    end;
-    if IsContentUpdateVisible(ses,'GROUPMOD_USERIN_DOMAIN_GRID') then begin
-      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('GROUPMOD_USERIN_DOMAIN_GRID',notEditable));
     end;
     Result:=GFRE_DB_NIL_DESC;
   end else begin
@@ -3287,7 +3094,11 @@ begin
   if session.IsInteractiveSession then begin
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
     with tr_Grid do begin
-      grid_column_cap:=FetchModuleTextShort(session,'gc_user');
+      if _showUserDomains(session,conn) then begin
+        grid_column_cap:=FetchModuleTextShort(session,'gc_domain_user');
+      end else begin
+        grid_column_cap:=FetchModuleTextShort(session,'gc_user');
+      end;
       AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
       AddOneToOnescheme('icon','','',dt_string,false);
       AddOneToOnescheme('internal','','',dt_boolean,False);
@@ -3297,30 +3108,14 @@ begin
 
     user_grid := session.NewDerivedCollection('USERMOD_USER_GRID');
     with user_grid do begin
-      SetDeriveParent           (conn.AdmGetUserCollection);
-      SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
+      if _showUserDomains(session,conn) then begin
+        SetDeriveParent           (conn.AdmGetDomainCollection);
+        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
+        SetParentToChildLinkField ('TFRE_DB_USER<DOMAINIDLINK');
+      end else begin
+        SetDeriveParent           (conn.AdmGetUserCollection);
+        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
       end;
-      SetDeriveTransformation   (tr_Grid);
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_Grid);
-    with tr_Grid do begin
-      grid_column_cap:=FetchModuleTextShort(session,'gc_domain_user');
-      AddOneToOnescheme('displayname','',grid_column_cap,dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      SetFinalRightTransformFunction(@CalculateUserIcon,[]);
-      AddFulltextFilterOnTransformed(['displayname']);
-    end;
-
-    user_grid := session.NewDerivedCollection('USERMOD_USER_DOMAIN_GRID');
-    with user_grid do begin
-      SetDeriveParent           (conn.AdmGetDomainCollection);
-      SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
-      SetParentToChildLinkField ('TFRE_DB_USER<DOMAINIDLINK');
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
       end;
@@ -3337,6 +3132,7 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showGroupDomains(session,conn));
       SetFinalRightTransformFunction(@CalculateGroupFields,[]);
     end;
 
@@ -3363,64 +3159,11 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showGroupDomains(session,conn),dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_GROUP));
       SetFinalRightTransformFunction(@CalculateGroupFields,[]);
     end;
 
     groupout_Grid := session.NewDerivedCollection('USERMOD_GROUPOUT_GRID');
-    with groupout_Grid do begin
-      SetDeriveParent(conn.AdmGetGroupCollection);
-      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],true);
-      user_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
-      SetDeriveTransformation(tr_GridOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveFromGroup));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridIn);
-    with tr_GridIn do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
-      AddOneToOnescheme('protected','','',dt_boolean,False);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
-      AddOneToOnescheme('domainidlink','','',dt_string,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
-      SetFinalRightTransformFunction(@CalculateGroupFields,[]);
-    end;
-
-    groupin_Grid := session.NewDerivedCollection('USERMOD_GROUPIN_DOMAIN_GRID');
-    with groupin_Grid do begin
-      SetDeriveParent(conn.AdmGetGroupCollection);
-      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],false);
-      user_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
-      SetDeriveTransformation(tr_GridIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddToGroup));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_GridOut);
-    with tr_GridOut do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_group'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('_disabledrag_','','',dt_boolean,false);
-      AddOneToOnescheme('protected','','',dt_boolean,False);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
-      AddOneToOnescheme('domainidlink','','',dt_string,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_GROUP));
-      SetFinalRightTransformFunction(@CalculateGroupFields,[]);
-    end;
-
-    groupout_Grid := session.NewDerivedCollection('USERMOD_GROUPOUT_DOMAIN_GRID');
     with groupout_Grid do begin
       SetDeriveParent(conn.AdmGetGroupCollection);
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP'],true);
@@ -3441,6 +3184,7 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showRoleDomains(session,conn));
       SetFinalRightTransformFunction(@CalculateRoleIcon,[]);
     end;
 
@@ -3465,58 +3209,10 @@ begin
       AddOneToOnescheme('internal','','',dt_boolean,False);
       AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
       AddOneToOnescheme('domainidlink','','',dt_string,False);
+      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),_showRoleDomains(session,conn),dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_ROLE));
       SetFinalRightTransformFunction(@CalculateRoleIcon,[]);
     end;
     roleout_Grid := session.NewDerivedCollection('USERMOD_ROLEOUT_GRID');
-    with roleout_Grid do begin
-      SetDeriveParent(conn.AdmGetRoleCollection);
-      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],true);
-      user_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      Filters.AddClassRightFilter('disablerole','domainidlink','','','TFRE_DB_ROLE',['disableRole'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
-      SetDeriveTransformation(tr_RoleOut);
-      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UnotR'));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleIn);
-    with tr_RoleIn do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
-      AddOneToOnescheme('domainidlink','','',dt_string,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'));
-      SetFinalRightTransformFunction(@CalculateRoleIcon,[]);
-    end;
-
-    rolein_Grid := session.NewDerivedCollection('USERMOD_ROLEIN_DOMAIN_GRID');
-    with rolein_Grid do begin
-      SetDeriveParent(conn.AdmGetRoleCollection);
-      SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],false);
-      user_Grid.AddSelectionDependencyEvent(CollectionName);
-      if CHIDE_INTERNAL then begin
-        Filters.AddBooleanFieldFilter('internal','internal',false);
-      end;
-      Filters.AddClassRightFilter('disablerole','domainidlink','','','TFRE_DB_ROLE',['disableRole'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
-      SetDeriveTransformation(tr_RoleIn);
-      SetDisplayType(cdt_Listview,[],FetchModuleTextShort(session,'gcap_UhasR'));
-      SetDefaultOrderField('displayname',true);
-    end;
-
-    GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,tr_RoleOut);
-    with tr_RoleOut do begin
-      AddOneToOnescheme('displayname','',FetchModuleTextShort(session,'gc_role'),dt_string,true,false,false,1,'icon');
-      AddOneToOnescheme('icon','','',dt_string,false);
-      AddOneToOnescheme('internal','','',dt_boolean,False);
-      AddOneToOnescheme('disabled','','',dt_boolean,false,false,false,1,'','','false');
-      AddOneToOnescheme('domainidlink','','',dt_string,False);
-      AddMatchingReferencedField('DOMAINIDLINK>TFRE_DB_DOMAIN','displayname','domain',FetchModuleTextShort(session,'gc_domain'),true,dt_string,false,true,1,'','',conn.SYS.GetDomainNamesForClassRight(sr_FETCH,TFRE_DB_ROLE));
-      SetFinalRightTransformFunction(@CalculateRoleIcon,[]);
-    end;
-    roleout_Grid := session.NewDerivedCollection('USERMOD_ROLEOUT_DOMAIN_GRID');
     with roleout_Grid do begin
       SetDeriveParent(conn.AdmGetRoleCollection);
       SetUseDependencyAsRefLinkFilter(['USERGROUPIDS>TFRE_DB_GROUP','ROLEIDS>TFRE_DB_ROLE'],true);
@@ -3587,11 +3283,7 @@ begin
 
   ses.GetSessionModuleData(ClassName).DeleteField('selectedUsers');
   ses.GetSessionModuleData(ClassName).DeleteField('selectedDomain');
-  if _showUserDomains(ses,conn) then begin
-    usergrid := ses.FetchDerivedCollection('USERMOD_USER_DOMAIN_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  end else begin
-    usergrid := ses.FetchDerivedCollection('USERMOD_USER_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-  end;
+  usergrid := ses.FetchDerivedCollection('USERMOD_USER_GRID').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
 
   if conn.sys.CheckClassRight4AnyDomain(sr_STORE,TFRE_DB_USER) then begin
     txt:=FetchModuleTextFull(ses,'tb_add_user');
@@ -3664,12 +3356,6 @@ begin
     end;
     if IsContentUpdateVisible(ses,'USERMOD_GROUPOUT_GRID') then begin
       ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('USERMOD_GROUPOUT_GRID',notEditable));
-    end;
-    if IsContentUpdateVisible(ses,'USERMOD_GROUPIN_DOMAIN_GRID') then begin
-      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('USERMOD_GROUPIN_DOMAIN_GRID',notEditable));
-    end;
-    if IsContentUpdateVisible(ses,'USERMOD_GROUPOUT_DOMAIN_GRID') then begin
-      ses.SendServerClientRequest(TFRE_DB_UPDATE_UI_ELEMENT_DESC.create.DescribeDrag('USERMOD_GROUPOUT_DOMAIN_GRID',notEditable));
     end;
 
     if IsContentUpdateVisible(ses,'USER_DETAILS') then begin
@@ -3779,21 +3465,12 @@ begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_GROUP) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
-  if _showGroupDomains(ses,conn) then begin
-    dc_groupin := ses.FetchDerivedCollection('USERMOD_GROUPIN_DOMAIN_GRID');
-    groupingrid:= dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    groupingrid.contentId:='USERMOD_GROUPIN_DOMAIN_GRID';
-    dc_groupout:= ses.FetchDerivedCollection('USERMOD_GROUPOUT_DOMAIN_GRID');
-    groupoutgrid:= dc_groupout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    groupoutgrid.contentId:='USERMOD_GROUPOUT_DOMAIN_GRID';
-  end else begin
-    dc_groupin := ses.FetchDerivedCollection('USERMOD_GROUPIN_GRID');
-    groupingrid:= dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    groupingrid.contentId:='USERMOD_GROUPIN_GRID';
-    dc_groupout:= ses.FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
-    groupoutgrid:= dc_groupout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    groupoutgrid.contentId:='USERMOD_GROUPOUT_GRID';
-  end;
+  dc_groupin := ses.FetchDerivedCollection('USERMOD_GROUPIN_GRID');
+  groupingrid:= dc_groupin.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  groupingrid.contentId:='USERMOD_GROUPIN_GRID';
+  dc_groupout:= ses.FetchDerivedCollection('USERMOD_GROUPOUT_GRID');
+  groupoutgrid:= dc_groupout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  groupoutgrid.contentId:='USERMOD_GROUPOUT_GRID';
 
   if conn.sys.CheckClassRight4AnyDomain(sr_UPDATE,TFRE_DB_USER) and conn.sys.CheckClassRight4AnyDomain('assignGroup',TFRE_DB_GROUP) then begin
     groupoutgrid.setDropGrid(groupingrid);
@@ -3831,21 +3508,12 @@ begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_ROLE) then
     raise EFRE_DB_Exception.Create(conn.FetchTranslateableTextShort(FREDB_GetGlobalTextKey('error_no_access')));
 
-  if _showRoleDomains(ses,conn) then begin
-    dc_rolein := ses.FetchDerivedCollection('USERMOD_ROLEIN_DOMAIN_GRID');
-    roleingrid:= dc_rolein.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    roleingrid.contentId:='USERMOD_ROLEIN_DOMAIN_GRID';
-    dc_roleout:= ses.FetchDerivedCollection('USERMOD_ROLEOUT_DOMAIN_GRID');
-    roleoutgrid:= dc_roleout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    roleoutgrid.contentId:='USERMOD_ROLEOUT_DOMAIN_GRID';
-  end else begin
-    dc_rolein := ses.FetchDerivedCollection('USERMOD_ROLEIN_GRID');
-    roleingrid:= dc_rolein.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    roleingrid.contentId:='USERMOD_ROLEIN_GRID';
-    dc_roleout:= ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
-    roleoutgrid:= dc_roleout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
-    roleoutgrid.contentId:='USERMOD_ROLEOUT_GRID';
-  end;
+  dc_rolein := ses.FetchDerivedCollection('USERMOD_ROLEIN_GRID');
+  roleingrid:= dc_rolein.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  roleingrid.contentId:='USERMOD_ROLEIN_GRID';
+  dc_roleout:= ses.FetchDerivedCollection('USERMOD_ROLEOUT_GRID');
+  roleoutgrid:= dc_roleout.GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  roleoutgrid.contentId:='USERMOD_ROLEOUT_GRID';
 
   dc_roleout.Filters.RemoveFilter('disabled');
   dc_rolein.Filters.RemoveFilter('disabled');
