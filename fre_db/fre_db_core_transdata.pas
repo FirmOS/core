@@ -377,6 +377,7 @@ type
      FQueryDeliveredCountCmp : NativeInt;
      FQueryPotentialCount    : NativeInt;
      FQueryPotentialCountCmp : NativeInt;
+     FQueryIsLastPage        : boolean;   { Flag to indicate that this query includes the last page of the resultset (the last element) }
 
      FQCreationTime          : TFRE_DB_DateTime64;
      FSessionID              : String;
@@ -2409,12 +2410,16 @@ begin
               if qry_context.FQueryDeliveredCount=qry_context.FToDeliverCount then
                 break;
             end;
+          if (qry_context.FStartIdx+qry_context.FQueryCurrIdx)=Length(FOBJArray) then
+            qry_context.FQueryIsLastPage := true
+          else
+            qry_context.FQueryIsLastPage := false;
           qry_context.AddjustResultDBOLen(false);
         end;
     end
   else
     begin
-      qry_context.FQueryPotentialCountCmp := FCnt;
+      qry_context.FQueryPotentialCountCmp := FCnt; // self.FCnt
       qry_context.SetMaxResultDBOLen(true);
       hio := High(FOBJArray);
       for i:=qry_context.FStartIdx to hio do
@@ -2423,8 +2428,14 @@ begin
           qry_context.SetResultObject(qry_context.FQueryCurrIdxCmp,obj,true);
           inc(qry_context.FQueryCurrIdxCmp);
           inc(qry_context.FQueryDeliveredCountCmp);
-          if qry_context.FQueryDeliveredCountCmp=qry_context.FToDeliverCount then
-            break;
+          if (qry_context.FQueryDeliveredCountCmp=qry_context.FToDeliverCount) then
+            if (qry_context.FQueryIsLastPage) then
+              begin
+                inc(qry_context.FToDeliverCount);     { Direspect "todelivercount" on last page, to gather items inserted in the last page }
+                qry_context.SetMaxResultDBOLen(true); { expand resultset }
+              end
+            else
+              break;
         end;
       qry_context.AddjustResultDBOLen(true);
     end;
@@ -3407,114 +3418,6 @@ var diff,d1,d2 : NativeInt;
       end;
   end;
 
-
-  procedure Inserted;
-  var i          : NativeInt;
-      curr_idx   : NativeInt;
-      ins_before : NativeInt;
-      found      : boolean;
-      fld        : IFRE_DB_Field;
-      curr_old_idx : NativeInt;
-      ref_id       : string;
-      //name         : string;
-
-  begin
-    curr_idx   := 0;
-    ins_before := 0;
-    //for i:=0 to high(FResultDBOsCompare) do
-    // begin
-    //   if (Length(FResultDBOs)>0) and
-    //       (curr_idx<=high(FResultDBOs)) and
-    //       (FResultDBOsCompare[i].UID=FResultDBOs[curr_idx].UID) then
-    //         begin
-    //           if curr_idx<=high(FResultDBOs) then
-    //             inc(curr_idx);
-    //           continue;
-    //         end
-    //       else
-    //         begin { must insert }
-    //           G_TCDM.InsertUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOsCompare[i],curr_idx+ins_before);
-    //           inc(ins_before); { if the previous array is exhausted, no match occurs and ins_before is incremented ...}
-    //         end;
-    // end;
-
-    curr_old_idx := high(FResultDBOs);
-    for i:=high(FResultDBOsCompare) downto 0 do
-     begin
-       if (Length(FResultDBOs)>0) and
-           (curr_old_idx>=0) and
-           (FResultDBOsCompare[i].UID=FResultDBOs[curr_old_idx].UID) then
-             begin
-               dec(curr_old_idx);
-               continue;
-             end
-           else
-             begin { must insert }
-               if FinalTransFormUPO(FResultDBOsCompare[i]) then
-                 begin
-                   //name := upo.Field('displayname').AsString;
-                   inc(FQueryDeliveredCount);
-                   inc(FQueryPotentialCount);
-                   if curr_old_idx<High(FResultDBOs) then
-                     ref_id := FResultDBOs[curr_old_idx+1].UID_String
-                   else
-                    ref_id := '';
-                   G_TCDM.CN_AddGridInsertUpdate(FSessionID,GetStoreID,GetQueryID_ClientPart,upo,ref_id);
-                 end;
-               //G_TCDM.InsertUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOsCompare[i],curr_old_idx);
-               inc(ins_before); { if the previous array is exhausted, no match occurs and ins_before is incremented ...}
-             end;
-     end;
-
-  end;
-
-  procedure Removed;
-  var i,j            : NativeInt;
-      deleted_before : NativeInt;
-      found          : boolean;
-  begin
-    deleted_before := 0;
-    for i:=0 to high(FResultDBOs) do
-      begin
-        found := false;
-        for j := 0 to high(FResultDBOsCompare) do
-          if FResultDBOsCompare[j].UID=FResultDBOs[i].uid then
-            found := true;
-        if not found then
-          begin
-            dec(FQueryDeliveredCount);
-            dec(FQueryPotentialCount);
-            //G_TCDM.CN_AddGridInplaceDelete(FSessionID,GetStoreID,GetQueryID_ClientPart,FResultDBOsCompare[j].UID_String);
-            G_TCDM.CN_AddGridInplaceDelete(FSessionID,GetStoreID,GetQueryID_ClientPart,FResultDBOs[i].UID_String);
-            //G_TCDM.RemoveUpdateObjectInFilterKey(FBaseData,FFilterContainer,FResultDBOs[i],i-deleted_before);
-            //inc(deleted_before); { adjust offset index of client query position }
-          end;
-      end;
-  end;
-
-  procedure Updated;
-  var i    : NativeInt;
-      otag,
-      ntag : TFRE_DB_TransStepId;
-  begin
-    for i:=0 to high(FResultDBOs) do
-      begin
-        if FResultDBOsCompare[i].UID<>FResultDBOs[i].uid then
-          begin
-            writeln('cquery bad');
-            halt;
-            raise EFRE_DB_Exception.Create(edb_INTERNAL,'Compare Query update run count same order changed ???');
-          end;
-        otag := FResultDBOs[i].Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString;
-        ntag := FResultDBOsCompare[i].Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString;
-        if ntag<>otag then
-          begin
-            if FinalTransFormUPO(FResultDBOsCompare[i]) then
-              G_TCDM.CN_AddGridInplaceUpdate(FSessionID,GetStoreID,GetQueryID_ClientPart,upo);
-          end;
-      end;
-  end;
-
   procedure FullUpdate;
   var WorkArray   : IFRE_DB_ObjectArray;
       UpdateArray : IFRE_DB_ObjectArray;
@@ -3546,18 +3449,18 @@ var diff,d1,d2 : NativeInt;
   begin
      { Delete  all Missing }
      cnt := 0;
-     SetLength(WorkArray,Length(FResultDBOs));
+     SetLength(WorkArray,Length(FResultDBOs));   { The work array has the same size as the original result set }
      upcount:=0;
-     for i := 0 to high(FResultDBOs) do
+     for i := 0 to high(FResultDBOs) do          { Do for every Object that was in the Result set of the query }
        begin
          exists := false;
-         for j:=0 to High(FResultDBOsCompare) do
+         for j:=0 to High(FResultDBOsCompare) do { Check if the object still exists in the new result set, or if the order has changed (!) }
            begin
              if FResultDBOs[i].UID=FResultDBOsCompare[j].uid then
                begin
                  otag  := FResultDBOs[i].Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString;
                  ntag  := FResultDBOsCompare[j].Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString;
-                 if ntag<>otag then
+                 if ntag<>otag then { object has a new transaction tag, thus was modified }
                    begin
                      order_key := FFilterContainer.ForderKey;
                      nkey      := FResultDBOsCompare[j].Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(order_key).AsByteArr;
@@ -3566,17 +3469,17 @@ var diff,d1,d2 : NativeInt;
                      if (Length(nkey)<>Length(okey)) or
                          (comp<>0) then
                        begin
-                         exists := false; // Remove the object ( possible order change )
-                         FResultDBOs[i].Field(cFRE_DB_SYS_TAG_ORDER_CHANGED).AsBoolean:=true;
+                         exists := false;                                                     { Fake that the object does not exist -> Remove the object (possible order change), }
+                         FResultDBOs[i].Field(cFRE_DB_SYS_TAG_ORDER_CHANGED).AsBoolean:=true; { but make a TAG, to remebber that fact }
                        end
                      else
                        begin
                          exists := true;
-                         AddToUpdateArray(FResultDBOsCompare[j]); { only add to update array if the object has no delete/insert cycle }
+                         AddToUpdateArray(FResultDBOsCompare[j]);                             { only add to update array if the object has no delete/insert cycle }
                        end;
                    end
                  else
-                   exists := true;
+                   exists := true; { object not updated by a transaction, so it exists and the order has not changed }
                  break;
                end;
            end;
@@ -3587,7 +3490,7 @@ var diff,d1,d2 : NativeInt;
            end
          else
            begin
-             G_TCDM.CN_AddGridInplaceDelete(FSessionID,GetStoreID,GetQueryID_ClientPart,FResultDBOs[i].UID_String); {send delete }
+             G_TCDM.CN_AddGridInplaceDelete(FSessionID,GetStoreID,GetQueryID_ClientPart,FResultDBOs[i].UID_String); { send delete for non existing object, or to change the order }
            end;
        end;
      SetLength(WorkArray,cnt); { objects not in the result are now deleted }
@@ -3674,12 +3577,12 @@ var diff,d1,d2 : NativeInt;
                      if before<0 then
                        begin { insert after }
                          refid := WorkArray[idx+1].UID_String;
-                         G_TCDM.CN_AddGridInsertUpdate(FSessionID,GetStoreID,GetQueryID_ClientPart,upo,refid); { send insert last }
+                         G_TCDM.CN_AddGridInsertUpdate(FSessionID,GetStoreID,GetQueryID_ClientPart,upo,refid); { send insert at position }
                        end
                      else
                        begin { insert at  }
                          refid := WorkArray[idx].UID_String;
-                         G_TCDM.CN_AddGridInsertUpdate(FSessionID,GetStoreID,GetQueryID_ClientPart,upo,refid); { send insert last }
+                         G_TCDM.CN_AddGridInsertUpdate(FSessionID,GetStoreID,GetQueryID_ClientPart,upo,refid); { send insert at position }
                        end
                    end;
                end;
