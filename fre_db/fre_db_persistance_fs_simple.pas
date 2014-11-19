@@ -1092,7 +1092,7 @@ var sys_admin   : boolean;
                    begin
                      if lUserGroup.isDelegation then
                        begin
-                        deleg_groups := GetReferences(lUserGroup.UID,true,'TFRE_DB_GROUP','GROUPIDS',nil);
+                        deleg_groups := GetReferences(lUserGroup.UID,false,'TFRE_DB_GROUP','GROUPIDS',nil);
                         ___ConcatDelegRoleIDArray;
                        end
                      else

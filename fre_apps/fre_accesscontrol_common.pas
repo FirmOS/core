@@ -1924,7 +1924,7 @@ begin
     groupin_Grid := session.NewDerivedCollection('GROUPMOD_GROUPIN_GRID');
     with groupin_Grid do begin
       SetDeriveParent(conn.AdmGetGroupCollection);
-      SetUseDependencyAsRefLinkFilter(['GROUPIDS>TFRE_DB_GROUP'],false);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<GROUPIDS'],false);
       group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
@@ -1950,7 +1950,7 @@ begin
     groupout_Grid := session.NewDerivedCollection('GROUPMOD_GROUPOUT_GRID');
     with groupout_Grid do begin
       SetDeriveParent(conn.AdmGetGroupCollection);
-      SetUseDependencyAsRefLinkFilter(['GROUPIDS>TFRE_DB_GROUP'],true);
+      SetUseDependencyAsRefLinkFilter(['TFRE_DB_GROUP<GROUPIDS'],true);
       group_Grid.AddSelectionDependencyEvent(CollectionName);
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('delegation','delegation',false);
@@ -2368,6 +2368,7 @@ var
   dbo_uid: TFRE_DB_GUID;
   group  : IFRE_DB_GROUP;
   users  : TFRE_DB_GUIDArray;
+  groups : TFRE_DB_GUIDArray;
   j      : Integer;
 
 begin
@@ -2392,6 +2393,9 @@ begin
       for j := 0 to High(users) do begin
         CheckDbResult(conn.sys.RemoveUserGroupsById(users[j],TFRE_DB_GUIDArray.Create(group.UID)));
       end;
+
+      conn.ExpandReferences(TFRE_DB_GUIDArray.create(group.UID),TFRE_DB_NameTypeRLArray.create('TFRE_DB_GROUP<GROUPIDS'),groups);
+      CheckDbResult(conn.sys.RemoveGroupsFromGroupById(group.ObjectName,group.DomainID,groups,false));
 
       CheckDbResult(conn.sys.DeleteGroupById(dbo_uid),'DeleteGroupConfirmed');
     end;

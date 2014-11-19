@@ -2075,7 +2075,7 @@ type
     //function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_String; //KILL
     function    _RoleID                     (const rolename:TFRE_DB_String;const domainUID:TFRE_DB_GUID;var role_id:TFRE_DB_GUID):boolean;
     function    _FetchGroup                 (const group: TFRE_DB_String; const domain_id:TFRE_DB_GUID; var ug: TFRE_DB_GROUP):boolean;
-    function    _FetchGroupbyID             (const group_id:TFRE_DB_GUID;var ug: TFRE_DB_GROUP;const without_right_check:boolean=false):TFRE_DB_Errortype;
+    function    _FetchGroupbyID             (const group_id:TFRE_DB_GUID;var ug: TFRE_DB_GROUP;const without_right_check:boolean=false):boolean;
 
 
     function    _AddUser(const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream=nil; const imagetype:string='' ; const etag: String='';const is_internal:Boolean=false ; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''; const userclass: TFRE_DB_String=''): TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
@@ -5326,9 +5326,9 @@ begin //nln
   result := FSysGroups.GetIndexedObjTextCore(TFRE_DB_GROUP.GetDomainGroupKey(group,domain_id),TFRE_DB_Object(ug))>0;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._FetchGroupbyID(const group_id: TFRE_DB_GUID; var ug: TFRE_DB_GROUP; const without_right_check: boolean): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._FetchGroupbyID(const group_id: TFRE_DB_GUID; var ug: TFRE_DB_GROUP; const without_right_check: boolean): boolean;
 begin //nln
- result := Fetch(group_id,TFRE_DB_Object(ug),without_right_check);
+ result := Fetch(group_id,TFRE_DB_Object(ug),without_right_check)=edb_OK;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.FetchDomain(const name: TFRE_DB_NameType; var domain: TFRE_DB_DOMAIN): boolean;
@@ -5895,33 +5895,38 @@ var l_Group            : TFRE_DB_GROUP;
     i                  : NativeInt;
     j                  : NativeInt;
     allready_in        : boolean;
-    add_group          : TFRE_DB_GROUP;
+    l_NewGroup         : TFRE_DB_GROUP;
 begin
   if not _FetchGroup(group,domainUID,l_group) then
     exit(edb_NOT_FOUND);
   if not l_Group.isDelegation then
     exit(edb_ACCESS);
   l_NewGroupIDs:=group_ids;
-  l_AggregatedGroupID   := l_Group.GroupIDs;
   for i:=0 to high(l_NewGroupIDs) do begin
+    if not _FetchGroupbyID(l_NewGroupIDs[i],l_NewGroup) then
+      exit(edb_NOT_FOUND);
+    if l_NewGroup.isDelegation then
+      exit(edb_ACCESS);
+
+    l_AggregatedGroupID   := l_NewGroup.GroupIDs;
     allready_in := false;
     for j:=0 to high(l_AggregatedGroupID) do begin
-      if l_NewGroupIDs[i]=l_AggregatedGroupID[j] then begin
+      if l_Group.UID=l_AggregatedGroupID[j] then begin
         allready_in := true;
         break;
       end;
     end;
     if not allready_in then begin
       //check right
-      FetchGroupById(l_NewGroupIDs[i],add_group);
-      if not CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,add_group.DomainID) then
+      if not CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,l_NewGroup.DomainID) then
         exit(edb_ACCESS);
       setLength(l_AggregatedGroupID,length(l_AggregatedGroupID)+1);
-      l_AggregatedGroupID[high(l_AggregatedGroupID)] := l_NewGroupIDs[i];
+      l_AggregatedGroupID[high(l_AggregatedGroupID)] := l_Group.UID;
     end;
+    l_NewGroup.GroupIDs := l_AggregatedGroupID;
+    result := Update(l_NewGroup);
+    if Result<>edb_OK then exit;
   end;
-  l_Group.GroupIDs := l_AggregatedGroupID;
-  result := Update(l_Group);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.RemoveGroupsFromGroupById(const group: TFRE_DB_String; const domainUID: TFRE_DB_GUID; const group_ids: TFRE_DB_GUIDArray; const ignore_not_set: boolean): TFRE_DB_Errortype;
@@ -5932,44 +5937,41 @@ var
   l_CopyGroupID      : TFRE_DB_GUIDArray;
   i                  : NativeInt;
   j                  : NativeInt;
+  k                  : NativeInt;
   l_found            : boolean;
-  l_remove_count     : NativeInt;
   r_group            : TFRE_DB_GROUP;
 begin
+  Result:=edb_OK;
   if not _FetchGroup(group,domainUID,l_group) then exit(edb_NOT_FOUND);
   l_DelGroupIDs:=group_ids;
-  l_ReducedGroupID   := l_Group.GroupIDs;
-  l_remove_count    := 0;
   for i:=0 to high(l_DelGroupIDs) do begin
+    if not _FetchGroupById(l_DelGroupIDs[i],r_group) then
+      exit(edb_NOT_FOUND);
+    l_ReducedGroupID   := r_group.GroupIDs;
     l_found := false;
+    setlength(l_CopyGroupID,length(l_ReducedGroupID)-1);
+    k:=0;
     for j:=0 to high(l_ReducedGroupID) do begin
-      if l_DelGroupIDs[i]=l_ReducedGroupID[j] then begin
+      if l_group.UID=l_ReducedGroupID[j] then begin
         l_found              := true;
-        l_ReducedGroupID[j] := CFRE_DB_NullGUID;
-        inc(l_remove_count);
-        break;
+      end else begin
+        l_CopyGroupID[k] := l_ReducedGroupID[j];
+        inc(k);
       end;
-   end;
-   if not l_found then begin
-     if not ignore_not_set then begin
-       exit(edb_NOT_FOUND);
-     end;
-   end;
-  end;
-  setlength(l_CopyGroupID,length(l_ReducedGroupID)-l_remove_count);
-  j:=0;
-  for i:=0 to high(l_ReducedGroupID) do begin
-    if l_ReducedGroupID[i]<>CFRE_DB_NullGUID then begin
+    end;
+    if not l_found then begin
+      if not ignore_not_set then begin
+        exit(edb_NOT_FOUND);
+      end;
+    end else begin
       //check right
-      FetchGroupById(l_ReducedGroupID[i],r_group);
       if not CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_GROUP,r_group.DomainID) then
         exit(edb_ACCESS);
-      l_CopyGroupID[j] := l_ReducedGroupID[i];
-      inc(j);
+      r_group.GroupIDs := l_CopyGroupID;
+      result := Update(r_group);
+      if Result<>edb_OK then exit;
     end;
   end;
-  l_Group.GroupIDs := l_CopyGroupID;
-  result := Update(l_Group);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.ModifyUserGroupsById(const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray; const keep_existing_groups: boolean): TFRE_DB_Errortype;
