@@ -2801,6 +2801,7 @@ end;
   end;
 
   TFRE_DB_RemoteCB           = procedure(const ses : IFRE_DB_UserSession ; const data : IFRE_DB_Object ; const status : TFRE_DB_COMMAND_STATUS ; const original_command_id : Qword ; const opaquedata : IFRE_DB_Object) is nested;
+  TFRE_DB_RIF_Method         = function : IFRE_DB_Object of object;
 
   { IFRE_DB_UserSession }
 
@@ -2827,7 +2828,7 @@ end;
     function    InvokeRemoteRequest           (const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
     function    InvokeRemoteRequestMachine    (const machineid   : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
     function    InvokeRemoteRequestMachineMac (const machine_mac : TFRE_DB_NameType ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
-
+//    function    InvokeRemoteInterface         (const machineid   : TFRE_DB_GUID ; const RIFMethod:TFRE_DB_RIF_Method; const SyncCallback: TFRE_DB_RemoteCB) : TFRE_DB_Errortype;
 
     function    RegisterTaskMethod           (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
     function    RemoveTaskMethod             (const id:string='TIMER'):boolean;
