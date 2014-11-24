@@ -99,12 +99,40 @@ program fpmake_packages;
          //p.targets.addunit('fos_null_logger.pas');
        end;
     end;
+     P := AddPackage('FRE_FCOM');
+     with p do begin
+       OSes := cFOS_BUILD_OSes;
+       Directory:=cFOS_BUILD_PREFIX+'fre_fcom';
+       Dependencies.Add('FRE_INTF');
+       Dependencies.Add('FRE_CORE');
+       Dependencies.Add('pthreads');
+
+       with targets do begin
+         AddUnit('fre_fcom_ssl.pas');
+         AddUnit('fre_sys_base_cs.pas');
+         AddUnit('../fre_server/fre_http_tools.pas');
+         AddUnit('fre_http_client.pas');
+         //TODO: FCOM PACKAGE CHECK
+         //AddUnit('fos_fcom_bsdnet.pas');
+         //AddUnit('fos_fcom_engine.pas');
+         //AddUnit('fos_fcom_pcap.pas');
+         //AddUnit('fos_gc_replicator.pas');
+         //AddUnit('fos_http_proxy.pas');
+         //AddUnit('fre_base_cs.pas');
+         //AddUnit('fos_gc_messages.pas');
+         //AddUnit('fos_gc_types.pas');
+         //AddUnit('fos_session_engine.pas');
+         //AddUnit('fre_fcom_cmds.pas');
+       end;
+     end;
     P := AddPackage('FRE_SYNAPSE');
     with p do begin
       OSes := cFOS_BUILD_OSes;
       Directory:=cFOS_BUILD_PREFIX+'fre_external/synapse/';
       Dependencies.Add('fcl-base');
       Dependencies.Add('fcl-net');
+      Dependencies.Add('FRE_INTF');
+      Dependencies.Add('FRE_FCOM');
       with targets do begin
         AddUnit('asn1util.pas');
         AddUnit('blcksock.pas');
@@ -139,32 +167,6 @@ program fpmake_packages;
         AddUnit('ssl_openssl.pas');
         AddUnit('ssl_openssl_lib.pas');
       end
-    end;
-    P := AddPackage('FRE_FCOM');
-    with p do begin
-      OSes := cFOS_BUILD_OSes;
-      Directory:=cFOS_BUILD_PREFIX+'fre_fcom';
-      Dependencies.Add('FRE_INTF');
-      Dependencies.Add('FRE_CORE');
-      Dependencies.Add('pthreads');
-
-      with targets do begin
-        AddUnit('fre_fcom_ssl.pas');
-        AddUnit('fre_sys_base_cs.pas');
-        AddUnit('../fre_server/fre_http_tools.pas');
-        AddUnit('fre_http_client.pas');
-        //TODO: FCOM PACKAGE CHECK
-        //AddUnit('fos_fcom_bsdnet.pas');
-        //AddUnit('fos_fcom_engine.pas');
-        //AddUnit('fos_fcom_pcap.pas');
-        //AddUnit('fos_gc_replicator.pas');
-        //AddUnit('fos_http_proxy.pas');
-        //AddUnit('fre_base_cs.pas');
-        //AddUnit('fos_gc_messages.pas');
-        //AddUnit('fos_gc_types.pas');
-        //AddUnit('fos_session_engine.pas');
-        //AddUnit('fre_fcom_cmds.pas');
-      end;
     end;
     P := AddPackage('FRE_APS');
     with p do begin
