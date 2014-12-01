@@ -19,12 +19,9 @@ type
   { TFRE_COMMON_ACCESSCONTROL_APP }
 
   TFRE_COMMON_ACCESSCONTROL_APP=class(TFRE_DB_APPLICATION)
-  private
-    procedure       _UpdateSitemap                (const session: TFRE_DB_UserSession);
   protected
+    procedure       MyUpdateSitemap               (const session: TFRE_DB_UserSession);override;
     procedure       SetupApplicationStructure     ; override;
-    procedure       MySessionInitialize           (const session: TFRE_DB_UserSession);override;
-    procedure       MySessionPromotion            (const session: TFRE_DB_UserSession); override;
   public
     class procedure InstallDBObjects              (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure InstallDBObjects4Domain       (const conn:IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID : TFRE_DB_GUID); override;
@@ -3789,7 +3786,7 @@ begin
 end;
 
 
-procedure TFRE_COMMON_ACCESSCONTROL_APP._UpdateSitemap( const session: TFRE_DB_UserSession); //MEMFIX?
+procedure TFRE_COMMON_ACCESSCONTROL_APP.MyUpdateSitemap(const session: TFRE_DB_UserSession);
 var
   SiteMapData  : IFRE_DB_Object;
   conn         : IFRE_DB_CONNECTION;
@@ -3810,21 +3807,6 @@ begin
   FREDB_SiteMap_AddRadialEntry(SiteMapData,'Status/WFs',FetchAppTextShort(session,'sitemap_wfs'),'images_apps/accesscontrol/wf.svg',TFRE_COMMON_WF_MOD.ClassName,0,conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_COMMON_WF_MOD));
   FREDB_SiteMap_RadialAutoposition(SiteMapData,pos);
   session.GetSessionAppData(ClassName).Field('SITEMAP').AsObject := SiteMapData;
-end;
-
-procedure TFRE_COMMON_ACCESSCONTROL_APP.MySessionInitialize(  const session: TFRE_DB_UserSession);
-begin
-  exit;
-  inherited MySessionInitialize(session);
-  if session.IsInteractiveSession then
-    _UpdateSitemap(session);
-end;
-
-procedure TFRE_COMMON_ACCESSCONTROL_APP.MySessionPromotion(  const session: TFRE_DB_UserSession);
-begin
-  inherited MySessionPromotion(session);
-  if session.IsInteractiveSession then
-    _UpdateSitemap(session);
 end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);

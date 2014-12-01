@@ -100,9 +100,9 @@ type
 
   TFRE_DB_TEST_FILEDIR=class(TFRE_DB_ObjectEx)
   protected
-    class procedure InstallDBObjects(const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-    class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
-    procedure InternalSetup; override;
+    class procedure InstallDBObjects      (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure RegisterSystemScheme  (const scheme: IFRE_DB_SCHEMEOBJECT); override;
+    procedure InternalSetup ; override;
     procedure SetIsFile     (const isfile:boolean);
     function  GetIsFile     : Boolean;
   public
@@ -298,19 +298,6 @@ type
     function  WEB_UpdateCS_Last         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_UpdateCS_Index        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_UpdateCS_UID          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-  end;
-
-
-  { TFRE_DB_TEST_APP_CHART_MOD }
-
-  TFRE_DB_TEST_APP_CHART_MOD = class (TFRE_DB_APPLICATION_MODULE)
-  protected
-    procedure       MyServerInitializeModule  (const admin_dbc : IFRE_DB_CONNECTION); override;
-    procedure       MySessionInitializeModule (const session : TFRE_DB_UserSession);override;
-    class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-  published
-    function  WEB_Content               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-    function  WEB_ContentPie            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_LIVE_CHART_MOD }
@@ -555,7 +542,6 @@ end;
 
 procedure TFRE_DB_TEST_APP_CHART_DEMOS_MOD.SetupAppModuleStructure;
 begin
-  AddApplicationModule(TFRE_DB_TEST_APP_CHART_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_LIVE_CHART_MOD.create);
 end;
 
@@ -826,10 +812,14 @@ var obj      : IFRE_DB_Object;
              begin
                inc(cnt);
                entry := fld.CheckOutObject;
-               entry.Field('uidpath').AsStringArr := opaquedata.Field('UIP').AsStringArr;
-               mypath                             := opaquedata.Field('LVL').AsString+ entry.Field('name').AsString +'/';
-               entry.Field('mypath').AsString     := mypath;
-               res.addTreeEntry(entry,entry.Field('isfile').AsBoolean=false);
+               entry.Field('uidpath').AsStringArr     := opaquedata.Field('UIP').AsStringArr;
+               mypath                                 := opaquedata.Field('LVL').AsString+ entry.Field('name').AsString +'/';
+               entry.Field('mypath').AsString         := mypath;
+               entry.Field('_childrenfunc_').AsString := 'ChildrenData';
+               if not entry.Field('isfile').AsBoolean then begin
+                 entry.Field('children').AsString     := 'UNCHECKED';
+               end;
+               res.addEntry(entry);
              end;
          end;
 
@@ -1802,100 +1792,6 @@ begin
   Result:=res;
 end;
 
-
-{ TFRE_DB_TEST_APP_CHART_MOD }
-
-class procedure TFRE_DB_TEST_APP_CHART_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
-begin
-  newVersionId:='1.0';
-  if currentVersionId='' then
-    begin
-      currentVersionId := '1.0';
-      CreateModuleText(conn,StdSitemapModuleTitleKey,'Chart Test','Chart Test','Chart Test');
-   end;
-end;
-
-procedure TFRE_DB_TEST_APP_CHART_MOD.MyServerInitializeModule(const admin_dbc: IFRE_DB_CONNECTION);
-var vmo       : IFRE_DB_Object;
-    vm        : IFRE_DB_Object;
-    data_obj  : IFRE_DB_Object;
-    i,max     : Integer;
-    CHARTDATA : IFRE_DB_COLLECTION;
-begin
-  CHARTDATA := admin_dbc.GetCollection('CHART_MOD_LINE');
-  max := 60;
-  for i := 0 to max - 1 do begin
-    data_obj := GFRE_DBI.NewObject;
-    data_obj.Field('yval1').AsReal32      := i;
-    data_obj.Field('yval1_uid').AsGUID    := GFRE_DBI.Get_A_Guid;
-    data_obj.Field('yval2').AsReal32      := i*2;
-    data_obj.Field('yval2_uid').AsGUID    := GFRE_DBI.Get_A_Guid;
-    data_obj.Field('yval3').AsReal32      := random(100);
-    data_obj.Field('yval3_uid').AsGUID    := GFRE_DBI.Get_A_Guid;
-    data_obj.Field('yval1_col').AsString  := '#44667'+IntToStr(i mod 10)+'A';
-    data_obj.Field('yval1_txt').AsString  := 'S1_TXT ' + IntToStr(i+1);
-    data_obj.Field('yval2_col').AsString  := '#CC667'+IntToStr(i mod 10)+'A';
-    data_obj.Field('yval2_txt').AsString  := 'S2_TXT ' + IntToStr(i+1);
-    data_obj.Field('yval1_uid').AsGUID    := GFRE_DBI.Get_A_Guid;
-    CHARTDATA.Store(data_obj);
-  end;
-  CHARTDATA := admin_dbc.GetCollection('CHART_MOD_PIE');
-  max:=9;
-  for i := 0 to max - 1 do begin
-    data_obj := GFRE_DBI.NewObject;
-    data_obj.Field('val1').AsReal32      := random(100);
-    data_obj.Field('val1_uid').AsGUID    := GFRE_DBI.Get_A_Guid;
-    data_obj.Field('val1_col').AsString  := '#44667'+IntToStr(i mod 10)+'A';
-    data_obj.Field('val1_txt').AsString  := 'PIE:' + IntToStr(i+1);
-    CHARTDATA.Store(data_obj);
-  end;
-  CHARTDATA := admin_dbc.GetCollection('CHART_MOD_COLUMNS');
-  max:=15;
-  for i := 0 to max - 1 do begin
-    data_obj := GFRE_DBI.NewObject;
-    data_obj.Field('val1').AsReal32 := random(100);
-    data_obj.Field('val1_uid').AsGUID    := GFRE_DBI.Get_A_Guid;
-    data_obj.Field('val2').AsReal32 := random(100);
-    data_obj.Field('val2_uid').AsGUID    := GFRE_DBI.Get_A_Guid;
-    data_obj.Field('val1_col').AsString  := '#44667'+IntToStr(i mod 10)+'A';
-    data_obj.Field('val1_txt').AsString  := 'COL:' + IntToStr(i+1);
-    data_obj.Field('val2_col').AsString  := '#FF667'+IntToStr(i mod 10)+'A';
-    data_obj.Field('val2_txt').AsString  := 'COL:' + IntToStr(i+1);
-    CHARTDATA.Store(data_obj);
-  end;
-end;
-
-procedure TFRE_DB_TEST_APP_CHART_MOD.MySessionInitializeModule(const session: TFRE_DB_UserSession);
-var
-    DC_CHARTDATA_P : IFRE_DB_DERIVED_COLLECTION;
-    CHARTDATA      : IFRE_DB_COLLECTION;
-begin
-  inherited MySessionInitializeModule(session);
-  if session.IsInteractiveSession then begin
-    CHARTDATA := session.GetDBConnection.GetCollection('CHART_MOD_PIE');
-    DC_CHARTDATA_P := session.NewDerivedCollection('CHART_P');
-    with DC_CHARTDATA_P do begin
-      SetDeriveParent(CHARTDATA);
-      SetDisplayTypeChart('Pie Chart',fdbct_pie,TFRE_DB_StringArray.Create('val1'),false,false);
-    end;
-  end;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_Content(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-var
-  sub_sec_s       : TFRE_DB_SUBSECTIONS_DESC;
-
-begin
-  sub_sec_s        := TFRE_DB_SUBSECTIONS_DESC.Create.Describe(sec_dt_tab);
-  sub_sec_s.AddSection.Describe(CWSF(@WEB_ContentPie),'Pie',1);
-  result           := sub_sec_s;
-end;
-
-function TFRE_DB_TEST_APP_CHART_MOD.WEB_ContentPie(const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
-begin
-  Result:=GetSession(input).FetchDerivedCollection('CHART_P').GetDisplayDescription;
-end;
-
 { TFRE_DB_TEST_APP_GRID2_MOD }
 
 class procedure TFRE_DB_TEST_APP_GRID2_MOD.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
@@ -2843,7 +2739,6 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_FORMTEST_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRID2_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_CHART_DEMOS_MOD);
-  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_CHART_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_LIVE_CHART_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_GRIDTREEFORM_MOD);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_APP_EDITORS_MOD);

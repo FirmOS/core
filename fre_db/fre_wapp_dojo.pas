@@ -96,15 +96,12 @@ type
    procedure BuildStoreData            (const co:TFRE_DB_STORE_DATA_DESC; var contentString,contentType:String);
    procedure BuildMessage              (const session:TFRE_DB_UserSession; const co:TFRE_DB_MESSAGE_DESC;var contentString,contentType:String);
    procedure BuildUpdateMessageProgress(const co:TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC;var contentString,contentType:String);
-   procedure BuildChart                (const session:TFRE_DB_UserSession; const co:TFRE_DB_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
-   procedure BuildChartData            (const co:TFRE_DB_CHART_DATA_DESC;var contentString,contentType:String);
    procedure BuildLiveChart            (const session:TFRE_DB_UserSession; const co:TFRE_DB_LIVE_CHART_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildRedefineLiveChart    (const session:TFRE_DB_UserSession; const co:TFRE_DB_REDEFINE_LIVE_CHART_DESC;var contentString,contentType:String);
    procedure BuildLiveChartAtIdxData   (const co:TFRE_DB_LIVE_CHART_DATA_AT_IDX_DESC;var contentString,contentType:String);
    procedure BuildLiveChartCompleteData(const co:TFRE_DB_LIVE_CHART_COMPLETE_DATA_DESC;var contentString,contentType:String);
    procedure BuildLiveChartInitData    (const co:TFRE_DB_LIVE_CHART_INIT_DATA_DESC;var contentString,contentType:String);
    procedure BuildTopMenu              (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_TOPMENU_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
-   procedure BuildInvalidSessionData   (const co:TFRE_DB_INVALIDATE_SESSION_DATA_DESC;var contentString,contentType:String);
    procedure BuildSitemap              (const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const co:TFRE_DB_SITEMAP_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
    procedure BuildSitemapEntryUpdate   (const co:TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC;var contentString,contentType:String);
    procedure BuildSVG                  (const session:TFRE_DB_UserSession;const co:TFRE_DB_SVG_DESC;var contentString,contentType:String;const isInnerContent:Boolean);
@@ -187,12 +184,6 @@ implementation
     if result_object is TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC then begin
       gWAC_DOJO.BuildUpdateMessageProgress(TFRE_DB_UPDATE_MESSAGE_PROGRESS_DESC(result_object),lContent,lContentType);
     end else
-    if result_object is TFRE_DB_CHART_DESC then begin
-      gWAC_DOJO.BuildChart(session,TFRE_DB_CHART_DESC(result_object),lContent,lContentType,isInnerContent);
-    end else
-    if result_object is TFRE_DB_CHART_DATA_DESC then begin
-      gWAC_DOJO.BuildChartData(TFRE_DB_CHART_DATA_DESC(result_object),lContent,lContentType);
-    end else
     if result_object is TFRE_DB_LIVE_CHART_DESC then begin
       gWAC_DOJO.BuildLiveChart(session,TFRE_DB_LIVE_CHART_DESC(result_object),lContent,lContentType,isInnerContent);
     end else
@@ -210,9 +201,6 @@ implementation
     end else
     if result_object is TFRE_DB_TOPMENU_DESC then begin
       gWAC_DOJO.BuildTopMenu(session,command_type,TFRE_DB_TOPMENU_DESC(result_object),lContent,lContentType,isInnerContent);
-    end else
-    if result_object is TFRE_DB_TOPMENU_DESC then begin
-      gWAC_DOJO.BuildInvalidSessionData(TFRE_DB_INVALIDATE_SESSION_DATA_DESC(result_object),lContent,lContentType);
     end else
     if result_object is TFRE_DB_SITEMAP_DESC then begin
       gWAC_DOJO.BuildSitemap(session,command_type,TFRE_DB_SITEMAP_DESC(result_object),lContent,lContentType,isInnerContent);
@@ -595,6 +583,7 @@ implementation
     serverFunc     : TFRE_DB_SERVER_FUNC_DESC;
     caption        : String;
     defValue       : String;
+    captionFields  : TFRE_DB_StringArray;
   begin
      store:=_getStoreById(co.FieldPath('store.id').AsString,stores);
      case String2DBChooserDH(co.Field('displayHint').AsString) of
@@ -681,13 +670,13 @@ implementation
                              serverFunc.AddParam.Describe('count','10000'); //FIXXME - define "ALL" parameter
                              serverFunc.AddParam.Describe('queryid','0');
                              store_res_descr:=serverFunc.InternalInvoke(session).Implementor_HC as TFRE_DB_STORE_DATA_DESC;
-                             if (store.Field('labelFields').ValueCount=0) then begin
-                               store.Field('labelFields').AsStringArr:=TFRE_DB_StringArray.create('text','objname');
-                             end;
+
+                             captionFields:=TFRE_DB_StringArray.create('text','objname');
+
                              for i:=0 to store_res_descr.Field('data').ValueCount - 1 do begin
-                               for j:=0 to store.Field('labelFields').ValueCount -1 do begin
-                                 if (store_res_descr.Field('data').AsObjectItem[i].FieldExists(store.Field('labelFields').AsStringArr[j])) then begin
-                                   caption:=_EscapeValueString(store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('labelFields').AsStringArr[j]).AsString);
+                               for j:=0 to Length(captionFields) -1 do begin
+                                 if (store_res_descr.Field('data').AsObjectItem[i].FieldExists(captionFields[j])) then begin
+                                   caption:=_EscapeValueString(store_res_descr.Field('data').AsObjectItem[i].Field(captionFields[j]).AsString);
                                    Break;
                                  end;
                                  caption:=store_res_descr.Field('data').AsObjectItem[i].Field(store.Field('idField').AsString).AsString;
@@ -1351,11 +1340,9 @@ implementation
     lcVar           :String;
     button          :TFRE_DB_VIEW_LIST_BUTTON_DESC;
     cssString       :String;
-    chCol           :Boolean;
+    expandoCol      :Boolean;
     conn            :IFRE_DB_CONNECTION;
-    isTree          :Boolean;
     descriptionField: String;
-    editor_str      : String;
     editor_event    : String;
   begin
     conn:=session.GetDBConnection;
@@ -1385,8 +1372,7 @@ implementation
       jsContentAdd('     _details_: FIRMOS.gridDetailsColumn()');
       firstElement:=false;
     end;
-    chCol:=co.Field('children').AsBoolean;
-    isTree:=chCol;
+    expandoCol:=co.Field('children').AsBoolean;
     descriptionField:='';
     cssString:='';
     for i := 0 to layout.Field('data').ValueCount - 1 do begin
@@ -1415,21 +1401,18 @@ implementation
           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridNumber"');
           jsContentAdd('                                                       })');
         end else begin
-          jsContentAdd('     '+elem.Field('id').AsString+':');
-          if chCol then begin
-            if elem.Field('editable').AsBoolean then begin
-              jsContentAdd('       dgrid.editor(dgrid.tree({autoSave: true, allowDuplicates:true, unhidable: true, reorderable: false, ');
-            end else begin
-              jsContentAdd('       dgrid.tree({allowDuplicates:true, unhidable: true, reorderable: false, ');
-            end;
-          end else begin
-            if elem.Field('editable').AsBoolean then begin
-              jsContentAdd('       dgrid.editor({autoSave: true,');
-            end else begin
-              jsContentAdd('       {');
-            end;
-          end;
+          jsContentAdd('     '+elem.Field('id').AsString+': {');
           jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
+          if expandoCol then begin
+            jsContentAdd('      ,renderExpando: true');
+            jsContentAdd('      ,unhidable: true');
+            jsContentAdd('      ,reorderable: false');
+            expandoCol:=false;
+          end;
+          if elem.Field('editable').AsBoolean then begin
+            jsContentAdd('      ,autoSave: true');
+            editor_event:='"dblclick"';
+          end;
           jsContentAdd('      ,sortable: '+BoolToStr(elem.Field('sortable').AsBoolean,'true','false'));
           jsContentAdd('      ,filterable: '+BoolToStr(elem.Field('filterable').AsBoolean,'true','false'));
           if elem.FieldExists('filterValues') then begin
@@ -1442,52 +1425,45 @@ implementation
                             jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderIconCell(object, value, node, options,"'+ elem.Field('iconId').AsString +'","'+ elem.Field('openIconId').AsString+'");}');
                           end;
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridString"');
+                          if elem.Field('editable').AsBoolean then begin
+                            jsContentAdd('      ,editor: FIRMOS.GridTextBox');
+                          end;
                         end;
             dt_date   : begin
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderDate(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridDate"');
+                          if elem.Field('editable').AsBoolean then begin
+                            jsContentAdd('      ,editor: FIRMOS.GridDateTextBox');
+                          end;
                         end;
             dt_number,
             dt_currency: begin
                            jsContentAdd('      ,widgetClass: dijit.form.NumberTextBox, styles: "text-align: right;"');
                            jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridNumber"');
+                           if elem.Field('editable').AsBoolean then begin
+                             jsContentAdd('      ,editor: FIRMOS.GridNumberTextBox');
+                           end;
                          end;
             dt_icon   : begin
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderIcons(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridIcon"');
+                           if elem.Field('editable').AsBoolean then begin
+                             jsContentAdd('      ,editor: FIRMOS.GridTextBox');
+                           end;
                         end;
             dt_boolean: begin
                           jsContentAdd('      ,renderCell: function(object, value, node, options) {return this.grid._renderBool(object, value, node, options);}');
                           jsContentAdd('      ,className: "grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css.firmosGridBoolean"');
+                           if elem.Field('editable').AsBoolean then begin
+                             jsContentAdd('      ,editor: FIRMOS.GridCheckBox');
+                             editor_event:='""';
+                           end;
                         end;
           end;
           if elem.Field('editable').AsBoolean then begin
-            editor_event:='"dblclick"';
-            case FREDB_String2DBDisplayType(elem.Field('displayType').AsString) of
-              dt_string  : editor_str:='FIRMOS.GridTextBox';
-              dt_date    : editor_str:='FIRMOS.GridDateTextBox';
-              dt_number,
-              dt_currency: editor_str:='FIRMOS.GridNumberTextBox';
-              dt_icon    : editor_str:='FIRMOS.GridTextBox';
-              dt_boolean : begin
-                             editor_str:='FIRMOS.GridCheckBox';
-                             editor_event:='""';
-                           end;
-            end;
-            if chCol then begin
-              chCol:=false;
-              jsContentAdd('     }),'+editor_str+',"dblclick")');
-            end else begin
-              jsContentAdd('     },'+editor_str+','+editor_event+')');
-            end;
-          end else begin
-            if chCol then begin
-              chCol:=false;
-              jsContentAdd('     })');
-            end else begin
-              jsContentAdd('     }');
-            end;
+            jsContentAdd('      ,editOn: ' + editor_event);
           end;
+          jsContentAdd('     }');
         end;
       end;
     end;
@@ -1499,9 +1475,6 @@ implementation
     jsContentAdd(' {');
     jsContentAdd('   id:"'+store.FieldPath('id').AsString+'"');
     jsContentAdd('  ,idAttribute:"'+store.Field('idField').AsString+'"');
-    if store.Field('labelFields').ValueCount>0 then begin
-      jsContentAdd('  ,labelAttributes: '+_BuildJSArray(store.Field('labelFields').AsStringArr));
-    end;
     jsContentAdd('  ,getClassname:"'+store.FieldPath('serverFunc.class').AsString+'"');
     jsContentAdd('  ,getFunctionname:"'+store.FieldPath('serverFunc.func').AsString+'"');
     jsContentAdd('  ,getUidPath: '+_BuildJSArray(store.FieldPath('serverFunc.uidPath').AsStringArr));
@@ -1552,14 +1525,7 @@ implementation
       jsContentAdd(' ,gridParams: '+_BuildParamsObject(co.Field('itemMenuFunc').AsObject.Field('params').AsObjectArr));
     end;
     jsContentAdd('});');
-    //if co.Field('paging').AsBoolean then begin
-    //  jsContentAdd('var ' + co.Field('id').AsString + '_grid = new FIRMOS.Grid({');
-    //  jsContentAdd('  rowsPerPage: '+co.FieldPath('store.pageSize').AsString+',');
-    //  jsContentAdd('  pagingTextBox: true,');
-    //  jsContentAdd('  pageSizeOptions: [25,50,100],');
-    //end else begin
     jsContentAdd('var ' + co.Field('id').AsString + '_grid = new FIRMOS.OnDemandGrid({');
-    //end;
     jsContentAdd('   id: "' + co.Field('id').AsString + '_grid"');
     if not co.Field('multiselect').AsBoolean then begin
       jsContentAdd('  ,selectionMode: "single"');
@@ -1595,7 +1561,7 @@ implementation
     if not co.Field('columnResize').AsBoolean then begin
       jsContentAdd('  ,resizerDisabled: true');
     end;
-    jsContentAdd('  ,store: '+store.Field('id').AsString);
+    jsContentAdd('  ,collection: '+store.Field('id').AsString);
     jsContentAdd('  ,contextMenu: '+co.Field('id').AsString+'_contextmenu');
     if co.Field('details').AsBoolean then begin
       jsContentAdd('  ,showDetailsSection: true');
@@ -1618,7 +1584,7 @@ implementation
     end;
     jsContentAdd('  ,columns: gridLayout');
     jsContentAdd('  ,descrField: "'+descriptionField+'"');
-    jsContentAdd('  ,isTree: ' + BoolToStr(isTree,'true','false'));
+    jsContentAdd('  ,isTree: ' + BoolToStr(co.Field('children').AsBoolean,'true','false'));
     jsContentAdd('  ,allowSelectAll: true');
     jsContentAdd('});');
 
@@ -1963,7 +1929,6 @@ implementation
       jsContentAdd('<script>define.amd.jQuery = true;</script>');
       jsContentAdd('<script src="aloha/src/lib/vendor/jquery-1.7.2.js"></script>');
       jsContentAdd('<script src="aloha/src/lib/aloha.js" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
-      jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js"></script>');
       jsContentAdd('<script type="text/javascript" src="fre_js/dojo_utils.js"></script>');
       jsContentAdd('<script type="text/javascript" src="codemirror/lib/codemirror.js"></script>');
       jsContentAdd('<script type="text/javascript" src="codemirror/mode/javascript/javascript.js"></script>');
@@ -1974,7 +1939,6 @@ implementation
       jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/all.css'+GET_FOS_CACHE_TAG+'" media="screen">');
       jsContentAdd('<link rel="stylesheet" type="text/css" href="fre_css/'+co.Field('style').AsString+'/fosstars.css'+GET_FOS_CACHE_TAG+'" media="screen">');
       jsContentAdd('<script src="js/framework.js'+GET_FOS_CACHE_TAG+'" data-aloha-plugins="common/ui,common/format,common/table,common/list,common/link,common/highlighteditables,common/block,common/undo,common/image,common/contenthandler,common/paste,common/commands,common/abbr "></script>');
-      jsContentAdd('<script src="fre_css/'+co.Field('style').AsString+'/charting.js'+GET_FOS_CACHE_TAG+'"></script>');
     end;
 
 
@@ -2120,118 +2084,6 @@ implementation
     contentType:='application/json';
 
     JsonAction.Free;
-  end;
-
-  procedure TFRE_DB_WAPP_DOJO.BuildChart(const session:TFRE_DB_UserSession; const co: TFRE_DB_CHART_DESC; var contentString, contentType: String; const isInnerContent:Boolean);
-  var
-    JSonAction :TFRE_JSON_ACTION;
-    store      :TFRE_DB_STORE_DESC;
-  begin
-    if not isInnerContent then begin
-      JsonAction := TFRE_JSON_ACTION.Create;
-      jsContentClear;
-    end;
-
-    store:=co.Field('store').AsObject.Implementor_HC as TFRE_DB_STORE_DESC;
-    jsContentAdd('var '+store.Field('id').AsString+' = G_UI_COM.getStore("'+store.Field('id').AsString+'",');
-    jsContentAdd('  {');
-    jsContentAdd('   id:"'+store.FieldPath('id').AsString+'"');
-    jsContentAdd('  ,idAttribute:"'+store.Field('idField').AsString+'"');
-    jsContentAdd('  ,getClassname:"'+store.FieldPath('serverFunc.class').AsString+'"');
-    jsContentAdd('  ,getFunctionname:"'+store.FieldPath('serverFunc.func').AsString+'"');
-    jsContentAdd('  ,getUidPath: '+_BuildJSArray(store.FieldPath('serverFunc.uidPath').AsStringArr));
-    jsContentAdd('  ,getParams: '+_BuildParamsObject(store.Field('serverFunc').AsObject.Field('params').AsObjectArr));
-    if store.FieldExists('clearQueryIdFunc') then begin
-      jsContentAdd('  ,clearClassname:"'+store.FieldPath('clearQueryIdFunc.class').AsString+'"');
-      jsContentAdd('  ,clearFunctionname:"'+store.FieldPath('clearQueryIdFunc.func').AsString+'"');
-      jsContentAdd('  ,clearUidPath: '+_BuildJSArray(store.FieldPath('clearQueryIdFunc.uidPath').AsStringArr));
-      jsContentAdd('  ,clearParams: '+_BuildParamsObject(store.Field('clearQueryIdFunc').AsObject.Field('params').AsObjectArr));
-    end;
-    if store.FieldExists('destroyFunc') then begin
-      jsContentAdd('  ,destroyClassname:"'+store.FieldPath('destroyFunc.class').AsString+'"');
-      jsContentAdd('  ,destroyFunctionname:"'+store.FieldPath('destroyFunc.func').AsString+'"');
-      jsContentAdd('  ,destroyUidPath: '+_BuildJSArray(store.FieldPath('destroyFunc.uidPath').AsStringArr));
-      jsContentAdd('  ,destroyParams: '+_BuildParamsObject(store.Field('destroyFunc').AsObject.Field('params').AsObjectArr));
-    end;
-    jsContentAdd('  }');
-    jsContentAdd(');');
-
-    jsContentAdd('var '+co.Field('id').AsString+'_chart = new FIRMOS.Chart({');
-    jsContentAdd('   id:"'+co.Field('id').AsString+'_chart"');
-    jsContentAdd('  ,title:"'+FREDB_String2EscapedJSString(co.Field('caption').AsString)+'"');
-    jsContentAdd('  ,type:"'+co.Field('type').AsString+'"');
-    jsContentAdd('  ,store:'+store.Field('id').AsString);
-    jsContentAdd('  ,seriesids: '+_BuildJSArray(co.Field('seriesIds').AsStringArr));
-    jsContentAdd('  ,showlegend: '+BoolToStr(co.Field('showLegend').AsBoolean,'true','false'));
-    if co.FieldExists('seriesLabels') then begin
-      jsContentAdd('  ,labels: '+_BuildJSArray(co.Field('seriesLabels').AsStringArr));
-    end;
-    jsContentAdd('  ,maxValue: '+co.Field('maxValue').AsString);
-    jsContentAdd('});');
-
-    if co.Field('showLegend').AsBoolean then begin
-      jsContentAdd('var '+co.Field('id').AsString+'_legend = new dojox.charting.widget.Legend({chart: ' +co.Field('id').AsString+'_chart.chart});');
-
-      jsContentAdd(' var ' + co.Field('id').AsString + '_c = new dijit.layout.ContentPane({id: "' + co.Field('id').AsString + '_c", content: '+co.Field('id').AsString + '_chart, region: "center"});');
-      jsContentAdd(' var ' + co.Field('id').AsString + '_l = new dijit.layout.ContentPane({id: "' + co.Field('id').AsString + '_l", content: '+co.Field('id').AsString + '_legend, region: "bottom", class: "firmosChartLegendPanel"});');
-
-      jsContentAdd('var '+ co.Field('id').AsString +' = new dijit.layout.BorderContainer({');
-      jsContentAdd('   id: "'+co.Field('id').AsString+'"');
-      if co.FieldExists('destroyNotify') then begin
-        jsContentAdd('  ,destroyNotify: true');
-        session.registerUpdatableContent(co.Field('id').AsString);
-      end;
-      jsContentAdd('  ,gutters: false');
-      jsContentAdd('  ,class: "firmosChartBorderContainer"');
-      jsContentAdd(' });');
-
-      jsContentAdd(co.Field('id').AsString + '.addChild('+co.Field('id').AsString+'_c);');
-      jsContentAdd(co.Field('id').AsString + '.addChild('+co.Field('id').AsString+'_l);');
-    end else begin
-      jsContentAdd(' var ' + co.Field('id').AsString + ' = new dijit.layout.ContentPane({');
-      jsContentAdd('   id: "' + co.Field('id').AsString + '"');
-      jsContentAdd('  ,content: '+co.Field('id').AsString + '_chart');
-      if co.FieldExists('destroyNotify') then begin
-        jsContentAdd('  ,destroyNotify: true');
-        session.registerUpdatableContent(co.Field('id').AsString);
-      end;
-      jsContentAdd('  ,class: "firmosChartContainerPane"});');
-    end;
-
-    if not isInnerContent then begin
-      jsContentAdd('G_UI_COM.contentLoaded('+co.Field('id').AsString+',"'+co.Field('windowCaption').AsString+'");');
-
-      JsonAction.ActionType := jat_jsupdate;
-      JsonAction.Action     := jsContent;
-      JSonAction.ID         := co.Field('id').AsString;
-      JSonAction.updateID   := co.Field('updateId').AsString;
-
-      contentString := JsonAction.AsString;
-      contentType:='application/json';
-
-      JsonAction.Free;
-    end;
-
-  end;
-
-  procedure TFRE_DB_WAPP_DOJO.BuildChartData(const co: TFRE_DB_CHART_DATA_DESC; var contentString, contentType: String);
-  var data_arr  : IFRE_DB_ObjectArray;
-      ljdresult : TJSONArray;
-      ljd2      : TJSONObject;
-      i         : integer;
-  begin
-    ljdresult:=TJSONArray.Create;
-    try
-      if co.FieldExists('series') then begin
-        contentString := '{total:'+inttostr(co.Field('series').ValueCount)+', data:'+  co.Field('series').AsObjectArrayJSONString + '}';
-        contentType   := 'application/json';
-      end else begin
-        contentString := '{total: 0, data: [] }';
-        contentType   := 'application/json';
-      end;
-    finally
-      ljdresult.Free;
-    end;
   end;
 
   procedure TFRE_DB_WAPP_DOJO.BuildLiveChart(const session:TFRE_DB_UserSession; const co: TFRE_DB_LIVE_CHART_DESC; var contentString, contentType: String; const isInnerContent: Boolean);
@@ -2478,19 +2330,6 @@ implementation
       contentType:='application/json';
 
       JsonAction.Free;
-    end;
-  end;
-
-  procedure TFRE_DB_WAPP_DOJO.BuildInvalidSessionData(const co: TFRE_DB_INVALIDATE_SESSION_DATA_DESC; var contentString, contentType: String);
-  var
-    ljdresult : TJSONArray;
-  begin
-    ljdresult:=TJSONArray.Create;
-    try
-      contentString := 'G_UI_COM.invalidateSessionData('+  co.Field('stores').AsObjectArrayJSONString + ');';
-      contentType   := 'application/json';
-    finally
-      ljdresult.Free;
     end;
   end;
 

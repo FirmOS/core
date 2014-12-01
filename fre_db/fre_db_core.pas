@@ -1677,24 +1677,6 @@ type
     procedure   AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String; const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
   end;
 
-  { TFRE_DB_CHART_TRANSFORM }
-
-  TFRE_DB_CHART_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_TRANSFORMOBJECT) // Stores additionally the chart relevant setup
-  private
-    FseriesFieldNames   : TFRE_DB_StringArray; // = SeriesKeys
-    //Fseries1_colors_fld : TFRE_DB_String;
-    //Fseries1_labels_fld : TFRE_DB_String;
-    FUseSeriesColors    : boolean; //SeriesFieldName+'_Col' must exist -> String #WebNotation
-    FUseSeriesLabels    : Boolean; //SeriesFieldName+'_Lbl' must exist -> String
-    FShowLegend         : Boolean;
-    FSeriesLabels       : TFRE_DB_StringArray;
-    FChartType          : TFRE_DB_CHART_TYPE;
-    FMaxValue           : Integer;
-  public
-    function   TransformInOut(const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; override; // todo - remove unnecessary fields / transform only series fields
-    destructor Destroy;override;
-  end;
-
   TFRE_DB_SortTree = specialize TGFOS_RBTree<TFRE_DB_Object,boolean>;
 
   { TFRE_DB_DERIVED_COLLECTION }
@@ -1743,9 +1725,7 @@ type
     FdragFunc          : TFRE_DB_SERVER_FUNC_DESC;
     FDisplaytype       : TFRE_COLLECTION_DISPLAY_TYPE;
     FGridDisplayFlags  : TFRE_COLLECTION_GRID_DISPLAY_FLAGS;
-    FChartDisplayFlags : TFRE_COLLECTION_CHART_DISPLAY_FLAGS;
     FTitle             : TFRE_DB_String;
-    FlabelFields       : TFRE_DB_StringArray;
 
     FInitialDerived    : Boolean;
     FDC_Session        : TFRE_DB_UserSession;
@@ -1802,7 +1782,6 @@ type
     function   getDescriptionStoreId           : String;
     procedure  SetDisplayType                  (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';
                                                 const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil); //TODO: Make Callable Once
-    procedure  SetDisplayTypeChart             (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean;const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
 
     function   GetDisplayDescription           : TFRE_DB_CONTENT_DESC;
     procedure  FinalRightTransform             (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
@@ -1821,7 +1800,6 @@ type
     function   WEB_GET_CHOOSER_DATA            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_CLEAR_QUERY_RESULTS         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
     function   WEB_DESTROY_STORE               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function   WEB_GET_CHART_DATA              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
   end;
 
 
@@ -3918,21 +3896,6 @@ function TFRE_DB_DOMAIN.Domainkey: TFRE_DB_GUID_String;
 begin
   result := uppercase(UID_String);
 end;
-
-
-
-{ TFRE_DB_CHART_TRANSFORM }
-
-function TFRE_DB_CHART_TRANSFORM.TransformInOut(const conn: IFRE_DB_CONNECTION; const input: IFRE_DB_Object): TFRE_DB_Object;
-begin
-  Result := input.CloneToNewObject.Implementor as TFRE_DB_Object;
-end;
-
-destructor TFRE_DB_CHART_TRANSFORM.Destroy;
-begin
-  inherited Destroy;
-end;
-
 
 { TFRE_DB_Enum }
 
@@ -7463,7 +7426,6 @@ begin
   FdragFunc.Free         ;
   FdragFunc              := nil;
   FTransform.Free        ;
-  FlabelFields           := nil;
   //FTreeNodeIconField     := '';
 end;
 
@@ -8158,9 +8120,8 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.GetStoreDescription: TFRE_DB_CONTENT_DESC;
 begin
   case FDisplaytype of
-    cdt_Listview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_GRID_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
-    cdt_Chooser:    result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHOOSER_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
-    cdt_Chartview:  result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHART_DATA),FlabelFields,CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
+    cdt_Listview:   result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_GRID_DATA),CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
+    cdt_Chooser:    result := TFRE_DB_STORE_DESC.create.Describe(FIdField,CWSF(@WEB_GET_CHOOSER_DATA),CWSF(@WEB_DESTROY_STORE),CWSF(@WEB_CLEAR_QUERY_RESULTS),CollectionName(true));
     else
       raise EFRE_DB_Exception.Create(edb_ERROR,'INVALID DISAPLAYTYPE FOR STORE [%d] GETSTOREDESCRIPTION',[ord(FDisplaytype)]);
   end
@@ -8189,31 +8150,6 @@ begin
   FdropFunc := drop_func;
   FdragFunc.Free;
   FdragFunc := drag_func;
-  if Assigned(CaptionFields) then begin
-    FlabelFields     := CaptionFields;
-  end else begin
-    SetLength(FlabelFields,1); FlabelFields[0]:='objname';
-  end;
-end;
-
-procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayTypeChart(const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean;const series_labels: TFRE_DB_StringArray; const showLegend: Boolean; const maxValue: Integer);
-var i           : integer;
-begin
-  _CheckSetDisplayType (cdt_Chartview);
-  _ClearMode;
-  FTitle            := title;
-  FTransform            := TFRE_DB_CHART_TRANSFORM.Create;
-  with FTransform as TFRE_DB_CHART_TRANSFORM do begin
-    FseriesFieldNames   := series_field_names;
-    FUseSeriesColors    := use_series_colors;
-    FUseSeriesLabels    := use_series_labels;
-    FSeriesLabels       := series_labels;
-    FShowLegend         := showLegend;
-    FChartType          := chart_type;
-    FMaxValue           := maxValue;
-  end;
-  //_FilterIt(false);
-  //abort;
 end;
 
 {
@@ -8243,21 +8179,10 @@ function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
         result.AddFilterEvent(dc_name,ref_name);
   end;
 
-  function GetChartDescription: TFRE_DB_CHART_DESC;
-  var series_ids : TFRE_DB_StringArray;
-      ct         : TFRE_DB_CHART_TRANSFORM;
-      i          : integer;
-  begin
-    _CheckTransformSet;
-    ct := FTransform as TFRE_DB_CHART_TRANSFORM; // Chart data must be Transformed now
-    result := TFRE_DB_CHART_DESC.create.Describe(Ftitle,GetStoreDescription as TFRE_DB_STORE_DESC,ct.FseriesFieldNames,ct.FChartType,ct.FSeriesLabels,ct.FShowLegend,ct.FMaxValue);
-  end;
-
 begin
   case FDisplaytype of
     cdt_Listview:  result := GetListviewDescription;
     cdt_Chooser:   raise EFRE_DB_Exception.Create(edb_ERROR,'getDisplayDescription not available for type Chooser');
-    cdt_Chartview: result := GetChartDescription;
     else raise EFRE_DB_Exception.Create(edb_ERROR,'DERIVED COLLECTION [%s] HAS AN INVALID DISPLAYTYPE SET [%d]',[CollectionName,ord(FDisplaytype)]);
   end;
 end;
@@ -8341,82 +8266,6 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.WEB_GET_CHOOSER_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
   Result:=WEB_GET_GRID_DATA(input,ses,app,conn);
-end;
-
-function TFRE_DB_DERIVED_COLLECTION.WEB_GET_CHART_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var
-    //pageinfo       : TFRE_DB_DC_PAGING_INFO;
-     //order         : TFRE_DB_DC_ORDER_LIST;
-    //sortfilterkeys : TFRE_DB_DC_STRINGFIELDKEY_LIST;
-    QueryID        : String;
-    series_id      : string;
-    ChartTransForm : TFRE_DB_CHART_TRANSFORM;
-     i      : integer;
-
-
-  //function GetChartDataDescription:TFRE_DB_CHART_DATA_DESC;
-  //var ok     : string;
-  //    data   : TFRE_DB_Real32Array;
-  //    uids   : TFRE_DB_GUIDArray;
-  //    colors : TFRE_DB_StringArray;
-  //    texts  : TFRE_DB_StringArray;
-  //    leg    : TFRE_DB_StringArray;
-  //    max    : Integer;
-  //
-  //    procedure GetData(const obj:TFRE_DB_Object);
-  //    var
-  //     res    : TFRE_DB_CHART_DATA_DESC;
-  //   begin
-  //     //uids[i] := obj.Field(series_id+'_uid').AsGUID;
-  //     uids[i] := obj.UID;
-  //     if obj.FieldExists(series_id) then
-  //       data[i] := obj.Field(series_id).AsReal32
-  //     else
-  //       data[i] := 0;
-  //     if ChartTransForm.FUseSeriesColors then begin
-  //       colors[i] := obj.Field(series_id+'_col').AsString;
-  //     end;
-  //     if ChartTransForm.FUseSeriesLabels then begin
-  //       texts[i] := obj.Field(series_id+'_lbl').AsString;
-  //     end;
-  //     if ChartTransForm.FShowLegend then begin
-  //       leg[i] := obj.Field(series_id+'_leg').AsString;
-  //     end;
-  //     inc(i);
-  //   end;
-  //
-  //begin
-  //  series_id := input.FieldPath('query.sid').AsString;
-  //  GFRE_DB.LogDebug(dblc_DB,'GET_CHART_DATA '+series_id);
-  //  GFRE_DB.LogDebug(dblc_DB,'%s',[input.DumpToString(4)]);
-  //
-  //  //max            := FDBOList.Count;
-  //  ChartTransForm := FTransform as TFRE_DB_CHART_TRANSFORM;
-  //
-  //  colors := nil;
-  //  texts  := nil;
-  //  leg    := nil;
-  //  SetLength(data,max);
-  //  SetLength(uids,max);
-  //  if ChartTransForm.FUseSeriesColors then begin
-  //    SetLength(colors,max);
-  //  end;
-  //  if ChartTransForm.FUseSeriesLabels then begin
-  //    SetLength(texts,max);
-  //  end;
-  //  if ChartTransForm.FShowLegend then begin
-  //    SetLength(leg,max);
-  //  end;
-  //  i:=0;
-  //  ApplyToData(@GetData);
-  //  result := TFRE_DB_CHART_DATA_DESC.create;
-  //  result.setSeries(data,uids,colors,texts,leg);
-  //end;
-
-begin
-  abort;
-   //_CheckObserverAdded(true);
-  //result := GetChartDataDescription;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;

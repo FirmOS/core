@@ -98,6 +98,7 @@ type
     function  Describe  (const entryPath: TFRE_DB_StringArray; const newsCount:Integer): TFRE_DB_UPDATE_SITEMAP_ENTRY_INFO_DESC;
   end;
 
+
   TFRE_DB_STORE_DESC = class;
 
   { TFRE_DB_DATA_ELEMENT_DESC }
@@ -171,7 +172,7 @@ type
     //@ Describes a store whith the given data model.
     //@ The server function is used to retrieve the data.
     //@ The id will be needed if a grid selection should filter the store.
-    function  Describe            (const idField:String='uid'; const serverFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const labelFields:TFRE_DB_StringArray=nil; const destroyFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const id:String=''; const pageSize:Integer=25): TFRE_DB_STORE_DESC; overload;
+    function  Describe            (const idField:String='uid'; const serverFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const destroyFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const id:String=''; const pageSize:Integer=25): TFRE_DB_STORE_DESC; overload;
 
     //@ Creates a new entry and adds it to the store. E.g. used for choosers.
     function  AddEntry            : TFRE_DB_STORE_ENTRY_DESC;
@@ -596,11 +597,10 @@ type
 
   TFRE_DB_STORE_DATA_DESC  = class(TFRE_DB_CONTENT_DESC)
   public
-    //@ Describes the result of store data request. (e.g. grid, tree, chart...)
+    //@ Describes the result of store data request. (e.g. grid, chart...)
     function  Describe (const totalCount: Int32): TFRE_DB_STORE_DATA_DESC;
     //@ Adds an entry to the result.
     procedure addEntry     (const entry: IFRE_DB_Object);
-    procedure addTreeEntry (const entry: IFRE_DB_Object ; const HasChildren : boolean ; const ChildrenFuncName:string='ChildrenData' ; const MenuFuncName : string ='Menu' ; const ContenFuncname : String='' ; const funcclassname :string ='');
   end;
 
   { TFRE_DB_UPDATE_STORE_DESC }
@@ -622,35 +622,6 @@ type
     //@ Sets the new total count.
     procedure setTotalCount   (const count: Integer);
     function  hasChanges      : Boolean;
-  end;
-
-  { TFRE_DB_INVALIDATE_SESSION_DATA_DESC }
-
-  TFRE_DB_INVALIDATE_SESSION_DATA_DESC = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes invalid session data.
-    function  Describe        ():TFRE_DB_INVALIDATE_SESSION_DATA_DESC;
-    //@ Adds an the invalid queries of a store.
-    //@ If queryIds is nil all queries of the store are invalid.
-    procedure addStoreQueries (const storeId: String; const queryIds: TFRE_DB_StringArray=nil);
-  end;
-
-  { TFRE_DB_CHART_DESC }
-
-  TFRE_DB_CHART_DESC    = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes a chart.
-    function Describe        (const caption:String; const store:TFRE_DB_STORE_DESC; const seriesIds: TFRE_DB_StringArray; const seriesType: TFRE_DB_CHART_TYPE;const seriesLabels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0): TFRE_DB_CHART_DESC;
-  end;
-
-  { TFRE_DB_CHART_DATA_DESC }
-
-  TFRE_DB_CHART_DATA_DESC    = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes the data of a chart.
-    function  Describe        (): TFRE_DB_CHART_DATA_DESC;
-    //@ Add the whole data of a series. E.g. all y values of a certain line.
-    procedure setSeries       (const data: TFRE_DB_Real32Array; const uids: TFRE_DB_GUIDArray=nil; const colors: TFRE_DB_StringArray=nil; const texts: TFRE_DB_StringArray=nil; const legend: TFRE_DB_StringArray=nil);
   end;
 
   { TFRE_DB_LIVE_CHART_DESC }
@@ -1063,25 +1034,6 @@ implementation
     Result:=Self;
   end;
 
-  { TFRE_DB_INVALIDATE_SESSION_DATA_DESC }
-
-  function TFRE_DB_INVALIDATE_SESSION_DATA_DESC.Describe: TFRE_DB_INVALIDATE_SESSION_DATA_DESC;
-  begin
-    Result:=Self;
-  end;
-
-  procedure TFRE_DB_INVALIDATE_SESSION_DATA_DESC.addStoreQueries(const storeId: String; const queryIds: TFRE_DB_StringArray);
-  var
-    obj: IFRE_DB_Object;
-  begin
-    obj:=GFRE_DBI.NewObject;
-    obj.Field('storeid').AsString:=storeId;
-    if Assigned(queryIds) then begin
-      obj.Field('queryids').AsStringArr:=queryIds;
-    end;
-    Field('stores').AddObject(obj);
-  end;
-
   { TFRE_DB_TOPMENU_DESC }
 
   function TFRE_DB_TOPMENU_DESC.Describe(const homeCaption, homeIcon: String; const homeIconSize: Integer; const serverFuncs: array of TFRE_DB_SERVER_FUNC_DESC; const mainSectionId: TFRE_DB_String; const sectionsIds: array of TFRE_DB_String; const uname: String; const uServerFunction: TFRE_DB_SERVER_FUNC_DESC; const svgDefs: TFRE_DB_SVG_DEF_ELEM_DESC_ARRAY; const notificationPanel: TFRE_DB_CONTENT_DESC; const notificationInitialClosed: Boolean; const JIRAenabled: Boolean): TFRE_DB_TOPMENU_DESC;
@@ -1123,60 +1075,6 @@ implementation
   procedure TFRE_DB_TOPMENU_DESC.AddFormDialog(const dialog: TFRE_DB_FORM_DIALOG_DESC);
   begin
     Field('formdialog').AsObject:=dialog;
-  end;
-
-  { TFRE_DB_CHART_DATA_DESC }
-
-  function TFRE_DB_CHART_DATA_DESC.Describe: TFRE_DB_CHART_DATA_DESC;
-  begin
-    Result:=Self;
-  end;
-
-  procedure TFRE_DB_CHART_DATA_DESC.setSeries(const data: TFRE_DB_Real32Array; const uids: TFRE_DB_GUIDArray; const colors: TFRE_DB_StringArray; const texts: TFRE_DB_StringArray; const legend: TFRE_DB_StringArray);
-  var
-    obj: IFRE_DB_Object;
-    i  : Integer;
-  begin
-    if assigned(uids) and (Length(data)<>Length(uids)) then raise EFRE_DB_Exception.Create(edb_ERROR,'guid array and data array not the same length');
-    if assigned(colors) and (Length(data)<>Length(colors)) then raise EFRE_DB_Exception.Create(edb_ERROR,'color array and data array not the same length');
-    if assigned(texts) and (Length(data)<>Length(texts)) then raise EFRE_DB_Exception.Create(edb_ERROR,'text array and data array not the same length');
-    if assigned(legend) and (Length(data)<>Length(legend)) then raise EFRE_DB_Exception.Create(edb_ERROR,'legend array and data array not the same length');
-    for i := 0 to Length(data) - 1 do begin
-      obj:=GFRE_DBI.NewObject;
-      obj.Field('value').AsReal32:=data[i];
-      if assigned(uids) then begin
-        obj.Field('uid').AsGUID:=uids[i];
-      end;
-      if assigned(colors) then begin
-        obj.Field('color').AsString:=colors[i];
-      end;
-      if assigned(texts) then begin
-        obj.Field('text').AsString:=texts[i];
-      end;
-      if assigned(legend) then begin
-        obj.Field('legend').AsString:=legend[i];
-      end;
-      Field('series').AddObject(obj);
-    end;
-  end;
-
-  { TFRE_DB_CHART_DESC }
-
-  function TFRE_DB_CHART_DESC.Describe(const caption: String; const store: TFRE_DB_STORE_DESC; const seriesIds: TFRE_DB_StringArray; const seriesType: TFRE_DB_CHART_TYPE; const seriesLabels: TFRE_DB_StringArray; const showLegend: Boolean; const maxValue: Integer): TFRE_DB_CHART_DESC;
-  begin
-    if not FieldExists('id') then begin
-      Field('id').AsString:='id'+UID_String;
-    end;
-    Field('caption').AsString:=caption;
-    Field('store').AsObject:=store;
-    Field('seriesIds').AsStringArr:=seriesIds;
-    Field('type').AsString:=CFRE_DB_CHART_TYPE[seriesType];
-    Field('showLegend').AsBoolean:=showLegend;
-    Field('maxValue').AsInt32:=maxValue;
-    if Assigned(seriesLabels) then begin
-      Field('seriesLabels').AsStringArr:=seriesLabels;
-    end;
-    Result:=Self;
   end;
 
   { TFRE_DB_LIVE_CHART_DESC }
@@ -1613,27 +1511,9 @@ implementation
     Field('data').AddObject(entry);
   end;
 
-  procedure TFRE_DB_STORE_DATA_DESC.addTreeEntry(const entry: IFRE_DB_Object; const HasChildren: boolean; const ChildrenFuncName: string; const MenuFuncName: string; const ContenFuncname: String; const funcclassname: string);
-  begin
-    if funcclassname='' then
-      entry.Field('_funcclassname_').AsString := entry.SchemeClass
-    else
-      entry.Field('_funcclassname_').AsString := funcclassname;
-    entry.Field('_childrenfunc_').AsString:='ChildrenData';
-    entry.Field('_menufunc_').AsString:='Menu';
-    entry.Field('_contentfunc_').AsString:='Content';
-    if HasChildren then
-      entry.Field('children').AsString:='UNCHECKED'
-    else
-      begin
-        entry.DeleteField('children');
-      end;
-    addEntry(entry);
-  end;
-
   { TFRE_DB_FORM_INPUT_DESC }
 
-    function TFRE_DB_FORM_INPUT_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator; const validatorConfigParams: IFRE_DB_Object): TFRE_DB_FORM_INPUT_DESC;
+  function TFRE_DB_FORM_INPUT_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator; const validatorConfigParams: IFRE_DB_Object): TFRE_DB_FORM_INPUT_DESC;
   begin
     Field('caption').AsString        := caption;
     Field('field').AsString          := LowerCase(field_reference);
@@ -1681,10 +1561,9 @@ implementation
 
   { TFRE_DB_STORE_DESC }
 
-    function TFRE_DB_STORE_DESC.Describe(const idField: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const labelFields: TFRE_DB_StringArray; const destroyFunc: TFRE_DB_SERVER_FUNC_DESC; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC; const id: String; const pageSize: Integer): TFRE_DB_STORE_DESC;
+    function TFRE_DB_STORE_DESC.Describe(const idField: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const destroyFunc: TFRE_DB_SERVER_FUNC_DESC; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC; const id: String; const pageSize: Integer): TFRE_DB_STORE_DESC;
   begin
     Field('idField').AsString:=idField;
-    Field('labelFields').AsStringArr:=labelFields;
     if Assigned(serverFunc) then begin
       Field('serverFunc').AsObject:=serverFunc;
     end;

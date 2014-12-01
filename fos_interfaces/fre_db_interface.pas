@@ -944,13 +944,11 @@ type
 
   TFRE_DB_CHART_TYPE                  = (fdbct_pie,fdbct_column,fdbct_line);
   TFRE_DB_LIVE_CHART_TYPE             = (fdblct_line,fdblct_sampledline,fdblct_column);
-  TFRE_COLLECTION_DISPLAY_TYPE        = (cdt_Invalid,cdt_Listview,cdt_Chartview,cdt_Chooser);
+  TFRE_COLLECTION_DISPLAY_TYPE        = (cdt_Invalid,cdt_Listview,cdt_Chooser);
   TFRE_COLLECTION_GRID_DISPLAY_FLAG   = (cdgf_ShowSearchbox,cdgf_Editable,cdgf_ColumnResizeable,cdgf_ColumnHideable,cdgf_ColumnDragable,cdgf_Details,cdgf_Children,cdgf_Multiselect);
-  TFRE_COLLECTION_CHART_DISPLAY_FLAG  = (cdcf_None);
   TFRE_COLLECTION_TREE_DISPLAY_FLAG   = (cdtf_None);
   TFRE_COLLECTION_GRID_DISPLAY_FLAGS  = set of TFRE_COLLECTION_GRID_DISPLAY_FLAG;
   TFRE_COLLECTION_TREE_DISPLAY_FLAGS  = set of TFRE_COLLECTION_TREE_DISPLAY_FLAG;
-  TFRE_COLLECTION_CHART_DISPLAY_FLAGS = set of TFRE_COLLECTION_CHART_DISPLAY_FLAG;
 
   IFRE_DB_TRANSDATA_CHANGE_NOTIFIER   = interface
   end;
@@ -996,7 +994,6 @@ type
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
 
     procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
-    procedure  SetDisplayTypeChart           (const title: TFRE_DB_String; const chart_type: TFRE_DB_CHART_TYPE; const series_field_names: TFRE_DB_StringArray; const use_series_colors:boolean; const use_series_labels : boolean; const series_labels: TFRE_DB_StringArray=nil; const showLegend: Boolean=false; const maxValue: Integer=0);
     procedure  SetParentToChildLinkField     (const fieldname : TFRE_DB_NameTypeRL); { Define a Child/Parent Parent/Child relation via Reflinks syntax is FROMFIELD>TOSCHEME or FROMSCHEME<FROMFIELD, the scheme could be empty }
 
     function   HasParentChildRefRelationDefined : boolean;
