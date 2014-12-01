@@ -57,6 +57,9 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
    // masterdata is global volatile shared, system persistent shared, and per db shared
 
   var  G_GlobalLayerLock : IFOS_LOCK;
+       G_AdminUsers      : Array of String;
+       G_AdminHash      : Array of String;
+
 
   type
 
@@ -91,7 +94,6 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
      procedure   WT_StoreObjectPersistent      (const obj: IFRE_DB_Object);
      procedure   WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
-     function    INT_Fetch                     (const ouid    :  TFRE_DB_GUID  ; out   dbi:IFRE_DB_Object):boolean; { unlocked internal fetch }
 
      {< Backup Functionality}
      function    FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
@@ -99,9 +101,9 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
      function    FDB_GetAllCollsNames          :TFRE_DB_NameTypeArray;
      function    FDB_TryGetIndexStream         (const collname : TFRE_DB_NameType ; const ix_name : TFRE_DB_Nametype ; out stream : TStream):boolean;
-     procedure   FDB_PrepareDBRestore          (const phase:integer);     { used for various preparations and checks }
-     procedure   FDB_SendObject                (const obj:IFRE_DB_Object);
-     procedure   FDB_SendCollection            (const obj:IFRE_DB_Object);
+     procedure   FDB_PrepareDBRestore          (const phase:integer ; const sysdba_user,sysdba_pw : TFRE_DB_String);     { used for various preparations and checks }
+     procedure   FDB_SendObject                (const obj:IFRE_DB_Object ; const sysdba_user,sysdba_pw : TFRE_DB_String);
+     procedure   FDB_SendCollection            (const obj:IFRE_DB_Object ; const sysdba_user,sysdba_pw : TFRE_DB_String);
      { Backup Functionality >}
 
      procedure   _SyncDBInternal               ;
@@ -111,12 +113,13 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   DEBUG_DisconnectLayer         (const db:TFRE_DB_String);
      procedure   DEBUG_InternalFunction        (const func:NativeInt);
 
-     function    _FetchO                       (const ouid:TFRE_DB_GUID ; out dbo:TFRE_DB_Object ; const internal_object:boolean): boolean;
-     procedure   MustNotBeGlobalLayerCheck     ;
-     procedure   MustBeGlobalLayer             ;
+     procedure   MustNotBeGlobalLayerCheck          ;
+     procedure   MustBeGlobalLayer                  ;
      function    LayerLock                          : IFOS_LOCK;
      function    GetConnectedDB                     : TFRE_DB_NameType;
      function    LoadScheme                         : TFRE_DB_Errortype;
+     procedure   InvalidateAllSchemecacheLinks      ;
+     function    VerifyPassword                     (const user,pass : string):boolean;
 
    public
      constructor InternalCreate                     (const basedir, name: TFRE_DB_String; out result: TFRE_DB_Errortype);
@@ -126,27 +129,33 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   Finalize                           ;
 
      function    DatabaseList                       : IFOS_STRINGS;
+
      function    DatabaseExists                     (const dbname:TFRE_DB_String):Boolean;
-     function    CreateDatabase                     (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-     function    DeleteDatabase                     (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-     function    DeployDatabaseScheme               (const scheme:IFRE_DB_Object):TFRE_DB_Errortype;
+     function    CreateDatabase                     (const dbname:TFRE_DB_String ; const sysdba_user,sysdba_pw : TFRE_DB_String):TFRE_DB_Errortype;
+     function    DeleteDatabase                     (const dbname:TFRE_DB_String ; const sysdba_user,sysdba_pw : TFRE_DB_String):TFRE_DB_Errortype;
+     function    DeployDatabaseScheme               (const scheme:IFRE_DB_Object ; const sysdba_user,sysdba_pw : TFRE_DB_String):TFRE_DB_Errortype;
+     function    DeleteDeployedDatabaseScheme       (const sysdba_user,sysdba_pw : TFRE_DB_String):TFRE_DB_Errortype;
+
      function    GetDatabaseScheme                  (out   scheme:IFRE_DB_Object):TFRE_DB_Errortype;
 
-     function    GetReferences                      (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_GUIDArray;
-     function    GetReferencesCount                 (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):NativeInt;
-     function    GetReferencesDetailed              (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_ObjectReferences;
+     function    GetReferences                      (const user_context : PFRE_DB_GUID ; const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
+     function    GetReferencesCount                 (const user_context : PFRE_DB_GUID ; const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
+     function    GetReferencesDetailed              (const user_context : PFRE_DB_GUID ; const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
+     procedure   ExpandReferences                   (const user_context : PFRE_DB_GUID ; const ObjectList : TFRE_DB_GUIDArray ; const ref_constraints : TFRE_DB_NameTypeRLArray ;  out expanded_refs : TFRE_DB_GUIDArray);
+     function    ExpandReferencesCount              (const user_context : PFRE_DB_GUID ; const ObjectList : TFRE_DB_GUIDArray ; const ref_constraints : TFRE_DB_NameTypeRLArray) : NativeInt;                                { works over a reflink chain, with a starting object list }
+     procedure   FetchExpandReferences              (const user_context : PFRE_DB_GUID ; const ObjectList : TFRE_DB_GUIDArray ; const ref_constraints : TFRE_DB_NameTypeRLArray ;  out expanded_refs : IFRE_DB_ObjectArray); { works over a reflink chain, with a starting object list }
 
      function    Connect                            (const db_name:TFRE_DB_String ; out db_layer : IFRE_DB_PERSISTANCE_LAYER ; const NotifIF : IFRE_DB_DBChangedNotificationBlock=nil) : TFRE_DB_Errortype;
      function    Disconnect                         : TFRE_DB_Errortype;
      function    ObjectExists                       (const obj_uid : TFRE_DB_GUID) : boolean;
-     function    Fetch                              (const ouid    : TFRE_DB_GUID  ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
-     function    BulkFetch                          (const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
+     function    Fetch                              (const user_context : PFRE_DB_GUID ; const ouid    : TFRE_DB_GUID  ; out   dbo:IFRE_DB_Object):TFRE_DB_Errortype;
+     function    BulkFetch                          (const user_context : PFRE_DB_GUID ; const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray):TFRE_DB_Errortype;
      function    RebuildUserToken                   (const user_uid: TFRE_DB_GUID):IFRE_DB_USER_RIGHT_TOKEN;
 
      { Transactional Operations / These operations report the last transaction step id generated, there may be more then one generated }
 
-     function    StoreOrUpdateObject                 (const   iobj  : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; { must free the iobj in every case !}
-     function    DeleteObject                        (const obj_uid : TFRE_DB_GUID   ; const collection_name: TFRE_DB_NameType = ''  ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
+     function    StoreOrUpdateObject                 (const user_context : PFRE_DB_GUID ; const   iobj  : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId; { must free the iobj in every case !}
+     function    DeleteObject                        (const user_context : PFRE_DB_GUID ; const obj_uid : TFRE_DB_GUID   ; const collection_name: TFRE_DB_NameType = '') : TFRE_DB_TransStepId;
 
      { Delete Operation :  collection_name = '' delete from all ->  collectionname<>'' only remove from collection }
      function    StartTransaction                    (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType='T') : TFRE_DB_Errortype;
@@ -161,8 +170,8 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      function    CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
      function    CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
      function    CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId; // todo transaction context
-     function    CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean;
-                                                      const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const is_a_domain_index: boolean = false; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+     function    CollectionDefineIndexOnField        (const user_context : PFRE_DB_GUID ; const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean;
+                                                      const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const is_a_domain_index: boolean = false): TFRE_DB_TransStepId;
      function    CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_INDEX_DEF;
      function    CollectionDropIndex                 (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_TransStepId;
      function    CollectionGetAllIndexNames          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_NameTypeArray;
@@ -265,7 +274,7 @@ constructor TFRE_DB_PS_FILE.InternalCreate(const basedir, name: TFRE_DB_String; 
             GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD COLLECTION [%s]',[name]);
             f :=  TFileStream.Create(FCollectionsDir+file_name,fmOpenRead);
             try
-              res := FMaster.MasterColls.NewCollection(name,coll,false,self);
+              res := FMaster.MasterColls.NewCollection(name,coll,false,FMaster);
               if res <> edb_OK then
                 raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM STABLE FAILED FOR [%s]',[name]);
               (coll as TFRE_DB_Persistance_Collection).LoadFromThis(f);
@@ -501,15 +510,6 @@ begin
     end;
 end;
 
-function TFRE_DB_PS_FILE.INT_Fetch(const ouid: TFRE_DB_GUID; out dbi: IFRE_DB_Object): boolean;
-var dbo : TFRE_DB_Object;
-begin
-  result := _FetchO(ouid,dbo,true);
-  if result then
-    dbi := dbo
-  else
-    dbi:=nil;
-end;
 
 function TFRE_DB_PS_FILE.FDB_GetObjectCount(const coll: boolean; const SchemesFilter: TFRE_DB_StringArray): Integer;
 begin
@@ -607,14 +607,16 @@ begin
     end;
 end;
 
-procedure TFRE_DB_PS_FILE.FDB_PrepareDBRestore(const phase: integer);
+procedure TFRE_DB_PS_FILE.FDB_PrepareDBRestore(const phase: integer; const sysdba_user, sysdba_pw: TFRE_DB_String);
 var result : TFRE_DB_Errortype;
 begin
+  if not VerifyPassword(sysdba_user,sysdba_pw) then
+    raise EFRE_DB_Exception.Create(edb_ACCESS,'access prohibited,wrong credentials');
   case phase of
     0 :
       begin
-        DeleteDatabase(FConnectedDB);
-        CreateDatabase(FConnectedDB);
+        DeleteDatabase(FConnectedDB,sysdba_user,sysdba_pw);
+        CreateDatabase(FConnectedDB,sysdba_user,sysdba_pw);
         FMaster.FDB_CleanUpMasterData;
       end;
     1 :
@@ -637,22 +639,26 @@ begin
   end;
 end;
 
-procedure TFRE_DB_PS_FILE.FDB_SendObject(const obj: IFRE_DB_Object);
+procedure TFRE_DB_PS_FILE.FDB_SendObject(const obj: IFRE_DB_Object; const sysdba_user, sysdba_pw: TFRE_DB_String);
 var result : TFRE_DB_Errortype;
 begin
+  if not VerifyPassword(sysdba_user,sysdba_pw) then
+    raise EFRE_DB_Exception.create(edb_ACCESS,'access prohibited,wrong credentials');
   result := FMaster.InternalStoreObjectFromStable(obj.Implementor as TFRE_DB_Object);
   WT_StoreObjectPersistent(obj);
   if result<>edb_OK then
     raise EFRE_DB_PL_Exception.Create(result,'FAILED TO RESTORE OBJECT FROM BACKUP at [%s]',[obj.GetDescriptionID]);
 end;
 
-procedure TFRE_DB_PS_FILE.FDB_SendCollection(const obj: IFRE_DB_Object);
+procedure TFRE_DB_PS_FILE.FDB_SendCollection(const obj: IFRE_DB_Object; const sysdba_user, sysdba_pw: TFRE_DB_String);
 var res  : TFRE_DB_Errortype;
     coll : TFRE_DB_PERSISTANCE_COLLECTION;
     name : TFRE_DB_NameType;
 begin
+  if not VerifyPassword(sysdba_user,sysdba_pw) then
+    raise EFRE_DB_PL_Exception.Create(edb_ACCESS,'access prohibited,wrong credentials');
   name := obj.Field('CollectionName').AsString;
-  res := FMaster.MasterColls.NewCollection(name,coll,false,self);
+  res := FMaster.MasterColls.NewCollection(name,coll,false,FMaster);
   if res <> edb_OK then
     raise EFRE_DB_PL_Exception.Create(res,'LOAD COLLECTION FROM BACKUP FAILED FOR [%s]',[name]);
   coll.RestoreFromObject(obj);
@@ -743,10 +749,36 @@ begin
     except
       on e:exception do
         begin
+          G_SysScheme := nil;
           result.Code := edb_ERROR;
           result.Msg  := 'Failed to load db scheme Error:'+e.Message;
         end;
     end;
+end;
+
+procedure TFRE_DB_PS_FILE.InvalidateAllSchemecacheLinks;
+var i : NativeInt;
+begin
+  G_DEBUG_TRIGGER_1:= true;
+  G_SysMaster.InternalClearSchemecacheLink;
+  for i:=0 to high(G_AllNonsysMasters) do
+    G_AllNonsysMasters[i].InternalClearSchemecacheLink;
+end;
+
+function TFRE_DB_PS_FILE.VerifyPassword(const user, pass: string): boolean;
+var i,idx:nativeint;
+begin
+  result := false;
+  idx    := -1;
+  for i:=0 to high(G_AdminUsers) do   //self.FAdminHash;
+    if G_AdminUsers[i]=user then
+      begin
+        idx:=i;
+        break;
+      end;
+  if idx=-1 then
+    exit;
+  result := GFRE_BT.VerifySaltedSHA1Password(pass,G_AdminHash[idx]);
 end;
 
 function TFRE_DB_PS_FILE.CollectionNewCollection(const coll_name: TFRE_DB_NameType; const volatile_in_memory: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
@@ -847,6 +879,8 @@ end;
 
 constructor TFRE_DB_PS_FILE.Create(const basedir: TFRE_DB_String);
 var GSTRING   : String;
+    sl        : TStringList;
+    i         : integer;
 begin
   GFRE_TF.Get_Lock(G_GlobalLayerLock,True);
   G_UserTokens := TFPHashList.Create;
@@ -856,9 +890,24 @@ begin
       GFRE_BT.CriticalAbort('cannot setup basedirectory');
     end;
   end;
-  FMaster               := nil; //TFRE_DB_Master_Data.Create('GLOBAL',self);
+  FMaster               := nil;
   FConnectedDB          := 'GLOBAL';
   FIsGlobalLayer        := True;
+  sl := TStringList.Create;
+  try
+    sl.CommaText := cFRE_PL_ADMINS;
+    SetLength(G_AdminUsers,sl.Count);
+    for i:=0 to sl.Count-1 do
+      G_AdminUsers[i]:=sl.Strings[i];
+    sl.CommaText := cFRE_PL_ADMINS_PWS;
+    SetLength(G_AdminHash,sl.Count);
+    for i:=0 to sl.Count-1 do
+      G_AdminHash[i]:=sl.Strings[i];
+    if Length(G_AdminUsers)<>Length(G_AdminHash) then
+      raise EFRE_DB_PL_Exception.Create(edb_MISMATCH,'misconfiguration, pl admin user count does not match pl admin hash count');
+  finally
+    sl.free;
+  end;
 
   FChangeNotificationIF := TFRE_DB_DBChangedNotificationBase.Create(FConnectedDB);
   FDontFinalizeNotif    := false;
@@ -905,13 +954,13 @@ begin
   free;
 end;
 
-function TFRE_DB_PS_FILE.Fetch(const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.Fetch(const user_context: PFRE_DB_GUID; const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object): TFRE_DB_Errortype;
 var dboo : TFRE_DB_Object;
 begin
   LayerLock.Acquire;
   try
     try
-      if _FetchO(ouid,dboo,false) then
+      if FMaster.FetchObjectRC(user_context,ouid,dboo,false) then
         begin
           dbo := dboo;
           exit(edb_OK);
@@ -946,7 +995,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.BulkFetch(const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.BulkFetch(const user_context: PFRE_DB_GUID; const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
 var dboa  : TFRE_DB_ObjectArray;
     i     : NativeInt;
     all   : Boolean;
@@ -955,31 +1004,32 @@ begin
   LayerLock.Acquire;
   try
     try
-      all := true;
-      for i := 0 to high(dboa) do
-         if not FMaster.FetchObject(obj_uids[i],dboa[i],false) then
-           begin
-             all := false;
-             break;
-           end;
-      if all then
-        begin
-          SetLength(objects,Length(dboa));
-          for i := 0 to high(objects) do
-            objects[i] := dboa[i];
-          exit(edb_OK);
-        end
-      else
-        begin
-          try
-            for i := 0 to high(dboa) do
-              dboa[i].Finalize;
-          except
-            on e:exception do
-              GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/PL EXCEPTION BULKFETCHFAIL/FREE EXCEPTION :  %s',['Fetch',e.Message]);
-          end;
-          exit(edb_NOT_FOUND);
-        end;
+      result := FMaster.BulkFetchRC(user_context,obj_uids,objects);
+      //all := true;
+      //for i := 0 to high(dboa) do
+      //   if not FMaster.FetchObject(obj_uids[i],dboa[i],false) then
+      //     begin
+      //       all := false;
+      //       break;
+      //     end;
+      //if all then
+      //  begin
+      //    SetLength(objects,Length(dboa));
+      //    for i := 0 to high(objects) do
+      //      objects[i] := dboa[i];
+      //    exit(edb_OK);
+      //  end
+      //else
+      //  begin
+      //    try
+      //      for i := 0 to high(dboa) do
+      //        dboa[i].Finalize;
+      //    except
+      //      on e:exception do
+      //        GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/PL EXCEPTION BULKFETCHFAIL/FREE EXCEPTION :  %s',['Fetch',e.Message]);
+      //    end;
+      //    exit(edb_NOT_FOUND);
+      //  end;
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -1060,7 +1110,7 @@ var sys_admin   : boolean;
             lDlgUGroup   : FRE_DB_CORE.TFRE_DB_GROUP;
         begin
           for i:=0 to high(deleg_groups) do
-            if not _FetchO(deleg_groups[i],grp,true) then
+            if not FMaster.FetchObject(deleg_groups[i],grp,true) then
               raise EFRE_DB_Exception.Create('Could not fetch group by id '+FREDB_G2H(UserGroupIDs[i]))
             else
               begin
@@ -1080,7 +1130,7 @@ var sys_admin   : boolean;
       lUserGroup := nil;
       lRoleIDs   := nil;
       for i:=0 to high(UserGroupIDs) do begin
-        if not _FetchO(UserGroupIDs[i],obj,true) then
+        if not FMaster.FetchObject(UserGroupIDs[i],obj,true) then
           raise EFRE_DB_Exception.Create('Could not fetch group by id '+FREDB_G2H(UserGroupIDs[i]))
         else
           begin
@@ -1092,7 +1142,7 @@ var sys_admin   : boolean;
                    begin
                      if lUserGroup.isDelegation then
                        begin
-                        deleg_groups := GetReferences(lUserGroup.UID,false,'TFRE_DB_GROUP','GROUPIDS',nil);
+                        deleg_groups := GetReferences(nil,lUserGroup.UID,false,'TFRE_DB_GROUP','GROUPIDS');
                         ___ConcatDelegRoleIDArray;
                        end
                      else
@@ -1116,7 +1166,7 @@ var sys_admin   : boolean;
       lAllRights := nil;
       for i:=0 to high(roleids) do
         begin
-          if not _FetchO(roleids[i],obj,true) then //FetchRolebyID(roleids[i],lRole,true)<>edb_OK then begin
+          if not FMaster.FetchObject(roleids[i],obj,true) then //FetchRolebyID(roleids[i],lRole,true)<>edb_OK then begin
             raise EFRE_DB_Exception.Create('Could not fetch role by id '+FREDB_G2H(roleids[i]))
           else
             begin
@@ -1145,7 +1195,7 @@ begin
   try
     try
       MustNotBeGlobalLayerCheck;
-      if not _FetchO(user_uid,obj,true) then
+      if not FMaster.FetchObject(user_uid,obj,true) then
         raise EFRE_DB_Exception.Create(edb_MISMATCH,'the specified uid[%s] is not existing',[FREDB_G2H(user_uid)]);
       if not (obj is FRE_DB_CORE.TFRE_DB_USER) then
         raise EFRE_DB_Exception.Create(edb_MISMATCH,'the specified uid[%s] is not a user but a [%s]',[FREDB_G2H(user_uid),obj.SchemeClass]);
@@ -1202,11 +1252,6 @@ begin
 end;
 
 
-function TFRE_DB_PS_FILE._FetchO(const ouid: TFRE_DB_GUID; out dbo: TFRE_DB_Object; const internal_object: boolean): boolean;
-begin
-  result := FMaster.FetchObject(ouid,dbo,internal_object);
-end;
-
 procedure TFRE_DB_PS_FILE.MustNotBeGlobalLayerCheck;
 begin
   if FIsGlobalLayer then
@@ -1219,7 +1264,7 @@ begin
     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'-Operation only allowed on global layer!-');
 end;
 
-function TFRE_DB_PS_FILE.DeleteObject(const obj_uid: TFRE_DB_GUID; const collection_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+function TFRE_DB_PS_FILE.DeleteObject(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; const collection_name: TFRE_DB_NameType): TFRE_DB_TransStepId;
 var
     ImplicitTransaction : Boolean;
     delete_object       : TFRE_DB_Object;
@@ -1236,7 +1281,7 @@ begin
             G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('ID',Fmaster,FChangeNotificationIF);
             ImplicitTransaction := True;
           end;
-          if not _FetchO(obj_uid,delete_object,true) then
+          if not FMaster.FetchObject(obj_uid,delete_object,true) then
             raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[FREDB_G2H(obj_uid)]);
           if (collection_name<>'') then
             if delete_object.__InternalCollectionExistsName(collection_name)=-1 then
@@ -1285,7 +1330,7 @@ begin
 end;
 
 // This is always the first entry into the store and update chain
-function TFRE_DB_PS_FILE.StoreOrUpdateObject(const iobj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+function TFRE_DB_PS_FILE.StoreOrUpdateObject(const user_context: PFRE_DB_GUID; const iobj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean): TFRE_DB_TransStepId;
 var coll                : TFRE_DB_PERSISTANCE_COLLECTION;
     to_update_obj       : TFRE_DB_Object;
     ImplicitTransaction : Boolean;
@@ -1332,7 +1377,7 @@ begin
           begin { update }
             if not obj.IsObjectRoot then
               raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the object [%s] is a child object, only root objects updates are allowed',[obj.UID_String]);
-            if not _FetchO(obj.UID,to_update_obj,true) then
+            if not FMaster.FetchObject(obj.UID,to_update_obj,true) then
               raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
             if length(to_update_obj.__InternalGetCollectionList)=0 then
               begin
@@ -1393,7 +1438,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.CollectionDefineIndexOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const is_a_domain_index: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+function TFRE_DB_PS_FILE.CollectionDefineIndexOnField(const user_context: PFRE_DB_GUID; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const is_a_domain_index: boolean): TFRE_DB_TransStepId;
 var ImplicitTransaction : Boolean;
     step                : TFRE_DB_DefineIndexOnFieldStep;
 
@@ -1869,7 +1914,7 @@ begin
           SetLength(uidlist,cnt);
         end;
       for i:=0 to high(uidlist) do
-        DeleteObject(uidlist[i],coll_name,user_context);
+        DeleteObject(user_context,uidlist[i],coll_name);
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -2037,7 +2082,7 @@ begin
         raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] not found',[coll_name]);
       result := collection.GetIndexedUidsRC(qry_val,uidlist,false,index_name,user_context);
       for i:=0 to high(uidlist) do
-         DeleteObject(uidlist[i],coll_name);
+         DeleteObject(user_context,uidlist[i],coll_name);
     except
       on e:EFRE_DB_PL_Exception do
         begin
@@ -2149,6 +2194,7 @@ var up_dbname : TFRE_DB_String;
   end;
 
 begin
+  MustBeGlobalLayer;
   LayerLock.Acquire; { self }
   try
     if db_name='' then
@@ -2209,6 +2255,7 @@ end;
 function TFRE_DB_PS_FILE.DatabaseList: IFOS_STRINGS;
 var i : integer;
 begin
+  MustBeGlobalLayer;
   LayerLock.Acquire;
   try
     result := GFRE_TF.Get_FOS_Strings;
@@ -2223,6 +2270,7 @@ end;
 
 function TFRE_DB_PS_FILE.DatabaseExists(const dbname: TFRE_DB_String): Boolean;
 begin
+  MustBeGlobalLayer;
   LayerLock.Acquire;
   try
     _SetupDirs(dbname);
@@ -2232,10 +2280,15 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.CreateDatabase(const dbname: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.CreateDatabase(const dbname: TFRE_DB_String; const sysdba_user, sysdba_pw: TFRE_DB_String): TFRE_DB_Errortype;
 begin
   LayerLock.Acquire;
   try
+    if not VerifyPassword(sysdba_user,sysdba_pw) then
+      begin
+        result.SetIt(edb_ACCESS,'access prohibited,wrong credentials');
+        exit;
+      end;
     if dbname = '' then
       begin
         Result.Code:=edb_INVALID_PARAMS;
@@ -2269,21 +2322,29 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.DeleteDatabase(const dbname: TFRE_DB_String): TFRE_DB_Errortype;
-var dir: TFRE_DB_String;
-      i: Integer;
+function TFRE_DB_PS_FILE.DeleteDatabase(const dbname: TFRE_DB_String; const sysdba_user, sysdba_pw: TFRE_DB_String): TFRE_DB_Errortype;
+var dir       : TFRE_DB_String;
+      i       : Integer;
+      udbname : TFRE_DB_String;
 begin
+  udbname := UpperCase(dbname);
   LayerLock.Acquire;
   try
+    if not VerifyPassword(sysdba_user,sysdba_pw) then
+      begin
+        result.SetIt(edb_ACCESS,'access prohibited,wrong credentials');
+        exit;
+      end;
     if dbname='' then
       begin
-        result.Code  := edb_INVALID_PARAMS;
-        result.Msg   := 'dbname is empty';
+        result.SetIt(edb_INVALID_PARAMS,'dbname is empty');
+        exit;
       end;
-    if UpperCase(dbname)='GLOBAL' then
+    if udbname='GLOBAL' then
       begin
         result.Code  := edb_RESERVED;
         result.Msg   := 'GLOBAL is reserved';
+        exit;
       end;
     dir := SetDirSeparators(FBasedirectory+'/'+EscapeDBName(dbname));
     if not DirectoryExists(dir) then
@@ -2297,9 +2358,11 @@ begin
         result         := edb_OK;
         for i:=0 to high(FConnectedLayers) do
           begin
-            if uppercase(FConnectedLayers[i].FConnectedDB)=uppercase(dbname) then;
+            if uppercase(FConnectedLayers[i].FConnectedDB)=udbname then
               FConnectedLayers[i].FMaster.FDB_CleanUpMasterData;
           end;
+        if udbname='SYSTEM' then
+          DeleteDeployedDatabaseScheme(sysdba_user,sysdba_pw);
       end;
     end else begin
       result.SetIt(edb_ERROR,'could not delete the db named ['+dbname+']');
@@ -2310,19 +2373,49 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.DeployDatabaseScheme(const scheme: IFRE_DB_Object): TFRE_DB_Errortype;
+function TFRE_DB_PS_FILE.DeployDatabaseScheme(const scheme: IFRE_DB_Object; const sysdba_user, sysdba_pw: TFRE_DB_String): TFRE_DB_Errortype;
 var objdir : string;
 begin
+  MustBeGlobalLayer;
   LayerLock.Acquire;
   try
-    MustNotBeGlobalLayerCheck;
+    if not VerifyPassword(sysdba_user,sysdba_pw) then
+      begin
+        result.SetIt(edb_ACCESS,'access prohibited,wrong credentials');
+        exit;
+      end;
     objdir := FBasedirectory+DirectorySeparator+'fre_scheme.dbo';
     scheme.SaveToFile(objdir);
     G_SysScheme.Finalize;
     LoadScheme;
+    InvalidateAllSchemecacheLinks;
     result := edb_OK;
   finally
-    LayerLock.Finalize;
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.DeleteDeployedDatabaseScheme(const sysdba_user, sysdba_pw: TFRE_DB_String): TFRE_DB_Errortype;
+var objdir : string;
+begin
+  LayerLock.Acquire;
+  try
+    if not VerifyPassword(sysdba_user,sysdba_pw) then
+      begin
+        result.SetIt(edb_ACCESS,'access prohibited,wrong credentials');
+        exit;
+      end;
+    objdir := FBasedirectory+DirectorySeparator+'fre_scheme.dbo';
+    G_SysScheme.Finalize;
+    G_SysScheme:=nil;
+    if not DeleteFile(objdir) then
+      begin
+        result.SetIt(edb_ERROR,'erase deployment failed.');
+        exit;
+      end;
+    result := edb_OK;
+  finally
+    LayerLock.Release;
   end;
 end;
 
@@ -2330,6 +2423,11 @@ function TFRE_DB_PS_FILE.GetDatabaseScheme(out scheme: IFRE_DB_Object): TFRE_DB_
 begin
   LayerLock.Acquire;
   try
+    if not Assigned(G_SysScheme) then
+      try
+        LoadScheme;
+      except
+      end;
     if assigned(G_SysScheme) then
       begin
         scheme := G_SysScheme.CloneToNewObject;
@@ -2345,7 +2443,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.GetReferences(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_GUIDArray;
+function TFRE_DB_PS_FILE.GetReferences(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
 begin
   LayerLock.Acquire;
   try
@@ -2355,7 +2453,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.GetReferencesCount(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+function TFRE_DB_PS_FILE.GetReferencesCount(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
 begin
   LayerLock.Acquire;
   try
@@ -2365,11 +2463,41 @@ begin
   end;
 end;
 
-function TFRE_DB_PS_FILE.GetReferencesDetailed(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_ObjectReferences;
+function TFRE_DB_PS_FILE.GetReferencesDetailed(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_ObjectReferences;
 begin
   LayerLock.Acquire;
   try
     result := FMaster.GetReferencesDetailedRC(obj_uid,from,scheme_prefix_filter,field_exact_filter,user_context);
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+procedure TFRE_DB_PS_FILE.ExpandReferences(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: TFRE_DB_GUIDArray);
+begin
+  LayerLock.Acquire;
+  try
+    FMaster.ExpandReferencesRC(user_context,ObjectList,ref_constraints,expanded_refs);
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+function TFRE_DB_PS_FILE.ExpandReferencesCount(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray): NativeInt;
+begin
+  LayerLock.Acquire;
+  try
+    result := FMaster.ExpandReferencesCountRC(user_context,ObjectList,ref_constraints);
+  finally
+    LayerLock.Release;
+  end;
+end;
+
+procedure TFRE_DB_PS_FILE.FetchExpandReferences(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: IFRE_DB_ObjectArray);
+begin
+  LayerLock.Acquire;
+  try
+    FMaster.FetchExpandReferencesRC(user_context,ObjectList,ref_constraints,expanded_refs);
   finally
     LayerLock.Release;
   end;

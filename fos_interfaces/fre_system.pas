@@ -77,6 +77,8 @@ var
       cG_OVERRIDE_PASS                :string = '';
       cFRE_ADMIN_USER                 :string = 'admin@system';
       cFRE_ADMIN_PASS                 :string = 'admin';
+      cFRE_PL_ADMIN_USER              :string = 'sysdba';
+      cFRE_PL_ADMIN_PASS              :string = 'sysdba';
       cFRE_TASKER_PASS                :string = 'tasker';
       cFRE_MONITORING_HOST            :string = '';
       cFRE_MONITORING_USER            :string = '';
@@ -106,6 +108,9 @@ var
       cFRE_DB_RESET_ADMIN             :boolean=false;
       cFRE_DB_CACHETAG                :ShortString='';
       cFRE_CMDLINE_DEBUG              :ShortString='';
+
+      cFRE_PL_ADMINS                  :string='sysdba';
+      cFRE_PL_ADMINS_PWS              :String='e1NTSEF9THV4UGIzeUJqMUZ5eUl4dy82NkUrWStELzl0SU0wcExNVlZwVFE9PQ==';
 
       G_DEBUG_TRIGGER_1               :boolean=false;
       G_DEBUG_TRIGGER_2               :boolean=false;

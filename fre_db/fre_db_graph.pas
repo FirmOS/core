@@ -407,7 +407,7 @@ var sfrom        : string;
     if fld.FieldType = fdbft_ObjLink then begin
       if fld.ValueCount>0 then begin
         for ivaluecount     :=  0  to  fld.ValueCount-1 do begin
-          CheckDbResult((conn as TFRE_DB_BASE_CONNECTION).Fetch(fld.AsObjectLinkArray[ivaluecount],link_obj),'inconsistency db links');
+          CheckDbResult((conn as TFRE_DB_BASE_CONNECTION).Fetch(nil,fld.AsObjectLinkArray[ivaluecount],link_obj),'inconsistency db links');
           sreference:='struct'+lowercase(obj.Schemeclass)+':'+lowercase(fld.Fieldname)+' -> struct'+lowercase(link_obj.SchemeClass)+':sn';
           if referenceobj.FieldExists(GFRE_BT.HashString_MD5_HEX(sreference)) then begin
             irefcount:=referenceobj.Field(GFRE_BT.HashString_MD5_HEX(sreference)).AsObject.Field('refcount').asint64;

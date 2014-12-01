@@ -213,7 +213,7 @@ type
     function  Clone                   : TFRE_DB_FILTER_BASE;override;
     function  CheckFilterMiss         (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     function  GetDefinitionKey        : TFRE_DB_NameType; override;
-    procedure ExpandReferences        (const dbc : IFRE_DB_CONNECTION);
+    procedure FilterExpandRefs        (const dbc : IFRE_DB_CONNECTION);
     procedure InitFilter              (const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean ;  const dbname: TFRE_DB_NameType);
     procedure ReEvalFilterStartVals   ; override;
     function  CheckReflinkUpdateEvent (const key_descr: TFRE_DB_NameTypeRL) : boolean; override;
@@ -1001,7 +1001,7 @@ begin
   result := 'A:'+ GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-procedure TFRE_DB_FILTER_AUTO_DEPENDENCY.ExpandReferences(const dbc: IFRE_DB_CONNECTION);
+procedure TFRE_DB_FILTER_AUTO_DEPENDENCY.FilterExpandRefs(const dbc: IFRE_DB_CONNECTION);
 begin
   SetLength(FValues,0);
   (dbc.Implementor as TFRE_DB_CONNECTION).ExpandReferencesNoRightCheck(FStartValues,FRL_Spec,FValues);
@@ -1024,7 +1024,7 @@ procedure TFRE_DB_FILTER_AUTO_DEPENDENCY.ReEvalFilterStartVals;
 var db : IFRE_DB_CONNECTION;
 begin
   db := G_TCDM.DBC(FDBName);
-  ExpandReferences(db);
+  FilterExpandRefs(db);
 end;
 
 function TFRE_DB_FILTER_AUTO_DEPENDENCY.CheckReflinkUpdateEvent(const key_descr: TFRE_DB_NameTypeRL): boolean;

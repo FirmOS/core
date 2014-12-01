@@ -74,15 +74,18 @@ type
 
       function  DatabaseList                  : IFOS_STRINGS;
       function  DatabaseExists                (const dbname:TFRE_DB_String):Boolean;
-      function  CreateDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-      function  DeleteDatabase                (const dbname:TFRE_DB_String):TFRE_DB_Errortype;
-      function  DeployDatabaseScheme          (const scheme:IFRE_DB_Object):TFRE_DB_Errortype;
+      function  CreateDatabase                (const dbname:TFRE_DB_String ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String):TFRE_DB_Errortype;
+      function  DeleteDatabase                (const dbname:TFRE_DB_String ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String):TFRE_DB_Errortype;
+      function  DeployDatabaseScheme          (const scheme:IFRE_DB_Object ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String):TFRE_DB_Errortype;
       function  GetDatabaseScheme             (out   scheme:IFRE_DB_Object):TFRE_DB_Errortype;
       procedure Finalize                      ;
 
-      function  GetReferences                 (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_GUIDArray;
-      function  GetReferencesCount            (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):NativeInt;
-      function  GetReferencesDetailed         (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_ObjectReferences;
+      function  GetReferences                 (const user_context : PFRE_DB_GUID ; const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_GUIDArray;
+      function  GetReferencesCount            (const user_context : PFRE_DB_GUID ; const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):NativeInt;
+      function  GetReferencesDetailed         (const user_context : PFRE_DB_GUID ; const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType=''):TFRE_DB_ObjectReferences;
+      procedure ExpandReferences              (const user_context : PFRE_DB_GUID ; const ObjectList : TFRE_DB_GUIDArray ; const ref_constraints : TFRE_DB_NameTypeRLArray ;  out expanded_refs : TFRE_DB_GUIDArray);
+      function  ExpandReferencesCount         (const user_context : PFRE_DB_GUID ; const ObjectList : TFRE_DB_GUIDArray ; const ref_constraints : TFRE_DB_NameTypeRLArray) : NativeInt;                                { works over a reflink chain, with a starting object list }
+      procedure FetchExpandReferences         (const user_context : PFRE_DB_GUID ; const ObjectList : TFRE_DB_GUIDArray ; const ref_constraints : TFRE_DB_NameTypeRLArray ;  out expanded_refs : IFRE_DB_ObjectArray); { works over a reflink chain, with a starting object list }
 
       function  StartTransaction              (const typ:TFRE_DB_TRANSACTION_TYPE ; const ID:TFRE_DB_NameType) : TFRE_DB_Errortype;
       function  Commit                        : boolean;
@@ -91,10 +94,10 @@ type
 
 
       function  ObjectExists                  (const obj_uid : TFRE_DB_GUID) : boolean;
-      function  DeleteObject                  (const obj_uid : TFRE_DB_GUID  ; const collection_name: TFRE_DB_NameType = '' ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_TransStepId;
-      function  Fetch                         (const ouid   :  TFRE_DB_GUID  ; out   dbo:IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_Errortype; //Remove internal fetch
-      function  BulkFetch                     (const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_Errortype;
-      function  StoreOrUpdateObject           (const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
+      function  DeleteObject                  (const user_context : PFRE_DB_GUID ; const obj_uid : TFRE_DB_GUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
+      function  Fetch                         (const user_context : PFRE_DB_GUID ; const ouid   :  TFRE_DB_GUID  ; out   dbo:IFRE_DB_Object): TFRE_DB_Errortype; //Remove internal fetch
+      function  BulkFetch                     (const user_context : PFRE_DB_GUID ; const obj_uids: TFRE_DB_GUIDArray ; out objects : IFRE_DB_ObjectArray):TFRE_DB_Errortype;
+      function  StoreOrUpdateObject           (const user_context : PFRE_DB_GUID ; const obj : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
       procedure SyncWriteWAL                  (const WALMem : TMemoryStream);
       procedure SyncSnapshot                  ;
       procedure DEBUG_InternalFunction        (const func:NativeInt);
@@ -106,25 +109,25 @@ type
       procedure WT_StoreObjectPersistent      (const obj: IFRE_DB_Object);
       procedure WT_DeleteCollectionPersistent (const collname : TFRE_DB_NameType);
       procedure WT_DeleteObjectPersistent     (const iobj:IFRE_DB_Object);
-      function  INT_Fetch                     (const ouid    :  TFRE_DB_GUID  ; out   dbo:IFRE_DB_Object):boolean;
       function  WT_GetSysLayer                : IFRE_DB_PERSISTANCE_LAYER;
 
       function  FDB_GetObjectCount            (const coll:boolean; const SchemesFilter:TFRE_DB_StringArray=nil): Integer;
       procedure FDB_ForAllObjects             (const cb:IFRE_DB_ObjectIteratorBrk; const SchemesFilter:TFRE_DB_StringArray=nil);
       procedure FDB_ForAllColls               (const cb:IFRE_DB_Obj_Iterator);
       function  FDB_GetAllCollsNames          :TFRE_DB_NameTypeArray;
-      procedure FDB_PrepareDBRestore          (const phase:integer);
-      procedure FDB_SendObject                (const obj:IFRE_DB_Object);
-      procedure FDB_SendCollection            (const obj:IFRE_DB_Object);
+      procedure FDB_PrepareDBRestore          (const phase:integer ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String);
+      procedure FDB_SendObject                (const obj:IFRE_DB_Object ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String);
+      procedure FDB_SendCollection            (const obj:IFRE_DB_Object ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String);
       function  FDB_TryGetIndexStream         (const collname : TFRE_DB_NameType ; const ix_name : TFRE_DB_Nametype ; out stream : TStream):boolean;
+
 
       { Collection Interface }
       function  CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
       function  CollectionExistsInCollection        (const coll_name: TFRE_DB_NameType ; const check_uid: TFRE_DB_GUID; const has_fetch_rights: boolean ; const user_context : PFRE_DB_GUID=nil): boolean;
       function  CollectionDeleteCollection          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_TransStepId;
       function  CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
-      function  CollectionDefineIndexOnField        (const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean;
-                                                     const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const is_a_domain_index: boolean = false; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
+      function  CollectionDefineIndexOnField        (const user_context : PFRE_DB_GUID ; const coll_name: TFRE_DB_NameType ; const FieldName   : TFRE_DB_NameType ; const FieldType : TFRE_DB_FIELDTYPE   ; const unique     : boolean;
+                                                     const ignore_content_case: boolean ; const index_name : TFRE_DB_NameType ; const allow_null_value : boolean=true ; const unique_null_values: boolean=false ; const is_a_domain_index: boolean = false): TFRE_DB_TransStepId;
       function  CollectionDropIndex                 (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_TransStepId;
       function  CollectionGetIndexDefinition        (const coll_name: TFRE_DB_NameType ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil):TFRE_DB_INDEX_DEF;
       function  CollectionGetAllIndexNames          (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : TFRE_DB_NameTypeArray;
@@ -958,7 +961,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CreateDatabase(const dbname: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CreateDatabase(const dbname: TFRE_DB_String; const sysdba_user, sysdba_pw_hash: TFRE_DB_String): TFRE_DB_Errortype;
 var cmd,answer : IFRE_DB_Object;
 begin
   cmd := NewPersistenceLayerCommand('CD');
@@ -972,7 +975,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeleteDatabase(const dbname: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeleteDatabase(const dbname: TFRE_DB_String; const sysdba_user, sysdba_pw_hash: TFRE_DB_String): TFRE_DB_Errortype;
 var cmd,answer : IFRE_DB_Object;
 begin
   cmd := NewPersistenceLayerCommand('DD');
@@ -986,7 +989,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeployDatabaseScheme(const scheme: IFRE_DB_Object): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeployDatabaseScheme(const scheme: IFRE_DB_Object; const sysdba_user, sysdba_pw_hash: TFRE_DB_String): TFRE_DB_Errortype;
 begin
   abort;
 end;
@@ -1001,7 +1004,7 @@ begin
 //  abort;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferences(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_GUIDArray;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferences(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_GUIDArray;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
@@ -1021,7 +1024,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferencesCount(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferencesCount(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): NativeInt;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
@@ -1040,7 +1043,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferencesDetailed(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_ObjectReferences;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.GetReferencesDetailed(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType): TFRE_DB_ObjectReferences;
 var cmd,answer : IFRE_DB_Object;
     i          : NativeInt;
 begin
@@ -1066,6 +1069,21 @@ begin
   finally
     answer.Finalize;
   end;
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.ExpandReferences(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: TFRE_DB_GUIDArray);
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.ExpandReferencesCount(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray): NativeInt;
+begin
+  abort;
+end;
+
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FetchExpandReferences(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: IFRE_DB_ObjectArray);
+begin
+  abort;
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.StartTransaction(const typ: TFRE_DB_TRANSACTION_TYPE; const ID: TFRE_DB_NameType): TFRE_DB_Errortype;
@@ -1110,7 +1128,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeleteObject(const obj_uid: TFRE_DB_GUID; const collection_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DeleteObject(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; const collection_name: TFRE_DB_NameType): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
@@ -1127,7 +1145,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Fetch(const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.Fetch(const user_context: PFRE_DB_GUID; const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object): TFRE_DB_Errortype;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
@@ -1147,7 +1165,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.BulkFetch(const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray; const user_context: PFRE_DB_GUID): TFRE_DB_Errortype;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.BulkFetch(const user_context: PFRE_DB_GUID; const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
@@ -1167,7 +1185,7 @@ begin
   end;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.StoreOrUpdateObject(const obj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.StoreOrUpdateObject(const user_context: PFRE_DB_GUID; const obj: IFRE_DB_Object; const collection_name: TFRE_DB_NameType; const store: boolean): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
 begin
   if FGlobal then
@@ -1204,7 +1222,7 @@ begin
   abort;
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionDefineIndexOnField(const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const is_a_domain_index: boolean; const user_context: PFRE_DB_GUID): TFRE_DB_TransStepId;
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.CollectionDefineIndexOnField(const user_context: PFRE_DB_GUID; const coll_name: TFRE_DB_NameType; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean; const is_a_domain_index: boolean): TFRE_DB_TransStepId;
 var cmd,answer : IFRE_DB_Object;
     dba        : TFRE_DB_StringArray;
 begin
@@ -1275,10 +1293,6 @@ begin
 
 end;
 
-function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.INT_Fetch(const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object): boolean;
-begin
-end;
-
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.WT_GetSysLayer: IFRE_DB_PERSISTANCE_LAYER;
 begin
 end;
@@ -1304,17 +1318,17 @@ begin
   abort;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_PrepareDBRestore(const phase: integer);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_PrepareDBRestore(const phase: integer; const sysdba_user, sysdba_pw_hash: TFRE_DB_String);
 begin
   abort;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendObject(const obj: IFRE_DB_Object);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendObject(const obj: IFRE_DB_Object; const sysdba_user, sysdba_pw_hash: TFRE_DB_String);
 begin
   abort;
 end;
 
-procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendCollection(const obj: IFRE_DB_Object);
+procedure TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_SendCollection(const obj: IFRE_DB_Object; const sysdba_user, sysdba_pw_hash: TFRE_DB_String);
 begin
   abort;
 end;

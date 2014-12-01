@@ -64,12 +64,12 @@ type
   private
     FAvailExtensionList  : IFOS_STRINGS;
     FChosenExtensionList : IFOS_STRINGS;
+    FCustomExtensionSet  : boolean;
+    FDeployed            : boolean;
     FShortOpts           : IFOS_STRINGS;
     FLongOpts            : IFOS_STRINGS;
     FHelpOpts            : IFOS_STRINGS;
-    FDefaultExtensions   : String;
     FDefaultStyle        : String;
-    procedure   SetDefaultExtensions(AValue: String);
     procedure   SetDefaultStyle     (AValue: String);
   protected
     fapplication                   : string;
@@ -87,8 +87,11 @@ type
     procedure  _CheckDBNameSupplied;
     procedure  _CheckAdminUserSupplied;
     procedure  _CheckAdminPassSupplied;
+    procedure  _CheckPLAdminUserSupplied;
+    procedure  _CheckPLAdminPassSupplied;
     procedure  _CheckUserSupplied;
     procedure  _CheckPassSupplied;
+    procedure  _CheckNoCustomextensionsSet;
 
     procedure   DoRun                   ; override ;
     procedure   OrderedShutDown         ;
@@ -106,22 +109,24 @@ type
 
     function    ListFromString          (const str :string) : IFOS_STRINGS;
     procedure   ConvertDbo              (const file_name:string ; const to_json:boolean);
+    procedure   CalcSHA1                (pw : string);
     procedure   DumpDBO                 (const uid_hex : string);
     procedure   PrintTimeZones          ;
     procedure   ReCreateDB              ;
     procedure   ReCreateSysDB           ;
     procedure   BackupDB                (const adb, sdb: boolean; const dir: string);
-    procedure   RestoreDB               (const adb, sdb: boolean; const dir: string);
+    procedure   RestoreDB               (const adb, sdb: boolean; const dir: string ; const override_with_live_scheme : boolean);
     procedure   GenerateTestdata        ;
     procedure   DoUnitTest              ;
     procedure   InitExtensions          ;
     procedure   ShowVersions            ;
     procedure   ShowRights              ;
     procedure   ShowApps                ;
+    procedure   ShowDeploy              ;
     procedure   DumpScheme              ;
     procedure   RemoveExtensions        ;
-    procedure   RegisterExtensions ;
-    procedure   DeployDatabaseScheme    ;
+    procedure   RegisterExtensions      ;
+    procedure   DeployDatabaseScheme    (deploy_revision : string);
     procedure   VerifyExtensions        ;
     procedure   ListExtensions          ;
     procedure   PrepareStartup          ;
@@ -129,10 +134,10 @@ type
     procedure   EndlessLogTest          ;
     procedure   SchemeDump              (const filename:string;const classfile:string);
     procedure   DumpAll                 (const filterstring: string);
+    procedure   OverviewDump            ;
   public
     constructor Create                  (TheOwner: TComponent); override;
     destructor  Destroy                 ; override;
-    property    DefaultExtensions       : String read FDefaultExtensions write SetDefaultExtensions;
     property    DefaultStyle            : String read FDefaultStyle      write SetDefaultStyle;
   end;
 
@@ -190,6 +195,19 @@ begin
      end;
 end;
 
+procedure TFRE_CLISRV_APP.CalcSHA1(pw: string);
+var len : NativeInt;
+begin
+  Randomize;
+  len:=StrToIntDef(pw,-1);
+  if pw='' then
+    pw := FREDB_GetRandomChars(10)
+  else
+  if (len>0) and (len<65) then
+    pw := FREDB_GetRandomChars(len);
+  writeln('Calculating Salted SHA1 SCHEME for ['+pw+'] = ['+GFRE_BT.CalcSaltedSH1Password(pw,FREDB_GetRandomChars(8))+']');
+end;
+
 procedure TFRE_CLISRV_APP.DumpDBO(const uid_hex: string);
 var conn : IFRE_DB_CONNECTION;
     uid  : TFRE_DB_GUID;
@@ -201,8 +219,9 @@ begin
   _CheckDBNameSupplied;
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
+  _CheckNoCustomextensionsSet;
   CONN := GFRE_DBI.NewConnection;
-  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
+  CheckDbResult(CONN.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect system db');
   CheckDbResult(conn.fetch(uid,dbo));
   refs := conn.GetReferencesDetailed(uid,false);
   writeln('');
@@ -281,6 +300,7 @@ function TFRE_CLISRV_APP.GetShortCheckOptions: String;
 var
   i: NativeInt;
 begin
+  result := '';
   for i:=0 to FShortOpts.Count-1 do
     result := result+FShortOpts[i];
 end;
@@ -304,68 +324,70 @@ end;
 
 procedure TFRE_CLISRV_APP.AddCommandLineOptions;
 begin
-  AddCheckOption('v' ,'version'      ,'  -v            | --version                      : print version information');
-  AddCheckOption('h' ,'help'         ,'  -h            | --help                         : print this help');
-  AddCheckOption('e:','extensions:'  ,'  -e <ext,..>   | --extensions=<ext,..>          : load database extensions');
-  AddCheckOption('l' ,'list'         ,'  -l            | --list                         : list available extensions');
-  AddCheckOption('s:','style:'       ,'  -s <style>    | --style <style>                : use the given css style (default: firmos)');
-  AddCheckOption('d:','database:'    ,'  -d <database> | --database=<database>          : specify database, default is "ADMIN_DB"');
-  AddCheckOption('x' ,'forcedb'      ,'  -x            | --forcedb                      : recreates specified database (CAUTION)');
-  AddCheckOption('y' ,'forcesysdb'   ,'  -y            | --forcesysdb                   : recreates system database (CAUTION)');
-  AddCheckOption('i' ,'init'         ,'  -i            | --init                         : init a new database with the chosen extensions');
-  AddCheckOption('r' ,'remove'       ,'  -r            | --remove                       : remove extensions from system database (CAUTION)');
-  AddCheckOption('t' ,'testdata'     ,'  -t            | --testdata                     : creates test data for extensions');
-  AddCheckOption('u:','user:'        ,'  -u <user>     | --user=<user>                  : specify autologin (debug) user');
-  AddCheckOption('p:','pass:'        ,'  -p <password> | --pass=<password>              : specify autologin (debug) password');
-  AddCheckOption('U:','remoteuser:'  ,'  -U            | --remoteuser=<user>            : user for remote commands');
-  AddCheckOption('H:','remotehost:'  ,'  -H            | --remotehost=<pass>            : host for remote commands');
-  AddCheckOption('g:','graph:'       ,'  -g <filename> | --graph=<filename>             : graphical dump (system without extensions)');
-  AddCheckOption('*' ,'classfile:'   ,'                | --classfile=<filename>         : filter graphical dump to classes listed in classfile and related');
-  AddCheckOption('z' ,'testdump:'    ,'  -z [Scheme,..]| --testdump=[Scheme,..]         : dump class and uid of all objects');
+  AddCheckOption('v'  ,'version'      ,'  -v            | --version                      : print version information');
+  AddCheckOption('h'  ,'help'         ,'  -h            | --help                         : print this help');
+  AddCheckOption('e:' ,'extensions:'  ,'  -e <ext,..>   | --extensions=<ext,..>          : load database extensions');
+  AddCheckOption('l'  ,'list'         ,'  -l            | --list                         : list available extensions');
+  AddCheckOption('s:' ,'style:'       ,'  -s <style>    | --style <style>                : use the given css style (default: firmos)');
+  AddCheckOption('d:' ,'database:'    ,'  -d <database> | --database=<database>          : specify database, default is "ADMIN_DB"');
+  AddCheckOption('x'  ,'forcedb'      ,'  -x            | --forcedb                      : recreates specified database (CAUTION)');
+  AddCheckOption('y'  ,'forcesysdb'   ,'  -y            | --forcesysdb                   : recreates system database (CAUTION)');
+  AddCheckOption('i'  ,'init'         ,'  -i            | --init                         : init a new database with the chosen extensions');
+  AddCheckOption('r'  ,'remove'       ,'  -r            | --remove                       : remove extensions from system database (CAUTION)');
+  AddCheckOption('t'  ,'testdata'     ,'  -t            | --testdata                     : creates test data for extensions');
+  AddCheckOption('u:' ,'user:'        ,'  -u <user>     | --user=<user>                  : specify autologin (debug) user');
+  AddCheckOption('p:' ,'pass:'        ,'  -p <password> | --pass=<password>              : specify autologin (debug) password');
+  AddCheckOption('U:' ,'remoteuser:'  ,'  -U            | --remoteuser=<user>            : user for remote commands');
+  AddCheckOption('H:' ,'remotehost:'  ,'  -H            | --remotehost=<pass>            : host for remote commands');
+  AddCheckOption('g:' ,'graph:'       ,'  -g <filename> | --graph=<filename>             : graphical dump (system without extensions)');
+  AddCheckOption('*'  ,'classfile:'   ,'                | --classfile=<filename>         : filter graphical dump to classes listed in classfile and related');
+  AddCheckOption('z'  ,'testdump:'    ,'  -z [Scheme,..]| --testdump=[Scheme,..]         : dump class and uid of all objects');
   AddHelpOutLine;
-  AddCheckOption('*','ple'           ,'                | --ple                          : use embedded persistence layer');
-  AddCheckOption('*','plhost:'       ,'                | --plhost=<dnsname>             : use dns host for pl net connection');
-  AddCheckOption('*','plip:'         ,'                | --plip=<numeric ip>            : use ip  host for pl net connection');
-  AddCheckOption('*','plport:'       ,'                | --plport=<portnum>             : use port for pl net connection');
+  AddCheckOption('*'  ,'ple'           ,'                | --ple                          : use embedded persistence layer');
+  AddCheckOption('*'  ,'plhost:'       ,'                | --plhost=<dnsname>             : use dns host for pl net connection');
+  AddCheckOption('*'  ,'plip:'         ,'                | --plip=<numeric ip>            : use ip  host for pl net connection');
+  AddCheckOption('*'  ,'plport:'       ,'                | --plport=<portnum>             : use port for pl net connection');
   AddHelpOutLine;
-  AddCheckOption('*','unittest'      ,'                | --unittest                     : perform the unit test function for extensions');
-  AddCheckOption('*','printtz'       ,'                | --printtz                      : print debug timezone information / known timezones');
-  AddCheckOption('*','cleanzip'      ,'                | --cleanzip                     : force delete all prezipped webroot files');
-  AddCheckOption('*','nozip'         ,'                | --nozip                        : don''t zip webroot files, the server still uses files that are availlable');
-  AddCheckOption('*','nocache'       ,'                | --nocache                      : disable memory caching of whole webroot on startup');
-  AddCheckOption('*','jsdebug'       ,'                | --jsdebug                      : enable javascript debug/develop mode');
-  AddCheckOption('*','webdev'        ,'                | --webdev                       : shortcut: cleanzip,nozip,jsdebug,nocache');
-  AddCheckOption('*','dbo2json:'     ,'                | --dbo2json=/path2/dbo          : convert a dbo to json representation');
-  AddCheckOption('*','json2dbo:'     ,'                | --json2dbo=/path2/json         : convert a json to dbo representation');
-  AddCheckOption('*','dumpdbo:'      ,'                | --dumpdbo=uid_hex              : direct dump of a dbo');
-  AddCheckOption('*','tryrecovery'   ,'                | --tryrecovery                  : try recovery of a bad db by skipping checks / start with option / make backup / have luck');
-  AddCheckOption('*','showinstalled' ,'                | --showinstalled                : show installed versions of all database objects');
-  AddCheckOption('*','showrights'    ,'                | --showrights                   : show rights of specified user & and check login');
-  AddCheckOption('*','showapps'      ,'                | --showapps                     : show the actual available (filtered) app classes');
-  AddCheckOption('*','filterapps:'   ,'                | --filterapps=class,class       : allow only the specified apps');
-  AddCheckOption('*','showscheme'    ,'                | --showscheme                   : dump the whole database scheme definition');
-  AddCheckOption('*','backupdb:'     ,'                | --backupdb=</path2/dir>        : backup database interactive');
-  AddCheckOption('*','restoredb:'    ,'                | --restoredb=</path2/dir>       : restore database interactive');
-  AddCheckOption('*','backupsys:'    ,'                | --backupsys=</path2/dir>       : backup only sys database interactive');
-  AddCheckOption('*','restoresys:'   ,'                | --restoresys=</path2/dir>      : restore only sys database interactive');
-  AddCheckOption('*','backupapp:'    ,'                | --backupapp=</path2/dir>       : backup only app database interactive');
-  AddCheckOption('*','restoreapp:'   ,'                | --restoreapp=</path2/dir>      : restore only app database interactive');
-  AddCheckOption('*','deploy'        ,'                | --deploy                       : build and deploy databasescheme for the chosen extensions to persistence layer');
-  AddCheckOption('*','limittransfer:','                | --limittransfer=<10>           : sleep <x ms> during backup and restore, to limit bandwidth');
+  AddCheckOption('*'  ,'unittest'      ,'                | --unittest                     : perform the unit test function for extensions');
+  AddCheckOption('*'  ,'printtz'       ,'                | --printtz                      : print debug timezone information / known timezones');
+  AddCheckOption('*'  ,'cleanzip'      ,'                | --cleanzip                     : force delete all prezipped webroot files');
+  AddCheckOption('*'  ,'nozip'         ,'                | --nozip                        : don''t zip webroot files, the server still uses files that are availlable');
+  AddCheckOption('*'  ,'nocache'       ,'                | --nocache                      : disable memory caching of whole webroot on startup');
+  AddCheckOption('*'  ,'jsdebug'       ,'                | --jsdebug                      : enable javascript debug/develop mode');
+  AddCheckOption('*'  ,'webdev'        ,'                | --webdev                       : shortcut: cleanzip,nozip,jsdebug,nocache');
+  AddCheckOption('*'  ,'dbo2json:'     ,'                | --dbo2json=/path2/dbo          : convert a dbo to json representation');
+  AddCheckOption('*'  ,'json2dbo:'     ,'                | --json2dbo=/path2/json         : convert a json to dbo representation');
+  AddCheckOption('*'  ,'dumpdbo:'      ,'                | --dumpdbo=uid_hex              : direct dump of a dbo');
+  AddCheckOption('*'  ,'tryrecovery'   ,'                | --tryrecovery                  : try recovery of a bad db by skipping checks / start with option / make backup / have luck');
+  AddCheckOption('*'  ,'showinstalled' ,'                | --showinstalled                : show installed versions of all database objects');
+  AddCheckOption('*'  ,'showrights'    ,'                | --showrights                   : show rights of specified user & and check login');
+  AddCheckOption('*'  ,'showapps'      ,'                | --showapps                     : show the actual available (filtered) app classes');
+  AddCheckOption('*'  ,'showdeploy'    ,'                | --showdeploy                   : show the deployment information');
+  AddCheckOption('*'  ,'filterapps:'   ,'                | --filterapps=class,class       : allow only the specified apps');
+  AddCheckOption('*'  ,'showscheme'    ,'                | --showscheme                   : dump the whole database scheme definition');
+  AddCheckOption('*'  ,'backupdb:'     ,'                | --backupdb=</path2/dir>        : backup database interactive');
+  AddCheckOption('*'  ,'restoredb:'    ,'                | --restoredb=</path2/dir>       : restore database interactive');
+  AddCheckOption('*'  ,'restoredbsch:' ,'                | --restoredbsch=</path2/dir>    : restore database interactive, but ignore backup schemes and use live schemes');
+  AddCheckOption('*'  ,'backupsys:'    ,'                | --backupsys=</path2/dir>       : backup only sys database interactive');
+  AddCheckOption('*'  ,'restoresys:'   ,'                | --restoresys=</path2/dir>      : restore only sys database interactive');
+  AddCheckOption('*'  ,'backupapp:'    ,'                | --backupapp=</path2/dir>       : backup only app database interactive');
+  AddCheckOption('*'  ,'restoreapp:'   ,'                | --restoreapp=</path2/dir>      : restore only app database interactive');
+  AddCheckOption('D::','deploy::'      ,' -D [revision]  | --deploy[=revision]            : build and deploy databasescheme for the chosen extensions to persistence layer, optional tag with revision');
+  AddCheckOption('*'  ,'limittransfer:','                | --limittransfer=<10>           : sleep <x ms> during backup and restore, to limit bandwidth');
 
-  AddCheckOption('*','adminuser:'    ,'                | --adminuser=<user>             : specify user for admin options');
-  AddCheckOption('*','adminpass:'    ,'                | --adminpass=<password>         : specify password for admin options');
-  AddCheckOption('*','testlog'       ,'                | --testlog                      : enable fixed (debug-cfg) logging to console');
-  AddCheckOption('*','testlogcfg'    ,'                | --testlogcfg                   : do an endless logging test');
+  AddCheckOption('*'  ,'adminuser:'    ,'                | --adminuser=<user>             : specify user for db admin options');
+  AddCheckOption('*'  ,'adminpass:'    ,'                | --adminpass=<password>         : specify password for db admin options');
+  AddCheckOption('*'  ,'pladmin:'       ,'               | --pladmin=<user>               : specify user for pl admin options');
+  AddCheckOption('*'  ,'plpass:'       ,'                | --plpass=<password>            : specify password for pl admin options');
+  AddCheckOption('*'  ,'testlog'       ,'                | --testlog                      : enable fixed (debug-cfg) logging to console');
+  AddCheckOption('*'  ,'testlogcfg'    ,'                | --testlogcfg                   : do an endless logging test');
   AddHelpOutLine;
-  AddCheckOption('*','resetadmin'    ,'                | --resetadmin                   : reset the admin@system and the guest@system accounts to default. => (admin and "")');
-  AddCheckOption('*','cmddebug:'     ,'                | --cmddebug=<param>             : set an arbitrary cmd line debug option');
+  AddCheckOption('*'  ,'resetadmin'    ,'                | --resetadmin                   : reset the admin@system and the guest@system accounts to default. => (admin and "")');
+  AddCheckOption('*'  ,'cmddebug:'     ,'                | --cmddebug=<param>             : set an arbitrary cmd line debug option');
+  AddCheckOption('o'  ,'overviewdump'  ,' -o             | --overviewdump                 : do a overview dump of the database');
+  AddCheckOption('Z::','calcsha::'     ,' -Z             | --calcsha[=<password>]         : generate/calc a safe salted sha1 password');
 
-end;
 
-procedure TFRE_CLISRV_APP.SetDefaultExtensions(AValue: String);
-begin
-  FDefaultExtensions:=AValue;
 end;
 
 procedure TFRE_CLISRV_APP.SetDefaultStyle(AValue: String);
@@ -400,10 +422,28 @@ begin
   end;
 end;
 
+procedure TFRE_CLISRV_APP._CheckPLAdminUserSupplied;
+begin
+  if (cFRE_PL_ADMIN_USER='') then begin
+    writeln('no admin username supplied');
+    Terminate;
+    halt(1);
+  end;
+end;
+
+procedure TFRE_CLISRV_APP._CheckPLAdminPassSupplied;
+begin
+  if (cFRE_PL_ADMIN_PASS='') then begin
+    writeln('no pl admin username supplied');
+    Terminate;
+    halt(1);
+  end;
+end;
+
 procedure TFRE_CLISRV_APP._CheckUserSupplied;
 begin
   if (cG_OVERRIDE_USER='') then begin
-    writeln('no override/login username supplied');
+    writeln('no pl admin password supplied');
     Terminate;
     halt(1);
   end;
@@ -413,6 +453,15 @@ procedure TFRE_CLISRV_APP._CheckPassSupplied;
 begin
   if (cG_OVERRIDE_PASS='') then begin
     writeln('no override/login password supplied');
+    Terminate;
+    halt(1);
+  end;
+end;
+
+procedure TFRE_CLISRV_APP._CheckNoCustomextensionsSet;
+begin
+  if FCustomExtensionSet then begin
+    writeln('the custom extensions option is only allowed in conjunction with --deploy option.');
     Terminate;
     halt(1);
   end;
@@ -441,10 +490,11 @@ var ErrorMsg : String;
     begin
       if HasOption('e','extensions') then begin // has to be after possible recreate db
         FChosenExtensionList :=  ListFromString(GetOptionValue('e','extensions'));
+        FCustomExtensionSet  := True;
         VerifyExtensions;
-      end else begin
-        FChosenExtensionList := ListFromString(DefaultExtensions);
-        VerifyExtensions;
+      //end else begin
+      //  FChosenExtensionList := ListFromString(DefaultExtensions);
+      //  VerifyExtensions;
       end;
       if HasOption('u','user') then begin
         cG_OVERRIDE_USER := GetOptionValue('u','user');
@@ -460,6 +510,14 @@ var ErrorMsg : String;
 
       if HasOption('*','adminpass') then begin
         cFRE_ADMIN_PASS := GetOptionValue('*','adminpass');
+      end;
+
+      if HasOption('*','pladmin') then begin
+        cFRE_PL_ADMIN_USER := GetOptionValue('*','pladmin');
+      end;
+
+      if HasOption('*','plpass') then begin
+        cFRE_PL_ADMIN_PASS := GetOptionValue('*','plpass');
       end;
 
       if HasOption('U','remoteuser') then begin
@@ -486,15 +544,20 @@ var ErrorMsg : String;
 
     procedure ProcessInitRecreateOptions;
     begin
+      if HasOption('y','forcesysdb') then
+        begin
+          FOnlyInitDB:=true;
+          ReCreateSysDB;
+        end;
       if HasOption('x','forcedb') then
         begin
           FOnlyInitDB:=true;
           ReCreateDB;
         end;
-      if HasOption('y','forcesysdb') then
+      if HasOption('D','deploy') then
         begin
-          FOnlyInitDB:=true;
-          ReCreateSysDB;
+          FOnlyInitDB := true;
+          DeployDatabaseScheme(GetOptionValue('D','deploy'));
         end;
       if HasOption('i','init') then
         begin
@@ -527,9 +590,8 @@ var ErrorMsg : String;
     var fdbs : IFRE_DB_Object;
         res  : TFRE_DB_Errortype;
     begin
-
       FSystemConnection := GFRE_DB.NewDirectSysConnection;
-      res := FSystemConnection.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);  // direct admin connect
+      res := FSystemConnection.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
       if res<>edb_OK then begin
         FSystemConnection.Free;
         FSystemConnection := nil;
@@ -538,7 +600,16 @@ var ErrorMsg : String;
       end;
       res := GFRE_DB_PS_LAYER.GetDatabaseScheme(fdbs);
       if res = edb_OK then
-        GFRE_DB.SetDatabasescheme(fdbs)
+       begin
+          GFRE_DB.SetDatabasescheme(fdbs);
+          FChosenExtensionList := ListFromString(GFRE_DB.GetDeployedExtensionlist);
+          RegisterExtensions;
+          GFRE_DB.InstantiateApplicationObjects;
+          GFRE_DB.LogInfo(dblc_SERVER,'SERVING SYSTEM DATABASE : [%s]',[GFRE_DB.GetDeploymentInfo]);
+          writeln(format('SERVING SYSTEM DATABASE : [%s]',[GFRE_DB.GetDeploymentInfo]));
+          if FCustomExtensionSet then
+           writeln('WARNING: ignoring specified extensions from commandline, they are only used for the deploy case');
+       end
       else
         raise EFRE_DB_Exception.Create(edb_ERROR,'could not fetch the database scheme [%s] ',[res.Msg]);
     end;
@@ -567,7 +638,6 @@ begin
    halt(0);
   PrepareStartup;      { The initial startup is done (connections can be made, but no extensions initialized }
   CheckTestLogging;    { CFG File reading done}
-  RegisterExtensions;
 
   if AfterStartupTerminatingCommands then
     begin
@@ -620,6 +690,11 @@ end;
 function TFRE_CLISRV_APP.PreStartupTerminatingCommands:boolean;
 begin
   result := false;
+  if HasOption('Z','calcsha') then
+    begin
+      result := true;
+      CalcSHA1(GetOptionValue('Z','calcsha'));
+    end;
   if HasOption('*','printtz') then
     begin
       result := true;
@@ -687,18 +762,18 @@ begin
   if HasOption('*','restoredb') then
     begin
       result := true;
-      RestoreDB(true,true,GetOptionValue('*','restoredb'));
+      RestoreDB(true,true,GetOptionValue('*','restoredb'),false);
+    end;
+  if HasOption('*','restoredbsch') then
+    begin
+      result := true;
+      RestoreDB(true,true,GetOptionValue('*','restoredbsch'),true);
     end;
 end;
 
 function TFRE_CLISRV_APP.AfterInitDBTerminatingCommands: boolean;
 begin
   result := false;
-  if HasOption('*','deploy') then
-    begin
-      result := true;
-      DeployDatabaseScheme;
-    end;
   if HasOption('*','showinstalled') then
     begin
       result := true;
@@ -719,6 +794,11 @@ begin
       result := true;
       DumpAll(GetOptionValue('z','testdump'));
     end;
+  if HasOption('o','overviewdump') then
+    begin
+      result := true;
+      OverviewDump;
+    end;
 end;
 
 function TFRE_CLISRV_APP.AfterSysDBConnectTerminatingCommands: boolean;
@@ -733,6 +813,11 @@ begin
     begin
       result := true;
       DumpScheme;
+    end;
+  if HasOption('*','showdeploy') then
+    begin
+      result := true;
+      ShowDeploy;
     end;
 end;
 
@@ -774,25 +859,54 @@ begin
   writeln('---');
   writeln(GFOS_VHELP_GET_VERSION_STRING);
   writeln('---');
-  writeln('Default extension : ',FDefaultExtensions);
   writeln('Default style     : ',FDefaultStyle);
   writeln('---');
   writeln('');
 end;
 
 procedure TFRE_CLISRV_APP.ReCreateDB;
+var conn : IFRE_DB_CONNECTION;
 begin
   _CheckDBNameSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
   if GFRE_DB_PS_LAYER.DatabaseExists(FDBName) then
-    CheckDbResult(GFRE_DB_PS_LAYER.DeleteDatabase(FDBName),'DELETE DB FAILED : '+FDBName);
-  CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase(FDBName),'CREATE DB FAILED : '+FDBName);
+    begin
+      writeln('>DROP USER DB '+FDBName);
+      CheckDbResult(GFRE_DB_PS_LAYER.DeleteDatabase(FDBName,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS),'DELETE DB FAILED : '+FDBName);
+      writeln('>USER DB '+FDBName+' DROPPED');
+    end;
+  writeln('>CREATE USER DB '+FDBName);
+  CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase(FDBName,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS),'CREATE DB FAILED : '+FDBName);
+  writeln('>USER DB '+FDBName+' CREATED');
+  writeln('>CONNECT USER DB '+FDBName);
+  CONN := GFRE_DBI.NewConnection;
+  CheckDbResult(CONN.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect user db'); { initial admin (!) }
+  writeln('>USER DB '+FDBName+' CONNECTED,DEFAULT COLLECTION INITIALIZED,DONE');
 end;
 
 procedure TFRE_CLISRV_APP.ReCreateSysDB;
+var conn : IFRE_DB_SYS_CONNECTION;
 begin
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
   if GFRE_DB_PS_LAYER.DatabaseExists('SYSTEM') then
-    CheckDbResult(GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM'),'DELETE SYSTEM DB FAILED');
-  CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM'),'CREATE SYSTEM DB FAILED');
+    begin
+      writeln('>DROP SYSTEM DB');
+      CheckDbResult(GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS),'DELETE SYSTEM DB FAILED');
+      writeln('>SYSTEM DB DROPPED');
+    end;
+  writeln('>CREATE SYSTEM DB');
+  CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS),'CREATE SYSTEM DB FAILED');
+  writeln('>SYSTEM DB CREATED');
+  writeln('>CONNECT SYSTEM DB');
+  GFRE_DB.Initialize_Extension_ObjectsBuild;
+  CONN := GFRE_DBI.NewSysOnlyConnection;
+  CheckDbResult(CONN.Connect('admin@system','admin'),'cannot connect system db'); { initial admin (!) }
+  conn.Finalize;
+  cG_OVERRIDE_USER:='admin@system';
+  cG_OVERRIDE_PASS:='admin';
+  writeln('>SYSTEM CONNECTED, DEFAULT COLLECTIONS INITIALIZED, DONE');
 end;
 
 procedure TFRE_CLISRV_APP.BackupDB(const adb,sdb:boolean ; const dir: string);
@@ -804,6 +918,8 @@ var s     : string;
     dbfs  : TFileStream;
     sysfn : String;
     dbfn  : String;
+    schfn : String;
+    fdbs  : IFRE_DB_Object;
 
   procedure ProgressCB(const phase,detail,header : ShortString ; const cnt,max: integer);
   var outs :string;
@@ -825,6 +941,40 @@ var s     : string;
       end;
     if FLimittransfer>0 then
       sleep(FLimittransfer);
+  end;
+
+  procedure SaveScheme;
+  var sch : TFRE_DB_String;
+      f   : TFileStream;
+
+    procedure DWriteln(const msg:TFRE_DB_String);
+     var line  : TFRE_DB_String;
+         len   : integer;
+         lens  : TFRE_DB_String;
+     begin
+       line := msg+#13#10;
+       len  := Length(line);
+       lens := IntToStr(len)+'C';
+       f.Write(Pointer(@lens[1])^,Length(lens));
+       f.Write(Pointer(@line[1])^,Length(line));
+     end;
+
+  begin
+    write('FETCHING SERVER DATABASE SCHEME ');
+    res := GFRE_DB_PS_LAYER.GetDatabaseScheme(fdbs);
+    if res<>edb_OK then
+      begin
+        writeln(' ['+CFRE_DB_Errortype[res]+']');
+        abort;
+      end;
+    write('DONE');
+    sch := fdbs.GetAsJSONString(false,true);
+    f := TFileStream.Create(schfn,fmCreate+fmOpenWrite);
+    try
+      DWriteln(sch);
+    finally
+      f.Free;
+    end;
   end;
 
 begin
@@ -847,6 +997,9 @@ begin
   //s:='y';
   if s='y' then
     begin
+      sysfn := dir+DirectorySeparator+'sys.fdbb';
+      dbfn  := dir+DirectorySeparator+'usr.fdbb';
+      schfn := dir+DirectorySeparator+'sch.fdbb';
       write('CONNECTING ['+FDBName+'] ');
       if adb then
         begin
@@ -860,13 +1013,13 @@ begin
         end;
       if res<>edb_OK then
         begin
-          writeln(CFRE_DB_Errortype[res]);
+          writeln(res.AsString);
           abort;
         end;
       writeln('OK');
+      SaveScheme;
       if sdb then
         begin
-          sysfn := dir+DirectorySeparator+'sys.fdbb';
           write('Opening file :'+sysfn);
           try
             sfs := TFileStream.Create(sysfn,fmCreate+fmShareExclusive);
@@ -880,7 +1033,6 @@ begin
         sfs := nil;
       if adb then
         begin
-          dbfn  := dir+DirectorySeparator+'usr.fdbb';
           write('Opening file :'+dbfn);
           try
             dbfs := TFileStream.Create(dbfn,fmCreate+fmShareExclusive);
@@ -893,9 +1045,9 @@ begin
       else
        dbfs := nil;
       if adb then
-        conn.SYS.BackupDatabaseReadable(sfs,dbfs,@ProgressCB)
+        conn.SYS.BackupDatabaseReadable(sfs,dbfs,@ProgressCB,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS)
       else
-        scon.BackupDatabaseReadable(sfs,nil,@ProgressCB);
+        scon.BackupDatabaseReadable(sfs,nil,@ProgressCB,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
     end
   else
     begin
@@ -903,7 +1055,7 @@ begin
     end;
 end;
 
-procedure TFRE_CLISRV_APP.RestoreDB(const adb, sdb: boolean; const dir: string);
+procedure TFRE_CLISRV_APP.RestoreDB(const adb, sdb: boolean; const dir: string; const override_with_live_scheme: boolean);
 var s     : string;
     conn  : IFRE_DB_CONNECTION;
     scon  : IFRE_DB_SYS_CONNECTION;
@@ -912,6 +1064,7 @@ var s     : string;
     dbfs  : TFileStream;
     sysfn : String;
     dbfn  : String;
+    schfn : string;
 
   procedure ProgressCB(const phase,detail,header : ShortString ; const cnt,max: integer);
   var outs :string;
@@ -935,51 +1088,142 @@ var s     : string;
       sleep(FLimittransfer);
   end;
 
+  procedure CheckExistUserDB;
+  begin
+    if not FileExists(dbfn) then
+      begin
+        writeln('the user databasefile does not exist['+dbfn+'] !');
+        abort;
+      end;
+  end;
+
+  procedure CheckExistSysDB;
+  begin
+    if not FileExists(sysfn) then
+      begin
+        writeln('the system databasefile does not exist['+sysfn+'] !');
+        abort;
+      end;
+  end;
+
+  procedure CheckScheme;
+  begin
+    if override_with_live_scheme then
+      exit;
+    if not FileExists(schfn) then
+      begin
+        writeln('the scheme databasefile does not exist['+schfn+'] !');
+        abort;
+      end;
+  end;
+
+  procedure LoadScheme;
+  var fdbs : IFRE_DB_Object;
+      f    : TFileStream;
+
+      function ReadElement : TFRE_DB_Object;
+      var line  : TFRE_DB_String;
+          elem  : Byte;
+          count : Integer;
+          pos   : integer;
+      begin
+        pos := 1;
+        repeat
+          elem := f.ReadByte;
+          inc(pos);
+          if char(elem)<>'C' then begin
+            line := line + char(elem);
+          end else break;
+        until false;
+        count := StrToInt(line);
+        SetLength(line,count-2);
+        f.ReadBuffer(line[1],count-2);
+        f.ReadByte;f.ReadByte;
+        result := TFRE_DB_Object.CreateFromJSONString(line);
+      end;
+
+  begin
+    f := TFileStream.Create(schfn,fmOpenRead);
+    try
+      fdbs := ReadElement;
+    finally
+      f.Free;
+    end;
+    writeln('SETTING SCHEME');
+    GFRE_DB.SetDatabasescheme(fdbs);
+    //DumpScheme;
+    writeln('SETTING SCHEME DONE');
+  end;
+
+
 begin
   _CheckDBNameSupplied;
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
+  sysfn := dir+DirectorySeparator+'sys.fdbb';
+  dbfn  := dir+DirectorySeparator+'usr.fdbb';
+  schfn := dir+DirectorySeparator+'sch.fdbb';
   if not DirectoryExists(dir) then
     begin
       writeln('the backup directory does not exist['+dir+'] !');
       abort;
     end;
   if adb and not sdb then
-    writeln('Restore of database ['+FDBName+'] (y/N)');
+    begin
+      CheckExistUserDB;
+      CheckScheme;
+      writeln('Restore of database ['+FDBName+'] (y/N)');
+    end;
   if sdb and not adb then
-    writeln('Restore of SYSTEM DB (y/N)');
+    begin
+      CheckExistSysDB;
+      CheckScheme;
+      writeln('Restore of SYSTEM DB (y/N)');
+    end;
   if adb and sdb then
-    writeln('Restore backup as database ['+FDBName+'] + [SYSTEM DB]  (y/N)');
+    begin
+      CheckExistUserDB;
+      CheckExistSysDB;
+      CheckScheme;
+      writeln('Restore backup as database ['+FDBName+'] + [SYSTEM DB]  (y/N)');
+    end;
   ReadLn(s);
   //s:='y'; // ignore force lazarusdebug
-  if s='y' then
+   if s='y' then
     begin
-      writeln('INTERNAL BUILDING SCHEMES');
-      GFRE_DB.Initialize_Extension_ObjectsBuild;
+      if override_with_live_scheme then
+        begin
+          writeln('INTERNAL BUILDING SCHEMES');
+          GFRE_DB.Initialize_Extension_ObjectsBuild;
+        end
+      else
+        begin
+          writeln('LOADING DB METADATA SCHEMES');
+          LoadScheme;
+        end;
       write('RECREATING / CONNECTING ['+FDBName+'] ');
       if adb then
         begin
-          GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM');
-          GFRE_DB_PS_LAYER.DeleteDatabase(FDBName);
-          CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM'));
-          CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase(FDBName));
+          GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
+          GFRE_DB_PS_LAYER.DeleteDatabase(FDBName,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
+          CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS));
+          CheckDbResult(GFRE_DB_PS_LAYER.CreateDatabase(FDBName,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS));
           conn := GFRE_DBI.NewConnection;
-          res  := conn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+          res  := conn.Connect(FDBName,'admin@system','admin');
         end
       else
         begin
           scon := GFRE_DBI.NewSysOnlyConnection;
-          res  := scon.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+          res  := scon.Connect('admin@system','admin');
         end;
       if res<>edb_OK then
         begin
-          writeln(CFRE_DB_Errortype[res]);
+          writeln(res.AsString);
           abort;
         end;
       writeln('OK');
       if sdb then
         begin
-          sysfn := dir+DirectorySeparator+'sys.fdbb';
           write('Opening file :'+sysfn);
           try
             sfs := TFileStream.Create(sysfn,fmOpenRead+fmShareExclusive);
@@ -1005,30 +1249,46 @@ begin
         end
       else
        dbfs := nil;
+
       if adb then
-        conn.SYS.RestoreDatabaseReadable(sfs,dbfs,FDBName,@ProgressCB)
+        conn.SYS.RestoreDatabaseReadable(sfs,dbfs,FDBName,@ProgressCB,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS)
       else
-        scon.RestoreDatabaseReadable(sfs,nil,'',@ProgressCB);
+        scon.RestoreDatabaseReadable(sfs,nil,'',@ProgressCB,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
+
+      CheckDbResult(GFRE_DB_PS_LAYER.DeployDatabaseScheme(GFRE_DB.GetDatabasescheme,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS));
     end
   else
     begin
-     writeln('ABORTED');
+      writeln('ABORTED');
     end;
 end;
 
 procedure TFRE_CLISRV_APP.GenerateTestdata;
 var
-  conn    : IFRE_DB_CONNECTION;
-  domainId: TFRE_DB_Guid;
+  conn     : IFRE_DB_CONNECTION;
+  domainId : TFRE_DB_Guid;
+  res      : TFRE_DB_Errortype;
+  fdbs     : IFRE_DB_Object;
 begin
   _CheckDBNameSupplied;
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
+  if not FDeployed then
+    _CheckNoCustomextensionsSet;
+
+  res := GFRE_DB_PS_LAYER.GetDatabaseScheme(fdbs);
+  if res = edb_OK then
+   begin
+      GFRE_DB.SetDatabasescheme(fdbs);
+      FChosenExtensionList := ListFromString(GFRE_DB.GetDeployedExtensionlist);
+      RegisterExtensions;
+      GFRE_DB.InstantiateApplicationObjects;
+   end;
 
   { a testdomain is created globally for all extensiosn}
   conn := GFRE_DBI.NewConnection;
   try
-    CheckDbResult(conn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),' could not login into '+FDBName+' for testdomain creation');
+    CheckDbResult(conn.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS),' could not login into '+FDBName+' for testdomain creation');
     if not conn.SYS.DomainExists('test') then begin
       CheckDbResult(conn.AddDomain('test','This domain is for testing only','Test Domain'));
     end;
@@ -1045,7 +1305,7 @@ begin
   finally
     conn.Finalize;
   end;
-  GFRE_DBI_REG_EXTMGR.GenerateTestData4Exts(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+  GFRE_DBI_REG_EXTMGR.GenerateTestData4Exts(FChosenExtensionList,FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS);
 end;
 
 procedure TFRE_CLISRV_APP.DoUnitTest;
@@ -1054,24 +1314,39 @@ begin
   _CheckDBNameSupplied;
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
-  GFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+  GFRE_DBI_REG_EXTMGR.GenerateUnitTestsdata(FChosenExtensionList,FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS);
 end;
 
 procedure TFRE_CLISRV_APP.InitExtensions;
 var conn : IFRE_DB_CONNECTION;
+    res  : TFRE_DB_Errortype;
+    fdbs : IFRE_DB_Object;
 begin
   _CheckDBNameSupplied;
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
-  //writeln('InitDB for extensions :'+uppercase(FChosenExtensionList.Commatext));
-  GFRE_DB.Initialize_Extension_ObjectsBuild;
+  if not FDeployed then
+    _CheckNoCustomextensionsSet;
+
   CONN := GFRE_DBI.NewConnection;
-  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
-  writeln('INTERNAL BUILDING SCHEMES');
+  CheckDbResult(CONN.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect system db');
+
+  res := GFRE_DB_PS_LAYER.GetDatabaseScheme(fdbs);
+  if res = edb_OK then
+    GFRE_DB.SetDatabasescheme(fdbs)
+  else
+    begin
+      writeln('Could not get the databasescheme ['+CFRE_DB_Errortype[res]+'], you need to deploy first');
+      abort;
+    end;
+  writeln('INITIALIZING DATABASE FOR EXTENSIONS : '+GFRE_DB.GetDeploymentInfo);
+  FChosenExtensionList := ListFromString(GFRE_DB.GetDeployedExtensionlist);
+  RegisterExtensions;
+  GFRE_DB.InstantiateApplicationObjects;
   GFRE_DBI.DBInitializeAllSystemClasses(conn);
   GFRE_DBI.DBInitializeAllExClasses(conn);
   conn.Finalize;
-  GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+  GFRE_DBI_REG_EXTMGR.InitDatabase4Extensions(FChosenExtensionList,FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS);
 end;
 
 procedure TFRE_CLISRV_APP.ShowVersions;
@@ -1081,7 +1356,7 @@ begin
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
   CONN := GFRE_DBI.NewSysOnlyConnection;
-  CheckDbResult(CONN.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
+  CheckDbResult(CONN.Connect(cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect system db');
   writeln(conn.GetClassesVersionDirectory.DumpToString);
   conn.Finalize;
 end;
@@ -1099,20 +1374,19 @@ end;
 
 procedure TFRE_CLISRV_APP.ShowApps;
 var apa : TFRE_DB_APPLICATION_ARRAY;
-    i   : Integer;
-    conn: IFRE_DB_CONNECTION;
+      i : integer;
 begin
-  _CheckAdminUserSupplied;
-  _CheckAdminPassSupplied;
-  CONN := GFRE_DBI.NewConnection;
-  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect system db');
-  conn.Finalize;
   writeln('AVAILABLE APPS:');
   apa := GFRE_DB.GetApps;
   for i:=0 to high(apa) do
     begin
       writeln(i,' : ',apa[i].AppClassName,' ',apa[i].ObjectName);
     end;
+end;
+
+procedure TFRE_CLISRV_APP.ShowDeploy;
+begin
+  exit; { deploy info is written on start in any case }
 end;
 
 procedure TFRE_CLISRV_APP.DumpScheme;
@@ -1127,7 +1401,7 @@ begin
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
   writeln('Remove apps for extensions :'+uppercase(FChosenExtensionList.Commatext));
-  GFRE_DBI_REG_EXTMGR.Remove4Extensions(FChosenExtensionList,FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+  GFRE_DBI_REG_EXTMGR.Remove4Extensions(FChosenExtensionList,FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS);
 end;
 
 
@@ -1138,21 +1412,34 @@ begin
   FRE_BASE_SERVER.RegisterLogin;
 end;
 
-procedure TFRE_CLISRV_APP.DeployDatabaseScheme;
+procedure TFRE_CLISRV_APP.DeployDatabaseScheme(deploy_revision: string);
 var conn : IFRE_DB_CONNECTION;
+    extl : string;
 begin
   _CheckDBNameSupplied;
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
-  CONN := GFRE_DBI.NewConnection;
-  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS));
-
-  writeln('>BUILDING SCHEME');
+  CheckDbResult(GFRE_DB.ClearSystemSchemes);
+  RegisterExtensions;
+  extl := FChosenExtensionList.Commatext;
+  if extl='' then
+    begin
+      writeln('you have to choose some extensions to deploy');
+      abort;
+    end;
+  //CONN := GFRE_DBI.NewConnection;
+  //CheckDbResult(CONN.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS));
+  if deploy_revision='' then
+    deploy_revision:=GetEnvironmentVariable('LOGNAME')+'/'+ApplicationName;
+  writeln('>BUILDING METADATA SCHEMES : ',extl);
   GFRE_DB.Initialize_Extension_ObjectsBuild;
+  GFRE_DB.SetupDeploymentInfo(extl,deploy_revision);
   writeln('>BUILDING SCHEME DONE');
   writeln('>DEPLOYING SCHEME');
-  CheckDbResult(conn.SYS.DeployDatabaseScheme(GFRE_DB.GetDatabasescheme));
-  writeln('>DEPLOYING SCHEME DONE');
+  CheckDbResult(GFRE_DB_PS_LAYER.DeployDatabaseScheme(GFRE_DB.GetDatabasescheme,cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS));
+  writeln('>METADATA DEPLOYMENT DONE');
+  writeln(GFRE_DB.GetDeploymentInfo);
+  FDeployed := true;
 end;
 
 procedure TFRE_CLISRV_APP.VerifyExtensions;
@@ -1304,12 +1591,12 @@ begin
   try
     if system then begin
       sconn := GFRE_DBI.NewSysOnlyConnection();
-      sconn.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+      sconn.Connect(cG_OVERRIDE_USER,cG_OVERRIDE_PASS);
       GFRE_DB.Initialize_Extension_ObjectsBuild;
       sconn.DrawScheme(mems,classfile);
     end else begin
       lconn := GFRE_DBI.NewConnection;
-      res   := lconn.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS);
+      res   := lconn.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS);
       GFRE_DB.Initialize_Extension_ObjectsBuild;
       if res<>edb_OK then begin
         WriteLn('SCHEME DUMP CHECK CONNECT FAILED : ',CFRE_DB_Errortype[res]);
@@ -1338,7 +1625,7 @@ begin
   _CheckAdminUserSupplied;
   _CheckAdminPassSupplied;
   CONN := GFRE_DBI.NewConnection;
-  CheckDbResult(CONN.Connect(FDBName,cFRE_ADMIN_USER,cFRE_ADMIN_PASS),'cannot connect db');
+  CheckDbResult(CONN.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect db');
   if filterstring<>'' then
     FREDB_SeperateString(filterstring,',',filter);
   writeln('');
@@ -1350,6 +1637,23 @@ begin
   writeln('');
   conn.sys.ForAllDatabaseObjectsDo(@local,filter);
   conn.Finalize;
+end;
+
+procedure TFRE_CLISRV_APP.OverviewDump;
+var conn   : IFRE_DB_CONNECTION;
+
+    procedure WriteALine(const line:string);
+    begin
+      writeln(line);
+    end;
+
+begin
+  _CheckDBNameSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
+  CONN := GFRE_DBI.NewConnection;
+  CheckDbResult(CONN.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect db');
+  conn.OverviewDump(@WriteALine);
 end;
 
 constructor TFRE_CLISRV_APP.Create(TheOwner: TComponent);

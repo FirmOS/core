@@ -257,12 +257,13 @@ type
   end;
 
   { TFRE_DB_Persistance_Collection }
+  TFRE_DB_Master_Data = class;
 
   TFRE_DB_Persistance_Collection=class(TFRE_DB_PERSISTANCE_COLLECTION_BASE)
   private
     FName         : TFRE_DB_NameType;
     FUpperName    : TFRE_DB_NameType;
-    FLayer        : IFRE_DB_PERSISTANCE_LAYER;
+    FMasterLink   : TFRE_DB_Master_Data;
     FVolatile     : Boolean;
     FGuidObjStore : TFRE_ART_TREE;
     FIndexStore   : array of TFRE_DB_MM_INDEX;
@@ -291,6 +292,11 @@ type
     procedure     GetAllIndexedUidsEncFieldRange (const min,max: IFRE_DB_Object; const index_name: TFRE_DB_NameType ; var uids : TFRE_DB_GUIDArray ; const ascending : boolean ; const max_count,skipfirst : NativeInt ; const min_val_is_a_prefix : boolean);
 
   public
+    function      CloneOutObject               (const inobj:TFRE_DB_Object):TFRE_DB_Object;
+    function      CloneOutArray                (const objarr : TFRE_DB_GUIDArray):TFRE_DB_ObjectArray;
+    function      CloneOutArrayOI              (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
+    function      CloneOutArrayII              (const objarr : IFRE_DB_ObjectArray):IFRE_DB_ObjectArray;
+
     function      GetIndexedObjInternal        (const query_value : TFRE_DB_String   ; out   obj       : IFRE_DB_Object      ; const index_name : TFRE_DB_NameType='def' ; const val_is_null : boolean = false):boolean; // for the string fieldtype, dont clone
 
     function      GetIndexedValueCountRC       (const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType ; const user_context: PFRE_DB_GUID): NativeInt;
@@ -308,10 +314,6 @@ type
     function      IndexExists                  (const idx_name : TFRE_DB_NameType):NativeInt;
     function      GetIndexDefinition           (const idx_name : TFRE_DB_NameType ; const user_context: PFRE_DB_GUID):TFRE_DB_INDEX_DEF;
     function      IndexNames                   : TFRE_DB_NameTypeArray;
-    function      CloneOutObject               (const inobj:TFRE_DB_Object):TFRE_DB_Object;
-    function      CloneOutArray                (const objarr : TFRE_DB_GUIDArray):TFRE_DB_ObjectArray;
-    function      CloneOutArrayOI              (const objarr : TFRE_DB_GUIDArray):IFRE_DB_ObjectArray;
-    function      CloneOutArrayII              (const objarr : IFRE_DB_ObjectArray):IFRE_DB_ObjectArray;
 
     {< Do all streaming changes for this section }
     procedure     StreamToThis           (const stream : TStream);
@@ -327,7 +329,7 @@ type
 
 //    function    GetPersLayerIntf   : IFRE_DB_PERSISTANCE_COLLECTION_4_PERISTANCE_LAYER; override;
     function    UniqueName         : PFRE_DB_NameType;
-    constructor Create             (const coll_name: TFRE_DB_NameType ; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
+    constructor Create             (const coll_name: TFRE_DB_NameType ; Volatile: Boolean; const masterdata : TFRE_DB_Master_Data);
     destructor  Destroy            ; override;
     function    Count              : int64; override;
     function    Exists             (const ouid: TFRE_DB_GUID): boolean;
@@ -368,7 +370,7 @@ type
     constructor Create;
     destructor  Destroy; override;
     procedure   Clear;
-    function    NewCollection     (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION ; const volatile_in_memory:boolean ; const pers_layer:IFRE_DB_PERSISTANCE_LAYER) : TFRE_DB_Errortype;
+    function    NewCollection     (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION ; const volatile_in_memory:boolean ; const masterdata : TFRE_DB_Master_Data) : TFRE_DB_Errortype;
     function    DeleteCollection  (const coll_name : TFRE_DB_NameType):TFRE_DB_Errortype;
     function    GetCollection     (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION) : boolean;
     function    GetCollectionInt  (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION) : boolean;
@@ -386,7 +388,6 @@ type
   PFRE_DB_GUID_RefLink_In_Key = ^RFRE_DB_GUID_RefLink_InOut_Key;
 
   type
-    TFRE_DB_Master_Data             = class;
     TFRE_DB_TransactionalUpdateList = class;
 
   var
@@ -438,7 +439,12 @@ type
 
     class function  _CheckFetchRightUID      (const uid : TFRE_DB_GUID ; const ut : TFRE_DB_USER_RIGHT_TOKEN) : boolean;
     class procedure _TransactionalLockObject (const uid : TFRE_DB_GUID );
+
   public
+
+    procedure    InternalClearSchemecacheLink;
+    function     CloneOutObject         (const inobj:TFRE_DB_Object):TFRE_DB_Object;
+
     function     MyLayer                : IFRE_DB_PERSISTANCE_LAYER;
     function     GetPersistantRootObjectCount (const UppercaseSchemesFilter: TFRE_DB_StringArray=nil): Integer;
 
@@ -457,6 +463,11 @@ type
     function    GetReferencesRC         (const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID              ; const concat_call: boolean=false): TFRE_DB_GUIDArray;
     function    GetReferencesCountRC    (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): NativeInt;
     function    GetReferencesDetailedRC (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): TFRE_DB_ObjectReferences;
+    procedure   ExpandReferencesRC      (const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: TFRE_DB_GUIDArray);
+    function    ExpandReferencesCountRC (const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray): NativeInt;
+    procedure   FetchExpandReferencesRC (const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: IFRE_DB_ObjectArray);
+    function    BulkFetchRC             (const user_context: PFRE_DB_GUID; const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray):TFRE_DB_Errortype;
+    function    FetchObjectRC           (const user_context: PFRE_DB_GUID; const obj_uid : TFRE_DB_GUID ; out obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
 
     function    ExistsObject            (const obj_uid : TFRE_DB_GUID ) : Boolean;
     function    FetchObject             (const obj_uid : TFRE_DB_GUID ; out obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
@@ -1677,7 +1688,7 @@ var res:TFRE_DB_Errortype;
 begin
   if not check then
     begin
-      res := Master.MasterColls.NewCollection(FCollname,FNewCollection,FVolatile,Master.FLayer);
+      res := Master.MasterColls.NewCollection(FCollname,FNewCollection,FVolatile,Master);
       if res<>edb_OK  then
         raise EFRE_DB_PL_Exception.Create(res,'failed to create new collectiion in step [%s] ',[FCollname]);
       GetNotificationRecordIF.CollectionCreated(FCollname,FVolatile,GetTransActionStepID);
@@ -3513,6 +3524,33 @@ begin
   obj.Set_Store_Locked(true);
 end;
 
+procedure TFRE_DB_Master_Data.InternalClearSchemecacheLink;
+
+  procedure ClearSchemeLink(const obj:TFRE_DB_Object; var halt:boolean);
+  begin
+    obj.ClearSchemecachelink;
+  end;
+
+begin
+  ForAllObjectsInternal(true,true,@ClearSchemeLink);
+end;
+
+function TFRE_DB_Master_Data.CloneOutObject(const inobj: TFRE_DB_Object): TFRE_DB_Object;
+begin
+  inobj.Assert_CheckStoreLocked;
+  inobj.Set_Store_Locked(false);
+  try
+   if Length(inobj.__InternalGetCollectionList)<1 then
+     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
+   result := inobj.CloneToNewObject;
+   if result = inobj then
+     abort;
+  finally
+    inobj.Set_Store_Locked(true);
+  end;
+end;
+
+
 function TFRE_DB_Master_Data.GetReferencesRC(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID ; const concat_call : boolean): TFRE_DB_GUIDArray;
 var obr     : TFRE_DB_ObjectReferences;
     obrc    : TFRE_DB_ObjectReferences;
@@ -3650,6 +3688,105 @@ begin
     begin
       sysobrs := G_SysMaster.GetReferencesDetailedRC(obj_uid,from,scheme_prefix_filter,field_exact_filter,user_context,true);
       FREDB_ConcatReferenceArrays(result,sysobrs);
+    end;
+end;
+
+procedure TFRE_DB_Master_Data.ExpandReferencesRC(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: TFRE_DB_GUIDArray);
+var i        : NativeInt;
+    count    : NativeInt;
+
+  procedure FetchChained(uid:TFRE_DB_GUID ; field_chain : TFRE_DB_NameTypeRLArray ; depth : NativeInt);
+  var obrefs   : TFRE_DB_GUIDArray; //TFRE_DB_ObjectReferences;
+      i        : NativeInt;
+      scheme   : TFRE_DB_NameType;
+      field    : TFRE_DB_NameType;
+      outbound : Boolean;
+  begin
+    if depth<length(field_chain) then
+      begin
+        outbound := FREDB_SplitRefLinkDescription(field_chain[depth],field,scheme);
+        obrefs   := GetReferencesRC(uid,outbound,scheme,field,user_context);
+        for i := 0 to  high(obrefs) do
+          begin
+            FetchChained(obrefs[i],field_chain,depth+1);
+          end;
+      end
+    else
+      begin
+        if Length(expanded_refs) = count then
+          SetLength(expanded_refs,Length(expanded_refs)+256);
+        if FREDB_GuidInArray(uid,expanded_refs)=-1 then
+          begin
+            expanded_refs[count] := uid;
+            inc(count);
+          end;
+      end;
+  end;
+begin
+  SetLength(expanded_refs,0);
+  count := 0;
+  for i := 0 to High(ObjectList) do
+    FetchChained(ObjectList[i],ref_constraints,0);
+  SetLength(expanded_refs,count);
+end;
+
+function TFRE_DB_Master_Data.ExpandReferencesCountRC(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray): NativeInt;
+var expanded_refs: TFRE_DB_GUIDArray;
+begin
+  ExpandReferencesRC(user_context,ObjectList,ref_constraints,expanded_refs);
+  result := Length(expanded_refs);
+end;
+
+procedure TFRE_DB_Master_Data.FetchExpandReferencesRC(const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: IFRE_DB_ObjectArray);
+var expanded_ref: TFRE_DB_GUIDArray;
+begin
+  ExpandReferencesRC(user_context,ObjectList,ref_constraints,expanded_ref);
+  BulkFetchRC(nil,expanded_ref,expanded_refs);
+end;
+
+function TFRE_DB_Master_Data.BulkFetchRC(const user_context: PFRE_DB_GUID; const obj_uids: TFRE_DB_GUIDArray; out objects: IFRE_DB_ObjectArray): TFRE_DB_Errortype;
+var dboa  : TFRE_DB_ObjectArray;
+    i     : NativeInt;
+    all   : Boolean;
+begin
+  SetLength(dboa,length(obj_uids));
+  all := true;
+  for i := 0 to high(dboa) do
+     if not FetchObjectRC(user_context,obj_uids[i],dboa[i],true) then
+       begin
+         all := false;
+         break;
+       end;
+  if all then
+    begin
+      SetLength(objects,Length(dboa));
+      for i := 0 to high(objects) do
+        objects[i] := CloneOutObject(dboa[i]);
+      exit(edb_OK);
+    end;
+  result := edb_NOT_FOUND;
+end;
+
+function TFRE_DB_Master_Data.FetchObjectRC(const user_context: PFRE_DB_GUID; const obj_uid: TFRE_DB_GUID; out obj: TFRE_DB_Object; const internal_obj: boolean): boolean;
+var
+    uti     : TFRE_DB_USER_RIGHT_TOKEN;
+begin
+  G_GetUserToken(user_context,uti,true);
+  result := FetchObject(obj_uid,obj,true);
+  if result then
+    begin
+      if not assigned(user_context) then
+        exit(true);
+      result := uti.CheckStdRightsetInternalObj(obj,[sr_FETCH])=edb_OK;
+      if result=false then
+        begin
+          obj := nil;
+        end
+      else
+        begin
+          if internal_obj=false then { only cloneout if needed }
+            obj := CloneOutObject(obj);
+        end;
     end;
 end;
 
@@ -4719,7 +4856,7 @@ begin
   FCollTree.Clear;
 end;
 
-function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER): TFRE_DB_Errortype;
+function TFRE_DB_CollectionManageTree.NewCollection(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION; const volatile_in_memory: boolean; const masterdata: TFRE_DB_Master_Data): TFRE_DB_Errortype;
 var coll     : TFRE_DB_Persistance_Collection;
     safename : TFRE_DB_NameType;
 begin
@@ -4731,7 +4868,7 @@ begin
     end
   else
     begin
-      coll := TFRE_DB_Persistance_Collection.Create(coll_name,volatile_in_memory,pers_layer);
+      coll := TFRE_DB_Persistance_Collection.Create(coll_name,volatile_in_memory,masterdata);
       if FCollTree.InsertBinaryKey(@coll.UniqueName^[1],length(coll.UniqueName^),FREDB_ObjectToPtrUInt(coll)) then
         begin
           Collection := coll;
@@ -4871,12 +5008,12 @@ begin
     FIndexStore[i].IndexDelCheck(del_obj,nil,check_only);
 end;
 
-constructor TFRE_DB_Persistance_Collection.Create(const coll_name: TFRE_DB_NameType; Volatile: Boolean; const pers_layer: IFRE_DB_PERSISTANCE_LAYER);
+constructor TFRE_DB_Persistance_Collection.Create(const coll_name: TFRE_DB_NameType; Volatile: Boolean; const masterdata: TFRE_DB_Master_Data);
 begin
   FGuidObjStore := TFRE_ART_TREE.Create;
   FName         := coll_name;
   FVolatile     := Volatile;
-  FLayer        := pers_layer;
+  FMasterLink   := masterdata;
   FUpperName    := UpperCase(FName);
 end;
 
@@ -4904,8 +5041,9 @@ end;
 
 function TFRE_DB_Persistance_Collection.Remove(const ouid: TFRE_DB_GUID): TFRE_DB_Errortype;
 begin
-  FLayer.DeleteObject(ouid,CollectionName(true));
-  exit(edb_OK);
+  abort;
+  //FLayer.DeleteObject(ouid,CollectionName(true));
+  //exit(edb_OK);
 end;
 
 function TFRE_DB_Persistance_Collection.FetchO(const uid: TFRE_DB_GUID; var obj: TFRE_DB_Object): boolean;
@@ -5060,17 +5198,7 @@ end;
 
 function TFRE_DB_Persistance_Collection.CloneOutObject(const inobj: TFRE_DB_Object): TFRE_DB_Object;
 begin
-  inobj.Assert_CheckStoreLocked;
-  inobj.Set_Store_Locked(false);
-  try
-   if Length(inobj.__InternalGetCollectionList)<1 then
-     raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'logic failure, object has no assignment to internal collections');
-   result := inobj.CloneToNewObject;
-   if result = inobj then
-     abort;
-  finally
-    inobj.Set_Store_Locked(true);
-  end;
+  result := FMasterLink.CloneOutObject(inobj);
 end;
 
 function TFRE_DB_Persistance_Collection.CloneOutArray(const objarr: TFRE_DB_GUIDArray): TFRE_DB_ObjectArray;
@@ -5216,7 +5344,7 @@ begin
   for i:=0 to high(ixdef) do
     begin
       loaded := false;
-      if FLayer.FDB_TryGetIndexStream(CollectionName(false),ixdef[i].IndexName,stream) then
+      if GetPersLayer.FDB_TryGetIndexStream(CollectionName(false),ixdef[i].IndexName,stream) then
         begin
           try
             GFRE_DBI.LogDebug(dblc_PERSISTANCE,'>>LOAD STREAM FOR DEF [%s]',[ixdef[i].IndexDescription]);
@@ -5246,7 +5374,6 @@ procedure TFRE_DB_Persistance_Collection.LoadFromThis(const stream: TStream);
 var in_txt : String;
     cnt,i  : NativeInt;
     uid    : TFRE_DB_GUID;
-    dbi    : IFRE_DB_Object;
     dbo    : TFRE_DB_Object;
 begin
   in_txt := stream.ReadAnsiString;
@@ -5264,10 +5391,9 @@ begin
       in_txt := stream.ReadAnsiString; // guid;
       assert(Length(in_txt)=16);
       move(in_txt[1],uid,16);
-      if not FLayer.INT_Fetch(uid,dbi) or
-         not assigned(dbi) then
+      if not FMasterLink.FetchObject(uid,dbo,true) or
+         not assigned(dbo) then
            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION [%s] LOAD / FETCH FAILED [%s]',[CollectionName(false),FREDB_G2H(uid)]);
-      dbo := dbi.Implementor as TFRE_DB_Object;
       if not FGuidObjStore.InsertBinaryKey(dbo.UIDP,SizeOf(TFRE_DB_GUID),FREDB_ObjectToPtrUInt(dbo)) then
         raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION [%s] LOAD / INSERT FAILED [%s] EXISTS',[CollectionName(false),FREDB_G2H(uid)]);
       dbo.__InternalCollectionAdd(self);
@@ -5320,7 +5446,6 @@ procedure TFRE_DB_Persistance_Collection.RestoreFromObject(const obj: IFRE_DB_Ob
 var in_txt : String;
     cnt,i  : NativeInt;
     uid    : TFRE_DB_GUID;
-    dbi    : IFRE_DB_Object;
     dbo    : TFRE_DB_Object;
     arr    : TFRE_DB_GUIDArray;
 begin
@@ -5329,10 +5454,9 @@ begin
   for i := 0 to high(arr) do
     begin
       uid := arr[i];
-      if (not FLayer.INT_Fetch(uid,dbi)) or
-         not assigned(dbi) then
+      if (not FMasterLink.FetchObject(uid,dbo,true)) or
+         not assigned(dbo) then
            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / FETCH FAILED [%s]',[FREDB_G2H(uid)]);
-      dbo := dbi.Implementor as TFRE_DB_Object;
       if not FGuidObjStore.InsertBinaryKey(dbo.UIDP,SizeOf(TFRE_DB_GUID),FREDB_ObjectToPtrUInt(dbo)) then
         raise EFRE_DB_PL_Exception.Create(edb_ERROR,'COLLECTION LOAD / INSERT FAILED [%s] EXISTS',[FREDB_G2H(uid)]);
       dbo.__InternalCollectionAdd(self);
@@ -5563,7 +5687,7 @@ end;
 
 function TFRE_DB_Persistance_Collection.GetPersLayer: IFRE_DB_PERSISTANCE_LAYER;
 begin
-  result := FLayer;
+  result := FMasterLink.FLayer;
 end;
 
 procedure TFRE_DB_Persistance_Collection.GetAllIndexedUidsEncodedField(const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType; var uids: TFRE_DB_GUIDArray; const check_is_unique: boolean);
@@ -5699,6 +5823,7 @@ begin
     end;
   idx.ForAllIndexedValsTransformedKeys(uids,keyminp,keymaxp,keylenmin,keylenmax,ascending,max_count,skipfirst);
 end;
+
 
 function TFRE_DB_Persistance_Collection.GetIndexedValueCountRC(const qry_val: IFRE_DB_Object; const index_name: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): NativeInt;
 var i    : NativeInt;

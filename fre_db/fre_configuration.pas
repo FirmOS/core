@@ -212,9 +212,10 @@ var cfgfile  : string;
         cFRE_MONITORING_USER            := ini.ReadString('MONITORING','USER'        , cFRE_MONITORING_USER);
         cFRE_MONITORING_KEY_FILE        := ini.ReadString('MONITORING','KEY_FILE'    , cFRE_MONITORING_KEY_FILE);
         cFRE_MONITORING_DEST_DIR        := ini.ReadString('MONITORING','DIRECTORY'   , cFRE_MONITORING_DEST_DIR);
-        cFRE_MACHINE_NAME               := ini.ReadString('MACHINE','NAME', cFRE_MACHINE_NAME);
-        cFRE_MACHINE_MAC                := ini.ReadString('MACHINE','MAC', cFRE_MACHINE_MAC);
-
+        cFRE_MACHINE_NAME               := ini.ReadString('MACHINE','NAME'           , cFRE_MACHINE_NAME);
+        cFRE_MACHINE_MAC                := ini.ReadString('MACHINE','MAC'            , cFRE_MACHINE_MAC);
+        cFRE_PL_ADMINS                  := ini.ReadString('PL','ADMINLIST'           , cFRE_PL_ADMINS);
+        cFRE_PL_ADMINS_PWS              := ini.ReadString('PL','ADMINPASSLIST'       , cFRE_PL_ADMINS_PWS);  { plaintext passwords }
         ConfigureLogging;
       finally
         ini.Free;

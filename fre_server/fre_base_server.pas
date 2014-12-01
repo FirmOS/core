@@ -115,7 +115,7 @@ type
     constructor Create            (const defaultdbname : string);
     destructor  Destroy           ; override;
     procedure   HandleSignals     (const signum : NativeUint);
-    procedure Setup(const systemdb: TFRE_DB_SYSTEM_CONNECTION);
+    procedure   Setup(const systemdb: TFRE_DB_SYSTEM_CONNECTION);
     procedure   Terminate         ;
     procedure   ReInit            ;
     procedure   DeploymentDump    ;
@@ -550,12 +550,14 @@ begin
   GFRE_TF.Get_Lock(FSessionTreeLock);
   GFRE_SC.SetSingnalCB(@HandleSignals);
 
+  writeln('>Connecting Databases');
   _ConnectAllDatabases;
   _ServerinitializeApps;
   try
     _SetupSSL_Ctx;
   except
   end;
+  writeln('>Setup HTTP  Server');
   _SetupHttpBaseServer;
 
   InitializeTaskerSession;
@@ -577,6 +579,7 @@ begin
 
   FSessiontimer := GFRE_SC.AddTimer('SESSION',1000,@TIM_SessionHandler);
   FTaskerTimer  := GFRE_SC.AddTimer('TASKER',1000,@TIM_TaskerHandler);
+  writeln('>Server is up');
 end;
 
 
