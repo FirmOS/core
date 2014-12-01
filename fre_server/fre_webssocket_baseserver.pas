@@ -341,7 +341,7 @@ begin
           8:  _ProcessCloseFrame;
           else
             begin
-              writeln('Ignoring unsupported websocket dataframe type : ',FOpcode);
+              writeln('Ignoring unsupported websocket dataframe type : ',FOpcode,' len ',Length(dataframe));
               GFRE_DBI.LogError(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+'Ignoring unsupported WS Frame : '+inttostr(FOpcode));
             end;
           end;
@@ -1809,7 +1809,7 @@ var data : string;
         FMakey[2] := FByte^; ReadByteAdvance;
         FMakey[3] := FByte^; ReadByteAdvance;
       end;
-      SetLength(FDecodeFrame,FLen);
+      SetLength(FDecodeFrame,FLen); // self.flen
       //FillChar(FDecodeFrame[1],Flen,$EA);
       FGotLen   :=  Fend - FByte + 1;
       if FGotLen>FLen then begin
@@ -1836,7 +1836,7 @@ var data : string;
         goto again;
       end else
       if FGotLen+lRecLen<FLen then begin
-        Move(FByte^,FDecodeFrame[FGotLen+1],lRecLen); // ==
+        Move(FByte^,FDecodeFrame[FGotLen+1],lRecLen); // == self.fgotlen
         dec(FReceiveRest,lRecLen);
         inc(FGotLen,lRecLen);
         ReadByteAdvance(lRecLen);

@@ -13,7 +13,7 @@ uses
   Classes, SysUtils,fpcunit,testregistry,testdecorator,fre_system,
   FRE_DB_CORE,FOS_TOOL_INTERFACES,FRE_DB_INTERFACE;
 
-  var cFFG_SKIP_EXCEPTION_TEST : boolean = false;
+  var cFFG_SKIP_EXCEPTION_TEST : boolean = true;
 
 
   var
@@ -105,6 +105,7 @@ type
     procedure TestStreamFieldClone;
     procedure ForAllHierarchicTest;
     procedure JSONObject2Object;
+    procedure HierachicObjectdump;
   end;
 
   { TFRE_DB_PersistanceTests }
@@ -434,7 +435,7 @@ begin
   FSysconn    := GFRE_DBI.NewSysOnlyConnection;
   result_code := FSysconn.Connect('admin@system','admin');
   AssertTrue('SYS CONNECT FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_OK);
-  FSysconn.DumpSystem;
+  //FSysconn.DumpSystem;
   //GFRE_DB_PS_LAYER.SyncSnapshot;
   //GFRE_DB_PS_LAYER.DEBUG_DisconnectLayer('SYSTEM');
   //FSysconn.Finalize;
@@ -455,7 +456,7 @@ begin
   domuid      := FSysconn.DomainID('SYSTEM');
   result_code := FSysconn.AddUser('test1',domuid,'test1','Egon','Semmerl');
   AssertTrue('SYS ADDUSER FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_OK);
-  FSysconn.DumpSystem;
+  //FSysconn.DumpSystem;
 end;
 
 procedure TFRE_DB_PersistanceTests.SystemCheckUser;
@@ -468,7 +469,7 @@ begin
   domuid      := FSysconn.DomainID('SYSTEM');
   result_code := FSysconn.AddUser('test1',domuid,'test1','Egon','Semmerl');
   AssertTrue('SYS ADDUSER FAILED: '+CFRE_DB_Errortype[result_code],result_code = edb_EXISTS);
-  FSysconn.DumpSystem;
+  //FSysconn.DumpSystem;
 end;
 
 procedure TFRE_DB_PersistanceTests.SystemSyncSnapshot;
@@ -479,7 +480,7 @@ end;
 procedure TFRE_DB_PersistanceTests.SetupTestWorkDB;
 var res : TFRE_DB_Errortype;
 begin
-  res := GFRE_DB_PS_LAYER.CreateDatabase('WORKTEST');
+  res := GFRE_DB_PS_LAYER.CreateDatabase('WORKTEST',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
   AssertTrue('CREATE DB FAILED '+CFRE_DB_Errortype[res],res=edb_OK);
 end;
 
@@ -562,9 +563,8 @@ var coll_v,coll_p    : IFRE_DB_COLLECTION;
     osub_uid         : TFRE_DB_GUID;
     res              : TFRE_DB_Errortype;
 begin
-
-  if cFFG_SKIP_EXCEPTION_TEST then
-    exit;
+  //if cFFG_SKIP_EXCEPTION_TEST then
+  //  exit;
   ConnectDB('admin@system','admin');
   coll_p := FWorkConn.CreateCollection('TEST_1_SUBTWICE');
 
@@ -1332,15 +1332,15 @@ end;
 
 procedure TFRE_DB_PersistanceTests.PreCleanup;
 begin
-  GFRE_DB_PS_LAYER.DeleteDatabase('TEST_/|\%DB%''');
-  GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM');
-  GFRE_DB_PS_LAYER.DeleteDatabase('WORKTEST');
+  GFRE_DB_PS_LAYER.DeleteDatabase('TEST_/|\%DB%''',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
+  GFRE_DB_PS_LAYER.DeleteDatabase('SYSTEM',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
+  GFRE_DB_PS_LAYER.DeleteDatabase('WORKTEST',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
 end;
 
 procedure TFRE_DB_PersistanceTests.CreateTestDatabase;
 var res : TFRE_DB_Errortype;
 begin
-  res := GFRE_DB_PS_LAYER.CreateDatabase('TEST_/|\%DB%''');
+  res := GFRE_DB_PS_LAYER.CreateDatabase('TEST_/|\%DB%''',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
   AssertTrue('CREATE DB FAILED '+CFRE_DB_Errortype[res],res=edb_OK);
 end;
 
@@ -1353,14 +1353,14 @@ end;
 procedure TFRE_DB_PersistanceTests.DropTestDatabase;
 var res : TFRE_DB_Errortype;
 begin
-  res := GFRE_DB_PS_LAYER.DeleteDatabase('TEST_/|\%DB%''');
+  res := GFRE_DB_PS_LAYER.DeleteDatabase('TEST_/|\%DB%''',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
   AssertTrue(res=edb_OK);
 end;
 
 procedure TFRE_DB_PersistanceTests.SystemCreate;
 var res : TFRE_DB_Errortype;
 begin
-  res := GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM');
+  res := GFRE_DB_PS_LAYER.CreateDatabase('SYSTEM',cFRE_PL_ADMIN_USER,cFRE_PL_ADMIN_PASS);
 end;
 
 procedure TFRE_DB_PersistanceTests.SystemWrongUser;
@@ -1906,6 +1906,27 @@ begin
   s := ob.DumpToString();
 end;
 
+procedure TFRE_DB_ObjectTests.HierachicObjectdump;
+var o1,o2,osub : IFRE_DB_Object;
+    ol         : TFRE_DB_ObjectArray;
+    i          : integer;
+begin
+  o1   := GFRE_DBI.NewObject;
+  o2   := GFRE_DBI.NewObject;
+  osub := GFRE_DBI.NewObject;
+
+  o1.Field('sub1').AddObject(osub.CloneToNewObject());
+  o2.Field('sub1').AddObject(osub.CloneToNewObject());
+
+  writeln(o1.DumpToString());
+
+  writeln('-----------');
+  ol := (o1.Implementor as TFRE_DB_Object).GetFullHierarchicObjectList(true);
+  AssertTrue(length(ol)=3);
+  ol := (o1.Implementor as TFRE_DB_Object).GetFullHierarchicObjectList(false);
+  AssertTrue(length(ol)=2);
+end;
+
 procedure RegisterTestCodeClasses;
 begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TEST_CODE_CLASS);
@@ -1915,7 +1936,7 @@ begin
   GFRE_DBI.RegisterObjectClassEx(SC_B1);
   GFRE_DBI.RegisterObjectClassEx(SC_C1);
   GFRE_DBI.RegisterObjectClassEx(SC_C1);
-  GFRE_DBI.Initialize_Extension_Objects;
+  GFRE_DB.Initialize_Extension_ObjectsBuild;
 end;
 
 initialization

@@ -14347,6 +14347,7 @@ var scheme_object:TFRE_DB_SchemeObject;
 
    function Iterate(const db:TFRE_DB_FIELD):boolean;
    begin
+     result := false;
      if (db.FieldType<>fdbft_NotFound) then
        begin
          if (without_system_fields)
@@ -15596,12 +15597,13 @@ var cnt  : NativeInt;
   begin
     if not skip then
       begin
-        skip := false;
         if Length(result)=cnt then
           SetLength(result,Length(result)+25);
         result[cnt] := obj;
         inc(cnt);
-      end;
+      end
+    else
+      skip := false;
   end;
 
 begin
@@ -19839,7 +19841,7 @@ begin
   if pw<>pwc then
    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Password confirm mismatch',fdbmt_error,nil));
 
-  if data.FieldOnlyExisting('picture',fld) then
+  if (data.FieldOnlyExisting('picture',fld) and (not fld.IsSpecialClearMarked)) then
     begin
        image     := fld.AsStream;
        imagetype := data.Field('picture'+cFRE_DB_STKEY).AsString;

@@ -480,7 +480,8 @@ procedure TFRE_BASE_SERVER.Setup(const systemdb: TFRE_DB_SYSTEM_CONNECTION);
            ndbc := GFRE_DB.NewConnection(true);
            res  := ndbc.Connect(dbname,cFRE_ADMIN_USER,cFRE_ADMIN_PASS,FSystemConnection); // direct admin connect
            if res<>edb_OK then begin
-             GFRE_DB.LogError(dblc_EXCEPTION,'SERVING DATABASE [%s] failed due to [%s]',[dbname,CFRE_DB_Errortype[res]]);
+             writeln(format('SERVING DATABASE [%s] failed due to [%s]',[dbname,res.AsString]));
+             GFRE_DB.LogError(dblc_EXCEPTION,'SERVING DATABASE [%s] failed due to [%s]',[dbname,res.AsString]);
            end else begin
              //InfoLog(5,'CONNECTED [%s]',[dbname]);
              FOpenDatabaseList.Add2Array(ndbc);
