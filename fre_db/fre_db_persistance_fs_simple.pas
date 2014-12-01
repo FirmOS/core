@@ -759,7 +759,6 @@ end;
 procedure TFRE_DB_PS_FILE.InvalidateAllSchemecacheLinks;
 var i : NativeInt;
 begin
-  G_DEBUG_TRIGGER_1:= true;
   G_SysMaster.InternalClearSchemecacheLink;
   for i:=0 to high(G_AllNonsysMasters) do
     G_AllNonsysMasters[i].InternalClearSchemecacheLink;
@@ -1394,10 +1393,6 @@ begin
                 ImplicitTransaction := True;
               end else
                 ImplicitTransaction := false;
-            if G_DEBUG_TRIGGER_1 then
-              begin
-                G_DEBUG_TRIGGER_1:=true;
-              end;
             updatestep := TFRE_DB_UpdateStep.Create(self,FMaster,obj,to_update_obj,false,user_context);
             if updatestep.HasNoChanges then
               updatestep.Free

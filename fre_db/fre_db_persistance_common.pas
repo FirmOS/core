@@ -3532,6 +3532,8 @@ procedure TFRE_DB_Master_Data.InternalClearSchemecacheLink;
   end;
 
 begin
+  if self=nil then { unconnected db case }
+    exit;
   ForAllObjectsInternal(true,true,@ClearSchemeLink);
 end;
 
@@ -3959,7 +3961,7 @@ var break : boolean;
   end;
 
 begin
-  break := false;
+  break := false; //self
   if pers then
     FMasterPersistentObjStore.LinearScanBreak(@ObjCallback,break);
   if volatile then
@@ -4988,8 +4990,6 @@ end;
 procedure TFRE_DB_Persistance_Collection.IndexAddCheck(const obj: TFRE_DB_Object; const check_only: boolean);
 var i : NativeInt;
 begin
-  if G_DEBUG_TRIGGER_1 then
-    G_DEBUG_TRIGGER_1:=true;
   for i:= 0 to high(FIndexStore) do
     FIndexStore[i].IndexAddCheck(obj,check_only);
 end;

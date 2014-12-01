@@ -9874,15 +9874,6 @@ begin
   FHC_Resolved:=true;
 end;
 
-//destructor TFRE_DB_SchemeObject.Destroy;
-//begin
-//  //if G_DEBUG_TRIGGER_1 then
-//  // begin
-//  //    writeln('SCHEME DESTROY ',DefinedSchemeName); //self.F
-//  // end;
-//  inherited Destroy;
-//end;
-
 function TFRE_DB_SchemeObject._ObjectIsCodeclassOnlyAndHasNoScheme: boolean;
 begin
   result := true;
@@ -14487,7 +14478,6 @@ var scheme_object:TFRE_DB_SchemeObject;
            if without_calcfields and
               db.IsFieldCalculated then
                 begin
-                  inc(G_DEBUG_COUNTER);
                   exit;
                 end;
            iter(db);
@@ -14517,7 +14507,6 @@ var scheme_object:TFRE_DB_SchemeObject;
          if without_calcfields and
             db.IsFieldCalculated then
               begin
-                inc(G_DEBUG_COUNTER);
                 exit;
               end;
          result := iter(db);
