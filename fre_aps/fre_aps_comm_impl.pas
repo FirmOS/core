@@ -53,6 +53,13 @@ uses
   {$ENDIF}
   ;
 
+
+{$DEFINE APS_LOG_ERROR}
+{.$DEFINE APS_LOG_NOTICE}
+{.$DEFINE APS_LOG_DEBUG}
+{.$DEFINE APS_LOG_WARNING}
+{.$DEFINE APS_LOG_INFO}
+
 const C_CHANNEL_RUNNER_THREADS = 16;
 var
     cAPSC_JACK_TIMEOUT:integer= 5000;
@@ -319,14 +326,14 @@ type
     function    GetVerboseDesc      : String;
     procedure   SetVerboseDesc      (const desc:string);
 
-    procedure   CH_WriteString      (const str : String);
+    procedure   CH_WriteString      (const str : RawByteString);
     procedure   CH_WriteBuffer      (const data : Pointer ; const len : NativeInt);
     procedure   CH_SAFE_WriteBuffer (const data : Pointer ; const len : NativeInt); // data gets copied ...
     procedure   CH_WriteOpenedFile  (const fd : cInt ; const offset,len : NativeInt);
     procedure   CH_Enable_Reading ;
     procedure   CH_Enable_Writing ;
     function    CH_GetDataCount   : NativeInt;
-    function    CH_ReadString     : String;
+    function    CH_ReadString     : RawByteString;
     function    CH_ReadBuffer     (const data : Pointer ; const len : NativeInt) : NativeInt;
     function    CH_GetErrorString : String;
     function    CH_GetErrorCode   : NativeInt;
@@ -509,30 +516,41 @@ begin
   end;
 end;
 
-procedure   LogInfo(const s:String;const Args : Array of const);
+
+procedure   LogInfo(const s:String;const Args : Array of const); inline;
 begin
+  {$IFDEF APS_LOG_INFO}
   GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Info,CFOS_LL_Target[fll_Info],false);
+  {$ENDIF}
 end;
 
-procedure   LogNotice(const s:String;const Args : Array of const);
+procedure   LogNotice(const s:String;const Args : Array of const); inline;
 begin
+  {$IFDEF APS_LOG_NOTICE}
   GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Notice,CFOS_LL_Target[fll_Notice],false);
+  {$ENDIF}
 end;
 
 
-procedure LogDebug(const s:String;const Args : Array of const);
+procedure LogDebug(const s:String;const Args : Array of const); inline;
 begin
+  {$IFDEF APS_LOG_DEBUG}
   GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Debug,CFOS_LL_Target[fll_Debug],false);
+  {$ENDIF}
 end;
 
-procedure   LogWarning(const s:String;const Args : Array of const);
+procedure   LogWarning(const s:String;const Args : Array of const); inline;
 begin
+  {$IFDEF APS_LOG_WARNING}
   GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Warning,CFOS_LL_Target[fll_Warning],false);
+  {$ENDIF}
 end;
 
-procedure   LogError(const s:String;const Args : Array of const);
+procedure   LogError(const s:String;const Args : Array of const); inline;
 begin
+  {$IFDEF APS_LOG_ERROR}
   GFRE_LOG.Log(s,Args,CFRE_DB_LOGCATEGORY[dblc_APSCOMM],fll_Error,CFOS_LL_Target[fll_Error],false);
+  {$ENDIF}
 end;
 
 
@@ -1158,7 +1176,7 @@ begin
   FVerboseID := desc;
 end;
 
-procedure TFRE_APSC_CHANNEL.CH_WriteString(const str: String);
+procedure TFRE_APSC_CHANNEL.CH_WriteString(const str: RawByteString);
 begin
   ThreadCheck;
   if bufferevent_write(FBufEvent,@str[1],Length(str))<>0 then
@@ -1213,7 +1231,7 @@ begin
   result := evbuffer_get_length(FInputBuf);
 end;
 
-function TFRE_APSC_CHANNEL.CH_ReadString: String;
+function TFRE_APSC_CHANNEL.CH_ReadString: RawByteString;
 var read_len,alen : NativeInt;
 begin
   ThreadCheck;

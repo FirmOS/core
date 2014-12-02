@@ -82,7 +82,7 @@ type
   end;
 
   RLogoptions=record
-    filename,fullfilename:string;
+    filename,fullfilename:ShortString;
     turnaround,generations:integer;
     level:TFOS_LOG_LEVEL;
     nolog,not_in_full_log:TFOS_BoolType;
@@ -96,21 +96,21 @@ type
   { TTargetLogOptions }
 
   TTargetLogOptions=class(TLogoptions)
-    target:string;
+    target:ShortString;
     procedure   Change(const Sender:TObject);override;
   end;
 
   { TCategoryLogOptions }
 
   TCategoryLogOptions=class(TLogoptions)
-    category:string;
+    category:ShortString;
     procedure   Change(const Sender:TObject);override;
   end;
 
   { TDefaultLogOptions }
 
   TDefaultLogOptions=class(TLogoptions)
-    basedir:string;
+    basedir:ShortString;
     procedure   Change(const Sender:TObject);override;
   end;
 
@@ -122,9 +122,9 @@ type
 
   { TAddRule }
   TLOG_RULE=record
-    category  : string;
+    category  : ShortString;
     level     : TFOS_LOG_LEVEL;
-    target    : string;
+    target    : ShortString;
     action    : TFOS_LOG_RULE_ACTION;
     stop_rule : boolean;
   end;
@@ -169,26 +169,26 @@ type
 
    procedure   GenCheck             (gens: integer;fullpathfilename:string=''); // Removes Logfiles Exceedin Generations Limit
    function    LogToFile            (const filename, entry: string;const Turnaround:integer;const Gens:Integer):boolean;
-   procedure   LogEmergency         (const msg:string);
+   procedure   LogEmergency         (const msg:ShortString);
   public
    procedure   Configure            (CFO:TObject);
    procedure   SetInterval          (const iv:integer);
    procedure   Sync_Logger          ;
    procedure   Terminate            ;
    procedure   Execute              ;override;
-   procedure   Log                  (const msg,cat:String;Level:TFOS_LOG_LEVEL=fll_Debug;const target:string='';const sync:boolean=false);overload;
-   procedure   Log                  (const msg:String;params:array of const;cat:String;Level:TFOS_LOG_LEVEL=fll_Debug;const target:string='';const sync:boolean=false);overload;
-   procedure   LogConsole           (const msg:String);
-   procedure   LogSystem            (const msg:String;const facility: TFOS_LOG_FACILITY; const level: TFOS_LOG_LEVEL);overload;
-   procedure   RegisterCategory     (const cat:string;filename:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const nolog:TFOS_BoolType=fbtNotSet;const not_in_full_log:TFOS_BoolType=fbtNotSet);
-   procedure   RegisterTarget       (const target:string;subfilepath:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility:TFOS_LOG_FACILITY=flf_User);
-   procedure   SetDefaults          (const defaultfilename:string;fullfilename,base_dir:string;const turnaround,generations:cardinal;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility: TFOS_LOG_FACILITY=flf_Kernel);
-   procedure   RegisterThread       (const name:string);
+   procedure   Log                  (const msg,cat:ShortString;Level:TFOS_LOG_LEVEL=fll_Debug;const target:ShortString='';const sync:boolean=false);overload;
+   procedure   Log                  (const msg:ShortString;params:array of const;cat:ShortString;Level:TFOS_LOG_LEVEL=fll_Debug;const target:ShortString='';const sync:boolean=false);overload;
+   procedure   LogConsole           (const msg:ShortString);
+   procedure   LogSystem            (const msg:ShortString;const facility: TFOS_LOG_FACILITY; const level: TFOS_LOG_LEVEL);overload;
+   procedure   RegisterCategory     (const cat:ShortString;filename:ShortString;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const nolog:TFOS_BoolType=fbtNotSet;const not_in_full_log:TFOS_BoolType=fbtNotSet);
+   procedure   RegisterTarget       (const target:ShortString;subfilepath:ShortString;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility:TFOS_LOG_FACILITY=flf_User);
+   procedure   SetDefaults          (const defaultfilename:ShortString;fullfilename,base_dir:ShortString;const turnaround,generations:cardinal;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility: TFOS_LOG_FACILITY=flf_Kernel);
+   procedure   RegisterThread       (const name:ShortString);
    constructor Create               ;reintroduce;
    destructor  Destroy              ;override;
    procedure   ClearLogRules        ;
-   procedure   AddRule              (const category:string;const level:TFOS_LOG_LEVEL;const target:string;const action:TFOS_LOG_RULE_ACTION;const stop_rule:boolean=true);
-   procedure   SetLocalZone         (const zone:string);
+   procedure   AddRule              (const category:ShortString;const level:TFOS_LOG_LEVEL;const target:ShortString;const action:TFOS_LOG_RULE_ACTION;const stop_rule:boolean=true);
+   procedure   SetLocalZone         (const zone:ShortString);
    procedure   EnableSyslog         ;
    procedure   DisableSyslog        ;
   end;
@@ -342,7 +342,7 @@ begin
   Chq.Push(clr);
 end;
 
-procedure TFileLoggerThread.AddRule(const category: string; const level: TFOS_LOG_LEVEL; const target: string; const action: TFOS_LOG_RULE_ACTION; const stop_rule: boolean);
+procedure TFileLoggerThread.AddRule(const category: ShortString; const level: TFOS_LOG_LEVEL; const target: ShortString; const action: TFOS_LOG_RULE_ACTION; const stop_rule: boolean);
 var RULE:TAddRule;
 begin
   rule := TAddRule.Create;
@@ -354,7 +354,7 @@ begin
   Chq.Push(rule);
 end;
 
-procedure TFileLoggerThread.SetLocalZone(const zone: string);
+procedure TFileLoggerThread.SetLocalZone(const zone: ShortString);
 begin
   FlocalZone := zone;
 end;
@@ -480,48 +480,53 @@ var LO:RLogObjP;
  var break_it:boolean;
  begin
    break_it := false;
-   while true do begin
-   if break_it then break;
-    ChangeParams;
-    if single_threaded then begin
-      LO := @single_threaded_LOL;
-    end else begin
-      LO:=InQ.Pop;
-      if not assigned(lo) then break;
-    end;
-    LO^.Category   := uppercase(LO^.Category);
-    LO^.Target     := uppercase(LO^.Target);
-    formated_entry := '';
-    try
-       SetupPref;
-       if ProcessRules=true then begin //True = drop entry
-         continue;
-       end else begin
-         if Entry_Opts.NoLog=fbtTrue then begin
-           continue;
-         end;
-         if (LO^.Level>Entry_Opts.level) and (Entry_Opts.level>fll_Invalid) then begin
-           continue;
-         end;
-         if formated_entry='' then FormatEntry;
-         if FEnabledSyslog then begin
-          with Entry_Opts do LogSystem(formated_entry,syslogfacility,LO^.Level);
-         end else begin
-          if (Entry_Opts.fullfilename<>'') and (Entry_Opts.not_in_full_log=fbtFalse) then begin
-            with Entry_Opts do begin
-             if LogToFile(basedir+fullfilename,formated_entry,turnaround,generations)=true then exit;
-            end;
+   while true do
+     begin
+       if break_it then
+         break;
+       ChangeParams;
+       if single_threaded then
+          LO := @single_threaded_LOL
+        else
+          begin
+            LO:=InQ.Pop;
+            if not assigned(lo) then
+              break;
           end;
-          with Entry_Opts do begin
-            if LogToFile(basedir+targetpreselect+filename,formated_entry,turnaround,generations)=true then exit;
-          end;
-         end;
-       end;
-    finally
-      if not single_threaded then Dispose(lo);
-      break_it := single_threaded;
-    end;
-   end;
+        LO^.Category   := uppercase(LO^.Category);
+        LO^.Target     := uppercase(LO^.Target);
+        formated_entry := '';
+        try
+           SetupPref;
+           if ProcessRules=true then begin //True = drop entry
+             continue;
+           end else begin
+             if Entry_Opts.NoLog=fbtTrue then begin
+               continue;
+             end;
+             if (LO^.Level>Entry_Opts.level) and (Entry_Opts.level>fll_Invalid) then begin
+               continue;
+             end;
+             if formated_entry='' then FormatEntry;
+             if FEnabledSyslog then begin
+              with Entry_Opts do LogSystem(formated_entry,syslogfacility,LO^.Level);
+             end else begin
+              if (Entry_Opts.fullfilename<>'') and (Entry_Opts.not_in_full_log=fbtFalse) then begin
+                with Entry_Opts do begin
+                 if LogToFile(basedir+fullfilename,formated_entry,turnaround,generations)=true then exit;
+                end;
+              end;
+              with Entry_Opts do begin
+                if LogToFile(basedir+targetpreselect+filename,formated_entry,turnaround,generations)=true then exit;
+              end;
+             end;
+           end;
+        finally
+          if not single_threaded then
+            Dispose(lo);
+          break_it := single_threaded;
+        end;
+     end;
  end;
 
 begin
@@ -603,7 +608,7 @@ begin
 end;
 
 
-procedure TFileLoggerThread.Log(const msg, cat: String; Level: TFOS_LOG_LEVEL;  const target: string;const sync:boolean=false);
+procedure TFileLoggerThread.Log(const msg, cat: ShortString; Level: TFOS_LOG_LEVEL;  const target: ShortString;const sync:boolean=false);
 var LO  : RLogObjP;
 begin
   if FIsMultiThreaded then begin
@@ -627,7 +632,7 @@ begin
   end;
 end;
 
-procedure TFileLoggerThread.Log(const msg: String; params: array of const; cat: String; Level: TFOS_LOG_LEVEL; const target: string;const sync:boolean=false);
+procedure TFileLoggerThread.Log(const msg: ShortString; params: array of const; cat: ShortString; Level: TFOS_LOG_LEVEL; const target: ShortString;const sync:boolean=false);
 var mymsg : string;
 begin
   try
@@ -642,14 +647,14 @@ begin
   if sync then Sync_Logger;
 end;
 
-procedure TFileLoggerThread.LogConsole(const msg: String);
+procedure TFileLoggerThread.LogConsole(const msg: shortstring);
 begin
  {$I-}
  writeln(msg);
  {$I+}
 end;
 
-procedure TFileLoggerThread.LogSystem(const msg: String; const facility: TFOS_LOG_FACILITY; const level: TFOS_LOG_LEVEL);
+procedure TFileLoggerThread.LogSystem(const msg: ShortString; const facility: TFOS_LOG_FACILITY; const level: TFOS_LOG_LEVEL);
 begin
  if facility<>FOpenSysLogFacility then begin
   if FOpenSysLogFacility<>flf_Invalid then begin
@@ -661,7 +666,7 @@ begin
   FOpenSysLogFacility   := facility;
  end;
 // writeln('LEVEL:',CSYSLOG_LEVEL[level]);
- syslog(CSYSLOG_LEVEL[level],'%s',[PChar(Msg)]);
+ syslog(CSYSLOG_LEVEL[level],'%s',[PChar(@Msg[1])]);
 end;
 
 function TFileLoggerThread.LogToFile(const filename, entry: string; const Turnaround: integer; const Gens: Integer): boolean;
@@ -696,7 +701,8 @@ begin
            exit(true);
           end;
           Reset(ff);
-          if IOResult=0 then break;
+          if IOResult=0 then
+            break;
           sleep(100);
          until false;
          {$I+}
@@ -752,7 +758,7 @@ begin
 end;
 
 
-procedure TFileLoggerThread.RegisterCategory(const cat: string; filename: string; turnaround: integer; generations: integer; const minseveritylevel: TFOS_LOG_LEVEL; const nolog: TFOS_BoolType; const not_in_full_log: TFOS_BoolType);
+procedure TFileLoggerThread.RegisterCategory(const cat: ShortString; filename: ShortString; turnaround: integer; generations: integer; const minseveritylevel: TFOS_LOG_LEVEL; const nolog: TFOS_BoolType; const not_in_full_log: TFOS_BoolType);
 var CATG:TCategoryLogOptions;
 begin
   CATG:=TCategoryLogOptions.Create;
@@ -767,7 +773,7 @@ begin
   Chq.Push(CATG);
 end;
 
-procedure TFileLoggerThread.RegisterTarget(const target: string; subfilepath: string; turnaround: integer; generations: integer; const minseveritylevel: TFOS_LOG_LEVEL; const facility: TFOS_LOG_FACILITY);
+procedure TFileLoggerThread.RegisterTarget(const target: ShortString; subfilepath: ShortString; turnaround: integer; generations: integer; const minseveritylevel: TFOS_LOG_LEVEL; const facility: TFOS_LOG_FACILITY);
 var TARG:TTargetLogOptions;
 begin
  TARG:=TTargetLogOptions.Create;
@@ -783,7 +789,7 @@ begin
  Chq.Push(TARG);
 end;
 
-procedure TFileLoggerThread.SetDefaults(const defaultfilename: string; fullfilename, base_dir: string; const turnaround, generations: cardinal; const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility: TFOS_LOG_FACILITY=flf_Kernel);
+procedure TFileLoggerThread.SetDefaults(const defaultfilename: ShortString; fullfilename, base_dir: ShortString; const turnaround, generations: cardinal; const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility: TFOS_LOG_FACILITY=flf_Kernel);
 var DEFO:TDefaultLogOptions;
 begin
   DEFO:=TDefaultLogOptions.Create;
@@ -798,7 +804,7 @@ begin
   FE.SetEvent;
 end;
 
-procedure TFileLoggerThread.RegisterThread(const name: string);
+procedure TFileLoggerThread.RegisterThread(const name: ShortString);
 begin
   ChQ.Push(TThreadRegistryChange.Create(name));
   FE.SetEvent;
@@ -829,7 +835,7 @@ begin
 end;
 
 
-procedure TFileLoggerThread.LogEmergency(const msg: string);
+procedure TFileLoggerThread.LogEmergency(const msg: ShortString);
 begin
   try
     writeln('<************* EMERGENCY LOG *************');

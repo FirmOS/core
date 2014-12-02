@@ -2524,18 +2524,18 @@ type
     procedure   LogNoticeIf            (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
     procedure   LogEmergencyIf         (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
 
-    procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
-    procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
-    procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
-    procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
-    procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
-    procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String);
-    procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
-    procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
-    procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
-    procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
-    procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
-    procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:TFRE_DB_String;const param:array of const);
+    procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString);
+    procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString);
+    procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString);
+    procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString);
+    procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString);
+    procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString);
+    procedure   LogDebug               (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString;const param:array of const);
+    procedure   LogInfo                (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString;const param:array of const);
+    procedure   LogWarning             (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString;const param:array of const);
+    procedure   LogError               (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString;const param:array of const);
+    procedure   LogNotice              (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString;const param:array of const);
+    procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString;const param:array of const);
 
     property    NetServer              : IFRE_DB_NetServer read NetServ write FNetServer;
     procedure   ClearGUID              (var uid:TFRE_DB_GUID);
@@ -13663,62 +13663,62 @@ begin
   logcallback;
 end;
 
-procedure TFRE_DB.LogDebug(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String);
+procedure TFRE_DB.LogDebug(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString);
 begin
  LogDebug(category,'%s',[msg]); // prevent misinterpretation  of % sign in msg!
 end;
 
-procedure TFRE_DB.LogInfo(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String);
+procedure TFRE_DB.LogInfo(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString);
 begin
   LogInfo(category,'%s',[msg]);
 end;
 
-procedure TFRE_DB.LogWarning(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String);
+procedure TFRE_DB.LogWarning(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString);
 begin
   LogWarning(category,'%s',[msg]);
 end;
 
-procedure TFRE_DB.LogError(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String);
+procedure TFRE_DB.LogError(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString);
 begin
   LogError(category,'%s',[msg]);
 end;
 
-procedure TFRE_DB.LogNotice(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String);
+procedure TFRE_DB.LogNotice(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString);
 begin
  LogNotice(category,'%s',[msg]);
 end;
 
-procedure TFRE_DB.LogEmergency(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String);
+procedure TFRE_DB.LogEmergency(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString);
 begin
   LogEmergency(category,'%s',[msg]);
 end;
 
-procedure TFRE_DB.LogInfo(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
+procedure TFRE_DB.LogInfo(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Info,CFOS_LL_Target[fll_Info],false);
 end;
 
-procedure TFRE_DB.LogWarning(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
+procedure TFRE_DB.LogWarning(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Warning,CFOS_LL_Target[fll_Warning],false);
 end;
 
-procedure TFRE_DB.LogError(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
+procedure TFRE_DB.LogError(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Error,CFOS_LL_Target[fll_Error],false);
 end;
 
-procedure TFRE_DB.LogDebug(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
+procedure TFRE_DB.LogDebug(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Debug,CFOS_LL_Target[fll_Debug],false);
 end;
 
-procedure TFRE_DB.LogNotice(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
+procedure TFRE_DB.LogNotice(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Notice,CFOS_LL_Target[fll_Notice],false);
 end;
 
-procedure TFRE_DB.LogEmergency(const category: TFRE_DB_LOGCATEGORY; const msg: TFRE_DB_String; const param: array of const);
+procedure TFRE_DB.LogEmergency(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Emergency,CFOS_LL_Target[fll_Emergency],false);
 end;

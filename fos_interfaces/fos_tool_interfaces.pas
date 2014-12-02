@@ -474,18 +474,18 @@ type
  {$INTERFACES CORBA}
   IFOS_FILE_LOGGER=interface
     procedure Sync_Logger;
-    procedure LogConsole       (const msg:String);
-    procedure LogEmergency     (const msg:string);
-    procedure Log              (const msg,cat:String;Level:TFOS_LOG_LEVEL=fll_Debug;const target:string='';const sync:boolean=false);overload;
-    procedure Log              (const msg:String;params:array of const;cat:String;Level:TFOS_LOG_LEVEL=fll_Debug;const target:string='';const sync:boolean=false);overload;
-    procedure LogSystem        (const msg:String;const facility: TFOS_LOG_FACILITY; const level: TFOS_LOG_LEVEL);overload;
-    procedure RegisterCategory (const cat:string;filename:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const nolog:TFOS_BoolType=fbtNotSet;const not_in_full_log:TFOS_BoolType=fbtNotSet);
-    procedure RegisterTarget   (const target:string;subfilepath:string;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility:TFOS_LOG_FACILITY=flf_User);
-    procedure RegisterThread   (const Name:string);
-    procedure SetDefaults      (const defaultfilename:string;fullfilename,basedir:string;const turnaround,generations:cardinal; const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug ;  const facility: TFOS_LOG_FACILITY=flf_Kernel );
+    procedure LogConsole       (const msg:ShortString);
+    procedure LogEmergency     (const msg:ShortString);
+    procedure Log              (const msg,cat:ShortString;Level:TFOS_LOG_LEVEL=fll_Debug;const target:ShortString='';const sync:boolean=false);overload;
+    procedure Log              (const msg:ShortString;params:array of const;cat:ShortString;Level:TFOS_LOG_LEVEL=fll_Debug;const target:ShortString='';const sync:boolean=false);overload;
+    procedure LogSystem        (const msg:ShortString;const facility: TFOS_LOG_FACILITY; const level: TFOS_LOG_LEVEL);overload;
+    procedure RegisterCategory (const cat:ShortString;filename:ShortString;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const nolog:TFOS_BoolType=fbtNotSet;const not_in_full_log:TFOS_BoolType=fbtNotSet);
+    procedure RegisterTarget   (const target:ShortString;subfilepath:ShortString;turnaround:integer=-1;generations:integer=-1;const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug;const facility:TFOS_LOG_FACILITY=flf_User);
+    procedure RegisterThread   (const Name:ShortString);
+    procedure SetDefaults      (const defaultfilename:ShortString;fullfilename,basedir:ShortString;const turnaround,generations:cardinal; const minseveritylevel:TFOS_LOG_LEVEL=fll_Debug ;  const facility: TFOS_LOG_FACILITY=flf_Kernel );
     procedure ClearLogRules    ;
-    procedure AddRule          (const category:string;const level:TFOS_LOG_LEVEL;const target:string;const action:TFOS_LOG_RULE_ACTION;const stop_rule:boolean=true); //level=fll_Invalid = Ignore Level (All)
-    procedure SetLocalZone     (const zone:string);
+    procedure AddRule          (const category:ShortString;const level:TFOS_LOG_LEVEL;const target:ShortString;const action:TFOS_LOG_RULE_ACTION;const stop_rule:boolean=true); //level=fll_Invalid = Ignore Level (All)
+    procedure SetLocalZone     (const zone:ShortString);
     procedure EnableSyslog     ;
     procedure DisableSyslog    ;
  end;

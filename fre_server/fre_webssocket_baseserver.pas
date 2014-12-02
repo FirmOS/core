@@ -74,6 +74,11 @@ type
   TFRE_VNC_SUB_HEX_DECODE_State = (fbussh_HEX_READ_MASK,fbussh_HEX_READ_TILE,fbussh_HEX_READ_TILE_RAW,fbussh_HEX_READ_TILE_BG_SPECIFIED,
                                    fbussh_HEX_READ_TILE_FG_SPECIFIED,fbussh_HEX_READ_TILE_ANY,fbussh_HEX_READ_TILE_READ_ANYRECTS);
 
+{.$DEFINE WS_LOG_DEBUG}
+{$DEFINE WS_LOG_ERROR}
+{.$DEFINE WS_LOG_WARNING}
+{.$DEFINE WS_LOG_INFO}
+{.$DEFINE HTTP_LOG_DEBUG}
 
 
 type
@@ -84,21 +89,23 @@ type
   private
     type TFRE_WEBSOCKET_MODE = (fsm_RFC6455,fsm_HIXIE);
   var
-    FHeaderShort : Boolean;
-    FWSHeader    : ShortString;
-    FShortData   : ShortString;
-    FData        : String;
-    FUpgraded    : Boolean;
-    FMakey       : Array [0..3] of Byte;
-    FFrameNotDone: boolean;
-    FDecodeFrame : String;
-    FByte        : PByte;
-    FOpcode      : Byte;
-    FFIN_Flag    : Boolean;
-    FMask        : Boolean;
-    FLen         : QWord;
-    FReceiveRest : Qword;
-    FGotLen      : QWord;
+    FHeaderShort   : Boolean;
+    FWSHeader      : ShortString;
+    FShortData     : ShortString;
+    FData          : String;
+    FUpgraded      : Boolean;
+    FMakey         : Array [0..3] of Byte;
+    FFrameNotDone  : boolean;
+    FDecodeFrame   : String;
+    FByte          : PByte;
+    FFIN_Flag      : Boolean;
+    FMask          : Boolean;
+    FLen           : QWord;
+    FReceiveRest   : Qword;
+    FGotLen        : QWord;
+    FWSStartOpcode : Byte;
+    FWSDataframe   : RawByteString;
+
     FWebSocket_Protocol      : String;
     FWSSockModeProtoVersion  : TFRE_WEBSOCKET_MODE;
     procedure   _ClearHeader;
@@ -115,7 +122,7 @@ type
     procedure   ReadChannelData    (const channel:IFRE_APSC_CHANNEL); override;
   public
     procedure   SendToClient(data:TFRE_DB_RawByteString;const binary:boolean);
-    procedure   ReceivedFromClient(const opcode:byte;const dataframe :  string);virtual;
+    procedure   ReceivedFromClient(const opcode:byte ; const dataframe : RawByteString);virtual;
   end;
 
   TFRE_VNC_PROXY_STATE=(vps_NOT_CONNECTED,vps_READ_RFB_VERSION_VNC2WC,vps_RFB_VERSION_SENT_WC2VNC,vps_RFB_VERSION_SENT_AUTH_WC2VNC,vps_RFB_VERSION_SENT_CLIENT_INIT_WC2VNC,vps_SHUFFELING);
@@ -190,7 +197,7 @@ type
     procedure   DisconnectChannel    (const channel:IFRE_APSC_CHANNEL); override;
     property    OnBindInitialSession : TFRE_DB_FetchSessionCB read FOnBindDefaultSession write SetOnBindDefaultSession;
 
-    procedure   ReceivedFromClient       (const opcode:byte;const dataframe :  string);override; // Receive a CMD Frame from WEB Browser !
+    procedure   ReceivedFromClient       (const opcode:byte;const dataframe : RawByteString);override; // Receive a CMD Frame from WEB Browser !
     procedure   Send_ServerClient        (const CMD_Answer: IFRE_DB_COMMAND);
     procedure   DeactivateSessionBinding (const from_session : boolean=false);
     procedure   UpdateSessionBinding     (const new_session : TObject);
@@ -213,7 +220,7 @@ begin
   end;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.ReceivedFromClient(const opcode: byte; const dataframe: string);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.ReceivedFromClient(const opcode: byte; const dataframe: RawByteString);
 var
   in_params,obj,res_obj         : IFRE_DB_Object;
   lmethod,lContent,lContentType : String;
@@ -231,9 +238,10 @@ var
 
   procedure _ProcessCloseFrame;
   begin
-     //writeln('************* CHECK THIS OUT :::: -- CLOSE WS ',ClassName,'  - ',FWSSockModeProtoVersion);
     _SendCloseFrame;
+    {$IFDEF WS_LOG_DEBUG}
     GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) WEBSOCK REQUESTED CLOSE '+FChannel.GetVerboseDesc);
+    {$ENDIF}
     DeactivateSessionBinding;
     FChannel.Finalize;
     FChannel:=nil;
@@ -269,7 +277,9 @@ var
 
   procedure _ProcessTextFrame;
   begin
+    {$IFDEF WS_LOG_DEBUG}
     GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
+    {$ENDIF}
     in_params  := GFRE_DBI.JSONObject2Object(dataframe);
     _SetupInput;
     if assigned(FCurrentSession) then
@@ -291,7 +301,9 @@ var
     len_binary  := Length(dataframe)-4-len_json;
     SetLength(binary_text,len_binary);
     Move(dataframe[1+4+len_json],binary_text[1],len_binary);
+    {$IFDEF WS_LOG_DEBUG}
     GFRE_DBI.LogDebug(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+dataframe);
+    {$ENDIF}
     in_params  := GFRE_DBI.JSONObject2Object(jsontext);
     _SetupInput;
     FCurrentSession.Input_FRE_DB_Command(cmd);
@@ -300,7 +312,7 @@ var
 begin
   if FForceIgnoreFurtherInput then
     begin
-      if FOpcode<>8 then
+      if Opcode<>8 then
         begin
          _SendCloseFrame;
         end
@@ -316,8 +328,10 @@ begin
       wsm_INVALID: inherited ReceivedFromClient(opcode,dataframe);
       wsm_VNCPROXY: begin
         if FNo_Base64 then begin
-          if FOpcode=8 then begin
+          if Opcode=8 then begin
+              {$IFDEF WS_LOG_DEBUG}
               GFRE_DBI.LogDebug(dblc_WEBSOCK,' VNC WEBSOCK CLOSE REQUESTED'+FChannel.GetVerboseDesc);
+              {$ENDIF}
               _SendCloseFrame;
               if assigned(FVNCProxyChannel) then
                 begin
@@ -335,19 +349,19 @@ begin
         end;
       end;
       wsm_FREDB: begin
-        case FOpcode of
+        case Opcode of
           1:  _ProcessTextFrame;
           2:  _ProcessBinaryFrame;
           8:  _ProcessCloseFrame;
           else
             begin
-              writeln('Ignoring unsupported websocket dataframe type : ',FOpcode,' len ',Length(dataframe));
-              GFRE_DBI.LogError(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+'Ignoring unsupported WS Frame : '+inttostr(FOpcode));
+              {$IFDEF WS_LOG_ERROR}
+              GFRE_DBI.LogError(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+'Ignoring unsupported WS Frame : '+inttostr(Opcode));
+              {$ENDIF}
+            end;
             end;
           end;
-        end;
       wsm_FREDB_DEACTIVATED : begin
-         //GFRE_DBI.LogError(dblc_WEBSOCK,'BAD REQUEST ON DEACTIVTED WEBSOCKET');
       end else begin
         raise EFRE_DB_Exception.Create(edb_ERROR,'BAD WEBSOCKETMODE');
       end;
@@ -355,7 +369,9 @@ begin
   except on e:exception do
    begin
      writeln('*** ERROR PROCESSING WS INPUT : '+e.Message);
+     {$IFDEF WS_LOG_ERROR}
      GFRE_DBI.LogError(dblc_WEBSOCK,'ERROR PROCESSING WS INPUT : '+e.Message);
+     {$ENDIF}
    end;
   end;
 end;
@@ -895,7 +911,9 @@ var proto    : string;
     encoding : string;
     session  : string;
 begin
+  {$IFDEF WS_LOG_DEBUG}
   GFRE_DBI.LogDebug(dblc_WEBSOCK,'WEBSOCK CONNECT / WANT PROTOCOL [%s] from [%s] Sock [%d]',[FWebSocket_Protocol,FChannel.GetVerboseDesc,FChannel.GetHandleKey]);
+  {$ENDIF}
   proto := FWebSocket_Protocol;
   if Pos('FirmOS-FREDB',proto)=1 then begin
     session := Copy(proto,14,maxint);
@@ -913,7 +931,9 @@ begin
     'base64'           : Setup_VNC_Base64_ProxyMode;
     'X-TEST.firmos.org': Setup_ChristmasMode;
     else begin
+      {$IFDEF WS_LOG_DEBUG}
       GFRE_DBI.LogError(dblc_WEBSOCK,'WEBSOCKET - PROTOCOL NOT SUPPORTED!',[]);
+      {$ENDIF}
       FChannel.Finalize;
       FChannel:=nil;
     end;
@@ -927,7 +947,9 @@ begin
     Channeldesc := channel.GetVerboseDesc;
     Free;
   except on e:exception do
+    {$IFDEF WS_LOG_ERROR}
     GFRE_DBI.LogError(dblc_WEBSOCK,'DISCONNECT CHANNEL '+Channeldesc+'  EXCEPTION '+e.Message);
+    {$ENDIF}
   end;
 end;
 
@@ -966,7 +988,9 @@ begin
 
   SC_CMD.Finalize;
   CMD_Answer.Finalize;
+  {$IFDEF WS_LOG_DEBUG}
   GFRE_DBI.LogDebug(dblc_WS_JSON,'<- '+FChannel.GetVerboseDesc+LineEnding+lContent);
+  {$ENDIF}
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DeactivateSessionBinding(const from_session: boolean);
@@ -995,14 +1019,18 @@ begin
           finally
             loc.UnlockSession;
           end;
+          {$IFDEF WS_LOG_WARNING}
           GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) CLEARED THE Session Channel Interface / Binding '+FChannel.GetVerboseDesc+ ' <-> '+sid);
+          {$ENDIF}
         end;
     end;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.UpdateSessionBinding(const new_session: TObject);
 begin
+  {$IFDEF WS_LOG_INFO}
   GFRE_DBI.LogInfo(dblc_SESSION,' WS UPDATE SESSION BINDING FOR '+FCHANNEL.GetVerboseDesc+' '+(new_session as TFRE_DB_UserSession).GetSessionID);
+  {$ENDIF}
   FCurrentSession := new_session as TFRE_DB_UserSession;
 end;
 
@@ -1266,7 +1294,9 @@ var
       flength := info.st_size;
       fend    := flength;
       foffset := 0;
+      {$IFDEF HTTP_LOG_DEBUG}
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Range: %s',[range]);
+      {$ENDIF}
       frangetype  := GFRE_BT.SplitString(range,'=');
       if frangetype<>'bytes' then
         begin
@@ -1279,10 +1309,14 @@ var
           exit;
         end;
       frangestart := GFRE_BT.SplitString(range,'-');
+      {$IFDEF HTTP_LOG_DEBUG}
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangestart: %s',[frangestart]);
+      {$ENDIF}
       if length(range)>0 then
         frangeend := range;
+      {$IFDEF HTTP_LOG_DEBUG}
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangeend: %s',[frangeend]);
+      {$ENDIF}
       if (length(frangestart)=0) and (length(frangeend)=0) then
         begin
           _SendHttpResponse(416,'NO START OR END RANGE DEFINED',[]);
@@ -1292,8 +1326,10 @@ var
         foffset := StrToInt64Def(frangestart,-1);
       if length(frangeend)>0 then
         fend    := StrToInt64Def(frangeend,-1);
+      {$IFDEF HTTP_LOG_DEBUG}
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangeoffset: %d',[foffset]);
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Totallength: %d',[flength]);
+      {$ENDIF}
       if (foffset=-1) or (fend=-1) then
         begin
           _SendHttpResponse(416,'COULD NOT PARSE RANGE',[]);
@@ -1311,7 +1347,9 @@ var
         end;
 
       flength:= fend-foffset;
+      {$IFDEF HTTP_LOG_DEBUG}
       GFRE_DBI.LogDebug(dblc_HTTP_REQ,'Rangelength: %d',[flength]);
+      {$ENDIF}
       if flength<=0 then
         begin
           _SendHttpResponse(416,'RANGE LENGTH IS EQUAL OR BELOW ZERO',[]);
@@ -1670,8 +1708,10 @@ begin
   if method<>rprm_GET then begin   // RFC 6455 - 4.2.1 - 1
     Unsupported;
   end else begin
-    FHost :=  GetHeaderField('Host');
-    FVersion := StrToIntDef(trim(GetHeaderField('Sec-WebSocket-Version')),0);
+    FHost          :=  GetHeaderField('Host');
+    FVersion       := StrToIntDef(trim(GetHeaderField('Sec-WebSocket-Version')),0);
+    FWSStartOpcode := 255;
+    FWSDataframe   := '';
     if FVersion=0 then begin // Try Safari / Hicksy
        ProcessOldWSHandshake;
        FUpgraded   := true;
@@ -1709,14 +1749,16 @@ begin
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE.ReadChannelData(const channel: IFRE_APSC_CHANNEL);
-var data : string;
+var FOpcode      : Byte;
 
-  procedure DecodeWS_Proto(ws_data:string);
-  var i        : Integer;
-      lRecLen  : integer;
-      FEnd     : PByte;
-      lfull_len: integer;
+  procedure DecodeWS_Proto;
+  var i                     : Integer;
+      lRecLen               : integer;
+      FEnd                  : PByte;
+      lfull_len             : integer;
       continue_short_decode : boolean;
+      ws_data               : string;
+      bailout               : NativeInt;
 
       label    again;
 
@@ -1728,7 +1770,16 @@ var data : string;
           FDecodeFrame[i] := char(BYTE(FDecodeFrame[i]) XOR byte(FMakey[(i-1) mod 4]));
         end;
       end;
-      ReceivedFromClient(FOpcode,FDecodeFrame);
+      FWSDataframe:=FWSDataframe+FDecodeFrame;
+      if FFIN_Flag then
+        begin
+          try
+            ReceivedFromClient(FWSStartOpcode,FWSDataframe);
+          finally
+            FWSStartOpcode:=255;
+            FWSDataframe:=''
+          end;
+        end
     end;
 
     function QueryRestLen:integer;
@@ -1774,7 +1825,11 @@ var data : string;
     if not FFrameNotDone then begin
       FFrameNotDone:=true;
       FByte     := PByte(@ws_data[1]);
+      bailout   := 10;
      again:
+      dec(bailout);
+      if bailout=0 then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'bailout reached in ws decode');
       lfull_len := QueryRestLen;
       if lfull_len<12 then begin // TODO Hang - Check for only 1 single packet and no stuffer behind
         //writeln('-- REQUESTLEN SHORT -- possible STALL ',lfull_len,' ',ClassName,'  - ',FWSSockModeProtoVersion);
@@ -1794,8 +1849,10 @@ var data : string;
       ReadByteAdvance;
       FMask     := (FByte^ and $80) = $80;
       FLen      := FByte^ and $7F;
+      if (FWSStartOpcode=255) and (FOpcode<>0) then
+        FWSStartOpcode := FOpcode; { store starting opcode }
       ReadByteAdvance;
-      if FLen=127 then begin
+      if FLen=127 then begin     // self.FLen
         FLen := BEtoN(PQWord(FByte)^);
         ReadByteAdvance(8);
       end else
@@ -1809,7 +1866,7 @@ var data : string;
         FMakey[2] := FByte^; ReadByteAdvance;
         FMakey[3] := FByte^; ReadByteAdvance;
       end;
-      SetLength(FDecodeFrame,FLen); // self.flen
+      SetLength(FDecodeFrame,FLen); // self.flen  self.FFin_flag self.fmask
       //FillChar(FDecodeFrame[1],Flen,$EA);
       FGotLen   :=  Fend - FByte + 1;
       if FGotLen>FLen then begin
@@ -1836,7 +1893,7 @@ var data : string;
         goto again;
       end else
       if FGotLen+lRecLen<FLen then begin
-        Move(FByte^,FDecodeFrame[FGotLen+1],lRecLen); // == self.fgotlen
+        Move(FByte^,FDecodeFrame[FGotLen+1],lRecLen); // == self.fgotlen self.freceiverest
         dec(FReceiveRest,lRecLen);
         inc(FGotLen,lRecLen);
         ReadByteAdvance(lRecLen);
@@ -1849,8 +1906,10 @@ var data : string;
     end;
   end;
 
-  procedure DecodeWS_Proto_Old(ws_data:string);
+  procedure DecodeWS_Proto_Old;
+  var ws_data:string;
   begin
+    writeln('>> WARNING OLD WS PROTOCOL RECEIVED ...');
     if Length(ws_data)>0 then begin
       if (ws_data[1]=#0) and (ws_data[length(ws_data)]=#255) then begin
         FDecodeFrame:=Copy(ws_data,2,Length(ws_data)-2);
@@ -1864,8 +1923,8 @@ var data : string;
 begin
   if FUpgraded then begin
     case FWSSockModeProtoVersion of
-      fsm_RFC6455: DecodeWS_Proto(data);
-      fsm_HIXIE:   DecodeWS_Proto_Old(data);
+      fsm_RFC6455: DecodeWS_Proto;
+      fsm_HIXIE:   DecodeWS_Proto_Old;
     end;
   end else begin
     inherited ReadChannelData(channel); // Parse Handle HTTP - WS Request;
@@ -1884,7 +1943,7 @@ begin
 end;
 
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE.ReceivedFromClient(const opcode: byte; const dataframe: string);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_BASE.ReceivedFromClient(const opcode: byte; const dataframe: RawByteString);
 var s:String;
 begin
   inc(cnt);

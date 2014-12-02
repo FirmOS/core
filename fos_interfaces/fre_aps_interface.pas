@@ -136,12 +136,12 @@ type
     procedure SetOnReadData     (on_read : TFRE_APSC_CHANNEL_EVENT);
     procedure SetOnDisconnnect  (on_disc : TFRE_APSC_CHANNEL_EVENT);
 
-    procedure  CH_WriteString      (const str : String);
+    procedure  CH_WriteString      (const str : RawByteString);
     procedure  CH_WriteBuffer      (const data : Pointer ; const len : NativeInt);
     procedure  CH_SAFE_WriteBuffer (const data : Pointer ; const len : NativeInt); // data gets copied ...
     procedure  CH_WriteOpenedFile  (const fd : cInt ; const offset,len : NativeInt);
     function   CH_GetDataCount     : NativeInt;
-    function   CH_ReadString       : String;
+    function   CH_ReadString       : RawByteString;
     function   CH_ReadBuffer       (const data : Pointer ; const len : NativeInt) : NativeInt;
     function   CH_GetErrorString   : String;
     function   CH_GetErrorCode     : NativeInt;

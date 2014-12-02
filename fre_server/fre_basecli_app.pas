@@ -1537,13 +1537,13 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
   end;
 
 begin
-  Setup_DB_Logging;
-  Setup_HTTP_Request_Logging;
-  Setup_Server_Logging;
-  Setup_WS_Session_Logging;
-  Setup_APS_COMM_Logging;
-  Setup_Persistance_Layer_Logging;
-  Setup_FlexcomLogging;
+  //Setup_DB_Logging;
+  //Setup_HTTP_Request_Logging;
+  //Setup_Server_Logging;
+  //Setup_WS_Session_Logging;
+  //Setup_APS_COMM_Logging;
+  //Setup_Persistance_Layer_Logging;
+  //Setup_FlexcomLogging;
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_LogToOnConsole,false); // All To Console
   GFRE_Log.AddRule('*',fll_Invalid,'*',flra_DropEntry); // No File  Logging
   GFRE_LOG.DisableSyslog;

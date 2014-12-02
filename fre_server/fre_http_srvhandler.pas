@@ -345,7 +345,7 @@ var i : TFRE_HTTP_ResponseEntityHeaders;
     lPos:integer;
 begin
   GFRE_DBI.LogInfo(dblc_HTTP_RES,'< [%s] [%s] [Answerlen: %d]',[GFRE_BT.SepLeft(FResponse,#13#10),FChannel.GetVerboseDesc,Length(FResponse)]);
-  GFRE_DBI.LogDebug(dblc_HTTP_RES,FResponse);
+  //GFRE_DBI.LogDebug(dblc_HTTP_RES,FResponse);
   FChannel.CH_WriteString(FResponse);
 end;
 
