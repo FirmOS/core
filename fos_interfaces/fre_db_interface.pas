@@ -153,7 +153,12 @@ type
   TFRE_DB_MESSAGE_TYPE       = (fdbmt_error,fdbmt_warning,fdbmt_info,fdbmt_confirm,fdbmt_wait);
   TFRE_DB_FIELDTYPE_Array    = Array of TFRE_DB_FIELDTYPE;
   TFRE_DB_DISPLAY_TYPE_Array = Array of TFRE_DB_DISPLAY_TYPE;
+  TFRE_DB_Fieldproperty      = (fp_Required,fp_Multivalues,fp_PasswordField,fp_AddConfirmation);
+  TFRE_DB_Fieldproperties    = set of TFRE_DB_Fieldproperty;
+  TFRE_DB_FieldDepVisibility = (fdv_visible,fdv_hidden,fdv_none);
+
 const
+  CFRE_DB_FIELDDEPVISIBILITY     : Array[TFRE_DB_FieldDepVisibility]      of String = ('VISIBLE','HIDDEN','NONE');
   CFRE_DB_FIELDTYPE              : Array[TFRE_DB_FIELDTYPE]               of String = ('UNSET','GUID','BYTE','INT16','UINT16','INT32','UINT32','INT64','UINT64','REAL32','REAL64','CURRENCY','STRING','BOOLEAN','DATE','STREAM','OBJECT','OBJECTLINK');
   CFRE_DB_FIELDTYPE_SHORT        : Array[TFRE_DB_FIELDTYPE]               of String = (    '-',   'G',  'U1',   'I2',    'U2',   'S4',    'U4',   'I8',    'U8',    'R4',    'R8',      'CU',    'SS',     'BO',  'DT',    'ST',    'OB',        'LK');
   CFRE_DB_INDEX_TYPE             : Array[TFRE_DB_INDEX_TYPE]              of String = ('UNSUPPORTED','UNSIGNED','SIGNED','REAL','TEXT','SPECIAL');
@@ -681,13 +686,15 @@ type
     disablesField : Boolean;
   end;
 
-  R_VisDepfieldfield = record
-    visDepFieldName  : TFRE_DB_NameType;
-    visibleValue     : String;
+  R_EnumDepfieldfield = record
+    depFieldName  : TFRE_DB_NameType;
+    enumValue     : String;
+    visible       : TFRE_DB_FieldDepVisibility;
+    capTransKey   : String;
   end;
 
-  TFRE_DB_Depfielditerator    = procedure (const depfield : R_Depfieldfield) is nested;
-  TFRE_DB_VisDepfielditerator = procedure (const depfield : R_VisDepfieldfield) is nested;
+  TFRE_DB_Depfielditerator     = procedure (const depfield : R_Depfieldfield) is nested;
+  TFRE_DB_EnumDepfielditerator = procedure (const depfield : R_EnumDepfieldfield) is nested;
 
    //IFRE_DB_EXTENSION_GRP loosely groups the necessary
    //DB Apps Registery Functions and extension functions, plus dependencies
@@ -1045,9 +1052,6 @@ type
     procedure SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
   end;
 
-  TFRE_DB_Fieldproperty   = (fp_Required,fp_Multivalues,fp_PasswordField,fp_AddConfirmation);
-  TFRE_DB_Fieldproperties = set of TFRE_DB_Fieldproperty;
-
   IFRE_DB_FieldSchemeDefinition=interface //(IFRE_DB_BASE)
     ['IFDBFSD']
     function   GetFieldName        : TFRE_DB_NameType;
@@ -1067,21 +1071,21 @@ type
     function   GetFieldProperties  : TFRE_DB_FieldProperties;
     procedure  SetFieldProperties  (AValue: TFRE_DB_FieldProperties);
 
-    function   SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
-    procedure  SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
-    function   IsACalcField      : Boolean;
-    procedure  addDepField       (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
-    procedure  addVisDepField    (const fieldName: TFRE_DB_String;const visibleValue:String);
-    property   FieldName         :TFRE_DB_NameType   read GetFieldName;
-    property   FieldType         :TFRE_DB_FIELDTYPE  read GetFieldType;
-    property   SubschemeName     :TFRE_DB_NameType   read GetSubSchemeName;
-    function   GetSubScheme      :IFRE_DB_SchemeObject;
-    property   Required          :Boolean read GetRequired write SetRequired;
-    property   MultiValues       :Boolean read GetMultiValues write SetMultiValues;
-    function   ValidateField     (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
-    procedure  ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
-    procedure  ForAllVisDepfields(const depfielditerator : TFRE_DB_VisDepfielditerator);
-    property   FieldProperties   :TFRE_DB_FieldProperties read GetFieldProperties write SetFieldProperties;
+    function   SetupFieldDef      (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
+    procedure  SetCalcMethod      (const calc_method:IFRE_DB_CalcMethod);
+    function   IsACalcField       : Boolean;
+    procedure  addDepField        (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
+    procedure  addEnumDepField    (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='');
+    property   FieldName          :TFRE_DB_NameType   read GetFieldName;
+    property   FieldType          :TFRE_DB_FIELDTYPE  read GetFieldType;
+    property   SubschemeName      :TFRE_DB_NameType   read GetSubSchemeName;
+    function   GetSubScheme       :IFRE_DB_SchemeObject;
+    property   Required           :Boolean read GetRequired write SetRequired;
+    property   MultiValues        :Boolean read GetMultiValues write SetMultiValues;
+    function   ValidateField      (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
+    procedure  ForAllDepfields    (const depfielditerator : TFRE_DB_Depfielditerator);
+    procedure  ForAllEnumDepfields(const depfielditerator : TFRE_DB_EnumDepfielditerator);
+    property   FieldProperties    :TFRE_DB_FieldProperties read GetFieldProperties write SetFieldProperties;
   end;
 
   IFRE_DB_NAMED_OBJECT = interface(IFRE_DB_Object)
@@ -3122,6 +3126,7 @@ end;
   function  FREDB_DBuint64_Compare               (const S1, S2: uint64): NativeInt;
 
   function  FREDB_FieldtypeShortString2Fieldtype (const fts: TFRE_DB_String): TFRE_DB_FIELDTYPE;
+  function  FREDB_FieldDepVisString2FieldDepVis  (const fts: TFRE_DB_String): TFRE_DB_FieldDepVisibility;
   function  FREDB_FilterTypeString2Filtertype    (const fts: TFRE_DB_String): TFRE_DB_FILTERTYPE;
   function  FREDB_Bool2String                    (const bool:boolean):String;
   function  FREDB_EncodeTranslatableWithParams   (const translation_key:TFRE_DB_String  ; params : array of const):TFRE_DB_String;
@@ -3485,6 +3490,14 @@ begin
      if CFRE_DB_FIELDTYPE_SHORT[result]=fts then exit;
   end;
   raise EFRE_DB_Exception.Create(edb_ERROR,'invalid short fieldtype specifier : ['+fts+']');
+end;
+
+function FREDB_FieldDepVisString2FieldDepVis(const fts: TFRE_DB_String): TFRE_DB_FieldDepVisibility;
+begin
+  for result in TFRE_DB_FieldDepVisibility do begin
+     if CFRE_DB_FIELDDEPVISIBILITY[result]=fts then exit;
+  end;
+  raise EFRE_DB_Exception.Create(edb_ERROR,'invalid fielddepvisibility specifier : ['+fts+']');
 end;
 
 function FREDB_FilterTypeString2Filtertype(const fts: TFRE_DB_String): TFRE_DB_FILTERTYPE;

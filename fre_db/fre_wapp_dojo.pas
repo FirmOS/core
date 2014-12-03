@@ -642,7 +642,8 @@ implementation
                              jsContentAdd('", depGroup: \"["+');
                              preFix:='';
                              for i := 0 to co.Field('dependentInputFields').ValueCount - 1 do begin
-                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\", value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\"}"+');
+                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\", value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\"' +
+                                                        ', visible: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('visible').AsString +'\\\", caption: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('caption').AsString +'\\\"}"+');
                                preFix:=',';
                              end;
                              jsContentAdd('"]\""+');
@@ -671,7 +672,7 @@ implementation
                              serverFunc.AddParam.Describe('queryid','0');
                              store_res_descr:=serverFunc.InternalInvoke(session).Implementor_HC as TFRE_DB_STORE_DATA_DESC;
 
-                             captionFields:=TFRE_DB_StringArray.create('text','objname');
+                             captionFields:=TFRE_DB_StringArray.create('text','objname','label');
 
                              for i:=0 to store_res_descr.Field('data').ValueCount - 1 do begin
                                for j:=0 to Length(captionFields) -1 do begin

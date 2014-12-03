@@ -886,7 +886,7 @@ type
     FValidatorName   : TFRE_DB_FIELD;
     FCalcmethodName  : TFRE_DB_FIELD;
     FDepFields       : TFRE_DB_Object;
-    FVisDepFields    : TFRE_DB_Object;
+    FEnumDepFields   : TFRE_DB_Object;
 
     FSubSchemeObj    : TFRE_DB_SchemeObject;         { Cache, not owned }
     FEnum            : TFRE_DB_Enum;                 { Cache, not owned }
@@ -931,26 +931,26 @@ type
     function   IFRE_DB_FieldSchemeDefinition.GetSubScheme  = GetSubSchemeI;
     function   IFRE_DB_FieldSchemeDefinition.ValidateField = ValidateFieldI;
   public
-    function    IsACalcField      : Boolean;
-    function    SetupFieldDef     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false;const add_confirm:Boolean=false ; const validator_params : TFRE_DB_Object=nil):TFRE_DB_FieldSchemeDefinition;
-    function    SetupFieldDefI    (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
-    procedure   SetCalcMethod     (const calc_method:IFRE_DB_CalcMethod);
-    procedure   AddDepField       (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
-    procedure   ForAllDepfields   (const depfielditerator : TFRE_DB_Depfielditerator);
-    procedure   AddVisDepField    (const fieldName: TFRE_DB_String;const visibleValue:String);
-    procedure   ForAllVisDepfields(const depfielditerator : TFRE_DB_VisDepfielditerator);
-    property    FieldName         :TFRE_DB_NameType  read GetFieldName write SetFieldName;
-    property    FieldType         :TFRE_DB_FIELDTYPE read GetFieldType write SetFieldType;
-    property    SubschemeName     :TFRE_DB_NameType  read GetSubSchemeName write SetSubschemeName;
-    function    GetSubScheme      :TFRE_DB_SchemeObject;
-    function    GetSubSchemeI     :IFRE_DB_SchemeObject;
-    property    Required          :Boolean read GetRequired write SetRequired;
-    property    IsPass            :Boolean read GetIsPass write SetIsPass;
-    property    AddConfirm        :Boolean read GetAddConfirm write SetAddConfirm;
-    property    MultiValues       :Boolean read GetMultiValues write SetMultiValues;
-    property    FieldProperties   :TFRE_DB_FieldProperties read GetFieldProperties write SetFieldProperties;
-    function    ValidateField     (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
-    function    ValidateFieldI    (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
+    function    IsACalcField       : Boolean;
+    function    SetupFieldDef      (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false;const add_confirm:Boolean=false ; const validator_params : TFRE_DB_Object=nil):TFRE_DB_FieldSchemeDefinition;
+    function    SetupFieldDefI     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
+    procedure   SetCalcMethod      (const calc_method:IFRE_DB_CalcMethod);
+    procedure   AddDepField        (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
+    procedure   ForAllDepfields    (const depfielditerator : TFRE_DB_Depfielditerator);
+    procedure   AddEnumDepField    (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='');
+    procedure   ForAllEnumDepfields(const depfielditerator : TFRE_DB_EnumDepfielditerator);
+    property    FieldName          :TFRE_DB_NameType  read GetFieldName write SetFieldName;
+    property    FieldType          :TFRE_DB_FIELDTYPE read GetFieldType write SetFieldType;
+    property    SubschemeName      :TFRE_DB_NameType  read GetSubSchemeName write SetSubschemeName;
+    function    GetSubScheme       :TFRE_DB_SchemeObject;
+    function    GetSubSchemeI      :IFRE_DB_SchemeObject;
+    property    Required           :Boolean read GetRequired write SetRequired;
+    property    IsPass             :Boolean read GetIsPass write SetIsPass;
+    property    AddConfirm         :Boolean read GetAddConfirm write SetAddConfirm;
+    property    MultiValues        :Boolean read GetMultiValues write SetMultiValues;
+    property    FieldProperties    :TFRE_DB_FieldProperties read GetFieldProperties write SetFieldProperties;
+    function    ValidateField      (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
+    function    ValidateFieldI     (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
   end;
 
   { TFRE_DB_FieldDef4Group }
@@ -8528,25 +8528,23 @@ end;
 procedure TFRE_DB_FieldSchemeDefinition.AddDepField(const fieldName: TFRE_DB_String; const disablesField: Boolean);
 var
   tmpField  : TFRE_DB_FieldSchemeDefinition;
-  fcnt      : NativeInt;
 begin
   if not getParentScheme.GetSchemeField(fieldName,tmpField) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Dependent field ' + fieldName + ' not found');
   end;
   if FDepFields.FieldExists(fieldName) then
     raise EFRE_DB_Exception.Create(edb_EXISTS,'a dependent fielddefinition already exists for [%s]',[fieldName]);
-  FDepFields.Field(inttostr(fcnt)).AsString:=fieldname+'.'+BoolToStr(disablesField,'1','0');
+  FDepFields.Field(fieldName).AsBoolean:=disablesField;
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.ForAllDepfields(const depfielditerator: TFRE_DB_Depfielditerator);
 
   procedure iterate(const field:IFRE_DB_Field);
-  var df   : R_Depfieldfield;
-      val  : TFRE_DB_String;
+  var
+    df   : R_Depfieldfield;
   begin
-    val              := field.AsString;
-    df.depFieldName  := GFRE_BT.SepLeft(val,'.');
-    df.disablesField := StrToBool(GFRE_BT.SepRight(val,'.'));
+    df.depFieldName  := field.FieldName;
+    df.disablesField := field.AsBoolean;
     depfielditerator(df);
   end;
 
@@ -8554,10 +8552,10 @@ begin
   FDepFields.ForAllFields(@iterate,true,true);
 end;
 
-procedure TFRE_DB_FieldSchemeDefinition.AddVisDepField(const fieldName: TFRE_DB_String; const visibleValue: String);
+procedure TFRE_DB_FieldSchemeDefinition.AddEnumDepField(const fieldName: TFRE_DB_String; const enumValue: String; const visible:TFRE_DB_FieldDepVisibility; const cap_trans_key: String);
 var
   tmpField  : TFRE_DB_FieldSchemeDefinition;
-  fcnt      : NativeInt;
+  defObj    : IFRE_DB_Object;
 begin
   if not getParentScheme.GetSchemeField(fieldName,tmpField) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Visibility dependent field ' + fieldName + ' not found');
@@ -8565,26 +8563,32 @@ begin
   if not Assigned(FEnum) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Visibility dependent fields can only be defined on enum fields');
   end;
-  if FVisDepFields.FieldExists(fieldName) then
+  if FEnumDepFields.FieldExists(fieldName + enumValue) then
     raise EFRE_DB_Exception.Create(edb_EXISTS,'a dependent fielddefinition already exists for [%s]',[fieldName]);
-  fcnt := FVisDepFields.FieldCount(true,true);
-  FVisDepFields.Field(inttostr(fcnt)).AsString:=fieldname+'.'+visibleValue;
+
+  defObj:=FEnumDepFields.Field(fieldName + enumValue).AsObject;
+  defObj.Field('fn').AsString:=fieldName;
+  defObj.Field('val').AsString:=enumValue;
+  defObj.Field('vis').AsString:=CFRE_DB_FIELDDEPVISIBILITY[visible];
+  defObj.Field('cap').AsString:=cap_trans_key;
 end;
 
-procedure TFRE_DB_FieldSchemeDefinition.ForAllVisDepfields(const depfielditerator: TFRE_DB_VisDepfielditerator);
+procedure TFRE_DB_FieldSchemeDefinition.ForAllEnumDepfields(const depfielditerator: TFRE_DB_EnumDepfielditerator);
 
-  procedure iterate(const field:IFRE_DB_Field);
-  var df   : R_VisDepfieldfield;
-      val  : TFRE_DB_String;
+  procedure iterate(const obj:IFRE_DB_Object);
+  var
+    df   : R_EnumDepfieldfield;
+
   begin
-    val := field.AsString;
-    df.visDepFieldName := GFRE_BT.SepLeft(val,'.');
-    df.visibleValue    := GFRE_BT.SepRight(val,'.');
+    df.depFieldName := obj.Field('fn').AsString;
+    df.enumValue    := obj.Field('val').AsString;
+    df.visible      := FREDB_FieldDepVisString2FieldDepVis(obj.Field('vis').AsString);
+    df.capTransKey  := obj.Field('cap').AsString;
     depfielditerator(df);
   end;
 
 begin
-  FVisDepFields.ForAllFields(@iterate,true,true);
+  FEnumDepFields.ForAllObjects(@iterate,true);
 end;
 
 function TFRE_DB_FieldSchemeDefinition.GetParentScheme: TFRE_DB_SchemeObject;
@@ -8628,7 +8632,7 @@ begin
   FValidatorName       := Field('VN');
   FCalcmethodName      := Field('CN');
   FDepFields           := Field('DF').AsObject;
-  FVisDepFields        := Field('VD').AsObject;
+  FEnumDepFields       := Field('VD').AsObject;
   FCalcmethodName.AsString:='';
   FProperties.AsUInt32 :=0 ;
 end;

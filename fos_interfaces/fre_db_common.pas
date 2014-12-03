@@ -226,8 +226,8 @@ type
                                      const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:TFRE_DB_StringArray=nil): TFRE_DB_INPUT_CHOOSER_DESC;
     //@ FIXXME: only implemented for dh_chooser_combo.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
-    //@ Adds a dependent input element. If chooserValue is selected the input element will be visible.
-    procedure addDependentInput     (const inputId: String; const chooserValue: String);
+    //@ Adds a dependent input element. If chooserValue is selected the input element will be updated.
+    procedure addDependentInput     (const inputId: String; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility=fdv_none; const caption: String='');
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -1611,13 +1611,15 @@ implementation
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputId: String; const chooserValue: String);
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputId: String; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility; const caption: String);
   var
     obj: IFRE_DB_Object;
   begin
    obj:=GFRE_DBI.NewObject;
    obj.Field('inputId').AsString:=inputId;
    obj.Field('value').AsString:=chooserValue;
+   obj.Field('visible').AsString:=CFRE_DB_FIELDDEPVISIBILITY[visible];
+   obj.Field('caption').AsString:=caption;
    Field('dependentInputFields').AddObject(obj);
   end;
 
@@ -2020,14 +2022,14 @@ implementation
         store.AddEntry.Describe(obj.GetFormattedDisplay,obj.UID_String);
     end;
 
-    procedure DeppITerator(const df : R_Depfieldfield);
+    procedure DepITerator(const df : R_Depfieldfield);
     begin
       inputField.AddDependence(prefix+df.depFieldName,df.disablesField);
     end;
 
-    procedure VisDeppITerator(const vdf : R_VisDepfieldfield);
+    procedure EnumDepITerator(const vdf : R_EnumDepfieldfield);
     begin
-      chooserField.addDependentInput(prefix+vdf.visDepFieldName,vdf.visibleValue);
+      chooserField.addDependentInput(prefix+vdf.depFieldName,vdf.enumValue,vdf.visible,session.GetDBConnection.FetchTranslateableTextShort(vdf.capTransKey));
     end;
 
     procedure _addDomain(const domain: IFRE_DB_Domain);
@@ -2067,7 +2069,7 @@ implementation
         chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled);
         inputField:=chooserField;
         chooserField.captionCompareEnabled(true);
-        obj.FieldSchemeDefinition.ForAllVisDepfields(@VisDeppIterator);
+        obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
       end else begin
         if obj.GetRightClass<>'' then begin
           store:=TFRE_DB_STORE_DESC.create.Describe();
@@ -2079,7 +2081,7 @@ implementation
           end else begin
             chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled);
             inputField:=chooserField;
-            obj.FieldSchemeDefinition.ForAllVisDepfields(@VisDeppIterator);
+            obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
           end;
         end else begin
           if obj.FieldSchemeDefinition.getEnum(enum) then begin
@@ -2090,7 +2092,7 @@ implementation
             end;
             chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled);
             inputField:=chooserField;
-            obj.FieldSchemeDefinition.ForAllVisDepfields(@VisDeppIterator);
+            obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
           end else begin
             obj.FieldSchemeDefinition.getValidator(validator);
 
@@ -2138,7 +2140,7 @@ implementation
           end;
         end;
       end;
-      obj.FieldSchemeDefinition.ForAllDepfields(@DeppITerator);
+      obj.FieldSchemeDefinition.ForAllDepfields(@DepITerator);
     end;
 
   procedure _addFields(const fields: IFRE_DB_FieldDef4GroupArr; const prefix:String; const groupPreFix:String; const groupRequired: Boolean);
