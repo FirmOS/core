@@ -221,9 +221,9 @@ type
   public
     //@ Describes a chooser within a form.
     function  Describe              (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
-                                     const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const hidden: Boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
+                                     const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
     function  DescribeMultiValue    (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_radio;
-                                     const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const hidden: Boolean=false; const defaultValue:TFRE_DB_StringArray=nil): TFRE_DB_INPUT_CHOOSER_DESC;
+                                     const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:TFRE_DB_StringArray=nil): TFRE_DB_INPUT_CHOOSER_DESC;
     //@ FIXXME: only implemented for dh_chooser_combo.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
     //@ Adds a dependent input element. If chooserValue is selected the input element will be updated.
@@ -1626,11 +1626,11 @@ implementation
    Field('dependentInputFields').AddObject(obj);
   end;
 
-  function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint: TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String): TFRE_DB_INPUT_CHOOSER_DESC;
+  function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint: TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue: String): TFRE_DB_INPUT_CHOOSER_DESC;
   var
     obj   : IFRE_DB_Object;
   begin
-    inherited Describe(caption,field_reference,required,groupRequired,disabled,hidden,defaultValue);
+    inherited Describe(caption,field_reference,required,groupRequired,disabled,false,defaultValue);
     Field('displayHint').AsString:=CFRE_DB_CHOOSER_DH[display_hint];
     Field('addEmptyForRequired').AsBoolean:=add_empty_for_required;
     obj:=GFRE_DBI.NewObject;
@@ -1642,7 +1642,7 @@ implementation
     Result:=Self;
   end;
 
-  function TFRE_DB_INPUT_CHOOSER_DESC.DescribeMultiValue(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const hidden: boolean; const defaultValue:TFRE_DB_StringArray): TFRE_DB_INPUT_CHOOSER_DESC;
+  function TFRE_DB_INPUT_CHOOSER_DESC.DescribeMultiValue(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue:TFRE_DB_StringArray): TFRE_DB_INPUT_CHOOSER_DESC;
   var
     defVal: String;
     i     : Integer;
@@ -1652,7 +1652,7 @@ implementation
     end else begin
       defVal:='';
     end;
-    Describe(caption,field_reference,store,display_hint,required,groupRequired,add_empty_for_required,disabled,hidden,defVal);
+    Describe(caption,field_reference,store,display_hint,required,groupRequired,add_empty_for_required,disabled,defVal);
     for i := 1 to High(defaultValue) do begin
       Field('defaultValue').AddString(defaultValue[i]);
     end;
@@ -2063,28 +2063,31 @@ implementation
       standardColl       := obj.GetStandardCollection;
       store              := nil;
       if (dataCollectionName<>'') or (standardColl<>coll_NONE) then begin
-        case standardColl of
-          coll_DOMAIN  : coll:=session.GetDBConnection.AdmGetDomainCollection;
-          coll_GROUP   : coll:=session.GetDBConnection.AdmGetGroupCollection;
-          coll_USER    : coll:=session.GetDBConnection.AdmGetUserCollection;
-          coll_WFACTION: coll:=session.GetDBConnection.AdmGetWorkFlowMethCollection;
-          coll_NONE    : begin
-                           if dataCollIsDerived then begin
-                             dcoll:=session.FetchDerivedCollection(dataCollectionName);
-                             if not assigned(dcoll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking derived collection was not found : ['+dataCollectionName+']');
-                             store:=dcoll.GetStoreDescription as TFRE_DB_STORE_DESC;
-                           end else begin
-                             coll := session.GetDBConnection.GetCollection(dataCollectionName);
-                             if not assigned(coll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
-                             store:=TFRE_DB_STORE_DESC.create.Describe();
-                             coll.ForAll(@addObjects);
+        if obj.GetHidden then begin
+          inputField:=group.AddInput.Describe('',prefix+obj.GetfieldName,false,false,false,true,obj.GetDefault);
+        end else begin
+          case standardColl of
+            coll_DOMAIN  : coll:=session.GetDBConnection.AdmGetDomainCollection;
+            coll_GROUP   : coll:=session.GetDBConnection.AdmGetGroupCollection;
+            coll_USER    : coll:=session.GetDBConnection.AdmGetUserCollection;
+            coll_WFACTION: coll:=session.GetDBConnection.AdmGetWorkFlowMethCollection;
+            coll_NONE    : begin
+                             if dataCollIsDerived then begin
+                               dcoll:=session.FetchDerivedCollection(dataCollectionName);
+                               if not assigned(dcoll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking derived collection was not found : ['+dataCollectionName+']');
+                               store:=dcoll.GetStoreDescription as TFRE_DB_STORE_DESC;
+                             end else begin
+                               coll := session.GetDBConnection.GetCollection(dataCollectionName);
+                               if not assigned(coll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
+                               store:=TFRE_DB_STORE_DESC.create.Describe();
+                               coll.ForAll(@addObjects);
+                             end;
                            end;
-                         end;
+          end;
+          chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled,obj.GetDefault);
+          inputField:=chooserField;
+          chooserField.captionCompareEnabled(true);
         end;
-        chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled,obj.GetHidden,obj.GetDefault);
-        inputField:=chooserField;
-        chooserField.captionCompareEnabled(true);
-        obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
       end else begin
         if obj.GetRightClass<>'' then begin
           store:=TFRE_DB_STORE_DESC.create.Describe();
@@ -2094,20 +2097,24 @@ implementation
           if obj.GetHideSingle and (domainEntries=1) then begin
             inputField:=group.AddInput.Describe('',prefix+obj.GetfieldName,false,false,false,true,domainValue);
           end else begin
-            chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled,obj.GetHidden,obj.GetDefault);
+            chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled,obj.GetDefault);
             inputField:=chooserField;
             obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
           end;
         end else begin
           if obj.FieldSchemeDefinition.getEnum(enum) then begin
-            store:=TFRE_DB_STORE_DESC.create.Describe();
-            enumVals:=enum.getEntries;
-            for i := 0 to Length(enumVals) - 1 do begin
-              store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
+            if obj.GetHidden then begin
+              inputField:=group.AddInput.Describe('',prefix+obj.GetfieldName,false,false,false,true,obj.GetDefault);
+            end else begin
+              store:=TFRE_DB_STORE_DESC.create.Describe();
+              enumVals:=enum.getEntries;
+              for i := 0 to Length(enumVals) - 1 do begin
+                store.AddEntry.Describe(_getText(enumVals[i].Field('c').AsString),enumVals[i].Field('v').AsString);
+              end;
+              chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled,obj.GetDefault);
+              inputField:=chooserField;
+              obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
             end;
-            chooserField:=group.AddChooser.Describe(_getText(obj.GetCaptionKey),prefix+obj.GetfieldName,store,obj.GetChooserType,required,obj.GetRequired,obj.GetChooserAddEmptyValue,obj.GetDisabled,obj.GetHidden,obj.GetDefault);
-            inputField:=chooserField;
-            obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
           end else begin
             obj.FieldSchemeDefinition.getValidator(validator);
             valParams:=obj.FieldSchemeDefinition.getValidatorParams;
