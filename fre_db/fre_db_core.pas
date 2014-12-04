@@ -967,6 +967,7 @@ type
      FStandardColl : TFRE_DB_FIELD;
      FCaptionkey   : TFRE_DB_FIELD;
      FFieldname    : TFRE_DB_FIELD;
+     FDefault      : TFRE_DB_FIELD;
      FChooserType  : TFRE_DB_FIELD;
 
      FProperties   : TFRE_DB_FIELD;
@@ -988,6 +989,7 @@ type
      function GetStandardCollection   : TFRE_DB_STANDARD_COLL;
      function GetCaptionKey           : TFRE_DB_NameType;
      function GetfieldName            : TFRE_DB_NameType;
+     function GetDefault              : String;
      function GetChooserType          : TFRE_DB_CHOOSER_DH;
      function FieldSchemeDefinition   : IFRE_DB_FieldSchemeDefinition;
 
@@ -1009,7 +1011,7 @@ type
     FInpGroupid  : TFRE_DB_FIELD;
     FCaptionKey  : TFRE_DB_FIELD;
     FInputs      : TFRE_DB_Object;
-    procedure   _addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: boolean; const std_right: TFRE_DB_STANDARD_RIGHT; const rightClass: Shortstring; const hideSingle: Boolean; const chooser_type: TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL; const chooserAddEmptyForRequired: Boolean);
+    procedure   _addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: boolean; const std_right: TFRE_DB_STANDARD_RIGHT; const rightClass: Shortstring; const hideSingle: Boolean; const chooser_type: TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL; const chooserAddEmptyForRequired: Boolean);
   protected
     function    GetInputGroupID    : TFRE_DB_String;
     procedure   SetInputGroupId    (const id : TFRE_DB_String);
@@ -1025,7 +1027,7 @@ type
     procedure   InternalSetup; override;
   public
     function    SetupGroup         (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
-    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo;const standard_coll:TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired: Boolean=false);
+    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const default_value:String=''; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo;const standard_coll:TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired: Boolean=false);
     procedure   AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
     procedure   UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     function    GroupFields        : IFRE_DB_FieldDef4GroupArr;
@@ -2666,6 +2668,7 @@ begin
   FChooserType  := Field('CT');
   FDataColl     := Field('DC');
   FFieldname    := Field('FN');
+  FDefault      := Field('DF');
   FType         := Field('FT');
   FProperties   := Field('FP');
   FGroup        := Field('GR');
@@ -2724,6 +2727,11 @@ end;
 function TFRE_DB_FieldDef4Group.GetfieldName: TFRE_DB_NameType;
 begin
   result := FFieldname.AsString;
+end;
+
+function TFRE_DB_FieldDef4Group.GetDefault: String;
+begin
+  result := FDefault.AsString;
 end;
 
 function TFRE_DB_FieldDef4Group.GetChooserType: TFRE_DB_CHOOSER_DH;
@@ -4078,7 +4086,7 @@ begin
   FInputs     := _Field('IN').AsObject;
 end;
 
-procedure TFRE_DB_InputGroupSchemeDefinition._addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean;const hidden:Boolean; const field_backing_collection: TFRE_DB_String;const fbCollectionIsDerivedCollection:boolean;const std_right:TFRE_DB_STANDARD_RIGHT; const rightClass: Shortstring; const hideSingle: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired:Boolean);
+procedure TFRE_DB_InputGroupSchemeDefinition._addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean;const hidden:Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String;const fbCollectionIsDerivedCollection:boolean;const std_right:TFRE_DB_STANDARD_RIGHT; const rightClass: Shortstring; const hideSingle: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired:Boolean);
 var
   fdg      : TFRE_DB_FieldDef4Group;
   path     : TFRE_DB_StringArray;
@@ -4121,6 +4129,7 @@ begin
 
   fdg.FType.AsByte := ord(igd_Field);
   fdg.FFieldname.AsString := schemefield;
+  fdg.FDefault.AsString   := default_value;
   if required and fieldDef.required then
     include(props,gfp_Required);
   if disabled then
@@ -4170,14 +4179,14 @@ begin
   result := Parent.Parent as TFRE_DB_SchemeObject;
 end;
 
-procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH;const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired: Boolean);
+procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH;const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired: Boolean);
 begin
-  _addInput(schemefield,cap_trans_key,disabled,hidden,field_backing_collection,fbCollectionIsDerivedCollection,sr_BAD,'',false,chooser_type,standard_coll,chooserAddEmptyForRequired);
+  _addInput(schemefield,cap_trans_key,disabled,hidden,default_value,field_backing_collection,fbCollectionIsDerivedCollection,sr_BAD,'',false,chooser_type,standard_coll,chooserAddEmptyForRequired);
 end;
 
 procedure TFRE_DB_InputGroupSchemeDefinition.AddDomainChooser(const schemefield: TFRE_DB_String;  const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String);
 begin
-  _addInput(schemefield,cap_trans_key,false,false,'',false,std_right,rightClasstype.ClassName,hideSingle,dh_chooser_combo,coll_NONE,false);
+  _addInput(schemefield,cap_trans_key,false,false,'','',false,std_right,rightClasstype.ClassName,hideSingle,dh_chooser_combo,coll_NONE,false);
 end;
 
 procedure TFRE_DB_InputGroupSchemeDefinition.UseInputGroup(const scheme, group: TFRE_DB_String; const addPrefix: TFRE_DB_String; const as_gui_subgroup: boolean; const collapsible: Boolean; const collapsed: Boolean);

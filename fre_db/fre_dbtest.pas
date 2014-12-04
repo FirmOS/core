@@ -2399,9 +2399,9 @@ begin
   g.AddDate.Describe('Date','date',false,false,false,false,'1344937865215');
   g.AddNumber.Describe('Number','number',false,false,false,false,'3');
   g.AddNumber.Describe('Real','real1',false,false,false,false,'3.5',2);
-  g.AddChooser.Describe('Chooser','chooser1',store,dh_chooser_combo,false,false,false,false,'v4');
-  g.AddChooser.Describe('Chooser CHECK','chooser2',store,dh_chooser_check,false,false,false,false,'v5');
-  g.AddChooser.Describe('Chooser RADIO','chooser3',store,dh_chooser_radio,false,false,false,false,'v6');
+  g.AddChooser.Describe('Chooser','chooser1',store,dh_chooser_combo,false,false,false,false,false,'v4');
+  g.AddChooser.Describe('Chooser CHECK','chooser2',store,dh_chooser_check,false,false,false,false,false,'v5');
+  g.AddChooser.Describe('Chooser RADIO','chooser3',store,dh_chooser_radio,false,false,false,false,false,'v6');
 
   g:=res.AddGroup.Describe('GROUP COLLAPSIBLE',true,false);
   g.AddInput.Describe('Text','g2.text');

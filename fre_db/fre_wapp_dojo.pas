@@ -833,10 +833,10 @@ implementation
     Result:='{';
     for i := 0 to Length(co) - 1 do begin
       if co[i].FieldExists('asArray') and co[i].Field('asArray').AsBoolean then begin
-        Result:=Result+co[i].Field(keyProp).AsString+':';
+        Result:=Result+''''+co[i].Field(keyProp).AsString+''':';
         Result:=Result+_BuildJSArray(co[i].Field(valueProp).AsStringArr);
       end else begin
-        Result:=Result+co[i].Field(keyProp).AsString+':'''+co[i].Field(valueProp).AsString+'''';
+        Result:=Result+''''+co[i].Field(keyProp).AsString+''':'''+co[i].Field(valueProp).AsString+'''';
       end;
       if i<Length(co) - 1 then begin
         Result:=Result+',';
