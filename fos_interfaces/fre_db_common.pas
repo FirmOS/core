@@ -183,7 +183,7 @@ type
   TFRE_DB_INPUT_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a text input field within a form.
-    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const multiValues: Boolean=false; const isPass:Boolean=false; const confirms: String='') : TFRE_DB_INPUT_DESC;
+    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil;  const validatorConfigParams : IFRE_DB_Object=nil; const multiValues: Boolean=false; const isPass:Boolean=false; const confirms: String='') : TFRE_DB_INPUT_DESC;
   end;
 
   { TFRE_DB_INPUT_DESCRIPTION_DESC }
@@ -227,7 +227,7 @@ type
     //@ FIXXME: only implemented for dh_chooser_combo.
     procedure addFilterEvent        (const filteredStoreId,refId:String);
     //@ Adds a dependent input element. If chooserValue is selected the input element will be updated.
-    procedure addDependentInput     (const inputId: String; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility=fdv_none; const caption: String='');
+    procedure addDependentInput     (const inputId: String; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility=fdv_none; const caption: String='';const validator: IFRE_DB_ClientFieldValidator=nil; const validatorConfigParams : IFRE_DB_Object=nil);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -240,7 +240,7 @@ type
   public
     //@ Describes a date input within a form.
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false;
-                        const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil ; const validatorConfigParams : IFRE_DB_Object=nil) : TFRE_DB_INPUT_DATE_DESC;
+                        const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const validatorConfigParams : IFRE_DB_Object=nil) : TFRE_DB_INPUT_DATE_DESC;
   end;
 
   { TFRE_DB_INPUT_RECURRENCE_DESC }
@@ -263,7 +263,7 @@ type
     //@                                absolute: (boolean: def: false) if false image aspect ration will be preserved, width and height params will be maximum settings
     //@                                                                else image will be sized exactly to width and height settings
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false;
-                        const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const multiValues: Boolean=false) : TFRE_DB_INPUT_FILE_DESC;
+                        const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const validatorConfigParams : IFRE_DB_Object=nil; const multiValues: Boolean=false) : TFRE_DB_INPUT_FILE_DESC;
   end;
 
   { TFRE_DB_VIEW_LIST_BUTTON_DESC }
@@ -1003,12 +1003,12 @@ implementation
 
   { TFRE_DB_INPUT_FILE_DESC }
 
-  function TFRE_DB_INPUT_FILE_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator; const multiValues: Boolean): TFRE_DB_INPUT_FILE_DESC;
+  function TFRE_DB_INPUT_FILE_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator; const validatorConfigParams: IFRE_DB_Object; const multiValues: Boolean): TFRE_DB_INPUT_FILE_DESC;
   begin
     if Assigned(validator) and multiValues and (validator.ObjectName='image') then begin
       raise EFRE_DB_Exception.Create(edb_ERROR,'Image input is not allowed to have multiple values');
     end;
-    inherited Describe(caption, field_reference, required, groupRequired, disabled, hidden, defaultValue, validator);
+    inherited Describe(caption, field_reference, required, groupRequired, disabled, hidden, defaultValue, validator, validatorConfigParams);
     Field('multiValues').AsBoolean := multiValues;
     Result:=Self;
   end;
@@ -1126,7 +1126,7 @@ implementation
 
   function TFRE_DB_INPUT_DATE_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator ; const validatorConfigParams : IFRE_DB_Object): TFRE_DB_INPUT_DATE_DESC;
   begin
-    inherited Describe(caption, field_reference, required, groupRequired, disabled, hidden, defaultValue, validator);
+    inherited Describe(caption, field_reference, required, groupRequired, disabled, hidden, defaultValue, validator, validatorConfigParams);
     Result:=Self;
   end;
 
@@ -1307,9 +1307,9 @@ implementation
 
   { TFRE_DB_INPUT_DESC }
 
-  function TFRE_DB_INPUT_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator; const multiValues:Boolean; const isPass:Boolean; const confirms: String): TFRE_DB_INPUT_DESC;
+  function TFRE_DB_INPUT_DESC.Describe(const caption, field_reference: String; const required: Boolean; const groupRequired: Boolean; const disabled: boolean; const hidden: Boolean; const defaultValue: String; const validator: IFRE_DB_ClientFieldValidator;  const validatorConfigParams : IFRE_DB_Object; const multiValues:Boolean; const isPass:Boolean; const confirms: String): TFRE_DB_INPUT_DESC;
   begin
-    inherited Describe(caption, field_reference, required, groupRequired, disabled, hidden, defaultValue, validator);
+    inherited Describe(caption, field_reference, required, groupRequired, disabled, hidden, defaultValue, validator, validatorConfigParams);
     Field('multiValues').AsBoolean := multiValues;
     Field('isPass').AsBoolean:=isPass;
     Field('confirms').AsString:=LowerCase(confirms);
@@ -1611,7 +1611,7 @@ implementation
 
   { TFRE_DB_INPUT_CHOOSER_DESC }
 
-  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputId: String; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility; const caption: String);
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInput(const inputId: String; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility; const caption: String;const validator: IFRE_DB_ClientFieldValidator; const validatorConfigParams : IFRE_DB_Object);
   var
     obj: IFRE_DB_Object;
   begin
@@ -1620,6 +1620,9 @@ implementation
    obj.Field('value').AsString:=chooserValue;
    obj.Field('visible').AsString:=CFRE_DB_FIELDDEPVISIBILITY[visible];
    obj.Field('caption').AsString:=caption;
+   if Assigned(validator) then begin
+     obj.Field('vtype').AsObject:=TFRE_DB_VALIDATOR_DESC.create.Describe(validator.ObjectName,validator.getRegExp,validator.getHelpTextKey,validator.getAllowedChars,validator.getReplaceRegExp,validator.getReplaceValue,validatorConfigParams);
+   end;
    Field('dependentInputFields').AddObject(obj);
   end;
 
@@ -2003,6 +2006,7 @@ implementation
       enum               : IFRE_DB_Enum;
       enumVals           : IFRE_DB_ObjectArray;
       validator          : IFRE_DB_ClientFieldValidator;
+      valParams          : IFRE_DB_Object;
       i                  : Integer;
       objArr             : IFRE_DB_ObjectArray;
       inputField         : TFRE_DB_FORM_INPUT_DESC;
@@ -2028,8 +2032,19 @@ implementation
     end;
 
     procedure EnumDepITerator(const vdf : R_EnumDepfieldfield);
+    var
+      validator       :IFRE_DB_ClientFieldValidator;
+      validatorParams :IFRE_DB_Object;
     begin
-      chooserField.addDependentInput(prefix+vdf.depFieldName,vdf.enumValue,vdf.visible,session.GetDBConnection.FetchTranslateableTextShort(vdf.capTransKey));
+      validator:=nil;
+      validatorParams:=nil;
+      if vdf.valKey<>'' then begin
+        GFRE_DBI.GetSystemClientFieldValidator(vdf.valKey,validator);
+        if Assigned(vdf.valParams) then begin
+          validatorParams:=vdf.valParams;
+        end;
+      end;
+      chooserField.addDependentInput(prefix+vdf.depFieldName,vdf.enumValue,vdf.visible,session.GetDBConnection.FetchTranslateableTextShort(vdf.capTransKey),validator,validatorParams);
     end;
 
     procedure _addDomain(const domain: IFRE_DB_Domain);
@@ -2095,6 +2110,7 @@ implementation
             obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
           end else begin
             obj.FieldSchemeDefinition.getValidator(validator);
+            valParams:=obj.FieldSchemeDefinition.getValidatorParams;
 
             case obj.FieldSchemeDefinition.FieldType of
 
@@ -2115,10 +2131,10 @@ implementation
               fdbft_String :
                 with obj do
                   begin
-                    inputField:=group.AddInput.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass);
+                    inputField:=group.AddInput.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,valParams,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass);
                     if FieldSchemeDefinition.AddConfirm then
                          group.AddInput.Describe(_getText(FREDB_GetGlobalTextKey('input_confirm_prefix'))+' ' + _getText(GetCaptionKey),prefix+GetfieldName + '_confirm',required,GetRequired,
-                                               GetDisabled,GetHidden,'',validator,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass,prefix+obj.GetfieldName);
+                                               GetDisabled,GetHidden,'',validator,valParams,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass,prefix+obj.GetfieldName);
                   end;
               fdbft_Boolean:
                 with obj do
@@ -2128,14 +2144,14 @@ implementation
 
               fdbft_DateTimeUTC:
                 with obj do
-                  inputField:=group.AddDate.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator);
+                  inputField:=group.AddDate.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,valParams);
 
               fdbft_Stream:
                 with obj do
-                  inputField:=group.AddFile.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,Gethidden,'',validator);
+                  inputField:=group.AddFile.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,Gethidden,'',validator,valParams);
               else { String fallback }
                 with obj do
-                  inputField:=group.AddInput.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,FieldSchemeDefinition.multiValues,FieldSchemeDefinition.isPass);
+                  inputField:=group.AddInput.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',validator,valParams,FieldSchemeDefinition.multiValues,FieldSchemeDefinition.isPass);
             end;
           end;
         end;

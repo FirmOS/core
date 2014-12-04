@@ -154,6 +154,9 @@ begin
     StoreTranslateableText(conn,'search_label','Search...');
     DeleteTranslateableText(conn,'validator_mac_help');
     StoreTranslateableText(conn,'validator_mac_help','00:01:02:03:04:05 or 000102030405');
+    DeleteTranslateableText(conn,'validator_ip_help');
+    StoreTranslateableText(conn,'validator_ip_help','1.0.0.1 - 255.255.255.255');
+    StoreTranslateableText(conn,'validator_ipv6_help','e.g.: 1:2:3:4:5:6:7:8 or 1::');
   end;
 end;
 

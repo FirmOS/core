@@ -407,7 +407,7 @@ implementation
       jsContentAdd('" disabled"+');
     end else begin
       if co.FieldExists('vtype') then begin
-        jsContentAdd('" placeholder='''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
+        jsContentAdd('" placeHolder='''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
         if (co.FieldPath('vtype.allowedChars').AsString<>'') then begin
           jsContentAdd('" forbiddenchars= ''/[^' + StringReplace(co.FieldPath('vtype.allowedChars').AsString,'\','\\',[rfReplaceAll])+']/g''"+');
         end;
@@ -417,7 +417,7 @@ implementation
         if (co.FieldPath('vtype.replaceValue').AsString<>'') then begin
           jsContentAdd('" replacevalue= ''' + StringReplace(co.FieldPath('vtype.replaceValue').AsString,'\','\\',[rfReplaceAll])+'''"+');
         end;
-        jsContentAdd('" regExp= '''+co.FieldPath('vtype.regExp').AsString+'''"+');
+        jsContentAdd('" pattern= '''+co.FieldPath('vtype.regExp').AsString+'''"+');
         jsContentAdd('" invalidMessage= '''+conn.FetchTranslateableTextShort(co.FieldPath('vtype.helpTextKey').AsString)+'''"+');
       end;
     end;
@@ -642,8 +642,23 @@ implementation
                              jsContentAdd('", depGroup: \"["+');
                              preFix:='';
                              for i := 0 to co.Field('dependentInputFields').ValueCount - 1 do begin
-                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\", value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\"' +
-                                                        ', visible: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('visible').AsString +'\\\", caption: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('caption').AsString +'\\\"}"+');
+                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\",value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\"' +
+                                                        ',visible: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('visible').AsString +'\\\",caption: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('caption').AsString +'\\\""+');
+                               if co.Field('dependentInputFields').AsObjectArr[i].FieldExists('vtype') then begin
+                                 jsContentAdd('",placeHolder: \\\"'+conn.FetchTranslateableTextShort(co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.helpTextKey').AsString)+'\\\""+');
+                                 if (co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.allowedChars').AsString<>'') then begin
+                                   jsContentAdd('",forbiddenchars: \\\"/[^' + StringReplace(co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.allowedChars').AsString,'\','\\\\\\\\',[rfReplaceAll])+']/g\\\""+');
+                                 end;
+                                 if (co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.replaceRegExp').AsString<>'') then begin
+                                   jsContentAdd('",replaceregexp: \\\"/' + StringReplace(co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.replaceRegExp').AsString,'\','\\\\\\\\',[rfReplaceAll])+'/\\\""+');
+                                 end;
+                                 if (co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.replaceValue').AsString<>'') then begin
+                                   jsContentAdd('",replacevalue: \\\"' + StringReplace(co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.replaceValue').AsString,'\','\\\\\\\\',[rfReplaceAll])+'\\\""+');
+                                 end;
+                                 jsContentAdd('",pattern: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.regExp').AsString+'\\\""+');
+                                 jsContentAdd('",invalidMessage: \\\"'+conn.FetchTranslateableTextShort(co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.helpTextKey').AsString)+'\\\""+');
+                               end;
+                               jsContentAdd('"}"+');
                                preFix:=',';
                              end;
                              jsContentAdd('"]\""+');
@@ -1662,7 +1677,7 @@ implementation
       if co.Field('showSearch').AsBoolean then begin
         jsContentAdd('var input = new FIRMOS.GridSearch({id: "'+co.Field('id').AsString+'_search",');
         jsContentAdd('   grid: '+co.Field('id').AsString+'_grid');
-        jsContentAdd('  ,placeholder: "'+_getText(conn,'search_label')+'"');
+        jsContentAdd('  ,placeHolder: "'+_getText(conn,'search_label')+'"');
         jsContentAdd('  ,style: "float: right; margin: 0 4px;"});');
         jsContentAdd('toolbar.addChild(input);');
       end;

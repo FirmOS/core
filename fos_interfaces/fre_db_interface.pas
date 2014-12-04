@@ -691,6 +691,8 @@ type
     enumValue     : String;
     visible       : TFRE_DB_FieldDepVisibility;
     capTransKey   : String;
+    valKey        : String;
+    valParams     : IFRE_DB_Object;
   end;
 
   TFRE_DB_Depfielditerator     = procedure (const depfield : R_Depfieldfield) is nested;
@@ -1060,6 +1062,7 @@ type
     function   GetMultiValues      : Boolean;
     function   GetRequired         : Boolean;
     function   GetValidator        (var validator: IFRE_DB_ClientFieldValidator):boolean;
+    function   getValidatorParams  : IFRE_DB_Object;
     function   GetEnum             (var enum : IFRE_DB_Enum) : boolean;
     procedure  SetMultiValues      (AValue: Boolean);
     procedure  SetRequired         (AValue: Boolean);
@@ -1075,7 +1078,7 @@ type
     procedure  SetCalcMethod      (const calc_method:IFRE_DB_CalcMethod);
     function   IsACalcField       : Boolean;
     procedure  addDepField        (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
-    procedure  addEnumDepField    (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='');
+    procedure  addEnumDepField    (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='';const validator_key:TFRE_DB_NameType='';const validator_params: IFRE_DB_Object=nil);
     property   FieldName          :TFRE_DB_NameType   read GetFieldName;
     property   FieldType          :TFRE_DB_FIELDTYPE  read GetFieldType;
     property   SubschemeName      :TFRE_DB_NameType   read GetSubSchemeName;

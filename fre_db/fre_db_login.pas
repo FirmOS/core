@@ -316,7 +316,7 @@ begin
     //dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_uname'),'uname',true);
     //dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_pass'),'pass',true,true,false,false,'',nil,false,true);
     dialog.AddInput.Describe('','uname',true);
-    dialog.AddInput.Describe('','pass',true,true,false,false,'',nil,false,true);
+    dialog.AddInput.Describe('','pass',true,true,false,false,'',nil,nil,false,true);
     //dlg        := TFRE_DB_LAYOUT_DESC.create.Describe();
     //dlg.AddFormDialog(dialog);
     //result := dlg;

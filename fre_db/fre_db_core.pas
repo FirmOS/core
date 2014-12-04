@@ -937,7 +937,7 @@ type
     procedure   SetCalcMethod      (const calc_method:IFRE_DB_CalcMethod);
     procedure   AddDepField        (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
     procedure   ForAllDepfields    (const depfielditerator : TFRE_DB_Depfielditerator);
-    procedure   AddEnumDepField    (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='');
+    procedure   AddEnumDepField    (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='';const validator_key:TFRE_DB_NameType='';const validator_params: IFRE_DB_Object=nil);
     procedure   ForAllEnumDepfields(const depfielditerator : TFRE_DB_EnumDepfielditerator);
     property    FieldName          :TFRE_DB_NameType  read GetFieldName write SetFieldName;
     property    FieldType          :TFRE_DB_FIELDTYPE read GetFieldType write SetFieldType;
@@ -8552,10 +8552,11 @@ begin
   FDepFields.ForAllFields(@iterate,true,true);
 end;
 
-procedure TFRE_DB_FieldSchemeDefinition.AddEnumDepField(const fieldName: TFRE_DB_String; const enumValue: String; const visible:TFRE_DB_FieldDepVisibility; const cap_trans_key: String);
+procedure TFRE_DB_FieldSchemeDefinition.AddEnumDepField(const fieldName: TFRE_DB_String; const enumValue: String; const visible:TFRE_DB_FieldDepVisibility; const cap_trans_key: String;const validator_key:TFRE_DB_NameType; const validator_params: IFRE_DB_Object);
 var
   tmpField  : TFRE_DB_FieldSchemeDefinition;
   defObj    : IFRE_DB_Object;
+  lValid    : TFRE_DB_ClientFieldValidator;
 begin
   if not getParentScheme.GetSchemeField(fieldName,tmpField) then begin
     raise EFRE_DB_Exception.Create(edb_ERROR,'Visibility dependent field ' + fieldName + ' not found');
@@ -8571,6 +8572,16 @@ begin
   defObj.Field('val').AsString:=enumValue;
   defObj.Field('vis').AsString:=CFRE_DB_FIELDDEPVISIBILITY[visible];
   defObj.Field('cap').AsString:=cap_trans_key;
+  if validator_key<>'' then begin
+    if GFRE_DB.GetSysClientFieldValidator(validator_key,lValid) then begin
+      defObj.Field('validKey').AsString:=validator_key;
+      if assigned(validator_params) then begin
+        defObj.Field('validParams').AsObject := validator_params;
+      end;
+    end else begin
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'the client field validator[%s] could not be fetched from the database',[validator_key]);
+    end;
+  end;
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.ForAllEnumDepfields(const depfielditerator: TFRE_DB_EnumDepfielditerator);
@@ -8584,6 +8595,12 @@ procedure TFRE_DB_FieldSchemeDefinition.ForAllEnumDepfields(const depfielditerat
     df.enumValue    := obj.Field('val').AsString;
     df.visible      := FREDB_FieldDepVisString2FieldDepVis(obj.Field('vis').AsString);
     df.capTransKey  := obj.Field('cap').AsString;
+    df.valKey       := obj.Field('validKey').AsString;
+    if obj.FieldExists('valid_params') then begin
+      df.valParams  := obj.Field('validParams').AsObject;
+    end else begin
+      df.valParams  := nil;
+    end;
     depfielditerator(df);
   end;
 
@@ -20024,10 +20041,31 @@ begin
                                                       GFRE_DBI.CreateText('$validator_image','Image File Validator'),
                                                       FREDB_GetGlobalTextKey('validator_image_help'),
                                                       '\d\.\/'));
-  GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('ip').Setup('^([1-9][0-9]{0,1}|1[013-9][0-9]|12[0-689]|2[01][0-9]|22[0-3])([.]([1-9]{0,1}[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){2}[.]([1-9][0-9]{0,1}|[1-9]{0,1}[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-4])(\/([89]|[12][0-9]|3[0-2])|$)$',
+  GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('ip').Setup('((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])',
                                                     GFRE_DBI.CreateText('$validator_ip','IP Validator'),
                                                     FREDB_GetGlobalTextKey('validator_ip_help'),
                                                     '\d\.\/'));
+  GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('ipv6').Setup('('+
+                                                                                          '([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|'+           // 1:2:3:4:5:6:7:8
+                                                                                          '([0-9a-fA-F]{1,4}:){1,7}:|' +                         // 1::                              1:2:3:4:5:6:7::
+                                                                                          '([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|' +         // 1::8             1:2:3:4:5:6::8  1:2:3:4:5:6::8
+                                                                                          '([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|' +  // 1::7:8           1:2:3:4:5::7:8  1:2:3:4:5::8
+                                                                                          '([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|' +  // 1::6:7:8         1:2:3:4::6:7:8  1:2:3:4::8
+                                                                                          '([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|' +  // 1::5:6:7:8       1:2:3::5:6:7:8  1:2:3::8
+                                                                                          '([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|' +  // 1::4:5:6:7:8     1:2::4:5:6:7:8  1:2::8
+                                                                                          '[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|' +       // 1::3:4:5:6:7:8   1::3:4:5:6:7:8  1::8
+                                                                                          ':((:[0-9a-fA-F]{1,4}){1,7}|:)|' +                     // ::2:3:4:5:6:7:8  ::2:3:4:5:6:7:8 ::8       ::
+                                                                                          'fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|' +     // fe80::7:8%eth0   fe80::7:8%1     (link-local IPv6 addresses with zone index)
+                                                                                          '::(ffff(:0{1,4}){0,1}:){0,1}' +
+                                                                                          '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}' +
+                                                                                          '(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|' +          // ::255.255.255.255   ::ffff:255.255.255.255  ::ffff:0:255.255.255.255  (IPv4-mapped IPv6 addresses and IPv4-translated addresses)
+                                                                                          '([0-9a-fA-F]{1,4}:){1,4}:' +
+                                                                                          '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}' +
+                                                                                          '(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])' +           // 2001:db8:3:4::192.0.2.33  64:ff9b::192.0.2.33 (IPv4-Embedded IPv6 Address)
+                                                                                          ')',
+                                                    GFRE_DBI.CreateText('$validator_ipv6','IPv6 Validator'),
+                                                    FREDB_GetGlobalTextKey('validator_ipv6_help'),
+                                                    '\d\:\/'));
   GFRE_DBI.RegisterSysClientFieldValidator(GFRE_DBI.NewClientFieldValidator('mac').Setup('(^([0-9a-fA-F]{2}(:|$)){6}$|^[0-9a-fA-F]{12}$)',
                                                      GFRE_DBI.CreateText('$validator_mac','MAC Validator'),
                                                      FREDB_GetGlobalTextKey('validator_mac_help'),
