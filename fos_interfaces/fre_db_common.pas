@@ -1300,7 +1300,7 @@ implementation
     Field('replaceRegExp').AsString:=replaceRegExp;
     Field('replaceValue').AsString:=replaceValue;
     if Assigned(configParams) then begin
-      Field('configParams').AsObject:=configParams;
+      Field('configParams').AsObject:=configParams.CloneToNewObject();
     end;
     Result:=Self;
   end;
@@ -2116,8 +2116,12 @@ implementation
               obj.FieldSchemeDefinition.ForAllEnumDepfields(@EnumDepITerator);
             end;
           end else begin
-            obj.FieldSchemeDefinition.getValidator(validator);
-            valParams:=obj.FieldSchemeDefinition.getValidatorParams;
+            if obj.GetValidator(validator) then begin
+              valParams:=obj.getValidatorParams;
+            end else begin
+              obj.FieldSchemeDefinition.getValidator(validator);
+              valParams:=obj.FieldSchemeDefinition.getValidatorParams;
+            end;
 
             case obj.FieldSchemeDefinition.FieldType of
 

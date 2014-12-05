@@ -922,14 +922,15 @@ type
   protected
     function   _ObjectIsCodeclassOnlyAndHasNoScheme :boolean;override;
     procedure  InternalSetup; override;
-    function   IFRE_DB_FieldSchemeDefinition.getEnum       = getEnumI;
-    function   IFRE_DB_FieldSchemeDefinition.setEnum       = setEnumI;
-    function   IFRE_DB_FieldSchemeDefinition.getValidator  = getValidatorI;
-    function   IFRE_DB_FieldSchemeDefinition.setValidator  = setValidatorI;
-    function   IFRE_DB_FieldSchemeDefinition.getDepFields  = getDepFieldsI;
-    function   IFRE_DB_FieldSchemeDefinition.SetupFieldDef = SetupFieldDefI;
-    function   IFRE_DB_FieldSchemeDefinition.GetSubScheme  = GetSubSchemeI;
-    function   IFRE_DB_FieldSchemeDefinition.ValidateField = ValidateFieldI;
+    function   IFRE_DB_FieldSchemeDefinition.getEnum         = getEnumI;
+    function   IFRE_DB_FieldSchemeDefinition.setEnum         = setEnumI;
+    function   IFRE_DB_FieldSchemeDefinition.getValidator    = getValidatorI;
+    function   IFRE_DB_FieldSchemeDefinition.setValidator    = setValidatorI;
+    function   IFRE_DB_FieldSchemeDefinition.getDepFields    = getDepFieldsI;
+    function   IFRE_DB_FieldSchemeDefinition.SetupFieldDef   = SetupFieldDefI;
+    function   IFRE_DB_FieldSchemeDefinition.GetSubScheme    = GetSubSchemeI;
+    function   IFRE_DB_FieldSchemeDefinition.ValidateField   = ValidateFieldI;
+    function   IFRE_DB_FieldSchemeDefinition.AddEnumDepField = AddEnumDepFieldI;
   public
     function    IsACalcField       : Boolean;
     function    SetupFieldDef      (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false;const add_confirm:Boolean=false ; const validator_params : TFRE_DB_Object=nil):TFRE_DB_FieldSchemeDefinition;
@@ -937,7 +938,8 @@ type
     procedure   SetCalcMethod      (const calc_method:IFRE_DB_CalcMethod);
     procedure   AddDepField        (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
     procedure   ForAllDepfields    (const depfielditerator : TFRE_DB_Depfielditerator);
-    procedure   AddEnumDepField    (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='';const validator_key:TFRE_DB_NameType='';const validator_params: IFRE_DB_Object=nil);
+    procedure   AddEnumDepField    (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='';const validator_key:TFRE_DB_NameType='';const validator_params: TFRE_DB_Object=nil);
+    procedure   AddEnumDepFieldI   (const fieldName: TFRE_DB_String;const enumValue:String;const visible:TFRE_DB_FieldDepVisibility=fdv_none;const cap_trans_key: String='';const validator_key:TFRE_DB_NameType='';const validator_params: IFRE_DB_Object=nil);
     procedure   ForAllEnumDepfields(const depfielditerator : TFRE_DB_EnumDepfielditerator);
     property    FieldName          :TFRE_DB_NameType  read GetFieldName write SetFieldName;
     property    FieldType          :TFRE_DB_FIELDTYPE read GetFieldType write SetFieldType;
@@ -969,15 +971,22 @@ type
      FFieldname    : TFRE_DB_FIELD;
      FDefault      : TFRE_DB_FIELD;
      FChooserType  : TFRE_DB_FIELD;
+     FValKey       : TFRE_DB_FIELD;
+     FValParams    : TFRE_DB_FIELD;
 
      FProperties   : TFRE_DB_FIELD;
      FFieldDefCache: IFRE_DB_FieldSchemeDefinition;
 
+     FValidator    : TFRE_DB_ClientFieldValidator; { Cache, not owned }
+
      function      GetInputGroupFieldProperties: TFRE_DB_InputGroupFieldproperties;
      procedure     SetInputGroupFieldProperties(AValue: TFRE_DB_InputGroupFieldproperties);
+     function GetValidator            : TFRE_DB_ClientFieldValidator;
+     function GetValidatorI           (var validator: IFRE_DB_ClientFieldValidator):Boolean;
   protected
      function _ObjectIsCodeclassOnlyAndHasNoScheme: boolean; override;
      procedure InternalSetup; override;
+     function  IFRE_DB_FieldDef4Group.getValidator  = getValidatorI;
   public
      function GetType                 : TFRE_InputGroupDefType;
      function GetGroup                : TFRE_DB_NameType;
@@ -990,6 +999,7 @@ type
      function GetCaptionKey           : TFRE_DB_NameType;
      function GetfieldName            : TFRE_DB_NameType;
      function GetDefault              : String;
+     function GetValidatorParams      : IFRE_DB_Object;
      function GetChooserType          : TFRE_DB_CHOOSER_DH;
      function FieldSchemeDefinition   : IFRE_DB_FieldSchemeDefinition;
 
@@ -1011,7 +1021,7 @@ type
     FInpGroupid  : TFRE_DB_FIELD;
     FCaptionKey  : TFRE_DB_FIELD;
     FInputs      : TFRE_DB_Object;
-    procedure   _addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: boolean; const std_right: TFRE_DB_STANDARD_RIGHT; const rightClass: Shortstring; const hideSingle: Boolean; const chooser_type: TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL; const chooserAddEmptyForRequired: Boolean);
+    procedure   _addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: boolean; const std_right: TFRE_DB_STANDARD_RIGHT; const rightClass: Shortstring; const hideSingle: Boolean; const chooser_type: TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL; const chooserAddEmptyForRequired: Boolean; const validator_key:TFRE_DB_NameType; const validator_params : TFRE_DB_Object);
   protected
     function    GetInputGroupID    : TFRE_DB_String;
     procedure   SetInputGroupId    (const id : TFRE_DB_String);
@@ -1027,7 +1037,7 @@ type
     procedure   InternalSetup; override;
   public
     function    SetupGroup         (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
-    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const default_value:String=''; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo;const standard_coll:TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired: Boolean=false);
+    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const default_value:String=''; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo;const standard_coll:TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired: Boolean=false; const validator_key:TFRE_DB_NameType=''; const validator_params : IFRE_DB_Object=nil);
     procedure   AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
     procedure   UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
     function    GroupFields        : IFRE_DB_FieldDef4GroupArr;
@@ -2677,6 +2687,8 @@ begin
   FStdright     := Field('SR');
   FPrefix       := Field('PR');
   FRightClass   := Field('RC');
+  FValKey       := Field('VK');
+  FValParams    := Field('VP');
 end;
 
 function TFRE_DB_FieldDef4Group.GetType: TFRE_InputGroupDefType;
@@ -2732,6 +2744,36 @@ end;
 function TFRE_DB_FieldDef4Group.GetDefault: String;
 begin
   result := FDefault.AsString;
+end;
+
+function TFRE_DB_FieldDef4Group.GetValidator: TFRE_DB_ClientFieldValidator;
+begin
+  result := Fvalidator;
+  if not assigned(result) then begin
+    if FValKey.AsString<>'' then begin
+      if not GFRE_DB.GetSysClientFieldValidator(FValKey.AsString,FValidator) then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'could not fetch client field validator [%s] although defined',[FValKey.AsString]);
+      result := FValidator;
+    end;
+  end;
+end;
+
+function TFRE_DB_FieldDef4Group.GetValidatorI(var validator: IFRE_DB_ClientFieldValidator): Boolean;
+var
+  val : TFRE_DB_ClientFieldValidator;
+begin
+  val := getValidator;
+  result := Assigned(val);
+  if result then begin
+    validator := val
+  end else begin
+    validator := nil;
+  end;
+end;
+
+function TFRE_DB_FieldDef4Group.GetValidatorParams: IFRE_DB_Object;
+begin
+  Result := FValParams.AsObject;
 end;
 
 function TFRE_DB_FieldDef4Group.GetChooserType: TFRE_DB_CHOOSER_DH;
@@ -4086,7 +4128,7 @@ begin
   FInputs     := _Field('IN').AsObject;
 end;
 
-procedure TFRE_DB_InputGroupSchemeDefinition._addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean;const hidden:Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String;const fbCollectionIsDerivedCollection:boolean;const std_right:TFRE_DB_STANDARD_RIGHT; const rightClass: Shortstring; const hideSingle: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired:Boolean);
+procedure TFRE_DB_InputGroupSchemeDefinition._addInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean;const hidden:Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String;const fbCollectionIsDerivedCollection:boolean;const std_right:TFRE_DB_STANDARD_RIGHT; const rightClass: Shortstring; const hideSingle: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH; const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired:Boolean; const validator_key:TFRE_DB_NameType; const validator_params : TFRE_DB_Object);
 var
   fdg      : TFRE_DB_FieldDef4Group;
   path     : TFRE_DB_StringArray;
@@ -4155,6 +4197,11 @@ begin
   fdg.FChooserType.AsByte := ord(chooser_type);
   fdg.FRightClass.AsString := rightClass;
   fdg.FStdright.AsByte   := ord(std_right);
+  fdg.FValKey.AsString   := validator_key;
+  if Assigned(validator_params) then begin
+    fdg.FValParams.AsObject := validator_params;
+  end;
+
   fcount := FInputs.FieldCount(true,true);
   FInputs.Field('IN'+inttostr(fcount)).AsObject := fdg;
 end;
@@ -4179,14 +4226,18 @@ begin
   result := Parent.Parent as TFRE_DB_SchemeObject;
 end;
 
-procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH;const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired: Boolean);
+procedure TFRE_DB_InputGroupSchemeDefinition.AddInput(const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String; const disabled: Boolean; const hidden: Boolean; const default_value: String; const field_backing_collection: TFRE_DB_String; const fbCollectionIsDerivedCollection: Boolean; const chooser_type:TFRE_DB_CHOOSER_DH;const standard_coll: TFRE_DB_STANDARD_COLL;const chooserAddEmptyForRequired: Boolean; const validator_key:TFRE_DB_NameType; const validator_params : IFRE_DB_Object);
 begin
-  _addInput(schemefield,cap_trans_key,disabled,hidden,default_value,field_backing_collection,fbCollectionIsDerivedCollection,sr_BAD,'',false,chooser_type,standard_coll,chooserAddEmptyForRequired);
+  if Assigned(validator_params) then begin
+    _addInput(schemefield,cap_trans_key,disabled,hidden,default_value,field_backing_collection,fbCollectionIsDerivedCollection,sr_BAD,'',false,chooser_type,standard_coll,chooserAddEmptyForRequired,validator_key,validator_params.Implementor_HC as TFRE_DB_Object);
+  end else begin
+    _addInput(schemefield,cap_trans_key,disabled,hidden,default_value,field_backing_collection,fbCollectionIsDerivedCollection,sr_BAD,'',false,chooser_type,standard_coll,chooserAddEmptyForRequired,validator_key,nil);
+  end;
 end;
 
 procedure TFRE_DB_InputGroupSchemeDefinition.AddDomainChooser(const schemefield: TFRE_DB_String;  const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String);
 begin
-  _addInput(schemefield,cap_trans_key,false,false,'','',false,std_right,rightClasstype.ClassName,hideSingle,dh_chooser_combo,coll_NONE,false);
+  _addInput(schemefield,cap_trans_key,false,false,'','',false,std_right,rightClasstype.ClassName,hideSingle,dh_chooser_combo,coll_NONE,false,'',nil);
 end;
 
 procedure TFRE_DB_InputGroupSchemeDefinition.UseInputGroup(const scheme, group: TFRE_DB_String; const addPrefix: TFRE_DB_String; const as_gui_subgroup: boolean; const collapsible: Boolean; const collapsed: Boolean);
@@ -8561,7 +8612,7 @@ begin
   FDepFields.ForAllFields(@iterate,true,true);
 end;
 
-procedure TFRE_DB_FieldSchemeDefinition.AddEnumDepField(const fieldName: TFRE_DB_String; const enumValue: String; const visible:TFRE_DB_FieldDepVisibility; const cap_trans_key: String;const validator_key:TFRE_DB_NameType; const validator_params: IFRE_DB_Object);
+procedure TFRE_DB_FieldSchemeDefinition.AddEnumDepField(const fieldName: TFRE_DB_String; const enumValue: String; const visible: TFRE_DB_FieldDepVisibility; const cap_trans_key: String; const validator_key: TFRE_DB_NameType; const validator_params: TFRE_DB_Object);
 var
   tmpField  : TFRE_DB_FieldSchemeDefinition;
   defObj    : IFRE_DB_Object;
@@ -8590,6 +8641,15 @@ begin
     end else begin
       raise EFRE_DB_Exception.Create(edb_INTERNAL,'the client field validator[%s] could not be fetched from the database',[validator_key]);
     end;
+  end;
+end;
+
+procedure TFRE_DB_FieldSchemeDefinition.AddEnumDepFieldI(const fieldName: TFRE_DB_String; const enumValue: String; const visible: TFRE_DB_FieldDepVisibility; const cap_trans_key: String; const validator_key: TFRE_DB_NameType; const validator_params: IFRE_DB_Object);
+begin
+  if assigned(validator_params) then begin
+    AddEnumDepField(fieldName,enumValue,visible,cap_trans_key,validator_key,validator_params.Implementor_HC as TFRE_DB_Object);
+  end else begin
+    AddEnumDepField(fieldName,enumValue,visible,cap_trans_key,validator_key,nil);
   end;
 end;
 
