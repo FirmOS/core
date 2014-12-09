@@ -98,9 +98,9 @@ type
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchPublisherSessionLockedMachine        (const machineid: TFRE_DB_GUID ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchPublisherSessionLockedMachineMac     (const machine_mac: TFRE_DB_NameType ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
-    function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
+    function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_SESSION_ID ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
-    function       SendDelegatedContentToClient              (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
+    function       SendDelegatedContentToClient              (sessionID : TFRE_DB_SESSION_ID ; const content : TFRE_DB_CONTENT_DESC):boolean;
 
     function       FetchStreamDBO                            (const enc_sessionid, enc_uid: string; var end_field: TFRE_DB_NameTypeRL; var lcontent: TFRE_DB_RawByteString; var stored_ct: TFRE_DB_String; var stored_etag: TFRE_DB_String): boolean;
     function       GetETag                                   (const filename: string; const filesize: NativeUint;const moddate: TFRE_DB_DateTime64):String;
@@ -1037,11 +1037,11 @@ begin
   end;
 end;
 
-function TFRE_BASE_SERVER.FetchSessionByIdLocked(const sesid: TFRE_DB_String; var ses: TFRE_DB_UserSession): boolean;
+function TFRE_BASE_SERVER.FetchSessionByIdLocked(const sesid: TFRE_DB_SESSION_ID; var ses: TFRE_DB_UserSession): boolean;
 
   function SearchSession(const session:TFRE_DB_UserSession):boolean;
   var arr : TFRE_DB_RemoteReqSpecArray;
-      i   : NAtiveint;
+      i   : Nativeint;
   begin
     if session.GetSessionID = sesid then
       begin
@@ -1169,7 +1169,7 @@ begin
   end;
 end;
 
-function TFRE_BASE_SERVER.SendDelegatedContentToClient(sessionID: TFRE_DB_String; const content: TFRE_DB_CONTENT_DESC): boolean;
+function TFRE_BASE_SERVER.SendDelegatedContentToClient(sessionID: TFRE_DB_SESSION_ID; const content: TFRE_DB_CONTENT_DESC): boolean;
 var session : TFRE_DB_UserSession;
 begin
   result := GFRE_DBI.NetServ.FetchSessionByIdLocked(sessionID,session);

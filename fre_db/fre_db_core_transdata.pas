@@ -335,19 +335,76 @@ type
     //procedure
   end;
 
-  TFRE_DB_FilterContainer=class;
+  TFRE_DB_FilterContainer = class;
+  TFRE_DB_QUERY           = class;
+
+
+  TFRE_DB_SESSION_DC_RANGE_MGR = class;
+
+  { TFRE_DB_SESSION_DC_RANGE }
+
+  TFRE_DB_SESSION_DC_RANGE=class
+    FStartIndex             : NativeInt;
+    FEndIndex               : NativeInt;
+    FResultDBOs             : IFRE_DB_ObjectArray;              { remember all objs of this range, need to update that list by notify updates, need to hold that list to check against changes in filterchanges }
+    FResultDBOsCompare      : IFRE_DB_ObjectArray;              { due to a filter update rerun the query - store in compare array, compare, send updates, switch the arrays }
+    FMgr                    : TFRE_DB_SESSION_DC_RANGE_MGR;
+
+    procedure               CheckRangeFilledFill;
+    function                GetAbsoluteIndexedObj (const abs_idx : NativeInt):IFRE_DB_Object;
+  public
+    constructor  Create               (const mgr : TFRE_DB_SESSION_DC_RANGE_MGR ; const start_idx,end_idx : NativeInt);
+    procedure    ExtendRangeToEnd     (const end_idx   : NativeInt);
+    procedure    ExtendRangeToStart   (const start_idx : NativeInt);
+    procedure    CropRangeFromStartTo (const crop_idx  : NativeInt);
+    procedure    CropRangeFromEndTo   (const crop_idx  : NativeInt);
+    procedure    RangeExecuteQry      (const qry_context : TFRE_DB_QUERY ; const iter : IFRE_DB_Obj_Iterator ; const compare_run :boolean);
+  end;
+
+  TFRE_DB_SESSION_DC_RANGE_MGR_KEY = ShortString; { sessionid@parentcollection/derivedcollection/reflinkspec/orderhash/filterhash }
+
+  { TFRE_DB_SESSION_DC_RANGE_MGR }
+  TFRE_DB_SESSION_DC_RANGE_QRY_STATUS = (rq_Bad,rq_OK,rq_NO_DATA);
+
+  TFRE_DB_SESSION_DC_RANGE_MGR=class { a session and a distinct dc hase one rangemanager, which stores all range requests, there should be the minimum amount of ranges to satisfy queries }
+  private
+
+  type TWorkRangeR= record
+           Rid : NativeInt;
+           Six : NativeInt;
+           Eix : NativeInt;
+           rr  : TFRE_DB_SESSION_DC_RANGE;
+         end;
+       TWorkRangeIter = procedure(const r: TFRE_DB_SESSION_DC_RANGE) is nested;
+  var
+    FKey             : TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
+    FRanges          : TFRE_ART_TREE;
+    FRMFiltercont    : TFRE_DB_FilterContainer;
+    procedure   InternalRangeCheck  ( testranges : Array of NativeInt ; const range_iter : TWorkRangeIter);
+    procedure   Bailout             (msg:string ; params : Array of Const);
+    procedure   DumpRanges          ;
+    function    DumpRangesCompressd : String;
+    function    GetMaxIndex         : NativeInt;
+  public
+    constructor Create                    (const key : TFRE_DB_SESSION_DC_RANGE_MGR_KEY ; const fc : TFRE_DB_FilterContainer);
+    destructor  Destroy                   ; override;
+    procedure   ClearRanges               ;
+    function    FindRangeSatisfyingQuery  (start_idx,end_idx : NativeInt ; out range:TFRE_DB_SESSION_DC_RANGE):TFRE_DB_SESSION_DC_RANGE_QRY_STATUS; { Find or define a new range upon data, process range minimization }
+    function    DropRange                 (start_idx,end_idx : NativeInt):TFRE_DB_SESSION_DC_RANGE_QRY_STATUS;
+    function    GetFilterContainer        : TFRE_DB_FilterContainer;
+  end;
 
   { TFRE_DB_QUERY }
 
-  TFRE_DB_QUERY=class(TFRE_DB_QUERY_BASE)
+  TFRE_DB_QUERY=class(TFRE_DB_QUERY_BASE) { Query a Range }
   private
     function  GetFilterDefinition: TFRE_DB_DC_FILTER_DEFINITION;
     function  GetOrderDefinition: TFRE_DB_DC_ORDER_DEFINITION;
   protected
      FBaseData               : TFRE_DB_TRANSFORMED_ORDERED_DATA; { assigned transformed and ordered data }
      FFilterContainer        : TFRE_DB_FilterContainer;          { the filtercontainer of the ordering   }
-     FQryDBName              : TFRE_DB_NameType;                 { used for reeval filters, etc  }
-     FQueryId                : TFRE_DB_NameType;                 { ID of this specific Query }
+     FQryDBName              : TFRE_DB_NameType;                 { used for reeval filters, etc          }
+     FQueryId                : TFRE_DB_NameType;                 { ID of this specific Query             }
      FQueryClientID          : Int64;
      FQueryDescr             : string;
      FParentChildLinkFldSpec : TFRE_DB_NameTypeRL;               { rl spec of the parent child relation }
@@ -360,8 +417,10 @@ type
      FParentIds              : TFRE_DB_GUIDArray;                { parentid / path to root / of this query (filter) }
      FIsChildQuery           : Boolean;                          { this is a request for childs }
      FUserKey                : TFRE_DB_String;                   { Login@Domain | GUID ?}
-     FStartIdx               : NativeInt;                        { }
-     FToDeliverCount         : NativeInt;                        { }
+
+     FStartIdx               : NativeInt;                         { }
+     FEndIndex               : NativeInt;                        { }
+
      FResultDBOs             : IFRE_DB_ObjectArray;              { remember all objs of this query, need to update that list by notify updates, need to hold that list to check against changes in filterchanges }
      FResultDBOsCompare      : IFRE_DB_ObjectArray;              { due to a filter update rerun the query - store in compare array, compare, send updates, switch the arrays }
 
@@ -380,7 +439,7 @@ type
      FQueryIsLastPage        : boolean;   { Flag to indicate that this query includes the last page of the resultset (the last element) }
 
      FQCreationTime          : TFRE_DB_DateTime64;
-     FSessionID              : String;
+     FSessionID              : TFRE_DB_SESSION_ID;
      FQryTransTag            : TFRE_DB_TransStepId;
      FOnlyOneUID             : TFRE_DB_GUID;
      FUidPointQry            : Boolean;
@@ -391,9 +450,11 @@ type
   public
      procedure   SetResultObject                   (const idx: NativeInt; const obj: IFRE_DB_Object ; const compare_run : boolean);
      procedure   AddjustResultDBOLen               (const compare_run : boolean);
-     procedure   SetMaxResultDBOLen                (const compare_run : boolean);
+     //procedure   SetMaxResultDBOLen                (const compare_run : boolean);
      procedure   StartQueryRun                     (const compare_run : boolean);
      procedure   EndQueryRun                       (const compare_run : boolean);
+
+     function    FindRange4QueryAndUpdateQuerySpec (out range : TFRE_DB_SESSION_DC_RANGE):boolean;
 
      constructor Create                            (const qry_dbname : TFRE_DB_NameType);
      destructor  Destroy                           ; override;
@@ -524,13 +585,15 @@ type
     FFilled          : Boolean;
     FFCCreationTime  : TFRE_DB_DateTime64;
     FFilters         : TFRE_DB_DC_FILTER_DEFINITION;
-    ForderKey        : TFRE_DB_NameType;
+    FFullKey         : TFRE_DB_TRANS_COLL_DATA_KEY;
     procedure        SetFilled(AValue: boolean);
     procedure        ClearDataInFilter;
     function         UnconditionalRemoveOldObject (const td: TFRE_DB_TRANSFORMED_ORDERED_DATA ; const old_obj: IFRE_DB_Object ; const ignore_non_existing: boolean):NativeInt;
     function         UnconditionalInsertNewObject (const td: TFRE_DB_TRANSFORMED_ORDERED_DATA ; const new_obj: IFRE_DB_Object):NativeInt;
-
+    function         OrderKey                 : TFRE_DB_NameType;
   public
+    function    GetDataCount                  : NativeInt;
+    function    GetRangeMgrKey                (const sessionid : TFRE_DB_SESSION_ID):TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
     property    IsFilled                      : boolean read FFilled write SetFilled;
     procedure   CheckDBReevaluation           ;
     procedure   Execute                       (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY ; const compare_run : boolean); { compare run = second run on filter updates }
@@ -541,9 +604,10 @@ type
     function    Notify_CheckFilteredInsert    (const td  : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const new_obj         : IFRE_DB_Object) : NativeInt; { invoke session update }
     function    DoesObjectPassFilterContainer (const obj : IFRE_DB_Object):boolean;
     procedure   AdjustLength                  ;
-    constructor Create                        (const order_key : TFRE_DB_NameType ; const filter_cont_dbname : TFRE_DB_NameType);
+    constructor Create                        (const full_key : TFRE_DB_TRANS_COLL_DATA_KEY ; const filter_cont_dbname : TFRE_DB_NameType ; const qry_filters : TFRE_DB_DC_FILTER_DEFINITION);
     destructor  Destroy                       ; override;
-    function    Filters                       : TFRE_DB_DC_FILTER_DEFINITION;
+    function    FCGetFilterKey                : TFRE_DB_TRANS_COLL_FILTER_KEY;
+    function    FCCheckAutoDependencyFilter   (const key_description: TFRE_DB_NameTypeRL):boolean;
     function    PurgeFilterDataDueToTimeout   : boolean;
     procedure   Checkintegrity                ;
   end;
@@ -607,6 +671,7 @@ type
     FStatCleaner   : TFRE_DB_TDM_STATS_CLEANER;
     FNotifyProc    : TFRE_DB_TDM_NOTIFY_APPLY;
     FArtQueryStore : TFRE_ART_TREE;
+    FArtRangeMgrs  : TFRE_ART_TREE;
     FTransLock     : IFOS_LOCK;
     FTransList     : OFRE_DB_TransCollTransformedDataList; { List of base transformed data}
     FOrders        : OFRE_DB_TransCollOrderedDataList;     { List of orderings of base transforms}
@@ -651,6 +716,7 @@ type
     destructor  Destroy       ; override;
     procedure   LockManager   ; override;
     procedure   UnlockManager ; override;
+    function    GetRangeManagerLocked     (const qry : TFRE_DB_QUERY)                : TFRE_DB_SESSION_DC_RANGE_MGR;
     function    GetNewOrderDefinition     : TFRE_DB_DC_ORDER_DEFINITION_BASE; override ;
     function    GetNewFilterDefinition    (const filter_db_name : TFRE_DB_NameType)  : TFRE_DB_DC_FILTER_DEFINITION_BASE ; override;
     function    GetTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; var cd   : TFRE_DB_TRANS_RESULT_BASE):boolean; override;
@@ -714,6 +780,7 @@ type
 
 procedure  InitTransfromManager;
 procedure  FinalizeTransformManager;
+procedure  RangeManager_TestSuite;
 
 implementation
 
@@ -853,6 +920,703 @@ begin
   before := res;  { 1 = before}
   result := midx;
 end;
+
+{ TFRE_DB_SESSION_DC_RANGE }
+
+procedure TFRE_DB_SESSION_DC_RANGE.CheckRangeFilledFill;
+var FOBJArray :IFRE_DB_ObjectArray;
+    i,j       : NativeInt;
+begin
+  if Length(FResultDBOs)=0 then
+    begin
+      FOBJArray := FMgr.GetFilterContainer.FOBJArray;
+      SetLength(FResultDBOs,FEndIndex-FStartIndex+1);
+      j         := 0;
+      for i := FStartIndex to FEndIndex do
+       begin
+         FResultDBOs[j] := FOBJArray[i].CloneToNewObject;
+         inc(j)
+       end;
+    end
+end;
+
+function TFRE_DB_SESSION_DC_RANGE.GetAbsoluteIndexedObj(const abs_idx: NativeInt): IFRE_DB_Object;
+begin
+  if (abs_idx>FEndIndex) or (abs_idx<FStartIndex) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'invalid absolute index [%d] request for range [%d..%d]',[abs_idx,FStartIndex,FEndIndex]);
+  if FResultDBOs=nil then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'range not filled with data');
+  result := FResultDBOs[abs_idx-FStartIndex];
+end;
+
+constructor TFRE_DB_SESSION_DC_RANGE.Create(const mgr: TFRE_DB_SESSION_DC_RANGE_MGR; const start_idx, end_idx: NativeInt);
+begin
+  FMgr        := mgr;
+  FStartIndex := start_idx;
+  FEndIndex   := end_idx;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE.ExtendRangeToEnd(const end_idx: NativeInt);
+var old_end   : NativeInt;
+    FOBJArray : IFRE_DB_ObjectArray;
+       i,j    : NativeInt;
+       newlen : NativeInt;
+       oldlen : NativeInt;
+       {
+         1: Range : 5..10  Index (0..5) old_end=10
+         2: Extend to -> end_idx = 20, FEndindex = 20
+            newlen = 16 oldlen = 6
+            j = 10-5+1 = 6
+
+       }
+begin
+  old_end   := FEndIndex;
+  FEndIndex := end_idx;
+  newlen    := FEndIndex-FStartIndex+1;
+  oldlen    := old_end-FStartIndex+1;
+
+  if newlen<=oldlen then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'extend to end failed, newlen<=oldlen [%d <= %d]',[newlen,oldlen]);
+
+  if Length(FResultDBOs)=0 then
+    begin
+      CheckRangeFilledFill;
+    end
+  else
+    begin
+      SetLength(FResultDBOs,newlen);
+      FOBJArray := FMgr.GetFilterContainer.FOBJArray;
+      j     := (old_end-FStartIndex+1);
+      for i := (old_end+1) to FEndIndex do
+       begin
+         FResultDBOs[j] := FOBJArray[i].CloneToNewObject;
+         inc(j);
+       end;
+    end;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE.ExtendRangeToStart(const start_idx: NativeInt); //self
+var FNewResult  : IFRE_DB_ObjectArray;
+    newlen      : NativeInt;
+    old_start   : NativeInt;
+    i,j         : NativeInt;
+    FOBJArray   : IFRE_DB_ObjectArray;
+
+begin
+  old_start := FStartIndex;
+  FStartIndex := start_idx;
+  if Length(FResultDBOs)=0 then
+    begin
+      CheckRangeFilledFill;
+    end
+  else
+    begin
+      FOBJArray := FMgr.GetFilterContainer.FOBJArray;
+      newlen    := FEndIndex-start_idx+1;
+      SetLength(FNewResult,newlen);
+      j := 0;
+      for i:=FStartIndex to old_start-1 do
+        begin
+          FNewResult[j] := FOBJArray[i].CloneToNewObject;
+          inc(j);
+        end;
+      for i := old_start to FEndIndex do
+        begin
+          FNewResult[j] := FResultDBOs[i-old_start];
+          inc(j);
+        end;
+      FResultDBOs := FNewResult;
+    end;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE.CropRangeFromStartTo(const crop_idx: NativeInt);  //self
+var FNewResult  : IFRE_DB_ObjectArray;
+    newlen      : NativeInt;
+    old_start   : NativeInt;
+    crop_base   : NativeInt;
+    i,j         : NativeInt;
+    FOBJArray   : IFRE_DB_ObjectArray;
+begin
+  if crop_idx<=FStartIndex then
+    raise EFRE_DB_Exception.create(edb_ERROR,'crop range from start invalid crop_idx [crop_idx = %d, old_end = %d]',[crop_idx,FStartIndex]);
+
+  newlen    := FEndIndex-crop_idx+1;
+  old_start := FStartIndex;
+  //SetLength(FNewResult,newlen);
+  FStartIndex := crop_idx;
+
+  crop_base   := crop_idx - old_start;
+  FNewResult  := Copy(FResultDBOs,crop_base,newlen);
+
+  for i := 0 to crop_base-1 do
+    FResultDBOs[i].Finalize;
+
+  FResultDBOs := FNewResult;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE.CropRangeFromEndTo(const crop_idx: NativeInt);
+var i,old_end,newlen : NativeInt;
+begin
+  old_end    := FEndIndex;
+  FEndIndex  := crop_idx;
+  if old_end<=FEndIndex then
+    raise EFRE_DB_Exception.create(edb_ERROR,'crop range from end invalid crop_idx [crop_idx = %d, old_end = %d]',[crop_idx,old_end]);
+  if Length(FResultDBOs)=0 then
+    begin
+      CheckRangeFilledFill;
+    end
+  else
+    begin
+      for i := old_end downto FEndIndex+1 do
+        begin
+          FResultDBOs[i-FStartIndex].Finalize;
+          FResultDBOs[i-FStartIndex]:=nil;
+        end;
+      newlen := FEndIndex-FStartIndex+1;
+      SetLength(FResultDBOs,newlen);
+    end;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE.RangeExecuteQry(const qry_context: TFRE_DB_QUERY; const iter: IFRE_DB_Obj_Iterator; const compare_run: boolean);
+var i : NativeInt;
+begin
+  if compare_run=false then
+    begin
+      CheckRangeFilledFill;
+      for i:=qry_context.FStartIdx to qry_context.FEndIndex do
+        begin
+          iter(GetAbsoluteIndexedObj(i).CloneToNewObject);
+          //obj := FOBJArray[i].CloneToNewObject();
+          //iter(obj);
+          //qry_context.SetResultObject(qry_context.FQueryCurrIdx,obj,false);
+          //inc(qry_context.FQueryCurrIdx);
+          //inc(qry_context.FQueryDeliveredCount);
+          //if qry_context.FQueryDeliveredCount=qry_context.FToDeliverCount then
+          //  break;
+        end;
+    end
+  else
+    begin
+      abort;
+    end;
+  //if (qry_context.FStartIdx+qry_context.FQueryCurrIdx)=Length(FOBJArray) then
+  //  qry_context.FQueryIsLastPage := true
+  //else
+  //  qry_context.FQueryIsLastPage := false;
+  //qry_context.AddjustResultDBOLen(false);
+end;
+
+{ TFRE_DB_SESSION_DC_RANGE_MGR }
+
+procedure TFRE_DB_SESSION_DC_RANGE_MGR.InternalRangeCheck(testranges: array of NativeInt; const range_iter: TWorkRangeIter);
+type
+  TRange=record
+    s,e : NativeInt;
+  end;
+var lr,ltr : NativeInt;
+    tArray : Array of TRange;
+    i,j    : NativeInt;
+
+    procedure Scan(var dummy : PtrUInt);
+    var r : TFRE_DB_SESSION_DC_RANGE;
+    begin
+      r := TFRE_DB_SESSION_DC_RANGE(FREDB_PtrUIntToObject(dummy));
+      if (tArray[i].s<>r.FStartIndex) or (tArray[i].e<>r.FEndIndex) then
+        Bailout('range mismatch at index [%d] differences : [start: %d<> %d / end %d <> %d]',[i,tArray[i].s,r.FStartIndex,tArray[i].e,r.FEndIndex]);
+      range_iter(r);
+      inc(i);
+    end;
+
+begin
+  if Length(testranges) mod 2 <>0 then
+    Bailout('testrange spec failed',[]);
+  SetLength(TArray,Length(testranges) div 2);
+  i:=0;
+  j:=0;
+  while i <= high(testranges) do
+    begin
+      tArray[j].s := testranges[i];
+      tArray[j].e := testranges[i+1];
+      inc(i,2);
+      inc(j,1);
+    end;
+  lr  := FRanges.GetValueCount;
+  ltr := Length(TArray);
+  if lr <> ltr then
+    Bailout('Unexpected Ranges Have: %d <>  Want %d',[lr,ltr]);
+  i := 0;
+  FRanges.LinearScan(@Scan);
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE_MGR.Bailout(msg: string; params: array of const);
+var txt : string;
+begin
+  txt := Format(msg,params);
+  writeln(txt);
+  DumpRanges;
+  halt;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE_MGR.DumpRanges;
+var i : NativeInt;
+
+  procedure DumpRange(var dummy : PtrUInt);
+  var r : TFRE_DB_SESSION_DC_RANGE;
+  begin
+    r := TFRE_DB_SESSION_DC_RANGE(FREDB_PtrUIntToObject(dummy));
+    writeln(format(' > RANGE %3d [%5d .. %5d]',[i,r.FStartIndex,r.FEndIndex]));
+    inc(i);
+  end;
+
+begin
+  i:=0;
+  FRanges.LinearScan(@DumpRange);
+end;
+
+function TFRE_DB_SESSION_DC_RANGE_MGR.DumpRangesCompressd: String;
+var i : NativeInt;
+
+  procedure DumpRange(var dummy : PtrUInt);
+  var r : TFRE_DB_SESSION_DC_RANGE;
+  begin
+    r := TFRE_DB_SESSION_DC_RANGE(FREDB_PtrUIntToObject(dummy));
+    result := result +format('[%d..%d]',[r.FStartIndex,r.FEndIndex]);
+  end;
+
+begin
+  result := '';
+  FRanges.LinearScan(@DumpRange);
+end;
+
+function TFRE_DB_SESSION_DC_RANGE_MGR.GetMaxIndex: NativeInt;
+begin
+  if not assigned(FRMFiltercont) then
+    exit(0)
+  else
+    result := FRMFiltercont.GetDataCount-1;
+end;
+
+constructor TFRE_DB_SESSION_DC_RANGE_MGR.Create(const key: TFRE_DB_SESSION_DC_RANGE_MGR_KEY; const fc: TFRE_DB_FilterContainer);
+begin
+  FKey          := key;
+  FRanges       := TFRE_ART_TREE.Create;
+  FRMFiltercont := fc;
+end;
+
+destructor TFRE_DB_SESSION_DC_RANGE_MGR.Destroy;
+begin
+  ClearRanges;
+  FRanges.Free;
+  inherited Destroy;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE_MGR.ClearRanges;
+  procedure FreeRanges(var dummy : PtrUInt);
+  begin
+    TFRE_DB_SESSION_DC_RANGE(FREDB_PtrUIntToObject(dummy)).Free;
+  end;
+
+begin
+  FRanges.LinearScan(@FreeRanges);
+  FRanges.Clear;
+  FRanges.GetValueCount;
+end;
+
+function TFRE_DB_SESSION_DC_RANGE_MGR.FindRangeSatisfyingQuery(start_idx, end_idx: NativeInt; out range: TFRE_DB_SESSION_DC_RANGE): TFRE_DB_SESSION_DC_RANGE_QRY_STATUS;
+var i                 : NativeInt;
+    FStartInRangeID   : TWorkRangeR;
+    FEndInRangeID     : TWorkRangeR;
+    FStartAdjRangeID  : TWorkRangeR;
+    FEndAdjRangeID    : TWorkRangeR;
+    FStartExtendingID : TWorkRangeR;
+    FEndExtendingID   : TWorkRangeR;
+    FRangeAfterReqIx  : TWorkRangeR;
+    maxi              : NativeInt;
+    newrange          : TFRE_DB_SESSION_DC_RANGE;
+    halt              : Boolean;
+
+    procedure CheckPartialRanges;
+    var  i     : NativeInt;
+
+        procedure ClearValues(var wr:TWorkRangeR);inline;
+        begin
+          wr.Rid := -1; wr.Six := -1 ; wr.Eix := -1; wr.rr := nil;
+        end;
+
+        procedure Scan(var dummy : PtrUInt ; var halt : boolean);
+        var r : TFRE_DB_SESSION_DC_RANGE;
+
+            procedure SetValues(var wr:TWorkRangeR);inline;
+            begin
+              wr.rid := r.FStartIndex; wr.Six := r.FStartIndex; wr.Eix := r.FEndIndex; wr.rr := r;
+            end;
+
+        begin
+          r := TFRE_DB_SESSION_DC_RANGE(dummy);
+          if (FStartInRangeID.Rid=-1) and ((r.FStartIndex <= start_idx) and (r.FEndIndex>= start_idx)) then  { found a range satisfying start_idx }
+            SetValues(FStartInRangeID);
+          if (FStartAdjRangeID.Rid=-1) and (r.FEndIndex+1=start_idx) then                                    { found a range which is immediatly (adjecent) before the requested range }
+            SetValues(FStartAdjRangeID);
+          if (FEndInRangeID.Rid=-1) and ((r.FStartIndex <= end_idx) and (r.FEndIndex>= end_idx)) then        { found a range satisfying end_idx }
+            SetValues(FEndInRangeID);
+          if (FEndAdjRangeID.rid=-1) and (r.FStartIndex-1=end_idx) then                                      { found a range which is immediatly (adjecent) after the requested range  }
+            SetValues(FEndAdjRangeID);
+          if r.FStartIndex>end_idx then
+            begin
+              SetValues(FRangeAfterReqIx);
+              halt := true;
+              exit;
+            end;
+          inc(i);
+        end;
+
+    begin
+      i:=0;
+      ClearValues(FStartInRangeID);
+      ClearValues(FEndInRangeID);
+      ClearValues(FStartAdjRangeID);
+      ClearValues(FEndAdjRangeID);
+      ClearValues(FEndInRangeID);
+      ClearValues(FRangeAfterReqIx);
+      halt := false;
+      FRanges.LinearScanBreak(@Scan,halt);
+    end;
+
+    procedure ExtendStartingRangeToEnd(const r : TFRE_DB_SESSION_DC_RANGE ; const end_idx : NativeInt);
+    begin
+      r.ExtendRangeToEnd(end_idx);
+    end;
+
+    function ExtendRangeToRange(const sr,er : TFRE_DB_SESSION_DC_RANGE):TFRE_DB_SESSION_DC_RANGE;
+    var i      : NativeInt;
+        ranges : Array of TFRE_DB_SESSION_DC_RANGE;
+        rr     : TFRE_DB_SESSION_DC_RANGE;
+        dummy  : PtrUInt;
+
+      procedure RangeScan(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean ; var dcounter,upcounter : NativeInt ; const abscntr : NativeInt);
+      var r : TFRE_DB_SESSION_DC_RANGE;
+      begin
+        r         := TFRE_DB_SESSION_DC_RANGE(FREDB_PtrUIntToObject(value));
+        ranges[i] := r;
+        inc(i);
+      end;
+
+    begin
+      i := 0;
+      if sr=er then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'using ExtendRangeToRange for a same range request');
+      GFRE_DBI.LogDebug(dblc_DBTDMRM,'WARNING REQUEST FETCHING ALREADY FETCHED DATA [%d..%d] Ranges ( %s )',[start_idx,end_idx,DumpRangesCompressd]);
+      write(Format('WARNING REQUEST FETCHING ALREADY FETCHED DATA [%d..%d] Ranges ( %s ) ',[start_idx,end_idx,DumpRangesCompressd]));
+      SetLength(ranges,FRanges.GetValueCount);
+      FRanges.RangeScanUint64Key(sr.FStartIndex,er.FStartIndex,@RangeScan);
+      SetLength(ranges,i);
+      if Length(ranges)<2 then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'a bridging range to range extend should have at least 2 ranges not [%d]',[Length(ranges)]);
+      for i:=high(ranges) downto 1 do { remove all bridging ranges except the first one ...}
+       begin
+         rr := ranges[i];
+         if not FRanges.RemoveUInt64Key(rr.FStartIndex,dummy) then
+           raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range remove bridging range not found [%d..%d] ',[rr.FStartIndex,rr.FEndIndex ]);
+         rr.Free;
+       end;
+      rr := ranges[0];
+      rr.ExtendRangeToEnd(er.FEndIndex);
+      result := rr;
+    end;
+
+    procedure ExtendEndingRangeToStart(const r : TFRE_DB_SESSION_DC_RANGE ; const start_idx : NativeInt);
+    var dummy : PtrUInt;
+    begin
+      if not FRanges.RemoveUInt64Key(r.FStartIndex,dummy) then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent extendending to start [%d] ',[r.FStartIndex]);
+      if dummy<>PtrUInt(r) then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id pointer compare failure');
+      r.ExtendRangeToStart(start_idx);
+      if not FRanges.InsertUInt64Key(r.FStartIndex,FREDB_ObjectToPtrUInt(r)) then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range exists [%d %d]',[r.FStartIndex,r.FEndIndex]);
+    end;
+
+begin
+  range := nil;
+  GFRE_DBI.LogDebug(dblc_DBTDMRM,'FIND RANGE SATISFYING QUERY [%d .. %d]',[start_idx,end_idx]);
+  GFRE_DBI.LogDebug(dblc_DBTDMRM,'in Ranges : %s ',[DumpRangesCompressd]);
+  if start_idx>end_idx then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'range query startindx [%d] is higher then endindex [%d]',[start_idx,end_idx]);
+  if (start_idx>GetMaxIndex) then
+    exit(rq_NO_DATA);    { there is definitly no data available }
+  maxi := GetMaxIndex;
+  if end_idx > maxi then
+    end_idx := maxi;
+  CheckPartialRanges;
+  if (FStartInRangeID.Rid=FEndInRangeID.Rid) and (FStartInRangeID.Rid<>-1) then { found an existing range, covering the requested range }
+    begin
+      range := FStartInRangeID.rr;
+    end
+  else
+  if (FStartInRangeID.Rid=-1) and (FEndInRangeID.Rid=-1) and (FStartAdjRangeID.Rid=-1) and (FEndAdjRangeID.Rid=-1) then { no range, and no direct extension satisfies the range request }
+    begin
+       newrange := TFRE_DB_SESSION_DC_RANGE.Create(self,start_idx,end_idx);
+       if not FRanges.InsertUInt64Key(newrange.FStartIndex,FREDB_ObjectToPtrUInt(newrange)) then
+         raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range exists [%d %d]',[newrange.FStartIndex,newrange.FEndIndex]);
+       range := newrange;
+       range.CheckRangeFilledFill;
+    end
+  else
+  if (FStartInRangeID.Rid>-1) and (FEndInRangeID.Rid=-1) and (halt=true) and (FRangeAfterReqIx.Rid>-1) and (FEndAdjRangeID.Rid=-1) then { found a start range to extend and a range after with a gap in between }
+    begin
+      ExtendStartingRangeToEnd(FStartInRangeID.rr,end_idx);
+      range := FStartInRangeID.rr;
+    end
+  else
+  if (FStartInRangeID.Rid>-1) and (FEndInRangeID.Rid=-1) and (halt=false) and (FEndAdjRangeID.Rid=-1) then { found a start range to extend and no range behind }
+    begin
+      ExtendStartingRangeToEnd(FStartInRangeID.rr,end_idx);
+      range := FStartInRangeID.rr;
+    end
+  else
+  if (FStartInRangeID.Rid=-1) and (FEndInRangeID.Rid>-1) and (FStartAdjRangeID.Rid=-1) then
+    begin
+      GFRE_DBI.LogDebug(dblc_DBTDMRM,'WARNING REQUEST ALREADY FETCHED DATA IN ENDRANGE REQUEST [%d..%d] Matching Range [%d..%d]',[start_idx,end_idx,FEndInRangeID.Six,FEndInRangeID.Eix]);
+      write(Format('WARNING REQUEST ALREADY FETCHED DATA IN ENDRANGE REQUEST [%d..%d] Matching Range [%d..%d]',[start_idx,end_idx,FEndInRangeID.Six,FEndInRangeID.Eix]));
+      ExtendEndingRangeToStart(FEndInRangeID.rr,start_idx);
+      range := FEndInRangeID.rr;
+    end
+  else
+  if (FStartInRangeID.Rid=-1) and (FEndInRangeID.Rid=-1) and (FStartAdjRangeID.Rid=-1) and (FEndAdjRangeID.Rid>-1) then { found a range after a gap, that is extending the requested range }
+    begin
+      ExtendEndingRangeToStart(FEndAdjRangeID.rr,start_idx);
+      range := FEndAdjRangeID.rr;
+    end
+  else
+  if (FStartInRangeID.Rid=-1) and (FEndInRangeID.Rid=-1) and (FStartAdjRangeID.Rid>-1) and (FEndAdjRangeID.Rid=-1) then { found a range that is extending the requested range to the front, and a gap behind }
+    begin
+      ExtendStartingRangeToEnd(FStartAdjRangeID.rr,end_idx);
+      range := FStartAdjRangeID.rr;
+    end
+  else
+  if (FStartInRangeID.Rid=-1) and (FEndInRangeID.Rid=-1) and (FStartAdjRangeID.Rid>-1) and (FEndAdjRangeID.Rid>-1) then { found a range that is bridging two ranges, both adjecent }
+    begin
+      range := ExtendRangeToRange(FStartAdjRangeID.rr,FEndAdjRangeID.rr);
+    end
+  else
+  if (FStartInRangeID.Rid=-1) and (FEndInRangeID.Rid>-1) and (FStartAdjRangeID.Rid>-1) and (FEndAdjRangeID.Rid=-1) then { found a range that is bridging two ranges, start adjecent }
+    begin
+      range := ExtendRangeToRange(FStartAdjRangeID.rr,FEndInRangeID.rr);
+    end
+  else
+  if (FStartInRangeID.Rid>-1) and (FEndInRangeID.Rid=-1) and (FStartAdjRangeID.Rid=-1) and (FEndAdjRangeID.Rid>-1) then { found a range that is bridging two ranges, end adjecent }
+    begin
+      range := ExtendRangeToRange(FStartInRangeID.rr,FEndAdjRangeID.rr);
+    end
+  else
+  if (FStartInRangeID.Rid>-1) and (FEndInRangeID.Rid>-1) and (FStartAdjRangeID.Rid=-1) and (FEndAdjRangeID.Rid=-1) then { found a range that is bridging two ranges }
+    begin
+      range := ExtendRangeToRange(FStartInRangeID.rr,FEndInRangeID.rr);
+    end
+  else
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected case FindRangeSatisfyingQuery Want: [%d..%d] in [%s] {SIR %d EIR %d SAR %d EAR %d RAR %d %s} ',[start_idx,end_idx,DumpRangesCompressd,FStartInRangeID.Rid,FEndInRangeID.Rid,FStartAdjRangeID.rid,FEndAdjRangeID.rid,FRangeAfterReqIx.Rid,BoolToStr(halt,'HALT','NOT HALT')]);
+  result := rq_OK;
+  GFRE_DBI.LogDebug(dblc_DBTDMRM,'New Ranges : %s ',[DumpRangesCompressd]);
+end;
+
+function TFRE_DB_SESSION_DC_RANGE_MGR.DropRange(start_idx, end_idx: NativeInt): TFRE_DB_SESSION_DC_RANGE_QRY_STATUS;
+var i                 : NativeInt;
+    FStartInRangeID   : TWorkRangeR;
+    FEndInRangeID     : TWorkRangeR;
+    newrange          : TFRE_DB_SESSION_DC_RANGE;
+    halt              : Boolean;
+
+    procedure CheckPartialRanges;
+        procedure ClearValues(var wr:TWorkRangeR);inline;
+        begin
+          wr.Rid := -1; wr.Six := -1 ; wr.Eix := -1; wr.rr := nil;
+        end;
+
+        procedure Scan(var dummy : PtrUInt ; var halt : boolean);
+        var r : TFRE_DB_SESSION_DC_RANGE;
+
+            procedure SetValues(var wr:TWorkRangeR);inline;
+            begin
+              wr.rid := r.FStartIndex; wr.Six := r.FStartIndex; wr.Eix := r.FEndIndex; wr.rr := r;
+            end;
+
+        begin
+          r := TFRE_DB_SESSION_DC_RANGE(dummy);
+          if (FStartInRangeID.Rid=-1) and (start_idx <= r.FEndIndex) then    { found the minimal range the delete must start }
+            SetValues(FStartInRangeID);
+          if (FEndInRangeID.Rid=-1) and (end_idx <= r.FEndIndex) then        { found the last  range satisfying end_idx   }
+            SetValues(FEndInRangeID);
+        end;
+
+    begin
+      i:=0;
+      ClearValues(FStartInRangeID);
+      ClearValues(FEndInRangeID);
+      halt := false;
+      FRanges.LinearScanBreak(@Scan,halt);
+    end;
+
+    procedure DoOneRangeSplitOrRangeCutoff(const range : TFRE_DB_SESSION_DC_RANGE);
+    var dummy    : PtrUInt;
+        newrange : TFRE_DB_SESSION_DC_RANGE;
+    begin
+      if (start_idx=range.FStartIndex) and (end_idx=range.FEndIndex) then
+        begin
+           if not FRanges.RemoveUInt64Key(range.FStartIndex,dummy) then
+             raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent drop full range [%d] ',[range.FStartIndex]);
+           range.Free;
+        end
+      else
+      if (start_idx=range.FStartIndex) and (end_idx<range.FEndIndex) then { front cut off }
+        begin
+           if not FRanges.RemoveUInt64Key(range.FStartIndex,dummy) then
+             raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent front cutoff range [%d] ',[range.FStartIndex]);
+           range.CropRangeFromStartTo(end_idx+1);
+           if not FRanges.InsertUInt64Key(range.FStartIndex,FREDB_ObjectToPtrUInt(range)) then { insert range with new start index }
+             raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id insert fail front cut off range [%d] ',[range.FStartIndex]);
+        end
+      else
+      if (start_idx>range.FStartIndex) and (end_idx=range.FEndIndex) then { tail cut off }
+        begin
+          range.CropRangeFromEndTo(start_idx-1);
+        end
+      else
+      if (start_idx>range.FStartIndex) and (end_idx<range.FEndIndex) then { range split - cut off end, inser new end }
+        begin
+          newrange := TFRE_DB_SESSION_DC_RANGE.Create(self,end_idx+1,range.FEndIndex);
+          newrange.CheckRangeFilledFill;
+          range.CropRangeFromEndTo(start_idx-1);
+          if not FRanges.InsertUInt64Key(newrange.FStartIndex,FREDB_ObjectToPtrUInt(newrange)) then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr range split exists [%d %d]',[newrange.FStartIndex,newrange.FEndIndex]);
+        end
+      else
+      if (start_idx<range.FStartIndex) and (end_idx=range.FEndIndex) then { full range cut start too early, warning }
+        begin
+          GFRE_DBI.LogDebug(dblc_DBTDMRM,'WARNING DROP RANGE REQUEST FOR NON FULLY RANGED DATA / FULL DROP [%d..%d] Matching Range [%d..%d]',[start_idx,end_idx,range.FStartIndex,range.FEndIndex]);
+          write(Format('WARNING DROP RANGE REQUEST FOR NON FULLY RANGED DATA / FULL DROP [%d..%d] Matching Range [%d..%d]',[start_idx,end_idx,range.FStartIndex,range.FEndIndex]));
+          if not FRanges.RemoveUInt64Key(range.FStartIndex,dummy) then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent drop full range /warning [%d] ',[range.FStartIndex]);
+          range.Free;
+        end
+      else
+      if (start_idx<range.FStartIndex) and (end_idx<range.FEndIndex) then { partial range cut, warning }
+        begin
+          GFRE_DBI.LogDebug(dblc_DBTDMRM,'WARNING DROP RANGE REQUEST FOR NON FULLY RANGED DATA / PARTIAL DROP  [%d..%d] Matching Range [%d..%d]',[start_idx,end_idx,range.FStartIndex,range.FEndIndex]);
+          write(Format('WARNING DROP RANGE REQUEST FOR NON FULLY RANGED DATA / PARTIAL DROP [%d..%d] Matching Range [%d..%d]',[start_idx,end_idx,range.FStartIndex,range.FEndIndex]));
+          if not FRanges.RemoveUInt64Key(range.FStartIndex,dummy) then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent front cutoff/partial range [%d] ',[range.FStartIndex]);
+          range.CropRangeFromStartTo(end_idx+1);
+          if not FRanges.InsertUInt64Key(range.FStartIndex,FREDB_ObjectToPtrUInt(range)) then { insert range with new start index }
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id insert fail front cut off range/partial [%d] ',[range.FStartIndex]);
+        end
+      else
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected case DoOneRangeSplitOrRangeCutoff cut [%d..%d] range [%d..%d]',[start_idx,end_idx,range.FStartIndex,range.FEndIndex]);
+    end;
+
+    procedure DoRangeToRangeDrop(const sr,er : TFRE_DB_SESSION_DC_RANGE);
+    var i      : NativeInt;
+        ranges : Array of TFRE_DB_SESSION_DC_RANGE;
+        rr     : TFRE_DB_SESSION_DC_RANGE;
+        dummy  : PtrUInt;
+
+      procedure RangeScan(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint ; var break : boolean ; var dcounter,upcounter : NativeInt ; const abscntr : NativeInt);
+      var r : TFRE_DB_SESSION_DC_RANGE;
+      begin
+        r         := TFRE_DB_SESSION_DC_RANGE(FREDB_PtrUIntToObject(value));
+        ranges[i] := r;
+        inc(i);
+      end;
+
+    begin
+      i := 0;
+      GFRE_DBI.LogDebug(dblc_DBTDMRM,'WARNING DROP REQUEST FOR NON FULLY RANGED DATA [%d..%d] Ranges ( %s )',[start_idx,end_idx,DumpRangesCompressd]);
+      write(Format('WARNING DROP REQUEST FOR NON FULLY RANGED DATA [%d..%d] Ranges ( %s )',[start_idx,end_idx,DumpRangesCompressd]));
+
+      if sr=nil then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'handle DoRangeToRangeDrop, sr not found');
+      if er=nil then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'handle DoRangeToRangeDrop, er not found');
+
+      SetLength(ranges,FRanges.GetValueCount);
+      FRanges.RangeScanUint64Key(sr.FStartIndex,er.FStartIndex,@RangeScan);
+      SetLength(ranges,i);
+      if Length(ranges)<2 then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'a bridging range to range extend should have at least 2 ranges not [%d]',[Length(ranges)]);
+      for i:=1 to high(ranges)-1 do { remove all bridging ranges except the firsta and last one ...}
+       begin
+         if not FRanges.RemoveUInt64Key(ranges[i].FStartIndex,dummy) then
+           raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent droprange2range range [%d] ',[ranges[i].FStartIndex]);
+         ranges[i].Free;
+       end;
+
+      rr := Ranges[0];
+      if start_idx <= rr.FStartIndex then
+        begin
+          if not FRanges.RemoveUInt64Key(rr.FStartIndex,dummy) then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent droprange2range range [%d] ',[rr.FStartIndex]);
+          rr.free;
+        end
+      else
+      if start_idx > rr.FStartIndex  then
+        begin
+          rr.CropRangeFromEndTo(start_idx-1);
+        end;
+
+      rr := Ranges[high(ranges)];
+      if (rr.FEndIndex<=end_idx) then
+        begin
+          if not FRanges.RemoveUInt64Key(rr.FStartIndex,dummy) then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent droprange2range range [%d] ',[rr.FStartIndex]);
+          rr.free;
+        end
+      else
+      if (rr.FEndIndex>end_idx) and (rr.FStartIndex<=end_idx) then
+        begin
+          if not FRanges.RemoveUInt64Key(rr.FStartIndex,dummy) then
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id nonexistent droprange2range range [%d] ',[rr.FStartIndex]);
+          rr.CropRangeFromStartTo(end_idx+1);
+          if not FRanges.InsertUInt64Key(rr.FStartIndex,FREDB_ObjectToPtrUInt(rr)) then { insert range with new start index }
+            raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range id insert fail front cut off range [%d] ',[rr.FStartIndex]);
+        end
+    end;
+
+    procedure SetLast(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
+    var r : TFRE_DB_SESSION_DC_RANGE;
+    begin
+       r := TFRE_DB_SESSION_DC_RANGE(value);
+       FEndInRangeID.rr  := r;
+       FEndInRangeID.Rid := r.FStartIndex;
+       FEndInRangeID.Six := r.FStartIndex;
+       FEndInRangeID.Eix := r.FEndIndex;
+       end_idx           := FEndInRangeID.Eix;
+    end;
+
+begin
+  GFRE_DBI.LogDebug(dblc_DBTDMRM,'ENTRY DELETE WARNING / DROP RANGE / TEST LOGGER');
+  halt := false;
+  CheckPartialRanges;
+  if (FStartInRangeID.Rid=-1) and (FEndInRangeID.Rid=-1) then
+    exit(rq_NO_DATA);
+  if (FStartInRangeID.Rid>-1) and (FEndInRangeID.Rid=-1) then
+    begin
+      FRanges.LastKeyVal(@SetLast);
+    end;
+  if FStartInRangeID.Rid=FEndInRangeID.Rid then { One Range Split }
+      DoOneRangeSplitOrRangeCutoff(FStartInRangeID.rr)
+  else
+      DoRangeToRangeDrop(FStartInRangeID.rr,FEndInRangeID.rr);
+end;
+
+function TFRE_DB_SESSION_DC_RANGE_MGR.GetFilterContainer: TFRE_DB_FilterContainer;
+begin
+  result := FRMFiltercont;
+end;
+
+
+//procedure TFRE_DB_SESSION_DC_RANGE_MGR.MaxDataChanged(const new_max_index: NativeInt);
+//begin
+//  FMaxIndex := new_max_index;
+//end;
 
 { TFRE_DB_TDM_NOTIFY_APPLY }
 
@@ -2324,7 +3088,7 @@ procedure TFRE_DB_FilterContainer.ClearDataInFilter;
 begin
   SetLength(FOBJArray,0); { only references ...}
   FFilled := false;
-  FCnt    := 0;
+  //FCnt    := 0;
 end;
 
 function TFRE_DB_FilterContainer.UnconditionalRemoveOldObject(const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const old_obj: IFRE_DB_Object; const ignore_non_existing: boolean): NativeInt;
@@ -2335,7 +3099,7 @@ var old_idx   : NativeInt;
 begin
   if IsFilled then
     begin
-      old_key  := old_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(ForderKey).AsByteArr;
+      old_key  := old_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(OrderKey).AsByteArr;
       old_idx := -1;
       //for k := 0 to high(FOBJArray) do
       // begin
@@ -2343,7 +3107,7 @@ begin
       //     old_idx := k;
       // end;
       //uids := old_obj.UID_String;
-      old_idx  := FREDB_BinaryFindIndexInSorted(old_key,ForderKey,before,FOBJArray,exists,old_obj.PUID,true);
+      old_idx  := FREDB_BinaryFindIndexInSorted(old_key,OrderKey,before,FOBJArray,exists,old_obj.PUID,true);
       result   := old_idx;
       if exists then
         begin
@@ -2367,14 +3131,29 @@ var ia_idx   : NativeInt;
 begin
   if IsFilled then
     begin
-      new_key  := new_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(ForderKey).AsByteArr;
+      new_key  := new_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(OrderKey).AsByteArr;
       if Length(new_key)=0 then
         raise EFRE_DB_Exception.Create(edb_ERROR,'total order key / binary key not found in insert');
-      ia_idx := FREDB_BinaryFindIndexInSorted(new_key,ForderKey,before,FOBJArray,exists);
+      ia_idx := FREDB_BinaryFindIndexInSorted(new_key,OrderKey,before,FOBJArray,exists);
       FOBJArray := FREDB_InsertAtIdxToObjectArray(FOBJArray,ia_idx,new_obj,before>0); { ia_idx gets adjusted }
       result := ia_idx;
       inc(FCnt);
     end;
+end;
+
+function TFRE_DB_FilterContainer.OrderKey: TFRE_DB_NameType;
+begin
+  result := FFullKey.orderkey;
+end;
+
+function TFRE_DB_FilterContainer.GetDataCount: NativeInt;
+begin
+  result := Length(FOBJArray);
+end;
+
+function TFRE_DB_FilterContainer.GetRangeMgrKey(const sessionid: TFRE_DB_SESSION_ID): TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
+begin
+  result := sessionid+'@'+FFullKey.key;
 end;
 
 procedure TFRE_DB_FilterContainer.CheckDBReevaluation;
@@ -2389,55 +3168,61 @@ begin
 end;
 
 procedure TFRE_DB_FilterContainer.Execute(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY; const compare_run: boolean);
-var i   : NativeInt;
-    obj : IFRE_DB_Object;
-    hio : NativeInt;
+var i     : NativeInt;
+    obj   : IFRE_DB_Object;
+    hio   : NativeInt;
+    range : TFRE_DB_SESSION_DC_RANGE;
 begin
   if not compare_run then
     begin
       qry_context.FQueryPotentialCount := FCnt;
-      qry_context.SetMaxResultDBOLen(false);
-      if assigned(iter) then
+      if qry_context.FindRange4QueryAndUpdateQuerySpec(range) then
         begin
-          hio := High(FOBJArray);
-          for i:=qry_context.FStartIdx to hio do
-            begin
-              obj := FOBJArray[i].CloneToNewObject();
-              iter(obj);
-              qry_context.SetResultObject(qry_context.FQueryCurrIdx,obj,false);
-              inc(qry_context.FQueryCurrIdx);
-              inc(qry_context.FQueryDeliveredCount);
-              if qry_context.FQueryDeliveredCount=qry_context.FToDeliverCount then
-                break;
-            end;
-          if (qry_context.FStartIdx+qry_context.FQueryCurrIdx)=Length(FOBJArray) then
-            qry_context.FQueryIsLastPage := true
-          else
-            qry_context.FQueryIsLastPage := false;
-          qry_context.AddjustResultDBOLen(false);
+          range.RangeExecuteQry(qry_context,iter,compare_run);
         end;
+      //qry_context.SetMaxResultDBOLen(false);
+      //if assigned(iter) then
+      //  begin
+      //    hio := High(FOBJArray);
+      //    for i:=qry_context.FStartIdx to hio do
+      //      begin
+      //        obj := FOBJArray[i].CloneToNewObject();
+      //        iter(obj);
+      //        qry_context.SetResultObject(qry_context.FQueryCurrIdx,obj,false);
+      //        inc(qry_context.FQueryCurrIdx);
+      //        inc(qry_context.FQueryDeliveredCount);
+      //        if qry_context.FQueryDeliveredCount=qry_context.FToDeliverCount then
+      //          break;
+      //      end;
+      //    if (qry_context.FStartIdx+qry_context.FQueryCurrIdx)=Length(FOBJArray) then
+      //      qry_context.FQueryIsLastPage := true
+      //    else
+      //      qry_context.FQueryIsLastPage := false;
+      //    qry_context.AddjustResultDBOLen(false);
+      //  end;
     end
   else
     begin
-      qry_context.FQueryPotentialCountCmp := FCnt; // self.FCnt
-      qry_context.SetMaxResultDBOLen(true);
-      hio := High(FOBJArray);
-      for i:=qry_context.FStartIdx to hio do
-        begin
-          obj := FOBJArray[i];
-          qry_context.SetResultObject(qry_context.FQueryCurrIdxCmp,obj,true);
-          inc(qry_context.FQueryCurrIdxCmp);
-          inc(qry_context.FQueryDeliveredCountCmp);
-          if (qry_context.FQueryDeliveredCountCmp=qry_context.FToDeliverCount) then
-            if (qry_context.FQueryIsLastPage) then
-              begin
-                inc(qry_context.FToDeliverCount);     { Direspect "todelivercount" on last page, to gather items inserted in the last page }
-                qry_context.SetMaxResultDBOLen(true); { expand resultset }
-              end
-            else
-              break;
-        end;
-      qry_context.AddjustResultDBOLen(true);
+      abort;
+      //qry_context.FQueryPotentialCountCmp := FCnt; // self.FCnt
+      //qry_context.SetMaxResultDBOLen(true);
+      //hio := High(FOBJArray);
+      //for i:=qry_context.FStartIdx to hio do
+      //  begin
+      //    obj := FOBJArray[i];
+      //    qry_context.SetResultObject(qry_context.FQueryCurrIdxCmp,obj,true);
+      //    inc(qry_context.FQueryCurrIdxCmp);
+      //    inc(qry_context.FQueryDeliveredCountCmp);
+      //    if (qry_context.FQueryDeliveredCountCmp=qry_context.FToDeliverCount) then
+      //      if (qry_context.FQueryIsLastPage) then
+      //        begin
+      //          inc(qry_context.FToDeliverCount);     { Direspect "todelivercount" on last page, to gather items inserted in the last page }
+      //          qry_context.SetMaxResultDBOLen(true); { expand resultset }
+      //        end
+      //      else
+      //        break;
+      //  end;
+      //qry_context.AddjustResultDBOLen(true);
     end;
 end;
 
@@ -2446,59 +3231,60 @@ var i   : NativeInt;
     obj : IFRE_DB_Object;
     hio : NativeInt;
 begin
-  qry_context.FQueryPotentialCount := 1;
-  qry_context.FToDeliverCount      := 1;
-  qry_context.SetMaxResultDBOLen(false);
-  hio := High(FOBJArray);
-  if qry_context.FUidPointQry then
-    begin
-      for i := 0 to high(FOBJArray) do
-       begin
-         if FOBJArray[i].UID=qry_context.FOnlyOneUID then
-           begin
-             obj := FOBJArray[i].CloneToNewObject;
-             qry_context.SetResultObject(0,obj,false);
-             qry_context.FQueryDeliveredCount := 1;
-             if assigned(iter) then
-               iter(obj);
-             break;
-           end;
-       end;
-    end
-  else
-    case qry_context.FStartIdx of
-      -1 : begin
-             if Length(FOBJArray)>0 then
-               begin
-                 obj := FOBJArray[0].CloneToNewObject;
-                 qry_context.SetResultObject(0,obj,false);
-                 qry_context.FQueryDeliveredCount := 1;
-                 if assigned(iter) then
-                   iter(obj);
-               end;
-           end;
-      -2 : begin
-             if (Length(FOBJArray)>0) then
-               begin
-                 obj := FOBJArray[high(FOBJArray)].CloneToNewObject;
-                 qry_context.SetResultObject(0,obj,false);
-                 qry_context.FQueryDeliveredCount := 1;
-                 if assigned(iter) then
-                   iter(obj);
-               end;
-           end
-      else
-        begin
-          if (Length(FOBJArray)>0) and (qry_context.FStartIdx<Length(FOBJArray)) then
-            begin
-              obj := FOBJArray[qry_context.FStartIdx].CloneToNewObject;
-              qry_context.SetResultObject(0,obj,false);
-              qry_context.FQueryDeliveredCount := 1;
-              if assigned(iter) then
-                iter(obj);
-            end;
-        end;
-    end;
+  abort;
+  //qry_context.FQueryPotentialCount := 1;
+  //qry_context.FToDeliverCount      := 1;
+  //qry_context.SetMaxResultDBOLen(false);
+  //hio := High(FOBJArray);
+  //if qry_context.FUidPointQry then
+  //  begin
+  //    for i := 0 to high(FOBJArray) do
+  //     begin
+  //       if FOBJArray[i].UID=qry_context.FOnlyOneUID then
+  //         begin
+  //           obj := FOBJArray[i].CloneToNewObject;
+  //           qry_context.SetResultObject(0,obj,false);
+  //           qry_context.FQueryDeliveredCount := 1;
+  //           if assigned(iter) then
+  //             iter(obj);
+  //           break;
+  //         end;
+  //     end;
+  //  end
+  //else
+  //  case qry_context.FStartIdx of
+  //    -1 : begin
+  //           if Length(FOBJArray)>0 then
+  //             begin
+  //               obj := FOBJArray[0].CloneToNewObject;
+  //               qry_context.SetResultObject(0,obj,false);
+  //               qry_context.FQueryDeliveredCount := 1;
+  //               if assigned(iter) then
+  //                 iter(obj);
+  //             end;
+  //         end;
+  //    -2 : begin
+  //           if (Length(FOBJArray)>0) then
+  //             begin
+  //               obj := FOBJArray[high(FOBJArray)].CloneToNewObject;
+  //               qry_context.SetResultObject(0,obj,false);
+  //               qry_context.FQueryDeliveredCount := 1;
+  //               if assigned(iter) then
+  //                 iter(obj);
+  //             end;
+  //         end
+  //    else
+  //      begin
+  //        if (Length(FOBJArray)>0) and (qry_context.FStartIdx<Length(FOBJArray)) then
+  //          begin
+  //            obj := FOBJArray[qry_context.FStartIdx].CloneToNewObject;
+  //            qry_context.SetResultObject(0,obj,false);
+  //            qry_context.FQueryDeliveredCount := 1;
+  //            if assigned(iter) then
+  //              iter(obj);
+  //          end;
+  //      end;
+  //  end;
 end;
 
 
@@ -2532,7 +3318,7 @@ begin
       else
         begin
           //GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH UPDATE OBJECT ORDER NOT CHANGED [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
-          old_idx := FREDB_BinaryFindIndexInSorted(old_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(ForderKey).AsByteArr,Forderkey,before,FOBJArray,exists);
+          old_idx := FREDB_BinaryFindIndexInSorted(old_obj.Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(orderKey).AsByteArr,orderkey,before,FOBJArray,exists);
           if exists=false then
             begin
               { the object passes the filter but is not in the filter, add it }
@@ -2547,7 +3333,7 @@ begin
     end
   else
     begin { Update object does not pass the filters anymore -> remove it}
-      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER REJECT UPDATE OBJECT [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
+      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER REJECT UPDATE OBJECT [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,FCGetFilterKey]);
       old_idx := UnconditionalRemoveOldObject(td,old_obj,true); { ignore non existing objects ...}
     end;
 end;
@@ -2559,12 +3345,12 @@ begin
   result := -1;
   if DoesObjectPassFilterContainer(old_obj) then
     begin { old object is potentially in the client query present }
-      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH DELETE OBJECT [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
+      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH DELETE OBJECT [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,FCGetFilterKey]);
       result := UnconditionalRemoveOldObject(td,old_obj,false);
     end
   else
     begin
-      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER REJECT DELETE OBJECT [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
+      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER REJECT DELETE OBJECT [%s] IN ORDER/FILTER [%s / %s]',[old_obj.UID_String,td.GetFullKey.orderkey,FCGetFilterKey]);
     end;
 end;
 
@@ -2576,12 +3362,12 @@ begin
   result := -1;
   if DoesObjectPassFilterContainer(new_obj) then
     begin { old object is potentially in the client query present }
-      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH INSERT OBJECT [%s] IN ORDER/FILTER [%s / %s]',[new_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
+      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH INSERT OBJECT [%s] IN ORDER/FILTER [%s / %s]',[new_obj.UID_String,td.GetFullKey.orderkey,FCGetFilterKey]);
       result := UnconditionalInsertNewObject(td,new_obj);
     end
   else
     begin
-      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER REJECT INSERT OBJECT [%s] IN ORDERFILTER [%s / %s]',[new_obj.UID_String,td.GetFullKey.orderkey,Filters.GetFilterKey]);
+      GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER REJECT INSERT OBJECT [%s] IN ORDERFILTER [%s / %s]',[new_obj.UID_String,td.GetFullKey.orderkey,FCGetFilterKey]);
     end;
 end;
 
@@ -2590,13 +3376,17 @@ begin
   SetLength(FOBJArray,FCnt);
 end;
 
-constructor TFRE_DB_FilterContainer.Create(const order_key: TFRE_DB_NameType; const filter_cont_dbname: TFRE_DB_NameType);
+constructor TFRE_DB_FilterContainer.Create(const full_key: TFRE_DB_TRANS_COLL_DATA_KEY; const filter_cont_dbname: TFRE_DB_NameType; const qry_filters: TFRE_DB_DC_FILTER_DEFINITION);
 begin
   inherited Create;
-  FCnt := 0;
+  FCnt            := 0;
   FFCCreationTime := GFRE_DT.Now_UTC;
   FFilters        := TFRE_DB_DC_FILTER_DEFINITION.Create(filter_cont_dbname);
-  ForderKey       := order_key;
+  FFilters.AddFilters(qry_filters);
+  FFilters.Seal;
+  FFullKey           := full_key;
+  FFullKey.filterkey := FFilters.GetFilterKey;
+  FFullKey.key       := FFullKey.key+'/'+FFullKey.filterkey;
 end;
 
 destructor TFRE_DB_FilterContainer.Destroy;
@@ -2605,9 +3395,14 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB_FilterContainer.Filters: TFRE_DB_DC_FILTER_DEFINITION;
+function TFRE_DB_FilterContainer.FCGetFilterKey: TFRE_DB_TRANS_COLL_FILTER_KEY;
 begin
-  result := FFilters;
+  result := FFilters.GetFilterKey;
+end;
+
+function TFRE_DB_FilterContainer.FCCheckAutoDependencyFilter(const key_description: TFRE_DB_NameTypeRL): boolean;
+begin
+  result := FFilters.CheckAutoDependencyFilter(key_description);
 end;
 
 function TFRE_DB_FilterContainer.PurgeFilterDataDueToTimeout: boolean;
@@ -2619,7 +3414,7 @@ begin
   if (cFRE_INT_TUNE_FILTER_PURGE_TO<>0) and ((ntime-FFCCreationTime) > cFRE_INT_TUNE_FILTER_PURGE_TO) then
     begin
       ClearDataInFilter;
-      GFRE_DB.LogDebug(dblc_DBTDM,' ORDER/FILTER [%s/%s] PURGED / TIMEOUT (%d ms) ',[ForderKey,FFilters.GetFilterKey,cFRE_INT_TUNE_FILTER_PURGE_TO]);
+      GFRE_DB.LogDebug(dblc_DBTDM,' ORDER/FILTER [%s/%s] PURGED / TIMEOUT (%d ms) ',[orderKey,FFilters.GetFilterKey,cFRE_INT_TUNE_FILTER_PURGE_TO]);
       exit(true);
     end;
   result := false;
@@ -2642,7 +3437,7 @@ begin
   except
     on E:Exception do
       begin
-        writeln('--- FILTER INTEGRITY CHECK FAILED ',e.Message,' ',ForderKey,' ',FFilters.GetFilterKey);
+        writeln('--- FILTER INTEGRITY CHECK FAILED ',e.Message,' ',OrderKey,' ',FFilters.GetFilterKey);
       end;
   end;
 end;
@@ -2934,7 +3729,7 @@ begin
     FKeyList.ForEachCall(@_ForAllKey,sl);
     sl.Sort;
     FFilterKey := sl.CommaText;
-    FFilterKey := 'FK|'+GFRE_BT.HashFast32_Hex(FFilterKey);
+    FFilterKey := 'F'+GFRE_BT.HashFast32_Hex(FFilterKey);
   finally
     sl.free;
   end;
@@ -3134,7 +3929,7 @@ begin
   for i := 0 to high(FOrderList) do
     with FOrderList[i] do
       key  := key +order_field+BoolToStr(ascending,'A','D');
-  FKey.OrderKey := GFRE_BT.HashFast32_Hex(key);
+  FKey.OrderKey := 'O'+GFRE_BT.HashFast32_Hex(key);
   FKey.key      := Fkey.Collname+'/'+FKey.DC_Name+'/'+FKey.RL_Spec+'/'+FKey.OrderKey;
 end;
 
@@ -3244,6 +4039,18 @@ begin
     end;
 end;
 
+function TFRE_DB_QUERY.FindRange4QueryAndUpdateQuerySpec(out range: TFRE_DB_SESSION_DC_RANGE): boolean;
+var mgr : TFRE_DB_SESSION_DC_RANGE_MGR;
+begin
+  mgr       := G_TCDM.GetRangeManagerLocked(self);
+  result    := mgr.FindRangeSatisfyingQuery(FStartIdx,FEndIndex,range)=rq_OK;  // self.FQueryPotentialCount
+  if result then
+    begin
+      FEndIndex            := range.FEndIndex;
+      FQueryPotentialCount := mgr.GetMaxIndex+1;
+    end;
+end;
+
 function TFRE_DB_QUERY.GetReflinkSpec(const upper_refid: TFRE_DB_NameType): TFRE_DB_NameTypeRLArray;
 var i:integer;
 begin
@@ -3337,13 +4144,13 @@ begin
   FBaseData.UnlockBase;
 end;
 
-procedure TFRE_DB_QUERY.SetMaxResultDBOLen(const compare_run: boolean);
-begin
-  if not compare_run then
-    SetLength(FResultDBOs,FToDeliverCount)
-  else
-    SetLength(FResultDBOsCompare,FToDeliverCount);
-end;
+//procedure TFRE_DB_QUERY.SetMaxResultDBOLen(const compare_run: boolean);
+//begin
+//  if not compare_run then
+//    SetLength(FResultDBOs,FToDeliverCount)
+//  else
+//    SetLength(FResultDBOsCompare,FToDeliverCount);
+//end;
 
 procedure TFRE_DB_QUERY.SetResultObject(const idx: NativeInt; const obj: IFRE_DB_Object; const compare_run: boolean);
 begin
@@ -3390,7 +4197,7 @@ end;
 
 function TFRE_DB_QUERY.CheckAutoDependencyFilterChanges(const key_description: TFRE_DB_NameTypeRL): boolean;
 begin
-  result := FFilterContainer.Filters.CheckAutoDependencyFilter(key_description);
+  result := FFilterContainer.FCCheckAutoDependencyFilter(key_description);
 end;
 
 procedure TFRE_DB_QUERY.ProcessFilterChangeBasedUpdates;
@@ -3462,7 +4269,7 @@ var diff,d1,d2 : NativeInt;
                  ntag  := FResultDBOsCompare[j].Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString;
                  if ntag<>otag then { object has a new transaction tag, thus was modified }
                    begin
-                     order_key := FFilterContainer.ForderKey;
+                     order_key := FFilterContainer.orderKey;
                      nkey      := FResultDBOsCompare[j].Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(order_key).AsByteArr;
                      okey      := FResultDBOs       [i].Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(order_key).AsByteArr;
                      comp      := CompareByte(nkey[0],okey[0],Length(nkey));
@@ -3518,7 +4325,7 @@ var diff,d1,d2 : NativeInt;
            end;
          if not exists then
            begin { insert }
-             order_key := FFilterContainer.ForderKey;
+             order_key := FFilterContainer.orderKey;
              key := FResultDBOsCompare[i].Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(order_key).AsByteArr;
              idx := FREDB_BinaryFindIndexInSorted(key,order_key,before,WorkArray,exists,nil);
              if idx<=0 then
@@ -4115,6 +4922,24 @@ begin
   FTransLock.Release;
 end;
 
+function TFRE_DB_TRANSDATA_MANAGER.GetRangeManagerLocked(const qry: TFRE_DB_QUERY): TFRE_DB_SESSION_DC_RANGE_MGR;
+var mgr_key : TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
+    dummy   : PtrUInt;
+begin
+  mgr_key := qry.FFilterContainer.GetRangeMgrKey(qry.FSessionID);
+  if FArtRangeMgrs.ExistsStringKey(mgr_key,dummy) then
+    begin
+      result := TFRE_DB_SESSION_DC_RANGE_MGR(FREDB_PtrUIntToObject(dummy));
+    end
+  else
+    begin
+      result := TFRE_DB_SESSION_DC_RANGE_MGR.Create(mgr_key,qry.FFilterContainer);
+      if not FArtRangeMgrs.InsertStringKey(mgr_key,FREDB_ObjectToPtrUInt(result)) then
+        raise EFRE_DB_Exception.Create(edb_INTERNAL,'range mgr tree insert failed');
+      //result.MaxDataChanged();
+    end;
+end;
+
 function TFRE_DB_TRANSDATA_MANAGER.GetNewOrderDefinition: TFRE_DB_DC_ORDER_DEFINITION_BASE;
 begin
   result := TFRE_DB_DC_ORDER_DEFINITION.Create;
@@ -4445,6 +5270,7 @@ begin
   FOrders.Init(10);
   FTransList.Init(10);
   FArtQueryStore := TFRE_ART_TREE.Create;
+  FArtRangeMgrs  := TFRE_ART_TREE.Create;
   FStatCleaner   := TFRE_DB_TDM_STATS_CLEANER.Create(self);
   FNotifyProc    := TFRE_DB_TDM_NOTIFY_APPLY.Create(self);
 end;
@@ -4563,7 +5389,8 @@ var qry : TFRE_DB_QUERY;
      with qry do
        begin
          FStartIdx        := qry_def.StartIdx;
-         FToDeliverCount  := qry_def.ToDeliverCount;
+         FEndIndex        := qry_def.EndIndex;
+         //FToDeliverCount  := qry_def.ToDeliverCount;
        end;
    end;
 
@@ -5019,10 +5846,8 @@ begin
   dummy      := nil;
   if FArtTreeFilterKey.InsertStringKeyOrFetchR(filtkey,dummy) then
     begin
-      qry_context.FFilterContainer := TFRE_DB_FilterContainer.Create(GetFullKey.orderkey,qry_context.GetFilterDefinition.FilterDBName);
-      qry_context.FFilterContainer.Filters.AddFilters(qry_context.FQueryFilters);          { clone filters into filtercontainer spec }
-      qry_context.FFilterContainer.Filters.Seal;                                           { store the filtercontainer reference in the query }
-      dummy^     := FREDB_ObjectToPtrUInt(qry_context.FFilterContainer);                   { but manage it in the art tree }
+      qry_context.FFilterContainer := TFRE_DB_FilterContainer.Create(GetFullKey,qry_context.GetFilterDefinition.FilterDBName,qry_context.FQueryFilters);
+      dummy^     := FREDB_ObjectToPtrUInt(qry_context.FFilterContainer); { clone filters into filtercontainer spec, store the filtercontainer reference in the query, but manage it in the art tree, of the transformed ordered data }
     end
   else
     begin
@@ -5037,7 +5862,7 @@ begin
     begin
       GFRE_DBI.LogInfo(dblc_DBTDM,'>NEW FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s]',[GetFullKey.key,filtkey]);
       st := GFRE_BT.Get_Ticks_ms;
-      qry_context.FFilterContainer.Filters.MustBeSealed;
+      //qry_context.FFilterContainer.Filters.MustBeSealed;
       FArtTreeKeyToObj.LinearScanBreak(@IteratorBreak,brk,false);
       qry_context.FFilterContainer.IsFilled := true;
       qry_context.FFilterContainer.AdjustLength;
@@ -5143,63 +5968,8 @@ end;
 
 
 procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.Execute(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY; const compare_run: boolean; const point_qry: boolean);
-//var brk        : boolean;
-//    filtkey    : TFRE_DB_TRANS_COLL_FILTER_KEY;
-//    dummy      : PNativeUint;
-//    st,et      : NativeInt;
-//    s          : string;
-//
-//  procedure IteratorBreak(var dummy : PtrUInt ; var halt : boolean);
-//  var oc : TFRE_DB_OrderContainer;
-//
-//      procedure MyIter(const obj : IFRE_DB_Object; var myhalt : boolean);
-//      begin
-//        qry_context.FFilterContainer.CheckFilteredAdd(obj);
-//      end;
-//
-//  begin
-//    oc := FREDB_PtrUIntToObject(dummy) as TFRE_DB_OrderContainer;
-//    oc.ForAllBreak(@MyIter,halt);
-//  end;
-
 begin
-  //brk := false;
-  //filtkey    := qry_context.FQueryFilters.GetFilterKey;
-  //dummy      := nil;
-  //if FArtTreeFilterKey.InsertStringKeyOrFetchR(filtkey,dummy) then
-  //  begin
-  //    qry_context.FFilterContainer := TFRE_DB_FilterContainer.Create(GetFullKey.orderkey,qry_context.GetFilterDefinition.FilterDBName);
-  //    qry_context.FFilterContainer.Filters.AddFilters(qry_context.FQueryFilters);          { clone filters into filtercontainer spec }
-  //    qry_context.FFilterContainer.Filters.Seal;                                           { store the filtercontainer reference in the query }
-  //    dummy^     := FREDB_ObjectToPtrUInt(qry_context.FFilterContainer);                   { but manage it in the art tree }
-  //  end
-  //else
-  //  begin
-  //    qry_context.FFilterContainer := FREDB_PtrUIntToObject(dummy^) as TFRE_DB_FilterContainer;
-  //    s := GetFullKey.key;
-  //    s := filtkey;
-  //    s := BoolToStr(qry_context.FFilterContainer.IsFilled,'FILLED','NOT FILLED');
-  //    GFRE_DBI.LogInfo(dblc_DBTDM,'>REUSING FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s] [%s]',[GetFullKey.key,filtkey,BoolToStr(qry_context.FFilterContainer.IsFilled,'FILLED','NOT FILLED')]);
-  //  end;
-  //qry_context.FFilterContainer.CheckDBReevaluation; { check if the filter was updated and needs db reevaluation }
-  ////if compare_run then
-  //// TODO REMOVE THIS, UPDATE SHOULD hAVE BEEN APPLIED IN FiLTER ALREADY
-  ////  begin
-  ////    GFRE_DBI.LogInfo(dblc_DBTDM,'>CLEAR FILTERING DUE TO COMPARE RUN FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s]',[GetFullKey.key,filtkey]);
-  ////    qry_context.FFilterContainer.ClearDataInFilter;
-  ////  end;
-  //if not qry_context.FFilterContainer.IsFilled then
-  //  begin
-  //    GFRE_DBI.LogInfo(dblc_DBTDM,'>NEW FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s]',[GetFullKey.key,filtkey]);
-  //    st := GFRE_BT.Get_Ticks_ms;
-  //    qry_context.FFilterContainer.Filters.MustBeSealed;
-  //    FArtTreeKeyToObj.LinearScanBreak(@IteratorBreak,brk,false);
-  //    qry_context.FFilterContainer.IsFilled := true;
-  //    qry_context.FFilterContainer.AdjustLength;
-  //    et := GFRE_BT.Get_Ticks_ms;
-  //    GFRE_DBI.LogInfo(dblc_DBTDM,'<NEW FILTERING FOR BASEDATA FOR [%s] FILTERKEY[%s] DONE in %d ms',[GetFullKey.key,filtkey,et-st]);
-  //  end;
-  CheckUpdateFilterContainer(qry_context,compare_run);
+  CheckUpdateFilterContainer(qry_context,compare_run); { now the filtering is created, or updated }
   if point_qry then
     qry_context.FFilterContainer.ExecutePointQuery(iter,qry_context)
   else
@@ -5269,7 +6039,159 @@ begin
 end;
 
 { TFRE_DB_TRANSDATA_MANAGER }
+procedure RangeManager_TestSuite;
+var rm       : TFRE_DB_SESSION_DC_RANGE_MGR;
+    fc       : TFRE_DB_FilterContainer;
+    fakekey  : TFRE_DB_TRANS_COLL_DATA_KEY;
+    i        : NativeInt;
 
+    procedure CheckRangeData(const rrr:TFRE_DB_SESSION_DC_RANGE);
+    var i   : NativeInt;
+        obj : IFRE_DB_Object;
+        oix : NativeInt;
+    begin
+      write(' RRR Check (',rrr.FStartIndex,'..',rrr.FEndIndex,') ');
+      for i := rrr.FStartIndex to rrr.FEndIndex do
+       begin
+         obj := rrr.GetAbsoluteIndexedObj(i);
+         oix := obj.Field('IDX').AsInt64;
+         if oix<>i then
+           rm.Bailout('Fail : Range %d .. %d  Data failed idx= %d oix = %d ',[rrr.FStartIndex,rrr.FEndIndex,i,oix]);
+       end;
+    end;
+
+    procedure QRCheck(const testid : Nativeint ; const s,e : NativeInt;const expected : TFRE_DB_SESSION_DC_RANGE_QRY_STATUS;const ranges :  Array of NativeInt);
+    var r   : TFRE_DB_SESSION_DC_RANGE;
+        g   : TFRE_DB_SESSION_DC_RANGE_QRY_STATUS;
+        msg : String;
+
+
+    begin
+      write('Test ',testid,' : ');
+      g := rm.FindRangeSatisfyingQuery(s,e,r);
+      if g<>expected then
+        begin
+          WriteStr(msg,'Test ',testid,' failed Expexted:',expected,' got ',g);
+          rm.Bailout(msg,[]);
+        end;
+      rm.InternalRangeCheck(ranges,@CheckRangeData);
+      writeln('OK');
+    end;
+
+    procedure DRCheck(const testid : Nativeint ; const s,e : NativeInt;const expected : TFRE_DB_SESSION_DC_RANGE_QRY_STATUS;const ranges :  Array of NativeInt);
+    var r   : TFRE_DB_SESSION_DC_RANGE;
+        g   : TFRE_DB_SESSION_DC_RANGE_QRY_STATUS;
+        msg : String;
+    begin
+      write('Test ',testid,' : ');
+      g := rm.DropRange(s,e);
+      if g<>expected then
+        begin
+          WriteStr(msg,'Test ',testid,' failed Expexted:',expected,' got ',g);
+          rm.Bailout(msg,[]);
+        end;
+      rm.InternalRangeCheck(ranges,@CheckRangeData);
+      writeln('OK');
+    end;
+
+
+begin
+  {
+    Data is from 0 .. 100 (101)
+    WARNING: Requests over the total count, no warning for first request, total count ->
+    ---
+    1)  Get Range 150-160 -> NO DATA
+    2)  RQry : 0..9     -> |0..9  |
+    3)  RQry : 20..29   -> |0..9  | |20..29|
+    4)  RQry : 9..15    -> |0..15 | |20..29|
+    5)  RQry : 19..22   -> |0..15 | |19..29| WARNING (Requesting already fetched Entries)
+    6)  RQry : 18..18   -> |0..15 | |18..29|
+    7)  RQry : 16..16   -> |0..16 | |18..29|
+    8)  RQry : 17..17   -> |0..29 |
+    9)  DelR : 10..19   -> |0..9  | |20..29|
+    10) DelR : 0..3     -> |4..9  | |20..29|
+    11) DelR : 0..4     -> |5..9  | |20..29|  WARNING (DelRange Data not in Range)
+    12) RQry : 40..49   -> |5..9  | |20..29| |40..49|
+    13) RQry : 60..69   -> |5..9  | |20..29| |40..49| |60..69|
+    14) RQry : 10..59   -> |5..69 | WARNING (Requesting already fetched Entries)
+    15) DelR : 10..19   -> |5..9  | |20..69|
+    16) DelR : 30..39   -> |5..9  | |20..29| |40..69|
+    17) DelR : 50..59   -> |5..9  | |20..29| |40..49| |60..69|
+    18) DelR : 15..55   -> |5..9  | |60..69| WARNING (DelRange Data not in Range)
+    19) RQry : 20..29   -> |5..9  | |20..29| |60..69|
+    20) RQry : 40..49   -> |5..9  | |20..29| |40..49| |60..69|
+    21) RQry : 6..61    -> |5..69 | WARNING (Requesting over known ranges)
+    22) Clear
+    23) 0..25
+    24) 26..60
+    25) 61..100
+    26) DRange 0..40
+    27) RQry : 30..120    -> |30..100 | WARNING (Requesting over known ranges)
+    28) RQry : 30..120    -> |30..100 | WARNING (Requesting over known ranges)
+    29) DRange 70.120 ->  |30..69 |
+    30) DRange 20.40 ->   |41..69 |
+    31) DRange 68.120 ->  |41..100|
+    32) Clear
+
+    TotalCount immer mitliefern
+
+    MaxDataChange -> Events -> Range Clear
+
+  }
+  fakekey.key:='X';
+  fc := TFRE_DB_FilterContainer.Create(fakekey,'X',nil);
+  SetLength(fc.FOBJArray,101);
+  for i:=0 to high(fc.FOBJArray) do
+   begin
+     fc.FOBJArray[i] := GFRE_DBI.NewObject;
+     fc.FOBJArray[i].Field('IDX').AsInt64:=i;
+   end;
+  rm := TFRE_DB_SESSION_DC_RANGE_MGR.Create('RTEST',fc);
+  rm.InternalRangeCheck([],nil);
+  QRCheck( 1,150,160,rq_NO_DATA,[]);
+  QRCheck( 2, 0, 9,rq_OK,[0,9]);
+  QRCheck( 3,20,29,rq_OK,[0,9,20,29]);
+  QRCheck( 4, 9,15,rq_OK,[0,15,20,29]);
+  QRCheck( 5,19,22,rq_OK,[0,15,19,29]);
+  QRCheck( 6,18,18,rq_OK,[0,15,18,29]);
+  QRCheck( 7,16,16,rq_OK,[0,16,18,29]);
+  QRCheck( 8,17,17,rq_OK,[0,29]);
+  DRCheck( 9,10,19,rq_OK,[0,9,20,29]);
+  DRCheck(10, 0, 3,rq_OK,[4,9,20,29]);
+  DRCheck(11, 0, 4,rq_OK,[5,9,20,29]);
+  QRCheck(12,40,49,rq_OK,[5,9,20,29,40,49]);
+  QRCheck(13,60,69,rq_OK,[5,9,20,29,40,49,60,69]);
+  QRCheck(14,10,59,rq_OK,[5,69]);
+  DRCheck(15,10, 19,rq_OK,[5,9,20,69]);
+  DRCheck(16,30, 39,rq_OK,[5,9,20,29,40,69]);
+  DRCheck(17,50, 59,rq_OK,[5,9,20,29,40,49,60,69]);
+  DRCheck(18,15, 55,rq_OK,[5,9,60,69]);
+  QRCheck(19,20,29,rq_OK,[5,9,20,29,60,69]);
+  QRCheck(20,40,49,rq_OK,[5,9,20,29,40,49,60,69]);
+  QRCheck(21,6,61,rq_OK,[5,69]);
+  rm.ClearRanges;
+  QRCheck(23, 0, 25,rq_OK,[0,25]);
+  QRCheck(24,26, 60,rq_OK,[0,60]);
+  QRCheck(25,61,100,rq_OK,[0,100]);
+  DRCheck(26, 0 ,40,rq_OK,[41,100]);
+  QRCheck(27,30,120,rq_OK,[30,100]);
+  QRCheck(28,30,120,rq_OK,[30,100]);
+  DRCheck(29,70,120,rq_OK,[30,69]);
+  DRCheck(30,20,40,rq_OK,[41,69]);
+  QRCheck(31,68,120,rq_OK,[41,100]);
+  rm.ClearRanges;
+  QRCheck(33,10,20,rq_OK,[10,20]);
+  QRCheck(34,40,50,rq_OK,[10,20,40,50]);
+  QRCheck(35,70,80,rq_OK,[10,20,40,50,70,80]);
+  QRCheck(36,21,75,rq_OK,[10,80]);
+  rm.ClearRanges;
+  QRCheck(33,10,20,rq_OK,[10,20]);
+  QRCheck(34,40,50,rq_OK,[10,20,40,50]);
+  QRCheck(35,70,80,rq_OK,[10,20,40,50,70,80]);
+  QRCheck(36,15,69,rq_OK,[10,80]);
+
+  rm.DumpRanges;
+end;
 
 end.
 

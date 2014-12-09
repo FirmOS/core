@@ -206,7 +206,9 @@ type
        function    ExistsStringKey         (const key: String ; var   value  : PtrUInt):boolean;
        function    RemoveStringKey         (const key: String ; var   value  : PtrUInt):boolean;
 
-       function    InsertUInt64Key         (const key: Uint64 ; var value : PtrUInt):boolean;
+       function    InsertUInt64Key         (const key: Uint64 ; const value : PtrUInt):boolean;
+       function    ExistsUInt64Key         (const key: Uint64 ; var   value : PtrUInt):boolean;
+       function    RemoveUInt64Key         (const key: Uint64 ; var   value : PtrUInt):boolean;
 
        procedure   LinearScan              (const nested_node_proc : TFRE_ART_NodeValueProc    ; const desc : boolean=false);
        function    LinearScanBreak         (const nested_node_proc: TFRE_ART_NodeValueBreakProc; var break: boolean ; const desc : boolean=false): Boolean;
@@ -225,6 +227,8 @@ type
        procedure   PrefixStringScanClear   (const prefix_key : string ; const nested_node_proc : TFRE_ART_NodeValueProc);
 
        function    RangeScan               (const lo_key,hi_key: PByte; const lo_keylen,hi_keylen : NativeUint ; const nested_node_proc : TFRE_ART_NodeBreakCallbackCountDown ; const max_count : NativeInt=0 ; skip : NativeInt=0 ; const asc : boolean=true):boolean;
+       function    RangeScanUint64Key      (const lo_key,hi_key: UInt64; const nested_node_proc : TFRE_ART_NodeBreakCallbackCountDown ; const max_count : NativeInt=0 ; skip : NativeInt=0 ; const asc : boolean=true):boolean;
+
        function    GetValueCount           : NativeUint;
      end;
 
@@ -1028,7 +1032,8 @@ procedure TFRE_ART_TREE.Clear;
   end;
 begin
   ForAllLeafsAndInner(FArtTree,@FreeIt);
-  FArtTree:=nil;
+  FArtTree    := nil;
+  FValueCount := 0;
 end;
 
 function TFRE_ART_TREE.IsALeafNode(node : PFRE_ART_Node):boolean; inline;
@@ -2009,7 +2014,7 @@ begin
     dec(FValueCount);
 end;
 
-function TFRE_ART_TREE.InsertUInt64Key(const key: Uint64; var value: PtrUInt): boolean;
+function TFRE_ART_TREE.InsertUInt64Key(const key: Uint64; const value: PtrUInt): boolean;
 var ukey : UInt64;
 begin
   {$IFDEF ENDIAN_LITTLE}
@@ -2018,6 +2023,28 @@ begin
     ukey := key;
   {$ENDIF}
   result := InsertBinaryKey(@ukey,8,value);
+end;
+
+function TFRE_ART_TREE.ExistsUInt64Key(const key: Uint64; var value: PtrUInt): boolean;
+var ukey : UInt64;
+begin
+  {$IFDEF ENDIAN_LITTLE}
+    ukey := SwapEndian(key);
+  {$ELSE}
+    ukey := key;
+  {$ENDIF}
+  result := ExistsBinaryKey(@ukey,8,value);
+end;
+
+function TFRE_ART_TREE.RemoveUInt64Key(const key: Uint64; var value: PtrUInt): boolean;
+var ukey : UInt64;
+begin
+  {$IFDEF ENDIAN_LITTLE}
+    ukey := SwapEndian(key);
+  {$ELSE}
+    ukey := key;
+  {$ENDIF}
+  result := RemoveBinaryKey(@ukey,8,value);
 end;
 
 function TFRE_ART_TREE.InsertStringKey(const key: string; const value: PtrUInt): boolean;
@@ -2392,6 +2419,22 @@ begin
   else
     ForAllNodeLeafsRangeReverse(FArtTree,@Iterate,halt,false,false,@lo_key_ex[0],@hi_key_ex[0],0);
   result := halt;
+end;
+
+function TFRE_ART_TREE.RangeScanUint64Key(const lo_key, hi_key: UInt64; const nested_node_proc: TFRE_ART_NodeBreakCallbackCountDown; const max_count: NativeInt; skip: NativeInt; const asc: boolean): boolean;
+var ukey_s,ukey_e : UInt64;
+begin
+  {$IFDEF ENDIAN_LITTLE}
+    ukey_s := SwapEndian(lo_key);
+  {$ELSE}
+    ukey_s := lo_key;
+  {$ENDIF}
+  {$IFDEF ENDIAN_LITTLE}
+    ukey_e := SwapEndian(hi_key);
+  {$ELSE}
+    ukey_e := hi_key;
+  {$ENDIF}
+  result := RangeScan(@ukey_s,@ukey_e,8,8,nested_node_proc,max_count,skip,asc);
 end;
 
 

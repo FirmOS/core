@@ -95,6 +95,7 @@ type
 
     procedure   DoRun                   ; override ;
     procedure   OrderedShutDown         ;
+    procedure   DebugTestProcedure      ;                                           { copy startup test code here}
 
     function    PreStartupTerminatingCommands: boolean        ; virtual;            { cmd's that should be executed without db(ple), they terminate}
     function    AfterConfigStartupTerminatingCommands:boolean ; virtual;            { cmd's that should be executed after the reading of cfg file, but before db core init}
@@ -639,6 +640,8 @@ begin
   PrepareStartup;      { The initial startup is done (connections can be made, but no extensions initialized }
   CheckTestLogging;    { CFG File reading done}
 
+  DebugTestProcedure;
+
   if AfterStartupTerminatingCommands then
     begin
       OrderedShutDown;
@@ -685,6 +688,13 @@ begin
   Cleanup_SSL_CMD_CA_Interface;
   FinalizeTransformManager;
   GFRE_BT.DeactivateJack;
+end;
+
+procedure TFRE_CLISRV_APP.DebugTestProcedure;
+begin
+  //RangeManager_TestSuite;
+  //sleep(2000);
+  //halt;
 end;
 
 function TFRE_CLISRV_APP.PreStartupTerminatingCommands:boolean;
@@ -1537,10 +1547,10 @@ procedure TFRE_CLISRV_APP.CfgTestLog;
   end;
 
 begin
-  //Setup_DB_Logging;
-  //Setup_HTTP_Request_Logging;
-  //Setup_Server_Logging;
-  //Setup_WS_Session_Logging;
+  Setup_DB_Logging;
+  Setup_HTTP_Request_Logging;
+  Setup_Server_Logging;
+  Setup_WS_Session_Logging;
   //Setup_APS_COMM_Logging;
   //Setup_Persistance_Layer_Logging;
   //Setup_FlexcomLogging;

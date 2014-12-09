@@ -966,10 +966,10 @@ end;
 function TFOS_DEFAULT_BASISTOOLS.CreateGUID_String: AnsiString;
 var g:TGUID;
 begin
- GFRE_BT.CriticalAbort('BAD');
- g:=CreateGUID;
- setlength(result,16);
- Move(g.D1,result[1],16);
+  GFRE_BT.CriticalAbort('BAD');
+  g:=CreateGUID;
+  setlength(result,16);
+  Move(g.D1,result[1],16);
 end;
 
 function TFOS_DEFAULT_BASISTOOLS.CreateGuid_HEX: Ansistring;

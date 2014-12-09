@@ -90,6 +90,8 @@ type
      function  GetPointer     : PByte;
   end;
 
+  TFRE_DB_SESSION_ID = TFRE_DB_GUID_String;
+
 var
     cFRE_DB_LOGIN_APP_UID            :TFRE_DB_Guid;
     cFRE_DB_LOGIN_APP                :TObject;
@@ -111,7 +113,7 @@ type
   TFRE_DB_ConstArray          = Array of TVarRec;
 
   TFRE_DB_LOGCATEGORY         = (dblc_NONE,dblc_PERSISTANCE,dblc_PERSISTANCE_NOTIFY,dblc_DB,dblc_MEMORY,dblc_REFERENCES,dblc_EXCEPTION,dblc_SERVER,dblc_HTTP_REQ,dblc_HTTP_RES,dblc_WEBSOCK,dblc_APPLICATION,
-                                 dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING,dblc_QUERY,dblc_DBTDM);
+                                 dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING,dblc_QUERY,dblc_DBTDM,dblc_DBTDMRM);
   TFRE_DB_Errortype_EC         = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_MISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
   TFRE_DB_FILTERTYPE          = (dbf_TEXT,dbf_SIGNED,dbf_UNSIGNED,dbf_DATETIME,dbf_BOOLEAN,dbf_CURRENCY,dbf_REAL64,dbf_GUID,dbf_SCHEME,dbf_RIGHT,dbf_EMPTY);
   TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART); { currently only the first value of the filter is uses in this modes }
@@ -168,8 +170,8 @@ const
   CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','C','R','G','X','Z','E');
   CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','LE','LEQ','GT','GEQ','REXB','RWIB','AVFF','OVFV','NVFF');
-  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM','QUERY','DBTDM');
-  CFRE_DB_LOGCATEGORY_INI_IDENT  : Array[TFRE_DB_LOGCATEGORY]             of String = ('NONE','PERSISTANCE','PERSISTANCE_NOTIFY','DB','MEMORY','REFERENCES','EXCEPTION','SERVER','HTTP_REQ','HTTP_RES','WEBSOCK','APPLICATION','SESSION','FLEXCOM','SERVER_DATA','WS_JSON','FLEX_IO','APSCOMM','HTTP_ZIP','HTTP_CACHE','STREAMING','QUERY','DBTM');
+  CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM','QUERY','DBTDM','TDMRM');
+  CFRE_DB_LOGCATEGORY_INI_IDENT  : Array[TFRE_DB_LOGCATEGORY]             of String = ('NONE','PERSISTANCE','PERSISTANCE_NOTIFY','DB','MEMORY','REFERENCES','EXCEPTION','SERVER','HTTP_REQ','HTTP_RES','WEBSOCK','APPLICATION','SESSION','FLEXCOM','SERVER_DATA','WS_JSON','FLEX_IO','APSCOMM','HTTP_ZIP','HTTP_CACHE','STREAMING','QUERY','DBTM','TDMRM');
   CFRE_DB_COMMANDTYPE            : Array[TFRE_DB_COMMANDTYPE]             of String = ('S','SR','AR','E');
   CFRE_DB_DISPLAY_TYPE           : Array[TFRE_DB_DISPLAY_TYPE]            of string = ('STR','DAT','NUM','PRG','CUR','ICO','BOO','DES');
   CFRE_DB_MESSAGE_TYPE           : array [TFRE_DB_MESSAGE_TYPE]           of string = ('msg_error','msg_warning','msg_info','msg_confirm','msg_wait');
@@ -730,12 +732,12 @@ type
     function       FetchPublisherSessionLocked               (const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchPublisherSessionLockedMachine        (const machineid: TFRE_DB_GUID ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
     function       FetchPublisherSessionLockedMachineMac     (const machine_mac: TFRE_DB_NameType ; const rcall,rmeth:TFRE_DB_NameType;out ses : TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean;
-    function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_String ; var ses : TFRE_DB_UserSession):boolean;
+    function       FetchSessionByIdLocked                    (const sesid : TFRE_DB_SESSION_ID ; var ses : TFRE_DB_UserSession):boolean;
     procedure      ForAllSessionsLocked                      (const iterator : TFRE_DB_SessionIterator ; var halt : boolean); // If halt, then the dir and the session remain locked!
     function       GetImpersonatedDatabaseConnection         (const dbname,username,pass:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION ; const allowed_classes : TFRE_DB_StringArray):TFRE_DB_Errortype;
     function       GetDBWithServerRights                     (const dbname:TFRE_DB_String ; out dbs:IFRE_DB_CONNECTION):TFRE_DB_Errortype;
     function       CheckUserNamePW                           (username,pass:TFRE_DB_String ; const allowed_classes : TFRE_DB_StringArray) : TFRE_DB_Errortype;
-    function       SendDelegatedContentToClient              (sessionID : TFRE_DB_String ; const content : TFRE_DB_CONTENT_DESC):boolean;
+    function       SendDelegatedContentToClient              (sessionID : TFRE_DB_SESSION_ID ; const content : TFRE_DB_CONTENT_DESC):boolean;
   end;
 
   { IFRE_DB_EXTENSION_MNGR }
@@ -945,7 +947,7 @@ type
     RL_Spec   : TFRE_DB_NameTypeRL;
     RL_SpecUC : TFRE_DB_NameTypeRL;
     orderkey  : TFRE_DB_Nametype;
-    filterkey : string[31];
+    filterkey : TFRE_DB_TRANS_COLL_FILTER_KEY;
   end;
 
 
@@ -1145,9 +1147,9 @@ type
     function     GetCType         : TFRE_DB_COMMANDTYPE;
     function     GetEText         : TFRE_DB_String;
     function     GetFatalClose    : Boolean;
-    function     GetChangeSessionKey    : String;
+    function     GetChangeSessionKey    : TFRE_DB_SESSION_ID;
     procedure    SetBinDataKey          (AValue: string);
-    procedure    SetChangeSessionKey    (AValue: String);
+    procedure    SetChangeSessionKey    (AValue: TFRE_DB_SESSION_ID);
     procedure    SetFatalClose    (AValue: Boolean);
     procedure    SetEText         (AValue: TFRE_DB_String);
     procedure    SetAnswerInterface (const answer_interface : IFRE_DB_COMMAND_REQUEST_ANSWER_SC); //
@@ -1184,7 +1186,7 @@ type
     property     CommandType   : TFRE_DB_COMMANDTYPE read GetCType        write SetCType;
     property     ErrorText     : TFRE_DB_String      read GetEText        write SetEText;
     property     FatalClose    : Boolean             read GetFatalClose   write SetFatalClose;
-    property     ChangeSession : String              read GetChangeSessionKey   write SetChangeSessionKey;
+    property     ChangeSession : TFRE_DB_SESSION_ID  read GetChangeSessionKey   write SetChangeSessionKey;
     property     BinaryDataKey : string              read GetBinDataKey   write SetBinDataKey;
   end;
 
@@ -2067,8 +2069,8 @@ end;
   TFRE_DB_QUERY_DEF=record
      ClientQueryID          : Int64;
      StartIdx               : Int32;
-     ToDeliverCount         : Int32;
-     SessionID              : TFRE_DB_NameTypeRL;
+     EndIndex               : Int32;
+     SessionID              : TFRE_DB_SESSION_ID;
      DerivedCollName        : TFRE_DB_NameTypeRL;
      ParentName             : TFRE_DB_NameTypeRL;
      DBName                 : TFRE_DB_NameType;
@@ -2098,11 +2100,6 @@ end;
     function  ExecuteQuery         (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;virtual;abstract;
     procedure ExecutePointQuery    (const iterator   : IFRE_DB_Obj_Iterator);virtual;abstract;
     procedure UnlockBaseData       ;virtual;abstract;
-  end;
-
-  TFRE_DB_CHILD_LEVEL_BASE=class
-    function  ChildLevelsCount : NativeInt; virtual ; abstract;
-    procedure AddChildLevel    (parentpath : String ; const child_uids : TFRE_DB_GUIDArray) ; virtual ; abstract;
   end;
 
   TFRE_DB_TRANSFORMED_ARRAY_BASE=class
@@ -2712,7 +2709,6 @@ end;
     procedure   LogNoticeIf            (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
     procedure   LogEmergencyIf         (const category:TFRE_DB_LOGCATEGORY;const logcallback : TFRE_SimpleCallbackNested);
 
-    procedure   ClearGUID              (var uid:TFRE_DB_GUID);
     function    Get_A_Guid             : TFRE_DB_GUID;
     function    Get_A_Guid_HEX         : Ansistring;
     property    LocalZone              : TFRE_DB_String read GetLocalZone write SetLocalZone;
@@ -2796,7 +2792,7 @@ end;
   TFRE_DB_OnRestoreDefaultConnection  = function  (out   username:TFRE_DB_String;out conn : IFRE_DB_CONNECTION):TFRE_DB_Errortype of object;
   TFRE_DB_OnExistsUserSessionForKey   = function  (const key:string;out other_session:TFRE_DB_UserSession):boolean of object;
   TFRE_DB_OnFetchPublisherSession     = function  (const rcall,rmeth:TFRE_DB_NameType;out ses:TFRE_DB_UserSession ; out right:TFRE_DB_String):boolean of object;
-  TFRE_DB_OnFetchSessionByID          = function  (const sessionid : TFRE_DB_String ; var session : TFRE_DB_Usersession):boolean of object;
+  TFRE_DB_OnFetchSessionByID          = function  (const sessionid : TFRE_DB_SESSION_ID ; var session : TFRE_DB_Usersession):boolean of object;
   TFRE_DB_PromoteResult               = (pr_OK,pr_Failed,pr_Takeover,pr_TakeoverPrepared);
 
   { TFRE_DB_UserSession }
@@ -2812,7 +2808,7 @@ end;
   { IFRE_DB_UserSession }
 
   IFRE_DB_UserSession=interface
-    function    GetSessionID             : TFRE_DB_String;
+    function    GetSessionID             : TFRE_DB_SESSION_ID;
     function    GetSessionState          : TFRE_DB_SESSIONSTATE;
     function    GetSessionAppData        (const app_key:TFRE_DB_String):IFRE_DB_Object;
     function    GetSessionModuleData     (const mod_key:TFRE_DB_String):IFRE_DB_Object;
@@ -2824,7 +2820,7 @@ end;
     procedure   Logout                   ;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false ; const allowed_user_classes: array of TFRE_DB_String) : TFRE_DB_PromoteResult; // Promote USER to another USER
 
-    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
+    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:TFRE_DB_SESSION_ID='');
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
 
     //Send a Server Client Message in behalv of another session (think about security)
@@ -2873,10 +2869,10 @@ end;
    Finput                  : IFRE_DB_Object;
    FSyncCallback           : TFRE_DB_RemoteCB;
    Fopaquedata             : IFRE_DB_Object;
-   FsessionID              : String;
+   FsessionID              : TFRE_DB_SESSION_ID;
    FOCid                   : QWord;
   public
-    constructor Create(const rclassname, rmethodname: TFRE_DB_NameType ; const ocid : QWord ; const SessionID: String; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object);
+    constructor Create(const rclassname, rmethodname: TFRE_DB_NameType ; const ocid : QWord ; const SessionID: TFRE_DB_SESSION_ID; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object);
   end;
 
   { TFRE_DB_RemoteSessionAnswerEncapsulation }
@@ -2888,7 +2884,7 @@ end;
    Fopaquedata             : IFRE_DB_Object;
    FOCid                   : Qword;
    FContmethod             : TFRE_DB_RemoteCB;
-   FSesID                  : TFRE_DB_String;
+   FSesID                  : TFRE_DB_SESSION_ID;
   public
     constructor Create         (const data : IFRE_DB_Object ; const status : TFRE_DB_COMMAND_STATUS ; const original_command_id : Qword ; const opaquedata : IFRE_DB_Object ; Contmethod : TFRE_DB_RemoteCB ; const SesID : TFRE_DB_String);
     procedure   DispatchAnswer (const ses : IFRE_DB_UserSession);
@@ -2930,8 +2926,7 @@ end;
     FOnWorkCommands       : TNotifyEvent;
     FUserName             : TFRE_DB_String;
     FuserDomain           : TFRE_DB_Guid;
-    FSessionID            : TFRE_DB_String;
-    FPassMD5              : TFRE_DB_String;
+    FSessionID            : TFRE_DB_SESSION_ID;
     FDefaultApp           : TFRE_DB_String;
     FSessionData          : IFRE_DB_Object;
     FBinaryInputs         : IFRE_DB_Object; { per key requestable of Binary Input which get's sent seperated from the data }
@@ -3006,7 +3001,7 @@ end;
     procedure   Logout                   ;
     function    LoggedIn                 : Boolean;
     function    QuerySessionDestroy      : Boolean;
-    function    GetSessionID             : TFRE_DB_String;
+    function    GetSessionID             : TFRE_DB_SESSION_ID;
     function    GetSessionAppData        (const app_key:TFRE_DB_String):IFRE_DB_Object;
     function    GetSessionModuleData     (const mod_key:TFRE_DB_String):IFRE_DB_Object;
     function    GetSessionGlobalData     :IFRE_DB_Object;
@@ -3039,7 +3034,7 @@ end;
     function    IsDBOUpdatable             (const UID_id: TFRE_DB_GUID):boolean;
 
 
-    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String=''); // Currently no continuation, and answer processing is implemented, is an Async request
+    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:TFRE_DB_SESSION_ID=''); // Currently no continuation, and answer processing is implemented, is an Async request
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
     procedure   SendServerClientCMD      (const cmd : IFRE_DB_COMMAND);
 
@@ -5119,7 +5114,7 @@ end;
 
 { TFRE_DB_RemoteSessionInvokeEncapsulation }
 
-constructor TFRE_DB_RemoteSessionInvokeEncapsulation.Create(const rclassname, rmethodname: TFRE_DB_NameType; const ocid: QWord; const SessionID: String; const input: IFRE_DB_Object; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object);
+constructor TFRE_DB_RemoteSessionInvokeEncapsulation.Create(const rclassname, rmethodname: TFRE_DB_NameType; const ocid: QWord; const SessionID: TFRE_DB_SESSION_ID; const input: IFRE_DB_Object; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object);
 begin
   Fclassname    := rclassname;
   Fmethodname   := rmethodname;
@@ -5620,7 +5615,6 @@ end;
 
 procedure TFRE_DB_UserSession._FixupDCName(var dcname: TFRE_DB_NameType);
 begin
-  //dcname := 'dc'+uppercase(dcname)+FSessionID;
   dcname := uppercase(dcname);
 end;
 
@@ -5632,7 +5626,7 @@ begin
   FDefaultApp           := default_app;
   FDBConnection         := conn;
   FDefaultUID           := default_uid_path;
-  FSessionID            := 'S'+GFRE_DBI.Get_A_Guid_HEX;
+  FSessionID            := GFRE_DBI.Get_A_Guid_HEX;
   FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO;
   FTimers               := TList.Create;
   FBinaryInputs         := GFRE_DBI.NewObject;
@@ -6572,7 +6566,7 @@ var tod : TCOR_TakeOverData;
     var
       MSG  : TFRE_DB_MESSAGE_DESC;
       APP  : TFRE_DB_APPLICATION;
-      sId  : String;
+      sId  : TFRE_DB_SESSION_ID;
       idx  : integer;
       take_over_content : TFRE_DB_CONTENT_DESC;
     begin
@@ -6653,7 +6647,7 @@ begin
   GFRE_DBI.LogDebug(dblc_SERVER,'QUERY DISCONNECTING SESSION [%s] DESTROY=%s',[FSessionID,BoolToStr(result,'1','0')]);
 end;
 
-function TFRE_DB_UserSession.GetSessionID: TFRE_DB_String;
+function TFRE_DB_UserSession.GetSessionID: TFRE_DB_SESSION_ID;
 begin
   result := FSessionID;
 end;
@@ -6894,7 +6888,7 @@ begin
 end;
 
 
-procedure TFRE_DB_UserSession.SendServerClientRequest(const description: TFRE_DB_CONTENT_DESC;const session_id:String);
+procedure TFRE_DB_UserSession.SendServerClientRequest(const description: TFRE_DB_CONTENT_DESC;const session_id:TFRE_DB_SESSION_ID);
 var CMD        : IFRE_DB_COMMAND;
     request_id : Qword;
 begin

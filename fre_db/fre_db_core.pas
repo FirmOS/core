@@ -721,8 +721,8 @@ type
     procedure    SetInvokeMethod   (AValue: String);
     function     GetEText         : TFRE_DB_String;
     function     GetFatalClose    : Boolean;
-    function     GetChangeSessionKey  : String;
-    procedure    SetChangeSessionKey  (AValue: String);
+    function     GetChangeSessionKey  : TFRE_DB_SESSION_ID;
+    procedure    SetChangeSessionKey  (AValue: TFRE_DB_SESSION_ID);
     procedure    SetFatalClose    (AValue: Boolean);
     procedure    SetEText         (AValue: TFRE_DB_String);
     procedure    SetBinDataKey    (AValue: string);
@@ -756,7 +756,7 @@ type
     property     CommandType   : TFRE_DB_COMMANDTYPE read GetCType            write SetCType;
     property     ErrorText     : TFRE_DB_String      read GetEText            write SetEText;
     property     FatalClose    : Boolean             read GetFatalClose       write SetFatalClose;
-    property     ChangeSessionKey : String           read GetChangeSessionKey write SetChangeSessionKey; // Should be only set in Answer to Force the Client to update his SessionID
+    property     ChangeSessionKey : TFRE_DB_SESSION_ID           read GetChangeSessionKey write SetChangeSessionKey; // Should be only set in Answer to Force the Client to update his SessionID
   end;
 
   { TFRE_DB_OBJECTLIST }
@@ -1698,8 +1698,10 @@ type
     ref_name : TFRE_DB_NameType;
   end;
 
-  //@ Used for filtered, sorted Collections, is based on  a "real" collection
-  TFRE_DB_DERIVED_COLLECTION=class(TFRE_DB_Object,IFRE_DB_DERIVED_COLLECTION) //
+  { Used for filtered, sorted Collections, is based on  a "real" collection }
+  { For each Session exists one distinct DC }
+
+  TFRE_DB_DERIVED_COLLECTION=class(TFRE_DB_Object,IFRE_DB_DERIVED_COLLECTION)
   private
    type
      TDC_Mode      = (dc_None,dc_Map2RealCollection);
@@ -1758,7 +1760,7 @@ type
     procedure       _CheckDepRefConstraint        ;
     procedure       MustBeInitialized             ;
   protected
-    procedure  BindSession                     (const session : TFRE_DB_UserSession);
+    procedure    BindSession                   (const session : TFRE_DB_UserSession);
   public
     constructor  Create                        (const dbname: TFRE_DB_NameType; const name: TFRE_DB_NameType);
     destructor   Destroy                       ; override;
@@ -2550,7 +2552,6 @@ type
     procedure   LogEmergency           (const category:TFRE_DB_LOGCATEGORY;const msg:ShortString;const param:array of const);
 
     property    NetServer              : IFRE_DB_NetServer read NetServ write FNetServer;
-    procedure   ClearGUID              (var uid:TFRE_DB_GUID);
     function    Get_A_Guid             : TFRE_DB_GUID;
     function    Get_A_Guid_HEX         : Ansistring;
   end;
@@ -4410,12 +4411,12 @@ begin
   result := FFatalClose.AsBoolean;
 end;
 
-function TFRE_DB_COMMAND.GetChangeSessionKey: String;
+function TFRE_DB_COMMAND.GetChangeSessionKey: TFRE_DB_SESSION_ID;
 begin
   result := FChangeSession.AsString;
 end;
 
-procedure TFRE_DB_COMMAND.SetChangeSessionKey(AValue: String);
+procedure TFRE_DB_COMMAND.SetChangeSessionKey(AValue: TFRE_DB_SESSION_ID);
 begin
   FChangeSession.AsString:=AValue;
 end;
@@ -7844,7 +7845,7 @@ begin
  qrydef.UserTokenRef           := FDC_Session.GetDBConnection.SYS.GetCurrentUserTokenRef;
  qrydef.ClientQueryID          := clientid;
  qrydef.StartIdx               := start;
- qrydef.ToDeliverCount         := count;
+ qrydef.EndIndex               := start+count;
  result := qrydef;
 end;
 
@@ -8310,16 +8311,19 @@ begin
         GFRE_DB_TCDM.UnlockManager;
       end;
     finally
-      if not qry_ok then
-        query.Free
-      else
-        begin
-          GFRE_DB_TCDM.StoreQuery(query);
-        end;
+      query.Free;
+      //if not qry_ok then
+      //  query.Free
+      //else
+      //  begin
+      //    GFRE_DB_TCDM.StoreQuery(query);
+      //  end;
     end;
-  except
-    writeln('GRID DATA EXCEPTION : ',FName,' ',input.DumpToString());
-    raise;
+  except on e:exception do
+    begin
+      writeln('GRID DATA EXCEPTION : ',e.Message,'   ',FName,' ',input.DumpToString());
+      raise;
+    end;
   end;
 end;
 
@@ -13811,12 +13815,6 @@ end;
 procedure TFRE_DB.LogEmergency(const category: TFRE_DB_LOGCATEGORY; const msg: ShortString; const param: array of const);
 begin
   GFRE_LOG.Log(msg,param,CFRE_DB_LOGCATEGORY[category],fll_Emergency,CFOS_LL_Target[fll_Emergency],false);
-end;
-
-
-procedure TFRE_DB.ClearGUID(var uid: TFRE_DB_GUID);
-begin
-  FillByte(uid,sizeof(uid),0);
 end;
 
 
