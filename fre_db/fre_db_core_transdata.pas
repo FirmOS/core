@@ -4046,7 +4046,10 @@ begin
   result    := mgr.FindRangeSatisfyingQuery(FStartIdx,FEndIndex,range)=rq_OK;  // self.FQueryPotentialCount
   if result then
     begin
-      FEndIndex            := range.FEndIndex;
+      if FEndIndex>range.FEndIndex then { crop down endindex if it is too high}
+        begin
+          FEndIndex            := range.FEndIndex;
+        end;
       FQueryPotentialCount := mgr.GetMaxIndex+1;
     end;
 end;
