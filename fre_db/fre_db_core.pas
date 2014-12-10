@@ -1805,7 +1805,7 @@ type
     function   FetchIndexed                    (const idx:NativeInt) : IFRE_DB_Object;
     function   FetchInDerived                  (const ouid:TFRE_DB_GUID;out dbo:IFRE_DB_Object): boolean; { honors rights and serverside filters, delivers the transformed(!) object !!}
     function   ItemCount                       : Int64;
-    function   SetupQryDefinitionBasic         (const start, count,clientid: NativeInt): TFRE_DB_QUERY_DEF;
+    function   SetupQryDefinitionBasic         (const start, endPos,clientid: NativeInt): TFRE_DB_QUERY_DEF;
     function   SetupQryDefinitionFromWeb       (const web_input : IFRE_DB_Object):TFRE_DB_QUERY_DEF;
     function   ExecuteQryLocked                (const qrydef : TFRE_DB_QUERY_DEF ; out qry :TFRE_DB_QUERY_BASE):NativeInt; { the base and thus implicitly the filtered data is returned locked, does not store the query }
     function   ExecutePointQry                 (const qrydef : TFRE_DB_QUERY_DEF):IFRE_DB_Object; { the base and thus implicitly the filtered data is returned locked, does not store the query }
@@ -7826,7 +7826,7 @@ begin
   end;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.SetupQryDefinitionBasic(const start, count, clientid: NativeInt): TFRE_DB_QUERY_DEF;
+function TFRE_DB_DERIVED_COLLECTION.SetupQryDefinitionBasic(const start, endPos, clientid: NativeInt): TFRE_DB_QUERY_DEF;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
  qrydef:=default(TFRE_DB_QUERY_DEF);
@@ -7845,7 +7845,7 @@ begin
  qrydef.UserTokenRef           := FDC_Session.GetDBConnection.SYS.GetCurrentUserTokenRef;
  qrydef.ClientQueryID          := clientid;
  qrydef.StartIdx               := start;
- qrydef.EndIndex               := start+count;
+ qrydef.EndIndex               := endPos;
  result := qrydef;
 end;
 
@@ -8037,7 +8037,7 @@ var i, j, cnt : NativeInt;
     end;
 
 begin
-  qrydef := SetupQryDefinitionBasic(web_input.Field('start').AsInt32,web_input.Field('count').AsInt32,strtoint(web_input.Field('QUERYID').AsString));
+  qrydef := SetupQryDefinitionBasic(web_input.Field('start').AsInt32,web_input.Field('end').AsInt32,strtoint(web_input.Field('QUERYID').AsString));
   qrydef.FullTextFilter := web_input.Field('FULLTEXT').AsString;
   if web_input.FieldExists('parentid') then
     begin { this is a child query }
