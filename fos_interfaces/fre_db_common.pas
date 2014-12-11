@@ -172,7 +172,7 @@ type
     //@ Describes a store whith the given data model.
     //@ The server function is used to retrieve the data.
     //@ The id will be needed if a grid selection should filter the store.
-    function  Describe            (const idField:String='uid'; const serverFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const destroyFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const id:String=''; const pageSize:Integer=25): TFRE_DB_STORE_DESC; overload;
+    function  Describe            (const idField:String='uid'; const serverFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const destroyFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const clearFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const id:String=''): TFRE_DB_STORE_DESC; overload;
 
     //@ Creates a new entry and adds it to the store. E.g. used for choosers.
     function  AddEntry            : TFRE_DB_STORE_ENTRY_DESC;
@@ -1561,19 +1561,18 @@ implementation
 
   { TFRE_DB_STORE_DESC }
 
-    function TFRE_DB_STORE_DESC.Describe(const idField: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const destroyFunc: TFRE_DB_SERVER_FUNC_DESC; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC; const id: String; const pageSize: Integer): TFRE_DB_STORE_DESC;
+  function TFRE_DB_STORE_DESC.Describe(const idField: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const destroyFunc: TFRE_DB_SERVER_FUNC_DESC; const clearFunc: TFRE_DB_SERVER_FUNC_DESC; const id: String): TFRE_DB_STORE_DESC;
   begin
     Field('idField').AsString:=idField;
     if Assigned(serverFunc) then begin
       Field('serverFunc').AsObject:=serverFunc;
     end;
-    if Assigned(clearQueryIdFunc) then begin
-      Field('clearQueryIdFunc').AsObject:=clearQueryIdFunc;
+    if Assigned(clearFunc) then begin
+      Field('clearFunc').AsObject:=clearFunc;
     end;
     if Assigned(destroyFunc) then begin
       Field('destroyFunc').AsObject:=destroyFunc;
     end;
-    Field('pageSize').AsInt16:=pageSize;
     if id='' then begin
       Field('id').AsString:='id'+UID_String;
     end else begin
