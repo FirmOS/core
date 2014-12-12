@@ -1367,6 +1367,8 @@ type
     function  AddInputGroup                (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
     function  ReplaceInputGroup            (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
     function  GetInputGroup                (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
+    procedure SetOverlayRights4UserClass   (const Userclass:TFRE_DB_NameType ; const right_set : TFRE_DB_STANDARD_RIGHT_SET);
+    function  GetOverlayRights4UserClass   (const UserClass:TFRE_DB_NameType ; out   right_set : TFRE_DB_STANDARD_RIGHT_SET):boolean;
 
     function  GetSchemeType                : TFRE_DB_SchemeType;
     function  ValidateObject               (const dbo : IFRE_DB_Object;const raise_errors:boolean=true):boolean;
