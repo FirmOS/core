@@ -939,15 +939,22 @@ type
   IFRE_DB_TRANSFORMOBJECT = interface;
 
   TFRE_DB_TRANS_COLL_FILTER_KEY = string[31];
+  TFRE_DB_CACHE_DATA_KEY        = shortstring;
+
+  { TFRE_DB_TRANS_COLL_DATA_KEY }
 
   TFRE_DB_TRANS_COLL_DATA_KEY = record
-    key       : shortstring;
     Collname  : TFRE_DB_NameType;
     DC_Name   : TFRE_DB_NameType;
     RL_Spec   : TFRE_DB_NameTypeRL;
-    RL_SpecUC : TFRE_DB_NameTypeRL;
     orderkey  : TFRE_DB_Nametype;
     filterkey : TFRE_DB_TRANS_COLL_FILTER_KEY;
+    FSealed   : Boolean;
+    procedure Seal;
+    function  IsSealed         : Boolean;
+    function  GetFullKeyString : TFRE_DB_CACHE_DATA_KEY; { includes filterkey, full spec of cached data  }
+    function  GetOrderKeyPart  : TFRE_DB_CACHE_DATA_KEY; { includes ordering upon basedata               }
+    function  GetBaseDataKey   : TFRE_DB_CACHE_DATA_KEY; { includes only basedata identification         }
   end;
 
 
@@ -2028,9 +2035,9 @@ type
 
   TFRE_DB_TRANS_RESULT_BASE = class
   public
-    procedure LockBase   ; virtual; abstract;
-    procedure UnlockBase ; virtual; abstract;
-    function  GetFullKey : TFRE_DB_TRANS_COLL_DATA_KEY; virtual ; abstract;
+    procedure LockOrder   ; virtual; abstract;
+    procedure UnlockOrder ; virtual; abstract;
+    //function  GetFullKey : TFRE_DB_TRANS_COLL_DATA_KEY; virtual ; abstract;
   end;
 
   { TFRE_DB_DC_FILTER_DEFINITION_BASE }
@@ -2101,7 +2108,7 @@ end;
     procedure SetBaseOrderedData   (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);virtual;abstract;
     function  ExecuteQuery         (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;virtual;abstract;
     procedure ExecutePointQuery    (const iterator   : IFRE_DB_Obj_Iterator);virtual;abstract;
-    procedure UnlockBaseData       ;virtual;abstract;
+    procedure UnlockQryData        ;virtual;abstract;
   end;
 
   TFRE_DB_TRANSFORMED_ARRAY_BASE=class
@@ -2121,13 +2128,12 @@ end;
     function   GetNewFilterDefinition    (const filter_db_name : TFRE_DB_NameType): TFRE_DB_DC_FILTER_DEFINITION_BASE; virtual; abstract;
     function   GetTransformedDataLocked  (const query: TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;
     procedure  NewTransformedDataLocked  (const qry: TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
-    function   GenerateQueryFromQryDef    (const qry_def : TFRE_DB_QUERY_DEF):TFRE_DB_QUERY_BASE; virtual ; abstract;
-    procedure  StoreQuery               (const qry: TFRE_DB_QUERY_BASE); virtual; abstract;
-    procedure  RemoveQuery              (const qry_id: TFRE_DB_NameType); virtual; abstract;
-    procedure  DropAllQuerys            (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
-    function   FormQueryID              (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
-    procedure  InboundNotificationBlock (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
-    procedure  UpdateLiveStatistics     (const stats : IFRE_DB_Object);virtual ; abstract;
+    function   GenerateQueryFromQryDef   (const qry_def : TFRE_DB_QUERY_DEF):TFRE_DB_QUERY_BASE; virtual ; abstract;
+    procedure  RemoveQueryRange          (const qry_id: TFRE_DB_NameType ; const start_idx,end_index : NativeInt); virtual; abstract;
+    procedure  DropAllQueryRanges        (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
+    function   FormQueryID               (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
+    procedure  InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
+    procedure  UpdateLiveStatistics      (const stats : IFRE_DB_Object);virtual ; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -4289,7 +4295,7 @@ var cnt,i,myat   : NativeInt;
 begin
   SetLength(result,Length(arr)+1);
   if (at_idx<0) or (at_idx>High(Result)) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'FREDB_RemoveIdxFomObjectArray idx not in bounds failed -> [%d<=%d<=%d]', [0,at_idx,high(arr)]);
+    raise EFRE_DB_Exception.Create(edb_ERROR,'FREDB_InsertIdxFomObjectArray idx not in bounds failed -> [%d<=%d<=%d]', [0,at_idx,high(arr)]);
   cnt  := 0;
   myat := at_idx;
   if length(arr)=0 then
@@ -4379,6 +4385,39 @@ type
 
 const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
+
+{ TFRE_DB_TRANS_COLL_DATA_KEY }
+
+procedure TFRE_DB_TRANS_COLL_DATA_KEY.Seal;
+begin
+  FSealed := true;
+end;
+
+function TFRE_DB_TRANS_COLL_DATA_KEY.IsSealed: Boolean;
+begin
+  result := FSealed;
+end;
+
+function TFRE_DB_TRANS_COLL_DATA_KEY.GetFullKeyString: TFRE_DB_CACHE_DATA_KEY;
+begin
+  result := Collname+'/'+DC_Name+'/'+RL_Spec+'/'+OrderKey+'/'+filterkey;
+  if orderkey='' then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'invalid cache key usage, order part is undefined');
+  if filterkey='' then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'invalid cache key usage, filter part is undefined');
+end;
+
+function TFRE_DB_TRANS_COLL_DATA_KEY.GetOrderKeyPart: TFRE_DB_CACHE_DATA_KEY;
+begin
+  result := Collname+'/'+DC_Name+'/'+RL_Spec+'/'+OrderKey;
+  if orderkey='' then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'invalid cache key usage, order part is undefined');
+end;
+
+function TFRE_DB_TRANS_COLL_DATA_KEY.GetBaseDataKey: TFRE_DB_CACHE_DATA_KEY;
+begin
+  result := Collname+'/'+DC_Name+'/'+RL_Spec;
+end;
 
 { TFOS_MAC_ADDR }
 
@@ -6808,12 +6847,12 @@ begin
     raise EFRE_DB_Exception.Create(edb_INTERNAL,' REUSE SESSION FAILED, ALREADY BOUND INTERFACE FOUND');
   FBoundSession_RA_SC := sc_interface;
   GFRE_DBI.LogNotice(dblc_SESSION,'SET SESSION INTERFACE (RESUE) -> SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+']');
-  GFRE_DB_TCDM.DropAllQuerys(GetSessionID,'');
+  GFRE_DB_TCDM.DropAllQueryRanges(GetSessionID,'');
 end;
 
 procedure TFRE_DB_UserSession.ClearServerClientInterface;
 begin
-  GFRE_DB_TCDM.DropAllQuerys(GetSessionID,'');
+  GFRE_DB_TCDM.DropAllQueryRanges(GetSessionID,'');
   RemoveAllTimers;
   if FPromoted then
     FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO

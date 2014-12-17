@@ -1810,11 +1810,10 @@ type
     function   ExecuteQryLocked                (const qrydef : TFRE_DB_QUERY_DEF ; out qry :TFRE_DB_QUERY_BASE):NativeInt; { the base and thus implicitly the filtered data is returned locked, does not store the query }
     function   ExecutePointQry                 (const qrydef : TFRE_DB_QUERY_DEF):IFRE_DB_Object; { the base and thus implicitly the filtered data is returned locked, does not store the query }
   published
-    function   WEB_GET_GRID_DATA               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function   WEB_RELEASE_GRID_DATA           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function   WEB_GET_CHOOSER_DATA            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function   WEB_CLEAR_QUERY_RESULTS         (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-    function   WEB_DESTROY_STORE               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+    function   WEB_GET_GRID_DATA               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; { request a range from the associated range manager      }
+    function   WEB_GET_CHOOSER_DATA            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; { request a range from the associated range manager      }
+    function   WEB_DESTROY_STORE               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; { Drop all rangemanagers for this session/dc combination }
+    function   WEB_RELEASE_GRID_DATA           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; { drop a range from the associated range manager         }
   end;
 
 
@@ -7822,7 +7821,7 @@ begin
   try
     result := ExecuteQryLocked(qrydef,qry);
   finally
-    qry.UnlockBaseData;
+    qry.UnlockQryData;
     qry.Free;
   end;
 end;
@@ -8120,7 +8119,7 @@ begin
         query.ExecutePointQuery(@Iterator);
         qry_ok := true;
       finally
-        query.UnlockBaseData;
+        query.UnlockQryData;
         GFRE_DB_TCDM.UnlockManager;
       end;
     finally
@@ -8308,7 +8307,7 @@ begin
         //writeln('----GDD');
         qry_ok := true;
       finally
-        query_base_data.UnlockBase;
+        query_base_data.UnlockOrder;
         GFRE_DB_TCDM.UnlockManager;
       end;
     finally
@@ -8329,8 +8328,10 @@ begin
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_RELEASE_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var qid : TFRE_DB_NameType;
 begin
-  //FIXXME
+  qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true),strtoint(input.Field('QUERYID').AsString));
+  GFRE_DB_TCDM.RemoveQueryRange(qid,-1,-1);
   Result:=GFRE_DB_NIL_DESC;
 end;
 
@@ -8339,19 +8340,9 @@ begin
   Result:=WEB_GET_GRID_DATA(input,ses,app,conn);
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.WEB_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
-var qid : TFRE_DB_NameType;
-begin
-  abort; //FIXXME - remove me
-  qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true),strtoint(input.Field('QUERYID').AsString));
-  GFRE_DB_TCDM.RemoveQuery(qid);
-  Result:=GFRE_DB_NIL_DESC;
-end;
-
-
 function TFRE_DB_DERIVED_COLLECTION.WEB_DESTROY_STORE(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  GFRE_DB_TCDM.DropAllQuerys(ses.GetSessionID,CollectionName(true));
+  GFRE_DB_TCDM.DropAllQueryRanges(ses.GetSessionID,CollectionName(true));
   result := GFRE_DB_NIL_DESC;
 end;
 

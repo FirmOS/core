@@ -272,6 +272,7 @@ type
     function  WEB_SendADialog           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_WaitMessage           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_AbortWait             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_UpdateSelected        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_GRID2_MOD }
@@ -2193,7 +2194,7 @@ begin
     entry.Field('number').AsUInt32    := random(1000);
     entry.Field('number_pb').AsUInt32 := random(1000);
     res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe('COLL_TEST_A_DERIVED');
-    res.addUpdatedEntry(entry,0); {in this special case, the icon is in a calculated field, the theming is in the transformation, the entry gets cloned, NO WAY TO FIX THE BAD ICON (!) }
+    res.addUpdatedEntry(entry,0,0); {in this special case, the icon is in a calculated field, the theming is in the transformation, the entry gets cloned, NO WAY TO FIX THE BAD ICON (!) }
     ses.SendServerClientRequest(res);
   end;
 end;
@@ -2289,6 +2290,7 @@ begin
   lvd_Grid.AddButton.Describe(CWSF(@WEB_SendADialog),'images_apps/test/add.png','ServerClientDialog');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_WaitMessage),'images_apps/test/add.png','Wait Message');
   lvd_Grid.AddButton.Describe(CWSF(@WEB_CollectionUpdates),'images_apps/test/add.png','CollectionUpdate');
+  lvd_Grid.AddButton.Describe(CWSF(@WEB_UpdateSelected),'images_apps/test/add.png','UpdateSelected','',fdgbd_single);
   result := lvd_Grid;
 end;
 
@@ -2329,7 +2331,7 @@ begin
   entry.Field('number').AsUInt32 := random(1000);
 
   res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(DC_Grid_Long.CollectionName);
-  res.addUpdatedEntry(entry,0);
+  res.addUpdatedEntry(entry,0,0);
   session.SendServerClientRequest(res);
 end;
 
@@ -2449,6 +2451,21 @@ function TFRE_DB_TEST_APP_GRID_MOD.WEB_AbortWait(const input: IFRE_DB_Object; co
 begin
   ses.RemoveTaskMethod('UPW');
   Result:=GFRE_DB_NIL_DESC;
+end;
+
+function TFRE_DB_TEST_APP_GRID_MOD.WEB_UpdateSelected(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var selg : TFRE_DB_GUID;
+    col  : IFRE_DB_COLLECTION;
+    new  : IFRE_DB_Object;
+begin
+  writeln(input.Field('SELECTED').AsString);
+  selg := FREDB_H2G(input.Field('SELECTED').AsString);
+  col    := GetDBConnection(input).GetCollection('COLL_TEST_A');
+  if col.FetchInCollection(selg,new) then begin
+    new.Field('string').AsString    := 'Changed_String_' + IntToStr(random(10000));
+    col.Update(new);
+  end;
+  result := GFRE_DB_NIL_DESC;
 end;
 
 { TFRE_DB_TEST_APP }

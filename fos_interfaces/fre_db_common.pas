@@ -609,16 +609,14 @@ type
   public
     //@ Describes an update of a store.
     function  Describe        (const storeId:String):TFRE_DB_UPDATE_STORE_DESC;
-    //@ Adds an updated entry and moves it to a new Position. Use nextItemId = '' to insert the new item at the end of the query.
-    procedure addUpdatedEntry (const entry: IFRE_DB_Object; const queryId: Int64; const newNextItemId: String);
-    //@ Adds an updated entry.
-    procedure addUpdatedEntry (const entry: IFRE_DB_Object; const queryId: Int64);
+    //@ Adds an updated entry and moves it to a new Position.
+    procedure addUpdatedEntry (const entry: IFRE_DB_Object ; const position: Int64 ; const absolutecount: Int64);
     //@ Adds the id of a deleted entry.
-    procedure addDeletedEntry (const entryId: String; const queryId: Int64);
+    procedure addDeletedEntry (const entryId: String; const position: Int64 ; const absolutecount: Int64);
     //@ Adds a new entry.
     //@ parentId is only useful for tree grids. If not parentId is given the new item is added as root item.
     //@ use nextItemId = '' to insert the new item at the end of the query.
-    procedure addNewEntry     (const entry: IFRE_DB_Object; const queryId: Int64; const nextItemId: String='');
+    procedure addNewEntry     (const entry: IFRE_DB_Object; const position: Int64 ; const absolutecount: Int64);
     //@ Sets the new total count.
     procedure setTotalCount   (const count: Integer);
     function  hasChanges      : Boolean;
@@ -1138,45 +1136,37 @@ implementation
     Result:=Self;
   end;
 
-  procedure TFRE_DB_UPDATE_STORE_DESC.addUpdatedEntry(const entry: IFRE_DB_Object; const queryId: Int64; const newNextItemId: String);
+  procedure TFRE_DB_UPDATE_STORE_DESC.addUpdatedEntry(const entry: IFRE_DB_Object; const position: Int64; const absolutecount: Int64);
   var
     obj: IFRE_DB_Object;
   begin
     obj:=GFRE_DBI.NewObject;
     obj.Field('item').AddObject(entry.CloneToNewObject());
-    obj.Field('qid').AsInt64:=queryId;
-    obj.Field('revid').AsString:=newNextItemId;
+    obj.Field('pos').AsInt64    := position;
+    obj.Field('total').AsInt32:=absolutecount;
     Field('updated').AddObject(obj);
   end;
 
-  procedure TFRE_DB_UPDATE_STORE_DESC.addUpdatedEntry(const entry: IFRE_DB_Object; const queryId: Int64);
-  var
-    obj: IFRE_DB_Object;
-  begin
-    obj:=GFRE_DBI.NewObject;
-    obj.Field('item').AddObject(entry.CloneToNewObject());
-    obj.Field('qid').AsInt64:=queryId;
-    Field('updated').AddObject(obj);
-  end;
-
-  procedure TFRE_DB_UPDATE_STORE_DESC.addDeletedEntry(const entryId: String; const queryId: Int64);
+  procedure TFRE_DB_UPDATE_STORE_DESC.addDeletedEntry(const entryId: String; const position: Int64; const absolutecount: Int64);
   var
     obj: IFRE_DB_Object;
   begin
     obj:=GFRE_DBI.NewObject;
     obj.Field('itemid').AddString(entryId);
-    obj.Field('qid').AsInt64:=queryId;
+    obj.Field('pos').AsInt64:=position;
+    obj.Field('total').AsInt32:=absolutecount;
     Field('deleted').AddObject(obj);
   end;
 
-    procedure TFRE_DB_UPDATE_STORE_DESC.addNewEntry(const entry: IFRE_DB_Object; const queryId: Int64; const nextItemId: String);
+  procedure TFRE_DB_UPDATE_STORE_DESC.addNewEntry(const entry: IFRE_DB_Object; const position: Int64; const absolutecount: Int64);
   var
     obj: IFRE_DB_Object;
   begin
     obj:=GFRE_DBI.NewObject;
-    obj.Field('revid').AsString:=nextItemId;
+    //obj.Field('revid').AsString:=nextItemId;
     obj.Field('item').AsObject:=entry.CloneToNewObject();
-    obj.Field('qid').AsInt64:=queryId;
+    obj.Field('pos').AsInt64:=position;
+    obj.Field('total').AsInt32:=absolutecount;
     Field('new').AddObject(obj);
   end;
 
