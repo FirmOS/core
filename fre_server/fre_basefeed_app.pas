@@ -81,7 +81,7 @@ procedure TFRE_BASEDATA_FEED.DoRun;
 var
   ErrorMsg   : String;
 begin
-  ErrorMsg:=CheckOptions('thvDU:H:u:p:',['test','help','version','debugger','remoteuser:','remotehost:','user:','pass:','test-log','subfeederip:','mwsip:','machine:','mac:']);
+  ErrorMsg:=CheckOptions('thvDU:H:u:p:',['test','help','version','debugger','remoteuser:','remotehost:','user:','pass:','testlog','subfeederip:','mwsip:','machine:','mac:']);
   if ErrorMsg<>'' then begin
     ShowException(Exception.Create(ErrorMsg));
     Terminate;
@@ -134,7 +134,7 @@ begin
 
   Initialize_Read_FRE_CFG_Parameter;
 
-  if HasOption('*','test-log') then
+  if HasOption('*','testlog') then
     begin
       writeln('configuring testlogging');
       CfgTestLog;
@@ -191,7 +191,7 @@ begin
   writeln('                | --machine=<MachineName>  : specify machine id of this feeder same as NAME entry in [MACHINE] section in ini file');
   writeln('                | --mac=<00:11:22:33:44:55>: specify machine id of this feeder same as MAC entry in [MACHINE] section in ini file');
   writeln('                  --debugger               : set debug flag');
-  writeln('                  --test-log               : enable console test-log');
+  writeln('                  --testlog                : enable console test-log');
   writeln('                  --subfeederip=<ip>       : connect to subfeeder via ip');
   writeln('                  --mwsip=<ip>             : connect to mws via ip');
   writeln;

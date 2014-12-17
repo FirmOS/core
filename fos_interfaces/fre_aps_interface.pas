@@ -139,6 +139,7 @@ type
     procedure  CH_WriteString      (const str : RawByteString);
     procedure  CH_WriteBuffer      (const data : Pointer ; const len : NativeInt);
     procedure  CH_SAFE_WriteBuffer (const data : Pointer ; const len : NativeInt); // data gets copied ...
+    procedure  CH_SAFE_WriteString (const str : RawByteString); { to use from wrong/other thread contexr ... }
     procedure  CH_WriteOpenedFile  (const fd : cInt ; const offset,len : NativeInt);
     function   CH_GetDataCount     : NativeInt;
     function   CH_ReadString       : RawByteString;

@@ -683,11 +683,12 @@ implementation
                            if store.FieldExists('serverFunc') then begin
                              serverFunc:=store.Field('serverFunc').AsObject.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC;  // FIXXME: Refactor to get DC from session by name, use a DC function to internally fetch the data
                              serverFunc.AddParam.Describe('start','0');
-                             serverFunc.AddParam.Describe('count','10000'); //FIXXME - define "ALL" parameter
+                             serverFunc.AddParam.Describe('end','10000'); //FIXXME - define "ALL" parameter
+                             serverFunc.AddParam.Describe('count','10001'); //FIXXME - remove me
                              serverFunc.AddParam.Describe('queryid','0');
                              store_res_descr:=serverFunc.InternalInvoke(session).Implementor_HC as TFRE_DB_STORE_DATA_DESC;
 
-                             captionFields:=TFRE_DB_StringArray.create('text','objname','label');
+                             captionFields:=TFRE_DB_StringArray.create('displayname','label','objname');
 
                              for i:=0 to store_res_descr.Field('data').ValueCount - 1 do begin
                                for j:=0 to Length(captionFields) -1 do begin

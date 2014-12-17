@@ -3584,7 +3584,7 @@ begin
           output.field(uppercase(FOutFieldName)).CloneFromField(objo.Field(FInFieldName));
         end;
       end else begin
-        output.field(uppercase(FOutFieldName)).asstring := '?*TARGETFIELD NOT FOUND*';
+        output.field(uppercase(FOutFieldName)).asstring := FDefaultValue; //missing fields should return default value for grid
       end;
     end;
   if assigned(objo) then

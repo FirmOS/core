@@ -329,6 +329,8 @@ type
     procedure   CH_WriteString      (const str : RawByteString);
     procedure   CH_WriteBuffer      (const data : Pointer ; const len : NativeInt);
     procedure   CH_SAFE_WriteBuffer (const data : Pointer ; const len : NativeInt); // data gets copied ...
+    procedure   CH_SAFE_WriteString (const str : RawByteString); { to use from wrong/other thread contexr ... }
+
     procedure   CH_WriteOpenedFile  (const fd : cInt ; const offset,len : NativeInt);
     procedure   CH_Enable_Reading ;
     procedure   CH_Enable_Writing ;
@@ -736,7 +738,7 @@ begin
   FManager    := nil;
   FGlobal     := true;
   FId         := id;
-  APSC_SetupTimeout(1000,FInterval);
+  APSC_SetupTimeout(interval,FInterval);
   FNewTimerCB := timernewcb;
   FCallback   := timercb;
 end;
@@ -1197,6 +1199,18 @@ begin
   senc.FData := Getmem(len);
   senc.FLen  := len;
   move(data^,senc.FData^,len);
+  FManager.ScheduleCoRoutine(@COR_SafeWriteBuffer,senc);
+end;
+
+procedure TFRE_APSC_CHANNEL.CH_SAFE_WriteString(const str: RawByteString);
+var senc : TSAFE_WRITE_ENCAP;
+    len  : NativeInt;
+begin
+  senc := TSAFE_WRITE_ENCAP.Create;
+  len  := length(str);
+  senc.FData := Getmem(len);
+  senc.FLen  := len;
+  move(str[1],senc.FData^,len);
   FManager.ScheduleCoRoutine(@COR_SafeWriteBuffer,senc);
 end;
 

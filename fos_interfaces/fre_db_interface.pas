@@ -1369,6 +1369,8 @@ type
     function  AddInputGroup                (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
     function  ReplaceInputGroup            (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
     function  GetInputGroup                (const id: TFRE_DB_String): IFRE_DB_InputGroupSchemeDefinition;
+    procedure SetOverlayRights4UserClass   (const Userclass:TFRE_DB_NameType ; const right_set : TFRE_DB_STANDARD_RIGHT_SET);
+    function  GetOverlayRights4UserClass   (const UserClass:TFRE_DB_NameType ; out   right_set : TFRE_DB_STANDARD_RIGHT_SET):boolean;
 
     function  GetSchemeType                : TFRE_DB_SchemeType;
     function  ValidateObject               (const dbo : IFRE_DB_Object;const raise_errors:boolean=true):boolean;
@@ -3191,6 +3193,7 @@ end;
   procedure FREDB_SiteMap_AddEntry               (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : TFRE_DB_StringArray ;const x,y : integer;  const newsCount:Integer=0; const scale:Single=1; const enabled:Boolean=true);    //obsolete
   procedure FREDB_SiteMap_AddRadialEntry         (const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : String; const newsCount:Integer=0; const enabled:Boolean=true);
   procedure FREDB_SiteMap_RadialAutoposition     (const SiteMapData : IFRE_DB_Object; rootangle:integer=0);
+  procedure FREDB_SiteMap_DisableEntry           (const SiteMapData : IFRE_DB_Object ; const key:string);
 
   function  FREDB_GuidArray2StringStream         (const arr:TFRE_DB_GUIDArray):String; { Caution ! - used in streaming}
   function  FREDB_StreamString2GuidArray         (str:string):TFRE_DB_GUIDArray; { Caution ! - used in streaming, must be in format of FREDB_GuidArray2String}
@@ -8739,8 +8742,8 @@ procedure TFRE_DB_APPLICATION.SessionInitialize(const session: TFRE_DB_UserSessi
   end;
 
 begin
+  ForAllFieldsBreak(@_initSubModules); //init modules first cause app might call module functions during init
   MySessionInitialize(session);
-  ForAllFieldsBreak(@_initSubModules);
 end;
 
 procedure TFRE_DB_APPLICATION.SessionFinalize(const session: TFRE_DB_UserSession);
@@ -9661,7 +9664,36 @@ begin
   end;
 end;
 
-
+procedure FREDB_SiteMap_DisableEntry(const SiteMapData: IFRE_DB_Object; const key: string);
+var i            : integer;
+    lvl          : NativeInt;
+    ial          : TFRE_DB_StringArray;
+    key_arr      : TFOSStringArray;
+    nodeid       : String;
+    SiteMapEntry : IFRE_DB_Object;
+    ientry       : integer;
+    found        : boolean;
+    newentry     : IFRE_DB_Object;
+begin
+  GFRE_BT.SeperateString(key,'/',key_arr);
+  lvl := Length(key_arr);
+  SiteMapEntry := SiteMapData;
+  for i := 0 to high(key_arr) do begin
+    nodeid    := key_arr[i];
+    found      := false;
+    for ientry := 0 to SiteMapEntry.Field('ENTRIES').ValueCount-1 do begin
+      if SiteMapEntry.Field('ENTRIES').AsObjectItem[ientry].Field('ID').asstring = nodeid then begin
+        SiteMapEntry := SiteMapEntry.Field('ENTRIES').AsObjectItem[ientry];
+        found := true;
+        break;
+      end;
+    end;
+    if found = false then begin
+      raise EFRE_DB_Exception.Create('SITEMAP ADDENTRY PARENT NOT FOUND '+key);
+    end;
+  end;
+  SiteMapEntry.Field('DIS').AsBoolean   := true;
+end;
 
 function FREDB_GuidArray2StringStream(const arr: TFRE_DB_GUIDArray): String;
 var i : NativeInt;
