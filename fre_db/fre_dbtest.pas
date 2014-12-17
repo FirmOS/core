@@ -184,6 +184,7 @@ type
     procedure       MySessionInitializeModule  (const session: TFRE_DB_UserSession); override;
   published
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_EditEntry              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD }
@@ -1166,9 +1167,20 @@ begin
   layout := TFRE_DB_LAYOUT_DESC.create.Describe();
 
   lGrid  := ses.FetchDerivedCollection('DC_ALLTYPES').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
+  lGrid.AddButton.Describe(CWSF(@WEB_EditEntry),'','Edit','',fdgbd_single);
   lGrid2 := ses.FetchDerivedCollection('DC_AT_EX').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   layout.SetLayout(nil,lGrid,nil,nil,lGrid2,true,0,1,0,0,1);
   result := layout;
+end;
+
+function TFRE_DB_TEST_APP_ALLGRID_MOD.WEB_EditEntry(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  test : IFRE_DB_Object;
+begin
+  CheckDbResult(conn.Fetch(input.Field('selected').AsGUID,test));
+  input.Field('asdialog').AsBoolean:=true;
+  Result := test.Invoke('Content',input,ses,app,conn);
+  test.Finalize;
 end;
 
 { TFRE_DB_TEST_APP_FORMTEST_MOD }
@@ -1786,7 +1798,11 @@ var
   scheme: IFRE_DB_SchemeObject;
 begin
   scheme := GetScheme;
-  res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
+  if input.FieldExists('asdialog') and input.Field('asdialog').AsBoolean then begin
+    res:=TFRE_DB_FORM_DIALOG_DESC.create.Describe('DIALOG',800);
+  end else begin
+    res:=TFRE_DB_FORM_PANEL_DESC.create.Describe('FORM');
+  end;
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.FillWithObjectValues(Self,GetSession(input));
   res.AddButton.Describe('Save',CWSF(@WEB_saveOperation),fdbbt_submit);
