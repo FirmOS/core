@@ -2056,6 +2056,8 @@ type
     function    _RoleID                     (const rolename:TFRE_DB_String;const domainUID:TFRE_DB_GUID;var role_id:TFRE_DB_GUID):boolean;
     function    _FetchGroup                 (const group: TFRE_DB_String; const domain_id:TFRE_DB_GUID; var ug: TFRE_DB_GROUP):boolean;
     function    _FetchGroupbyID             (const group_id:TFRE_DB_GUID;var ug: TFRE_DB_GROUP):boolean;
+    function    _ModifyGroup                (const group:TFRE_DB_GROUP;const groupname: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    function    _ModifyRole                 (const role:TFRE_DB_ROLE;const rolename: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
 
 
     function    _AddUser(const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream=nil; const imagetype:string='' ; const etag: String='';const is_internal:Boolean=false ; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''; const userclass: TFRE_DB_String=''): TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
@@ -2120,11 +2122,14 @@ type
     function    FetchGroupI                 (const group: TFRE_DB_String; const domain_id:TFRE_DB_GUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupById              (const group_id:TFRE_DB_GUID;var ug: TFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupByIdI             (const group_id:TFRE_DB_GUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    ModifyGroupById             (const group_id:TFRE_DB_GUID;const groupname: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    function    ModifyGroup                 (const group:TFRE_DB_NameType;const domain_id:TFRE_DB_GUID;const groupname: TFRE_DB_NameType; const txt:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR;const txt_short:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR):TFRE_DB_Errortype;
+    function    ModifyGroupById             (const group_id:TFRE_DB_GUID;const groupname: TFRE_DB_NameType; const txt:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR;const txt_short:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR):TFRE_DB_Errortype;
     function    FetchRole                   (const rolename:TFRE_DB_String;const domainUID: TFRE_DB_GUID;var role: TFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleI                  (const rolename:TFRE_DB_String;const domainUID: TFRE_DB_GUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id: TFRE_DB_GUID; var role: TFRE_DB_ROLE): TFRE_DB_Errortype;
     function    FetchRoleByIdI              (const role_id:TFRE_DB_GUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    ModifyRole                  (const role:TFRE_DB_NameType; const domain_id:TFRE_DB_GUID;const rolename: TFRE_DB_NameType; const txt:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR;const txt_short:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR):TFRE_DB_Errortype;
+    function    ModifyRoleById              (const role_id:TFRE_DB_GUID;const rolename: TFRE_DB_NameType; const txt:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR;const txt_short:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR):TFRE_DB_Errortype;
     function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
     function    FetchDomain                 (const name :TFRE_DB_NameType; var domain:TFRE_DB_DOMAIN):boolean;
     function    FetchDomainUIDbyName        (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean; override;
@@ -5350,6 +5355,38 @@ begin
  result := Fetch(GetUserUIDP,group_id,TFRE_DB_Object(ug))=edb_OK;
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION._ModifyGroup(const group: TFRE_DB_GROUP; const groupname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+begin
+  try
+    if groupname<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+      group.ObjectName            := groupname;
+    if txt_short<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+      group.Description.ShortText := txt_short;
+    if txt<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+      group.Description.LongText  := txt;
+    GetUserUIDP;
+    result := Update(GetUserUIDP,group);
+  except on e:exception do
+    result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
+  end;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION._ModifyRole(const role: TFRE_DB_ROLE; const rolename: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+begin
+  try
+    if rolename<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+      role.ObjectName            := rolename;
+    if txt_short<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+      role.Description.ShortText := txt_short;
+    if txt<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+      role.Description.LongText  := txt;
+    GetUserUIDP;
+    result := Update(GetUserUIDP,role);
+  except on e:exception do
+    result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
+  end;
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.FetchDomain(const name: TFRE_DB_NameType; var domain: TFRE_DB_DOMAIN): boolean;
 begin
   result := FSysDomains.GetIndexedObjTextCore(name,TFRE_DB_Object(domain))>0;
@@ -5517,23 +5554,27 @@ begin
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.ModifyGroupById(const group_id: TFRE_DB_GUID; const groupname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION.ModifyGroup(const group: TFRE_DB_NameType; const domain_id: TFRE_DB_GUID; const groupname: TFRE_DB_NameType; const txt: TFRE_DB_String; const txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+var
+  tgroup: TFRE_DB_GROUP;
+begin
+  try
+    Result:=FetchGroup(group,domain_id,tgroup);
+    if Result=edb_OK then
+      _ModifyGroup(tgroup,groupname,txt,txt_short);
+  except on e:exception do
+      result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
+  end;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.ModifyGroupById(const group_id: TFRE_DB_GUID; const groupname: TFRE_DB_NameType; const txt: TFRE_DB_String; const txt_short: TFRE_DB_String): TFRE_DB_Errortype;
 var
   tgroup: TFRE_DB_GROUP;
 begin
   try
     Result:=FetchGroupById(group_id,tgroup);
     if Result=edb_OK then
-      begin
-        if groupname<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
-          tgroup.ObjectName            := groupname;
-        if txt_short<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
-          tgroup.Description.ShortText := txt_short;
-        if txt<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
-          tgroup.Description.LongText  := txt;
-        GetUserUIDP;
-        result := Update(GetUserUIDP,tgroup);
-      end;
+      _ModifyGroup(tgroup,groupname,txt,txt_short);
   except on e:exception do
       result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
   end;
@@ -5581,6 +5622,32 @@ begin
   try
     Result:=FetchRoleById(role_id,trole);
     role:=trole;
+  except on e:exception do
+      result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
+  end;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.ModifyRole(const role: TFRE_DB_NameType; const domain_id: TFRE_DB_GUID; const rolename: TFRE_DB_NameType; const txt: TFRE_DB_String; const txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+var
+  trole: TFRE_DB_ROLE;
+begin
+  try
+    Result:=FetchRole(role,domain_id,trole);
+    if Result=edb_OK then
+      Result:=_ModifyRole(trole,rolename,txt,txt_short);
+  except on e:exception do
+      result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
+  end;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.ModifyRoleById(const role_id: TFRE_DB_GUID; const rolename: TFRE_DB_NameType; const txt: TFRE_DB_String; const txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+var
+  trole: TFRE_DB_ROLE;
+begin
+  try
+    Result:=FetchRoleById(role_id,trole);
+    if Result=edb_OK then
+      Result:=_ModifyRole(trole,rolename,txt,txt_short);
   except on e:exception do
       result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
   end;

@@ -22,7 +22,7 @@ var s:String;
 begin
   GFOS_VHELP_INIT;
   s := '';
-  WriteStr(s,cFOS_PRODUCT_NAME,' Version ',cFOS_PRODUCT_MAJOR_VERSION,'.',cFOS_PRODUCT_MINOR_VERSION,'.',cFOS_PRODUCT_BUILD_NUMBER,Lineending,cFOS_PRODUCT_BUILD_HASH,LineEnding, 'from ',cFOS_PRODUCT_BUILD_DATE,' ',cFOS_PRODUCT_BUILD_TIME);
+  WriteStr(s,cFOS_PRODUCT_NAME,LineEnding,cFOS_PRODUCT_BUILD_HASH,LineEnding, 'from ',cFOS_PRODUCT_BUILD_DATE,' ',cFOS_PRODUCT_BUILD_TIME);
   result := LineEnding+s+LineEnding;
   result := result +'(c) FirmOS Business Solutions GmbH, Austria'+LineEnding+'(www.firmos.at)'+LineEnding;
 end;

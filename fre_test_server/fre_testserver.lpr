@@ -62,7 +62,6 @@ var
 begin
   Application:=TFRE_Testserver.Create(nil);
   Application.Title:='FirmOS Testserver';
-  Application.DefaultExtensions := 'TEST';
   Application.Run;
   Application.Free;
 end.

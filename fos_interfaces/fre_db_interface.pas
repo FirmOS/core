@@ -1657,9 +1657,12 @@ type
     function    FetchUserById               (const user_id:TFRE_DB_GUID;var user: IFRE_DB_USER):TFRE_DB_Errortype;
     function    FetchGroup                  (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
     function    FetchGroupById              (const group_id:TFRE_DB_GUID;var ug: IFRE_DB_GROUP):TFRE_DB_Errortype;
-    function    ModifyGroupById             (const group_id:TFRE_DB_GUID; const groupname : TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    function    ModifyGroupById             (const group_id:TFRE_DB_GUID; const groupname : TFRE_DB_NameType; const txt:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR;const txt_short:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR):TFRE_DB_Errortype;
+    function    ModifyGroup                 (const group:TFRE_DB_NameType; const domain_id:TFRE_DB_GUID; const groupname : TFRE_DB_NameType; const txt:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR;const txt_short:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR):TFRE_DB_Errortype;
     function    FetchRole                   (const rolename:TFRE_DB_String;const domainUID: TFRE_DB_GUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
     function    FetchRoleById               (const role_id:TFRE_DB_GUID;var role: IFRE_DB_ROLE):TFRE_DB_Errortype;
+    function    ModifyRoleById              (const role_id:TFRE_DB_GUID; const rolename : TFRE_DB_NameType; const txt:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR;const txt_short:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR):TFRE_DB_Errortype;
+    function    ModifyRole                  (const role:TFRE_DB_NameType; const domain_id:TFRE_DB_GUID; const rolename : TFRE_DB_NameType; const txt:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR;const txt_short:TFRE_DB_String=cFRE_DB_SYS_NOCHANGE_VAL_STR):TFRE_DB_Errortype;
     function    FetchDomainById             (const domain_id:TFRE_DB_GUID;var domain: IFRE_DB_DOMAIN):TFRE_DB_Errortype;
     function    FetchDomainNameById         (const domain_id:TFRE_DB_GUID):TFRE_DB_NameType;
     function    FetchDomainUIDbyName        (const name :TFRE_DB_NameType; var domain_uid:TFRE_DB_GUID):boolean;
