@@ -1790,6 +1790,7 @@ type
 
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
     procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL);
+    procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL; const skipclasses : Array of TFRE_DB_String);
 
     procedure  SetDeriveTransformation         (const tob:IFRE_DB_TRANSFORMOBJECT);
 
@@ -8300,6 +8301,11 @@ begin
   FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
   if FParentChildField='' then
     raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
+end;
+
+procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameTypeRL; const skipclasses: array of TFRE_DB_String);
+begin
+  SetParentToChildLinkField(fieldname); //FIXXME Heli - implement me
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
