@@ -228,6 +228,8 @@ type
     procedure addFilterEvent        (const filteredStoreId,refId:String);
     //@ Adds a dependent input element. If chooserValue is selected the input element will be updated.
     procedure addDependentInput     (const inputId: String; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility=fdv_none; const caption: String='';const validator: IFRE_DB_ClientFieldValidator=nil; const validatorConfigParams : IFRE_DB_Object=nil);
+    //@ Adds a dependent input group. If chooserValue is selected the input element will be updated.
+    procedure addDependentInputGroup(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility=fdv_visible);
     //@ Enables the caption compare.
     //@ Useful for fields which store the caption and not a link to the object.
     //@ Default is false.
@@ -379,8 +381,9 @@ type
     //@ Fills the form with the values of the given object.
     procedure FillWithObjectValues    (const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const groupPreFix:String='');
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
+    //@ if hideGroupHeader is set to true parameters collapsible and collapsed are ignored
     //@ See TFRE_DB_INPUT_GROUP_DESC.
-    function  AddSchemeFormGroup      (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const groupPreFix:String=''; const groupRequired:Boolean=true; const relSize: Integer=1): TFRE_DB_INPUT_GROUP_DESC;
+    function  AddSchemeFormGroup      (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const groupPreFix:String=''; const groupRequired:Boolean=true; const hideGroupHeader:Boolean=false): TFRE_DB_INPUT_GROUP_DESC;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
     function  AddInput                : TFRE_DB_INPUT_DESC;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
@@ -1626,6 +1629,19 @@ implementation
    Field('dependentInputFields').AddObject(obj);
   end;
 
+  procedure TFRE_DB_INPUT_CHOOSER_DESC.addDependentInputGroup(const inputGroup: TFRE_DB_INPUT_GROUP_DESC; const chooserValue: String; const visible: TFRE_DB_FieldDepVisibility);
+  var
+    i: Integer;
+  begin
+    for i := 0 to inputGroup.Field('elements').ValueCount - 1 do begin
+      if inputGroup.Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_GROUP_DESC then begin
+        addDependentInputGroup(inputGroup.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_INPUT_GROUP_DESC,chooserValue,visible);
+      end else begin
+        addDependentInput(inputGroup.Field('elements').AsObjectItem[i].Field('field').AsString,chooserValue,visible);
+      end;
+    end;
+  end;
+
   function TFRE_DB_INPUT_CHOOSER_DESC.Describe(const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint: TFRE_DB_CHOOSER_DH; const required: boolean; const groupRequired: Boolean; const add_empty_for_required: Boolean; const disabled: boolean; const defaultValue: String): TFRE_DB_INPUT_CHOOSER_DESC;
   var
     obj   : IFRE_DB_Object;
@@ -1986,7 +2002,7 @@ implementation
     end;
   end;
 
-  function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const groupPreFix:String; const groupRequired: Boolean; const relSize: Integer): TFRE_DB_INPUT_GROUP_DESC;
+  function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const groupPreFix: String; const groupRequired: Boolean; const hideGroupHeader: Boolean): TFRE_DB_INPUT_GROUP_DESC;
   var
     group         : TFRE_DB_INPUT_GROUP_DESC;
     obj           : IFRE_DB_Object;
@@ -2230,9 +2246,13 @@ implementation
   end;
 
   begin
-    group:=AddGroup.Describe(_getText(schemeGroup.CaptionKey),collapsible,collapsed);
-   _addFields(schemeGroup.GroupFields,'',groupPreFix,groupRequired);
-    Result:=group;
+    if hideGroupHeader then begin
+      Result:=AddGroup.Describe('');
+    end else begin
+      Result:=AddGroup.Describe(_getText(schemeGroup.CaptionKey),collapsible,collapsed);
+    end;
+      group:=Result;
+    _addFields(schemeGroup.GroupFields,'',groupPreFix,groupRequired);
   end;
 
   procedure TFRE_DB_FORM_DESC.SetElementValue(const elementId, value: String);
