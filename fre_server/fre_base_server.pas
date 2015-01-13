@@ -115,7 +115,7 @@ type
     constructor Create            (const defaultdbname : string);
     destructor  Destroy           ; override;
     procedure   HandleSignals     (const signum : NativeUint);
-    procedure   Setup(const systemdb: TFRE_DB_SYSTEM_CONNECTION);
+    procedure   Setup             (const systemdb: TFRE_DB_SYSTEM_CONNECTION);
     procedure   Terminate         ;
     procedure   ReInit            ;
     procedure   DeploymentDump    ;
@@ -1273,7 +1273,7 @@ var found : boolean;
     res   : TFRE_DB_Errortype;
 
   function FindDb(const dbconnection:TFRE_DB_CONNECTION):boolean;
-  var l_dbc : TFRE_DB_CONNECTION;
+  var l_dbc : IFRE_DB_CONNECTION;
   begin
     result := false;
     if uppercase(dbconnection.ConnectedName) = uppercase(dbname) then begin

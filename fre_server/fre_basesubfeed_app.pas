@@ -46,7 +46,7 @@ uses
   Classes, SysUtils, CustApp,
   FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
   FRE_DB_CORE,fre_aps_comm_impl,
-  FRE_DB_EMBEDDED_IMPL,
+  //FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,
   fre_basedbo_server,ctypes
   ;
@@ -120,7 +120,7 @@ begin
       writeln('configuring testlogging');
       CfgTestLog;
     end;
-  InitEmbedded;
+  //InitEmbedded;
   Init4Server;
   GFRE_DBI.SetLocalZone('Europe/Vienna');
   Setup_APS_Comm;

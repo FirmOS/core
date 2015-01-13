@@ -35,15 +35,9 @@ unit fos_locking;
 (§LIC_END)
 }
 
-{$IFDEF FPC}
- {$MODE DELPHI}{$H+}
-{$ENDIF}
 
 interface
 uses Sysutils,SyncObjs,
-     {$IFNDEF FPC}
-      windows,
-     {$ENDIF}
      FOS_TOOL_INTERFACES;
 
 type
@@ -89,11 +83,7 @@ type
 
   TFOS_TE=class(TInterfacedObject,IFOS_TE)
   private
- {$IFNDEF FPC}
-   FSig:TEvent;
- {$ELSE}
    FSig:PRTLEvent;
- {$ENDIF}
   public
    constructor Create;
    destructor  Destroy; override;
@@ -123,17 +113,15 @@ type
 
  TFOS_E=class(TInterfacedObject,IFOS_E)
  private
- {$IFDEF FPC}
-   FSig:PRTLEvent;
- {$ELSE}
-   FHandle:THandle;
- {$ENDIF}
-  public
+   FSig  : PRTLEvent;
+   FData : Pointer;
  public
    constructor Create;
    destructor  Destroy;override;
    procedure   WaitFor;
    procedure   SetEvent;
+   procedure   SetEventWithData (const data:Pointer);
+   function    GetData          : Pointer;
    procedure   Finalize;
  end;
 
@@ -159,32 +147,20 @@ end;
 constructor TFOS_TE.Create;
 begin
  inherited;
- {$IFDEF FPC}
    FSig:=RTLEventCreate;
- {$ELSE}
-   FSig:=TEvent.Create(nil,false,false,'');
- {$ENDIF}
 end;
 
 
 destructor TFOS_TE.Destroy;
 begin
- {$IFDEF FPC}
-   RTLeventdestroy(FSig);
- {$ELSE}
-   FSIG.Free;
- {$ENDIF}
- inherited;
+  RTLeventdestroy(FSig);
+  inherited;
 end;
 
 function TFOS_TE.SetEvent: boolean;
 begin
   result:=true;
- {$IFDEF FPC}
-   RTLeventSetEvent(FSig);
- {$ELSE}
-   FSig.SetEvent;
- {$ENDIF}
+  RTLeventSetEvent(FSig);
 end;
 
 procedure TFOS_TE.Finalize;
@@ -193,55 +169,42 @@ begin
 end;
 
 procedure TFOS_TE.WaitFor(timeout: integer);
-{$IFNDEF FPC}
- var wr:TWaitResult;
-{$ENDIF}
 begin
- {$IFDEF FPC}
   if timeout=0 then begin
     RTLeventWaitFor(FSig);
   end else begin
     RTLeventWaitFor(FSig,timeout);
   end;
- {$ELSE}
-  wr:=FSig.WaitFor(timeout);
-  if wr=wrError then begin
-   raise Exception.Create('SIGNAL FAILED WITH CODE '+inttostr(FSig.LastError));
-  end else begin
-   raise Exception.Create('SIGNAL ABANDONED');
-  end;
- {$ENDIF}
-end;
+ end;
 
 { TFOS_E }
 
 constructor TFOS_E.Create;
 begin
- {$IFDEF FPC}
   FSig := RTLEventCreate;
- {$ELSE}
-  FHandle :=CreateEvent(nil,false,false,'');
- {$ENDIF}
 end;
 
 destructor TFOS_E.Destroy;
 begin
- {$IFDEF FPC}
-   RTLeventdestroy(FSig);
- {$ELSE}
-   CloseHandle(FHandle);
- {$ENDIF}
+  RTLeventdestroy(FSig);
   inherited Destroy;
 end;
 
 
 procedure TFOS_E.SetEvent;
 begin
-  {$IFDEF FPC}
    RTLeventSetEvent(FSig);
-  {$ELSE}
-    windows.setevent(fhandle);
-  {$ENDIF}
+end;
+
+procedure TFOS_E.SetEventWithData(const data: Pointer);
+begin
+  FData := data;
+  SetEvent;
+end;
+
+function TFOS_E.GetData: Pointer;
+begin
+  result := FData;
 end;
 
 procedure TFOS_E.Finalize;
@@ -251,11 +214,7 @@ end;
 
 procedure TFOS_E.WaitFor;
 begin
- {$IFDEF FPC}
-   RTLeventWaitFor(FSig);
- {$ELSE}
-   WaitForSingleObject(FHandle,INFINITE);
- {$ENDIF}
+  RTLeventWaitFor(FSig);
 end;
 
 { TFOS_RW_LOCK }

@@ -50,6 +50,8 @@ uses
 var G_NO_INTERRUPT_FLAG : Boolean = false;
 
 type
+  TFRE_APSC_ID        =  String[15];
+  TFRE_APSC_ID_Array  =  Array of TFRE_APSC_ID;
 
   TAPSC_ListenerState = (als_BAD,als_LISTENING,als_STOPPED,als_LISTEN_ERROR,als_EVENT_NEW_LISTENER);
   TAPSC_ChannelState  = (ch_BAD,ch_WAIT,ch_NEW_SS_CONNECTED,ch_ACTIVE,ch_NEW_CS_CONNECTED,ch_NEW_CHANNEL_FAILED,ch_EOF);
@@ -57,104 +59,124 @@ type
   IFRE_APSC_DNS_ANSWER=interface
   end;
 
-  IFRE_APSC_LISTENER=interface
-    function  GetState            : TAPSC_ListenerState;
-    function  GetErrorString      : string;
-    function  GetListeningAddress : string;
-    function  GetID               : string;
-    procedure EnableSSL           (const server_ctx : PSSL_CTX);
-    procedure Stop;
-    procedure Start;
-    procedure Finalize;
-  end;
-
   IFRE_APSC_CHANNEL_MANAGER = interface;
   IFRE_APSC_CHANNEL         = interface;
   IFRE_APSC_TIMER           = interface;
+  IFRE_APSC_CHANNEL_GROUP   = interface;
+  IFRE_APSC_LISTENER        = interface;
 
-  TOnNew_APSC_Listener     = procedure (const new_listener : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState) of object;
   TOnNew_APSC_Channel      = procedure (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState) of object;
-  TOnNew_APSC_Timer        = procedure (const timer        : IFRE_APSC_TIMER) of object;
   TOnNew_APSC_Signal       = procedure (const signal       : NativeUint) of object;
-  TFRE_APSC_TIMER_CALLBACK = procedure (const timer        : IFRE_APSC_TIMER ; const flag1,flag2 : boolean) of object;
-  TFRE_APSC_CHANNEL_EVENT  = procedure (const channel      : IFRE_APSC_CHANNEL) of object;
-  TFRE_APSC_CHANNEL_CB     = procedure (const channel      : IFRE_APSC_CHANNEL) is nested;
-  TFRE_APSC_CoRoutine      = procedure (const Data         : Pointer) of Object;
+
+  TFRE_APSC_LISTENER_CALLBACK    = procedure (const listener     : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState) of object;
+  TFRE_APSC_TIMER_CALLBACK       = procedure (const timer        : IFRE_APSC_TIMER ; const flag1,flag2 : boolean) of object;
+  TFRE_APSC_CHANNEL_EVENT        = procedure (const channel      : IFRE_APSC_CHANNEL) of object;
+  TFRE_APSC_CHANNEL_CHANGE_EVENT = procedure (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState) of object;
+  TFRE_APSC_CoRoutine            = procedure (const Data         : Pointer) of Object;
 
   { IFRE_APSC }
 
   IFRE_APSC=interface
-    procedure   AddListener_TCP   (Bind_IP,Bind_Port:String ; const ID:ShortString);// is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, *4, and *6 (which use all addresses of the host)
-    procedure   AddClient_TCP     (Host,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ; localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String='');
-    procedure   AddClient_TCP_DNS (Host,Port : String; const ID:ShortString ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String='');
-    procedure   AddListener_UX    (const special_file:shortstring ; const id:shortstring);
-    procedure   AddClient_UX      (const special_file:shortstring ; const ID:Shortstring ; const channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localNewChannelCB : TOnNew_APSC_Channel = nil ;  localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil);
-    function    AddTimer          (const timer_id: ShortString ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; local_new_timercb : TOnNew_APSC_Timer=nil) : IFRE_APSC_TIMER; // Must be called in sync with MAIN EVENT LOOP
-    procedure   SetNewListenerCB  (const lcb    : TOnNew_APSC_Listener);
-    procedure   SetNewChannelCB   (const chancb : TOnNew_APSC_Channel);
-    procedure   SetNewTimerCB     (const timercb : TOnNew_APSC_Timer);
-    procedure   SetSingnalCB      (const signalcb : TOnNew_APSC_Signal);
-    procedure   RunUntilTerminate ;
-    procedure   RequestTerminate  (const no_jack:boolean=false);
+    function    GetChannelGroupByID        (CGID : TFRE_APSC_ID ; out cg : IFRE_APSC_CHANNEL_GROUP):boolean;
+
+    function    AddDefaultGroupTimer       (const timer_id    : TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
+    function    AddDefaultGroupListenerTCP (Bind_IP,Bind_Port:String       ; const ID:TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK = nil ; const start_listener : boolean = true ; const enable_ssl : boolean=false ; const special_ssl_ctx : PSSL_CTX =nil): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
+    function    AddDefaultGroupListenerUX  (const special_file:shortstring ; const ID:TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK = nil ; const start_listener : boolean = true ; const enable_ssl : boolean=false ; const special_ssl_ctx : PSSL_CTX =nil): IFRE_APSC_LISTENER;
+    function    AddClient_TCP              (IP,Port   : String             ; const ID:TFRE_APSC_ID ; const auto_finalize : boolean=true ; channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localEvent :  TFRE_APSC_CHANNEL_CHANGE_EVENT=nil ; localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String=''):IFRE_APSC_CHANNEL;
+    function    AddClient_TCP_DNS          (Host,Port : String             ; const ID:TFRE_APSC_ID ; const auto_finalize : boolean=true ; channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localEvent :  TFRE_APSC_CHANNEL_CHANGE_EVENT=nil ; localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String=''):IFRE_APSC_CHANNEL;
+    function    AddClient_UX               (const special_file:shortstring ; const ID:TFRE_APSC_ID ; const auto_finalize : boolean=true ; channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localEvent :  TFRE_APSC_CHANNEL_CHANGE_EVENT=nil ; localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil):IFRE_APSC_CHANNEL;
+    procedure   SetListenerCB              (const lcb      : TFRE_APSC_LISTENER_CALLBACK);
+    procedure   SetNewChannelCB            (const chancb   : TOnNew_APSC_Channel);
+    procedure   SetSingnalCB               (const signalcb : TOnNew_APSC_Signal);
+    function    GetDefaultCG               : IFRE_APSC_CHANNEL_GROUP;
+    procedure   RunUntilTerminate          ;
+    procedure   RequestTerminate           (const no_jack:boolean=false);
   end;
 
 
   IFRE_APSC_TIMER=interface
-    procedure TIM_Start;
-    procedure TIM_Stop;
-    procedure TIM_SetInterval (const interval_ms : NativeUint);
-    procedure TIM_SetCallback (cb : TFRE_APSC_TIMER_CALLBACK);
-    procedure TIM_SetID       (const ID:String);
-    function  TIM_GetID       : string;
-    procedure TIM_SetMethod   (const m : TMethod);
-    function  TIM_GetMethod   :TMethod;
-    procedure TIM_Trigger     (const flag1:boolean=false ; const flag2:boolean=false); // Must be called in same MANAGER CONTEXT (THREAD)
-    procedure Finalize        ;
+    function  cs_GetID           : TFRE_APSC_ID;
+    procedure cs_Trigger         (const flag1:boolean=false ; const flag2:boolean=false);
+    function  cs_Start           (const interval_ms : NativeInt=0):boolean;               { negative intervals are oneshots, 0 starts the timer (again) but does change the interval }
+    function  cs_Stop            : boolean;
+    procedure cs_ChangeCallback  (cb : TFRE_APSC_TIMER_CALLBACK);
+    procedure cs_SetMethod       (const m : TMethod);
+    function  cs_GetMethod       :TMethod;
+    procedure cs_Finalize        ;
   end;
 
+  IFRE_APSC_LISTENER=interface
+    { All Listeners work in the context of the Main APS Thread, a fork new channles bound to RR Channelmanagers or dedicated CM's }
+    function  GetState            : TAPSC_ListenerState;
+    function  GetErrorString      : string;
+    function  GetListeningAddress : string;
+    function  cs_GetID            : TFRE_APSC_ID;
+    procedure cs_Stop             ;
+    procedure cs_Start            ;
+    procedure cs_Finalize         ;
+  end;
 
-  IFRE_APSC_CHANNEL_MANAGER=interface // = Thread bound to CPU
-    function  GetID                    : NativeInt;
-    function  AddTimer                 (interval_ms : NativeUint) : IFRE_APSC_TIMER;
+  { IFRE_APSC_CHANNEL_GROUP }
+
+  IFRE_APSC_CHANNEL_GROUP=interface    { group channel manager together, and be the "main" eventer for them }
+    function  Implementor              : TObject;
+    function  AddChannelGroupTimer     (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; { Add a Timer to a channel group, should be immediatly started, }
+                                        const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ;                        { callbacks should be set, negative interval=oneshot timer      }
+                                        const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
+    function  AddListenerTCP           (Bind_IP,Bind_Port : String     ;  const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
+    function  AddListenerUX            (special_file      : ShortString ; const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER;
+    function  GetChannelManagerCount   : NativeInt;
+    function  GetCGID                  : TFRE_APSC_ID;
+    function  GetChannelManagerIDs     : TFRE_APSC_ID_Array;
+    function  GetChannelManagerByID    (const cm_id : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
+    function  CreateNewChannelManager  (const cm_id : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
+end;
+
+  IFRE_APSC_CHANNEL_MANAGER=interface  { Thread bound to CPU, grouped by a IFRE_APSC_CHANNEL_GROUP }
+    function  Implementor              : TObject;
+    function  GetID                    : TFRE_APSC_ID;
+    function  AddChannelManagerTimer   (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const periodic :boolean = false ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
     procedure ScheduleCoRoutine        (const method : TFRE_APSC_CoRoutine ; const data : Pointer);
+    function  GetChannelGroup          : IFRE_APSC_CHANNEL_GROUP;
   end;
 
-  IFRE_APSC_CHANNEL_GROUP=interface // = Session Group, VNC Group / Upload / Download Group / HTTP Requests
-  end;
 
   { IFRE_APSC_CHANNEL }
 
   IFRE_APSC_CHANNEL=interface // Session , VNC , UP/DOWN Load, HTTP Requests
-    function  GetChannelManager : IFRE_APSC_CHANNEL_MANAGER;
-    function  GetListener       : IFRE_APSC_LISTENER;
-    function  GetConnSocketAddr : String;
+    { Context Critical Methods }
+    function   Implementor          : TObject;
+    function   CH_GetConnSocketAddr : String;
 
-    function  GetVerboseDesc    : String;
-    procedure SetVerboseDesc    (const desc:string);
-    function  GetHandleKey      : cInt;
+    function   CH_GetVerboseDesc    : String;
+    procedure  CH_SetVerboseDesc    (const desc:string);
+    function   CH_GetHandleKey      : cInt;
 
-    procedure SetOnReadData     (on_read : TFRE_APSC_CHANNEL_EVENT);
-    procedure SetOnDisconnnect  (on_disc : TFRE_APSC_CHANNEL_EVENT);
+    procedure  CH_Enable_Reading    ;
+    procedure  CH_Enable_Writing    ;
 
-    procedure  CH_WriteString      (const str : RawByteString);
-    procedure  CH_WriteBuffer      (const data : Pointer ; const len : NativeInt);
-    procedure  CH_SAFE_WriteBuffer (const data : Pointer ; const len : NativeInt); // data gets copied ...
-    procedure  CH_SAFE_WriteString (const str : RawByteString); { to use from wrong/other thread contexr ... }
-    procedure  CH_WriteOpenedFile  (const fd : cInt ; const offset,len : NativeInt);
-    function   CH_GetDataCount     : NativeInt;
-    function   CH_ReadString       : RawByteString;
-    function   CH_ReadBuffer       (const data : Pointer ; const len : NativeInt) : NativeInt;
-    function   CH_GetErrorString   : String;
-    function   CH_GetErrorCode     : NativeInt;
-    function   CH_IsClientChannel  : Boolean;
-    function   CH_GetState         : TAPSC_ChannelState;
-    function   CH_GetID            : ShortString;
-    procedure  CH_AssociateData    (const data : PtrUInt);
-    function   CH_GetAssociateData : PtrUInt;
+    procedure  CH_SetOnReadData     (on_read : TFRE_APSC_CHANNEL_EVENT);
+    procedure  CH_SetOnDisconnnect  (on_disc : TFRE_APSC_CHANNEL_EVENT);
 
-    procedure CH_Enable_Reading    ;
-    procedure CH_Enable_Writing    ;
-    procedure Finalize             ; // Calling Finalize on channel will close it, but no Disconnect event gets fired, only when the partner socket diconnects
+    procedure  CH_WriteString       (const str : RawByteString);
+    procedure  CH_WriteBuffer       (const data : Pointer ; const len : NativeInt);
+    procedure  CH_WriteOpenedFile   (const fd : cInt ; const offset,len : NativeInt);
+    function   CH_GetDataCount      : NativeInt;
+    function   CH_ReadString        : RawByteString;
+    function   CH_ReadBuffer        (const data : Pointer ; const len : NativeInt) : NativeInt;
+    function   CH_GetErrorString    : String;
+    function   CH_GetErrorCode      : NativeInt;
+    function   CH_IsClientChannel   : Boolean;
+    function   CH_GetState          : TAPSC_ChannelState;
+    function   CH_GetID             : TFRE_APSC_ID;
+    procedure  CH_AssociateData     (const data : PtrUInt);
+    function   CH_GetAssociateData  : PtrUInt;
+
+    { Context Safe Methods }
+    procedure  cs_Finalize          ; // Calling Finalize on channel will close it, but no Disconnect event gets fired, only when the partner socket diconnects
+    procedure  cs_WriteBuffer       (const data : Pointer ; const len : NativeInt); // data gets copied ...
+    procedure  cs_WriteString       (const str : RawByteString); { to use from wrong/other thread contexr ... }
+    function   cs_GetChannelManager : IFRE_APSC_CHANNEL_MANAGER;
   end;
 
   IFRE_APS_COMM_SERVER=interface

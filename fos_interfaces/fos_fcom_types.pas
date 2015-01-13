@@ -228,9 +228,10 @@ const
    CFOS_BOOL :Array [false..true] of String=('0','1');
  type
    SslPtr         = Pointer;
+   SSL            = record end;
    PSslPtr        = ^SslPtr;
    PSSL_CTX       = SslPtr;
-   PSSL           = SslPtr;
+   PSSL           = ^SSL;
    PSSL_METHOD    = SslPtr;
    PBIO_METHOD    = SslPtr;
    PBIO           = SslPtr;
@@ -327,20 +328,31 @@ const
 
 type
 
-   TFCOM_InAddr  = in_addr;
-   TFCOM_InAddr6 = in6_addr;
+  TFCOM_InAddr  = in_addr;
+  TFCOM_In6Addr = in6_addr;
 
-   PFCOM_InAddr = Pointer;
+  PFCOM_InAddr  = ^TFCOM_InAddr;
+  PFCOM_In6Addr = ^TFCOM_In6Addr;
 
-   PFCOM_SOCKADDRSTORAGE=^TFCOM_SOCKADDRSTORAGE;
 
+  // psockaddr = ^sockaddr;
+  //sockaddr = packed record // if sa_len is defined, sa_family_t is smaller
+  //{$ifdef SOCK_HAS_SINLEN}
+  //   sa_len     : cuchar;
+  //{$endif}
+  //  case integer of
+  //    0: (sa_family: sa_family_t;
+  //        sa_data: packed array[0..13] of cuint8);
+  //    1: (sin_family: sa_family_t;
+  //        sin_port: cushort;
+  //        sin_addr: in_addr;
+  //        sin_zero: packed array[0..7] of cuint8);
+  //end;
 
+  PFCOM_SOCKADDRSTORAGE=^TFCOM_SOCKADDRSTORAGE;
 
   TFCOM_SOCKADDRSTORAGE=packed record
    case byte of
-    0: ( // untyped
-        binary:array[0..127] of byte;
-       );
     1: (
         case Integer of
          0: (
@@ -363,7 +375,17 @@ type
         sin6_flowinfo : cuint32;
         sin6_addr     : in6_addr;
         sin6_scope_id : cuint32;
-       )
+       );
+     3:(
+        {$ifdef SOCK_HAS_LEN}
+          sun_len     : cuint8;
+        {$endif}
+         sun_family    : sa_family_t;
+         sun_path      : array[0..107] of char;
+       );
+     4: ( // untyped
+         binary:array[0..127] of byte;
+        );
   end;
 
 
@@ -383,10 +405,20 @@ type
   TFCOM_SockAddrIn6 = packed record
 		sin6_family:   fcom_u_short;     // AF_INET6
 		sin6_port:     fcom_u_short;     // Transport level port number
-		sin6_flowinfo: fcom_u_long;	    // IPv6 flow information
-		sin6_addr:     TFCOM_InAddr6;    // IPv6 address
+		sin6_flowinfo: fcom_u_long;	 // IPv6 flow information
+		sin6_addr:     TFCOM_In6Addr;    // IPv6 address
 		sin6_scope_id: fcom_u_long;      // Scope Id: IF number for link-local
   end;
+
+  PFCOM_sockaddr_un = ^TFCOM_sockaddr_un;
+  TFCOM_sockaddr_un = packed record
+    {$ifdef SOCK_HAS_LEN}
+      sun_len     : cuint8;
+    {$endif}
+    sun_family    : sa_family_t;
+    sun_path      : array[0..107] of char;
+  end;
+
 
   TFCOM_DNS_QTYPES=(
                    fdnsqt_A = 1,fdnsqt_NS = 2,fdnsqt_MD = 3,fdnsqt_MF = 4,fdnsqt_CNAME = 5,fdnsqt_SOA = 6,fdnsqt_MB = 7,
@@ -409,15 +441,27 @@ type
         FCOM_AF_UNSPEC       =  AF_UNSPEC;
         FCOM_AF_INET         =  AF_INET;
         FCOM_AF_INET6        =  AF_INET6;
-        FCOM_SOL_SOCKET      = SOL_SOCKET;
-        FCOM_SO_REUSEADDR    = SO_REUSEADDR;
-        FCOM_TCP_NODELAY     = TCP_NODELAY;
-        FCOM_SO_ERROR        = SO_ERROR;
+        FCOM_AF_UNIX         =  AF_UNIX;
+        FCOM_PF_UNIX         =  PF_UNIX;
+        FCOM_PF_INET         =  PF_INET;
+        FCOM_PF_INET6        =  PF_INET6;
+        FCOM_SOL_SOCKET      =  SOL_SOCKET;
+        FCOM_SO_REUSEADDR    =  SO_REUSEADDR;
+        FCOM_TCP_NODELAY     =  TCP_NODELAY;
+        FCOM_SO_ERROR        =  SO_ERROR;
 
     //    FCOM_AI_CANONNAME    =  AI_CAN;
 
 function  fcom_interpret_OS_Error (const os_error:fcom_int):EFOS_OS_ERROR; // give the OS Errorstring a cross os specific meaning
-procedure fre_fcom_error_check         (const msg:string ; const status:EFOS_OS_ERROR);
+procedure fre_fcom_error_check    (const msg:string ; const status:EFOS_OS_ERROR);
+function  fcom_fpgetpeername      (s:cint; name  : psockaddr; namelen : psocklen):cint;
+function  fcom_fpsetsockopt       (s:cint; level:cint; optname:cint; optval:pointer; optlen : tsocklen):cint;
+function  fcom_fpgetsockopt       (s:cint; level:cint; optname:cint; optval:pointer; optlen : psocklen):cint;
+function  fcom_fpaccept           (s:cint; addrx : psockaddr; addrlen : psocklen):cint;
+function  fcom_fpsocket           (domain:cint; xtype:cint; protocol: cint):cint;
+function  fcom_fpbind             (s:cint; addrx : psockaddr; addrlen : tsocklen):cint;
+function  fcom_fplisten           (s:cint; backlog : cint):cint;
+
 
 implementation
 
@@ -450,6 +494,41 @@ begin
   if status<>EFOS_OS_OK then begin
     raise EFRE_Exception.Create(msg+' : failed with error : '+CFOS_OS_ERROR[status]);
   end;
+end;
+
+function fcom_fpgetpeername(s: cint; name: psockaddr; namelen: psocklen): cint;
+begin
+  result := fpgetpeername (s,name,namelen);
+end;
+
+function fcom_fpsetsockopt(s: cint; level: cint; optname: cint; optval: pointer; optlen: tsocklen): cint;
+begin
+  result := fpsetsockopt(s,level,optname,optval,optlen);
+end;
+
+function fcom_fpgetsockopt(s: cint; level: cint; optname: cint; optval: pointer; optlen: psocklen): cint;
+begin
+  result := fpgetsockopt(s,level,optname,optval,optlen)
+end;
+
+function fcom_fpaccept(s: cint; addrx: psockaddr; addrlen: psocklen): cint;
+begin
+  result := fpaccept(s,addrx,addrlen);
+end;
+
+function fcom_fpsocket(domain: cint; xtype: cint; protocol: cint): cint;
+begin
+  result := fpsocket(domain,xtype,protocol);
+end;
+
+function fcom_fpbind(s: cint; addrx: psockaddr; addrlen: tsocklen): cint;
+begin
+  result := fpbind(s,addrx,addrlen)
+end;
+
+function fcom_fplisten(s: cint; backlog: cint): cint;
+begin
+  result := fplisten(s,backlog)
 end;
 
 

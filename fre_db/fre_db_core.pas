@@ -1369,6 +1369,7 @@ type
     FIsVolatile            : Boolean;
     FName                  : TFRE_DB_NameType;
     FUniqueName            : TFRE_DB_NameType;
+
   protected
     function        URT_UserUid        : PFRE_DB_GUID; { returns the uid of the connection usertoken or NullGuid (all rights) if no connection is set }
     function        StoreI             (const new_obj:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -1805,7 +1806,7 @@ type
     function   FetchIndexed                    (const idx:NativeInt) : IFRE_DB_Object;
     function   FetchInDerived                  (const ouid:TFRE_DB_GUID;out dbo:IFRE_DB_Object): boolean; { honors rights and serverside filters, delivers the transformed(!) object !!}
     function   ItemCount                       : Int64;
-    function   SetupQryDefinitionBasic         (const start, endPos,clientid: NativeInt): TFRE_DB_QUERY_DEF;
+    function   SetupQryDefinitionBasic         (const start, endPos: NativeInt): TFRE_DB_QUERY_DEF;
     function   SetupQryDefinitionFromWeb       (const web_input : IFRE_DB_Object):TFRE_DB_QUERY_DEF;
     function   ExecuteQryLocked                (const qrydef : TFRE_DB_QUERY_DEF ; out qry :TFRE_DB_QUERY_BASE):NativeInt; { the base and thus implicitly the filtered data is returned locked, does not store the query }
     function   ExecutePointQry                 (const qrydef : TFRE_DB_QUERY_DEF):IFRE_DB_Object; { the base and thus implicitly the filtered data is returned locked, does not store the query }
@@ -2243,8 +2244,10 @@ type
   private
     FClonedFrom         : TFRE_DB_CONNECTION;
     FSysConnection      : TFRE_DB_SYSTEM_CONNECTION;
-    FProxySysconnection : boolean;                             { This Sysconnection is a seperate connection not belonging to the connection,
-                                                                 must not be a clone, }
+    FProxySysconnection : boolean;                             {
+                                                                 This Sysconnection is a seperate connection not belonging to the connection,
+                                                                 must not be a clone,
+                                                               }
     function    IFRE_DB_CONNECTION.GetScheme                   = GetSchemeI;
     function    IFRE_DB_CONNECTION.Collection                  = CollectionI;
     function    IFRE_DB_CONNECTION.StoreScheme                 = StoreSchemeI;
@@ -2261,7 +2264,7 @@ type
     function    IFRE_DB_CONNECTION.StoreClientFieldValidator   = StoreClientFieldValidatorI;
     function    IFRE_DB_CONNECTION.GetSchemeCollection         = GetSchemeCollectionI;
     function    IFRE_DB_CONNECTION.AssociateObject             = AssociateObjectI;
-    function    CreateAClone                                   : TFRE_DB_CONNECTION;
+    function    CreateAClone                                   (const loginatdomain,pass:TFRE_DB_String;const allowed_classes : TFRE_DB_StringArray): TFRE_DB_CONNECTION;
   protected
     procedure   InternalSetupConnection   ;override;
   public
@@ -2269,7 +2272,7 @@ type
     procedure   ClearUserSessionBinding       ;override;
 
     function    GetDatabaseName           : TFRE_DB_String;
-    function    ImpersonateClone          (const user,pass:TFRE_DB_String;out conn:TFRE_DB_CONNECTION;const allowed_classes: TFRE_DB_StringArray): TFRE_DB_Errortype;
+    function    ImpersonateClone          (const user,pass:TFRE_DB_String;out conn:IFRE_DB_CONNECTION;const allowed_classes: TFRE_DB_StringArray): TFRE_DB_Errortype;
 
     function    Connect                   (const db,user,pass:TFRE_DB_String;const ProxySysConnection:TFRE_DB_SYSTEM_CONNECTION):TFRE_DB_Errortype;
     function    Connect                   (Const db:TFRE_DB_String;const user:TFRE_DB_String='';const password:TFRE_DB_String='') : TFRE_DB_Errortype;
@@ -7884,7 +7887,7 @@ function TFRE_DB_DERIVED_COLLECTION.ItemCount: Int64;
 var qrydef : TFRE_DB_QUERY_DEF;
     qry    : TFRE_DB_QUERY_BASE;
 begin
-  qrydef := SetupQryDefinitionBasic(0,0,0);
+  qrydef := SetupQryDefinitionBasic(0,0);
   try
     result := ExecuteQryLocked(qrydef,qry);
   finally
@@ -7893,7 +7896,7 @@ begin
   end;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.SetupQryDefinitionBasic(const start, endPos, clientid: NativeInt): TFRE_DB_QUERY_DEF;
+function TFRE_DB_DERIVED_COLLECTION.SetupQryDefinitionBasic(const start, endPos: NativeInt): TFRE_DB_QUERY_DEF;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
  qrydef:=default(TFRE_DB_QUERY_DEF);
@@ -7910,7 +7913,6 @@ begin
  qrydef.OrderDefRef            := Orders;
  qrydef.SessionID              := FDC_Session.GetSessionID;
  qrydef.UserTokenRef           := FDC_Session.GetDBConnection.SYS.GetCurrentUserTokenRef;
- qrydef.ClientQueryID          := clientid;
  qrydef.StartIdx               := start;
  qrydef.EndIndex               := endPos;
  result := qrydef;
@@ -8104,7 +8106,7 @@ var i, j, cnt : NativeInt;
     end;
 
 begin
-  qrydef := SetupQryDefinitionBasic(web_input.Field('start').AsInt32,web_input.Field('end').AsInt32,strtoint(web_input.Field('QUERYID').AsString));
+  qrydef := SetupQryDefinitionBasic(web_input.Field('start').AsInt32,web_input.Field('end').AsInt32);
   qrydef.FullTextFilter := web_input.Field('FULLTEXT').AsString;
   if web_input.FieldExists('parentid') then
     begin { this is a child query }
@@ -8125,43 +8127,44 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.ExecuteQryLocked(const qrydef: TFRE_DB_QUERY_DEF; out qry: TFRE_DB_QUERY_BASE): NativeInt;
 var
-    query_base_data : TFRE_DB_TRANS_RESULT_BASE;
+    //query_base_data : TFRE_DB_TRANSFORMED_ORDERED_DATA;
     query           : TFRE_DB_QUERY_BASE;
     qry_ok          : boolean;
 
 begin
-  try
-    result := 0;
-    qry_ok := false;
-    MustBeInitialized;
-    query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
-    GFRE_DB_TCDM.LockManager;
-    try
-      try
-        if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base_data) then
-          GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base_data);
-        query.SetBaseOrderedData(query_base_data,FDC_Session.GetSessionID);
-        result := query.ExecuteQuery(nil);
-        qry_ok := true;
-        qry    := query;
-      finally
-        GFRE_DB_TCDM.UnlockManager;
-      end;
-    finally
-      if not qry_ok then
-        begin
-          query.Free;
-          qry := nil;
-        end
-    end;
-  except
-    raise;
-  end;
+  abort;
+  //try
+  //  result := 0;
+  //  qry_ok := false;
+  //  MustBeInitialized;
+  //  query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
+  //  GFRE_DB_TCDM.LockManager;
+  //  try
+  //    try
+  //      if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base_data) then
+  //        GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base_data);
+  //      query.SetBaseOrderedData(query_base_data,FDC_Session.GetSessionID);
+  //      result := query.ExecuteQuery(nil,self);
+  //      qry_ok := true;
+  //      qry    := query;
+  //    finally
+  //      GFRE_DB_TCDM.UnlockManager;
+  //    end;
+  //  finally
+  //    if not qry_ok then
+  //      begin
+  //        query.Free;
+  //        qry := nil;
+  //      end
+  //  end;
+  //except
+  //  raise;
+  //end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.ExecutePointQry(const qrydef: TFRE_DB_QUERY_DEF): IFRE_DB_Object;
 var
-    query_base_data : TFRE_DB_TRANS_RESULT_BASE;
+    //query_base_data : TFRE_DB_TRANS_RESULT_BASE;
     query           : TFRE_DB_QUERY_BASE;
     qry_ok          : boolean;
 
@@ -8171,36 +8174,37 @@ var
     end;
 
 begin
-  try
-    result := nil;
-    qry_ok := false;
-    MustBeInitialized;
-    FDCollFiltersDyn.RemoveAllFilters;
-    query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
-    GFRE_DB_TCDM.LockManager;
-    try
-      try
-        if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base_data) then
-          GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base_data);
-        query.SetBaseOrderedData(query_base_data,FDC_Session.GetSessionID);
-        query.ExecutePointQuery(@Iterator);
-        qry_ok := true;
-      finally
-        query.UnlockQryData;
-        GFRE_DB_TCDM.UnlockManager;
-      end;
-    finally
-      query.Free;
-    end;
-  except
-    raise;
-  end;
+  abort;
+  //try
+  //  result := nil;
+  //  qry_ok := false;
+  //  MustBeInitialized;
+  //  FDCollFiltersDyn.RemoveAllFilters;
+  //  query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
+  //  GFRE_DB_TCDM.LockManager;
+  //  try
+  //    try
+  //      if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base_data) then
+  //        GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base_data);
+  //      query.SetBaseOrderedData(query_base_data,FDC_Session.GetSessionID);
+  //      query.ExecutePointQuery(@Iterator);
+  //      qry_ok := true;
+  //    finally
+  //      query.UnlockQryData;
+  //      GFRE_DB_TCDM.UnlockManager;
+  //    end;
+  //  finally
+  //    query.Free;
+  //  end;
+  //except
+  //  raise;
+  //end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.First: IFRE_DB_Object;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
-  qrydef := SetupQryDefinitionBasic(-1,1,0);
+  qrydef := SetupQryDefinitionBasic(-1,1);
   result := ExecutePointQry(qrydef);
   if assigned(result) then
     FinalRightTransform(FDC_Session,result);
@@ -8209,7 +8213,7 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.Last: IFRE_DB_Object;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
-  qrydef := SetupQryDefinitionBasic(-2,1,0);
+  qrydef := SetupQryDefinitionBasic(-2,1);
   result := ExecutePointQry(qrydef);
   if assigned(result) then
     FinalRightTransform(FDC_Session,result);
@@ -8220,7 +8224,7 @@ var qrydef : TFRE_DB_QUERY_DEF;
 begin
   if idx<0 then
     raise EFRE_DB_Exception.Create(edb_ERROR,'index must be greater then zero');
-  qrydef := SetupQryDefinitionBasic(idx,1,0);
+  qrydef := SetupQryDefinitionBasic(idx,1);
   result := ExecutePointQry(qrydef);
   if assigned(result) then
     FinalRightTransform(FDC_Session,result);
@@ -8229,7 +8233,7 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.FetchInDerived(const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object): boolean;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
-  qrydef := SetupQryDefinitionBasic(0,0,0);
+  qrydef := SetupQryDefinitionBasic(0,0);
   qrydef.OnlyOneUID := ouid;
   dbo := ExecutePointQry(qrydef);
   result := assigned(dbo);
@@ -8333,7 +8337,7 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_GET_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-    query_base_data : TFRE_DB_TRANS_RESULT_BASE;
+    //query_base_data : TFRE_DB_TRANS_RESULT_BASE;
     query           : TFRE_DB_QUERY_BASE;
     qry_ok          : boolean;
     qrydef          : TFRE_DB_QUERY_DEF;
@@ -8351,7 +8355,7 @@ var
     begin
       cnt := 0;
       result := TFRE_DB_STORE_DATA_DESC.create;
-      cnt := query.ExecuteQuery(@GetData);
+      cnt := query.ExecuteQuery(@GetData,self);
       TFRE_DB_STORE_DATA_DESC(Result).Describe(cnt);
     end;
 
@@ -8362,29 +8366,10 @@ begin
     FDCollFiltersDyn.RemoveAllFilters;
     qrydef := SetupQryDefinitionFromWeb(input);
     query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
-    GFRE_DB_TCDM.LockManager;
     try
-      try
-        if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base_data) then
-          GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base_data);
-        query.SetBaseOrderedData(query_base_data,FDC_Session.GetSessionID);
-        result := GetGridDataDescription;
-        //writeln('----GDD');
-        //writeln(result.DumpToString());
-        //writeln('----GDD');
-        qry_ok := true;
-      finally
-        query_base_data.UnlockOrder;
-        GFRE_DB_TCDM.UnlockManager;
-      end;
+      result := GetGridDataDescription;
     finally
       query.Free;
-      //if not qry_ok then
-      //  query.Free
-      //else
-      //  begin
-      //    GFRE_DB_TCDM.StoreQuery(query);
-      //  end;
     end;
   except on e:exception do
     begin
@@ -8397,8 +8382,9 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.WEB_RELEASE_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var qid : TFRE_DB_NameType;
 begin
-  qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true),strtoint(input.Field('QUERYID').AsString));
-  GFRE_DB_TCDM.RemoveQueryRange(qid,-1,-1);
+  //writeln('RELEASE GRID DATA -> ',input.DumpToString());
+  qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true));
+  GFRE_DB_TCDM.RemoveQueryRange(qid,input.Field('START').AsInt64,input.Field('END').AsInt64);
   Result:=GFRE_DB_NIL_DESC;
 end;
 
@@ -11210,7 +11196,7 @@ begin
     FREDB_ApplyNotificationBlockToNotifIF_Connection(block,self); { metadata changes for master connection }
     FConnectionClones.ForAllBreak(@SendBlockToClones);            { send metatada, and session updates }
     if assigned(GFRE_DB_TCDM) then
-      GFRE_DB_TCDM.InboundNotificationBlock(FDBName,block);         { route data updates to the TCDM, Query updates (Grids) }
+      GFRE_DB_TCDM.InboundNotificationBlock(FDBName,block);       { route data updates to the TCDM, Query updates (Grids) }
   except on e:exception do
     begin
       raise;
@@ -11303,7 +11289,7 @@ begin
   FConnLock:=nil;
 end;
 
-function TFRE_DB_CONNECTION.CreateAClone: TFRE_DB_CONNECTION;
+function TFRE_DB_CONNECTION.CreateAClone(const loginatdomain, pass: TFRE_DB_String; const allowed_classes: TFRE_DB_StringArray): TFRE_DB_CONNECTION;
 begin
   if not FProxySysconnection then
     raise EFRE_DB_Exception.Create(edb_ERROR,'the system connection is only tested in proxy mode');
@@ -11317,6 +11303,7 @@ begin
   CheckDbResult(result.FSysConnection._Connect('SYSTEM',true));
   Result.FSysConnection.FClonedFrom := self.FSysConnection;
   FSysConnection.FConnectionClones.Add(result.FSysConnection);
+  CheckDbResult(FSysConnection.ImpersonateTheClone(loginatdomain,pass));
 end;
 
 procedure TFRE_DB_CONNECTION.InternalSetupConnection;
@@ -11367,14 +11354,13 @@ begin
 end;
 
 
-function TFRE_DB_CONNECTION.ImpersonateClone(const user, pass: TFRE_DB_String; out conn: TFRE_DB_CONNECTION; const allowed_classes: TFRE_DB_StringArray): TFRE_DB_Errortype;
+function TFRE_DB_CONNECTION.ImpersonateClone(const user, pass: TFRE_DB_String; out conn: IFRE_DB_CONNECTION; const allowed_classes: TFRE_DB_StringArray): TFRE_DB_Errortype;
 begin
   try
     result := CheckLogin(user,pass,allowed_classes);
     if result<>edb_OK then
       exit;
-    conn := CreateAClone;
-    CheckDbResult(conn.FSysConnection.ImpersonateTheClone(user,pass));
+    conn := CreateAClone(user,pass,allowed_classes);
   except on e:exception do
       result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
   end;
@@ -11563,7 +11549,8 @@ function TFRE_DB_CONNECTION.InvokeMethod(const class_name, method_name: TFRE_DB_
 var scheme : TFRE_DB_SchemeObject;
     implem : TFRE_DB_Object;
 begin
-  if not GFRE_DB.GetSystemScheme(class_name,scheme) then raise EFRE_DB_Exception.Create(edb_ERROR,'SCHEME [%s] IS UNKNOWN',[class_name]);
+  if not GFRE_DB.GetSystemScheme(class_name,scheme) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'SCHEME [%s] IS UNKNOWN',[class_name]);
   if assigned(input) then begin
     implem := input.Implementor as TFRE_DB_Object;
     result := scheme.InvokeMethod_UID_Session(uid_path,class_name,method_name,implem,self,session);

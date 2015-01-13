@@ -5,7 +5,7 @@ program CON_apstest;
 
 uses
  {$IFDEF UNIX}
-  cthreads,Sockets,
+  cthreads,
  {$ENDIF}
   Classes,
   sysutils, FRE_APS_INTERFACE,FOS_TOOL_INTERFACES
@@ -25,7 +25,6 @@ begin
        exit;
      end;
   Setup_APS_Comm;
-
 
   Test_APSC(ParamStr(1));
   GFRE_SC.RunUntilTerminate;

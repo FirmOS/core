@@ -35,12 +35,10 @@
       <Unit0>
         <Filename Value="fre_pl_server.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_pl_server"/>
       </Unit0>
       <Unit1>
         <Filename Value="fre_base_client.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_base_client"/>
       </Unit1>
       <Unit2>
         <Filename Value="fre_pl_dbo_server.pas"/>
@@ -50,7 +48,6 @@
       <Unit3>
         <Filename Value="../fre_core/fos_stats_control_interface.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fos_stats_control_interface"/>
       </Unit3>
       <Unit4>
         <Filename Value="fre_plserver_app.pas"/>
@@ -84,12 +81,6 @@
         <DebugInfoType Value="dsStabs"/>
       </Debugging>
     </Linking>
-    <Other>
-      <CompilerMessages>
-        <MsgFileName Value=""/>
-      </CompilerMessages>
-      <CompilerPath Value="$(CompPath)"/>
-    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="5">

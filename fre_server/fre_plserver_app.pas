@@ -46,7 +46,7 @@ uses
   Classes, SysUtils, CustApp,
   FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
   FRE_DB_CORE,fre_aps_comm_impl,
-  FRE_DB_EMBEDDED_IMPL,
+  FRE_DB_PERSISTANCE_FS_SIMPLE,
   FRE_CONFIGURATION,
   fre_basedbo_server,
   fre_basecli_app
@@ -106,12 +106,13 @@ begin
       CfgTestLog;
     end;
 
-  GDISABLE_WAL              := TRUE;
-  GDBPS_TRANS_WRITE_THROUGH := TRUE;
-  GDISABLE_SYNC             := TRUE;
-  GDROP_WAL                 := TRUE;
+  //GDISABLE_WAL              := TRUE;
+  //GDBPS_TRANS_WRITE_THROUGH := TRUE;
+  //GDISABLE_SYNC             := TRUE;
+  //GDROP_WAL                 := TRUE;
 
-  InitEmbedded;
+  //InitEmbedded;
+  GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db');
   Init4Server;
   GFRE_DBI.SetLocalZone('Europe/Vienna');
   Setup_APS_Comm;
@@ -122,7 +123,7 @@ begin
   MyRunMethod;
   Teardown_APS_Comm;
   FSFServer.Free;
-  GFRE_DB_PS_LAYER.SyncSnapshot(true);
+  //GFRE_DB_PS_LAYER.SyncSnapshot(true);
   GFRE_DB_PS_LAYER.Finalize;
   Terminate;
 end;

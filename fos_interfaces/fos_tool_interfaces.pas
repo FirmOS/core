@@ -414,7 +414,25 @@ type
     function  Stream                     :TStream;
    end;
 
+   { TFOS_FactorableBase }
+
+   TFOS_FactorableBase=class
+   public
+     class procedure   InitSingleton        ; virtual; abstract;
+     class procedure   DestroySingleton     ; virtual; abstract;
+     class function    ClassIsSingleton     : Boolean; virtual;
+     class function    GetFactoredSingleton : TFOS_FactorableBase; virtual;
+   end;
+
+   TFOS_FactorableClass=class of TFOS_FactorableBase;
+
    {$INTERFACES CORBA}
+
+   IFOS_FactoryInterface=interface
+     function    Factor    (const class_type : TFOS_FactorableClass):TFOS_FactorableBase;
+     procedure   Recycle   (const obj :TFOS_FactorableBase);
+   end;
+
    IFOS_LOCK=interface
     ['FOS_LOCK']
      procedure   Acquire;
@@ -456,10 +474,14 @@ type
     function    signal:boolean;
    end;
 
+   { IFOS_E }
+
    IFOS_E=interface
     ['FOS_E']
     procedure   WaitFor;
     procedure   SetEvent;
+    procedure   SetEventWithData (const data:Pointer);
+    function    GetData          : Pointer;
     procedure   Finalize;
    end;
 
@@ -471,7 +493,6 @@ type
     procedure   Finalize;
    end;
 
- {$INTERFACES CORBA}
   IFOS_FILE_LOGGER=interface
     procedure Sync_Logger;
     procedure LogConsole       (const msg:ShortString);
@@ -712,6 +733,20 @@ end;
 procedure _Invalid_Continuation_Break;
 begin
   GFRE_BT.CriticalAbort('-INVALID CONTINUATION BREAK-');
+end;
+
+{ TFOSFactorableBase }
+
+
+
+class function TFOS_FactorableBase.ClassIsSingleton: Boolean;
+begin
+  result := false;
+end;
+
+class function TFOS_FactorableBase.GetFactoredSingleton: TFOS_FactorableBase;
+begin
+  raise Exception.Create(classname+' is not a singleton');
 end;
 
 { TFOS_ReadOnlyMemStream }

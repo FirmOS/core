@@ -66,10 +66,11 @@ var
 {
   TDM THE DATA Hierarchy
   ----------------------
-  Level 0) TCDM                             (LockManager     | UnlockManager)
-  Level 1) TFRE_DB_TRANFORMED_DATA          (LockTransformed | UnockTransformed)  Transformed Data unorderd, stored in a hash list (uid,object)
-  Level 2) TFRE_DB_TRANSFORMED_ORDERED_DATA (LockOrder       | UnlockOrder)       Ordering Upon the Data References to , ART Tree
-  Level 3) TFRE_DB_FilterContainer          (LockFilter      | UnlockFilter)      Filtering upon the Ordered Data
+  Level 0) TCDM                                   ( LockManager      | UnlockManager      ) The whole Manager
+  Level 1) (BTD) TFRE_DB_TRANFORMED_DATA          ( LockTransformed  | UnockTransformed   ) Transformed Data unorderd, stored in a hash list (uid,object)
+  Level 2) (TOD) TFRE_DB_TRANSFORMED_ORDERED_DATA ( LockOrder        | UnlockOrder        ) Ordering Upon the Data References to , ART Tree
+  Level 3) (FCD) TFRE_DB_FilterContainer          ( LockFilter       | UnlockFilter       ) Filtering upon the Ordered Data
+  Level 4) (SRM) TFRE_DB_SESSION_DC_RANGE_MGR     ( LockRangeManager | UnlockRangeManager ) Create/Drop Ranges, Manage the minimum set of needed ranges upon the filtered data
 
 }
 
@@ -392,6 +393,7 @@ type
   private
     FRMGTransTag            : TFRE_DB_TransStepId;
     FLastQryMaximalIndex    : NativeInt; { get's set on FindRangeSatisfyingQuery, used to drop ranges on CompareRangesRun }
+    FRMLock                 : IFOS_LOCK;
   type TWorkRangeR= record
            Rid : NativeInt;
            Six : NativeInt;
@@ -413,6 +415,8 @@ type
     procedure   TagRangeMgrIfObjectIsInResultRanges (const search_uid: TFRE_DB_GUID; const transid: TFRE_DB_TransStepId);
     function    GetBaseDataLocked                   : TFRE_DB_TRANSFORMED_ORDERED_DATA;
   public
+    procedure   LockRangeManager                 ;
+    procedure   UnlockRangeManager               ;
     constructor Create                           (const key : TFRE_DB_SESSION_DC_RANGE_MGR_KEY ; const fc : TFRE_DB_FILTER_CONTAINER);
     destructor  Destroy                          ; override;
     procedure   ClearRanges                      ;
@@ -436,11 +440,11 @@ type
     function  GetFilterDefinition: TFRE_DB_DC_FILTER_DEFINITION;
     function  GetOrderDefinition: TFRE_DB_DC_ORDER_DEFINITION;
   protected
-     FBaseData               : TFRE_DB_TRANSFORMED_ORDERED_DATA; { assigned transformed and ordered data }
+     FTOD                    : TFRE_DB_TRANSFORMED_ORDERED_DATA; { assigned transformed and ordered data }
      //FFilterContainer        : TFRE_DB_FilterContainer;          { the filtercontainer of the ordering   }
      FQryDBName              : TFRE_DB_NameType;                 { used for reeval filters, etc          }
      FQueryId                : TFRE_DB_NameType;                 { ID of this specific Query             }
-     FQueryClientID          : Int64;
+     //FQueryClientID          : Int64;
      FQueryDescr             : string;
      FParentChildLinkFldSpec : TFRE_DB_NameTypeRL;               { rl spec of the parent child relation }
      FParentChildSkipschemes : TFRE_DB_NameTypeRLArray;          { skip this schemes in a parent child query }
@@ -489,13 +493,11 @@ type
      constructor Create                            (const qry_dbname : TFRE_DB_NameType);
      destructor  Destroy                           ; override;
      function    GetQueryID                        : TFRE_DB_NameType; override;
-     function    GetQueryID_ClientPart             : Int64;
      function    HasOrderDefinition                : boolean;
      property    Orderdef                          : TFRE_DB_DC_ORDER_DEFINITION  read GetOrderDefinition;
      property    Filterdef                         : TFRE_DB_DC_FILTER_DEFINITION read GetFilterDefinition;
-     procedure   SetBaseOrderedData                (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);override;
      procedure   UnlockQryData                     ; override;
-     function    ExecuteQuery                      (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;override; { execute the query, determine count and array of result dbo's }
+     function    ExecuteQuery                      (const iterator   : IFRE_DB_Obj_Iterator ; const dc : IFRE_DB_DERIVED_COLLECTION):NativeInt;override; { execute the query, determine count and array of result dbo's, in a lock safe way }
      procedure   ExecutePointQuery                 (const iterator   : IFRE_DB_Obj_Iterator);override;
      property    QryDBName                         : TFRE_DB_NameType read FQryDBName;
      //function    GetFullQueryOrderKey              : TFRE_DB_TRANS_COLL_DATA_KEY;
@@ -651,7 +653,7 @@ type
 
   { TFRE_DB_TRANSFORMED_ORDERED_DATA }
 
-  TFRE_DB_TRANSFORMED_ORDERED_DATA=class(TFRE_DB_TRANS_RESULT_BASE)
+  TFRE_DB_TRANSFORMED_ORDERED_DATA=class
   protected
     FOrderDef          : TFRE_DB_DC_ORDER_DEFINITION;
     FTransOrderLock    : IFOS_LOCK;
@@ -668,10 +670,10 @@ type
     procedure          Notify_DeleteFromTree (const old_obj : TFRE_DB_Object ; transtag : TFRE_DB_TransStepId);
     procedure          Notify_DeleteFromTree (const key: PByte; const keylen: NativeInt; const old_obj: TFRE_DB_Object ; const propagate_up : boolean = true ; const transtag : TFRE_DB_TransStepId = '');
 
-    procedure          CheckUpdateFilterContainer(const filter: TFRE_DB_DC_FILTER_DEFINITION ; out filtercontainer: TFRE_DB_FILTER_CONTAINER);
+    procedure          GetGenerateFilterContainerLocked(const filter: TFRE_DB_DC_FILTER_DEFINITION ; out filtercontainer: TFRE_DB_FILTER_CONTAINER); { Fill a FCD, or deliver the previously generate FCD back locked }
   public
-    procedure    LockOrder               ; override;
-    procedure    UnlockOrder             ; override;
+    procedure    LockOrder               ;
+    procedure    UnlockOrder             ;
     constructor  Create                  (const orderdef : TFRE_DB_DC_ORDER_DEFINITION ; base_trans_data : TFRE_DB_TRANFORMED_DATA);
     destructor   Destroy                 ; override;
     function     ExecuteBaseOrdered      (const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; const filterdef: TFRE_DB_DC_FILTER_DEFINITION; var startidx, endidx: NativeInt; const point_qry: boolean): NativeInt;
@@ -715,9 +717,9 @@ type
     FCurrentNotify : TFRE_DB_TRANSDATA_CHANGE_NOTIFIER;    { gather list of notifications for a notification block (transaction) }
     FCurrentNLayer : TFRE_DB_NameType;
 
-    procedure   ForAllQueryRangeMgrs   (const query_iter : TFRE_DB_RangeMgrIterator);
-    function    GetBaseTransformedData (base_key: TFRE_DB_CACHE_DATA_KEY; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
-    procedure   AddBaseTransformedData (const base_data : TFRE_DB_TRANFORMED_DATA);
+    procedure   ForAllQueryRangeMgrs         (const query_iter : TFRE_DB_RangeMgrIterator);
+    function    GetBaseTransformedDataLocked (base_key: TFRE_DB_CACHE_DATA_KEY; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
+    procedure   AddBaseTransformedData       (const base_data : TFRE_DB_TRANFORMED_DATA);
     procedure   TL_StatsTimer;
     procedure   AssertCheckTransactionID                    (const obj : IFRE_DB_Object ; const transid : TFRE_DB_TransStepId);
     procedure   CheckFilterChangesDueToReflinkchangesAndTag (const key_description: TFRE_DB_NameTypeRL; const tsid: TFRE_DB_TransStepId);
@@ -749,16 +751,19 @@ type
     {NOFIF BLOCK INTERFACE - END}
     function   DBC                    (const dblname : TFRE_DB_NameType) : IFRE_DB_CONNECTION;
     procedure  ChildObjCountChange    (const parent_obj : IFRE_DB_Object); { the child object count has changed, send an update on queries with P-C relation, where this object is in }
+
+    function    GetTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; var cd   : TFRE_DB_TRANSFORMED_ORDERED_DATA):boolean;                               { MGR (NTBL) BTD Locked, TOD Locked}
+    procedure   NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANSFORMED_ORDERED_DATA); { MGR (NTBL) BTD (fetched/created) Locked, TOD Locked}
+
   public
     constructor Create        ;
     destructor  Destroy       ; override;
     procedure   LockManager   ; override;
     procedure   UnlockManager ; override;
+
     function    GetRangeManagerLocked     (const sessionid: TFRE_DB_SESSION_ID; const filtercontainer: TFRE_DB_FILTER_CONTAINER): TFRE_DB_SESSION_DC_RANGE_MGR;
     function    GetNewOrderDefinition     : TFRE_DB_DC_ORDER_DEFINITION_BASE; override ;
     function    GetNewFilterDefinition    (const filter_db_name : TFRE_DB_NameType)  : TFRE_DB_DC_FILTER_DEFINITION_BASE ; override;
-    function    GetTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; var cd   : TFRE_DB_TRANS_RESULT_BASE):boolean; override;
-    procedure   NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE);override;
     {
      Generate the query spec from the JSON Webinput object
      dependency_reference_ids : this are the dependency keys that be considered to use from the JSON (usually one, input dependency)
@@ -767,7 +772,8 @@ type
     function    GenerateQueryFromQryDef    (const qry_def : TFRE_DB_QUERY_DEF):TFRE_DB_QUERY_BASE; override;
 
     procedure   DropAllQueryRanges                   (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); override;
-    function    FormQueryID                          (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType;override;
+    procedure   RemoveQueryRange                     (const qry_id     : TFRE_DB_NameType ; const start_idx,end_index : NativeInt);override;
+    function    FormQueryID                          (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL):TFRE_DB_NameType;override;
     procedure   ApplyInboundNotificationBlock        (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object);
     procedure   InboundNotificationBlock             (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); override;
 
@@ -1494,18 +1500,30 @@ begin
   abort;
 end;
 
+procedure TFRE_DB_SESSION_DC_RANGE_MGR.LockRangeManager;
+begin
+  FRMLock.Acquire;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE_MGR.UnlockRangeManager;
+begin
+  FRMLock.Release;
+end;
+
 constructor TFRE_DB_SESSION_DC_RANGE_MGR.Create(const key: TFRE_DB_SESSION_DC_RANGE_MGR_KEY; const fc: TFRE_DB_FILTER_CONTAINER);
 begin
   FRMGRKey             := key;
   FRanges              := TFRE_ART_TREE.Create;
   FRMFiltercont        := fc;
   FLastQryMaximalIndex := -1; { never set indicator }
+  GFRE_TF.Get_Lock(FRMLock);
 end;
 
 destructor TFRE_DB_SESSION_DC_RANGE_MGR.Destroy;
 begin
   ClearRanges;
   FRanges.Free;
+  FRMLock.Finalize;
   inherited Destroy;
 end;
 
@@ -4524,25 +4542,15 @@ begin
   result := FQueryId;
 end;
 
-function TFRE_DB_QUERY.GetQueryID_ClientPart: Int64;
-begin
-  result := FQueryClientID;
-end;
 
 function TFRE_DB_QUERY.HasOrderDefinition: boolean;
 begin
   result := assigned(FOrderDef);
 end;
 
-procedure TFRE_DB_QUERY.SetBaseOrderedData(const basedata: TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);
-begin
-  FBaseData  := basedata as TFRE_DB_TRANSFORMED_ORDERED_DATA;
-  FSessionId := session_id;
-end;
-
 procedure TFRE_DB_QUERY.UnlockQryData;
 begin
-  FBaseData.UnlockOrder;
+  FTOD.UnlockOrder;
 end;
 
 //procedure TFRE_DB_QUERY.SetMaxResultDBOLen(const compare_run: boolean);
@@ -4577,22 +4585,35 @@ begin
     SetLength(FResultDBOsCompare,FQueryDeliveredCountCmp);
 end;
 
-function TFRE_DB_QUERY.ExecuteQuery(const iterator: IFRE_DB_Obj_Iterator): NativeInt;
+function TFRE_DB_QUERY.ExecuteQuery(const iterator: IFRE_DB_Obj_Iterator; const dc: IFRE_DB_DERIVED_COLLECTION): NativeInt;
+var
+    query_tod : TFRE_DB_TRANSFORMED_ORDERED_DATA;
 begin
-  if not assigned(FBaseData) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'no base data available');
-  StartQueryRun(false);
-  result := FBaseData.ExecuteBaseOrdered(iterator,FSessionID,Filterdef,FStartIdx,FEndIndex,false);
-  EndQueryRun(false);
+  GFRE_DB_TCDM.LockManager;
+  try
+    if not G_TCDM.GetTransformedDataLocked(self,query_tod) then
+      G_TCDM.NewTransformedDataLocked(Self,dc,query_tod);
+  finally
+    GFRE_DB_TCDM.UnlockManager;
+  end;
+  try
+    FTOD  := query_tod; { Transformation and Ordering is Done - the data is transformed and ordered now }
+    StartQueryRun(false);
+    result := FTOD.ExecuteBaseOrdered(iterator,FSessionID,Filterdef,FStartIdx,FEndIndex,false);
+    EndQueryRun(false);
+  finally
+    query_tod.UnlockOrder;
+    query_tod.FBaseTransData.UnockTransformed;
+  end;
 end;
 
 procedure TFRE_DB_QUERY.ExecutePointQuery(const iterator: IFRE_DB_Obj_Iterator);
 begin
-  if not assigned(FBaseData) then
+  if not assigned(FTOD) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'no base data available');
   StartQueryRun(false);
   abort;
-  //FBaseData.ExecuteBaseOrdered(iterator,self,false,true);
+  //FTOD.ExecuteBaseOrdered(iterator,self,false,true);
   EndQueryRun(false);
 end;
 
@@ -5093,7 +5114,7 @@ begin
   FArtRangeMgrs.LinearScan(@Scan);
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.GetBaseTransformedData(base_key: TFRE_DB_CACHE_DATA_KEY; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
+function TFRE_DB_TRANSDATA_MANAGER.GetBaseTransformedDataLocked(base_key: TFRE_DB_CACHE_DATA_KEY; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
 var fnd : boolean;
 
   procedure Search(const bd : TFRE_DB_TRANFORMED_DATA ; var halt :boolean);
@@ -5102,6 +5123,7 @@ var fnd : boolean;
       begin
         halt      := true;
         base_data := bd;
+        base_data.LockTransformed;
       end;
   end;
 
@@ -5403,9 +5425,11 @@ begin
   FTransLock.Acquire;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.GetTransformedDataLocked(const qry: TFRE_DB_QUERY_BASE; var cd: TFRE_DB_TRANS_RESULT_BASE): boolean;
+function TFRE_DB_TRANSDATA_MANAGER.GetTransformedDataLocked(const qry: TFRE_DB_QUERY_BASE; var cd: TFRE_DB_TRANSFORMED_ORDERED_DATA): boolean;
 var fkd : TFRE_DB_CACHE_DATA_KEY;
     fnd : boolean;
+
+  { Search for the TRANSFORMED and ORDERED Data Block}
 
   procedure Search(const tcd : TFRE_DB_TRANSFORMED_ORDERED_DATA ; var halt : boolean);
   begin
@@ -5413,7 +5437,8 @@ var fkd : TFRE_DB_CACHE_DATA_KEY;
       begin
         halt := true;
         cd   := tcd;
-        tcd.LockOrder;
+        tcd.FBaseTransData.LockTransformed; { Lock the base }
+        tcd.LockOrder;                      { Lock the order }
       end;
   end;
 
@@ -5425,16 +5450,19 @@ begin
   GFRE_DBI.LogDebug(dblc_DBTDM,'>GET ORDERING FOR TRANSFORMED DATA FOR [%s] %s',[fkd,BoolToStr(fnd,'FOUND','NOT FOUND')]);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.NewTransformedDataLocked(const qry: TFRE_DB_QUERY_BASE; const dc: IFRE_DB_DERIVED_COLLECTION; var cd: TFRE_DB_TRANS_RESULT_BASE);
+procedure TFRE_DB_TRANSDATA_MANAGER.NewTransformedDataLocked(const qry: TFRE_DB_QUERY_BASE; const dc: IFRE_DB_DERIVED_COLLECTION; var cd: TFRE_DB_TRANSFORMED_ORDERED_DATA);
 var transdata         : TFRE_DB_TRANFORMED_DATA;
     basekey           : TFRE_DB_CACHE_DATA_KEY;
     st,et             : NativeInt;
     rcnt              : NativeInt;
+
+    { Generate (if needed) a new base transformation, and a new ordering }
+
 begin
   with (qry) as TFRE_DB_QUERY do
     begin
       basekey := Orderdef.Orderdatakey;
-      if not GetBaseTransformedData(basekey,transdata) then                   { 1st search for Transformeddata }
+      if not GetBaseTransformedDataLocked(basekey,transdata) then                   { 1st search for Transformeddata }
         begin
           GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[basekey]);
           st        := GFRE_BT.Get_Ticks_ms;
@@ -5525,13 +5553,13 @@ var qry : TFRE_DB_QUERY;
 
    procedure SetQueryID;
    begin
-     qry.FQueryClientID := qry_def.ClientQueryID;
-     qry.FQueryId       := FormQueryID(qry_def.SessionID,qry_def.DerivedCollName,qry_def.ClientQueryID);
-     qry.FQueryDescr    := Format('QRY(%s) DC(%s) CLID(%d)',[qry.FQueryId,qry_def.DerivedCollName,qry.FQueryClientID]);
+     qry.FQueryId       := FormQueryID(qry_def.SessionID,qry_def.DerivedCollName);
+     qry.FQueryDescr    := Format('QRY(%s)',[qry.FQueryId]);
    end;
 
 begin
-  qry := TFRE_DB_QUERY.Create(qry_def.DBName);
+  qry             := TFRE_DB_QUERY.Create(qry_def.DBName);
+  qry.FSessionID  := qry_def.SessionID;
   qry.FOnlyOneUID := qry_def.OnlyOneUID;
   if qry.FOnlyOneUID<>CFRE_DB_NullGUID then
     qry.FUidPointQry:=true;
@@ -5584,13 +5612,16 @@ begin
   //end;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.FormQueryID(const session_id: TFRE_DB_String; const dc_name: TFRE_DB_NameTypeRL; const client_part: int64): TFRE_DB_NameType;
+procedure TFRE_DB_TRANSDATA_MANAGER.RemoveQueryRange(const qry_id: TFRE_DB_NameType; const start_idx, end_index: NativeInt);
+begin
+  writeln('IMPLEMENT REMOVE QuerY RANGE');
+end;
+
+function TFRE_DB_TRANSDATA_MANAGER.FormQueryID(const session_id: TFRE_DB_String; const dc_name: TFRE_DB_NameTypeRL): TFRE_DB_NameType;
 begin
   result := session_id;
   if dc_name<>'' then
     result := result + '/'+GFRE_BT.HashFast32_Hex(dc_name);
-  if client_part<>0 then
-    result := result+'#'+inttostr(client_part);
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.ApplyInboundNotificationBlock(const dbname: TFRE_DB_NameType; const block: IFRE_DB_Object);
@@ -5870,7 +5901,7 @@ begin
     end;
 end;
 
-procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.CheckUpdateFilterContainer(const filter: TFRE_DB_DC_FILTER_DEFINITION; out filtercontainer: TFRE_DB_FILTER_CONTAINER);
+procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.GetGenerateFilterContainerLocked(const filter: TFRE_DB_DC_FILTER_DEFINITION; out filtercontainer: TFRE_DB_FILTER_CONTAINER);
 var brk        : boolean;
     filtkey    : TFRE_DB_TRANS_COLL_FILTER_KEY;
     dummy      : PNativeUint;
@@ -5890,9 +5921,10 @@ var brk        : boolean;
   end;
 
 begin
-  brk := false;
-  filtkey    := filter.GetFilterKey;
-  dummy      := nil;
+  brk             := false;
+  filtkey         := filter.GetFilterKey;
+  dummy           := nil;
+  filtercontainer := nil;
   if FArtTreeFilterKey.InsertStringKeyOrFetchR(filtkey,dummy) then
     begin
       filtercontainer := TFRE_DB_FILTER_CONTAINER.Create(GetCacheDataKey,filter);
@@ -5903,6 +5935,7 @@ begin
       filtercontainer := FREDB_PtrUIntToObject(dummy^) as TFRE_DB_FILTER_CONTAINER;
       GFRE_DBI.LogInfo(dblc_DBTDM,'>REUSING FILTERING FOR BASEDATA FOR FILTERKEY [%s] [%s]',[FilterContainer.FilterDataKey,BoolToStr(filtercontainer.IsFilled,'FILLED','NOT FILLED')]);
     end;
+  filtercontainer.LockFilter;
   filtercontainer.CheckDBReevaluation; { check if the filter was updated and needs db reevaluation }
   if not filtercontainer.IsFilled then
     begin
@@ -6022,11 +6055,15 @@ end;
 function TFRE_DB_TRANSFORMED_ORDERED_DATA.ExecuteBaseOrdered(const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; const filterdef: TFRE_DB_DC_FILTER_DEFINITION; var startidx, endidx: NativeInt ; const point_qry: boolean): NativeInt;
 var filtercontainer : TFRE_DB_FILTER_CONTAINER;
 begin
-  CheckUpdateFilterContainer(Filterdef,filtercontainer); { now the filtering is created, or updated }
-  if not point_qry then
-    result := filtercontainer.ExecuteFilter(iter,sessionid,startidx,endidx)
-  else
-    result := filterContainer.ExecuteFilterPointQuery(iter,nil)
+  GetGenerateFilterContainerLocked(Filterdef,filtercontainer); { now the filtering is created, or updated }
+  try
+    if not point_qry then
+      result := filtercontainer.ExecuteFilter(iter,sessionid,startidx,endidx)
+    else
+      result := filterContainer.ExecuteFilterPointQuery(iter,nil)
+  finally
+    filtercontainer.UnlockFilter;
+  end;
 end;
 
 procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.UpdateTransformedobject(const old_obj, new_object: IFRE_DB_Object);

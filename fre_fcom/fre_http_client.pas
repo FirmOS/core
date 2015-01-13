@@ -84,7 +84,7 @@ type
       procedure   SetHost         (const host:string);
       procedure   SetUA           (const useragent:string);
       procedure   SetPort         (const port:string);
-      procedure   SetIP_Mode  (const ip_mode : boolean);
+      procedure   SetIP_Mode      (const ip_mode : boolean);
       procedure   SetHttpProtocol (const proto:string);
       procedure   GetMethod       (const url:string ; const contentcallback : TFRE_SIMPLE_HTTP_CONTENT_CB);
     end;
@@ -99,10 +99,10 @@ begin
   case channel_event of
     ch_NEW_CS_CONNECTED:
       begin
-        Fchannel := Channel;
+        Fchannel    := Channel;
+        FHostIPPort := channel.CH_GetConnSocketAddr;
         channel.CH_WriteString(FHttpRequest);
         channel.CH_Enable_Reading;
-        FHostIPPort := channel.GetConnSocketAddr;
       end;
     ch_NEW_CHANNEL_FAILED:
       begin
@@ -187,7 +187,7 @@ begin
                               begin
                                 if CheckLenAvail then
                                   begin
-                                    channel.Finalize;
+                                    channel.cs_Finalize;
                                     DoCallback;
                                   end;
                               end;
@@ -198,7 +198,7 @@ end;
 
 procedure TFRE_SIMPLE_HTTP_CLIENT.localDisco(const channel: IFRE_APSC_CHANNEL);
 begin
-  writeln('Cannel '+channel.GetVerboseDesc,' DISCO ',channel.CH_GetErrorString);
+  writeln('Cannel '+channel.CH_GetVerboseDesc,' DISCO ',channel.CH_GetErrorString);
   if assigned(FContentCB) then
     FContentCB(self,500,0,channel.CH_GetErrorString,nil);
 end;
@@ -220,7 +220,7 @@ end;
 destructor TFRE_SIMPLE_HTTP_CLIENT.Destroy;
 begin
   if assigned(Fchannel) then
-    Fchannel.Finalize;
+    Fchannel.cs_Finalize;
   inherited Destroy;
 end;
 
@@ -258,9 +258,9 @@ begin
   FHttpRequest:=FHttpRequest+ cHTTPLE;
   FContentCB  :=contentcallback;
   if FIsDNSMode then
-    GFRE_SC.AddClient_TCP_DNS(FHost,Fport,'FHT',nil,@localNewChannel,@localRead,@localDisco)
+    GFRE_SC.AddClient_TCP_DNS(FHost,Fport,'FHT',false,nil,@localNewChannel,@localRead,@localDisco)
   else
-    GFRE_SC.AddClient_TCP(FHost,Fport,'FHT',nil,@localNewChannel,@localRead,@localDisco)
+    GFRE_SC.AddClient_TCP(FHost,Fport,'FHT',false,nil,@localNewChannel,@localRead,@localDisco)
 end;
 
 end.

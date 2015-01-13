@@ -48,7 +48,7 @@ interface
 
 uses
   Classes, SysUtils,FOS_FCOM_TYPES,
-  cTypes,BaseUnix,Sockets,unixtype
+  cTypes,BaseUnix,unixtype,fre_fcom_ssl
   ;
 
 {$IFDEF WINDOWS}
@@ -349,7 +349,7 @@ uses
   bufferevent_rate_limit_group = record end;
   evdns_getaddrinfo_request    = record end;
   evbuffer_cb_entry            = record end;
-  ssl_st                       = record end;
+  ssl_st                       = SSL;
 
 
   ev_off_t                   = off_t;
@@ -398,7 +398,7 @@ uses
       ai_protocol: cInt; {* 0 or IPPROTO_xxx for IPv4 and IPv6 *}
       ai_addrlen: size_t; {* length of ai_addr *}
       ai_canonname: PChar; {* canonical name for hostname *}
-      ai_addr: psockaddr;	 {* binary address *}
+      ai_addr: PFCOM_SOCKADDRSTORAGE;	 {* binary address *}
       ai_next: Pevutil_AddrInfo;	 {* next structure in linked list *}
     end;
 
@@ -421,6 +421,8 @@ uses
 
 
   function  evthread_use_pthreads                                                       : cInt          ; cdecl ; external; // only U*xes / posix
+  function  evthread_make_base_notifiable  (const base : PEvent_base)                   : cInt          ; cdecl ; external;
+
   function  event_get_version                                                           : PChar         ; cdecl ; external;
   function  event_base_new                                                              : Pevent_base   ; cdecl ; external;
   function  event_config_new                                                            : Pevent_config ; cdecl ; external;
@@ -578,17 +580,74 @@ implementation
     procedure EventCB (fd : evutil_socket_t ; short: cshort ; data:pointer); cdecl;
     var tvw    : TFCOM_TimeVal = (tv_sec : 5 ; tv_usec : 0);
     begin
-      writeln('EVENT CALLBACK ',fd,' ',short,' ',integer(data));
+      writeln('EVENT CALLBACK ',fd,' ',short,' ',integer(data),' ', PtrUInt(GetThreadID));
       writeln(event_base_loopbreak(base));
       tvw.tv_sec:=0;
       tvw.tv_usec:=0;
       writeln(event_base_loopexit(base,@tvw));
     end;
 
+    procedure EventCB2(fd : evutil_socket_t ; short: cshort ; data:pointer); cdecl;
+    //var tvw    : TFCOM_TimeVal = (tv_sec : 5 ; tv_usec : 0);
+    begin
+      writeln('EVENT CALLBACK 2 ',fd,' ',short,' ',integer(data),' ', PtrUInt(GetThreadID));
+      sleep(2000);
+      //writeln(event_base_loopbreak(base));
+      //tvw.tv_sec:=0;
+      //tvw.tv_usec:=0;
+      //writeln(event_base_loopexit(base,@tvw));
+    end;
+
+type
+
+    { TEV2_Thread }
+
+    TEV2_Thread=class(tthread)
+    private
+      Fev  : PEvent;
+      FEvb : PEvent_base;
+      constructor Create(const evb : PEvent_base);
+      procedure   Execute;override;
+    end;
+
+    { TEV2_Thread }
+
+    constructor TEV2_Thread.Create(const evb: PEvent_base);
+    begin
+      FreeOnTerminate:=true;
+      FevB := evb;
+      Inherited create(False);
+    end;
+
+    procedure TEV2_Thread.Execute;
+    var i:integer;
+    begin
+      FreeOnTerminate:=true;
+      //Fev := event_new(FEvb,-1,EV_READ or EV_WRITE or EV_PERSIST,@EventCB2,nil);
+      Fev := event_new(FEvb,-1,EV_READ or EV_WRITE,@EventCB2,nil);
+      event_add(Fev,nil);
+      for i:=0 to 20 do
+        begin
+          sleep(5);
+          if i mod 2=0 then
+            begin
+             writeln('SENDEV R',PtrUInt(GetThreadID));
+             event_active(Fev,EV_READ,0);
+            end
+          else
+            begin
+              writeln('SENDEV W',PtrUInt(GetThreadID));
+              event_active(Fev,EV_WRITE,0);
+            end;
+        end;
+    end;
+
+
 procedure TesT_LE;
 var meths : PPchar;
     i     : Integer;
-    tv    : TFCOM_TimeVal = (tv_sec : 5 ; tv_usec : 0);
+    tv    : TFCOM_TimeVal = (tv_sec : 10 ; tv_usec : 0);
+    tv2   : TFCOM_TimeVal = (tv_sec :  1 ; tv_usec : 0);
     ev1,
     ev2   : PEvent;
 
@@ -616,6 +675,8 @@ var meths : PPchar;
       res_string  : string;
 
 begin
+  writeln('Libevent Ussepthreads ',evthread_use_pthreads);
+
   writeln('Libevent Test ',PChar(event_get_version));
 //  res := evutil_parse_sockaddr_port('fe80::ca2a:14ff:fe14:2764',@sa,len);
   len := sizeof(TFCOM_SOCKADDRSTORAGE);
@@ -640,6 +701,9 @@ begin
   writeln('features : ',res);
 //  base := event_base_new_with_config(cfg);
   base := event_base_new;
+  writeln('Libevent make_base_notifiable ',evthread_make_base_notifiable(base));
+  //writeln('Libevent make_base_notifiable ',evthread_make_base_notifiable(base));
+
   event_config_free(cfg);
   writeln('base : ',integer(base));
   _setupUnix;
@@ -650,19 +714,23 @@ begin
     end else break;
   end;
   writeln('Chosen Method : ',string(event_base_get_method(base)),' Features : ',event_base_get_features(base));
+
   ev1 := event_new(base, SIGINT, EV_SIGNAL or  EV_PERSIST, @EventCB, nil);
 
   writeln('EV1 ',integer(ev1));
   //event_base_loopexit(base, @tv);
   writeln('LOOP');
   event_add(ev1,@tv);
+  TEV2_Thread.create(base);
 //  event_base_loop(base,EVLOOP_NO_EXIT_ON_EMPTY);
+
 
   event_base_loop(base,0);
 
   writeln('DONE');
   event_base_free(base);
 end;
+
 
 
 

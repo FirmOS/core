@@ -47,7 +47,7 @@ uses
   CustApp,
   FRE_SYSTEM,FOS_DEFAULT_IMPLEMENTATION,FOS_TOOL_INTERFACES,FOS_FCOM_TYPES,FRE_APS_INTERFACE,FRE_DB_INTERFACE,
   FRE_DB_CORE,fre_aps_comm_impl,fre_dbbase,
-  FRE_DB_EMBEDDED_IMPL,
+  //FRE_DB_EMBEDDED_IMPL,
   FRE_CONFIGURATION,
   fre_base_client
    ;
@@ -140,7 +140,7 @@ begin
       CfgTestLog;
     end;
 
-  InitEmbedded;
+  //InitEmbedded;
   InitMinimal();
   Init4Server;
   fre_dbbase.Register_DB_Extensions;

@@ -51,7 +51,8 @@ type
      private type
          _PTType                      = ^_TType;
          TGFOS_SpareListType          = array of _TType;
-         TGFOS_ElemProc               = procedure (var x:_TType;const idx:NativeInt ; var halt_flag:boolean) is nested;
+         TGFOS_ElemProcHalt           = procedure (var x:_TType;const idx:NativeInt ; var halt_flag:boolean) is nested; { complexer cases }
+         TGFOS_ElemProc               = procedure (var x:_TType) is nested; { simple short form }
          TGFOS_ExtCompareElemProc     = function  (const x1,x2 : _PTType) : boolean;
          TGFOS_ExtCompareNullElemProc = function  (const x1:_PTType) : boolean;
      private
@@ -65,7 +66,7 @@ type
        function  MyNullCompare (const x1:_PTType) : boolean;
        function  MyExtCompare  (const x1,x2 : _PTType) : boolean;
      public
-       function  Reserve           : NativeInt;
+       function  Reserve              : NativeInt;
        procedure InitSparseList       (const NullElement:_TType ; const NullCompare : TGFOS_ExtCompareNullElemProc ; const Compare : TGFOS_ExtCompareElemProc ;  const numberofemptyslots:NativeUint=25);
        procedure InitSparseListPtrCmp (const numberofemptyslots:NativeUint=25);
        function  Add                  (const elem: _TType):NativeInt; // new result = insert index or -1 on exists
@@ -74,8 +75,9 @@ type
        function  GetElement           (idx : NativeInt): _TType;
        procedure SetElement           (idx : NativeInt; AValue: _TType);
        function  Count                : NativeInt;
-       function  ForAllBreak          (const elem_func : TGFOS_ElemProc):Boolean;
-       function  ForAllBreak2         (const elem_func : TGFOS_ElemProc ; var halt : boolean):boolean;
+       procedure ForAll               (const elem_func : TGFOS_ElemProc);
+       function  ForAllBreak          (const elem_func : TGFOS_ElemProcHalt):Boolean;
+       function  ForAllBreak2         (const elem_func : TGFOS_ElemProcHalt ; var halt : boolean):boolean;
        procedure ClearIndex           (const idx : NativeInt);
        function  GetLastNotNull       (var elem : _TType):NativeInt;
        function  GetFirstNotNull      (var elem : _TType):NativeInt;
@@ -225,55 +227,55 @@ begin
   result := FCnt;
 end;
 
-function OFOS_SpareList.ForAllBreak(const elem_func: TGFOS_ElemProc): Boolean;
-//var i       : NativeInt;
-//    haltf   : boolean;
-//    cnt,
-//    savecnt : NativeInt;
+procedure OFOS_SpareList.ForAll(const elem_func: TGFOS_ElemProc);
+var i       : NativeInt;
+    cnt,
+    maxarr  : NativeInt;
+begin
+  cnt     := FCnt;
+  maxarr  := Length(FArray);
+  i       := 0;
+  while (i <  maxarr) and (cnt>0)  do
+    begin
+      if not MyNullCompare(@FArray[i]) then
+        begin
+          elem_func(FArray[i]);
+          dec(cnt);            { decrement saved max item cnt for every non null element}
+        end;
+      inc(i);
+    end;
+end;
+
+function OFOS_SpareList.ForAllBreak(const elem_func: TGFOS_ElemProcHalt): Boolean;
 var   haltf : boolean;
 begin
   haltf := false;
   result := ForAllBreak2(elem_func,haltf);
-  //result  := true;
-  //haltf   := false;
-  //cnt     := 0;
-  //savecnt := FCnt;
-  //for i := 0 to High(FArray) do
-  //  begin
-  //    if not MyNullCompare(@FArray[i]) then
-  //      begin
-  //        elem_func(FArray[i],i,haltf);
-  //        inc(cnt);
-  //        if cnt=savecnt then
-  //           exit(haltf);
-  //        if haltf then
-  //           exit(true);
-  //      end;
-  //  end;
-  //exit(false);
 end;
 
-function OFOS_SpareList.ForAllBreak2(const elem_func: TGFOS_ElemProc; var halt: boolean): boolean;
-var i       : NativeInt;
-    cnt,
-    savecnt : NativeInt;
+function OFOS_SpareList.ForAllBreak2(const elem_func: TGFOS_ElemProcHalt; var halt: boolean): boolean;
+var cnt,savecnt,
+    maxarr,i    : NativeInt;
 begin
   result  := true;
   cnt     := 0;
-  savecnt := FCnt;
-  for i := 0 to High(FArray) do
+  maxarr  := Length(FArray);
+  i       := 0;
+  savecnt := FCnt; { a clearindex (which is allowed) would modify the count -> save it for local usage }
+  while (i < maxarr) and (savecnt>0) do
     begin
       if not MyNullCompare(@FArray[i]) then
         begin
           elem_func(FArray[i],i,halt);
           inc(cnt);
-          if cnt=savecnt then
+          if cnt=savecnt then { search the whole array, but break if we have reached the element count, there cant be further non null elements}
              exit(halt);
           if halt then
              exit(true);
         end;
+      inc(i);
     end;
-  exit(false);
+    exit(false);
 end;
 
 procedure OFOS_SpareList.ClearIndex(const idx: NativeInt);

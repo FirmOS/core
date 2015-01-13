@@ -81,8 +81,10 @@ function  FOS_IL_ExchangeAdd(var Addend: longword; Value: integer): longword;inl
 
 function  FOS_IL_CompareExchange(var Destination: longword; Exchange, Comparand: longword): longword;inline;
 function  FOS_IL_CompareExchange64(var Destination: Int64; Exchange, Comparand: Int64): Int64;//inline;
-function  FOS_IL_Increment64(var Addend: Int64): Int64; //inline;
-function  FOS_IL_Decrement64(var Addend: Int64): Int64; //inline;
+function  FOS_IL_Increment64(var Addend: Int64): Int64; inline;
+function  FOS_IL_Increment64(var Addend: QWord): QWord; inline;
+function  FOS_IL_Decrement64(var Addend: Int64): Int64; inline;
+function  FOS_IL_Decrement64(var Addend: QWord): QWord; inline;
 function  FOS_IL_Exchange64(var Target: Int64; Value: Int64): Int64; //inline;
 function  FOS_IL_ExchangeAdd64(var Addend: Int64; Value: Int64): Int64;// inline;
 {$IFDEF CPU64}
@@ -158,7 +160,7 @@ begin
    {$IFDEF CPU64}
      result := FOS_IL_Decrement64(Int64(Destination));
    {$ELSE}
-      Implement that
+     Implement that
    {$ENDIF}
  {$ENDIF}
 end;
@@ -249,7 +251,7 @@ begin
  result:=InterLockedDecrement(Addend);
 end;
 
-function  FOS_IL_Decrement(var Addend: Integer): Integer;
+function FOS_IL_Decrement(var Addend: longint): longint;
 begin
   result:=FOS_IL_Decrement(cardinal(Addend));
 end;
@@ -299,7 +301,17 @@ begin
   result := InterLockedIncrement64(Addend);
 end;
 
+function FOS_IL_Increment64(var Addend: QWord): QWord;
+begin
+ result := InterLockedIncrement64(Addend);
+end;
+
 function FOS_IL_Decrement64(var Addend: Int64): Int64;
+begin
+ result := InterLockedDecrement64(Addend);
+end;
+
+function FOS_IL_Decrement64(var Addend: QWord): QWord;
 begin
  result := InterLockedDecrement64(Addend);
 end;

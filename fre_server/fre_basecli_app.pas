@@ -1479,16 +1479,18 @@ procedure TFRE_CLISRV_APP.PrepareStartup;
 begin
   Setup_SSL_CMD_CA_Interface;
   Setup_APS_Comm;
-
+  InitMinimal;
   if cFRE_PS_LAYER_USE_EMBEDDED then
-    GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db')
+    begin
+      //GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Simple(cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'db')
+      GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Net(cFRE_PS_LAYER_HOST,cFRE_PS_LAYER_IP,cFRE_PS_LAYER_PORT,true);
+    end
   else
-    GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Net(cFRE_PS_LAYER_HOST,cFRE_PS_LAYER_IP,cFRE_PS_LAYER_PORT);
+    GFRE_DB_PS_LAYER := Get_PersistanceLayer_PS_Net(cFRE_PS_LAYER_HOST,cFRE_PS_LAYER_IP,cFRE_PS_LAYER_PORT,false);
 
   InitTransfromManager;
   Init4Server;
   GFRE_DBI.LocalZone := cFRE_SERVER_DEFAULT_TIMEZONE;
-  //writeln('STARTUP @LOCAL TIME :',GFRE_DT.ToStrFOS(GFRE_DT.UTCToLocalTime(GFRE_DT.Now_UTC,GFRE_DBI.LocalZone)),'  UTC TIME :',GFRE_DT.ToStrFOS(GFRE_DT.Now_UTC));
 end;
 
 procedure TFRE_CLISRV_APP.CfgTestLog;

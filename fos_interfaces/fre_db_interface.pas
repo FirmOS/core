@@ -2036,12 +2036,12 @@ type
 
   { TFRE_DB_TRANS_COLL_DATA_BASE }
 
-  TFRE_DB_TRANS_RESULT_BASE = class
-  public
-    procedure LockOrder   ; virtual; abstract;
-    procedure UnlockOrder ; virtual; abstract;
-    //function  GetFullKey : TFRE_DB_TRANS_COLL_DATA_KEY; virtual ; abstract;
-  end;
+  //TFRE_DB_TRANS_RESULT_BASE = class
+  //public
+  //  procedure LockOrder   ; virtual; abstract;
+  //  procedure UnlockOrder ; virtual; abstract;
+  //  //function  GetFullKey : TFRE_DB_TRANS_COLL_DATA_KEY; virtual ; abstract;
+  //end;
 
   { TFRE_DB_DC_FILTER_DEFINITION_BASE }
 
@@ -2079,7 +2079,6 @@ end;
   { TFRE_DB_QUERY_DEF }
 
   TFRE_DB_QUERY_DEF=record
-     ClientQueryID          : Int64;
      StartIdx               : Int32;
      EndIndex               : Int32;
      SessionID              : TFRE_DB_SESSION_ID;
@@ -2108,8 +2107,7 @@ end;
 
   TFRE_DB_QUERY_BASE=class
     function  GetQueryID           : TFRE_DB_NameType; virtual; abstract;
-    procedure SetBaseOrderedData   (const basedata   : TFRE_DB_TRANS_RESULT_BASE ; const session_id : TFRE_DB_String);virtual;abstract;
-    function  ExecuteQuery         (const iterator   : IFRE_DB_Obj_Iterator):NativeInt;virtual;abstract;
+    function  ExecuteQuery         (const iterator   : IFRE_DB_Obj_Iterator ; const dc : IFRE_DB_DERIVED_COLLECTION):NativeInt;virtual;abstract;
     procedure ExecutePointQuery    (const iterator   : IFRE_DB_Obj_Iterator);virtual;abstract;
     procedure UnlockQryData        ;virtual;abstract;
   end;
@@ -2129,12 +2127,12 @@ end;
     procedure  LockManager               ; virtual; abstract;
     function   GetNewOrderDefinition     : TFRE_DB_DC_ORDER_DEFINITION_BASE; virtual ; abstract;
     function   GetNewFilterDefinition    (const filter_db_name : TFRE_DB_NameType): TFRE_DB_DC_FILTER_DEFINITION_BASE; virtual; abstract;
-    function   GetTransformedDataLocked  (const query: TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;
-    procedure  NewTransformedDataLocked  (const qry: TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
+    //function   GetTransformedDataLocked  (const query: TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;
+    //procedure  NewTransformedDataLocked  (const qry: TFRE_DB_QUERY_BASE   ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANS_RESULT_BASE); virtual ; abstract;
     function   GenerateQueryFromQryDef   (const qry_def : TFRE_DB_QUERY_DEF):TFRE_DB_QUERY_BASE; virtual ; abstract;
     procedure  RemoveQueryRange          (const qry_id: TFRE_DB_NameType ; const start_idx,end_index : NativeInt); virtual; abstract;
     procedure  DropAllQueryRanges        (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
-    function   FormQueryID               (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL ; const client_part : int64):TFRE_DB_NameType; virtual; abstract;
+    function   FormQueryID               (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL):TFRE_DB_NameType; virtual; abstract;
     procedure  InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
     procedure  UpdateLiveStatistics      (const stats : IFRE_DB_Object);virtual ; abstract;
   end;
@@ -2843,7 +2841,7 @@ end;
     function    InvokeRemoteRequestMachineMac (const machine_mac : TFRE_DB_NameType ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
 //    function    InvokeRemoteInterface         (const machineid   : TFRE_DB_GUID ; const RIFMethod:TFRE_DB_RIF_Method; const SyncCallback: TFRE_DB_RemoteCB) : TFRE_DB_Errortype;
 
-    function    RegisterTaskMethod           (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
+    function    RegisterTaskMethod           (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :TFRE_APSC_ID='TIMER') : boolean;
     function    RemoveTaskMethod             (const id:string='TIMER'):boolean;
 
     function    HasFeature                   (const feature_name:shortstring):Boolean;
@@ -3064,7 +3062,7 @@ end;
 
     //Enable a session to "Publish" Remote Methods, overrides previous set
     function    RegisterRemoteRequestSet  (const requests : TFRE_DB_RemoteReqSpecArray):TFRE_DB_Errortype;
-    function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
+    function    RegisterTaskMethod       (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :TFRE_APSC_ID='TIMER') : boolean;
     function    RemoveTaskMethod         (const id:string):boolean;
     function    IsInteractiveSession     : Boolean;
 
@@ -5696,7 +5694,7 @@ var res : TFRE_DB_Errortype;
 begin
   if not FPromoted then
     begin
-      writeln('YOU COULD NOT STORE SEESION DATA FOR A UNPROMOTED (GUEST) SESSION');
+      writeln('YOU COULD NOT STORE SESSION DATA FOR A UNPROMOTED (GUEST) SESSION');
       exit;
     end;
   if assigned(FSessionData) then begin
@@ -5824,7 +5822,7 @@ end;
 procedure TFRE_DB_UserSession.INT_TimerCallBack(const timer: IFRE_APSC_TIMER; const flag1, flag2: boolean);
 var wm:IFRE_DB_WebTimerMethod;
 begin
-  wm := IFRE_DB_WebTimerMethod(timer.TIM_GetMethod);
+  wm := IFRE_DB_WebTimerMethod(timer.cs_GetMethod);
   wm(self);
 end;
 
@@ -5833,7 +5831,7 @@ var
   i: NativeInt;
 begin
   for i:=FTimers.Count-1 downto 0 do
-    IFRE_APSC_TIMER(FTimers[i]).Finalize;
+    IFRE_APSC_TIMER(FTimers[i]).cs_Finalize;
   FTimers.Clear;
 end;
 
@@ -7133,7 +7131,7 @@ begin
   try
     result := true;
     if assigned(FBoundSession_RA_SC) then
-      FBoundSession_RA_SC.GetChannel.GetChannelManager.ScheduleCoRoutine(CoRoutine,data)
+      FBoundSession_RA_SC.GetChannel.cs_GetChannelManager.ScheduleCoRoutine(CoRoutine,data)
     else
       result:=false;
   except
@@ -7151,19 +7149,19 @@ begin
   FRemoteRequestSet := requests;
 end;
 
-function TFRE_DB_UserSession.RegisterTaskMethod(const TaskMethod: IFRE_DB_WebTimerMethod; const invocation_interval: integer; const id: String): boolean;
+function TFRE_DB_UserSession.RegisterTaskMethod(const TaskMethod: IFRE_DB_WebTimerMethod; const invocation_interval: integer; const id: TFRE_APSC_ID): boolean;
 var my_timer : IFRE_APSC_TIMER;
     i        : NativeInt;
 begin
    for i:=0 to FTimers.Count-1 do begin
-     if  lowercase(IFRE_APSC_TIMER(FTimers[i]).TIM_GetID)=lowercase(id) then
+     if  lowercase(IFRE_APSC_TIMER(FTimers[i]).cs_GetID)=lowercase(id) then
        exit(false);
    end;
-   my_timer := FBoundSession_RA_SC.GetChannel.GetChannelManager.AddTimer(invocation_interval);
-   my_timer.TIM_Start;
-   my_timer.TIM_SetID(id);
-   my_timer.TIM_SetMethod(TMethod(TaskMethod));
-   my_timer.TIM_SetCallback(@INT_TimerCallBack);
+   my_timer := FBoundSession_RA_SC.GetChannel.cs_GetChannelManager.AddChannelManagerTimer(id,invocation_interval,@INT_TimerCallBack,true,true,TMethod(TaskMethod).Code,TMethod(TaskMethod).Data);
+   //my_timer.TIM_Start;
+   //my_timer.TIM_SetID(id);
+   //my_timer.TIM_SetMethod(TMethod(TaskMethod));
+   //my_timer.TIM_SetCallback(@INT_TimerCallBack);
    FTimers.Add(my_timer);
 end;
 
@@ -7172,9 +7170,9 @@ var
   i: NativeInt;
 begin
   for i:=FTimers.Count-1 downto 0 do
-    if  lowercase(IFRE_APSC_TIMER(FTimers[i]).TIM_GetID)=lowercase(id) then
+    if  lowercase(IFRE_APSC_TIMER(FTimers[i]).cs_GetID)=lowercase(id) then
       begin
-        IFRE_APSC_TIMER(FTimers[i]).Finalize;
+        IFRE_APSC_TIMER(FTimers[i]).cs_Finalize;
         FTimers.Delete(i);
         exit(true);
       end;

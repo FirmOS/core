@@ -48,91 +48,89 @@ uses
 
 type
 
+  TFRE_PL_DBO_SERVER = class;
+
+  //TFRE_DB_Global_Connected_Layer = class
+  //private
+  //  FLayer   : IFRE_DB_PERSISTANCE_LAYER;
+  //  FServer  : TFRE_PL_DBO_SERVER;
+  //public
+  //  constructor Create                (const server: TFRE_PL_DBO_SERVER; const layerdbname: TFRE_DB_NameType);
+  //  destructor  Destroy               ;override;
+  //end;
+
+  TFRE_DB_SERVER_NET_LAYER = class;
+
+  TFRE_APS_ASYNC_CMD=class
+
+  end;
+
+  TFRE_APS_ASYNC_PROC_WORKER = class(TThread) { move to APS after testing }
+
+  end;
+
 
   { TFRE_PL_DBO_SERVER }
 
-  TFRE_PL_DBO_SERVER = class;
-
-  { TFRE_DB_Connected_Layer }
-
-  TFRE_DB_Connected_Layer=class(IFRE_DB_DBChangedNotificationBlock)
+  TFRE_PL_DBO_SERVER=class(TFRE_DBO_SERVER,IFRE_DB_DBChangedNotificationBlock)
   private
-    FLayer   : IFRE_DB_PERSISTANCE_LAYER;
-    FServer  : TFRE_PL_DBO_SERVER;
-  public
-    procedure   SendNotificationBlock (const block : IFRE_DB_Object);
-    constructor Create(const server: TFRE_PL_DBO_SERVER; const layerdbname: TFRE_DB_NameType);
-    destructor  Destroy;override;
-  end;
-
-  TFRE_PL_DBO_SERVER=class(TFRE_DBO_SERVER)
-  private
-    FDataTimer        : IFRE_APSC_TIMER;
-    FLayers           : Array of TFRE_DB_Connected_Layer;
-    FLayerLock        : IFOS_LOCK;
-    FSystemConnection : TFRE_DB_SYSTEM_CONNECTION;
+    GServedPSLayer       : IFRE_DB_PERSISTANCE_LAYER;
+    FLayers              : Array of IFRE_DB_PERSISTANCE_LAYER;
+    FLayerLock           : IFOS_LOCK;
+    FSystemConnection    : TFRE_DB_SYSTEM_CONNECTION;
+    FEmbeddedBridgeLayer : TFRE_DB_SERVER_NET_LAYER;
+    procedure            SetupCommon;
   protected
-    procedure   SetupPersistanceLayers;
-    procedure   WatchDog              (const timer : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
-    procedure   NewChannel            (const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState); override;
-    procedure   RemoveChannelFromList (const channel: IFRE_APSC_CHANNEL);
+
+    procedure   SendNotificationBlock(const block: IFRE_DB_Object);
+
+    procedure   SetupPersistanceLayers   ;
+    procedure   WatchDog                 (const timer  : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
+    procedure   NewChannel               (const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState); override;
+    procedure   RemoveChannelFromList    (const channel: IFRE_APSC_CHANNEL);
   public
-    procedure   Setup                 ; override;
-    destructor  Destroy               ; override;
-    function    SearchLayer           (layerID:TFRE_DB_NameType ; out layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
-    procedure   NotifyAllConnectedLayers(layerID:TFRE_DB_NameType ; const block : IFRE_DB_Object);
+    procedure   Setup                    ; override;
+    procedure   SetupEmbeddedBridge      (const embedded_global_layer : IFRE_DB_PERSISTANCE_LAYER);
+    destructor  Destroy                  ; override;
+    function    SearchLayer              (layerID:TFRE_DB_NameType ; out layer : IFRE_DB_PERSISTANCE_LAYER):boolean;
+    procedure   NotifyAllConnectedLayers (layerID:TFRE_DB_NameType ; const block : IFRE_DB_Object);
   end;
 
   { TFRE_DB_SERVER_NET_LAYER }
 
-  TFRE_DB_SERVER_NET_LAYER=class(TObject) { Channel Bound }
+  TFRE_DB_SERVER_NET_LAYER=class(TObject) { one channel bound global layer }
   private
   type
     TPL_CMD_STATE   = (cs_READ_LEN,cs_READ_DATA);
   var
-    FChannel       : IFRE_APSC_CHANNEL;
+    FChannel       : IFRE_APSC_CHANNEL; { Fchannel = nil - Embedded Bridge shortcut layer}
     FlayerID       : TFRE_DB_NameType;
     Fserver        : TFRE_PL_DBO_SERVER;
-    myLayer        : IFRE_DB_PERSISTANCE_LAYER;
+    //myLayer        : IFRE_DB_PERSISTANCE_LAYER;
     FCMDState      : TPL_CMD_STATE;
     FLen           : Cardinal;
     FData          : Pointer;
+    function       IsEmbeddedBridge : boolean;
   protected
-    procedure   ChannelRead       (const channel      : IFRE_APSC_CHANNEL);
-    procedure   ChannelDisconnect (const channel      : IFRE_APSC_CHANNEL);
+    procedure   ChannelRead             (const channel      : IFRE_APSC_CHANNEL);
+    procedure   ChannelDisconnect       (const channel      : IFRE_APSC_CHANNEL);
   public
     procedure   SendAnswer              (const dbo   : IFRE_DB_Object);
     procedure   COR_SendNotifyBlock     (const data : Pointer);
     procedure   NewDBOFromClient_Locked (const dbo   : IFRE_DB_Object);
-    constructor Create(server : TFRE_PL_DBO_SERVER);
-    destructor  Destroy;override;
+    constructor Create                  (server : TFRE_PL_DBO_SERVER);
+    destructor  Destroy                 ;override;
   end;
 
 
 implementation
 
-{ TFRE_DB_Connected_Layer }
-
-procedure TFRE_DB_Connected_Layer.SendNotificationBlock(const block: IFRE_DB_Object);
-begin
-  //writeln('BLOCK>> ',block.DumpToString());
-  FServer.NotifyAllConnectedLayers(FLayer.GetConnectedDB,block);
-  block.Finalize;
-end;
-
-constructor TFRE_DB_Connected_Layer.Create(const server: TFRE_PL_DBO_SERVER ; const layerdbname : TFRE_DB_NameType);
-begin
-  FServer  := server;
-  //FNotifIf := TFRE_DB_DBChangedNotificationProxy.Create(nil,layerdbname,@SendNotificationBlock);
-end;
-
-destructor TFRE_DB_Connected_Layer.Destroy;
-begin
-  //FNotifIf.FinalizeNotif;
-  inherited Destroy;
-end;
-
 { TFRE_DB_SERVER_NET_LAYER }
+
+function TFRE_DB_SERVER_NET_LAYER.IsEmbeddedBridge: boolean;
+begin
+  result := FChannel=nil;
+end;
 
 procedure TFRE_DB_SERVER_NET_LAYER.ChannelRead(const channel: IFRE_APSC_CHANNEL);
 var lLayerID : TFRE_DB_NameType;
@@ -190,25 +188,25 @@ var lLayerID : TFRE_DB_NameType;
   end;
 
 begin
-  if (FlayerID='') then
-    begin { Layer not negotiated, read layername}
-      lLayerID := channel.CH_ReadString;
-      if not Fserver.SearchLayer(lLayerID,myLayer) then
-        begin
-          channel.CH_WriteString('NOT FOUND');
-          channel.Finalize;
-          Free;
-        end
-      else
-        begin
-          channel.CH_WriteString('OK');
-          FlayerID := lLayerID;
-        end;
-    end
-  else
-    begin {Read PL Interface}
+  //if (FlayerID='') then
+  //  begin { Layer not negotiated, read layername}
+  //    lLayerID := channel.CH_ReadString;
+  //    if not Fserver.SearchLayer(lLayerID,myLayer) then
+  //      begin
+  //        channel.CH_WriteString('NOT FOUND');
+  //        channel.Finalize;
+  //        Free;
+  //      end
+  //    else
+  //      begin
+  //        channel.CH_WriteString('OK');
+  //        FlayerID := lLayerID;
+  //      end;
+  //  end
+  //else
+  //  begin {Read PL Interface}
       _FetchDBO;
-    end;
+    //end;
 end;
 
 procedure TFRE_DB_SERVER_NET_LAYER.ChannelDisconnect(const channel: IFRE_APSC_CHANNEL);
@@ -253,7 +251,8 @@ begin
 end;
 
 procedure TFRE_DB_SERVER_NET_LAYER.NewDBOFromClient_Locked(const dbo: IFRE_DB_Object);
-var CID : ShortString;
+var CID     : ShortString;
+    myLayer : IFRE_DB_PERSISTANCE_LAYER;
 
     procedure __SendOK(const TSID:TFRE_DB_TransStepId='');
     begin
@@ -268,30 +267,28 @@ var CID : ShortString;
 
     procedure __SendResultCode(const ec : TFRE_DB_Errortype);
     begin
-      dbo.Field('EC').AsInt16  := ord(ec);
-      if ec<>edb_OK then
-        dbo.Field('ES').AsString := myLayer.GetLastError
-      else
-        dbo.Field('ES').AsString := '';
+      dbo.Field('EC').AsInt16   := ord(ec.Code);
+      dbo.Field('M').AsString   := ec.Msg;
+      dbo.Field('L').AsString   := ec.Lineinfo;
       SendAnswer(dbo);
     end;
 
-    function __GetColl(const cmd : IFRE_DB_Object):IFRE_DB_PERSISTANCE_COLLECTION;
-    var cn : TFRE_DB_NameType;
-    begin
-      cn := cmd.Field('CN').AsString;
-      if not myLayer.GetCollection(cn,result) then
-        raise EFRE_DB_Exception.Create(edb_ERROR,'implicit net collection failure, collection [%s] not found',[cn]);
-    end;
+    //function __GetColl(const cmd : IFRE_DB_Object):IFRE_DB_PERSISTANCE_COLLECTION;
+    //var cn : TFRE_DB_NameType;
+    //begin
+    //  cn := cmd.Field('CN').AsString;
+    //  if not myLayer.GetCollection(cn,result) then
+    //    raise EFRE_DB_Exception.Create(edb_ERROR,'implicit net collection failure, collection [%s] not found',[cn]);
+    //end;
 
-    procedure _GetLastError;
-    begin
-      dbo.ClearAllFields;
-      dbo.Field('A').AsString  := myLayer.GetLastError;
-      dbo.Field('EC').AsInt16  := ord(edb_OK);
-      dbo.Field('ES').AsString := myLayer.GetLastError;
-      SendAnswer(dbo);
-    end;
+    //procedure _GetLastError;
+    //begin
+    //  dbo.ClearAllFields;
+    //  dbo.Field('A').AsString  := myLayer.GetLastError;
+    //  dbo.Field('EC').AsInt16  := ord(edb_OK);
+    //  dbo.Field('ES').AsString := myLayer.GetLastError;
+    //  SendAnswer(dbo);
+    //end;
 
     procedure _DatabaseList;
     var foss : IFOS_STRINGS;
@@ -319,7 +316,7 @@ var CID : ShortString;
     begin
       dbname := dbo.Field('db').AsString;
       dbo.ClearAllFields;
-      ec := myLayer.CreateDatabase(dbname);
+      //ec := myLayer.CreateDatabase(dbname);
       __SendResultCode(ec);
     end;
 
@@ -329,21 +326,21 @@ var CID : ShortString;
     begin
       dbname := dbo.Field('db').AsString;
       dbo.ClearAllFields;
-      ec := myLayer.DeleteDatabase(dbname);
+      //ec := myLayer.DeleteDatabase(dbname);
       __SendResultCode(ec);
     end;
 
     procedure _ExistsCollection;
     var collname : TFRE_DB_NameType;
-        pcoll    : IFRE_DB_PERSISTANCE_COLLECTION;
+        //pcoll    : IFRE_DB_PERSISTANCE_COLLECTION;
     begin
       collname := dbo.Field('CN').AsString;
       dbo.ClearAllFields;
-      dbo.Field('A').AsBoolean := myLayer.GetCollection(collname,pcoll);
-      if assigned(pcoll) then
+      //dbo.Field('A').AsBoolean := myLayer.GetCollection(collname,pcoll);
+      //if assigned(pcoll) then
         begin
-          dbo.Field('V').AsBoolean  := pcoll.IsVolatile;
-          dbo.Field('CCN').AsString := pcoll.GetCollectionClassName;
+          //dbo.Field('V').AsBoolean  := pcoll.IsVolatile;
+          //dbo.Field('CCN').AsString := pcoll.GetCollectionClassName;
         end;
       __SendOK;
     end;
@@ -352,14 +349,14 @@ var CID : ShortString;
     var collname : TFRE_DB_NameType;
         isVol    : Boolean;
         tsid     : TFRE_DB_TransStepId;
-        col      : IFRE_DB_PERSISTANCE_COLLECTION;
+        //col      : IFRE_DB_PERSISTANCE_COLLECTION;
         ccn      : ShortString;
     begin
       collname := dbo.Field('cn').AsString;
       ccn      := dbo.Field('ccn').AsString;
       isVol    := dbo.Field('v').AsBoolean;
       dbo.ClearAllFields;
-      tsid := myLayer.NewCollection(collname,ccn,col,isVol);
+      //tsid := myLayer.NewCollection(collname,ccn,col,isVol);
       __SendOK(tsid);
     end;
 
@@ -368,7 +365,7 @@ var CID : ShortString;
     begin
       collname := dbo.Field('CN').AsString;
       dbo.ClearAllFields;
-      dbo.Field('TSID').AsString := myLayer.DeleteCollection(collname);
+      //dbo.Field('TSID').AsString := myLayer.DeleteCollection(collname);
       __SendOK;
     end;
 
@@ -393,14 +390,14 @@ var CID : ShortString;
       allow_null  := dbo.Field('AN').AsBoolean;
       unique_null := dbo.Field('UN').AsBoolean;
       dbo.ClearAllFields;
-      tsid        := myLayer.DefineIndexOnField(coll_name,field_name,fieldtype,unique,igncase,idx_name,allow_null,unique_null);
+      //tsid        := myLayer.DefineIndexOnField(coll_name,field_name,fieldtype,unique,igncase,idx_name,allow_null,unique_null);
       __SendOK(tsid);
     end;
 
     procedure _GetIndexedUid(const arr:boolean);
     var qv    : TFRE_DB_String;
         ixn   : TFRE_DB_NameType;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
         arra  : TFRE_DB_GUIDArray;
         gui   : TFRE_DB_GUID;
         ciu   : boolean;
@@ -409,16 +406,16 @@ var CID : ShortString;
       ixn := dbo.Field('IN').AsString;
       if arr then
         ciu := dbo.Field('CIU').AsBoolean;
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       dbo.ClearAllFields;
       if arr then
         begin
-          dbo.Field('A').AsBoolean := coll.GetIndexedUID(qv,arra,ixn,ciu);
+          //dbo.Field('A').AsBoolean := coll.GetIndexedUID(qv,arra,ixn,ciu);
           dbo.Field('G').AsGUIDArr := arra;
         end
       else
         begin
-          dbo.Field('A').AsBoolean := coll.GetIndexedUID(qv,gui,ixn);
+          //dbo.Field('A').AsBoolean := coll.GetIndexedUID(qv,gui,ixn);
           dbo.Field('G').AsGUID    := gui;
         end;
       __SendOK;
@@ -426,35 +423,35 @@ var CID : ShortString;
 
     procedure _GetAllGuids;
     var arra  : TFRE_DB_GUIDArray;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
     begin
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       dbo.ClearAllFields;
       arra:=nil;
-      coll.GetAllUIDS(arra);
+      //coll.GetAllUIDS(arra);
       dbo.Field('G').AsGUIDArr := arra;
       __SendOK;
     end;
 
     procedure _GetCount;
     var arra  : TFRE_DB_GUIDArray;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
     begin
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       dbo.ClearAllFields;
-      dbo.Field('C').AsInt64 := coll.Count;
+      //dbo.Field('C').AsInt64 := coll.Count;
       __SendOK;
     end;
 
 
     procedure _GetAllObjects;
     var arra  : IFRE_DB_ObjectArray;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
     begin
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       dbo.ClearAllFields;
       arra:=nil;
-      coll.GetAllObjects(arra);
+      //coll.GetAllObjects(arra);
       dbo.Field('G').AsObjectArr := arra;
       __SendOK;
     end;
@@ -462,27 +459,27 @@ var CID : ShortString;
 
     procedure _CollForallIndexed;
     var arra  : TFRE_DB_GUIDArray;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
         ixn   : TFRE_DB_NameType;
         asc   : boolean;
         skip  : NativeInt;
         mxc   : NativeInt;
     begin
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       ixn  := dbo.Field('IN').AsString;
       asc  := dbo.Field('A').AsBoolean;
       mxc  := dbo.Field('M').AsInt64;
       skip := dbo.Field('S').AsInt64;
       dbo.ClearAllFields;
       arra:=nil;
-      coll.ForAllIndexed(arra,ixn,asc,mxc,skip);
+      //coll.ForAllIndexed(arra,ixn,asc,mxc,skip);
       dbo.Field('G').AsGUIDArr := arra;
       __SendOK;
     end;
 
     procedure _CollForAllIndexedRange(const mode:NativeInt);
     var arra  : TFRE_DB_GUIDArray;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
         ixn   : TFRE_DB_NameType;
         asc   : boolean;
         misn  : boolean;
@@ -496,7 +493,7 @@ var CID : ShortString;
         mivst : TFRE_DB_String;
         mavst : TFRE_DB_String;
     begin
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       ixn  := dbo.Field('IN').AsString;
       asc  := dbo.Field('A').AsBoolean;
       if (mode<3) then
@@ -513,24 +510,24 @@ var CID : ShortString;
           begin
             mivsi := dbo.Field('MIV').AsInt64;
             mavsi := dbo.Field('MAV').AsInt64;
-            coll.ForAllIndexedSignedRange(mivsi,mavsi,arra,ixn,asc,misn,maim,mxc,skip);
+            //coll.ForAllIndexedSignedRange(mivsi,mavsi,arra,ixn,asc,misn,maim,mxc,skip);
           end;
         1: { unsigned range }
           begin
             mivus := dbo.Field('MIV').AsUInt64;
             mavus := dbo.Field('MAV').AsUInt64;
-            coll.ForAllIndexedUnsignedRange(mivus,mavus,arra,ixn,asc,misn,maim,mxc,skip);
+            //coll.ForAllIndexedUnsignedRange(mivus,mavus,arra,ixn,asc,misn,maim,mxc,skip);
           end;
         2: { string range }
           begin
             mivst := dbo.Field('MIV').AsString;
             mavst := dbo.Field('MAV').AsString;
-            coll.ForAllIndexedStringRange(mivst,mavst,arra,ixn,asc,misn,maim,mxc,skip);
+            //.coll.ForAllIndexedStringRange(mivst,mavst,arra,ixn,asc,misn,maim,mxc,skip);
           end;
         3: { prefix string }
           begin
             mivst := dbo.Field('MIV').AsString;
-            coll.ForAllIndexPrefixString(mivst,arra,ixn,asc,mxc,skip);
+            //coll.ForAllIndexPrefixString(mivst,arra,ixn,asc,mxc,skip);
           end;
       end;
       dbo.ClearAllFields;
@@ -541,7 +538,7 @@ var CID : ShortString;
     procedure _GetIndexedObj(const arr:boolean);
     var qv    : TFRE_DB_String;
         ixn   : TFRE_DB_NameType;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
         orra  : IFRE_DB_ObjectArray;
         obj   : IFRE_DB_Object;
         ciu   : boolean;
@@ -551,16 +548,16 @@ var CID : ShortString;
       ixn := dbo.Field('IN').AsString;
       if arr then
         ciu := dbo.Field('CIU').AsBoolean;
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       dbo.ClearAllFields;
       if arr then
         begin
-          dbo.Field('A').AsBoolean   := coll.GetIndexedObj(qv,orra,ixn,ciu);
+          //dbo.Field('A').AsBoolean   := coll.GetIndexedObj(qv,orra,ixn,ciu);
           dbo.Field('O').AsObjectArr := orra;
         end
       else
         begin
-          res := coll.GetIndexedObj(qv,obj,ixn);
+          //res := coll.GetIndexedObj(qv,obj,ixn);
           dbo.Field('A').AsBoolean := res;
           if res then
             dbo.Field('O').AsObject  := obj;
@@ -571,11 +568,11 @@ var CID : ShortString;
     procedure _CollFetch(const arr:boolean);
     var qv    : TFRE_DB_GUID;
         obj   : IFRE_DB_Object;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
         res   : boolean;
     begin
       qv  := dbo.Field('G').AsGUID;
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       dbo.ClearAllFields;
       if arr then
         begin
@@ -584,7 +581,7 @@ var CID : ShortString;
       else
         begin
           obj:=nil;
-          res := coll.Fetch(qv,obj);
+          //res := coll.Fetch(qv,obj);
           dbo.Field('A').AsBoolean := res;
           if res then
             dbo.Field('O').AsObject  := obj;
@@ -594,34 +591,34 @@ var CID : ShortString;
 
     procedure _CollUidExists;
     var qv    : TFRE_DB_GUID;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
         res   : boolean;
     begin
       qv  := dbo.Field('G').AsGUID;
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       dbo.ClearAllFields;
-      res := coll.Exists(qv);
+      //res := coll.Exists(qv);
       dbo.Field('A').AsBoolean := res;
       __SendOK;
     end;
 
     procedure _CollFirstLastIndex;
     var qv    : TFRE_DB_GUID;
-        coll  : IFRE_DB_PERSISTANCE_COLLECTION;
+        //coll  : IFRE_DB_PERSISTANCE_COLLECTION;
         res   : IFRE_DB_Object;
         m     : Integer;
         ix    : UInt64;
     begin
       qv   := dbo.Field('G').AsGUID;
-      coll := __GetColl(dbo);
+      //coll := __GetColl(dbo);
       m    := dbo.Field('T').AsInt32;
       ix   := dbo.Field('IX').AsUint64;
       dbo.ClearAllFields;
-      case m of
-        0 : res := coll.First;
-        1 : res := coll.Last;
-        2 : res := coll.GetItem(ix);
-      end;
+      //case m of
+        //0 : res := coll.First;
+        //1 : res := coll.Last;
+        //2 : res := coll.GetItem(ix);
+      //end;
       dbo.Field('A').AsBoolean := assigned(res);
       if assigned(res) then
         dbo.Field('O').AsObject:=res;
@@ -638,7 +635,7 @@ var CID : ShortString;
       cn  := dbo.Field('CN').AsString;
       s   := dbo.Field('S').AsBoolean;
       dbo.ClearAllFields;
-      tsid  := myLayer.StoreOrUpdateObject(obj,cn,s);
+      //tsid  := myLayer.StoreOrUpdateObject(obj,cn,s);
       __SendOK(tsid);
     end;
 
@@ -649,8 +646,8 @@ var CID : ShortString;
     begin
       g   := dbo.Field('G').AsGUID;
       dbo.ClearAllFields;
-      res := myLayer.Fetch(g,obj);
-      dbo.Field('EC').AsInt16 := ord(res);
+      //res := myLayer.Fetch(g,obj);
+      //dbo.Field('EC').AsInt16 := ord(res);
       if res=edb_OK then
         begin
           dbo.Field('ES').AsString := '';
@@ -658,7 +655,7 @@ var CID : ShortString;
         end
       else
         begin
-          dbo.Field('ES').AsString := myLayer.GetLastError;
+          //dbo.Field('ES').AsString := myLayer.GetLastError;
         end;
       SendAnswer(dbo);
     end;
@@ -684,8 +681,8 @@ var CID : ShortString;
     begin
       g   := dbo.Field('G').AsGUIDArr;
       dbo.ClearAllFields;
-      res := myLayer.BulkFetch(g,obj);
-      dbo.Field('EC').AsInt16 := ord(res);
+      //res := myLayer.BulkFetch(g,obj);
+      //dbo.Field('EC').AsInt16 := ord(res);
       if res=edb_OK then
         begin
           dbo.Field('ES').AsString   := '';
@@ -693,7 +690,7 @@ var CID : ShortString;
         end
       else
         begin
-          dbo.Field('ES').AsString := myLayer.GetLastError;
+          //dbo.Field('ES').AsString := myLayer.GetLastError;
         end;
       SendAnswer(dbo);
     end;
@@ -706,7 +703,7 @@ var CID : ShortString;
       g   := dbo.Field('G').AsGUID;
       cn   := dbo.Field('CN').AsString;
       dbo.ClearAllFields;
-      tsid := myLayer.DeleteObject(g,cn);
+      //tsid := myLayer.DeleteObject(g,cn);
       __SendOK(tsid);
     end;
 
@@ -731,17 +728,17 @@ var CID : ShortString;
       case how of
         0 :
           begin
-            arr := myLayer.GetReferences(guid,from,spf,fef);
+            //arr := myLayer.GetReferences(guid,from,spf,fef);
             dbo.Field('G').AsGUIDArr := arr;
           end;
         1 :
           begin
-            cnt := myLayer.GetReferencesCount(guid,from,spf,fef);
+            //cnt := myLayer.GetReferencesCount(guid,from,spf,fef);
             dbo.Field('C').AsInt64 := cnt;
           end;
         2 :
           begin
-            orf := myLayer.GetReferencesDetailed(guid,from,spf,fef);
+            //orf := myLayer.GetReferencesDetailed(guid,from,spf,fef);
             SetLength(fn,Length(orf));
             SetLength(sn,Length(orf));
             SetLength(lu,Length(orf));
@@ -763,8 +760,9 @@ var CID : ShortString;
 begin
   try
     cid := dbo.Field('CID').AsString;
+    //TFRE_DB_SERVER_NET_LAYER
     case cid of
-       'GLE'     : _GetLastError;
+       //'GLE'     : _GetLastError;
        'DL'      : _DatabaseList;
        'DE'      : _DatabaseExists;
        'CD'      : _CreateDatabase;
@@ -804,17 +802,17 @@ begin
       on E:Exception do
         begin
           dbo.ClearAllFields;
-          if myLayer.GetLastErrorCode<>edb_OK then
-            begin
-              dbo.Field('EC').AsInt16  := ord(myLayer.GetLastErrorCode);
-              dbo.Field('ES').AsString := myLayer.GetLastError;
-            end
-          else
-            begin { Fallback when an error occurs that did not set the Lasterror property of the layer (invalid field access in protocol) }
-              dbo.Field('EC').AsInt16  := ord(edb_PERSISTANCE_ERROR);
-              dbo.Field('ES').AsString := e.Message;
-            end;
-          SendAnswer(dbo);
+          ////if myLayer.GetLastErrorCode<>edb_OK then
+          //  begin
+          //    dbo.Field('EC').AsInt16  := ord(myLayer.GetLastErrorCode);
+          //    dbo.Field('ES').AsString := myLayer.GetLastError;
+          //  end
+          //else
+          //  begin { Fallback when an error occurs that did not set the Lasterror property of the layer (invalid field access in protocol) }
+          //    dbo.Field('EC').AsInt16  := ord(edb_PERSISTANCE_ERROR);
+          //    dbo.Field('ES').AsString := e.Message;
+          //  end;
+          //SendAnswer(dbo);
         end;
   end;
 end;
@@ -832,6 +830,19 @@ end;
 
 { TFRE_PL_DBO_SERVER }
 
+procedure TFRE_PL_DBO_SERVER.SetupCommon;
+begin
+  GFRE_TF.Get_Lock(FLayerLock);
+  SetupPersistanceLayers;
+end;
+
+procedure TFRE_PL_DBO_SERVER.SendNotificationBlock(const block: IFRE_DB_Object);
+begin
+  writeln('PLDBOS : NOTIF BLOCK>> ',block.DumpToString());
+  //FServer.NotifyAllConnectedLayers(FLayer.GetConnectedDB,block);
+  //block.Finalize;
+end;
+
 procedure TFRE_PL_DBO_SERVER.SetupPersistanceLayers;
 
   procedure _ConnectAllDatabases;
@@ -842,16 +853,15 @@ procedure TFRE_PL_DBO_SERVER.SetupPersistanceLayers;
       res     : TFRE_DB_Errortype;
 
       procedure Connect(const idx:NativeInt ; const dbname : TFRE_DB_NameType);
-      var clayer  : TFRE_DB_Connected_Layer;
+      var layer   : IFRE_DB_PERSISTANCE_LAYER;
       begin
-        clayer := TFRE_DB_Connected_Layer.Create(self,dbname);
-        CheckDbResult(GFRE_DB_PS_LAYER.Connect(dbname,clayer.FLayer,false,clayer),'FAIL STARTUP PLDB : '+dbname);
-        FLayers[idx] := clayer;
-        GFRE_DB.LogNotice(dblc_PERSISTANCE,'STARTUP CONNECT [%s]',[clayer.FLayer.GetConnectedDB]);
+        CheckDbResult(GServedPSLayer.Connect(dbname,layer,self),'FAIL STARTUP PLDB : '+dbname);
+        FLayers[idx] := layer;
+        GFRE_DB.LogNotice(dblc_PERSISTANCE,'STARTUP CONNECT [%s]',[layer.GetConnectedDB]);
       end;
 
   begin
-    dblist := GFRE_DB_PS_LAYER.DatabaseList;
+    dblist := GServedPSLayer.DatabaseList;
     SetLength(FLayers,dblist.Count);
     lc := 0;
     Connect(lc,'SYSTEM');
@@ -873,8 +883,7 @@ end;
 
 procedure TFRE_PL_DBO_SERVER.Setup;
 begin
-  GFRE_TF.Get_Lock(FLayerLock);
-  SetupPersistanceLayers;
+  SetupCommon;
   FDBO_Srv_Cfg.SpecialFile := cFRE_UX_SOCKS_DIR+cFRE_PS_LAYER_UXSOCK_NAME;
   FDBO_Srv_Cfg.Id          := 'FRE:PLServer';
   FDBO_Srv_Cfg.Port        := '44004';
@@ -884,13 +893,20 @@ begin
   GFRE_SC.AddTimer('WD',1000,@WatchDog);
 end;
 
-destructor TFRE_PL_DBO_SERVER.Destroy;
-var layer : TFRE_DB_Connected_Layer;
+procedure TFRE_PL_DBO_SERVER.SetupEmbeddedBridge(const embedded_global_layer: IFRE_DB_PERSISTANCE_LAYER);
 begin
-  for layer in FLayers do
-    begin
-      layer.free;
-    end;
+  GServedPSLayer                := embedded_global_layer;
+  SetupCommon;
+  FEmbeddedBridgeLayer          := TFRE_DB_SERVER_NET_LAYER.Create(self);
+  FEmbeddedBridgeLayer.FChannel := nil;
+end;
+
+destructor TFRE_PL_DBO_SERVER.Destroy;
+begin
+  //for layer in FLayers do
+  //  begin
+  //    layer.free;
+  //  end;
   FLayerLock.Finalize;
   inherited Destroy;
 end;
@@ -926,7 +942,8 @@ begin
   layerID := UpperCase(layerID);
   if layerID='GLOBAL' then
     begin
-      layer := GFRE_DB_PS_LAYER;
+      E_FOS_TestNosey;
+      layer := GServedPSLayer;
       exit(true);
     end
   else
@@ -934,9 +951,9 @@ begin
       FLayerLock.Acquire;
       try
         for i := 0 to High(FLayers) do
-          if uppercase(FLayers[i].FLayer.GetConnectedDB)=layerID then
+          if uppercase(FLayers[i].GetConnectedDB)=layerID then
             begin
-              layer := FLayers[i].FLayer;
+              layer := FLayers[i];
               exit(true);
             end;
       finally
