@@ -1305,7 +1305,8 @@ type
     procedure SetIsDisabled   (AValue: Boolean);
     procedure SetRoleIDs (AValue: TFRE_DB_ObjLinkArray);
     procedure SetGroupIDs(AValue: TFRE_DB_ObjLinkArray);
-    procedure _UpdateDomainGroupKey;
+  protected
+    procedure UpdateDomainGroupKey;
   public
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
     class function  GetDomainGroupKey         (const grouppart : TFRE_DB_String; const domain_id : TFRE_DB_GUID) : TFRE_DB_String;
@@ -1339,6 +1340,8 @@ type
     procedure SetDomainIDLink               (AValue: TFRE_DB_GUID);
     procedure SetIsInternal                 (AValue: Boolean);
     procedure SetIsDisabled                 (AValue: Boolean);
+  protected
+    procedure UpdateDomainRoleKey;
   public
     class procedure InstallDBObjects        (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure InstallDBObjects4Domain   (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID); override;
@@ -1790,6 +1793,7 @@ type
 
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
     procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL);
+    procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL; const skipclasses : Array of TFRE_DB_String);
 
     procedure  SetDeriveTransformation         (const tob:IFRE_DB_TRANSFORMOBJECT);
 
@@ -2057,8 +2061,8 @@ type
     function    _RoleID                     (const rolename:TFRE_DB_String;const domainUID:TFRE_DB_GUID;var role_id:TFRE_DB_GUID):boolean;
     function    _FetchGroup                 (const group: TFRE_DB_String; const domain_id:TFRE_DB_GUID; var ug: TFRE_DB_GROUP):boolean;
     function    _FetchGroupbyID             (const group_id:TFRE_DB_GUID;var ug: TFRE_DB_GROUP):boolean;
-    function    _ModifyGroup                (const group:TFRE_DB_GROUP;const groupname: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
-    function    _ModifyRole                 (const role:TFRE_DB_ROLE;const rolename: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    function    _ModifyGroup                (var group:TFRE_DB_GROUP;const groupname: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
+    function    _ModifyRole                 (var role:TFRE_DB_ROLE;const rolename: TFRE_DB_NameType; const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
 
 
     function    _AddUser(const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const password, first_name, last_name: TFRE_DB_String; const system_start_up: boolean; const image: TFRE_DB_Stream=nil; const imagetype:string='' ; const etag: String='';const is_internal:Boolean=false ; const long_desc : TFRE_DB_String='' ; const short_desc : TFRE_DB_String=''; const userclass: TFRE_DB_String=''): TFRE_DB_Errortype; // SPECIAL:SYSTEM STARTUP
@@ -4635,7 +4639,7 @@ end;
 procedure TFRE_DB_GROUP.SetDomainIDLink(AValue: TFRE_DB_GUID);
 begin
   Field('domainidlink').AsObjectLink := AValue;
-  _UpdateDomainGroupKey;
+  UpdateDomainGroupKey;
 end;
 
 procedure TFRE_DB_GROUP.SetRoleIDs(AValue: TFRE_DB_ObjLinkArray);
@@ -4648,7 +4652,7 @@ begin
   Field('groupids').AsObjectLinkArray := AValue;
 end;
 
-procedure TFRE_DB_GROUP._UpdateDomainGroupKey;
+procedure TFRE_DB_GROUP.UpdateDomainGroupKey;
 begin
   field('domaingroupkey').AsString := GetDomainGroupKey(ObjectName,domainid);
 end;
@@ -4925,7 +4929,7 @@ end;
 procedure TFRE_DB_ROLE.SetDomainIDLink(AValue: TFRE_DB_GUID);
 begin
  Field('domainidlink').AsObjectLink := AValue;
- Field('domainrolekey').AsString := GetDomainRoleKey(ObjectName,AValue);
+ UpdateDomainRoleKey;
 end;
 
 procedure TFRE_DB_ROLE.SetIsInternal(AValue: Boolean);
@@ -4936,6 +4940,11 @@ end;
 procedure TFRE_DB_ROLE.SetIsDisabled(AValue: Boolean);
 begin
   Field('disabled').AsBoolean:=AValue;
+end;
+
+procedure TFRE_DB_ROLE.UpdateDomainRoleKey;
+begin
+  Field('domainrolekey').AsString := GetDomainRoleKey(ObjectName,domainid);
 end;
 
 procedure TFRE_DB_ROLE._calcDisplayName(const calc: IFRE_DB_CALCFIELD_SETTER);
@@ -5358,33 +5367,35 @@ begin
  result := Fetch(GetUserUIDP,group_id,TFRE_DB_Object(ug))=edb_OK;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._ModifyGroup(const group: TFRE_DB_GROUP; const groupname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._ModifyGroup(var group: TFRE_DB_GROUP; const groupname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
 begin
   try
-    if groupname<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+    if groupname<>cFRE_DB_SYS_NOCHANGE_VAL_STR then begin
       group.ObjectName            := groupname;
+      group.UpdateDomainGroupKey;
+    end;
     if txt_short<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
       group.Description.ShortText := txt_short;
     if txt<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
       group.Description.LongText  := txt;
-    GetUserUIDP;
-    result := Update(GetUserUIDP,group);
+    result := UpdateGroup(group);
   except on e:exception do
     result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION._ModifyRole(const role: TFRE_DB_ROLE; const rolename: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
+function TFRE_DB_SYSTEM_CONNECTION._ModifyRole(var role: TFRE_DB_ROLE; const rolename: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
 begin
   try
-    if rolename<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
+    if rolename<>cFRE_DB_SYS_NOCHANGE_VAL_STR then begin
       role.ObjectName            := rolename;
+      role.UpdateDomainRoleKey;
+    end;
     if txt_short<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
       role.Description.ShortText := txt_short;
     if txt<>cFRE_DB_SYS_NOCHANGE_VAL_STR then
       role.Description.LongText  := txt;
-    GetUserUIDP;
-    result := Update(GetUserUIDP,role);
+    result := UpdateRole(role);
   except on e:exception do
     result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
   end;
@@ -8295,6 +8306,11 @@ begin
   FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
   if FParentChildField='' then
     raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
+end;
+
+procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameTypeRL; const skipclasses: array of TFRE_DB_String);
+begin
+  SetParentToChildLinkField(fieldname); //FIXXME Heli - implement me
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;
