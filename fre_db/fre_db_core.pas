@@ -1847,9 +1847,6 @@ type
 
     FCollectionStore      : _TFRE_DB_CollectionTree;
 
-    FSysNotes             : TFRE_DB_COLLECTION; {needed in SYSTEM and USER DB's}
-    FSysMachines          : TFRE_DB_COLLECTION;
-
     function            BackupDatabaseReadable      (const str : TStream;const progress : TFRE_DB_PhaseProgressCallback       ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String):TFRE_DB_Errortype;
     function            RestoreDatabaseReadable     (const from_stream:TStream;const progress : TFRE_DB_PhaseProgressCallback ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String):TFRE_DB_Errortype;
     procedure           _ConnectCheck                ;
@@ -2245,6 +2242,10 @@ type
   private
     FClonedFrom         : TFRE_DB_CONNECTION;
     FSysConnection      : TFRE_DB_SYSTEM_CONNECTION;
+    FNotes              : TFRE_DB_COLLECTION;
+    FMachines           : TFRE_DB_COLLECTION;
+    FJobs               : TFRE_DB_COLLECTION;
+
     FProxySysconnection : boolean;                             { This Sysconnection is a seperate connection not belonging to the connection,
                                                                  must not be a clone, }
     function    IFRE_DB_CONNECTION.GetScheme                   = GetSchemeI;
@@ -2297,17 +2298,20 @@ type
     function    BulkFetchNoRightCheck       (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype;
     function    BulkFetch                   (const uids:TFRE_DB_GUIDArray;out dbos:IFRE_DB_ObjectArray) : TFRE_DB_Errortype;
 
-    function    AdmGetTextResourcesCollection    :IFRE_DB_COLLECTION;
-    function    AdmGetUserCollection             :IFRE_DB_COLLECTION;
-    function    AdmGetRoleCollection             :IFRE_DB_COLLECTION;
-    function    AdmGetGroupCollection            :IFRE_DB_COLLECTION;
-    function    AdmGetDomainCollection           :IFRE_DB_COLLECTION;
-    function    AdmGetAuditCollection            :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowCollection         :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowSchemeCollection   :IFRE_DB_COLLECTION;
-    function    AdmGetWorkFlowMethCollection     :IFRE_DB_COLLECTION;
-    function    AdmGetNotificationCollection     :IFRE_DB_COLLECTION;
-    function    AdmGetApplicationConfigCollection:IFRE_DB_COLLECTION;
+    function    AdmGetTextResourcesCollection     :IFRE_DB_COLLECTION;
+    function    AdmGetUserCollection              :IFRE_DB_COLLECTION;
+    function    AdmGetRoleCollection              :IFRE_DB_COLLECTION;
+    function    AdmGetGroupCollection             :IFRE_DB_COLLECTION;
+    function    AdmGetDomainCollection            :IFRE_DB_COLLECTION;
+    function    AdmGetAuditCollection             :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowCollection          :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowSchemeCollection    :IFRE_DB_COLLECTION;
+    function    AdmGetWorkFlowMethCollection      :IFRE_DB_COLLECTION;
+    function    AdmGetNotificationCollection      :IFRE_DB_COLLECTION;
+    function    AdmGetApplicationConfigCollection :IFRE_DB_COLLECTION;
+    function    GetNotesCollection                :IFRE_DB_COLLECTION;
+    function    GetMachinesCollection             :IFRE_DB_COLLECTION;
+    function    GetJobsCollection                 :IFRE_DB_COLLECTION;
 
     function    FetchUserSessionData           (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData           (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
@@ -3971,7 +3975,7 @@ end;
 
 function TFRE_DB_Enum.SetupI(const infoText: IFRE_DB_TEXT): IFRE_DB_Enum;
 begin
-  Setup(infoText.Implementor as TFRE_DB_TEXT);
+  result := Setup(infoText.Implementor as TFRE_DB_TEXT);
 end;
 
 procedure TFRE_DB_Enum.addEntry(const value: TFRE_DB_String;const cap_trans_key: TFRE_DB_String);
@@ -5175,17 +5179,6 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
     FSysGroups := GetCollection(nil,'SysUserGroup');
   end;
 
-  procedure SetupNoteCollection;
-  var coll : TFRE_DB_COLLECTION;
-  begin
-    if not CollectionExists(nil,'SysNoteCollection') then begin
-      GFRE_DB.LogDebug(dblc_DB,'Adding System collection SysNoteCollection');
-      coll := CreateCollection(nil,'SysNoteCollection');
-      coll.DefineIndexOnField('link',fdbft_String,True,True);
-    end;
-    FSysNotes := GetCollection(nil,'SysNoteCollection');
-  end;
-
   procedure SetupWorkflowCollection;
   var coll : TFRE_DB_COLLECTION;
   begin
@@ -5305,7 +5298,7 @@ begin
   SetupTransTextCollection;
   SetupUserGroupCollection;
   SetupSystemDomain;
-  SetupNoteCollection;
+  //SetupNoteCollection;
   SetupAuditCollection;
   SetupWorkflowCollection;
   SetupNotificationCollection;
@@ -11341,23 +11334,35 @@ procedure TFRE_DB_CONNECTION.InternalSetupConnection;
       coll := inherited CreateCollection(nil,'SysNoteCollection'); // Instance (new) Collections here with false parameter
       coll.DefineIndexOnField('link',fdbft_String,True,True);
     end;
-    FSysNotes := inherited GetCollection(nil,'SysNoteCollection');
+    FNotes := inherited GetCollection(nil,'SysNoteCollection');
   end;
 
   procedure SetupMachineCollection;
   var coll : TFRE_DB_COLLECTION;
   begin
-    if not CollectionExists(cFRE_DB_MACHINE_COLLECTION) then begin
-      coll := inherited CreateCollection(nil,cFRE_DB_MACHINE_COLLECTION); // Instance (new) Collections here with false parameter
+    if not CollectionExists('SysMachineCollection') then begin
+      coll := inherited CreateCollection(nil,'SysMachineCollection'); // Instance (new) Collections here with false parameter
       CheckDbResult(coll.DefineIndexOnField('objname',fdbft_String,true,true,'def',false));
       CheckDbResult(coll.DefineIndexOnField('provisioningmac',fdbft_String,true,true,'pmac',false));
     end;
-    FSysMachines := inherited GetCollection(nil,cFRE_DB_MACHINE_COLLECTION);
+    FMachines := inherited GetCollection(nil,'SysMachineCollection');
+  end;
+
+  procedure SetupJobCollection;
+  var coll : TFRE_DB_COLLECTION;
+  begin
+    if not CollectionExists('SysJobsCollection') then begin
+      coll := inherited CreateCollection(nil,'SysJobsCollection'); // Instance (new) Collections here with false parameter
+      CheckDbResult(coll.DefineIndexOnField('objname',fdbft_String,true,true,'def',false));
+      //CheckDbResult(coll.DefineIndexOnField('provisioningmac',fdbft_String,true,true,'pmac',false));
+    end;
+    FJobs := inherited GetCollection(nil,'SysJobsCollection');
   end;
 
 begin
   SetupNoteCollection;
   SetupMachineCollection;
+  SetupJobCollection;
   inherited InternalSetupConnection;
 end;
 
@@ -11916,6 +11921,21 @@ end;
 function TFRE_DB_CONNECTION.AdmGetApplicationConfigCollection: IFRE_DB_COLLECTION;
 begin
   Result := FSysConnection.FSysAppConfigs;
+end;
+
+function TFRE_DB_CONNECTION.GetNotesCollection: IFRE_DB_COLLECTION;
+begin
+  result := FNotes;
+end;
+
+function TFRE_DB_CONNECTION.GetMachinesCollection: IFRE_DB_COLLECTION;
+begin
+  result := FMachines;
+end;
+
+function TFRE_DB_CONNECTION.GetJobsCollection: IFRE_DB_COLLECTION;
+begin
+  result := FJobs;
 end;
 
 

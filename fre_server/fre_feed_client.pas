@@ -110,7 +110,6 @@ procedure TFRE_SAMPLE_FEED_CLIENT.RegisterRemoteMethods(var remote_method_array:
 var base_idx : NativeInt;
 begin
   inherited;
-
   // THIS IS A SAMPLE FOR NON-STANDARD REMOTE REGISTRATIONS (non REM_* methods)
   // add virtual methods
   base_idx := Length(remote_method_array);
@@ -171,6 +170,8 @@ end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyRegisterClasses;
 begin
+  inherited;
+
   fre_dbbusiness.Register_DB_Extensions;
   //fre_hal_schemes.Register_DB_Extensions;
 end;

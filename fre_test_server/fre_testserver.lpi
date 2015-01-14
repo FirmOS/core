@@ -52,6 +52,7 @@
       <Unit4>
         <Filename Value="../fre_db/fre_db_persistance_common.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_db_persistance_common"/>
       </Unit4>
       <Unit5>
         <Filename Value="../fos_corebox/fos_dbcorebox_machine.pas"/>
@@ -60,6 +61,7 @@
       <Unit6>
         <Filename Value="../fre_server/fre_basecli_app.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_basecli_app"/>
       </Unit6>
     </Units>
   </ProjectOptions>
@@ -93,7 +95,7 @@ if TargetOS = 'linux' then
       </SyntaxOptions>
     </Parsing>
     <CodeGeneration>
-      <TargetCPU Value="arm"/>
+      <TargetCPU Value="x86_64"/>
     </CodeGeneration>
     <Linking>
       <Debugging>

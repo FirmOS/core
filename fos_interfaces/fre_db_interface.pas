@@ -85,6 +85,7 @@ type
   TFOS_MAC_ADDR = record
      D : Array [0..5] of Byte;
      function  SetFromString  (const mac : shortstring):boolean;
+     function  SetFromStringR (const mac : shortstring):TFOS_MAC_ADDR;
      function  GetAsString    : ShortString;
      procedure GenerateRandom (const universalvalid:boolean=false ; const groupaddr:boolean=false);
      function  GetPointer     : PByte;
@@ -673,6 +674,8 @@ type
 
   IFRE_DB_CS_CALLBACK          = procedure (const Input:IFRE_DB_Object) of Object;
   IFRE_DB_InvokeProcedure      = procedure (const Input:IFRE_DB_Object) of Object;
+  TFRE_DB_RIF_Method           = function  (const running_context : TObject): IFRE_DB_Object of object;
+
 
   TFRE_DB_Object_Properties    = (fop_SYSTEM,fop_READ_ONLY,fop_VOLATILE,fop_STORED_IMMUTABLE,fop_IN_SYSTEM_DB); { fop_SYSTEM=static/read only, fop_IN_SYSTEM_DB = from System DB masterdata}
   TFRE_DB_Object_PropertySet   = set of TFRE_DB_Object_Properties;
@@ -1214,6 +1217,9 @@ type
     function    Implementor                  : TObject;
     function    GetSysDomainID               : TFRE_DB_GUID;
     function    GetMyDomainID                : TFRE_DB_GUID;
+    function    GetDomainID                  (const domainname:TFRE_DB_NameType):TFRE_DB_GUID;
+    function    GetDomainNameByUid           (const domainid:TFRE_DB_GUID):TFRE_DB_NameType;
+
     function    GetUserGroupIDS              : TFRE_DB_GUIDArray;
     function    GetUserUID                   : TFRE_DB_GUID;
     function    GetUserUIDP                  : PFRE_DB_GUID;
@@ -1320,8 +1326,7 @@ type
     property  isProtected                  :Boolean read GetIsProtected write SetIsProtected;
     property  isInternal                   :Boolean read GetIsInternal write SetIsInternal;      { should not be shown in to the User, because the Group is not directly usable for the user }
     property  isDelegation                 :Boolean read GetIsDelegation write SetIsDelegation;  { group is used as delegation of other groups }
-    property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;      { This group is disabled for users where the userdomain=the group domain
-                                                                                                   ,after a new instatiation of a right token, the user gets not the roles of this group }
+    property  isDisabled                   :Boolean read GetIsDisabled write SetIsDisabled;      { This group is disabled for users where the userdomain=the group domain                                                                                                   ,after a new instatiation of a right token, the user gets not the roles of this group }
   end;
 
 
@@ -1610,7 +1615,7 @@ type
     function    FetchTranslateableTextLong    (const translation_key:TFRE_DB_String):TFRE_DB_String;
     function    FetchTranslateableTextHint    (const translation_key:TFRE_DB_String):TFRE_DB_String;
 
-    function    AdmGetTextResourcesCollection    :IFRE_DB_COLLECTION;
+    function    AdmGetTextResourcesCollection    :IFRE_DB_COLLECTION; { Pre defined Special Collection from the System DB }
     function    AdmGetUserCollection             :IFRE_DB_COLLECTION;
     function    AdmGetRoleCollection             :IFRE_DB_COLLECTION;
     function    AdmGetGroupCollection            :IFRE_DB_COLLECTION;
@@ -1621,6 +1626,9 @@ type
     function    AdmGetWorkFlowMethCollection     :IFRE_DB_COLLECTION;
     function    AdmGetNotificationCollection     :IFRE_DB_COLLECTION;
     function    AdmGetApplicationConfigCollection:IFRE_DB_COLLECTION;
+    function    GetNotesCollection               :IFRE_DB_COLLECTION; { Pre Defined special collection }
+    function    GetMachinesCollection            :IFRE_DB_COLLECTION;
+    function    GetJobsCollection                :IFRE_DB_COLLECTION;
     function    GetSysDomainUID                  :TFRE_DB_GUID;
     function    URT                              (const cone:boolean=false) : IFRE_DB_USER_RIGHT_TOKEN; { get userright token reference or value }
 
@@ -1832,13 +1840,16 @@ type
     class function   GetClassStdRoles           (const store:boolean=true; const update:boolean=true; const delete:boolean=true; const fetch:boolean=true): TFRE_DB_StringArray;
 
     procedure        __SetMediator              (const med : TFRE_DB_ObjectEx);
+    class function   CheckGetRIFMethodInstance  (const rifmethod:TFRE_DB_RIF_Method ; out rclassname,rmethodname : ShortString ; out obj : IFRE_DB_Object):boolean;
     class function   Get_DBI_InstanceMethods                                            : TFRE_DB_StringArray;
-    class function   Get_DBI_RemoteMethods                                              : TFRE_DB_StringArray; //Feeder Instance Methods (Singletons / Usescase : Remote Control Interfaces)
+    class function   Get_DBI_RemoteMethods                                              : TFRE_DB_StringArray; //Feeder Instance Methods (Singletons / Usescase : Remote Control Interfaces on the feeder )
+    class function   Get_DBI_RIFMethods                                                 : TFRE_DB_StringArray; //Feeder Instance Methods (Singletons / Usescase : Remote Control Interfaces on a ObjectExClass)
     class function   Get_DBI_ClassMethods                                               : TFRE_DB_StringArray;
     class function   ClassMethodExists   (const name:Shortstring)                       : Boolean; // new
     class function   Invoke_DBIMC_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object;const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION) : IFRE_DB_Object;
     function         Invoke_DBIMI_Method (const name:TFRE_DB_String;const input:IFRE_DB_Object;const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION) : IFRE_DB_Object;
     procedure        Invoke_DBREM_Method (const rmethodname : TFRE_DB_NameType ; const command_id : Qword ; const input : IFRE_DB_Object ; const cmd_type : TFRE_DB_COMMANDTYPE);
+    function         Invoke_DBRIF_Method (const rmethodname: TFRE_DB_NameType; const run_ctx: TObject; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE): IFRE_DB_Object;
     function         Fetch_DBIMI_Method  (const name:TFRE_DB_String)                            : IFRE_DB_InvokeInstanceMethod;
     function         IMI_MethodExists    (const name:TFRE_DB_String)                            : boolean;
     function         MethodExists        (const name:Shortstring)                       : Boolean; // new
@@ -2236,6 +2247,79 @@ end;
     class procedure  RegisterSystemScheme    (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
+
+  { TFRE_DB_JOB }
+  TFRE_SignalStatus = (statusUnknown, statusOK, statusWarning, statusFailure);// deprecated KILL
+  const
+    CFRE_SignalStatus : Array[TFRE_SignalStatus] of string  = ('UNKNOWN', 'OK', 'WARNING', 'FAILURE'); // deprecated KILL
+  type
+
+  TFRE_DB_JOB = class (TFRE_DB_ObjectEx)
+  private
+    type
+      TFRE_JobState     = (jobStateUnknown,jobStateToRun,jobStateImmediateStart,jobStateRunning,jobStateDone,jobStateFailed);
+    const
+      CFRE_JobState     : Array[TFRE_JobState]  of string  = ('unknown','torun','immediatestart','running','done','failed');
+
+    procedure       InternalSetup               ; override;
+    function        GetConfig                   : IFRE_DB_Object;
+    procedure       SetConfig                   (AValue: IFRE_DB_Object);
+    function        GetReport                   : IFRE_DB_Object;
+    procedure       SetReport                   (AValue: IFRE_DB_Object);
+    function        GetJobFilename              : string;
+  protected
+    class procedure RegisterSystemScheme        (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    procedure       SetStatus                   (const status : TFRE_SignalStatus; const statussummary : string);
+    procedure       SetDetailStatus             (const detail : IFRE_DB_Object; const status : TFRE_SignalStatus; const statussummary : string);
+    procedure       SetMaxAllowedTime           (const time_s : NativeInt);
+  public
+    procedure       SetRemoteSSH                (const user   : string; const host  : string; const keyfilename : string); { run the testjob through  a ssh session on a "remote" remote system}
+    procedure       ExecuteJob                  ; virtual; abstract;
+    function        JobKey                      : string;
+    procedure       SetJobkeyDescription        (const newjobkey : string; const jdescription: string);
+    procedure       SaveJobToFile               ;
+    procedure       SetJobState                 (const value:TFRE_JobState);
+    procedure       SetJobStateandSave          (const value:TFRE_JobState);
+    function        GetJobState                 :TFRE_JobState;
+    procedure       SetPid                      (const value  : QWord);
+    procedure       ClearPid                    ;
+    procedure       SetProgress                 (const percent:integer);
+    procedure       AddProgressLog              (const msg: string;const percent:integer=-1);
+    class function  GetJobBaseFilename          (const state  : TFRE_JobState; const vjobkey:string):string;
+    property        Config                      : IFRE_DB_Object read GetConfig write SetConfig;
+    property        Report                      : IFRE_DB_Object read GetReport write SetReport;
+  published
+    function        IMI_Do_the_Job              (const input:IFRE_DB_Object):IFRE_DB_Object; virtual; { rename : IMI-> in MWS, RIF -> remote}
+    procedure       CALC_GetDisplayName         (const setter : IFRE_DB_CALCFIELD_SETTER);
+    function        RIF_Start                   (const runnning_ctx : TObject) : IFRE_DB_Object;
+    function        RIF_Kill                    (const runnning_ctx : TObject) : IFRE_DB_Object;
+    function        RIF_CreateJobDescription    (const runnning_ctx : TObject) : IFRE_DB_Object; { "cron" like jobs }
+    function        RIF_DeleteJobDescription    (const runnning_ctx : TObject) : IFRE_DB_Object;
+    function        RIF_GetAllJobDescriptions   (const runnning_ctx : TObject) : IFRE_DB_Object; { "" }
+  end;
+
+  { TFRE_DB_JobReport }
+
+  TFRE_DB_JobReport = class (TFRE_DB_ObjectEx)
+  public
+    procedure       SetProgress                 (const percent:integer);
+    procedure       AddProgressLog              (const msg:string);
+  protected
+    class procedure RegisterSystemScheme        (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects            (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
+  { TFRE_DB_TIMERTEST_JOB }
+
+  TFRE_DB_TIMERTEST_JOB=class(TFRE_DB_JOB)
+  protected
+    procedure       InternalSetup ; override;
+    class procedure RegisterSystemScheme        (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+  public
+    procedure  SetTimeout    (const value:integer);
+    procedure  ExecuteJob    ; override;
+  end;
+
 
 
   TFRE_DB_APPLICATION_MODULE=class;
@@ -2813,53 +2897,56 @@ end;
   end;
 
   TFRE_DB_RemoteCB           = procedure(const ses : IFRE_DB_UserSession ; const data : IFRE_DB_Object ; const status : TFRE_DB_COMMAND_STATUS ; const original_command_id : Qword ; const opaquedata : IFRE_DB_Object) is nested;
-  TFRE_DB_RIF_Method         = function : IFRE_DB_Object of object;
 
   { IFRE_DB_UserSession }
 
   IFRE_DB_UserSession=interface
-    function    GetSessionID             : TFRE_DB_String;
-    function    GetSessionState          : TFRE_DB_SESSIONSTATE;
-    function    GetSessionAppData        (const app_key:TFRE_DB_String):IFRE_DB_Object;
-    function    GetSessionModuleData     (const mod_key:TFRE_DB_String):IFRE_DB_Object;
-    function    GetSessionGlobalData     :IFRE_DB_Object;
-    function    NewDerivedCollection     (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION; // Session DC
-    function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
-    function    GetDBConnection          :IFRE_DB_CONNECTION;
-    function    LoggedIn                 : Boolean;
-    procedure   Logout                   ;
-    function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false ; const allowed_user_classes: array of TFRE_DB_String) : TFRE_DB_PromoteResult; // Promote USER to another USER
+    function    GetSessionID                  : TFRE_DB_String;
+    function    GetSessionState               : TFRE_DB_SESSIONSTATE;
+    function    GetSessionAppData             (const app_key:TFRE_DB_String):IFRE_DB_Object;
+    function    GetSessionModuleData          (const mod_key:TFRE_DB_String):IFRE_DB_Object;
+    function    GetSessionGlobalData          :IFRE_DB_Object;
+    function    NewDerivedCollection          (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION; // Session DC
+    function    FetchDerivedCollection        (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
+    function    GetDBConnection               : IFRE_DB_CONNECTION;
+    function    LoggedIn                      : Boolean;
+    procedure   Logout                        ;
+    function    Promote                       (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false ; const allowed_user_classes: array of TFRE_DB_String) : TFRE_DB_PromoteResult; // Promote USER to another USER
 
-    procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
-    procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
+    procedure   SendServerClientRequest       (const description : TFRE_DB_CONTENT_DESC;const session_id:String='');
+    procedure   SendServerClientAnswer        (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
 
     //Send a Server Client Message in behalv of another session (think about security)
     //  ses.SendDelegatedEventToSession(sessionID,SF,input.CloneToNewObject());
 
     //Invoke a Method that another Session provides via Register, in the context of that session (feeder session)
+
+    function    GetMachineUidByName           (const mname : TFRE_DB_String ; out machuid : TFRE_DB_GUID):boolean;
+    function    GetMachineUidByMac            (const mac   : TFOS_MAC_ADDR  ; out machuid : TFRE_DB_GUID):boolean;
+
     function    InvokeRemoteRequest           (const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
     function    InvokeRemoteRequestMachine    (const machineid   : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
     function    InvokeRemoteRequestMachineMac (const machine_mac : TFRE_DB_NameType ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
-//    function    InvokeRemoteInterface         (const machineid   : TFRE_DB_GUID ; const RIFMethod:TFRE_DB_RIF_Method; const SyncCallback: TFRE_DB_RemoteCB) : TFRE_DB_Errortype;
+    function    InvokeRemoteInterface         (const machineid   : TFRE_DB_GUID ; const RIFMethod:TFRE_DB_RIF_Method; const CompletionCallback: TFRE_DB_RemoteCB ; const opaquedata: IFRE_DB_Object=nil) : TFRE_DB_Errortype;
 
-    function    RegisterTaskMethod           (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
-    function    RemoveTaskMethod             (const id:string='TIMER'):boolean;
+    function    RegisterTaskMethod            (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :String='TIMER') : boolean;
+    function    RemoveTaskMethod              (const id:string='TIMER'):boolean;
 
-    function    HasFeature                   (const feature_name:shortstring):Boolean;
-    procedure   ClearUpdatable               ;
-    procedure   RegisterUpdatableContent     (const contentId: String);
-    procedure   UnregisterUpdatableContent   (const contentId: String);
-    procedure   RegisterUpdatableDBO         (const UID_id: TFRE_DB_GUID);
-    procedure   UnregisterUpdatableDBO       (const UID_id: TFRE_DB_GUID);
-    function    IsUpdatableContentVisible    (const contentId: String): Boolean;
-    function    IsDBOUpdatable               (const UID_id: TFRE_DB_GUID):boolean;
-    function    IsInteractiveSession         : Boolean;
-    function    GetDownLoadLink4StreamField  (const obj_uid: TFRE_DB_GUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
-    function    GetUserName                  : String;
-    function    GetDomain                    : TFRE_DB_String;      { domainname of logged in user }
-    function    GetDomainUID                 : TFRE_DB_GUID;        { domain id of logged in user }
-    function    GetDomainUID_String          : TFRE_DB_GUID_String; { domain id as string of logged in user }
-    procedure   InboundNotificationBlock     (const block: IFRE_DB_Object); { Here comes an Inbound Notification block from the network/pl layer}
+    function    HasFeature                    (const feature_name:shortstring):Boolean;
+    procedure   ClearUpdatable                ;
+    procedure   RegisterUpdatableContent      (const contentId: String);
+    procedure   UnregisterUpdatableContent    (const contentId: String);
+    procedure   RegisterUpdatableDBO          (const UID_id: TFRE_DB_GUID);
+    procedure   UnregisterUpdatableDBO        (const UID_id: TFRE_DB_GUID);
+    function    IsUpdatableContentVisible     (const contentId: String): Boolean;
+    function    IsDBOUpdatable                (const UID_id: TFRE_DB_GUID):boolean;
+    function    IsInteractiveSession          : Boolean;
+    function    GetDownLoadLink4StreamField   (const obj_uid: TFRE_DB_GUID; const fieldname: TFRE_DB_NameType; const is_attachment: boolean; mime_type: string; file_name: string ; force_url_etag : string=''): String; { Make a DBO Stream Field Downloadable in a Session context }
+    function    GetUserName                   : String;
+    function    GetDomain                     : TFRE_DB_String;      { domainname of logged in user }
+    function    GetDomainUID                  : TFRE_DB_GUID;        { domain id of logged in user }
+    function    GetDomainUID_String           : TFRE_DB_GUID_String; { domain id as string of logged in user }
+    procedure   InboundNotificationBlock      (const block: IFRE_DB_Object); { Here comes an Inbound Notification block from the network/pl layer}
   end;
 
   TFRE_DB_RemoteReqSpec      = record
@@ -3029,6 +3116,8 @@ end;
     function    SetModuleInitialized     (const modulename:ShortString):Boolean;
 
     function    FetchOrInitFeederMachines  (const Machine,MachineMac : TFRE_DB_String):TFRE_DB_GUID; { Initialize or deliver Machine Objects in the Session DB }
+    function    GetMachineUidByName        (const mname : TFRE_DB_String ; out machuid : TFRE_DB_GUID):boolean;
+    function    GetMachineUidByMac         (const mac   : TFOS_MAC_ADDR  ; out machuid : TFRE_DB_GUID):boolean;
 
     procedure   SetServerClientInterface   (const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC);
     procedure   ClearServerClientInterface ;
@@ -3053,6 +3142,7 @@ end;
     function    InvokeRemoteRequest           (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
     function    InvokeRemoteRequestMachine    (const machineid : TFRE_DB_GUID ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
     function    InvokeRemoteRequestMachineMac (const machine_mac : TFRE_DB_NameType ; const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+    function    InvokeRemoteInterface         (const machineid   : TFRE_DB_GUID ; const RIFMethod:TFRE_DB_RIF_Method; const CompletionCallback: TFRE_DB_RemoteCB ; const opaquedata: IFRE_DB_Object=nil) : TFRE_DB_Errortype;
 
     procedure   InvokeRemReqCoRoutine      (const data : Pointer);
     procedure   AnswerRemReqCoRoutine      (const data : Pointer);
@@ -4404,6 +4494,14 @@ begin
   len    := HexToBin(@conv[1],@D[0],6);
   result := len=6;
 end;
+
+function TFOS_MAC_ADDR.SetFromStringR(const mac: shortstring): TFOS_MAC_ADDR;
+begin
+  if not SetFromString(mac) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'bad mac address format');
+  result := self;
+end;
+
 
 function TFOS_MAC_ADDR.GetAsString: ShortString;
 var h:string;
@@ -5950,20 +6048,12 @@ var x           : TObject;
 
     procedure _SendSyncServerClienterror(const emessage:string); //TODO - Think about client Error Handling
     begin
-      //ANSWER WIH ERROR is not implemented on client side
       CMD.CommandType   := fct_Error;
       CMD.Answer        := true;
       CMD.ClientCommand := false;
-      CMD.ErrorText   := 'INVOKE OF ['+class_name+'.'+method_name+'] FAILED '+#13#10+'['+emessage+']';
+      CMD.ErrorText     := 'INVOKE OF ['+class_name+'.'+method_name+'] FAILED '+#13#10+'['+emessage+']';
       GFRE_DBI.LogError(dblc_SESSION,' SERROR:> %s',[cmd.ErrorText]);
       SendServerClientCMD(cmd);
-     { old code}
-      //cmd.CommandType   := fct_SyncReply;
-      //cmd.Answer        := true;
-      //cmd.Data          := TFRE_DB_MESSAGE_DESC.Create.Describe('EXCEPTION/UNHANDLED',emessage,fdbmt_error);
-      //cmd.ClientCommand := false;
-      //GFRE_DBI.LogDebug(dblc_SESSION,' SERROR:> %s',[cmd.Data.SchemeClass]);
-      //SendServerClientCMD(cmd);
     end;
 
 
@@ -6246,13 +6336,13 @@ var x           : TObject;
         var g  : TFRE_DB_GUID;
             no : IFRE_DB_Object;
         begin
-         try
-           g.SetFromHexString(fielname);
-           no := obj.CloneToNewObject;
-           no.Field('statuid').AsGUID:=g;
-           G_LiveStats.Field(fielname).AsObject := no;
-         except
-         end;
+          try
+            g.SetFromHexString(fielname);
+            no := obj.CloneToNewObject;
+            no.Field('statuid').AsGUID:=g;
+            G_LiveStats.Field(fielname).AsObject := no;
+          except
+          end;
         end;
 
     begin
@@ -6261,6 +6351,21 @@ var x           : TObject;
         input.ForAllObjectsFieldName(@CheckoutUpdate);
       finally
         G_LiveStatLock.Release;
+      end;
+    end;
+
+    procedure _DoJobUpdate;
+    begin
+      try
+        raise EFRE_DB_Exception.Create(edb_UNSUPPORTED,'this is a test raise');
+
+        { Collection , find update, insert}
+
+        CMD.Data := GFRE_DB_NIL_DESC;
+        _SendSyncServerClientAnswer;
+      except
+        on e:exception do
+          _SendSyncServerClienterror(e.Message);
       end;
     end;
 
@@ -6289,15 +6394,18 @@ begin
                               if (method_name='INIT') then
                                 _ProcessInit
                               else
-                              if (method_name='LOGOUT') then begin
-                                _ProcessLogout;
-                              end else
-                              if (method_name='DESTROY') then begin
-                                _ProcessDestroy;
-                              end else
-                              if (method_name='BINARYBULKTRANSFER') then begin
-                                _ProcessBinaryBulkTransfer;
-                              end else
+                              if (method_name='LOGOUT') then
+                                _ProcessLogout
+                              else
+                              if (method_name='DESTROY') then
+                                _ProcessDestroy
+                              else
+                              if (method_name='BINARYBULKTRANSFER') then
+                                _ProcessBinaryBulkTransfer
+                              else
+                              if (method_name='JOBUPDATE') then
+                                _DoJobUpdate
+                              else
                               if (method_name='UNREGISTERDBO') then begin
                                 _ProcessUnregisterDBO;
                               end else begin
@@ -6307,11 +6415,11 @@ begin
                              InvokeMethod(false,input);
                           end;
                         except on e:Exception do begin
-                         cmd.CommandType := fct_Error;
-                         cmd.Answer        := true;
-                         cmd.ClientCommand := false;
-                         cmd.ErrorText   := e.Message;
-                         GFRE_DBI.LogInfo(dblc_SESSION,'<< ERROR (%s) [%s/%s]-(%d/%s) %s[%s].%s [%d ms]',[e.Message,FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,et-st]);
+                          cmd.CommandType := fct_Error;
+                          cmd.Answer        := true;
+                          cmd.ClientCommand := false;
+                          cmd.ErrorText   := e.Message;
+                          GFRE_DBI.LogInfo(dblc_SESSION,'<< ERROR (%s) [%s/%s]-(%d/%s) %s[%s].%s [%d ms]',[e.Message,FSessionID,FUserName,request_id,CFRE_DB_COMMANDTYPE[request_typ],class_name,GFRE_DBI.GuidArray2SString(uidp),method_name,et-st]);
                         end;end;
                       end;
     fct_AsyncRequest: begin
@@ -6777,7 +6885,7 @@ var  i      : Integer;
 begin
   if not FPromoted then
     raise EFRE_DB_Exception.Create(edb_ERROR,'you not allowed the machineobjects [%s]',[FDBConnection.GetDatabaseName]);
-  mcoll := FDBConnection.GetCollection(CFRE_DB_MACHINE_COLLECTION);
+  mcoll := FDBConnection.GetMachinesCollection;
   if mcoll.GetIndexedObjText(MachineMac,mach,false,'pmac')>0 then
     begin
       FBoundMachineUid := mach.UID;
@@ -6810,6 +6918,24 @@ begin
   //    CheckDbResult(mcoll.Store(unmach),'failed to store a unconfigured machine');
   //    GFRE_DBI.LogNotice(dblc_SESSION,'CREATED UNCONFIGURED MACHINE SESSION ['+fsessionid+'] MACHINENAME ['+Machine+'/'+MachineMac+'] MACHINE_UID ['+FREDB_G2H(result)+']');
   //  end;
+end;
+
+function TFRE_DB_UserSession.GetMachineUidByName(const mname: TFRE_DB_String; out machuid: TFRE_DB_GUID): boolean;
+var mcoll : IFRE_DB_COLLECTION;
+begin
+  mcoll  := FDBConnection.GetMachinesCollection;
+  result := false;
+  if mcoll.GetIndexedUIDText(mname,machuid)=1 then
+    result := true;
+end;
+
+function TFRE_DB_UserSession.GetMachineUidByMac(const mac: TFOS_MAC_ADDR; out machuid: TFRE_DB_GUID): boolean;
+var mcoll : IFRE_DB_COLLECTION;
+begin
+  mcoll := FDBConnection.GetMachinesCollection;
+  result := false;
+  if mcoll.GetIndexedUIDText(Mac.GetAsString,machuid,false,'pmac')=1 then
+    result   := true;
 end;
 
 procedure TFRE_DB_UserSession.SetServerClientInterface(const sc_interface: IFRE_DB_COMMAND_REQUEST_ANSWER_SC);
@@ -7023,6 +7149,22 @@ begin
     end
   else
     result := edb_NOT_FOUND;
+end;
+
+function TFRE_DB_UserSession.InvokeRemoteInterface(const machineid: TFRE_DB_GUID; const RIFMethod: TFRE_DB_RIF_Method; const CompletionCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
+var obj           : IFRE_DB_Object;
+    class_name,
+    method_name   : shortstring;
+begin
+  if TFRE_DB_ObjectEx.CheckGetRIFMethodInstance(RIFMethod,class_name,method_name,obj) then
+    begin
+      result := InvokeRemoteRequestMachine(machineid,class_name,method_name,obj,CompletionCallback,opaquedata);
+    end
+  else
+    begin
+      result.Code := edb_NOT_FOUND;
+      result.Msg  := 'not a rif method, undefined, not found';
+    end;
 end;
 
 procedure TFRE_DB_UserSession.InvokeRemReqCoRoutine(const data: Pointer);
@@ -7543,10 +7685,22 @@ begin
   FMediatorExtention := med;
 end;
 
-//class function TFRE_DB_Base.Get_DBI_ClassMethods: TFOSStringArray;
-//begin
-//
-//end;
+class function TFRE_DB_Base.CheckGetRIFMethodInstance(const rifmethod: TFRE_DB_RIF_Method; out rclassname, rmethodname: ShortString; out obj: IFRE_DB_Object): boolean;
+var m : TMethod;
+    o : TObject;
+begin
+  try
+    result      := false;
+    m           := TMethod(rifmethod);
+    o           := TObject(m.Data);
+    obj         := (o as TFRE_DB_ObjectEx);
+    rclassname  := o.ClassName;
+    rmethodname := o.MethodName(m.Code);
+    result      := rmethodname<>'';
+  except { someone fed us with shit }
+    exit;
+  end;
+end;
 
 class function TFRE_DB_Base.Get_DBI_InstanceMethods: TFRE_DB_StringArray;
 var methodtable : pmethodnametable;
@@ -7575,6 +7729,7 @@ var methodtable : pmethodnametable;
     i           : dword;
     ovmt        : PVmt;
 begin
+   SetLength(Result,0);
    ovmt:=PVmt(self);
    while assigned(ovmt) do
      begin
@@ -7585,6 +7740,29 @@ begin
                if (pos('REM_',methodtable^.entries[i].name^)=1) then begin
                  SetLength(result,Length(result)+1);
                  result[High(result)] := uppercase(Copy(methodtable^.entries[i].name^,5,MaxInt));
+               end;
+             end;
+          end;
+        ovmt := ovmt^.vParent;
+     end;
+end;
+
+class function TFRE_DB_Base.Get_DBI_RIFMethods: TFRE_DB_StringArray;
+var methodtable : pmethodnametable;
+    i           : dword;
+    ovmt        : PVmt;
+begin
+   SetLength(Result,0);
+   ovmt:=PVmt(self);
+   while assigned(ovmt) do
+     begin
+        methodtable:=pmethodnametable(ovmt^.vMethodTable);
+        if assigned(methodtable) then
+          begin
+             for i:=0 to methodtable^.count-1 do begin
+               if (pos('RIF_',methodtable^.entries[i].name^)=1) then begin
+                 SetLength(result,Length(result)+1);
+                 result[High(result)] := uppercase(Copy(methodtable^.entries[i].name^,1,MaxInt));
                end;
              end;
           end;
@@ -7692,6 +7870,22 @@ begin
      end
    else
      raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'REM INSTANCE METHOD INVOCATION %s.%s failed (method not found)',[Classname,rmethodname]);
+end;
+
+function TFRE_DB_Base.Invoke_DBRIF_Method(const rmethodname: TFRE_DB_NameType ; const run_ctx : TObject ;  const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE):IFRE_DB_Object;
+var M  : TFRE_DB_RIF_Method;
+    MM : TMethod;
+begin
+   result  := nil;
+   MM.Code := MethodAddress(rmethodname);
+   MM.Data := self;
+   if assigned(MM.code) then
+     begin
+       M      := TFRE_DB_RIF_Method(MM);
+       result := M(run_ctx);
+     end
+   else
+     raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'RIF INSTANCE METHOD INVOCATION %s.%s failed (method not found)',[Classname,rmethodname]);
 end;
 
 function TFRE_DB_Base.Fetch_DBIMI_Method(const name: TFRE_DB_String): IFRE_DB_InvokeInstanceMethod;
@@ -8471,7 +8665,7 @@ function TFRE_DB_ObjectEx.WEB_NoteLoad(const input:IFRE_DB_Object ; const ses: I
 var noteobj: IFRE_DB_Object;
 begin
   if input.FieldExists('linkid') then begin
-    if conn.GetCollection('SysNoteCollection').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
+    if conn.GetNotesCollection.GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(noteobj.Field('note').asstring));
     end else begin
       exit(TFRE_DB_EDITOR_DATA_DESC.create.Describe(''));
@@ -8487,7 +8681,7 @@ var
   res    : TFRE_DB_Errortype;
 begin
   if input.FieldExists('linkid') then begin
-    if conn.GetCollection('SysNoteCollection').GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
+    if conn.GetNotesCollection.GetIndexedObj(input.Field('linkid').asstring,noteobj) then begin
       noteobj.Field('note').asstring := input.Field('content').asstring;
       res := conn.Update(noteobj);
       if res<>edb_OK then
@@ -8496,7 +8690,7 @@ begin
       noteobj := GFRE_DBI.NewObjectScheme(TFRE_DB_NOTE);
       noteobj.Field('link').asstring:=input.Field('linkid').asstring;
       noteobj.Field('note').asstring  := input.Field('content').asstring;
-      res := conn.GetCollection('SysNoteCollection').Store(noteobj);
+      res := conn.GetNotesCollection.Store(noteobj);
       if res<>edb_OK then
         raise EFRE_DB_Exception.Create(res,'error storing note');
     end;
@@ -9458,6 +9652,325 @@ begin
   GetDBModuleSessionData(input).Field('activeSection').AsString:=input.Field('sectionid').AsString;
   Result:=GFRE_DB_NIL_DESC;
 end;
+
+
+
+
+
+{ TFRE_DB_JOB }
+
+procedure TFRE_DB_JOB.InternalSetup;
+begin
+  inherited InternalSetup;
+  SetMaxAllowedTime(30);   { set the internal allowed time to 30 seconds default }
+end;
+
+function TFRE_DB_JOB.GetConfig: IFRE_DB_Object;
+begin
+  result := Field('c').AsObject;
+end;
+
+procedure TFRE_DB_JOB.SetConfig(AValue: IFRE_DB_Object);
+begin
+  Field('c').AsObject := AValue;
+end;
+
+
+function TFRE_DB_JOB.GetReport: IFRE_DB_Object;
+begin
+ result :=Field('r').AsObject;
+end;
+
+procedure TFRE_DB_JOB.SetReport(AValue: IFRE_DB_Object);
+begin
+  Field('r').AsObject := AValue;
+end;
+
+function TFRE_DB_JOB.GetJobFilename: string;
+var jobstate     : TFRE_JobState;
+begin
+  jobstate := GetJobState;
+  result   := GetJobBaseFilename(jobstate,jobkey);
+  if not ((jobstate=jobStateUnknown) or (jobstate=jobStateToRun) or (jobstate=jobStateImmediateStart)) then
+    result := result + '_'+inttostr(report.Field('starttime').AsDateTimeUTC);
+  result := result +'.dbo';
+end;
+
+class procedure TFRE_DB_JOB.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName(TFRE_DB_ObjectEx.ClassName);
+  scheme.AddSchemeField('machine',fdbft_ObjLink);
+  scheme.AddSchemeField('troubleshooting',fdbft_String);
+  scheme.AddSchemeField('jobstate',fdbft_String);  // enum
+  scheme.AddCalcSchemeField('displayname',fdbft_String,@CALC_GetDisplayName);
+end;
+
+procedure TFRE_DB_JOB.SetStatus(const status: TFRE_SignalStatus; const statussummary: string);
+begin
+  E_FOS_Implement;
+  abort;
+end;
+
+procedure TFRE_DB_JOB.SetDetailStatus(const detail: IFRE_DB_Object; const status: TFRE_SignalStatus; const statussummary: string);
+begin
+  E_FOS_Implement;
+  abort;
+end;
+
+procedure TFRE_DB_JOB.SetMaxAllowedTime(const time_s: NativeInt);
+begin
+  Field('MAX_ALLOWED_TIME').AsInt32 := time_s;
+end;
+
+
+procedure TFRE_DB_JOB.SetJobkeyDescription(const newjobkey: string; const jdescription: string);
+begin
+  FNamedObject.ObjectName  := newjobkey;
+  FNamedObject.Description.SetupText(newjobkey,jdescription);
+end;
+
+procedure TFRE_DB_JOB.SaveJobToFile;
+var
+  jobfilename  : string;
+begin
+  jobfilename := GetJobFilename;
+  if not DirectoryExists(ExtractFileDir(jobfilename)) then
+    ForceDirectories(ExtractFileDir(jobfilename));
+  SaveToFile(jobfilename);
+end;
+
+procedure TFRE_DB_JOB.SetJobState(const value: TFRE_JobState);
+begin
+  if (GetJobState<>value) and (GetJobstate<>jobStateToRun) then
+    DeleteFile(GetJobFilename);
+  Field('jobstate').asstring := CFRE_JobState[value];
+end;
+
+procedure TFRE_DB_JOB.SetJobStateandSave(const value: TFRE_JobState);
+begin
+  SetJobState(value);
+  SaveJobToFile;
+end;
+
+function TFRE_DB_JOB.GetJobState: TFRE_JobState;
+var i : TFRE_JobState;
+begin
+ for i:=low(TFRE_JobState) to high(TFRE_JobState) do
+   if CFRE_JobState[i]=Field('jobstate').asstring then
+     begin
+       result := i;
+       exit;
+     end;
+  result := jobStateUnknown;
+end;
+
+procedure TFRE_DB_JOB.SetPid(const value: QWord);
+begin
+  field('pid').AsUInt64:=value;
+end;
+
+procedure TFRE_DB_JOB.ClearPid;
+begin
+  DeleteField('pid');
+end;
+
+procedure TFRE_DB_JOB.SetProgress(const percent: integer);
+var jr:TFRE_DB_JobReport;
+begin
+  jr:=(report.Implementor_HC) as TFRE_DB_JobReport;
+  jr.SetProgress(percent);
+end;
+
+procedure TFRE_DB_JOB.AddProgressLog(const msg: string; const percent: integer);
+var jr:TFRE_DB_JobReport;
+begin
+  jr:=(report.Implementor_HC) as TFRE_DB_JobReport;
+  jr.AddProgressLog(msg);
+  if percent<>-1 then
+    jr.SetProgress(percent);
+  SaveJobToFile;
+end;
+
+class function TFRE_DB_JOB.GetJobBaseFilename(const state: TFRE_JobState; const vjobkey: string): string;
+begin
+  result :=cFRE_JOB_RESULT_DIR+CFRE_JobState[State]+DirectorySeparator+GFRE_BT.Str2HexStr(vJobKey);
+end;
+
+procedure TFRE_DB_JOB.SetRemoteSSH(const user: string; const host: string; const keyfilename: string);
+begin
+  Field('remoteuser').AsString        := user;
+  Field('remotehost').AsString        := host;
+  Field('remotekeyfilename').AsString := keyfilename;
+end;
+
+function TFRE_DB_JOB.JobKey: string;
+begin
+  result := FNamedObject.ObjectName;
+end;
+
+function TFRE_DB_JOB.IMI_Do_the_Job(const input: IFRE_DB_Object): IFRE_DB_Object;
+begin
+  try
+    report := TFRE_DB_JobReport.Create;
+    report.Field('starttime').AsDateTimeUTC := GFRE_DT.Now_UTC;
+    report.Field('progress').asint32        := 0;
+    SetJobStateandSave(jobStateRunning);
+    ExecuteJob;
+    report.Field('endtime').AsDateTimeUTC:=GFRE_DT.Now_UTC;
+    ClearPid;
+    SetJobStateandSave(jobStateDone);
+    writeln('SWL: DONE ',Report.DumpToString());
+  except on E:Exception do
+    begin
+      AddProgressLog('EXCEPTION:'+E.Message);
+      SetJobStateandSave(jobStateFailed);
+      writeln('SWL: DONE FAILED',Report.DumpToString());
+      raise;
+    end;
+  end;
+end;
+
+procedure TFRE_DB_JOB.CALC_GetDisplayName(const setter: IFRE_DB_CALCFIELD_SETTER);
+begin
+  setter.SetAsString(FNamedObject.Description.Getshort);
+  //result := GFRE_DBI.NewObject;
+  //result.Field(CalcFieldResultKey(fdbft_String)).AsString:=FNamedObject.Description.Getshort;
+  // writeln(result.DumpToString());
+end;
+
+function TFRE_DB_JOB.RIF_Start(const runnning_ctx: TObject): IFRE_DB_Object;
+begin
+  {
+    Check if a Job with my Key is running -> Throw Exception
+    Check if my Job Description is Good
+    Start my Job ( Tprocess)
+    Give Feedback occasionaly (creation succeeded)
+    Done
+  }
+  //GFRE_BT.CriticalAbort('---- HERE COMES THE SUN ----',[]);
+  result := GFRE_DBI.NewObject;
+  result.Field('TEST').AsString:='HERE IS NOTHING';
+end;
+
+function TFRE_DB_JOB.RIF_Kill(const runnning_ctx: TObject): IFRE_DB_Object;
+begin
+  abort;
+end;
+
+function TFRE_DB_JOB.RIF_CreateJobDescription(const runnning_ctx: TObject): IFRE_DB_Object;
+begin
+  abort;
+end;
+
+function TFRE_DB_JOB.RIF_DeleteJobDescription(const runnning_ctx: TObject): IFRE_DB_Object;
+begin
+  abort;
+end;
+
+function TFRE_DB_JOB.RIF_GetAllJobDescriptions(const runnning_ctx: TObject): IFRE_DB_Object;
+begin
+  abort;
+end;
+
+
+procedure TFRE_DB_JobReport.SetProgress(const percent: integer);
+begin
+  Field('progress').AsInt32:=percent;
+end;
+
+procedure TFRE_DB_JobReport.AddProgressLog(const msg: string);
+var ts:TFRE_DB_DateTime64;
+    l :IFRE_DB_Object;
+    lo:IFRE_DB_Object;
+begin
+  if not FieldExists('L') then
+    Field('L').AsObject:=GFRE_DBI.NewObject;
+
+  ts:=GFRE_DT.Now_UTC;
+  lo:=GFRE_DBI.NewObject;
+  lo.Field('TS').AsDateTimeUTC:=ts;
+  lo.Field('M').asstring      :=msg;
+  lo.Field('P').asint32       :=Field('progress').AsInt32;
+  Field('L').AsObject.Field(lo.UID_String).AsObject:=lo;
+end;
+
+class procedure TFRE_DB_JobReport.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+var
+  enum: IFRE_DB_Enum;
+begin
+  inherited RegisterSystemScheme(scheme);
+
+  enum:=GFRE_DBI.NewEnum('tcr_signal_status').Setup(GFRE_DBI.CreateText('$enum_tcr_signal_status','signal status Enum'));
+  enum.addEntry('ok',GetTranslateableTextKey('enum_tcr_signal_status_ok'));
+  enum.addEntry('warning',GetTranslateableTextKey('enum_tcr_signal_status_warning'));
+  enum.addEntry('failure',GetTranslateableTextKey('enum_tcr_signal_status_failure'));
+  enum.addEntry('unknown',GetTranslateableTextKey('enum_tcr_signal_status_unknown'));
+  GFRE_DBI.RegisterSysEnum(enum);
+
+  scheme.SetParentSchemeByName(TFRE_DB_ObjectEx.ClassName);
+  //scheme.AddSchemeField('status',fdbft_String).SetupFieldDef(true,false,'tcr_signal_status');
+  scheme.AddSchemeField('statussummary',fdbft_String);
+  scheme.AddSchemeField('starttime',fdbft_DateTimeUTC);
+  scheme.AddSchemeField('endtime',fdbft_DateTimeUTC);
+end;
+
+class procedure TFRE_DB_JobReport.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='1.0';
+
+  if (currentVersionId='') then begin
+    currentVersionId:='1.0';
+
+    StoreTranslateableText(conn,'enum_tcr_signal_status_ok','Ok');
+    StoreTranslateableText(conn,'enum_tcr_signal_status_warning','Warning');
+    StoreTranslateableText(conn,'enum_tcr_signal_status_failure','Failure');
+    StoreTranslateableText(conn,'enum_tcr_signal_status_unknown','Unknown');
+ end;
+  if (currentVersionId='1.0') then begin
+ //next update code
+  end;
+end;
+
+
+{ TFRE_DB_TIMERTEST_JOB }
+
+procedure TFRE_DB_TIMERTEST_JOB.InternalSetup;
+begin
+  inherited InternalSetup;
+  SetMaxAllowedTime(86400);
+end;
+
+class procedure TFRE_DB_TIMERTEST_JOB.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+ inherited RegisterSystemScheme(scheme);
+ scheme.SetParentSchemeByName(TFRE_DB_JOB.ClassName);
+end;
+
+procedure TFRE_DB_TIMERTEST_JOB.SetTimeout(const value: integer);
+begin
+  Field('testtimeout').asInt64 := value;
+end;
+
+procedure TFRE_DB_TIMERTEST_JOB.ExecuteJob;
+var timeout: int64;
+    total  : int64;
+begin
+  timeout := Field('testtimeout').asint64;
+  total   := timeout;
+  while timeout>0 do
+    begin
+      sleep(1000);
+      Field('timetogo').AsInt64 := timeout;
+      AddProgressLog('NOW WE HAVE '+inttostr(timeout)+' to go!',trunc((total-timeout)*100/total));
+      writeln('SWL JOBFILE:',DumpToString());
+      dec(timeout);
+    end;
+  AddProgressLog('Now we are done!',100);
+  writeln('SWL JOBFILE:',DumpToString());
+end;
+
+
 
 
 procedure FREDB_SiteMap_AddEntry(const SiteMapData : IFRE_DB_Object ; const key:string;const caption : String ; const icon : String ; InterAppLink : TFRE_DB_StringArray ;const x,y : integer; const newsCount:Integer; const scale:Single; const enabled:Boolean);
