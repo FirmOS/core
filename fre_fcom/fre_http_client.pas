@@ -73,8 +73,9 @@ type
       FHttpResponseCode : NativeInt;
       FContentCB    : TFRE_SIMPLE_HTTP_CONTENT_CB;
       Fchannel      : IFRE_APSC_CHANNEL;
+      FError        : string;
 
-      procedure   localNewChannel (const channel: IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
+      procedure   localNewChannel (const channel: IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt);
       procedure   localRead       (const channel: IFRE_APSC_CHANNEL);
       procedure   localDisco      (const channel: IFRE_APSC_CHANNEL);
       procedure   DoCallBack      ;
@@ -94,9 +95,13 @@ implementation
 
 { TFRE_SIMPLE_HTTP_CLIENT }
 
-procedure TFRE_SIMPLE_HTTP_CLIENT.localNewChannel(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
+procedure TFRE_SIMPLE_HTTP_CLIENT.localNewChannel(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState; const errorstring: string; const errorcode: NativeInt);
 begin
   case channel_event of
+    ch_ErrorOccured:
+      begin
+        FError := errorstring;
+      end;
     ch_NEW_CS_CONNECTED:
       begin
         Fchannel    := Channel;
@@ -107,7 +112,7 @@ begin
     ch_NEW_CHANNEL_FAILED:
       begin
        if assigned(FContentCB) then
-         FContentCB(self,500,0,channel.CH_GetErrorString,nil);
+         FContentCB(self,500,0,FError,nil);
       end
     else
       raise Exception.Create('TFRE_SIMPLE_HTTP_CLIENT - localnewchannel unhandled channel event');
@@ -198,9 +203,9 @@ end;
 
 procedure TFRE_SIMPLE_HTTP_CLIENT.localDisco(const channel: IFRE_APSC_CHANNEL);
 begin
-  writeln('Cannel '+channel.CH_GetVerboseDesc,' DISCO ',channel.CH_GetErrorString);
+  writeln('Cannel '+channel.CH_GetVerboseDesc,' DISCO ');
   if assigned(FContentCB) then
-    FContentCB(self,500,0,channel.CH_GetErrorString,nil);
+    FContentCB(self,500,0,FError,nil);
 end;
 
 procedure TFRE_SIMPLE_HTTP_CLIENT.DoCallBack;

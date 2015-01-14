@@ -54,7 +54,7 @@ type
   TFRE_APSC_ID_Array  =  Array of TFRE_APSC_ID;
 
   TAPSC_ListenerState = (als_BAD,als_LISTENING,als_STOPPED,als_LISTEN_ERROR,als_EVENT_NEW_LISTENER);
-  TAPSC_ChannelState  = (ch_BAD,ch_WAIT,ch_NEW_SS_CONNECTED,ch_ACTIVE,ch_NEW_CS_CONNECTED,ch_NEW_CHANNEL_FAILED,ch_EOF);
+  TAPSC_ChannelState  = (ch_BAD,ch_WAIT,ch_NEW_SS_CONNECTED,ch_ACTIVE,ch_NEW_CS_CONNECTED,ch_NEW_CHANNEL_FAILED,ch_EOF,ch_InvalidOperation,ch_ErrorOccured);
 
   IFRE_APSC_DNS_ANSWER=interface
   end;
@@ -65,13 +65,12 @@ type
   IFRE_APSC_CHANNEL_GROUP   = interface;
   IFRE_APSC_LISTENER        = interface;
 
-  TOnNew_APSC_Channel      = procedure (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState) of object;
   TOnNew_APSC_Signal       = procedure (const signal       : NativeUint) of object;
 
   TFRE_APSC_LISTENER_CALLBACK    = procedure (const listener     : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState) of object;
   TFRE_APSC_TIMER_CALLBACK       = procedure (const timer        : IFRE_APSC_TIMER ; const flag1,flag2 : boolean) of object;
   TFRE_APSC_CHANNEL_EVENT        = procedure (const channel      : IFRE_APSC_CHANNEL) of object;
-  TFRE_APSC_CHANNEL_CHANGE_EVENT = procedure (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState) of object;
+  TFRE_APSC_CHANNEL_CHANGE_EVENT = procedure (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt) of object;
   TFRE_APSC_CoRoutine            = procedure (const Data         : Pointer) of Object;
 
   { IFRE_APSC }
@@ -86,7 +85,7 @@ type
     function    AddClient_TCP_DNS          (Host,Port : String             ; const ID:TFRE_APSC_ID ; const auto_finalize : boolean=true ; channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localEvent :  TFRE_APSC_CHANNEL_CHANGE_EVENT=nil ; localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil ; Bind_IP:string='' ; Bind_Port:String=''):IFRE_APSC_CHANNEL;
     function    AddClient_UX               (const special_file:shortstring ; const ID:TFRE_APSC_ID ; const auto_finalize : boolean=true ; channelmanager: IFRE_APSC_CHANNEL_MANAGER = nil ;  localEvent :  TFRE_APSC_CHANNEL_CHANGE_EVENT=nil ; localRead :  TFRE_APSC_CHANNEL_EVENT=nil ;  localDisconnect :  TFRE_APSC_CHANNEL_EVENT=nil):IFRE_APSC_CHANNEL;
     procedure   SetListenerCB              (const lcb      : TFRE_APSC_LISTENER_CALLBACK);
-    procedure   SetNewChannelCB            (const chancb   : TOnNew_APSC_Channel);
+    procedure   SetNewChannelCB            (const chancb   : TFRE_APSC_CHANNEL_CHANGE_EVENT);
     procedure   SetSingnalCB               (const signalcb : TOnNew_APSC_Signal);
     function    GetDefaultCG               : IFRE_APSC_CHANNEL_GROUP;
     procedure   RunUntilTerminate          ;
@@ -164,8 +163,6 @@ end;
     function   CH_GetDataCount      : NativeInt;
     function   CH_ReadString        : RawByteString;
     function   CH_ReadBuffer        (const data : Pointer ; const len : NativeInt) : NativeInt;
-    function   CH_GetErrorString    : String;
-    function   CH_GetErrorCode      : NativeInt;
     function   CH_IsClientChannel   : Boolean;
     function   CH_GetState          : TAPSC_ChannelState;
     function   CH_GetID             : TFRE_APSC_ID;
