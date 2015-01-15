@@ -125,12 +125,18 @@ end;
 
 class procedure TFRE_COMMON_WF_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
-  newVersionId:='0.9';
+  newVersionId:='0.9.1';
   if currentVersionId='' then begin
     currentVersionId:='0.9';
     CreateModuleText(conn,'gc_wf_caption','Caption');
     CreateModuleText(conn,'gc_wf_id','Id');
     CreateModuleText(conn,'gc_wf_state','State');
+
+  end;
+  if currentVersionId='0.9' then begin
+    currentVersionId:='0.9.1';
+    CreateModuleText(conn,'gc_wf_group','Assigned group');
+
     CreateModuleText(conn,'wf_state_waiting','Waiting');
     CreateModuleText(conn,'wf_state_child_in_progress','Child in progress');
     CreateModuleText(conn,'wf_state_in_progress','In progress');
@@ -156,6 +162,7 @@ begin
       AddMultiToOnescheme(TFRE_DB_NameTypeArray.create('caption','step_caption'),'caption',FetchModuleTextShort(session,'gc_wf_caption'),dt_string,true,true);
       AddOneToOnescheme('state','state','',dt_string,false);
       AddOneToOnescheme('stateHR','stateHR',FetchModuleTextShort(session,'gc_wf_state'));
+      AddMatchingReferencedField('DESIGNATED_GROUP>TFRE_DB_GROUP','displayname','group',FetchModuleTextShort(session,'gc_wf_group'));
       AddOneToOnescheme('step_id','step_id',FetchModuleTextShort(session,'gc_wf_id'));
       SetFinalRightTransformFunction(@getHRState,[FetchModuleTextShort(session,'wf_state_waiting'),FetchModuleTextShort(session,'wf_state_child_in_progress'),FetchModuleTextShort(session,'wf_state_in_progress'),FetchModuleTextShort(session,'wf_state_done'),FetchModuleTextShort(session,'wf_state_faild')]);
     end;
