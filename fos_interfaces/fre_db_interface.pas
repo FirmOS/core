@@ -4787,13 +4787,22 @@ end;
 { TFRE_DB_WORKFLOW_BASE }
 
 function TFRE_DB_WORKFLOW_BASE.getState: UInt32;
+var
+  fld: IFRE_DB_FIELD;
 begin
-  Result:=Field('state').AsUInt32;
+  if FieldOnlyExisting('state',fld) then begin
+    Result:=fld.AsUInt32;
+  end else begin
+    Result:=0;
+  end;
 end;
 
 procedure TFRE_DB_WORKFLOW_BASE.setState(const conn: IFRE_DB_CONNECTION; const state: UInt32);
 begin
-  Field('state').AsUInt32:=state;
+  if getState<>state then begin
+    Field('state').AsUInt32:=state;
+    CheckDbResult(conn.Update(self.CloneToNewObject()));
+  end;
 end;
 
 function TFRE_DB_WORKFLOW_BASE._hasFaildChild(const conn: IFRE_DB_CONNECTION): Boolean;
@@ -4861,7 +4870,11 @@ begin
     end;
   end;
   if Length(lowestIdChilds)=0 then begin //no children or all children done
-    setState(conn,3); //IN PROGRESS
+    if FieldExists('action') then begin
+      setState(conn,3); //IN PROGRESS
+    end else begin
+      setState(conn,4); //DONE (since there is no action defined)
+    end;
   end else begin
     if getState=1 then begin
       setState(conn,2); //CHILD IN PROGRESS
@@ -5178,8 +5191,7 @@ var
   wfParent : TFRE_DB_WORKFLOW_BASE;
 begin
   inherited setState(conn,state);
-  CheckDbResult(conn.Update(self.CloneToNewObject()));
-  if state=3 then begin
+  if state=3 then begin //in progress
     //create notification object
     notiObj:=TFRE_DB_NOTIFICATION.CreateForDB;
     notiObj.Field('caption').AsString:=Field('step_caption').AsString;
@@ -5188,7 +5200,7 @@ begin
     notiObj.Field('for').AsObjectLink:=Field('designated_group').AsObjectLink;
     CheckDbResult(conn.AdmGetNotificationCollection.Store(notiObj));
   end;
-  if state=4 then begin
+  if state=4 then begin //done
     CheckDbResult(conn.FetchAs(Field('step_parent').AsObjectLink,TFRE_DB_WORKFLOW_BASE,wfParent));
     wfParent.update(conn);
   end;
