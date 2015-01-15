@@ -119,8 +119,10 @@ begin
 end;
 
 procedure TFRE_COMMON_WF_MOD.getHRState(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object; const langres: array of TFRE_DB_String);
+var fld : IFRE_DB_Field;
 begin
-  transformed_object.Field('stateHR').AsString:=langres[transformed_object.Field('state').AsInt16-1];
+  if transformed_object.FieldOnlyExisting('state',fld) then
+    transformed_object.Field('stateHR').AsString:=langres[fld.AsInt16-1];
 end;
 
 class procedure TFRE_COMMON_WF_MOD.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
