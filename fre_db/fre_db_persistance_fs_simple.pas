@@ -166,6 +166,9 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   SyncSnapshot                        ;
      function    GetNotificationRecordIF             : IFRE_DB_DBChangedNotification;
 
+     function    DifferentialBulkUpdate              (const user_context : PFRE_DB_GUID ; const transport_obj : IFRE_DB_Object) : TFRE_DB_Errortype;
+
+
      { Collection Interface }
      function    CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
      function    CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
@@ -1710,6 +1713,55 @@ end;
 function TFRE_DB_PS_FILE.GetNotificationRecordIF: IFRE_DB_DBChangedNotification;
 begin
   result := FChangeNotificationIF;
+end;
+
+function TFRE_DB_PS_FILE.DifferentialBulkUpdate(const user_context: PFRE_DB_GUID; const transport_obj: IFRE_DB_Object): TFRE_DB_Errortype;
+var ImplicitTransaction : Boolean;
+
+begin
+  LayerLock.Acquire;
+  try
+    try
+      try
+        begin { update }
+          if not assigned(G_Transaction) then
+            begin
+              G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DIFFUP',Fmaster,FChangeNotificationIF);
+              ImplicitTransaction := True;
+            end;
+          {}
+            // Delete Objects
+            // Insert Objects
+            // Update Objects
+          {}
+        end;
+      except
+        on e:EFRE_DB_PL_Exception do
+          begin
+            GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+            raise;
+          end;
+        on e:EFRE_DB_Exception do
+          begin
+            GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+            raise;
+          end;
+        on e:Exception do
+          begin
+            GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+            raise;
+          end;
+      end;
+    finally
+      if ImplicitTransaction then
+        begin
+          G_Transaction.Free;
+          G_Transaction := nil;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
 end;
 
 function TFRE_DB_PS_FILE.LayerLock: IFOS_LOCK;

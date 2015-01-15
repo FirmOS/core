@@ -120,6 +120,7 @@ type
       procedure FDB_SendCollection            (const obj:IFRE_DB_Object ; const sysdba_user,sysdba_pw_hash : TFRE_DB_String);
       function  FDB_TryGetIndexStream         (const collname : TFRE_DB_NameType ; const ix_name : TFRE_DB_Nametype ; out stream : TStream):boolean;
 
+      function DifferentialBulkUpdate               (const user_context : PFRE_DB_GUID ; const transport_obj : IFRE_DB_Object) : TFRE_DB_Errortype;
 
       { Collection Interface }
       function  CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
@@ -1334,6 +1335,11 @@ begin
 end;
 
 function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.FDB_TryGetIndexStream(const collname: TFRE_DB_NameType; const ix_name: TFRE_DB_Nametype; out stream: TStream): boolean;
+begin
+  abort;
+end;
+
+function TFRE_DB_PL_NET_CLIENT.TPLNet_Layer.DifferentialBulkUpdate(const user_context: PFRE_DB_GUID; const transport_obj: IFRE_DB_Object): TFRE_DB_Errortype;
 begin
   abort;
 end;

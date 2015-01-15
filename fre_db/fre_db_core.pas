@@ -2338,7 +2338,7 @@ type
     function    CreateCollection               (const collection_name: TFRE_DB_NameType;const in_memory:boolean=false) : IFRE_DB_COLLECTION;
     function    GetCollection                  (const collection_name: TFRE_DB_NameType) : IFRE_DB_COLLECTION;
 
-
+    function    DifferentialBulkUpdate         (const transport_obj : IFRE_DB_Object) : TFRE_DB_Errortype;
 
     function    SYS                            :IFRE_DB_SYS_CONNECTION;
     function    SYSC                           :TFRE_DB_SYSTEM_CONNECTION;
@@ -12081,6 +12081,15 @@ end;
 function TFRE_DB_CONNECTION.GetCollection(const collection_name: TFRE_DB_NameType): IFRE_DB_COLLECTION;
 begin
   result := inherited GetCollection(GetUserUIDP,collection_name);
+end;
+
+function TFRE_DB_CONNECTION.DifferentialBulkUpdate(const transport_obj: IFRE_DB_Object): TFRE_DB_Errortype;
+begin
+  try
+    Result:=FPersistance_Layer.DifferentialBulkUpdate(GetUserUIDP,transport_obj);
+  except on e:exception do
+    result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
+  end;
 end;
 
 

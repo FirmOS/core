@@ -1475,6 +1475,10 @@ type
     function  DeleteObject                        (const user_context : PFRE_DB_GUID ; const obj_uid  : TFRE_DB_GUID  ; const collection_name: TFRE_DB_NameType = ''):TFRE_DB_TransStepId;
     function  StoreOrUpdateObject                 (const user_context : PFRE_DB_GUID ; const obj      : IFRE_DB_Object ; const collection_name : TFRE_DB_NameType ; const store : boolean) : TFRE_DB_TransStepId;
 
+    { Differential Bulk Update Interface }
+
+    function DifferentialBulkUpdate               (const user_context : PFRE_DB_GUID ; const transport_obj : IFRE_DB_Object) : TFRE_DB_Errortype;
+
     { Collection Interface }
 
     function  CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID) : Boolean;
@@ -1606,6 +1610,9 @@ type
     function    FetchUserSessionData          (var SessionData: IFRE_DB_OBJECT):boolean;
     function    StoreUserSessionData          (var session_data:IFRE_DB_Object):TFRE_DB_Errortype;
     procedure   OverviewDump                  (const cb : TFRE_DB_SimpleLineCallback);
+
+    function    DifferentialBulkUpdate        (const transport_obj : IFRE_DB_Object) : TFRE_DB_Errortype;
+
 
     function    SYS                           : IFRE_DB_SYS_CONNECTION;
 
