@@ -352,8 +352,11 @@ type
      FQueryId                : TFRE_DB_NameType;                 { ID of this specific Query }
      FQueryClientID          : Int64;
      FQueryDescr             : string;
-     FParentChildLinkFldSpec : TFRE_DB_NameTypeRL;               { rl spec of the parent child relation }
-     FParentChildSkipschemes : TFRE_DB_NameTypeRLArray;          { skip this schemes in a parent child query }
+     FParentChildLinkFldSpec : TFRE_DB_NameTypeRL;               { rl spec of the parent child relation                }
+     FParentChildSkipschemes : TFRE_DB_NameTypeArray;            { skip this schemes in a parent child query           }
+     FParentChildFilterClasses : TFRE_DB_NameTypeArray;          { completly ignore these classes in reflinking        }
+     FParentChildStopOnLeaves  : TFRE_DB_NameTypeArray;          { stop on this leave classes and dont recurse further }
+
      FQueryFilters           : TFRE_DB_DC_FILTER_DEFINITION;     { managed here, cleanup here}
      FOrderDef               : TFRE_DB_DC_ORDER_DEFINITION;      { linked to order definition of base ordered data, dont cleanup here}
      FDependencyIds          : TFRE_DB_StringArray;              { dependency id's of this querys DC, in same order as }
@@ -3765,15 +3768,20 @@ begin
     begin
       if rl_ins then { Reflink update (tree), fetch parent,  set parentpath}
         begin
-          GFRE_DBI.LogDebug(dblc_DBTDM,' >NOTIFY INSERT OBJECT [%s] AGAINST TRANSDATA [%s] COLL [%s] IS A REFLINK UPDATE',[obj.GetDescriptionID,FKey.key,coll_name]);
           idx := ExistsObj(parent);
-          par := FTransformedData.Items[idx] as TFRE_DB_Object;
-          ppf := par.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString;
-          if ppf='' then
-            ppf := par.UID_String
+          if idx>0 then
+            begin
+              GFRE_DBI.LogDebug(dblc_DBTDM,' >NOTIFY INSERT OBJECT [%s] AGAINST TRANSDATA [%s] COLL [%s] IS A REFLINK UPDATE',[obj.GetDescriptionID,FKey.key,coll_name]);
+              par := FTransformedData.Items[idx] as TFRE_DB_Object;
+              ppf := par.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString;
+              if ppf='' then
+                ppf := par.UID_String
+              else
+                ppf := ppf+','+par.UID_String;
+              FDC.TransformSingleInsert(G_TCDM.DBC(FTDDBName),obj.CloneToNewObject(),self,FChildDataIsLazy,true,ppf,par,transkey); { Frees the object }
+            end
           else
-            ppf := ppf+','+par.UID_String;
-          FDC.TransformSingleInsert(G_TCDM.DBC(FTDDBName),obj.CloneToNewObject(),self,FChildDataIsLazy,true,ppf,par,transkey); { Frees the object }
+            GFRE_DBI.LogDebug(dblc_DBTDM,' >SKIP NOT FOUND / NOTIFY INSERT OBJECT [%s] AGAINST TRANSDATA [%s] COLL [%s] IS A REFLINK UPDATE',[obj.GetDescriptionID,FKey.key,coll_name]);
         end
       else
         begin { root insert }
@@ -4577,6 +4585,8 @@ var qry : TFRE_DB_QUERY;
      with qry do begin
        FParentChildLinkFldSpec := qry_def.ParentChildSpec;        { comes from dc }
        FParentChildSkipschemes := qry_def.ParentChildSkipSchemes; { comes from dc }
+       FParentChildFilterClasses := qry_def.ParentChildFilterClasses;
+       FParentChildStopOnLeaves  := qry_def.ParentChildStopOnLeaves;
        if length(qry_def.ParentIds)>0 then
          begin { this is a child query }
            FParentIds := qry_def.ParentIds;

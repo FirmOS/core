@@ -1727,6 +1727,9 @@ type
     FParentChildScheme : TFRE_DB_NameType;
     FParentChildField  : TFRE_DB_NameType;
     FParentLinksChild  : Boolean ;
+    FParentChildSkipClasses,
+    FParentChildFilterClasses,
+    FParentChildStopOnLeaves: TFRE_DB_NameTypeArray;
 
     FParentCollection  : IFRE_DB_COLLECTION;
     FIdField           : String;
@@ -1790,7 +1793,9 @@ type
 
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
     procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL);
-    procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL; const skipclasses : Array of TFRE_DB_String);
+    procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType);
+    procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType ; const filterclasses : Array of TFRE_DB_NameType);
+    procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType ; const filterclasses : Array of TFRE_DB_NameType ; const stop_on_explicit_leave_classes : Array of TFRE_DB_NameType);
 
     procedure  SetDeriveTransformation         (const tob:IFRE_DB_TRANSFORMOBJECT);
 
@@ -7637,63 +7642,98 @@ var
       FREDB_PP_AddParentPathToObj(tr_obj,pp);
     end;
 
+    {FParentChildStopOnLeaves, FParentChildFilterClasses, FParentChildSkipClasses}
     procedure TransFormChildsForUid(const parent_tr_obj : IFRE_DB_Object ; const parentpath : string ; const depth : NativeInt ; const in_uid : TFRE_DB_GUID);
-    var j          : NativeInt;
-        refd_uids  : TFRE_DB_GUIDArray;
-        refd_objs  : IFRE_DB_ObjectArray;
-        len_chld      : NativeInt;
-        in_chld_obj   : IFRE_DB_Object;
+    var j           : NativeInt;
+        refd_uids   : TFRE_DB_GUIDArray;
+        refd_objs   : IFRE_DB_ObjectArray;
+        len_chld    : NativeInt;
+        in_chld_obj : IFRE_DB_Object;
+        in_ch_class : ShortString;
+        stop        : boolean;
     begin
      refd_uids     := upconn.GetReferencesNoRightCheck(in_uid,FParentLinksChild,FParentChildScheme,FParentChildField);
-     len_chld      := length(refd_uids);
-     parent_tr_obj.Field(cFRE_DB_CLN_CHILD_CNT).AsInt32 := len_chld;
-     if len_chld>0 then
+     if length(refd_uids)>0 then
        begin
-         parent_tr_obj.Field(cFRE_DB_CLN_CHILD_FLD).AsString := cFRE_DB_CLN_CHILD_FLG;
-         inc(rec_cnt,len_chld); { record cnt includes transformed childs}
+         len_chld := 0;
          CheckDbResult(upconn.BulkFetchNoRightCheck(refd_uids,refd_objs),'transform childs');
          for j:=0 to high(refd_objs) do
            begin
              in_chld_obj  := refd_objs[j];
+             in_ch_class  := in_chld_obj.Implementor_HC.ClassName;
              try
-               tr_obj    := FTransform.TransformInOut(upconn,in_chld_obj);
-               SetInternalFields(tr_obj,in_chld_obj);
-               SetSpecialFields(tr_obj,in_chld_obj);
-               SetParentPath(parentpath);
-               transdata.SetTransformedObject(tr_obj);
-               TransFormChildsForUid(tr_obj,parentpath+','+FREDB_G2H(refd_uids[j]),depth+1,refd_uids[j]); { recurse }
+               stop := FREDB_StringInNametypeArray(in_ch_class,FParentChildStopOnLeaves);
+               if FREDB_StringInNametypeArray(in_ch_class,FParentChildFilterClasses) then
+                 begin
+                  continue; { skip the object as a whole}
+                 end;
+               if FREDB_StringInNametypeArray(in_ch_class,FParentChildSkipClasses) then
+                 begin
+                   TransFormChildsForUid(parent_tr_obj,parentpath,depth+1,refd_uids[j]); { this is the initial fill case, next step transfrom children recursive, but they are now root nodes }
+                 end
+               else
+                 begin
+                   inc(rec_cnt);
+                   inc(len_chld);
+                   tr_obj    := FTransform.TransformInOut(upconn,in_chld_obj);
+                   SetInternalFields(tr_obj,in_chld_obj);
+                   SetSpecialFields(tr_obj,in_chld_obj);
+                   SetParentPath(parentpath);
+                   transdata.SetTransformedObject(tr_obj);
+                   if not stop then
+                     TransFormChildsForUid(tr_obj,parentpath+','+FREDB_G2H(refd_uids[j]),depth+1,refd_uids[j]); { recurse }
+                 end;
              finally
                refd_objs[j].Finalize;
              end;
            end;
          SetLength(refd_objs,0);
        end;
+       if assigned(parent_tr_obj) then { not assigned = skipped root }
+         begin
+           parent_tr_obj.Field(cFRE_DB_CLN_CHILD_CNT).AsInt32 := len_chld;
+           if len_chld>0 then
+             parent_tr_obj.Field(cFRE_DB_CLN_CHILD_FLD).AsString := cFRE_DB_CLN_CHILD_FLG;
+         end;
     end;
 
-    var rc : NativeInt;
+    var rc           : NativeInt;
+        ino_up_class : ShortString;
 
 begin
   try
     upconn := Connection;
     for in_object in in_objects do
       begin
+        ino_up_class := uppercase(in_object.Implementor_HC.ClassName);
         case mode of
           trans_Insert:
             begin
               if HasParentChildRefRelationDefined then
                 begin
-                  rc := upconn.GetReferencesCountNoRightCheck(in_object.UID,not FParentLinksChild,FParentChildScheme,FParentChildField);
-                  if rc=0 then { ROOT NODE}
+                  if FREDB_StringInNametypeArray(ino_up_class,FParentChildFilterClasses) then //self
                     begin
-                      tr_obj := FTransform.TransformInOut(upconn,in_object);
-                      transdata.SetTransformedObject(tr_obj);
-                      SetParentPath(''); { this is a root node }
-                      SetInternalFields(tr_obj,in_object);
-                      if HasParentChildRefRelationDefined then
+                      { skip the object as a whole}
+                    end
+                  else
+                    begin
+                      rc := upconn.GetReferencesCountNoRightCheck(in_object.UID,not FParentLinksChild,FParentChildScheme,FParentChildField);
+                      if rc=0 then { ROOT NODE}
                         begin
-                          SetSpecialFields(tr_obj,in_object);
-                          TransFormChildsForUid(tr_obj,tr_obj.UID_String,0,tr_obj.UID); { this is the initial fill case, next step transfrom children recursive }
-                        end;
+                          if FREDB_StringInNametypeArray(ino_up_class,FParentChildSkipClasses) then
+                            begin
+                              TransFormChildsForUid(nil,'',0,in_object.UID); { this is the initial fill case, next step transfrom children recursive, but they are now root nodes }
+                            end
+                          else
+                            begin
+                              tr_obj := FTransform.TransformInOut(upconn,in_object);
+                              transdata.SetTransformedObject(tr_obj);
+                              SetParentPath(''); { this is a root node }
+                              SetInternalFields(tr_obj,in_object);
+                              SetSpecialFields(tr_obj,in_object);
+                              TransFormChildsForUid(tr_obj,tr_obj.UID_String,0,tr_obj.UID); { this is the initial fill case, next step transfrom children recursive }
+                            end;
+                         end;
                     end;
                 end
               else
@@ -7753,7 +7793,6 @@ begin
 
   (FParentCollection.Implementor_HC as TFRE_DB_COLLECTION).GetAllObjsNoRC(objs);
   record_cnt := Length(objs);
-
   //if not FREDB_CheckGuidsUnique(uids) then
   //  raise EFRE_DB_Exception.Create(edb_ERROR,'objects double in collection');
   //if record_cnt<>Length(objs) then
@@ -7900,22 +7939,23 @@ function TFRE_DB_DERIVED_COLLECTION.SetupQryDefinitionBasic(const start, count, 
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
  qrydef:=default(TFRE_DB_QUERY_DEF);
- qrydef.DBName                 := FDC_session.GetDBConnection.GetDatabaseName;
- qrydef.DependencyRefIds       := FREDB_StringArray2Upper(FDependencyRef);
- qrydef.DepRefConstraints      := FDepRefConstraint;
- qrydef.DepRefNegate           := FDepObjectsRefNeg;
- qrydef.ParentChildSpec        := FParentChldLinkFldSpec;
- qrydef.ParentChildSkipSchemes := nil; { todo implement }
- qrydef.DerivedCollName        := CollectionName(true);
- qrydef.ParentName             := FParentCollection.CollectionName(true);
- qrydef.FilterDefStaticRef     := FDCollFilters;
- qrydef.FilterDefDynamicRef    := FDCollFiltersDyn;
- qrydef.OrderDefRef            := Orders;
- qrydef.SessionID              := FDC_Session.GetSessionID;
- qrydef.UserTokenRef           := FDC_Session.GetDBConnection.SYS.GetCurrentUserTokenRef;
- qrydef.ClientQueryID          := clientid;
- qrydef.StartIdx               := start;
- qrydef.ToDeliverCount         := count;
+ qrydef.DBName                   := FDC_session.GetDBConnection.GetDatabaseName;
+ qrydef.DependencyRefIds         := FREDB_StringArray2Upper(FDependencyRef);
+ qrydef.DepRefConstraints        := FDepRefConstraint;
+ qrydef.DepRefNegate             := FDepObjectsRefNeg;
+ qrydef.ParentChildSpec          := FParentChldLinkFldSpec;
+ qrydef.ParentChildSkipSchemes   := FParentChildSkipClasses;
+ qrydef.ParentChildFilterClasses := FParentChildFilterClasses;
+ qrydef.DerivedCollName          := CollectionName(true);
+ qrydef.ParentName               := FParentCollection.CollectionName(true);
+ qrydef.FilterDefStaticRef       := FDCollFilters;
+ qrydef.FilterDefDynamicRef      := FDCollFiltersDyn;
+ qrydef.OrderDefRef              := Orders;
+ qrydef.SessionID                := FDC_Session.GetSessionID;
+ qrydef.UserTokenRef             := FDC_Session.GetDBConnection.SYS.GetCurrentUserTokenRef;
+ qrydef.ClientQueryID            := clientid;
+ qrydef.StartIdx                 := start;
+ qrydef.ToDeliverCount           := count;
  result := qrydef;
 end;
 
@@ -8290,15 +8330,33 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameTypeRL);
 begin
+  SetParentToChildLinkField(fieldname,[],[],[]);
+end;
+
+
+procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameTypeRL; const skipclasses: array of TFRE_DB_NameType);
+begin
+  SetParentToChildLinkField(fieldname,skipclasses,[],[]);
+end;
+
+procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameTypeRL; const skipclasses: array of TFRE_DB_NameType; const filterclasses: array of TFRE_DB_NameType);
+begin
+  SetParentToChildLinkField(fieldname,skipclasses,filterclasses,[]);
+end;
+
+procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameTypeRL; const skipclasses: array of TFRE_DB_NameType; const filterclasses: array of TFRE_DB_NameType; const stop_on_explicit_leave_classes: array of TFRE_DB_NameType);
+begin
   FParentChldLinkFldSpec := uppercase(fieldname);
   FParentLinksChild      := FREDB_SplitRefLinkDescription(fieldname,FParentChildField,FParentChildScheme);
   if FParentChildField='' then
     raise EFRE_DB_Exception.Create(edb_ERROR,'the scheme may be specified, but the field must be specified');
-end;
+  FParentChildSkipClasses    := skipclasses;
+  FParentChildFilterClasses  := filterclasses;
+  FParentChildStopOnLeaves   := stop_on_explicit_leave_classes;
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetParentToChildLinkField(const fieldname: TFRE_DB_NameTypeRL; const skipclasses: array of TFRE_DB_String);
-begin
-  SetParentToChildLinkField(fieldname); //FIXXME Heli - implement me
+  FParentChildSkipClasses    := FREDB_NametypeArray2Upper(FParentChildSkipClasses);
+  FParentChildFilterClasses  := FREDB_NametypeArray2Upper(FParentChildFilterClasses);
+  FParentChildStopOnLeaves   := FREDB_NametypeArray2Upper(FParentChildStopOnLeaves);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetDisplayDescription: TFRE_DB_CONTENT_DESC;

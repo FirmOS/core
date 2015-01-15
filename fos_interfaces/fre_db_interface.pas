@@ -1005,9 +1005,11 @@ type
     //}
     procedure  SetUseDependencyAsRefLinkFilter (const scheme_and_field_constraint : Array of TFRE_DB_NameTypeRL ; const negate : boolean ; const dependency_reference : string = 'uids');
 
-    procedure  SetDisplayType                (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
-    procedure  SetParentToChildLinkField     (const fieldname : TFRE_DB_NameTypeRL); { Define a Child/Parent Parent/Child relation via Reflinks syntax is FROMFIELD>TOSCHEME or FROMSCHEME<FROMFIELD, the scheme could be empty }
-    procedure  SetParentToChildLinkField     (const fieldname : TFRE_DB_NameTypeRL; const skipclasses : Array of TFRE_DB_String); { Define a Child/Parent Parent/Child relation via Reflinks syntax is FROMFIELD>TOSCHEME or FROMSCHEME<FROMFIELD, the scheme could be empty }
+    procedure  SetDisplayType                   (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil;const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const grid_item_notification: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil);
+    procedure  SetParentToChildLinkField        (const fieldname : TFRE_DB_NameTypeRL); { Define a Child/Parent Parent/Child relation via Reflinks syntax is FROMFIELD>TOSCHEME or FROMSCHEME<FROMFIELD, the scheme could be empty }
+    procedure  SetParentToChildLinkField        (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType);
+    procedure  SetParentToChildLinkField        (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType ; const filterclasses : Array of TFRE_DB_NameType);
+    procedure  SetParentToChildLinkField        (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType ; const filterclasses : Array of TFRE_DB_NameType ; const stop_on_explicit_leave_classes : Array of TFRE_DB_NameType);
 
     function   HasParentChildRefRelationDefined : boolean;
     function   IsDependencyFilteredCollection   : boolean;
@@ -2090,28 +2092,30 @@ end;
   { TFRE_DB_QUERY_DEF }
 
   TFRE_DB_QUERY_DEF=record
-     ClientQueryID          : Int64;
-     StartIdx               : Int32;
-     ToDeliverCount         : Int32;
-     SessionID              : TFRE_DB_NameTypeRL;
-     DerivedCollName        : TFRE_DB_NameTypeRL;
-     ParentName             : TFRE_DB_NameTypeRL;
-     DBName                 : TFRE_DB_NameType;
-     UserTokenRef           : IFRE_DB_USER_RIGHT_TOKEN;
-     FilterDefStaticRef     : TFRE_DB_DC_FILTER_DEFINITION_BASE;
-     FilterDefDynamicRef    : TFRE_DB_DC_FILTER_DEFINITION_BASE;
-     OrderDefRef            : TFRE_DB_DC_ORDER_DEFINITION_BASE;
-     ParentIds              : TFRE_DB_GUIDArray;
-     ParentChildSpec        : TFRE_DB_NameTypeRL;
-     ParentChildSkipSchemes : TFRE_DB_NameTypeRLArray;
-     DependencyRefIds       : TFRE_DB_StringArray;
-     DepRefConstraints      : TFRE_DB_NameTypeRLArrayArray;
-     DepRefNegate           : Boolean;
-     DepFilterUids          : Array of TFRE_DB_GUIDArray;
-     FullTextFilter         : String;
-     OnlyOneUID             : TFRE_DB_GUID;
-     function               GetReflinkSpec        (const upper_refid : TFRE_DB_NameType):TFRE_DB_NameTypeRLArray;
-     function               GetReflinkStartValues (const upper_refid : TFRE_DB_NameType):TFRE_DB_GUIDArray; { start values for the RL expansion }
+     ClientQueryID            : Int64;
+     StartIdx                 : Int32;
+     ToDeliverCount           : Int32;
+     SessionID                : TFRE_DB_NameTypeRL;
+     DerivedCollName          : TFRE_DB_NameTypeRL;
+     ParentName               : TFRE_DB_NameTypeRL;
+     DBName                   : TFRE_DB_NameType;
+     UserTokenRef             : IFRE_DB_USER_RIGHT_TOKEN;
+     FilterDefStaticRef       : TFRE_DB_DC_FILTER_DEFINITION_BASE;
+     FilterDefDynamicRef      : TFRE_DB_DC_FILTER_DEFINITION_BASE;
+     OrderDefRef              : TFRE_DB_DC_ORDER_DEFINITION_BASE;
+     ParentIds                : TFRE_DB_GUIDArray;
+     ParentChildSpec          : TFRE_DB_NameTypeRL;
+     ParentChildSkipSchemes   : TFRE_DB_NameTypeArray;
+     ParentChildFilterClasses : TFRE_DB_NameTypeArray;
+     ParentChildStopOnLeaves  : TFRE_DB_NameTypeArray;
+     DependencyRefIds         : TFRE_DB_StringArray;
+     DepRefConstraints        : TFRE_DB_NameTypeRLArrayArray;
+     DepRefNegate             : Boolean;
+     DepFilterUids            : Array of TFRE_DB_GUIDArray;
+     FullTextFilter           : String;
+     OnlyOneUID               : TFRE_DB_GUID;
+     function                 GetReflinkSpec        (const upper_refid : TFRE_DB_NameType):TFRE_DB_NameTypeRLArray;
+     function                 GetReflinkStartValues (const upper_refid : TFRE_DB_NameType):TFRE_DB_GUIDArray; { start values for the RL expansion }
   end;
 
 
@@ -2130,7 +2134,7 @@ end;
     procedure AddChildLevel    (parentpath : String ; const child_uids : TFRE_DB_GUIDArray) ; virtual ; abstract;
   end;
 
-  TFRE_DB_TRANSFORMED_ARRAY_BASE=class
+  TFRE_DB_TRANSFORMED_ARRAY_BASE=class { usage from the DC to transform the unordered basedata }
     procedure CleanUp                        ; virtual ; abstract;
     procedure SetTransformedObject           (const tr_obj : IFRE_DB_Object);virtual; abstract;
     procedure SetTransObjectSingleInsert     (const tr_obj : IFRE_DB_Object);virtual; abstract;
@@ -3243,6 +3247,7 @@ end;
   function  FREDB_TranslatableHasParams          (var   translation_key:TFRE_DB_String  ; var params : TFRE_DB_StringArray):boolean;
   procedure FREDB_DecodeVarRecParams             (const params   : TFRE_DB_StringArray  ; var vaparams : TFRE_DB_ConstArray);
   procedure FREDB_FinalizeVarRecParams           (const vaparams : TFRE_DB_ConstArray);
+  procedure FREDB_FinalizeObjectArray            (var obja : IFRE_DB_ObjectArray);
   function  FREDB_G2H                            (const uid    : TFRE_DB_GUID):ShortString; { deprecated, use guid AR function  .AsHexString}
   function  FREDB_H2G                            (const uidstr : shortstring):TFRE_DB_GUID;
   function  FREDB_G2SB                           (const uid    : TFRE_DB_GUID):ShortString; { uid to binary shortstring }
@@ -3281,11 +3286,16 @@ end;
   function  FREDB_getThemedResource                 (const id: String): String;
   function  FREDB_RightSetString2RightSet           (const rightstr:ShortString):TFRE_DB_STANDARD_RIGHT_SET;
   function  FREDB_StringInArray                     (const src:string;const arr:TFRE_DB_StringArray):boolean;
+  function  FREDB_StringInNametypeArray             (const src:string;const arr:TFRE_DB_NameTypeArray):boolean;
   function  FREDB_StringArray2Upper                 (const sa : TFRE_DB_StringArray):TFRE_DB_StringArray;
+  function  FREDB_NametypeArray2Upper               (const sa : TFRE_DB_NameTypeArray):TFRE_DB_NameTypeArray;
   function  FREDB_StringArray2Lower                 (const sa : TFRE_DB_StringArray):TFRE_DB_StringArray;
   function  FREDB_StringArray2NametypeArray         (const sa : TFRE_DB_StringArray):TFRE_DB_NameTypeArray;
+  function  FREDB_StringArrayOpen2StringArray       (const sa : array of TFRE_DB_String):TFRE_DB_StringArray;
   function  FREDB_NametypeArray2StringArray         (const sa : TFRE_DB_NameTypeArray):TFRE_DB_StringArray;
+  function  FREDB_NametypeArrayOpen2NametypeArray   (const sa : array of TFRE_DB_NameType):TFRE_DB_NameTypeArray;
   function  FREDB_StringInArrayIdx                  (const src:string;const arr:TFRE_DB_StringArray):NativeInt;
+  function  FREDB_StringInNametypeArrayIdx          (const src:string;const arr:TFRE_DB_NameTypeArray):NativeInt;
   function  FREDB_PrefixStringInArray               (const pfx:string;const arr:TFRE_DB_StringArray):boolean;
   procedure FREDB_ConcatStringArrays                (var TargetArr:TFRE_DB_StringArray;const add_array:TFRE_DB_StringArray);
   procedure FREDB_ConcatGUIDArrays                  (var TargetArr:TFRE_DB_GuidArray;const add_array:TFRE_DB_GuidArray);
@@ -3342,6 +3352,8 @@ end;
   operator=  (e1 : TFRE_DB_Errortype_EC; e2 : TFRE_DB_Errortype) b : boolean;
   operator:= (e1 : TFRE_DB_Errortype) r : TFRE_DB_Errortype_EC;
   operator:= (e1 : TFRE_DB_Errortype_EC) r : TFRE_DB_Errortype;
+  operator:= (o1 : Array of TFRE_DB_String) b :TFRE_DB_StringArray;
+  operator:= (o1 : Array of TFRE_DB_NameType) b :TFRE_DB_NameTypeArray;
 
 type
   TAddAppToSiteMap_Callback = procedure (const app : TFRE_DB_APPLICATION ; const session: TFRE_DB_UserSession; const parent_entry: TFRE_DB_CONTENT_DESC);
@@ -3781,6 +3793,13 @@ begin
     end;
 end;
 
+procedure FREDB_FinalizeObjectArray(var obja: IFRE_DB_ObjectArray);
+var obj : IFRE_DB_Object;
+begin
+  for obj in obja do
+    obj.Finalize;
+end;
+
 function FREDB_G2H(const uid: TFRE_DB_GUID): ShortString;
 begin
   result := uid.AsHexString;
@@ -4217,7 +4236,22 @@ begin
   result := FREDB_StringInArrayIdx(src,arr)<>-1;
 end;
 
+function FREDB_StringInNametypeArray(const src: string; const arr: TFRE_DB_NameTypeArray): boolean;
+begin
+  result := FREDB_StringInNametypeArrayIdx(src,arr)<>-1;
+end;
+
+
 function FREDB_StringArray2Upper(const sa: TFRE_DB_StringArray): TFRE_DB_StringArray;
+var
+  i: NativeInt;
+begin
+  SetLength(result,Length(sa));
+  for i:=0 to high(result) do
+    result[i] := uppercase(sa[i]);
+end;
+
+function FREDB_NametypeArray2Upper(const sa: TFRE_DB_NameTypeArray): TFRE_DB_NameTypeArray;
 var
   i: NativeInt;
 begin
@@ -4244,6 +4278,14 @@ begin
     result[i] := sa[i];
 end;
 
+function FREDB_StringArrayOpen2StringArray(const sa: array of TFRE_DB_String): TFRE_DB_StringArray;
+var i :NativeInt;
+begin
+  SetLength(result,length(sa));
+  for i := 0 to high(sa) do
+    result[i] := sa[i];
+end;
+
 function FREDB_NametypeArray2StringArray(const sa: TFRE_DB_NameTypeArray): TFRE_DB_StringArray;
 var
   i: NativeInt;
@@ -4253,7 +4295,25 @@ begin
     result[i] := sa[i];
 end;
 
+function FREDB_NametypeArrayOpen2NametypeArray(const sa: array of TFRE_DB_NameType): TFRE_DB_NameTypeArray;
+var
+  i: NativeInt;
+begin
+  SetLength(result,Length(sa));
+  for i:=0 to high(result) do
+    result[i] := sa[i];
+end;
+
 function FREDB_StringInArrayIdx(const src: string; const arr: TFRE_DB_StringArray): NativeInt;
+var  i: NativeInt;
+begin
+  for i:=0 to High(arr) do
+    if src=arr[i] then
+      exit(i);
+  exit(-1);
+end;
+
+function FREDB_StringInNametypeArrayIdx(const src: string; const arr: TFRE_DB_NameTypeArray): NativeInt;
 var  i: NativeInt;
 begin
   for i:=0 to High(arr) do
@@ -10563,6 +10623,16 @@ operator:=(e1: TFRE_DB_Errortype_EC)r: TFRE_DB_Errortype;
 begin
   result.Code:=e1;
   result.Msg:='';
+end;
+
+operator:=(o1: array of TFRE_DB_String)b: TFRE_DB_StringArray;
+begin
+  result := FREDB_StringArrayOpen2StringArray(o1);
+end;
+
+operator:=(o1: array of TFRE_DB_NameType)b: TFRE_DB_NameTypeArray;
+begin
+  result := FREDB_NametypeArrayOpen2NametypeArray(o1);
 end;
 
 type
