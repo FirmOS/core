@@ -1068,6 +1068,7 @@ var sys_admin   : boolean;
     FSysDomains : TFRE_DB_PERSISTANCE_COLLECTION;
     FSysDomain  : IFRE_DB_DOMAIN;
     FSysDomainO : TFRE_DB_Object;
+    FDefaultDomU: TFRE_DB_GUID;
     iobj        : IFRE_DB_Object;
     tokeno      : TFRE_DB_USER_RIGHT_TOKEN;
 
@@ -1082,6 +1083,8 @@ var sys_admin   : boolean;
       domi.IntfCast(IFRE_DB_DOMAIN,dom);
       domuids[idx]  := dom.UID;
       domnames[idx] := dom.Domainname(false);
+      if dom.IsDefaultDomain then
+        FDefaultDomU := dom.UID;
       inc(idx);
     finally
       domo.Set_Store_LockedUnLockedIf(true,lck);
@@ -1221,8 +1224,9 @@ begin
           SetLength(domuids,domcnt);
           SetLength(domnames,domcnt);
           idx := 0;
+          FDefaultDomU.ClearGuid;
           FSysDomains.ForAllInternalI(@IterateDomains);
-          tokeno := TFRE_DB_USER_RIGHT_TOKEN.Create(myuser.UID,myuser.Login,myUser.Firstname,myUser.Lastname,'',myuser.Userclass,myuser.GetUserGroupIDS,_GetRightsArrayForUser(myUser),sys_admin,FSysDomain.UID,myuser.DomainID,domuids,domnames);
+          tokeno := TFRE_DB_USER_RIGHT_TOKEN.Create(myuser.UID,myuser.Login,myUser.Firstname,myUser.Lastname,'',myuser.Userclass,myuser.GetUserGroupIDS,_GetRightsArrayForUser(myUser),sys_admin,FSysDomain.UID,myuser.DomainID,FDefaultDomU,domuids,domnames);
           G_UpdateUserToken(myuser.UID,tokeno);
           Result := tokeno.CloneToNewUserToken;
         finally

@@ -1270,10 +1270,12 @@ type
   private
     function  IFRE_DB_DOMAIN.GetDesc          = GetDescI;
     function  IFRE_DB_DOMAIN.SetDesc          = SetDescI;
+    function  GetIsDefaultDomain              : boolean;
     function  GetIsInternal                   : Boolean;
+    procedure SetIsDefaultDomain              (AValue: boolean);
     procedure SetIsInternal                   (AValue: Boolean);
-    function  GetSuspended: boolean;
-    procedure SetSuspended(AValue: boolean);
+    function  GetSuspended                    : boolean;
+    procedure SetSuspended                    (AValue: boolean);
   public
     class procedure InstallDBObjects          (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class procedure RegisterSystemScheme      (const scheme: IFRE_DB_SCHEMEOBJECT); override;
@@ -1281,6 +1283,7 @@ type
     function        Domainkey                 : TFRE_DB_GUID_String;
     property        isInternal                : Boolean read GetIsInternal write SetIsInternal;
     property        Suspended                 : boolean read GetSuspended write SetSuspended;
+    property        IsDefaultDomain           : boolean read GetIsDefaultDomain write SetIsDefaultDomain;
   published
     procedure _calcDisplayName       (const calc : IFRE_DB_CALCFIELD_SETTER);
   end;
@@ -1932,6 +1935,7 @@ type
     function           GetMyDomainID                : TFRE_DB_GUID; virtual;abstract;
     function           GetMyDomainID_String         : TFRE_DB_GUID_String;
     function           GetSystemDomainID_String     : TFRE_DB_GUID_String;
+    function           GetDefaultDomainUID          : TFRE_DB_GUID; virtual;abstract;
     function           GetSysDomainUID              : TFRE_DB_GUID; virtual;abstract;
     function           GetUserUID                   : TFRE_DB_GUID; virtual;abstract;
     function           GetUserUIDP                  : PFRE_DB_GUID; virtual;abstract;
@@ -1963,6 +1967,7 @@ type
     FIsSysAdmin       : Boolean;
     FMyDomainID       : TFRE_DB_GUID;
     FSysDomainUID     : TFRE_DB_GUID;
+    FDefaultDomainUID : TFRE_DB_GUID;
     FMyDomainID_GS    : TFRE_DB_GUID_String;
     FSysDomainID_GS   : TFRE_DB_GUID_String;
     FConnectionRights : TFRE_DB_StringArray;
@@ -1981,7 +1986,7 @@ type
     function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
 
   public
-    constructor Create                      (const user_uid: TFRE_DB_GUID; const login_part,firstname,lastname,desc,userclass: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
+    constructor Create                      (const user_uid: TFRE_DB_GUID; const login_part,firstname,lastname,desc,userclass: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid, def_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
     destructor  Destroy                     ;override;
     procedure   Finalize                    ;
 
@@ -2025,6 +2030,7 @@ type
     function    DumpUserRights              : TFRE_DB_String;
     function    GetMyDomainID               : TFRE_DB_GUID;
     function    GetSysDomainID              : TFRE_DB_GUID;
+    function    GetDefaultDomainID          : TFRE_DB_GUID;
     function    GetUniqueTokenKey           : TFRE_DB_NameType;
     function    CloneToNewUserToken         : IFRE_DB_USER_RIGHT_TOKEN;
     function    Clone                       : TFRE_DB_USER_RIGHT_TOKEN;
@@ -2038,6 +2044,7 @@ type
     FPairedAppDBConn     : TFRE_DB_CONNECTION;
 
     FSysDomainUID        : TFRE_DB_GUID;
+    FDefaultDomainUID    : TFRE_DB_GUID;
     FSysTransText        : TFRE_DB_COLLECTION;
     FSysUsers            : TFRE_DB_COLLECTION;
     FSysRoles            : TFRE_DB_COLLECTION;
@@ -2231,6 +2238,7 @@ type
     procedure   Commit                       ;
     procedure   Rollback                     ;
     function    GetSysDomainUID              : TFRE_DB_GUID; override;
+    function    GetDefaultDomainUID          : TFRE_DB_GUID; override;
     function    GetUserUID                   : TFRE_DB_GUID; override;
     function    GetUserUIDP                  : PFRE_DB_GUID; override;
 
@@ -2348,6 +2356,7 @@ type
     function    SYS                            :IFRE_DB_SYS_CONNECTION;
     function    SYSC                           :TFRE_DB_SYSTEM_CONNECTION;
     function    GetSysDomainUID                :TFRE_DB_GUID; override;
+    function    GetDefaultDomainUID            :TFRE_DB_GUID; override;
     function    GetMyDomainID                  :TFRE_DB_GUID; override;
     function    GetUserUID                     :TFRE_DB_GUID; override;
     function    GetUserUIDP                    :PFRE_DB_GUID; override;
@@ -3127,7 +3136,7 @@ begin
   result := (domain<>CFRE_DB_NullGUID) and FREDB_StringInArray(_GetStdRightName(std_right,rclassname,domain),FConnectionRights);
 end;
 
-constructor TFRE_DB_USER_RIGHT_TOKEN.Create(const user_uid: TFRE_DB_GUID; const login_part, firstname, lastname, desc, userclass: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
+constructor TFRE_DB_USER_RIGHT_TOKEN.Create(const user_uid: TFRE_DB_GUID; const login_part, firstname, lastname, desc, userclass: TFRE_DB_String; const group_ids: TFRE_DB_GUIDArray; const rights: TFRE_DB_StringArray; is_sys_admin: boolean; sysdom_id, user_domid, def_domid: TFRE_DB_GUID; domainids: TFRE_DB_GUIDArray; domain_names: TFRE_DB_NameTypeArray);
 var sl    : TStringList;
     i     : NativeInt;
     hsh   : Cardinal;
@@ -3144,6 +3153,8 @@ begin
   FMyDomainID       := user_domid;
   FMyDomainID_GS    := uppercase(FREDB_G2H(FMyDomainID));
   FAllDomainNames   := domain_names;
+  FDefaultDomainUID := def_domid;
+
   FAllDomainsUids   := domainids;
   if userclass='MIGHTYFEEDER' then
     FIsSysAdmin := true;
@@ -3412,6 +3423,11 @@ begin
   result := FSysDomainUID;
 end;
 
+function TFRE_DB_USER_RIGHT_TOKEN.GetDefaultDomainID: TFRE_DB_GUID;
+begin
+  result := FDefaultDomainUID;
+end;
+
 function TFRE_DB_USER_RIGHT_TOKEN.GetUniqueTokenKey: TFRE_DB_NameType;
 begin
   result := FUniqueToken;
@@ -3424,7 +3440,7 @@ end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.Clone: TFRE_DB_USER_RIGHT_TOKEN;
 begin
-  result := TFRE_DB_USER_RIGHT_TOKEN.Create(FUserUID,FUserLoginPart,FUserFirstName,FUserLastName,FUserDescName,FUserClass,FUsergroupIDs,FConnectionRights,FIsSysAdmin,FSysDomainUID,FMyDomainID,FAllDomainsUids,FAllDomainNames);
+  result := TFRE_DB_USER_RIGHT_TOKEN.Create(FUserUID,FUserLoginPart,FUserFirstName,FUserLastName,FUserDescName,FUserClass,FUsergroupIDs,FConnectionRights,FIsSysAdmin,FSysDomainUID,FMyDomainID,FDefaultDomainUID,FAllDomainsUids,FAllDomainNames);
   if Result.FUniqueToken<>FUniqueToken then
     raise EFRE_DB_Exception.Create(edb_INTERNAL,'unique user token clone / failure / internal logic');
 end;
@@ -3884,15 +3900,24 @@ begin
   end;
 end;
 
-
-
-
-
 { TFRE_DB_DOMAIN }
+
+function TFRE_DB_DOMAIN.GetIsDefaultDomain: boolean;
+var fld : TFRE_DB_FIELD;
+begin
+  if not FieldOnlyExisting('defdom',fld) then
+    exit(false);
+  result := fld.AsBoolean;
+end;
 
 function TFRE_DB_DOMAIN.GetIsInternal: Boolean;
 begin
   Result:=Field('internal').AsBoolean;
+end;
+
+procedure TFRE_DB_DOMAIN.SetIsDefaultDomain(AValue: boolean);
+begin
+  Field('defdom').AsBoolean:=AValue;
 end;
 
 procedure TFRE_DB_DOMAIN.SetIsInternal(AValue: Boolean);
@@ -3949,7 +3974,6 @@ begin
   input_group:=scheme.AddInputGroup('main').Setup('$TFRE_DB_DOMAIN_scheme_group');
   input_group.AddInput('objname','$TFRE_DB_DOMAIN_scheme_name');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc',true,true,false);
-
 end;
 
 function TFRE_DB_DOMAIN.Domainname(const unique: boolean): TFRE_DB_NameType;
@@ -5149,6 +5173,10 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
       coll.DefineIndexOnField('objname',fdbft_String,True,True);
     end;
     FSysDomains := GetCollection(nil,'SysDomain');
+    if not FSysDomains.IndexExists('defdom') then { create the index for the default domain }
+      begin
+        CheckDbResult(FSysDomains.DefineIndexOnField('defdom',fdbft_Boolean,True,True,'defdom',true,false,false),'FAILURE UPGRADE: (Missing DefaultDomain index)');
+      end;
   end;
 
   procedure SetupUserCollection;
@@ -5262,6 +5290,40 @@ procedure TFRE_DB_SYSTEM_CONNECTION.InternalSetupConnection;
     FSysDomainUID := DomainID(CFRE_DB_SYS_DOMAIN_NAME);
   end;
 
+  procedure SetupDefaultDomain;
+  var domain : TFRE_DB_DOMAIN;
+      dummy  : IFRE_DB_Object;
+      g      : TFRE_DB_GUID;
+      cnt    : Nativeint;
+  begin
+    dummy := GFRE_DBI.NewObject;
+    dummy.Field('d').AsBoolean:=true;
+    cnt := FSysDomains.GetIndexedUIDFieldval(dummy.Field('d'),g,'defdom');
+    if cnt=0 then { no default domain exists }
+      begin
+        g.SetFromHexString('5f769a1c6fe25d1c867c795318534c22');
+        if FSysDomains.FetchInCollection(g,TFRE_DB_Object(domain)) then { "special" domain does not exist}
+          begin
+            if not domain.IsDefaultDomain then
+              begin
+                domain.SetIsDefaultDomain(true);
+                CheckDbResult(FSysDomains.Update(domain),'failure setting "special" domain as default domain');
+              end;
+          end
+        else
+          begin { create a new default domain }
+            domain    := GFRE_DB._NewDomain('DEFAULT','Default Domain','DEFAULT DOMAIN');
+            domain.SetDomainID(domain.UID);
+            domain.SetIsDefaultDomain(true);
+            g := domain.UID;
+            if FSysDomains._InternalStore(TFRE_DB_Object(domain))<>edb_OK then
+               raise EFRE_DB_Exception.Create('could not create system domain');
+            cnt := FSysDomains.GetIndexedUIDFieldval(dummy.Field('d'),g,'defdom');
+          end;
+      end;
+    FDefaultDomainUID := g;
+  end;
+
   procedure CheckStandardUsers;
   var upuser : TFRE_DB_USER;
   begin
@@ -5303,6 +5365,7 @@ begin
   SetupTransTextCollection;
   SetupUserGroupCollection;
   SetupSystemDomain;
+  SetupDefaultDomain;
   //SetupNoteCollection;
   SetupAuditCollection;
   SetupWorkflowCollection;
@@ -6872,6 +6935,11 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.GetSysDomainUID: TFRE_DB_GUID;
 begin
   result := FSysDomainUID;
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.GetDefaultDomainUID: TFRE_DB_GUID;
+begin
+  result := FDefaultDomainUID;
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetUserUID: TFRE_DB_GUID;
@@ -10218,6 +10286,7 @@ end;
 function TFRE_DB_COLLECTION.FetchInCollection(const ouid: TFRE_DB_GUID; out dbo: TFRE_DB_Object): boolean;
 var dbi : IFRE_DB_Object;
 begin
+  result := false;
   if FCollConnection.FPersistance_Layer.CollectionFetchInCollection(FName,ouid,dbi,URT_UserUid)=edb_OK then
     begin
       dbo    := dbi.Implementor as TFRE_DB_Object;
@@ -12164,6 +12233,11 @@ end;
 function TFRE_DB_CONNECTION.GetSysDomainUID: TFRE_DB_GUID;
 begin
   result := FSysConnection.GetSysDomainUID;
+end;
+
+function TFRE_DB_CONNECTION.GetDefaultDomainUID: TFRE_DB_GUID;
+begin
+  result := FSysConnection.GetDefaultDomainUID;
 end;
 
 function TFRE_DB_CONNECTION.GetMyDomainID: TFRE_DB_GUID;

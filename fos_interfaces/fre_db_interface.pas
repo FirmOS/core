@@ -1219,6 +1219,7 @@ type
     function    Implementor                  : TObject;
     function    GetSysDomainID               : TFRE_DB_GUID;
     function    GetMyDomainID                : TFRE_DB_GUID;
+    function    GetDefaultDomainID           : TFRE_DB_GUID;
     function    GetDomainID                  (const domainname:TFRE_DB_NameType):TFRE_DB_GUID;
     function    GetDomainNameByUid           (const domainid:TFRE_DB_GUID):TFRE_DB_NameType;
 
@@ -1303,11 +1304,14 @@ type
     function  Domainname     (const unique:boolean=false) : TFRE_DB_NameType;
     function  GetIsInternal  : Boolean;
     function  GetSuspended   : Boolean;
+    function  GetIsDefaultDomain  : boolean;
+    procedure SetIsDefaultDomain  (AValue: boolean);
     procedure SetIsInternal (AValue: Boolean);
     procedure SetSuspended  (AValue: Boolean);
     function  UID            : TFRE_DB_GUID;
     property  isInternal    :Boolean read GetIsInternal write SetIsInternal;
     property  Suspended     :Boolean read GetSuspended write SetSuspended;
+    property        IsDefaultDomain           : boolean read GetIsDefaultDomain write SetIsDefaultDomain;
   end;
 
 
@@ -1639,6 +1643,7 @@ type
     function    GetMachinesCollection            :IFRE_DB_COLLECTION;
     function    GetJobsCollection                :IFRE_DB_COLLECTION;
     function    GetSysDomainUID                  :TFRE_DB_GUID;
+    function    GetDefaultDomainUID              :TFRE_DB_GUID;
     function    URT                              (const cone:boolean=false) : IFRE_DB_USER_RIGHT_TOKEN; { get userright token reference or value }
 
     function    AddDomain                     (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;
@@ -1752,6 +1757,7 @@ type
 
     function    DumpUserRights              :TFRE_DB_String;
     function    GetSysDomainUID             :TFRE_DB_GUID;
+    function    GetDefaultDomainUID         : TFRE_DB_GUID;
     function    GetCurrentUserTokenClone    : IFRE_DB_USER_RIGHT_TOKEN;
     function    GetCurrentUserTokenRef      : IFRE_DB_USER_RIGHT_TOKEN;
   end;
