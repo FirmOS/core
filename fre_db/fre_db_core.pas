@@ -2365,6 +2365,7 @@ type
     function    GetUserUIDP                    :PFRE_DB_GUID; override;
 
     function    AddDomain                      (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
+    function    AddDomainExt                   (const domainname:TFRE_DB_NameType;const txt,txt_short:TFRE_DB_String;const domainid:PFRE_DB_GUID=nil):TFRE_DB_Errortype;  // TODO: Do all in a Transaction
 
     procedure   OverviewDump                  (const cb : TFRE_DB_SimpleLineCallback); override;
     procedure   DrawScheme                   (const datastream:TStream;const classfile:string) ; override ;
@@ -12262,24 +12263,31 @@ begin
 end;
 
 function TFRE_DB_CONNECTION.AddDomain(const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String): TFRE_DB_Errortype;
- var domain      : TFRE_DB_DOMAIN;
-     domainUID   : TFRE_DB_GUID;
 begin
-  try
-    if Sys.DomainExists(domainname) then
-      exit(edb_EXISTS);
-    if domainname=CFRE_DB_SYS_DOMAIN_NAME then
-      raise EFRE_DB_Exception.Create(edb_ERROR,'it is not allowed to add a domain called SYSTEM');
-    domain    := GFRE_DB._NewDomain(FREDB_HCV(domainname),FREDB_HCV(txt),FREDB_HCV(txt_short));
-    domain.SetDomainID(domain.UID);
-    domainUID := domain.UID;
-    result := AdmGetDomainCollection.Store(TFRE_DB_Object(domain));
-    GFRE_DB.DBAddDomainInstAllSystemClasses(self,domainUID);
-    GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
-    FSysConnection.ReloadUserAndRights(CFRE_DB_NullGUID);
-  except on e:exception do
-      result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
-  end;
+  result := AddDomainExt(domainname,txt,txt_short,nil);
+end;
+
+function TFRE_DB_CONNECTION.AddDomainExt(const domainname: TFRE_DB_NameType; const txt, txt_short: TFRE_DB_String; const domainid: PFRE_DB_GUID): TFRE_DB_Errortype;
+var domain      : TFRE_DB_DOMAIN;
+    domainUID   : TFRE_DB_GUID;
+begin
+ try
+   if Sys.DomainExists(domainname) then
+     exit(edb_EXISTS);
+   if domainname=CFRE_DB_SYS_DOMAIN_NAME then
+     raise EFRE_DB_Exception.Create(edb_ERROR,'it is not allowed to add a domain called SYSTEM');
+   domain    := GFRE_DB._NewDomain(FREDB_HCV(domainname),FREDB_HCV(txt),FREDB_HCV(txt_short));
+   if assigned(domainid) then
+     domain.Field('UID').AsGUID := domainid^;
+   domain.SetDomainID(domain.UID);
+   domainUID := domain.UID;
+   result := AdmGetDomainCollection.Store(TFRE_DB_Object(domain));
+   GFRE_DB.DBAddDomainInstAllSystemClasses(self,domainUID);
+   GFRE_DB.DBAddDomainInstAllExClasses(self,domainUID);
+   FSysConnection.ReloadUserAndRights(CFRE_DB_NullGUID);
+ except on e:exception do
+     result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
+ end;
 end;
 
 procedure TFRE_DB_CONNECTION.OverviewDump(const cb: TFRE_DB_SimpleLineCallback);
