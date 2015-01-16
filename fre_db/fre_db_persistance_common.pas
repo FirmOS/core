@@ -3307,6 +3307,7 @@ function TFRE_DB_Master_Data.InternalStoreObjectFromStable(const obj: TFRE_DB_Ob
 var
    key    : TFRE_DB_GUID;
    dummy  : PtrUInt;
+   halt   : boolean=false;
 
    procedure Store(const obj:TFRE_DB_Object; var halt:boolean);
    begin
@@ -3321,7 +3322,7 @@ var
 
 begin
   Result := edb_OK;
-  obj.ForAllObjectsBreakHierarchic(@Store);
+  obj.ForAllObjectsBreakHierarchic(@Store,halt);
 end;
 
 function TFRE_DB_Master_Data.InternalRebuildRefindex: TFRE_DB_Errortype;

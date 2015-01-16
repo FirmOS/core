@@ -827,6 +827,7 @@ type
     function        FetchObjWithStringFieldValue       (const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString): boolean;
     procedure       SetAllSimpleObjectFieldsFromObject (const source_object : IFRE_DB_Object); // only first level, no uid, domid, obj, objlink fields
     procedure       SetDomainID                        (const domid:TFRE_DB_GUID); { faster }
+    function        CloneToNewObjectWithoutSubobjects  (const generate_new_uids: boolean=false): IFRE_DB_Object;
   end;
 
   TFRE_DB_TEXT_SUBTYPE=(tst_Short,tst_Long,tst_Hint,tst_Key);
@@ -2006,6 +2007,8 @@ type
     class function  GetTranslateableTextShort          (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
     class function  GetTranslateableTextLong           (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
     class function  GetTranslateableTextHint           (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
+
+    function        CloneToNewObjectWithoutSubobjects  (const generate_new_uids: boolean=false): IFRE_DB_Object;
 
   published
     function        WEB_SaveOperation                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -8681,6 +8684,11 @@ end;
 class function TFRE_DB_ObjectEx.GetTranslateableTextHint(const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType): TFRE_DB_String;
 begin
   Result:=conn.FetchTranslateableTextHint(GetTranslateableTextKey(key));
+end;
+
+function TFRE_DB_ObjectEx.CloneToNewObjectWithoutSubobjects(const generate_new_uids: boolean): IFRE_DB_Object;
+begin
+  result := FImplementor.CloneToNewObjectWithoutSubobjects(generate_new_uids);
 end;
 
 function TFRE_DB_ObjectEx.GetInstanceRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;

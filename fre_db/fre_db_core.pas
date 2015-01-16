@@ -556,6 +556,7 @@ type
     function        IFRE_DB_Object.ObjectRoot          = ObjectRootI;
     function        IFRE_DB_Object.ForAllObjectsBreakHierarchic=ForAllObjectsBreakHierarchicI;
     function        IFRE_DB_Object.FetchObjByUID       = FetchObjByUIDI;
+    function        IFRE_DB_Object.CloneToNewObjectWithoutSubobjects = CloneToNewObjectWithoutSubobjectsI;
 
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
   public
@@ -597,7 +598,7 @@ type
 
     procedure       ForAllObjectsFieldName             (const iter:IFRE_DB_Obj_NameIterator);
 
-    function        ForAllObjectsBreakHierarchic       (const iter:TFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
+    function        ForAllObjectsBreakHierarchic       (const iter:TFRE_DB_ObjectIteratorBrk ; var halt : boolean):boolean; // includes root object (self)
     function        GetScheme                          (const raise_non_existing:boolean=false): TFRE_DB_SchemeObject;
     function        GetSchemeI                         (const raise_non_existing:boolean=false): IFRE_DB_SchemeObject;
     function        UID                                : TFRE_DB_GUID;
@@ -645,7 +646,6 @@ type
     function        DeleteField                        (const name:TFRE_DB_String):Boolean;
     procedure       ClearAllFields                     ;
     function        FieldExists                        (const name:TFRE_DB_String):boolean;
-    //procedure       StripOwnedObjects                  ;
     procedure       DumpToStrings                      (const strings:TStrings;indent:integer=0);
     function        DumpToString                       (indent:integer=0;const dump_length_max:Integer=0):TFRE_DB_String;
     function        GetFormattedDisplay                : TFRE_DB_String;
@@ -683,6 +683,8 @@ type
     function        FetchObjByUIDI                     (const childuid:TFRE_DB_GUID ; var obj : IFRE_DB_Object):boolean;
     function        FetchObjWithStringFieldValue       (const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString=''): boolean;
     procedure       SetAllSimpleObjectFieldsFromObject (const source_object : IFRE_DB_Object); // only first level, no uid, domid, obj, objlink fields
+    function        CloneToNewObjectWithoutSubobjects  (const generate_new_uids: boolean=false): TFRE_DB_Object;
+    function        CloneToNewObjectWithoutSubobjectsI (const generate_new_uids: boolean=false): IFRE_DB_Object;
   end;
 
   { TFRE_DB_COMMAND }
@@ -808,6 +810,7 @@ type
     function  IFRE_DB_NAMED_OBJECT.ObjectRoot           = ObjectRootI;
     function  IFRE_DB_NAMED_OBJECT.ForAllObjectsBreakHierarchic=ForAllObjectsBreakHierarchicI;
     function  IFRE_DB_NAMED_OBJECT.FetchObjByUID       = FetchObjByUIDI;
+    function  IFRE_DB_NAMED_OBJECT.CloneToNewObjectWithoutSubobjects = CloneToNewObjectWithoutSubobjectsI;
 
     class procedure RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT); override;
     property  ObjectName      : TFRE_DB_String       read GetName write SetName;
@@ -14385,8 +14388,7 @@ begin
   ForAllFields(@Iterate);
 end;
 
-function TFRE_DB_Object.ForAllObjectsBreakHierarchic(const iter: TFRE_DB_ObjectIteratorBrk): boolean;
-var halt : boolean;
+function TFRE_DB_Object.ForAllObjectsBreakHierarchic(const iter: TFRE_DB_ObjectIteratorBrk; var halt: boolean): boolean;
 
   procedure IterateWithSub(const obj : TFRE_DB_Object);
 
@@ -14408,7 +14410,6 @@ var halt : boolean;
   end;
 
 begin
-  halt := false;
   IterateWithSub(self);
   result := halt;
 end;
@@ -14929,14 +14930,15 @@ begin
 end;
 
 procedure TFRE_DB_Object.__InternalGetFullObjectList(var list: OFRE_SL_TFRE_DB_Object);
-
+var halt : boolean;
   procedure BuildList(const obj : TFRE_DB_Object ; var halt : boolean);
   begin
     list.Add(obj);
   end;
 
 begin
-  ForAllObjectsBreakHierarchic(@BuildList);
+  halt := false;
+  ForAllObjectsBreakHierarchic(@BuildList,halt);
 end;
 
 procedure TFRE_DB_Object.__InternalCompareToObj(const compare_obj: TFRE_DB_Object; callback: TFRE_DB_ObjCompareCallback);
@@ -15913,6 +15915,7 @@ begin
 end;
 
 function TFRE_DB_Object.ForAllObjectsBreakHierarchicI(const iter: IFRE_DB_ObjectIteratorBrk): boolean;
+var halt:boolean=false;
 
   procedure Iterat(const obj:TFRE_DB_Object; var halt:boolean);
   begin
@@ -15920,12 +15923,13 @@ function TFRE_DB_Object.ForAllObjectsBreakHierarchicI(const iter: IFRE_DB_Object
   end;
 
 begin
-  result := ForAllObjectsBreakHierarchic(@iterat);
+  result := ForAllObjectsBreakHierarchic(@iterat,halt);
 end;
 
 function TFRE_DB_Object.GetFullHierarchicObjectList(const include_self: boolean): TFRE_DB_ObjectArray;
 var cnt  : NativeInt;
     skip : Boolean;
+    halt : boolean=false;
 
   procedure BuildList(const obj : TFRE_DB_Object ; var halt : boolean);
   begin
@@ -15943,13 +15947,13 @@ var cnt  : NativeInt;
 begin
   cnt := 0;
   skip := not include_self;
-  ForAllObjectsBreakHierarchic(@BuildList);
+  ForAllObjectsBreakHierarchic(@BuildList,halt);
   SetLength(result,cnt);
 end;
 
 
 function TFRE_DB_Object.FetchObjByUID(const childuid: TFRE_DB_GUID): TFRE_DB_Object;
-
+var halt:boolean=false;
   procedure SearchChild(const obj:TFRE_DB_Object; var halt:boolean);
   begin
     if obj.UID=childuid then
@@ -15961,7 +15965,7 @@ function TFRE_DB_Object.FetchObjByUID(const childuid: TFRE_DB_GUID): TFRE_DB_Obj
 
 begin
   result := nil;
-  ForAllObjectsBreakHierarchic(@SearchChild);
+  ForAllObjectsBreakHierarchic(@SearchChild,halt);
 end;
 
 
@@ -15972,6 +15976,7 @@ begin
 end;
 
 function TFRE_DB_Object.FetchObjWithStringFieldValue(const field_name: TFRE_DB_NameType; const fieldvalue: TFRE_DB_String; var obj: IFRE_DB_Object; ClassnameToMatch: ShortString): boolean;
+var halt:boolean=false;
 
   procedure SearchChild(const searchobj:TFRE_DB_Object; var halt:boolean);
   var fld : IFRE_DB_FIELD;
@@ -15991,7 +15996,7 @@ function TFRE_DB_Object.FetchObjWithStringFieldValue(const field_name: TFRE_DB_N
 begin
   obj := nil;
   ClassnameToMatch := uppercase(ClassnameToMatch);
-  ForAllObjectsBreakHierarchic(@SearchChild);
+  ForAllObjectsBreakHierarchic(@SearchChild,halt);
   result := assigned(obj);
 end;
 
@@ -16037,6 +16042,26 @@ procedure TFRE_DB_Object.SetAllSimpleObjectFieldsFromObject(const source_object:
 
 begin
   source_object.ForAllFields(@iterat);
+end;
+
+function TFRE_DB_Object.CloneToNewObjectWithoutSubobjects(const generate_new_uids: boolean): TFRE_DB_Object;  { TODO: use cloning, enhance clone routines }
+
+  procedure Iterate(const fld:TFRE_DB_Field);
+  begin
+     if fld.FieldType=fdbft_Object then
+       fld.Clear();
+  end;
+
+begin
+  if generate_new_uids then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'not implemented');
+  result := CloneToNewObject;
+  result.ForAllFields(@Iterate,true,true);
+end;
+
+function TFRE_DB_Object.CloneToNewObjectWithoutSubobjectsI(const generate_new_uids: boolean): IFRE_DB_Object;
+begin
+  result := CloneToNewObjectWithoutSubobjects(generate_new_uids);
 end;
 
 function TFRE_DB_Object.GetAsJSON(const without_reserved_fields: boolean; const full_dump: boolean; const stream_cb: TFRE_DB_StreamingCallback): TJSONData;
