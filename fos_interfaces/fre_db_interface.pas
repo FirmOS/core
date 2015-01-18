@@ -2771,6 +2771,7 @@ end;
     function    GetSystemClientFieldValidator   (const name:TFRE_DB_NameType ; out clf  : IFRE_DB_ClientFieldValidator ; const dont_raise : boolean=false):boolean;
     function    GetClassesDerivedFrom           (const SchemeClass : ShortString) : TFRE_DB_ObjectClassExArray;
     function    GetSchemesDerivedFrom           (const SchemeClass : ShortString) : IFRE_DB_SCHEMEOBJECTArray;
+    function    GetObjectClassEx                (const ClName:ShortString) : TFRE_DB_OBJECTCLASSEX;
 
     function    NewObjectIntf          (const InterfaceSpec:ShortString;out Intf;const mediator : TFRE_DB_ObjectEx=nil;const fail_on_non_existent:boolean=true) : Boolean;
     function    NewObject              : IFRE_DB_Object;
