@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-u mfeeder@system -p mighty --test-log --machine=ABCDE --mac=00:11:22:33:44:5F"/>
+        <CommandLineParams Value="-u feeder@system -p x --testlog"/>
       </local>
     </RunParams>
     <Units Count="5">
@@ -45,6 +45,7 @@
       <Unit2>
         <Filename Value="../fre_server/fre_feed_client.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="fre_feed_client"/>
       </Unit2>
       <Unit3>
         <Filename Value="../fre_core/fos_stats_control_interface.pas"/>

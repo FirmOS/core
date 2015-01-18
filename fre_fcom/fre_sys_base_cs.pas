@@ -307,7 +307,7 @@ var s           : String;
         end;
         else begin
           GFRE_BT.CriticalAbort('FATAL COMMUNICATION ERROR : GOING DOWN');
-          FCHANNEL.Finalize;
+          FCHANNEL.cs_Finalize;
         end;
       end;
     end;
@@ -340,7 +340,7 @@ begin
           case _ReadHeader(myDatacount) of
             crs_OK:          ;
             crs_WAIT_CMD_SZ: exit;
-            crs_FAULT:       channel.Finalize;
+            crs_FAULT:       channel.cs_Finalize;
           end;
           state := cs_WAITCMD;
           if myDataCount>0 then begin
@@ -445,7 +445,7 @@ end;
 
 function TFRE_SERVED_BASE_CONNECTION.GetInfoForSessionDesc: String;
 begin
-  result := 'FLEX:'+FCHANNEL.GetVerboseDesc;
+  result := 'FLEX:'+FCHANNEL.ch_GetVerboseDesc;
 end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.ReadChannelData(const channel: IFRE_APSC_CHANNEL);
@@ -466,7 +466,7 @@ var myDataCount : NativeInt;
         state := ss_READY;
         fCMD_SIZE:=0;
         sizehdr_pos:=0;
-        GFRE_DBI.LogDebug(dblc_FLEX_IO,'> '+FCHANNEL.GetVerboseDesc+LineEnding+CMD.AsDBODump);
+        GFRE_DBI.LogDebug(dblc_FLEX_IO,'> '+FCHANNEL.ch_GetVerboseDesc+LineEnding+CMD.AsDBODump);
         if not assigned(FUserSession) then begin
           if (CMD.InvokeClass='FIRMOS') and (CMD.InvokeMethod='INIT') and (CMD.Answer=false) then begin
             try
@@ -559,7 +559,7 @@ var myDataCount : NativeInt;
         end;
         else begin
           GFRE_BT.CriticalAbort('SOCK CLOSE');
-          FCHANNEL.Finalize;
+          FCHANNEL.cs_Finalize;
         end;
       end;
     end;
@@ -574,7 +574,7 @@ begin
           crs_OK:               ;
           crs_WAIT_CMD_SZ: exit ;  // stay in cmd read state
           crs_FAULT: begin
-                       FCHANNEL.Finalize; // Drop connection
+                       FCHANNEL.cs_Finalize; // Drop connection
                      end;
         end;
         state := ss_WAITCMD;
@@ -624,7 +624,7 @@ end;
 procedure TFRE_SERVED_BASE_CONNECTION.Send_ServerClient(const ECN: IFRE_DB_COMMAND);
 var mem:TMemoryStream;
 begin
-  GFRE_DBI.LogDebug(dblc_FLEXCOM,'< '+FCHANNEL.GetVerboseDesc+' '+ECN.GetInvokeClass+'.'+ECN.GetInvokeMethod+' '+BoolToStr(ECN.Answer,'ANSWER','REQUEST')+' RID='+INTTOSTR(ECN.CommandID));
+  GFRE_DBI.LogDebug(dblc_FLEXCOM,'< '+FCHANNEL.ch_GetVerboseDesc+' '+ECN.GetInvokeClass+'.'+ECN.GetInvokeMethod+' '+BoolToStr(ECN.Answer,'ANSWER','REQUEST')+' RID='+INTTOSTR(ECN.CommandID));
   GFRE_DBI.LogDebug(dblc_FLEX_IO,'<< '+ECN.AsDBODump);
   try
     mem:=TMemoryStream.Create;
@@ -635,7 +635,7 @@ begin
     mem.Position:=0;
     FCHANNEL.CH_WriteBuffer(mem.Memory,mem.Size);
     if ecn.FatalClose then begin
-      FCHANNEL.Finalize;
+      FCHANNEL.cs_Finalize;
     end;
   finally
     mem.Free;
@@ -645,13 +645,13 @@ end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.DeactivateSessionBinding(const from_session: boolean);
 begin
-  GFRE_DBI.LogInfo(dblc_SESSION,' DEACTIVATE SESSION BINDING FOR '+FCHANNEL.GetVerboseDesc+' '+FUserSession.GetSessionID);
+  GFRE_DBI.LogInfo(dblc_SESSION,' DEACTIVATE SESSION BINDING FOR '+FCHANNEL.ch_GetVerboseDesc+' '+FUserSession.GetSessionID);
   FUserSession := nil;
 end;
 
 procedure TFRE_SERVED_BASE_CONNECTION.UpdateSessionBinding(const new_session: TObject);
 begin
-  GFRE_DBI.LogInfo(dblc_SESSION,' UPDATE SESSION BINDING FOR '+FCHANNEL.GetVerboseDesc+' TO '+(new_session as TFRE_DB_UserSession).GetSessionID);
+  GFRE_DBI.LogInfo(dblc_SESSION,' UPDATE SESSION BINDING FOR '+FCHANNEL.ch_GetVerboseDesc+' TO '+(new_session as TFRE_DB_UserSession).GetSessionID);
   FUserSession := new_session as TFRE_DB_UserSession;
 end;
 
@@ -673,7 +673,7 @@ begin
   if data_count < (8-sizehdr_pos) then begin
     size_read := FCHANNEL.CH_ReadBuffer(@rec_buffer,data_count);
     if size_read=-1 then begin
-      GFRE_LOG.Log('READHEADER: RECV PROBLEM A - %s',[FCHANNEL.CH_GetErrorString],catError);
+      GFRE_LOG.Log('READHEADER: RECV PROBLEM A',catError);
       exit(crs_FAULT);
     end;
     if size_read<>data_count then begin
@@ -683,7 +683,7 @@ begin
   end else begin
     size_read:=FCHANNEL.CH_ReadBuffer(@rec_buffer,8-sizehdr_pos);
     if size_read=-1 then begin
-      GFRE_LOG.Log('READHEADER: RECV PROBLEM C - %s ',[FCHANNEL.CH_GetErrorString],catError);
+      GFRE_LOG.Log('READHEADER: RECV PROBLEM C',catError);
       exit(crs_FAULT);
     end;
   end;
@@ -721,15 +721,15 @@ begin
   end;end;
   //writeln('RECEIVE GOT ',res);
   if size_read=-1 then begin
-    GFRE_LOG.Log('OS FAILURE RECIEVE/READCOMMAND? -> %s',[FCHANNEL.CH_GetErrorString],catError);
-    writeln('OS FAILURE RECIEVE/READCOMMAND? -> '+FCHANNEL.CH_GetErrorString);
-    FCHANNEL.Finalize;
+    GFRE_LOG.Log('OS FAILURE RECIEVE/READCOMMAND? ',catError);
+    writeln('OS FAILURE RECIEVE/READCOMMAND?');
+    FCHANNEL.cs_Finalize;
     exit;
   end;
   readm.Position:=size_read;
   if toread<>size_read then begin
     GFRE_LOG.Log('COMMAND ERROR data_count=%d  fCMD_SIZE=%d Size_read=%d',[data_count,fCMD_SIZE,size_read],catError);
-    FCHANNEL.Finalize;
+    FCHANNEL.cs_Finalize;
     exit(crs_FAULT);
   end;
   if size_read<fCMD_SIZE then begin
@@ -752,7 +752,7 @@ begin
       dbo.Finalize;
     end;
   end;end;
-  FCHANNEL.Finalize;
+  FCHANNEL.cs_Finalize;
   exit(crs_FAULT);
 end;
 
@@ -777,7 +777,7 @@ begin
   end;end;
   if dc<>sr then begin
     GFRE_BT.CriticalAbort('COMMAND ERROR DC=%d  READREST=%d SR=%d',[dc,readrest,sr]);
-    FCHANNEL.Finalize;
+    FCHANNEL.cs_Finalize;
     exit(crs_FAULT);
   end;
   readrest:=readrest-dc;
@@ -837,8 +837,8 @@ end;
 
 procedure TFRE_DB_SOCK_CONNECTION.HandleError(const err: String);
 begin
-  writeln(classname,' CHANNEL ERROR ',FCHANNEL.GetVerboseDesc,' ',err,' ',FCHANNEL.CH_GetErrorString);
-  FCHANNEL.Finalize;
+  writeln(classname,' CHANNEL ERROR ',FCHANNEL.ch_GetVerboseDesc,' ',err);
+  FCHANNEL.cs_Finalize;
 end;
 
 function TFRE_DB_SOCK_CONNECTION.GetSessionID: String;

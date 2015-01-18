@@ -207,13 +207,14 @@ type
 
   TFRE_DB_FILTER_UID=class(TFRE_DB_FILTER_BASE)
   protected
-    FValues     : TFRE_DB_GUIDArray;
-    FFilterType : TFRE_DB_NUM_FILTERTYPE;
+    FValues        : TFRE_DB_GUIDArray;
+    FFilterType    : TFRE_DB_NUM_FILTERTYPE;
+    FOnlyRootNodes : Boolean;
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     function  GetDefinitionKey : TFRE_DB_NameType; override;
-    procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean);
+    procedure InitFilter       (const fieldname : TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID ; const numfiltertype : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean ; const include_null_values : boolean; const only_root_nodes: Boolean);
   end;
 
   { TFRE_DB_FILTER_AUTO_DEPENDENCY }
@@ -324,6 +325,7 @@ type
     procedure   AddDatetimeFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_DateTime64 ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
     procedure   AddBooleanFieldFilter        (const key,fieldname:TFRE_DB_NameType ; filtervalue  : boolean                                                                       ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
     procedure   AddUIDFieldFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddRootNodeFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
     procedure   AddSchemeObjectFilter        (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=true );override;
     procedure   AddStdRightObjectFilter      (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true ; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
     procedure   AddStdClassRightFilter       (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String=''); override;
@@ -446,8 +448,11 @@ type
      FQueryId                : TFRE_DB_NameType;                 { ID of this specific Query             }
      //FQueryClientID          : Int64;
      FQueryDescr             : string;
-     FParentChildLinkFldSpec : TFRE_DB_NameTypeRL;               { rl spec of the parent child relation }
-     FParentChildSkipschemes : TFRE_DB_NameTypeRLArray;          { skip this schemes in a parent child query }
+     FParentChildLinkFldSpec : TFRE_DB_NameTypeRL;               { rl spec of the parent child relation                }
+     FParentChildSkipschemes : TFRE_DB_NameTypeArray;            { skip this schemes in a parent child query           }
+     FParentChildFilterClasses : TFRE_DB_NameTypeArray;          { completly ignore these classes in reflinking        }
+     FParentChildStopOnLeaves  : TFRE_DB_NameTypeArray;          { stop on this leave classes and dont recurse further }
+
      FQueryFilters           : TFRE_DB_DC_FILTER_DEFINITION;     { managed here, cleanup here}
      FOrderDef               : TFRE_DB_DC_ORDER_DEFINITION;      { linked to order definition of base ordered data, dont cleanup here}
      FDependencyIds          : TFRE_DB_StringArray;              { dependency id's of this querys DC, in same order as }
@@ -3090,13 +3095,14 @@ end;
 function TFRE_DB_FILTER_UID.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_UID;
 begin
-  fClone             := TFRE_DB_FILTER_UID.Create(FKey);
-  fClone.FFieldname  := FFieldname;
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := FAllowNull;
-  fClone.FFilterType := FFilterType;
-  fClone.FValues     := Copy(FValues);
-  result             := fClone;
+  fClone               := TFRE_DB_FILTER_UID.Create(FKey);
+  fClone.FFieldname    := FFieldname;
+  fClone.FNegate       := FNegate;
+  fClone.FAllowNull    := FAllowNull;
+  fClone.FFilterType   := FFilterType;
+  fClone.FValues       := Copy(FValues);
+  fClone.FOnlyRootNodes:= FOnlyRootNodes;
+  result               := fClone;
 end;
 
 function TFRE_DB_FILTER_UID.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
@@ -3104,8 +3110,15 @@ var fieldvals      : TFRE_DB_GUIDArray;
      fld           : IFRE_DB_Field;
      error_fld     : boolean;
      i,j           : NativeInt;
+     notcontained  : Boolean;
 begin
   error_fld := false;
+
+  if FOnlyRootNodes and not FREDB_PP_ObjectInParentPath(obj,'') then begin
+    result:=true;
+    exit;
+  end;
+
   if obj.FieldOnlyExisting(FFieldname,fld) then
     begin
       fieldvals     := fld.AsGUIDArr;
@@ -3113,48 +3126,62 @@ begin
         case FFilterType of
           dbnf_EXACT:               { all fieldvalues and filtervalues must be the same in the same order }
             begin
-              result := true;
+              result := false;
               if Length(fieldvals) <> Length(FValues) then
                 begin
-                  result:=false;
-                  exit;
+                  result:=true;
                 end
               else
                 for i:=0 to high(FValues) do
                   if not FREDB_Guids_Same(fieldvals[i],FValues[i]) then
                     begin
-                      result:=false;
-                      exit;
+                      result:=true;
+                      break;
                     end;
             end;
-          dbnf_OneValueFromFilter:  {}
+          dbnf_OneValueFromFilter:
             begin
-              result := false;
+              result := true; {negate=false, result=false => display=false // negate=true, result=false => display=true}
               for i:=0 to high(fieldvals) do
                for j:=0 to high(FValues) do
                  if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
                    begin
-                     result := true;
+                     result := false;
                      break;
                    end;
             end;
           dbnf_NoValueInFilter:
             begin
-              if length(FValues)=0 then
-                  exit;
-                result := true;
-                for i:=0 to high(fieldvals) do
+                result := false;
                  for j:=0 to high(FValues) do
+                  for i:=0 to high(fieldvals) do
                    if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
                      begin
-                       result := false;
+                       result := true;
                        break;
                      end;
             end;
           dbnf_AllValuesFromFilter: { all fieldvalues must be in filter}
             begin
-              error_fld:=true;
-              inc(flt_errors);
+              result := false;
+              if Length(fieldvals) <> Length(FValues) then
+                begin
+                  result:=true;
+                end
+              else
+                for j:=0 to high(FValues) do begin
+                 notcontained:=true;
+                 for i:=0 to high(fieldvals) do
+                  if FREDB_Guids_Same(fieldvals[i],FValues[j]) then
+                    begin
+                      notcontained:=false;
+                      break;
+                    end;
+                  if notcontained then begin
+                    result:=true;
+                    break;
+                  end;
+                end;
             end;
         end;
       except { invalid conversion }
@@ -3180,16 +3207,17 @@ begin
   result := 'G:'+ GFRE_BT.Mem2HexStr(@hsh,4);
 end;
 
-procedure TFRE_DB_FILTER_UID.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_GUID; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+procedure TFRE_DB_FILTER_UID.InitFilter(const fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_GUID; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean; const only_root_nodes:Boolean);
 var i:integer;
 begin
   SetLength(FValues,length(filtervalues));
   for i:=0 to high(filtervalues) do
     FValues[i] := filtervalues[i];
-  FFieldname  := fieldname;
-  FFilterType := numfiltertype;
-  FNegate     := negate;
-  FAllowNull  := include_null_values;
+  FFieldname    := fieldname;
+  FFilterType   := numfiltertype;
+  FNegate       := negate;
+  FAllowNull    := include_null_values;
+  FOnlyRootNodes:= only_root_nodes;
   case numfiltertype of
     dbnf_EXACT:
       if Length(filtervalues)<>1 then
@@ -4036,7 +4064,15 @@ procedure TFRE_DB_DC_FILTER_DEFINITION.AddUIDFieldFilter(const key, fieldname: T
 var filt : TFRE_DB_FILTER_UID;
 begin
   filt := TFRE_DB_FILTER_UID.Create(key);
-  filt.InitFilter(fieldname,filtervalues,numfiltertype,negate,include_null_values);
+  filt.InitFilter(fieldname,filtervalues,numfiltertype,negate,include_null_values,false);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddRootNodeFilter(const key, fieldname: TFRE_DB_NameType; filtervalues: array of TFRE_DB_GUID; const numfiltertype: TFRE_DB_NUM_FILTERTYPE; const negate: boolean; const include_null_values: boolean);
+var filt : TFRE_DB_FILTER_UID;
+begin
+  filt := TFRE_DB_FILTER_UID.Create(key);
+  filt.InitFilter(fieldname,filtervalues,numfiltertype,negate,include_null_values,true);
   AddFilter(filt,false);
 end;
 
@@ -4690,15 +4726,20 @@ begin
     begin
       if rl_ins then { Reflink update (tree), fetch parent,  set parentpath}
         begin
-          GFRE_DBI.LogDebug(dblc_DBTDM,' >NOTIFY INSERT OBJECT [%s] AGAINST TRANSDATA [%s] COLL [%s] IS A REFLINK UPDATE',[obj.GetDescriptionID,FKey.GetBaseDataKey,coll_name]);
           idx := ExistsObj(parent);
-          par := FTransformedData.Items[idx] as TFRE_DB_Object;
-          ppf := par.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString;
-          if ppf='' then
-            ppf := par.UID_String
+          if idx>0 then
+            begin
+              GFRE_DBI.LogDebug(dblc_DBTDM,' >NOTIFY INSERT OBJECT [%s] AGAINST TRANSDATA [%s] COLL [%s] IS A REFLINK UPDATE',[obj.GetDescriptionID,FKey.GetBaseDataKey,coll_name]);
+              par := FTransformedData.Items[idx] as TFRE_DB_Object;
+              ppf := par.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsString;
+              if ppf='' then
+                ppf := par.UID_String
+              else
+                ppf := ppf+','+par.UID_String;
+              FDC.TransformSingleInsert(G_TCDM.DBC(FTDDBName),obj.CloneToNewObject(),self,FChildDataIsLazy,true,ppf,par,transkey); { Frees the object }
+            end
           else
-            ppf := ppf+','+par.UID_String;
-          FDC.TransformSingleInsert(G_TCDM.DBC(FTDDBName),obj.CloneToNewObject(),self,FChildDataIsLazy,true,ppf,par,transkey); { Frees the object }
+            GFRE_DBI.LogDebug(dblc_DBTDM,' >SKIP NOT FOUND / NOTIFY INSERT OBJECT [%s] AGAINST TRANSDATA [%s] COLL [%s] IS A REFLINK UPDATE',[obj.GetDescriptionID,FKey.GetBaseDataKey,coll_name]);
         end
       else
         begin { root insert }
@@ -5507,6 +5548,8 @@ var qry : TFRE_DB_QUERY;
      with qry do begin
        FParentChildLinkFldSpec := qry_def.ParentChildSpec;        { comes from dc }
        FParentChildSkipschemes := qry_def.ParentChildSkipSchemes; { comes from dc }
+       FParentChildFilterClasses := qry_def.ParentChildFilterClasses;
+       FParentChildStopOnLeaves  := qry_def.ParentChildStopOnLeaves;
        if length(qry_def.ParentIds)>0 then
          begin { this is a child query }
            FParentIds := qry_def.ParentIds;

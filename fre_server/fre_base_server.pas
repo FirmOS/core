@@ -127,8 +127,8 @@ type
 
     procedure DispatchHTTPRequest   (const connection_object:TObject;const uri:string ; const method: TFRE_HTTP_PARSER_REQUEST_METHOD);
 
-    procedure APSC_NewListener      (const LISTENER : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
-    procedure APSC_NewChannel       (const channel  : IFRE_APSC_CHANNEL  ; const state : TAPSC_ChannelState);
+    procedure APSC_ListenerState    (const LISTENER : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState);
+    procedure APSC_NewChannel       (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt);
   end;
 
 
@@ -563,23 +563,17 @@ begin
 
   InitializeTaskerSession;
 
-  GFRE_SC.SetNewListenerCB(@APSC_NewListener);
-  GFRE_SC.AddListener_TCP ('*','44000','HTTP/WS');
+  GFRE_SC.SetListenerCB(@APSC_ListenerState);
   GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
 
-  GFRE_SC.AddListener_TCP ('*','44001','FLEX');
-  GFRE_SC.SetNewListenerCB(@APSC_NewListener);
-  GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
+  HTTPWS_Listener := GFRE_SC.AddDefaultGroupListenerTCP ('*','44000','HTTP/WS');
+  FLEX_Listener := GFRE_SC.AddDefaultGroupListenerTCP ('*','44001','FLEX');
 
   if assigned(FSSL_CTX) then
-    begin
-      GFRE_SC.AddListener_TCP ('*','44003','HTTPS/WSS');
-      GFRE_SC.SetNewListenerCB(@APSC_NewListener);
-      GFRE_SC.SetNewChannelCB(@APSC_NewChannel);
-    end;
+    HTTPSWSS_Listener := GFRE_SC.AddDefaultGroupListenerTCP ('*','44003','HTTPS/WSS',nil,true,true,FSSL_CTX);
 
-  FSessiontimer := GFRE_SC.AddTimer('SESSION',1000,@TIM_SessionHandler);
-  FTaskerTimer  := GFRE_SC.AddTimer('TASKER',1000,@TIM_TaskerHandler);
+  FSessiontimer := GFRE_SC.AddDefaultGroupTimer('SESSION',1000,@TIM_SessionHandler);
+  FTaskerTimer  := GFRE_SC.AddDefaultGroupTimer('TASKER',1000,@TIM_TaskerHandler);
   writeln('>Server is up');
 end;
 
@@ -704,57 +698,58 @@ begin
   FDispatcher.DispatchRequest(connection_object,uri,method);
 end;
 
-procedure TFRE_BASE_SERVER.APSC_NewListener(const LISTENER: IFRE_APSC_LISTENER; const state: TAPSC_ListenerState);
+procedure TFRE_BASE_SERVER.APSC_ListenerState(const LISTENER: IFRE_APSC_LISTENER; const state: TAPSC_ListenerState);
 var lid : String;
 begin
-  lid :=listener.GetID;
-  if lid='HTTPS/WSS' then
-    begin
-      if state =als_EVENT_NEW_LISTENER then
-        begin
-          if LISTENER.GetState=als_STOPPED then
-            begin
-              HTTPSWSS_Listener := listener;
-              HTTPSWSS_Listener.EnableSSL(FSSL_Ctx);
-              HTTPSWSS_Listener.Start;
-            end
-          else
-            GFRE_BT.CriticalAbort('CANNOT ACTIVATE HTTPS/WSS SERVER : '+LISTENER.GetErrorString);
-        end;
-    end
-  else
-  if lid='HTTP/WS' then
-    begin
-      if state =als_EVENT_NEW_LISTENER then
-        begin
-          if LISTENER.GetState=als_STOPPED then
-            begin
-              HTTPWS_Listener := listener;
-              HTTPWS_Listener.Start;
-            end
-          else
-            GFRE_BT.CriticalAbort('CANNOT ACTIVATE HTTP/WS SERVER : '+LISTENER.GetErrorString);
-        end;
-    end
-  else
-  if lid='FLEX' then
-    begin
-      if state =als_EVENT_NEW_LISTENER then
-        begin
-          if LISTENER.GetState=als_STOPPED then
-            begin
-              FLEX_Listener := listener;
-              FLEX_Listener.Start;
-            end
-          else
-            GFRE_BT.CriticalAbort('CANNOT ACTIVATE FLEX SERVER : '+LISTENER.GetErrorString);
-        end;
-    end
-  else
-    GFRE_BT.CriticalAbort('unknown listener ?');
+  lid :=listener.cs_GetID;
+  writeln('>>> UNHANDLED LISTENER EVENT ',state);
+  //if lid='HTTPS/WSS' then
+  //  begin
+  //    if state =als_EVENT_NEW_LISTENER then
+  //      begin
+  //        if LISTENER.GetState=als_STOPPED then
+  //          begin
+  //            HTTPSWSS_Listener := listener;
+  //            HTTPSWSS_Listener.EnableSSL(FSSL_Ctx);
+  //            HTTPSWSS_Listener.Start;
+  //          end
+  //        else
+  //          GFRE_BT.CriticalAbort('CANNOT ACTIVATE HTTPS/WSS SERVER : '+LISTENER.GetErrorString);
+  //      end;
+  //  end
+  //else
+  //if lid='HTTP/WS' then
+  //  begin
+  //    if state =als_EVENT_NEW_LISTENER then
+  //      begin
+  //        if LISTENER.GetState=als_STOPPED then
+  //          begin
+  //            HTTPWS_Listener := listener;
+  //            HTTPWS_Listener.Start;
+  //          end
+  //        else
+  //          GFRE_BT.CriticalAbort('CANNOT ACTIVATE HTTP/WS SERVER : '+LISTENER.GetErrorString);
+  //      end;
+  //  end
+  //else
+  //if lid='FLEX' then
+  //  begin
+  //    if state =als_EVENT_NEW_LISTENER then
+  //      begin
+  //        if LISTENER.GetState=als_STOPPED then
+  //          begin
+  //            FLEX_Listener := listener;
+  //            FLEX_Listener.Start;
+  //          end
+  //        else
+  //          GFRE_BT.CriticalAbort('CANNOT ACTIVATE FLEX SERVER : '+LISTENER.GetErrorString);
+  //      end;
+  //  end
+  //else
+  //  GFRE_BT.CriticalAbort('unknown listener ?');
 end;
 
-procedure TFRE_BASE_SERVER.APSC_NewChannel(const channel: IFRE_APSC_CHANNEL; const state: TAPSC_ChannelState);
+procedure TFRE_BASE_SERVER.APSC_NewChannel(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState; const errorstring: string; const errorcode: NativeInt);
 var lid : String;
 
   procedure _Setup_New_HTTP_WS_Channel;
@@ -762,9 +757,9 @@ var lid : String;
   begin
     lServerHandler := TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Create(channel,self);
     lServerHandler.OnBindInitialSession := @BindInitialSession;
-    channel.SetVerboseDesc('HTTP ['+inttostr(channel.GetHandleKey)+']'+'('+channel.GetConnSocketAddr+')');
-    channel.SetOnReadData(@lServerHandler.ReadChannelData);
-    channel.SetOnDisconnnect(@lServerHandler.DisconnectChannel);
+    channel.ch_SetVerboseDesc('HTTP ['+inttostr(channel.ch_GetHandleKey)+']'+'('+channel.ch_GetConnSocketAddr+')');
+    channel.ch_SetOnReadData(@lServerHandler.ReadChannelData);
+    channel.ch_SetOnDisconnnect(@lServerHandler.DisconnectChannel);
     channel.CH_Enable_Reading;
   end;
 
@@ -773,9 +768,9 @@ var lid : String;
   begin
     lServerHandler := TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.Create(channel,self,true);
     lServerHandler.OnBindInitialSession := @BindInitialSession;
-    channel.SetVerboseDesc('HTTPS ['+inttostr(channel.GetHandleKey)+']'+'('+channel.GetConnSocketAddr+')');
-    channel.SetOnReadData(@lServerHandler.ReadChannelData);
-    channel.SetOnDisconnnect(@lServerHandler.DisconnectChannel);
+    channel.ch_SetVerboseDesc('HTTPS ['+inttostr(channel.ch_GetHandleKey)+']'+'('+channel.ch_GetConnSocketAddr+')');
+    channel.ch_SetOnReadData(@lServerHandler.ReadChannelData);
+    channel.ch_SetOnDisconnnect(@lServerHandler.DisconnectChannel);
     channel.CH_Enable_Reading;
   end;
 
@@ -787,14 +782,14 @@ var lid : String;
     bc                      :=TFRE_SERVED_BASE_CONNECTION.Create;
     bc.SetChannel(channel);
     bc.OnBindInitialSession := @BindInitialSession;
-    channel.SetVerboseDesc('FLEX ['+inttostr(channel.GetHandleKey)+']'+'('+channel.GetConnSocketAddr+')');
-    channel.SetOnReadData(@bc.ReadChannelData);
-    channel.SetOnDisconnnect(@bc.DisconnectChannel);
+    channel.ch_SetVerboseDesc('FLEX ['+inttostr(channel.ch_GetHandleKey)+']'+'('+channel.ch_GetConnSocketAddr+')');
+    channel.ch_SetOnReadData(@bc.ReadChannelData);
+    channel.ch_SetOnDisconnnect(@bc.DisconnectChannel);
     channel.CH_Enable_Reading;
   end;
 
 begin
-  lid := channel.GetListener.GetID;
+  lid := channel.ch_GetListenerID;
   if lid ='HTTP/WS' then
     _Setup_New_HTTP_WS_Channel
   else

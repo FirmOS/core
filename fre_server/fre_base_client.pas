@@ -87,6 +87,7 @@ type
       FContinnuationCount      : Nativeint;
       FBaseconnection          : TFRE_CLIENT_BASE_CONNECTION;
       fsendcmd_id              : QWord;
+      FRifClassList            : TFPList;
 
       FChannel                 : IFRE_APSC_CHANNEL;
       FChannelTimer            : IFRE_APSC_TIMER;
@@ -125,7 +126,8 @@ type
     constructor Create                ;
     destructor  Destroy               ; override ;
     procedure   Setup                 ; virtual;
-    procedure  MyRegisterClasses       ; virtual;
+    procedure  MyRegisterClasses      ; virtual;
+    procedure  RegisterSupportedRifClass(const rif_class : TFRE_DB_BaseClass);
     function  Get_AppClassAndUid      (const appkey : string ; out app_classname : TFRE_DB_String ; out uid: TFRE_DB_Guid) : boolean;
     function  SendServerCommand       (const InvokeClass,InvokeMethod : String;const uidpath:TFRE_DB_GUIDArray;const DATA: IFRE_DB_Object;const ContinuationCB : TFRE_DB_CONT_HANDLER=nil;const timeout:integer=5000) : boolean;
     function  AnswerSyncCommand       (const command_id : QWord ; const data  : IFRE_DB_Object) : boolean;
@@ -491,7 +493,12 @@ end;
 
 procedure TFRE_BASE_CLIENT.MyRegisterClasses;
 begin
+  RegisterSupportedRifClass(TFRE_DB_TIMERTEST_JOB);
+end;
 
+procedure TFRE_BASE_CLIENT.RegisterSupportedRifClass(const rif_class: TFRE_DB_BaseClass);
+begin
+  FRifClassList.Add(rif_class);
 end;
 
 procedure TFRE_BASE_CLIENT.SubFeederNewSocket(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
@@ -642,7 +649,8 @@ begin
   FChannel     := nil;
   GFRE_TF.Get_Lock(FClientStateLock);
   GFRE_TF.Get_Lock(FSubFeedLock);
-  FSubfeedlist:=TList.Create;
+  FSubfeedlist  :=TList.Create;
+  FRifClassList :=TFPList.Create;
 end;
 
 destructor TFRE_BASE_CLIENT.Destroy;
@@ -662,6 +670,7 @@ begin
       TSUB_FEED_STATE(FSubfeedlist[i]).free;
     end;
   FSubfeedlist.Free;
+  FRifClassList.Free;
   inherited Destroy;
 end;
 
@@ -713,7 +722,9 @@ end;
 
 procedure TFRE_BASE_CLIENT.RegisterRemoteMethods(var remote_method_array: TFRE_DB_RemoteReqSpecArray);
 var rem_methods : TFRE_DB_StringArray;
-    i           : nativeInt;
+    i,j         : nativeInt;
+    rc          : TFRE_DB_BaseClass;
+    lastix      : NativeInt;
 begin
   rem_methods := Get_DBI_RemoteMethods;
   SetLength(remote_method_array,Length(rem_methods));
@@ -723,11 +734,70 @@ begin
       remote_method_array[i].methodname      := UpperCase(rem_methods[i]);
       remote_method_array[i].invokationright := '$REMIC_'+remote_method_array[i].classname+'.'+remote_method_array[i].methodname;
     end;
+  for i:= 0 to FRifClassList.Count-1 do
+    begin
+      rem_methods := TFRE_DB_BaseClass(FRifClassList[i]).Get_DBI_RifMethods;
+      lastix := Length(remote_method_array);
+      SetLength(remote_method_array,Length(remote_method_array)+Length(rem_methods));
+      for j := 0 to high(rem_methods) do
+        begin
+          remote_method_array[lastix+j].classname       := uppercase(TFRE_DB_BaseClass(FRifClassList[i]).Classname);
+          remote_method_array[lastix+j].methodname      := UpperCase(rem_methods[j]);
+          remote_method_array[lastix+j].invokationright := '$RIFIC_'+remote_method_array[lastix+j].classname+'.'+remote_method_array[lastix+j].methodname;
+        end;
+    end;
 end;
 
 procedure TFRE_BASE_CLIENT.WorkRemoteMethods(const rclassname, rmethodname: TFRE_DB_NameType; const command_id: Qword; const input: IFRE_DB_Object; const cmd_type: TFRE_DB_COMMANDTYPE);
+var replydata : IFRE_DB_Object;
+    objecthc  : TFRE_DB_ObjectEx;
 begin
   try
+    if pos('RIF_',rmethodname)=1 then
+      begin
+        try
+          objecthc := (input.Implementor_HC as TFRE_DB_ObjectEx);
+          case cmd_type of
+            fct_SyncRequest:
+              begin
+                replydata := objecthc.Invoke_DBRIF_Method(rmethodname,self,command_id,input,cmd_type);
+                AnswerSyncCommand(command_id,replydata);
+              end;
+            fct_AsyncRequest:
+              begin
+                try
+                  replydata := objecthc.Invoke_DBRIF_Method(rmethodname,self,command_id,input,cmd_type);
+                  if assigned(replydata) then
+                    begin
+                      GFRE_DBI.LogWarning(dblc_FLEXCOM,'WorkRemoteMethod RIF Method Async Called but delivered a result (!) Failed [%s.%s]:  SESSION [%s] MACHINE [%s/%s]',[rclassname,rmethodname,fMySessionID,cFRE_MACHINE_NAME,FREDB_GuidArray2StringStream(fMyMachineUIDs)]);
+                      replydata.Finalize;
+                    end;
+                except
+                  GFRE_DBI.LogWarning(dblc_FLEXCOM,'WorkRemoteMethod RIF Method Async Called but failed finalizing the (unexpected) result (!) Failed [%s.%s]:  SESSION [%s] MACHINE [%s/%s]',[rclassname,rmethodname,fMySessionID,cFRE_MACHINE_NAME,FREDB_GuidArray2StringStream(fMyMachineUIDs)]);
+                end;
+              end
+            else
+              GFRE_DBI.LogEmergency(dblc_FLEXCOM,'WorkRemoteMethod RIF unexpected packet type [%s.%s]: SESSION [%s] MACHINE [%s/%s]',[rclassname,rmethodname,fMySessionID,cFRE_MACHINE_NAME,FREDB_GuidArray2StringStream(fMyMachineUIDs)]);
+          end;
+        except
+          on e:exception do
+            begin
+              case cmd_type of
+                fct_SyncRequest:
+                  begin
+                    AnswerSyncError(command_id,e.Message);
+                  end;
+                fct_AsyncRequest:
+                  begin
+                    GFRE_DBI.LogError(dblc_FLEXCOM,'WorkRemoteMethod RIF Method Failed [%s.%s]: (%s)  SESSION [%s] MACHINE [%s/%s]',[rclassname,rmethodname,e.Message,fMySessionID,cFRE_MACHINE_NAME,FREDB_GuidArray2StringStream(fMyMachineUIDs)]);
+                  end
+                else
+                  GFRE_DBI.LogEmergency(dblc_FLEXCOM,'WorkRemoteMethod RIF unexpected packet type [%s.%s]: SESSION [%s] MACHINE [%s/%s]',[rclassname,rmethodname,fMySessionID,cFRE_MACHINE_NAME,FREDB_GuidArray2StringStream(fMyMachineUIDs)]);
+            end;
+            end;
+        end;
+      end
+    else
     if uppercase(rclassname)=uppercase(ClassName) then
       Invoke_DBREM_Method(rmethodname,command_id,input,cmd_type)
     else

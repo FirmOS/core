@@ -117,6 +117,7 @@ type
     procedure   ReCreateSysDB           ;
     procedure   BackupDB                (const adb, sdb: boolean; const dir: string);
     procedure   RestoreDB               (const adb, sdb: boolean; const dir: string ; const override_with_live_scheme : boolean);
+    procedure   AddUser                 (const userencoding : string);
     procedure   GenerateTestdata        ;
     procedure   DoUnitTest              ;
     procedure   InitExtensions          ;
@@ -365,6 +366,7 @@ begin
   AddCheckOption('*'  ,'showapps'      ,'                | --showapps                     : show the actual available (filtered) app classes');
   AddCheckOption('*'  ,'showdeploy'    ,'                | --showdeploy                   : show the deployment information');
   AddCheckOption('*'  ,'filterapps:'   ,'                | --filterapps=class,class       : allow only the specified apps');
+  AddCheckOption('A'  ,'adduser:'      ,'                | --adduser=name@dom,pass,class  : add a user with a specified class (WEBUSER,FEEDER),password and domain (SYSTEM)');
   AddCheckOption('*'  ,'showscheme'    ,'                | --showscheme                   : dump the whole database scheme definition');
   AddCheckOption('*'  ,'backupdb:'     ,'                | --backupdb=</path2/dir>        : backup database interactive');
   AddCheckOption('*'  ,'restoredb:'    ,'                | --restoredb=</path2/dir>       : restore database interactive');
@@ -609,7 +611,7 @@ var ErrorMsg : String;
           GFRE_DB.LogInfo(dblc_SERVER,'SERVING SYSTEM DATABASE : [%s]',[GFRE_DB.GetDeploymentInfo]);
           writeln(format('SERVING SYSTEM DATABASE : [%s]',[GFRE_DB.GetDeploymentInfo]));
           if FCustomExtensionSet then
-           writeln('WARNING: ignoring specified extensions from commandline, they are only used for the deploy case');
+            writeln('WARNING: ignoring specified extensions from commandline, they are only used for the deploy case');
        end
       else
         raise EFRE_DB_Exception.Create(edb_ERROR,'could not fetch the database scheme [%s] ',[res.Msg]);
@@ -784,6 +786,11 @@ end;
 function TFRE_CLISRV_APP.AfterInitDBTerminatingCommands: boolean;
 begin
   result := false;
+  if HasOption('A','adduser') then
+    begin
+      result:=true;
+      AddUser(GetOptionValue('A','adduser'));
+    end;
   if HasOption('*','showinstalled') then
     begin
       result := true;
@@ -1271,6 +1278,43 @@ begin
     begin
       writeln('ABORTED');
     end;
+end;
+
+procedure TFRE_CLISRV_APP.AddUser(const userencoding: string);
+var param    : TFRE_DB_StringArray;
+    conn     : IFRE_DB_SYS_CONNECTION;
+    username : TFRE_DB_String;
+    domain   : TFRE_DB_String;
+    domuid   : TFRE_DB_GUID;
+    pass     : TFRE_DB_String;
+    uclass   : TFRE_DB_String;
+    internal : boolean;
+begin
+  FREDB_SeperateString(userencoding,',',param); { must be username@domain, password, class}
+  if Length(param)<>3 then
+    begin
+      writeln('syntax error, must have 3 parameters');
+      exit;
+    end;
+  username := param[0];
+  pass     := param[1];
+  uclass   := uppercase(param[2]);
+  case uclass of
+    'FEEDER','MIGHTYFEEDER' : internal := true;
+    'WEBUSER'               : internal := false;
+    else
+      raise EFRE_DB_Exception.Create(edb_ERROR,'userclass must be WEBUSER or FEEDER');
+  end;
+  FREDB_SplitLocalatDomain(username,username,domain);
+  try
+    conn := GFRE_DBI.NewSysOnlyConnection;
+    CheckDbResult(conn.Connect(cFRE_ADMIN_USER,cFRE_ADMIN_PASS));
+    domuid := conn.GetCurrentUserTokenRef.GetDomainID(domain);
+    GFRE_DB.Initialize_Extension_ObjectsBuild;
+    CheckDbResult(conn.AddUser(username,domuid,pass,'Auto','Auto',nil,'',internal,'cli added user','cli added user',uclass));
+  finally
+    conn.Finalize;
+  end;
 end;
 
 procedure TFRE_CLISRV_APP.GenerateTestdata;

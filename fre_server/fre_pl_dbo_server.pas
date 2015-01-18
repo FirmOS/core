@@ -86,7 +86,7 @@ type
 
     procedure   SetupPersistanceLayers   ;
     procedure   WatchDog                 (const timer  : IFRE_APSC_TIMER ; const flag1,flag2 : boolean);
-    procedure   NewChannel               (const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState); override;
+    procedure   NewChannel               (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt); override;
     procedure   RemoveChannelFromList    (const channel: IFRE_APSC_CHANNEL);
   public
     procedure   Setup                    ; override;
@@ -176,7 +176,7 @@ var lLayerID : TFRE_DB_NameType;
                 except on e:exception do
                   begin
                     writeln('SUB CHANNEL READ FAILED ',e.Message);
-                    channel.Finalize;
+                    channel.cs_Finalize;
                     //FConnectState := sfc_NOT_CONNECTED;
                   end;
                 end;
@@ -890,7 +890,7 @@ begin
   FDBO_Srv_Cfg.IP          := '0.0.0.0';
   FDBO_Srv_Cfg.FDontSendId := true;
   inherited Setup;
-  GFRE_SC.AddTimer('WD',1000,@WatchDog);
+  GFRE_SC.AddDefaultGroupTimer('WD',1000,@WatchDog);
 end;
 
 procedure TFRE_PL_DBO_SERVER.SetupEmbeddedBridge(const embedded_global_layer: IFRE_DB_PERSISTANCE_LAYER);
@@ -920,15 +920,15 @@ begin
    //PushDataToClients(obj);
 end;
 
-procedure TFRE_PL_DBO_SERVER.NewChannel(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
+procedure TFRE_PL_DBO_SERVER.NewChannel(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState; const errorstring: string; const errorcode: NativeInt);
 var new_pl_handler : TFRE_DB_SERVER_NET_LAYER;
 begin
-  inherited NewChannel(channel, channel_event);
+  inherited NewChannel(channel, channel_event,errorstring,errorcode);
   new_pl_handler := TFRE_DB_SERVER_NET_LAYER.Create(self);
   new_pl_handler.FChannel:=channel;
   channel.CH_AssociateData(FREDB_ObjectToPtrUInt(new_pl_handler));
-  channel.SetOnReadData(@new_pl_handler.ChannelRead);
-  channel.SetOnDisconnnect(@new_pl_handler.ChannelDisconnect);
+  channel.ch_SetOnReadData(@new_pl_handler.ChannelRead);
+  channel.ch_SetOnDisconnnect(@new_pl_handler.ChannelDisconnect);
 end;
 
 procedure TFRE_PL_DBO_SERVER.RemoveChannelFromList(const channel: IFRE_APSC_CHANNEL);
@@ -972,7 +972,7 @@ var blocko : TFRE_DB_Object;
     if pl_handler.FlayerID=layerID then
       begin
         blocko := block.CloneToNewObject.Implementor as TFRE_DB_Object;
-        pl_handler.FChannel.GetChannelManager.ScheduleCoRoutine(@pl_handler.COR_SendNotifyBlock,blocko);
+        pl_handler.FChannel.cs_GetChannelManager.ScheduleCoRoutine(@pl_handler.COR_SendNotifyBlock,blocko);
       end;
   end;
 

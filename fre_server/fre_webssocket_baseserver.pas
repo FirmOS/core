@@ -176,7 +176,7 @@ type
     procedure   SetOnBindDefaultSession(AValue: TFRE_DB_FetchSessionCB);
     procedure   SendProxyFrame     (const data:TFRE_DB_RawByteString);
     procedure   WebReceived        (const dataframe :  string);
-    procedure   NewProxyChannel    (const proxychan : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState);
+    procedure   NewProxyChannel    (const proxychan      : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt);
     procedure   VNC_ProxyChannelDisconnect (const channel : IFRE_APSC_CHANNEL);
     procedure   VNC_ProxyChannelReadData   (const channel : IFRE_APSC_CHANNEL);
   protected
@@ -243,7 +243,7 @@ var
     GFRE_DBI.LogWarning(dblc_WEBSOCK,'(!) WEBSOCK REQUESTED CLOSE '+FChannel.GetVerboseDesc);
     {$ENDIF}
     DeactivateSessionBinding;
-    FChannel.Finalize;
+    FChannel.cs_Finalize;
     FChannel:=nil;
     exit;
   end;
@@ -318,7 +318,7 @@ begin
         end
       else
         begin
-          FChannel.Finalize;
+          FChannel.cs_Finalize;
           FChannel:=nil;
         end;
       exit;
@@ -335,10 +335,10 @@ begin
               _SendCloseFrame;
               if assigned(FVNCProxyChannel) then
                 begin
-                 FVNCProxyChannel.Finalize;
+                 FVNCProxyChannel.cs_Finalize;
                  FVNCProxyChannel:=nil;
                 end;
-              FChannel.Finalize;
+              FChannel.cs_Finalize;
               FChannel:=nil;
             exit;
           end else begin
@@ -356,7 +356,7 @@ begin
           else
             begin
               {$IFDEF WS_LOG_ERROR}
-              GFRE_DBI.LogError(dblc_WS_JSON,'-> '+FChannel.GetVerboseDesc+LineEnding+'Ignoring unsupported WS Frame : '+inttostr(Opcode));
+              GFRE_DBI.LogError(dblc_WS_JSON,'-> '+FChannel.ch_GetVerboseDesc+LineEnding+'Ignoring unsupported WS Frame : '+inttostr(Opcode));
               {$ENDIF}
             end;
             end;
@@ -405,16 +405,16 @@ begin
   end;
 end;
 
-procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.NewProxyChannel(const proxychan: IFRE_APSC_CHANNEL; const event: TAPSC_ChannelState);
+procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.NewProxyChannel(const proxychan: IFRE_APSC_CHANNEL; const event: TAPSC_ChannelState; const errorstring: string; const errorcode: NativeInt);
 begin
-  if event=ch_NEW_CS_CONNECTED then
+  if event = ch_NEW_CS_CONNECTED then
     begin
      FVNCProxyChannel := proxychan;
      FProxyState      := vps_READ_RFB_VERSION_VNC2WC;
-     FVNCProxyChannel.SetOnDisconnnect(@VNC_ProxyChannelDisconnect);
-     FVNCProxyChannel.SetOnReadData(@VNC_ProxyChannelReadData);
+     FVNCProxyChannel.ch_SetOnDisconnnect(@VNC_ProxyChannelDisconnect);
+     FVNCProxyChannel.ch_SetOnReadData(@VNC_ProxyChannelReadData);
      FVNCProxyChannel.CH_Enable_Reading;
-     writeln('PART 2 - SETUP VNC PROXY - CHANMANGER ',proxychan.GetChannelManager.GetID);
+     writeln('PART 2 - SETUP VNC PROXY - CHANMANGER ',proxychan.cs_GetChannelManager.GetID);
     end
   else
     GFRE_BT.CriticalAbort('new vnc proxy connect / error handle this '+inttostr(ord(event)));
@@ -422,7 +422,7 @@ end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.VNC_ProxyChannelDisconnect(const channel: IFRE_APSC_CHANNEL);
 begin
-  writeln('VNC <--> DOWN PROXY CHANNEL '+channel.GetVerboseDesc);
+  writeln('VNC <--> DOWN PROXY CHANNEL '+channel.ch_GetVerboseDesc);
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.VNC_ProxyChannelReadData(const channel: IFRE_APSC_CHANNEL);
@@ -819,8 +819,8 @@ begin
   FBinaryData := TFRE_BINARYDATA.Create(1024*1024*30,1024*1024*30); // 10 MB Initial binary block / 100 MB Max Block
   //FBinaryData := TFRE_BINARYDATA.Create(1024*1024*100,1024*1024*200); // 10 MB Initial binary block / 10 MB Max Block
   FProxyState := vps_NOT_CONNECTED;
-  writeln('SETUP VNC PROXY - CHANMANGER ',FChannel.GetChannelManager.GetID);
-  GFRE_SC.AddClient_TCP(host,inttostr(port),'PROX',FChannel.GetChannelManager,@NewProxyChannel);
+  writeln('SETUP VNC PROXY - CHANMANGER ',FChannel.cs_GetChannelManager.GetID);
+  GFRE_SC.AddClient_TCP(host,inttostr(port),'PROX',true,FChannel.cs_GetChannelManager,@NewProxyChannel);
   FNo_Base64 := true;
 end;
 
@@ -836,7 +836,7 @@ begin
   if FOnBindDefaultSession(self,FCurrentSession,sessionkey,true) then
     begin
       TransFormFunc := @FRE_WAPP_DOJO.TransformInvocation;
-      FChannel.SetVerboseDesc('FREDB WS ['+inttostr(FChannel.GetHandleKey)+'] ('+sessionkey+') '+FChannel.GetConnSocketAddr);
+      FChannel.ch_SetVerboseDesc('FREDB WS ['+inttostr(FChannel.ch_GetHandleKey)+'] ('+sessionkey+') '+FChannel.ch_GetConnSocketAddr);
     end
   else
     begin
@@ -852,17 +852,17 @@ begin
     wsm_VNCPROXY: begin
       if assigned(FVNCProxyChannel) then
         begin
-          FVNCProxyChannel.Finalize;
+          FVNCProxyChannel.cs_Finalize;
           FVNCProxyChannel:=nil;
         end;
       if assigned(FChannel) then
         begin
-          FChannel.Finalize;
+          FChannel.cs_Finalize;
           FChannel:=nil;
         end;
     end;
     wsm_FREDB: begin
-                 writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.GetVerboseDesc,' HANDLER DISCONNECTED/FREED -> Clearing Session/Channel Binding');
+                 writeln('WEBSOCKET/SESSIONSOCKET ',FChannel.ch_GetVerboseDesc,' HANDLER DISCONNECTED/FREED -> Clearing Session/Channel Binding');
                    try
                      if assigned(FCurrentSession) then
                        begin
@@ -901,7 +901,7 @@ end;
 
 function TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.GetInfoForSessionDesc: String;
 begin
-  result := 'WEB:'+FChannel.GetVerboseDesc;
+  result := 'WEB:'+FChannel.ch_GetVerboseDesc;
 end;
 
 procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.ClientConnected;
@@ -934,7 +934,7 @@ begin
       {$IFDEF WS_LOG_DEBUG}
       GFRE_DBI.LogError(dblc_WEBSOCK,'WEBSOCKET - PROTOCOL NOT SUPPORTED!',[]);
       {$ENDIF}
-      FChannel.Finalize;
+      FChannel.cs_Finalize;
       FChannel:=nil;
     end;
   end;
@@ -944,7 +944,7 @@ procedure TFRE_WEBSOCKET_SERVERHANDLER_FIRMOS_VNC_PROXY.DisconnectChannel(const 
 var Channeldesc : string;
 begin
   try
-    Channeldesc := channel.GetVerboseDesc;
+    Channeldesc := channel.ch_GetVerboseDesc;
     Free;
   except on e:exception do
     {$IFDEF WS_LOG_ERROR}
@@ -1001,7 +1001,7 @@ begin
     begin
       FCurrentSession := nil;
       FWebsocketMode  := wsm_FREDB_DEACTIVATED;
-      FChannel.Finalize;
+      FChannel.cs_Finalize;
       FChannel:=nil;
     end
   else

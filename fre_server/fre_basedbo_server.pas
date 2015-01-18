@@ -27,7 +27,7 @@ type
   protected
     FChannelList : TList;
     FDBO_Srv_Cfg : RDBO_SRV_CFG;
-    procedure   NewChannel   (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState); virtual;
+    procedure   NewChannel   (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt);virtual;
     procedure   DiscoChannel (const channel      : IFRE_APSC_CHANNEL); virtual;
     procedure   ReadChannel  (const channel      : IFRE_APSC_CHANNEL); virtual;
   public
@@ -35,7 +35,7 @@ type
     destructor  Destroy  ; override ;
     procedure   Setup; virtual;
     procedure   PushDataToClients(const data_object : IFRE_DB_Object);virtual;
-    procedure   ForAllChannels   (const chan_iter : TFRE_APSC_CHANNEL_CB);virtual;
+    procedure   ForAllChannels   (const chan_iter : TFRE_APSC_CHANNEL_EVENT_NESTED);virtual;
   end;
 
 implementation
@@ -45,26 +45,27 @@ implementation
 procedure TFRE_DBO_SERVER.NewListener(const new_listener: IFRE_APSC_LISTENER; const state: TAPSC_ListenerState);
 var err :string;
 begin
+  abort;
   err := new_listener.GetErrorString;
   if state =als_EVENT_NEW_LISTENER then
     begin
-      if new_listener.GetID='ux' then
+      if new_listener.cs_GetID='ux' then
         begin
           FListenerUX:=new_listener;
-          new_listener.Start;
+          new_listener.cs_Start;
         end
       else
-      if new_listener.GetID='tcp' then
+      if new_listener.cs_GetID='tcp' then
         begin
           FListenerTCP:=new_listener;
-          new_listener.Start;
+          new_listener.cs_Start;
         end
       else
-        GFRE_BT.CriticalAbort('unsupported/unknown listenerid '+new_listener.GetID);
+        GFRE_BT.CriticalAbort('unsupported/unknown listenerid '+new_listener.cs_GetID);
     end;
 end;
 
-procedure TFRE_DBO_SERVER.NewChannel(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
+procedure TFRE_DBO_SERVER.NewChannel(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState; const errorstring: string; const errorcode: NativeInt);
 var dbo : IFRE_DB_Object;
     mem : Pointer;
     siz : Cardinal;
@@ -85,8 +86,8 @@ begin
           channel.CH_WriteBuffer(mem,siz);
           Freemem(mem);
         end;
-      channel.SetOnDisconnnect(@DiscoChannel);
-      channel.SetOnReadData(@ReadChannel);
+      channel.ch_SetOnDisconnnect(@DiscoChannel);
+      channel.ch_SetOnReadData(@ReadChannel);
       FLock.Acquire;
       try
         if FChannelList.IndexOf(channel)<>-1 then
@@ -137,12 +138,12 @@ begin
     begin
       GFRE_BT.CriticalAbort('No NAME set in subsection [MACHINE] in .ini File');
     end;
-  GFRE_SC.SetNewListenerCB(@NewListener);
+  GFRE_SC.SetListenerCB(@NewListener);
   GFRE_SC.SetNewChannelCB(@NewChannel);
   if FDBO_Srv_Cfg.SpecialFile<>'' then
-    GFRE_SC.AddListener_UX(FDBO_Srv_Cfg.SpecialFile,'ux');
+     FListenerUX := GFRE_SC.AddDefaultGroupListenerUX(FDBO_Srv_Cfg.SpecialFile,'ux');
   if FDBO_Srv_Cfg.IP<>'' then
-    GFRE_SC.AddListener_TCP(FDBO_Srv_Cfg.IP,FDBO_Srv_Cfg.Port,'tcp');
+    GFRE_SC.AddDefaultGroupListenerTCP(FDBO_Srv_Cfg.IP,FDBO_Srv_Cfg.Port,'tcp');
 end;
 
 
@@ -158,7 +159,7 @@ begin
     FLock.Acquire;
     try
       for i:=0 to FChannelList.Count-1 do
-        IFRE_APSC_CHANNEL(FChannelList[i]).CH_SAFE_WriteBuffer(mem,siz);
+        IFRE_APSC_CHANNEL(FChannelList[i]).cs_WriteBuffer(mem,siz);
     finally
       FLock.Release;
     end;
@@ -168,7 +169,7 @@ begin
   end;
 end;
 
-procedure TFRE_DBO_SERVER.ForAllChannels(const chan_iter: TFRE_APSC_CHANNEL_CB);
+procedure TFRE_DBO_SERVER.ForAllChannels(const chan_iter: TFRE_APSC_CHANNEL_EVENT_NESTED);
 var
   i: NativeInt;
 begin

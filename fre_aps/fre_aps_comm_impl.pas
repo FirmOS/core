@@ -186,9 +186,10 @@ type
     Flen    : socklen_t;
     FSSl    : boolean;
     FSSLCtx : PSSL_CTX;
+    FListID : TFRE_APSC_ID;
   public
     class function FactoryCreate (const Factory:IFOS_FactoryInterface): TFRE_APS_CMD_ADD_NEW_SRV_SOCKET; inline;
-    function       Setup         (new_fd: cint; sa: TFCOM_SOCKADDRSTORAGE; len: socklen_t; const ssl_enabled: boolean; const ssl_ctx: PSSL_CTX): TFRE_APS_CMD_ADD_NEW_SRV_SOCKET;inline;
+    function       Setup         (new_fd: cint; sa: TFCOM_SOCKADDRSTORAGE; len: socklen_t; const ssl_enabled: boolean; const ssl_ctx: PSSL_CTX; const listenerid: TFRE_APSC_ID): TFRE_APS_CMD_ADD_NEW_SRV_SOCKET;inline;
     procedure      Execute       (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
   end;
 
@@ -311,7 +312,7 @@ type
   TFRE_APSC_CHANNELGROUP_THREAD = class(TFRE_APSC_CTX_THREAD,IFRE_APSC_CHANNEL_GROUP)       { One Dispatching (eventing / main thread per channel group) }
   private
     function    s_GetManagerWithMinimumConns   : TFRE_APSC_CHANNEL_MANAGER;     { LOAD BASED FAIR DISTRIBUTION }
-    procedure   s_DistributeNewAcceptedChannel (new_fd : cint; sa : PFCOM_SOCKADDRSTORAGE ; len : socklen_t ; const ssl_enabled : boolean ; const ssl_ctx : PSSL_CTX); { usage from the listener, owned by the cg (in sync)}
+    procedure   s_DistributeNewAcceptedChannel (new_fd : cint; sa : PFCOM_SOCKADDRSTORAGE ; len : socklen_t ; const ssl_enabled : boolean ; const ssl_ctx : PSSL_CTX ; const listenerid : TFRE_APSC_ID); { usage from the listener, owned by the cg (in sync)}
     function    s_GetChannelManagerByID        (cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
     function    s_GetChannelManagerIDs         : TFRE_APSC_ID_Array;
     function    s_CreateNewChannelManager      (const cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
@@ -322,7 +323,7 @@ type
     function    GetChannelManagerByID     (const cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
     function    GetChannelManagerMinChans : IFRE_APSC_CHANNEL_MANAGER;
     function    CreateNewChannelManager   (const cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
-    function    AddChannelGroupTimer      (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback         : TFRE_APSC_TIMER_CALLBACK    ; const start_timer    : boolean = true ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
+    function    AddChannelGroupTimer      (const timer_id: TFRE_APSC_ID ; interval_ms : NativeInt ; timer_callback         : TFRE_APSC_TIMER_CALLBACK    ; const start_timer    : boolean = true ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
     function    AddListenerTCP            (Bind_IP,Bind_Port :String     ; const ID:TFRE_APSC_ID     ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
     function    AddListenerUX             (special_file      : ShortString ; const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER;
     constructor Create                    (const up_cg_name  : ShortString; const channel_worker_cnt: NativeInt);
@@ -351,7 +352,7 @@ type
 
     procedure   s_TerminateAndWaitfor    ; override;
 
-    procedure   s_AddNewServedChannel    (const fd : cint ;  sa : TFCOM_SOCKADDRSTORAGE ; const salen : socklen_t ;const use_ssl : boolean ; const SSLCtx : PSSL_CTX);
+    procedure   s_AddNewServedChannel    (const fd : cint ;  sa : TFCOM_SOCKADDRSTORAGE ; const salen : socklen_t ;const use_ssl : boolean ; const SSLCtx : PSSL_CTX ; const listenerid: TFRE_APSC_ID);
     procedure   s_AddNewClientChannel    (const cl_channel : TFRE_APSC_CHANNEL);
     procedure   s_FinalizeObject         (const what : TFRE_APSC_BaseObject); override;
     procedure   a_AddClientChannel       (const cl_channel : IFRE_APSC_CHANNEL);
@@ -532,6 +533,7 @@ type
     FOnDisco           : TFRE_APSC_CHANNEL_EVENT;
     FOnStatus          : TFRE_APSC_CHANNEL_CHANGE_EVENT;
     FId                : TFRE_APSC_ID;
+    FFromListenerID    : TFRE_APSC_ID;
     FClientSSL         : Pssl_st;
     FSSL_Enabled       : Boolean;
     FFinalizecalled    : Boolean;
@@ -585,10 +587,11 @@ type
     function    CH_IsClientChannel      : Boolean;
     function    CH_GetState             : TAPSC_ChannelState;
     function    CH_GetID                : TFRE_APSC_ID;
+    function    ch_GetListenerID        : TFRE_APSC_ID;
     procedure   CH_AssociateData        (const data : PtrUInt);
     function    CH_GetAssociateData     : PtrUInt;
 
-    constructor Create                  (const served_channel: boolean; const enable_ssl: boolean; const ssl_ctx: PSSL_CTX);
+    constructor Create                  (const served_channel: boolean; const enable_ssl: boolean; const ssl_ctx: PSSL_CTX ; const listenerid: TFRE_APSC_ID='');
     destructor  Destroy                 ;override;
     procedure   cs_Finalize             ;
     procedure   cs_FinalizeFromPartner  ;
@@ -933,19 +936,20 @@ begin
   result := TFRE_APS_CMD_ADD_NEW_SRV_SOCKET(Factory.Factor(TFRE_APS_CMD_ADD_NEW_SRV_SOCKET));
 end;
 
-function TFRE_APS_CMD_ADD_NEW_SRV_SOCKET.Setup(new_fd: cint; sa: TFCOM_SOCKADDRSTORAGE; len: socklen_t; const ssl_enabled: boolean; const ssl_ctx: PSSL_CTX): TFRE_APS_CMD_ADD_NEW_SRV_SOCKET;
+function TFRE_APS_CMD_ADD_NEW_SRV_SOCKET.Setup(new_fd: cint; sa: TFCOM_SOCKADDRSTORAGE; len: socklen_t; const ssl_enabled: boolean; const ssl_ctx: PSSL_CTX; const listenerid: TFRE_APSC_ID): TFRE_APS_CMD_ADD_NEW_SRV_SOCKET;
 begin
   Ffd     := new_fd;
   Fsa     := sa;
   Flen    := len;
   FSSl    := ssl_enabled;
   FSSLCtx := ssl_ctx;
+  FListID := listenerid;
   result  := self;
 end;
 
 procedure TFRE_APS_CMD_ADD_NEW_SRV_SOCKET.Execute(const ctx_owner: TFRE_APSC_CTX_THREAD; const what: TAPSC_EV_TYP);
 begin
-  (ctx_owner as TFRE_APSC_CHANNEL_MANAGER).s_AddNewServedChannel(Ffd,fsa,flen,fssl,FSSLCtx);
+  (ctx_owner as TFRE_APSC_CHANNEL_MANAGER).s_AddNewServedChannel(Ffd,fsa,flen,fssl,FSSLCtx,FListID);
 end;
 
 { TFRE_APS_CMD_LISTENER_CRTL }
@@ -2024,6 +2028,11 @@ begin
   result := FId;
 end;
 
+function TFRE_APSC_CHANNEL.ch_GetListenerID: TFRE_APSC_ID;
+begin
+  result := FFromListenerID;
+end;
+
 procedure TFRE_APSC_CHANNEL.CH_AssociateData(const data: PtrUInt);
 begin
   ThreadCheck;
@@ -2037,12 +2046,13 @@ begin
 end;
 
 
-constructor TFRE_APSC_CHANNEL.Create(const served_channel: boolean; const enable_ssl: boolean; const ssl_ctx: PSSL_CTX);
+constructor TFRE_APSC_CHANNEL.Create(const served_channel: boolean; const enable_ssl: boolean; const ssl_ctx: PSSL_CTX; const listenerid: TFRE_APSC_ID);
 begin
-  FState       := ch_BAD;
-  FSSL_Enabled := enable_ssl;
-  FServed      := served_channel;
-  Fsocket      := -1;
+  FState          := ch_BAD;
+  FSSL_Enabled    := enable_ssl;
+  FServed         := served_channel;
+  Fsocket         := -1;
+  FFromListenerID := listenerid;
   if FServed and enable_ssl then
     FClientSSL :=  SSL_new(ssl_ctx);
 end;
@@ -2128,11 +2138,11 @@ begin
   ForAllChannels(@FinalizeChannel);
 end;
 
-procedure TFRE_APSC_CHANNEL_MANAGER.s_AddNewServedChannel(const fd: cint; sa: TFCOM_SOCKADDRSTORAGE; const salen: socklen_t; const use_ssl: boolean; const SSLCtx: PSSL_CTX);
+procedure TFRE_APSC_CHANNEL_MANAGER.s_AddNewServedChannel(const fd: cint; sa: TFCOM_SOCKADDRSTORAGE; const salen: socklen_t; const use_ssl: boolean; const SSLCtx: PSSL_CTX; const listenerid: TFRE_APSC_ID);
 var newchan : TFRE_APSC_CHANNEL;
 begin
   s_IncActiveChannelCount;
-  newchan   := TFRE_APSC_CHANNEL.Create(true,use_ssl,SSLCtx);
+  newchan   := TFRE_APSC_CHANNEL.Create(true,use_ssl,SSLCtx,listenerid);
   try
     newchan.SetupServedSocketEvBase(fd,sa,salen,@GAPSC._CallbackChannelEvent,self);
   except
@@ -2249,7 +2259,7 @@ begin
           end;end;
           exit;
         end;
-      (FOwnerCTX as TFRE_APSC_CHANNELGROUP_THREAD).s_DistributeNewAcceptedChannel(new_fd,@sa,len,FSSL_Enabled,FSSL_CTX);
+      (FOwnerCTX as TFRE_APSC_CHANNELGROUP_THREAD).s_DistributeNewAcceptedChannel(new_fd,@sa,len,FSSL_Enabled,FSSL_CTX,FId);
     end
   else
     begin
@@ -2587,12 +2597,12 @@ begin
   FChildContexts.ForAll(@findmin);
 end;
 
-procedure TFRE_APSC_CHANNELGROUP_THREAD.s_DistributeNewAcceptedChannel(new_fd: cint; sa: PFCOM_SOCKADDRSTORAGE; len: socklen_t; const ssl_enabled: boolean; const ssl_ctx: PSSL_CTX);
+procedure TFRE_APSC_CHANNELGROUP_THREAD.s_DistributeNewAcceptedChannel(new_fd: cint; sa: PFCOM_SOCKADDRSTORAGE; len: socklen_t; const ssl_enabled: boolean; const ssl_ctx: PSSL_CTX; const listenerid: TFRE_APSC_ID);
 var cm      : TFRE_APSC_CHANNEL_MANAGER;
 begin
   { Find a CM that serves the channel }
    cm := s_GetManagerWithMinimumConns;
-   cm.cs_PushDirectCommand(TFRE_APS_CMD_ADD_NEW_SRV_SOCKET.FactoryCreate(GAPSC).Setup(new_fd,sa^,len,ssl_enabled,ssl_ctx));
+   cm.cs_PushDirectCommand(TFRE_APS_CMD_ADD_NEW_SRV_SOCKET.FactoryCreate(GAPSC).Setup(new_fd,sa^,len,ssl_enabled,ssl_ctx,listenerid));
 end;
 
 function TFRE_APSC_CHANNELGROUP_THREAD.s_GetChannelManagerByID(cm_id: TFRE_APSC_ID; out cm: IFRE_APSC_CHANNEL_MANAGER): boolean;
@@ -2692,7 +2702,7 @@ end;
 
 
 
-function TFRE_APSC_CHANNELGROUP_THREAD.AddChannelGroupTimer(const timer_id: TFRE_APSC_ID; interval_ms: NativeUint; timer_callback: TFRE_APSC_TIMER_CALLBACK; const start_timer: boolean; const asc_meth_code: CodePointer; const asc_meth_data: Pointer): IFRE_APSC_TIMER;
+function TFRE_APSC_CHANNELGROUP_THREAD.AddChannelGroupTimer(const timer_id: TFRE_APSC_ID; interval_ms: NativeInt; timer_callback: TFRE_APSC_TIMER_CALLBACK; const start_timer: boolean; const asc_meth_code: CodePointer; const asc_meth_data: Pointer): IFRE_APSC_TIMER;
 var tim : TFRE_APSC_TIMER;
 begin
   tim    := TFRE_APSC_TIMER.Create(timer_id,interval_ms,timer_callback,asc_meth_code,asc_meth_data);

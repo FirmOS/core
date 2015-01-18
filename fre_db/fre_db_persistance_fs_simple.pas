@@ -166,6 +166,9 @@ function  fredbps_fsync(filedes : cint): cint; cdecl; external 'c' name 'fsync';
      procedure   SyncSnapshot                        ;
      function    GetNotificationRecordIF             : IFRE_DB_DBChangedNotification;
 
+     function    DifferentialBulkUpdate              (const user_context : PFRE_DB_GUID ; const transport_obj : IFRE_DB_Object) : TFRE_DB_Errortype;
+
+
      { Collection Interface }
      function    CollectionExistCollection           (const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : Boolean;
      function    CollectionNewCollection             (const coll_name: TFRE_DB_NameType ; const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID=nil): TFRE_DB_TransStepId;
@@ -1065,6 +1068,7 @@ var sys_admin   : boolean;
     FSysDomains : TFRE_DB_PERSISTANCE_COLLECTION;
     FSysDomain  : IFRE_DB_DOMAIN;
     FSysDomainO : TFRE_DB_Object;
+    FDefaultDomU: TFRE_DB_GUID;
     iobj        : IFRE_DB_Object;
     tokeno      : TFRE_DB_USER_RIGHT_TOKEN;
 
@@ -1079,6 +1083,8 @@ var sys_admin   : boolean;
       domi.IntfCast(IFRE_DB_DOMAIN,dom);
       domuids[idx]  := dom.UID;
       domnames[idx] := dom.Domainname(false);
+      if dom.IsDefaultDomain then
+        FDefaultDomU := dom.UID;
       inc(idx);
     finally
       domo.Set_Store_LockedUnLockedIf(true,lck);
@@ -1218,8 +1224,9 @@ begin
           SetLength(domuids,domcnt);
           SetLength(domnames,domcnt);
           idx := 0;
+          FDefaultDomU.ClearGuid;
           FSysDomains.ForAllInternalI(@IterateDomains);
-          tokeno := TFRE_DB_USER_RIGHT_TOKEN.Create(myuser.UID,myuser.Login,myUser.Firstname,myUser.Lastname,'',myuser.Userclass,myuser.GetUserGroupIDS,_GetRightsArrayForUser(myUser),sys_admin,FSysDomain.UID,myuser.DomainID,domuids,domnames);
+          tokeno := TFRE_DB_USER_RIGHT_TOKEN.Create(myuser.UID,myuser.Login,myUser.Firstname,myUser.Lastname,'',myuser.Userclass,myuser.GetUserGroupIDS,_GetRightsArrayForUser(myUser),sys_admin,FSysDomain.UID,myuser.DomainID,FDefaultDomU,domuids,domnames);
           G_UpdateUserToken(myuser.UID,tokeno);
           Result := tokeno.CloneToNewUserToken;
         finally
@@ -1710,6 +1717,55 @@ end;
 function TFRE_DB_PS_FILE.GetNotificationRecordIF: IFRE_DB_DBChangedNotification;
 begin
   result := FChangeNotificationIF;
+end;
+
+function TFRE_DB_PS_FILE.DifferentialBulkUpdate(const user_context: PFRE_DB_GUID; const transport_obj: IFRE_DB_Object): TFRE_DB_Errortype;
+var ImplicitTransaction : Boolean;
+
+begin
+  LayerLock.Acquire;
+  try
+    try
+      try
+        begin { update }
+          if not assigned(G_Transaction) then
+            begin
+              G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DIFFUP',Fmaster,FChangeNotificationIF);
+              ImplicitTransaction := True;
+            end;
+          {}
+            // Delete Objects
+            // Insert Objects
+            // Update Objects
+          {}
+        end;
+      except
+        on e:EFRE_DB_PL_Exception do
+          begin
+            GFRE_DBI.LogNotice(dblc_PERSISTANCE,'PL/PL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+            raise;
+          end;
+        on e:EFRE_DB_Exception do
+          begin
+            GFRE_DBI.LogInfo(dblc_PERSISTANCE,'PL/DB EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+            raise;
+          end;
+        on e:Exception do
+          begin
+            GFRE_DBI.LogError(dblc_PERSISTANCE,'PL/INTERNAL EXCEPTION ON [%s] - FAIL :  %s',['StoreOrUpdateObject',e.Message]);
+            raise;
+          end;
+      end;
+    finally
+      if ImplicitTransaction then
+        begin
+          G_Transaction.Free;
+          G_Transaction := nil;
+        end;
+    end;
+  finally
+    LayerLock.Release;
+  end;
 end;
 
 function TFRE_DB_PS_FILE.LayerLock: IFOS_LOCK;

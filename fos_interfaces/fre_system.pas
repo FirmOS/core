@@ -101,7 +101,6 @@ var
       cFRE_DEPLOY_CONTENT_EXTS        :string = '.js,.css'; // comma seperated,lowercase (!!)
       cFRE_MACHINE_NAME               :string = '';
       cFRE_MACHINE_MAC                :string = '';
-      cFRE_DB_MACHINE_COLLECTION      :string = 'SysMachineCollection';
       cFRE_DEFAULT_DOMAIN             :string = 'system';
       cFRE_DB_ALLOWED_APPS            :string = '';
       cFRE_DB_ALLOW_WEAKMEDIATORS     :boolean=true;

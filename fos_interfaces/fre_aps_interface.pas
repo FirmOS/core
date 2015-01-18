@@ -70,6 +70,7 @@ type
   TFRE_APSC_LISTENER_CALLBACK    = procedure (const listener     : IFRE_APSC_LISTENER ; const state : TAPSC_ListenerState) of object;
   TFRE_APSC_TIMER_CALLBACK       = procedure (const timer        : IFRE_APSC_TIMER ; const flag1,flag2 : boolean) of object;
   TFRE_APSC_CHANNEL_EVENT        = procedure (const channel      : IFRE_APSC_CHANNEL) of object;
+  TFRE_APSC_CHANNEL_EVENT_NESTED = procedure (const channel      : IFRE_APSC_CHANNEL) is nested;
   TFRE_APSC_CHANNEL_CHANGE_EVENT = procedure (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt) of object;
   TFRE_APSC_CoRoutine            = procedure (const Data         : Pointer) of Object;
 
@@ -119,7 +120,7 @@ type
 
   IFRE_APSC_CHANNEL_GROUP=interface    { group channel manager together, and be the "main" eventer for them }
     function  Implementor              : TObject;
-    function  AddChannelGroupTimer     (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; { Add a Timer to a channel group, should be immediatly started, }
+    function  AddChannelGroupTimer     (const timer_id: TFRE_APSC_ID ; interval_ms : NativeInt ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; { Add a Timer to a channel group, should be immediatly started, }
                                         const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ;                        { callbacks should be set, negative interval=oneshot timer      }
                                         const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
     function  AddListenerTCP           (Bind_IP,Bind_Port : String     ;  const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
@@ -166,6 +167,7 @@ end;
     function   CH_IsClientChannel   : Boolean;
     function   CH_GetState          : TAPSC_ChannelState;
     function   CH_GetID             : TFRE_APSC_ID;
+    function   ch_GetListenerID     : TFRE_APSC_ID;
     procedure  CH_AssociateData     (const data : PtrUInt);
     function   CH_GetAssociateData  : PtrUInt;
 

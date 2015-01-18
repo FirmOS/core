@@ -344,7 +344,7 @@ var i : TFRE_HTTP_ResponseEntityHeaders;
     lResponse:string;
     lPos:integer;
 begin
-  GFRE_DBI.LogInfo(dblc_HTTP_RES,'< [%s] [%s] [Answerlen: %d]',[GFRE_BT.SepLeft(FResponse,#13#10),FChannel.GetVerboseDesc,Length(FResponse)]);
+  GFRE_DBI.LogInfo(dblc_HTTP_RES,'< [%s] [%s] [Answerlen: %d]',[GFRE_BT.SepLeft(FResponse,#13#10),FChannel.ch_GetVerboseDesc,Length(FResponse)]);
   //GFRE_DBI.LogDebug(dblc_HTTP_RES,FResponse);
   FChannel.CH_WriteString(FResponse);
 end;
@@ -532,7 +532,7 @@ var
   procedure _DispatchRequest;
   begin
     //FMyCookie.CookieString:=GetHeaderField('Cookie');
-    GFRE_DBI.LogInfo(dblc_HTTP_REQ,'> %s [%s]',[GFRE_BT.SepLeft(FRequest,#13#10),FChannel.GetVerboseDesc]);
+    GFRE_DBI.LogInfo(dblc_HTTP_REQ,'> %s [%s]',[GFRE_BT.SepLeft(FRequest,#13#10),FChannel.ch_GetVerboseDesc]);
     GFRE_DBI.LogDebug(dblc_HTTP_REQ,'%s',[GFRE_BT.SepLeft(FRequest,#13#10#13#10)]);
     HttpRequest(FRequestMethod);
     InitForNewRequest;

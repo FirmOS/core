@@ -182,6 +182,8 @@ type
     function  CollectionGetIndexedObjsRange       (const coll_name: TFRE_DB_NameType ; const min,max : IFRE_DB_Object ; const ascending: boolean ; const max_count,skipfirst : NativeInt ; out objs : IFRE_DB_ObjectArray ; const min_val_is_a_prefix : boolean ; const index_name:TFRE_DB_NameType ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
     function  CollectionGetFirstLastIdxCnt        (const coll_name: TFRE_DB_NameType ; const idx : Nativeint ; out obj : IFRE_DB_Object ; const user_context : PFRE_DB_GUID=nil) : NativeInt;
 
+    function DifferentialBulkUpdate               (const user_context : PFRE_DB_GUID ; const transport_obj : IFRE_DB_Object) : TFRE_DB_Errortype;
+
     function  GetNotificationRecordIF    : IFRE_DB_DBChangedNotification; { to record changes }
     function  IsGlobalLayer              : Boolean;
   end;
@@ -1373,6 +1375,11 @@ begin
   abort;
 end;
 
+function TPLNet_Layer.DifferentialBulkUpdate(const user_context: PFRE_DB_GUID; const transport_obj: IFRE_DB_Object): TFRE_DB_Errortype;
+begin
+  abort;
+end;
+
 function TPLNet_Layer.GetNotificationRecordIF: IFRE_DB_DBChangedNotification;
 begin
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'the net layer is not supposed to record changes');
@@ -1406,7 +1413,7 @@ begin
     end
   else
     begin
-      channel.Finalize;
+      channel.cs_Finalize;
     end;
 end;
 
@@ -1611,7 +1618,7 @@ constructor TFRE_DB_PL_NET_CLIENT.Create;
 begin
   FLayers     := TList.Create;
   GFRE_TF.Get_Lock(FLayerLock);
-  FStateTimer := GFRE_SC.AddTimer('CS',1000,@MyStateCheckTimer);
+  FStateTimer := GFRE_SC.AddDefaultGroupTimer('CS',1000,@MyStateCheckTimer);
 end;
 
 destructor TFRE_DB_PL_NET_CLIENT.Destroy;
@@ -1647,7 +1654,7 @@ var lay : TPLNet_Layer;
           E_FOS_Implement;
           abort;
           conn_layer := lay;
-          FStateTimer.TIM_Trigger;
+          FStateTimer.cs_Start;
           lay.WaitForConnectStart;
           case lay.FConnectState of
             sfc_OK:
