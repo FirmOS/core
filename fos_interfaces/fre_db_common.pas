@@ -56,7 +56,7 @@ type
   TFRE_DB_REC_INTERVAL_TYPE   = (rit_once,rit_minute,rit_hour,rit_day,rit_week,rit_month,rit_quarter,rit_year);
   TFRE_DB_REC_INTERVAL_TYPES  = set of TFRE_DB_REC_INTERVAL_TYPE;
 
-  TFRE_DB_TRANSFORM_FUNCTION  =   procedure(const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const result_intf:IFRE_DB_Object;var rawContent:TFRE_DB_RawByteString;var lContentType:string; const isInnerContent:Boolean=false; const TransformType: TFRE_DB_TRANSFORM_TYPE=fdbtt_post2json);
+  TFRE_DB_TRANSFORM_FUNCTION  = procedure(const session:TFRE_DB_UserSession;const command_type:TFRE_DB_COMMANDTYPE;const result_intf:IFRE_DB_Object;var rawContent:TFRE_DB_RawByteString;var lContentType:string; const isInnerContent:Boolean=false; const TransformType: TFRE_DB_TRANSFORM_TYPE=fdbtt_post2json);
 
 
 const

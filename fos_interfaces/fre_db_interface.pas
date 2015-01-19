@@ -340,7 +340,7 @@ type
     function  MethodExists   (const name:Shortstring):Boolean;
   end;
 
-  TFRE_DB_TRANSFORM_FUNCTION   = procedure(const res_obj:IFRE_DB_Object;const result_hint:TFRE_DB_String; const result_params: array of const) of object;
+  //TFRE_DB_TRANSFORM_FUNCTION   = procedure(const res_obj:IFRE_DB_Object;const result_hint:TFRE_DB_String; const result_params: array of const) of object;
 
   IFRE_DB_TEXT   = interface;
 
@@ -993,11 +993,14 @@ type
     procedure  ForAllDerived                 (const func:IFRE_DB_Obj_Iterator); { honors rights and serverside filters, delivers the transformed(!) object !!}
 
     function   CollectionName                (const unique:boolean=false): TFRE_DB_NameType;
-    procedure  TransformAllTo                (const connection : IFRE_DB_CONNECTION ; const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
-    procedure  TransformSingleUpdate         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
-    procedure  TransformSingleInsert         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
-    procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
-    function   HasStatTransforms             : Boolean;
+    //procedure  TransformAllTo                (const connection : IFRE_DB_CONNECTION ; const transdata : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
+    //procedure  TransformSingleUpdate         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt ; const parentpath_full: TFRE_DB_String ; const transkey : TFRE_DB_TransStepId);
+    //procedure  TransformSingleInsert         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
+    //procedure  FinalRightTransform           (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
+    //function   HasParentChildRefRelationDefined : boolean;
+    //function   IsDependencyFilteredCollection   : boolean;
+    //function   HasReflinksInTransformation      : boolean; { a potential reflink dependency is in the transforms }
+    //function   HasStatTransforms             : Boolean;
 
     function   GetCollectionTransformKey     : TFRE_DB_NameTypeRL; { deliver a key which identifies transformed data depending on ParentCollection and Transformation}
     procedure  BindSession                   (const session : TFRE_DB_UserSession);
@@ -1007,6 +1010,7 @@ type
 
     procedure  SetDeriveParent               (const coll:IFRE_DB_COLLECTION;  const idField: String='uid');
     procedure  SetDeriveTransformation       (const tob:IFRE_DB_TRANSFORMOBJECT);
+    function   GetDeriveTransformation       : IFRE_DB_TRANSFORMOBJECT;
     //{
     //  This Type is only usefull as a Detail/Dependend Grid, as it needs a input Dependency Object
     //  Deliver all Objects which are pointed to by the input "Dependency" object,
@@ -1020,11 +1024,6 @@ type
     procedure  SetParentToChildLinkField        (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType);
     procedure  SetParentToChildLinkField        (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType ; const filterclasses : Array of TFRE_DB_NameType);
     procedure  SetParentToChildLinkField        (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType ; const filterclasses : Array of TFRE_DB_NameType ; const stop_on_explicit_leave_classes : Array of TFRE_DB_NameType);
-
-    function   HasParentChildRefRelationDefined : boolean;
-    function   IsDependencyFilteredCollection   : boolean;
-    function   HasReflinksInTransformation      : boolean; { a potential reflink dependency is in the transforms }
-
 
     function   GetDisplayDescription         : TFRE_DB_CONTENT_DESC;
     function   GetStoreDescription           : TFRE_DB_CONTENT_DESC;
@@ -1040,7 +1039,6 @@ type
     function   Filters                 : TFRE_DB_DC_FILTER_DEFINITION_BASE;
     function   Orders                  : TFRE_DB_DC_ORDER_DEFINITION_BASE;
     procedure  Finalize                ;
-    //function   IMI_GET_CHILDREN_DATA   (const input:IFRE_DB_Object):IFRE_DB_Object;
   end;
 
   IFRE_DB_SCHEME_COLLECTION=interface(IFRE_DB_COLLECTION)
@@ -2122,6 +2120,9 @@ end;
      OrderDefRef              : TFRE_DB_DC_ORDER_DEFINITION_BASE;
      ParentIds                : TFRE_DB_GUIDArray;
      ParentChildSpec          : TFRE_DB_NameTypeRL;
+     ParentChildScheme        : TFRE_DB_NameType;
+     ParentChildField         : TFRE_DB_NameType;
+     ParentLinksChild         : Boolean ;
      ParentChildSkipSchemes   : TFRE_DB_NameTypeArray;
      ParentChildFilterClasses : TFRE_DB_NameTypeArray;
      ParentChildStopOnLeaves  : TFRE_DB_NameTypeArray;
@@ -2156,8 +2157,6 @@ end;
   { TFRE_DB_TRANSDATA_MANAGER_BASE }
 
   TFRE_DB_TRANSDATA_MANAGER_BASE=class
-    procedure  UnlockManager             ; virtual; abstract;
-    procedure  LockManager               ; virtual; abstract;
     function   GetNewOrderDefinition     : TFRE_DB_DC_ORDER_DEFINITION_BASE; virtual ; abstract;
     function   GetNewFilterDefinition    (const filter_db_name : TFRE_DB_NameType): TFRE_DB_DC_FILTER_DEFINITION_BASE; virtual; abstract;
     //function   GetTransformedDataLocked  (const query: TFRE_DB_QUERY_BASE ; var cd : TFRE_DB_TRANS_RESULT_BASE):boolean; virtual ; abstract;

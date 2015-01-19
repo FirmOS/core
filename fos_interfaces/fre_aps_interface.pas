@@ -77,8 +77,6 @@ type
   { IFRE_APSC }
 
   IFRE_APSC=interface
-    function    GetChannelGroupByID        (CGID : TFRE_APSC_ID ; out cg : IFRE_APSC_CHANNEL_GROUP):boolean;
-
     function    AddDefaultGroupTimer       (const timer_id    : TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
     function    AddDefaultGroupListenerTCP (Bind_IP,Bind_Port:String       ; const ID:TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK = nil ; const start_listener : boolean = true ; const enable_ssl : boolean=false ; const special_ssl_ctx : PSSL_CTX =nil): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
     function    AddDefaultGroupListenerUX  (const special_file:shortstring ; const ID:TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK = nil ; const start_listener : boolean = true ; const enable_ssl : boolean=false ; const special_ssl_ctx : PSSL_CTX =nil): IFRE_APSC_LISTENER;
@@ -89,6 +87,9 @@ type
     procedure   SetNewChannelCB            (const chancb   : TFRE_APSC_CHANNEL_CHANGE_EVENT);
     procedure   SetSingnalCB               (const signalcb : TOnNew_APSC_Signal);
     function    GetDefaultCG               : IFRE_APSC_CHANNEL_GROUP;
+    function    GetChannelGroupByID        (CGID : TFRE_APSC_ID ; out cg : IFRE_APSC_CHANNEL_GROUP):boolean;
+    function    GetChannelGroupIDs         : TFRE_APSC_ID_Array;
+    function    CreateNewChannelGroup      (const cg_id : TFRE_APSC_ID     ; out cm : IFRE_APSC_CHANNEL_GROUP ; const auto_workercnt : NativeInt=0) : boolean;
     procedure   RunUntilTerminate          ;
     procedure   RequestTerminate           (const no_jack:boolean=false);
   end;
