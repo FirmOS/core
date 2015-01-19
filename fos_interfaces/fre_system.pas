@@ -107,6 +107,7 @@ var
       cFRE_DB_RESET_ADMIN             :boolean=false;
       cFRE_DB_CACHETAG                :ShortString='';
       cFRE_CMDLINE_DEBUG              :ShortString='';
+      cFRE_SAFEJOB_BIN                :string = '';
 
       cFRE_PL_ADMINS                  :string='sysdba';
       cFRE_PL_ADMINS_PWS              :String='e1NTSEF9THV4UGIzeUJqMUZ5eUl4dy82NkUrWStELzl0SU0wcExNVlZwVFE9PQ==';

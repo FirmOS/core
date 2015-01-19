@@ -50,7 +50,11 @@ interface
 
 uses
   Classes, SysUtils, FRE_SYSTEM,FOS_TOOL_INTERFACES,FOS_INTERLOCKED,
-  FOS_REDBLACKTREE_GEN,FRE_APS_INTERFACE,contnrs,fpjson,math;
+  FOS_REDBLACKTREE_GEN,FRE_APS_INTERFACE,contnrs,fpjson,math,process
+  {$ifdef UNIX}
+     ,BaseUnix
+  {$endif}
+  ;
 
 
 type
@@ -125,6 +129,7 @@ type
   TFRE_DB_STANDARD_RIGHT      = (sr_BAD,sr_STORE,sr_UPDATE,sr_DELETE,sr_FETCH);  //DB CORE RIGHTS
   TFRE_DB_STANDARD_RIGHT_SET  = set of TFRE_DB_STANDARD_RIGHT;
   TFRE_DB_STANDARD_COLL       = (coll_NONE,coll_USER,coll_GROUP,coll_DOMAIN,coll_WFACTION);
+
 
 
   { TFRE_DB_Errortype }
@@ -625,7 +630,7 @@ type
   IFRE_DB_DOMAIN                = interface;
   IFRE_DB_USER_RIGHT_TOKEN      = interface;
 
-  TFRE_DB_ObjCompareEventType           = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged,cev_UpdateBlockStart,cev_UpdateBlockEnd);
+  TFRE_DB_ObjCompareEventType           = (cev_FieldDeleted,cev_FieldAdded,cev_FieldChanged);
 
   TObjectNestedIterator                 = procedure (const obj : TObject) is nested;
   TObjectNestedDataIterator             = procedure (const obj : TObject ; const data : Pointer) is nested;
@@ -2271,14 +2276,14 @@ end;
 
   { TFRE_DB_JOB }
   TFRE_SignalStatus = (statusUnknown, statusOK, statusWarning, statusFailure);// deprecated KILL
+  TFRE_JobState     = (jobStateUnknown,jobStateToRun,jobStateImmediateStart,jobStateRunning,jobStateDone,jobStateFailed);
   const
     CFRE_SignalStatus : Array[TFRE_SignalStatus] of string  = ('UNKNOWN', 'OK', 'WARNING', 'FAILURE'); // deprecated KILL
+
   type
 
   TFRE_DB_JOB = class (TFRE_DB_ObjectEx)
   private
-    type
-      TFRE_JobState     = (jobStateUnknown,jobStateToRun,jobStateImmediateStart,jobStateRunning,jobStateDone,jobStateFailed);
     const
       CFRE_JobState     : Array[TFRE_JobState]  of string  = ('unknown','torun','immediatestart','running','done','failed');
 
@@ -2295,7 +2300,7 @@ end;
     procedure       SetMaxAllowedTime           (const time_s : NativeInt);
   public
     procedure       SetRemoteSSH                (const user   : string; const host  : string; const keyfilename : string); { run the testjob through  a ssh session on a "remote" remote system}
-    procedure       ExecuteJob                  ; virtual; abstract;
+    procedure       ExecuteJob                  ; virtual;
     function        JobKey                      : string;
     procedure       SetJobkeyDescription        (const newjobkey : string; const jdescription: string);
     procedure       SaveJobToFile               ;
@@ -2303,10 +2308,12 @@ end;
     procedure       SetJobStateandSave          (const value:TFRE_JobState);
     function        GetJobState                 :TFRE_JobState;
     procedure       SetPid                      (const value  : QWord);
+    function        GetPid                      : QWord;
     procedure       ClearPid                    ;
     procedure       SetProgress                 (const percent:integer);
     procedure       AddProgressLog              (const msg: string;const percent:integer=-1);
     class function  GetJobBaseFilename          (const state  : TFRE_JobState; const vjobkey:string):string;
+    class function  GetJobBaseDirectory         (const state  : TFRE_JobState):string;
     property        Config                      : IFRE_DB_Object read GetConfig write SetConfig;
     property        Report                      : IFRE_DB_Object read GetReport write SetReport;
   published
@@ -9786,7 +9793,7 @@ var jobstate     : TFRE_JobState;
 begin
   jobstate := GetJobState;
   result   := GetJobBaseFilename(jobstate,jobkey);
-  if not ((jobstate=jobStateUnknown) or (jobstate=jobStateToRun) or (jobstate=jobStateImmediateStart)) then
+  if (jobstate=jobStateDone) or (jobstate=jobStateFailed) then
     result := result + '_'+inttostr(report.Field('starttime').AsDateTimeUTC);
   result := result +'.dbo';
 end;
@@ -9865,6 +9872,11 @@ begin
   field('pid').AsUInt64:=value;
 end;
 
+function TFRE_DB_JOB.GetPid: QWord;
+begin
+  result :=field('pid').AsUInt64;
+end;
+
 procedure TFRE_DB_JOB.ClearPid;
 begin
   DeleteField('pid');
@@ -9889,7 +9901,12 @@ end;
 
 class function TFRE_DB_JOB.GetJobBaseFilename(const state: TFRE_JobState; const vjobkey: string): string;
 begin
-  result :=cFRE_JOB_RESULT_DIR+CFRE_JobState[State]+DirectorySeparator+GFRE_BT.Str2HexStr(vJobKey);
+  result :=GetJobBaseDirectory(state)+DirectorySeparator+GFRE_BT.Str2HexStr(vJobKey);
+end;
+
+class function TFRE_DB_JOB.GetJobBaseDirectory(const state: TFRE_JobState): string;
+begin
+  result :=cFRE_JOB_RESULT_DIR+CFRE_JobState[State];
 end;
 
 procedure TFRE_DB_JOB.SetRemoteSSH(const user: string; const host: string; const keyfilename: string);
@@ -9897,6 +9914,11 @@ begin
   Field('remoteuser').AsString        := user;
   Field('remotehost').AsString        := host;
   Field('remotekeyfilename').AsString := keyfilename;
+end;
+
+procedure TFRE_DB_JOB.ExecuteJob;
+begin
+  // do nothing in default job
 end;
 
 function TFRE_DB_JOB.JobKey: string;
@@ -9915,7 +9937,7 @@ begin
     report.Field('endtime').AsDateTimeUTC:=GFRE_DT.Now_UTC;
     ClearPid;
     SetJobStateandSave(jobStateDone);
-    writeln('SWL: DONE ',Report.DumpToString());
+//    writeln('SWL: DONE ',Report.DumpToString());
   except on E:Exception do
     begin
       AddProgressLog('EXCEPTION:'+E.Message);
@@ -9935,22 +9957,72 @@ begin
 end;
 
 function TFRE_DB_JOB.RIF_Start(const runnning_ctx: TObject): IFRE_DB_Object;
+var jobfile : string;
+    process : TProcess;
 begin
-  {
-    Check if a Job with my Key is running -> Throw Exception
-    Check if my Job Description is Good
-    Start my Job ( Tprocess)
-    Give Feedback occasionaly (creation succeeded)
-    Done
-  }
-  //GFRE_BT.CriticalAbort('---- HERE COMES THE SUN ----',[]);
+  if not FileExists(cFRE_SAFEJOB_BIN) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'NO SAFEJOB BINARY AVAILABLE IN '+cFRE_SAFEJOB_BIN);
+
+  jobfile := TFRE_DB_JOB.GetJobBaseFilename(jobStateRunning,JobKey)+'.dbo';
+  if FileExists(jobfile) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'SAFEJOB ALREADY RUNNING '+Jobkey);
+
+//  Check if my Job Description is Good
+
+  SetJobStateandSave(jobStateImmediateStart);
+
+  process := TProcess.Create(nil);
+  try
+    process.Executable:=cFRE_SAFEJOB_BIN;
+    process.Parameters.Add(Jobkey);
+    process.Options:=[poNoConsole];
+    process.Execute;
+  finally
+    process.Free;
+  end;
+
   result := GFRE_DBI.NewObject;
-  result.Field('TEST').AsString:='HERE IS NOTHING';
+  result.Field('RESULT').AsString:='OK';
 end;
 
 function TFRE_DB_JOB.RIF_Kill(const runnning_ctx: TObject): IFRE_DB_Object;
+var jobfile     : string;
+    pidlockfile : string;
+    sobj        : IFRE_DB_Object;
+    sjob        : TFRE_DB_JOB;
+    pid         : QWord;
 begin
-  abort;
+  jobfile     := TFRE_DB_JOB.GetJobBaseFilename(jobStateRunning,JobKey)+'.dbo';
+  pidlockfile := cFRE_PID_LOCK_DIR+DirectorySeparator+'SJ_'+uppercase(GFRE_BT.Str2HexStr(jobkey)+'.flck');
+
+  result := GFRE_DBI.NewObject;
+  if FileExists(jobfile) then
+    begin
+      sobj:= GFRE_DBI.CreateFromFile(jobfile);
+      if sobj.IsA(TFRE_DB_JOB,sjob) then
+        begin
+          pid := sjob.GetPid;
+          FPkill(pid,SIGKILL);
+          DeleteFile(jobfile);
+          if FileExists(pidlockfile) then
+            DeleteFile(pidlockfile);
+          result.Field('RESULT').AsString:='OK';
+          result.Field('PID').AsUInt64:=pid;
+        end
+      else
+        raise EFRE_DB_Exception.Create(edb_ERROR,'JOB FILE IS NOT A TFRE_DB_JOB');
+    end
+  else
+    begin
+      if FileExists(pidlockfile) then
+        begin
+          DeleteFile(pidlockfile);
+          result.Field('RESULT').AsString    :='OK';
+          result.Field('NOTE').asstring      :='NO JOB FILE FOUND, JUST DELETE PID LOCK';
+        end
+      else
+        raise EFRE_DB_Exception.Create(edb_ERROR,'NO JOBFILE AND NO PID FILE FOUND!');
+    end;
 end;
 
 function TFRE_DB_JOB.RIF_CreateJobDescription(const runnning_ctx: TObject): IFRE_DB_Object;

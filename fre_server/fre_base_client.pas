@@ -95,6 +95,9 @@ type
       FSubFeedLock             : IFOS_LOCK;
       FSubfeedlist             : TList;
 
+      FJobs                    : IFRE_DB_Object;
+      FJobsLock                : IFOS_LOCK;
+
     procedure  CCB_SessionSetup        (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
 
     procedure  NewChannel              (const channel : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState);
@@ -115,6 +118,8 @@ type
     procedure   SubFeederNewSocket          (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
     procedure   SubfeederReadClientChannel  (const channel  : IFRE_APSC_CHANNEL);
     procedure   SubfeederDiscoClientChannel (const channel  : IFRE_APSC_CHANNEL);
+
+    procedure  ParseJobDirectory      ;
 
   protected
     procedure  Terminate; virtual;
@@ -610,6 +615,53 @@ begin
   end;
 end;
 
+procedure TFRE_BASE_CLIENT.ParseJobDirectory;
+var tjobs: IFRE_DB_Object;
+    ojobs: IFRE_DB_Object;
+
+    dir  : string;
+
+    procedure jobiterator(file_name:AnsiString);
+    var ljob : IFRE_DB_Object;
+    begin
+      try
+        ljob := GFRE_DBI.CreateFromFile(dir+DirectorySeparator+file_name);
+        tjobs.Field(ljob.UID.AsHexString).AsObject := ljob;
+      except on E:Exception do
+        begin
+          GFRE_DBI.LogInfo(dblc_APPLICATION,'ERROR ON READING JOB FILE [%s]',[dir+DirectorySeparator+file_name]);
+        end;
+      end;
+    end;
+
+begin
+  writeln('SWL PARSE JOB');
+  FJobsLock.Acquire;
+  try
+    if not Assigned(Fjobs) then
+      FJobs         :=GFRE_DBI.NewObject;
+    ojobs := FJobs.CloneToNewObject;
+  finally
+    FJobsLock.Release;
+  end;
+
+  tjobs := GFRE_DBI.NewObject;
+
+  dir := TFRE_DB_JOB.GetJobBaseDirectory(jobStateRunning);
+  GFRE_BT.List_Files(dir,@jobiterator);
+  dir := TFRE_DB_JOB.GetJobBaseDirectory(jobStateDone);
+  GFRE_BT.List_Files(dir,@jobiterator);
+  dir := TFRE_DB_JOB.GetJobBaseDirectory(jobStateFailed);
+  GFRE_BT.List_Files(dir,@jobiterator);
+
+
+  writeln('SWL: TJOBS',tjobs.DumpToString());
+
+  tjobs.Finalize;
+  ojobs.Finalize;
+
+end;
+
 procedure TFRE_BASE_CLIENT.Terminate;
 begin
   writeln('SIGNAL TERMINATE');
@@ -651,6 +703,7 @@ begin
   GFRE_TF.Get_Lock(FSubFeedLock);
   FSubfeedlist  :=TList.Create;
   FRifClassList :=TFPList.Create;
+  GFRE_TF.Get_Lock(FJobsLock);
 end;
 
 destructor TFRE_BASE_CLIENT.Destroy;
@@ -671,6 +724,9 @@ begin
     end;
   FSubfeedlist.Free;
   FRifClassList.Free;
+  FJobsLock.Finalize;
+  if Assigned(FJobs) then
+    FJobs.Finalize;
   inherited Destroy;
 end;
 
@@ -711,7 +767,8 @@ end;
 
 procedure TFRE_BASE_CLIENT.MyConnectionTimer;
 begin
-
+  writeln('BASECLIENT CONNECTION TIMER');
+  ParseJobDirectory;
 end;
 
 procedure TFRE_BASE_CLIENT.QueryUserPass(out user, pass: string);

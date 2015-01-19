@@ -201,6 +201,7 @@ type
     function  WEB_DropAction             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_FeederTest             (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_RIF_TestSync           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_RIF_KillTest           (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_RIF_TestASync          (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_FeederTestTimeout      (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_FeederTestError        (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
@@ -882,6 +883,7 @@ begin
   menu.AddEntry.DescribeDownload('Download from a DBO (Non Attachment)','',ses.GetDownLoadLink4StreamField(myuid,'fdbft_Stream',false,'application/octet-stream','super_file.txt'));
   menu.AddEntry.Describe('Invoke A Testjob (S) RIF Method','',CWSF(@WEB_RIF_TestSync));
   menu.AddEntry.Describe('Invoke A Testjob (A) RIF Method','',CWSF(@WEB_RIF_TestASync));
+  menu.AddEntry.Describe('Kill A Testjob (S) RIF Method','',CWSF(@WEB_RIF_KillTest));
   Result:=menu;
 end;
 
@@ -1049,12 +1051,51 @@ begin
   result  := TFRE_DB_MESSAGE_DESC.create.Describe('Drop','You dropped item ' + input.Field('selected').AsString + ' on ' + input.Field('target').AsString,fdbmt_info);
 
   testjob := TFRE_DB_TIMERTEST_JOB.CreateForDB;
+  testjob.SetJobkeyDescription('TIMERTEST','A simple TIMERTEST JOB');
+  testjob.SetTimeout(100);
   if not ses.GetMachineUidByMac(TFOS_MAC_ADDR.SetFromStringR('00:11:22:33:44:99'),machuid) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'for this test case you need a machine defined in .fre_ini (feeder) that has the mac (00:11:22:33:44:99) and the machinename (testmachine)');
   if not ses.GetMachineUidByName('testmachine',machuid) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'for this test case you need a machine defined in .fre_ini (feeder) that has the mac (00:11:22:33:44:99) and the machinename (testmachine)');
 
   if ses.InvokeRemoteInterface(machuid,@TestJob.RIF_Start,@GotAnswer,nil)=edb_OK then
+    begin
+      result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
+      exit;
+    end
+  else
+    begin
+      result := TFRE_DB_MESSAGE_DESC.create.Describe('ERROR','no connected feeder that implements the TestMethod',fdbmt_error);
+    end;
+end;
+
+function TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD.WEB_RIF_KillTest(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var machuid  : TFRE_DB_GUID;
+    testjob  : TFRE_DB_TIMERTEST_JOB;
+
+    procedure GotAnswer(const ses: IFRE_DB_UserSession; const new_input: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const ocid: Qword; const opaquedata: IFRE_DB_Object);
+    var stat : string;
+    begin
+      case status of
+        cdcs_OK:      stat := 'CMD_OK';
+        cdcs_TIMEOUT: stat := 'CMD_TIMEOUT';
+        cdcs_ERROR:   stat := 'CMD_ERROR';
+      end;
+      writeln('GOT ANSWER RIF_KILLTEST ',status,' ',new_input.DumpToString());
+      ses.SendServerClientRequest(TFRE_DB_MESSAGE_DESC.create.Describe('Result',stat+' '+new_input.GetAsJSONString(),fdbmt_info));
+      writeln('SENT ANSWER ');
+    end;
+
+
+begin
+  testjob := TFRE_DB_TIMERTEST_JOB.CreateForDB;
+  testjob.SetJobkeyDescription('TIMERTEST','A simple TIMERTEST JOB');
+  if not ses.GetMachineUidByMac(TFOS_MAC_ADDR.SetFromStringR('00:11:22:33:44:99'),machuid) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'for this test case you need a machine defined in .fre_ini (feeder) that has the mac (00:11:22:33:44:99) and the machinename (testmachine)');
+  if not ses.GetMachineUidByName('testmachine',machuid) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'for this test case you need a machine defined in .fre_ini (feeder) that has the mac (00:11:22:33:44:99) and the machinename (testmachine)');
+
+  if ses.InvokeRemoteInterface(machuid,@TestJob.RIF_Kill,@GotAnswer,nil)=edb_OK then
     begin
       result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
       exit;

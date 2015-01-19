@@ -203,6 +203,7 @@ var cfgfile  : string;
         cFRE_SERVER_DEFAULT_TIMEZONE    := ini.ReadString('BASE','TIMEZONE'          , cFRE_SERVER_DEFAULT_TIMEZONE);
         cFRE_DEFAULT_DOMAIN             := ini.ReadString('BASE','DEFAULTDOMAIN'     , cFRE_DEFAULT_DOMAIN);
         cFRE_WebServerLocation_HixiedWS := ini.ReadString('BASE','HIXIE_WS_LOCATION' , cFRE_WebServerLocation_HixiedWS);
+        cFRE_SAFEJOB_BIN                := ini.ReadString('BASE','SAFEJOB_BIN'       , cFRE_SERVER_DEFAULT_DIR+DirectorySeparator+'bin'+DirectorySeparator+'fre_safejob');
         cFRE_SSL_CERT_FILE              := ini.ReadString('SSL','CERT'               , cFRE_SSL_CERT_FILE);
         cFRE_SSL_PRIVATE_KEY_FILE       := ini.ReadString('SSL','KEY'                , cFRE_SSL_PRIVATE_KEY_FILE);
         cFRE_SSL_ROOT_CA_FILE           := ini.ReadString('SSL','CA'                 , cFRE_SSL_ROOT_CA_FILE);

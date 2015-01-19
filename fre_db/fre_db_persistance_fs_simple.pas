@@ -1723,6 +1723,8 @@ function TFRE_DB_PS_FILE.DifferentialBulkUpdate(const user_context: PFRE_DB_GUID
 var ImplicitTransaction : Boolean;
 
 begin
+  raise EFRE_Exception.Create('IMPLEMENT HERE');
+  abort;
   LayerLock.Acquire;
   try
     try

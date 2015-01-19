@@ -14191,17 +14191,13 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
       if new_object.IsObjectRoot then
         begin
           child:=nil;
-          UpdateCB(false,second_obj,cev_UpdateBlockStart,nil,nil);
           new_object.__InternalCompareToObj(second_obj,@CompareEvent);
-          UpdateCB(false,second_obj,cev_UpdateBlockEnd,nil,nil);
         end
       else
         begin
           child := second_obj.FetchObjByUID(new_object.UID);
           assert(assigned(child));
-          UpdateCB(true,child,cev_UpdateBlockStart,nil,nil);
           new_object.__InternalCompareToObj(child,@CompareEvent);
-          UpdateCB(true,child,cev_UpdateBlockEnd,nil,nil);
         end;
     end;
 
@@ -14254,9 +14250,6 @@ var insc,delc,upc : NativeInt;
     procedure up(const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field);
     var nfn,ofn : TFRE_DB_NameType;
     begin
-      if (update_type=cev_UpdateBlockStart)
-         or (update_type=cev_UpdateBlockEnd) then
-           exit;
       if assigned(old_field) then
         ofn := old_field.FieldName;
       if assigned(new_field) then
