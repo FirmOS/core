@@ -1746,11 +1746,13 @@ type
     function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
     function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String):boolean;
     function    CheckClassRight4DomainId    (const right_name:TFRE_DB_String;const classtyp: TClass;const domain:TFRE_DB_GUID):boolean;
+    function    CheckClassRight4DomainId    (const right_name:TFRE_DB_String;const rclassname: ShortString;const domain: TFRE_DB_GUID): boolean;
     function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
 
     function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
     function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String):boolean;
     function    CheckClassRight4DomainId    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domain:TFRE_DB_GUID):boolean;
+    function    CheckClassRight4DomainId    (const std_right:TFRE_DB_STANDARD_RIGHT;const rclassname: ShortString;const domain:TFRE_DB_GUID):boolean;
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
     function    GetDomainNamesForClassRight (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
 
