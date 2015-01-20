@@ -3528,7 +3528,7 @@ var oldcount : NativeInt;
 begin
   oldcount := _CheckIndex(idx);
   result := Field(inttostr(idx)).CheckOutObject;
-  for i :=  (oldcount-1) downto (idx+1) do
+  for i :=  (idx+1)  to (oldcount-1)  do
     begin
       Field(inttostr(i-1)).AsObject := Field(inttostr(i)).CheckOutObject;
     end;
