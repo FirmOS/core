@@ -138,13 +138,13 @@ type
     Code     : TFRE_DB_Errortype_EC;
     Msg      : String;
     Lineinfo : String;
-    procedure SetIt(const ecode : TFRE_DB_Errortype_EC ; const message : shortstring ; const lineinf:shortstring='');
-    function AsString:string;
+    procedure SetIt(const ecode : TFRE_DB_Errortype_EC ; const message : string ; const lineinf:string='');
+    function  AsString:string;
   end;
 
   EFRE_DB_Exception=class(EFRE_Exception)
     ErrorType : TFRE_DB_Errortype;
-    LineInfo  : Shortstring;
+    LineInfo  : String;
     constructor Create(const msg : TFRE_DB_String);
     constructor Create(const et:TFRE_DB_Errortype_EC;msg:TFRE_DB_String='');
     constructor Create(const et:TFRE_DB_Errortype_EC;msg:TFRE_DB_String;params:array of const);
@@ -4627,7 +4627,7 @@ end;
 
 { TFRE_DB_Errortype }
 
-procedure TFRE_DB_Errortype.SetIt(const ecode: TFRE_DB_Errortype_EC; const message: shortstring; const lineinf: shortstring);
+procedure TFRE_DB_Errortype.SetIt(const ecode: TFRE_DB_Errortype_EC; const message: String; const lineinf: string);
 begin
   Code     := ecode;
   msg      := message;

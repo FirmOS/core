@@ -196,11 +196,8 @@ type
     function  GetAsDateTimeUTC   : TFRE_DB_DateTime64;
     function  GetAsString        : TFRE_DB_String;
     function  GetAsBoolean       : Boolean;
+    function  _GetAsObject       : TFRE_DB_Object;
     function  GetAsObject        : TFRE_DB_Object;
-    function  CheckOutObject     : TFRE_DB_Object;
-    function  CheckOutObjectArray: IFRE_DB_ObjectArray;
-    function  CheckOutObjectArrayItem     (const idx : NAtiveInt): IFRE_DB_Object;
-    function  CheckOutObjectI    : IFRE_DB_Object;
     function  GetAsStream        : TFRE_DB_Stream;
     function  GetAsObjectLink    : TFRE_DB_GUID;
 
@@ -331,7 +328,10 @@ type
 
     procedure   CloneFromField    (const Field:TFRE_DB_FIELD); // Value 0 = Fieldclone
     procedure   CloneFromFieldI   (const Field:IFRE_DB_FIELD);
-
+    function    CheckOutObjectI   : IFRE_DB_Object;
+    function    CheckOutObject     : TFRE_DB_Object;
+    function    CheckOutObjectArray: IFRE_DB_ObjectArray;
+    function    CheckOutObjectArrayItem     (const idx : NAtiveInt): IFRE_DB_Object;
 
     function    GetStreamingSize  : TFRE_DB_SIZE_TYPE;
     function    CopyFieldToMem    (var mempointer:Pointer):TFRE_DB_SIZE_TYPE;
@@ -676,7 +676,8 @@ type
     function        Properties                         : TFRE_DB_Object_PropertySet;
     procedure       CopyField                          (const obj:TFRE_DB_Object;const field_name:String);
     procedure       CopyFieldI                         (const obj:IFRE_DB_Object;const field_name:String);
-    function        FetchObjByUID                      (const childuid:TFRE_DB_GUID):TFRE_DB_Object; // fetches also root
+    function        FetchObjByUID                      (const childuid:TFRE_DB_GUID):TFRE_DB_Object; { fetches also root }
+    function        FetchObjByUIDNonHierarchic         (const childuid: TFRE_DB_GUID; out found_fieldname: TFRE_DB_NameType; out child: TFRE_DB_Object): boolean;
 
     function        ForAllObjectsBreakHierarchicI      (const iter:IFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
     function        GetFullHierarchicObjectList        (const include_self : boolean=false):TFRE_DB_ObjectArray;
@@ -9800,7 +9801,7 @@ var i         : Integer;
      if field.FieldType=fdbft_Object then begin
        if FREDB_Guids_Same(field.AsObject.UID,instance[i]) then begin
          child_dbo:=field.AsObject;
-         Result:=true;
+         exit(true);
        end;
      end;
      Result:=false;
@@ -14411,7 +14412,7 @@ function TFRE_DB_Object.ForAllObjectsBreakHierarchic(const iter: TFRE_DB_ObjectI
       if halt then
         exit(true);
       if fld.IsObjectField then
-        IterateWithSub(Fld.AsObject);
+        IterateWithSub(Fld._GetAsObject);
       result := false;
     end;
   begin
@@ -14696,7 +14697,7 @@ var scheme_object:TFRE_DB_SchemeObject;
    function Iterate(const db:TFRE_DB_FIELD):boolean;
    begin
      result := false;
-     if (db.FieldType<>fdbft_NotFound) then
+     if (db._FieldType<>fdbft_NotFound) then
        begin
          if (without_system_fields)
            and (db.IsSystemField) then
@@ -14712,7 +14713,6 @@ var scheme_object:TFRE_DB_SchemeObject;
    end;
 
 begin
-  _InAccessibleCheck;
   FFieldStore.ForAllItemsBrk(@Iterate);
   scheme_object := GetScheme;
   if (not without_calcfields) and assigned(GetScheme) then begin
@@ -15981,6 +15981,30 @@ begin
   ForAllObjectsBreakHierarchic(@SearchChild,halt);
 end;
 
+function TFRE_DB_Object.FetchObjByUIDNonHierarchic(const childuid: TFRE_DB_GUID; out found_fieldname: TFRE_DB_NameType; out child: TFRE_DB_Object): boolean;
+var fnd:boolean;
+ function Search(const field: TFRE_DB_FIELD):Boolean;
+  begin
+    if field.FieldType=fdbft_Object then begin
+      if FREDB_Guids_Same(field.AsObject.UID,childuid) then begin
+        child           := field.AsObject;
+        found_fieldname := field.FieldName;
+        fnd             := true;
+        Result          := true;
+        exit;
+      end;
+    end;
+    Result:=false;
+  end;
+
+begin
+  fnd             := false;
+  found_fieldname := '';
+  child           := nil;
+  ForAllFieldsBreak(@Search,true,true);
+  result := fnd;
+end;
+
 
 function TFRE_DB_Object.FetchObjByUIDI(const childuid: TFRE_DB_GUID; var obj: IFRE_DB_Object): boolean;
 begin
@@ -16717,6 +16741,55 @@ begin
     result := FFieldData.bool^[0];
   end else begin
     result := _ConvertToBool;
+  end;
+end;
+
+function TFRE_DB_FIELD._GetAsObject: TFRE_DB_Object;
+var field_type :TFRE_DB_FIELDTYPE;
+
+  function _CheckIfSchemeAvailable:boolean;
+  var sc               : TFRE_DB_String;
+      scheme_object    : TFRE_DB_SchemeObject;
+      scheme_field_def : TFRE_DB_FieldSchemeDefinition;
+      new_object       : TFRE_DB_Object;
+      sfc              : TFRE_DB_String;
+  begin
+    result := false;
+    if not (Fobj._ObjectIsCodeclassOnlyAndHasNoScheme) then begin
+      sc:=_SchemeClassOfParentName;
+      field_type:=field_type;
+      if not GFRE_DB.GetSystemScheme(sc,scheme_object) then
+        begin
+          if sc<>'TFRE_DB_OBJECT' then
+            raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object field [%s] wants to get accessed, the parent is of class [%s] but a schemeobject cannot be accessed.',[FieldName,sc]);
+          exit; { no scheme available }
+        end;
+      if scheme_object.GetSchemeField(FieldName,scheme_field_def) then begin
+        sfc := scheme_field_def.SubschemeName;
+        if not GFRE_DB.GetSystemScheme(sfc,scheme_object) then begin
+          raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object wants to get accessed, a scheme is defined but cannot be checked. Scheme=%s Fieldname=%s SubfieldSchemc=%s',[sc,FieldName,sfc]);
+        end;
+        new_object := scheme_object.ConstructNewInstance;
+        SetAsObject(new_object);
+        result:=true;
+      end;
+    end;
+  end;
+
+begin
+  field_type := FFieldData.FieldType;
+  if field_type = fdbft_Object then begin
+    _CheckEmptyArray;
+    result := FFieldData.obj;
+  end else begin
+    if field_type=fdbft_NotFound then begin
+       if not _CheckIfSchemeAvailable then
+         SetAsObject(TFRE_DB_Object.Create); { create a plain object }
+       result            := FFieldData.obj;
+       result.FParentDBO := self;
+    end else begin
+      _IllegalTypeError(fdbft_Object);
+    end;
   end;
 end;
 
@@ -17953,53 +18026,9 @@ end;
 
 
 function TFRE_DB_FIELD.GetAsObject: TFRE_DB_Object;
-var field_type :TFRE_DB_FIELDTYPE;
-
-  function _CheckIfSchemeAvailable:boolean;
-  var sc               : TFRE_DB_String;
-      scheme_object    : TFRE_DB_SchemeObject;
-      scheme_field_def : TFRE_DB_FieldSchemeDefinition;
-      new_object       : TFRE_DB_Object;
-      sfc              : TFRE_DB_String;
-  begin
-    result := false;
-    if not (Fobj._ObjectIsCodeclassOnlyAndHasNoScheme) then begin
-      sc:=_SchemeClassOfParentName;
-      field_type:=field_type;
-      if not GFRE_DB.GetSystemScheme(sc,scheme_object) then
-        begin
-          if sc<>'TFRE_DB_OBJECT' then
-            raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object field [%s] wants to get accessed, the parent is of class [%s] but a schemeobject cannot be accessed.',[FieldName,sc]);
-          exit; { no scheme available }
-        end;
-      if scheme_object.GetSchemeField(FieldName,scheme_field_def) then begin
-        sfc := scheme_field_def.SubschemeName;
-        if not GFRE_DB.GetSystemScheme(sfc,scheme_object) then begin
-          raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object wants to get accessed, a scheme is defined but cannot be checked. Scheme=%s Fieldname=%s SubfieldSchemc=%s',[sc,FieldName,sfc]);
-        end;
-        new_object := scheme_object.ConstructNewInstance;
-        SetAsObject(new_object);
-        result:=true;
-      end;
-    end;
-  end;
-
 begin
   _InAccessibleFieldCheck;
-  field_type := FFieldData.FieldType;
-  if field_type = fdbft_Object then begin
-    _CheckEmptyArray;
-    result := FFieldData.obj;
-  end else begin
-    if field_type=fdbft_NotFound then begin
-       if not _CheckIfSchemeAvailable then
-         SetAsObject(TFRE_DB_Object.Create); { create a plain object }
-       result            := FFieldData.obj;
-       result.FParentDBO := self;
-    end else begin
-      _IllegalTypeError(fdbft_Object);
-    end;
-  end;
+  result := _GetAsObject;
 end;
 
 function TFRE_DB_FIELD.CheckOutObject: TFRE_DB_Object;
@@ -18625,20 +18654,17 @@ end;
 
 function TFRE_DB_FIELD.IsSchemeField: boolean;
 begin
-  _InAccessibleFieldCheck;
   result := FIsSchemeField;
 end;
 
 function TFRE_DB_FIELD.IsSystemField: boolean;
 begin
-  _InAccessibleFieldCheck;
   result := FIsUidField or FIsSchemeField or FIsDomainIDField;
 end;
 
 function TFRE_DB_FIELD.IsObjectField: boolean;
 begin
- _InAccessibleFieldCheck;
- result := FieldType=fdbft_Object;
+ result := _FieldType=fdbft_Object;
 end;
 
 function TFRE_DB_FIELD.IsObjectArray: boolean;
