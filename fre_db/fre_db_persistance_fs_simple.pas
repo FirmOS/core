@@ -1857,6 +1857,7 @@ begin
   finally
     LayerLock.Release;
   end;
+  result := edb_OK;
 end;
 
 function TFRE_DB_PS_FILE.LayerLock: IFOS_LOCK;
