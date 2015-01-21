@@ -49,7 +49,8 @@ uses
   FRE_DB_COMMON,
   FRE_DB_INTERFACE,
   FRE_DBBUSINESS,fre_testcase,
-  fre_accesscontrol_common;
+  fre_accesscontrol_common,
+  fre_monitoring_common;
 
 procedure MetaRegister_Test;
 procedure MetaInitializeDatabase_Test(const dbname :string; const user,pass:string);
@@ -2570,6 +2571,7 @@ begin
   AddApplicationModule(TFRE_DB_TEST_APP_CHART_DEMOS_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_FORM_DEMOS_MOD.create);
   AddApplicationModule(TFRE_DB_TEST_APP_SPECIAL_DEMOS_MOD.create);
+  AddApplicationModule(TFRE_COMMON_JOBS_MOD.create);
 end;
 
 class procedure TFRE_DB_TEST_APP.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
@@ -2862,6 +2864,7 @@ begin
   Register_DB_Extensions;
   FRE_DBBUSINESS.Register_DB_Extensions;
   fre_accesscontrol_common.Register_DB_Extensions;
+  fre_monitoring_common.Register_DB_Extensions;
 end;
 
 procedure MetaInitializeDatabase_Test(const dbname: string; const user, pass: string);
