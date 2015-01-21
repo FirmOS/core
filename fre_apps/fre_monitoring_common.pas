@@ -85,7 +85,9 @@ begin
     conn:=session.GetDBConnection;
     GFRE_DBI.NewObjectIntf(IFRE_DB_SIMPLE_TRANSFORM,transform);
     with transform do begin
-      AddOneToOnescheme('objname','',FetchModuleTextShort(session,'gc_job_caption'));
+      AddOneToOnescheme('jobkey','',FetchModuleTextShort(session,'gc_job_caption'));
+      AddOneToOnescheme('jobstate','',FetchModuleTextShort(session,'gc_job_state'));
+      AddCollectorscheme('%s',TFRE_DB_NameTypeArray.Create('R.PROGRESS'),'PROGESS',FetchModuleTextShort(session,'gc_job_progress'));
     end;
     dc := session.NewDerivedCollection('JOBSMOD_JOBS_GRID');
     with dc do begin

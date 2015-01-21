@@ -1052,8 +1052,9 @@ begin
   result  := TFRE_DB_MESSAGE_DESC.create.Describe('Drop','You dropped item ' + input.Field('selected').AsString + ' on ' + input.Field('target').AsString,fdbmt_info);
 
   testjob := TFRE_DB_TIMERTEST_JOB.CreateForDB;
+  testjob.SetDomainID(conn.GetSysDomainUID);
   testjob.SetJobkeyDescription('TIMERTEST','A simple TIMERTEST JOB');
-  testjob.SetTimeout(100);
+  testjob.SetTimeout(10);
   if not ses.GetMachineUidByMac(TFOS_MAC_ADDR.SetFromStringR('00:11:22:33:44:99'),machuid) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'for this test case you need a machine defined in .fre_ini (feeder) that has the mac (00:11:22:33:44:99) and the machinename (testmachine)');
   if not ses.GetMachineUidByName('testmachine',machuid) then
@@ -1114,6 +1115,9 @@ begin
   result  := TFRE_DB_MESSAGE_DESC.create.Describe('Drop','You dropped item ' + input.Field('selected').AsString + ' on ' + input.Field('target').AsString,fdbmt_info);
 
   testjob := TFRE_DB_TIMERTEST_JOB.CreateForDB;
+  testjob.SetJobkeyDescription('ATIMERTEST','A simple TIMERTEST JOB');
+  testjob.SetDomainID(conn.GetSysDomainUID);
+  testjob.SetTimeout(10);
 
   if not ses.GetMachineUidByMac(TFOS_MAC_ADDR.SetFromStringR('00:11:22:33:44:99'),machuid) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'for this test case you need a machine defined in .fre_ini (feeder) that has the mac (00:11:22:33:44:99) and the machinename (testmachine)');

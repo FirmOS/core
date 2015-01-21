@@ -6494,13 +6494,30 @@ var x           : TObject;
     end;
 
     procedure _DoJobUpdate;
+    var machine_id:TFRE_DB_GUID;
+
+      procedure _jobiterator(const obj:IFRE_DB_Object);
+      begin
+        if obj.Field('MACHINEID').AsObjectLink=machine_id then                            //TODO FILTER FOR DONE OR FAILED
+          begin
+//            writeln('SWL JOB ITERATOR:',obj.DumpToString(4));
+            CMD.Data.Field(obj.UID.AsHexString).AsObject:=obj.CloneToNewObject;
+          end;
+      end;
+
     begin
       try
-        raise EFRE_DB_Exception.Create(edb_UNSUPPORTED,'this is a test raise');
-
-        { Collection , find update, insert}
-
-        CMD.Data := GFRE_DB_NIL_DESC;
+        if input.FieldExists('REQUEST') then
+          begin
+            machine_id:=input.Field('MACHINEID').AsGUID;
+            CMD.Data := GFRE_DBI.NewObject;
+            GetDBConnection.GetJobsCollection.ForAll(@_jobiterator);
+          end
+        else
+          begin
+            CheckDbResult(GetDBConnection.DifferentialBulkUpdate(input));
+            CMD.Data := GFRE_DB_NIL_DESC;
+          end;
         _SendSyncServerClientAnswer;
       except
         on e:exception do
@@ -9862,6 +9879,8 @@ end;
 function TFRE_DB_JOB.GetJobFilename: string;
 var jobstate     : TFRE_JobState;
 begin
+  if jobkey='' then
+    raise EFRE_DB_Exception.Create('NO JOBKEY SET FOR GETJOBFILENAME');;
   jobstate := GetJobState;
   result   := GetJobBaseFilename(jobstate,jobkey);
   if (jobstate=jobStateDone) or (jobstate=jobStateFailed) then
@@ -9899,7 +9918,8 @@ end;
 
 procedure TFRE_DB_JOB.SetJobkeyDescription(const newjobkey: string; const jdescription: string);
 begin
-  FNamedObject.ObjectName  := newjobkey;
+  Field('jobkey').asstring := newjobkey;
+  FNamedObject.ObjectName  := newjobkey+'@'+UID.AsHexString;
   FNamedObject.Description.SetupText(newjobkey,jdescription);
 end;
 
@@ -9994,7 +10014,7 @@ end;
 
 function TFRE_DB_JOB.JobKey: string;
 begin
-  result := FNamedObject.ObjectName;
+  result := Field('jobkey').asstring;
 end;
 
 function TFRE_DB_JOB.IMI_Do_the_Job(const input: IFRE_DB_Object): IFRE_DB_Object;

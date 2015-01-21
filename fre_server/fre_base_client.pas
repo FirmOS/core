@@ -46,7 +46,7 @@ interface
 
 uses
   Classes, SysUtils,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FRE_SYS_BASE_CS,FRE_DB_INTERFACE,FOS_TOOL_INTERFACES,
-  FRE_SYSTEM,baseunix;
+  FRE_SYSTEM,baseunix,fre_diff_transport;
 
 var G_CONNREFUSED_TO : integer = 5;
     G_RETRY_TO       : integer = 5;
@@ -98,7 +98,11 @@ type
       FJobs                    : IFRE_DB_Object;
       FJobsLock                : IFOS_LOCK;
 
+      Fcollection_assignment   : IFRE_DB_Object;
+
     procedure  CCB_SessionSetup        (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
+    procedure  CCB_JobUpdate           (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
+    procedure  CCB_JobRequest          (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
 
     procedure  NewChannel              (const channel : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState);
     procedure  ChannelDisco            (const channel : IFRE_APSC_CHANNEL);
@@ -120,6 +124,7 @@ type
     procedure   SubfeederDiscoClientChannel (const channel  : IFRE_APSC_CHANNEL);
 
     procedure  ParseJobDirectory      ;
+    procedure  RequestJobDatafromDB   ;
 
   protected
     procedure  Terminate; virtual;
@@ -191,6 +196,7 @@ begin
                     end;
                   SendServerCommand('FIRMOS','REG_REM_METH',nil,regdata);
                 end;
+              RequestJobDatafromDB;
               MySessionEstablished(FChannel.GetChannelManager);
             end
           else
@@ -238,6 +244,27 @@ begin
   finally
     FClientStateLock.Release;
   end;
+end;
+
+procedure TFRE_BASE_CLIENT.CCB_JobUpdate(const DATA: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const error_txt: string);
+begin
+  if status<>cdcs_OK then                                                                         //TODO ERROR HANDLING
+    writeln('CCB JOBUPDATE STATUS',data.DumpToString(),' STATUS:',status,' ERROR:',error_txt);
+end;
+
+procedure TFRE_BASE_CLIENT.CCB_JobRequest(const DATA: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const error_txt: string);
+begin
+  if status=cdcs_OK then                                                                          //TODO ERROR HANDLING
+    begin
+      FJobsLock.Acquire;
+      try
+        FJobs := data.CloneToNewObject;
+      finally
+        FJobsLock.Release;
+      end;
+    end
+  else
+    writeln('CCB JOBREQUEST STATUS',data.DumpToString(),' STATUS:',status,' ERROR:',error_txt);
 end;
 
 procedure TFRE_BASE_CLIENT.NewChannel(const channel: IFRE_APSC_CHANNEL; const event: TAPSC_ChannelState);
@@ -618,6 +645,7 @@ end;
 procedure TFRE_BASE_CLIENT.ParseJobDirectory;
 var tjobs: IFRE_DB_Object;
     ojobs: IFRE_DB_Object;
+    transfer_list : IFRE_DB_Object;
 
     dir  : string;
 
@@ -625,7 +653,9 @@ var tjobs: IFRE_DB_Object;
     var ljob : IFRE_DB_Object;
     begin
       try
+//        writeln('SWL JOB '+file_name);
         ljob := GFRE_DBI.CreateFromFile(dir+DirectorySeparator+file_name);
+        ljob.Field('MACHINEID').AsObjectlink:=fMyMachineUIDs[0];
         tjobs.Field(ljob.UID.AsHexString).AsObject := ljob;
       except on E:Exception do
         begin
@@ -635,17 +665,15 @@ var tjobs: IFRE_DB_Object;
     end;
 
 begin
-  writeln('SWL PARSE JOB');
   FJobsLock.Acquire;
   try
-    if not Assigned(Fjobs) then
-      FJobs         :=GFRE_DBI.NewObject;
     ojobs := FJobs.CloneToNewObject;
   finally
     FJobsLock.Release;
   end;
 
   tjobs := GFRE_DBI.NewObject;
+  tjobs.Field('UID').AsGUID:=fjobs.UID;
 
   dir := TFRE_DB_JOB.GetJobBaseDirectory(jobStateRunning);
   GFRE_BT.List_Files(dir,@jobiterator);
@@ -655,11 +683,34 @@ begin
   GFRE_BT.List_Files(dir,@jobiterator);
 
 
-  writeln('SWL: TJOBS',tjobs.DumpToString());
+//  writeln('SWL: TJOBS',tjobs.DumpToString());
 
-  tjobs.Finalize;
+  transfer_list := GFRE_DBI.NewObject;
+  FREDIFF_GenerateRelationalDiffContainersandAddToBulkObject(tjobs,ojobs,Fcollection_assignment,transfer_list);
+
+//  writeln('SWL: TRANSFER LIST ',transfer_list.DumpToString());
+
+  SendServerCommand(FBaseconnection,'FIRMOS','JOBUPDATE',Nil,transfer_list,@CCB_JobUpdate,5000);
+
+  FJobsLock.Acquire;
+  try
+    Fjobs.Finalize;
+    Fjobs:=tjobs;
+  finally
+    FJobsLock.Release;
+  end;
+
   ojobs.Finalize;
 
+end;
+
+procedure TFRE_BASE_CLIENT.RequestJobDatafromDB;
+var request_data:IFRE_DB_Object;
+begin
+  request_data :=GFRE_DBI.NewObject;
+  request_data.Field('REQUEST').AsBoolean:=true;
+  request_data.Field('MACHINEID').AsGUID:=fMyMachineUIDs[0];
+  SendServerCommand(FBaseconnection,'FIRMOS','JOBUPDATE',Nil,request_data,@CCB_JobRequest,5000);
 end;
 
 procedure TFRE_BASE_CLIENT.Terminate;
@@ -727,6 +778,8 @@ begin
   FJobsLock.Finalize;
   if Assigned(FJobs) then
     FJobs.Finalize;
+  if Assigned(fcollection_assignment) then
+    Fcollection_assignment.Finalize;
   inherited Destroy;
 end;
 
@@ -741,6 +794,13 @@ begin
   GFRE_SC.AddTimer('F_STATE',1000,@MyStateCheckTimer);
   GFRE_SC.AddTimer('F_SUB_STATE',1000,@MySubFeederStateTimer);
   GFRE_SC.SetSingnalCB(@MyHandleSignals);
+
+  Fcollection_assignment := GFRE_DBI.NewObject;
+  Fcollection_assignment.Field(TFRE_DB_JOB.Classname).asstring := '$SYSJOBS';
+  Fcollection_assignment.Field(TFRE_DB_TIMERTEST_JOB.Classname).asstring := '$SYSJOBS';        // TODO
+
+  FJobs                  := GFRE_DBI.NewObject;
+
   MyInitialize;
 end;
 
