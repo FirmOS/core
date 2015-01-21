@@ -207,15 +207,16 @@ type
 
   TFRE_DB_FILTER_AUTO_DEPENDENCY=class(TFRE_DB_FILTER_BASE)
   protected
-    FValues       : TFRE_DB_GUIDArray; { expanded uid values }
-    FRL_Spec      : TFRE_DB_NameTypeRLArray;
-    FStartValues  : TFRE_DB_GUIDArray;
+    FValues        : TFRE_DB_GUIDArray; { expanded uid values }
+    FRL_Spec       : TFRE_DB_NameTypeRLArray;
+    FStartValues   : TFRE_DB_GUIDArray;
+    FOnlyRootNodes : Boolean;
   public
     function  Clone                   : TFRE_DB_FILTER_BASE;override;
     function  CheckFilterMiss         (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
     function  GetDefinitionKey        : TFRE_DB_NameType; override;
     procedure FilterExpandRefs        (const dbc : IFRE_DB_CONNECTION);
-    procedure InitFilter              (const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean ;  const dbname: TFRE_DB_NameType);
+    procedure InitFilter              (const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean ;  const dbname: TFRE_DB_NameType; const only_root_nodes: Boolean);
     procedure ReEvalFilterStartVals   ; override;
     function  CheckReflinkUpdateEvent (const key_descr: TFRE_DB_NameTypeRL) : boolean; override;
   end;
@@ -299,41 +300,42 @@ type
     procedure  _ForAllKey    (obj:TObject ; arg:Pointer);
     procedure  _ForAllFilter (obj:TObject ; arg:Pointer);
   public
-    constructor Create                       (const filter_dbname : TFRE_DB_NameType);
-    destructor  Destroy                      ;override;
-    procedure   AddFilters                   (const source : TFRE_DB_DC_FILTER_DEFINITION_BASE; const clone : boolean=true); { add filters,take ownership }
-    procedure   AddFilter                    (const source : TFRE_DB_FILTER_BASE; const clone : boolean=false);              { add filter,take ownership }
-    procedure   AddStringFieldFilter         (const key,fieldname:TFRE_DB_NameType ; filtervalue  : TFRE_DB_String              ; const stringfiltertype : TFRE_DB_STR_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddSignedFieldFilter         (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Int64              ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddUnsignedFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Uint64             ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddCurrencyFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Currency           ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddReal64FieldFilter         (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Double             ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddDatetimeFieldFilter       (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_DateTime64 ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddBooleanFieldFilter        (const key,fieldname:TFRE_DB_NameType ; filtervalue  : boolean                                                                       ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddUIDFieldFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddRootNodeFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
-    procedure   AddSchemeObjectFilter        (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=true );override;
-    procedure   AddStdRightObjectFilter      (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true ; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
-    procedure   AddStdClassRightFilter       (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String=''); override;
-    procedure   AddObjectRightFilter         (const key:          TFRE_DB_NameType ; rightset  : Array of TFRE_DB_String  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true ; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
-    procedure   AddClassRightFilter          (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: Array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
-    procedure   AddChildFilter               (const key:          TFRE_DB_NameType); override ;
-    procedure   AddParentFilter              (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); override ;
-    procedure   AddAutoDependencyFilter      (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID  ; const one_value:boolean=true ; const include_null_values : boolean=false);override;
+    constructor Create                          (const filter_dbname : TFRE_DB_NameType);
+    destructor  Destroy                         ;override;
+    procedure   AddFilters                      (const source : TFRE_DB_DC_FILTER_DEFINITION_BASE; const clone : boolean=true); { add filters,take ownership }
+    procedure   AddFilter                       (const source : TFRE_DB_FILTER_BASE; const clone : boolean=false);              { add filter,take ownership }
+    procedure   AddStringFieldFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalue  : TFRE_DB_String              ; const stringfiltertype : TFRE_DB_STR_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddSignedFieldFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Int64              ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddUnsignedFieldFilter          (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Uint64             ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddCurrencyFieldFilter          (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Currency           ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddReal64FieldFilter            (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of Double             ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddDatetimeFieldFilter          (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_DateTime64 ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddBooleanFieldFilter           (const key,fieldname:TFRE_DB_NameType ; filtervalue  : boolean                                                                       ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddUIDFieldFilter               (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddRootNodeFilter               (const key,fieldname:TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_GUID       ; const numfiltertype    : TFRE_DB_NUM_FILTERTYPE ; const negate:boolean=true  ; const include_null_values : boolean=false);override;
+    procedure   AddSchemeObjectFilter           (const key:          TFRE_DB_NameType ; filtervalues : Array of TFRE_DB_String                                                       ; const negate:boolean=true );override;
+    procedure   AddStdRightObjectFilter         (const key:          TFRE_DB_NameType ; stdrightset  : TFRE_DB_STANDARD_RIGHT_SET  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true ; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
+    procedure   AddStdClassRightFilter          (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String=''); override;
+    procedure   AddObjectRightFilter            (const key:          TFRE_DB_NameType ; rightset  : Array of TFRE_DB_String  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true ; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
+    procedure   AddClassRightFilter             (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: Array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');override;
+    procedure   AddChildFilter                  (const key:          TFRE_DB_NameType); override ;
+    procedure   AddParentFilter                 (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); override ;
+    procedure   AddAutoDependencyFilter         (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID  ; const one_value:boolean=true ; const include_null_values : boolean=false);override;
+    procedure   AddRootNodeAutoDependencyFilter (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID  ; const one_value:boolean=true ; const include_null_values : boolean=false);override;
 
-    function    RemoveFilter                 (const key:          TFRE_DB_NameType):boolean;override;
-    function    FilterExists                 (const key:          TFRE_DB_NameType):boolean;override;
-    procedure   RemoveAllFilters             ;override;
-    procedure   RemoveAllFiltersPrefix       (const key_prefix:   TFRE_DB_NameType);override;
+    function    RemoveFilter                    (const key:          TFRE_DB_NameType):boolean;override;
+    function    FilterExists                    (const key:          TFRE_DB_NameType):boolean;override;
+    procedure   RemoveAllFilters                ;override;
+    procedure   RemoveAllFiltersPrefix          (const key_prefix:   TFRE_DB_NameType);override;
 
-    procedure   MustNotBeSealed              ;
-    procedure   MustBeSealed                 ;
-    procedure   Seal                         ;
-    function    GetFilterKey                 : TFRE_DB_TRANS_COLL_FILTER_KEY;
-    function    DoesObjectPassFilters        (const obj : IFRE_DB_Object) : boolean;
-    function    CheckDBReevaluationFilters   : boolean;
-    function    CheckAutoDependencyFilter    (const key_description : TFRE_DB_NameTypeRL):boolean;
-    function    FilterDBName                 : TFRE_DB_NameType;
+    procedure   MustNotBeSealed                 ;
+    procedure   MustBeSealed                    ;
+    procedure   Seal                            ;
+    function    GetFilterKey                    : TFRE_DB_TRANS_COLL_FILTER_KEY;
+    function    DoesObjectPassFilters           (const obj : IFRE_DB_Object) : boolean;
+    function    CheckDBReevaluationFilters      : boolean;
+    function    CheckAutoDependencyFilter       (const key_description : TFRE_DB_NameTypeRL):boolean;
+    function    FilterDBName                    : TFRE_DB_NameType;
     //procedure
   end;
 
@@ -939,6 +941,7 @@ begin
   fClone.FRL_Spec           := Copy(FRL_Spec);
   fClone.FDBName            := FDBName;
   fClone.FNeedsDBReEvaluate := FNeedsDBReEvaluate;
+  fClone.FOnlyRootNodes     := FOnlyRootNodes;
   result                    := fClone;
 end;
 
@@ -949,6 +952,12 @@ var fieldvals      : TFRE_DB_GUIDArray;
      i,j           : NativeInt;
 begin
   error_fld := false;
+
+  if FOnlyRootNodes and not FREDB_PP_ObjectInParentPath(obj,'') then begin
+    result:=true;
+    exit;
+  end;
+
   if obj.FieldOnlyExisting(FFieldname,fld) then
     begin
       fieldvals     := fld.AsGUIDArr;
@@ -1012,7 +1021,7 @@ begin
   (dbc.Implementor as TFRE_DB_CONNECTION).ExpandReferencesNoRightCheck(FStartValues,FRL_Spec,FValues);
 end;
 
-procedure TFRE_DB_FILTER_AUTO_DEPENDENCY.InitFilter(const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean; const dbname: TFRE_DB_NameType);
+procedure TFRE_DB_FILTER_AUTO_DEPENDENCY.InitFilter(const RL_Spec: TFRE_DB_NameTypeRLArray; const StartDependecyValues: TFRE_DB_GUIDArray; const negate: boolean; const include_null_values: boolean; const dbname: TFRE_DB_NameType; const only_root_nodes: Boolean);
 begin
   if DBName='' then
     raise EFRE_DB_Exception.Create(edb_ERROR,'AutoFilter dbname not set !');
@@ -1022,6 +1031,7 @@ begin
   FAllowNull         := include_null_values;
   FDBName            := dbname;
   FNeedsDBReEvaluate := true;
+  FOnlyRootNodes     := only_root_nodes;
   FFieldname         := 'UID';
 end;
 
@@ -2896,7 +2906,24 @@ begin
   SetLength(ga,Length(StartDependecyValues));
   for i := 0 to high(StartDependecyValues) do
     ga[i] := StartDependecyValues[i];
-  filt.InitFilter(rla,ga,not one_value,include_null_values,FFiltDefDBname);
+  filt.InitFilter(rla,ga,not one_value,include_null_values,FFiltDefDBname,false);
+  AddFilter(filt,false);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.AddRootNodeAutoDependencyFilter(const key: TFRE_DB_NameType; const RL_Spec: array of TFRE_DB_NameTypeRL; const StartDependecyValues: array of TFRE_DB_GUID; const one_value: boolean; const include_null_values: boolean);
+var filt : TFRE_DB_FILTER_AUTO_DEPENDENCY;
+    rla  : TFRE_DB_NameTypeRLArray;
+    ga   : TFRE_DB_GUIDArray;
+    i    : NativeInt;
+begin
+  filt := TFRE_DB_FILTER_AUTO_DEPENDENCY.Create(key);
+  SetLength(rla,Length(RL_Spec));
+  for i := 0 to high(RL_Spec) do
+    rla[i] := RL_Spec[i];
+  SetLength(ga,Length(StartDependecyValues));
+  for i := 0 to high(StartDependecyValues) do
+    ga[i] := StartDependecyValues[i];
+  filt.InitFilter(rla,ga,not one_value,include_null_values,FFiltDefDBname,true);
   AddFilter(filt,false);
 end;
 
