@@ -195,7 +195,6 @@ type
   protected
     FValues        : TFRE_DB_GUIDArray;
     FFilterType    : TFRE_DB_NUM_FILTERTYPE;
-    FOnlyRootNodes : Boolean;
   public
     function  Clone            : TFRE_DB_FILTER_BASE;override;
     function  CheckFilterMiss  (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
@@ -210,7 +209,6 @@ type
     FValues        : TFRE_DB_GUIDArray; { expanded uid values }
     FRL_Spec       : TFRE_DB_NameTypeRLArray;
     FStartValues   : TFRE_DB_GUIDArray;
-    FOnlyRootNodes : Boolean;
   public
     function  Clone                   : TFRE_DB_FILTER_BASE;override;
     function  CheckFilterMiss         (const obj: IFRE_DB_Object ; var flt_errors : Int64): boolean; override;
@@ -295,6 +293,7 @@ type
     FFilterMiss    : boolean;
     FFilterErr     : int64;
     FFiltDefDBname : TFRE_DB_NameType;
+    FIsaChildFilterContainer : Boolean;
     function   IsSealed : Boolean;
     procedure  _ForAllAdd    (obj:TObject ; arg:Pointer);
     procedure  _ForAllKey    (obj:TObject ; arg:Pointer);
@@ -327,6 +326,8 @@ type
     function    FilterExists                    (const key:          TFRE_DB_NameType):boolean;override;
     procedure   RemoveAllFilters                ;override;
     procedure   RemoveAllFiltersPrefix          (const key_prefix:   TFRE_DB_NameType);override;
+
+    procedure   SetIsAChildDatacontainer        ;
 
     procedure   MustNotBeSealed                 ;
     procedure   MustBeSealed                    ;
@@ -529,6 +530,7 @@ type
     FOBJArray        : Array of IFRE_DB_Object;
     FCnt             : NativeUint;
     FFilled          : Boolean;
+    FChildQueryCont  : boolean;
     FFCCreationTime  : TFRE_DB_DateTime64;
     FFilters         : TFRE_DB_DC_FILTER_DEFINITION;
     ForderKey        : TFRE_DB_NameType;
@@ -548,7 +550,7 @@ type
     function    Notify_CheckFilteredInsert    (const td  : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const new_obj         : IFRE_DB_Object) : NativeInt; { invoke session update }
     function    DoesObjectPassFilterContainer (const obj : IFRE_DB_Object):boolean;
     procedure   AdjustLength                  ;
-    constructor Create                        (const order_key : TFRE_DB_NameType ; const filter_cont_dbname : TFRE_DB_NameType);
+    constructor Create                        (const order_key : TFRE_DB_NameType ; const filter_cont_dbname : TFRE_DB_NameType ; const is_child_qry : boolean);
     destructor  Destroy                       ; override;
     function    Filters                       : TFRE_DB_DC_FILTER_DEFINITION;
     function    PurgeFilterDataDueToTimeout   : boolean;
@@ -952,12 +954,6 @@ var fieldvals      : TFRE_DB_GUIDArray;
      i,j           : NativeInt;
 begin
   error_fld := false;
-
-  if FOnlyRootNodes and not FREDB_PP_ObjectInParentPath(obj,'') then begin
-    result:=true;
-    exit;
-  end;
-
   if obj.FieldOnlyExisting(FFieldname,fld) then
     begin
       fieldvals     := fld.AsGUIDArr;
@@ -1221,6 +1217,7 @@ function TFRE_DB_FILTER_CHILD.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_CHILD;
 begin
   fClone                := TFRE_DB_FILTER_CHILD.Create(FKey);
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
   result                := fClone;
 end;
 
@@ -1246,6 +1243,7 @@ var fClone : TFRE_DB_FILTER_PARENT;
 begin
   fClone                := TFRE_DB_FILTER_PARENT.Create(FKey);
   fClone.FAllowedParent := FAllowedParent;
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
   result                := fClone;
 end;
 
@@ -1273,13 +1271,14 @@ end;
 function TFRE_DB_FILTER_REAL64.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_REAL64;
 begin
-  fClone             := TFRE_DB_FILTER_REAL64.Create(FKey);
-  fClone.FFieldname  := FFieldname;
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := FAllowNull;
-  fClone.FFilterType := FFilterType;
-  fClone.FValues     := Copy(FValues);
-  result             := fClone;
+  fClone                := TFRE_DB_FILTER_REAL64.Create(FKey);
+  fClone.FFieldname     := FFieldname;
+  fClone.FNegate        := FNegate;
+  fClone.FAllowNull     := FAllowNull;
+  fClone.FFilterType    := FFilterType;
+  fClone.FValues        := Copy(FValues);
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
+  result                := fClone;
 end;
 
 function TFRE_DB_FILTER_REAL64.GetDefinitionKey: TFRE_DB_NameType;
@@ -1401,13 +1400,14 @@ end;
 function TFRE_DB_FILTER_DATETIME.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_DATETIME;
 begin
-  fClone             := TFRE_DB_FILTER_DATETIME.Create(FKey);
-  fClone.FFieldname  := FFieldname;
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := FAllowNull;
-  fClone.FFilterType := FFilterType;
-  fClone.FValues     := Copy(FValues);
-  result             := fClone;
+  fClone                := TFRE_DB_FILTER_DATETIME.Create(FKey);
+  fClone.FFieldname     := FFieldname;
+  fClone.FNegate        := FNegate;
+  fClone.FAllowNull     := FAllowNull;
+  fClone.FFilterType    := FFilterType;
+  fClone.FValues        := Copy(FValues);
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
+  result                := fClone;
 end;
 
 function TFRE_DB_FILTER_DATETIME.GetDefinitionKey: TFRE_DB_NameType;
@@ -1530,13 +1530,14 @@ end;
 function TFRE_DB_FILTER_CURRENCY.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_CURRENCY;
 begin
-  fClone             := TFRE_DB_FILTER_CURRENCY.Create(FKey);
-  fClone.FFieldname  := FFieldname;
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := FAllowNull;
-  fClone.FFilterType := FFilterType;
-  fClone.FValues     := Copy(FValues);
-  result             := fClone;
+  fClone                := TFRE_DB_FILTER_CURRENCY.Create(FKey);
+  fClone.FFieldname     := FFieldname;
+  fClone.FNegate        := FNegate;
+  fClone.FAllowNull     := FAllowNull;
+  fClone.FFilterType    := FFilterType;
+  fClone.FValues        := Copy(FValues);
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
+  result                := fClone;
 end;
 
 function TFRE_DB_FILTER_CURRENCY.GetDefinitionKey: TFRE_DB_NameType;
@@ -1671,6 +1672,7 @@ begin
   fClone.FRightSet         := copy(FRightSet);
   fClone.FIgnoreField      := FIgnoreField;
   fClone.FIgnoreValue      := FIgnoreValue;
+  fClone.FOnlyRootNodes    := FOnlyRootNodes;
   result                   := fClone;
 end;
 
@@ -1843,11 +1845,12 @@ end;
 function TFRE_DB_FILTER_SCHEME.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_SCHEME;
 begin
-  fClone             := TFRE_DB_FILTER_SCHEME.Create(FKey);
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := False;
-  fClone.FValues     := Copy(FValues);
-  result             := fClone;
+  fClone                := TFRE_DB_FILTER_SCHEME.Create(FKey);
+  fClone.FNegate        := FNegate;
+  fClone.FAllowNull     := False;
+  fClone.FValues        := Copy(FValues);
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
+  result                := fClone;
 end;
 
 function TFRE_DB_FILTER_SCHEME.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
@@ -1893,14 +1896,14 @@ end;
 function TFRE_DB_FILTER_UID.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_UID;
 begin
-  fClone               := TFRE_DB_FILTER_UID.Create(FKey);
-  fClone.FFieldname    := FFieldname;
-  fClone.FNegate       := FNegate;
-  fClone.FAllowNull    := FAllowNull;
-  fClone.FFilterType   := FFilterType;
-  fClone.FValues       := Copy(FValues);
-  fClone.FOnlyRootNodes:= FOnlyRootNodes;
-  result               := fClone;
+  fClone                := TFRE_DB_FILTER_UID.Create(FKey);
+  fClone.FFieldname     := FFieldname;
+  fClone.FNegate        := FNegate;
+  fClone.FAllowNull     := FAllowNull;
+  fClone.FFilterType    := FFilterType;
+  fClone.FValues        := Copy(FValues);
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
+  result                := fClone;
 end;
 
 function TFRE_DB_FILTER_UID.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
@@ -1911,12 +1914,6 @@ var fieldvals      : TFRE_DB_GUIDArray;
      notcontained  : Boolean;
 begin
   error_fld := false;
-
-  if FOnlyRootNodes and not FREDB_PP_ObjectInParentPath(obj,'') then begin
-    result:=true;
-    exit;
-  end;
-
   if obj.FieldOnlyExisting(FFieldname,fld) then
     begin
       fieldvals     := fld.AsGUIDArr;
@@ -2038,13 +2035,14 @@ end;
 function TFRE_DB_FILTER_BOOLEAN.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_BOOLEAN;
 begin
-  fClone             := TFRE_DB_FILTER_BOOLEAN.Create(FKey);
-  fClone.FFieldname  := FFieldname;
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := FAllowNull;
-  fClone.FFilterType := FFilterType;
-  fClone.FValue      := FValue;
-  result             := fClone;
+  fClone                := TFRE_DB_FILTER_BOOLEAN.Create(FKey);
+  fClone.FFieldname     := FFieldname;
+  fClone.FNegate        := FNegate;
+  fClone.FAllowNull     := FAllowNull;
+  fClone.FFilterType    := FFilterType;
+  fClone.FValue         := FValue;
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
+  result                := fClone;
 end;
 
 function TFRE_DB_FILTER_BOOLEAN.CheckFilterMiss(const obj: IFRE_DB_Object; var flt_errors: Int64): boolean;
@@ -2095,13 +2093,14 @@ end;
 function TFRE_DB_FILTER_UNSIGNED.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_UNSIGNED;
 begin
-  fClone             := TFRE_DB_FILTER_UNSIGNED.Create(FKey);
-  fClone.FFieldname  := FFieldname;
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := FAllowNull;
-  fClone.FFilterType := FFilterType;
-  fClone.FValues     := Copy(FValues);
-  result             := fClone;
+  fClone                 := TFRE_DB_FILTER_UNSIGNED.Create(FKey);
+  fClone.FFieldname      := FFieldname;
+  fClone.FNegate         := FNegate;
+  fClone.FAllowNull      := FAllowNull;
+  fClone.FFilterType     := FFilterType;
+  fClone.FValues         := Copy(FValues);
+  fClone.FOnlyRootNodes  := FOnlyRootNodes;
+  result                 := fClone;
 end;
 
 function TFRE_DB_FILTER_UNSIGNED.GetDefinitionKey: TFRE_DB_NameType;
@@ -2158,13 +2157,14 @@ end;
 function TFRE_DB_FILTER_SIGNED.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_SIGNED;
 begin
-  fClone             := TFRE_DB_FILTER_SIGNED.Create(FKey);
-  fClone.FFieldname  := FFieldname;
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := FAllowNull;
-  fClone.FFilterType := FFilterType;
-  fClone.FValues     := Copy(FValues);
-  result             := fClone;
+  fClone                := TFRE_DB_FILTER_SIGNED.Create(FKey);
+  fClone.FFieldname     := FFieldname;
+  fClone.FNegate        := FNegate;
+  fClone.FAllowNull     := FAllowNull;
+  fClone.FFilterType    := FFilterType;
+  fClone.FValues        := Copy(FValues);
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
+  result                := fClone;
 end;
 
 function TFRE_DB_FILTER_SIGNED.GetDefinitionKey: TFRE_DB_NameType;
@@ -2286,13 +2286,14 @@ end;
 function TFRE_DB_FILTER_STRING.Clone: TFRE_DB_FILTER_BASE;
 var fClone : TFRE_DB_FILTER_STRING;
 begin
-  fClone             := TFRE_DB_FILTER_STRING.Create(FKey);
-  fClone.FFieldname  := FFieldname;
-  fClone.FNegate     := FNegate;
-  fClone.FAllowNull  := FAllowNull;
-  fClone.FFilterType := FFilterType;
-  fClone.FValues     := Copy(FValues);
-  result             := fClone;
+  fClone                := TFRE_DB_FILTER_STRING.Create(FKey);
+  fClone.FFieldname     := FFieldname;
+  fClone.FNegate        := FNegate;
+  fClone.FAllowNull     := FAllowNull;
+  fClone.FFilterType    := FFilterType;
+  fClone.FValues        := Copy(FValues);
+  fClone.FOnlyRootNodes := FOnlyRootNodes;
+  result                := fClone;
 end;
 
 function TFRE_DB_FILTER_STRING.GetDefinitionKey: TFRE_DB_NameType;
@@ -2628,13 +2629,14 @@ begin
   SetLength(FOBJArray,FCnt);
 end;
 
-constructor TFRE_DB_FilterContainer.Create(const order_key: TFRE_DB_NameType; const filter_cont_dbname: TFRE_DB_NameType);
+constructor TFRE_DB_FilterContainer.Create(const order_key: TFRE_DB_NameType; const filter_cont_dbname: TFRE_DB_NameType; const is_child_qry: boolean);
 begin
   inherited Create;
   FCnt := 0;
   FFCCreationTime := GFRE_DT.Now_UTC;
   FFilters        := TFRE_DB_DC_FILTER_DEFINITION.Create(filter_cont_dbname);
   ForderKey       := order_key;
+  FChildQueryCont := is_child_qry;
 end;
 
 destructor TFRE_DB_FilterContainer.Destroy;
@@ -2713,6 +2715,8 @@ begin
     exit;
   tob         := TFRE_DB_Object(arg);
   flt         := obj as TFRE_DB_FILTER_BASE;
+  if (flt.IsARootNodeOnlyFilter and ( (FIsaChildFilterContainer) or  (not FREDB_PP_ObjectInParentPath(tob,'')))) then
+    exit;
   FFilterMiss := not flt.CheckFilterMiss(tob,FFilterErr);
 end;
 
@@ -2733,7 +2737,7 @@ end;
 procedure TFRE_DB_DC_FILTER_DEFINITION.AddFilters(const source: TFRE_DB_DC_FILTER_DEFINITION_BASE; const clone: boolean);
 var src : TFRE_DB_DC_FILTER_DEFINITION;
 begin
-  if not assigned(source) then
+  if not assigned(source) then    //self
     exit;
   src := source as TFRE_DB_DC_FILTER_DEFINITION;
   if clone then
@@ -2973,6 +2977,11 @@ var idx : NativeInt;
 begin
   while findprefix do
     FKeyList.Delete(idx);
+end;
+
+procedure TFRE_DB_DC_FILTER_DEFINITION.SetIsAChildDatacontainer;
+begin
+  FIsaChildFilterContainer := true;
 end;
 
 procedure TFRE_DB_DC_FILTER_DEFINITION.MustNotBeSealed;
@@ -5089,9 +5098,11 @@ begin
   dummy      := nil;
   if FArtTreeFilterKey.InsertStringKeyOrFetchR(filtkey,dummy) then
     begin
-      qry_context.FFilterContainer := TFRE_DB_FilterContainer.Create(GetFullKey.orderkey,qry_context.GetFilterDefinition.FilterDBName);
+      qry_context.FFilterContainer := TFRE_DB_FilterContainer.Create(GetFullKey.orderkey,qry_context.GetFilterDefinition.FilterDBName,qry_context.FIsChildQuery);
       qry_context.FFilterContainer.Filters.AddFilters(qry_context.FQueryFilters);          { clone filters into filtercontainer spec }
       qry_context.FFilterContainer.Filters.Seal;                                           { store the filtercontainer reference in the query }
+      if qry_context.FIsChildQuery then
+        qry_context.FFilterContainer.Filters.SetIsAChildDatacontainer; { HACK: rework }
       dummy^     := FREDB_ObjectToPtrUInt(qry_context.FFilterContainer);                   { but manage it in the art tree }
     end
   else

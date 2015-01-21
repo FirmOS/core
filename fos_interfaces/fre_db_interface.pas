@@ -1906,12 +1906,16 @@ type
 
   { TFRE_DB_ObjectEx }
 
+  TFRE_DB_OBJECT_PLUGIN_BASE  = class;
+  TFRE_DB_OBJECT_PLUGIN_CLASS = class of TFRE_DB_OBJECT_PLUGIN_BASE;
+
   TFRE_DB_ObjectEx=class(TFRE_DB_Base, IFRE_DB_Object)
   private
     FImplementor   : IFRE_DB_Object;       // Must support DBO Interface
     FBound         : Boolean;
   protected
     FNamedObject   : IFRE_DB_NAMED_OBJECT; // May  support Named Object Interface
+    FPlugins       : IFRE_DB_Field;
     function       Debug_ID            : TFRE_DB_String ;override;
     procedure      InternalSetup       ; virtual;
     procedure      InternalFinalize    ; virtual;
@@ -2016,7 +2020,8 @@ type
     class function  GetTranslateableTextHint           (const conn: IFRE_DB_CONNECTION; const key: TFRE_DB_NameType):TFRE_DB_String;
 
     function        CloneToNewObjectWithoutSubobjects  (const generate_new_uids: boolean=false): IFRE_DB_Object;
-
+    function        HasPlugin                          (const pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; out plugin): boolean; { delivers the internal reference of the plugin, if avail, dont free it (!) }
+    function        AttachPlugin                       (const plugin : TFRE_DB_OBJECT_PLUGIN_BASE ; const raise_if_existing : boolean=true) : Boolean;                   { sets a plugin instance of the specified class                             }
   published
     function        WEB_SaveOperation                  (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
     function        WEB_DeleteOperation                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;virtual;
@@ -2039,6 +2044,21 @@ type
     function       SchemeClass: TFRE_DB_NameType; override;
   end;
 
+
+  { TFRE_DB_OBJECT_PLUGIN_BASE }
+
+  TFRE_DB_OBJECT_PLUGIN_BASE=class(TFRE_DB_ObjectEx)
+  private
+  protected
+  public
+    class function  EnhancesGridRendering    : Boolean; virtual;
+    class function  EnhancesFormRendering    : Boolean; virtual;
+    procedure       TransformGridEntry       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String); virtual ; abstract;
+    procedure       RenderFormEntry          (const  storedata : TFRE_DB_CONTENT_DESC ; const entry : IFRE_DB_Object); virtual ; abstract;
+  published
+
+  end;
+
   { TFRE_DB_FILTER_BASE }
 
   TFRE_DB_FILTER_BASE=class
@@ -2047,6 +2067,7 @@ type
     FFieldname         : TFRE_DB_NameType;
     FNegate            : Boolean;
     FAllowNull         : Boolean;
+    FOnlyRootNodes     : Boolean;
     FNeedsDBReEvaluate : Boolean; { the filter must be reevaluated }
     FDBName            : TFRE_DB_NameType;
   public
@@ -2059,6 +2080,7 @@ type
     constructor Create                  (const key : TFRE_DB_NameType);
     function    Clone                   : TFRE_DB_FILTER_BASE;virtual; abstract;
     function    CheckReflinkUpdateEvent (const key_descr : TFRE_DB_NameTypeRL) : boolean; virtual ;{ check if a given qry filter, needs to send updates on RL changes }
+    function    IsARootNodeOnlyFilter   : Boolean;
   end;
 
 
@@ -4567,6 +4589,18 @@ type
 const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
 
+{ TFRE_DB_OBJECT_PLUGIN_BASE }
+
+class function TFRE_DB_OBJECT_PLUGIN_BASE.EnhancesGridRendering: Boolean;
+begin
+  result := false;
+end;
+
+class function TFRE_DB_OBJECT_PLUGIN_BASE.EnhancesFormRendering: Boolean;
+begin
+  result := false;
+end;
+
 { TFOS_MAC_ADDR }
 
 function TFOS_MAC_ADDR.SetFromString(const mac: shortstring): boolean;
@@ -5067,6 +5101,11 @@ end;
 function TFRE_DB_FILTER_BASE.CheckReflinkUpdateEvent(const key_descr: TFRE_DB_NameTypeRL): boolean;
 begin
   result := false;
+end;
+
+function TFRE_DB_FILTER_BASE.IsARootNodeOnlyFilter: Boolean;
+begin
+  result := FOnlyRootNodes;
 end;
 
 { TFRE_DB_AUDIT_ENTRY }
@@ -8700,6 +8739,35 @@ end;
 function TFRE_DB_ObjectEx.CloneToNewObjectWithoutSubobjects(const generate_new_uids: boolean): IFRE_DB_Object;
 begin
   result := FImplementor.CloneToNewObjectWithoutSubobjects(generate_new_uids);
+end;
+
+function TFRE_DB_ObjectEx.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; out plugin): boolean;
+var plugins : IFRE_DB_Field;
+    pluginf : IFRE_DB_Field;
+begin
+  result := false;
+  if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    exit;
+  if FieldOnlyExisting(pluginclass.ClassName,pluginf) then
+    begin
+      TFRE_DB_OBJECT_PLUGIN_BASE(plugin) := pluginf.AsObject.Implementor_HC as pluginclass;
+      result := true;
+    end;
+end;
+
+function TFRE_DB_ObjectEx.AttachPlugin(const plugin: TFRE_DB_OBJECT_PLUGIN_BASE; const raise_if_existing: boolean): Boolean;
+var plugins : IFRE_DB_Field;
+    pluginf : IFRE_DB_Object;
+begin
+  result := false;
+  pluginf := Field('_$PLG').AsObject;
+  if FieldExists(plugin.ClassName) then
+    if raise_if_existing then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'a plugin [%s] is already attached to object [%s]',[plugin.ClassName,UID_String])
+    else
+      exit;
+  pluginf.Field(plugin.ClassName).AsObject := plugin;
+  result := true;
 end;
 
 function TFRE_DB_ObjectEx.GetInstanceRight(const right: TFRE_DB_NameType): IFRE_DB_RIGHT;
