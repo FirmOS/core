@@ -1874,8 +1874,22 @@ implementation
     fielddef    : IFRE_DB_FieldSchemeDefinition;
     FieldPathStr: String;
 
+    procedure DoPreRender(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
+    begin
+      if plugin.EnhancesFormRendering then
+        plugin.RenderFormEntry(self,obj,true);
+    end;
+
+    procedure DoPostRender(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
+    begin
+      if plugin.EnhancesFormRendering then
+        plugin.RenderFormEntry(self,obj,false);
+    end;
+
+
   begin
     scheme := obj.GetScheme(true);
+    obj.ForAllPlugins(@DoPreRender);
     for i := 0 to Field('elements').ValueCount - 1 do begin
       if (Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_BLOCK_DESC) or (Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_GROUP_DESC) then
         begin

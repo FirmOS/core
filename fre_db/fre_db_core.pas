@@ -559,6 +559,13 @@ type
     function        IFRE_DB_Object.CloneToNewObjectWithoutSubobjects = CloneToNewObjectWithoutSubobjectsI;
 
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
+
+    procedure       ForAllPlugins                      (const plugin_iterator : IFRE_DB_PLUGIN_ITERATOR);
+    function        HasPlugin                          (const pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS): boolean;
+    function        HasPlugin                          (const pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; out plugin): boolean;                            { delivers the internal reference of the plugin, if avail, dont free it (!) }
+    function        AttachPlugin                       (const plugin : TFRE_DB_OBJECT_PLUGIN_BASE ; const raise_if_existing     : boolean=true) : Boolean; { sets a plugin instance of the specified class                             }
+    function        RemovePlugin                       (const pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; const raise_if_not_existing : boolean=true) : Boolean;
+
   public
     procedure       ClearSchemecachelink               ;
     class function  ReservedFieldName                  (const upper_name:TFRE_DB_NameType):boolean;
@@ -7434,16 +7441,30 @@ begin
 end;
 
 function TFRE_DB_SIMPLE_TRANSFORM.TransformInOut(const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object;
+var plgfld : TFRE_DB_Field;
+
   procedure Iterate(var ft : TFRE_DB_FIELD_TRANSFORM ; const idx : NativeInt ; var halt_flag:boolean);
   begin
      ft.TransformField(conn,input,result);
   end;
+
+  procedure DoPostTransform(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
+  begin
+    if plugin.EnhancesGridRenderingTransform then
+      plugin.TransformGridEntry(result);
+  end;
+
+
 begin
   result := GFRE_DB.NewObject;
   FTransformList.ForAllBreak(@iterate);
   result._Field('uid').AsGUID                            := input.Field('uid').AsGUID;
   result._Field('domainid').AsGUID                       := input.Field('domainid').AsGUID;
   result._Field(cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A).AsString := input.SchemeClass;
+  plgfld := (input.Implementor as TFRE_DB_Object)._FieldOnlyExisting('_$PLG');
+  if assigned(plgfld) then
+    result._Field('_$PLG').CloneFromField(plgfld);
+  input.ForAllPlugins(@DoPostTransform);
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.TransformRefQuery;
@@ -8486,6 +8507,13 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.FinalRightTransform(const ses: IFRE_DB_UserSession; const transformed_filtered_cloned_obj: IFRE_DB_Object);
 var conn : IFRE_DB_CONNECTION;
+
+    procedure DoPreSend(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
+    begin
+      if plugin.EnhancesGridRenderingPreClientSend then
+        plugin.TransformGridEntryClientSend(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,ses.GetSessionGlobalData,TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFRTLangres);
+    end;
+
 begin
   conn := ses.GetDBConnection;
   if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
@@ -8498,6 +8526,7 @@ begin
               GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
             end;
         end;
+  transformed_filtered_cloned_obj.ForAllPlugins(@DoPreSend);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_GET_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -14150,6 +14179,74 @@ begin
   end;
 end;
 
+procedure TFRE_DB_Object.ForAllPlugins(const plugin_iterator: IFRE_DB_PLUGIN_ITERATOR);
+var plugins : TFRE_DB_Field;
+    pluginf : TFRE_DB_Field;
+
+  procedure Iterate(const fld:IFRE_DB_Field);
+  begin
+    if fld.FieldType=fdbft_Object then
+      plugin_iterator(fld.AsObject.Implementor_HC as TFRE_DB_OBJECT_PLUGIN_BASE);
+  end;
+
+
+begin
+  if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    exit;
+  plugins.AsObject.ForAllFields(@Iterate,true,true);
+end;
+
+function TFRE_DB_Object.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS): boolean;
+var plugins : TFRE_DB_Field;
+begin
+  result := false;
+  if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    exit;
+  result := plugins.AsObject.FieldExists(pluginclass.ClassName);
+end;
+
+function TFRE_DB_Object.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; out plugin): boolean;
+var plugins : TFRE_DB_Field;
+    pluginf : TFRE_DB_Field;
+begin
+  result := false;
+  if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    exit;
+  if  plugins.AsObject.FieldOnlyExisting(pluginclass.ClassName,pluginf) then
+    begin
+      TFRE_DB_OBJECT_PLUGIN_BASE(plugin) := pluginf.AsObject.Implementor_HC as pluginclass;
+      result := true;
+    end;
+end;
+
+function TFRE_DB_Object.AttachPlugin(const plugin: TFRE_DB_OBJECT_PLUGIN_BASE; const raise_if_existing: boolean): Boolean;
+var plugins : TFRE_DB_Field;
+    pluginf : TFRE_DB_Object;
+begin
+  result := false;
+  pluginf := Field('_$PLG').AsObject;
+  if pluginf.FieldExists(plugin.ClassName) then
+    if raise_if_existing then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'a plugin [%s] is already attached to object [%s]',[plugin.ClassName,UID_String])
+    else
+      exit;
+  pluginf.Field(plugin.ClassName).AsObjectI := plugin;
+  result := true;
+end;
+
+function TFRE_DB_Object.RemovePlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; const raise_if_not_existing: boolean): Boolean;
+var plugins : TFRE_DB_Field;
+    pluginf : TFRE_DB_Field;
+begin
+  result := false;
+  if FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    if plugins.AsObject.FieldExists(pluginclass.ClassName) then
+      result := plugins.AsObject.DeleteField(pluginclass.ClassName);
+
+  if (not result) and raise_if_not_existing then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'there is no plugin [%s] attached to object [%s]',[pluginclass.ClassName,UID_String]);
+end;
+
 procedure TFRE_DB_Object.ClearSchemecachelink;
 begin
   FCacheSchemeObj:=nil;
@@ -14552,7 +14649,8 @@ begin
   FFieldStore            := _TFRE_DB_FieldTree.Create(@FREDB_DBNameType_Compare);
   _RestoreReservedFields ;
   if assigned(ExtensionObjectMediatorClass) then begin
-    FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self,false);
+    //FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self,false);
+    FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self,true); { changed 22.01.15 (cant see why & needed for plugins) }
   end;
 end;
 
