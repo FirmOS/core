@@ -662,6 +662,7 @@ type
     function        SchemeClass                        : TFRE_DB_NameType;
     function        IsA                                (const schemename:shortstring):Boolean;
     function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX ; var obj ) : Boolean;
+    function        IsA                                (const IsSchemeclass : TFRE_DB_OBJECTCLASSEX) : Boolean;
     function        PreTransformedWasA                 (const schemename:shortstring):Boolean;
     function        PreTransformedScheme               : ShortString;
     procedure       SaveToFile                         (const filename:TFRE_DB_String);
@@ -1682,12 +1683,13 @@ type
 
   TFRE_DB_SIMPLE_TRANSFORM=class(TFRE_DB_TRANSFORMOBJECT,IFRE_DB_SIMPLE_TRANSFORM)
   private
-    FFinalRightTransform  : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
-    FFRTLangres           : TFRE_DB_StringArray;
+    FFinalRightTransform       : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
+    FSimpleTransformCallbackN  : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED;
+    FSimpleTransformCallback   : IFRE_DB_OBJECT_SIMPLE_CALLBACK;
+    FFRTLangres                : TFRE_DB_StringArray;
   public
     constructor Create                         ; override;
     function    TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; override;
-    procedure   TransformRefQuery              ;
     //@ Add a Field that collects STRING values to a new String Field
     //@ format : format string of the new field ; in_fieldlist : list of input fieldnames ; output_title : name of the output field, default=same as input
     procedure   AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1;const hide_in_output : boolean=false);
@@ -1703,6 +1705,8 @@ type
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
     function    GetViewCollectionDescription   : TFRE_DB_CONTENT_DESC;
     procedure   SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
+    procedure   SetSimpleFuncTransform         (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK);
+    procedure   SetSimpleFuncTransformNested   (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED);
     procedure   AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String; const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
   end;
 
@@ -7465,12 +7469,10 @@ begin
   if assigned(plgfld) then
     result._Field('_$PLG').CloneFromField(plgfld);
   input.ForAllPlugins(@DoPostTransform);
-end;
-
-procedure TFRE_DB_SIMPLE_TRANSFORM.TransformRefQuery;
-begin
-  //if Assigned(FRQ_func) then
-  //  FRQ_func(,);
+  if assigned(FSimpleTransformCallback) then
+    FSimpleTransformCallback(input,result);
+  if assigned(FSimpleTransformCallbackN) then
+    FSimpleTransformCallbackN(input,result);
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer; const hide_in_output: boolean);
@@ -7553,6 +7555,16 @@ begin
   SetLength(FFRTLangres,length(langres));
   for i := 0 to high(langres) do
     FFRTLangres[i] := langres[i];
+end;
+
+procedure TFRE_DB_SIMPLE_TRANSFORM.SetSimpleFuncTransform(const callback: IFRE_DB_OBJECT_SIMPLE_CALLBACK);
+begin
+  FSimpleTransformCallback := callback;
+end;
+
+procedure TFRE_DB_SIMPLE_TRANSFORM.SetSimpleFuncTransformNested(const callback: IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED);
+begin
+  FSimpleTransformCallbackN := callback;
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddReferencedFieldQuery(const func: IFRE_DB_QUERY_SELECTOR_FUNCTION; const ref_field_chain: array of TFRE_DB_NameTypeRL; const output_fields: array of TFRE_DB_String; const output_titles: array of TFRE_DB_String; const langres: array of TFRE_DB_String; const gui_display_type: array of TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const hide_in_output: boolean);
@@ -15756,6 +15768,16 @@ begin
         Pointer(obj) := FMediatorExtention as IsSchemeclass;
         exit(true);
       end;
+  result := false;
+end;
+
+function TFRE_DB_Object.IsA(const IsSchemeclass: TFRE_DB_OBJECTCLASSEX): Boolean;
+begin
+  if assigned(FMediatorExtention) then
+    if FMediatorExtention is TFRE_DB_WeakObjectEx then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'IsA is not supported for weak classes class in question is [%s]',[FMediatorExtention.SchemeClass]);
+    if FMediatorExtention is IsSchemeclass then
+        exit(true);
   result := false;
 end;
 
