@@ -285,7 +285,7 @@ begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_domain);
-      SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_DGMenu),nil,CWSF(@WEB_DGNotification));
+      SetDisplayType(cdt_Listview,[],'',CWSF(@WEB_DGMenu),nil,CWSF(@WEB_DGNotification));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -865,11 +865,11 @@ begin
     with role_Grid do begin
       if _showRoleDomains(session,conn) then begin
         SetDeriveParent           (conn.AdmGetDomainCollection);
-        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
+        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
         SetParentToChildLinkField ('TFRE_DB_ROLE<DOMAINIDLINK');
       end else begin
         SetDeriveParent           (conn.AdmGetRoleCollection);
-        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
+        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',CWSF(@WEB_RoleMenu),nil,CWSF(@WEB_RoleNotification));
       end;
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
@@ -941,7 +941,7 @@ begin
       end;
       Filters.AddBooleanFieldFilter('disabled','disabled',false);
       SetDeriveTransformation(tr_groupIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GhasR'),nil,'',CWSF(@WEB_GIRMenu),nil,CWSF(@WEB_GIRNotification),nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GhasR'),CWSF(@WEB_GIRMenu),nil,CWSF(@WEB_GIRNotification),nil,CWSF(@WEB_AddToRole));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -968,7 +968,7 @@ begin
       end;
       Filters.AddStringFieldFilter('domainidlink','domainidlink','',dbft_EXACT);
       SetDeriveTransformation(tr_groupOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_GORMenu),nil,CWSF(@WEB_GORNotification),nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),CWSF(@WEB_GORMenu),nil,CWSF(@WEB_GORNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
     end;
   end;
@@ -1733,11 +1733,11 @@ begin
     with group_Grid do begin
       if _showGroupDomains(session,conn) then begin
         SetDeriveParent           (conn.AdmGetDomainCollection);
-        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
+        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
         SetParentToChildLinkField ('TFRE_DB_GROUP<DOMAINIDLINK');
       end else begin
         SetDeriveParent           (conn.AdmGetGroupCollection);
-        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
+        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',CWSF(@WEB_GGMenu),nil,CWSF(@WEB_GGNotification));
       end;
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
@@ -1764,7 +1764,7 @@ begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_UIGMenu),nil,CWSF(@WEB_UIGNotification),nil,CWSF(@WEB_AddToUser));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),CWSF(@WEB_UIGMenu),nil,CWSF(@WEB_UIGNotification),nil,CWSF(@WEB_AddToUser));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -1785,7 +1785,7 @@ begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_UserOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_UOGMenu),nil,CWSF(@WEB_UOGNotification),nil,CWSF(@WEB_RemoveFromUser));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),CWSF(@WEB_UOGMenu),nil,CWSF(@WEB_UOGNotification),nil,CWSF(@WEB_RemoveFromUser));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -1807,7 +1807,7 @@ begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
       end;
       SetDeriveTransformation(tr_RoleIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GhasR'),nil,'',CWSF(@WEB_RIGMenu),nil,CWSF(@WEB_RIGNotification),nil,CWSF(@WEB_AddToRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GhasR'),CWSF(@WEB_RIGMenu),nil,CWSF(@WEB_RIGNotification),nil,CWSF(@WEB_AddToRole));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -1831,7 +1831,7 @@ begin
       end;
       Filters.AddStringFieldFilter('domainidlink','domainidlink','',dbft_EXACT);
       SetDeriveTransformation(tr_RoleOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),nil,'',CWSF(@WEB_ROGMenu),nil,CWSF(@WEB_ROGNotification),nil,CWSF(@WEB_RemoveFromRole));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotR'),CWSF(@WEB_ROGMenu),nil,CWSF(@WEB_ROGNotification),nil,CWSF(@WEB_RemoveFromRole));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -1856,7 +1856,7 @@ begin
       end;
       Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
       SetDeriveTransformation(tr_GroupIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GinG'),nil,'',CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddGroupToGroup));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GinG'),CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddGroupToGroup));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -1883,7 +1883,7 @@ begin
       Filters.AddBooleanFieldFilter('internal','internal',false);
       Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
       SetDeriveTransformation(tr_groupOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveGroupFromGroup));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_GnotG'),CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveGroupFromGroup));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -3039,11 +3039,11 @@ begin
     with user_grid do begin
       if _showUserDomains(session,conn) then begin
         SetDeriveParent           (conn.AdmGetDomainCollection);
-        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
+        SetDisplayType            (cdt_Listview,[cdgf_Children,cdgf_ShowSearchbox],'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
         SetParentToChildLinkField ('TFRE_DB_USER<DOMAINIDLINK');
       end else begin
         SetDeriveParent           (conn.AdmGetUserCollection);
-        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',nil,'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
+        SetDisplayType            (cdt_Listview,[cdgf_ShowSearchbox],'',CWSF(@WEB_UGMenu),nil,CWSF(@WEB_UserSelected));
       end;
       if CHIDE_INTERNAL then begin
         Filters.AddBooleanFieldFilter('internal','internal',false);
@@ -3075,7 +3075,7 @@ begin
       end;
       Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
       SetDeriveTransformation(tr_GridIn);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),nil,'',CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddToGroup));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UinG'),CWSF(@WEB_GIGMenu),nil,CWSF(@WEB_GIGNotification),nil,CWSF(@WEB_AddToGroup));
       SetDefaultOrderField('displayname',true);
     end;
 
@@ -3102,7 +3102,7 @@ begin
       end;
       Filters.AddClassRightFilter('disablegroup','domainidlink','','','TFRE_DB_GROUP',['disableGroup'],conn.SYS.GetCurrentUserTokenClone,true,'disabled','false');
       SetDeriveTransformation(tr_GridOut);
-      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),nil,'',CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveFromGroup));
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect],FetchModuleTextShort(session,'gcap_UnotG'),CWSF(@WEB_GOGMenu),nil,CWSF(@WEB_GOGNotification),nil,CWSF(@WEB_RemoveFromGroup));
       SetDefaultOrderField('displayname',true);
     end;
 

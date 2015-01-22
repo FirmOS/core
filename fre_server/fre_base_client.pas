@@ -247,24 +247,55 @@ begin
 end;
 
 procedure TFRE_BASE_CLIENT.CCB_JobUpdate(const DATA: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const error_txt: string);
+
+  procedure ClearCompleted(const obj:IFRE_DB_Object);          // delete all completed jobs
+  var job : TFRE_DB_JOB;
+  begin
+    if obj.IsA(TFRE_DB_JOB,job) then
+      begin
+        if job.IsCompleted then
+          begin
+            writeln('DELETING JOB ',job.UID.AsHexString);
+            job.DeleteJobFile;
+          end;
+      end;
+  end;
+
 begin
-  if status<>cdcs_OK then                                                                         //TODO ERROR HANDLING
-    writeln('CCB JOBUPDATE STATUS',data.DumpToString(),' STATUS:',status,' ERROR:',error_txt);
+  if status=cdcs_OK then
+    begin
+      FJobsLock.Acquire;
+      try
+        FJobs.ForAllObjects(@ClearCompleted);
+      finally
+        FJobsLock.Release;
+      end;
+    end
+  else
+    begin
+      writeln('CCB JOBUPDATE STATUS',data.DumpToString(),' STATUS:',status,' ERROR:',error_txt);
+      RequestJobDatafromDB;
+    end;
 end;
 
 procedure TFRE_BASE_CLIENT.CCB_JobRequest(const DATA: IFRE_DB_Object; const status: TFRE_DB_COMMAND_STATUS; const error_txt: string);
 begin
-  if status=cdcs_OK then                                                                          //TODO ERROR HANDLING
+  if status=cdcs_OK then
     begin
       FJobsLock.Acquire;
       try
+        writeln('SWL JOBDATA RECEIVED FROM DB');
+//        writeln('SWL JOBREQ',data.DumpToString);
         FJobs := data.CloneToNewObject;
       finally
         FJobsLock.Release;
       end;
     end
   else
-    writeln('CCB JOBREQUEST STATUS',data.DumpToString(),' STATUS:',status,' ERROR:',error_txt);
+    begin
+      writeln('CCB JOBREQUEST STATUS',data.DumpToString(),' STATUS:',status,' ERROR:',error_txt);
+      RequestJobDatafromDB;
+    end;
 end;
 
 procedure TFRE_BASE_CLIENT.NewChannel(const channel: IFRE_APSC_CHANNEL; const event: TAPSC_ChannelState);
@@ -643,11 +674,11 @@ begin
 end;
 
 procedure TFRE_BASE_CLIENT.ParseJobDirectory;
-var tjobs: IFRE_DB_Object;
-    ojobs: IFRE_DB_Object;
-    transfer_list : IFRE_DB_Object;
-
-    dir  : string;
+var tjobs           : IFRE_DB_Object;
+    ojobs           : IFRE_DB_Object;
+    transfer_list   : IFRE_DB_Object;
+    completion_mode : boolean;
+    dir             : string;
 
     procedure jobiterator(file_name:AnsiString);
     var ljob : IFRE_DB_Object;
@@ -656,6 +687,10 @@ var tjobs: IFRE_DB_Object;
 //        writeln('SWL JOB '+file_name);
         ljob := GFRE_DBI.CreateFromFile(dir+DirectorySeparator+file_name);
         ljob.Field('MACHINEID').AsObjectlink:=fMyMachineUIDs[0];
+        if completion_mode = true then
+          begin
+            ljob.Field('COMPLETED').asboolean := true;
+          end;
         tjobs.Field(ljob.UID.AsHexString).AsObject := ljob;
       except on E:Exception do
         begin
@@ -675,8 +710,13 @@ begin
   tjobs := GFRE_DBI.NewObject;
   tjobs.Field('UID').AsGUID:=fjobs.UID;
 
+  completion_mode := false;
+
   dir := TFRE_DB_JOB.GetJobBaseDirectory(jobStateRunning);
   GFRE_BT.List_Files(dir,@jobiterator);
+
+  completion_mode := true;
+
   dir := TFRE_DB_JOB.GetJobBaseDirectory(jobStateDone);
   GFRE_BT.List_Files(dir,@jobiterator);
   dir := TFRE_DB_JOB.GetJobBaseDirectory(jobStateFailed);
@@ -688,7 +728,7 @@ begin
   transfer_list := GFRE_DBI.NewObject;
   FREDIFF_GenerateRelationalDiffContainersandAddToBulkObject(tjobs,ojobs,Fcollection_assignment,transfer_list);
 
-//  writeln('SWL: TRANSFER LIST ',transfer_list.DumpToString());
+  writeln('SWL: TRANSFER LIST ',transfer_list.DumpToString());
 
   SendServerCommand(FBaseconnection,'FIRMOS','JOBUPDATE',Nil,transfer_list,@CCB_JobUpdate,5000);
 
@@ -707,6 +747,7 @@ end;
 procedure TFRE_BASE_CLIENT.RequestJobDatafromDB;
 var request_data:IFRE_DB_Object;
 begin
+  writeln('SWL REQUEST JOB DATA');
   request_data :=GFRE_DBI.NewObject;
   request_data.Field('REQUEST').AsBoolean:=true;
   request_data.Field('MACHINEID').AsGUID:=fMyMachineUIDs[0];
@@ -797,7 +838,6 @@ begin
 
   Fcollection_assignment := GFRE_DBI.NewObject;
   Fcollection_assignment.Field(TFRE_DB_JOB.Classname).asstring := '$SYSJOBS';
-  Fcollection_assignment.Field(TFRE_DB_TIMERTEST_JOB.Classname).asstring := '$SYSJOBS';        // TODO
 
   FJobs                  := GFRE_DBI.NewObject;
 

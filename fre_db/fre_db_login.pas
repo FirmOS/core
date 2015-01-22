@@ -153,7 +153,7 @@ begin
     with notification_grid do begin
       SetDeriveParent(conn.AdmGetNotificationCollection);
       SetDeriveTransformation(transform);
-      SetDisplayType(cdt_Listview,[],'',nil,'',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
+      SetDisplayType(cdt_Listview,[],'',CWSF(@WEB_NotificationMenu),nil,CWSF(@WEB_NotificationSC));
       uids:=conn.SYS.GetCurrentUserTokenRef.GetUserGroupIDS;
       SetLength(uids,Length(uids)+1);
       uids[Length(uids)-1]:=conn.SYS.GetCurrentUserTokenRef.GetUserUID;
