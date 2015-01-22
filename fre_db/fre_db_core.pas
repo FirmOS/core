@@ -1815,7 +1815,7 @@ type
 
     function   GetStoreDescription             : TFRE_DB_CONTENT_DESC;
     function   getDescriptionStoreId           : String;
-    procedure  SetDisplayType                  (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;const CaptionFields:TFRE_DB_StringArray=nil;const TreeNodeIconField:TFRE_DB_String='';
+    procedure  SetDisplayType                  (const CollectionDisplayType : TFRE_COLLECTION_DISPLAY_TYPE ; const Flags:TFRE_COLLECTION_GRID_DISPLAY_FLAGS;const title:TFRE_DB_String;
                                                 const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil); //TODO: Make Callable Once
 
     function   GetDisplayDescription           : TFRE_DB_CONTENT_DESC;
@@ -8428,7 +8428,7 @@ begin
 end;
 
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE; const Flags: TFRE_COLLECTION_GRID_DISPLAY_FLAGS; const title: TFRE_DB_String; const CaptionFields: TFRE_DB_StringArray; const TreeNodeIconField: TFRE_DB_String; const item_menu_func: TFRE_DB_SERVER_FUNC_DESC; const item_details_func: TFRE_DB_SERVER_FUNC_DESC; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC; const drop_func: TFRE_DB_SERVER_FUNC_DESC; const drag_func: TFRE_DB_SERVER_FUNC_DESC);
+procedure TFRE_DB_DERIVED_COLLECTION.SetDisplayType(const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE; const Flags: TFRE_COLLECTION_GRID_DISPLAY_FLAGS; const title: TFRE_DB_String; const item_menu_func: TFRE_DB_SERVER_FUNC_DESC; const item_details_func: TFRE_DB_SERVER_FUNC_DESC; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC; const drop_func: TFRE_DB_SERVER_FUNC_DESC; const drag_func: TFRE_DB_SERVER_FUNC_DESC);
 begin
   _CheckSetDisplayType (CollectionDisplayType);
   FGridDisplayFlags := Flags;

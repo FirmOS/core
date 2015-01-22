@@ -948,7 +948,7 @@ begin
     with DC_Grid do begin
       SetDeriveParent(conn.GetCollection('CFBROWSER:'+session.GetLoginUserAsCollKey),'mypath');
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'',TFRE_DB_StringArray.create('name'),'icon',nil,nil,nil,nil,CWSF(@WEB_DropAction));
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_Children,cdgf_ColumnDragable,cdgf_ColumnResizeable],'',nil,nil,nil,nil,CWSF(@WEB_DropAction));
     end;
   end;
 end;
@@ -1752,7 +1752,7 @@ begin
     with DC_Tree do begin
       SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_B'));
       SetDeriveTransformation(tr_Tree);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox],'Tree',TFRE_DB_StringArray.create('firstname'),'icon',nil,nil,nil);//CSF('TreeMenu'));
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox],'Tree',nil,nil,nil);//CSF('TreeMenu'));
     end;
   end;
 end;
@@ -1944,7 +1944,7 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_A2'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',CWSF(@WEB_Menu),nil,
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Multiselect],'',CWSF(@WEB_Menu),nil,
                      CWSF(@WEB_GRID_ITEM_NOTIFY));
     end;
   end;
@@ -2332,7 +2332,7 @@ begin
     with DC_Grid_Long do begin
       SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_A'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect],'',TFRE_DB_StringArray.create('objname'),'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
+      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable,cdgf_Details,cdgf_Multiselect],'',nil,CWSF(@WEB_GRID_ITEM_DETAILS));
       SetDefaultOrderField('number',true);
     end;
     if not session.GetSessionModuleData(ClassName).FieldExists('BLAST') then begin

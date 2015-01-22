@@ -174,7 +174,7 @@ begin
     with dc do begin
       SetDeriveParent(conn.AdmGetWorkFlowCollection);
       SetDeriveTransformation(transform);
-      SetDisplayType(cdt_Listview,[cdgf_Children],'',nil,'',CWSF(@WEB_GridMenu),nil,CWSF(@WEB_GridSC));
+      SetDisplayType(cdt_Listview,[cdgf_Children],'',CWSF(@WEB_GridMenu),nil,CWSF(@WEB_GridSC));
       SetParentToChildLinkField('<STEP_PARENT');
       SetDefaultOrderField('step_id',true);
     end;
