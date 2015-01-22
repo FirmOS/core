@@ -132,6 +132,9 @@ type
     procedure  User1; virtual;
     procedure  User2; virtual;
     procedure  Interrupt; virtual;
+
+    procedure  AddJobTransportCollectionAssignment (const class_name:string; const collection:string);
+
   public
     constructor Create                ;
     destructor  Destroy               ; override ;
@@ -782,6 +785,11 @@ begin
     exit;
   writeln('INTERRUPT');
   GFRE_SC.RequestTerminate;
+end;
+
+procedure TFRE_BASE_CLIENT.AddJobTransportCollectionAssignment(const class_name: string; const collection: string);
+begin
+  Fcollection_assignment.Field(class_name).asstring:=collection;
 end;
 
 constructor TFRE_BASE_CLIENT.Create;
