@@ -2345,12 +2345,14 @@ end;
     function        JobKey                      : string;
     procedure       SetJobkeyDescription        (const newjobkey : string; const jdescription: string);
     procedure       SaveJobToFile               ;
+    procedure       DeleteJobFile               ;
     procedure       SetJobState                 (const value:TFRE_JobState);
     procedure       SetJobStateandSave          (const value:TFRE_JobState);
     function        GetJobState                 :TFRE_JobState;
     procedure       SetPid                      (const value  : QWord);
     function        GetPid                      : QWord;
     procedure       ClearPid                    ;
+    function        IsCompleted                 :boolean;                                              // job is done or failed and transferred to server
     procedure       SetProgress                 (const percent:integer);
     procedure       AddProgressLog              (const msg: string;const percent:integer=-1);
     class function  GetJobBaseFilename          (const state  : TFRE_JobState; const vjobkey:string):string;
@@ -6519,10 +6521,14 @@ var x           : TObject;
 
       procedure _jobiterator(const obj:IFRE_DB_Object);
       begin
-        if obj.Field('MACHINEID').AsObjectLink=machine_id then                            //TODO FILTER FOR DONE OR FAILED
+        if (obj.Field('MACHINEID').AsObjectLink=machine_id) then
           begin
-//            writeln('SWL JOB ITERATOR:',obj.DumpToString(4));
-            CMD.Data.Field(obj.UID.AsHexString).AsObject:=obj.CloneToNewObject;
+            if obj.FieldExists('COMPLETED')=false then
+              begin
+                //writeln('SWL JOB ITERATOR:',obj.DumpToString(4));
+                writeln('SWL JOB ITERATOR:',obj.UID.AsHexString);
+                CMD.Data.Field(obj.UID.AsHexString).AsObject:=obj.CloneToNewObject;
+              end;
           end;
       end;
 
@@ -9950,6 +9956,12 @@ begin
   SaveToFile(jobfilename);
 end;
 
+procedure TFRE_DB_JOB.DeleteJobFile;
+begin
+  if DeleteFile(GetJobFilename)=false then
+    raise EFRE_DB_Exception.Create('ERROR ON DELETING JOBFILE '+GetJobFilename);
+end;
+
 procedure TFRE_DB_JOB.SetJobState(const value: TFRE_JobState);
 begin
   if (GetJobState<>value) and (GetJobstate<>jobStateToRun) then
@@ -9990,6 +10002,14 @@ begin
   DeleteField('pid');
 end;
 
+function TFRE_DB_JOB.IsCompleted: boolean;
+begin
+  if FieldExists('COMPLETED') then
+    result := Field('COMPLETED').asboolean
+  else
+    result := false;
+end;
+
 procedure TFRE_DB_JOB.SetProgress(const percent: integer);
 var jr:TFRE_DB_JobReport;
 begin
@@ -10010,6 +10030,7 @@ end;
 class function TFRE_DB_JOB.GetJobBaseFilename(const state: TFRE_JobState; const vjobkey: string): string;
 begin
   result :=GetJobBaseDirectory(state)+DirectorySeparator+GFRE_BT.Str2HexStr(vJobKey);
+  writeln('SWL JOB BASE FILENAME ', result);
 end;
 
 class function TFRE_DB_JOB.GetJobBaseDirectory(const state: TFRE_JobState): string;
