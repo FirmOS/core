@@ -1754,6 +1754,7 @@ type
     function    CheckClassRight4DomainId    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domain:TFRE_DB_GUID):boolean;
     function    CheckClassRight4DomainId    (const std_right:TFRE_DB_STANDARD_RIGHT;const rclassname: ShortString;const domain:TFRE_DB_GUID):boolean;
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+    function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const rclassname: ShortString): TFRE_DB_GUIDArray;
     function    GetDomainNamesForClassRight (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
 
     function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TFRE_DB_GUID ):boolean;
