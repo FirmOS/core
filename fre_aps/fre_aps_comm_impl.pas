@@ -176,6 +176,17 @@ type
     procedure      Execute       (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
   end;
 
+  { TFRE_APS_CMD_DO_WORKABLE }
+
+  TFRE_APS_CMD_DO_WORKABLE=class(TFRE_APS_CMD_BASE)
+  private
+    FWorkable : IFRE_APSC_WORKABLE;
+  public
+    class function FactoryCreate (const Factory   : IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORKABLE; inline;
+    function       Setup         (const workable  : IFRE_APSC_WORKABLE): TFRE_APS_CMD_DO_WORKABLE;inline;
+    procedure      Execute       (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
+  end;
+
 
   { TFRE_APS_CMD_ADD_NEW_SRV_SOCKET }
 
@@ -309,6 +320,8 @@ type
     destructor  Destroy                 ; override;
   end;
 
+  TFRE_APSC_CM_DISTRIBUTION_CB=procedure (const start_ix,end_ix,max_ix : NativeInt ; const cm : TFRE_APSC_CHANNEL_MANAGER);
+
   TFRE_APSC_CHANNELGROUP_THREAD = class(TFRE_APSC_CTX_THREAD,IFRE_APSC_CHANNEL_GROUP)       { One Dispatching (eventing / main thread per channel group) }
   private
     function    s_GetManagerWithMinimumConns   : TFRE_APSC_CHANNEL_MANAGER;     { LOAD BASED FAIR DISTRIBUTION }
@@ -316,7 +329,9 @@ type
     function    s_GetChannelManagerByID        (cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
     function    s_GetChannelManagerIDs         : TFRE_APSC_ID_Array;
     function    s_CreateNewChannelManager      (const cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
+    function    s_GetFirstChannelManager       : TFRE_APSC_CHANNEL_MANAGER;
   public
+    procedure   CallChannelMgrsDistribute (const cb : TFRE_APSC_CM_DISTRIBUTION_CB ; const max_chunks : NativeInt);
     function    GetCGID                   : TFRE_APSC_ID;
     function    GetChannelManagerIDs      : TFRE_APSC_ID_Array;
     function    GetChannelManagerCount    : NativeInt;
@@ -326,6 +341,8 @@ type
     function    AddChannelGroupTimer      (const timer_id: TFRE_APSC_ID ; interval_ms : NativeInt ; timer_callback         : TFRE_APSC_TIMER_CALLBACK    ; const start_timer    : boolean = true ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
     function    AddListenerTCP            (Bind_IP,Bind_Port :String     ; const ID:TFRE_APSC_ID     ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
     function    AddListenerUX             (special_file      : ShortString ; const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER;
+    //procedure   DoAsyncWork               ;
+    procedure   DoSyncedWork              (const workable : IFRE_APSC_WORKABLE);
     constructor Create                    (const up_cg_name  : ShortString; const channel_worker_cnt: NativeInt);
   end;
 
@@ -905,6 +922,32 @@ end;
 procedure loc_timer_cb(fd : evutil_socket_t ; short: cshort ; data:pointer) ;cdecl;
 begin
   TFRE_APSC_TIMER(data).TimerCallback(short);
+end;
+
+{ TFRE_APS_CMD_DO_WORKABLE }
+
+class function TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(const Factory: IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORKABLE;
+begin
+  result := TFRE_APS_CMD_DO_WORKABLE(Factory.Factor(TFRE_APS_CMD_DO_WORKABLE));
+end;
+
+function TFRE_APS_CMD_DO_WORKABLE.Setup(const workable: IFRE_APSC_WORKABLE): TFRE_APS_CMD_DO_WORKABLE;
+begin
+  FWorkable := workable;
+end;
+
+procedure TFRE_APS_CMD_DO_WORKABLE.Execute(const ctx_owner: TFRE_APSC_CTX_THREAD; const what: TAPSC_EV_TYP);
+var cgt : TFRE_APSC_CHANNELGROUP_THREAD;
+    max : NativeInt;
+begin
+  cgt        := ctx_owner as TFRE_APSC_CHANNELGROUP_THREAD;
+  max        := FWorkable.GetMaximumChunk;
+  if max=0 then
+    begin
+      FWorkable.ErrorOccurred(1,'max work chunk size must be >0');
+      exit;
+    end;
+  cgt.CallChannelMgrsDistribute(nil,max);
 end;
 
 { TFRE_APS_CMD_CHANNEL_CRTL }
@@ -2644,6 +2687,34 @@ begin
   FChildContexts.Add(TFRE_APSC_CHANNEL_MANAGER.Create(cm_id,Self));
 end;
 
+function TFRE_APSC_CHANNELGROUP_THREAD.s_GetFirstChannelManager: TFRE_APSC_CHANNEL_MANAGER;
+begin
+  FChildContexts.Count;
+end;
+
+procedure TFRE_APSC_CHANNELGROUP_THREAD.CallChannelMgrsDistribute(const cb: TFRE_APSC_CM_DISTRIBUTION_CB; const max_chunks: NativeInt);
+var idx,mgrs  : NativeInt;
+    partitionsz : NativeInt;
+
+  procedure call(var x : TFRE_APSC_CTX_THREAD);
+  begin
+    //cb(,,(x as TFRE_APSC_CHANNEL_MANAGER));
+  end;
+
+begin
+  if max_chunks=0 then
+    GFRE_LOG.LogEmergency('DISTRIBUTE WORK EXCEPTION : TFRE_APSC_CHANNELGROUP_THREAD max_chunks=0');
+  cs_LockContextChange;
+  try
+    idx          := 0;
+    mgrs         := FChildContexts.Count;
+    partitionsz  := max_chunks div mgrs; // 9 div 5
+    FChildContexts.ForAll(@call);
+  finally
+    cs_UnlockContectChange;
+  end;
+end;
+
 function TFRE_APSC_CHANNELGROUP_THREAD.GetCGID: TFRE_APSC_ID;
 begin
   result := GetID;
@@ -2772,6 +2843,12 @@ begin
   end;
   result := uxl;
   cs_PushDirectCommand(TFRE_APS_CMD_ADD_LISTENER.FactoryCreate(GAPSC).Setup(uxl,start_listener));
+end;
+
+procedure TFRE_APSC_CHANNELGROUP_THREAD.DoSyncedWork(const workable: IFRE_APSC_WORKABLE);
+var fsyncdev : IFOS_E;
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(workable));
 end;
 
 

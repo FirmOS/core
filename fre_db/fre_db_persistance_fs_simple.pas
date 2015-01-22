@@ -39,6 +39,17 @@ unit fre_db_persistance_fs_simple;
 
 {$mode objfpc}{$H+}
 {$modeswitch nestedprocvars}
+{$codepage UTF8}
+
+{ TODO }
+{
+  * RIGHT CHECKS
+  * FULL TRANSACTION SUPPORT
+  * MOVE CHECK CODE INTO TRANSACTION CODE
+  * READ/WRITE TRANSACTIONS
+  * DIRTY READS IN TRANSACTIONS FOR INDEX,REFLINK STRUCTURES
+  * CAPTURE DIRTY STATES
+}
 
 interface
 
@@ -727,10 +738,22 @@ procedure TFRE_DB_PS_FILE.DEBUG_InternalFunction(const func: NativeInt);
       G_AllNonsysMasters[i].InternalCheckStoreLocked;
   end;
 
+  procedure CheckAllSubObjectsStored;
+  var
+    i: NativeInt;
+  begin
+    G_SysMaster.InternalCheckSubobjectsStored;
+    for i:=0 to high(G_AllNonsysMasters) do
+      G_AllNonsysMasters[i].InternalCheckSubobjectsStored;
+  end;
+
 begin
   case func of
     1 : begin
           CheckAllStoreLocked;
+        end;
+    2 : begin
+          CheckAllSubobjectsStored;
         end;
   end;
 end;
@@ -1287,21 +1310,7 @@ begin
             G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('ID',Fmaster,FChangeNotificationIF);
             ImplicitTransaction := True;
           end;
-          if not FMaster.FetchObject(obj_uid,delete_object,true) then
-            raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[FREDB_G2H(obj_uid)]);
-          if (collection_name<>'') then
-            if delete_object.__InternalCollectionExistsName(collection_name)=-1 then
-              raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the request to delete object [%s] from collection [%s] could not be completed, the object is not stored in the requested collection',[delete_object.UID_String,collection_name]);
-          if assigned(user_context) then
-            begin
-              G_GetUserToken(user_context,ut,true);
-              if ut.CheckStdRightSetUIDAndClass(delete_object.UID,delete_object.DomainID,delete_object.SchemeClass,[sr_DELETE])<>edb_OK then
-                raise EFRE_DB_Exception.Create(edb_ACCESS,'no right to delete object [%s]',[FREDB_G2H(obj_uid)]);
-            end;
-          if delete_object.IsObjectRoot then
-            step := TFRE_DB_DeleteObjectStep.Create(self,FMaster,delete_object,collection_name,false,user_context)
-          else
-            raise EFRE_DB_Exception.Create(edb_ERROR,'a delete of a subobject is only allowed via an update of an root object');
+          step := TFRE_DB_DeleteObjectStep.Create(self,FMaster,obj_uid,collection_name,user_context);
           G_Transaction.AddChangeStep(step);
           result := step.GetTransActionStepID;
           if ImplicitTransaction then
@@ -1345,13 +1354,6 @@ var coll                : TFRE_DB_PERSISTANCE_COLLECTION;
     updatestep          : TFRE_DB_UpdateStep;
 
 
-  procedure GeneralChecks;
-  begin
-    if obj.DomainID=CFRE_DB_NullGUID then
-      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'persistance failure, an object without a domainid cannot be stored');
-    obj._InternalGuidNullCheck;
-  end;
-
 begin
   LayerLock.Acquire;
   try
@@ -1359,52 +1361,24 @@ begin
     coll       := nil;
     try
       try
-        GeneralChecks;
+        if not assigned(G_Transaction) then
+          begin
+            G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('S',Fmaster,FChangeNotificationIF);
+            ImplicitTransaction := True;
+          end
+        else
+          ImplicitTransaction:= false;
         if store then
           begin
-            if not obj.IsObjectRoot then
-              raise EFRE_DB_PL_Exception.Create(edb_UNSUPPORTED,'store of non root objects is not allowed');
-            if collection_name='' then
-              raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
-            if not _GetCollection(collection_name,coll) then
-              raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the specified collection [%s] was not found',[collection_name]);
-            if not assigned(G_Transaction) then
-              begin
-                G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('S',Fmaster,FChangeNotificationIF);
-                ImplicitTransaction := True;
-              end;
-            to_update_obj := nil;
-            G_Transaction.AddChangeStep(TFRE_DB_InsertStep.Create(self,FMaster,iobj.Implementor as TFRE_DB_Object,coll,store,user_context));
+            G_Transaction.AddChangeStep(TFRE_DB_InsertStep.Create(self,FMaster,iobj.Implementor as TFRE_DB_Object,collection_name,user_context));
             result := G_Transaction.GetTransLastStepTransId;
             if ImplicitTransaction then
               G_Transaction.Commit;
           end
         else
           begin { update }
-            if not obj.IsObjectRoot then
-              raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the object [%s] is a child object, only root objects updates are allowed',[obj.UID_String]);
-            if not FMaster.FetchObject(obj.UID,to_update_obj,true) then
-              raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[obj.UID_String]);
-            if length(to_update_obj.__InternalGetCollectionList)=0 then
-              begin
-                writeln('::: OFFENDING OBJECT ', to_update_obj.DumpToString());
-                if not GDBPS_SKIP_STARTUP_CHECKS then
-                  raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fetched to update ubj must have internal collections(!)');
-              end;
-            if collection_name<>'' then
-              if to_update_obj.__InternalCollectionExistsName(collection_name)=-1 then
-                raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'a collectionname was given for updaterequest, but the dbo is not in that collection');
-            if not assigned(G_Transaction) then
-              begin
-                G_Transaction       := TFRE_DB_TransactionalUpdateList.Create('U',Fmaster,FChangeNotificationIF);
-                ImplicitTransaction := True;
-              end else
-                ImplicitTransaction := false;
-            updatestep := TFRE_DB_UpdateStep.Create(self,FMaster,obj,to_update_obj,false,user_context);
-            if updatestep.HasNoChanges then
-              updatestep.Free
-            else
-              G_Transaction.AddChangeStep(updatestep);
+            updatestep := TFRE_DB_UpdateStep.Create(self,FMaster,obj,collection_name,user_context);
+            G_Transaction.AddChangeStep(updatestep);
             result := G_Transaction.GetTransLastStepTransId;
             if ImplicitTransaction then
               changes := Commit;
@@ -1720,7 +1694,131 @@ begin
 end;
 
 function TFRE_DB_PS_FILE.DifferentialBulkUpdate(const user_context: PFRE_DB_GUID; const transport_obj: IFRE_DB_Object): TFRE_DB_Errortype;
-var ImplicitTransaction : Boolean;
+var ImplicitTransaction  : Boolean;
+    InsertList,
+    UpdateList,
+    DeleteList           : IFRE_DB_Object;
+    collname             : TFRE_DB_NameType;
+
+    procedure CheckTransportObject;
+    var fld : IFRE_DB_Field;
+
+        procedure MapCollname;
+        begin
+          case collname of
+            '$SYSMACHINE' : collname := 'SysMachineCollection';
+            '$SYSJOBS'    : collname := 'SysJobsCollection';
+          end;
+        end;
+
+        procedure ProcessInsertList;
+        var obl     : TFRE_DB_OBJECTLIST;
+            oba     : TFRE_DB_ObjectArray;
+              i     : NativeInt;
+           coll     : TFRE_DB_PERSISTANCE_COLLECTION;
+           obj      : TFRE_DB_Object;
+           fakedg   :TFRE_DB_GUID;
+        begin
+          obl := InsertList.Implementor as TFRE_DB_OBJECTLIST;
+          oba := obl.CheckOutAsArray;
+          //writeln('>> PROCESS INSERTLIST :: ',length(oba));
+          for i:=0 to high(oba) do
+            begin
+              //if (i=0) or (i=40) then
+              //  continue;
+              collname := uppercase(oba[i].Field('coll').AsString);
+              MapCollname;
+              obj      := oba[i].Field('n').CheckOutObject;
+              //obj.Field('uniquephysicalid').AsString:=GFRE_DBI.Get_A_Guid_HEX;
+              //fakedg.SetFromHexString('5f769a1c6fe25d1c867c795318534c22');
+              //obj.Field('DOMAINID').AsGUID := fakedg;
+              oba[i].Finalize;
+              oba[i]:=nil;
+              //writeln('INSERT ',i,' ',collname,' ::> ',obj.DumpToString());
+              G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DIFFUP_'+inttostr(i),Fmaster,FChangeNotificationIF);
+              G_Transaction.AddChangeStep(TFRE_DB_InsertStep.Create(self,FMaster,obj,collname,user_context));
+              G_Transaction.Commit;
+            end;
+          //writeln('>>DONE');
+        end;
+
+        procedure ProcessDeleteList;
+        var obl          : TFRE_DB_OBJECTLIST;
+            oba          : TFRE_DB_ObjectArray;
+              i          : NativeInt;
+           collname      : TFRE_DB_NameType;
+           obj_uid       : TFRE_DB_GUID;
+        begin
+          obl := DeleteList.Implementor as TFRE_DB_OBJECTLIST;
+          oba := obl.CheckOutAsArray;
+          //writeln('>> PROCESS DELETELIST :: ',length(oba));
+          for i:=0 to high(oba) do
+            begin
+              collname := uppercase(oba[i].Field('coll').AsString);
+              obj_uid  := oba[i].UID;
+              oba[i].Finalize;
+              oba[i]:=nil;
+              MapCollname;
+              //writeln('DELETE ',i,' ',collname,' ::> ',obj.DumpToString());
+              G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DIFFDEL_'+inttostr(i),Fmaster,FChangeNotificationIF);
+              G_Transaction.AddChangeStep(TFRE_DB_DeleteObjectStep.Create(self,FMaster,obj_uid,collname,user_context));
+              G_Transaction.Commit;
+            end;
+        end;
+
+        procedure ProcessUpdateList;
+        var obl          : TFRE_DB_OBJECTLIST;
+            oba          : TFRE_DB_ObjectArray;
+              i          : NativeInt;
+           collname      : TFRE_DB_NameType;
+           obj_uid       : TFRE_DB_GUID;
+           obj           : TFRE_DB_Object;
+           fakedg        :TFRE_DB_GUID;
+
+        begin
+          obl := UpdateList.Implementor as TFRE_DB_OBJECTLIST;
+          oba := obl.CheckOutAsArray;
+          //writeln('>> PROCESS UPDATELIST :: ',length(oba));
+          for i:=0 to high(oba) do
+            begin
+              collname := uppercase(oba[i].Field('coll').AsString);
+
+              obj    := oba[i];
+              oba[i] := nil;
+              //obj.Field('uniquephysicalid').AsString:=GFRE_DBI.Get_A_Guid_HEX;
+              //fakedg.SetFromHexString('5f769a1c6fe25d1c867c795318534c22');
+              //obj.Field('DOMAINID').AsGUID := fakedg;
+              MapCollname;
+              //writeln('UPDATE ',i,' ',collname,' ::> ',obj.DumpToString());
+              G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DIFFUP_'+inttostr(i),Fmaster,FChangeNotificationIF);
+              G_Transaction.AddChangeStep(TFRE_DB_UpdateStep.CreateFromDiffTransport(self,FMaster,obj,collname,user_context));
+              G_Transaction.Commit;
+            end;
+        end;
+
+    begin
+      if transport_obj.FieldOnlyExisting('Delete',fld) then
+        begin
+          if fld.FieldType<>fdbft_Object then
+            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'differential bulk update, deletelist encapsulation bad / not an object');
+          DeleteList := fld.CheckOutObject;
+          ProcessDeleteList;
+        end;
+      if transport_obj.FieldOnlyExisting('Insert',fld) then
+        begin
+          if fld.FieldType<>fdbft_Object then
+            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'differential bulk update, insertlist encapsulation bad / not an object');
+          InsertList := fld.CheckOutObject;
+          ProcessInsertList;
+        end;
+      if transport_obj.FieldOnlyExisting('Update',fld) then
+        begin
+          if fld.FieldType<>fdbft_Object then
+            raise EFRE_DB_PL_Exception.Create(edb_ERROR,'differential bulk update, updatelist encapsulation bad / not an object');
+          UpdateList := fld.CheckOutObject;
+          ProcessUpdateList;
+        end;
+    end;
 
 begin
   LayerLock.Acquire;
@@ -1728,16 +1826,9 @@ begin
     try
       try
         begin { update }
-          if not assigned(G_Transaction) then
-            begin
-              G_Transaction        := TFRE_DB_TransactionalUpdateList.Create('DIFFUP',Fmaster,FChangeNotificationIF);
-              ImplicitTransaction := True;
-            end;
-          {}
-            // Delete Objects
-            // Insert Objects
-            // Update Objects
-          {}
+          if assigned(G_Transaction) then
+            GFRE_BT.CriticalAbort('must not have a transaction here');
+          CheckTransportObject;
         end;
       except
         on e:EFRE_DB_PL_Exception do
@@ -1766,6 +1857,7 @@ begin
   finally
     LayerLock.Release;
   end;
+  result := edb_OK;
 end;
 
 function TFRE_DB_PS_FILE.LayerLock: IFOS_LOCK;

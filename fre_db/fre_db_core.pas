@@ -196,11 +196,8 @@ type
     function  GetAsDateTimeUTC   : TFRE_DB_DateTime64;
     function  GetAsString        : TFRE_DB_String;
     function  GetAsBoolean       : Boolean;
+    function  _GetAsObject       : TFRE_DB_Object;
     function  GetAsObject        : TFRE_DB_Object;
-    function  CheckOutObject     : TFRE_DB_Object;
-    function  CheckOutObjectArray: IFRE_DB_ObjectArray;
-    function  CheckOutObjectArrayItem     (const idx : NAtiveInt): IFRE_DB_Object;
-    function  CheckOutObjectI    : IFRE_DB_Object;
     function  GetAsStream        : TFRE_DB_Stream;
     function  GetAsObjectLink    : TFRE_DB_GUID;
 
@@ -331,7 +328,10 @@ type
 
     procedure   CloneFromField    (const Field:TFRE_DB_FIELD); // Value 0 = Fieldclone
     procedure   CloneFromFieldI   (const Field:IFRE_DB_FIELD);
-
+    function    CheckOutObjectI   : IFRE_DB_Object;
+    function    CheckOutObject     : TFRE_DB_Object;
+    function    CheckOutObjectArray: IFRE_DB_ObjectArray;
+    function    CheckOutObjectArrayItem     (const idx : NAtiveInt): IFRE_DB_Object;
 
     function    GetStreamingSize  : TFRE_DB_SIZE_TYPE;
     function    CopyFieldToMem    (var mempointer:Pointer):TFRE_DB_SIZE_TYPE;
@@ -559,6 +559,13 @@ type
     function        IFRE_DB_Object.CloneToNewObjectWithoutSubobjects = CloneToNewObjectWithoutSubobjectsI;
 
     function        Invoke                             (const method: TFRE_DB_String; const input: IFRE_DB_Object ; const ses : IFRE_DB_Usersession ; const  app : IFRE_DB_APPLICATION ; const conn : IFRE_DB_CONNECTION): IFRE_DB_Object; virtual;
+
+    procedure       ForAllPlugins                      (const plugin_iterator : IFRE_DB_PLUGIN_ITERATOR);
+    function        HasPlugin                          (const pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS): boolean;
+    function        HasPlugin                          (const pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; out plugin): boolean;                            { delivers the internal reference of the plugin, if avail, dont free it (!) }
+    function        AttachPlugin                       (const plugin : TFRE_DB_OBJECT_PLUGIN_BASE ; const raise_if_existing     : boolean=true) : Boolean; { sets a plugin instance of the specified class                             }
+    function        RemovePlugin                       (const pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; const raise_if_not_existing : boolean=true) : Boolean;
+
   public
     procedure       ClearSchemecachelink               ;
     class function  ReservedFieldName                  (const upper_name:TFRE_DB_NameType):boolean;
@@ -676,7 +683,8 @@ type
     function        Properties                         : TFRE_DB_Object_PropertySet;
     procedure       CopyField                          (const obj:TFRE_DB_Object;const field_name:String);
     procedure       CopyFieldI                         (const obj:IFRE_DB_Object;const field_name:String);
-    function        FetchObjByUID                      (const childuid:TFRE_DB_GUID):TFRE_DB_Object; // fetches also root
+    function        FetchObjByUID                      (const childuid:TFRE_DB_GUID):TFRE_DB_Object; { fetches also root }
+    function        FetchObjByUIDNonHierarchic         (const childuid: TFRE_DB_GUID; out found_fieldname: TFRE_DB_NameType; out child: TFRE_DB_Object): boolean;
 
     function        ForAllObjectsBreakHierarchicI      (const iter:IFRE_DB_ObjectIteratorBrk):boolean; // includes root object (self)
     function        GetFullHierarchicObjectList        (const include_self : boolean=false):TFRE_DB_ObjectArray;
@@ -1987,6 +1995,7 @@ type
     function    GetDomainID                 (const domainname:TFRE_DB_NameType):TFRE_DB_GUID;//inline;
     function    GetDomainNameByUid          (const domainid:TFRE_DB_GUID):TFRE_DB_NameType;//inline;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString ; const domainguid : TFRE_DB_GUID): TFRE_DB_String;
+    function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString): TFRE_DB_String;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass ; const domainguid : TFRE_DB_GUID): TFRE_DB_String;
     function    _GetStdRightName            (const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_String;
     function    FetchAllDomainUids          : TFRE_DB_GUIDArray;
@@ -2029,6 +2038,7 @@ type
     function    CheckClassRight4DomainId    (const std_right : TFRE_DB_STANDARD_RIGHT ; const rclassname: ShortString ; const domain: TFRE_DB_GUID): boolean;
 
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+    function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const rclassname: ShortString): TFRE_DB_GUIDArray;
     function    GetDomainNamesForClassRight (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
 
     function    CheckObjectRight            (const right_name : TFRE_DB_String ; const uid : TFRE_DB_GUID ):boolean;
@@ -2208,6 +2218,7 @@ type
     function    CheckClassRight4AnyDomain   (const right_name:TFRE_DB_String;const classtyp: TClass):boolean;
     function    CheckClassRight4Domain      (const right_name:TFRE_DB_String;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean;
     function    CheckClassRight4DomainId    (const right_name:TFRE_DB_String;const classtyp: TClass;const domain:TFRE_DB_GUID):boolean;
+    function    CheckClassRight4DomainId    (const right_name:TFRE_DB_String;const rclassname: ShortString;const domain: TFRE_DB_GUID): boolean;
     function    GetDomainsForRight          (const right_name:TFRE_DB_String): TFRE_DB_GUIDArray;
     function    GetDomainsForClassRight     (const right_name:TFRE_DB_String;const classtyp: TClass): TFRE_DB_GUIDArray;
 
@@ -2217,7 +2228,9 @@ type
 
     function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean; { specific domain }
     function    CheckClassRight4DomainId    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domain:TFRE_DB_GUID):boolean; { specific domain }
+    function    CheckClassRight4DomainId    (const std_right:TFRE_DB_STANDARD_RIGHT;const rclassname: ShortString;const domain: TFRE_DB_GUID): boolean;
     function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_GUIDArray;
+    function    GetDomainsForClassRight     (const std_right:TFRE_DB_STANDARD_RIGHT;const rclassname: ShortString): TFRE_DB_GUIDArray;
     function    GetDomainNamesForClassRight (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass): TFRE_DB_StringArray;
 
     function    CheckObjectRight            (const right_name : TFRE_DB_String         ; const uid : TFRE_DB_GUID ):boolean;
@@ -3008,6 +3021,11 @@ begin
   result:=TFRE_DB_Base.GetClassRightNameSR(rclassname,std_right)+'@'+uppercase(FREDB_G2H(domainguid));
 end;
 
+function TFRE_DB_USER_RIGHT_TOKEN._GetStdRightName(const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString): TFRE_DB_String;
+begin
+  result:=TFRE_DB_Base.GetClassRightNameSR(rclassname,std_right);
+end;
+
 //function TFRE_DB_USER_RIGHT_TOKEN._DomainIDasString(const name: TFRE_DB_NameType): TFRE_DB_NameType;
 //begin
 //  result := uppercase(FREDB_G2H(GetDomainID(name))); // DomainIDasString has to be uppercase!
@@ -3079,6 +3097,11 @@ end;
 function TFRE_DB_USER_RIGHT_TOKEN.GetDomainsForClassRight(const right_name: TFRE_DB_String; const classtyp: TClass): TFRE_DB_GUIDArray;
 begin
   result := GetDomainsForRight(TFRE_DB_BaseClass(classtyp).GetClassRightName(right_name));
+end;
+
+function TFRE_DB_USER_RIGHT_TOKEN.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString): TFRE_DB_GUIDArray;
+begin
+  result := GetDomainsForRight(_GetStdRightName(std_right,rclassname));
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4MyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
@@ -3528,7 +3551,7 @@ var oldcount : NativeInt;
 begin
   oldcount := _CheckIndex(idx);
   result := Field(inttostr(idx)).CheckOutObject;
-  for i :=  (oldcount-1) downto (idx+1) do
+  for i :=  (idx+1)  to (oldcount-1)  do
     begin
       Field(inttostr(i-1)).AsObject := Field(inttostr(i)).CheckOutObject;
     end;
@@ -6601,6 +6624,11 @@ begin
   result := FCurrentUserToken.CheckClassRight4DomainId(right_name,classtyp,domain);
 end;
 
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4DomainId(const right_name: TFRE_DB_String; const rclassname: ShortString; const domain: TFRE_DB_GUID): boolean;
+begin
+  result := FCurrentUserToken.CheckClassRight4DomainId(right_name,rclassname,domain);
+end;
+
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForRight(const right_name: TFRE_DB_String): TFRE_DB_GUIDArray;
 begin
   result := FCurrentUserToken.GetDomainsForRight(right_name);
@@ -6609,6 +6637,11 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const right_name: TFRE_DB_String; const classtyp: TClass): TFRE_DB_GUIDArray;
 begin
   result := FCurrentUserToken.GetDomainsForClassRight(right_name,classtyp);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString): TFRE_DB_GUIDArray;
+begin
+  result := FCurrentUserToken.GetDomainsForClassRight(std_right,rclassname);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4AnyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
@@ -6624,6 +6657,11 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4DomainId(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domain: TFRE_DB_GUID): boolean;
 begin
   result := FCurrentUserToken.CheckClassRight4DomainId(std_right,classtyp,domain);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4DomainId(const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString; const domain: TFRE_DB_GUID): boolean;
+begin
+  result := FCurrentUserToken.CheckClassRight4DomainId(std_right,rclassname,domain);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.GetDomainsForClassRight(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): TFRE_DB_GUIDArray;
@@ -7405,16 +7443,30 @@ begin
 end;
 
 function TFRE_DB_SIMPLE_TRANSFORM.TransformInOut(const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object;
+var plgfld : TFRE_DB_Field;
+
   procedure Iterate(var ft : TFRE_DB_FIELD_TRANSFORM ; const idx : NativeInt ; var halt_flag:boolean);
   begin
      ft.TransformField(conn,input,result);
   end;
+
+  procedure DoPostTransform(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
+  begin
+    if plugin.EnhancesGridRenderingTransform then
+      plugin.TransformGridEntry(result);
+  end;
+
+
 begin
   result := GFRE_DB.NewObject;
   FTransformList.ForAllBreak(@iterate);
   result._Field('uid').AsGUID                            := input.Field('uid').AsGUID;
   result._Field('domainid').AsGUID                       := input.Field('domainid').AsGUID;
   result._Field(cFRE_DB_SYS_TRANS_IN_OBJ_WAS_A).AsString := input.SchemeClass;
+  plgfld := (input.Implementor as TFRE_DB_Object)._FieldOnlyExisting('_$PLG');
+  if assigned(plgfld) then
+    result._Field('_$PLG').CloneFromField(plgfld);
+  input.ForAllPlugins(@DoPostTransform);
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.TransformRefQuery;
@@ -8428,6 +8480,13 @@ end;
 
 procedure TFRE_DB_DERIVED_COLLECTION.FinalRightTransform(const ses: IFRE_DB_UserSession; const transformed_filtered_cloned_obj: IFRE_DB_Object);
 var conn : IFRE_DB_CONNECTION;
+
+    procedure DoPreSend(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
+    begin
+      if plugin.EnhancesGridRenderingPreClientSend then
+        plugin.TransformGridEntryClientSend(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,ses.GetSessionGlobalData,TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFRTLangres);
+    end;
+
 begin
   conn := ses.GetDBConnection;
   if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
@@ -8440,6 +8499,7 @@ begin
               GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
             end;
         end;
+  transformed_filtered_cloned_obj.ForAllPlugins(@DoPreSend);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_GET_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -8467,17 +8527,19 @@ var
     end;
 
 begin
+  result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   try
     qry_ok := false;
     MustBeInitialized;
     FDCollFiltersDyn.RemoveAllFilters;
     qrydef := SetupQryDefinitionFromWeb(input);
     query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
-    try
-      result := GetGridDataDescription;
-    finally
-      query.Free;
-    end;
+    GFRE_DB_TCDM.cs_InvokeQry(query);
+    //try
+    //  result := GetGridDataDescription;
+    //finally
+    //  query.Free;
+    //end;
   except on e:exception do
     begin
       writeln('GRID DATA EXCEPTION : ',e.Message,'   ',FName,' ',input.DumpToString());
@@ -8491,7 +8553,7 @@ var qid : TFRE_DB_NameType;
 begin
   //writeln('RELEASE GRID DATA -> ',input.DumpToString());
   qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true));
-  GFRE_DB_TCDM.RemoveQueryRange(qid,input.Field('START').AsInt64,input.Field('END').AsInt64);
+  GFRE_DB_TCDM.cs_RemoveQueryRange(qid,input.Field('START').AsInt64,input.Field('END').AsInt64);
   Result:=GFRE_DB_NIL_DESC;
 end;
 
@@ -8502,7 +8564,7 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_DESTROY_STORE(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  GFRE_DB_TCDM.DropAllQueryRanges(ses.GetSessionID,CollectionName(true));
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(ses.GetSessionID,CollectionName(true));
   result := GFRE_DB_NIL_DESC;
 end;
 
@@ -9750,7 +9812,7 @@ var i         : Integer;
      if field.FieldType=fdbft_Object then begin
        if FREDB_Guids_Same(field.AsObject.UID,instance[i]) then begin
          child_dbo:=field.AsObject;
-         Result:=true;
+         exit(true);
        end;
      end;
      Result:=false;
@@ -11309,7 +11371,7 @@ begin
     FREDB_ApplyNotificationBlockToNotifIF_Connection(block,self); { metadata changes for master connection }
     FConnectionClones.ForAllBreak(@SendBlockToClones);            { send metatada, and session updates }
     if assigned(GFRE_DB_TCDM) then
-      GFRE_DB_TCDM.InboundNotificationBlock(FDBName,block);       { route data updates to the TCDM, Query updates (Grids) }
+      GFRE_DB_TCDM.cs_InboundNotificationBlock(FDBName,block);       { route data updates to the TCDM, Query updates (Grids) }
   except on e:exception do
     begin
       raise;
@@ -14076,6 +14138,74 @@ begin
   end;
 end;
 
+procedure TFRE_DB_Object.ForAllPlugins(const plugin_iterator: IFRE_DB_PLUGIN_ITERATOR);
+var plugins : TFRE_DB_Field;
+    pluginf : TFRE_DB_Field;
+
+  procedure Iterate(const fld:IFRE_DB_Field);
+  begin
+    if fld.FieldType=fdbft_Object then
+      plugin_iterator(fld.AsObject.Implementor_HC as TFRE_DB_OBJECT_PLUGIN_BASE);
+  end;
+
+
+begin
+  if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    exit;
+  plugins.AsObject.ForAllFields(@Iterate,true,true);
+end;
+
+function TFRE_DB_Object.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS): boolean;
+var plugins : TFRE_DB_Field;
+begin
+  result := false;
+  if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    exit;
+  result := plugins.AsObject.FieldExists(pluginclass.ClassName);
+end;
+
+function TFRE_DB_Object.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; out plugin): boolean;
+var plugins : TFRE_DB_Field;
+    pluginf : TFRE_DB_Field;
+begin
+  result := false;
+  if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    exit;
+  if  plugins.AsObject.FieldOnlyExisting(pluginclass.ClassName,pluginf) then
+    begin
+      TFRE_DB_OBJECT_PLUGIN_BASE(plugin) := pluginf.AsObject.Implementor_HC as pluginclass;
+      result := true;
+    end;
+end;
+
+function TFRE_DB_Object.AttachPlugin(const plugin: TFRE_DB_OBJECT_PLUGIN_BASE; const raise_if_existing: boolean): Boolean;
+var plugins : TFRE_DB_Field;
+    pluginf : TFRE_DB_Object;
+begin
+  result := false;
+  pluginf := Field('_$PLG').AsObject;
+  if pluginf.FieldExists(plugin.ClassName) then
+    if raise_if_existing then
+      raise EFRE_DB_Exception.Create(edb_ERROR,'a plugin [%s] is already attached to object [%s]',[plugin.ClassName,UID_String])
+    else
+      exit;
+  pluginf.Field(plugin.ClassName).AsObjectI := plugin;
+  result := true;
+end;
+
+function TFRE_DB_Object.RemovePlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; const raise_if_not_existing: boolean): Boolean;
+var plugins : TFRE_DB_Field;
+    pluginf : TFRE_DB_Field;
+begin
+  result := false;
+  if FieldOnlyExisting('_$PLG',plugins) then { no plugins }
+    if plugins.AsObject.FieldExists(pluginclass.ClassName) then
+      result := plugins.AsObject.DeleteField(pluginclass.ClassName);
+
+  if (not result) and raise_if_not_existing then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'there is no plugin [%s] attached to object [%s]',[pluginclass.ClassName,UID_String]);
+end;
+
 procedure TFRE_DB_Object.ClearSchemecachelink;
 begin
   FCacheSchemeObj:=nil;
@@ -14148,17 +14278,13 @@ var deleted_obj   : OFRE_SL_TFRE_DB_Object;
       if new_object.IsObjectRoot then
         begin
           child:=nil;
-          UpdateCB(false,second_obj,cev_UpdateBlockStart,nil,nil);
           new_object.__InternalCompareToObj(second_obj,@CompareEvent);
-          UpdateCB(false,second_obj,cev_UpdateBlockEnd,nil,nil);
         end
       else
         begin
           child := second_obj.FetchObjByUID(new_object.UID);
           assert(assigned(child));
-          UpdateCB(true,child,cev_UpdateBlockStart,nil,nil);
           new_object.__InternalCompareToObj(child,@CompareEvent);
-          UpdateCB(true,child,cev_UpdateBlockEnd,nil,nil);
         end;
     end;
 
@@ -14211,9 +14337,6 @@ var insc,delc,upc : NativeInt;
     procedure up(const is_child_update : boolean ; const update_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_field, old_field: IFRE_DB_Field);
     var nfn,ofn : TFRE_DB_NameType;
     begin
-      if (update_type=cev_UpdateBlockStart)
-         or (update_type=cev_UpdateBlockEnd) then
-           exit;
       if assigned(old_field) then
         ofn := old_field.FieldName;
       if assigned(new_field) then
@@ -14363,7 +14486,7 @@ function TFRE_DB_Object.ForAllObjectsBreakHierarchic(const iter: TFRE_DB_ObjectI
       if halt then
         exit(true);
       if fld.IsObjectField then
-        IterateWithSub(Fld.AsObject);
+        IterateWithSub(Fld._GetAsObject);
       result := false;
     end;
   begin
@@ -14485,7 +14608,8 @@ begin
   FFieldStore            := _TFRE_DB_FieldTree.Create(@FREDB_DBNameType_Compare);
   _RestoreReservedFields ;
   if assigned(ExtensionObjectMediatorClass) then begin
-    FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self,false);
+    //FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self,false);
+    FMediatorExtention   := ExtensionObjectMediatorClass.CreateBound(Self,true); { changed 22.01.15 (cant see why & needed for plugins) }
   end;
 end;
 
@@ -14648,7 +14772,7 @@ var scheme_object:TFRE_DB_SchemeObject;
    function Iterate(const db:TFRE_DB_FIELD):boolean;
    begin
      result := false;
-     if (db.FieldType<>fdbft_NotFound) then
+     if (db._FieldType<>fdbft_NotFound) then
        begin
          if (without_system_fields)
            and (db.IsSystemField) then
@@ -14664,7 +14788,6 @@ var scheme_object:TFRE_DB_SchemeObject;
    end;
 
 begin
-  _InAccessibleCheck;
   FFieldStore.ForAllItemsBrk(@Iterate);
   scheme_object := GetScheme;
   if (not without_calcfields) and assigned(GetScheme) then begin
@@ -15933,6 +16056,30 @@ begin
   ForAllObjectsBreakHierarchic(@SearchChild,halt);
 end;
 
+function TFRE_DB_Object.FetchObjByUIDNonHierarchic(const childuid: TFRE_DB_GUID; out found_fieldname: TFRE_DB_NameType; out child: TFRE_DB_Object): boolean;
+var fnd:boolean;
+ function Search(const field: TFRE_DB_FIELD):Boolean;
+  begin
+    if field.FieldType=fdbft_Object then begin
+      if FREDB_Guids_Same(field.AsObject.UID,childuid) then begin
+        child           := field.AsObject;
+        found_fieldname := field.FieldName;
+        fnd             := true;
+        Result          := true;
+        exit;
+      end;
+    end;
+    Result:=false;
+  end;
+
+begin
+  fnd             := false;
+  found_fieldname := '';
+  child           := nil;
+  ForAllFieldsBreak(@Search,true,true);
+  result := fnd;
+end;
+
 
 function TFRE_DB_Object.FetchObjByUIDI(const childuid: TFRE_DB_GUID; var obj: IFRE_DB_Object): boolean;
 begin
@@ -16669,6 +16816,55 @@ begin
     result := FFieldData.bool^[0];
   end else begin
     result := _ConvertToBool;
+  end;
+end;
+
+function TFRE_DB_FIELD._GetAsObject: TFRE_DB_Object;
+var field_type :TFRE_DB_FIELDTYPE;
+
+  function _CheckIfSchemeAvailable:boolean;
+  var sc               : TFRE_DB_String;
+      scheme_object    : TFRE_DB_SchemeObject;
+      scheme_field_def : TFRE_DB_FieldSchemeDefinition;
+      new_object       : TFRE_DB_Object;
+      sfc              : TFRE_DB_String;
+  begin
+    result := false;
+    if not (Fobj._ObjectIsCodeclassOnlyAndHasNoScheme) then begin
+      sc:=_SchemeClassOfParentName;
+      field_type:=field_type;
+      if not GFRE_DB.GetSystemScheme(sc,scheme_object) then
+        begin
+          if sc<>'TFRE_DB_OBJECT' then
+            raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object field [%s] wants to get accessed, the parent is of class [%s] but a schemeobject cannot be accessed.',[FieldName,sc]);
+          exit; { no scheme available }
+        end;
+      if scheme_object.GetSchemeField(FieldName,scheme_field_def) then begin
+        sfc := scheme_field_def.SubschemeName;
+        if not GFRE_DB.GetSystemScheme(sfc,scheme_object) then begin
+          raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object wants to get accessed, a scheme is defined but cannot be checked. Scheme=%s Fieldname=%s SubfieldSchemc=%s',[sc,FieldName,sfc]);
+        end;
+        new_object := scheme_object.ConstructNewInstance;
+        SetAsObject(new_object);
+        result:=true;
+      end;
+    end;
+  end;
+
+begin
+  field_type := FFieldData.FieldType;
+  if field_type = fdbft_Object then begin
+    _CheckEmptyArray;
+    result := FFieldData.obj;
+  end else begin
+    if field_type=fdbft_NotFound then begin
+       if not _CheckIfSchemeAvailable then
+         SetAsObject(TFRE_DB_Object.Create); { create a plain object }
+       result            := FFieldData.obj;
+       result.FParentDBO := self;
+    end else begin
+      _IllegalTypeError(fdbft_Object);
+    end;
   end;
 end;
 
@@ -17905,53 +18101,9 @@ end;
 
 
 function TFRE_DB_FIELD.GetAsObject: TFRE_DB_Object;
-var field_type :TFRE_DB_FIELDTYPE;
-
-  function _CheckIfSchemeAvailable:boolean;
-  var sc               : TFRE_DB_String;
-      scheme_object    : TFRE_DB_SchemeObject;
-      scheme_field_def : TFRE_DB_FieldSchemeDefinition;
-      new_object       : TFRE_DB_Object;
-      sfc              : TFRE_DB_String;
-  begin
-    result := false;
-    if not (Fobj._ObjectIsCodeclassOnlyAndHasNoScheme) then begin
-      sc:=_SchemeClassOfParentName;
-      field_type:=field_type;
-      if not GFRE_DB.GetSystemScheme(sc,scheme_object) then
-        begin
-          if sc<>'TFRE_DB_OBJECT' then
-            raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object field [%s] wants to get accessed, the parent is of class [%s] but a schemeobject cannot be accessed.',[FieldName,sc]);
-          exit; { no scheme available }
-        end;
-      if scheme_object.GetSchemeField(FieldName,scheme_field_def) then begin
-        sfc := scheme_field_def.SubschemeName;
-        if not GFRE_DB.GetSystemScheme(sfc,scheme_object) then begin
-          raise EFRE_DB_Exception.Create(edb_ERROR,'a new sub object wants to get accessed, a scheme is defined but cannot be checked. Scheme=%s Fieldname=%s SubfieldSchemc=%s',[sc,FieldName,sfc]);
-        end;
-        new_object := scheme_object.ConstructNewInstance;
-        SetAsObject(new_object);
-        result:=true;
-      end;
-    end;
-  end;
-
 begin
   _InAccessibleFieldCheck;
-  field_type := FFieldData.FieldType;
-  if field_type = fdbft_Object then begin
-    _CheckEmptyArray;
-    result := FFieldData.obj;
-  end else begin
-    if field_type=fdbft_NotFound then begin
-       if not _CheckIfSchemeAvailable then
-         SetAsObject(TFRE_DB_Object.Create); { create a plain object }
-       result            := FFieldData.obj;
-       result.FParentDBO := self;
-    end else begin
-      _IllegalTypeError(fdbft_Object);
-    end;
-  end;
+  result := _GetAsObject;
 end;
 
 function TFRE_DB_FIELD.CheckOutObject: TFRE_DB_Object;
@@ -18577,20 +18729,17 @@ end;
 
 function TFRE_DB_FIELD.IsSchemeField: boolean;
 begin
-  _InAccessibleFieldCheck;
   result := FIsSchemeField;
 end;
 
 function TFRE_DB_FIELD.IsSystemField: boolean;
 begin
-  _InAccessibleFieldCheck;
   result := FIsUidField or FIsSchemeField or FIsDomainIDField;
 end;
 
 function TFRE_DB_FIELD.IsObjectField: boolean;
 begin
- _InAccessibleFieldCheck;
- result := FieldType=fdbft_Object;
+ result := _FieldType=fdbft_Object;
 end;
 
 function TFRE_DB_FIELD.IsObjectArray: boolean;

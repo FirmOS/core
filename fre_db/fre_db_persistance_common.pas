@@ -42,7 +42,10 @@ unit fre_db_persistance_common;
 
 // VOLATILE Objects are not in WAL (or Cluster) (node local)
 
-{$DEFINE DEBUG_STORELOCK} // Debug Storelock on Commit
+{-$DEFINE DEBUG_STORELOCK} // Debug Storelock on Commit
+{-$DEFINE DEBUG_SUBOBJECTS_STORED} // Debug Storelock on Commit
+{-$DEFINE DEBUG_CONSOLE_DUMP_TRANS} // Debuglog the in transaction final updated object
+{$DEFINE DEBUG_OFFENDERS}
 
 interface
 
@@ -453,6 +456,7 @@ type
     function     InternalCheckRestoredBackup                                : TFRE_DB_Errortype;
     procedure    InternalStoreLock                                          ;
     procedure    InternalCheckStoreLocked                                   ;
+    procedure    InternalCheckSubobjectsStored                              ;
 
     procedure    FDB_CleanUpMasterData                                    ;
 
@@ -471,8 +475,10 @@ type
 
     function    ExistsObject            (const obj_uid : TFRE_DB_GUID ) : Boolean;
     function    FetchObject             (const obj_uid : TFRE_DB_GUID ; out obj : TFRE_DB_Object ; const internal_obj : boolean) : boolean;
-    procedure   StoreObject             (const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
-    procedure   DeleteObject            (const obj_uid : TFRE_DB_GUID ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
+    procedure   StoreObjectSingle       (const obj     : TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
+    procedure   StoreObjectWithSubjs    (const obj     : TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);
+    procedure   DeleteObjectSingle      (const obj_uid : TFRE_DB_GUID ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId);  { frees root objects }
+    procedure   DeleteObjectWithSubobjs (const del_obj : TFRE_DB_Object ; const check_only : boolean ; const notifif : IFRE_DB_DBChangedNotification; const tsid : TFRE_DB_TransStepId;const must_be_child:boolean=false);
     procedure   ForAllObjectsInternal   (const pers,volatile:boolean ; const iter:TFRE_DB_ObjectIteratorBrk); // No Clone
     function    MasterColls             : TFRE_DB_CollectionManageTree;
   end;
@@ -483,10 +489,10 @@ type
   protected
     FLayer         : IFRE_DB_PERSISTANCE_LAYER;
     Fmaster        : TFRE_DB_Master_Data;
-    FIsStore       : Boolean; // TRUE = Store / False = UPDATE
     FTransList     : TFRE_DB_TransactionalUpdateList;
     FStepID        : NativeInt;
     FUserContext   : PFRE_DB_GUID;
+    FUserToken     : TFRE_DB_USER_RIGHT_TOKEN;
     procedure      InternalWriteObject         (const m : TMemoryStream;const obj : TFRE_DB_Object);
     procedure      InternalReadObject          (const m : TStream ; var obj : TFRE_DB_Object);
   protected
@@ -495,10 +501,10 @@ type
     procedure      CheckWriteThroughDeleteColl (Collname : TFRE_DB_NameType);
     procedure      CheckWriteThroughObj        (obj      : IFRE_DB_Object);
     procedure      CheckWriteThroughDeleteObj  (obj      : IFRE_DB_Object);
+    function       _GetCollection              (const coll_name : TFRE_DB_NameType ; out Collection:TFRE_DB_PERSISTANCE_COLLECTION) : Boolean;
   public
     constructor    Create                      (const layer : IFRE_DB_PERSISTANCE_LAYER ; const masterdata : TFRE_DB_Master_Data ; const user_context : PFRE_DB_GUID);
-    function       IsInsert                    : Boolean;
-    procedure      CheckExistence              ; virtual;    // CHECK:  Is Existence required or bad ?
+    procedure      CheckExistenceAndPreconds   ; virtual;                                   { CHECK Only:  Preconditions satisfied ? -> fetch usertoken if needed }
     procedure      ChangeInCollectionCheckOrDo (const check : boolean); virtual ; abstract; { Do all collection related checks or stores (+collection indices) }
     procedure      MasterStore                 (const check : boolean); virtual ; abstract; { Do all objectc related checks or stores, (+reflink index) }
     procedure      SetStepID                   (const id:NativeInt);
@@ -516,7 +522,7 @@ type
     FNewCollection  : TFRE_DB_PERSISTANCE_COLLECTION;
   public
     constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType;const volatile_in_memory: boolean ; const user_context : PFRE_DB_GUID);
-    procedure   CheckExistence               ; override;
+    procedure   CheckExistenceAndPreconds    ; override;
     procedure   ChangeInCollectionCheckOrDo  (const check: boolean); override;
     procedure   MasterStore                  (const check: boolean); override;
     function    GetNewCollection             : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
@@ -541,7 +547,7 @@ type
     FDomainIndex      : boolean;
   public
     constructor Create                       (const layer  : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType ; const FieldName: TFRE_DB_NameType; const FieldType: TFRE_DB_FIELDTYPE; const unique: boolean; const ignore_content_case: boolean; const index_name: TFRE_DB_NameType; const allow_null_value: boolean; const unique_null_values: boolean ; const is_a_domain_index: boolean ; const user_context : PFRE_DB_GUID);
-    procedure   CheckExistence               ; override;
+    procedure   CheckExistenceAndPreconds    ; override;
     procedure   ChangeInCollectionCheckOrDo  (const check: boolean); override;
     procedure   MasterStore                  (const check: boolean); override;
   end;
@@ -557,7 +563,7 @@ type
     FVolatile       : boolean;
   public
     constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name,index_name: TFRE_DB_NameType;const user_context : PFRE_DB_GUID);
-    procedure   CheckExistence               ; override;
+    procedure   CheckExistenceAndPreconds    ; override;
     procedure   ChangeInCollectionCheckOrDo  (const check: boolean); override;
     procedure   MasterStore                  (const check: boolean); override;
   end;
@@ -572,7 +578,7 @@ type
     FVolatile       : boolean;
   public
     constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const coll_name: TFRE_DB_NameType ; const user_context : PFRE_DB_GUID);
-    procedure   CheckExistence               ; override;
+    procedure   CheckExistenceAndPreconds    ; override;
     procedure   ChangeInCollectionCheckOrDo  (const check: boolean); override;
     procedure   MasterStore                  (const check: boolean); override;
   end;
@@ -583,12 +589,12 @@ type
   TFRE_DB_InsertStep=class(TFRE_DB_ChangeStep)
   private
     FInsertList               : TFRE_DB_ObjectArray;
-    FColl                     : TFRE_DB_PERSISTANCE_COLLECTION_BASE;
+    FColl                     : TFRE_DB_PERSISTANCE_COLLECTION;
     FCollName                 : TFRE_DB_NameType;
     FThisIsAnAddToAnotherColl : Boolean;
   public
-    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;new_obj : TFRE_DB_Object ; const coll:TFRE_DB_PERSISTANCE_COLLECTION_BASE ; const is_store : boolean ; const user_context : PFRE_DB_GUID);  { ? is_store is used to differentiate the store from the update case}
-    procedure   CheckExistence               ; override;
+    constructor Create                       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;new_obj : TFRE_DB_Object ; const insert_in_coll : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID);  { ? is_store is used to differentiate the store from the update case}
+    procedure   CheckExistenceAndPreconds    ; override;
     procedure   ChangeInCollectionCheckOrDo  (const check : boolean); override;
     procedure   MasterStore                  (const check : boolean); override;
   end;
@@ -597,13 +603,15 @@ type
   { TFRE_DB_DeleteObjectStep }
   TFRE_DB_DeleteObjectStep=class(TFRE_DB_ChangeStep)
   protected
+    FDeleteObjectUid         : TFRE_DB_GUID;
     FDeleteList              : TFRE_DB_ObjectArray;
     CollName                 : TFRE_DB_NameType;
     FWouldNeedMasterDelete   : Boolean;
     FDelFromCollectionsNames : TFRE_DB_NameTypeArray;
     FDelFromCollections      : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
   public
-    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const del_obj : TFRE_DB_Object ; const from_coll : TFRE_DB_NameType ; const is_store : boolean ; const user_context : PFRE_DB_GUID); // all collections or a single collection
+    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;const del_obj_uid : TFRE_DB_GUID ; const from_coll : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID); // all collections or a single collection
+    procedure   CheckExistenceAndPreconds     ; override;
     procedure   ChangeInCollectionCheckOrDo   (const check : boolean); override;
     procedure   MasterStore                   (const check : boolean); override;
   end;
@@ -618,19 +626,24 @@ type
     oldfield     : TFRE_DB_FIELD;
     up_obj       : TFRE_DB_Object;
     in_child_obj : Boolean;
+    in_del_list  : boolean;
   end;
 
   TFRE_DB_UpdateStep=class(TFRE_DB_ChangeStep)
   protected
     FSublist    : Array of RFRE_DB_UpdateSubStep;
     FCnt        : NativeInt;
+    FDiffUpdate : TFRE_DB_Object;
     upobj       : TFRE_DB_Object;             // "new" object
     to_upd_obj  : TFRE_DB_Object;             // "old" object (Fields of object will be updated by newobjects fields)
+    FCollName   : TFRE_DB_NameType;
+
     procedure   InternallApplyChanges         (const check: boolean);
   public
-    procedure   AddSubStep                    (const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD; const is_a_child_field: boolean;const update_obj: TFRE_DB_Object); { update_obj = to_update_obj or child}
-    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;obj,to_update_obj : TFRE_DB_Object ; const is_insert : boolean ; const user_context : PFRE_DB_GUID);
-    function    HasNoChanges                  : Boolean;
+    procedure   AddSubStep                    (const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD; const is_a_child_field: boolean;const update_obj: TFRE_DB_Object ; const is_in_delete_list:boolean=false); { update_obj = to_update_obj or child}
+    constructor Create                        (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;  obj : TFRE_DB_Object ; const update_in_coll : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID);
+    constructor CreateFromDiffTransport       (const layer : IFRE_DB_PERSISTANCE_LAYER;const masterdata : TFRE_DB_Master_Data;  diff_update_obj : TFRE_DB_Object ; const update_in_coll : TFRE_DB_NameType ; const user_context : PFRE_DB_GUID);
+    procedure   CheckExistenceAndPreconds     ; override;
     procedure   ChangeInCollectionCheckOrDo   (const check : boolean); override;
     procedure   MasterStore                   (const check : boolean); override;
   end;
@@ -800,7 +813,7 @@ begin
   FIndexName  := index_name;
 end;
 
-procedure TFRE_DB_DropIndexStep.CheckExistence;
+procedure TFRE_DB_DropIndexStep.CheckExistenceAndPreconds;
 begin
   if not Master.MasterColls.GetCollection(FCollname,FCollection) then
     raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] does not exists!',[FCollname]);
@@ -976,7 +989,7 @@ begin
   FDomainIndex := is_a_domain_index;
 end;
 
-procedure TFRE_DB_DefineIndexOnFieldStep.CheckExistence;
+procedure TFRE_DB_DefineIndexOnFieldStep.CheckExistenceAndPreconds;
 begin
   if not Master.MasterColls.GetCollection(FCollname,FCollection) then
     raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'collection [%s] does not exists!',[FCollname]);
@@ -1529,7 +1542,7 @@ begin
   FCollname      := coll_name;
 end;
 
-procedure TFRE_DB_DeleteCollectionStep.CheckExistence;
+procedure TFRE_DB_DeleteCollectionStep.CheckExistenceAndPreconds;
 begin
   if not Master.MasterColls.GetCollection(FCollname,FPersColl) then
     raise EFRE_DB_PL_Exception.Create(edb_ERROR,'collection [%s] does not exists!',[FCollname]);
@@ -1560,20 +1573,39 @@ end;
 
 { TFRE_DB_DeleteObjectStep }
 
-constructor TFRE_DB_DeleteObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const del_obj: TFRE_DB_Object; const from_coll: TFRE_DB_NameType; const is_store: boolean; const user_context: PFRE_DB_GUID);
+constructor TFRE_DB_DeleteObjectStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; const del_obj_uid: TFRE_DB_GUID; const from_coll: TFRE_DB_NameType ; const user_context: PFRE_DB_GUID);
 begin
   inherited Create(layer,masterdata,user_context);
-  FIsStore  := is_store;
   CollName  := from_coll;
   if CollName='' then
     FWouldNeedMasterDelete := true
   else
     FWouldNeedMasterDelete := false;
+  FDeleteObjectUid         := del_obj_uid;
+end;
+
+procedure TFRE_DB_DeleteObjectStep.CheckExistenceAndPreconds;
+var del_obj : TFRE_DB_Object;
+begin
+  inherited CheckExistenceAndPreconds;
+
+  if not FMaster.FetchObject(FDeleteObjectUid,del_obj,true) then
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be deleted but was not found [%s]',[FREDB_G2H(FDeleteObjectUid)]);
+
+  if (CollName<>'') then
+    if del_obj.__InternalCollectionExistsName(CollName)=-1 then
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the request to delete object [%s] from collection [%s] could not be completed, the object is not stored in the requested collection',[del_obj.UID_String,CollName]);
+  if assigned(FUserToken) and (FUserToken.CheckStdRightSetUIDAndClass(del_obj.UID,del_obj.DomainID,del_obj.SchemeClass,[sr_DELETE])<>edb_OK) then
+      raise EFRE_DB_Exception.Create(edb_ACCESS,'no right to delete object [%s]',[FREDB_G2H(FDeleteObjectUid)]);
+
+  if not del_obj.IsObjectRoot then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'a delete of a subobject is only allowed via an update of an root object');
+
 
   G_Transaction.Record_And_UnlockObject(del_obj);
   FDeleteList := del_obj.GetFullHierarchicObjectList(true);
   if FDeleteList[0].IsObjectRoot=false then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected/non objectroot insertstep create');
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected/non objectroot delete');
 end;
 
 
@@ -1582,7 +1614,6 @@ var arr : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
       i : NativeInt;
      idx: NativeInt;
 begin
-  assert(IsInsert=false);
   if check
      and (CollName<>'') then
        begin
@@ -1633,14 +1664,14 @@ procedure TFRE_DB_DeleteObjectStep.MasterStore(const check: boolean);
 var notify_delob : IFRE_DB_Object;
                i : NativeInt;
 begin
-  assert(IsInsert=false);
   if check
      and FWouldNeedMasterDelete then { this is the check phase, the internalcount is >1}
        begin
-         for i := 0 to high(FDeleteList) do
-           begin
-             master.DeleteObject(FDeleteList[i].UID,check,GetNotificationRecordIF,GetTransActionStepID);
-           end;
+         master.DeleteObjectWithSubobjs(FDeleteList[0],check,GetNotificationRecordIF,GetTransActionStepID);
+         //for i := 0 to high(FDeleteList) do
+         //  begin
+         //    master.DeleteObjectSingle(FDeleteList[i].UID,check,GetNotificationRecordIF,GetTransActionStepID);
+         //  end;
        end
   else
     begin
@@ -1650,10 +1681,11 @@ begin
           notify_delob := FDeleteList[0].CloneToNewObject;
           notify_delob.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=GetTransActionStepID;
           CheckWriteThroughDeleteObj(FDeleteList[0]); { the changes must only be recorded persistent when the object is finally deleted, the internal collection assosciation is not stored persistent }
-          for i := high(FDeleteList) downto 0 do { the list is build recursive top down, only free the root object, bt remove the childs too !}
-            begin
-              master.DeleteObject(FDeleteList[i].UID,false,GetNotificationRecordIF,GetTransActionStepID);
-            end;
+          master.DeleteObjectWithSubobjs(FDeleteList[0],check,GetNotificationRecordIF,GetTransActionStepID);
+          //for i := high(FDeleteList) downto 0 do { the list is build recursive top down, only free the root object, bt remove the childs too !}
+          //  begin
+          //    master.DeleteObjectSingle(FDeleteList[i].UID,false,GetNotificationRecordIF,GetTransActionStepID);
+          //  end;
           GetNotificationRecordIF.ObjectDeleted(FDelFromCollectionsNames,notify_delob,GetTransActionStepID); { Notify after delete }
         end;
       for i:=0 to high(FDelFromCollections) do
@@ -1671,7 +1703,7 @@ begin
   FVolatile      := volatile_in_memory;
 end;
 
-procedure TFRE_DB_NewCollectionStep.CheckExistence;
+procedure TFRE_DB_NewCollectionStep.CheckExistenceAndPreconds;
 var coll : TFRE_DB_PERSISTANCE_COLLECTION;
 begin
   if Master.MasterColls.GetCollection(FCollname,coll) then
@@ -2161,6 +2193,11 @@ begin
   end;
 end;
 
+function TFRE_DB_ChangeStep._GetCollection(const coll_name: TFRE_DB_NameType; out Collection: TFRE_DB_PERSISTANCE_COLLECTION): Boolean;
+begin
+  result := FMaster.MasterColls.GetCollection(coll_name,Collection);
+end;
+
 constructor TFRE_DB_ChangeStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data ; const user_context : PFRE_DB_GUID);
 begin
   FLayer       := layer;
@@ -2168,14 +2205,11 @@ begin
   FUserContext := user_context;
 end;
 
-function TFRE_DB_ChangeStep.IsInsert: Boolean;
-begin
-  result := FIsStore;
-end;
 
-procedure TFRE_DB_ChangeStep.CheckExistence;
+procedure TFRE_DB_ChangeStep.CheckExistenceAndPreconds;
 begin
-
+  if assigned(FUserContext) then
+    G_GetUserToken(FUserContext,FUserToken,true);
 end;
 
 procedure TFRE_DB_ChangeStep.SetStepID(const id: NativeInt);
@@ -2200,7 +2234,25 @@ end;
 
 { TFRE_DB_UpdateStep }
 
-constructor TFRE_DB_UpdateStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; obj, to_update_obj: TFRE_DB_Object; const is_insert: boolean; const user_context: PFRE_DB_GUID);
+constructor TFRE_DB_UpdateStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; obj: TFRE_DB_Object; const update_in_coll: TFRE_DB_NameType; const user_context: PFRE_DB_GUID);
+begin
+  inherited Create(layer,masterdata,user_context);
+  SetLength(FSublist,25);
+  upobj     := obj;
+  FCollName := update_in_coll;
+end;
+
+constructor TFRE_DB_UpdateStep.CreateFromDiffTransport(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; diff_update_obj: TFRE_DB_Object; const update_in_coll: TFRE_DB_NameType; const user_context: PFRE_DB_GUID);
+begin
+  inherited Create(layer,masterdata,user_context);
+  SetLength(FSublist,25);
+  upobj       := nil;
+  FCollName   := update_in_coll;
+  FDiffUpdate := diff_update_obj;
+end;
+
+procedure TFRE_DB_UpdateStep.CheckExistenceAndPreconds;
+var P : TFRE_DB_GUIDArray;
 
    procedure GenUpdate(const is_child_update : boolean ; const up_obj : IFRE_DB_Object ; const update_type :TFRE_DB_ObjCompareEventType  ;const new_ifield, old_ifield: IFRE_DB_Field);
    var child                    : TFRE_DB_Object;
@@ -2230,22 +2282,169 @@ constructor TFRE_DB_UpdateStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; co
        cev_FieldAdded:
            addsubstep(cev_FieldAdded,new_fld,nil,is_child_update,up_obj.Implementor as TFRE_DB_Object);
        cev_FieldChanged :
+         if (new_fld.FieldType=fdbft_Object) and (new_fld.AsObject.UID=old_fld.AsObject.UID) then
+           begin
+             s:='HERE';
+             exit; { ignore updates on object fields with same uid, handled in this object }
+           end
+         else
            addsubstep(cev_FieldChanged,new_fld,old_fld,is_child_update,up_obj.Implementor as TFRE_DB_Object);
      end;
    end;
 
+
+   procedure GenerateTheChangeListFromDiffObject;
+   var deleted_fields,
+       updated_fields,
+       inserted_fields : TFRE_DB_StringArray;
+       child_update    : boolean;
+       i               : NativeInt;
+       to_update_obj   : TFRE_DB_Object;
+       new_obj         : TFRE_DB_Object; { child or root (!) }
+       oldfield        : TFRE_DB_FIELD;
+       newfield        : TFRE_DB_FIELD;
+       difffield       : TFRE_DB_FIELD;
+       fieldname       : TFRE_DB_NameType;
+       iff             : TFRE_DB_NameType;
+       ichld           : TFRE_DB_Object;
+       inchld          : TFRE_DB_Object;
+       f_in_delete     : boolean;
+
+   begin
+     deleted_fields  := FDiffUpdate.Field('D_FN').AsStringArr;
+     updated_fields  := FDiffUpdate.Field('U_FN').AsStringArr;
+     inserted_fields := FDiffUpdate.Field('I_FN').AsStringArr;
+     child_update    := Length(P)>1;
+     if not child_update then
+       begin
+         to_update_obj := to_upd_obj; { "old" root }
+         new_obj       := upobj;      { "new" root }
+       end
+     else
+       begin
+         new_obj     := upobj; { "new" child }   { search original old child, and create intermediate new childs }
+         ichld       := to_upd_obj;
+         for i:=1 to high(p) do
+           begin
+             //writeln(i,'-- ICHILD ',ichld.UID_String,' search ',p[i].AsHexString);
+             if not ichld.FetchObjByUIDNonHierarchic(p[i],iff,ichld) then
+               begin
+                 //writeln('---FULLSTOP--- at index ',i);
+                 //writeln(to_upd_obj.DumpToString());
+                 //writeln('---- ',p[i].AsHexString,' ----------');
+                 //writeln(ichld.DumpToString());
+                 //writeln('--------------');
+                 raise EFRE_DB_Exception.Create(edb_ERROR,'diffupdate, find field, path not existent');
+               end;
+             to_update_obj := ichld;
+             inchld        := TFRE_DB_Object.Create;
+             inchld.Field('UID').AsGUID := p[i];
+             new_obj.Field(iff).AsObject := inchld;
+             new_obj                     := inchld;
+           end;
+       end;
+
+     for i := 0 to high(deleted_fields) do
+       begin
+         fieldname := deleted_fields[i];
+         if not to_update_obj.FieldOnlyExisting(fieldname,oldfield) then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'diffupdate deletefield / field not found [%s] in [%s]',[fieldname,to_update_obj.UID_String]);
+         AddSubStep(cev_FieldDeleted,nil,oldfield,child_update,to_update_obj);
+       end;
+     for i := 0 to high(inserted_fields) do
+       begin
+         fieldname := inserted_fields[i];
+         f_in_delete:=false;
+         if  to_update_obj.FieldOnlyExisting(fieldname,oldfield) then
+           begin
+             if not FREDB_StringInArray(fieldname,deleted_fields) then
+               raise EFRE_DB_Exception.Create(edb_ERROR,'diffupdate insertfield / field already existing field found [%s], and it is not in the actual delete list(!)',[fieldname]);
+             f_in_delete := true;
+           end;
+         if not FDiffUpdate.FieldOnlyExisting('I_F_'+inttostr(i),difffield) then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'diffupdate difffield encoding insert [%s] / field not found [%s]',['I_F_'+inttostr(i),fieldname]);
+         newfield  := new_obj.Field(fieldname);
+         newfield.CloneFromField(difffield);
+         AddSubStep(cev_FieldAdded,newfield,nil,child_update,to_update_obj,f_in_delete);
+       end;
+     for i := 0 to high(updated_fields) do
+       begin
+         fieldname := updated_fields[i];
+         if not to_update_obj.FieldOnlyExisting(fieldname,oldfield) then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'diffupdate updatefield / field not found [%s]',[fieldname]);
+         if not FDiffUpdate.FieldOnlyExisting('U_F_'+inttostr(i),difffield) then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'diffupdate difffield encoding update [%s] / field not found [%s]',['U_F_'+inttostr(i),fieldname]);
+         newfield  := new_obj.Field(fieldname);
+         newfield.CloneFromField(difffield);
+         if newfield.FieldType<>oldfield.FieldType then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'diff bulkupdate, fieldupdate, fiedtypes differ [%s]<>[%s]',[newfield.FieldTypeAsString,oldfield.FieldTypeAsString]);
+         if newfield.CompareToFieldShallow(oldfield) then
+           raise EFRE_DB_Exception.Create(edb_ERROR,'diff bulkupdate, fieldupdate, rejecting update, fieldvalues are the same for field [%s]/[%s] in [%s]',[newfield.FieldName,newfield.FieldTypeAsString,to_update_obj.UID_String]);
+         AddSubStep(cev_FieldChanged,newfield,oldfield,child_update,to_update_obj);
+       end;
+
+   end;
+
 begin
-  inherited Create(layer,masterdata,user_context);
-  SetLength(FSublist,25);
-  FCnt          := 0;
-  upobj         := obj;
-  to_upd_obj    := to_update_obj;
-  FIsStore      := is_insert;
-  G_Transaction.Record_And_UnlockObject(to_update_obj);
-  TFRE_DB_Object.GenerateAnObjChangeList(obj,to_update_obj,nil,nil,@GenUpdate);
+  inherited CheckExistenceAndPreconds;
+  if not assigned(FDiffUpdate) then
+    begin { Standard Update }
+      FCnt          := 0;
+      if upobj.DomainID=CFRE_DB_NullGUID then
+        raise EFRE_DB_PL_Exception.Create(edb_ERROR,'persistance failure, an object without a domainid cannot be stored');
+      upobj._InternalGuidNullCheck;
+
+      if not upobj.IsObjectRoot then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'the object [%s] is a child object, only root objects updates are allowed',[upobj.UID_String]);
+
+      if not FMaster.FetchObject(upobj.UID,to_upd_obj,true) then
+        raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[upobj.UID_String]);
+      if length(to_upd_obj.__InternalGetCollectionList)=0 then
+        begin
+          writeln('BAD INTERNAL ::: OFFENDING OBJECT ', to_upd_obj.DumpToString());
+          if not GDBPS_SKIP_STARTUP_CHECKS then
+            raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fetched to update ubj must have internal collections(!)');
+        end;
+      if FCollName<>'' then
+        if to_upd_obj.__InternalCollectionExistsName(FCollName)=-1 then
+          raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'update, a collectionname was given for updaterequest, but the dbo is not in that collection');
+
+      G_Transaction.Record_And_UnlockObject(to_upd_obj);
+      TFRE_DB_Object.GenerateAnObjChangeList(upobj,to_upd_obj,nil,nil,@GenUpdate);
+    end
+  else
+    begin { Differential Update }
+      upobj := TFRE_DB_Object.Create; { create an dummy embedding updated object containing the "diff" fields }
+      P := FDiffUpdate.Field('P').AsGUIDArr;
+      upobj.Field('UID').AsGUID := P[0];
+      try
+        if not FMaster.FetchObject(upobj.UID,to_upd_obj,true) then
+          raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'an object should be updated but was not found [%s]',[upobj.UID_String]);
+        upobj.SetDomainID(to_upd_obj.DomainID);
+        if upobj.DomainID=CFRE_DB_NullGUID then
+          raise EFRE_DB_PL_Exception.Create(edb_ERROR,'persistance failure, an object without a domainid cannot be stored');
+
+        if length(to_upd_obj.__InternalGetCollectionList)=0 then
+          begin
+            writeln('BAD INTERNAL ::: OFFENDING OBJECT ', to_upd_obj.DumpToString());
+            if not GDBPS_SKIP_STARTUP_CHECKS then
+              raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'fetched to update ubj must have internal collections(!)');
+          end;
+        if FCollName<>'' then
+          if to_upd_obj.__InternalCollectionExistsName(FCollName)=-1 then
+            raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'update, a collectionname was given for updaterequest, but the dbo is not in that collection');
+        G_Transaction.Record_And_UnlockObject(to_upd_obj);
+        GenerateTheChangeListFromDiffObject;
+
+      except
+        writeln('------------');
+        writeln(FDiffUpdate.DumpToString());
+        writeln('-----------------');
+      end;
+    end;
 end;
 
-procedure TFRE_DB_UpdateStep.AddSubStep(const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD; const is_a_child_field: boolean; const update_obj: TFRE_DB_Object);
+procedure TFRE_DB_UpdateStep.AddSubStep(const uptyp: TFRE_DB_ObjCompareEventType; const new, old: TFRE_DB_FIELD; const is_a_child_field: boolean; const update_obj: TFRE_DB_Object; const is_in_delete_list: boolean);
 begin
   if FCnt>=Length(FSublist) then
    SetLength(FSublist,Length(FSublist)+25);
@@ -2256,6 +2455,7 @@ begin
       oldfield     := old;
       up_obj       := update_obj;
       in_child_obj := is_a_child_field;
+      in_del_list  := is_in_delete_list;
     end;
   inc(fcnt);
 end;
@@ -2266,6 +2466,8 @@ var i,j         : NativeInt;
     inmemobject : TFRE_DB_Object;
 
     procedure _DeletedField;
+    //var  lDeleteList : TFRE_DB_ObjectArray;
+    //     k,h         : NativeInt;
     begin
       with FSublist[i] do
         begin
@@ -2274,14 +2476,42 @@ var i,j         : NativeInt;
           case oldfield.FieldType of
             fdbft_Object:
               begin
-                writeln('MASTERSTORE ABORT 1'); {TODOD: Make a testcase }
-                abort;
-                master.DeleteObject(newfield.AsObject.UID,check,GetNotificationRecordIF,GetTransActionStepID);
+                //writeln('MASTERSTORE ABORT 1'); {TODO: Make a testcase }
+                //GFRE_BT.CriticalAbort('MASTERSTORE ABORT 1');
+                //abort;
+                if check then
+                  begin
+                    master.DeleteObjectWithSubobjs(oldfield.AsObject,true,GetNotificationRecordIF,GetTransActionStepID,true);
+                    //lDeleteList :=  oldfield.AsObject.GetFullHierarchicObjectList(true);
+                    //if lDeleteList[0].IsObjectRoot=true then
+                    //  raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected objectroot in subobject delete field');
+                    //h := high(lDeletelist);
+                    //if h>0 then
+                    //  h:=h;
+                    //for k:=0 to h do
+                    //  master.DeleteObjectSingle(lDeleteList[k].UID,true,GetNotificationRecordIF,GetTransActionStepID); { sub object delete }
+                  end
+                else
+                  begin
+                    master.DeleteObjectWithSubobjs(oldfield.AsObject,false,GetNotificationRecordIF,GetTransActionStepID,true);
+                    //lDeleteList :=  oldfield.AsObject.GetFullHierarchicObjectList(true);
+                    //if lDeleteList[0].IsObjectRoot=true then
+                    //  raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected objectroot in subobject delete field');
+                    //h := high(lDeletelist);
+                    //if h>0 then
+                    //  h:=h;
+                    //for k:=0 to h do
+                    //  master.DeleteObjectSingle(lDeleteList[k].UID,true,GetNotificationRecordIF,GetTransActionStepID); { root and sub object delete }
+                    inmemobject.DeleteField(oldfield.FieldName);
+                  end;
               end;
             fdbft_ObjLink:
               begin
                 if check then
-                   // new links are nil
+                  begin
+                    if in_child_obj then { new links are nil }
+                      raise EFRE_DB_Exception.Create(edb_INTERNAL,'UPDATE/DELETEFIELD a child object must not have reflinks/unexpected case');
+                  end
                 else
                   begin
                     master._ChangeRefLink(inmemobject,uppercase(inmemobject.SchemeClass),uppercase(oldfield.FieldName),oldfield.AsObjectLinkArray,nil,GetNotificationRecordIF,GetTransActionStepID);
@@ -2304,11 +2534,39 @@ var i,j         : NativeInt;
         var FInsertList : TFRE_DB_ObjectArray;
             k           : NativeInt;
         begin
-          FInsertList := FSublist[i].newfield.AsObject.GetFullHierarchicObjectList(true);
-          for k:=0 to high(FInsertList) do
-            master.StoreObject(FInsertList[k],check,GetNotificationRecordIF,GetTransActionStepID);
-          if not check then
-            inmemobject.Field(FSublist[i].newfield.FieldName).AsObject := FSublist[i].newfield.AsObject.CloneToNewObject(); { subobject insert}  { TODO - GENERATE SUBOBJECT INSERTS !!!! Try to fetch a new subobject by UID}
+
+          if check then // debug
+            begin
+              if not FSublist[i].in_del_list then { skip store checks for to be in teh same step deleted objects }
+                master.StoreObjectWithSubjs(FSublist[i].newfield.AsObject,check,GetNotificationRecordIF,GetTransActionStepID);
+              //FInsertList := FSublist[i].newfield.AsObject.GetFullHierarchicObjectList(true);
+              //for k:=0 to high(FInsertList) do
+              //  begin
+              //    //writeln('CHECK INSERT ',k);
+              //    //writeln(FInsertList[k].DumpToString());
+              //    master.StoreObject(FInsertList[k],check,GetNotificationRecordIF,GetTransActionStepID); { check if all subobjects object exists as root or subobjects in masterdata }
+              //  end;
+            end
+          else
+            begin { for real }
+              //writeln('------------Before-------------');
+              //writeln(inmemobject.DumpToString());
+              //writeln('-------------------------------');
+              inmemobject.Field(FSublist[i].newfield.FieldName).AsObject := FSublist[i].newfield.AsObject.CloneToNewObject(); { subobject insert}
+              master.StoreObjectWithSubjs(inmemobject.Field(FSublist[i].newfield.FieldName).AsObject,check,GetNotificationRecordIF,GetTransActionStepID);
+              //FInsertList := inmemobject.Field(FSublist[i].newfield.FieldName).AsObject.GetFullHierarchicObjectList(true);
+              //for k:=0 to high(FInsertList) do
+              //  begin
+              //    //writeln('DOINSERT INSERT ',k);
+              //    //writeln(FInsertList[k].DumpToString());
+              //    master.StoreObject(FInsertList[k],check,GetNotificationRecordIF,GetTransActionStepID); { store the  subobjects }
+              //  end;
+              //writeln('---RESULTS---');
+              //writeln(inmemobject.DumpToString());
+              //writeln('-----------');
+              //writeln(inmemobject.ObjectRoot.DumpToString());
+              //writeln('-----------');
+            end;
         end;
 
     begin
@@ -2316,14 +2574,17 @@ var i,j         : NativeInt;
       with FSublist[i] do
         begin
           if not check then
-            GetNotificationRecordIF.FieldAdd(newfield,GetTransActionStepID);
+            GetNotificationRecordIF.FieldAdd(newfield,GetTransActionStepID)
+          else
+            if (inmemobject.FieldExists(newfield.FieldName) and (not in_del_list)) then
+              raise EFRE_DB_Exception.Create(edb_ERROR,'updatestep add field [%s] to object [%s], but the field already exists, and it is not in a delete that happens before',[newfield.FieldName,inmemobject.UID_String]);
           case newfield.FieldType of
             fdbft_NotFound,fdbft_GUID,fdbft_Byte,fdbft_Int16,fdbft_UInt16,fdbft_Int32,fdbft_UInt32,fdbft_Int64,fdbft_UInt64,
             fdbft_Real32,fdbft_Real64,fdbft_Currency,fdbft_String,fdbft_Boolean,fdbft_DateTimeUTC,fdbft_Stream :
               begin
                 if check then
                   exit;
-                inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
+                inmemobject.Field(newfield.fieldName).CloneFromField(newfield);
               end;
             fdbft_Object:
               begin
@@ -2346,7 +2607,6 @@ var i,j         : NativeInt;
                       master.__CheckReferenceLink(inmemobject,newfield.FieldName,newfield.AsObjectLinkArray[j],sc);
                       master.__SetupInitialRefLink(inmemobject,sc,fn,newfield.AsObjectLinkArray[j],GetNotificationRecordIF,GetTransActionStepID);
                     end;
-                  //inmemobject.Field(newfield.FieldName).AsObjectLinkArray:=newfield.AsObjectLinkArray;
                 end;
           end;
       end;
@@ -2356,6 +2616,7 @@ var i,j         : NativeInt;
     var sc,fn    : TFRE_DB_NameType;
         j        : nativeint;
         oldlinks : TFRE_DB_GUIDArray;
+        existobj : TFRE_DB_Object;
     begin
       with FSublist[i] do
         begin
@@ -2370,14 +2631,31 @@ var i,j         : NativeInt;
               begin
                 if check then
                   exit;
-                  inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
+                inmemobject.Field(newfield.FieldName).CloneFromField(newfield);
               end;
             fdbft_Object:
               begin
+                if oldfield.AsObject.UID = newfield.AsObject.UID then
+                  raise EFRE_DB_Exception.Create(edb_ERROR,'it is not allowed to do a subobject filedupdate with the same uid (same) object in field [%s] of obj [%s] with new objuid [%s]',[newfield.FieldName,inmemobject.UID_String,newfield.AsObject.UID_String]);
+                { Free old object, masterfree(old uid=1), store new object, masterstore new object(uid = 1)   }
                 if check then
-                  exit;
-                //writeln('CHANGE OBJECT - (FIELD) ',check,' ',oldfield.ValueCount,'  ',newfield.ValueCount);
-                //inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject;
+                  begin
+                    if FMaster.FetchObject(newfield.AsObject.UID,existobj,true) then
+                      begin
+                        if existobj.IsObjectRoot then
+                          raise EFRE_DB_Exception.Create(edb_ERROR,'the subobject [%s] that is to be inserted in field [%s] of object [%s], is already stored as root object',[newfield.AsObject.UID_String,newfield.FieldName,to_upd_obj.UID_String])
+                        else
+                          raise EFRE_DB_Exception.Create(edb_ERROR,'the subobject [%s] that is to be inserted in field [%s] of object [%s], is already stored as field [%s] in object [%s]',[newfield.AsObject.UID_String,newfield.FieldName,to_upd_obj.UID_String,existobj.ParentField.FieldName,to_upd_obj.UID_String])
+                      end;
+                  end
+                else
+                  begin
+                    master.DeleteObjectWithSubobjs(oldfield.AsObject,false,GetNotificationRecordIF,GetTransActionStepID,true);
+                    inmemobject.DeleteField(oldfield.FieldName);
+
+                    inmemobject.Field(newfield.FieldName).AsObject := newfield.AsObject.CloneToNewObject(); { subobject insert}
+                    master.StoreObjectWithSubjs(inmemobject.Field(newfield.FieldName).AsObject,check,GetNotificationRecordIF,GetTransActionStepID);
+                  end;
               end;
             fdbft_ObjLink:
               if check then
@@ -2419,10 +2697,12 @@ begin
       diffupdo.Field('domainid').AsGUID := to_upd_obj.DomainID;
       GetNotificationRecordIF.DifferentiallUpdStarts(diffupdo,GetTransActionStepID);
     end;
+
   for i:=0 to FCnt-1 do
     begin
       with FSublist[i] do
         begin
+          //writeln(i,' >> ',updtyp,' ',check,' ',in_del_list);
           inmemobject := up_obj; { a object in to_upd_obj, or = to_upd_obj }
           case updtyp of
             cev_FieldDeleted: _DeletedField;
@@ -2437,16 +2717,15 @@ begin
     begin
       to_upd_obj.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString := GetTransActionStepID;
       GetNotificationRecordIF.ObjectUpdated(to_upd_obj,to_upd_obj.__InternalGetCollectionListUSL,GetTransActionStepID);
+      {$IFDEF DEBUG_CONSOLE_DUMP_TRANS}
+        writeln('---UPDATESTEP DUMP --- FINAL');
+        writeln(to_upd_obj.ObjectRoot.DumpToString());
+        writeln('---UPDATESTEP DUMP --- DONE');
+      {$ENDIF}
       CheckWriteThrough;
     end;
 end;
 
-function TFRE_DB_UpdateStep.HasNoChanges: Boolean;
-begin
-  result := FCnt=0;
-end;
-
-//Check what has to be done at master level, (reflinks)
 procedure TFRE_DB_UpdateStep.ChangeInCollectionCheckOrDo(const check: boolean);
 var i,j       : NativeInt;
     collarray : TFRE_DB_PERSISTANCE_COLLECTION_ARRAY;
@@ -2456,10 +2735,11 @@ begin
       begin
         collarray := to_upd_obj.__InternalGetCollectionList;
         for j := 0 to high(collarray) do
-          (collarray[j] as TFRE_DB_Persistance_Collection).UpdateInThisColl(newfield,oldfield,to_upd_obj,upobj,updtyp,in_child_obj,check);
+          (collarray[j] as TFRE_DB_Persistance_Collection).UpdateInThisColl(newfield,oldfield,to_upd_obj,upobj,updtyp,in_child_obj,check); { need to check indices, if appropriate }
       end
 end;
 
+//Check what has to be done at master level, (reflinks)
 procedure TFRE_DB_UpdateStep.MasterStore(const check: boolean);
 begin
   if to_upd_obj.IsObjectRoot then
@@ -2537,9 +2817,16 @@ procedure TFRE_DB_TransactionalUpdateList.Lock_Unlocked_Objects;
 
 begin
   try
-    FLockDir.ForAllFields(@Lockit);
-  finally
-    FLockDir.ClearAllFields;
+    try
+      FLockDir.ForAllFields(@Lockit);
+    finally
+      FLockDir.ClearAllFields;
+    end;
+  except
+    on e: exception do
+      begin
+        writeln('INTERNAL FAULT>> Lock_Unlocked_Objects '+e.Message);
+      end;
   end;
 end;
 
@@ -2570,7 +2857,7 @@ var failure : boolean;
   procedure CheckForExistence(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
   begin
     with step do
-      CheckExistence;
+      CheckExistenceAndPreconds;
   end;
 
   procedure StoreInCollectionCheck(var step:TFRE_DB_ChangeStep;const idx:NativeInt ; var halt_flag:boolean);
@@ -2674,7 +2961,10 @@ begin
     Lock_Unlocked_Objects;
   end;
   {$IFDEF DEBUG_STORELOCK}
-  GFRE_DB_PS_LAYER.DEBUG_InternalFunction(1); { Full Storelocking Check }
+   GFRE_DB_PS_LAYER.DEBUG_InternalFunction(1); { Full Storelocking Check }
+  {$ENDIF}
+  {$IFDEF DEBUG_SUBOBJECTS_STORED}
+   GFRE_DB_PS_LAYER.DEBUG_InternalFunction(2); { Full Subobject Storage Check }
   {$ENDIF}
 end;
 
@@ -2695,64 +2985,94 @@ end;
 
 { TFRE_DB_InsertStep }
 
-constructor TFRE_DB_InsertStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; new_obj: TFRE_DB_Object; const coll: TFRE_DB_PERSISTANCE_COLLECTION_BASE; const is_store: boolean; const user_context: PFRE_DB_GUID);
+constructor TFRE_DB_InsertStep.Create(const layer: IFRE_DB_PERSISTANCE_LAYER; const masterdata: TFRE_DB_Master_Data; new_obj: TFRE_DB_Object; const insert_in_coll: TFRE_DB_NameType; const user_context: PFRE_DB_GUID);
 var cn:string;
 begin
   inherited Create(layer,masterdata,user_context);
-  FColl     := coll;
-  FIsStore  := is_store;
-  if coll.IsVolatile then
-    new_obj.Set_Volatile;
+  FCollName   := insert_in_coll;
   FInsertList := new_obj.GetFullHierarchicObjectList(true);
-  FCollName   := coll.CollectionName;
-  if FInsertList[0].IsObjectRoot=false then
-    raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected/non objectroot insertstep create');
 end;
 
-procedure TFRE_DB_InsertStep.CheckExistence;
+procedure TFRE_DB_InsertStep.CheckExistenceAndPreconds;
 var existing_object : TFRE_DB_Object;
     i               : NativeInt;
     Foldobject      : TFRE_DB_Object;
 begin
-  for i:=0 to high(FInsertList) do
-    begin
-      if master.FetchObject(FInsertList[i].UID,existing_object,true) then
-        begin
-          if existing_object.IsObjectRoot then
-            begin
-              if i<>0 then
-                raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected case %d should be 0, and not an objectroot',[i]);
-              G_Transaction.Record_And_UnlockObject(existing_object);
-              FCollName:=FCollName;
-              if existing_object.__InternalCollectionExistsName(FCollName)<>-1 then
-                raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, and in the specified collection [%s]',[FInsertList[i].UID_String,FCollName]);
-              if not TFRE_DB_Object.CompareObjectsEqual(FInsertList[i],existing_object) then
-                raise EFRE_DB_PL_Exception.Create(edb_MISMATCH,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, it is requested to store in the new collection [%s], but the insert object is not exactly the same as the existing object',[FInsertList[i].UID_String,FCollName]);
-              FThisIsAnAddToAnotherColl := true;
-              Foldobject := FInsertList[0];
-              SetLength(FInsertList,1);
-              FInsertList[0] := existing_object;
-              try
-               Foldobject.free;
-              except
-                on e:exception do
-                  begin
-                    GFRE_DBI.LogError(dblc_PERSISTANCE,'unexpected exception InsertStep/Checkexistience multiple collection store [%s]',[e.Message]);
-                  end;
+  try
+    if FCollName='' then
+      raise EFRE_DB_PL_Exception.Create(edb_INVALID_PARAMS,'a collectionname must be provided on store request');
+    if not _GetCollection(FCollName,FColl) then
+      raise EFRE_DB_PL_Exception.Create(edb_NOT_FOUND,'store step, the specified collection [%s] was not found',[FCollName]);
+    if FInsertList[0].IsObjectRoot=false then
+      raise EFRE_DB_Exception.Create(edb_INTERNAL,'initial store of non root objects is not allowed');
+
+    if FInsertList[0].DomainID=CFRE_DB_NullGUID then
+      raise EFRE_DB_PL_Exception.Create(edb_ERROR,'store, persistance failure, an object without a domainid cannot be stored');
+
+    FInsertList[0]._InternalGuidNullCheck;
+
+    if Fcoll.IsVolatile then
+      FInsertList[0].Set_Volatile;
+
+    for i:=0 to high(FInsertList) do
+      begin
+        if master.FetchObject(FInsertList[i].UID,existing_object,true) then
+          begin
+            if existing_object.IsObjectRoot then
+              begin
+                if i<>0 then
+                  raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected case %d should be 0, and not an objectroot',[i]);
+                G_Transaction.Record_And_UnlockObject(existing_object);
+                FCollName:=FCollName;
+                if existing_object.__InternalCollectionExistsName(FCollName)<>-1 then
+                  raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, and in the specified collection [%s]',[FInsertList[i].UID_String,FCollName]);
+                if not TFRE_DB_Object.CompareObjectsEqual(FInsertList[i],existing_object) then
+                  raise EFRE_DB_PL_Exception.Create(edb_MISMATCH,'the to be stored rootobject [%s] does already exist in master data as subobject or rootobject, it is requested to store in the new collection [%s], but the insert object is not exactly the same as the existing object',[FInsertList[i].UID_String,FCollName]);
+                FThisIsAnAddToAnotherColl := true;
+                Foldobject := FInsertList[0];
+                SetLength(FInsertList,1);
+                FInsertList[0] := existing_object;
+                try
+                 Foldobject.free;
+                except
+                  on e:exception do
+                    begin
+                      GFRE_DBI.LogError(dblc_PERSISTANCE,'unexpected exception InsertStep/Checkexistience multiple collection store [%s]',[e.Message]);
+                    end;
+                end;
+                break; { stop insert object processing }
+              end
+            else
+              begin
+                raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'for the to be stored rootobject [%s] a subobject [%s] does already exist in master data as subobject or rootobject, the specified collection is [%s]',[FInsertList[0].UID_String,FInsertList[i].UID_String,FCollName]);
               end;
-              break; { stop insert object processing }
-            end
-          else
-            begin
-              raise EFRE_DB_PL_Exception.Create(edb_EXISTS,'for the to be stored rootobject [%s] a subobject [%s] does already exist in master data as subobject or rootobject, the specified collection is [%s]',[FInsertList[0].UID_String,FInsertList[i].UID_String,FCollName]);
-            end;
-        end;
-    end;
+          end;
+      end;
+  {$IFDEF DEBUG_OFFENDERS}
+  except
+    writeln('>INSERT---OFFENDING OBJECT---');
+    writeln(FInsertList[0].DumpToString(2));
+    writeln('<INSERT---OFFENDING OBJECT---');
+    raise
+  end;
+  {$ENDIF}
 end;
 
 procedure TFRE_DB_InsertStep.ChangeInCollectionCheckOrDo(const check: boolean);
 begin
-  (FColl as TFRE_DB_Persistance_Collection).StoreInThisColl(FInsertList[0],check);
+  try
+    (FColl as TFRE_DB_Persistance_Collection).StoreInThisColl(FInsertList[0],check);
+  except
+    on e:Exception do
+      begin
+        writeln('INSERT STEP <',GetTransActionStepID,'> FAILURE ('+e.Message+')'); { TODO -> In transaction and Step ID}
+        writeln('Offending Object');
+        writeln('-------------------');
+        writeln(FInsertList[0].DumpToString(2));
+        writeln('-------------------');
+        raise;
+      end;
+  end;
 end;
 
 procedure TFRE_DB_InsertStep.MasterStore(const check: boolean);
@@ -2763,8 +3083,9 @@ begin
     G_Transaction.Record_A_NewObject(FInsertList[0]);
   if not FThisIsAnAddToAnotherColl then
     begin
-       for i:=0 to high(FInsertList) do
-         master.StoreObject(FInsertList[i],check,GetNotificationRecordIF,GetTransActionStepID);
+      master.StoreObjectWithSubjs(FInsertList[0],check,GetNotificationRecordIF,GetTransActionStepID);
+       //for i:=0 to high(FInsertList) do
+       //  master.StoreObject(FInsertList[i],check,GetNotificationRecordIF,GetTransActionStepID);
     end;
   if not check then
     begin
@@ -3429,6 +3750,32 @@ begin
   FMasterPersistentObjStore.LinearScanKeyVals(@StoreLock);
 end;
 
+procedure TFRE_DB_Master_Data.InternalCheckSubobjectsStored;
+
+  procedure CheckStored(var value : NativeUInt ; const Key : PByte ; const KeyLen : NativeUint);
+  var obj : TFRE_DB_Object;
+      fso : TFRE_DB_Object;
+      oa  : TFRE_DB_ObjectArray;
+       i  : NativeInt;
+  begin
+    obj := FREDB_PtrUIntToObject(value) as TFRE_DB_Object;
+    if obj.IsObjectRoot then
+      begin
+        oa := obj.GetFullHierarchicObjectList(false);
+        for i := 0 to high(oa) do
+          begin
+            if not FetchObject(oa[i].UID,fso,true) then
+              begin
+                raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal subobject validation failed - ');
+              end;
+          end;
+      end;
+  end;
+
+begin
+  FMasterPersistentObjStore.LinearScanKeyVals(@CheckStored);
+end;
+
 procedure TFRE_DB_Master_Data.FDB_CleanUpMasterData;
 
   procedure CleanReflinks(var refl : NativeUint);
@@ -3520,7 +3867,7 @@ begin
       if G_AllNonsysMasters[i].FetchObject(uid,obj,true) then
         break;
   if not Assigned(obj) then
-    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'could not internal fetch object for TransactionUnlockObject [%s]',[FREDB_G2H(uid)]);
+    raise EFRE_DB_PL_Exception.Create(edb_INTERNAL,'could not internal fetch object for TransactionLockObject [%s]',[FREDB_G2H(uid)]);
   obj.Assert_CheckStoreUnLocked;
   obj.Set_Store_Locked(true);
 end;
@@ -3840,7 +4187,7 @@ begin
        result := G_SysMaster.FetchObject(obj_uid,obj,internal_obj);
 end;
 
-procedure TFRE_DB_Master_Data.StoreObject(const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_Master_Data.StoreObjectSingle(const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var references_to_list : TFRE_DB_ObjectReferences;
     key                : TFRE_DB_GUID;
     dummy              : PtrUInt;
@@ -3905,7 +4252,16 @@ begin
     end;
 end;
 
-procedure TFRE_DB_Master_Data.DeleteObject(const obj_uid: TFRE_DB_GUID; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
+procedure TFRE_DB_Master_Data.StoreObjectWithSubjs(const obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
+var lInsertList : TFRE_DB_ObjectArray;
+    i           : NativeInt;
+begin
+  lInsertList := obj.GetFullHierarchicObjectList(true);
+  for i:=0 to high(lInsertList) do
+    StoreObjectSingle(lInsertList[i],check_only,notifif,tsid);
+end;
+
+procedure TFRE_DB_Master_Data.DeleteObjectSingle(const obj_uid: TFRE_DB_GUID; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId);
 var dummyv  : PtrUInt;
     dummyp  : PtrUInt;
     obj     : TFRE_DB_Object;
@@ -3951,6 +4307,18 @@ begin
       else
         obj:=obj;
     end;
+end;
+
+procedure TFRE_DB_Master_Data.DeleteObjectWithSubobjs(const del_obj: TFRE_DB_Object; const check_only: boolean; const notifif: IFRE_DB_DBChangedNotification; const tsid: TFRE_DB_TransStepId; const must_be_child: boolean);
+var lDelList : TFRE_DB_ObjectArray;
+    k,h      : NativeInt;
+begin
+  lDelList := del_obj.GetFullHierarchicObjectList(true); { the list is build recursive top down, only free the root object, but remove the childs too !}
+  if must_be_child and lDelList[0].IsObjectRoot then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'unexpected root object in DeleteObjectWithSubobjs');
+  h := high(lDelList);
+  for k := h downto 0 do
+    DeleteObjectSingle(lDelList[k].UID,check_only,notifif,tsid);
 end;
 
 procedure TFRE_DB_Master_Data.ForAllObjectsInternal(const pers, volatile: boolean; const iter: TFRE_DB_ObjectIteratorBrk);
@@ -4280,7 +4648,7 @@ begin
 
   if CompareTransformedKeys(key,ukey,keylen,ukeylen) then { This should not happen, as the change compare has to happen earlier }
     begin
-      // The change would not update the index / the key value is the same, which is only possible on Case insensitive indexes where the vieldvalue changed, but not the indexed value
+      // The change would not update the index / the key value is the same, which is only possible on Case insensitive indexes where the fieldvalue changed, but not the indexed value
       if (self is TFRE_DB_TextIndex)
          and ((self as TFRE_DB_TextIndex).FCaseInsensitive=true) then
            exit;

@@ -117,6 +117,14 @@ type
     procedure cs_Finalize         ;
   end;
 
+  IFRE_APSC_WORKABLE = interface
+    procedure  SetupWorkerCount (const wc : NativeInt);                                   { gives a hint how many workers will do the load                   }
+    function   GetMaximumChunk  : NativeInt;                                              { tell the cpu cg how much work is to be done parallel             }
+    procedure  WorkIt           (const chunk_index : Nativeint ; const wid : NativeInt);  { the working callback, gives chunk id, and the parallel worker id }
+    procedure  WorkDone         ;                                                         { the workers have finishe, join the results                       }
+    procedure  ErrorOccurred    (const ec : NativeInt ; const em : string);
+  end;
+
   { IFRE_APSC_CHANNEL_GROUP }
 
   IFRE_APSC_CHANNEL_GROUP=interface    { group channel manager together, and be the "main" eventer for them }

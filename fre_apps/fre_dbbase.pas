@@ -57,6 +57,27 @@ type
     class procedure  InstallDBObjects       (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
   end;
 
+  { TFRE_DB_DEBUG_PLUGIN }
+
+  TFRE_DB_DEBUG_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE)
+  private
+    FDbgModefield : IFRE_DB_Field;
+  protected
+    procedure       InternalSetup; override;
+  public
+    procedure       SetDebugMode                        (const mode:Int64);
+    function        GetMode                             : Int64;
+    class function  EnhancesGridRenderingTransform      : Boolean; override;
+    class function  EnhancesGridRenderingPreClientSend  : Boolean; override;
+    class function  EnhancesFormRendering               : Boolean; override;
+    procedure       TransformGridEntryClientSend        (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String); override;
+    procedure       TransformGridEntry                  (const transformed_object : IFRE_DB_Object); override;
+    procedure       RenderFormEntry                     (const  formdesc : TFRE_DB_CONTENT_DESC ; const entry : IFRE_DB_Object ; const pre_render : boolean); override;
+  end;
+
+ // TFRE_DB_STATUS_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE);
+ // TFRE_DB_NOTE_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE);
+
 procedure Register_DB_Extensions;
 
 implementation
@@ -78,8 +99,80 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_JOB);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_TIMERTEST_JOB);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_JobReport);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_OBJECT_PLUGIN_BASE);
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_DEBUG_PLUGIN);
+
 
   //GFRE_DBI.Initialize_Extension_Objects;
+end;
+
+{ TFRE_DB_DEBUG_PLUGIN }
+
+procedure TFRE_DB_DEBUG_PLUGIN.InternalSetup;
+begin
+  inherited InternalSetup;
+  FDbgModefield := Field('M');
+end;
+
+procedure TFRE_DB_DEBUG_PLUGIN.SetDebugMode(const mode: Int64);
+begin
+  FDbgModefield.AsInt64:=mode;
+end;
+
+function TFRE_DB_DEBUG_PLUGIN.GetMode: Int64;
+begin
+  result := FDbgModefield.AsInt64;
+end;
+
+class function TFRE_DB_DEBUG_PLUGIN.EnhancesGridRenderingTransform: Boolean;
+begin
+  Result:=true;
+end;
+
+class function TFRE_DB_DEBUG_PLUGIN.EnhancesGridRenderingPreClientSend: Boolean;
+begin
+  Result:=true;
+end;
+
+class function TFRE_DB_DEBUG_PLUGIN.EnhancesFormRendering: Boolean;
+begin
+  Result:=true;
+end;
+
+procedure TFRE_DB_DEBUG_PLUGIN.TransformGridEntryClientSend(const ut: IFRE_DB_USER_RIGHT_TOKEN; const transformed_object: IFRE_DB_Object; const session_data: IFRE_DB_Object; const langres: array of TFRE_DB_String);
+begin
+  writeln('--- PRE');
+  writeln(transformed_object.DumpToString());
+  writeln('---');
+  transformed_object.Field('OBJNAME').AsString := transformed_object.Field('OBJNAME').AsString+'['+ut.GetFullUserLogin+']';
+end;
+
+procedure TFRE_DB_DEBUG_PLUGIN.RenderFormEntry(const formdesc: TFRE_DB_CONTENT_DESC; const entry: IFRE_DB_Object; const pre_render: boolean);
+begin
+  if pre_render then
+    writeln('PRERENDERING FORM ',formdesc.ClassName)
+  else
+    writeln('PRERENDERING FORM ',formdesc.ClassName);
+
+  writeln('--ENTRY---');
+  writeln(entry.DumpToString);
+  writeln('--DESC---');
+  writeln(entry.DumpToString);
+  writeln('--------');
+end;
+
+procedure TFRE_DB_DEBUG_PLUGIN.TransformGridEntry(const transformed_object: IFRE_DB_Object);
+var s : TFRE_DB_String;
+begin
+  if GetMode<3 then
+    begin
+      s := inttostr(GetMode)+'#'+transformed_object.Field('OBJNAME').AsString;
+      s := s+'('+transformed_object.UID_String+')';
+      transformed_object.Field('OBJNAME').AsString := s;
+    end;
+  //writeln('---TRNS');
+  //writeln(transformed_object.DumpToString());
+  //writeln('---');
 end;
 
 { TFRE_DB_GLOBAL_TEXTS }

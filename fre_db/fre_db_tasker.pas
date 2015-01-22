@@ -120,7 +120,7 @@ begin
   //G_LiveStats.Field('a35864a4d66063a6474f39ce5f27e9f9').AsObject := live;
   G_LiveStatLock.Acquire;
   try
-    GFRE_DB_TCDM.UpdateLiveStatistics(G_LiveStats);
+    //GFRE_DB_TCDM.UpdateLiveStatistics(G_LiveStats);
   finally
     G_LiveStatLock.Release;
   end;

@@ -165,7 +165,7 @@ end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyConnectionTimer;
 begin
-  //writeln('-> CONNECTION TIMER ACTIVE');
+  inherited;
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MyRegisterClasses;
