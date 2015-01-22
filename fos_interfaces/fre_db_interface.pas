@@ -10782,13 +10782,14 @@ end;
 
 procedure FREDB_PP_AddParentPathToObj(const obj: IFRE_DB_Object; const pp: string);
 var ppa   : TFRE_DB_StringArray;
-    fld   : IFRE_DB_Field;
-    ppart : string;
+    //fld   : IFRE_DB_Field;
+    //ppart : string;
 
 begin
   ppa := obj.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsStringArr;
-  if FREDB_StringInArray(pp,ppa) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'double add to parentpath try - failed');
+  if FREDB_StringInArray(pp,ppa) then begin
+    exit;//can happen if skipclasses are used and obj is root of more than one skiped object
+  end;
   SetLength(ppa,Length(ppa)+1);
 
   ppa[high(ppa)] := pp;
