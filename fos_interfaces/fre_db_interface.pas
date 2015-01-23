@@ -4638,7 +4638,7 @@ end;
 
 class function TFRE_DB_OBJECT_PLUGIN_BASE.EnhancesGridRenderingPreClientSend: Boolean;
 begin
-
+  result := false;
 end;
 
 class function TFRE_DB_OBJECT_PLUGIN_BASE.EnhancesFormRendering: Boolean;
