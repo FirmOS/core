@@ -2071,6 +2071,8 @@ type
   private
   protected
   public
+    class procedure RegisterSystemScheme               (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects                   (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class function  EnhancesGridRenderingTransform     : Boolean; virtual;
     class function  EnhancesGridRenderingPreClientSend : Boolean; virtual;
     class function  EnhancesFormRendering              : Boolean; virtual;
@@ -4614,6 +4616,20 @@ const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
 
 { TFRE_DB_OBJECT_PLUGIN_BASE }
+
+class procedure TFRE_DB_OBJECT_PLUGIN_BASE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName(TFRE_DB_ObjectEx.Classname);
+end;
+
+class procedure TFRE_DB_OBJECT_PLUGIN_BASE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='0.1';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+  end;
+end;
 
 class function TFRE_DB_OBJECT_PLUGIN_BASE.EnhancesGridRenderingTransform: Boolean;
 begin
