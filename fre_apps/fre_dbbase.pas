@@ -65,6 +65,8 @@ type
   protected
     procedure       InternalSetup; override;
   public
+    class procedure RegisterSystemScheme                (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects                    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     procedure       SetDebugMode                        (const mode:Int64);
     function        GetMode                             : Int64;
     class function  EnhancesGridRenderingTransform      : Boolean; override;
@@ -75,7 +77,13 @@ type
     procedure       RenderFormEntry                     (const  formdesc : TFRE_DB_CONTENT_DESC ; const entry : IFRE_DB_Object ; const pre_render : boolean); override;
   end;
 
- // TFRE_DB_STATUS_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE);
+  { TFRE_DB_STATUS_PLUGIN }
+
+  TFRE_DB_STATUS_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE)
+    class procedure RegisterSystemScheme                (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects                    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  end;
+
  // TFRE_DB_NOTE_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE);
 
 procedure Register_DB_Extensions;
@@ -101,9 +109,25 @@ begin
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_JobReport);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_OBJECT_PLUGIN_BASE);
   GFRE_DBI.RegisterObjectClassEx(TFRE_DB_DEBUG_PLUGIN);
-
+  GFRE_DBI.RegisterObjectClassEx(TFRE_DB_STATUS_PLUGIN);
 
   //GFRE_DBI.Initialize_Extension_Objects;
+end;
+
+{ TFRE_DB_STATUS_PLUGIN }
+
+class procedure TFRE_DB_STATUS_PLUGIN.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName(TFRE_DB_OBJECT_PLUGIN_BASE.Classname);
+end;
+
+class procedure TFRE_DB_STATUS_PLUGIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='0.1';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+  end;
 end;
 
 { TFRE_DB_DEBUG_PLUGIN }
@@ -112,6 +136,20 @@ procedure TFRE_DB_DEBUG_PLUGIN.InternalSetup;
 begin
   inherited InternalSetup;
   FDbgModefield := Field('M');
+end;
+
+class procedure TFRE_DB_DEBUG_PLUGIN.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName(TFRE_DB_OBJECT_PLUGIN_BASE.Classname);
+end;
+
+class procedure TFRE_DB_DEBUG_PLUGIN.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='0.1';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+  end;
 end;
 
 procedure TFRE_DB_DEBUG_PLUGIN.SetDebugMode(const mode: Int64);

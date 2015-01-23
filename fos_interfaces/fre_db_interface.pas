@@ -2078,6 +2078,8 @@ type
   private
   protected
   public
+    class procedure RegisterSystemScheme               (const scheme : IFRE_DB_SCHEMEOBJECT); override;
+    class procedure InstallDBObjects                   (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
     class function  EnhancesGridRenderingTransform     : Boolean; virtual;
     class function  EnhancesGridRenderingPreClientSend : Boolean; virtual;
     class function  EnhancesFormRendering              : Boolean; virtual;
@@ -4648,6 +4650,20 @@ begin
 end;
 
 { TFRE_DB_OBJECT_PLUGIN_BASE }
+
+class procedure TFRE_DB_OBJECT_PLUGIN_BASE.RegisterSystemScheme(const scheme: IFRE_DB_SCHEMEOBJECT);
+begin
+  inherited RegisterSystemScheme(scheme);
+  scheme.SetParentSchemeByName(TFRE_DB_ObjectEx.Classname);
+end;
+
+class procedure TFRE_DB_OBJECT_PLUGIN_BASE.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
+begin
+  newVersionId:='0.1';
+  if (currentVersionId='') then begin
+    currentVersionId:='0.1';
+  end;
+end;
 
 class function TFRE_DB_OBJECT_PLUGIN_BASE.EnhancesGridRenderingTransform: Boolean;
 begin
@@ -10821,13 +10837,14 @@ end;
 
 procedure FREDB_PP_AddParentPathToObj(const obj: IFRE_DB_Object; const pp: string);
 var ppa   : TFRE_DB_StringArray;
-    fld   : IFRE_DB_Field;
-    ppart : string;
+    //fld   : IFRE_DB_Field;
+    //ppart : string;
 
 begin
   ppa := obj.Field(cFRE_DB_SYS_PARENT_PATH_FULL).AsStringArr;
-  if FREDB_StringInArray(pp,ppa) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'double add to parentpath try - failed');
+  if FREDB_StringInArray(pp,ppa) then begin
+    exit;//can happen if skipclasses are used and obj is root of more than one skiped object
+  end;
   SetLength(ppa,Length(ppa)+1);
 
   ppa[high(ppa)] := pp;

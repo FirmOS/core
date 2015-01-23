@@ -2621,6 +2621,7 @@ var
   GDISABLE_SYNC             : boolean;
   GDBPS_TRANS_WRITE_THROUGH : boolean;
   GDBPS_SKIP_STARTUP_CHECKS : boolean;
+  GDBPS_DISABLE_NOTIFY      : boolean=false;
 
   procedure GFRE_DB_Init_Check;
 
@@ -14176,16 +14177,20 @@ begin
   result := plugins.AsObject.FieldExists(pluginclass.ClassName);
 end;
 
-function TFRE_DB_Object.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; out plugin): boolean;
+function TFRE_DB_Object.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; out plugin): boolean; //self
 var plugins : TFRE_DB_Field;
     pluginf : TFRE_DB_Field;
+    impl    : TFRE_DB_ObjectEx;
 begin
   result := false;
   if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
     exit;
   if  plugins.AsObject.FieldOnlyExisting(pluginclass.ClassName,pluginf) then
     begin
-      TFRE_DB_OBJECT_PLUGIN_BASE(plugin) := pluginf.AsObject.Implementor_HC as pluginclass;
+      impl := pluginf.AsObject.Implementor_HC as TFRE_DB_ObjectEx;
+      if impl.ClassType=TFRE_DB_WeakObjectEx then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'you need to register your pluginclass');
+      TFRE_DB_OBJECT_PLUGIN_BASE(plugin) := impl as pluginclass;
       result := true;
     end;
 end;
@@ -18109,8 +18114,14 @@ begin
     SetLength(Result,0);
     exit;
   end;
-  _CheckFieldType(fdbft_GUID);
-  result := FFieldData.guid^;
+  case FFieldData.FieldType of
+    fdbft_GUID   : result := FFieldData.guid^;
+    //fdbft_String : result := FFieldData.guid^;
+    fdbft_ObjLink: result := FFieldData.obl^;
+      else
+        raise EFRE_DB_Exception.Create(edb_MISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected GUID or ObjectLinkArray');
+  end;
+
 end;
 
 function TFRE_DB_FIELD.GetAsGUIDList(idx: Integer): TFRE_DB_GUID;

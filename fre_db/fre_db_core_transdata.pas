@@ -3170,8 +3170,12 @@ begin
   error_fld := false;
   if obj.FieldOnlyExisting(FFieldname,fld) then
     begin
-      fieldvals     := fld.AsGUIDArr;
       try
+        if fld.AsString='' then begin
+          fieldvals     := TFRE_DB_GUIDArray.create;
+        end else begin
+          fieldvals     := fld.AsGUIDArr;
+        end;
         case FFilterType of
           dbnf_EXACT:               { all fieldvalues and filtervalues must be the same in the same order }
             begin
@@ -6029,6 +6033,8 @@ end;
 procedure TFRE_DB_TRANSDATA_MANAGER.ApplyInboundNotificationBlock(const dbname: TFRE_DB_NameType; const block: IFRE_DB_Object);
 var dummy : IFRE_DB_Object;
 begin
+  if GDBPS_DISABLE_NOTIFY then
+    exit;
   self.StartNotificationBlock(Block.Field('KEY').AsString);
   try
     FREDB_ApplyNotificationBlockToNotifIF(block,self,FCurrentNLayer);
