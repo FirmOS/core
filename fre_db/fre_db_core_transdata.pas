@@ -4780,6 +4780,8 @@ end;
 procedure TFRE_DB_TRANSDATA_MANAGER.ApplyInboundNotificationBlock(const dbname: TFRE_DB_NameType; const block: IFRE_DB_Object);
 var dummy : IFRE_DB_Object;
 begin
+  if GDBPS_DISABLE_NOTIFY then
+    exit;
   LockManager;
   try
     self.StartNotificationBlock(Block.Field('KEY').AsString);
