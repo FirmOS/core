@@ -1539,7 +1539,7 @@ implementation
     obj: IFRE_DB_Object;
   begin
     obj:=GFRE_DBI.NewObject;
-    obj.Field('fieldName').AsString:=fieldName;
+    obj.Field('fieldName').AsString:=LowerCase(fieldName);
     obj.Field('disablesField').AsBoolean:=disablesField;
     Field('dependentFields').AddObject(obj);
   end;
