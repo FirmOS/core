@@ -75,7 +75,9 @@ type
     procedure       RenderFormEntry                     (const  formdesc : TFRE_DB_CONTENT_DESC ; const entry : IFRE_DB_Object ; const pre_render : boolean); override;
   end;
 
- // TFRE_DB_STATUS_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE);
+  TFRE_DB_STATUS_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE)
+  end;
+
  // TFRE_DB_NOTE_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE);
 
 procedure Register_DB_Extensions;
