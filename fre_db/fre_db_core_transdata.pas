@@ -1916,8 +1916,12 @@ begin
   error_fld := false;
   if obj.FieldOnlyExisting(FFieldname,fld) then
     begin
-      fieldvals     := fld.AsGUIDArr;
       try
+        if fld.AsString='' then begin
+          fieldvals     := TFRE_DB_GUIDArray.create;
+        end else begin
+          fieldvals     := fld.AsGUIDArr;
+        end;
         case FFilterType of
           dbnf_EXACT:               { all fieldvalues and filtervalues must be the same in the same order }
             begin

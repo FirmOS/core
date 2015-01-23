@@ -18150,8 +18150,14 @@ begin
     SetLength(Result,0);
     exit;
   end;
-  _CheckFieldType(fdbft_GUID);
-  result := FFieldData.guid^;
+  case FFieldData.FieldType of
+    fdbft_GUID   : result := FFieldData.guid^;
+    //fdbft_String : result := FFieldData.guid^;
+    fdbft_ObjLink: result := FFieldData.obl^;
+      else
+        raise EFRE_DB_Exception.Create(edb_MISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected GUID or ObjectLinkArray');
+  end;
+
 end;
 
 function TFRE_DB_FIELD.GetAsGUIDList(idx: Integer): TFRE_DB_GUID;
