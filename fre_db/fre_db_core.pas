@@ -14217,16 +14217,20 @@ begin
   result := plugins.AsObject.FieldExists(pluginclass.ClassName);
 end;
 
-function TFRE_DB_Object.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; out plugin): boolean;
+function TFRE_DB_Object.HasPlugin(const pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; out plugin): boolean; //self
 var plugins : TFRE_DB_Field;
     pluginf : TFRE_DB_Field;
+    impl    : TFRE_DB_ObjectEx;
 begin
   result := false;
   if not FieldOnlyExisting('_$PLG',plugins) then { no plugins }
     exit;
   if  plugins.AsObject.FieldOnlyExisting(pluginclass.ClassName,pluginf) then
     begin
-      TFRE_DB_OBJECT_PLUGIN_BASE(plugin) := pluginf.AsObject.Implementor_HC as pluginclass;
+      impl := pluginf.AsObject.Implementor_HC as TFRE_DB_ObjectEx;
+      if impl.ClassType=TFRE_DB_WeakObjectEx then
+        raise EFRE_DB_Exception.Create(edb_ERROR,'you need to register your pluginclass');
+      TFRE_DB_OBJECT_PLUGIN_BASE(plugin) := impl as pluginclass;
       result := true;
     end;
 end;
