@@ -2619,6 +2619,7 @@ var
   GDISABLE_SYNC             : boolean;
   GDBPS_TRANS_WRITE_THROUGH : boolean;
   GDBPS_SKIP_STARTUP_CHECKS : boolean;
+  GDBPS_DISABLE_NOTIFY      : boolean=false;
 
   procedure GFRE_DB_Init_Check;
 

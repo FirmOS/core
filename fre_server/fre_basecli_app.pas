@@ -1384,6 +1384,7 @@ begin
       abort;
     end;
   writeln('INITIALIZING DATABASE FOR EXTENSIONS : '+GFRE_DB.GetDeploymentInfo);
+  GDBPS_DISABLE_NOTIFY := true;
   FChosenExtensionList := ListFromString(GFRE_DB.GetDeployedExtensionlist);
   RegisterExtensions;
   GFRE_DB.InstantiateApplicationObjects;
