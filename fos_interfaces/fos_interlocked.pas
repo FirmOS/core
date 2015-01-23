@@ -81,13 +81,13 @@ function  FOS_IL_ExchangeAdd(var Addend: longword; Value: integer): longword;inl
 
 function  FOS_IL_CompareExchange(var Destination: longword; Exchange, Comparand: longword): longword;inline;
 function  FOS_IL_CompareExchange64(var Destination: Int64; Exchange, Comparand: Int64): Int64;//inline;
+{$IFDEF CPU64}
 function  FOS_IL_Increment64(var Addend: Int64): Int64; inline;
 function  FOS_IL_Increment64(var Addend: QWord): QWord; inline;
 function  FOS_IL_Decrement64(var Addend: Int64): Int64; inline;
 function  FOS_IL_Decrement64(var Addend: QWord): QWord; inline;
 function  FOS_IL_Exchange64(var Target: Int64; Value: Int64): Int64; //inline;
 function  FOS_IL_ExchangeAdd64(var Addend: Int64; Value: Int64): Int64;// inline;
-{$IFDEF CPU64}
 //function  FOS_IL_CompareExchange128(var Destination:Int128Rec;Exchange,Comparand:Int128rec):Int128Rec;inline;
 {$ENDIF}
 

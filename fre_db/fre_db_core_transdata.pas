@@ -356,7 +356,7 @@ type
   end;
 
   TFRE_DB_FILTER_CONTAINER = class;
-  TFRE_DB_QUERY           = class;
+  TFRE_DB_QUERY            = class;
 
 
   TFRE_DB_SESSION_DC_RANGE_MGR = class;
@@ -437,9 +437,12 @@ type
   end;
 
   { TFRE_DB_QUERY }
+  TFRE_DB_TRANFORMED_DATA = class;
 
-  TFRE_DB_QUERY=class(TFRE_DB_QUERY_BASE) { Query a Range }
+  TFRE_DB_QUERY=class(TFRE_DB_QUERY_BASE,IFRE_APSC_WORKABLE) { Query a Range }
   private
+    type
+      TFRE_DB_COMPUTE_QUERYSTATE = (cs_Initiated,cs_NeedFetchTransform);
     function  GetFilterDefinition: TFRE_DB_DC_FILTER_DEFINITION;
     function  GetOrderDefinition: TFRE_DB_DC_ORDER_DEFINITION;
   protected
@@ -490,6 +493,17 @@ type
      FSessionID                : TFRE_DB_SESSION_ID;
      FOnlyOneUID               : TFRE_DB_GUID;
      FUidPointQry              : Boolean;
+     FAsyncResultCtx           : IFRE_APSC_CHANNEL_MANAGER;
+     FCompute                  : IFRE_APSC_CHANNEL_GROUP;
+     FMyComputeState           : TFRE_DB_COMPUTE_QUERYSTATE;
+     FMyWorkerCount            : NativeInt;
+
+     Fbasekey                  : TFRE_DB_CACHE_DATA_KEY; { during work }
+     Fst,Fet                   : NativeInt;
+     Frcnt                     : NativeInt;
+     Ftransdata                : TFRE_DB_TRANFORMED_DATA;
+     FTransformobject          : IFRE_DB_TRANSFORMOBJECT;
+     FConnection               : IFRE_DB_CONNECTION;
 
      function                GetReflinkSpec        (const upper_refid : TFRE_DB_NameType):TFRE_DB_NameTypeRLArray;
      function                GetReflinkStartValues (const upper_refid : TFRE_DB_NameType):TFRE_DB_GUIDArray; { start values for the RL expansion }
@@ -509,6 +523,15 @@ type
      function    ExecuteQuery                      (const iterator   : IFRE_DB_Obj_Iterator ; const dc : IFRE_DB_DERIVED_COLLECTION):NativeInt;override; { execute the query, determine count and array of result dbo's, in a lock safe way }
      procedure   ExecutePointQuery                 (const iterator   : IFRE_DB_Obj_Iterator);override;
      property    QryDBName                         : TFRE_DB_NameType read FQryDBName;
+
+     procedure   SetupWorkingContextAndStart       (const Compute : IFRE_APSC_CHANNEL_GROUP ; const return_cm : IFRE_APSC_CHANNEL_MANAGER ; const transform: IFRE_DB_TRANSFORMOBJECT);
+     procedure   SetupWorkerCount                  (const wc : NativeInt);
+     function    GetAsyncDoneContext               : IFRE_APSC_CHANNEL_MANAGER;
+     function    GetMaximumChunk                   : NativeInt;
+     procedure   WorkIt                            (const startchunk,endchunk : Nativeint ; const wid : NativeInt);
+     procedure   WorkDone                          ;
+     procedure   ErrorOccurred                     (const ec : NativeInt ; const em : string);
+
      //function    GetFullQueryOrderKey              : TFRE_DB_TRANS_COLL_DATA_KEY;
      //function    CheckAutoDependencyFilterChanges  (const key_description : TFRE_DB_NameTypeRL):boolean;
      //procedure   ProcessFilterChangeBasedUpdates   ; { compare query invokation }
@@ -563,12 +586,15 @@ type
     var
       FTDDBName             : TFRE_DB_NameType;
       FKey                  : TFRE_DB_TRANS_COLL_DATA_KEY;   { CN/DCN/CHILD RL SPEC }
-      FTransformKey         : QWord;
       FTransformedData      : TFPHashObjectList;
+      FTransdatalock        : IFOS_LOCK;
       FOrderings            : TFPObjectList;
       FTDCreationTime       : TFRE_DB_DateTime64;
       FChildDataIsLazy      : Boolean; { the child data is lazy : UNSUPPORTED }
+      FRecordCount          : Nativeint;
+      FParallelCount        : Nativeint;
 
+      FObjectFetchArray     : IFRE_DB_ObjectArray;
       { >--- Check valid settings }
       FParentCollectionName               : TFRE_DB_NameType;
       FDCHasParentChildRefRelationDefined : boolean;
@@ -589,6 +615,7 @@ type
 
     procedure   TransformSingleUpdate         (const connection: IFRE_DB_CONNECTION; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const upd_idx: NativeInt; const parentpath_full: TFRE_DB_String; const transkey: TFRE_DB_TransStepId);
     procedure   TransformSingleInsert         (const connection : IFRE_DB_CONNECTION ; const in_object: IFRE_DB_Object; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
+    procedure   TransformFetchAll             (const connection : IFRE_DB_CONNECTION);
     procedure   TransformAllTo                (const connection : IFRE_DB_CONNECTION ; const transdata  : TFRE_DB_TRANSFORMED_ARRAY_BASE ; const lazy_child_expand : boolean ; var record_cnt  : NativeInt);
     procedure   MyTransForm                   (const connection : TFRE_DB_CONNECTION ; const in_objects : array of IFRE_DB_Object ; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE ; var rec_cnt : NativeInt ; const lazy_child_expand : boolean ; const mode : TDC_TransMode ; const update_idx : NativeInt ; const rl_ins: boolean; const parentpath: TFRE_DB_String ; const in_parent_tr_obj : IFRE_DB_Object ; const transkey : TFRE_DB_TransStepId);
 
@@ -616,7 +643,7 @@ type
     procedure   HandleDeleteTransformedObject (const del_idx : NativeInt     ; const parent_object : IFRE_DB_Object ; transtag : TFRE_DB_TransStepId); { notify update, step 2 }
 
     procedure   TransformAll                  (var rcnt : NativeInt);                                             { transform all objects of the parent collection }
-    constructor Create                        (const qry: TFRE_DB_QUERY ; const transform : IFRE_DB_TRANSFORMOBJECT);
+    constructor Create                        (const qry: TFRE_DB_QUERY ; const transform : IFRE_DB_TRANSFORMOBJECT ; const data_parallelism : nativeint);
     destructor  Destroy                       ; override;
     procedure   ForAllObjs                    (const forall : TFRE_DB_Obj_Iterator);
 
@@ -730,10 +757,15 @@ type
   TFRE_DB_TRANSDATA_MANAGER=class(TFRE_DB_TRANSDATA_MANAGER_BASE,IFRE_DB_DBChangedNotification)
   private
   type
-       TFRE_DB_RangeMgrIterator = procedure(const range : TFRE_DB_SESSION_DC_RANGE_MGR) is nested;
+    TFRE_DB_RangeMgrIterator = procedure(const range : TFRE_DB_SESSION_DC_RANGE_MGR) is nested;
+
+    TFRE_TDM_DROPQ_PARAMS=class
+       session_id : TFRE_DB_String;
+          dc_name : TFRE_DB_NameTypeRL;
+    end;
+
   var
     FTransCompute  : IFRE_APSC_CHANNEL_GROUP;
-    FTransformKey  : QWord;
     FStatCleaner   : TFRE_DB_TDM_STATS_CLEANER;
     FNotifyProc    : TFRE_DB_TDM_NOTIFY_APPLY;
     FArtRangeMgrs  : TFRE_ART_TREE;
@@ -743,7 +775,6 @@ type
     FCurrentNLayer : TFRE_DB_NameType;
 
     procedure   ForAllQueryRangeMgrs         (const query_iter : TFRE_DB_RangeMgrIterator);
-    function    GetBaseTransformedDataLocked (base_key: TFRE_DB_CACHE_DATA_KEY; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
     procedure   AddBaseTransformedData       (const base_data : TFRE_DB_TRANFORMED_DATA);
     procedure   TL_StatsTimer;
     procedure   AssertCheckTransactionID                    (const obj : IFRE_DB_Object ; const transid : TFRE_DB_TransStepId);
@@ -777,8 +808,11 @@ type
     function   DBC                    (const dblname : TFRE_DB_NameType) : IFRE_DB_CONNECTION;
     procedure  ChildObjCountChange    (const parent_obj : IFRE_DB_Object); { the child object count has changed, send an update on queries with P-C relation, where this object is in }
 
-    function    GetTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; var cd   : TFRE_DB_TRANSFORMED_ORDERED_DATA):boolean;                               { MGR (NTBL) BTD Locked, TOD Locked}
-    procedure   NewTransformedDataLocked  (const qry : TFRE_DB_QUERY_BASE ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANSFORMED_ORDERED_DATA); { MGR (NTBL) BTD (fetched/created) Locked, TOD Locked}
+    function    GetTransformedOrderedData    (const qry : TFRE_DB_QUERY_BASE ; var cd   : TFRE_DB_TRANSFORMED_ORDERED_DATA):boolean;                               { MGR (NTBL) BTD Locked, TOD Locked}
+    procedure   NewTransformedDataLocked     (const qry : TFRE_DB_QUERY_BASE ; const dc : IFRE_DB_DERIVED_COLLECTION ; var cd : TFRE_DB_TRANSFORMED_ORDERED_DATA); { MGR (NTBL) BTD (fetched/created) Locked, TOD Locked} { TODO KILL }
+
+    function    GetBaseTransformedData       (base_key: TFRE_DB_CACHE_DATA_KEY; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
+
 
     constructor Create        ;
     destructor  Destroy       ; override;
@@ -807,8 +841,10 @@ type
 
     procedure   TagQueries4UpInsDel                  (const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const TransActionTag: TFRE_DB_TransStepId);
     procedure   UpdateLiveStatistics                 (const stats : IFRE_DB_Object);
+    procedure   s_DropAllQueryRanges                 (const data  : Pointer);
   public
-    procedure   cs_InvokeQuery                       (const qry : TFRE_DB_QUERY_BASE);
+    procedure   cs_DropAllQueryRanges                (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL);override;
+    procedure   cs_InvokeQry                         (const qry : TFRE_DB_QUERY_BASE ; const return_cm : IFRE_APSC_CHANNEL_MANAGER ; const transform :IFRE_DB_TRANSFORMOBJECT);override;
   end;
 
   { TFRE_DB_TDM_STATS_CLEANER }
@@ -4653,12 +4689,13 @@ function TFRE_DB_QUERY.ExecuteQuery(const iterator: IFRE_DB_Obj_Iterator; const 
 var
     query_tod : TFRE_DB_TRANSFORMED_ORDERED_DATA;
 begin
-  if not G_TCDM.GetTransformedDataLocked(self,query_tod) then
-    G_TCDM.NewTransformedDataLocked(Self,dc,query_tod);
-  FTOD  := query_tod; { Transformation and Ordering is Done - the data is transformed and ordered now }
-  StartQueryRun(false);
-  result := FTOD.ExecuteBaseOrdered(iterator,FSessionID,Filterdef,FStartIdx,FEndIndex,false);
-  EndQueryRun(false);
+  abort;
+  //if not G_TCDM.GetTransformedDataLocked(self,query_tod) then
+  //  G_TCDM.NewTransformedDataLocked(Self,dc,query_tod);
+  //FTOD  := query_tod; { Transformation and Ordering is Done - the data is transformed and ordered now }
+  //StartQueryRun(false);
+  //result := FTOD.ExecuteBaseOrdered(iterator,FSessionID,Filterdef,FStartIdx,FEndIndex,false);
+  //EndQueryRun(false);
 end;
 
 procedure TFRE_DB_QUERY.ExecutePointQuery(const iterator: IFRE_DB_Obj_Iterator);
@@ -4669,6 +4706,101 @@ begin
   abort;
   //FTOD.ExecuteBaseOrdered(iterator,self,false,true);
   EndQueryRun(false);
+end;
+
+procedure TFRE_DB_QUERY.SetupWorkingContextAndStart(const Compute: IFRE_APSC_CHANNEL_GROUP; const return_cm: IFRE_APSC_CHANNEL_MANAGER; const transform: IFRE_DB_TRANSFORMOBJECT);
+begin
+  FCompute         := Compute;
+  FAsyncResultCtx  := return_cm;
+  FMyComputeState  := cs_Initiated;
+  FTransformobject := transform;
+  FCompute.DoAsyncWork(self);
+end;
+
+procedure TFRE_DB_QUERY.SetupWorkerCount(const wc: NativeInt);
+begin
+  FMyWorkerCount := wc;
+end;
+
+function TFRE_DB_QUERY.GetAsyncDoneContext: IFRE_APSC_CHANNEL_MANAGER;
+begin
+  result := FAsyncResultCtx;
+end;
+
+function TFRE_DB_QUERY.GetMaximumChunk: NativeInt;
+begin
+  case FMyComputeState of
+    cs_Initiated: result := 1;
+    else
+      GFRE_BT.CriticalAbort(classname+' workable interface failed invalid state/GetMaximumChunk');
+  end;
+end;
+
+procedure TFRE_DB_QUERY.WorkIt(const startchunk, endchunk: Nativeint; const wid: NativeInt);
+
+  procedure LocalExecuteQuery;
+  var
+      query_tod   : TFRE_DB_TRANSFORMED_ORDERED_DATA;
+
+    procedure LocalFetchTransfromdata;
+    begin
+      GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s] FETCHING',[fbasekey]);
+      Fst        := GFRE_BT.Get_Ticks_ms;
+      Ftransdata := TFRE_DB_TRANFORMED_DATA.Create(self,FTransformobject,FCompute.GetChannelManagerCount);  { the transform data is identified by the basekey }
+      Ftransdata.TransformFetchAll(FConnection);
+      //transdata.TransFormAll(rcnt);
+      //AddBaseTransformedData(transdata);
+      Fet        := GFRE_BT.Get_Ticks_ms;
+      GFRE_DBI.LogInfo(dblc_DBTDM,'<BASE TRANSFORMING DATA FOR [%s] FETCHING DONE - %d records in %d ms',[Fbasekey,Ftransdata.FRecordCount,fet-fst]);
+    end;
+
+
+  begin
+    if not G_TCDM.GetTransformedOrderedData(self,query_tod) then
+      begin
+        Fbasekey := Orderdef.Orderdatakey;
+        if not G_TCDM.GetBaseTransformedData(Fbasekey,Ftransdata) then { 1st search for Transformeddata }
+          begin
+            FMyComputeState := cs_NeedFetchTransform;
+            LocalFetchTransfromdata;
+            exit; { bailout, reinitiate work }
+        end;
+
+      end;
+      //G_TCDM.NewTransformedDataLocked(Self,dc,query_tod);
+
+    //FTOD  := query_tod; { Transformation and Ordering is Done - the data is transformed and ordered now }
+    //StartQueryRun(false);
+    //result := FTOD.ExecuteBaseOrdered(iterator,FSessionID,Filterdef,FStartIdx,FEndIndex,false);
+    //EndQueryRun(false);
+  end;
+
+
+begin
+  case FMyComputeState of
+    cs_Initiated:
+         LocalExecuteQuery;
+    cs_NeedFetchTransform:
+         //LocalFetchTransfromdata;
+    else
+      GFRE_BT.CriticalAbort(classname+' workable interface failed invalid state/WorkIt');
+  end;
+end;
+
+procedure TFRE_DB_QUERY.WorkDone;
+begin
+  case FMyComputeState of
+    cs_Initiated:
+      begin
+      end
+    else
+      GFRE_BT.CriticalAbort(classname+' workable interface failed invalid state/WorkDone');
+  end;
+end;
+
+procedure TFRE_DB_QUERY.ErrorOccurred(const ec: NativeInt; const em: string);
+begin
+  GFRE_BT.CriticalAbort(classname+' workable interface failed [%s]',[em]);
 end;
 
 
@@ -4693,6 +4825,27 @@ var rec_cnt:NativeInt;
 begin
  upconn     := connection.Implementor_HC as TFRE_DB_CONNECTION;
   MyTransForm(upconn,in_object,transdata,rec_cnt,lazy_child_expand,trans_SingleInsert,-1,rl_ins,parentpath,parent_tr_obj,transkey);
+end;
+
+procedure TFRE_DB_TRANFORMED_DATA.TransformFetchAll(const connection: IFRE_DB_CONNECTION);
+var upconn            : TFRE_DB_CONNECTION;
+    FParentCollection : TFRE_DB_COLLECTION;
+begin
+  CleanUp;   { retransform ? }
+  upconn              := Connection.Implementor_HC as TFRE_DB_CONNECTION;
+  FParentCollection   := upconn.GetCollection(FParentCollectionName).Implementor as TFRE_DB_COLLECTION;
+  FParentCollection.GetAllObjsNoRC(FObjectFetchArray);
+  FRecordCount          := Length(FObjectFetchArray);
+  //record_cnt := FParentCollection.ItemCount;  // TODO -> concat with next call
+  //(FParentCollection.Implementor_HC as TFRE_DB_COLLECTION).GetAllUids(uids); // ForAllNoRightChk(@TransForm);
+  //upconn.BulkFetchNoRightCheck(uids,objs);
+  //FParentCollection :=  upconn.GetCollection(FParentCollectionName);
+
+  //if not FREDB_CheckGuidsUnique(uids) then
+  //  raise EFRE_DB_Exception.Create(edb_ERROR,'objects double in collection');
+  //if record_cnt<>Length(objs) then
+  //  raise EFRE_DB_Exception.Create(edb_INTERNAL,'recordcount mismatch / collcount vs bulkfetch (%d<>%d)',[record_cnt,Length(objs)]);
+
 end;
 
 procedure TFRE_DB_TRANFORMED_DATA.TransformAllTo(const connection: IFRE_DB_CONNECTION; const transdata: TFRE_DB_TRANSFORMED_ARRAY_BASE; const lazy_child_expand: boolean; var record_cnt: NativeInt);
@@ -4901,7 +5054,6 @@ begin
 end;
 
 procedure TFRE_DB_TRANFORMED_DATA.Cleanup;
-var cnt : NativeInt;
 begin
   FTransformedData.Clear;
 end;
@@ -5278,7 +5430,7 @@ begin
 end;
 
 
-constructor TFRE_DB_TRANFORMED_DATA.Create(const qry: TFRE_DB_QUERY; const transform: IFRE_DB_TRANSFORMOBJECT);
+constructor TFRE_DB_TRANFORMED_DATA.Create(const qry: TFRE_DB_QUERY; const transform: IFRE_DB_TRANSFORMOBJECT; const data_parallelism: nativeint);
 begin
   FKey                                := qry.Orderdef.CacheDataKey;
   Fkey.orderkey                       := '';                        { this is unordered, the orderkey comes from the frist query generating the data }
@@ -5299,11 +5451,14 @@ begin
   FTransformedData                    := TFPHashObjectList.Create(false);
   FOrderings                          := TFPObjectList.Create(false);
   FTDDBName                           := qry.QryDBName;
+  FParallelCount                      := data_parallelism;
+  GFRE_TF.Get_Lock(FTransdatalock);
 end;
 
 destructor TFRE_DB_TRANFORMED_DATA.Destroy;
 begin
   FOrderings.Clear;
+  FTransdatalock.Finalize;
   inherited Destroy;
 end;
 
@@ -5370,7 +5525,7 @@ begin
   FArtRangeMgrs.LinearScan(@Scan);
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.GetBaseTransformedDataLocked(base_key: TFRE_DB_CACHE_DATA_KEY; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
+function TFRE_DB_TRANSDATA_MANAGER.GetBaseTransformedData(base_key: TFRE_DB_CACHE_DATA_KEY; out base_data: TFRE_DB_TRANFORMED_DATA): boolean;
 var fnd : boolean;
 
   procedure Search(const bd : TFRE_DB_TRANFORMED_DATA ; var halt :boolean);
@@ -5669,7 +5824,7 @@ begin
   inherited Destroy;
 end;
 
-function TFRE_DB_TRANSDATA_MANAGER.GetTransformedDataLocked(const qry: TFRE_DB_QUERY_BASE; var cd: TFRE_DB_TRANSFORMED_ORDERED_DATA): boolean;
+function TFRE_DB_TRANSDATA_MANAGER.GetTransformedOrderedData(const qry: TFRE_DB_QUERY_BASE; var cd: TFRE_DB_TRANSFORMED_ORDERED_DATA): boolean;
 var fkd : TFRE_DB_CACHE_DATA_KEY;
     fnd : boolean;
 
@@ -5694,31 +5849,31 @@ end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.NewTransformedDataLocked(const qry: TFRE_DB_QUERY_BASE; const dc: IFRE_DB_DERIVED_COLLECTION; var cd: TFRE_DB_TRANSFORMED_ORDERED_DATA);
 var transdata         : TFRE_DB_TRANFORMED_DATA;
-    basekey           : TFRE_DB_CACHE_DATA_KEY;
     st,et             : NativeInt;
     rcnt              : NativeInt;
 
     { Generate (if needed) a new base transformation, and a new ordering }
 
 begin
-  with (qry) as TFRE_DB_QUERY do
-    begin
-      basekey := Orderdef.Orderdatakey;
-      if not GetBaseTransformedDataLocked(basekey,transdata) then                   { 1st search for Transformeddata }
-        begin
-          GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[basekey]);
-          st        := GFRE_BT.Get_Ticks_ms;
-          inc(FTransformKey);
-          transdata := TFRE_DB_TRANFORMED_DATA.Create(qry as TFRE_DB_QUERY,dc.GetDeriveTransformation);  { the transform data is identified by the basekey }
-          transdata.TransFormAll(rcnt);
-          AddBaseTransformedData(transdata);
-          et        := GFRE_BT.Get_Ticks_ms;
-          GFRE_DBI.LogInfo(dblc_DBTDM,'<BASE TRANSFORMING DATA FOR [%s] DONE - Transformed %d records in %d ms',[basekey,rcnt,et-st]);
-        end;
-      cd := TFRE_DB_TRANSFORMED_ORDERED_DATA.Create(FOrderDef,transdata);     { generate the ordered, transformed data (next layer) }
-      FOrders.Add2Array(TFRE_DB_TRANSFORMED_ORDERED_DATA(cd));                { internal add the data }
-      TFRE_DB_TRANSFORMED_ORDERED_DATA(cd).OrderTheData;                      { order it }
-    end;
+ abort;
+  //with (qry) as TFRE_DB_QUERY do
+  //  begin
+  //    basekey := Orderdef.Orderdatakey;
+  //    if not GetBaseTransformedDataLocked(basekey,transdata) then                   { 1st search for Transformeddata }
+  //      begin
+  //        GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[basekey]);
+  //        st        := GFRE_BT.Get_Ticks_ms;
+  //        inc(FTransformKey);
+  //        transdata := TFRE_DB_TRANFORMED_DATA.Create(qry as TFRE_DB_QUERY,dc.GetDeriveTransformation);  { the transform data is identified by the basekey }
+  //        transdata.TransFormAll(rcnt);
+  //        AddBaseTransformedData(transdata);
+  //        et        := GFRE_BT.Get_Ticks_ms;
+  //        GFRE_DBI.LogInfo(dblc_DBTDM,'<BASE TRANSFORMING DATA FOR [%s] DONE - Transformed %d records in %d ms',[basekey,rcnt,et-st]);
+  //      end;
+  //    cd := TFRE_DB_TRANSFORMED_ORDERED_DATA.Create(FOrderDef,transdata);     { generate the ordered, transformed data (next layer) }
+  //    FOrders.Add2Array(TFRE_DB_TRANSFORMED_ORDERED_DATA(cd));                { internal add the data }
+  //    TFRE_DB_TRANSFORMED_ORDERED_DATA(cd).OrderTheData;                      { order it }
+  //  end;
 end;
 
 function TFRE_DB_TRANSDATA_MANAGER.GenerateQueryFromQryDef(const qry_def: TFRE_DB_QUERY_DEF): TFRE_DB_QUERY_BASE;
@@ -6032,9 +6187,27 @@ begin
   stats.ForAllObjects(@MyStatsUpdate);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.cs_InvokeQuery(const qry: TFRE_DB_QUERY_BASE);
+procedure TFRE_DB_TRANSDATA_MANAGER.s_DropAllQueryRanges(const data: Pointer);
+var p : TFRE_TDM_DROPQ_PARAMS;
 begin
-  //FTransCompute.
+  p := TFRE_TDM_DROPQ_PARAMS(data);
+  writeln('DROP ALL QUERY RANGES ',p.session_id,' ',p.dc_name);
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.cs_DropAllQueryRanges(const session_id: TFRE_DB_String; const dc_name: TFRE_DB_NameTypeRL);
+var p : TFRE_TDM_DROPQ_PARAMS;
+begin
+  p := TFRE_TDM_DROPQ_PARAMS.Create;
+  p.dc_name:=dc_name;
+  p.session_id:=session_id;
+  FTransCompute.DoAsyncWorkSimpleMethod(@s_DropAllQueryRanges,p);
+end;
+
+procedure TFRE_DB_TRANSDATA_MANAGER.cs_InvokeQry(const qry: TFRE_DB_QUERY_BASE; const return_cm: IFRE_APSC_CHANNEL_MANAGER; const transform: IFRE_DB_TRANSFORMOBJECT);
+var lqry : TFRE_DB_QUERY;
+begin
+  lqry := qry as TFRE_DB_QUERY;
+  lqry.SetupWorkingContextAndStart(FTransCompute,return_cm,transform);
 end;
 
 

@@ -2217,7 +2217,7 @@ end;
     procedure  cs_RemoveQueryRange          (const qry_id: TFRE_DB_NameType ; const start_idx,end_index : NativeInt); virtual; abstract;
     procedure  cs_DropAllQueryRanges        (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
     procedure  cs_InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
-    procedure  cs_InvokeQry                 (const qry : TFRE_DB_QUERY_BASE);virtual;abstract;
+    procedure  cs_InvokeQry                 (const qry : TFRE_DB_QUERY_BASE ; const return_cm : IFRE_APSC_CHANNEL_MANAGER ; const transform :IFRE_DB_TRANSFORMOBJECT) ;virtual ;abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -2985,6 +2985,7 @@ end;
     function    NewDerivedCollection     (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION; // Session DC
     function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
     function    GetDBConnection          :IFRE_DB_CONNECTION;
+    function    GetSessionChannelManager : IFRE_APSC_CHANNEL_MANAGER;
     function    LoggedIn                 : Boolean;
     procedure   Logout                   ;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false ; const allowed_user_classes: array of TFRE_DB_String) : TFRE_DB_PromoteResult; // Promote USER to another USER
@@ -3213,6 +3214,8 @@ end;
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:TFRE_DB_SESSION_ID=''); // Currently no continuation, and answer processing is implemented, is an Async request
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
     procedure   SendServerClientCMD      (const cmd : IFRE_DB_COMMAND);
+
+    function    GetSessionChannelManager : IFRE_APSC_CHANNEL_MANAGER;
 
     //Invoke a Method that another Session provides via Register
     function    InvokeRemoteRequest           (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
@@ -7299,6 +7302,12 @@ begin
       FBoundSession_RA_SC.Send_ServerClient(cmd)
     else
       GFRE_DBI.LogWarning(dblc_SESSION,'WARNING DROPPED COMMAND : %s %s',[cmd.InvokeClass+'.'+cmd.InvokeMethod,' ',cmd.Answer]);
+end;
+
+function TFRE_DB_UserSession.GetSessionChannelManager: IFRE_APSC_CHANNEL_MANAGER;
+begin
+  { FIXXME: Think lock, and Channel migration  }
+  result := FBoundSession_RA_SC.GetChannel.cs_GetChannelManager;
 end;
 
 

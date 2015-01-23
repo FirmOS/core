@@ -30,6 +30,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
+        <CommandLineParams Value="cpuchannels"/>
         <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
       </local>
     </RunParams>
@@ -54,7 +55,6 @@
       <Unit4>
         <Filename Value="../fre_libevent_core.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="fre_libevent_core"/>
       </Unit4>
       <Unit5>
         <Filename Value="../fre_aps_comm_impl.pas"/>
@@ -87,7 +87,7 @@ if TargetOS = 'solaris' then
     </CodeGeneration>
     <Linking>
       <Debugging>
-        <DebugInfoType Value="dsDwarf2"/>
+        <DebugInfoType Value="dsStabs"/>
         <UseHeaptrc Value="True"/>
       </Debugging>
     </Linking>

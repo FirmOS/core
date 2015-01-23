@@ -44,7 +44,7 @@ interface
 
 uses
   Classes, SysUtils,FOS_TOOL_INTERFACES,FRE_APS_INTERFACE,FOS_FCOM_TYPES,FOS_INTERLOCKED,FRE_FCOM_SSL,contnrs,
-  FRE_LIBEVENT_CORE,errors,fre_system,fre_db_interface,fos_sparelistgen,fre_http_client
+  FRE_LIBEVENT_CORE,errors,fre_system,fre_db_interface,fos_sparelistgen,fre_http_client,math
   {$IFDEF UNIX}
   ,BASEUNIX
   {$ENDIF}
@@ -117,6 +117,8 @@ type
   { TFRE_APS_CMD_BASE }
 
   TFRE_APS_CMD_BASE=class(TFOS_FactorableBase)
+  protected
+    FDontFinalize : boolean;
   public
     procedure         Execute       (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);virtual;abstract;
   end;
@@ -176,17 +178,79 @@ type
     procedure      Execute       (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
   end;
 
-  { TFRE_APS_CMD_DO_WORKABLE }
+  { TFRE_APS_CMD_DO_WORK_CHUNK }
+  TFRE_APS_CMD_DO_WORKABLE=class;
 
-  TFRE_APS_CMD_DO_WORKABLE=class(TFRE_APS_CMD_BASE)
+  TFRE_APS_CMD_DO_WORK_CHUNK=class(TFRE_APS_CMD_BASE) { Distribute a Workable to a compute chnannelgroup and let the work be done }
   private
+    Fstart_ix,
+    Fend_ix,
+    Fmax_ix   : NativeInt;
     FWorkable : IFRE_APSC_WORKABLE;
+    FWorkCmd  : TFRE_APS_CMD_DO_WORKABLE;
+    FWorkerID : NativeInt;
+    FMyCgt    : TFRE_APSC_CHANNELGROUP_THREAD;
   public
-    class function FactoryCreate (const Factory   : IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORKABLE; inline;
-    function       Setup         (const workable  : IFRE_APSC_WORKABLE): TFRE_APS_CMD_DO_WORKABLE;inline;
+    class function FactoryCreate (const Factory   : IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORK_CHUNK; inline;
+    function       Setup         (const start_ix,end_ix,max_ix : NativeInt ; const fwid : NativeInt ; const workcmd : TFRE_APS_CMD_DO_WORKABLE ; const mycg : TFRE_APSC_CHANNELGROUP_THREAD): TFRE_APS_CMD_DO_WORK_CHUNK;
     procedure      Execute       (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
   end;
 
+  { TFRE_APS_CMD_DO_WORKABLE }
+
+  TFRE_APS_CMD_DO_WORKABLE=class(TFRE_APS_CMD_BASE) { Distribute a Workable to a compute chnannelgroup and let the work be done }
+  private
+    FWorkable    : IFRE_APSC_WORKABLE;
+    FEndEvent    : IFOS_E;
+    FWorking     : longint; { Interlocked Decrement to zero, then work is done }
+    FReturnCM    : IFRE_APSC_CHANNEL_MANAGER;
+  public
+    procedure      a_SendWorkDone ;
+    class function FactoryCreate  (const Factory   : IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORKABLE; inline;
+    function       Setup          (const workable  : IFRE_APSC_WORKABLE ; const endevent : IFOS_E ; const return_ctx : IFRE_APSC_CHANNEL_MANAGER): TFRE_APS_CMD_DO_WORKABLE;inline;
+    procedure      Execute        (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
+  end;
+
+  { TFRE_APS_CMD_SWITCH_CTX }
+
+  TFRE_APS_CMD_SWITCH_CTX=class(TFRE_APS_CMD_BASE)
+  private
+    type
+      TCoMode  = (simple,simplenested,ex,exnested);
+      TCoMethod=record
+        data : Pointer;
+        case mode:TCoMode of
+          0 :  (SimpleCo : TFRE_APSC_CoRoutineSimple);
+          1 :  (SimpleNe : TFRE_APSC_CoRoutineSimpleNested);
+          2 :  (ExCo     : TFRE_APSC_CoRoutine);
+          3 :  (ExNe     : TFRE_APSC_CoRoutineNested);
+      end;
+  var
+    Fmethod : TCoMethod;
+  public
+    class function FactoryCreate  (const Factory : IFOS_FactoryInterface) : TFRE_APS_CMD_SWITCH_CTX; inline;
+    function       Setup          (const method  : TFRE_APSC_CoRoutineSimple) : TFRE_APS_CMD_SWITCH_CTX;inline;
+    function       Setup          (const method  : TFRE_APSC_CoRoutineSimpleNested) : TFRE_APS_CMD_SWITCH_CTX;inline;
+    function       Setup          (const method  : TFRE_APSC_CoRoutine ; const data:Pointer) : TFRE_APS_CMD_SWITCH_CTX;inline;
+    function       Setup          (const method  : TFRE_APSC_CoRoutineNested ; const data : pointer) : TFRE_APS_CMD_SWITCH_CTX;inline;
+    procedure      Execute        (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
+  end;
+
+
+  { TFRE_APS_CMD_WORK_DONE }
+
+  TFRE_APS_CMD_WORK_DONE=class(TFRE_APS_CMD_BASE)  { use case singleton / (simplerecylce) }
+  private
+    class var
+     FSingleton : TFRE_APS_CMD_WORK_DONE;
+  public
+    class procedure   InitSingleton        ; override;
+    class procedure   DestroySingleton     ; override;
+    class function    ClassIsSingleton     : Boolean; override;
+    class function    GetFactoredSingleton : TFOS_FactorableBase; override;
+    class function    FactoryCreate        (const Factory:IFOS_FactoryInterface): TFRE_APS_CMD_WORK_DONE;inline;
+    procedure         Execute              (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
+  end;
 
   { TFRE_APS_CMD_ADD_NEW_SRV_SOCKET }
 
@@ -218,7 +282,7 @@ type
 
   { TFRE_APS_CMD_REQ_CTX_TERMINATE }
 
-  TFRE_APS_CMD_REQ_CTX_TERMINATE=class(TFRE_APS_CMD_BASE)  { use case singleton ? (simplerecylce) }
+  TFRE_APS_CMD_REQ_CTX_TERMINATE=class(TFRE_APS_CMD_BASE)  { use case singleton / (simplerecylce) }
   private
     class var
      FSingleton : TFRE_APS_CMD_REQ_CTX_TERMINATE;
@@ -320,10 +384,32 @@ type
     destructor  Destroy                 ; override;
   end;
 
-  TFRE_APSC_CM_DISTRIBUTION_CB=procedure (const start_ix,end_ix,max_ix : NativeInt ; const cm : TFRE_APSC_CHANNEL_MANAGER);
+  TFRE_APSC_CM_DISTRIBUTION_CB=procedure (const start_ix,end_ix,max_ix,wid : NativeInt ; const cm : TFRE_APSC_CHANNEL_MANAGER) is nested;
+
+  { TFRE_APSC_SIMPLE_WORKABLE }
+
+  TFRE_APSC_SIMPLE_WORKABLE=class(IFRE_APSC_WORKABLE)
+  private
+    FMeth : TFRE_APSC_CoRoutine;
+    FData  : Pointer;
+  public
+    constructor Create              (const method:TFRE_APSC_CoRoutine ; const data : Pointer);
+    procedure   SetupWorkerCount    (const wc : NativeInt);
+    function    GetAsyncDoneContext : IFRE_APSC_CHANNEL_MANAGER;
+    function    GetMaximumChunk     : NativeInt;
+    procedure   WorkIt              (const startchunk,endchunk : Nativeint ; const wid : NativeInt);
+    procedure   WorkDone            ;
+    procedure   ErrorOccurred       (const ec : NativeInt ; const em : string);
+  end;
 
   TFRE_APSC_CHANNELGROUP_THREAD = class(TFRE_APSC_CTX_THREAD,IFRE_APSC_CHANNEL_GROUP)       { One Dispatching (eventing / main thread per channel group) }
   private
+    FWork       : TFRE_APS_CMD_DO_WORKABLE     ;
+    FWorkQ      : IFOS_LFQ;
+    procedure   s_WorkDone                     ;
+    function    s_CallChannelMgrsDistribute    (const cb : TFRE_APSC_CM_DISTRIBUTION_CB ; const max_chunks : NativeInt):boolean;
+    procedure   s_WorkItWork                   (const work : TFRE_APS_CMD_DO_WORKABLE);
+    procedure   s_DoOrEnqueueWorkable          (const work : TFRE_APS_CMD_DO_WORKABLE);
     function    s_GetManagerWithMinimumConns   : TFRE_APSC_CHANNEL_MANAGER;     { LOAD BASED FAIR DISTRIBUTION }
     procedure   s_DistributeNewAcceptedChannel (new_fd : cint; sa : PFCOM_SOCKADDRSTORAGE ; len : socklen_t ; const ssl_enabled : boolean ; const ssl_ctx : PSSL_CTX ; const listenerid : TFRE_APSC_ID); { usage from the listener, owned by the cg (in sync)}
     function    s_GetChannelManagerByID        (cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
@@ -331,19 +417,21 @@ type
     function    s_CreateNewChannelManager      (const cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
     function    s_GetFirstChannelManager       : TFRE_APSC_CHANNEL_MANAGER;
   public
-    procedure   CallChannelMgrsDistribute (const cb : TFRE_APSC_CM_DISTRIBUTION_CB ; const max_chunks : NativeInt);
     function    GetCGID                   : TFRE_APSC_ID;
     function    GetChannelManagerIDs      : TFRE_APSC_ID_Array;
     function    GetChannelManagerCount    : NativeInt;
+    function    GetDefaultChannelManager : IFRE_APSC_CHANNEL_MANAGER;
     function    GetChannelManagerByID     (const cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
     function    GetChannelManagerMinChans : IFRE_APSC_CHANNEL_MANAGER;
     function    CreateNewChannelManager   (const cm_id   : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
     function    AddChannelGroupTimer      (const timer_id: TFRE_APSC_ID ; interval_ms : NativeInt ; timer_callback         : TFRE_APSC_TIMER_CALLBACK    ; const start_timer    : boolean = true ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
     function    AddListenerTCP            (Bind_IP,Bind_Port :String     ; const ID:TFRE_APSC_ID     ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
     function    AddListenerUX             (special_file      : ShortString ; const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER;
-    //procedure   DoAsyncWork               ;
-    procedure   DoSyncedWork              (const workable : IFRE_APSC_WORKABLE);
+    procedure   DoAsyncWork               (const workable : IFRE_APSC_WORKABLE); { needs an "pingback" continuation context }
+    procedure   DoSyncedWork              (const workable : IFRE_APSC_WORKABLE); { does a "hard" wait in the current context (event) }
+    procedure   DoAsyncWorkSimpleMethod   (const method   : TFRE_APSC_CoRoutine ; const data : Pointer); { simple encapsulation of a workable                }
     constructor Create                    (const up_cg_name  : ShortString; const channel_worker_cnt: NativeInt);
+    destructor  Destroy                   ;override;
   end;
 
   { TFRE_APSC_CHANNEL_MANAGER }
@@ -378,6 +466,12 @@ type
     function    GetThreadID              : TThreadID;
     function    AddChannelManagerTimer   (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const periodic :boolean = false ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
     procedure   ScheduleCoRoutine        (const method : TFRE_APSC_CoRoutine ; const data : Pointer); deprecated ;  // From another thread context to this context
+
+
+    procedure   SwitchToContext          (const object_co : TFRE_APSC_CoRoutineSimple);
+    procedure   SwitchToContextNe        (const nested_co : TFRE_APSC_CoRoutineSimpleNested);
+    procedure   SwitchToContextEx        (const object_co : TFRE_APSC_CoRoutine       ; const data : Pointer);
+    procedure   SwitchToContextExNe      (const nested_co : TFRE_APSC_CoRoutineNested ; const data : Pointer);
 
     constructor Create                   (const ID :TFRE_APSC_ID ; const OwnerChannelGroupThread : TFRE_APSC_CHANNELGROUP_THREAD);
     destructor  Destroy                  ; override;
@@ -644,6 +738,30 @@ begin
   GAPSC:=nil;
 end;
 
+type
+
+  { TTestWorkable }
+
+  TTestWorkable=class(IFRE_APSC_WORKABLE)
+  private
+    FWorksize : Integer;
+    FAdone    : IFRE_APSC_CHANNEL_MANAGER;
+    Fid       : string;
+  public
+    constructor Create              (const id:string);
+    procedure   SetWorkSize         (const ws:integer);
+    procedure   SetupWorkerCount    (const wc : NativeInt);                                           { gives a hint how many workers will do the load                   }
+    function    GetMaximumChunk     : NativeInt;                                                      { tell the cpu cg how much work is to be done parallel             }
+    procedure   WorkIt              (const startchunk,endchunk : Nativeint ; const wid : NativeInt);  { the working callback, gives chunk id, and the parallel worker id }
+    procedure   WorkDone            ;                                                                 { the workers have finishe, join the results                       }
+    function    GetAsyncDoneContext : IFRE_APSC_CHANNEL_MANAGER;                                      { if nil then the work does not need a callback                    }
+    procedure   SetAsyncDoneContext (const cm:IFRE_APSC_CHANNEL_MANAGER);
+    procedure   ErrorOccurred       (const ec : NativeInt ; const em : string);
+    destructor  Destroy; override;
+  end;
+
+var     CPUCG        : IFRE_APSC_CHANNEL_GROUP;
+
 procedure Test_APSC(const what:string);
 var
      i  : Integer;
@@ -669,6 +787,18 @@ var
     L_UX         : IFRE_APSC_LISTENER;
     CL4,CL6,CLUX : IFRE_APSC_CHANNEL;
     CLDNS        : IFRE_APSC_CHANNEL;
+    TESTWORKS    : TTestWorkable;
+
+
+    procedure PushAWork;
+    var TESTWORKA     : TTestWorkable;
+    begin
+      writeln('ASYNC PUSH ',NativeUInt(GetThreadID));
+      TESTWORKA := TTestWorkable.Create('ASY ');
+      TESTWORKA.SetAsyncDoneContext(GFRE_SC.GetDefaultCG.GetDefaultChannelManager);
+      TESTWORKA.SetWorkSize(StrToIntDef(paramstr(3),1000));
+      CPUCG.DoAsyncWork(TESTWORKA);
+    end;
 
 begin
   case  lowercase(what) of
@@ -730,6 +860,28 @@ begin
                             hc.GetMethod('/test/test.json',@GotHttpAnswer);
                           end;
                     end;
+     'cpuchannels' : begin
+                       GFRE_SC.CreateNewChannelGroup('CPU',CPUCG,StrToIntDef(paramstr(2),4));
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       GFRE_SC.GetDefaultCG.GetDefaultChannelManager.SwitchToContextNe(@PushAWork);
+                       TESTWORKS := TTestWorkable.Create('SYWO 1');
+                       TESTWORKS.SetWorkSize(StrToIntDef(paramstr(3),1000)+1000);
+                       CPUCG.DoSyncedWork(TESTWORKS);
+                       TESTWORKS.Free;
+
+                       writeln('WAITED SYNC');
+                       sleep(2000);
+                       GAPSC.RequestTerminate();
+                     end;
   end;
 end;
 
@@ -924,30 +1076,255 @@ begin
   TFRE_APSC_TIMER(data).TimerCallback(short);
 end;
 
+{ TFRE_APSC_SIMPLE_WORKABLE }
+
+constructor TFRE_APSC_SIMPLE_WORKABLE.Create(const method: TFRE_APSC_CoRoutine; const data: Pointer);
+begin
+  FMeth := method;
+  FData := data;
+end;
+
+procedure TFRE_APSC_SIMPLE_WORKABLE.SetupWorkerCount(const wc: NativeInt);
+begin
+  // ignore
+end;
+
+function TFRE_APSC_SIMPLE_WORKABLE.GetAsyncDoneContext: IFRE_APSC_CHANNEL_MANAGER;
+begin
+  result := nil;
+end;
+
+function TFRE_APSC_SIMPLE_WORKABLE.GetMaximumChunk: NativeInt;
+begin
+  result := 1;
+end;
+
+procedure TFRE_APSC_SIMPLE_WORKABLE.WorkIt(const startchunk, endchunk: Nativeint; const wid: NativeInt);
+begin
+  FMeth(Fdata);
+end;
+
+procedure TFRE_APSC_SIMPLE_WORKABLE.WorkDone;
+begin
+   Free;
+end;
+
+procedure TFRE_APSC_SIMPLE_WORKABLE.ErrorOccurred(const ec: NativeInt; const em: string);
+begin
+  // ignore
+end;
+
+{ TFRE_APS_CMD_SWITCH_CTX }
+
+class function TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(const Factory: IFOS_FactoryInterface): TFRE_APS_CMD_SWITCH_CTX;
+begin
+  result := TFRE_APS_CMD_SWITCH_CTX(Factory.Factor(TFRE_APS_CMD_SWITCH_CTX));
+end;
+
+function TFRE_APS_CMD_SWITCH_CTX.Setup(const method: TFRE_APSC_CoRoutineSimple): TFRE_APS_CMD_SWITCH_CTX;
+begin
+  result  := self;
+  Fmethod.SimpleCo := method;
+  Fmethod.mode     := simple;
+end;
+
+function TFRE_APS_CMD_SWITCH_CTX.Setup(const method: TFRE_APSC_CoRoutineSimpleNested): TFRE_APS_CMD_SWITCH_CTX;
+begin
+  result  := self;
+  Fmethod.SimpleNe := method;
+  Fmethod.mode     := simplenested;
+end;
+
+function TFRE_APS_CMD_SWITCH_CTX.Setup(const method: TFRE_APSC_CoRoutine; const data: Pointer): TFRE_APS_CMD_SWITCH_CTX;
+begin
+  result  := self;
+  Fmethod.data     := data;
+  Fmethod.ExCo     := method;
+  Fmethod.mode     := ex;
+end;
+
+function TFRE_APS_CMD_SWITCH_CTX.Setup(const method: TFRE_APSC_CoRoutineNested; const data: pointer): TFRE_APS_CMD_SWITCH_CTX;
+begin
+  result  := self;
+  Fmethod.data     := data;
+  Fmethod.ExNe     := method;
+  Fmethod.mode     := exnested;
+end;
+
+procedure TFRE_APS_CMD_SWITCH_CTX.Execute(const ctx_owner: TFRE_APSC_CTX_THREAD; const what: TAPSC_EV_TYP);
+begin
+  try
+    with Fmethod do
+      case mode of
+        simple:       SimpleCo();
+        simplenested: SimpleNe();
+        ex:           ExCo(data);
+        exnested:     ExNe(data);
+      end;
+  except
+    on e:Exception do
+      LogError('SWITCH COROUTINE EXCEPTION ON [%s] FAILED [%s]',[ctx_owner.GetID,e.Message]);
+  end;
+end;
+
+
+
+{ TFRE_APS_CMD_WORK_DONE }
+
+class procedure TFRE_APS_CMD_WORK_DONE.InitSingleton;
+begin
+  FSingleton := TFRE_APS_CMD_WORK_DONE.Create;
+end;
+
+class procedure TFRE_APS_CMD_WORK_DONE.DestroySingleton;
+begin
+  FreeAndNil(FSingleton);
+end;
+
+class function TFRE_APS_CMD_WORK_DONE.ClassIsSingleton: Boolean;
+begin
+  Result:=true
+end;
+
+class function TFRE_APS_CMD_WORK_DONE.GetFactoredSingleton: TFOS_FactorableBase;
+begin
+  Result := FSingleton;
+end;
+
+class function TFRE_APS_CMD_WORK_DONE.FactoryCreate(const Factory: IFOS_FactoryInterface): TFRE_APS_CMD_WORK_DONE;
+begin
+  result := TFRE_APS_CMD_WORK_DONE(Factory.Factor(TFRE_APS_CMD_WORK_DONE));
+end;
+
+procedure TFRE_APS_CMD_WORK_DONE.Execute(const ctx_owner: TFRE_APSC_CTX_THREAD; const what: TAPSC_EV_TYP);
+begin
+  (ctx_owner as TFRE_APSC_CHANNELGROUP_THREAD).s_WorkDone;
+end;
+
+{ TTestWorkable }
+
+constructor TTestWorkable.Create(const id: string);
+begin
+  Fid := id;
+end;
+
+procedure TTestWorkable.SetWorkSize(const ws: integer);
+begin
+  FWorksize := ws;
+end;
+
+procedure TTestWorkable.SetupWorkerCount(const wc: NativeInt);
+begin
+  writeln(FId,'--> Setup Workercount to ',wc,' ',nativeuint(GetThreadID));
+end;
+
+function TTestWorkable.GetMaximumChunk: NativeInt;
+begin
+  result := FworkSize;
+end;
+
+procedure TTestWorkable.WorkIt(const startchunk, endchunk: Nativeint; const wid: NativeInt);
+var wait : integer;
+begin
+  wait := (endchunk-startchunk+1)*2;
+  writeln(FId,' ', wid,' ',' >> ',startchunk,' ',endchunk,' wait : ',wait,' ',NativeUInt(GetCurrentThreadId));
+  sleep(wait);
+  writeln(FId,' ',wid,' ',' << ',startchunk,' ',endchunk,' DONE');
+end;
+
+procedure TTestWorkable.WorkDone;
+begin
+  writeln(FId,' ','||>>ASYNC --- WORK DONE ',nativeuint(GetThreadID));
+  Free;
+end;
+
+function TTestWorkable.GetAsyncDoneContext: IFRE_APSC_CHANNEL_MANAGER;
+begin
+  result := FAdone;
+end;
+
+procedure TTestWorkable.SetAsyncDoneContext(const cm: IFRE_APSC_CHANNEL_MANAGER);
+begin
+  FAdone := cm;
+end;
+
+procedure TTestWorkable.ErrorOccurred(const ec: NativeInt; const em: string);
+begin
+
+end;
+
+destructor TTestWorkable.Destroy;
+begin
+  writeln('>>Destroying ',Fid);
+end;
+
+{ TFRE_APS_CMD_DO_WORK_CHUNK }
+
+class function TFRE_APS_CMD_DO_WORK_CHUNK.FactoryCreate(const Factory: IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORK_CHUNK;
+begin
+  result := TFRE_APS_CMD_DO_WORK_CHUNK(Factory.Factor(TFRE_APS_CMD_DO_WORK_CHUNK));
+end;
+
+function TFRE_APS_CMD_DO_WORK_CHUNK.Setup(const start_ix, end_ix, max_ix: NativeInt; const fwid: NativeInt; const workcmd: TFRE_APS_CMD_DO_WORKABLE; const mycg: TFRE_APSC_CHANNELGROUP_THREAD): TFRE_APS_CMD_DO_WORK_CHUNK;
+begin
+  Fstart_ix := start_ix;
+  Fend_ix   := end_ix;
+  Fmax_ix   := max_ix;
+  FWorkerID := fwid;
+  FWorkable := workcmd.fworkable;
+  FWorkCmd  := workcmd;
+  FMyCgt    := mycg;
+  result    := self;
+end;
+
+procedure TFRE_APS_CMD_DO_WORK_CHUNK.Execute(const ctx_owner: TFRE_APSC_CTX_THREAD; const what: TAPSC_EV_TYP);
+var value : longint;
+begin
+  try
+    FWorkable.WorkIt(Fstart_ix,Fend_ix,FWorkerID);
+  finally
+    value := FOS_IL_Decrement(FWorkCmd.FWorking);
+    if value=0 then
+      FMyCgt.cs_PushDirectCommand(TFRE_APS_CMD_WORK_DONE.FactoryCreate(GAPSC));
+  end;
+end;
+
 { TFRE_APS_CMD_DO_WORKABLE }
+
+procedure TFRE_APS_CMD_DO_WORKABLE.a_SendWorkDone;
+begin
+  if assigned(FEndEvent) then
+    begin
+      FEndEvent.SetEvent;
+    end
+  else
+    if Assigned(FReturnCM) then
+      begin
+        FReturnCM.SwitchToContext(@FWorkable.WorkDone);
+      end
+    else
+      FWorkable.WorkDone;
+end;
 
 class function TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(const Factory: IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORKABLE;
 begin
   result := TFRE_APS_CMD_DO_WORKABLE(Factory.Factor(TFRE_APS_CMD_DO_WORKABLE));
 end;
 
-function TFRE_APS_CMD_DO_WORKABLE.Setup(const workable: IFRE_APSC_WORKABLE): TFRE_APS_CMD_DO_WORKABLE;
+function TFRE_APS_CMD_DO_WORKABLE.Setup(const workable: IFRE_APSC_WORKABLE; const endevent: IFOS_E; const return_ctx: IFRE_APSC_CHANNEL_MANAGER): TFRE_APS_CMD_DO_WORKABLE;
 begin
-  FWorkable := workable;
+  FWorkable     := workable;
+  FEndEvent     := endevent;
+  FDontFinalize := true;
+  FReturnCM     := return_ctx;
+  result        := self;
 end;
 
 procedure TFRE_APS_CMD_DO_WORKABLE.Execute(const ctx_owner: TFRE_APSC_CTX_THREAD; const what: TAPSC_EV_TYP);
 var cgt : TFRE_APSC_CHANNELGROUP_THREAD;
-    max : NativeInt;
 begin
-  cgt        := ctx_owner as TFRE_APSC_CHANNELGROUP_THREAD;
-  max        := FWorkable.GetMaximumChunk;
-  if max=0 then
-    begin
-      FWorkable.ErrorOccurred(1,'max work chunk size must be >0');
-      exit;
-    end;
-  cgt.CallChannelMgrsDistribute(nil,max);
+  cgt        := ctx_owner as TFRE_APSC_CHANNELGROUP_THREAD; { check dont'finalize }
+  cgt.s_DoOrEnqueueWorkable(self);
 end;
 
 { TFRE_APS_CMD_CHANNEL_CRTL }
@@ -1228,7 +1605,8 @@ begin
     try
       cmd.Execute(ctx_owner,what);
     finally
-      GAPSC.Recycle(cmd);
+      if cmd.FDontFinalize=false then
+        GAPSC.Recycle(cmd);
     end;
   except
     on e:exception do
@@ -2247,8 +2625,11 @@ begin
 end;
 
 function TFRE_APSC_CHANNEL_MANAGER.AddChannelManagerTimer(const timer_id: TFRE_APSC_ID; interval_ms: NativeUint; timer_callback: TFRE_APSC_TIMER_CALLBACK; const periodic: boolean; const start_timer: boolean; const asc_meth_code: CodePointer; const asc_meth_data: Pointer): IFRE_APSC_TIMER;
+var tim : TFRE_APSC_TIMER;
 begin
-  abort;
+  tim    := TFRE_APSC_TIMER.Create(timer_id,interval_ms,timer_callback,asc_meth_code,asc_meth_data);
+  result := tim;
+  cs_PushDirectCommand(TFRE_APS_CMD_ADD_TIMER.FactoryCreate(GAPSC).Setup(tim,start_timer));
 end;
 
 procedure TFRE_APSC_CHANNEL_MANAGER.ScheduleCoRoutine(const method: TFRE_APSC_CoRoutine; const data: Pointer);
@@ -2264,6 +2645,27 @@ begin
   //  begin
   //    FChanBaseCtrl.OverloadEnque(cb_SCHED_COROUTINE,pack);
   //  end;
+end;
+
+
+procedure TFRE_APSC_CHANNEL_MANAGER.SwitchToContext(const object_co: TFRE_APSC_CoRoutineSimple);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(object_co));
+end;
+
+procedure TFRE_APSC_CHANNEL_MANAGER.SwitchToContextNe(const nested_co: TFRE_APSC_CoRoutineSimpleNested);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(nested_co));
+end;
+
+procedure TFRE_APSC_CHANNEL_MANAGER.SwitchToContextEx(const object_co: TFRE_APSC_CoRoutine; const data: Pointer);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(object_co,data));
+end;
+
+procedure TFRE_APSC_CHANNEL_MANAGER.SwitchToContextExNe(const nested_co: TFRE_APSC_CoRoutineNested; const data: Pointer);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(nested_co,data));
 end;
 
 constructor TFRE_APSC_CHANNEL_MANAGER.Create(const ID: TFRE_APSC_ID; const OwnerChannelGroupThread: TFRE_APSC_CHANNELGROUP_THREAD);
@@ -2538,8 +2940,8 @@ end;
 
 procedure TFRE_APS_LL_EvBaseController.csPushDirectCommand(const cmd: TFRE_APS_CMD_BASE; const event_indirect: boolean);
 begin
-  //if cmd=nil then
-  //  GFRE_BT.CriticalAbort('NIL PUSH');
+  if cmd=nil then
+    GFRE_BT.CriticalAbort('NIL PUSH');
   //writeln('PUSH ',cmd.ClassName);
   if event_indirect then
     begin
@@ -2621,6 +3023,39 @@ end;
 
 { TFRE_APS_COMM_LISTENERS_THREADS }
 
+procedure TFRE_APSC_CHANNELGROUP_THREAD.s_WorkItWork(const work: TFRE_APS_CMD_DO_WORKABLE);
+var
+    max : NativeInt;
+
+  procedure MyChunking(const start_ix,end_ix,max_ix,wid: NativeInt ; const cm : TFRE_APSC_CHANNEL_MANAGER);
+  begin
+    FOS_IL_Increment(FWork.FWorking);
+    cm.cs_PushDirectCommand(TFRE_APS_CMD_DO_WORK_CHUNK.FactoryCreate(GAPSC).Setup(start_ix,end_ix,max_ix,wid,work,self),false); { FIXXME : Make Eventindirect working for CPU CHANNELS }
+  end;
+
+begin
+  if assigned(FWork) then
+    GFRE_BT.CriticalAbort('apsc critical failure / unexpected work set');
+
+  FWork          := work;
+  FWork.FWorking := 0;
+  max   := work.FWorkable.GetMaximumChunk;
+  if max=0 then
+    begin
+      work.FWorkable.ErrorOccurred(1,'max work chunk size must be >0');
+      exit;
+    end;
+  s_CallChannelMgrsDistribute(@MyChunking,max);
+end;
+
+procedure TFRE_APSC_CHANNELGROUP_THREAD.s_DoOrEnqueueWorkable(const work: TFRE_APS_CMD_DO_WORKABLE);
+begin
+  if assigned(FWork) then
+    FWorkQ.Push(work)
+  else
+    s_WorkItWork(Work);
+end;
+
 function TFRE_APSC_CHANNELGROUP_THREAD.s_GetManagerWithMinimumConns: TFRE_APSC_CHANNEL_MANAGER;
 var min : NativeInt;
 
@@ -2688,31 +3123,76 @@ begin
 end;
 
 function TFRE_APSC_CHANNELGROUP_THREAD.s_GetFirstChannelManager: TFRE_APSC_CHANNEL_MANAGER;
+var halt : boolean;
+    procedure Search(var cc : TFRE_APSC_CTX_THREAD;const idx:NativeInt ; var halt_flag:boolean);
+    begin
+      result    := cc as TFRE_APSC_CHANNEL_MANAGER;
+      halt_flag := true;
+    end;
+
 begin
-  FChildContexts.Count;
+  result := nil;
+  halt   := true;
+  FChildContexts.ForAllBreak2(@Search,halt);
 end;
 
-procedure TFRE_APSC_CHANNELGROUP_THREAD.CallChannelMgrsDistribute(const cb: TFRE_APSC_CM_DISTRIBUTION_CB; const max_chunks: NativeInt);
-var idx,mgrs  : NativeInt;
-    partitionsz : NativeInt;
+procedure TFRE_APSC_CHANNELGROUP_THREAD.s_WorkDone;
+var FNextTask : TFRE_APS_CMD_DO_WORKABLE;
+begin
+  if not assigned(FWork) then
+    GFRE_BT.CriticalAbort('apsc critical failure / unexpected work is not set');
+  FWork.a_SendWorkDone;
+  GAPSC.Recycle(Fwork);
+  FWork     := nil;
+  FNextTask := Tobject(FWorkQ.Pop) as TFRE_APS_CMD_DO_WORKABLE;
+  if assigned(FNextTask) then
+    s_DoOrEnqueueWorkable(FNextTask);
+end;
 
-  procedure call(var x : TFRE_APSC_CTX_THREAD);
+function TFRE_APSC_CHANNELGROUP_THREAD.s_CallChannelMgrsDistribute(const cb: TFRE_APSC_CM_DISTRIBUTION_CB; const max_chunks: NativeInt): boolean;
+var wid,mgrs    : NativeInt;
+    chunk_sz    : NativeInt;
+    partlow     : NativeInt;
+    parthi      : NativeInt;
+    needed_wks  : NativeInt;
+    halt        : boolean;
+
+  procedure callit(var x : TFRE_APSC_CTX_THREAD ; const idx : NativeInt ; var halt : boolean);
   begin
-    //cb(,,(x as TFRE_APSC_CHANNEL_MANAGER));
+    if parthi>=max_chunks then
+      begin
+        halt := true;
+        parthi := max_chunks;
+      end;
+    cb(partlow,parthi,max_chunks,wid,(x as TFRE_APSC_CHANNEL_MANAGER));
+    inc(wid);
+    inc(partlow,chunk_sz);
+    inc(parthi,chunk_sz);
   end;
 
 begin
   if max_chunks=0 then
     GFRE_LOG.LogEmergency('DISTRIBUTE WORK EXCEPTION : TFRE_APSC_CHANNELGROUP_THREAD max_chunks=0');
+  wid          := 1;
+  partlow      := 1;
+  halt         := false;
   cs_LockContextChange;
   try
-    idx          := 0;
     mgrs         := FChildContexts.Count;
-    partitionsz  := max_chunks div mgrs; // 9 div 5
-    FChildContexts.ForAll(@call);
+    chunk_sz     := max_chunks div mgrs;   { 9 div 6 = 1 / 9 div 2 = 4 ; 1 div 4 = 0 ; 1 div 1 = 1 // 100 div 6 = 16 wks = 6 }
+    inc(chunk_sz);                         { increment the chunksize by one, so that for 0 one chunk is worked, and that the last thread has less to do }
+    needed_wks   := min(chunk_sz,mgrs);
+    try
+      Fwork.FWorkable.SetupWorkerCount(needed_wks);
+    except
+      exit(false);
+    end;
+    parthi       := chunk_sz;
+    FChildContexts.ForAllBreak2(@callit,halt);
   finally
     cs_UnlockContectChange;
   end;
+  result := true;
 end;
 
 function TFRE_APSC_CHANNELGROUP_THREAD.GetCGID: TFRE_APSC_ID;
@@ -2740,11 +3220,21 @@ begin
   end;
 end;
 
+function TFRE_APSC_CHANNELGROUP_THREAD.GetDefaultChannelManager: IFRE_APSC_CHANNEL_MANAGER;
+begin
+  cs_LockContextChange;
+  try
+    result := s_GetFirstChannelManager;
+  finally
+    cs_UnlockContectChange;
+  end;
+end;
+
 function TFRE_APSC_CHANNELGROUP_THREAD.GetChannelManagerByID(const cm_id: TFRE_APSC_ID; out cm: IFRE_APSC_CHANNEL_MANAGER): boolean;
 begin
   cs_LockContextChange;
   try
-    result := GetChannelManagerByID(cm_id,cm);
+    result := s_GetChannelManagerByID(cm_id,cm);
   finally
     cs_UnlockContectChange;
   end;
@@ -2845,10 +3335,30 @@ begin
   cs_PushDirectCommand(TFRE_APS_CMD_ADD_LISTENER.FactoryCreate(GAPSC).Setup(uxl,start_listener));
 end;
 
+procedure TFRE_APSC_CHANNELGROUP_THREAD.DoAsyncWork(const workable: IFRE_APSC_WORKABLE);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(workable,nil,workable.GetAsyncDoneContext));
+end;
+
 procedure TFRE_APSC_CHANNELGROUP_THREAD.DoSyncedWork(const workable: IFRE_APSC_WORKABLE);
 var fsyncdev : IFOS_E;
 begin
-  cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(workable));
+  GFRE_TF.Get_Event(fsyncdev);
+  try
+    cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(workable,fsyncdev,nil));
+    writeln('PREWAIT');
+    fsyncdev.WaitFor;
+    writeln('POSTWAIT');
+  finally
+    fsyncdev.Finalize;
+  end;
+end;
+
+procedure TFRE_APSC_CHANNELGROUP_THREAD.DoAsyncWorkSimpleMethod(const method: TFRE_APSC_CoRoutine; const data: Pointer);
+var w : TFRE_APSC_SIMPLE_WORKABLE;
+begin
+  w := TFRE_APSC_SIMPLE_WORKABLE.Create(method,data);
+  cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(w,nil,w.GetAsyncDoneContext));
 end;
 
 
@@ -2857,10 +3367,17 @@ var i  : NativeInt;
     cm : IFRE_APSC_CHANNEL_MANAGER;
 begin
   FMyIndent:='  ';
+  GFRE_TF.Get_LFQ(FWorkQ);
   SetupCommon(up_cg_name);
   for i := 0 to channel_worker_cnt-1 do
      s_CreateNewChannelManager(up_cg_name+'/#'+inttostr(i),cm);
   inherited Create(false);
+end;
+
+destructor TFRE_APSC_CHANNELGROUP_THREAD.Destroy;
+begin
+  FWorkQ.Finalize;
+  inherited Destroy;
 end;
 
 { TFRE_APS_COMM }
@@ -3176,6 +3693,7 @@ var ign,dummy: SigactionRec;
 
 begin
   TFRE_APS_CMD_REQ_CTX_TERMINATE.InitSingleton;
+  TFRE_APS_CMD_WORK_DONE.InitSingleton;
   GFRE_TF.Get_Event(FDoneEvent);
   GFRE_TF.Get_Lock(FChannelGroupsChangeLock);
   FDedicatedChannelGroups := TFPHashList.Create;
@@ -3216,6 +3734,7 @@ begin
   if assigned(FSSL_CTX) then
     SSL_CTX_free(FSSL_CTX);
   TFRE_APS_CMD_REQ_CTX_TERMINATE.DestroySingleton;
+  TFRE_APS_CMD_WORK_DONE.DestroySingleton;
   FDedicatedChannelGroups.Free;
   FChannelGroupsChangeLock.Finalize;
   inherited Destroy;

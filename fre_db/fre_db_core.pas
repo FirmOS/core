@@ -8546,7 +8546,7 @@ begin
     FDCollFiltersDyn.RemoveAllFilters;
     qrydef := SetupQryDefinitionFromWeb(input);
     query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
-    GFRE_DB_TCDM.cs_InvokeQry(query);
+    GFRE_DB_TCDM.cs_InvokeQry(query,ses.GetSessionChannelManager,GetDeriveTransformation);
     //try
     //  result := GetGridDataDescription;
     //finally
