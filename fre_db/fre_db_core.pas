@@ -10082,7 +10082,7 @@ end;
 
 function TFRE_DB_COLLECTION.URT_UserUid: PFRE_DB_GUID;
 begin
-  FCollConnection.GetUserUIDP;
+  result := FCollConnection.GetUserUIDP;
 end;
 
 
@@ -13382,7 +13382,10 @@ end;
 function TFRE_DB.GetSysScheme(name: TFRE_DB_NameType; out scheme: TFRE_DB_SchemeObject): boolean;
 begin
   if assigned(self) then { handles startup case }
-    result := FDatabaseSchemeSchemes.FieldOnlyExistingObjAs(name,TFRE_DB_SchemeObject,scheme)
+   begin
+     scheme := nil;
+     result := FDatabaseSchemeSchemes.FieldOnlyExistingObjAs(name,TFRE_DB_SchemeObject,scheme)
+   end
   else
    begin
      result := false;

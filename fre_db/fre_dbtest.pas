@@ -48,7 +48,7 @@ uses
   Classes, SysUtils,FOS_TOOL_INTERFACES,unixutil,fre_system,
   FRE_DB_COMMON,
   FRE_DB_INTERFACE,
-  FRE_DBBUSINESS,fre_testcase,
+  FRE_DBBUSINESS,
   fre_accesscontrol_common,
   fre_monitoring_common;
 

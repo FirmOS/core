@@ -2204,6 +2204,8 @@ end;
     function  GetResultData        : IFRE_DB_ObjectArray; virtual ; abstract;
     function  ExecuteQuery         (const iterator   : IFRE_DB_Obj_Iterator ; const dc : IFRE_DB_DERIVED_COLLECTION):NativeInt;virtual;abstract;
     procedure ExecutePointQuery    (const iterator   : IFRE_DB_Obj_Iterator);virtual;abstract;
+    procedure CaptureStartTime     ; virtual ; abstract;
+    function  CaptureEndTime       : NativeInt; virtual ; abstract;
   end;
 
   TFRE_DB_TRANSFORMED_ARRAY_BASE=class { usage from the DC to transform the unordered basedata }

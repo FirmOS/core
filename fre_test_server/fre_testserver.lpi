@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-e TEST -u admin@system -p admin --ple"/>
+        <CommandLineParams Value="--ple -u admin@system -p admin --webdev"/>
       </local>
     </RunParams>
     <Units Count="7">
