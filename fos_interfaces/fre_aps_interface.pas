@@ -121,39 +121,45 @@ type
   end;
 
   IFRE_APSC_WORKABLE = interface
-    procedure  SetupWorkerCount    (const wc : NativeInt);                                           { gives a hint how many workers will do the load                   }
-    function   GetAsyncDoneContext : IFRE_APSC_CHANNEL_MANAGER;                                      { who gets the result                                              }
-    function   GetMaximumChunk     : NativeInt;                                                      { tell the cpu cg how much work is to be done parallel             }
-    procedure  WorkIt              (const startchunk,endchunk : Nativeint ; const wid : NativeInt);  { the working callback, gives chunk id, and the parallel worker id }
-    procedure  WorkDone            ;
-    procedure  ErrorOccurred       (const ec : NativeInt ; const em : string);
+    procedure  SetupWorkerCount_WIF         (const wc : NativeInt);                                           { gives a hint how many workers will do the load                   }
+    function   GetAsyncDoneContext_WIF      : IFRE_APSC_CHANNEL_MANAGER;                                      { who gets the result a cm                                         }
+    function   GetAsyncDoneChannelGroup_WIF : IFRE_APSC_CHANNEL_GROUP;                                        { or a cg - only one is allowed                                    }
+    function   StartGetMaximumChunk_WIF     : NativeInt;                                                      { tell the cpu cg how much work is to be done parallel             }
+    procedure  ParallelWorkIt_WIF           (const startchunk,endchunk : Nativeint ; const wid : NativeInt);  { the working callback, gives chunk id, and the parallel worker id }
+    procedure  WorkNextCyle_WIF             (var continue : boolean);                                         { set to true to get a recall                                      }
+    procedure  WorkDone_WIF                 ;
+    procedure  ErrorOccurred_WIF            (const ec : NativeInt ; const em : string);
   end;
 
   { IFRE_APSC_CHANNEL_GROUP }
 
   IFRE_APSC_CHANNEL_GROUP=interface    { group channel manager together, and be the "main" eventer for them }
-    function  Implementor              : TObject;
-    function  AddChannelGroupTimer     (const timer_id: TFRE_APSC_ID ; interval_ms : NativeInt ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; { Add a Timer to a channel group, should be immediatly started, }
-                                        const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ;                        { callbacks should be set, negative interval=oneshot timer      }
-                                        const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
-    function  AddListenerTCP           (Bind_IP,Bind_Port : String     ;  const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
-    function  AddListenerUX            (special_file      : ShortString ; const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER;
-    function  GetChannelManagerCount   : NativeInt;
-    function  GetDefaultChannelManager : IFRE_APSC_CHANNEL_MANAGER;
-    function  GetCGID                  : TFRE_APSC_ID;
-    function  GetChannelManagerIDs     : TFRE_APSC_ID_Array;
-    function  GetChannelManagerByID    (const cm_id : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
-    function  CreateNewChannelManager  (const cm_id : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
-    procedure DoAsyncWork              (const workable : IFRE_APSC_WORKABLE);  { needs an "pingback" continuation context          }
-    procedure DoSyncedWork             (const workable : IFRE_APSC_WORKABLE);  { does a "hard" wait in the current context (event) }
-    procedure DoAsyncWorkSimpleMethod  (const method   : TFRE_APSC_CoRoutine ; const data : Pointer); { simple encapsulation of a workable                }
+    function  Implementor                 : TObject;
+    function  AddChannelGroupTimer        (const timer_id: TFRE_APSC_ID ; interval_ms : NativeInt ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; { Add a Timer to a channel group, should be immediatly started, }
+                                          const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ;                        { callbacks should be set, negative interval=oneshot timer      }
+                                          const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
+    function  AddListenerTCP              (Bind_IP,Bind_Port : String     ;  const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER; // is interpreted as numerical ipv4 or ipv6 address, adds a listener for this ip, special cases are *, and *6 (which use all addresses of the host)
+    function  AddListenerUX               (special_file      : ShortString ; const ID :TFRE_APSC_ID ; const spec_listener_cb : TFRE_APSC_LISTENER_CALLBACK ; const start_listener : boolean = true ; const enable_ssl : boolean = false ; const special_ssl_ctx : PSSL_CTX =nil ): IFRE_APSC_LISTENER;
+    function  GetChannelManagerCount      : NativeInt;
+    function  GetDefaultChannelManager    : IFRE_APSC_CHANNEL_MANAGER;
+    function  GetCGID                     : TFRE_APSC_ID;
+    function  GetChannelManagerIDs        : TFRE_APSC_ID_Array;
+    function  GetChannelManagerByID       (const cm_id : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
+    function  CreateNewChannelManager     (const cm_id : TFRE_APSC_ID ; out cm : IFRE_APSC_CHANNEL_MANAGER) : boolean;
+    procedure DoAsyncWork                 (const workable : IFRE_APSC_WORKABLE);  { needs an "pingback" continuation context          }
+    procedure DoSyncedWork                (const workable : IFRE_APSC_WORKABLE);  { does a "hard" wait in the current context (event) }
+    procedure DoAsyncWorkSimpleMethod     (const method   : TFRE_APSC_CoRoutine ; const data : Pointer); { simple encapsulation of a workable                }
+
+    procedure SwitchToContext             (const object_co : TFRE_APSC_CoRoutineSimple);
+    procedure SwitchToContextNe           (const nested_co : TFRE_APSC_CoRoutineSimpleNested);
+    procedure SwitchToContextEx           (const object_co : TFRE_APSC_CoRoutine       ; const data : Pointer);
+    procedure SwitchToContextExNe         (const nested_co : TFRE_APSC_CoRoutineNested ; const data : Pointer);
 end;
 
   IFRE_APSC_CHANNEL_MANAGER=interface  { Thread bound to CPU, grouped by a IFRE_APSC_CHANNEL_GROUP }
     function  Implementor                 : TObject;
     function  GetID                       : TFRE_APSC_ID;
     function  AddChannelManagerTimer      (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const periodic :boolean = false ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
-    procedure ScheduleCoRoutine           (const method : TFRE_APSC_CoRoutine ; const data : Pointer);
     function  GetChannelGroup             : IFRE_APSC_CHANNEL_GROUP;
     procedure SwitchToContext             (const object_co : TFRE_APSC_CoRoutineSimple);
     procedure SwitchToContextNe           (const nested_co : TFRE_APSC_CoRoutineSimpleNested);

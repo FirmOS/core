@@ -996,6 +996,8 @@ type
   TFRE_DB_DC_FILTER_DEFINITION_BASE   = class;
   TFRE_DB_DC_ORDER_DEFINITION_BASE    = class;
 
+  IFRE_DB_SIMPLE_TRANSFORM            = interface;
+
   { IFRE_DB_DERIVED_COLLECTION }
 
   IFRE_DB_DERIVED_COLLECTION=interface
@@ -1026,8 +1028,8 @@ type
     procedure  RemoveAllFiltersPrefix        (const prefix:string);
 
     procedure  SetDeriveParent               (const coll:IFRE_DB_COLLECTION;  const idField: String='uid');
-    procedure  SetDeriveTransformation       (const tob:IFRE_DB_TRANSFORMOBJECT);
-    function   GetDeriveTransformation       : IFRE_DB_TRANSFORMOBJECT;
+    procedure  SetDeriveTransformation       (const tob:IFRE_DB_SIMPLE_TRANSFORM);
+    function   GetDeriveTransformation       : IFRE_DB_SIMPLE_TRANSFORM;
     //{
     //  This Type is only usefull as a Detail/Dependend Grid, as it needs a input Dependency Object
     //  Deliver all Objects which are pointed to by the input "Dependency" object,
@@ -1087,6 +1089,7 @@ type
     procedure AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameTypeRL          ; const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
     procedure AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String;const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output: boolean=false);
     procedure SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
+    procedure GetFinalRightTransformFunction (out   func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;out langres: TFRE_DB_StringArray);
   end;
 
   IFRE_DB_FieldSchemeDefinition=interface //(IFRE_DB_BASE)
@@ -2194,10 +2197,13 @@ end;
   { TFRE_DB_QUERY_BASE }
 
   TFRE_DB_QUERY_BASE=class
+    function  GetReqID             : Qword; virtual; abstract;
     function  GetQueryID           : TFRE_DB_NameType; virtual; abstract;
+    function  GetTransfrom         : IFRE_DB_SIMPLE_TRANSFORM; virtual;abstract;
+    function  GetTotalCount        : NativeInt; virtual ; abstract;
+    function  GetResultData        : IFRE_DB_ObjectArray; virtual ; abstract;
     function  ExecuteQuery         (const iterator   : IFRE_DB_Obj_Iterator ; const dc : IFRE_DB_DERIVED_COLLECTION):NativeInt;virtual;abstract;
     procedure ExecutePointQuery    (const iterator   : IFRE_DB_Obj_Iterator);virtual;abstract;
-    procedure UnlockQryData        ;virtual;abstract;
   end;
 
   TFRE_DB_TRANSFORMED_ARRAY_BASE=class { usage from the DC to transform the unordered basedata }
@@ -2219,7 +2225,7 @@ end;
     procedure  cs_RemoveQueryRange          (const qry_id: TFRE_DB_NameType ; const start_idx,end_index : NativeInt); virtual; abstract;
     procedure  cs_DropAllQueryRanges        (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
     procedure  cs_InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
-    procedure  cs_InvokeQry                 (const qry : TFRE_DB_QUERY_BASE ; const return_cm : IFRE_APSC_CHANNEL_MANAGER ; const transform :IFRE_DB_TRANSFORMOBJECT) ;virtual ;abstract;
+    procedure  cs_InvokeQry                 (const qry: TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID : Qword); virtual ; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -2799,6 +2805,17 @@ end;
     function  AddEntry  : TFRE_DB_SITEMAP_ENTRY_DESC;
   end;
 
+  { TFRE_DB_STORE_DATA_DESC }
+
+  TFRE_DB_STORE_DATA_DESC  = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes the result of store data request. (e.g. grid, chart...)
+    function  Describe (const totalCount: Int32): TFRE_DB_STORE_DATA_DESC;
+    //@ Adds an entry to the result.
+    procedure addEntry     (const entry: IFRE_DB_Object);
+  end;
+
+
   TFRE_DB_SERVER_FUNC_DESC_ARRAY   = Array of TFRE_DB_SERVER_FUNC_DESC;
 
   TFRE_DB_DESCRIPTION_CLASS  = class of TFRE_DB_CONTENT_DESC;
@@ -2987,7 +3004,7 @@ end;
     function    NewDerivedCollection     (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION; // Session DC
     function    FetchDerivedCollection   (dcname:TFRE_DB_NameType):IFRE_DB_DERIVED_COLLECTION;
     function    GetDBConnection          :IFRE_DB_CONNECTION;
-    function    GetSessionChannelManager : IFRE_APSC_CHANNEL_MANAGER;
+    function    GetSessionChannelGroup   : IFRE_APSC_CHANNEL_GROUP;
     function    LoggedIn                 : Boolean;
     procedure   Logout                   ;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean=false ; const allowed_user_classes: array of TFRE_DB_String) : TFRE_DB_PromoteResult; // Promote USER to another USER
@@ -3011,6 +3028,9 @@ end;
 
     function    RegisterTaskMethod           (const TaskMethod:IFRE_DB_WebTimerMethod ; const invocation_interval : integer ; const id  :TFRE_APSC_ID='TIMER') : boolean;
     function    RemoveTaskMethod             (const id:string='TIMER'):boolean;
+
+    function    GetCurrentRequestID          : QWord; { warning this is a side effect }
+
 
     function    HasFeature                   (const feature_name:shortstring):Boolean;
     procedure   ClearUpdatable               ;
@@ -3126,6 +3146,7 @@ end;
     FcurrentApp           : TFRE_DB_String;
     FConnDesc             : String;
     FBoundSession_RA_SC   : IFRE_DB_COMMAND_REQUEST_ANSWER_SC;
+    FSessionCG            : IFRE_APSC_CHANNEL_GROUP;
     FIsInteractive        : Boolean;
     FBindState            : TFRE_DB_SESSIONSTATE;
     FBoundMachineUid      : TFRE_DB_Guid;
@@ -3152,8 +3173,9 @@ end;
     class constructor createit           ;
     procedure   SetSessionState          (const sstate : TFRE_DB_SESSIONSTATE);
     function    GetSessionState          : TFRE_DB_SESSIONSTATE;
+    function    GetCurrentRequestID      : QWord;
     function    CheckUnboundSessionForPurge : boolean;
-    constructor Create                   (const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String; const default_uid_path: TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION; const interactive_session: boolean);
+    constructor Create                   (const cg : IFRE_APSC_CHANNEL_GROUP;const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String; const default_uid_path: TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION; const interactive_session: boolean);
     destructor  Destroy                  ;override;
     procedure   StoreSessionData         ;
     function    SearchSessionApp         (const app_key:TFRE_DB_String ; out app:TFRE_DB_APPLICATION ; out idx:integer):boolean;
@@ -3218,6 +3240,8 @@ end;
     procedure   SendServerClientCMD      (const cmd : IFRE_DB_COMMAND);
 
     function    GetSessionChannelManager : IFRE_APSC_CHANNEL_MANAGER;
+    function    GetSessionChannelGroup   : IFRE_APSC_CHANNEL_GROUP;
+
 
     //Invoke a Method that another Session provides via Register
     function    InvokeRemoteRequest           (const rclassname,rmethodname:TFRE_DB_NameType;const input : IFRE_DB_Object ; const SyncCallback : TFRE_DB_RemoteCB ; const opaquedata : IFRE_DB_Object):TFRE_DB_Errortype;
@@ -3227,10 +3251,13 @@ end;
 
     procedure   InvokeRemReqCoRoutine      (const data : Pointer);
     procedure   AnswerRemReqCoRoutine      (const data : Pointer);
+
     procedure   COR_SendContentOnBehalf    (const data : Pointer);
     procedure   COR_ExecuteSessionCmd      (const data : Pointer);
+    procedure   COR_AnswerGridData         (const qry  : TFRE_DB_QUERY_BASE);
 
     function    DispatchCoroutine          (const coroutine : TFRE_APSC_CoRoutine;const data : Pointer):boolean; // Call a Coroutine in this sessions thread context
+
 
 
     //Enable a session to "Publish" Remote Methods, overrides previous set
@@ -4616,6 +4643,19 @@ type
 const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
 
+{ TFRE_DB_STORE_DATA_DESC }
+
+function TFRE_DB_STORE_DATA_DESC.Describe(const totalCount: Int32): TFRE_DB_STORE_DATA_DESC;
+begin
+  Field('total').AsInt32:=totalCount;
+  Result:=Self;
+end;
+
+procedure TFRE_DB_STORE_DATA_DESC.addEntry(const entry: IFRE_DB_Object);
+begin
+  Field('data').AddObject(entry);
+end;
+
 { TFRE_DB_TRANS_COLL_DATA_KEY }
 
 procedure TFRE_DB_TRANS_COLL_DATA_KEY.Seal;
@@ -5947,7 +5987,7 @@ begin
 end;
 
 
-constructor TFRE_DB_UserSession.Create(const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String;const default_uid_path : TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION ; const interactive_session : boolean);
+constructor TFRE_DB_UserSession.Create(const cg: IFRE_APSC_CHANNEL_GROUP; const user_name, password: TFRE_DB_String; const default_app: TFRE_DB_String; const default_uid_path: TFRE_DB_GUIDArray; conn: IFRE_DB_CONNECTION; const interactive_session: boolean);
 begin
   GFRE_TF.Get_Lock(FSessionLock);
   FUserName             := user_name;
@@ -5963,6 +6003,7 @@ begin
   FUpdateableContent    := GFRE_DBI.NewObject;
   FModuleInitialized    := TFPHashList.Create;
   FIsInteractive        := interactive_session;
+  FSessionCG            := cg;
 
   _FetchAppsFromDB;
   _InitApps;
@@ -6169,6 +6210,11 @@ end;
 function TFRE_DB_UserSession.GetSessionState: TFRE_DB_SESSIONSTATE;
 begin
   result     := FBindState;
+end;
+
+function TFRE_DB_UserSession.GetCurrentRequestID: QWord;
+begin
+  result := FCurrentReqID;
 end;
 
 function TFRE_DB_UserSession.CheckUnboundSessionForPurge: boolean;
@@ -7326,6 +7372,11 @@ begin
   result := FBoundSession_RA_SC.GetChannel.cs_GetChannelManager;
 end;
 
+function TFRE_DB_UserSession.GetSessionChannelGroup: IFRE_APSC_CHANNEL_GROUP;
+begin
+  result := FSessionCG;
+end;
+
 
 function TFRE_DB_UserSession.InvokeRemoteRequest(const rclassname, rmethodname: TFRE_DB_NameType; const input: IFRE_DB_Object ; const SyncCallback: TFRE_DB_RemoteCB; const opaquedata: IFRE_DB_Object): TFRE_DB_Errortype;
 var
@@ -7482,12 +7533,76 @@ begin
   end;
 end;
 
+procedure TFRE_DB_UserSession.COR_AnswerGridData(const qry: TFRE_DB_QUERY_BASE);
+var
+    st      : IFRE_DB_SIMPLE_TRANSFORM;
+    frt     : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
+    langr   : TFRE_DB_StringArray;
+    resdata : IFRE_DB_ObjectArray;
+
+    procedure  FinalRightTransform(const transformed_filtered_cloned_obj:IFRE_DB_Object);
+    var conn : IFRE_DB_CONNECTION;
+
+        procedure DoPreSend(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
+        begin
+          if plugin.EnhancesGridRenderingPreClientSend then
+            plugin.TransformGridEntryClientSend(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,GetSessionGlobalData,langr);
+        end;
+
+    begin
+      if assigned(frt) then
+        begin
+          try
+            conn := GetDBConnection;
+            frt(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,GetSessionGlobalData,langr);
+          except
+            on e:exception do
+              begin
+                GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
+              end;
+          end;
+        end;
+      transformed_filtered_cloned_obj.ForAllPlugins(@DoPreSend);
+    end;
+
+    function GetGridDataDescription: TFRE_DB_STORE_DATA_DESC;
+    var
+       cnt,i : NativeInt;
+
+      procedure GetData(const transformed_filtered_cloned_obj:IFRE_DB_Object);
+      begin
+        FinalRightTransform(transformed_filtered_cloned_obj);
+        TFRE_DB_STORE_DATA_DESC(result).addEntry(transformed_filtered_cloned_obj);
+      end;
+
+    begin
+      cnt := 0;
+      result := TFRE_DB_STORE_DATA_DESC.create;
+      cnt := Length(resdata);  //query.ExecuteQuery(@GetData,self);
+      for i :=0 to cnt-1 do
+        begin
+          FinalRightTransform(resdata[i]);
+          result.addEntry(resdata[i]);
+        end;
+       cnt := qry.GetTotalCount;
+       Result.Describe(cnt);
+    end;
+
+
+begin
+  // { DO final right transform -> send }
+  qry.GetTransfrom.GetFinalRightTransformFunction(frt,langr);
+  resdata := qry.GetResultData;
+  SendServerClientAnswer(GetGridDataDescription,qry.GetReqID);
+  qry.free;
+end;
+
 function TFRE_DB_UserSession.DispatchCoroutine(const coroutine: TFRE_APSC_CoRoutine; const data: Pointer):boolean;
 begin
   try
     result := true;
     if assigned(FBoundSession_RA_SC) then
-      FBoundSession_RA_SC.GetChannel.cs_GetChannelManager.ScheduleCoRoutine(CoRoutine,data)
+      FBoundSession_RA_SC.GetChannel.cs_GetChannelManager.SwitchToContextEx(CoRoutine,data)
     else
       result:=false;
   except

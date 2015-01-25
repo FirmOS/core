@@ -972,7 +972,7 @@ var blocko : TFRE_DB_Object;
     if pl_handler.FlayerID=layerID then
       begin
         blocko := block.CloneToNewObject.Implementor as TFRE_DB_Object;
-        pl_handler.FChannel.cs_GetChannelManager.ScheduleCoRoutine(@pl_handler.COR_SendNotifyBlock,blocko);
+        pl_handler.FChannel.cs_GetChannelManager.SwitchToContextEx(@pl_handler.COR_SendNotifyBlock,blocko);
       end;
   end;
 

@@ -1707,6 +1707,7 @@ type
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
     function    GetViewCollectionDescription   : TFRE_DB_CONTENT_DESC;
     procedure   SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
+    procedure   GetFinalRightTransformFunction (out   func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;out langres: TFRE_DB_StringArray);
     procedure   SetSimpleFuncTransform         (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK);
     procedure   SetSimpleFuncTransformNested   (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED);
     procedure   AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String; const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
@@ -1756,7 +1757,7 @@ type
     FParentCollection  : IFRE_DB_COLLECTION;
     FIdField           : String;
 
-    FTransform         : TFRE_DB_TRANSFORMOBJECT;  //Links to Parent DC in Parent DC Mode
+    FTransform         : TFRE_DB_SIMPLE_TRANSFORM;
     FitemMenuFunc      : TFRE_DB_SERVER_FUNC_DESC;
     FitemDetailsFunc   : TFRE_DB_SERVER_FUNC_DESC;
     FselectionDepFunc  : TFRE_DB_SERVER_FUNC_DESC;
@@ -1816,8 +1817,8 @@ type
     procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType ; const filterclasses : Array of TFRE_DB_NameType);
     procedure  SetParentToChildLinkField       (const fieldname : TFRE_DB_NameTypeRL ; const skipclasses : Array of TFRE_DB_NameType ; const filterclasses : Array of TFRE_DB_NameType ; const stop_on_explicit_leave_classes : Array of TFRE_DB_NameType);
 
-    procedure  SetDeriveTransformation         (const tob:IFRE_DB_TRANSFORMOBJECT);
-    function   GetDeriveTransformation        : IFRE_DB_TRANSFORMOBJECT;
+    procedure  SetDeriveTransformation         (const tob:IFRE_DB_SIMPLE_TRANSFORM);
+    function   GetDeriveTransformation        : IFRE_DB_SIMPLE_TRANSFORM;
 
 
     function   GetStoreDescription             : TFRE_DB_CONTENT_DESC;
@@ -1826,7 +1827,6 @@ type
                                                 const item_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const item_details_func: TFRE_DB_SERVER_FUNC_DESC=nil; const selection_dep_func: TFRE_DB_SERVER_FUNC_DESC=nil; const tree_menu_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drop_func: TFRE_DB_SERVER_FUNC_DESC=nil; const drag_func: TFRE_DB_SERVER_FUNC_DESC=nil); //TODO: Make Callable Once
 
     function   GetDisplayDescription           : TFRE_DB_CONTENT_DESC;
-    procedure  FinalRightTransform             (const ses : IFRE_DB_UserSession ; const transformed_filtered_cloned_obj:IFRE_DB_Object);
 
     function   First                           : IFRE_DB_Object;
     function   Last                            : IFRE_DB_Object;
@@ -1911,10 +1911,10 @@ type
     function           _Connect                     (const db:TFRE_DB_String ; const is_clone_connect : boolean):TFRE_DB_Errortype;virtual;
     procedure          InternalSetupConnection      ;virtual;
 
-    function           CollectionExists             (const user_context : PFRE_DB_GUID ; const name:TFRE_DB_NameType):boolean;
 
     procedure          Finalize                     ;
   public
+    function           CollectionExists             (const user_context : PFRE_DB_GUID ; const name:TFRE_DB_NameType):boolean;
     function           DeleteCollection             (const user_context : PFRE_DB_GUID ; const name:TFRE_DB_NameType):TFRE_DB_Errortype;
 
     function           CollectionCC                 (const user_context : PFRE_DB_GUID ; const collection_name:TFRE_DB_NameType ; const create_non_existing:boolean=true;const in_memory_only:boolean=false):TFRE_DB_COLLECTION;virtual;
@@ -7536,7 +7536,6 @@ end;
 
 function TFRE_DB_SIMPLE_TRANSFORM.GetViewCollectionDescription: TFRE_DB_CONTENT_DESC;
 var vcd : TFRE_DB_VIEW_LIST_LAYOUT_DESC;
-    i   : NativeInt;
 
     procedure Iterate(var ft : TFRE_DB_FIELD_TRANSFORM ; const idx : NativeInt ; var halt_flag:boolean);
     begin
@@ -7558,6 +7557,12 @@ begin
   SetLength(FFRTLangres,length(langres));
   for i := 0 to high(langres) do
     FFRTLangres[i] := langres[i];
+end;
+
+procedure TFRE_DB_SIMPLE_TRANSFORM.GetFinalRightTransformFunction(out func: IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION; out langres: TFRE_DB_StringArray);
+begin
+  func    := FFinalRightTransform;
+  langres := FFRTLangres;
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.SetSimpleFuncTransform(const callback: IFRE_DB_OBJECT_SIMPLE_CALLBACK);
@@ -8012,16 +8017,16 @@ begin
     FDepRefConstraint[0][i] := scheme_and_field_constraint[i];
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformation(const tob: IFRE_DB_TRANSFORMOBJECT);
+procedure TFRE_DB_DERIVED_COLLECTION.SetDeriveTransformation(const tob: IFRE_DB_SIMPLE_TRANSFORM);
 begin
   FTransform.Free;
-  FTransform := tob.Implementor as TFRE_DB_TRANSFORMOBJECT;
+  FTransform := tob.Implementor as TFRE_DB_SIMPLE_TRANSFORM;
   //Set default order as first field
   if Orders.OrderCount=0 then
     Orders.AddOrderDef(FTransform.GetFirstFieldname,true,true);
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.GetDeriveTransformation: IFRE_DB_TRANSFORMOBJECT;
+function TFRE_DB_DERIVED_COLLECTION.GetDeriveTransformation: IFRE_DB_SIMPLE_TRANSFORM;
 begin
   result := FTransform;
 end;
@@ -8031,13 +8036,14 @@ function TFRE_DB_DERIVED_COLLECTION.ItemCount: Int64;
 var qrydef : TFRE_DB_QUERY_DEF;
     qry    : TFRE_DB_QUERY_BASE;
 begin
-  qrydef := SetupQryDefinitionBasic(0,0);
-  try
-    result := ExecuteQryLocked(qrydef,qry);
-  finally
-    qry.UnlockQryData;
-    qry.Free;
-  end;
+  abort;
+  //qrydef := SetupQryDefinitionBasic(0,0);
+  //try
+  //  result := ExecuteQryLocked(qrydef,qry);
+  //finally
+  //  qry.UnlockQryData;
+  //  qry.Free;
+  //end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.SetupQryDefinitionBasic(const start, endPos: NativeInt): TFRE_DB_QUERY_DEF;
@@ -8353,41 +8359,45 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.First: IFRE_DB_Object;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
-  qrydef := SetupQryDefinitionBasic(-1,1);
-  result := ExecutePointQry(qrydef);
-  if assigned(result) then
-    FinalRightTransform(FDC_Session,result);
+  abort;
+  //qrydef := SetupQryDefinitionBasic(-1,1);
+  //result := ExecutePointQry(qrydef);
+  //if assigned(result) then
+  //  FinalRightTransform(FDC_Session,result);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Last: IFRE_DB_Object;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
-  qrydef := SetupQryDefinitionBasic(-2,1);
-  result := ExecutePointQry(qrydef);
-  if assigned(result) then
-    FinalRightTransform(FDC_Session,result);
+  abort;
+  //qrydef := SetupQryDefinitionBasic(-2,1);
+  //result := ExecutePointQry(qrydef);
+  //if assigned(result) then
+  //  FinalRightTransform(FDC_Session,result);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.FetchIndexed(const idx: NativeInt): IFRE_DB_Object;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
-  if idx<0 then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'index must be greater then zero');
-  qrydef := SetupQryDefinitionBasic(idx,1);
-  result := ExecutePointQry(qrydef);
-  if assigned(result) then
-    FinalRightTransform(FDC_Session,result);
+  abort;
+  //if idx<0 then
+  //  raise EFRE_DB_Exception.Create(edb_ERROR,'index must be greater then zero');
+  //qrydef := SetupQryDefinitionBasic(idx,1);
+  //result := ExecutePointQry(qrydef);
+  //if assigned(result) then
+  //  FinalRightTransform(FDC_Session,result);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.FetchInDerived(const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object): boolean;
 var qrydef : TFRE_DB_QUERY_DEF;
 begin
-  qrydef := SetupQryDefinitionBasic(0,0);
-  qrydef.OnlyOneUID := ouid;
-  dbo := ExecutePointQry(qrydef);
-  result := assigned(dbo);
-  if result then
-    FinalRightTransform(FDC_Session,dbo);
+  abort;
+  //qrydef := SetupQryDefinitionBasic(0,0);
+  //qrydef.OnlyOneUID := ouid;
+  //dbo := ExecutePointQry(qrydef);
+  //result := assigned(dbo);
+  //if result then
+  //  FinalRightTransform(FDC_Session,dbo);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.CollectionName(const unique: boolean): TFRE_DB_NameType;
@@ -8491,68 +8501,20 @@ begin
   end;
 end;
 
-procedure TFRE_DB_DERIVED_COLLECTION.FinalRightTransform(const ses: IFRE_DB_UserSession; const transformed_filtered_cloned_obj: IFRE_DB_Object);
-var conn : IFRE_DB_CONNECTION;
-
-    procedure DoPreSend(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
-    begin
-      if plugin.EnhancesGridRenderingPreClientSend then
-        plugin.TransformGridEntryClientSend(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,ses.GetSessionGlobalData,TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFRTLangres);
-    end;
-
-begin
-  conn := ses.GetDBConnection;
-  if (FTransform is TFRE_DB_SIMPLE_TRANSFORM)
-      and assigned(TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform) then
-        try
-          TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFinalRightTransform(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,ses.GetSessionGlobalData,TFRE_DB_SIMPLE_TRANSFORM(FTransform).FFRTLangres);
-        except
-          on e:exception do
-            begin
-              GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
-            end;
-        end;
-  transformed_filtered_cloned_obj.ForAllPlugins(@DoPreSend);
-end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_GET_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var
-    //query_base_data : TFRE_DB_TRANS_RESULT_BASE;
     query           : TFRE_DB_QUERY_BASE;
-    qry_ok          : boolean;
     qrydef          : TFRE_DB_QUERY_DEF;
-
-    function GetGridDataDescription: TFRE_DB_CONTENT_DESC;
-    var
-       cnt           : NativeInt;
-
-      procedure GetData(const transformed_filtered_cloned_obj:IFRE_DB_Object);
-      begin
-        FinalRightTransform(FDC_Session,transformed_filtered_cloned_obj);
-        TFRE_DB_STORE_DATA_DESC(result).addEntry(transformed_filtered_cloned_obj);
-      end;
-
-    begin
-      cnt := 0;
-      result := TFRE_DB_STORE_DATA_DESC.create;
-      cnt := query.ExecuteQuery(@GetData,self);
-      TFRE_DB_STORE_DATA_DESC(Result).Describe(cnt);
-    end;
 
 begin
   result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   try
-    qry_ok := false;
     MustBeInitialized;
     FDCollFiltersDyn.RemoveAllFilters;
     qrydef := SetupQryDefinitionFromWeb(input);
     query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
-    GFRE_DB_TCDM.cs_InvokeQry(query,ses.GetSessionChannelManager,GetDeriveTransformation);
-    //try
-    //  result := GetGridDataDescription;
-    //finally
-    //  query.Free;
-    //end;
+    GFRE_DB_TCDM.cs_InvokeQry(query,GetDeriveTransformation,ses.GetSessionID,ses.GetSessionChannelGroup,ses.GetCurrentRequestID);
   except on e:exception do
     begin
       writeln('GRID DATA EXCEPTION : ',e.Message,'   ',FName,' ',input.DumpToString());

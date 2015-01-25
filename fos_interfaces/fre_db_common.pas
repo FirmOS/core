@@ -596,15 +596,6 @@ type
     function Describe (const host:String; const port: Integer=443; const protocol: String='https'): TFRE_DB_HORDE_DESC;
   end;
 
-  { TFRE_DB_STORE_DATA_DESC }
-
-  TFRE_DB_STORE_DATA_DESC  = class(TFRE_DB_CONTENT_DESC)
-  public
-    //@ Describes the result of store data request. (e.g. grid, chart...)
-    function  Describe (const totalCount: Int32): TFRE_DB_STORE_DATA_DESC;
-    //@ Adds an entry to the result.
-    procedure addEntry     (const entry: IFRE_DB_Object);
-  end;
 
   { TFRE_DB_UPDATE_STORE_DESC }
 
@@ -1489,19 +1480,6 @@ implementation
     Field('data').AsStream:=data.Field('data').AsStream;
     Field('mimetype').AsString:=data.Field('mimetype').AsString;
     Result:=Self;
-  end;
-
-  { TFRE_DB_STORE_DATA_DESC }
-
-  function TFRE_DB_STORE_DATA_DESC.Describe(const totalCount: Int32): TFRE_DB_STORE_DATA_DESC;
-  begin
-    Field('total').AsInt32:=totalCount;
-    Result:=Self;
-  end;
-
-  procedure TFRE_DB_STORE_DATA_DESC.addEntry(const entry: IFRE_DB_Object);
-  begin
-    Field('data').AddObject(entry);
   end;
 
   { TFRE_DB_FORM_INPUT_DESC }

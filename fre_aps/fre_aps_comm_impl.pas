@@ -61,6 +61,13 @@ uses
 {.$DEFINE APS_LOG_INFO}
 {$DEFINE DEBUG_WL}
 
+{
+  TODO:
+   * Kill defered eventing (not implemented), do it with microstate(interlocked) methods
+     no eventing when the ev base is working, just interlocked increment/cas a new work indicator
+
+}
+
 var C_CHANNEL_RUNNER_THREADS : integer = 4;
 
 var
@@ -204,10 +211,11 @@ type
     FEndEvent    : IFOS_E;
     FWorking     : longint; { Interlocked Decrement to zero, then work is done }
     FReturnCM    : IFRE_APSC_CHANNEL_MANAGER;
+    FReturnCG    : IFRE_APSC_CHANNEL_GROUP;
   public
     procedure      a_SendWorkDone ;
     class function FactoryCreate  (const Factory   : IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORKABLE; inline;
-    function       Setup          (const workable  : IFRE_APSC_WORKABLE ; const endevent : IFOS_E ; const return_ctx : IFRE_APSC_CHANNEL_MANAGER): TFRE_APS_CMD_DO_WORKABLE;inline;
+    function       Setup          (const workable  : IFRE_APSC_WORKABLE ; const endevent : IFOS_E ; const return_ctx : IFRE_APSC_CHANNEL_MANAGER ; const ReturnCG : IFRE_APSC_CHANNEL_GROUP): TFRE_APS_CMD_DO_WORKABLE;inline;
     procedure      Execute        (const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP);override;
   end;
 
@@ -380,6 +388,12 @@ type
     procedure   SetupCommon             (const id : TFRE_APSC_ID ; const need_timeout_interval : NativeUInt = 0 ; const deferred_ctx_owner : TFRE_APSC_CTX_THREAD=nil);
     function    GetID                   : TFRE_APSC_ID;
     procedure   DispatchDoInSync        (const cmd : TFRE_APS_CMD_BASE ; const ctx_owner : TFRE_APSC_CTX_THREAD ; const what : TAPSC_EV_TYP); virtual; { i am a thread, i am dispatching the inbound command in my ctx }
+
+    procedure   SwitchToContext          (const object_co : TFRE_APSC_CoRoutineSimple);
+    procedure   SwitchToContextNe        (const nested_co : TFRE_APSC_CoRoutineSimpleNested);
+    procedure   SwitchToContextEx        (const object_co : TFRE_APSC_CoRoutine       ; const data : Pointer);
+    procedure   SwitchToContextExNe      (const nested_co : TFRE_APSC_CoRoutineNested ; const data : Pointer);
+
     procedure   Execute                 ; override;
     destructor  Destroy                 ; override;
   end;
@@ -393,20 +407,22 @@ type
     FMeth : TFRE_APSC_CoRoutine;
     FData  : Pointer;
   public
-    constructor Create              (const method:TFRE_APSC_CoRoutine ; const data : Pointer);
-    procedure   SetupWorkerCount    (const wc : NativeInt);
-    function    GetAsyncDoneContext : IFRE_APSC_CHANNEL_MANAGER;
-    function    GetMaximumChunk     : NativeInt;
-    procedure   WorkIt              (const startchunk,endchunk : Nativeint ; const wid : NativeInt);
-    procedure   WorkDone            ;
-    procedure   ErrorOccurred       (const ec : NativeInt ; const em : string);
+    constructor Create                   (const method:TFRE_APSC_CoRoutine ; const data : Pointer);
+    procedure   SetupWorkerCount_WIF     (const wc : NativeInt);
+    function    GetAsyncDoneContext_WIF  : IFRE_APSC_CHANNEL_MANAGER;
+    function    GetAsyncDoneChannelGroup_WIF : IFRE_APSC_CHANNEL_GROUP;
+    function    StartGetMaximumChunk_WIF : NativeInt;
+    procedure   ParallelWorkIt_WIF       (const startchunk,endchunk : Nativeint ; const wid : NativeInt);
+    procedure   WorkNextCyle_WIF         (var continue : boolean);                                         { set to true to get a recall                                      }
+    procedure   WorkDone_WIF             ;
+    procedure   ErrorOccurred_WIF        (const ec : NativeInt ; const em : string);
   end;
 
   TFRE_APSC_CHANNELGROUP_THREAD = class(TFRE_APSC_CTX_THREAD,IFRE_APSC_CHANNEL_GROUP)       { One Dispatching (eventing / main thread per channel group) }
   private
     FWork       : TFRE_APS_CMD_DO_WORKABLE     ;
     FWorkQ      : IFOS_LFQ;
-    procedure   s_WorkDone                     ;
+    procedure   s_WorkDone                     (const ask_next_cycle : boolean);
     function    s_CallChannelMgrsDistribute    (const cb : TFRE_APSC_CM_DISTRIBUTION_CB ; const max_chunks : NativeInt):boolean;
     procedure   s_WorkItWork                   (const work : TFRE_APS_CMD_DO_WORKABLE);
     procedure   s_DoOrEnqueueWorkable          (const work : TFRE_APS_CMD_DO_WORKABLE);
@@ -465,13 +481,6 @@ type
   public
     function    GetThreadID              : TThreadID;
     function    AddChannelManagerTimer   (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const periodic :boolean = false ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
-    procedure   ScheduleCoRoutine        (const method : TFRE_APSC_CoRoutine ; const data : Pointer); deprecated ;  // From another thread context to this context
-
-
-    procedure   SwitchToContext          (const object_co : TFRE_APSC_CoRoutineSimple);
-    procedure   SwitchToContextNe        (const nested_co : TFRE_APSC_CoRoutineSimpleNested);
-    procedure   SwitchToContextEx        (const object_co : TFRE_APSC_CoRoutine       ; const data : Pointer);
-    procedure   SwitchToContextExNe      (const nested_co : TFRE_APSC_CoRoutineNested ; const data : Pointer);
 
     constructor Create                   (const ID :TFRE_APSC_ID ; const OwnerChannelGroupThread : TFRE_APSC_CHANNELGROUP_THREAD);
     destructor  Destroy                  ; override;
@@ -748,16 +757,18 @@ type
     FAdone    : IFRE_APSC_CHANNEL_MANAGER;
     Fid       : string;
   public
-    constructor Create              (const id:string);
-    procedure   SetWorkSize         (const ws:integer);
-    procedure   SetupWorkerCount    (const wc : NativeInt);                                           { gives a hint how many workers will do the load                   }
-    function    GetMaximumChunk     : NativeInt;                                                      { tell the cpu cg how much work is to be done parallel             }
-    procedure   WorkIt              (const startchunk,endchunk : Nativeint ; const wid : NativeInt);  { the working callback, gives chunk id, and the parallel worker id }
-    procedure   WorkDone            ;                                                                 { the workers have finishe, join the results                       }
-    function    GetAsyncDoneContext : IFRE_APSC_CHANNEL_MANAGER;                                      { if nil then the work does not need a callback                    }
-    procedure   SetAsyncDoneContext (const cm:IFRE_APSC_CHANNEL_MANAGER);
-    procedure   ErrorOccurred       (const ec : NativeInt ; const em : string);
-    destructor  Destroy; override;
+    constructor Create                   (const id:string);
+    procedure   SetWorkSize              (const ws:integer);
+    procedure   SetupWorkerCount_WIF     (const wc : NativeInt);                                           { gives a hint how many workers will do the load                   }
+    function    StartGetMaximumChunk_WIF : NativeInt;                                                      { tell the cpu cg how much work is to be done parallel             }
+    procedure   ParallelWorkIt_WIF       (const startchunk,endchunk : Nativeint ; const wid : NativeInt);  { the working callback, gives chunk id, and the parallel worker id }
+    procedure   WorkDone_WIF             ;                                                                 { the workers have finishe, join the results                       }
+    procedure   WorkNextCyle_WIF         (var continue : boolean);                                         { set to true to get a recall                                      }
+    function    GetAsyncDoneContext_WIF  : IFRE_APSC_CHANNEL_MANAGER;                                      { if nil then the work does not need a callback                    }
+    function    GetAsyncDoneChannelGroup_WIF : IFRE_APSC_CHANNEL_GROUP;
+    procedure   SetAsyncDoneContext_WIF  (const cm:IFRE_APSC_CHANNEL_MANAGER);
+    procedure   ErrorOccurred_WIF        (const ec : NativeInt ; const em : string);
+    destructor  Destroy                  ; override;
   end;
 
 var     CPUCG        : IFRE_APSC_CHANNEL_GROUP;
@@ -795,7 +806,7 @@ var
     begin
       writeln('ASYNC PUSH ',NativeUInt(GetThreadID));
       TESTWORKA := TTestWorkable.Create('ASY ');
-      TESTWORKA.SetAsyncDoneContext(GFRE_SC.GetDefaultCG.GetDefaultChannelManager);
+      TESTWORKA.SetAsyncDoneContext_WIF(GFRE_SC.GetDefaultCG.GetDefaultChannelManager);
       TESTWORKA.SetWorkSize(StrToIntDef(paramstr(3),1000));
       CPUCG.DoAsyncWork(TESTWORKA);
     end;
@@ -1084,32 +1095,43 @@ begin
   FData := data;
 end;
 
-procedure TFRE_APSC_SIMPLE_WORKABLE.SetupWorkerCount(const wc: NativeInt);
+procedure TFRE_APSC_SIMPLE_WORKABLE.SetupWorkerCount_WIF(const wc: NativeInt);
 begin
   // ignore
 end;
 
-function TFRE_APSC_SIMPLE_WORKABLE.GetAsyncDoneContext: IFRE_APSC_CHANNEL_MANAGER;
+function TFRE_APSC_SIMPLE_WORKABLE.GetAsyncDoneContext_WIF: IFRE_APSC_CHANNEL_MANAGER;
 begin
   result := nil;
 end;
 
-function TFRE_APSC_SIMPLE_WORKABLE.GetMaximumChunk: NativeInt;
+function TFRE_APSC_SIMPLE_WORKABLE.GetAsyncDoneChannelGroup_WIF: IFRE_APSC_CHANNEL_GROUP;
+begin
+  result := nil
+end;
+
+function TFRE_APSC_SIMPLE_WORKABLE.StartGetMaximumChunk_WIF: NativeInt;
 begin
   result := 1;
 end;
 
-procedure TFRE_APSC_SIMPLE_WORKABLE.WorkIt(const startchunk, endchunk: Nativeint; const wid: NativeInt);
+
+procedure TFRE_APSC_SIMPLE_WORKABLE.WorkNextCyle_WIF(var continue: boolean);
+begin
+  continue := false;
+end;
+
+procedure TFRE_APSC_SIMPLE_WORKABLE.ParallelWorkIt_WIF(const startchunk, endchunk: Nativeint; const wid: NativeInt);
 begin
   FMeth(Fdata);
 end;
 
-procedure TFRE_APSC_SIMPLE_WORKABLE.WorkDone;
+procedure TFRE_APSC_SIMPLE_WORKABLE.WorkDone_WIF;
 begin
    Free;
 end;
 
-procedure TFRE_APSC_SIMPLE_WORKABLE.ErrorOccurred(const ec: NativeInt; const em: string);
+procedure TFRE_APSC_SIMPLE_WORKABLE.ErrorOccurred_WIF(const ec: NativeInt; const em: string);
 begin
   // ignore
 end;
@@ -1198,7 +1220,7 @@ end;
 
 procedure TFRE_APS_CMD_WORK_DONE.Execute(const ctx_owner: TFRE_APSC_CTX_THREAD; const what: TAPSC_EV_TYP);
 begin
-  (ctx_owner as TFRE_APSC_CHANNELGROUP_THREAD).s_WorkDone;
+  (ctx_owner as TFRE_APSC_CHANNELGROUP_THREAD).s_WorkDone(true);
 end;
 
 { TTestWorkable }
@@ -1213,17 +1235,17 @@ begin
   FWorksize := ws;
 end;
 
-procedure TTestWorkable.SetupWorkerCount(const wc: NativeInt);
+procedure TTestWorkable.SetupWorkerCount_WIF(const wc: NativeInt);
 begin
   writeln(FId,'--> Setup Workercount to ',wc,' ',nativeuint(GetThreadID));
 end;
 
-function TTestWorkable.GetMaximumChunk: NativeInt;
+function TTestWorkable.StartGetMaximumChunk_WIF: NativeInt;
 begin
   result := FworkSize;
 end;
 
-procedure TTestWorkable.WorkIt(const startchunk, endchunk: Nativeint; const wid: NativeInt);
+procedure TTestWorkable.ParallelWorkIt_WIF(const startchunk, endchunk: Nativeint; const wid: NativeInt);
 var wait : integer;
 begin
   wait := (endchunk-startchunk+1)*2;
@@ -1232,23 +1254,33 @@ begin
   writeln(FId,' ',wid,' ',' << ',startchunk,' ',endchunk,' DONE');
 end;
 
-procedure TTestWorkable.WorkDone;
+procedure TTestWorkable.WorkDone_WIF;
 begin
   writeln(FId,' ','||>>ASYNC --- WORK DONE ',nativeuint(GetThreadID));
   Free;
 end;
 
-function TTestWorkable.GetAsyncDoneContext: IFRE_APSC_CHANNEL_MANAGER;
+procedure TTestWorkable.WorkNextCyle_WIF(var continue: boolean);
+begin
+
+end;
+
+function TTestWorkable.GetAsyncDoneContext_WIF: IFRE_APSC_CHANNEL_MANAGER;
 begin
   result := FAdone;
 end;
 
-procedure TTestWorkable.SetAsyncDoneContext(const cm: IFRE_APSC_CHANNEL_MANAGER);
+function TTestWorkable.GetAsyncDoneChannelGroup_WIF: IFRE_APSC_CHANNEL_GROUP;
+begin
+  result := nil;
+end;
+
+procedure TTestWorkable.SetAsyncDoneContext_WIF(const cm: IFRE_APSC_CHANNEL_MANAGER);
 begin
   FAdone := cm;
 end;
 
-procedure TTestWorkable.ErrorOccurred(const ec: NativeInt; const em: string);
+procedure TTestWorkable.ErrorOccurred_WIF(const ec: NativeInt; const em: string);
 begin
 
 end;
@@ -1281,11 +1313,13 @@ procedure TFRE_APS_CMD_DO_WORK_CHUNK.Execute(const ctx_owner: TFRE_APSC_CTX_THRE
 var value : longint;
 begin
   try
-    FWorkable.WorkIt(Fstart_ix,Fend_ix,FWorkerID);
+    FWorkable.ParallelWorkIt_WIF(Fstart_ix,Fend_ix,FWorkerID);
   finally
     value := FOS_IL_Decrement(FWorkCmd.FWorking);
     if value=0 then
-      FMyCgt.cs_PushDirectCommand(TFRE_APS_CMD_WORK_DONE.FactoryCreate(GAPSC));
+      begin
+        FMyCgt.cs_PushDirectCommand(TFRE_APS_CMD_WORK_DONE.FactoryCreate(GAPSC));
+      end;
   end;
 end;
 
@@ -1300,10 +1334,15 @@ begin
   else
     if Assigned(FReturnCM) then
       begin
-        FReturnCM.SwitchToContext(@FWorkable.WorkDone);
+        FReturnCM.SwitchToContext(@FWorkable.WorkDone_WIF);
       end
     else
-      FWorkable.WorkDone;
+    if Assigned(FReturnCG) then
+      begin
+        FReturnCG.SwitchToContext(@FWorkable.WorkDone_WIF);
+      end
+    else
+      FWorkable.WorkDone_WIF;
 end;
 
 class function TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(const Factory: IFOS_FactoryInterface): TFRE_APS_CMD_DO_WORKABLE;
@@ -1311,12 +1350,15 @@ begin
   result := TFRE_APS_CMD_DO_WORKABLE(Factory.Factor(TFRE_APS_CMD_DO_WORKABLE));
 end;
 
-function TFRE_APS_CMD_DO_WORKABLE.Setup(const workable: IFRE_APSC_WORKABLE; const endevent: IFOS_E; const return_ctx: IFRE_APSC_CHANNEL_MANAGER): TFRE_APS_CMD_DO_WORKABLE;
+function TFRE_APS_CMD_DO_WORKABLE.Setup(const workable: IFRE_APSC_WORKABLE; const endevent: IFOS_E; const return_ctx: IFRE_APSC_CHANNEL_MANAGER; const ReturnCG: IFRE_APSC_CHANNEL_GROUP): TFRE_APS_CMD_DO_WORKABLE;
 begin
   FWorkable     := workable;
   FEndEvent     := endevent;
   FDontFinalize := true;
   FReturnCM     := return_ctx;
+  FReturnCG     := ReturnCG;
+  if assigned(FReturnCG) and assigned(FReturnCM) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'only one return context may be specified !');
   result        := self;
 end;
 
@@ -1613,6 +1655,28 @@ begin
       SafeLog(e.Message)
   end;
 end;
+
+
+procedure TFRE_APSC_CTX_THREAD.SwitchToContext(const object_co: TFRE_APSC_CoRoutineSimple);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(object_co));
+end;
+
+procedure TFRE_APSC_CTX_THREAD.SwitchToContextNe(const nested_co: TFRE_APSC_CoRoutineSimpleNested);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(nested_co));
+end;
+
+procedure TFRE_APSC_CTX_THREAD.SwitchToContextEx(const object_co: TFRE_APSC_CoRoutine; const data: Pointer);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(object_co,data));
+end;
+
+procedure TFRE_APSC_CTX_THREAD.SwitchToContextExNe(const nested_co: TFRE_APSC_CoRoutineNested; const data: Pointer);
+begin
+  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(nested_co,data));
+end;
+
 
 procedure TFRE_APSC_CTX_THREAD.Execute;
 begin
@@ -2367,6 +2431,7 @@ begin
   senc.FData := Getmem(len);
   senc.FLen  := len;
   move(data^,senc.FData^,len);
+  abort;
   //FManager.ScheduleCoRoutine(@COR_SafeWriteBuffer,senc);
 end;
 
@@ -2632,41 +2697,6 @@ begin
   cs_PushDirectCommand(TFRE_APS_CMD_ADD_TIMER.FactoryCreate(GAPSC).Setup(tim,start_timer));
 end;
 
-procedure TFRE_APSC_CHANNEL_MANAGER.ScheduleCoRoutine(const method: TFRE_APSC_CoRoutine; const data: Pointer);
-//var Schedcmd : TFRE_APSC_CTX_Callback;
-begin
-  abort;
-  //m := TMethod(method);
-  //SetLength(pack,3*sizeof(NativeUint));
-  //PPtrUInt(@pack[1])^                      := PtrUint(m.Code);
-  //PPtrUInt(@pack[1+SizeOf(NativeUint)])^   := PtrUint(m.Data);
-  //PPtrUInt(@pack[1+2*SizeOf(NativeUint)])^ := PtrUint(Data);
-  //if not APSC_WriteCommpacket(cb_SCHED_COROUTINE,pack,FChanBaseCtrl.SourceFD) then { overload / would block record and schedule in the next timeout round }
-  //  begin
-  //    FChanBaseCtrl.OverloadEnque(cb_SCHED_COROUTINE,pack);
-  //  end;
-end;
-
-
-procedure TFRE_APSC_CHANNEL_MANAGER.SwitchToContext(const object_co: TFRE_APSC_CoRoutineSimple);
-begin
-  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(object_co));
-end;
-
-procedure TFRE_APSC_CHANNEL_MANAGER.SwitchToContextNe(const nested_co: TFRE_APSC_CoRoutineSimpleNested);
-begin
-  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(nested_co));
-end;
-
-procedure TFRE_APSC_CHANNEL_MANAGER.SwitchToContextEx(const object_co: TFRE_APSC_CoRoutine; const data: Pointer);
-begin
-  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(object_co,data));
-end;
-
-procedure TFRE_APSC_CHANNEL_MANAGER.SwitchToContextExNe(const nested_co: TFRE_APSC_CoRoutineNested; const data: Pointer);
-begin
-  cs_PushDirectCommand(TFRE_APS_CMD_SWITCH_CTX.FactoryCreate(GAPSC).Setup(nested_co,data));
-end;
 
 constructor TFRE_APSC_CHANNEL_MANAGER.Create(const ID: TFRE_APSC_ID; const OwnerChannelGroupThread: TFRE_APSC_CHANNELGROUP_THREAD);
 begin
@@ -3039,13 +3069,16 @@ begin
 
   FWork          := work;
   FWork.FWorking := 0;
-  max   := work.FWorkable.GetMaximumChunk;
+  max   := work.FWorkable.StartGetMaximumChunk_WIF;
   if max=0 then
     begin
-      work.FWorkable.ErrorOccurred(1,'max work chunk size must be >0');
+      work.FWorkable.ErrorOccurred_WIF(1,'max work chunk size must be >0');
       exit;
     end;
-  s_CallChannelMgrsDistribute(@MyChunking,max);
+  if max=-1 then
+    s_WorkDone(false)
+  else
+    s_CallChannelMgrsDistribute(@MyChunking,max);
 end;
 
 procedure TFRE_APSC_CHANNELGROUP_THREAD.s_DoOrEnqueueWorkable(const work: TFRE_APS_CMD_DO_WORKABLE);
@@ -3136,15 +3169,27 @@ begin
   FChildContexts.ForAllBreak2(@Search,halt);
 end;
 
-procedure TFRE_APSC_CHANNELGROUP_THREAD.s_WorkDone;
+procedure TFRE_APSC_CHANNELGROUP_THREAD.s_WorkDone(const ask_next_cycle: boolean);
 var FNextTask : TFRE_APS_CMD_DO_WORKABLE;
+    cont      : boolean;
 begin
   if not assigned(FWork) then
     GFRE_BT.CriticalAbort('apsc critical failure / unexpected work is not set');
-  FWork.a_SendWorkDone;
-  GAPSC.Recycle(Fwork);
-  FWork     := nil;
-  FNextTask := Tobject(FWorkQ.Pop) as TFRE_APS_CMD_DO_WORKABLE;
+  cont := false;
+  if ask_next_cycle then
+    FWork.FWorkable.WorkNextCyle_WIF(cont);
+  if cont then
+    begin
+      FNextTask := FWork;
+      FWork     := nil;
+    end
+  else
+    begin
+      FWork.a_SendWorkDone;
+      GAPSC.Recycle(Fwork);
+      FWork     := nil;
+      FNextTask := Tobject(FWorkQ.Pop) as TFRE_APS_CMD_DO_WORKABLE;
+    end;
   if assigned(FNextTask) then
     s_DoOrEnqueueWorkable(FNextTask);
 end;
@@ -3164,7 +3209,7 @@ var wid,mgrs    : NativeInt;
         halt := true;
         parthi := max_chunks;
       end;
-    cb(partlow,parthi,max_chunks,wid,(x as TFRE_APSC_CHANNEL_MANAGER));
+    cb(partlow-1,parthi-1,max_chunks,wid-1,(x as TFRE_APSC_CHANNEL_MANAGER)); { zero base the wid, and indices }
     inc(wid);
     inc(partlow,chunk_sz);
     inc(parthi,chunk_sz);
@@ -3183,7 +3228,7 @@ begin
     inc(chunk_sz);                         { increment the chunksize by one, so that for 0 one chunk is worked, and that the last thread has less to do }
     needed_wks   := min(chunk_sz,mgrs);
     try
-      Fwork.FWorkable.SetupWorkerCount(needed_wks);
+      Fwork.FWorkable.SetupWorkerCount_WIF(needed_wks);
     except
       exit(false);
     end;
@@ -3337,7 +3382,7 @@ end;
 
 procedure TFRE_APSC_CHANNELGROUP_THREAD.DoAsyncWork(const workable: IFRE_APSC_WORKABLE);
 begin
-  cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(workable,nil,workable.GetAsyncDoneContext));
+  cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(workable,nil,workable.GetAsyncDoneContext_WIF,workable.GetAsyncDoneChannelGroup_WIF));
 end;
 
 procedure TFRE_APSC_CHANNELGROUP_THREAD.DoSyncedWork(const workable: IFRE_APSC_WORKABLE);
@@ -3345,10 +3390,8 @@ var fsyncdev : IFOS_E;
 begin
   GFRE_TF.Get_Event(fsyncdev);
   try
-    cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(workable,fsyncdev,nil));
-    writeln('PREWAIT');
+    cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(workable,fsyncdev,nil,nil));
     fsyncdev.WaitFor;
-    writeln('POSTWAIT');
   finally
     fsyncdev.Finalize;
   end;
@@ -3358,7 +3401,7 @@ procedure TFRE_APSC_CHANNELGROUP_THREAD.DoAsyncWorkSimpleMethod(const method: TF
 var w : TFRE_APSC_SIMPLE_WORKABLE;
 begin
   w := TFRE_APSC_SIMPLE_WORKABLE.Create(method,data);
-  cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(w,nil,w.GetAsyncDoneContext));
+  cs_PushDirectCommand(TFRE_APS_CMD_DO_WORKABLE.FactoryCreate(GAPSC).Setup(w,nil,nil,nil));
 end;
 
 

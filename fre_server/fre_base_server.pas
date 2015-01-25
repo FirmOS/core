@@ -845,8 +845,8 @@ var found : boolean;
     dbc   : IFRE_DB_CONNECTION;
 begin
   result:= GetImpersonatedDatabaseConnection(dbname,username,pass,dbc,allowed_classes);
-  if result=edb_OK then begin
-    dbs := TFRE_DB_UserSession.Create(username,'',default_app,default_uid_path,dbc,interactive_session); { default logins, guest will not bind the session to the DBC, so no updates for this sessions by now}
+  if result=edb_OK then begin { default logins, guest will not bind the session to the DBC, so no updates for this sessions by now}
+    dbs := TFRE_DB_UserSession.Create(GFRE_SC.GetDefaultCG,username,'',default_app,default_uid_path,dbc,interactive_session);
     dbs.SetClientDetails(session_net_desc);
   end;
 end;
