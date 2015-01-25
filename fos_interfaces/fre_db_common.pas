@@ -378,6 +378,8 @@ type
     procedure SetElementValueDisabled (const elementId, value:String);
     //@ Disables the input element with the given id.
     procedure SetElementDisabled      (const elementId:String);
+    //@ Sets the input element with the given id required.
+    procedure SetElementRequired      (const elementId:String);
     //@ Fills the form with the values of the given object.
     procedure FillWithObjectValues    (const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const groupPreFix:String='');
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
@@ -2292,6 +2294,14 @@ implementation
   begin
     elem:=GetFormElement(elementId);
     elem.Field('disabled').AsBoolean:=true;
+  end;
+
+  procedure TFRE_DB_FORM_DESC.SetElementRequired(const elementId: String);
+  var
+    elem: TFRE_DB_CONTENT_DESC;
+  begin
+    elem:=GetFormElement(elementId);
+    elem.Field('required').AsBoolean:=true;
   end;
 
   procedure TFRE_DB_FORM_DESC.FillWithObjectValues(const obj: IFRE_DB_Object; const session: IFRE_DB_UserSession; const groupPreFix:String);
