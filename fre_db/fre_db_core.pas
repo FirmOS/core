@@ -8610,8 +8610,9 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.WEB_CLEAR_QUERY_RESULTS(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var qid : TFRE_DB_NameType;
 begin
-  qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true),strtoint(input.Field('QUERYID').AsString));
-  GFRE_DB_TCDM.RemoveQuery(qid);
+  //writeln('>>> CLEAR QUERY RESULTS ',input.DumpToString());
+  //qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true),strtoint(input.Field('QUERYID').AsString));
+  //GFRE_DB_TCDM.RemoveQuery(qid);
   Result:=GFRE_DB_NIL_DESC;
 end;
 
