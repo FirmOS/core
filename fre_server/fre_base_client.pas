@@ -731,9 +731,13 @@ begin
   transfer_list := GFRE_DBI.NewObject;
   FREDIFF_GenerateRelationalDiffContainersandAddToBulkObject(tjobs,ojobs,Fcollection_assignment,transfer_list);
 
-  writeln('SWL: TRANSFER LIST ',transfer_list.DumpToString());
-
-  SendServerCommand(FBaseconnection,'FIRMOS','JOBUPDATE',Nil,transfer_list,@CCB_JobUpdate,5000);
+  if FREDIFF_ChangesGenerated(transfer_list) then
+    begin
+      writeln('SWL: TRANSFER LIST ',transfer_list.DumpToString());
+      SendServerCommand(FBaseconnection,'FIRMOS','JOBUPDATE',Nil,transfer_list,@CCB_JobUpdate,5000);
+    end
+  else
+    transfer_list.Finalize;
 
   FJobsLock.Acquire;
   try
