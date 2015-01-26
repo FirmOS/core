@@ -1584,6 +1584,8 @@ type
     procedure  FieldAdd               (const new_field : IFRE_DB_Field  ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
     procedure  FieldChange            (const old_field,new_field : IFRE_DB_Field ; const tsid : TFRE_DB_TransStepId);   { DIFFERENTIAL STATE}
     procedure  DifferentiallUpdEnds   (const obj_uid   : TFRE_DB_GUID ; const tsid : TFRE_DB_TransStepId);              { DIFFERENTIAL STATE}
+    procedure  ObjectDeleted          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object ; const tsid : TFRE_DB_TransStepId); { FULL STATE }
+    procedure  ObjectUpdated          (const obj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray ; const tsid : TFRE_DB_TransStepId);         { FULL STATE }
   end;
 
 
@@ -2607,7 +2609,8 @@ end;
     //@ Describes a server class function of the given schemeclass (e.g. new operations) or
     //@ a server function of an unknown object of the given schemeclass (e.g. menu function of a grid entry).
     function Describe       (const oschemeclass: String; const func: String):TFRE_DB_SERVER_FUNC_DESC;
-    function InternalInvoke (const session: TFRE_DB_UserSession): IFRE_DB_Object;
+    function InternalInvoke  (const session: TFRE_DB_UserSession): IFRE_DB_Object;
+    function InternalInvokeDI (const session: TFRE_DB_UserSession ; const input : IFRE_DB_OBJECT): IFRE_DB_Object;
     //@ Internally invokes a server function, on a given session
     function  AddParam  : TFRE_DB_PARAM_DESC;
     //@ Creates a new parameter and adds it to the parameterizable content.
@@ -3266,6 +3269,8 @@ end;
     procedure   FieldAdd               (const new_field : IFRE_DB_Field  ; const tsid : TFRE_DB_TransStepId);            { DIFFERENTIAL STATE}
     procedure   FieldChange            (const old_field,new_field : IFRE_DB_Field ; const tsid : TFRE_DB_TransStepId);   { DIFFERENTIAL STATE}
     procedure   FinalizeNotif          ;
+    procedure   ObjectDeleted          (const coll_names: TFRE_DB_NameTypeArray ; const obj : IFRE_DB_Object ; const tsid : TFRE_DB_TransStepId); { FULL STATE }
+    procedure   ObjectUpdated          (const upobj : IFRE_DB_Object ; const colls:TFRE_DB_StringArray ; const tsid : TFRE_DB_TransStepId);         { FULL STATE }
     {Helper}
     procedure   HandleDiffField        (const mode : TDiffFieldUpdateMode ; const fld : IFRE_DB_Field);
     function    BoundMachineUID        : TFRE_DB_GUID;
@@ -7616,10 +7621,11 @@ var upo : IFRE_DB_Object;
     key : shortstring;
     fld : IFRE_DB_Field;
     cbs: IFRE_DB_Object;
+    upfo: TFRE_DB_UPDATE_FORM_DESC;
 
   procedure _executeCallback(const obj: IFRE_DB_Object);
   begin
-    SendServerClientRequest((obj.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC).InternalInvoke(self).Implementor_HC as TFRE_DB_CONTENT_DESC);
+    SendServerClientRequest((obj.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC).InternalInvokeDI(self,upo.CloneToNewObject).Implementor_HC as TFRE_DB_CONTENT_DESC);
   end;
 
 begin
@@ -7630,12 +7636,23 @@ begin
       //writeln('DIFF UPDATE O');
       //writeln(upo.DumpToString);
       if IsDBOUpdatable(upo.UID) then
-        SendServerClientRequest(TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(upo.CloneToNewObject));
+        begin
+          writeln('-------------------------------------------------');
+          writeln('-------------------------------------------------');
+          writeln('SWL:   ',upo.DumpToString());
+          writeln('-------------------------------------------------');
+          writeln('-------------------------------------------------');
+          upfo := TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(upo.CloneToNewObject);
+          writeln('----------------------RESULT UPFO-');
+          writeln(upfo.DumpToString());
+          writeln('----------------------------------');
+          SendServerClientRequest(upfo);
+        end;
 
-      cbs:=getDBOChangeCBs(upo.UID);
-      if Assigned(cbs) then begin
-        cbs.ForAllObjects(@_executeCallback);
-      end;
+      //cbs:=getDBOChangeCBs(upo.UID);
+      //if Assigned(cbs) then begin
+      //  cbs.ForAllObjects(@_executeCallback);
+      //end;
 
       //writeln('SENT');
       upo.Finalize;
@@ -7652,6 +7669,29 @@ begin
   raise EFRE_DB_Exception.Create(edb_INTERNAL,'should not be called');
 end;
 
+procedure TFRE_DB_UserSession.ObjectDeleted(const coll_names: TFRE_DB_NameTypeArray; const obj: IFRE_DB_Object; const tsid: TFRE_DB_TransStepId);
+begin
+  writeln('>>> SWL:: A OBJECT WAS DELETED ',obj.DumpToString,'  ',tsid);
+end;
+
+procedure TFRE_DB_UserSession.ObjectUpdated(const upobj: IFRE_DB_Object; const colls: TFRE_DB_StringArray; const tsid: TFRE_DB_TransStepId);
+var cbs : IFRE_DB_Object;
+
+  procedure _executeCallback(const o: IFRE_DB_Object);
+  begin
+    SendServerClientRequest((o.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC).InternalInvokeDI(self,upobj.CloneToNewObject).Implementor_HC as TFRE_DB_CONTENT_DESC);
+  end;
+
+begin
+  writeln('>>> SWL:: A NEW OBJECT WAS UPDATED (LIE)',upobj.DumpToString,'  ',tsid );
+  if IsDBOUpdatable(upobj.UID) then
+    begin
+      cbs:=getDBOChangeCBs(upobj.UID);
+      if Assigned(cbs) then
+        cbs.ForAllObjects(@_executeCallback);
+    end;
+end;
+
 procedure TFRE_DB_UserSession.HandleDiffField(const mode: TDiffFieldUpdateMode; const fld: IFRE_DB_Field);
 var upouidp : TFRE_DB_GUIDArray;
     upofldp : TFRE_DB_StringArray;
@@ -7661,10 +7701,13 @@ var upouidp : TFRE_DB_GUIDArray;
     upo     : IFRE_DB_Object;
     intero  : IFRE_DB_Object;
     i       : NativeInt;
+    intrfld : IFRE_DB_Field;
 begin
   upouidp := fld.GetUpdateObjectUIDPath;
   upofldp := fld.GetUpdateObjFieldPath;
   uposchp := fld.GetUpdateObjSchemePath;
+  //writeln('Handlediffield ---------------------------------------------------------');
+  //writeln('>>>>>>>>>>>> ',mode,'  ',FREDB_CombineString(upofldp,'.'),' ',FREDB_CombineString(uposchp,':'),'          FLD ',fld.FieldType,' ',fld.FieldName,' ',fld.AsString);
   upo := FDifferentialUpdates.FieldOnlyExistingObj(FREDB_G2H(upouidp[0])); { get root object }
   if assigned(upo) then
     begin
@@ -7672,12 +7715,22 @@ begin
         begin
           fldname := upofldp[i-1];
           fldsch  := uposchp[i];
-          if not upo.FieldExists(fldname) then
+          //writeln(' Field : ',fldname,' ',fldsch);
+          if not upo.FieldOnlyExisting(fldname,intrfld) then
             begin
               intero := GFRE_DBI.NewObjectSchemeByName(fldsch);
               intero.Field('uid').AsGUID := upouidp[i];
               upo.Field(fldname).AsObject := intero;
               upo    := intero;
+            end
+          else
+            begin
+              if intrfld.FieldType<>fdbft_Object then
+                begin
+                  writeln('SWL ::: >> IGNORING UNEXPECTED DIFFUPDATE CASE ?? ');
+                  exit; {}
+                end;
+              upo := intrfld.AsObject;
             end;
         end;
       fldname := fld.FieldName;
@@ -7687,6 +7740,7 @@ begin
         mode_df_change : upo.Field(fldname).CloneFromField(fld);
       end;
     end;
+  //writeln('Handlediffield ---------------------------------------------------------');
 end;
 
 function TFRE_DB_UserSession.BoundMachineUID: TFRE_DB_GUID;
@@ -9120,6 +9174,13 @@ begin
     newInput.Field(key).AsString:=value;
   end;
   result:=session.InternalSessInvokeMethod(Field('class').AsString,Field('func').AsString,GFRE_DBI.StringArray2GuidArray(Field('uidPath').AsStringArr),newInput);
+end;
+
+function TFRE_DB_SERVER_FUNC_DESC.InternalInvokeDI(const session: TFRE_DB_UserSession; const input: IFRE_DB_OBJECT): IFRE_DB_Object;
+var inp : IFRE_DB_Object;
+begin
+  inp := input;
+  result:=session.InternalSessInvokeMethod(Field('class').AsString,Field('func').AsString,GFRE_DBI.StringArray2GuidArray(Field('uidPath').AsStringArr),inp);
 end;
 
 
@@ -10789,6 +10850,8 @@ begin
           'FC'  : deploy_if.FieldChange(Field('FLDO').AsObject._InternalDecodeAsField,Field('FLDN').AsObject._InternalDecodeAsField,tsid);
           'DUS' : deploy_if.DifferentiallUpdStarts(field('O').AsObject,tsid);
           'DUE' : deploy_if.DifferentiallUpdEnds(field('O').AsGUID,tsid);
+          'OU'  : deploy_if.ObjectUpdated(Field('obj').CheckOutObject,Field('CC').AsStringArr,tsid);
+          'OD'  : deploy_if.ObjectDeleted(FREDB_StringArray2NametypeArray(Field('CC').AsStringArr),Field('obj').CheckOutObject,tsid);
         //  else
         //    raise EFRE_DB_Exception.Create(edb_ERROR,'undefined block notification encoding : '+cmd);
         end;
