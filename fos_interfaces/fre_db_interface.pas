@@ -3023,6 +3023,9 @@ end;
     procedure   UnregisterUpdatableContent    (const contentId: String);
     procedure   RegisterUpdatableDBO          (const UID_id: TFRE_DB_GUID);
     procedure   UnregisterUpdatableDBO        (const UID_id: TFRE_DB_GUID);
+    procedure   RegisterDBOChangeCB           (const UID_id: TFRE_DB_GUID; const callback: TFRE_DB_SERVER_FUNC_DESC; const contentId: TFRE_DB_String);
+    procedure   UnregisterDBOChangeCB         (const contentId: TFRE_DB_String);
+    function    getDBOChangeCBs               (const UID_id: TFRE_DB_GUID):IFRE_DB_Object;
     function    IsUpdatableContentVisible     (const contentId: String): Boolean;
     function    IsDBOUpdatable                (const UID_id: TFRE_DB_GUID):boolean;
     function    IsInteractiveSession          : Boolean;
@@ -3219,8 +3222,8 @@ end;
     procedure   UnregisterUpdatableDBO     (const UID_id: TFRE_DB_GUID);
     function    IsDBOUpdatable             (const UID_id: TFRE_DB_GUID):boolean;
 
-    procedure   RegisterDBOChangeCB        (const UID_id: TFRE_DB_GUID; const callback: TFRE_DB_SERVER_FUNC_DESC);
-    procedure   UnregisterDBOChangeCB      (const UID_id: TFRE_DB_GUID; const callbackId: TFRE_DB_String);
+    procedure   RegisterDBOChangeCB        (const UID_id: TFRE_DB_GUID; const callback: TFRE_DB_SERVER_FUNC_DESC; const contentId: TFRE_DB_String);
+    procedure   UnregisterDBOChangeCB      (const contentId: TFRE_DB_String);
     function    getDBOChangeCBs            (const UID_id: TFRE_DB_GUID):IFRE_DB_Object;
 
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String=''); // Currently no continuation, and answer processing is implemented, is an Async request
@@ -6424,6 +6427,7 @@ var x           : TObject;
     begin
       for i := 0 to input.Field('ids').ValueCount - 1 do begin
         unregisterUpdatableContent(input.Field('ids').AsStringItem[i]);
+        UnregisterDBOChangeCB(input.Field('ids').AsStringItem[i]);
       end;
       CMD.Data        := GFRE_DB_NIL_DESC;
       _SendSyncServerClientAnswer;
@@ -7228,18 +7232,24 @@ begin
   result := FUpdateableDBOS.FieldExists(id);
 end;
 
-procedure TFRE_DB_UserSession.RegisterDBOChangeCB(const UID_id: TFRE_DB_GUID; const callback: TFRE_DB_SERVER_FUNC_DESC);
+procedure TFRE_DB_UserSession.RegisterDBOChangeCB(const UID_id: TFRE_DB_GUID; const callback: TFRE_DB_SERVER_FUNC_DESC; const contentId: TFRE_DB_String);
 var id:ShortString;
 begin
   id := FREDB_G2H(UID_id);
-  FServerFuncDBOS.Field(id).AsObject.Field(callback.contentId).AsObject:=callback;
+  FServerFuncDBOS.Field(id).AsObject.Field(contentId).AsObject:=callback;
 end;
 
-procedure TFRE_DB_UserSession.UnregisterDBOChangeCB(const UID_id: TFRE_DB_GUID; const callbackId: TFRE_DB_String);
-var id:ShortString;
+procedure TFRE_DB_UserSession.UnregisterDBOChangeCB(const contentId: TFRE_DB_String);
+
+  procedure _checkDBO(const field: IFRE_DB_Field);
+  begin
+    if field.AsObject.FieldExists(contentId) then begin
+      field.AsObject.DeleteField(contentId);
+    end;
+  end;
+
 begin
-  id := FREDB_G2H(UID_id);
-  FServerFuncDBOS.Field(id).AsObject.DeleteField(callbackId); //FIXXME Heli - cleanup if last callback is removed
+  FServerFuncDBOS.ForAllFields(@_checkDBO); //FIXXME Heli - cleanup if last callback is removed
 end;
 
 function TFRE_DB_UserSession.getDBOChangeCBs(const UID_id: TFRE_DB_GUID): IFRE_DB_Object;
