@@ -8526,8 +8526,9 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.WEB_RELEASE_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var qid : TFRE_DB_NameType;
 begin
-  //writeln('RELEASE GRID DATA -> ',input.DumpToString());
+  writeln('RELEASE GRID DATA -> ',input.DumpToString());
   qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true));
+  //TFRE_DB_SESS
   GFRE_DB_TCDM.cs_RemoveQueryRange(qid,input.Field('START').AsInt64,input.Field('END').AsInt64);
   Result:=GFRE_DB_NIL_DESC;
 end;
@@ -11343,8 +11344,8 @@ procedure TFRE_DB_BASE_CONNECTION.SendNotificationBlock(const block: IFRE_DB_Obj
 
 begin
   try
-    FREDB_ApplyNotificationBlockToNotifIF_Connection(block,self); { metadata changes for master connection }
-    FConnectionClones.ForAllBreak(@SendBlockToClones);            { send metatada, and session updates }
+    FREDB_ApplyNotificationBlockToNotifIF_Connection(block,self);    { metadata changes for master connection }
+    FConnectionClones.ForAllBreak(@SendBlockToClones);               { send metatada, and session updates }
     if assigned(GFRE_DB_TCDM) then
       GFRE_DB_TCDM.cs_InboundNotificationBlock(FDBName,block);       { route data updates to the TCDM, Query updates (Grids) }
   except on e:exception do
