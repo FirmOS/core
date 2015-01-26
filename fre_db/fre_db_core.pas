@@ -1772,6 +1772,7 @@ type
 
     FInitialDerived    : Boolean;
     FDC_Session        : TFRE_DB_UserSession;
+    FLastQryID         : TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
 
     function        CollectionName                (const unique:boolean=false): TFRE_DB_NameType;
 
@@ -8538,12 +8539,18 @@ var
     qrydef          : TFRE_DB_QUERY_DEF;
 
 begin
+  writeln('----------------------------');
+  writeln('GGD----------------------------');
+  writeln(input.DumpToString );
+  writeln('----------------------------');
+  writeln('----------------------------');
   result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   try
     MustBeInitialized;
     FDCollFiltersDyn.RemoveAllFilters;
-    qrydef := SetupQryDefinitionFromWeb(input);
-    query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
+    qrydef     := SetupQryDefinitionFromWeb(input);
+    query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
+    FLastQryID := query.GetQueryID;
     GFRE_DB_TCDM.cs_InvokeQry(query,GetDeriveTransformation,ses.GetSessionID,ses.GetSessionChannelGroup,ses.GetCurrentRequestID);
   except on e:exception do
     begin
@@ -8556,10 +8563,7 @@ end;
 function TFRE_DB_DERIVED_COLLECTION.WEB_RELEASE_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var qid : TFRE_DB_NameType;
 begin
-  writeln('RELEASE GRID DATA -> ',input.DumpToString());
-  qid := GFRE_DB_TCDM.FormQueryID(ses.GetSessionID,CollectionName(true));
-  //TFRE_DB_SESS
-  GFRE_DB_TCDM.cs_RemoveQueryRange(qid,input.Field('START').AsInt64,input.Field('END').AsInt64);
+  GFRE_DB_TCDM.cs_RemoveQueryRange(FLastQryID.GetKeyAsString,input.Field('START').AsInt64,input.Field('END').AsInt64);
   Result:=GFRE_DB_NIL_DESC;
 end;
 
@@ -8570,7 +8574,7 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_DESTROY_STORE(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  GFRE_DB_TCDM.cs_DropAllQueryRanges(ses.GetSessionID,CollectionName(true));
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(FLastQryID.GetKeyAsString,false,true);
   result := GFRE_DB_NIL_DESC;
 end;
 

@@ -540,15 +540,6 @@ type
      procedure   WorkNextCyle_WIF                  (var continue : boolean); { set to true to get a recall                                      }
      procedure   WorkDone_WIF                      ;
      procedure   ErrorOccurred_WIF                 (const ec : NativeInt ; const em : string);
-
-     //function    GetFullQueryOrderKey              : TFRE_DB_TRANS_COLL_DATA_KEY;
-     //function    CheckAutoDependencyFilterChanges  (const key_description : TFRE_DB_NameTypeRL):boolean;
-     //procedure   ProcessFilterChangeBasedUpdates   ; { compare query invokation }
-     //procedure   ProcessChildObjCountChange        (const obj : IFRE_DB_Object);
-     //function    GetStoreID                        : TFRE_DB_NameType;
-     //procedure   TagForUpInsDelRLC                 (const TransID : TFRE_DB_TransStepId);
-     //procedure   ClearTransactionTag               ;
-     //function    GetTransactionStepID              : TFRE_DB_TransStepId;
   end;
 
 
@@ -782,12 +773,11 @@ type
     TFRE_DB_RangeMgrIterator = procedure(const range : TFRE_DB_SESSION_DC_RANGE_MGR) is nested;
 
     TFRE_TDM_DROPQ_PARAMS=class
-      session_id : TFRE_DB_String;
-      dc_name    : TFRE_DB_NameTypeRL;
-      dropall    : boolean;
-      qry_id     : TFRE_DB_NameType;
-      start_idx  : NativeInt;
-      end_idx    : NativeInt;
+      qry_id         : TFRE_DB_CACHE_DATA_KEY;
+      whole_session  : boolean;
+      all_filterings : boolean;
+      start_idx      : NativeInt;
+      end_idx        : NativeInt;
     end;
 
   var
@@ -846,6 +836,7 @@ type
     destructor  Destroy       ; override;
 
     function    GetCreateSessionRangeManager        (const sessionid: TFRE_DB_SESSION_ID; const filtercontainer: TFRE_DB_FILTER_CONTAINER): TFRE_DB_SESSION_DC_RANGE_MGR;
+    function    GetSessionRangeManager              (const qryid : TFRE_DB_CACHE_DATA_KEY ; out rm : TFRE_DB_SESSION_DC_RANGE_MGR):boolean;
     function    GetNewOrderDefinition               : TFRE_DB_DC_ORDER_DEFINITION_BASE; override ;
     function    GetNewFilterDefinition              (const filter_db_name : TFRE_DB_NameType)  : TFRE_DB_DC_FILTER_DEFINITION_BASE ; override;
     {
@@ -868,15 +859,15 @@ type
 
     procedure   TagQueries4UpInsDel                  (const td: TFRE_DB_TRANSFORMED_ORDERED_DATA; const TransActionTag: TFRE_DB_TransStepId);
     procedure   UpdateLiveStatistics                 (const stats : IFRE_DB_Object);
-    procedure   s_DropAllQueryRanges                 (p: TFRE_TDM_DROPQ_PARAMS);
+    procedure   s_DropAllQueryRanges                 (const p: TFRE_TDM_DROPQ_PARAMS);
     procedure   s_DropQryRange                       (const p: TFRE_TDM_DROPQ_PARAMS);
   public
     function    ParallelWorkers                      : NativeInt;
 
-    procedure   cs_DropAllQueryRanges                (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL);override;
-    procedure   cs_RemoveQueryRange                  (const qry_id: TFRE_DB_NameType; const start_idx, end_idx: NativeInt); override;
-    procedure   cs_InvokeQry                         (const qry: TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID:Qword); override;
-    procedure   cs_InboundNotificationBlock          (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object);
+    procedure   cs_DropAllQueryRanges                (const qry_id: TFRE_DB_CACHE_DATA_KEY;const whole_session,all_filterings : boolean); override; { is a seesion id only, if all ranges from that session should be deleted }
+    procedure   cs_RemoveQueryRange                  (const qry_id: TFRE_DB_CACHE_DATA_KEY; const start_idx, end_idx: NativeInt); override;
+    procedure   cs_InvokeQry                         (const qry   : TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID:Qword); override;
+    procedure   cs_InboundNotificationBlock          (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object);override;
   end;
 
   { TFRE_DB_TDM_STATS_CLEANER }
@@ -4889,8 +4880,17 @@ begin
     cs_NeedTransform:
       begin
         result := Ftransdata.FRecordCount;
-        fst    := GFRE_BT.Get_Ticks_ms;
-        GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[Fbasekey]);
+        if result=0 then
+          begin
+            FMyComputeState := cs_NoDataAvailable;
+            result          := -1;
+            exit;
+          end
+        else
+        begin
+          fst    := GFRE_BT.Get_Ticks_ms;
+          GFRE_DBI.LogDebug(dblc_DBTDM,'>BASE TRANSFORMING DATA FOR [%s]',[Fbasekey]);
+        end;
       end;
     cs_NeedOrder:
       begin
@@ -5757,15 +5757,32 @@ var mgr_key : TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
 begin
   mgr_key := FilterContainer.CalcRangeMgrKey(sessionid);
   mkey_s  := mgr_key.GetKeyAsString;
-  if FArtRangeMgrs.ExistsStringKey(mkey_s,dummy) then
-    begin
-      result := TFRE_DB_SESSION_DC_RANGE_MGR(FREDB_PtrUIntToObject(dummy));
-    end
+  //if FArtRangeMgrs.ExistsStringKey(mkey_s,dummy) then
+  //  begin
+  //    result := TFRE_DB_SESSION_DC_RANGE_MGR(FREDB_PtrUIntToObject(dummy));
+  //  end
+  if GetSessionRangeManager(mkey_s,result) then
+    exit
   else
     begin
       result := TFRE_DB_SESSION_DC_RANGE_MGR.Create(mgr_key,filtercontainer);
       if not FArtRangeMgrs.InsertStringKey(mkey_s,FREDB_ObjectToPtrUInt(result)) then
         raise EFRE_DB_Exception.Create(edb_INTERNAL,'range mgr tree insert failed');
+    end;
+end;
+
+function TFRE_DB_TRANSDATA_MANAGER.GetSessionRangeManager(const qryid: TFRE_DB_CACHE_DATA_KEY; out rm: TFRE_DB_SESSION_DC_RANGE_MGR): boolean;
+var dummy   : PtrUInt;
+begin
+  if FArtRangeMgrs.ExistsStringKey(qryid,dummy) then
+    begin
+      result := true;
+      rm     := TFRE_DB_SESSION_DC_RANGE_MGR(FREDB_PtrUIntToObject(dummy));
+    end
+  else
+    begin
+      result := false;
+      rm     := nil;
     end;
 end;
 
@@ -6453,15 +6470,30 @@ begin
   stats.ForAllObjects(@MyStatsUpdate);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.s_DropAllQueryRanges(p : TFRE_TDM_DROPQ_PARAMS);
+procedure TFRE_DB_TRANSDATA_MANAGER.s_DropAllQueryRanges(const p: TFRE_TDM_DROPQ_PARAMS);
+var rm : TFRE_DB_SESSION_DC_RANGE_MGR;
+    st : ShortString;
 begin
-  writeln('DROP ALL QUERY RANGES ',p.session_id,' ',p.dc_name);
+  if GetSessionRangeManager(p.qry_id,rm) then
+    begin
+      rm.ClearRanges;
+      GFRE_DBI.LogInfo(dblc_DBTDM,'>DROP QRY ALL RANGES FOR [%s]',[p.qry_id]);
+    end;
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.s_DropQryRange(const p : TFRE_TDM_DROPQ_PARAMS);
+var rm : TFRE_DB_SESSION_DC_RANGE_MGR;
+    st : ShortString;
 begin
-  writeln('DROP  QUERY RANGE ',p.session_id,' ',p.dc_name);
-
+  if GetSessionRangeManager(p.qry_id,rm) then
+    begin
+      case rm.DropRange(p.start_idx,p.end_idx) of
+        rq_Bad:     st := 'BAD';
+        rq_OK:      st := 'OK';
+        rq_NO_DATA: st := 'NO DATA';
+      end;
+      GFRE_DBI.LogInfo(dblc_DBTDM,'>DROP QRY RANGE FOR [%s] STATUS [%s] RANGES [%s]',[p.qry_id,st,rm.DumpRangesCompressd]);
+    end;
 end;
 
 function TFRE_DB_TRANSDATA_MANAGER.ParallelWorkers: NativeInt;
@@ -6469,23 +6501,25 @@ begin
   result := FParallelCnt;
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.cs_DropAllQueryRanges(const session_id: TFRE_DB_String; const dc_name: TFRE_DB_NameTypeRL);
+procedure TFRE_DB_TRANSDATA_MANAGER.cs_DropAllQueryRanges(const qry_id: TFRE_DB_CACHE_DATA_KEY; const whole_session, all_filterings: boolean);
 var p : TFRE_TDM_DROPQ_PARAMS;
 begin
   p := TFRE_TDM_DROPQ_PARAMS.Create;
-  p.dc_name    := dc_name;
-  p.session_id := session_id;
-  p.dropall    := true;
+  p.qry_id         := qry_id;
+  p.whole_session  := whole_session;
+  p.all_filterings := all_filterings;
   FTransCompute.DoAsyncWorkSimpleMethod(TFRE_APSC_CoRoutine(@s_DropAllQueryRanges),p);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.cs_RemoveQueryRange(const qry_id: TFRE_DB_NameType; const start_idx, end_idx: NativeInt);
+procedure TFRE_DB_TRANSDATA_MANAGER.cs_RemoveQueryRange(const qry_id: TFRE_DB_CACHE_DATA_KEY; const start_idx, end_idx: NativeInt);
 var p : TFRE_TDM_DROPQ_PARAMS;
 begin
   p := TFRE_TDM_DROPQ_PARAMS.Create;
-  p.qry_id     := qry_id;
-  p.start_idx  := start_idx;
-  p.end_idx    := end_idx;
+  p.qry_id         := qry_id;
+  p.whole_session  := false;
+  p.all_filterings := false;
+  p.start_idx      := start_idx;
+  p.end_idx        := end_idx;
   FTransCompute.DoAsyncWorkSimpleMethod(TFRE_APSC_CoRoutine(@s_DropQryRange),p);
 end;
 

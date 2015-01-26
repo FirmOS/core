@@ -984,7 +984,7 @@ type
     SessionID : TFRE_DB_SESSION_ID;
     DataKey   : TFRE_DB_TRANS_COLL_DATA_KEY;
     procedure Setup4QryId      (const sid : TFRE_DB_SESSION_ID ; const ok : TFRE_DB_TRANS_COLL_DATA_KEY ; const fk : TFRE_DB_TRANS_COLL_FILTER_KEY);
-    function  GetKeyAsString   : Shortstring; { sessionid@parentcollection/derivedcollection/reflinkspec/orderhash/filterhash }
+    function  GetKeyAsString   : TFRE_DB_CACHE_DATA_KEY; { sessionid@parentcollection/derivedcollection/reflinkspec/orderhash/filterhash }
   end;
 
 
@@ -2235,10 +2235,10 @@ end;
     function   GenerateQueryFromQryDef      (const qry_def : TFRE_DB_QUERY_DEF):TFRE_DB_QUERY_BASE; virtual ; abstract;
     function   GetNewOrderDefinition        : TFRE_DB_DC_ORDER_DEFINITION_BASE; virtual ; abstract;
     function   GetNewFilterDefinition       (const filter_db_name : TFRE_DB_NameType): TFRE_DB_DC_FILTER_DEFINITION_BASE; virtual; abstract;
-    procedure  cs_RemoveQueryRange          (const qry_id: TFRE_DB_NameType ; const start_idx,end_index : NativeInt); virtual; abstract;
-    procedure  cs_DropAllQueryRanges        (const session_id : TFRE_DB_String ; const dc_name : TFRE_DB_NameTypeRL); virtual; abstract;
-    procedure  cs_InboundNotificationBlock  (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object); virtual; abstract;
-    procedure  cs_InvokeQry                 (const qry: TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID : Qword); virtual ; abstract;
+    procedure  cs_RemoveQueryRange          (const qry_id: TFRE_DB_CACHE_DATA_KEY; const start_idx,end_index : NativeInt); virtual; abstract;
+    procedure  cs_DropAllQueryRanges        (const qry_id: TFRE_DB_CACHE_DATA_KEY;const whole_session,all_filterings : boolean); virtual; abstract; { is a sessionid only }
+    procedure  cs_InboundNotificationBlock  (const dbname: TFRE_DB_NameType    ; const block : IFRE_DB_Object); virtual; abstract;
+    procedure  cs_InvokeQry                 (const qry: TFRE_DB_QUERY_BASE     ; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID : Qword); virtual ; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -4665,7 +4665,7 @@ begin
   DataKey.filterkey := fk;
 end;
 
-function TFRE_DB_SESSION_DC_RANGE_MGR_KEY.GetKeyAsString: Shortstring;
+function TFRE_DB_SESSION_DC_RANGE_MGR_KEY.GetKeyAsString: TFRE_DB_CACHE_DATA_KEY;
 begin
   result := SessionID+'@'+DataKey.GetFullKeyString;
 end;
@@ -7255,12 +7255,12 @@ begin
     raise EFRE_DB_Exception.Create(edb_INTERNAL,' REUSE SESSION FAILED, ALREADY BOUND INTERFACE FOUND');
   FBoundSession_RA_SC := sc_interface;
   GFRE_DBI.LogNotice(dblc_SESSION,'SET SESSION INTERFACE (RESUE) -> SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+']');
-  GFRE_DB_TCDM.cs_DropAllQueryRanges(GetSessionID,'');
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(GetSessionID,true,true);
 end;
 
 procedure TFRE_DB_UserSession.ClearServerClientInterface;
 begin
-  GFRE_DB_TCDM.cs_DropAllQueryRanges(GetSessionID,'');
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(GetSessionID,true,true);
   RemoveAllTimers;
   if FPromoted then
     FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO
