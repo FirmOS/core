@@ -365,7 +365,7 @@ type
   TFRE_DB_FORM_DESC    = class(TFRE_DB_CONTENT_DESC)
   private
     procedure AddStore                (const store: TFRE_DB_STORE_DESC);virtual;
-    procedure AddDBO                  (const id: String; const session: IFRE_DB_UserSession);virtual;
+    procedure AddDBO                  (const id: String; const session: IFRE_DB_UserSession; const groupPreFix:String);virtual;
     function  GetStore                (const id:String): TFRE_DB_STORE_DESC;virtual;
     function  Describe                (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer; const hideEmptyGroups: Boolean): TFRE_DB_FORM_DESC;
     procedure _FillWithObjectValues   (const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession; const prefix:String);
@@ -422,7 +422,7 @@ type
   protected
     function  _Describe        (const caption:String;const collapsible,collapsed: Boolean):TFRE_DB_INPUT_GROUP_DESC;
     procedure AddStore         (const store: TFRE_DB_STORE_DESC);override;
-    procedure AddDBO           (const id: String; const session: IFRE_DB_UserSession);override;
+    procedure AddDBO           (const id: String; const session: IFRE_DB_UserSession; const groupPreFix:String);override;
     function  GetStore         (const id: String):TFRE_DB_STORE_DESC;override;
   public
     //@ Describes an input group within a form.
@@ -439,7 +439,7 @@ type
   TFRE_DB_INPUT_BLOCK_DESC  = class(TFRE_DB_FORM_DESC)
   private
     procedure AddStore    (const store: TFRE_DB_STORE_DESC);override;
-    procedure AddDBO      (const id: String; const session: IFRE_DB_UserSession);override;
+    procedure AddDBO      (const id: String; const session: IFRE_DB_UserSession; const groupPreFix:String);override;
     function  GetStore    (const id: String):TFRE_DB_STORE_DESC;override;
   public
     //@ Describes an horizontal input block within a form (e.g. Favourite 3 colours: input input input).
@@ -1447,16 +1447,16 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_INPUT_BLOCK_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession);
+  procedure TFRE_DB_INPUT_BLOCK_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession; const groupPreFix:String);
   var
     obj: IFRE_DB_Object;
   begin
     obj := Self.ObjectRoot;
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
-        (obj.Implementor_HC as TFRE_DB_FORM_DESC).AddDBO(id, session);
+        (obj.Implementor_HC as TFRE_DB_FORM_DESC).AddDBO(id, session, groupPreFix);
       end else begin
-        inherited AddDBO(id,session);
+        inherited AddDBO(id,session,groupPreFix);
       end;
     end else begin
       raise Exception.Create('Failed to add the dbo: Root Form not found!');
@@ -1994,14 +1994,21 @@ implementation
     Field('stores').AddObject(store);
   end;
 
-  procedure TFRE_DB_FORM_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession);
+  procedure TFRE_DB_FORM_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession; const groupPreFix:String);
   var
-    i : Integer;
+    i  : Integer;
+    idx: String;
   begin
+    idx:=id + '@' + groupPreFix;
     for i := 0 to Field('dbos').ValueCount - 1 do begin
       if Field('dbos').AsStringArr[i]=id then exit;
     end;
     Field('dbos').AddString(id);
+
+    for i := 0 to Field('_dbos').ValueCount - 1 do begin
+      if Field('_dbos').AsStringArr[i]=id then exit;
+    end;
+    Field('_dbos').AddString(id);
     session.registerUpdatableDBO(FREDB_H2G(id));
   end;
 
@@ -2308,7 +2315,7 @@ implementation
   var
     prefix: String;
   begin
-    AddDBO(obj.UID_String, session);
+    AddDBO(obj.UID_String, session, groupPreFix);
     if groupPreFix<>'' then begin
       prefix:=groupPreFix + '.';
     end else begin
@@ -2448,16 +2455,16 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_INPUT_GROUP_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession);
+  procedure TFRE_DB_INPUT_GROUP_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession; const groupPreFix:String);
   var
     obj: IFRE_DB_Object;
   begin
     obj := Self.ObjectRoot;
     if obj.Implementor_HC is TFRE_DB_FORM_DESC then begin
       if obj.Implementor_HC<>Self then begin
-        (obj.Implementor_HC as TFRE_DB_FORM_DESC).AddDBO(id, session);
+        (obj.Implementor_HC as TFRE_DB_FORM_DESC).AddDBO(id, session, groupPreFix);
       end else begin
-        inherited AddDBO(id,session);
+        inherited AddDBO(id,session,groupPreFix);
       end;
     end else begin
       raise Exception.Create('Failed to add the dbo: Root Form not found!');

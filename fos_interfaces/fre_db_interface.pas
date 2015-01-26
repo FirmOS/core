@@ -620,6 +620,9 @@ type
     function  ConvAsUnsignedArray           : TFRE_DB_UInt64Array;   { for filtering purposes }
     function  ConvAsCurrencyArray           : TFRE_DB_CurrencyArray; { for filtering purposes }
     function  ConvAsReal64Array             : TFRE_DB_Real64Array;   { for filtering purposes }
+
+    function  GetFieldPath                  : TFRE_DB_StringArray;
+    function  GetFieldPathAsString          : TFRE_DB_String;
   end;
 
 
@@ -3111,6 +3114,7 @@ end;
     FSessionData          : IFRE_DB_Object;
     FBinaryInputs         : IFRE_DB_Object; { per key requestable of Binary Input which get's sent seperated from the data }
     FUpdateableDBOS       : IFRE_DB_Object;
+    FServerFuncDBOS       : IFRE_DB_Object;
     FDifferentialUpdates  : IFRE_DB_Object;
     FUpdateableContent    : IFRE_DB_Object;
 
@@ -3215,6 +3219,9 @@ end;
     procedure   UnregisterUpdatableDBO     (const UID_id: TFRE_DB_GUID);
     function    IsDBOUpdatable             (const UID_id: TFRE_DB_GUID):boolean;
 
+    procedure   RegisterDBOChangeCB        (const UID_id: TFRE_DB_GUID; const callback: TFRE_DB_SERVER_FUNC_DESC);
+    procedure   UnregisterDBOChangeCB      (const UID_id: TFRE_DB_GUID; const callbackId: TFRE_DB_String);
+    function    getDBOChangeCBs            (const UID_id: TFRE_DB_GUID):IFRE_DB_Object;
 
     procedure   SendServerClientRequest  (const description : TFRE_DB_CONTENT_DESC;const session_id:String=''); // Currently no continuation, and answer processing is implemented, is an Async request
     procedure   SendServerClientAnswer   (const description : TFRE_DB_CONTENT_DESC;const answer_id : Qword);
@@ -5928,6 +5935,7 @@ begin
   FTimers               := TList.Create;
   FBinaryInputs         := GFRE_DBI.NewObject;
   FUpdateableDBOS       := GFRE_DBI.NewObject;
+  FServerFuncDBOS       := GFRE_DBI.NewObject;
   FDifferentialUpdates  := GFRE_DBI.NewObject;
   FUpdateableContent    := GFRE_DBI.NewObject;
   FModuleInitialized    := TFPHashList.Create;
@@ -5980,6 +5988,7 @@ begin
   FUpdateableContent.Finalize;
   FDifferentialUpdates.Finalize;
   FUpdateableDBOS.Finalize;
+  FServerFuncDBOS.Finalize;
   FModuleInitialized.Free;
   FSessionLock.Finalize;
   if assigned(FSessionData) then
@@ -7175,6 +7184,7 @@ procedure TFRE_DB_UserSession.ClearUpdatable;
 begin
   FUpdateableContent.ClearAllFields;
   FUpdateableDBOS.ClearAllFields;
+  FServerFuncDBOS.ClearAllFields;
 end;
 
 procedure TFRE_DB_UserSession.RegisterUpdatableContent(const contentId: String);
@@ -7192,11 +7202,6 @@ end;
 procedure TFRE_DB_UserSession.RegisterUpdatableDBO(const UID_id: TFRE_DB_GUID);
 var id:ShortString;
 begin
-  //if FSessionData.Field('dboIds').AsObject.FieldExists(id) then begin
-  //  FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=FSessionData.Field('dboIds').AsObject.Field(id).AsInt16+1;
-  //end else begin
-  //  FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=1;
-  //end;
   id := FREDB_G2H(UID_id);
   if FUpdateableDBOS.FieldExists(id) then begin
     FUpdateableDBOS.Field(id).AsInt64:=FUpdateableDBOS.Field(id).AsInt64+1;
@@ -7208,11 +7213,6 @@ end;
 procedure TFRE_DB_UserSession.UnregisterUpdatableDBO(const UID_id: TFRE_DB_GUID);
 var id : ShortString;
 begin
-  //if FSessionData.Field('dboIds').AsObject.Field(id).AsInt16=1 then begin
-  //  FSessionData.Field('dboIds').AsObject.Field(id).Clear();
-  //end else begin
-  //  FSessionData.Field('dboIds').AsObject.Field(id).AsInt16:=FSessionData.Field('dboIds').AsObject.Field(id).AsInt16-1;
-  //end;
   id := FREDB_G2H(UID_id);
   if FUpdateableDBOS.Field(id).AsInt64=1 then begin
     FUpdateableDBOS.Field(id).Clear();
@@ -7228,16 +7228,37 @@ begin
   result := FUpdateableDBOS.FieldExists(id);
 end;
 
+procedure TFRE_DB_UserSession.RegisterDBOChangeCB(const UID_id: TFRE_DB_GUID; const callback: TFRE_DB_SERVER_FUNC_DESC);
+var id:ShortString;
+begin
+  id := FREDB_G2H(UID_id);
+  FServerFuncDBOS.Field(id).AsObject.Field(callback.contentId).AsObject:=callback;
+end;
+
+procedure TFRE_DB_UserSession.UnregisterDBOChangeCB(const UID_id: TFRE_DB_GUID; const callbackId: TFRE_DB_String);
+var id:ShortString;
+begin
+  id := FREDB_G2H(UID_id);
+  FServerFuncDBOS.Field(id).AsObject.DeleteField(callbackId); //FIXXME Heli - cleanup if last callback is removed
+end;
+
+function TFRE_DB_UserSession.getDBOChangeCBs(const UID_id: TFRE_DB_GUID): IFRE_DB_Object;
+var id : ShortString;
+begin
+  id := FREDB_G2H(UID_id);
+  result := FServerFuncDBOS.FieldOnlyExistingObj(id);
+end;
+
 function TFRE_DB_UserSession.IsUpdatableContentVisible(const contentId: String): Boolean;
 begin
   Result:=FUpdateableContent.FieldExists(contentId);
 end;
 
-
 procedure TFRE_DB_UserSession.SendServerClientRequest(const description: TFRE_DB_CONTENT_DESC;const session_id:String);
 var CMD        : IFRE_DB_COMMAND;
     request_id : Qword;
 begin
+  if description=GFRE_DB_NIL_DESC then exit;
   cmd  := GFRE_DBI.NewDBCommand;
   cmd.SetIsClient(false);
   cmd.SetIsAnswer(false);
@@ -7584,6 +7605,13 @@ procedure TFRE_DB_UserSession.DifferentiallUpdEnds(const obj_uid: TFRE_DB_GUID; 
 var upo : IFRE_DB_Object;
     key : shortstring;
     fld : IFRE_DB_Field;
+    cbs: IFRE_DB_Object;
+
+  procedure _executeCallback(const obj: IFRE_DB_Object);
+  begin
+    SendServerClientRequest((obj.Implementor_HC as TFRE_DB_SERVER_FUNC_DESC).InternalInvoke(self).Implementor_HC as TFRE_DB_CONTENT_DESC);
+  end;
+
 begin
   key := FREDB_G2H(obj_uid);
   if FDifferentialUpdates.FieldOnlyExisting(key,fld) then
@@ -7591,7 +7619,14 @@ begin
       upo := fld.CheckOutObject;
       //writeln('DIFF UPDATE O');
       //writeln(upo.DumpToString);
-      SendServerClientRequest(TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(upo.CloneToNewObject));
+      if IsDBOUpdatable(upo.UID) then
+        SendServerClientRequest(TFRE_DB_UPDATE_FORM_DESC.create.DescribeDBO(upo.CloneToNewObject));
+
+      cbs:=getDBOChangeCBs(upo.UID);
+      if Assigned(cbs) then begin
+        cbs.ForAllObjects(@_executeCallback);
+      end;
+
       //writeln('SENT');
       upo.Finalize;
     end;
@@ -9043,6 +9078,9 @@ function TFRE_DB_SERVER_FUNC_DESC.Describe(const oschemeclass: String; const uid
 var
   path : String;
 begin
+  if not FieldExists('id') then begin
+    Field('id').AsString:='id'+UID_String;
+  end;
   Field('class').AsString:=oschemeclass;
   Field('func').AsString:=func;
   Field('uidPath').AsStringArr:=uidpath;
@@ -9051,6 +9089,9 @@ end;
 
 function TFRE_DB_SERVER_FUNC_DESC.Describe(const oschemeclass: String; const func: String): TFRE_DB_SERVER_FUNC_DESC;
 begin
+  if not FieldExists('id') then begin
+    Field('id').AsString:='id'+UID_String;
+  end;
   Field('class').AsString := oschemeclass;
   Field('func').AsString := func;
   Result:=Self;
