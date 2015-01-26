@@ -386,14 +386,6 @@ type
     procedure    RangeProcessFilterChangeBasedUpdates (const sessionid: TFRE_DB_SESSION_ID; const storeid: TFRE_DB_NameType; const orderkey: TFRE_DB_NameType ; const AbsCount : NativeInt);
   end;
 
-  { TFRE_DB_SESSION_DC_RANGE_MGR_KEY }
-
-  TFRE_DB_SESSION_DC_RANGE_MGR_KEY = record
-    SessionID : TFRE_DB_SESSION_ID;
-    DataKey   : TFRE_DB_TRANS_COLL_DATA_KEY;
-    function  GetKeyAsString : Shortstring; { sessionid@parentcollection/derivedcollection/reflinkspec/orderhash/filterhash }
-  end;
-
   { TFRE_DB_SESSION_DC_RANGE_MGR }
   TFRE_DB_SESSION_DC_RANGE_QRY_STATUS = (rq_Bad,rq_OK,rq_NO_DATA);
 
@@ -448,11 +440,10 @@ type
     function  GetFilterDefinition: TFRE_DB_DC_FILTER_DEFINITION;
     function  GetOrderDefinition: TFRE_DB_DC_ORDER_DEFINITION;
   protected
-     FTOD                      : TFRE_DB_TRANSFORMED_ORDERED_DATA; { assigned transformed and ordered data }
+     //FTOD                      : TFRE_DB_TRANSFORMED_ORDERED_DATA; { assigned transformed and ordered data }
      //FFilterContainer        : TFRE_DB_FilterContainer;          { the filtercontainer of the ordering   }
      FQryDBName                : TFRE_DB_NameType;                 { used for reeval filters, etc          }
-     FQueryId                  : TFRE_DB_NameType;                 { ID of this specific Query             }
-     //FQueryClientID          : Int64;
+     FQueryId                  : TFRE_DB_SESSION_DC_RANGE_MGR_KEY; { ID of this specific Query             }
      FQueryDescr               : string;
      FParentChildLinkFldSpec   : TFRE_DB_NameTypeRL;               { rl spec of the parent child relation                }
      FParentChildScheme        : TFRE_DB_NameType;                 { the same as single fields                           }
@@ -493,7 +484,6 @@ type
      FQueryPotentialCountCmp   : NativeInt;
      FQueryIsLastPage          : boolean;                          { Flag to indicate that this query includes the last page of the resultset (the last element) }
 
-     FSessionID                : TFRE_DB_SESSION_ID;
      FReqID                    : Qword;                            { request that generated that query }
      FOnlyOneUID               : TFRE_DB_GUID;
      FUidPointQry              : Boolean;
@@ -527,7 +517,7 @@ type
 
      constructor Create                            (const qry_dbname : TFRE_DB_NameType);
      destructor  Destroy                           ; override;
-     function    GetQueryID                        : TFRE_DB_NameType; override;
+     function    GetQueryID                        : TFRE_DB_SESSION_DC_RANGE_MGR_KEY; override;
      function    HasOrderDefinition                : boolean;
      property    Orderdef                          : TFRE_DB_DC_ORDER_DEFINITION  read GetOrderDefinition;
      property    Filterdef                         : TFRE_DB_DC_FILTER_DEFINITION read GetFilterDefinition;
@@ -1062,11 +1052,6 @@ begin
 end;
 
 { TFRE_DB_SESSION_DC_RANGE_MGR_KEY }
-
-function TFRE_DB_SESSION_DC_RANGE_MGR_KEY.GetKeyAsString: Shortstring;
-begin
-  result := SessionID+'@'+DataKey.GetFullKeyString;
-end;
 
 { TFRE_DB_SESSION_DC_RANGE }
 
@@ -4632,7 +4617,7 @@ begin
       FQueryCurrIdx        := 0;
       FQueryDeliveredCount := 0;
       FQueryStartTime      := GFRE_BT.Get_Ticks_ms;
-      GFRE_DBI.LogDebug(dblc_QUERY,'QUERY ID [%s] start',[FQueryId])
+      GFRE_DBI.LogDebug(dblc_QUERY,'QUERY ID [%s] start',[FQueryId.GetKeyAsString])
     end
   else
     begin
@@ -4640,7 +4625,7 @@ begin
       FQueryCurrIdxCmp        := 0;
       FQueryDeliveredCountCmp := 0;
       FQueryStartTimeCmp      := GFRE_BT.Get_Ticks_ms;
-      GFRE_DBI.LogDebug(dblc_QUERY,'COMPARE/QUERY ID [%s] start',[FQueryId])
+      GFRE_DBI.LogDebug(dblc_QUERY,'COMPARE/QUERY ID [%s] start',[FQueryId.GetKeyAsString])
     end;
 end;
 
@@ -4650,13 +4635,13 @@ begin
     begin
       FQueryEndTime := GFRE_BT.Get_Ticks_ms;
       FQueryRunning := False;
-      GFRE_DBI.LogInfo(dblc_QUERY,'QUERY ID [%s] finished in %d ms',[FQueryId,FQueryEndTime-FQueryStartTime])
+      GFRE_DBI.LogInfo(dblc_QUERY,'QUERY ID [%s] finished in %d ms',[FQueryId.GetKeyAsString,FQueryEndTime-FQueryStartTime])
     end
   else
     begin
       FQueryEndTimeCmp := GFRE_BT.Get_Ticks_ms;
       FQueryRunningCmp := False;
-      GFRE_DBI.LogInfo(dblc_QUERY,'COMPARE/QUERY ID [%s] finished in %d ms',[FQueryId,FQueryEndTimeCmp-FQueryStartTimeCmp]);
+      GFRE_DBI.LogInfo(dblc_QUERY,'COMPARE/QUERY ID [%s] finished in %d ms',[FQueryId.GetKeyAsString,FQueryEndTimeCmp-FQueryStartTimeCmp]);
     end;
 end;
 
@@ -4714,14 +4699,19 @@ destructor TFRE_DB_QUERY.Destroy;
 begin
   FQueryFilters.free;
   {FOrderDef.Free; dont free orderdef it's used in the orders TODO: CHECK}
-  GFRE_DBI.LogDebug(dblc_DBTDM,'  <> FINALIZE QRY [%s]',[GetQueryID]);
+  GFRE_DBI.LogDebug(dblc_DBTDM,'  <> FINALIZE QRY [%s]',[GetQueryID.GetKeyAsString]);
   inherited Destroy;
 end;
 
-function TFRE_DB_QUERY.GetQueryID: TFRE_DB_NameType;
+function TFRE_DB_QUERY.GetQueryID: TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
 begin
   result := FQueryId;
 end;
+
+//function TFRE_DB_QUERY.GetQueryID: TFRE_DB_NameType;
+//begin
+//  result := FQueryId;
+//end;
 
 
 function TFRE_DB_QUERY.HasOrderDefinition: boolean;
@@ -4777,9 +4767,9 @@ end;
 
 procedure TFRE_DB_QUERY.ExecutePointQuery(const iterator: IFRE_DB_Obj_Iterator);
 begin
-  if not assigned(FTOD) then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'no base data available');
-  StartQueryRun(false);
+  //if not assigned(FTOD) then
+  //  raise EFRE_DB_Exception.Create(edb_ERROR,'no base data available');
+  //StartQueryRun(false);
   abort;
   //FTOD.ExecuteBaseOrdered(iterator,self,false,true);
   EndQueryRun(false);
@@ -4842,12 +4832,14 @@ var is_filled : boolean;
 
    procedure SetupRangeProcessing;
    begin
-     if not FFiltered.FindRange4QueryAndUpdateQuerySpec(FSessionID,FSessionRange,FStartIdx,FEndIndex,FPotentialCount) then { creates a session range manager, and a range if needed }
+     if not FFiltered.FindRange4QueryAndUpdateQuerySpec(FQueryId.SessionID,FSessionRange,FStartIdx,FEndIndex,FPotentialCount) then { creates a session range manager, and a range if needed }
        begin
          FMyComputeState := cs_NoDataAvailable;
          result          := -1;
          exit;
        end;
+     if FSessionRange.FMgr.FRMGRKey.GetKeyAsString<>FQueryId.GetKeyAsString then
+       GFRE_BT.CriticalAbort('rangemgr key failure (!)');
      if FSessionRange.RangeFilled then
        begin
          result          := FEndIndex-FStartIdx+1;
@@ -5019,7 +5011,7 @@ end;
 procedure TFRE_DB_QUERY.WorkDone_WIF;
 var ses : TFRE_DB_UserSession;
 begin { In context of Netserver Channel Group }
-  if GFRE_DBI.NetServ.FetchSessionByIdLocked(FSessionID,ses) then
+  if GFRE_DBI.NetServ.FetchSessionByIdLocked(FQueryId.SessionID,ses) then
     if not ses.DispatchCoroutine(TFRE_APSC_CoRoutine(@Ses.COR_AnswerGridData),self) then
       Free;
 end;
@@ -6234,13 +6226,12 @@ var qry : TFRE_DB_QUERY;
 
    procedure SetQueryID;
    begin
-     qry.FQueryId       := FormQueryID(qry_def.SessionID,qry_def.DerivedCollName);
-     qry.FQueryDescr    := Format('QRY(%s)',[qry.FQueryId]);
+     qry.FQueryId.Setup4QryId(qry_def.SessionID,qry.FOrderDef.CacheDataKey,qry.Filterdef.GetFilterKey);
+     qry.FQueryDescr    := Format('QRY(%s)',[qry.FQueryId.GetKeyAsString]);
    end;
 
 begin
   qry             := TFRE_DB_QUERY.Create(qry_def.DBName);
-  qry.FSessionID  := qry_def.SessionID;
   qry.FOnlyOneUID := qry_def.OnlyOneUID;
   if qry.FOnlyOneUID<>CFRE_DB_NullGUID then
     qry.FUidPointQry:=true;

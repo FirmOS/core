@@ -978,6 +978,15 @@ type
     function  GetBaseDataKey   : TFRE_DB_CACHE_DATA_KEY; { includes only basedata identification         }
   end;
 
+  { TFRE_DB_SESSION_DC_RANGE_MGR_KEY }
+
+  TFRE_DB_SESSION_DC_RANGE_MGR_KEY = record
+    SessionID : TFRE_DB_SESSION_ID;
+    DataKey   : TFRE_DB_TRANS_COLL_DATA_KEY;
+    procedure Setup4QryId      (const sid : TFRE_DB_SESSION_ID ; const ok : TFRE_DB_TRANS_COLL_DATA_KEY ; const fk : TFRE_DB_TRANS_COLL_FILTER_KEY);
+    function  GetKeyAsString   : Shortstring; { sessionid@parentcollection/derivedcollection/reflinkspec/orderhash/filterhash }
+  end;
+
 
   //TFRE_DB_DC_STRINGFIELDKEY_LIST      = array of TFRE_DB_DC_STRINGFIELDKEY;
 
@@ -2198,7 +2207,7 @@ end;
 
   TFRE_DB_QUERY_BASE=class
     function  GetReqID             : Qword; virtual; abstract;
-    function  GetQueryID           : TFRE_DB_NameType; virtual; abstract;
+    function  GetQueryID           : TFRE_DB_SESSION_DC_RANGE_MGR_KEY; virtual; abstract;
     function  GetTransfrom         : IFRE_DB_SIMPLE_TRANSFORM; virtual;abstract;
     function  GetTotalCount        : NativeInt; virtual ; abstract;
     function  GetResultData        : IFRE_DB_ObjectArray; virtual ; abstract;
@@ -4644,6 +4653,20 @@ type
 
 const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
+
+{ TFRE_DB_SESSION_DC_RANGE_MGR_KEY }
+
+procedure TFRE_DB_SESSION_DC_RANGE_MGR_KEY.Setup4QryId(const sid: TFRE_DB_SESSION_ID; const ok: TFRE_DB_TRANS_COLL_DATA_KEY; const fk: TFRE_DB_TRANS_COLL_FILTER_KEY);
+begin
+  SessionID         := sid;
+  DataKey           := ok;
+  DataKey.filterkey := fk;
+end;
+
+function TFRE_DB_SESSION_DC_RANGE_MGR_KEY.GetKeyAsString: Shortstring;
+begin
+  result := SessionID+'@'+DataKey.GetFullKeyString;
+end;
 
 { TFRE_DB_STORE_DATA_DESC }
 
