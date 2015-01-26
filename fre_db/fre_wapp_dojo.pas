@@ -938,7 +938,6 @@ implementation
     tmpContent      : TFRE_DB_RawByteString;
     tmpContentType  : String;
     i               : Integer;
-    sectionDesc     : IFRE_DB_Object;
     updateId        : String;
   begin
     if tabsHidden then begin
@@ -1139,6 +1138,7 @@ implementation
     JsonAction    : TFRE_JSON_ACTION;
     hasCloseButton: Boolean;
     childId       : String;
+    menuBCid      : TFRE_DB_String;
   begin
     if not isInnerContent then begin
       JsonAction := TFRE_JSON_ACTION.Create;
@@ -1151,10 +1151,6 @@ implementation
     end else begin
       jsContentAdd('var '+co.Field('id').AsString + ' = new dijit.layout.ContentPane({');
       jsContentAdd('  id: "' + co.Field('id').AsString + '"');
-      if co.FieldExists('destroyNotify') then begin
-        jsContentAdd('  ,destroyNotify: true');
-        session.registerUpdatableContent(co.Field('id').AsString);
-      end;
     end;
     jsContentAdd('  ,style: "overflow-y: auto;"');
     jsContentAdd('  ,content: ');
@@ -1164,14 +1160,19 @@ implementation
     jsContentAdd('});');
 
     if co.FieldExists('menu') then begin
-      childId:=co.Field('id').AsString + '_bl';
-      jsContentAdd(' var ' + co.Field('id').AsString + '_bl = new dijit.layout.BorderContainer({');
-      jsContentAdd('  id: "' + co.Field('id').AsString + '_bl"');
+      if co.Field('caption').AsString<>'' then begin
+        childId:=co.Field('id').AsString + '_bl';
+        menuBCid:=co.Field('id').AsString + '_bl';
+      end else begin
+        menuBCid:=co.Field('id').AsString ;
+      end;
+      jsContentAdd(' var ' + menuBCid + ' = new dijit.layout.BorderContainer({');
+      jsContentAdd('  id: "' + menuBCid + '"');
       jsContentAdd(' });');
       _BuildMenu(co.Field('menu').AsObject.Implementor_HC as TFRE_DB_MENU_DESC);
-      jsContentAdd(co.Field('id').AsString + '_bl.addChild(toolbar);');
+      jsContentAdd(menuBCid + '.addChild(toolbar);');
       jsContentAdd(co.Field('id').AsString + '_cp.region = "center";');
-      jsContentAdd(co.Field('id').AsString + '_bl.addChild('+co.Field('id').AsString + '_cp);');
+      jsContentAdd(menuBCid + '.addChild('+co.Field('id').AsString + '_cp);');
     end else begin
       childId:=co.Field('id').AsString + '_cp';
     end;
@@ -1181,12 +1182,12 @@ implementation
       jsContentAdd(childId + '.spanLabel = true;');
       jsContentAdd('var '+co.Field('id').AsString + ' = new dijit.layout.AccordionContainer({');
       jsContentAdd('  id: "' + co.Field('id').AsString + '"');
-      if co.FieldExists('destroyNotify') then begin
-        jsContentAdd('  ,destroyNotify: true');
-        session.registerUpdatableContent(co.Field('id').AsString);
-      end;
       jsContentAdd('});');
       jsContentAdd(co.Field('id').AsString + '.addChild('+childId+');');
+    end;
+    if co.FieldExists('destroyNotify') then begin
+      jsContentAdd(co.Field('id').AsString + '.destroyNotify = true;');
+      session.registerUpdatableContent(co.Field('id').AsString);
     end;
 
     if not isInnerContent then begin
