@@ -292,6 +292,8 @@ begin
     DeleteTranslateableText(conn,'validator_ip_help');
     StoreTranslateableText(conn,'validator_ip_help','1.0.0.1 - 255.255.255.255');
     StoreTranslateableText(conn,'validator_ipv6_help','e.g.: 1:2:3:4:5:6:7:8 or 1::');
+    StoreTranslateableText(conn,'validator_ip_subnet_help','1.0.0.1/1 - 255.255.255.255/32');
+    StoreTranslateableText(conn,'validator_ipv6_subnet_help','e.g.: 1:2:3:4:5:6:7:8 or 1::/1');
   end;
 end;
 
