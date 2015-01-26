@@ -1540,8 +1540,9 @@ type
 
   TFRE_DB_ONEONE_FT=class(TFRE_DB_FIELD_TRANSFORM)
   protected
+    FPluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS;
   public
-    constructor Create         (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String=''; const defaultValue:String=''; const filterValues: TFRE_DB_StringArray=nil);
+    constructor Create         (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false;const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String=''; const defaultValue:String=''; const filterValues: TFRE_DB_StringArray=nil;const Pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS=nil);
     procedure   TransformField (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
@@ -1708,6 +1709,7 @@ type
     procedure   SetSimpleFuncTransform         (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK);
     procedure   SetSimpleFuncTransformNested   (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED);
     procedure   AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String; const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
+    procedure   AddPluginField                 (const Pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; const pluginfieldname : TFRE_DB_NameType; const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues: TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
   end;
 
   TFRE_DB_SortTree = specialize TGFOS_RBTree<TFRE_DB_Object,boolean>;
@@ -3810,7 +3812,7 @@ end;
 
 { TFRE_DB_ONEONE_FT }
 
-constructor TFRE_DB_ONEONE_FT.Create(const fieldname:TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID: String; const openIconID: String; const defaultValue:String; const filterValues: TFRE_DB_StringArray);
+constructor TFRE_DB_ONEONE_FT.Create(const fieldname: TFRE_DB_String; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID: String; const openIconID: String; const defaultValue: String; const filterValues: TFRE_DB_StringArray; const Pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS);
 begin
   FInFieldName     := fieldname;
   FOutFieldName    := lowercase(out_field);
@@ -3826,6 +3828,7 @@ begin
   if FOutFieldName='' then
     FOutFieldName:=lowercase(FInFieldName);
   FDefaultValue    := defaultValue;
+  FPluginclass     := Pluginclass;
 end;
 
 procedure TFRE_DB_ONEONE_FT.TransformField(const conn: IFRE_DB_CONNECTION; const input, output: IFRE_DB_Object);
@@ -3838,12 +3841,19 @@ var sa          : TFRE_DB_StringArray;
     scheme      : IFRE_DB_SchemeObject;
     classn      : shortstring;
     handle_enum : boolean;
+    plugin      : TFRE_DB_OBJECT_PLUGIN_BASE;
 begin
-  //if input.FieldExists(FInFieldName) then
+  if assigned(FPluginclass) then
+    begin
+      if input.HasPlugin(FPluginclass,plugin) then
+        transbase := plugin
+      else
+        transbase := nil;
+    end
+  else
     transbase := input;
-  //else
-  //  transbase := output;
-  if transbase.FieldExists(FInFieldName) then begin
+
+  if assigned(transbase) and transbase.FieldExists(FInFieldName) then begin
     handle_enum := false;
     scheme := transbase.GetScheme;
     if assigned(scheme) then
@@ -7641,6 +7651,11 @@ begin
    rfc[i] := ref_field_chain[i];
  FTransformList.Add(TFRE_DB_REFERERENCE_QRY_FT.Create(FRQ_func,rfc,FRQO_Fields,FRQO_Titles,FRQO_Langres,FRQO_Types,FRQO_Display,FRQO_Sortable,FRQO_Filterable,FRQO_Hide,FRQO_FieldSize));
  FHasReflinkTransforms:=true;
+end;
+
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddPluginField(const Pluginclass: TFRE_DB_OBJECT_PLUGIN_CLASS; const pluginfieldname: TFRE_DB_NameType; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID: String; const openIconID: String; const default_value: TFRE_DB_String; const filterValues: TFRE_DB_StringArray; const hide_in_output: boolean);
+begin
+  FTransformList.Add(TFRE_DB_ONEONE_FT.Create(pluginfieldname,out_field,output_title,gui_display_type,display,sortable,filterable,fieldSize,iconID,openIconID,default_value,filterValues,pluginclass));
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedField(const ref_field_chain: array of TFRE_DB_NameTypeRL; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display:Boolean; const gui_display_type: TFRE_DB_DISPLAY_TYPE;const sortable,filterable:Boolean;const fieldSize: Integer;const iconID:String;const default_value:TFRE_DB_String;const filterValues:TFRE_DB_StringArray;const hide_in_output : boolean; const linkFieldName:TFRE_DB_NameType);
