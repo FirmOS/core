@@ -2030,6 +2030,7 @@ type
     { Stdrights Many domain case, add additional checks for the specific domain }
     function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
     function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
+    function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const rclassname: ShortString):boolean;
 
     function    CheckClassRight4Domain      (const std_right : TFRE_DB_STANDARD_RIGHT ; const classtyp  : TClass      ; const domainKey:TFRE_DB_String=''):boolean; { specific domain }
     function    CheckClassRight4Domain      (const std_right : TFRE_DB_STANDARD_RIGHT ; const rclassname: ShortString ; const domainKey:TFRE_DB_String=''):boolean; { specific domain }
@@ -2226,6 +2227,7 @@ type
     { Stdrights Many domain case, add additional checks for the specific domain }
     function    CheckClassRight4MyDomain    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
     function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass):boolean;
+    function    CheckClassRight4AnyDomain   (const std_right:TFRE_DB_STANDARD_RIGHT;const rclassname: ShortString):boolean;
 
     function    CheckClassRight4Domain      (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domainKey:TFRE_DB_String=''):boolean; { specific domain }
     function    CheckClassRight4DomainId    (const std_right:TFRE_DB_STANDARD_RIGHT;const classtyp: TClass;const domain:TFRE_DB_GUID):boolean; { specific domain }
@@ -3124,6 +3126,14 @@ begin
   if result then
     exit;
   result := FREDB_PrefixStringInArray(_GetStdRightName(std_right,classtyp),FConnectionRights);
+end;
+
+function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4AnyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString): boolean;
+begin
+  result := IsCurrentUserSystemAdmin;
+  if result then
+    exit;
+  result := FREDB_PrefixStringInArray(_GetStdRightName(std_right,rclassname),FConnectionRights);
 end;
 
 function TFRE_DB_USER_RIGHT_TOKEN.CheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;
@@ -6650,6 +6660,11 @@ end;
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4AnyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass): boolean;
 begin
   result := FCurrentUserToken.CheckClassRight4AnyDomain(std_right,classtyp);
+end;
+
+function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4AnyDomain(const std_right: TFRE_DB_STANDARD_RIGHT; const rclassname: ShortString): boolean;
+begin
+  result := FCurrentUserToken.CheckClassRight4AnyDomain(std_right,rclassname);
 end;
 
 function TFRE_DB_SYSTEM_CONNECTION.CheckClassRight4Domain(const std_right: TFRE_DB_STANDARD_RIGHT; const classtyp: TClass; const domainKey: TFRE_DB_String): boolean;
