@@ -3380,8 +3380,8 @@ end;
   function  FREDB_CheckGuidsUnique               (const arr: TFRE_DB_GUIDArray):boolean;
   function  FREDB_GuidList2Counted               (const arr: TFRE_DB_GUIDArray; const stop_on_first_double: boolean=false): TFRE_DB_CountedGuidArray;
 
-  function  FREDB_ObjectToPtrUInt                (const obj : TObject):PtrUInt;
-  function  FREDB_PtrUIntToObject                (const obj : PtrUInt):TObject;
+  function  FREDB_ObjectToPtrUInt                (const obj : TObject):PtrUInt; inline;
+  function  FREDB_PtrUIntToObject                (const obj : PtrUInt):TObject; inline;
   procedure FREDB_BinaryKey2ByteArray            (const key : PByte ; const k_len : NativeInt ; var bytearr : TFRE_DB_ByteArray);
 
   function  FREDB_GetIndexTypeForFieldType            (const fld_type : TFRE_DB_FIELDTYPE) : TFRE_DB_INDEX_TYPE;

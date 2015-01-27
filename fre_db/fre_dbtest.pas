@@ -2586,12 +2586,15 @@ function TFRE_DB_TEST_APP_GRID_MOD.WEB_UpdateSelected(const input: IFRE_DB_Objec
 var selg : TFRE_DB_GUID;
     col  : IFRE_DB_COLLECTION;
     new  : IFRE_DB_Object;
+    s    :string;
 begin
   writeln(input.Field('SELECTED').AsString);
   selg := FREDB_H2G(input.Field('SELECTED').AsString);
   col    := GetDBConnection(input).GetCollection('COLL_TEST_A');
   if col.FetchInCollection(selg,new) then begin
-    new.Field('string').AsString    := 'Changed_String_' + IntToStr(random(10000));
+    randomize;
+    s := 'Changed_String_' + IntToStr(random(10000));
+    new.Field('string').AsString    := s;
     col.Update(new);
   end;
   result := GFRE_DB_NIL_DESC;
