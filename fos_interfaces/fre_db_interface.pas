@@ -7257,7 +7257,7 @@ procedure TFRE_DB_UserSession.UnregisterDBOChangeCB(const contentId: TFRE_DB_Str
   end;
 
 begin
-  FServerFuncDBOS.ForAllFields(@_checkDBO); //FIXXME Heli - cleanup if last callback is removed
+  FServerFuncDBOS.ForAllFields(@_checkDBO,true,true); //FIXXME Heli - cleanup if last callback is removed
 end;
 
 function TFRE_DB_UserSession.getDBOChangeCBs(const UID_id: TFRE_DB_GUID): IFRE_DB_Object;
