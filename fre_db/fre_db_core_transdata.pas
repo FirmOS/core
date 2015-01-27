@@ -507,7 +507,6 @@ type
   public
      procedure   CaptureStartTime                  ; override;
      function    CaptureEndTime                    : NativeInt;  override;
-     procedure   SetResultObject                   (const idx: NativeInt; const obj: IFRE_DB_Object ; const compare_run : boolean);
      procedure   AddjustResultDBOLen               (const compare_run : boolean);
      procedure   StartQueryRun                     (const compare_run : boolean);
      procedure   EndQueryRun                       (const compare_run : boolean);
@@ -694,8 +693,8 @@ type
     function    CalcRangeMgrKey               (const sessionid : TFRE_DB_SESSION_ID):TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
     property    IsFilled                      : boolean read FFilled write SetFilled;
     procedure   CheckDBReevaluation           ;
-    function    ExecuteFilter                 (const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; var startidx, endidx: NativeInt): NativeInt; { compare run = second run on filter updates }
-    function    ExecuteFilterPointQuery       (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY):NativeInt;
+    //function    ExecuteFilter                 (const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; var startidx, endidx: NativeInt): NativeInt; { compare run = second run on filter updates }
+    //function    ExecuteFilterPointQuery       (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY):NativeInt;
     procedure   CheckFilteredAdd              (const obj : IFRE_DB_Object);
     procedure   Notify_CheckFilteredUpdate    (const td  : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const old_obj,new_obj : IFRE_DB_Object ; const order_changed : boolean);                { invoke session update }
     function    Notify_CheckFilteredDelete    (const td  : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const old_obj         : IFRE_DB_Object) : NativeInt; { invoke session update }
@@ -730,14 +729,14 @@ type
     procedure          Notify_DeleteFromTree (const old_obj : TFRE_DB_Object ; transtag : TFRE_DB_TransStepId);
     procedure          Notify_DeleteFromTree (const key: PByte; const keylen: NativeInt; const old_obj: TFRE_DB_Object ; const propagate_up : boolean = true ; const transtag : TFRE_DB_TransStepId = '');
 
-    procedure          GetGenerateFilterContainerLocked (const filter: TFRE_DB_DC_FILTER_DEFINITION ; out filtercontainer: TFRE_DB_FILTER_CONTAINER); { KILL }
+    //procedure          GetGenerateFilterContainerLocked (const filter: TFRE_DB_DC_FILTER_DEFINITION ; out filtercontainer: TFRE_DB_FILTER_CONTAINER); { KILL }
 
     procedure          GetOrCreateFiltercontainer (const filter: TFRE_DB_DC_FILTER_DEFINITION; out filtercontainer: TFRE_DB_FILTER_CONTAINER);
     procedure          FillFilterContainer        (const filtercontainer: TFRE_DB_FILTER_CONTAINER ; const startchunk, endchunk: Nativeint; const wid: NativeInt);
   public
     constructor  Create                  (const orderdef : TFRE_DB_DC_ORDER_DEFINITION ; base_trans_data : TFRE_DB_TRANFORMED_DATA);
     destructor   Destroy                 ; override;
-    function     ExecuteBaseOrdered      (const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; const filterdef: TFRE_DB_DC_FILTER_DEFINITION; var startidx, endidx: NativeInt; const point_qry: boolean): NativeInt;
+    //function     ExecuteBaseOrdered      (const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; const filterdef: TFRE_DB_DC_FILTER_DEFINITION; var startidx, endidx: NativeInt; const point_qry: boolean): NativeInt;
     procedure    OrderTheData            (const startchunk, endchunk: Nativeint; const wid: NativeInt);
     function     GetOrderedDatakey       : TFRE_DB_CACHE_DATA_KEY;
     function     GetCacheDataKey         : TFRE_DB_TRANS_COLL_DATA_KEY;
@@ -3582,116 +3581,116 @@ begin
   result := FFilters.DoesObjectPassFilters(obj);
 end;
 
-function TFRE_DB_FILTER_CONTAINER.ExecuteFilter(const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; var startidx, endidx: NativeInt): NativeInt;
-var i     : NativeInt;
-    obj   : IFRE_DB_Object;
-    hio   : NativeInt;
-    range : TFRE_DB_SESSION_DC_RANGE;
-    potentialcnt: NativeInt;
+//function TFRE_DB_FILTER_CONTAINER.ExecuteFilter(const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; var startidx, endidx: NativeInt): NativeInt;
+//var i     : NativeInt;
+//    obj   : IFRE_DB_Object;
+//    hio   : NativeInt;
+//    range : TFRE_DB_SESSION_DC_RANGE;
+//    potentialcnt: NativeInt;
+//
+//    //function    FindRange4QueryAndUpdateQuerySpec (const sessionid : TFRE_DB_SESSION_ID ; out range: TFRE_DB_SESSION_DC_RANGE): boolean;
+//    //var mgr : TFRE_DB_SESSION_DC_RANGE_MGR;
+//    //begin
+//    //  mgr       := G_TCDM.GetRangeManagerLocked(sessionid,self);
+//    //  result    := mgr.FindRangeSatisfyingQuery(startidx,endidx,range)=rq_OK;
+//    //  if result then
+//    //    begin
+//    //      if endidx > range.FEndIndex then { crop down end index if it is too high}
+//    //        endidx := range.FEndIndex;
+//    //      potentialcnt := mgr.GetMaxIndex+1;
+//    //    end;
+//    //end;
+//
+//begin
+//    begin
+//      //qry_context.FQueryPotentialCount := FCnt;
+//      potentialcnt := FCnt;
+//      //if FindRange4QueryAndUpdateQuerySpec(sessionid,range) then
+//      //  begin
+//      //    range.RangeExecuteQry(startidx,endidx,iter);
+//      //    result := potentialcnt;
+//      //  end;
+//      //qry_context.SetMaxResultDBOLen(false);
+//      //if assigned(iter) then
+//      //  begin
+//      //    hio := High(FOBJArray);
+//      //    for i:=qry_context.FStartIdx to hio do
+//      //      begin
+//      //        obj := FOBJArray[i].CloneToNewObject();
+//      //        iter(obj);
+//      //        qry_context.SetResultObject(qry_context.FQueryCurrIdx,obj,false);
+//      //        inc(qry_context.FQueryCurrIdx);
+//      //        inc(qry_context.FQueryDeliveredCount);
+//      //        if qry_context.FQueryDeliveredCount=qry_context.FToDeliverCount then
+//      //          break;
+//      //      end;
+//      //    if (qry_context.FStartIdx+qry_context.FQueryCurrIdx)=Length(FOBJArray) then
+//      //      qry_context.FQueryIsLastPage := true
+//      //    else
+//      //      qry_context.FQueryIsLastPage := false;
+//      //    qry_context.AddjustResultDBOLen(false);
+//      //  end;
+//    end
+//end;
 
-    //function    FindRange4QueryAndUpdateQuerySpec (const sessionid : TFRE_DB_SESSION_ID ; out range: TFRE_DB_SESSION_DC_RANGE): boolean;
-    //var mgr : TFRE_DB_SESSION_DC_RANGE_MGR;
-    //begin
-    //  mgr       := G_TCDM.GetRangeManagerLocked(sessionid,self);
-    //  result    := mgr.FindRangeSatisfyingQuery(startidx,endidx,range)=rq_OK;
-    //  if result then
-    //    begin
-    //      if endidx > range.FEndIndex then { crop down end index if it is too high}
-    //        endidx := range.FEndIndex;
-    //      potentialcnt := mgr.GetMaxIndex+1;
-    //    end;
-    //end;
-
-begin
-    begin
-      //qry_context.FQueryPotentialCount := FCnt;
-      potentialcnt := FCnt;
-      //if FindRange4QueryAndUpdateQuerySpec(sessionid,range) then
-      //  begin
-      //    range.RangeExecuteQry(startidx,endidx,iter);
-      //    result := potentialcnt;
-      //  end;
-      //qry_context.SetMaxResultDBOLen(false);
-      //if assigned(iter) then
-      //  begin
-      //    hio := High(FOBJArray);
-      //    for i:=qry_context.FStartIdx to hio do
-      //      begin
-      //        obj := FOBJArray[i].CloneToNewObject();
-      //        iter(obj);
-      //        qry_context.SetResultObject(qry_context.FQueryCurrIdx,obj,false);
-      //        inc(qry_context.FQueryCurrIdx);
-      //        inc(qry_context.FQueryDeliveredCount);
-      //        if qry_context.FQueryDeliveredCount=qry_context.FToDeliverCount then
-      //          break;
-      //      end;
-      //    if (qry_context.FStartIdx+qry_context.FQueryCurrIdx)=Length(FOBJArray) then
-      //      qry_context.FQueryIsLastPage := true
-      //    else
-      //      qry_context.FQueryIsLastPage := false;
-      //    qry_context.AddjustResultDBOLen(false);
-      //  end;
-    end
-end;
-
-function TFRE_DB_FILTER_CONTAINER.ExecuteFilterPointQuery(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY): NativeInt;
-var i   : NativeInt;
-    obj : IFRE_DB_Object;
-    hio : NativeInt;
-begin
-  abort;
-  qry_context.FQueryPotentialCount := 1;
-  hio := High(FOBJArray);
-  if qry_context.FUidPointQry then
-    begin
-      for i := 0 to high(FOBJArray) do
-       begin
-         if FOBJArray[i].UID=qry_context.FOnlyOneUID then
-           begin
-             obj := FOBJArray[i].CloneToNewObject;
-             qry_context.SetResultObject(0,obj,false);
-             qry_context.FQueryDeliveredCount := 1;
-             if assigned(iter) then
-               iter(obj);
-             break;
-           end;
-       end;
-    end
-  else
-    case qry_context.FStartIdx of
-      -1 : begin
-             if Length(FOBJArray)>0 then
-               begin
-                 obj := FOBJArray[0].CloneToNewObject;
-                 qry_context.SetResultObject(0,obj,false);
-                 qry_context.FQueryDeliveredCount := 1;
-                 if assigned(iter) then
-                   iter(obj);
-               end;
-           end;
-      -2 : begin
-             if (Length(FOBJArray)>0) then
-               begin
-                 obj := FOBJArray[high(FOBJArray)].CloneToNewObject;
-                 qry_context.SetResultObject(0,obj,false);
-                 qry_context.FQueryDeliveredCount := 1;
-                 if assigned(iter) then
-                   iter(obj);
-               end;
-           end
-      else
-        begin
-          if (Length(FOBJArray)>0) and (qry_context.FStartIdx<Length(FOBJArray)) then
-            begin
-              obj := FOBJArray[qry_context.FStartIdx].CloneToNewObject;
-              qry_context.SetResultObject(0,obj,false);
-              qry_context.FQueryDeliveredCount := 1;
-              if assigned(iter) then
-                iter(obj);
-            end;
-        end;
-    end;
-end;
+//function TFRE_DB_FILTER_CONTAINER.ExecuteFilterPointQuery(const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY): NativeInt;
+//var i   : NativeInt;
+//    obj : IFRE_DB_Object;
+//    hio : NativeInt;
+//begin
+//  abort;
+//  qry_context.FQueryPotentialCount := 1;
+//  hio := High(FOBJArray);
+//  if qry_context.FUidPointQry then
+//    begin
+//      for i := 0 to high(FOBJArray) do
+//       begin
+//         if FOBJArray[i].UID=qry_context.FOnlyOneUID then
+//           begin
+//             obj := FOBJArray[i].CloneToNewObject;
+//             qry_context.SetResultObject(0,obj,false);
+//             qry_context.FQueryDeliveredCount := 1;
+//             if assigned(iter) then
+//               iter(obj);
+//             break;
+//           end;
+//       end;
+//    end
+//  else
+//    case qry_context.FStartIdx of
+//      -1 : begin
+//             if Length(FOBJArray)>0 then
+//               begin
+//                 obj := FOBJArray[0].CloneToNewObject;
+//                 qry_context.SetResultObject(0,obj,false);
+//                 qry_context.FQueryDeliveredCount := 1;
+//                 if assigned(iter) then
+//                   iter(obj);
+//               end;
+//           end;
+//      -2 : begin
+//             if (Length(FOBJArray)>0) then
+//               begin
+//                 obj := FOBJArray[high(FOBJArray)].CloneToNewObject;
+//                 qry_context.SetResultObject(0,obj,false);
+//                 qry_context.FQueryDeliveredCount := 1;
+//                 if assigned(iter) then
+//                   iter(obj);
+//               end;
+//           end
+//      else
+//        begin
+//          if (Length(FOBJArray)>0) and (qry_context.FStartIdx<Length(FOBJArray)) then
+//            begin
+//              obj := FOBJArray[qry_context.FStartIdx].CloneToNewObject;
+//              qry_context.SetResultObject(0,obj,false);
+//              qry_context.FQueryDeliveredCount := 1;
+//              if assigned(iter) then
+//                iter(obj);
+//            end;
+//        end;
+//    end;
+//end;
 
 
 procedure TFRE_DB_FILTER_CONTAINER.CheckFilteredAdd(const obj: IFRE_DB_Object);
@@ -4563,21 +4562,21 @@ end;
 //    SetLength(FResultDBOsCompare,FToDeliverCount);
 //end;
 
-procedure TFRE_DB_QUERY.SetResultObject(const idx: NativeInt; const obj: IFRE_DB_Object; const compare_run: boolean);
-begin
-  //try
-  //  if not compare_run then
-  //    FResultDBOs[idx] := obj.CloneToNewObject { objects will be freed on updated/inser/deleted -> references are invalid then }
-  //  else
-  //    FResultDBOsCompare[idx] := obj.CloneToNewObject
-  //except
-  //  on e:exception do
-  //    begin
-  //      GFRE_DBI.LogError(dblc_DBTDM,'INTERNAL - SetResultObject Failed '+e.Message);
-  //      raise;
-  //    end;
-  //end;
-end;
+//procedure TFRE_DB_QUERY.SetResultObject(const idx: NativeInt; const obj: IFRE_DB_Object; const compare_run: boolean);
+//begin
+//  //try
+//  //  if not compare_run then
+//  //    FResultDBOs[idx] := obj.CloneToNewObject { objects will be freed on updated/inser/deleted -> references are invalid then }
+//  //  else
+//  //    FResultDBOsCompare[idx] := obj.CloneToNewObject
+//  //except
+//  //  on e:exception do
+//  //    begin
+//  //      GFRE_DBI.LogError(dblc_DBTDM,'INTERNAL - SetResultObject Failed '+e.Message);
+//  //      raise;
+//  //    end;
+//  //end;
+//end;
 
 procedure TFRE_DB_QUERY.AddjustResultDBOLen(const compare_run: boolean);
 begin
@@ -6434,53 +6433,53 @@ begin
     end;
 end;
 
-procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.GetGenerateFilterContainerLocked(const filter: TFRE_DB_DC_FILTER_DEFINITION; out filtercontainer: TFRE_DB_FILTER_CONTAINER);
-var brk        : boolean;
-    filtkey    : TFRE_DB_TRANS_COLL_FILTER_KEY;
-    dummy      : PNativeUint;
-    st,et      : NativeInt;
-
-  procedure IteratorBreak(var dummy : PtrUInt ; var halt : boolean);
-  var oc : TFRE_DB_OrderContainer;
-
-      procedure MyIter(const obj : IFRE_DB_Object; var myhalt : boolean);
-      begin
-        filtercontainer.CheckFilteredAdd(obj);
-      end;
-
-  begin
-    oc := FREDB_PtrUIntToObject(dummy) as TFRE_DB_OrderContainer;
-    oc.ForAllBreak(@MyIter,halt);
-  end;
-
-begin
-  brk             := false;
-  filtkey         := filter.GetFilterKey;
-  dummy           := nil;
-  filtercontainer := nil;
-  if FArtTreeFilterKey.InsertStringKeyOrFetchR(filtkey,dummy) then
-    begin
-      filtercontainer := TFRE_DB_FILTER_CONTAINER.Create(GetCacheDataKey,filter);
-      dummy^          := FREDB_ObjectToPtrUInt(FilterContainer); { clone filters into filtercontainer spec, result the filtercontainer reference, but manage it in the art tree, of the transformed ordered data }
-    end
-  else
-    begin
-      filtercontainer := FREDB_PtrUIntToObject(dummy^) as TFRE_DB_FILTER_CONTAINER;
-      GFRE_DBI.LogInfo(dblc_DBTDM,'>REUSING FILTERING FOR BASEDATA FOR FILTERKEY [%s] [%s]',[FilterContainer.FilterDataKey,BoolToStr(filtercontainer.IsFilled,'FILLED','NOT FILLED')]);
-    end;
-  filtercontainer.CheckDBReevaluation; { check if the filter was updated and needs db reevaluation }
-  if not filtercontainer.IsFilled then
-    begin
-      GFRE_DBI.LogInfo(dblc_DBTDM,'>NEW FILTERING FOR BASEDATA FOR FILTERKEY[%s]',[FilterContainer.FilterDataKey]);
-      st := GFRE_BT.Get_Ticks_ms;
-      //qry_context.FFilterContainer.Filters.MustBeSealed;
-      FArtTreeKeyToObj.LinearScanBreak(@IteratorBreak,brk,false);
-      FilterContainer.IsFilled := true;
-      FilterContainer.AdjustLength;
-      et := GFRE_BT.Get_Ticks_ms;
-      GFRE_DBI.LogInfo(dblc_DBTDM,'<NEW FILTERING FOR BASEDATA FOR FILTERKEY[%s] DONE in %d ms',[FilterContainer.FilterDataKey,et-st]);
-    end;
-end;
+//procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.GetGenerateFilterContainerLocked(const filter: TFRE_DB_DC_FILTER_DEFINITION; out filtercontainer: TFRE_DB_FILTER_CONTAINER);
+//var brk        : boolean;
+//    filtkey    : TFRE_DB_TRANS_COLL_FILTER_KEY;
+//    dummy      : PNativeUint;
+//    st,et      : NativeInt;
+//
+//  procedure IteratorBreak(var dummy : PtrUInt ; var halt : boolean);
+//  var oc : TFRE_DB_OrderContainer;
+//
+//      procedure MyIter(const obj : IFRE_DB_Object; var myhalt : boolean);
+//      begin
+//        filtercontainer.CheckFilteredAdd(obj);
+//      end;
+//
+//  begin
+//    oc := FREDB_PtrUIntToObject(dummy) as TFRE_DB_OrderContainer;
+//    oc.ForAllBreak(@MyIter,halt);
+//  end;
+//
+//begin
+//  brk             := false;
+//  filtkey         := filter.GetFilterKey;
+//  dummy           := nil;
+//  filtercontainer := nil;
+//  if FArtTreeFilterKey.InsertStringKeyOrFetchR(filtkey,dummy) then
+//    begin
+//      filtercontainer := TFRE_DB_FILTER_CONTAINER.Create(GetCacheDataKey,filter);
+//      dummy^          := FREDB_ObjectToPtrUInt(FilterContainer); { clone filters into filtercontainer spec, result the filtercontainer reference, but manage it in the art tree, of the transformed ordered data }
+//    end
+//  else
+//    begin
+//      filtercontainer := FREDB_PtrUIntToObject(dummy^) as TFRE_DB_FILTER_CONTAINER;
+//      GFRE_DBI.LogInfo(dblc_DBTDM,'>REUSING FILTERING FOR BASEDATA FOR FILTERKEY [%s] [%s]',[FilterContainer.FilterDataKey,BoolToStr(filtercontainer.IsFilled,'FILLED','NOT FILLED')]);
+//    end;
+//  filtercontainer.CheckDBReevaluation; { check if the filter was updated and needs db reevaluation }
+//  if not filtercontainer.IsFilled then
+//    begin
+//      GFRE_DBI.LogInfo(dblc_DBTDM,'>NEW FILTERING FOR BASEDATA FOR FILTERKEY[%s]',[FilterContainer.FilterDataKey]);
+//      st := GFRE_BT.Get_Ticks_ms;
+//      //qry_context.FFilterContainer.Filters.MustBeSealed;
+//      FArtTreeKeyToObj.LinearScanBreak(@IteratorBreak,brk,false);
+//      FilterContainer.IsFilled := true;
+//      FilterContainer.AdjustLength;
+//      et := GFRE_BT.Get_Ticks_ms;
+//      GFRE_DBI.LogInfo(dblc_DBTDM,'<NEW FILTERING FOR BASEDATA FOR FILTERKEY[%s] DONE in %d ms',[FilterContainer.FilterDataKey,et-st]);
+//    end;
+//end;
 
 procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.GetOrCreateFiltercontainer(const filter: TFRE_DB_DC_FILTER_DEFINITION; out filtercontainer: TFRE_DB_FILTER_CONTAINER);
 var filtkey    : TFRE_DB_TRANS_COLL_FILTER_KEY;
@@ -6621,15 +6620,15 @@ begin
 end;
 
 
-function TFRE_DB_TRANSFORMED_ORDERED_DATA.ExecuteBaseOrdered(const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; const filterdef: TFRE_DB_DC_FILTER_DEFINITION; var startidx, endidx: NativeInt ; const point_qry: boolean): NativeInt;
-var filtercontainer : TFRE_DB_FILTER_CONTAINER;
-begin
-  GetGenerateFilterContainerLocked(Filterdef,filtercontainer); { now the filtering is created, or updated }
-  if not point_qry then
-    result := filtercontainer.ExecuteFilter(iter,sessionid,startidx,endidx)
-  else
-    result := filterContainer.ExecuteFilterPointQuery(iter,nil)
-end;
+//function TFRE_DB_TRANSFORMED_ORDERED_DATA.ExecuteBaseOrdered(const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; const filterdef: TFRE_DB_DC_FILTER_DEFINITION; var startidx, endidx: NativeInt ; const point_qry: boolean): NativeInt;
+//var filtercontainer : TFRE_DB_FILTER_CONTAINER;
+//begin
+//  GetGenerateFilterContainerLocked(Filterdef,filtercontainer); { now the filtering is created, or updated }
+//  if not point_qry then
+//    result := filtercontainer.ExecuteFilter(iter,sessionid,startidx,endidx)
+//  else
+//    result := filterContainer.ExecuteFilterPointQuery(iter,nil)
+//end;
 
 procedure TFRE_DB_TRANSFORMED_ORDERED_DATA.UpdateTransformedobject(const old_obj, new_object: IFRE_DB_Object);
 begin
