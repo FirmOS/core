@@ -311,6 +311,7 @@ type
     function    GetUpdateObjSchemePath  : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
     function    GetUpdateObjFieldPath   : TFRE_DB_StringArray; { This is only set in case of a "clone" stream field (standalone field only) }
     function    GetFieldPath            : TFRE_DB_StringArray;
+    function    GetFieldPathAsString    : TFRE_DB_String;
 
     constructor Create           (const obj:TFRE_DB_Object; const FieldType:TFRE_DB_FIELDTYPE ; const ManualFieldName : string='' ; const calcmethod : IFRE_DB_CalcMethod=nil);reintroduce;
     destructor  Destroy          ;override;
@@ -17214,6 +17215,11 @@ begin
       Result[i] := lparent.FieldName;
       lparent   := lparent.ParentObject.ParentField;
     end;
+end;
+
+function TFRE_DB_FIELD.GetFieldPathAsString: TFRE_DB_String;
+begin
+  Result:=FREDB_CombineString(GetFieldPath,'.');
 end;
 
 procedure TFRE_DB_FIELD._IllegalTypeError(const ill_type: TFRE_DB_FIELDTYPE);
