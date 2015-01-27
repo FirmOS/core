@@ -4587,12 +4587,12 @@ begin
           inc(FTransformKey);
           transdata := TFRE_DB_TRANFORMED_DATA.Create(basekey,dc,QryDBName);  { the transform data is identified by the basekey }
           transdata.TransFormAll(rcnt);
-          AddBaseTransformedData(transdata);
+          //AddBaseTransformedData(transdata);
           et        := GFRE_BT.Get_Ticks_ms;
           GFRE_DBI.LogInfo(dblc_DBTDM,'<BASE TRANSFORMING DATA FOR [%s] DONE - Transformed %d records in %d ms',[basekey.key,rcnt,et-st]);
         end;
       cd := TFRE_DB_TRANSFORMED_ORDERED_DATA.Create(FOrderDef,transdata); { generate the ordered, transformed data (next layer) }
-      FOrders.Add2Array(TFRE_DB_TRANSFORMED_ORDERED_DATA(cd));            { internal add the data }
+      //FOrders.Add2Array(TFRE_DB_TRANSFORMED_ORDERED_DATA(cd));            { internal add the data }
       TFRE_DB_TRANSFORMED_ORDERED_DATA(cd).OrderTheData;                  { order it }
       TFRE_DB_TRANSFORMED_ORDERED_DATA(cd).LockBase;                      { return the locked result }
     end;
