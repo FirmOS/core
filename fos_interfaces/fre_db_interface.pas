@@ -2614,6 +2614,7 @@ end;
     //@ Internally invokes a server function, on a given session
     function  AddParam  : TFRE_DB_PARAM_DESC;
     //@ Creates a new parameter and adds it to the parameterizable content.
+    function hasParam   : Boolean;
   end;
 
   { TFRE_DB_MESSAGE_DESC }
@@ -7241,6 +7242,8 @@ procedure TFRE_DB_UserSession.RegisterDBOChangeCB(const UID_id: TFRE_DB_GUID; co
 var id:ShortString;
 begin
   id := FREDB_G2H(UID_id);
+  if callback.hasParam then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'no params allowed here');
   FServerFuncDBOS.Field(id).AsObject.Field(contentId).AsObject:=callback;
 end;
 
@@ -9188,6 +9191,11 @@ function TFRE_DB_SERVER_FUNC_DESC.AddParam: TFRE_DB_PARAM_DESC;
 begin
   Result:=TFRE_DB_PARAM_DESC.Create;
   Field('params').AddObject(Result);
+end;
+
+function TFRE_DB_SERVER_FUNC_DESC.hasParam: Boolean;
+begin
+  Result:=FieldExists('params');
 end;
 
 function TFRE_DB_APPLICATION.GetSitemapMainiconFilename: string;
