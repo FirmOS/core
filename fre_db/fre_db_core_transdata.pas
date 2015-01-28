@@ -2319,11 +2319,12 @@ var fieldval       : TFRE_DB_String;
      multivalfield : boolean;
      error_fld     : boolean;
      filterVal     : TFRE_DB_String;
+     i             : Integer;
 begin
   error_fld := false;
   filterVal := FValues[0];
 
-  if obj.FieldOnlyExisting(FFieldname,fld) then
+  if obj.FieldOnlyExisting(FFieldname,fld) then  // self.FFieldname;
     begin
       multivalfield := fld.ValueCount>1;
       try
@@ -2333,6 +2334,17 @@ begin
           dbft_PART:       result := not FOS_AnsiContainsText(fieldval,filterVal);
           dbft_STARTPART:  result := not FOS_AnsiStartsText  (filterVal,fieldval);
           dbft_ENDPART:    result := not FOS_AnsiEndsText    (filterVal,fieldval);
+          dbft_EXACTVALUEINARRAY:
+            begin
+              Result:=true;
+              for i := 0 to fld.ValueCount - 1 do begin
+                fieldval      := fld.AsStringItem[i];
+                if (((length(fieldval)=0) or FOS_AnsiContainsText(fieldval,filterVal)) and (length(fieldval)=length(filterVal))) then begin
+                  Result:=false;
+                  break;
+                end;
+              end;
+            end;
         end;
       except { invalid conversion }
         error_fld := true;

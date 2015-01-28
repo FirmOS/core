@@ -1689,6 +1689,8 @@ type
     FSimpleTransformCallbackN  : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED;
     FSimpleTransformCallback   : IFRE_DB_OBJECT_SIMPLE_CALLBACK;
     FFRTLangres                : TFRE_DB_StringArray;
+    FSFTLangres                : TFRE_DB_StringArray;
+    FSFTLangresN               : TFRE_DB_StringArray;
   public
     constructor Create                         ; override;
     function    TransformInOut                 (const conn : IFRE_DB_CONNECTION ; const input: IFRE_DB_Object): TFRE_DB_Object; override;
@@ -1707,8 +1709,8 @@ type
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
     function    GetViewCollectionDescription   : TFRE_DB_CONTENT_DESC;
     procedure   SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
-    procedure   SetSimpleFuncTransform         (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK);
-    procedure   SetSimpleFuncTransformNested   (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED);
+    procedure   SetSimpleFuncTransform         (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK;const langres: array of TFRE_DB_String);
+    procedure   SetSimpleFuncTransformNested   (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED;const langres: array of TFRE_DB_String);
     procedure   AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String; const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure   AddPluginField                 (const Pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; const pluginfieldname : TFRE_DB_NameType; const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues: TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
   end;
@@ -7497,9 +7499,9 @@ begin
     result._Field('_$PLG').CloneFromField(plgfld);
   input.ForAllPlugins(@DoPostTransform);
   if assigned(FSimpleTransformCallback) then
-    FSimpleTransformCallback(input,result);
+    FSimpleTransformCallback(input,result,FSFTLangres);
   if assigned(FSimpleTransformCallbackN) then
-    FSimpleTransformCallbackN(input,result);
+    FSimpleTransformCallbackN(input,result,FSFTLangresN);
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddCollectorscheme(const format: TFRE_DB_String; const in_fieldlist: TFRE_DB_NameTypeArray; const out_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const fieldSize: Integer; const hide_in_output: boolean);
@@ -7584,14 +7586,24 @@ begin
     FFRTLangres[i] := langres[i];
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.SetSimpleFuncTransform(const callback: IFRE_DB_OBJECT_SIMPLE_CALLBACK);
+procedure TFRE_DB_SIMPLE_TRANSFORM.SetSimpleFuncTransform(const callback: IFRE_DB_OBJECT_SIMPLE_CALLBACK;const langres: array of TFRE_DB_String);
+var
+  i: Integer;
 begin
   FSimpleTransformCallback := callback;
+  SetLength(FSFTLangres,length(langres));
+  for i := 0 to high(langres) do
+    FSFTLangres[i] := langres[i];
 end;
 
-procedure TFRE_DB_SIMPLE_TRANSFORM.SetSimpleFuncTransformNested(const callback: IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED);
+procedure TFRE_DB_SIMPLE_TRANSFORM.SetSimpleFuncTransformNested(const callback: IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED;const langres: array of TFRE_DB_String);
+var
+  i: Integer;
 begin
   FSimpleTransformCallbackN := callback;
+  SetLength(FSFTLangresN,length(langres));
+  for i := 0 to high(langres) do
+    FSFTLangresN[i] := langres[i];
 end;
 
 procedure TFRE_DB_SIMPLE_TRANSFORM.AddReferencedFieldQuery(const func: IFRE_DB_QUERY_SELECTOR_FUNCTION; const ref_field_chain: array of TFRE_DB_NameTypeRL; const output_fields: array of TFRE_DB_String; const output_titles: array of TFRE_DB_String; const langres: array of TFRE_DB_String; const gui_display_type: array of TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const hide_in_output: boolean);
