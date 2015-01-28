@@ -1485,6 +1485,11 @@ implementation
         end;
       end;
     end;
+//***
+    //if co.Field('details').AsBoolean then begin
+      //jsContentAdd('     ,_notes_: FIRMOS.gridNotesColumn()');
+    //end;
+//***
     jsContentAdd('  };');
     jsContentAdd(cssString);
 
@@ -1497,11 +1502,17 @@ implementation
     jsContentAdd('  ,getFunctionname:"'+store.FieldPath('serverFunc.func').AsString+'"');
     jsContentAdd('  ,getUidPath: '+_BuildJSArray(store.FieldPath('serverFunc.uidPath').AsStringArr));
     jsContentAdd('  ,getParams: '+_BuildParamsObject(store.Field('serverFunc').AsObject.Field('params').AsObjectArr));
-    if store.FieldExists('clearFunc') then begin
-      jsContentAdd('  ,clearClassname:"'+store.FieldPath('clearFunc.class').AsString+'"');
-      jsContentAdd('  ,clearFunctionname:"'+store.FieldPath('clearFunc.func').AsString+'"');
-      jsContentAdd('  ,clearUidPath: '+_BuildJSArray(store.FieldPath('clearFunc.uidPath').AsStringArr));
-      jsContentAdd('  ,clearParams: '+_BuildParamsObject(store.Field('clearFunc').AsObject.Field('params').AsObjectArr));
+    if store.FieldExists('sortAndFilterFunc') then begin
+      jsContentAdd('  ,sortAndFilterClassname:"'+store.FieldPath('sortAndFilterFunc.class').AsString+'"');
+      jsContentAdd('  ,sortAndFilterFunctionname:"'+store.FieldPath('sortAndFilterFunc.func').AsString+'"');
+      jsContentAdd('  ,sortAndFilterUidPath: '+_BuildJSArray(store.FieldPath('sortAndFilterFunc.uidPath').AsStringArr));
+      jsContentAdd('  ,sortAndFilterParams: '+_BuildParamsObject(store.Field('sortAndFilterFunc').AsObject.Field('params').AsObjectArr));
+    end;
+    if store.FieldExists('clearQueryIdFunc') then begin
+      jsContentAdd('  ,clearClassname:"'+store.FieldPath('clearQueryIdFunc.class').AsString+'"');
+      jsContentAdd('  ,clearFunctionname:"'+store.FieldPath('clearQueryIdFunc.func').AsString+'"');
+      jsContentAdd('  ,clearUidPath: '+_BuildJSArray(store.FieldPath('clearQueryIdFunc.uidPath').AsStringArr));
+      jsContentAdd('  ,clearParams: '+_BuildParamsObject(store.Field('clearQueryIdFunc').AsObject.Field('params').AsObjectArr));
     end;
     if store.FieldExists('destroyFunc') then begin
       jsContentAdd('  ,destroyClassname:"'+store.FieldPath('destroyFunc.class').AsString+'"');

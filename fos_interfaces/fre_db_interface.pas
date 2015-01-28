@@ -121,7 +121,7 @@ type
                                  dblc_SESSION,dblc_FLEXCOM,dblc_SERVER_DATA,dblc_WS_JSON,dblc_FLEX_IO,dblc_APSCOMM,dblc_HTTP_ZIP,dblc_HTTP_CACHE,dblc_STREAMING,dblc_QUERY,dblc_DBTDM,dblc_DBTDMRM);
   TFRE_DB_Errortype_EC         = (edb_OK,edb_ERROR,edb_ACCESS,edb_RESERVED,edb_NOT_FOUND,edb_DB_NO_SYSTEM,edb_EXISTS,edb_INTERNAL,edb_ALREADY_CONNECTED,edb_NOT_CONNECTED,edb_MISMATCH,edb_ILLEGALCONVERSION,edb_INDEXOUTOFBOUNDS,edb_STRING2TYPEFAILED,edb_OBJECT_REFERENCED,edb_INVALID_PARAMS,edb_UNSUPPORTED,edb_NO_CHANGE,edb_PERSISTANCE_ERROR);
   TFRE_DB_FILTERTYPE          = (dbf_TEXT,dbf_SIGNED,dbf_UNSIGNED,dbf_DATETIME,dbf_BOOLEAN,dbf_CURRENCY,dbf_REAL64,dbf_GUID,dbf_SCHEME,dbf_RIGHT,dbf_EMPTY);
-  TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART); { currently only the first value of the filter is uses in this modes }
+  TFRE_DB_STR_FILTERTYPE      = (dbft_EXACT,dbft_PART,dbft_STARTPART,dbft_ENDPART,dbft_EXACTVALUEINARRAY); { currently only the first value of the filter is used in this modes }
   TFRE_DB_NUM_FILTERTYPE      = (dbnf_EXACT,dbnf_LESSER,dbnf_LESSER_EQ,dbnf_GREATER,dbnf_GREATER_EQ,dbnf_IN_RANGE_EX_BOUNDS,dbnf_IN_RANGE_WITH_BOUNDS,dbnf_AllValuesFromFilter,dbnf_OneValueFromFilter,dbnf_NoValueInFilter);
   TFRE_DB_SchemeType          = (dbst_INVALID,dbst_System,dbst_Extension,dbst_DB);
   TFRE_DB_COMMANDTYPE         = (fct_SyncRequest,fct_SyncReply,fct_AsyncRequest,fct_Error);
@@ -174,7 +174,7 @@ const
   CFRE_DB_STANDARD_RIGHT_SHORT   : Array[TFRE_DB_STANDARD_RIGHT]          of String = ('B','S','U','D','F');
   CFRE_DB_Errortype              : Array[TFRE_DB_Errortype_EC]            of String = ('OK','ERROR','ACCESS PROHIBITED','RESERVED','NOT FOUND','SYSTEM DB NOT FOUND','EXISTS','INTERNAL','ALREADY CONNECTED','NOT CONNECTED','MISMATCH','ILLEGALCONVERSION','INDEXOUTOFBOUNDS','STRING2TYPEFAILED','OBJECT IS REFERENCED','INVALID PARAMETERS','UNSUPPORTED','NO CHANGE','PERSISTANCE ERROR');
   CFRE_DB_FILTERTYPE             : Array[TFRE_DB_FILTERTYPE]              of String = ('T','S','U','D','B','C','R','G','X','Z','E');
-  CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP');
+  CFRE_DB_STR_FILTERTYPE         : Array[TFRE_DB_STR_FILTERTYPE]          of String = ('EX','PA','SP','EP','EXVA');
   CFRE_DB_NUM_FILTERTYPE         : Array[TFRE_DB_NUM_FILTERTYPE]          of String = ('EX','LE','LEQ','GT','GEQ','REXB','RWIB','AVFF','OVFV','NVFF');
   CFRE_DB_LOGCATEGORY            : Array[TFRE_DB_LOGCATEGORY]             of String = ('-','PL','PL EV','DB','MEMORY','REFLINKS','EXCEPT','SERVER','>HTTP','<HTTP','WEBSOCK','APP','SESSION','FLEXCOM','SRV DATA','WS/JSON','FC/IO','APSCOMM','HTTP ZIP','HTTP CACHE','STREAM','QUERY','DBTDM','TDMRM');
   CFRE_DB_LOGCATEGORY_INI_IDENT  : Array[TFRE_DB_LOGCATEGORY]             of String = ('NONE','PERSISTANCE','PERSISTANCE_NOTIFY','DB','MEMORY','REFERENCES','EXCEPTION','SERVER','HTTP_REQ','HTTP_RES','WEBSOCK','APPLICATION','SESSION','FLEXCOM','SERVER_DATA','WS_JSON','FLEX_IO','APSCOMM','HTTP_ZIP','HTTP_CACHE','STREAMING','QUERY','DBTM','TDMRM');
@@ -1082,13 +1082,13 @@ type
 
   IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION = procedure (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String) of object;
   IFRE_DB_QUERY_SELECTOR_FUNCTION        = procedure (const ref_objects: IFRE_DB_ObjectArray; const input_object,transformed_object : IFRE_DB_Object;const langres: TFRE_DB_StringArray) of object;
-  IFRE_DB_OBJECT_SIMPLE_CALLBACK         = procedure (const input, output : IFRE_DB_Object) of object;
-  IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED  = procedure (const input, output : IFRE_DB_Object) is nested;
+  IFRE_DB_OBJECT_SIMPLE_CALLBACK         = procedure (const input, output : IFRE_DB_Object;const langres: TFRE_DB_StringArray) of object;
+  IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED  = procedure (const input, output : IFRE_DB_Object;const langres: TFRE_DB_StringArray) is nested;
 
   IFRE_DB_SIMPLE_TRANSFORM=interface(IFRE_DB_TRANSFORMOBJECT)
     ['IFDBST']
-    procedure SetSimpleFuncTransformNested   (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED);
-    procedure SetSimpleFuncTransform         (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK);
+    procedure SetSimpleFuncTransformNested   (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED;const langres: array of TFRE_DB_String);
+    procedure SetSimpleFuncTransform         (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK;const langres: array of TFRE_DB_String);
     procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure AddFulltextFilterOnTransformed (const fieldlist:array of TFRE_DB_NameType);  { takes the text rep of the fields (asstring), concatenates them into 'FTX_SEARCH' }
     procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
