@@ -1968,9 +1968,9 @@ implementation
   begin
     idx:=id + '@' + groupPreFix;
     for i := 0 to Field('dbos').ValueCount - 1 do begin
-      if Field('dbos').AsStringArr[i]=id then exit;
+      if Field('dbos').AsStringArr[i]=idx then exit;
     end;
-    Field('dbos').AddString(id);
+    Field('dbos').AddString(idx);
 
     for i := 0 to Field('_dbos').ValueCount - 1 do begin
       if Field('_dbos').AsStringArr[i]=id then exit;

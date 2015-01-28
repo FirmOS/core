@@ -890,7 +890,7 @@ begin
                        TESTWORKS.Free;
 
                        writeln('WAITED SYNC');
-                       sleep(2000);
+                       sleep(10000);
                        GAPSC.RequestTerminate();
                      end;
   end;
