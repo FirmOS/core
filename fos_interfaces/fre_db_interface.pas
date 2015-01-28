@@ -2105,6 +2105,9 @@ type
     procedure       TransformGridEntryClientSend       (const ut : IFRE_DB_USER_RIGHT_TOKEN ; const transformed_object : IFRE_DB_Object ; const session_data : IFRE_DB_Object;const langres: array of TFRE_DB_String); virtual ; abstract;
     procedure       TransformGridEntry                 (const transformed_object : IFRE_DB_Object); virtual ; abstract;
     procedure       RenderFormEntry                    (const  formdesc : TFRE_DB_CONTENT_DESC ; const entry : IFRE_DB_Object ; const pre_render : boolean); virtual ; abstract;
+    procedure       locked                             ;
+    procedure       unlock                             ;
+    function        isLocked                           : Boolean;
   published
 
   end;
@@ -4958,6 +4961,27 @@ end;
 class function TFRE_DB_OBJECT_PLUGIN_BASE.EnhancesFormRendering: Boolean;
 begin
   result := false;
+end;
+
+procedure TFRE_DB_OBJECT_PLUGIN_BASE.locked;
+begin
+  Field('locked').AsBoolean:=true;
+end;
+
+procedure TFRE_DB_OBJECT_PLUGIN_BASE.unlock;
+begin
+  Field('locked').AsBoolean:=false;
+end;
+
+function TFRE_DB_OBJECT_PLUGIN_BASE.isLocked: Boolean;
+var
+  fld: IFRE_DB_FIELD;
+begin
+  if FieldOnlyExisting('locked',fld) then begin
+    Result:=fld.AsBoolean;
+  end else begin
+    Result:=false;
+  end;
 end;
 
 { TFOS_MAC_ADDR }
